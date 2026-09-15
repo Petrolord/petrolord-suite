@@ -9,10 +9,12 @@ knapsack, the normal approximation with an average pairwise correlation)
 and NOT by transcribing the JavaScript:
 
   risked EMV        EMV = pos * npv_p50 minus (1 minus pos) * fail_cost, pos
-                    the chance of success in [0, 1] (default 1; values outside
-                    the domain are clamped to it; a non-numeric pos is the
-                    default), fail_cost the expected loss on failure, >= 0
-                    (default 0; a negative entry is 0). A missing NPV is 0.
+                    the chance of success in [0, 1] (1 when missing or null;
+                    since EC5-6 a pos that is present must be a number or a
+                    numeric string inside [0, 1], and a blank, non-numeric or
+                    out-of-range pos is REFUSED, see refusal below), fail_cost
+                    the expected loss on failure, >= 0 (default 0; a negative
+                    entry is 0). A missing NPV is 0.
 
   success spread    the success-case standard deviation is the explicit
                     npv_stddev when it is a positive number; otherwise
@@ -99,30 +101,80 @@ and NOT by transcribing the JavaScript:
                     attains the optimum, so a tie is a tie and not a hidden
                     convention.
 
-  quantisation      the engine's documented rule: when the limit and every
-                    candidate capex are integers and the limit is at most
-                    5000, the grid is 1 $MM and the knapsack is exact;
-                    otherwise the grid is limit / 2000 per cell, each project
-                    weighs max(1, round(capex / cell)) cells (round half up,
-                    as JavaScript rounds), a project heavier than the whole
-                    grid is skipped, and a set is feasible when its cell
-                    weights sum to at most round(limit / cell). The oracle
-                    solves BOTH problems by brute force, the EXACT one
-                    (sum of actual capex <= limit) and the QUANTISED one the
-                    engine actually solves, and the golden carries both with
-                    the gap and a flag saying whether quantisation changed
-                    the chosen set. A free project (capex 0) weighs one cell
-                    on the grid, which the exact problem does not charge:
-                    see the freeProject cases and FINDINGS-decision.md.
-                    Every optimal set carries overLimit (its capex > the
-                    clamped limit) and overLimitBy (max(0, capex minus
-                    limit)), which the engine now reports for the set it
-                    chose (EC5-0; D3 is flagged, not prevented).
+  solve method      (D2, D4 and EC1-12, owner decisions 2026-09-15.) The
+                    engine now solves the knapsack EXACTLY, so the oracle's
+                    brute-force exact answer IS the expected answer: the
+                    funded set is optimal and its capex is within the limit.
+                    Capex and the limit are read at the DECIMAL precision they
+                    were typed, when one power of ten up to a million makes
+                    them all whole numbers (and the scaled total is a safe
+                    integer), so 0.1 + 0.2 is within a limit of 0.3 although
+                    the two doubles add to 0.30000000000000004; otherwise the
+                    binary values are used as they are. The oracle finds that
+                    power of ten the same way the method states it, by
+                    checking that the rescaled whole number reads back as the
+                    value given.
+                    A free project (capex 0, positive EMV) belongs in every
+                    optimum (D2). The exact FRONTIER is the non-dominated
+                    (capex, EMV) pairs over all feasible subsets: sorted by
+                    capex, keeping each pair whose EMV beats every lighter
+                    one, so it starts at capex 0 (EMV 0, or the free
+                    projects' EMV) and ends at the optimum.
 
-  refusal           a project whose capex is a finite number below 0 is
-                    refused (EC5-0): the first such project in array order
-                    is named (name, else id, else its index) with its capex
-                    in the message.
+  size limit        the engine keeps every non-dominated PARTIAL portfolio
+                    and gives up when a list exceeds its state limit. The
+                    oracle counts the same quantity independently: after the
+                    first k candidates (risked EMV above 0, in array order),
+                    the number of non-dominated (capex, EMV) pairs over
+                    subsets of those k with capex within the limit. The solve
+                    is exact when no k exceeds the case's state limit,
+                    otherwise the fallback runs.
+
+  feasible grid     the fallback: cells = 2000, resolution = limit / 2000 as
+                    a double, each candidate weighing ceil(capex /
+                    resolution) cells, so any set fitting the grid fits the
+                    limit. The oracle brute-forces it, and brute-forces the
+                    same grid with weights rounded DOWN (floor), a relaxation
+                    whose optimum is at least the exact optimum; the
+                    difference between that bound and the funded EMV is the
+                    reported optimalityGap (an upper bound on what the
+                    fallback leaves out). Its frontier is by cell weight,
+                    reported at the actual capex of the sets attaining it.
+
+  retired grid      kept in every golden for the negative control: the
+                    step-scaled grid the engine used until 2026-09-15 (1 $MM
+                    when the limit and every candidate capex are integers and
+                    the limit is at most 5000, else limit / 2000 per cell,
+                    each project weighing max(1, round(capex / cell)) cells,
+                    round half up as JavaScript rounds, a project heavier
+                    than the grid skipped, a set feasible when its weights
+                    sum to at most round(limit / cell)). The golden carries
+                    its optimum, its gap to the exact answer and whether it
+                    changed the chosen set, which is how D2, D3 and D4 were
+                    found. Every optimal set carries overLimit (its capex >
+                    the clamped limit) and overLimitBy (max(0, capex minus
+                    limit)); on the exact solve both are always false and 0.
+
+  refusal           (EC5-0, widened by EC5-6 and EC5-7, owner decisions
+                    2026-09-15.) The optimizer checks every project in array
+                    order, capex first and then pos, and refuses the first
+                    failure with a PortfolioInputError naming the project
+                    (name, else id, else its index; "A project with no name
+                    or id" when a lone project has neither). capex must be a
+                    finite number of 0 or more: missing or null ("has no
+                    capex"), blank ("has a blank capex"), not a finite number
+                    ("has a capex that is not a finite number (<value>)"),
+                    below 0 ("has a negative capex (<n>)"), each ending
+                    "; capex must be 0 or more". pos, when present, must be a
+                    number in [0, 1]: blank ("has a blank pos"), not a number
+                    ("has a pos that is not a number (<value>)"), outside
+                    ("has a pos outside 0 to 1 (<n>)"), each ending "; pos
+                    must be a number from 0 to 1". A string value is shown
+                    in double quotes. A numeric string is a number (the
+                    ECMAScript decimal literal grammar, Infinity included; a
+                    boolean is not a number). projectEmv, projectMoments and
+                    portfolioRiskMetrics refuse an invalid pos the same way
+                    (the risk summary by index in the selection).
 
   frontier          on the quantised grid: for each budget b of cells from 0,
                     best(b) is the largest EMV of a set weighing at most b;
@@ -157,6 +209,7 @@ stdlib only. Regenerate (deterministic, byte identical):
 import json
 import math
 import os
+import re
 import sys
 from fractions import Fraction as F
 from statistics import NormalDist
@@ -172,6 +225,9 @@ SPREAD_DIVISOR = F(2.5631)
 DEFAULT_SEED = 20260829
 DEFAULT_ITERATIONS = 10000
 GOLDEN_OPTS = {'seed': DEFAULT_SEED, 'iterations': 2000}
+# The engine's stated size limit and its fallback grid (D2, D4, EC1-12).
+EXACT_STATE_LIMIT = 200000
+FALLBACK_CELLS = 2000
 M32 = 0xFFFFFFFF
 STD = NormalDist()
 
@@ -188,6 +244,78 @@ def out(x):
     if isinstance(x, (list, tuple)):
         return [out(v) for v in x]
     raise TypeError(type(x))
+
+
+class Refused(Exception):
+    """The PortfolioInputError the engine must throw, with its message."""
+
+
+JS_DECIMAL = re.compile(r'^[+-]?(Infinity|(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?)$')
+
+
+def js_numeric(raw):
+    """Number(raw) for a number or a string, None when that is NaN (a blank
+    string is handled by the caller). A boolean or any other type is NaN."""
+    if isinstance(raw, bool):
+        return None
+    if isinstance(raw, (int, float)):
+        return None if (isinstance(raw, float) and raw != raw) else raw
+    if isinstance(raw, str):
+        t = raw.strip()
+        if not JS_DECIMAL.match(t):
+            return None
+        return float(t.replace('Infinity', 'inf')) if 'Infinity' in t else (int(t) if re.match(r'^[+-]?\d+$', t) else float(t))
+    return None
+
+
+def js_num_text(n):
+    """How a template string prints a number."""
+    if isinstance(n, float) and math.isinf(n):
+        return 'Infinity' if n > 0 else '-Infinity'
+    return str(int(n)) if float(n).is_integer() else repr(float(n))
+
+
+def shown(raw):
+    return '"%s"' % raw if isinstance(raw, str) else (('true' if raw else 'false') if isinstance(raw, bool) else js_num_text(raw))
+
+
+def who(p, index=None):
+    label = p.get('name', p.get('id', index))
+    if label is None:
+        return 'A project with no name or id'
+    return 'Project "%s"' % label
+
+
+def strict_pos(p, index=None):
+    """The EC5-6 method statement for pos."""
+    raw = p.get('pos')
+    if raw is None:
+        return F(1)
+    rule = 'pos must be a number from 0 to 1'
+    if isinstance(raw, str) and raw.strip() == '':
+        raise Refused('%s has a blank pos; %s' % (who(p, index), rule))
+    n = js_numeric(raw)
+    if n is None:
+        raise Refused('%s has a pos that is not a number (%s); %s' % (who(p, index), shown(raw), rule))
+    if not (0 <= n <= 1):
+        raise Refused('%s has a pos outside 0 to 1 (%s); %s' % (who(p, index), js_num_text(n), rule))
+    return F(n)
+
+
+def strict_capex(p, index=None):
+    """The EC5-7 method statement for capex."""
+    raw = p.get('capex')
+    rule = 'capex must be 0 or more'
+    if raw is None:
+        raise Refused('%s has no capex; %s' % (who(p, index), rule))
+    if isinstance(raw, str) and raw.strip() == '':
+        raise Refused('%s has a blank capex; %s' % (who(p, index), rule))
+    n = js_numeric(raw)
+    if n is None or math.isinf(n):
+        raise Refused('%s has a capex that is not a finite number (%s); %s' % (who(p, index), shown(raw), rule))
+    if n < 0:
+        raise Refused('%s has a negative capex (%s); %s' % (who(p, index), js_num_text(n), rule))
+    return F(n)
 
 
 def num(v):
@@ -208,10 +336,7 @@ def num(v):
 # ---------------------------------------------------------------------
 
 def pos_of(p):
-    v = num(p.get('pos', 1))
-    if v is None:
-        return F(1)
-    return min(F(1), max(F(0), v))
+    return strict_pos(p)
 
 
 def fail_cost_of(p):
@@ -373,8 +498,7 @@ def js_round(x):
 
 
 def capex_of(p):
-    v = num(p.get('capex', 0))
-    return v if v is not None else F(0)
+    return strict_capex(p)
 
 
 def is_integer(v):
@@ -391,15 +515,44 @@ def grid(limit, candidates):
     return resolution, cells
 
 
+def decimal_scale(values):
+    """The smallest power of ten up to a million that makes every value a
+    whole number reading back as itself, with a safe-integer total; else
+    None."""
+    for k in range(0, 7):
+        s = 10 ** k
+        scaled = []
+        for v in values:
+            n = int(js_round(float(v) * s))
+            if abs(n) > 2 ** 53 - 1 or float(F(n, s)) != float(v):
+                scaled = None
+                break
+            scaled.append(n)
+        if scaled is not None:
+            return s if abs(sum(scaled)) <= 2 ** 53 - 1 else None
+    return None
+
+
+def decimal_reading(limit, projects):
+    """Capex and the limit at the decimal precision they were typed, else the
+    binary values. Returns (capex of one project, the limit)."""
+    s = decimal_scale([limit] + [capex_of(p) for p in projects])
+    if s is None:
+        return capex_of, limit
+    dec = lambda v: F(int(js_round(float(v) * s)), s)  # noqa: E731
+    return (lambda p: dec(capex_of(p))), dec(limit)
+
+
 def subsets(items):
     n = len(items)
     for mask in range(1 << n):
         yield [items[i] for i in range(n) if mask >> i & 1]
 
 
-def set_record(sel, rho, limit, opts):
+def set_record(sel, rho, limit, opts, capd=None):
+    capd = capd or capex_of
     ids = [p['id'] for p in sel]
-    capex = sum((capex_of(p) for p in sel), F(0))
+    capex = sum((capd(p) for p in sel), F(0))
     return {
         'ids': ids,
         'capex': capex,
@@ -411,13 +564,91 @@ def set_record(sel, rho, limit, opts):
     }
 
 
-def optimize(projects, capex_limit, correlation=0, opts=None):
+def pareto_front(items, limit, capd=None):
+    """The non-dominated (capex, EMV) pairs over every feasible subset."""
+    capd = capd or capex_of
+    pts = []
+    for sel in subsets(items):
+        c = sum((capd(p) for p in sel), F(0))
+        if c > limit:
+            continue
+        pts.append((c, sum((emv(p) for p in sel), F(0))))
+    pts.sort(key=lambda t: (t[0], -t[1]))
+    front = []
+    best = None
+    for c, e in pts:
+        if best is None or e > best:
+            front.append({'capex': c, 'emv': e})
+            best = e
+    return front
+
+
+def pareto_states(items, limit, capd=None):
+    """How many non-dominated partial portfolios the exact solve holds after
+    each candidate, in array order."""
+    return [len(pareto_front(items[:k], limit, capd)) for k in range(1, len(items) + 1)]
+
+
+def best_on_weights(items, weights, cells, capd=None):
+    capd = capd or capex_of
+    """Brute-force 0/1 knapsack on integer cell weights: the best EMV and
+    every set attaining it, with the frontier by weight."""
+    best = F(0)
+    best_sets = [[]]
+    by_weight = {}
+    for sel in subsets(items):
+        w = sum(weights[p['id']] for p in sel)
+        if w > cells:
+            continue
+        e = sum((emv(p) for p in sel), F(0))
+        if e > best:
+            best, best_sets = e, [sel]
+        elif e == best:
+            best_sets.append(sel)
+        by_weight.setdefault(w, []).append((e, sel))
+    frontier = []
+    last = F(-1)
+    for w in range(cells + 1):
+        here = by_weight.get(w, [])
+        top = max((e for e, _ in here), default=F(-1))
+        if top > last:
+            caps = sorted({sum((capd(p) for p in sel), F(0)) for e, sel in here if e == top})
+            frontier.append({'weight': w, 'emv': top, 'capexCandidates': caps})
+            last = top
+    return best, best_sets, frontier
+
+
+def feasible_grid(limit, limit_d, items, rho, opts, capd):
+    """The fallback grid: ceil weights (feasible) and the floor-weight bound."""
+    resolution = F(float(limit) / FALLBACK_CELLS)
+    cells = FALLBACK_CELLS
+    ceil_w, floor_w = {}, {}
+    for p in items:
+        c = capd(p)
+        ceil_w[p['id']] = math.ceil(c / resolution)
+        floor_w[p['id']] = math.floor(c / resolution)
+    best, sets, frontier = best_on_weights(items, ceil_w, cells, capd)
+    bound, _, _ = best_on_weights(items, floor_w, cells, capd)
+    return {
+        'resolution': float(resolution), 'cells': cells,
+        'ceilWeights': ceil_w, 'floorWeights': floor_w,
+        'optimalEmv': best,
+        'optimalSets': sorted((set_record(x, rho, limit_d, opts, capd) for x in sets), key=lambda r: r['ids']),
+        'frontier': frontier,
+        'boundEmv': bound,
+        'optimalityGap': max(F(0), bound - best),
+    }
+
+
+def optimize(projects, capex_limit, correlation=0, opts=None, state_limit=None):
     lim = num(capex_limit)
     limit = max(F(0), lim) if lim is not None else F(0)
     # Only projects with a strictly positive risked EMV can ever improve a
     # maximum, so they are the only candidates; the engine's own candidate
     # filter (capex > 0 or EMV > 0) is wider but never changes an optimum.
     positive = [p for p in projects if emv(p) > 0]
+    # The decimal reading of capex and the limit the exact solve adds in.
+    capd, limit_d = decimal_reading(limit, positive)
     grid_candidates = [p for p in projects if capex_of(p) > 0 or emv(p) > 0]
     resolution, cells = grid(limit, grid_candidates)
     weights = {p['id']: max(1, js_round(float(capex_of(p)) / resolution)) for p in positive}
@@ -427,8 +658,8 @@ def optimize(projects, capex_limit, correlation=0, opts=None):
     exact_best = F(0)
     exact_sets = []
     for sel in subsets(positive):
-        c = sum((capex_of(p) for p in sel), F(0))
-        if c > limit:
+        c = sum((capd(p) for p in sel), F(0))
+        if c > limit_d:
             continue
         e = sum((emv(p) for p in sel), F(0))
         if e > exact_best:
@@ -456,21 +687,40 @@ def optimize(projects, capex_limit, correlation=0, opts=None):
         here = by_weight.get(w, [])
         best_here = max((e for e, _ in here), default=F(-1))
         if best_here > last:
-            caps = sorted({sum((capex_of(p) for p in sel), F(0)) for e, sel in here if e == best_here})
+            caps = sorted({sum((capd(p) for p in sel), F(0)) for e, sel in here if e == best_here})
             frontier.append({'weight': w, 'emv': best_here, 'capexCandidates': caps})
             last = best_here
 
-    exact_recs = sorted((set_record(s, correlation, limit, opts) for s in exact_sets), key=lambda r: r['ids'])
-    quant_recs = sorted((set_record(s, correlation, limit, opts) for s in quant_sets), key=lambda r: r['ids'])
+    exact_recs = sorted((set_record(s, correlation, limit_d, opts, capd) for s in exact_sets), key=lambda r: r['ids'])
+    quant_recs = sorted((set_record(s, correlation, limit_d, opts, capd) for s in quant_sets), key=lambda r: r['ids'])
     changed = {tuple(r['ids']) for r in exact_recs} != {tuple(r['ids']) for r in quant_recs}
-    return {
-        'limit': limit, 'resolution': resolution, 'cells': cells,
+
+    # The exact solve the engine now runs, and whether it fits the state limit.
+    states = pareto_states(positive, limit_d, capd)
+    cap = EXACT_STATE_LIMIT if state_limit is None else state_limit
+    exact_solve = max(states, default=0) <= cap
+    out = {
+        'limit': limit,
+        'solveMethod': 'exact' if exact_solve else 'grid-feasible',
+        'stateLimit': cap,
+        'paretoStates': states,
+        'engineResolution': None,
+        'optimalityGap': F(0),
+        'exact': {'optimalEmv': exact_best, 'optimalSets': exact_recs,
+                  'frontier': pareto_front(positive, limit_d, capd)},
+        # The retired step-scaled grid, kept for the negative control.
+        'resolution': resolution, 'cells': cells,
         'weights': {p['id']: weights[p['id']] for p in positive},
-        'exact': {'optimalEmv': exact_best, 'optimalSets': exact_recs},
         'quantized': {'optimalEmv': quant_best, 'optimalSets': quant_recs, 'frontier': frontier},
         'quantizationGap': quant_best - exact_best,
         'setChanged': changed,
     }
+    if not exact_solve:
+        fallback = feasible_grid(limit, limit_d, positive, correlation, opts, capd)
+        out['gridFeasible'] = fallback
+        out['engineResolution'] = fallback['resolution']
+        out['optimalityGap'] = fallback['optimalityGap']
+    return out
 
 
 # ---------------------------------------------------------------------
@@ -520,12 +770,62 @@ def emv_cases():
 
     add('unrisked', 'Suite: pos and fail_cost absent; EMV is the NPV (250).', P('a', 100, 250))
     add('risked', 'Suite: 0.3 * 300 minus 0.7 * 50 = 55.', P('a', 100, 300, pos=0.3, fail_cost=50))
-    add('posAboveOneClamps', 'pos 1.4 is clamped to 1; EMV is the NPV.', P('a', 10, 80, pos=1.4, fail_cost=30))
-    add('posBelowZeroClamps', 'pos -0.2 is clamped to 0; EMV is minus the fail cost.', P('a', 10, 80, pos=-0.2, fail_cost=30))
+    add('posOneBoundary', 'pos exactly 1 is accepted; EMV is the NPV.', P('a', 10, 80, pos=1, fail_cost=30))
+    add('nullPosIsDefault', 'EC5-6: a null pos is the documented default 1, like a missing one.', P('a', 10, 80, pos=None, fail_cost=30))
+    add('numericStringPos', 'EC5-6: a numeric string pos is a number: " 0.3 " on 300 / 50 gives 55.', P('a', 100, 300, pos=' 0.3 ', fail_cost=50))
     add('negativeFailCostIsZero', 'A negative fail cost is 0.', P('a', 10, 80, pos=0.5, fail_cost=-30))
     add('missingNpvIsZero', 'No NPV at all; EMV is minus (1 minus pos) times the fail cost.', {'id': 'a', 'capex': 10, 'pos': 0.25, 'fail_cost': 8})
-    add('nonNumericPosIsDefault', 'A non-numeric pos is the default 1.', P('a', 10, 80, pos='n/a', fail_cost=30))
     add('posZero', 'pos 0; EMV is exactly minus the fail cost.', P('a', 10, 80, pos=0, fail_cost=30))
+    return cases
+
+
+def emv_refusal_cases():
+    """EC5-6: a present pos that is blank, non-numeric or outside 0..1 is
+    refused by projectEmv (and projectMoments) naming the project."""
+    cases = []
+
+    def add(cid, desc, p):
+        try:
+            emv(p)
+        except Refused as e:
+            cases.append({'id': cid, 'description': desc, 'project': p,
+                          'expected': {'throws': 'PortfolioInputError', 'message': str(e)}})
+            return
+        raise AssertionError('expected a refusal: %s' % cid)
+
+    add('blankPosRefused', 'EC5-6: a blank pos used to read as 0, so the project was a certain failure (EMV minus the fail cost).',
+        P('Wildcat', 10, 300, pos='', fail_cost=50))
+    add('whitespacePosRefused', 'A pos of spaces is blank too.', P('Wildcat', 10, 300, pos='   ', fail_cost=50))
+    add('nonNumericPosRefused', 'EC5-6: "n/a" used to read as the default 1, a certain success.', P('a', 10, 80, pos='n/a', fail_cost=30))
+    add('posAboveOneRefused', 'EC5-6: pos 1.4 used to be clamped to 1.', P('a', 10, 80, pos=1.4, fail_cost=30))
+    add('posBelowZeroRefused', 'EC5-6: pos -0.2 used to be clamped to 0.', P('a', 10, 80, pos=-0.2, fail_cost=30))
+    add('percentTypedAsPosRefused', 'A chance typed as a percentage (30) is outside 0 to 1.', P('Appraisal', 10, 80, pos=30, fail_cost=30))
+    add('infinityStringPosRefused', 'The string "Infinity" is a number outside 0 to 1.', P('a', 10, 80, pos='Infinity'))
+    add('booleanPosRefused', 'A boolean pos is not a number.', P('a', 10, 80, pos=True))
+    add('unnamedProjectRefused', 'A project with no name or id is described as such.', {'capex': 10, 'npv_p50': 80, 'pos': 'abc'})
+    add('idNamesTheProject', 'With no name the id names the project.', {'id': 'P-7', 'capex': 10, 'npv_p50': 80, 'pos': '0.5x'})
+    return cases
+
+
+def risk_refusal_cases():
+    """EC5-6 in the risk summary: the first invalid pos, by name, else id,
+    else its index in the selection."""
+    cases = []
+    for cid, desc, selected in [
+        ('blankPosByIndex', 'The second selected project (index 1) has a blank pos.',
+         [{'npv_p50': 100, 'pos': 0.5, 'fail_cost': 20}, {'npv_p50': 50, 'pos': ''}]),
+        ('outOfRangeByName', 'A named project with pos 2.', [{'name': 'Deep', 'npv_p50': 400, 'pos': 2}]),
+    ]:
+        msg = None
+        for i, p in enumerate(selected):
+            try:
+                strict_pos(p, i)
+            except Refused as e:
+                msg = str(e)
+                break
+        assert msg is not None, cid
+        cases.append({'id': cid, 'description': desc, 'selected': selected,
+                      'expected': {'throws': 'PortfolioInputError', 'message': msg}})
     return cases
 
 
@@ -609,11 +909,13 @@ def risk_cases():
 def optimize_cases():
     cases = []
 
-    def add(cid, desc, projects, limit, correlation=0, note=None):
+    def add(cid, desc, projects, limit, correlation=0, note=None, state_limit=None):
         opts = dict(GOLDEN_OPTS)
         rec = {'id': cid, 'description': desc, 'projects': projects, 'capexLimit': limit,
                'correlation': correlation, 'riskOptions': opts,
-               'expected': optimize(projects, limit, correlation, opts)}
+               'expected': optimize(projects, limit, correlation, opts, state_limit)}
+        if state_limit is not None:
+            rec['exactStateLimit'] = state_limit
         if note:
             rec['note'] = note
         cases.append(rec)
@@ -641,18 +943,26 @@ def optimize_cases():
     add('limitNegative', 'A negative limit is 0.', CLASSIC, -100)
     add('exactFit', 'The optimum uses the whole budget exactly (A + B + D = 450 at limit 450 is already that; here B + C = 500 at 500).',
         [P('A', 100, 60), P('B', 200, 130), P('C', 300, 170), P('D', 150, 90)], 500)
-    add('freeProjectZeroLimit', 'A free project (capex 0) with positive EMV at limit 0: the exact problem takes it; the grid charges it one cell it does not have.',
-        [P('free', 0, 10)], 0, note='disagreement: see FINDINGS-decision.md, free project on the grid')
-    add('freeProjectTightLimit', 'A free project beside A(100, 60) at limit 100: exact takes both (70); the grid weighs the free project one cell and must drop something.',
-        [P('free', 0, 10), P('A', 100, 60)], 100, note='disagreement: see FINDINGS-decision.md, free project on the grid')
+    add('freeProjectZeroLimit', 'D2: a free project (capex 0) with positive EMV at limit 0 is funded; the retired grid charged it one cell it did not have.',
+        [P('free', 0, 10)], 0, note='D2 FIXED 2026-09-15: the exact solve weighs a free project nothing')
+    add('freeProjectTightLimit', 'D2: a free project beside A(100, 60) at limit 100: both are funded (70); the retired grid weighed the free project one cell and dropped it (60).',
+        [P('free', 0, 10), P('A', 100, 60)], 100, note='D2 FIXED 2026-09-15: the exact solve weighs a free project nothing')
     add('freeProjectSlack', 'The same free project with one cell of slack (limit 101): both problems take both.',
         [P('free', 0, 10), P('A', 100, 60)], 101)
-    add('gridOvershoot', 'Limit 6000 (grid 3 per cell): A(4000) weighs 1333 cells and B(2002) 667, so A + B fits the grid at 2000 cells although its capex is 6002; the exact optimum is A + C at 5995.',
+    add('gridOvershoot', 'EC1-12: limit 6000, where the retired grid (3 per cell) funded A(4000) + B(2002) at capex 6002, 2 over the limit. The exact optimum is A + C at 5995.',
         [P('A', 4000, 500), P('B', 2002, 300), P('C', 1995, 280)], 6000,
-        note='disagreement: see FINDINGS-decision.md, grid overshoot; the engine reports a portfolio 2 $MM over the limit')
-    add('gridUndershoot', 'Limit 6000 (grid 3 per cell): three projects of 1499 and one of 1502 total 5999 and fit exactly, but each rounds up to 500 or 501 cells (2001 > 2000), so the grid must drop one.',
+        note='EC1-12 FIXED 2026-09-15: the exact solve never exceeds the limit')
+    add('gridUndershoot', 'D4: limit 6000, where the retired grid rounded three 1499s and a 1502 up to 2001 cells and dropped one (660). All four fit at 5999 and the exact optimum funds them (860).',
         [P('W', 1499, 200), P('X', 1499, 210), P('Y', 1499, 220), P('Z', 1502, 230)], 6000,
-        note='disagreement: see FINDINGS-decision.md, grid undershoot; the engine leaves a feasible project out')
+        note='D4 FIXED 2026-09-15: the exact solve funds every project that fits')
+    add('gridOvershootFallback', 'The overshoot set with the state limit cut to 2, so the feasible grid runs: ceil weights 1334 / 668 / 665 keep A + B out and fund A + C at 5995, the exact optimum, with a bound of 20 on what it might have left out.',
+        [P('A', 4000, 500), P('B', 2002, 300), P('C', 1995, 280)], 6000, state_limit=2,
+        note='the fallback is feasible: the ceil grid cannot fund 6002 on 6000')
+    add('gridUndershootFallback', 'The undershoot set with the state limit cut to 3: the ceil grid funds X + Y + Z (660) and reports optimalityGap 200, the floor-grid bound less the funded EMV.',
+        [P('W', 1499, 200), P('X', 1499, 210), P('Y', 1499, 220), P('Z', 1502, 230)], 6000, state_limit=3,
+        note='the fallback states what it may be leaving out instead of reporting 660 as the optimum')
+    add('decimalCapexExactSum', 'Binary rounding never pushes a decimal set over the limit: 0.1 + 0.2 is funded at a limit of 0.3, where a double sum reads 0.30000000000000004.',
+        [P('a', 0.1, 1), P('b', 0.2, 1), P('c', 0.25, 1.5)], 0.3)
     add('nonIntegerLimit', 'The classic set at limit 450.5: the grid is 0.22525 per cell and A + B + D still wins.', CLASSIC, 450.5)
     add('mixedRiskedRho0p3', 'Five risked projects with spreads at rho 0.3, exact grid.',
         [P('R1', 120, 200, pos=0.4, fail_cost=60, npv_p10=320, npv_p90=110),
@@ -664,33 +974,49 @@ def optimize_cases():
     add('seeded10decimal', 'mulberry32 seed 1002: ten one-decimal capex projects, limit 500.5, quantised grid of 0.25025.', seeded_projects(1002, 10, 20, 180, 1), 500.5, 0.2)
     add('seeded16large', 'mulberry32 seed 1601: sixteen integer projects with capex 100 to 900, limit 7200 (above 5000, so the grid is 3.6 per cell).', seeded_projects(1601, 16, 100, 900), 7200, 0.15)
     add('seeded16exact', 'mulberry32 seed 1602: sixteen integer projects with capex 10 to 200, limit 900, exact grid.', seeded_projects(1602, 16, 10, 200), 900)
+    add('seeded16largeFallback', 'The sixteen-project set at limit 7200 with the state limit cut to 40, so the feasible grid runs on a 3.6 per cell grid.', seeded_projects(1601, 16, 100, 900), 7200, 0.15, state_limit=40)
+    add('numericStrings', 'EC5-6 and EC5-7: capex and pos typed as numeric strings are numbers; the classic set with A at "0.9" and B at " 200 ".',
+        [P('A', '100', 60, pos='0.9'), P('B', ' 200 ', 100), P('C', 300, 120), P('D', 150, 90, pos=None)], 450)
     return cases
 
 
 def refusal_cases():
-    """The refusal method statement: the first project, in array order, whose
-    capex is a finite number below 0 is named (name, else id, else index)."""
+    """The refusal method statement: every project in array order, capex then
+    pos, and the first failure is named (name, else id, else index)."""
     cases = []
 
     def add(cid, desc, projects, limit):
-        bad = None
+        msg = None
         for i, p in enumerate(projects):
-            c = p.get('capex')
-            if isinstance(c, (int, float)) and not isinstance(c, bool) and math.isfinite(c) and c < 0:
-                label = p.get('name', p.get('id', i))
-                bad = (label, c)
+            try:
+                strict_capex(p, i)
+                strict_pos(p, i)
+            except Refused as e:
+                msg = str(e)
                 break
-        assert bad is not None, cid
-        cap = bad[1]
-        cap_text = str(int(cap)) if float(cap).is_integer() else repr(cap)
+        assert msg is not None, cid
+        label = '"%s"' % msg.split('"')[1] if msg.startswith('Project "') else msg.split(' has ')[0]
         cases.append({'id': cid, 'description': desc, 'projects': projects, 'capexLimit': limit,
-                      'expected': {'throws': 'PortfolioInputError',
-                                   'messageIncludes': ['"%s"' % bad[0], '(%s)' % cap_text]}})
+                      'expected': {'throws': 'PortfolioInputError', 'message': msg,
+                                   'messageIncludes': [label]}})
 
     add('negativeCapexRefused', 'EC5-0: B carries capex -150; the optimizer refuses it by name instead of letting the frontier axis go negative.',
         [P('A', 100, 60), P('B', -150, 100), P('C', 300, 120)], 450)
     add('negativeCapexUnnamed', 'A negative capex on a project with no name or id is named by its index (1).',
         [{'capex': 50, 'npv_p50': 20}, {'capex': -0.5, 'npv_p50': 10}], 100)
+    add('nonNumericCapexRefused', 'EC5-7: capex "abc" used to count as 0, so the project was funded for free.',
+        [P('A', 100, 60), P('B', 'abc', 100), P('C', 300, 120)], 450)
+    add('blankCapexRefused', 'EC5-7: a blank capex is refused.', [P('A', 100, 60), P('Blank', '', 100)], 450)
+    add('missingCapexRefused', 'EC5-7: a project with no capex at all is refused.', [P('A', 100, 60), {'id': 'NoCapex', 'npv_p50': 40}], 450)
+    add('nullCapexRefused', 'EC5-7: a null capex is refused like a missing one.', [P('Null', None, 40)], 450)
+    add('infiniteCapexRefused', 'EC5-7: the string "Infinity" is not a finite capex.', [P('Inf', 'Infinity', 40)], 450)
+    add('blankPosRefusedInOptimize', 'EC5-6: a blank pos in the optimizer is refused by name (it used to read the project as a certain failure, so it was never chosen).',
+        [P('Sure', 100, 60), P('Wildcat', 100, 300, pos='', fail_cost=50)], 200)
+    add('posOutOfRangeInOptimize', 'EC5-6: pos 1.2 in the optimizer is refused (it used to be clamped to 1).', [P('Over', 100, 60, pos=1.2)], 200)
+    add('firstBadProjectNamed', 'Array order: A has a bad pos and comes before B with a negative capex, so A is named.',
+        [P('A', 100, 60, pos='x'), P('B', -1, 10)], 200)
+    add('capexCheckedBeforePos', 'One project with a bad capex and a blank pos: the capex is reported.',
+        [P('Both', 'abc', 60, pos='')], 200)
     return cases
 
 
@@ -913,14 +1239,20 @@ def main():
             'probLoss exactly and P90 / P10 within 1e-9 scaled, at the riskOptions seed and iterations '
             'stated on each case), the riskMethod section validating that Monte Carlo against exact '
             'answers within 4 standard errors (normalApprox carries what the engine reported before), '
-            'the optimizeRefusals section (a negative capex is refused), overLimit / overLimitBy on every '
+            'the optimizeRefusals section (a capex that is not a finite number of 0 or more, or a present pos that '
+            'is blank, non-numeric or outside 0 to 1, is refused by project; EC5-0, EC5-6, EC5-7), the '
+            'projectEmvRefusals and riskMetricsRefusals sections (the same pos rule), overLimit / overLimitBy on every '
             'optimal set, and the 0/1 knapsack over the capex limit with its efficient frontier. '
             'Independent stdlib oracle (tools/validation/economics/oracle_portfolio.py): the knapsack is '
-            'solved by brute force over every subset, both EXACTLY (sum of capex within the limit) and on '
-            'the engine\'s documented QUANTISED grid, and every optimize case carries both answers, the '
-            'gap between them and whether quantisation changed the chosen set; every optimal set is '
-            'listed so ties are explicit; the frontier is on the grid with every capex a tied set could '
-            'report. All money is USD millions ($MM) except rawDollars, which is typed in dollars '
+            'solved by brute force over every subset, EXACTLY (sum of capex within the limit), which since '
+            'D2 / D4 / EC1-12 (2026-09-15) is what the engine returns: solveMethod exact, optimalityGap 0, '
+            'engineResolution null, the exact optimum and the exact frontier. paretoStates counts the '
+            'non-dominated partial portfolios after each candidate, against stateLimit; a case that '
+            'exceeds it carries gridFeasible, the ceil-weight grid the engine falls back to with its '
+            'floor-weight bound. Every case also carries the RETIRED step-scaled grid (resolution, cells, '
+            'weights, quantized, quantizationGap, setChanged), which is how D2, D3 and D4 were found and '
+            'what the gate\'s negative controls restate. Every optimal set is '
+            'listed so ties are explicit. All money is USD millions ($MM) except rawDollars, which is typed in dollars '
             'on purpose. pos is 0 to 1; correlation is 0 to 1; a correlation given as the string NaN '
             'means the gate passes NaN. Every case in the Suite\'s '
             'src/utils/__tests__/portfolioOptimizer.test.js is here, plus seeded random sets (mulberry32, '
@@ -928,6 +1260,8 @@ def main():
             'below every project.'
         ),
         'projectEmv': emv_cases(),
+        'projectEmvRefusals': emv_refusal_cases(),
+        'riskMetricsRefusals': risk_refusal_cases(),
         'successStdDev': sd_cases(),
         'projectMoments': moments_cases(),
         'riskMetrics': risk_cases(),
@@ -943,8 +1277,8 @@ def main():
     print('wrote %s: %s (total %d)' % (OUT, counts, sum(counts.values())))
     for c in golden['optimize']:
         e = c['expected']
-        print('  %-26s res %-10g cells %5d exact %-12g quant %-12g gap %-10g changed %s sets %d/%d' % (
-            c['id'], e['resolution'], e['cells'], float(e['exact']['optimalEmv']),
+        print('  %-26s %-14s states %-6d exact %-12g retired grid %-12g gap %-10g changed %s sets %d/%d' % (
+            c['id'], e['solveMethod'], max(e['paretoStates'], default=0), float(e['exact']['optimalEmv']),
             float(e['quantized']['optimalEmv']), float(e['quantizationGap']), e['setChanged'],
             len(e['exact']['optimalSets']), len(e['quantized']['optimalSets'])))
     print('riskMethod (seed %d, %d iterations): Monte Carlo against exact' % (DEFAULT_SEED, DEFAULT_ITERATIONS))

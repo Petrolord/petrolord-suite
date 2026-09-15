@@ -91,7 +91,10 @@ describe('EC4-5 chance-root first-move label', () => {
     const builder = read('pages/apps/DecisionTreeBuilder.jsx');
     const brief = read('components/decisionstudio/briefModel.js');
     for (const source of [builder, brief]) {
-      expect(source).toMatch(/import \{ firstMoveLabel \} from '@\/components\/decisiontree\/firstMoveLabel'/);
+      // EC4-1 (engines #192) added isIndifferentFirstMove beside it, so the
+      // guard checks the shared helper is imported from the one module, not
+      // that it is the only name taken from it.
+      expect(source).toMatch(/import \{[^}]*\bfirstMoveLabel\b[^}]*\} from '@\/components\/decisiontree\/firstMoveLabel'/);
       expect(source).toMatch(/firstMoveLabel\(/);
     }
     expect(builder).not.toMatch(/'Chance root'/);

@@ -4,6 +4,20 @@ import { calculateFlowAssuranceRisk } from '@/utils/fdp/facilitiesCalculations';
 import { ThermometerSnowflake, Activity } from 'lucide-react';
 
 /**
+ * EC6-3 (engines #191). The corrosion tile used to read the severity of a
+ * hazard that fired on ANY H2S above zero, so 1 ppm at 100 psia read as
+ * severe as 5 percent at 5000 psia and a blank H2S read as sweet. The
+ * engine screens sour service on the H2S partial pressure against the
+ * NACE MR0175 threshold, and the tile reports that screen's own verdict.
+ */
+const CORROSION_VERDICT = {
+    'not-measured': 'H2S not measured',
+    'sour-severity-needs-pressure': 'Pressure needed',
+    'below-sour-threshold': 'Below sour threshold',
+    'sour-service': 'Sour service',
+};
+
+/**
  * EC6-0. This ran against mock fluid properties (28 API, 10 ppm H2S), so
  * every facility in every plan came back with Corrosion High, and the three
  * tiles above the hazard list were literals that contradicted the list
@@ -11,14 +25,28 @@ import { ThermometerSnowflake, Activity } from 'lucide-react';
  * Hydrates High). It reads the plan's own fluid properties now, and the
  * tiles are the hazards the engine actually found.
  */
-const FlowAssuranceAnalysis = ({ facility, fluidProps }) => {
+const FlowAssuranceAnalysis = ({ facility, fluidProps, onFluidChange }) => {
     if (!facility) return <div className="text-slate-500 p-4">Select a facility to view analysis.</div>;
 
     const properties = fluidProps || {};
-    const analysis = calculateFlowAssuranceRisk(facility, properties);
+    let analysis = null;
+    let refusal = null;
+    try {
+        analysis = calculateFlowAssuranceRisk(facility, properties);
+    } catch (err) {
+        refusal = err.message;
+    }
+    if (refusal) {
+        return (
+            <div role="alert" className="flex items-start gap-2 rounded border border-red-800 bg-red-950/40 p-4 text-sm text-red-200">
+                <Activity className="w-4 h-4 mt-0.5 shrink-0 text-red-400" />
+                <span>The flow assurance screen cannot run: {refusal}.</span>
+            </div>
+        );
+    }
     const severityOf = (type) => analysis.risks.find((r) => r.type === type)?.severity || 'None found';
     const hasApi = Number.isFinite(parseFloat(properties.api));
-    const hasH2s = Number.isFinite(parseFloat(properties.h2s));
+    const corrosion = analysis.corrosion;
 
     return (
         <Card className="bg-slate-900 border-slate-800">
@@ -28,13 +56,33 @@ const FlowAssuranceAnalysis = ({ facility, fluidProps }) => {
                         <ThermometerSnowflake className="w-5 h-5 mr-2 text-blue-300" />
                         Flow Assurance Risks
                     </div>
-                    <span className={`text-sm px-3 py-1 rounded-full ${analysis.level === 'High' ? 'bg-red-900 text-red-200' : 'bg-green-900 text-green-200'}`}>
-                        {analysis.level} Risk
+                    <span
+                        data-testid="flow-assurance-score"
+                        className={`text-sm px-3 py-1 rounded-full ${analysis.score > 0 ? 'bg-amber-900 text-amber-200' : 'bg-slate-800 text-slate-300'}`}
+                    >
+                        Hazard score {analysis.score}
                     </span>
                 </CardTitle>
             </CardHeader>
             <CardContent>
                 <div className="space-y-4">
+                    {/* EC6-2: the engine retired its Low/Medium/High level, which
+                        borrowed the risk register's words for a different
+                        quantity. The score is shown with the triggers that
+                        produced it and the hazards each one names. */}
+                    <div className="text-xs text-slate-400" data-testid="flow-assurance-breakdown">
+                        {analysis.contributions.length === 0 ? (
+                            <p>Score 0: no screening trigger fired on this facility and fluid.</p>
+                        ) : (
+                            <ul className="space-y-1">
+                                {analysis.contributions.map((c) => (
+                                    <li key={c.trigger}>
+                                        <span className="text-slate-200">{c.trigger}</span>: {c.points} point{c.points === 1 ? '' : 's'} ({c.hazards.join(', ')})
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
                     <div className="grid grid-cols-3 gap-2 text-center text-sm mb-4">
                         <div className="p-2 bg-slate-800 rounded">
                             <div className="text-slate-500">Hydrates</div>
@@ -46,8 +94,9 @@ const FlowAssuranceAnalysis = ({ facility, fluidProps }) => {
                         </div>
                         <div className="p-2 bg-slate-800 rounded">
                             <div className="text-slate-500">Corrosion</div>
-                            <div className={`font-bold ${severityOf('Corrosion') === 'High' ? 'text-red-400' : 'text-white'}`}>
-                                {severityOf('Corrosion')}
+                            <div className={`font-bold ${corrosion.status === 'sour-service' ? 'text-red-400' : 'text-white'}`}
+                                data-testid="corrosion-verdict">
+                                {CORROSION_VERDICT[corrosion.status] || corrosion.status}
                             </div>
                         </div>
                     </div>
@@ -68,12 +117,55 @@ const FlowAssuranceAnalysis = ({ facility, fluidProps }) => {
                         {analysis.risks.length === 0 && <p className="text-sm text-slate-500">No significant flow assurance risks detected based on current inputs.</p>}
                     </div>
 
-                    <p className="text-xs text-slate-500 mt-4">
-                        Screened on the plan's own fluid properties
-                        {hasApi ? `: ${properties.api} API` : ': no API entered'}
-                        {hasH2s ? `, ${properties.h2s} ppm H2S` : ', no H2S figure entered'}.
-                        {!hasH2s ? ' Without an H2S figure the corrosion screen cannot fire.' : ''}
-                    </p>
+                    {onFluidChange && (
+                        <div className="grid grid-cols-2 gap-3 mt-4" data-testid="sour-service-inputs">
+                            <div className="space-y-1">
+                                <label className="text-xs text-slate-400" htmlFor="fdp-h2s">H2S (ppm)</label>
+                                <input
+                                    id="fdp-h2s"
+                                    type="number"
+                                    min="0"
+                                    value={properties.h2s ?? ''}
+                                    placeholder="not measured"
+                                    onChange={(e) => onFluidChange({
+                                        ...properties,
+                                        h2s: e.target.value === '' ? undefined : parseFloat(e.target.value),
+                                    })}
+                                    className="w-full h-9 rounded-md border border-slate-700 bg-slate-800 px-3 text-sm text-white"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs text-slate-400" htmlFor="fdp-operating-pressure">
+                                    Operating pressure (psia)
+                                </label>
+                                <input
+                                    id="fdp-operating-pressure"
+                                    type="number"
+                                    min="0"
+                                    value={properties.operatingPressurePsia ?? ''}
+                                    placeholder="not entered"
+                                    onChange={(e) => onFluidChange({
+                                        ...properties,
+                                        operatingPressurePsia: e.target.value === '' ? undefined : parseFloat(e.target.value),
+                                    })}
+                                    className="w-full h-9 rounded-md border border-slate-700 bg-slate-800 px-3 text-sm text-white"
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="text-xs text-slate-400 mt-4 space-y-2" data-testid="corrosion-screen">
+                        <p>
+                            <span className="text-slate-300">Sour service screen:</span> {corrosion.message}
+                        </p>
+                        <p className="text-slate-500">
+                            Screened on the plan's own fluid properties
+                            {hasApi ? `: ${properties.api} API` : ': no API entered'}. The corrosion
+                            trigger is the H2S partial pressure against the {corrosion.standard} threshold
+                            of {corrosion.thresholdPsia} psia ({corrosion.thresholdKpa} kPa), so it takes
+                            both an H2S concentration and an operating pressure.
+                        </p>
+                    </div>
                 </div>
             </CardContent>
         </Card>

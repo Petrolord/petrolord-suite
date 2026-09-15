@@ -76,19 +76,55 @@ describe('calculateMetrics', () => {
     expect(calculateMetrics(AFE, items, [], AS_OF).spi).toBeCloseTo(0.5, 10);
   });
 
-  it('does not divide by zero on an empty or unspent AFE', () => {
+  // EC5-3 and the CPI item (engines #185): an undefined ratio is null with a
+  // status saying why, where it used to be a flattering 1.
+  it('reports no ratio, with the reason, on an empty or unspent AFE', () => {
     const empty = calculateMetrics(AFE, [], [], AS_OF);
     expect(empty.totalBudget).toBe(0);
-    expect(empty.cpi).toBe(1);
-    expect(empty.spi).toBe(1);
+    expect(empty.cpi).toBeNull();
+    expect(empty.cpiStatus).toBe('no-spend');
+    expect(empty.spi).toBeNull();
+    expect(empty.spiStatus).toBe('no-budget');
     expect(empty.percentSpent).toBe(0);
     expect(Number.isFinite(empty.percentComplete)).toBe(true);
+
+    // Negative control: with a budget and spend, both ratios are reported.
+    const live = calculateMetrics(AFE, [{ budget: 200, actual: 80, progress: 50 }], [], AS_OF);
+    expect(live.cpiStatus).toBe('ok');
+    expect(live.spiStatus).toBe('ok');
+    expect(Number.isFinite(live.cpi)).toBe(true);
   });
 
   it('treats missing numbers as zero rather than producing NaN', () => {
     const items = [{ budget: null, commitment: undefined, actual: '', progress: 'x' }];
     const m = calculateMetrics(AFE, items, [], AS_OF);
-    Object.values(m).forEach((v) => expect(Number.isFinite(v)).toBe(true));
+    const RATIOS = ['cpi', 'spi'];
+    const STATUSES = ['cpiStatus', 'spiStatus'];
+    // EC5-1 (engines #194) added the per-line report, which is structure
+    // rather than a metric; every NUMBER the result carries must still be
+    // finite, and the lines are checked on their own numbers below.
+    Object.entries(m).forEach(([k, v]) => {
+      if (STATUSES.includes(k)) return;
+      if (k === 'lineForecasts') return;
+      if (RATIOS.includes(k) && v === null) return;
+      expect(Number.isFinite(v)).toBe(true);
+    });
+    m.lineForecasts.forEach((line) => {
+      expect(Number.isFinite(line.forecast)).toBe(true);
+      expect(Number.isFinite(line.committed)).toBe(true);
+      expect(Number.isFinite(line.forecastBelowCommittedBy)).toBe(true);
+    });
+    // and no NaN hides behind a null: nothing is NaN
+    Object.values(m).forEach((v) => expect(typeof v === 'number' && Number.isNaN(v)).toBe(false));
+  });
+
+  // EC5-8: progress above 100 percent is refused like negative progress.
+  it('refuses progress above 100 percent by name', () => {
+    expect(() => calculateMetrics(AFE, [{ code: 'X1', budget: 10, progress: 140 }], [], AS_OF))
+      .toThrow(/Cost item "X1" has progress above 100 percent \(140 percent\)/);
+    // Negative control: 100 exactly is accepted.
+    expect(() => calculateMetrics(AFE, [{ code: 'X1', budget: 10, progress: 100 }], [], AS_OF))
+      .not.toThrow();
   });
 });
 
@@ -120,7 +156,10 @@ describe('EC5-0 AFE contracts', () => {
 
   it('stops the S-curve at the window end', () => {
     const points = generateSCurveData(AFE, [{ budget: 1200 }], [], AS_OF);
-    expect(points).toHaveLength(12);
+    // EC5-9b (engines #194): twelve monthly steps plus the closing point at
+    // the window end, where the plan reaches the whole budget.
+    expect(points).toHaveLength(13);
+    expect(points[points.length - 1].windowEnd).toBe(true);
   });
 
   it('refuses negative progress and an invalid asOf with an AfeInputError', () => {
@@ -146,7 +185,9 @@ describe('generateSCurveData', () => {
     const points = generateSCurveData(AFE, [{ budget: 1200 }], [], AS_OF);
     expect(points.length).toBeGreaterThan(1);
     expect(points[0].Planned).toBe(0);
-    expect(points[points.length - 1].Planned).toBeLessThanOrEqual(1200);
+    // EC5-9b: the curve closes ON the window end at the full budget, so an
+    // overrun can no longer draw as an underrun.
+    expect(points[points.length - 1].Planned).toBe(1200);
     // Monotone: a cumulative curve may never go backwards.
     for (let i = 1; i < points.length; i += 1) {
       expect(points[i].Planned).toBeGreaterThanOrEqual(points[i - 1].Planned);

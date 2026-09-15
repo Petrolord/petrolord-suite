@@ -12,7 +12,7 @@ import { TEMPLATES } from '@/components/decisiontree/templates';
 import TreeNodeEditor from '@/components/decisiontree/TreeNodeEditor';
 import TreeDiagram from '@/components/decisiontree/TreeDiagram';
 import DecisionTreeHelpGuide from '@/components/decisiontree/DecisionTreeHelpGuide';
-import { firstMoveLabel } from '@/components/decisiontree/firstMoveLabel';
+import { firstMoveLabel, isIndifferentFirstMove } from '@/components/decisiontree/firstMoveLabel';
 
 // Decision Tree Builder (D3, docs/scope/Economics-ROADMAP.md): multi-stage
 // EMV decision trees on the canonical src/lib/decisionTree.js engine. The
@@ -222,11 +222,15 @@ const DecisionTreeBuilder = () => {
               ? fmtMM(Math.max(...root.branches.filter((_, i) => i !== root.bestBranchIndex).map((b) => b.branchValue)))
               : 'N/A'}
           />
+          {/* EC4-1: at a tie the advantage is 0.00, which reads as a real
+              lead of nothing. Say what it is instead. */}
           <KpiCard
             title="Decision advantage"
-            value={root?.type === 'decision' && root.branches.length > 1
-              ? fmtMM(root.emv - Math.max(...root.branches.filter((_, i) => i !== root.bestBranchIndex).map((b) => b.branchValue)))
-              : 'N/A'}
+            value={isIndifferentFirstMove(root)
+              ? 'Indifferent'
+              : (root?.type === 'decision' && root.branches.length > 1
+                ? fmtMM(root.emv - Math.max(...root.branches.filter((_, i) => i !== root.bestBranchIndex).map((b) => b.branchValue)))
+                : 'N/A')}
           />
         </div>
 

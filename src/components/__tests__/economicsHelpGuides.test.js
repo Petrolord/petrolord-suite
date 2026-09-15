@@ -77,17 +77,23 @@ const COVERAGE = {
     /knapsack/i,
     /efficient frontier|frontier/i,
     /risked expected value/i,
-    /quantized/i,
     // The independence assumption is the one that most often bites.
     /independent/i,
     /correlated/i,
-    // EC5-0: the risk cards are a seeded Monte Carlo, the grid resolution is
-    // shown, and an overshoot of the limit is flagged.
+    // EC5-0: the risk cards are a seeded Monte Carlo.
     /seeded Monte Carlo/i,
     /seed/i,
-    /resolution is reported alongside the answer/i,
-    /overshoot the limit by up to half a cell per project/i,
-    /flags it/i,
+    // Engines #194 made the knapsack exact, so the guide states THAT: no
+    // grid on an ordinary portfolio, a funded set that cannot exceed the
+    // limit, and a fallback that reports its resolution and what it may have
+    // left on the table. The retired claims (a quantized grid always, a
+    // resolution always reported, an overshoot of up to half a cell per
+    // project that the app flags) are gone from the guide and from here.
+    /the answer is exact/i,
+    /can never exceed it/i,
+    /falls back to a grid/i,
+    /rounded up onto it/i,
+    /bounds how much risked expected value the fallback could have left/i,
     /P90 is the low case/i,
   ],
   'Decision Tree Builder': [
@@ -183,10 +189,14 @@ const FORBIDDEN = {
     // EC4-7: typo for "the tool's".
     /the tool s\b/,
   ],
-  // EC5-0: claims the repaired portfolio engine made false.
+  // EC5-0: claims the repaired portfolio engine made false. The first two
+  // bans (that the funded set cannot exceed the limit) are RETIRED by engines
+  // #194: the knapsack is solved exactly, overLimit is false on every case,
+  // and the fallback grid rounds every candidate up, so the set stays inside
+  // the limit and the claim is now true. It is required by the coverage list
+  // above rather than banned here, so the guide must state it. The risk
+  // cards remain a seeded Monte Carlo, so the normal-approximation bans stand.
   'Capital Portfolio Studio': [
-    /cannot exceed the limit/i,
-    /without exceeding your capital limit/i,
     /normal approximation/i,
     /approximated as a normal/i,
     /normal distribution/i,

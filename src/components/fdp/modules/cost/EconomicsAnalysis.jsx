@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle } from 'lucide-react';
+import { irrReason } from '@/utils/fdp/planEconomics';
 import { BarChart, LineChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart } from 'recharts';
 
 /**
@@ -35,8 +36,10 @@ const EconomicsAnalysis = ({ economics }) => {
         );
     }
 
-    const { metrics, basis, cashflow, inputs } = economics;
+    const { metrics, basis, cashflow, inputs, abandonment } = economics;
     const { npv, irr, payback } = metrics;
+    const reason = irrReason(metrics);
+    const abex = abandonment || { abandonmentSource: 'none', abandonmentMM: 0 };
 
     return (
         <div className="space-y-6">
@@ -55,6 +58,9 @@ const EconomicsAnalysis = ({ economics }) => {
                         <div className={`text-3xl font-bold ${irr !== null && irr >= 15 ? 'text-green-400' : 'text-yellow-400'}`}>
                             {irr === null ? 'n/a' : `${irr.toFixed(1)}%`}
                         </div>
+                        {reason && (
+                            <div className="text-[11px] text-slate-400 mt-1" data-testid="irr-reason">{reason}</div>
+                        )}
                     </div>
                 </Card>
                 <Card className="bg-slate-900 border-slate-800">
@@ -73,9 +79,13 @@ const EconomicsAnalysis = ({ economics }) => {
                 ${basis.oilPrice}/bbl ({basis.scenarioName}). Post royalty ({basis.royaltyRate}%) and
                 tax ({basis.taxRate}%), discounted mid year at {basis.discountRate}%, through the Suite
                 screening economics engine.
-                {inputs.abexCount > 0
-                    ? ` ${inputs.abexCount} ABEX item${inputs.abexCount === 1 ? ' is' : 's are'} not in this screening case.`
-                    : ''}
+            </p>
+
+            <p className="text-xs text-slate-400" data-testid="abandonment-basis">
+                {abex.abandonmentSource === 'none'
+                    ? 'No end-of-life cost is in this case. '
+                    : `End of life: $${abex.abandonmentMM.toFixed(1)}MM, charged in year ${abandonment.year}, the final production year. `}
+                {abex.abandonmentBasis}
             </p>
 
             <Card className="bg-slate-900 border-slate-800">

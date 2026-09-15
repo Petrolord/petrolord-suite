@@ -14,7 +14,7 @@ export const WITHHELD = 'Withheld';
 const csvValue = (v) => (v == null ? WITHHELD : v);
 
 const ResultsPanel = ({ results }) => {
-  const { kpis, tree, insights } = results;
+  const { kpis, tree, insights, bestActionWithoutInfo } = results;
   const { toast } = useToast();
 
   const handleExport = () => {
@@ -71,8 +71,19 @@ const ResultsPanel = ({ results }) => {
       </CollapsibleSection>
       
       <CollapsibleSection title="Decision Guidance" icon={<BrainCircuit />} defaultOpen>
-        <div className="bg-sky-500/10 p-4 rounded-lg border border-sky-500/30">
+        <div className="bg-sky-500/10 p-4 rounded-lg border border-sky-500/30 space-y-2">
             <p className="text-sky-200 leading-relaxed">{insights}</p>
+            {/* EC4-1 (engines #192): the engine reports which actions tie at
+                the precision the cards print, so the sentence above and the
+                cards beside it cannot disagree about the best action. */}
+            {bestActionWithoutInfo?.indifferentAtCardPrecision && (
+              <p className="text-sky-300/90 text-sm" data-testid="voi-indifferent">
+                Without new information the decision is indifferent between{' '}
+                {bestActionWithoutInfo.tiedLabelsAtCardPrecision
+                  .map((l) => `"${l}"`)
+                  .join(' and ')}: both come to the same EMV at the precision shown.
+              </p>
+            )}
         </div>
       </CollapsibleSection>
 

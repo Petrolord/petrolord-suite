@@ -23,11 +23,16 @@ const hasWindow = (afe) => Boolean(afe?.start_date && afe?.end_date)
 // engine, which is a documented fallback and not a measurement, so SPI is
 // labelled unavailable there. SPI null (no planned value yet, before or on
 // the start day) reads "Not started" with no verdict and no colour.
+// EC5-3 (engines #185): SPI is also null with no budget at all, and the
+// engine says which case it is in `spiStatus`; that reads N/A with the reason.
 export const spiTile = (afe, metrics) => {
   if (!hasWindow(afe)) {
     return { value: 'Unavailable', subtext: 'Add start and end dates to measure schedule', colorClass: NEUTRAL_TILE };
   }
   if (metrics.spi == null) {
+    if (metrics.spiStatus === 'no-budget') {
+      return { value: 'N/A', subtext: 'No budget to measure schedule against', colorClass: NEUTRAL_TILE };
+    }
     return { value: 'Not started', subtext: 'No planned value before the start date', colorClass: NEUTRAL_TILE };
   }
   return {
@@ -36,6 +41,46 @@ export const spiTile = (afe, metrics) => {
     colorClass: metrics.spi >= 1 ? 'text-green-400 bg-green-400' : 'text-red-400 bg-red-400',
   };
 };
+
+// The CPI tile (EC5 CPI item, engines #185). CPI is null when nothing has
+// been spent, with `cpiStatus` 'no-spend'; it used to read 1.00 "Under
+// Budget" whatever had been earned.
+export const cpiTile = (metrics) => {
+  if (metrics.cpi == null || !Number.isFinite(metrics.cpi)) {
+    return {
+      value: 'N/A',
+      subtext: metrics.cpiStatus === 'no-spend' ? 'Nothing spent yet, so no cost efficiency' : 'Cost efficiency not available',
+      colorClass: NEUTRAL_TILE,
+    };
+  }
+  return {
+    value: metrics.cpi.toFixed(2),
+    subtext: metrics.cpi >= 1 ? 'Under Budget' : 'Over Budget',
+    colorClass: metrics.cpi >= 1 ? 'text-green-400 bg-green-400' : 'text-red-400 bg-red-400',
+  };
+};
+
+/**
+ * EC5-1 and the negative-forecast decision (engines #194). An entered
+ * forecast below the money already spent and committed is kept, because a
+ * re-baseline is legitimate, but it reports a saving on money already gone;
+ * a negative entered forecast is ignored in favour of the standard rule.
+ * Both are counted by the engine, and a count above zero belongs on the tile
+ * that shows the estimate at completion.
+ */
+export const forecastFlagText = (metrics) => {
+  const below = metrics.linesForecastBelowCommitted || 0;
+  const ignored = metrics.linesForecastIgnored || 0;
+  const parts = [];
+  if (below > 0) parts.push(`${below} line${below === 1 ? '' : 's'} forecast below committed`);
+  if (ignored > 0) parts.push(`${ignored} negative forecast${ignored === 1 ? '' : 's'} ignored`);
+  return parts.length ? parts.join(', ') : null;
+};
+
+/** The EAC trend against budget in percent, or null with no budget to divide by. */
+export const eacTrendPct = (metrics) => (metrics.totalBudget > 0
+  ? ((metrics.totalForecast - metrics.totalBudget) / metrics.totalBudget * 100).toFixed(1)
+  : null);
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
@@ -118,6 +163,7 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
   }
 
   const spi = spiTile(afe, metrics);
+  const cpi = cpiTile(metrics);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -164,17 +210,17 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
         <KPICard 
           title="EAC (Forecast)" 
           value={currencyFormatter(metrics.totalForecast)} 
-          subtext={`Variance: ${currencyFormatter(metrics.variance)}`}
+          subtext={forecastFlagText(metrics) || `Variance: ${currencyFormatter(metrics.variance)}`}
           icon={TrendingUp}
           colorClass="text-cyan-400 bg-cyan-400"
-          trend={((metrics.totalForecast - metrics.totalBudget)/metrics.totalBudget * 100).toFixed(1)}
+          trend={eacTrendPct(metrics)}
         />
-        <KPICard 
-          title="CPI (Cost Efficiency)" 
-          value={metrics.cpi.toFixed(2)} 
-          subtext={metrics.cpi >= 1 ? "Under Budget" : "Over Budget"}
+        <KPICard
+          title="CPI (Cost Efficiency)"
+          value={cpi.value}
+          subtext={cpi.subtext}
           icon={PieIcon}
-          colorClass={metrics.cpi >= 1 ? "text-green-400 bg-green-400" : "text-red-400 bg-red-400"}
+          colorClass={cpi.colorClass}
         />
         <KPICard 
           title="SPI (Schedule Efficiency)" 

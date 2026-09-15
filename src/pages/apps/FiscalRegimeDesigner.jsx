@@ -56,9 +56,12 @@ const FiscalRegimeDesigner = () => {
       });
     } catch (error) {
       console.error("Fiscal Comparison Error:", error);
+      // EC2-8: the engine refuses a tier table with a repeated threshold with
+      // a RangeError naming the regime and the table; say that, not a
+      // generic failure.
       toast({
         title: "Comparison Failed",
-        description: "An error occurred during the fiscal simulation.",
+        description: error instanceof RangeError ? error.message : "An error occurred during the fiscal simulation.",
         variant: "destructive",
       });
     } finally {

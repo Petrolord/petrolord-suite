@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import ScenarioManager from './scenarios/ScenarioManager';
+import { planAbandonment } from '@/utils/fdp/economics';
 import ScenarioForm from './scenarios/ScenarioForm';
 
 const ScenarioModule = () => {
@@ -88,6 +89,7 @@ const ScenarioModule = () => {
                 <ScenarioManager 
                     scenarios={scenarios}
                     concepts={concepts}
+                    abandonment={planAbandonment(state)}
                     onEdit={handleEdit}
                     onDelete={handleDeleteClick}
                     selectedId={selectedId}

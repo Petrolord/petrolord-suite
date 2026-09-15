@@ -7,10 +7,15 @@
 // EC5-0 (owner decision 2026-09-14) adds itemForecast (the ONE estimate at
 // completion rule every AFE screen uses), AfeInputError (thrown on negative
 // progress or an invalid asOf) and calculatePartnerCosts.
+// EC5-1 (engines #194) adds itemForecastCheck: the same estimate at
+// completion with the two flags that say how far to trust it, an entered
+// forecast below the money already spent and committed, and a negative
+// entered forecast the standard rule overrode.
 export {
   AfeInputError,
   calculateMetrics,
   calculatePartnerCosts,
   generateSCurveData,
   itemForecast,
+  itemForecastCheck,
 } from '../../packages/engines/engines/economics/afe.js';

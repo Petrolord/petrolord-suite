@@ -24,6 +24,7 @@ import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS,
   GRID_STYLE, TOOLTIP_STYLE
 } from '@/utils/chartTheme';
+import { epeIrrReason } from '@/pages/apps/epe/epeIrrReason';
 
 const KpiCard = ({ icon: Icon, title, value, color }) => (
   <div className="bg-white/5 p-4 rounded-lg flex items-center space-x-4">
@@ -76,7 +77,7 @@ const fmtCompact = (n) => {
 // downloads always match what the engine wrote.
 // ----------------------------------------------------------------------------
 
-const cashFlowColumns = (isPIA, sampleRows = []) => {
+export const cashFlowColumns = (isPIA, sampleRows = []) => {
   const cols = [
     { key: 'year', label: 'Year' },
     { key: 'oil_bbl', label: 'Oil (bbl)' },
@@ -109,6 +110,13 @@ const cashFlowColumns = (isPIA, sampleRows = []) => {
   const anyRow = (k) => rows.some((r) => r && r[k] != null && r[k] !== 0);
   if (anyRow('min_etr_topup')) cols.push({ key: 'min_etr_topup', label: 'Min ETR Top-up (USD)' });
   if (anyRow('psc_itc_used')) cols.push({ key: 'psc_itc_used', label: 'ITC Used (USD)' });
+  // Engine v3.10 (EC1-5, EC1-6, EC1-9): the PSC cost pool after recovery, the
+  // restricted CIT allowance claimed and carried, and the working interest
+  // the row is stated at. Older runs carry none of them and are unchanged.
+  if (anyRow('psc_cost_pool_after')) cols.push({ key: 'psc_cost_pool_after', label: 'PSC Cost Pool After (USD)' });
+  if (anyRow('cit_allowance_claimed')) cols.push({ key: 'cit_allowance_claimed', label: 'CIT Allowance Claimed (USD)' });
+  if (anyRow('cit_allowance_carryforward')) cols.push({ key: 'cit_allowance_carryforward', label: 'CIT Allowance Carryforward (USD)' });
+  if (anyRow('working_interest_pct')) cols.push({ key: 'working_interest_pct', label: 'Working Interest (%)' });
   if (anyRow('decom_fund_contribution')) cols.push({ key: 'decom_fund_contribution', label: 'Decom Fund Contribution (USD)' });
   cols.push(
     { key: 'abandonment_cost', label: 'Abandonment (USD)' },
@@ -120,13 +128,17 @@ const cashFlowColumns = (isPIA, sampleRows = []) => {
   return cols;
 };
 
-const KPI_EXPORT_ROWS = [
+export const KPI_EXPORT_ROWS = [
   ['npv', 'NPV (USD)'],
   ['irr', 'IRR (%)'],
   ['payback_years', 'Payback (years)'],
   ['discounted_payback_years', 'Discounted Payback (years)'],
   ['breakeven_oil_price_usd_bbl', 'Breakeven Oil Price (USD/bbl)'],
   ['dpi', 'DPI (NPV / PV capex)'],
+  ['profitability_index', 'Profitability Index (1 + DPI)'],
+  ['psc_unrecovered_cost_at_cessation', 'PSC Unrecovered Cost at Cessation (USD)'],
+  ['cit_allowance_unused_at_cessation', 'CIT Allowance Unused at Cessation (USD)'],
+  ['irr_status', 'IRR Status'],
   ['government_take_pct', 'Government Take (%)'],
   ['government_take_pct_discounted', 'Government Take, Discounted (%)'],
   ['unit_technical_cost_usd_per_boe', 'Unit Technical Cost (USD/boe)'],
@@ -1180,11 +1192,15 @@ const EpeResultsViewer = () => {
       const conventionNote = kpis.discounting_convention === 'mid_year' ? ', mid-year' : '';
       const kpiPairs = [
         [`NPV @ ${kpis.discount_rate_applied_pct != null ? Number(kpis.discount_rate_applied_pct).toFixed(1) : '10'}% (${kpis.pv_basis || 'real'}${conventionNote})`, money(kpis.npv)],
-        ['IRR', pct(kpis.irr, 2)],
+        ['IRR', kpis.irr != null ? pct(kpis.irr, 2) : 'n/a'],
+        ['Why there is no IRR', epeIrrReason(kpis)],
         ['Payback', kpis.payback ?? null],
         ['Discounted payback', yrs(kpis.discounted_payback_years)],
         ['Breakeven oil price', kpis.breakeven_oil_price_usd_bbl != null ? `$${Number(kpis.breakeven_oil_price_usd_bbl).toFixed(1)}/bbl` : null],
         ['DPI (NPV / PV capex)', kpis.dpi != null ? Number(kpis.dpi).toFixed(2) : null],
+        ['Profitability index (1 + DPI)', kpis.profitability_index != null ? Number(kpis.profitability_index).toFixed(2) : null],
+        ['PSC cost unrecovered at cessation', kpis.psc_unrecovered_cost_at_cessation != null ? money(kpis.psc_unrecovered_cost_at_cessation) : null],
+        ['CIT allowance unused at cessation', kpis.cit_allowance_unused_at_cessation != null ? money(kpis.cit_allowance_unused_at_cessation) : null],
         ['Government take', pct(kpis.government_take_pct)],
         ['Government take (discounted)', pct(kpis.government_take_pct_discounted)],
         ['Unit technical cost', kpis.unit_technical_cost_usd_per_boe != null ? `$${Number(kpis.unit_technical_cost_usd_per_boe).toFixed(2)}/boe` : null],
@@ -1465,7 +1481,7 @@ if (loading) {
                   value={formatCurrency(results.kpis.npv)}
                   color="from-green-500 to-lime-500"
                 />
-                <KpiCard icon={TrendingUp} title="IRR" value={results.kpis.irr ? `${results.kpis.irr.toFixed(2)}%` : 'N/A'} color="from-blue-500 to-cyan-500" />
+                <KpiCard icon={TrendingUp} title="IRR" value={results.kpis.irr != null ? `${Number(results.kpis.irr).toFixed(2)}%` : 'N/A'} color="from-blue-500 to-cyan-500" />
                 <KpiCard icon={Clock} title="Payback" value={results.kpis.payback} color="from-orange-500 to-amber-500" />
                 <KpiCard
                   icon={Receipt}
@@ -1487,6 +1503,16 @@ if (loading) {
                 />
               </div>
 
+              {/* Engine v3.10 (EC1-2): the IRR follows the module contract, so
+                  a rate is reported only when it is a verified root inside the
+                  band. Where there is none, the reason is stated rather than
+                  left as a bare N/A. */}
+              {epeIrrReason(results.kpis) && (
+                <p className="mt-3 text-xs text-slate-400" data-testid="epe-irr-reason">
+                  {epeIrrReason(results.kpis)}
+                </p>
+              )}
+
               {/* v3.4 decision metrics (older runs predate these KPIs) */}
               {(results.kpis.government_take_pct != null || results.kpis.unit_technical_cost_usd_per_boe != null
                 || results.kpis.breakeven_oil_price_usd_bbl != null || results.kpis.dpi != null) && (
@@ -1503,6 +1529,15 @@ if (loading) {
                     ['OPEX per boe', results.kpis.opex_usd_per_boe != null
                       ? `$${Number(results.kpis.opex_usd_per_boe).toFixed(2)}/boe` : null],
                     ['DPI', results.kpis.dpi != null ? Number(results.kpis.dpi).toFixed(2) : null],
+                    ['Profitability index', results.kpis.profitability_index != null
+                      ? Number(results.kpis.profitability_index).toFixed(2) : null,
+                      'One plus DPI: the present value the project returns for each unit of present-value capex.'],
+                    ['PSC cost unrecovered at cessation', results.kpis.psc_unrecovered_cost_at_cessation != null
+                      ? formatCurrency(results.kpis.psc_unrecovered_cost_at_cessation) : null,
+                      'Cost the contractor never recovered through cost oil, at the working interest of this run.'],
+                    ['CIT allowance unused at cessation', results.kpis.cit_allowance_unused_at_cessation != null
+                      ? formatCurrency(results.kpis.cit_allowance_unused_at_cessation) : null,
+                      'Restricted capital allowance still carried forward when the field ceases.'],
                     ['Discounted payback', results.kpis.discounted_payback_years != null
                       ? `${Number(results.kpis.discounted_payback_years).toFixed(2)} yrs` : null],
                     // Wave F tiles (present only when the run used the feature)

@@ -39,7 +39,7 @@ const OptimizationResults = ({ result }) => {
 
   const {
     optimalProjects, totalCapex, totalEmv, totalNpvSuccess, frontierData, risk,
-    resolution, capexLimit, overLimit, overLimitBy,
+    resolution, solveMethod, optimalityGap,
   } = result;
   const optimalPoint = [{ capex: totalCapex, emv: totalEmv }];
   const methodLabel = riskMethodLabel(risk);
@@ -66,20 +66,24 @@ const OptimizationResults = ({ result }) => {
               detail={methodLabel}
             />
           </div>
-          {Number.isFinite(resolution) && (
+          {/* EC5 (engines #194): the knapsack is solved exactly on the capex
+              figures themselves, so there is no grid and the funded set cannot
+              exceed the limit. A grid appears only on a problem too large for
+              the exact solve, and then it says so and bounds what it may have
+              left on the table. */}
+          {solveMethod === 'grid-feasible' && Number.isFinite(resolution) && (
             <p className="text-xs text-slate-400 pt-1" data-testid="grid-resolution">
-              Capital is quantized onto a grid with a resolution of {formatMM(resolution)}. Totals that differ by less than that are not meaningfully different.
+              This portfolio was too large to solve exactly, so capital was quantized onto a grid with a
+              resolution of {formatMM(resolution)} and every candidate rounded UP onto it, which keeps the
+              funded set inside your limit. At most {formatMM(optimalityGap)} of risked EMV could have been
+              left on the table.
             </p>
           )}
-          {overLimit && (
-            <div role="alert" data-testid="overlimit-warning" className="mt-2 flex items-start gap-2 rounded border border-red-500/50 bg-red-950/40 p-3 text-sm text-red-200">
-              <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-red-300" />
-              <span>
-                The funded set's capex of {formatMM(totalCapex)} exceeds the limit of {formatMM(capexLimit)} by {formatMM(overLimitBy)}.
-                {' '}This happens on the quantized grid (resolution {formatMM(resolution)}), which can overshoot by up to half a cell per project.
-                {' '}Check the set against the real limit before committing to it.
-              </span>
-            </div>
+          {solveMethod === 'exact' && (
+            <p className="text-xs text-slate-400 pt-1" data-testid="exact-solve">
+              Solved exactly on the capital figures you entered, so the funded set is the best that fits
+              inside the limit of {formatMM(result.capexLimit)}.
+            </p>
           )}
           <p className="text-xs text-slate-400 pt-1">
             {risk.correlation > 0 ? (

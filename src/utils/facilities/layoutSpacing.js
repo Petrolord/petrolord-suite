@@ -136,12 +136,68 @@ export const layersToItems = (layers = []) => layers
   }))
   .filter((it) => it.type !== null);
 
+/**
+ * Standard equipment the mapper holds that has no usable position. These
+ * ARE passed to the engine (with no coordinates), so the engine skips them
+ * as 'bad-coordinates' and marks the check incomplete itself, rather than
+ * the adapter dropping them silently.
+ */
+export const unplacedItems = (layers = []) => layers
+  .filter((l) => l?.type === 'icon' && !l.isCustom && typeOfLayer(l) !== null)
+  .filter((l) => !(l.latlng && Number.isFinite(l.latlng.lat) && Number.isFinite(l.latlng.lng)))
+  .map((l) => ({ id: l.id, name: l.tag || l.iconName, type: typeOfLayer(l) }));
+
 /** Items the check had to skip, so the panel can say so honestly. */
 export const skippedLayers = (layers = []) => layers.filter((l) => {
   if (!l || l.type !== 'icon') return l?.type === 'pipeline';
   if (l.isCustom) return true;
   return typeOfLayer(l) === null;
 });
+
+/**
+ * What the ADAPTER leaves out of the check, in the engine's own
+ * `{ id, reason }` shape so the two lists merge (FC1-0). A pipe run has no
+ * single position and a custom icon has no class the table knows, so
+ * judging either would invent a rule the user never set; neither makes the
+ * check incomplete, because neither is in its scope.
+ */
+export const adapterSkipped = (layers = []) => skippedLayers(layers).map((l) => ({
+  id: l?.id ?? null,
+  reason: l?.type === 'pipeline' ? 'pipe-run' : (l?.isCustom ? 'custom-icon' : 'no-spacing-class'),
+}));
+
+/** Skip reasons in words, singular and plural. */
+export const SKIP_REASON_TEXT = Object.freeze({
+  'pipe-run': ['pipe run', 'pipe runs'],
+  'custom-icon': ['custom icon', 'custom icons'],
+  'no-spacing-class': ['icon with no spacing class', 'icons with no spacing class'],
+  'bad-coordinates': ['item with no position on the map', 'items with no position on the map'],
+  'radiation-source-not-placed': ['radiation source that is not placed', 'radiation sources that are not placed'],
+});
+
+/** "2 pipe runs, 1 custom icon", from a list of { id, reason }. */
+export const describeSkipped = (skipped = []) => {
+  const counts = new Map();
+  skipped.forEach((sk) => counts.set(sk.reason, (counts.get(sk.reason) || 0) + 1));
+  return [...counts.entries()]
+    .map(([reason, n]) => {
+      const words = SKIP_REASON_TEXT[reason] || [reason, reason];
+      return `${n} ${n === 1 ? words[0] : words[1]}`;
+    })
+    .join(', ');
+};
+
+/** Why the check is incomplete, in words, for the panel and the report. */
+export const incompleteReasons = (result) => {
+  const out = [];
+  (result?.sourceErrors || []).forEach((e) => out.push(e.message.replace(/\.$/, '')));
+  const notJudged = (result?.skipped || []).filter((sk) => SKIP_REASON_TEXT[sk.reason]
+    && (sk.reason === 'bad-coordinates' || sk.reason === 'radiation-source-not-placed'));
+  if (notJudged.length) out.push(`${describeSkipped(notJudged)} could not be judged`);
+  const unknown = result?.unknownPairs?.length || 0;
+  if (unknown) out.push(`${unknown} equipment pair${unknown === 1 ? '' : 's'} the spacing table has no figure for`);
+  return out;
+};
 
 const M_PER_FT = 0.3048;
 
@@ -247,16 +303,22 @@ export const runLayoutCheck = ({ layers, radiation }) => {
     }
   }
 
-  const result = checkLayout({ items, radiationSources: sources });
+  // Unplaced standard equipment goes to the engine so IT reports the skip
+  // and the incompleteness (FC1-0).
+  const result = checkLayout({ items: [...items, ...unplacedItems(layers)], radiationSources: sources });
   const neighbours = nearestNeighbours({ items });
   return {
     ...result,
     items,
     sources,
     sourceErrors,
-    complete: sourceErrors.length === 0,
+    // The engine owns completeness now; a radiation source the adapter could
+    // not compute is the one thing it cannot see.
+    complete: Boolean(result.complete) && sourceErrors.length === 0,
     neighbours: neighbours.error ? [] : neighbours.rows,
-    skipped: skippedLayers(layers),
+    // Both lists, neither lost: what the engine skipped and what the adapter
+    // never sent it.
+    skipped: [...(result.skipped || []), ...adapterSkipped(layers)],
   };
 };
 
@@ -280,10 +342,20 @@ export const spacingReportSection = (result) => {
     };
   }
   const summary = [];
-  summary.push(result.pass
-    ? `All ${result.checked} checks that ran pass.`
-    : `${result.violations.length} of ${result.checked} checks fail.`);
+  if (result.pass === null) {
+    const n = result.zeroRequirementPairs || 0;
+    summary.push(`Nothing was checked: ${n === 1 ? '1 pair has' : `${n} pairs have`} no required spacing.`);
+  } else {
+    summary.push(result.pass
+      ? `All ${result.checked} checks that ran pass.`
+      : `${result.violations.length} of ${result.checked} checks fail.`);
+  }
   (result.sourceErrors || []).forEach((e) => summary.push(e.message));
+  incompleteReasons(result).forEach((reason) => {
+    if (!(result.sourceErrors || []).some((e) => e.message.replace(/\.$/, '') === reason)) {
+      summary.push(`Check incomplete: ${reason}.`);
+    }
+  });
   const setbacks = result.sources.map((s) => [
     s.label,
     f0(s.setbackM),
@@ -302,7 +374,11 @@ export const spacingReportSection = (result) => {
     'Radiation setbacks use a point source: unreliable close to the flame, stack height ignored, no wind tilt, no solar radiation added.',
   ];
   if (result.skipped?.length) {
-    notes.push(`${result.skipped.length} item(s) not checked (pipe runs and custom icons).`);
+    notes.push(`Not checked: ${describeSkipped(result.skipped)}.`);
+  }
+  if (result.worstAbsolute && result.worstRelative
+    && result.worstAbsolute !== result.worstRelative) {
+    notes.push('Two rankings are reported: the largest shortfall in metres and the largest shortfall as a fraction of its requirement. They are different pairs here.');
   }
   return { summary, setbacks, violations, notes };
 };
