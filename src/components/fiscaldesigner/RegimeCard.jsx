@@ -2,6 +2,7 @@ import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { tierTableRefusal } from '@/components/fiscaldesigner/fiscalResultText';
 
 const RegimeCard = ({ regime, onChange }) => {
   const handleInputChange = (path, value) => {
@@ -13,6 +14,11 @@ const RegimeCard = ({ regime, onChange }) => {
     newTiers[index][field] = Number(value);
     onChange(regime.id, path, newTiers);
   };
+
+  // EC2-8: the engine refuses a tier table with a repeated threshold; show
+  // its message under the table being edited.
+  const royaltyRefusal = tierTableRefusal(regime, 'royalty');
+  const splitRefusal = tierTableRefusal(regime, 'profitSplit');
 
   return (
     <div className="bg-white/5 p-4 rounded-lg space-y-6">
@@ -44,6 +50,7 @@ const RegimeCard = ({ regime, onChange }) => {
                 <Input type="number" value={tier.rate} onChange={(e) => handleTierChange(['royalty', 'tiers'], index, 'rate', e.target.value)} className="bg-white/10 border-white/20"/>
               </div>
             ))}
+            {royaltyRefusal && <p role="alert" className="text-xs text-red-300">{royaltyRefusal}</p>}
           </div>
         )}
       </div>
@@ -83,6 +90,7 @@ const RegimeCard = ({ regime, onChange }) => {
                   <Input type="number" value={tier.split} onChange={(e) => handleTierChange(['profitSplit', 'tiers'], index, 'split', e.target.value)} className="bg-white/10 border-white/20"/>
                 </div>
               ))}
+              {splitRefusal && <p role="alert" className="text-xs text-red-300">{splitRefusal}</p>}
             </div>
           )}
         </div>

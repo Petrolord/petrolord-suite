@@ -10,6 +10,7 @@ import {
   calculateCashFlowForRegime,
   calculateNPV,
   calculateIRR,
+  calculateIRRResult,
   deriveInsights,
 } from '@/utils/fiscalDesignerCalculations';
 import { calculateEconomics } from '@/utils/npvCalculations';
@@ -162,12 +163,45 @@ describe('parity with the canonical screening engine', () => {
   });
 });
 
+// EC2-5 (engines #186): the sandbox adopted the screening engine's IRR
+// contract. A rate is reported only when it is a verified root inside -99 to
+// 1000 percent; otherwise `irr` is null and `irrStatus` says which case it is.
+// The bisection this replaced returned 0 both for a flow that never changes
+// sign and for one whose only root is negative, so "0.0%" meant two different
+// things and neither was a rate.
 describe('solvers', () => {
-  test('IRR is the rate at which NPV is zero', () => {
+  test('a reported IRR is a rate at which NPV is zero', () => {
+    // One sign change, so there is one rate and it is reported.
+    const rows = [
+      { year: 1, contractorNCF: -1000 },
+      { year: 2, contractorNCF: 400 },
+      { year: 3, contractorNCF: 400 },
+      { year: 4, contractorNCF: 400 },
+    ];
+    const result = calculateIRRResult(rows);
+    expect(result.irrStatus).toBe('ok');
+    expect(result.irr).toBeGreaterThan(0);
+    expect(calculateIRR(rows)).toBe(result.irr);
+    expect(calculateNPV(rows, result.irr)).toBeCloseTo(0, 6);
+    expect(result.irrRoots).toBeNull();
+  });
+
+  test('the 25 year test project has no single IRR, and every root it names is one', () => {
+    // The tail turns the contractor cash flow negative again, so the flow
+    // changes sign more than once and no single rate is "the" return.
     const rows = calculateCashFlowForRegime(flatRegime(), project);
-    const irr = calculateIRR(rows);
-    expect(irr).toBeGreaterThan(0);
-    expect(calculateNPV(rows, irr)).toBeCloseTo(0, 6);
+    const result = calculateIRRResult(rows);
+    expect(result.irr).toBeNull();
+    expect(result.irrStatus).toBe('multiple-roots');
+    expect(result.irrRoots.length).toBeGreaterThan(1);
+    // Each listed root really does zero the NPV, to the engine's scaled
+    // tolerance (the flow is thousands of $MM, so an absolute 1e-6 is not
+    // the right bar; use a relative one against the gross movement).
+    const scale = rows.reduce((sum, cf) => sum + Math.abs(cf.contractorNCF), 0);
+    result.irrRoots.forEach((root) => {
+      expect(Math.abs(calculateNPV(rows, root)) / scale).toBeLessThan(1e-6);
+    });
+    expect(calculateIRR(rows)).toBeNull();
   });
 
   test('no IRR is reported when the cash flow never changes sign', () => {
@@ -175,7 +209,32 @@ describe('solvers', () => {
       { year: 1, contractorNCF: 10 },
       { year: 2, contractorNCF: 20 },
     ];
-    expect(calculateIRR(allPositive)).toBe(0);
+    expect(calculateIRR(allPositive)).toBeNull();
+    expect(calculateIRRResult(allPositive).irrStatus).toBe('no-sign-change');
+    // and the two cases the old solver both reported as 0 are told apart:
+    // a flow whose only root is negative reports that negative root.
+    const negativeRoot = [
+      { year: 1, contractorNCF: -100 },
+      { year: 2, contractorNCF: 40 },
+      { year: 3, contractorNCF: 40 },
+    ];
+    const neg = calculateIRRResult(negativeRoot);
+    expect(neg.irrStatus).toBe('ok');
+    expect(neg.irr).toBeLessThan(0);
+  });
+
+  test('a tier table with a repeated threshold is refused, naming the regime', () => {
+    const clash = flatRegime({
+      name: 'Clashing PSC',
+      royalty: { type: 'sliding_price', tiers: [{ threshold: 60, rate: 10 }, { threshold: 60, rate: 15 }] },
+    });
+    expect(() => calculateCashFlowForRegime(clash, project))
+      .toThrow(/Fiscal regime "Clashing PSC": the royalty tier table has more than one tier at threshold 60/);
+    // Negative control: distinct thresholds are accepted, in any order.
+    const sorted = flatRegime({
+      royalty: { type: 'sliding_price', tiers: [{ threshold: 80, rate: 15 }, { threshold: 60, rate: 10 }] },
+    });
+    expect(() => calculateCashFlowForRegime(sorted, project)).not.toThrow();
   });
 
   test('a harsher regime leaves the contractor less', () => {

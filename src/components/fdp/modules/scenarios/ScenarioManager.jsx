@@ -21,6 +21,19 @@ import { runScenario, conceptCapexMM } from '@/utils/fdp/scenarioCalculations';
  * fields the form writes and refuses a concept that carries no cost at all,
  * which this card reports rather than swallowing.
  */
+const CAPEX_FIELD_LABELS = {
+    drillingCapex: 'the drilling capex',
+    facilitiesCapex: 'the facilities capex',
+    subseaCapex: 'the subsea capex',
+};
+
+/** "the drilling capex and the subsea capex", from the engine's field names. */
+export const capexMissingText = (fields = []) => {
+    const names = fields.map((f) => CAPEX_FIELD_LABELS[f] || f);
+    if (names.length <= 1) return names.join('');
+    return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+};
+
 const ScenarioCard = ({ scenario, concept, onEdit, onDelete, onSelect, isSelected }) => {
     if (!concept) {
         return (
@@ -50,10 +63,13 @@ const ScenarioCard = ({ scenario, concept, onEdit, onDelete, onSelect, isSelecte
 
     let metrics = null;
     let refusal = null;
+    let capexStatus = 'complete';
+    let capexMissing = [];
     try {
         // Economics E1: post royalty and tax, through the sanctioned engine.
-        // EC6-0: on the concept's own capex.
-        ({ metrics } = runScenario(scenario, concept));
+        // EC6-0: on the concept's own capex. EC6-9: and whether that capex
+        // is complete, so a partial sum cannot pass for a whole one.
+        ({ metrics, capexStatus, capexMissing = [] } = runScenario(scenario, concept));
     } catch (err) {
         refusal = err.message;
     }
@@ -103,10 +119,16 @@ const ScenarioCard = ({ scenario, concept, onEdit, onDelete, onSelect, isSelecte
                     </Badge>
                 </div>
                 
-                <div className="text-xs text-slate-400 mb-4">
+                <div className={`text-xs text-slate-400 ${capexStatus === 'partial' ? 'mb-2' : 'mb-4'}`}>
                     Linked Concept: <span className="text-slate-200">{concept.name}</span>
-                    <span className="text-slate-500"> (CAPEX ${capex.toFixed(0)}MM)</span>
+                    <span className="text-slate-500"> (CAPEX ${capex.toFixed(0)}MM{capexStatus === 'partial' ? ', partial' : ''})</span>
                 </div>
+                {capexStatus === 'partial' && (
+                    <p className="text-xs text-amber-200/80 flex items-start mb-4" data-testid="partial-capex">
+                        <AlertTriangle className="w-3.5 h-3.5 mr-1.5 mt-0.5 shrink-0" />
+                        Partial capex: {capexMissingText(capexMissing)} {capexMissing.length === 1 ? 'is' : 'are'} blank, so these economics leave that cost out.
+                    </p>
+                )}
 
                 <div className="grid grid-cols-2 gap-2 text-xs mb-4">
                     <div className="bg-slate-900 p-2 rounded text-center">

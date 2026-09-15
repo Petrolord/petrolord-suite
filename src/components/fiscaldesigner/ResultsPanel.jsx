@@ -34,6 +34,7 @@ import { Table, BarChartHorizontal, BrainCircuit, LineChart as LineIcon, Trendin
 import ChartFrame from '@/components/charts/ChartFrame';
 import PriceShareChart from '@/components/fiscaldesigner/PriceShareChart';
 import { buildPriceShareChart } from '@/components/fiscaldesigner/priceShareChart';
+import { irrText } from '@/components/fiscaldesigner/fiscalResultText';
 import {
   FISCAL_METRIC_KEYS, GOVERNMENT_CASH_FLOW, basisLabel, metricDefinition, metricLabel,
 } from '@/utils/fiscalConventions';
@@ -141,7 +142,12 @@ const ResultsPanel = ({ results }) => {
                   <tr key={s.id} className="border-b border-white/10 last:border-b-0">
                     <td className="p-2 text-white font-semibold">{s.name}</td>
                     <td className="p-2 font-bold text-green-400">{s.npv.toFixed(1)}</td>
-                    <td className="p-2 text-white">{s.irr.toFixed(1)}%</td>
+                    <td className="p-2 text-white" data-metric="irr">
+                      {irrText(s).value}
+                      {irrText(s).reason && (
+                        <span className="block text-[11px] font-normal text-slate-300">{irrText(s).reason}</span>
+                      )}
+                    </td>
                     <td className="p-2 text-white">{s.paybackPeriod || 'N/A'}</td>
                     <td className="p-2 text-white" title={GOVERNMENT_CASH_FLOW.definition}>{s.govTake.toFixed(1)}</td>
                     <td className="p-2 text-white text-lg font-bold" data-metric="headline" title={metricDefinition(TAKE)}>

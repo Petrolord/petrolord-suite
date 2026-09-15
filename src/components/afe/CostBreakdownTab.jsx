@@ -10,7 +10,29 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import * as XLSX from 'xlsx';
-import { itemForecast } from '@/utils/costControlCalculations';
+import { AfeInputError, calculateMetrics, itemForecast } from '@/utils/costControlCalculations';
+
+/**
+ * EC5-8 (engines #185). The engine refuses progress below 0 or above 100
+ * percent. The form asks the engine rather than restating the rule, so the
+ * message the user sees is the engine's own. Returns null when accepted.
+ */
+export const progressRefusal = (item) => {
+  try {
+    calculateMetrics({}, [item], [], '2026-01-01');
+    return null;
+  } catch (err) {
+    if (err instanceof AfeInputError || err?.name === 'AfeInputError') return err.message;
+    throw err;
+  }
+};
+
+const formItem = (formData) => ({
+  code: formData.code || formData.wbs_code || undefined,
+  description: formData.description || undefined,
+  budget: formData.budget,
+  progress: formData.progress,
+});
 
 // EC5-0 (owner decision 2026-09-14). The edit form used to seed the forecast
 // with the budget, so saving any edit froze the estimate at completion at the
@@ -68,8 +90,13 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const progress = Number(formData.progress) || 0;
-    if (progress < 0) {
-      toast({ variant: 'destructive', title: 'Progress cannot be negative', description: 'Progress runs from 0 to 100 percent.' });
+    const refusal = progressRefusal({ ...formItem(formData), progress });
+    if (refusal) {
+      toast({
+        variant: 'destructive',
+        title: progress < 0 ? 'Progress cannot be negative' : 'Progress cannot exceed 100 percent',
+        description: refusal,
+      });
       return;
     }
     const forecast = Number(formData.forecast);
@@ -117,6 +144,10 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
   };
 
   const currencyFormatter = (value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value || 0);
+
+  // The progress field is capped at 100 (and floored at 0): a value outside
+  // that range shows the engine's refusal under the field and Save is off.
+  const progressError = Number.isFinite(formData.progress) ? progressRefusal(formItem(formData)) : null;
 
   // Filter and Group
   const filteredItems = activeCategory === 'All' ? costItems : costItems.filter(i => i.category === activeCategory);
@@ -250,7 +281,8 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
               </div>
               <div>
                 <Label>% Progress</Label>
-                <Input type="number" min="0" max="100" value={formData.progress} onChange={e => setFormData({...formData, progress: parseFloat(e.target.value)})} className="bg-slate-800 border-slate-700" />
+                <Input type="number" min="0" max="100" value={Number.isNaN(formData.progress) ? '' : formData.progress} onChange={e => setFormData({...formData, progress: parseFloat(e.target.value)})} className="bg-slate-800 border-slate-700" />
+                {progressError && <p role="alert" className="mt-1 text-xs text-red-300">{progressError}</p>}
               </div>
             </div>
             <div>
@@ -258,7 +290,7 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
                 <Input value={formData.vendor} onChange={e => setFormData({...formData, vendor: e.target.value})} className="bg-slate-800 border-slate-700" />
             </div>
             <DialogFooter>
-              <Button type="submit" className="bg-blue-600"><Save className="w-4 h-4 mr-2" /> Save Item</Button>
+              <Button type="submit" className="bg-blue-600" disabled={Boolean(progressError)}><Save className="w-4 h-4 mr-2" /> Save Item</Button>
             </DialogFooter>
           </form>
         </DialogContent>

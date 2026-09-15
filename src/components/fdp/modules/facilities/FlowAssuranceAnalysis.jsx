@@ -28,13 +28,33 @@ const FlowAssuranceAnalysis = ({ facility, fluidProps }) => {
                         <ThermometerSnowflake className="w-5 h-5 mr-2 text-blue-300" />
                         Flow Assurance Risks
                     </div>
-                    <span className={`text-sm px-3 py-1 rounded-full ${analysis.level === 'High' ? 'bg-red-900 text-red-200' : 'bg-green-900 text-green-200'}`}>
-                        {analysis.level} Risk
+                    <span
+                        data-testid="flow-assurance-score"
+                        className={`text-sm px-3 py-1 rounded-full ${analysis.score > 0 ? 'bg-amber-900 text-amber-200' : 'bg-slate-800 text-slate-300'}`}
+                    >
+                        Hazard score {analysis.score}
                     </span>
                 </CardTitle>
             </CardHeader>
             <CardContent>
                 <div className="space-y-4">
+                    {/* EC6-2: the engine retired its Low/Medium/High level, which
+                        borrowed the risk register's words for a different
+                        quantity. The score is shown with the triggers that
+                        produced it and the hazards each one names. */}
+                    <div className="text-xs text-slate-400" data-testid="flow-assurance-breakdown">
+                        {analysis.contributions.length === 0 ? (
+                            <p>Score 0: no screening trigger fired on this facility and fluid.</p>
+                        ) : (
+                            <ul className="space-y-1">
+                                {analysis.contributions.map((c) => (
+                                    <li key={c.trigger}>
+                                        <span className="text-slate-200">{c.trigger}</span>: {c.points} point{c.points === 1 ? '' : 's'} ({c.hazards.join(', ')})
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
                     <div className="grid grid-cols-3 gap-2 text-center text-sm mb-4">
                         <div className="p-2 bg-slate-800 rounded">
                             <div className="text-slate-500">Hydrates</div>

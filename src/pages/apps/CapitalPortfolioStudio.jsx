@@ -16,7 +16,8 @@ import ProjectForm from '@/components/capitalportfoliostudio/ProjectForm';
 import PortfolioForm from '@/components/capitalportfoliostudio/PortfolioForm';
 import OptimizationResults from '@/components/capitalportfoliostudio/OptimizationResults';
 import PortfolioComparison from '@/components/capitalportfoliostudio/PortfolioComparison';
-import { optimizePortfolio, projectEmv, PortfolioInputError } from '@/utils/portfolioOptimizer';
+import { optimizePortfolio, PortfolioInputError } from '@/utils/portfolioOptimizer';
+import { emvOrRefusal, projectRefusal, posText } from '@/components/capitalportfoliostudio/projectRefusal';
 import PortfolioHelpGuide from '@/components/capitalportfoliostudio/PortfolioHelpGuide';
 
 const CapitalPortfolioStudio = () => {
@@ -220,6 +221,10 @@ const CapitalPortfolioStudio = () => {
     setComparisonOpen(true);
   };
 
+  // EC5-6 and EC5-7: every refusal the engine would raise on Run, listed
+  // before the user presses it.
+  const projectRefusals = projects.map(projectRefusal).filter(Boolean);
+
   const formatCurrency = (value, unit = 'MM') => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value || 0) + (unit ? ` ${unit}` : '');
 
   return (
@@ -343,6 +348,12 @@ const CapitalPortfolioStudio = () => {
                     </p>
                   </CardHeader>
                   <CardContent>
+                    {projectRefusals.length > 0 && (
+                      <div role="alert" data-testid="portfolio-refusals" className="mb-3 rounded border border-red-800 bg-red-950/40 p-3 text-sm text-red-200 space-y-1">
+                        <p>These projects cannot be optimised until they are corrected:</p>
+                        {projectRefusals.map((msg) => <p key={msg} className="text-xs">{msg}</p>)}
+                      </div>
+                    )}
                     <div className="max-h-64 overflow-y-auto pr-2">
                       <Table>
                         <TableHeader>
@@ -357,7 +368,10 @@ const CapitalPortfolioStudio = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {projects.map(p => (
+                          {projects.map(p => {
+                            const refusal = projectRefusal(p);
+                            const { emv } = emvOrRefusal(p);
+                            return (
                             <TableRow key={p.id} className="border-b-white/10">
                               <TableCell><Checkbox checked={selectedProjectIds.has(p.id)} onCheckedChange={() => handleProjectSelectionChange(p.id)} /></TableCell>
                               <TableCell className="font-medium">
@@ -368,14 +382,17 @@ const CapitalPortfolioStudio = () => {
                               </TableCell>
                               <TableCell className="text-right text-amber-300">{formatCurrency(p.capex)}</TableCell>
                               <TableCell className="text-right text-slate-200">{formatCurrency(p.npv_p50)}</TableCell>
-                              <TableCell className="text-right text-slate-300">{Math.round((p.pos ?? 1) * 100)}%</TableCell>
-                              <TableCell className="text-right text-lime-300">{formatCurrency(projectEmv(p))}</TableCell>
+                              <TableCell className="text-right text-slate-300">{posText(p, refusal)}</TableCell>
+                              <TableCell className="text-right text-lime-300">
+                                {emv === null ? <span className="text-red-300" title={refusal || undefined}>n/a</span> : formatCurrency(emv)}
+                              </TableCell>
                               <TableCell className="text-right">
                                 <Button variant="ghost" size="icon" onClick={() => handleOpenProjectDialog(p)} className="text-blue-400 hover:text-blue-300 h-7 w-7"><Edit className="w-4 h-4" /></Button>
                                 <Button variant="ghost" size="icon" onClick={() => handleDeleteProject(p.id)} className="text-red-500 hover:text-red-400 h-7 w-7"><Trash2 className="w-4 h-4" /></Button>
                               </TableCell>
                             </TableRow>
-                          ))}
+                            );
+                          })}
                           {projects.length === 0 && (
                             <TableRow><TableCell colSpan={7} className="text-center text-slate-400 py-6">No projects yet. Use Add Project to create one, typed or linked to an EPE Monte Carlo run.</TableCell></TableRow>
                           )}
