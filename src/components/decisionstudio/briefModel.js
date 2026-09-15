@@ -7,7 +7,7 @@
 // adds nothing to it, so these numbers are testable without jsPDF.
 
 import { rollback } from '@/lib/decisionTree';
-import { firstMoveLabel } from '@/components/decisiontree/firstMoveLabel';
+import { firstMoveLabel, isIndifferentFirstMove } from '@/components/decisiontree/firstMoveLabel';
 import { optimizePortfolio } from '@/utils/portfolioOptimizer';
 
 const shortId = (id) => (id ? String(id).slice(0, 8) : 'n/a');
@@ -81,7 +81,12 @@ export function decisionSection(treeProject) {
   ];
   if (nextBest != null) {
     rows.push(['Next best alternative', fmtMM(nextBest)]);
-    rows.push(['Decision advantage', fmtMM(annotated.emv - nextBest)]);
+    // EC4-1 (engines #192): a brief that prints a decision advantage of 0.00
+    // under a named recommendation is telling the reader to pick one of two
+    // options its own numbers cannot separate.
+    rows.push(['Decision advantage', isIndifferentFirstMove(annotated)
+      ? 'Indifferent at the precision shown'
+      : fmtMM(annotated.emv - nextBest)]);
   }
   return {
     heading: 'Decision analysis',

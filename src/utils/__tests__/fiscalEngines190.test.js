@@ -13,7 +13,11 @@
 import fs from 'fs';
 import path from 'path';
 import { runFiscalComparison, CAPEX_SWEEP_MULTIPLIERS } from '@/utils/fiscalDesignerCalculations';
-import { FISCAL_DESIGNER_HELP_CONTENT } from '@/components/fiscaldesigner/FiscalDesignerHelpGuide';
+
+// The guide is a component, so its copy is read from the source, the way the
+// other help-guide guards in this repo read theirs.
+const HELP_GUIDE_PATH = path.resolve(__dirname, '../../components/fiscaldesigner/FiscalDesignerHelpGuide.jsx');
+const helpGuideSource = fs.readFileSync(HELP_GUIDE_PATH, 'utf8');
 
 const PROJECT = {
   name: 'Sweep project',
@@ -85,19 +89,13 @@ describe('the RRT capital uplift', () => {
 });
 
 describe('the help guide states both', () => {
-  const text = FISCAL_DESIGNER_HELP_CONTENT.map((s) => `${s.title}. ${s.content}`).join('\n');
-
   it('says the sweep is eight points and the uplift is a one-time pool', () => {
-    expect(text).toMatch(/eight points, 0\.8 to 1\.5/);
-    expect(text).toMatch(/one-time cost pool for the resource rent tax/);
-    expect(text).toMatch(/at most 1\.2 times capex/);
+    expect(helpGuideSource).toMatch(/eight points, 0\.8 to 1\.5/);
+    expect(helpGuideSource).toMatch(/one-time cost pool for the resource rent tax/);
+    expect(helpGuideSource).toMatch(/at most 1\.2 times capex/);
   });
 
   it('keeps the owner copy rule: no em dashes in what it says', () => {
-    expect(text).not.toMatch(/—/);
-    const source = fs.readFileSync(
-      path.resolve(__dirname, '../../components/fiscaldesigner/FiscalDesignerHelpGuide.jsx'), 'utf8',
-    );
-    expect(source).not.toMatch(/—/);
+    expect(helpGuideSource).not.toMatch(/—/);
   });
 });
