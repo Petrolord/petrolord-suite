@@ -69,3 +69,37 @@ plus 8 adapter gates; engines suite 1961 green.
   claim is simply true now.
 - ARMED literature gate: the published spacing tables themselves
   (owner PDFs) — the values here are the commonly cited figures.
+
+## FC1-0 repairs (2026-09-15, branch fix/fc1-0-separator-layout-apps)
+
+Suite-side repairs, decided under the owner's delegation. Engine repairs
+run in a separate engines PR; nothing under packages/engines changed here.
+
+- **S1 pool-fire setback measured from the wrong point (HIGH, failed
+  open).** The adapter passed the engine's `setbackFromEdgeM` while
+  `checkLayout` measures centre to centre from the tank icon, so the check
+  was short by half the pool diameter (default 20 m bund: 56.1 m used,
+  66.1 m true). It now uses `radiusFromCentreM`, labelled "radius from the
+  tank centre", with the edge distance shown for reference. Gate
+  reproduces the probe at 60 m, the old wiring passing it, and a 70 m
+  negative control.
+- **Radiation inputs exposed and saved.** Flare: relief rate, LHV,
+  fraction radiated, allowable. Pool: diameter, burn rate, LHV, fraction
+  radiated, allowable (separate from the flare's). Initial values are the
+  previous panel values and the engine's own pool defaults. A blank input
+  is named ("Flare setback not computed. Missing or invalid: ...") and the
+  check is marked incomplete. Saved inside `facility_layouts.layout_data`
+  as `{ layers, spacingInputs }`; state kind `facility-layout` is now
+  version 2 with a 1 -> 2 migrator for bare layer arrays. No schema change.
+- **PDF export** gains a Safety spacing section (summary, uncomputed
+  setbacks, computed setbacks, violations, measurement notes).
+- **Pipeline tags** are sequential (`PL-001`) from the tags on the map,
+  sharing `src/utils/facilities/layoutTags.js` with equipment tags.
+  (The "sequential tags" claim above was true for equipment only until now.)
+- **Help guide** added (`LayoutMapperHelpGuide.jsx`, header button), with
+  a coverage and copy-rule guard.
+
+Engine follow-ups to adopt when the engines repair PR lands: any rename of
+`radiusFromCentreM` (the adapter falls back to edge + D/2), and any
+`skipped`/`complete` flags checkLayout starts returning (the adapter
+currently computes `complete` from its own source errors).

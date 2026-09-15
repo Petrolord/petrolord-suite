@@ -4,13 +4,19 @@
 // finally get computed. Two kinds of answer are kept visibly apart:
 // the table spacings between equipment classes, and the radiation
 // setbacks computed from a stated duty.
-import React, { useMemo, useState } from 'react';
+//
+// FC1-0: the radiation inputs are held by the page and saved with the
+// layout; flare and pool fire each carry their own allowable, heating
+// value and fraction radiated; a blank input is named, never replaced.
+import React, { useMemo } from 'react';
 import { ShieldAlert, CheckCircle2, AlertTriangle, Info } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { runLayoutCheck, toFeet, RADIATION_LEVELS } from '@/utils/facilities/layoutSpacing';
+import {
+  runLayoutCheck, toFeet, RADIATION_LEVELS, SPACING_INPUT_LABELS,
+  DEFAULT_SPACING_INPUTS, spacingInputsToRadiation,
+} from '@/utils/facilities/layoutSpacing';
 
 const fmt = (v, d = 0) => (Number.isFinite(v)
   ? v.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d })
@@ -24,35 +30,26 @@ const Field = ({ label, hint, children }) => (
   </div>
 );
 
-const SpacingPanel = ({ layers }) => {
-  const [radiation, setRadiation] = useState({
-    flareEnabled: true,
-    poolEnabled: false,
-    reliefRateKgS: '20',
-    lhvKjKg: '46000',
-    fractionRadiated: '0.3',
-    allowableKwM2: '4.73',
-    poolDiameterM: '20',
-  });
+const LEVELS_HINT = `API 521 levels: ${RADIATION_LEVELS.map((l) => l.kWm2).join(', ')} kW/m2.`;
 
-  const set = (k, v) => setRadiation((prev) => ({ ...prev, [k]: v }));
-  const num = (v, f = NaN) => {
-    const n = parseFloat(v);
-    return Number.isFinite(n) ? n : f;
-  };
+const SpacingPanel = ({ layers, inputs = DEFAULT_SPACING_INPUTS, onChange = () => {} }) => {
+  const set = (k, v) => onChange({ ...inputs, [k]: v });
+
+  const NumField = ({ name, step = 'any', hint }) => (
+    <Field label={SPACING_INPUT_LABELS[name]} hint={hint}>
+      <Input type="number" step={step} value={inputs[name] ?? ''}
+        aria-label={SPACING_INPUT_LABELS[name]}
+        onChange={(e) => set(name, e.target.value)}
+        className="h-8 bg-slate-800 border-slate-700" />
+    </Field>
+  );
 
   const result = useMemo(() => runLayoutCheck({
     layers,
-    radiation: {
-      flareEnabled: radiation.flareEnabled,
-      poolEnabled: radiation.poolEnabled,
-      reliefRateKgS: num(radiation.reliefRateKgS),
-      lhvKjKg: num(radiation.lhvKjKg, 46000),
-      fractionRadiated: num(radiation.fractionRadiated, 0.3),
-      allowableKwM2: num(radiation.allowableKwM2, 4.73),
-      poolDiameterM: num(radiation.poolDiameterM, 20),
-    },
-  }), [layers, radiation]);
+    radiation: spacingInputsToRadiation(inputs),
+  }), [layers, inputs]);
+
+  const incomplete = !result.error && !result.complete;
 
   return (
     <div className="space-y-4">
@@ -64,56 +61,39 @@ const SpacingPanel = ({ layers }) => {
       <div className="space-y-3 border-b border-slate-700/50 pb-4">
         <div className="flex items-center justify-between">
           <Label className="text-xs text-slate-400">Flare radiation setback</Label>
-          <Switch checked={radiation.flareEnabled}
+          <Switch checked={Boolean(inputs.flareEnabled)} aria-label="Flare radiation setback"
             onCheckedChange={(v) => set('flareEnabled', v)} />
         </div>
-        {radiation.flareEnabled && (
+        {inputs.flareEnabled && (
           <>
             <div className="grid grid-cols-2 gap-2">
-              <Field label="Relief rate (kg/s)">
-                <Input type="number" value={radiation.reliefRateKgS}
-                  onChange={(e) => set('reliefRateKgS', e.target.value)}
-                  className="h-8 bg-slate-800 border-slate-700" />
-              </Field>
-              <Field label="LHV (kJ/kg)">
-                <Input type="number" value={radiation.lhvKjKg}
-                  onChange={(e) => set('lhvKjKg', e.target.value)}
-                  className="h-8 bg-slate-800 border-slate-700" />
-              </Field>
+              {NumField({ name: 'reliefRateKgS' })}
+              {NumField({ name: 'flareLhvKjKg' })}
             </div>
-            <Field label="Fraction radiated" hint="0.2 to 0.4 typical; fuel and tip dependent.">
-              <Input type="number" step="0.01" value={radiation.fractionRadiated}
-                onChange={(e) => set('fractionRadiated', e.target.value)}
-                className="h-8 bg-slate-800 border-slate-700" />
-            </Field>
+            {NumField({ name: 'flareFractionRadiated', step: '0.01', hint: '0.2 to 0.4 typical; fuel and tip dependent.' })}
+            {NumField({ name: 'flareAllowableKwM2', step: '0.01', hint: LEVELS_HINT })}
           </>
         )}
 
         <div className="flex items-center justify-between">
           <Label className="text-xs text-slate-400">Tank pool fire setback</Label>
-          <Switch checked={radiation.poolEnabled}
+          <Switch checked={Boolean(inputs.poolEnabled)} aria-label="Tank pool fire setback"
             onCheckedChange={(v) => set('poolEnabled', v)} />
         </div>
-        {radiation.poolEnabled && (
-          <Field label="Bund pool diameter (m)" hint="The burning pool a full bund would make.">
-            <Input type="number" value={radiation.poolDiameterM}
-              onChange={(e) => set('poolDiameterM', e.target.value)}
-              className="h-8 bg-slate-800 border-slate-700" />
-          </Field>
+        {inputs.poolEnabled && (
+          <>
+            {NumField({ name: 'poolDiameterM', hint: 'The burning pool a full bund would make, centred on the tank.' })}
+            <div className="grid grid-cols-2 gap-2">
+              {NumField({ name: 'poolBurnRateKgM2S', step: '0.001' })}
+              {NumField({ name: 'poolLhvKjKg' })}
+            </div>
+            {NumField({ name: 'poolFractionRadiated', step: '0.01' })}
+            {NumField({ name: 'poolAllowableKwM2', step: '0.01', hint: LEVELS_HINT })}
+          </>
         )}
-
-        <Field label="Allowable radiation">
-          <Select value={radiation.allowableKwM2} onValueChange={(v) => set('allowableKwM2', v)}>
-            <SelectTrigger className="h-8 bg-slate-800 border-slate-700 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {RADIATION_LEVELS.map((l) => (
-                <SelectItem key={l.kWm2} value={String(l.kWm2)}>
-                  {l.kWm2} kW/m2
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
+        <p className="text-[11px] text-slate-600">
+          Initial values are an example case. They are saved with the layout when you save it.
+        </p>
       </div>
 
       {result.error ? (
@@ -123,27 +103,45 @@ const SpacingPanel = ({ layers }) => {
         </div>
       ) : (
         <>
-          <div className={`rounded-md border px-3 py-2 text-sm flex items-start gap-2 ${result.pass
-            ? 'border-emerald-700/50 bg-emerald-950/30 text-emerald-300'
-            : 'border-red-700/50 bg-red-950/30 text-red-300'}`}>
-            {result.pass
+          <div className={`rounded-md border px-3 py-2 text-sm flex items-start gap-2 ${
+            !result.pass
+              ? 'border-red-700/50 bg-red-950/30 text-red-300'
+              : (incomplete
+                ? 'border-amber-700/50 bg-amber-950/30 text-amber-300'
+                : 'border-emerald-700/50 bg-emerald-950/30 text-emerald-300')}`}>
+            {result.pass && !incomplete
               ? <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
               : <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />}
             <div>
               {result.pass
-                ? `All ${result.checked} checks pass.`
+                ? (incomplete
+                  ? `All ${result.checked} checks that ran pass, but the check is incomplete.`
+                  : `All ${result.checked} checks pass.`)
                 : `${result.violations.length} of ${result.checked} checks fail.`}
             </div>
           </div>
+
+          {result.sourceErrors.length > 0 && (
+            <div className="space-y-1">
+              {result.sourceErrors.map((e) => (
+                <p key={e.source} className="text-[12px] text-amber-300">{e.message}</p>
+              ))}
+            </div>
+          )}
 
           {result.sources.length > 0 && (
             <div className="space-y-1">
               <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Computed setbacks</p>
               {result.sources.map((s) => (
-                <div key={`${s.id}-${s.label}`} className="text-[12px] text-slate-400">
+                <div key={`${s.id}-${s.kind}`} className="text-[12px] text-slate-400">
                   {s.label}: <span className="text-slate-200 font-semibold tabular-nums">
-                    {fmt(s.setbackM, 0)} m
+                    {fmt(s.setbackM, 1)} m
                   </span> ({fmt(toFeet(s.setbackM), 0)} ft)
+                  {s.kind === 'pool' && (
+                    <p className="text-[11px] text-slate-500">
+                      Checked centre to centre. From the pool edge this is {fmt(s.setbackFromEdgeM, 1)} m.
+                    </p>
+                  )}
                   {s.detail?.note && (
                     <p className="text-[11px] text-yellow-400/80 mt-0.5">{s.detail.note}</p>
                   )}
@@ -162,7 +160,7 @@ const SpacingPanel = ({ layers }) => {
                     {v.aName} to {v.bName}
                   </p>
                   <p className="text-[11px] text-slate-400 tabular-nums">
-                    {fmt(v.actualM, 1)} m apart, needs {fmt(v.requiredM, 0)} m
+                    {fmt(v.actualM, 1)} m apart, needs {fmt(v.requiredM, v.kind === 'radiation' ? 1 : 0)} m
                     <span className="text-red-400"> (short {fmt(v.shortfallM, 1)} m)</span>
                   </p>
                   <p className="text-[10px] text-slate-600">
@@ -187,9 +185,10 @@ const SpacingPanel = ({ layers }) => {
           )}
 
           <p className="text-[11px] text-slate-600">
-            Table spacings are the customary onshore production figures and are a table, not a
-            calculation. The radiation setbacks above them are computed from the duty you stated,
-            so they move when it does.
+            All distances are measured centre to centre between icon positions. Table spacings are
+            customary onshore production figures that have not yet been verified against the published literature.
+            The radiation setbacks are computed from the duty you stated with a point-source model,
+            so they move when the duty does. See the guide for its limits.
           </p>
         </>
       )}

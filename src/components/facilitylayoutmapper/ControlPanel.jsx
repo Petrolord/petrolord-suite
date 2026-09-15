@@ -8,14 +8,14 @@ import ProjectPanel from '@/components/facilitylayoutmapper/ProjectPanel';
 import CustomIconManager from '@/components/facilitylayoutmapper/CustomIconManager';
 import SpacingPanel from '@/components/facilitylayoutmapper/SpacingPanel';
 
-const ControlPanel = ({ activeTool, setActiveTool, layers, setLayers, onPlaceItem, selectedLayer, onUpdateLayer, onLoadLayout, customIcons, onAddCustomIcon }) => {
+const ControlPanel = ({ activeTool, setActiveTool, layers, setLayers, onPlaceItem, selectedLayer, onUpdateLayer, onLoadLayout, customIcons, onAddCustomIcon, spacingInputs, onSpacingInputsChange }) => {
 
   return (
     <Accordion type="single" collapsible defaultValue="item-1" className="w-full">
        <AccordionItem value="item-project" className="border-slate-700">
         <AccordionTrigger className="px-4 text-base font-semibold hover:no-underline text-white">Project</AccordionTrigger>
         <AccordionContent className="px-4 pt-2">
-          <ProjectPanel layers={layers} onLoadLayout={onLoadLayout} />
+          <ProjectPanel layers={layers} spacingInputs={spacingInputs} onLoadLayout={onLoadLayout} />
         </AccordionContent>
       </AccordionItem>
       <AccordionItem value="item-1" className="border-slate-700">
@@ -47,13 +47,13 @@ const ControlPanel = ({ activeTool, setActiveTool, layers, setLayers, onPlaceIte
       <AccordionItem value="item-spacing" className="border-slate-700">
         <AccordionTrigger className="px-4 text-base font-semibold hover:no-underline text-white">Safety Spacing</AccordionTrigger>
         <AccordionContent className="px-4 pt-2">
-          <SpacingPanel layers={layers} />
+          <SpacingPanel layers={layers} inputs={spacingInputs} onChange={onSpacingInputsChange} />
         </AccordionContent>
       </AccordionItem>
       <AccordionItem value="item-4" className="border-slate-700">
         <AccordionTrigger className="px-4 text-base font-semibold hover:no-underline text-white">Export</AccordionTrigger>
         <AccordionContent className="px-4 pt-2">
-          <ExportPanel layers={layers} />
+          <ExportPanel layers={layers} spacingInputs={spacingInputs} />
         </AccordionContent>
       </AccordionItem>
     </Accordion>

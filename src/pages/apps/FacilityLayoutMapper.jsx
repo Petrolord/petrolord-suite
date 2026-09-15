@@ -8,6 +8,9 @@ import { useToast } from '@/components/ui/use-toast';
 import ControlPanel from '@/components/facilitylayoutmapper/ControlPanel';
 import MapPanel from '@/components/facilitylayoutmapper/MapPanel';
 import { v4 as uuidv4 } from 'uuid';
+import LayoutMapperHelpGuide from '@/components/facilitylayoutmapper/LayoutMapperHelpGuide';
+import { nextEquipmentTag } from '@/utils/facilities/layoutTags';
+import { DEFAULT_SPACING_INPUTS, normaliseSpacingInputs } from '@/utils/facilities/layoutSpacing';
 
 const iconMap = {
   'Wellhead': CircleDot,
@@ -24,20 +27,6 @@ const iconMap = {
 };
 
 
-/** Next free sequence number for an equipment type already on the map. */
-const nextTagNumber = (layers, typeName) => {
-  const used = new Set();
-  for (const l of layers || []) {
-    const m = typeof l?.tag === 'string' && l.tag.startsWith(`${typeName}-`)
-      ? parseInt(l.tag.slice(typeName.length + 1), 10)
-      : NaN;
-    if (Number.isFinite(m)) used.add(m);
-  }
-  let n = 1;
-  while (used.has(n)) n += 1;
-  return n;
-};
-
 const FacilityLayoutMapper = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -45,6 +34,9 @@ const FacilityLayoutMapper = () => {
   const [layers, setLayers] = useState([]);
   const [selectedLayer, setSelectedLayer] = useState(null);
   const [customIcons, setCustomIcons] = useState([]);
+  // FC1-0: the spacing check's radiation inputs live with the layout, so
+  // they are saved with it and the PDF export reports the same check.
+  const [spacingInputs, setSpacingInputs] = useState(() => ({ ...DEFAULT_SPACING_INPUTS }));
 
   const handleAddCustomIcon = (newIcon) => {
     setCustomIcons(prev => [...prev, newIcon]);
@@ -71,7 +63,7 @@ const FacilityLayoutMapper = () => {
       // Sequential per type, not random: an equipment tag is an identity a
       // drawing and a datasheet share, and a random suffix that changes on
       // every placement is not one (Facilities F8).
-      tag: `${tool.name}-${String(nextTagNumber(prevLayersRef.current, tool.name)).padStart(3, '0')}`,
+      tag: nextEquipmentTag(prevLayersRef.current, tool.name),
       isCustom: tool.isCustom || false,
       iconUrl: tool.iconUrl || null,
     };
@@ -91,8 +83,9 @@ const FacilityLayoutMapper = () => {
     setSelectedLayer(layer);
   };
 
-  const handleLoadLayout = (layoutData) => {
-    setLayers(layoutData);
+  const handleLoadLayout = ({ layers: loadedLayers, spacingInputs: loadedInputs }) => {
+    setLayers(loadedLayers || []);
+    setSpacingInputs(normaliseSpacingInputs(loadedInputs));
     setSelectedLayer(null);
     setActiveTool(null);
     toast({ title: 'Project Loaded', description: 'The layout has been loaded onto the map.' });
@@ -119,6 +112,9 @@ const FacilityLayoutMapper = () => {
                 <Map className="w-6 h-6 text-white" />
               </div>
               <h1 className="text-xl font-bold">Layout Mapper</h1>
+              <div className="ml-auto">
+                <LayoutMapperHelpGuide />
+              </div>
             </div>
           </div>
           <div className="flex-grow overflow-y-auto">
@@ -133,6 +129,8 @@ const FacilityLayoutMapper = () => {
               onLoadLayout={handleLoadLayout}
               customIcons={customIcons}
               onAddCustomIcon={handleAddCustomIcon}
+              spacingInputs={spacingInputs}
+              onSpacingInputsChange={setSpacingInputs}
             />
           </div>
            <div className="p-4 border-t border-slate-700/50">
