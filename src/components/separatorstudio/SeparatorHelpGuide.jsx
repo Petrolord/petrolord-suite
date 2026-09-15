@@ -46,7 +46,14 @@ const helpContent = [
     icon: Ruler,
     title: 'The L/D family',
     content:
-      'Rather than pin one slenderness, the studio sizes every candidate diameter you give it and shows the family with the L/D of each. Three to five is the customary band for horizontal separators. A vessel outside it still separates; it is just an awkward thing to build, ship and support, and seeing the whole family makes that a choice rather than an accident.',
+      'Rather than pin one slenderness, the studio sizes every candidate diameter you give it and shows the family with the L/D of each. Three to five is the customary band for horizontal separators and two to four for vertical ones, and the band fields switch to the vertical band when you change the vessel type (unless you have edited them). The selected vessel is the first candidate inside the band; when no candidate is inside it, the studio selects nothing and says so. A vessel outside the band still separates; it is just an awkward thing to build, ship and support, and seeing the whole family makes that a choice rather than an accident.',
+  },
+  {
+    id: 'inputs',
+    icon: BookOpen,
+    title: 'The example case and missing inputs',
+    content:
+      'A new study opens with an illustrative example case so the whole chain has something to show. Replace those values with your own. If you clear a required field, it stays blank: the studio does not put a typical gas gravity, oil gravity, retention time, droplet size or finger size back in its place. The results are replaced by a message naming each required input that is missing. The K override is the one optional field; blank there means the derated correlation is used.',
   },
   {
     id: 'slug',

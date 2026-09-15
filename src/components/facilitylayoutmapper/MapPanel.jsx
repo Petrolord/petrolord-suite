@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/components/ui/use-toast';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { latLngToUtm } from '@/utils/coordinateUtils';
+import { nextPipelineTag } from '@/utils/facilities/layoutTags';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -83,10 +84,12 @@ const MapPanel = ({ activeTool, layers, setLayers, onPlaceItem, onSelectLayer, i
             type: 'pipeline',
             latlngs: latlngs.map(l => ({ lat: l.lat, lng: l.lng })),
             length: distance,
-            tag: `PL-${Math.floor(Math.random() * 1000)}`,
             lineSize: '6"',
         };
-        setLayers(prevLayers => [...prevLayers, newLayer]);
+        // FC1-0: sequential like equipment tags (PL-001, PL-002, ...), taken
+        // from the layers already on the map so a reloaded layout cannot
+        // collide with a tag it holds.
+        setLayers(prevLayers => [...prevLayers, { ...newLayer, tag: nextPipelineTag(prevLayers) }]);
         toast({ title: "Pipeline Routed", description: `New pipeline added with length ${distance.toFixed(2)}m.` });
         toast({
             title: "Reminder: Check Bend Radius",

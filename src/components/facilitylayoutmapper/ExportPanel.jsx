@@ -9,8 +9,53 @@ import 'jspdf-autotable';
 // Assuming it is a named export based on usage.
 import { latLngToUtm } from '@/utils/coordinateUtils'; 
 import Drawing from 'dxf-writer';
+import {
+  runLayoutCheck, spacingInputsToRadiation, spacingReportSection, DEFAULT_SPACING_INPUTS,
+} from '@/utils/facilities/layoutSpacing';
 
-const ExportPanel = ({ layers }) => {
+/**
+ * FC1-0: the safety spacing section of the PDF, written from the same
+ * check and the same saved inputs the Safety Spacing panel shows.
+ */
+export const addSpacingSection = (doc, { layers, spacingInputs }) => {
+  const result = runLayoutCheck({ layers, radiation: spacingInputsToRadiation(spacingInputs) });
+  const section = spacingReportSection(result);
+  let y = (doc.lastAutoTable?.finalY || 22) + 12;
+  doc.text('Safety spacing', 14, y);
+  y += 6;
+  doc.setFontSize(9);
+  section.summary.forEach((line) => {
+    const wrapped = doc.splitTextToSize(line, 180);
+    doc.text(wrapped, 14, y);
+    y += 5 * wrapped.length;
+  });
+  if (section.setbacks.length) {
+    doc.autoTable({
+      head: [['Computed setback', 'Required from source centre (m)', 'From pool edge (m)']],
+      body: section.setbacks,
+      startY: y,
+    });
+    y = doc.lastAutoTable.finalY + 6;
+  }
+  if (section.violations.length) {
+    doc.autoTable({
+      head: [['Pair', 'Rule', 'Apart (m)', 'Required (m)', 'Short (m)']],
+      body: section.violations,
+      startY: y,
+    });
+    y = doc.lastAutoTable.finalY + 6;
+  }
+  section.notes.forEach((line) => {
+    const wrapped = doc.splitTextToSize(line, 180);
+    doc.text(wrapped, 14, y);
+    y += 5 * wrapped.length;
+  });
+  doc.setFontSize(16);
+  return section;
+};
+
+
+const ExportPanel = ({ layers, spacingInputs = DEFAULT_SPACING_INPUTS }) => {
   const { toast } = useToast();
 
   const toGeoJSON = () => {
@@ -182,6 +227,7 @@ const ExportPanel = ({ layers }) => {
             body: tableData,
             startY: 22,
           });
+          addSpacingSection(doc, { layers, spacingInputs });
           blob = doc.output('blob');
           filename = 'facility_layout.pdf';
           break;
