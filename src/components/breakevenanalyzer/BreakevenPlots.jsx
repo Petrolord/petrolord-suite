@@ -56,14 +56,23 @@ const BreakevenPlots = ({ cdfData, histogramData, tornadoData, kpis }) => {
 
   // Both sides of every swing, drawn from the base case outward. Recharts
   // stacks from zero, so each bar is expressed as an offset pair.
+  //
+  // B1 (engines #182): an end with no breakeven below $500 comes back null
+  // and its bar is flagged `unreachable`. It used to be drawn at 0 and sorted
+  // last, so the uncertainty that can put the project out of reach looked
+  // like the one that matters least. That side is left open and the bar
+  // keeps the engine's order, which puts it first.
   const tornado = useMemo(() => {
     const names = tornadoData?.y || [];
     return names.map((name, i) => {
-      const low = tornadoData.low?.[i] ?? 0;
-      const high = tornadoData.high?.[i] ?? 0;
-      return { name, low: Math.min(low, high), high: Math.max(low, high) };
+      const open = Boolean(tornadoData.unreachable?.[i]);
+      const sides = [tornadoData.low?.[i], tornadoData.high?.[i]].filter((v) => Number.isFinite(v));
+      const low = sides.length === 2 ? Math.min(...sides) : Math.min(0, ...sides);
+      const high = sides.length === 2 ? Math.max(...sides) : Math.max(0, ...sides);
+      return { name: open ? `${name} (open end)` : name, variable: name, open, low, high };
     });
   }, [tornadoData]);
+  const openBars = tornado.filter((d) => d.open).map((d) => d.variable);
 
   return (
     <div className="bg-white/5 p-4 rounded-lg">
@@ -154,7 +163,7 @@ const BreakevenPlots = ({ cdfData, histogramData, tornadoData, kpis }) => {
             <BarChart
               data={tornado} layout="vertical"
               stackOffset="sign"
-              margin={{ top: 12, right: 40, bottom: 28, left: 110 }}
+              margin={{ top: 12, right: 40, bottom: 28, left: 150 }}
             >
               <CartesianGrid {...GRID_STYLE} />
               <XAxis
@@ -167,7 +176,7 @@ const BreakevenPlots = ({ cdfData, histogramData, tornadoData, kpis }) => {
                 }}
               />
               <YAxis
-                type="category" dataKey="name" width={105}
+                type="category" dataKey="name" width={145}
                 stroke={CHART_COLORS.axisLine} tick={{ ...tick, fontSize: 11 }}
               />
               <Tooltip
@@ -189,6 +198,13 @@ const BreakevenPlots = ({ cdfData, histogramData, tornadoData, kpis }) => {
             that reaches further to the right is an uncertainty that can hurt the project more
             than the others.
           </p>
+          {openBars.length > 0 && (
+            <p className="text-[12px] text-amber-300 mt-1" data-testid="breakeven-open-bars">
+              {openBars.join(' and ')} {openBars.length === 1 ? 'has' : 'have'} no breakeven below $500 a barrel
+              at one end of {openBars.length === 1 ? 'its' : 'their'} range. That side is left open, and
+              the bar is listed first because that end can put the project out of reach at any price.
+            </p>
+          )}
         </TabsContent>
       </Tabs>
     </div>

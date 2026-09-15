@@ -29,6 +29,15 @@ const ResultsPanel = ({ results }) => {
       { field: 'Iterations kept', value: sample.length },
       { field: 'Iterations excluded (no breakeven below $500)', value: excludedIterations ?? 0 },
       { field: 'Run seed', value: seed },
+      // EC3-5 and EC3-8: which belief the base case and tornado used, and how
+      // many draws were held at a physical limit.
+      ...Object.entries(results.beliefs || {}).flatMap(([key, b]) => [
+        { field: `${key} belief used for the base case and tornado`, value: b.source },
+        { field: `${key} median used ($MM or percent)`, value: b.p50 },
+      ]),
+      ...Object.entries(results.clippedDraws || {}).map(([key, n]) => ({
+        field: `${key} draws held at a physical limit`, value: n,
+      })),
       ...sample.map((v, i) => ({ field: `sample ${i + 1}`, value: v })),
     ];
     const ok = exportToCSV(rows, `breakeven-analysis-seed-${seed}`);

@@ -66,7 +66,7 @@ export const BREAKEVEN_HELP_CONTENT = [
     icon: LineChart,
     title: 'Reading the three charts',
     content:
-      'The S curve gives the chance that the true breakeven price is below any given value, with your median marked. A steep curve is a tight answer; a flat one means the breakeven is poorly constrained and the cost estimate needs work before the price does. The histogram shows where iterations landed and whether the distribution is skewed. The tornado shows both ends of each uncertainty measured from the deterministic base case, so a symmetric input looks symmetric. The bar that reaches furthest to the right is the uncertainty that can hurt the project most.',
+      'The S curve gives the chance that the true breakeven price is below any given value, with your median marked. A steep curve is a tight answer; a flat one means the breakeven is poorly constrained and the cost estimate needs work before the price does. The histogram shows where iterations landed and whether the distribution is skewed. The tornado shows both ends of each uncertainty measured from the deterministic base case, so a symmetric input looks symmetric. The bar that reaches furthest to the right is the uncertainty that can hurt the project most. If one end of a range cannot break even below $500 a barrel at all, that side of its bar is left open, the bar is marked as an open end and it is listed first.',
   },
   {
     id: 'export',
@@ -80,7 +80,7 @@ export const BREAKEVEN_HELP_CONTENT = [
     icon: AlertTriangle,
     title: 'Assumptions and limits',
     content:
-      'Variables are sampled independently. Real CAPEX and OPEX overruns tend to arrive together, so a correlated run would show a slightly wider downside than this one does. Price is solved rather than sampled, which is the point of a breakeven, so this tool says nothing about price risk itself. The fiscal treatment is the screening tier described above. Production is taken as given from your uploaded profile, so uncertainty in the forecast itself belongs upstream in the decline analysis, other than the production efficiency multiplier applied here.',
+      'Variables are sampled independently. Real CAPEX and OPEX overruns tend to arrive together, so a correlated run would show a slightly wider downside than this one does. A cost percentile below zero, or an efficiency percentile outside 0 to 100, is refused. When the triangle fitted to your percentiles runs past one of those limits, a draw beyond it is held at the limit and the interpretation says how many were. When no triangle can match your median, the fit is adjusted, and the deterministic base case and the tornado then use the adjusted triangle\'s own percentiles, so every number on the screen describes the same belief the sample is drawn from. Price is solved rather than sampled, which is the point of a breakeven, so this tool says nothing about price risk itself. The fiscal treatment is the screening tier described above. Production is taken as given from your uploaded profile, so uncertainty in the forecast itself belongs upstream in the decline analysis, other than the production efficiency multiplier applied here.',
   },
 ];
 

@@ -32,6 +32,23 @@ const ResultsPanel = ({ results }) => {
     'multiple-roots': 'more than one rate zeroes this cash flow, so no single IRR describes it',
   };
 
+  // EC3-1 / EC3-2: payback is the first time the cumulative cash flow turns
+  // non-negative. The engine now says what happened around that number, so
+  // a project that never pays back no longer shows its project life, and a
+  // payback of 0 beside a negative peak exposure explains itself.
+  const formatYears = (val) => (typeof val === 'number' && Number.isFinite(val) ? val.toFixed(1) : 'n/a');
+  const paybackNote = (m) => {
+    switch (m.paybackStatus) {
+      case 'not-recovered': return 'never pays back: the cumulative cash flow stays below zero';
+      case 'no-investment': return 'nothing to pay back: the cumulative cash flow is never negative';
+      case 'recrossed':
+        return typeof m.paybackLast === 'number'
+          ? `the cumulative cash flow goes back below zero afterwards and recovers for good at ${m.paybackLast.toFixed(1)} years`
+          : 'the cumulative cash flow goes back below zero afterwards and never recovers';
+      default: return null;
+    }
+  };
+
   // --- Export Functions ---
   const exportExcel = () => {
       const wb = XLSX.utils.book_new();
@@ -41,7 +58,8 @@ const ResultsPanel = ({ results }) => {
           ['Metric', 'Value'],
           ['NPV @ 10%', metrics.npv],
           ['IRR', metrics.irr === null ? (IRR_REASON[metrics.irrStatus] || 'not defined') : metrics.irr],
-          ['Payback', metrics.payback],
+          ['Payback', metrics.payback === null ? (paybackNote(metrics) || 'not defined') : metrics.payback],
+          ['Payback note', paybackNote(metrics) || ''],
           ['Max Exposure', metrics.maxExposure],
           ['Total Revenue', metrics.totalRevenue],
           ['Total CAPEX', metrics.totalCapex]
@@ -82,7 +100,9 @@ const ResultsPanel = ({ results }) => {
               ['Internal Rate of Return (IRR)',
                 metrics.irr === null ? (IRR_REASON[metrics.irrStatus] || 'not defined') : metrics.irr.toFixed(1),
                 metrics.irr === null ? '' : '%'],
-              ['Payback Period', metrics.payback.toFixed(1), 'Years'],
+              ['Payback Period',
+                metrics.payback === null ? (paybackNote(metrics) || 'not defined') : formatYears(metrics.payback),
+                metrics.payback === null ? '' : 'Years'],
               ['Total CAPEX', formatCurrency(metrics.totalCapex), '$']
           ],
           startY: 35,
@@ -156,7 +176,12 @@ const ResultsPanel = ({ results }) => {
                     </Card>
                     <Card className="bg-slate-900 border-slate-800 p-4">
                         <p className="text-xs text-slate-500 uppercase font-semibold">Payback Period</p>
-                        <p className="text-2xl font-bold text-blue-400">{metrics.payback.toFixed(1)} Years</p>
+                        <p className={`text-2xl font-bold ${metrics.payback === null ? 'text-slate-400' : 'text-blue-400'}`} data-testid="npv-payback">
+                          {metrics.payback === null ? 'n/a' : `${formatYears(metrics.payback)} Years`}
+                        </p>
+                        {paybackNote(metrics) ? (
+                          <p className="text-[11px] text-slate-500 mt-1" data-testid="npv-payback-note">{paybackNote(metrics)}</p>
+                        ) : null}
                     </Card>
                     <Card className="bg-slate-900 border-slate-800 p-4">
                         <p className="text-xs text-slate-500 uppercase font-semibold">Max Exposure</p>
@@ -232,7 +257,7 @@ const ResultsPanel = ({ results }) => {
                                         {[
                                             { label: 'NPV ($MM)', key: 'npv', format: (v) => formatCurrency(v) },
                                             { label: 'IRR (%)', key: 'irr', format: (v) => formatPct(v) },
-                                            { label: 'Payback (Yrs)', key: 'payback', format: (v) => (typeof v === 'number' ? v.toFixed(1) : 'n/a') },
+                                            { label: 'Payback (Yrs)', key: 'payback', format: (v) => formatYears(v) },
                                             { label: 'Max Exposure ($MM)', key: 'maxExposure', format: (v) => formatCurrency(Math.abs(v)) }
                                         ].map(m => (
                                             <TableRow key={m.key} className="border-b-slate-800">
@@ -257,6 +282,13 @@ const ResultsPanel = ({ results }) => {
                                         ))}
                                     </TableBody>
                                 </Table>
+                                <p className="text-[11px] text-slate-500 mt-3" data-testid="npv-scenario-definition">
+                                    Low is 20 percent lower price and production with 20 percent higher capex and fixed opex; High is the mirror image.
+                                    Variable operating cost moves with production, so a barrel not produced is a barrel not paid for.
+                                    {['Low', 'Base', 'High'].some((k) => scenarios[k].metrics.paybackStatus === 'recrossed' || scenarios[k].metrics.paybackStatus === 'not-recovered')
+                                      ? ' A payback of n/a means that case never pays back; see the Dashboard for why a payback can go back below zero.'
+                                      : ''}
+                                </p>
                             </CardContent>
                         </Card>
                     </div>
@@ -290,6 +322,10 @@ const ResultsPanel = ({ results }) => {
                     </Card>
                     <div className="col-span-3">
                         <RiskCaseCards risk={risk} formatValue={formatCurrency} />
+                        <p className="text-[11px] text-slate-400 mt-1" data-testid="npv-risk-sampling">
+                            Each iteration draws one factor for price, one for reserves and one for capex, within plus or minus 20 percent, and applies it to every year:
+                            reserves moves oil and gas volume and the variable operating cost with it, price moves oil and gas prices, capex moves every capex entry.
+                        </p>
                     </div>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
