@@ -3,13 +3,14 @@ import React from 'react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSeparator } from '@/contexts/SeparatorStudioContext';
-import { fmt, Stat, ErrorNote, WarnNote, Field, NumberInput } from './fields';
+import { fmt, Stat, ErrorNote, WarnNote, Field, NumberInput, ExampleCaseNote } from './fields';
 
 export const SlugInputs = () => {
   const { inputs, setSection } = useSeparator();
   const s = inputs.slug;
   return (
     <div className="space-y-4">
+      <ExampleCaseNote />
       <Field label="Catcher type">
         <Select value={s.mode} onValueChange={(v) => setSection('slug', 'mode', v)}>
           <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>

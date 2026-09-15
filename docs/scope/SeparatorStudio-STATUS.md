@@ -53,3 +53,27 @@ gates; engines suite 1905 green.
 - Tile rename migration 20260829610000 HELD for the prod upload.
 - ARMED literature gates: GPSA K-value tables and API 12J worked
   examples (owner PDFs).
+
+## FC1-0 repairs (2026-09-15, branch fix/fc1-0-separator-layout-apps)
+
+Suite-side repairs, decided under the owner's delegation. Engine repairs
+run in a separate engines PR; nothing under packages/engines changed here.
+
+- **Missing stays missing.** The context no longer substitutes gas SG
+  0.65, API 35, retention 3/5 min, droplet 500 um, finger 24 in x 6, and
+  the rest. The example values remain the initial values of a new study,
+  labelled "Example case" in both input panels; a cleared required field
+  stays blank and the results are replaced by "Missing required inputs:
+  <names>." The K override stays optional by design.
+- **L/D band per vessel type.** `LD_BAND` mirrors the engine's ldSweep
+  documentation (3 to 5 horizontal, 2 to 4 vertical); changing the vessel
+  type moves an untouched band, and an edited band is left alone. A gate
+  reads the engine comment so drift fails. Studies saved before this keep
+  whatever band they saved.
+- **No first-row fallback.** With nothing in band, no vessel is selected
+  and the studio says "No candidate in the L/D band (min to max), so no
+  vessel is selected."
+
+Engine follow-ups to adopt when the engines repair PR lands: an exported
+L/D band constant (replace the mirror), and any `feasible` flags or change
+to `ldSweep().preferred` semantics (`selectVessel` reads only `preferred`).

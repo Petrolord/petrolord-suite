@@ -3,14 +3,15 @@ import React from 'react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSeparator } from '@/contexts/SeparatorStudioContext';
-import { fmt, Stat, ErrorNote, WarnNote, Field, NumberInput, TextInput } from './fields';
+import { fmt, Stat, ErrorNote, WarnNote, Field, NumberInput, TextInput, ExampleCaseNote } from './fields';
 
 export const VesselInputs = () => {
-  const { inputs, setSection, internalsOptions } = useSeparator();
+  const { inputs, setSection, internalsOptions, ldBand } = useSeparator();
   const v = inputs.vessel;
   const threePhase = v.type === 'horizontal3';
   return (
     <div className="space-y-4">
+      <ExampleCaseNote />
       <Field label="Vessel type">
         <Select value={v.type} onValueChange={(val) => setSection('vessel', 'type', val)}>
           <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
@@ -51,6 +52,9 @@ export const VesselInputs = () => {
         <Field label="L/D minimum"><NumberInput section="vessel" name="ldMin" step="0.5" /></Field>
         <Field label="L/D maximum"><NumberInput section="vessel" name="ldMax" step="0.5" /></Field>
       </div>
+      <p className="text-[11px] text-slate-600 -mt-2">
+        Customary band for {v.type === 'vertical2' ? 'vertical' : 'horizontal'} vessels: {ldBand.min} to {ldBand.max}.
+      </p>
 
       <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold pt-2">Process</p>
       <div className="grid grid-cols-2 gap-2">
@@ -149,7 +153,8 @@ const SweepTable = () => {
         </tbody>
       </table>
       <p className="text-[11px] text-slate-600 mt-2">
-        Slenderness between {fmt(sweep.ldMin, 1)} and {fmt(sweep.ldMax, 1)} is the customary band.
+        Band used: slenderness between {fmt(sweep.ldMin, 1)} and {fmt(sweep.ldMax, 1)}. The customary
+        band is 3 to 5 for horizontal separators and 2 to 4 for vertical ones.
         A vessel outside it still separates; it is just an awkward thing to build, ship and support.
       </p>
     </div>
