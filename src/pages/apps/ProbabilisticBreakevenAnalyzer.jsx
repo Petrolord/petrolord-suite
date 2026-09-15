@@ -2,7 +2,8 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
-import { generateBreakevenData, DEFAULT_SEED } from '@/utils/breakevenCalculations';
+import { DEFAULT_SEED } from '@/utils/breakevenCalculations';
+import { runBreakevenAnalysis } from '@/components/breakevenanalyzer/runBreakeven';
 import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useSavedProjects, missingTableMessage } from '@/hooks/useSavedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
@@ -104,25 +105,26 @@ const ProbabilisticBreakevenAnalyzer = () => {
     setLoading(true);
     setResults(null);
 
-    setTimeout(() => {
-      try {
-        const analysisResults = generateBreakevenData(next);
+    // The run happens in a Web Worker, so the page stays responsive while
+    // thousands of breakeven prices are solved; it falls back to running
+    // inline when no worker is available.
+    runBreakevenAnalysis(next)
+      .then((analysisResults) => {
         setResults(analysisResults);
         toast({
           title: 'Simulation Complete!',
           description: 'Probabilistic breakeven analysis finished.',
         });
-      } catch (error) {
+      })
+      .catch((error) => {
         console.error('Analysis Error:', error);
         toast({
           variant: 'destructive',
           title: 'Analysis Failed',
           description: error.message || 'An unexpected error occurred during simulation.',
         });
-      } finally {
-        setLoading(false);
-      }
-    }, 50); // yield one frame so the loading state paints before the synchronous Monte Carlo run
+      })
+      .finally(() => setLoading(false));
   }, [toast]);
 
   return (
