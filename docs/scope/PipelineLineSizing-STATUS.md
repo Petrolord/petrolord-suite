@@ -152,10 +152,96 @@ combinations flip from pass to fail, 9 at C = 100 and 4 at C = 125**, and
 30 MMscfd, 10 mi, 900 psia, 6 in sch 40, ratio 0.620 at the mean against
 1.199 where it binds, the gas going from 45.0 ft/s to 168.0 ft/s.
 
-CAVEAT, engine-side and not fixed here: the vendored `gasOutletPressure`
-still brackets its bisection at [14.7, p1] (FINDINGS D1) at Suite main
-dabfb44aa, so a line whose outlet would sit ABOVE its inlet is clamped
-to the inlet. The station walk inherits that clamp where it fires.
+The CAVEAT that stood here, that the vendored `gasOutletPressure` still
+bracketed at [14.7, p1], is CLEARED by the re-vendor below.
+
+## FC2-0 engine re-vendor (2026-09-16)
+
+The engine-side half of FC2-0 landed in the engines repo as PR #196, and
+PR #195 landed behind it. `packages/engines` moves from canonical
+`709172f` to **`fa53f7f`**, thirteen paths, verified byte for byte
+against the canonical clone across all 740.
+
+**`gasOutletPressure` no longer clamps to the inlet.** Every published
+transmission form is driven by `p1^2 - es p2^2`, so the outlet a line
+approaches as its rate falls to nothing is `p1 / sqrt(es)`, and not
+`p1`. The old bracket was wrong in both directions, and the ASCENT half,
+which is the commoner case and was not in the original findings, was the
+worse one: the ceiling sits BELOW the inlet, the forms refuse a `p2`
+above it, and the old loop read that refusal as "still too much flow"
+and walked its LOWER bound up through it. Every rate a climbing line
+could carry came back as the inlet with `dpPsi` exactly 0.
+
+Measured on the studio's own 8 in, 25 mi, 800 psia, 0.65 sg line:
+
+| elevation | 0.1 MMscfd | 1 MMscfd | 5 MMscfd | 20 MMscfd |
+| --- | --- | --- | --- | --- |
+| up 3000 ft | 0 to 60.1 | 0 to 60.5 | 0 to 69.4 | unchanged |
+| up 1500 ft | 0 to 30.7 | 0 to 31.0 | 0 to 39.9 | unchanged |
+| flat | unchanged | unchanged | unchanged | unchanged |
+| down 3000 ft | 0 to -65.0 | 0 to -64.6 | 0 to -55.8 | unchanged |
+
+(psi of reported drop, before to after, re-measured against canonical
+`709172f` and `fa53f7f` for this branch.) The direction is one-way on a
+climb: **the studio was under-reporting the pressure drop, and now
+reports more of it.** On a descent the drop is now NEGATIVE, which is
+the honest reading; the line arrives higher than it left. At 20 MMscfd
+the true outlet already fell inside the old `[14.7, p1]` bracket, so
+those answers are unchanged to the bit, which is the check that the
+repair moved the bracket and not the arithmetic. Flat lines are
+untouched by construction (`es` = 1 makes the ceiling the inlet).
+
+Everything downstream of the solve inherits it: the gas result card's
+outlet pressure, drop and gradient; every gas row in the sweep table and
+therefore the recommended size; the Profile tab's gas traverse, which
+marched the clamp at every station; and the FC2-0c binding-point walk,
+which calls the solve once per station.
+
+**Named refusals.** Twenty-one inputs that returned a NaN, an Infinity
+or a confident wrong number now return `{ error }`. Every call site in
+this app already branched on `.error`, so none of them started treating
+a refusal as a number; the one change needed was in the sweep, which
+collapsed every refusal to the fixed label "cannot carry the rate". Most
+of the new refusals are facts about the LINE rather than the bore, so
+the row now carries the engine's own words.
+
+**One barrel.** `chokePerformance` carried the barrel truncated as
+5.614583 while `lineHydraulics`, one import away in this same chain,
+carried it exactly; both now import it from `lib/units/fieldUnits.js`.
+RP 14E erosional rates move by 5.94e-8 relative, which is below display
+precision everywhere in this app and flips no verdict.
+
+Not one of the 37 pre-existing line-hydraulics goldens moved; the
+goldens file only gained a new `outlet` group of 8 cases.
+
+**Engines PR #195 comes with it** (a `nearFloor` flag on the separation
+K value). It does not touch this app. Its effect on the Separator Sizing
+Studio is recorded in SeparatorStudio-STATUS.md.
+
+**Drift guard.** `tools/check-vendored-engines.mjs` plus
+`packages/engines/VENDOR.json` and `VENDOR.manifest` now hash-join every
+tracked path under `packages/engines` against canonical and fail on any
+absent, extra or differing path. It is wired into CI as
+`.github/workflows/vendored-engines.yml`, in `npm test` as
+`tools/__tests__/vendoredEngines.drift.test.js`, and available as
+`npm run check:engines`. This drift is why the repair took three weeks
+to reach the app.
+
+The comparison is against the PINNED commit in `VENDOR.json` and the
+manifest committed beside it, never against engines HEAD. A guard
+pointed at HEAD goes red the moment canonical moves, which it did within
+the hour this branch was cut (engines #197), and it would then block
+every unrelated pull request here until somebody vendored. "Canonical
+has moved ahead" is reported instead by `--ahead <clone>`, which prints
+the gap and never changes the exit code.
+
+The jest suite carries the negative control, because a gate that has
+never failed is not a gate: it plants a byte in a vendored file,
+requires the guard to exit 1 naming that file, restores the byte and
+requires green again. Proved by hand as well, on a differing file staged
+and unstaged, a deleted file, an extra file, a stale ledger row, a
+second drift on an already-listed row, and a ledger row that does not
+say when it should be burned down.
 
 ## FC2-0d the gas card states its verdict (2026-09-16)
 
@@ -191,14 +277,22 @@ check is shown as its own message instead of an empty verdict.
   card; the multiphase pattern and holdup on the result cards are INLET
   values, with the outlet value shown alongside when it differs.
 - The RP 14E check is made where the limit BINDS along the line, and
-  the card names that station and its distance. The gas-mode check is
-  still made at mean pressure (recorded in FINDINGS.md, not yet moved).
+  the card names that station and its distance. This now holds in gas
+  mode too (FC2-0c above); the bullet that said the gas check was still
+  made at mean pressure was stale from before that repair.
 
 ## Open
 
 - Tile rename migration 20260829530000 HELD for the prod upload.
 - Literature gates for the gas-equation constants against a GPSA
   worked example remain ARMED (owner PDFs).
-- Engine-side defects behind this app (descending-line outlet pressure,
-  unguarded roughness, efficiency and corrosion allowance, the two
-  barrel constants) remain open in the engines repo.
+- ~~Engine-side defects behind this app (descending-line outlet
+  pressure, unguarded roughness, efficiency and corrosion allowance, the
+  two barrel constants) remain open in the engines repo.~~ **CLOSED
+  2026-09-16** by engines PR #196, vendored here at `fa53f7f`. See the
+  re-vendor section above; the climbing-line case was worse than the
+  descending one this bullet named.
+- Three pieces of live PD1 `nodal` course prose (two lessons and one
+  applied migration) quote erosional rates that the one-barrel change
+  makes stale at the eighth significant figure. Nothing graded moves.
+  Recorded for a later recut, deliberately not touched here.
