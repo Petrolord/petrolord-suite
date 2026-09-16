@@ -1,22 +1,62 @@
 import React, { useState } from 'react';
-import { Camera, Clock, Save, Download, ArrowLeftRight } from 'lucide-react';
+import { Camera, Clock, Save, Download, Loader2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { useRiskSnapshots } from '../hooks/useRiskSnapshots';
 
-export const SnapshotManager = () => {
+/**
+ * AS2. Before this, "Capture Current State" toasted "Snapshot Saved:
+ * Current risk register state has been captured" and wrote nothing, and
+ * the list below it held one invented snapshot, "Q2 2026 Summary, 42
+ * Risks". Snapshots are rows in `risk_register_snapshots` now.
+ *
+ * Compare is not here. It was a "not implemented" toast, and a button
+ * that does nothing is worse than no button; it returns when there is
+ * something real behind it.
+ */
+export const SnapshotManager = ({ risks = [] }) => {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const { snapshots, loading, error, saveSnapshot, deleteSnapshot } = useRiskSnapshots();
 
-  const handleSave = () => {
-    toast({ title: "Snapshot Saved", description: "Current risk register state has been captured." });
-    setIsOpen(false);
+  const handleSave = async () => {
+    setSaving(true);
+    const res = await saveSnapshot(name, risks);
+    setSaving(false);
+    if (res.success) {
+      toast({
+        title: 'Snapshot saved',
+        description: `"${res.data.name}" captured ${risks.length} risk${risks.length === 1 ? '' : 's'}.`,
+      });
+      setName('');
+    } else {
+      toast({ variant: 'destructive', title: 'Snapshot not saved', description: res.error });
+    }
   };
 
-  const handleAction = (action) => {
-    toast({ description: `🚧 ${action} feature isn't implemented yet—but don't worry! You can request it in your next prompt! 🚀` });
+  const handleExport = (snapshot) => {
+    const blob = new Blob([JSON.stringify(snapshot.snapshot_data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${snapshot.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDelete = async (snapshot) => {
+    if (!window.confirm(`Delete the snapshot "${snapshot.name}"? This cannot be undone.`)) return;
+    const res = await deleteSnapshot(snapshot.id);
+    if (!res.success) {
+      toast({ variant: 'destructive', title: 'Not deleted', description: res.error });
+    }
   };
 
   return (
@@ -30,39 +70,62 @@ export const SnapshotManager = () => {
         <DialogHeader>
           <DialogTitle>Snapshot Management</DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4 py-4">
           <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 space-y-4">
-            <h4 className="text-sm font-medium text-slate-200">Create New Snapshot</h4>
+            <h4 className="text-sm font-medium text-slate-200">Create new snapshot</h4>
             <div className="space-y-2">
-              <Label>Snapshot Name</Label>
-              <Input placeholder="e.g., Q3 2026 Board Review" className="bg-slate-900 border-slate-700" />
+              <Label>Snapshot name</Label>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g., Q3 2026 Board Review"
+                className="bg-slate-900 border-slate-700"
+              />
             </div>
-            <Button onClick={handleSave} className="w-full bg-cyan-600 hover:bg-cyan-700 text-white">
-              <Save className="w-4 h-4 mr-2" /> Capture Current State
+            <Button
+              onClick={handleSave}
+              disabled={saving || !name.trim()}
+              className="w-full bg-cyan-600 hover:bg-cyan-700 text-white"
+            >
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+              Capture {risks.length} risk{risks.length === 1 ? '' : 's'}
             </Button>
           </div>
 
           <div className="space-y-2">
             <h4 className="text-sm font-medium text-slate-200 flex items-center gap-2 mt-4">
-              <Clock className="w-4 h-4 text-slate-400" /> Recent Snapshots
+              <Clock className="w-4 h-4 text-slate-400" /> Saved snapshots
             </h4>
-            
-            {/* Mock Data */}
-            <div className="flex items-center justify-between p-3 bg-slate-950 border border-slate-800 rounded-lg">
-              <div>
-                <p className="text-sm font-medium text-slate-200">Q2 2026 Summary</p>
-                <p className="text-xs text-slate-500">June 30, 2026 • 42 Risks</p>
+
+            {loading && <p className="text-xs text-slate-500">Loading…</p>}
+            {error && <p className="text-sm text-red-400">{error}</p>}
+            {!loading && !error && snapshots.length === 0 && (
+              <p className="text-sm text-slate-500 italic">
+                No snapshots yet. The first one you capture will appear here.
+              </p>
+            )}
+
+            {snapshots.map((s) => (
+              <div key={s.id} className="flex items-center justify-between p-3 bg-slate-950 border border-slate-800 rounded-lg gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-slate-200 truncate">{s.name}</p>
+                  <p className="text-xs text-slate-500">
+                    {new Date(s.created_at).toLocaleDateString()}
+                    {' • '}
+                    {s.snapshot_data?.risk_count ?? s.snapshot_data?.risks?.length ?? 0} risks
+                  </p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <Button variant="ghost" size="icon" onClick={() => handleExport(s)} title="Export as JSON">
+                    <Download className="w-4 h-4 text-slate-400 hover:text-cyan-400" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => handleDelete(s)} title="Delete">
+                    <Trash2 className="w-4 h-4 text-slate-400 hover:text-red-400" />
+                  </Button>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <Button variant="ghost" size="icon" onClick={() => handleAction('Compare')} title="Compare">
-                  <ArrowLeftRight className="w-4 h-4 text-slate-400 hover:text-cyan-400" />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => handleAction('Export')} title="Export">
-                  <Download className="w-4 h-4 text-slate-400 hover:text-cyan-400" />
-                </Button>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </DialogContent>

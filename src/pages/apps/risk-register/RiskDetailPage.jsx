@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useRiskRegister } from './hooks/useRiskRegister';
+import { useRiskChildren } from './hooks/useRiskChildren';
+import { calculateResidualScore, getAppetiteStatus, getRiskBand, isReviewOverdue } from '@/lib/riskScoring';
 import { useRiskReporting } from '@/hooks/useRiskReporting';
 import { RiskRegisterShell } from './components/RiskRegisterShell';
 import { RiskScoreBadge, RiskStatusBadge } from './components/RiskBadges';
@@ -20,6 +22,7 @@ const RiskDetailPage = () => {
   
   const [risk, setRisk] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const { tags, linkedRisks, error: childError } = useRiskChildren(id, risks);
 
   useEffect(() => {
     if (!loading) {
@@ -31,8 +34,12 @@ const RiskDetailPage = () => {
 
   const handleStatusChange = async (newStatus) => {
       const res = await updateRisk(id, { status: newStatus });
-      if(res.success) {
-          toast({ title: "Status Updated", description: `Risk is now ${newStatus}` });
+      if (res.success) {
+          toast({ title: "Status updated", description: `Risk is now ${newStatus}.` });
+      } else {
+          // This used to do nothing at all on failure, so a status that
+          // did not save looked exactly like one that did.
+          toast({ variant: "destructive", title: "Status not saved", description: res.error });
       }
   };
 
@@ -48,10 +55,6 @@ const RiskDetailPage = () => {
           toast({ variant: "destructive", title: "Error", description: res.error || "Failed to delete" });
           setIsDeleting(false);
       }
-  };
-
-  const handleNotImplemented = () => {
-    toast({ description: "🚧 This feature isn't implemented yet—but don't worry! You can request it in your next prompt! 🚀" });
   };
 
   const handleBack = () => {
@@ -85,9 +88,14 @@ const RiskDetailPage = () => {
                         <RiskScoreBadge score={risk.risk_score} />
                     </div>
                     <h2 className="text-2xl font-bold text-white">{risk.title}</h2>
-                    <div className="flex gap-2 mt-2">
-                      <Badge variant="outline" className="bg-slate-800 text-cyan-400 border-slate-700 text-xs"><Tag className="w-3 h-3 mr-1"/> Drilling</Badge>
-                      <Badge variant="outline" className="bg-slate-800 text-cyan-400 border-slate-700 text-xs"><Tag className="w-3 h-3 mr-1"/> High Priority</Badge>
+                    <div className="flex gap-2 mt-2 flex-wrap">
+                      {tags.length === 0 ? (
+                        <span className="text-xs text-slate-500 italic">No tags</span>
+                      ) : tags.map(t => (
+                        <Badge key={t.id} variant="outline" className="bg-slate-800 text-cyan-400 border-slate-700 text-xs">
+                          <Tag className="w-3 h-3 mr-1"/> {t.tag}
+                        </Badge>
+                      ))}
                     </div>
                 </div>
             </div>
@@ -104,7 +112,12 @@ const RiskDetailPage = () => {
                         <SelectItem value="Closed">Closed</SelectItem>
                     </SelectContent>
                 </Select>
-                <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800" onClick={handleNotImplemented}>
+                <Button
+                    variant="outline"
+                    className="border-slate-700 text-slate-300 hover:bg-slate-800"
+                    title="Edit this risk"
+                    onClick={() => navigate(`/dashboard/apps/assurance/risk-register/${id}/edit`)}
+                >
                     <Edit2 className="w-4 h-4" />
                 </Button>
                 <Button variant="destructive" size="icon" onClick={handleDelete} disabled={isDeleting}>
@@ -147,13 +160,29 @@ const RiskDetailPage = () => {
                 <Card className="bg-slate-900 border-slate-800">
                     <CardHeader className="pb-3 border-b border-slate-800/50 flex flex-row items-center justify-between">
                         <CardTitle className="text-base text-slate-200 flex items-center gap-2"><LinkIcon className="w-4 h-4 text-slate-400"/> Linked Risks</CardTitle>
-                        <Button variant="link" className="text-cyan-400 p-0 h-auto text-xs" onClick={handleNotImplemented}>+ Add Link</Button>
+                        <Button
+                          variant="link"
+                          className="text-cyan-400 p-0 h-auto text-xs"
+                          onClick={() => navigate(`/dashboard/apps/assurance/risk-register/${id}/edit`)}
+                        >+ Add Link</Button>
                     </CardHeader>
-                    <CardContent className="p-6">
-                        <div className="text-sm text-slate-400 border border-slate-800 rounded-md p-3 bg-slate-950 flex items-center justify-between">
-                          <span>RSK-1002 (Dependency)</span>
-                          <Button variant="ghost" size="sm" className="h-6 text-xs text-cyan-400 p-0" onClick={handleNotImplemented}>View</Button>
-                        </div>
+                    <CardContent className="p-6 space-y-2">
+                        {childError && <p className="text-sm text-red-400">{childError}</p>}
+                        {!childError && linkedRisks.length === 0 && (
+                          <p className="text-sm text-slate-500 italic">This risk is not linked to any other.</p>
+                        )}
+                        {linkedRisks.map(l => (
+                          <div key={l.id} className="text-sm text-slate-400 border border-slate-800 rounded-md p-3 bg-slate-950 flex items-center justify-between gap-3">
+                            <span className="truncate">
+                              <span className="font-mono text-slate-300">{l.code}</span>
+                              <span className="text-slate-500"> ({l.type})</span> {l.title}
+                            </span>
+                            <Button
+                              variant="ghost" size="sm" className="h-6 text-xs text-cyan-400 p-0 shrink-0"
+                              onClick={() => navigate(`/dashboard/apps/assurance/risk-register/${l.riskId}`)}
+                            >View</Button>
+                          </div>
+                        ))}
                     </CardContent>
                 </Card>
             </div>
@@ -173,29 +202,72 @@ const RiskDetailPage = () => {
                             <span className="text-lg font-bold text-slate-200">{risk.impact || 1}/5</span>
                         </div>
                         <div className="pt-4 border-t border-slate-800 flex justify-between items-center">
-                            <span className="text-sm font-medium text-slate-400">Total Score (Read Only)</span>
-                            <RiskScoreBadge score={risk.risk_score || (risk.likelihood * risk.impact)} className="text-base" />
+                            <span className="text-sm font-medium text-slate-400">Inherent score</span>
+                            <RiskScoreBadge score={risk.risk_score} className="text-base" />
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-slate-400">Residual score</span>
+                            {(risk.residual_likelihood || risk.residual_impact)
+                              ? <RiskScoreBadge score={calculateResidualScore(risk)} className="text-base" />
+                              : <span className="text-xs text-slate-500 italic">Not assessed</span>}
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-slate-400">Appetite</span>
+                            <span className={`text-sm font-medium ${
+                              getAppetiteStatus(risk) === 'Above appetite' ? 'text-red-400'
+                              : getAppetiteStatus(risk) === 'Within appetite' ? 'text-green-400'
+                              : 'text-slate-500 italic'}`}>
+                              {getAppetiteStatus(risk)}
+                              {risk.target_score ? ` (target ${risk.target_score})` : ''}
+                            </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-slate-400">Next review</span>
+                            {risk.next_review_date
+                              ? <span className={`text-sm font-medium ${isReviewOverdue(risk) ? 'text-red-400' : 'text-slate-200'}`}>
+                                  {risk.next_review_date}{isReviewOverdue(risk) ? ' · overdue' : ''}
+                                </span>
+                              : <span className="text-xs text-slate-500 italic">Not scheduled</span>}
                         </div>
                     </CardContent>
                 </Card>
                 
                 <Card className="bg-slate-900 border-slate-800">
                     <CardHeader className="pb-3 border-b border-slate-800/50">
-                        <CardTitle className="text-base text-slate-200 flex items-center gap-2"><History className="w-4 h-4 text-slate-400"/> Scoring History</CardTitle>
+                        <CardTitle className="text-base text-slate-200 flex items-center gap-2"><History className="w-4 h-4 text-slate-400"/> Mitigation effect</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6 space-y-4">
-                        <div className="relative pl-4 border-l border-slate-800 space-y-4">
-                           <div className="relative">
-                             <div className="absolute -left-[21px] top-1 w-2 h-2 rounded-full bg-cyan-500 ring-4 ring-slate-900"></div>
-                             <p className="text-xs text-slate-500 mb-1">Inherent Score Created</p>
-                             <p className="text-sm text-slate-300">Score set to <span className="font-bold text-white">{risk.risk_score || (risk.likelihood * risk.impact)}</span> upon creation.</p>
-                           </div>
-                           <div className="relative">
-                             <div className="absolute -left-[21px] top-1 w-2 h-2 rounded-full bg-slate-700 ring-4 ring-slate-900"></div>
-                             <p className="text-xs text-slate-500 mb-1">Residual Score Assessment</p>
-                             <p className="text-sm text-slate-400 italic">Pending mitigation validation.</p>
-                           </div>
-                        </div>
+                        {/* This card used to be a two-step "Scoring History" that
+                            restated the current score as a creation event and
+                            reported "Pending mitigation validation" on every
+                            risk, mitigated or not. There is no scoring history
+                            table to draw one from, so it shows what is actually
+                            known: the distance between inherent and residual. */}
+                        {(risk.residual_likelihood || risk.residual_impact) ? (
+                          <>
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-slate-500">Inherent</span>
+                              <span className="font-bold text-white">
+                                {risk.risk_score} · {getRiskBand(risk.risk_score)}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-slate-500">Residual</span>
+                              <span className="font-bold text-white">
+                                {calculateResidualScore(risk)} · {getRiskBand(calculateResidualScore(risk))}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 pt-2 border-t border-slate-800">
+                              Controls account for {Math.max(0, risk.risk_score - calculateResidualScore(risk))}
+                              {' '}of the {risk.risk_score} points.
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-sm text-slate-400 italic">
+                            No residual assessment has been recorded, so this risk is
+                            carried at its inherent score of {risk.risk_score}.
+                          </p>
+                        )}
                     </CardContent>
                 </Card>
 
