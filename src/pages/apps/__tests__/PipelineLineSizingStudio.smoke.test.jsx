@@ -66,6 +66,31 @@ describe('PipelineLineSizingStudio page', () => {
     expect(screen.getByText(/Pigging interval|pig more often/i)).toBeInTheDocument();
   });
 
+  it('shows the RP 14E verdict on the gas card, naming where the limit binds', async () => {
+    // Before this change the gas card carried NO erosional verdict at
+    // all: outlet pressure, drop, gradient and z only. The sweep table
+    // has judged every gas row at its binding station since #489, so a
+    // gas line that fails the check looked exactly like one that passes.
+    render(
+      <MemoryRouter>
+        <PipelineLineSizingStudio />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText('Pipeline & Line Sizing Studio')).toBeInTheDocument();
+
+    // Switch the line service from liquid to gas.
+    fireEvent.click(screen.getByText('Liquid (single phase)'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Gas (single phase)' }));
+
+    expect(await screen.findByText('RP 14E status')).toBeInTheDocument();
+    // The verdict names the station it was judged at, keeps the number
+    // the old mean-pressure check would have shown, and says that it
+    // came from a walk along the line rather than from one point.
+    expect(screen.getByText(/ratio /)).toBeInTheDocument();
+    expect(screen.getByText(/mean pressure gave/)).toBeInTheDocument();
+    expect(screen.getByText(/walked over \d+ stations/)).toBeInTheDocument();
+  });
+
   it('prefills from a Fluid Studio backbone hand-off', async () => {
     render(
       <MemoryRouter

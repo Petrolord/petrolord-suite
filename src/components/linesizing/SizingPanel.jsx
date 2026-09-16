@@ -42,6 +42,19 @@ const ResultCards = () => {
         <Stat label="Pressure drop" value={fmt(sizing.dpPsi, 1)} unit="psi" />
         <Stat label="Gradient" value={fmt(sizing.gradientPsiPerFt * 1000, 2)} unit="psi/1000 ft" />
         <Stat label="z used" value={fmt(sizing.zAvg, 3)} hint={sizing.zNote} />
+        <Stat label="RP 14E status"
+          value={sizing.erosionalError ? '--' : (sizing.exceeded ? 'EXCEEDED' : 'OK')}
+          accent={sizing.erosionalError
+            ? 'text-slate-100'
+            : (sizing.exceeded ? 'text-red-400' : 'text-emerald-400')}
+          hint={sizing.erosionalError
+            ? sizing.erosionalError
+            : `ratio ${fmt(sizing.ratio, 2)}: ${fmt(sizing.bindingVFtS, 1)} of `
+              + `${fmt(sizing.erosionalFtS, 1)} ft/s ${sizing.bindsAtInlet
+                ? 'at the inlet, its fastest point'
+                : `at the fastest point, ${fmt(sizing.bindingAtFt, 0)} ft along`}`
+              + `${Number.isFinite(sizing.meanVFtS) ? ` (mean pressure gave ${fmt(sizing.meanVFtS, 1)} ft/s)` : ''}`
+              + `, walked over ${sizing.stations} stations`} />
       </div>
     );
   }
@@ -59,9 +72,11 @@ const ResultCards = () => {
       <Stat label="RP 14E status" value={sizing.exceeded ? 'EXCEEDED' : 'OK'}
         accent={sizing.exceeded ? 'text-red-400' : 'text-emerald-400'}
         hint={sizing.bindsAtInlet === false
-          ? `${fmt(sizing.bindingVFtS, 1)} of ${fmt(sizing.erosionalFtS, 1)} ft/s at the fastest point, `
-            + `${fmt(sizing.bindingAtFt, 0)} ft along (inlet runs ${fmt(sizing.inletVFtS, 1)} ft/s)`
-          : `mixture ${fmt(sizing.vm, 1)} of ${fmt(sizing.erosionalFtS, 1)} ft/s, fastest at the inlet`} />
+          ? `ratio ${fmt(sizing.ratio, 2)}: ${fmt(sizing.bindingVFtS, 1)} of ${fmt(sizing.erosionalFtS, 1)} ft/s `
+            + `at the fastest point, ${fmt(sizing.bindingAtFt, 0)} ft along `
+            + `(inlet runs ${fmt(sizing.inletVFtS, 1)} ft/s), marched in ${sizing.steps} steps`
+          : `ratio ${fmt(sizing.ratio, 2)}: mixture ${fmt(sizing.vm, 1)} of ${fmt(sizing.erosionalFtS, 1)} ft/s, `
+            + 'fastest at the inlet'} />
     </div>
   );
 };
