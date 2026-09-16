@@ -165,6 +165,11 @@ course, on the RC precedent for screening-scale apps.
 
 PD1 and PD9 are gated on the extraction wave. PD2 through PD8 are not.
 
+PROGRESS, 2026-09-16. That gate is closed and the module shipped.
+`engines/production/` carries `nodal.js`, `allocation.js` and
+`surveillance.js` alongside the lift modules, so nothing in this roster is
+waiting on an extraction any more, and all nine courses are live.
+
 ## 6. Facilities (FC1-FC9), path_order 39 to 47
 
 Every wave has its golden today.
@@ -188,6 +193,25 @@ Facility Layout Mapper is absorbed into FC1 as the spacing lesson, since
 
 Gated on pushing the eleven downstream engine modules to the central
 repo with goldens and oracles.
+
+PROGRESS, 2026-09-16. **The gate is half open.** The code is up: all
+eleven modules are in petrolord-engines at `engines/downstream/`
+(`carbonAbatement`, `crudeAssay`, `energyEfficiency`, `flareToValue`,
+`fuelPricing`, `lpgCng`, `modularRefinery`, `productBlending`,
+`refineryPlanning`, `streamModel`, `terminalDepot`) with the LP kernel at
+`lib/lp/simplex.js`, and eleven jest suites totalling about 4,600 lines
+gate them. The statement elsewhere in this plan that they were never
+pushed is stale.
+
+What is still missing is the half that decides whether a course can be
+built on them. Those suites are self-consistency gates: they assert that
+the plan's material balance closes, that the schedule sums to the plan it
+came from, that the variance decomposes exactly. Identities of that kind
+catch an engine that contradicts itself. They cannot catch an engine that
+is wrong and consistent, which is the failure mode a capstone would ship
+to a learner as a graded answer. There is no `test-data/downstream`
+golden set and no `tools/validation/downstream` oracle, so MD1 to MD5
+stay gated until that validation wave runs.
 
 | wave | slug | course | engine modules |
 |---|---|---|---|
@@ -295,6 +319,52 @@ compliance, exploration risk folded into geoscience, and the decision
 apps left to Economics. That is a smaller module than the app count
 suggests, and it is deliberate.
 
+### DECISION, 2026-09-16: the split stands, and the courses wait on an app programme
+
+The split above is adopted. Exploration risk becomes an eleventh
+geoscience course, the decision and Monte Carlo material stays with EC3
+and EC4 which are built, Data Privacy Manager and Security Analytics
+leave the academy scope and belong in operator documentation, and risk
+and compliance is worth two courses.
+
+**Those two courses are deferred behind an Assurance app remediation
+programme.** The module was audited against the code on 2026-09-16 and it
+is the only module in the Suite still in its Horizons-generated state.
+Every other module was rebuilt: Geoscience G0-G8, Reservoir R0-R5,
+Drilling, Production, Facilities F0-F12, Economics E0-E5 and Midstream &
+Downstream DS0-DS10. Assurance never got a programme. What the audit
+found:
+
+- There are eight app trees, not the fourteen the catalogue claims: five
+  under `src/pages/apps/assurance/` (`iso-compliance`, `lessons-learned`,
+  `moc`, `qa-plan`, `regulatory-compliance`) and three beside it
+  (`risk-register`, `document-control`, `peer-review`).
+- Three of the eight persist anything. `regulatory-compliance`,
+  `risk-register` and `peer-review` have real Supabase services. The
+  other five have no `supabase` import anywhere in their trees.
+- `assurance/moc/Register.jsx` renders five hardcoded records from a
+  local `mockData` array and filters them as though they were a register.
+- ISO Compliance reads `@/data/isoComplianceData` into `useState`.
+  Nothing a user does there survives a reload.
+- There are no tests under any assurance path. The two files that match
+  the word are `flowAssuranceContext` and `flowAssurance`, which are
+  Production.
+- There is no `engines/assurance` in petrolord-engines, so there is
+  nothing for a capstone to be graded against even if a course were
+  written today.
+
+Teaching a course whose lab is a screen that invents its own data would
+put the academy's name behind it. So the order is: an AS0 to ASn
+remediation programme first, on the same shape as the other modules, each
+app either made real or removed honestly; then the engine extraction with
+goldens and an oracle; then the two courses. No date is set here, because
+the programme is not yet scheduled against the Suite roadmap.
+
+One documentation defect found in passing:
+`docs/scope/AssuranceApps-STATUS.md` does not describe Assurance at all.
+Its contents are the Economics E4 status for PM Pro, AFE and Report
+Autopilot. The Assurance module has no status document.
+
 ## 10. Programme size
 
 PROGRESS, updated 2026-09-04. The Drilling close-out block is DONE: DR9
@@ -376,6 +446,62 @@ questions specific to this plan:
 5. **The held go-lives.** Fifteen today, nineteen after the Drilling
    close-out. Is one production upload per module acceptable, or should
    the upload cadence be per course once the module is live?
+
+### ANSWERS, 2026-09-16
+
+All five are closed. One and two are decisions taken under the owner's
+standing directive to pick the best option and keep moving. Three, four
+and five were settled by what actually shipped, and are recorded here so
+the questions stop being asked.
+
+1. **Assurance scope: the two-course split, deferred.** The
+   recommendation in section 9 is adopted in full, and the two courses are
+   held behind an AS0 to ASn app remediation programme. The reasoning and
+   the code audit behind it are in section 9. The academy does not teach
+   from screens that invent their own data.
+2. **Extraction wave priority: in parallel, by repository.** The
+   economics half of this question is moot, since EC0 extracted the whole
+   module on 2026-09-08 and EC1 to EC6 are built. The downstream half runs
+   in parallel with Facilities authoring rather than after it, because the
+   two touch different repositories and neither blocks the other: the
+   validation wave is goldens and an oracle in petrolord-engines, and
+   Facilities authoring is lessons and seeds in the academy repo. The wave
+   is owed on its own merits, not only for the courses. Section 7 says
+   what it consists of.
+3. **Production roster: nine, as built.** PD9 Surveillance & Allocation
+   shipped as its own course rather than being absorbed into PD7, and all
+   nine Production courses are live.
+4. **Facilities roster: nine, as proposed.** FC9 Corrosion & Integrity
+   stays a course of its own. FC1 Separation is content-complete and FC2
+   to FC9 follow in order.
+5. **The held go-lives: batched, and applied only after the route
+   serves.** The practice that settled is neither per course nor strictly
+   per module. Go-lives accumulate as HELD, an upload goes out when the
+   owner runs it, each route is served and checked on the deployed site,
+   and only then are the go-lives applied. The 2026-09-04 Production
+   upload applied twenty-eight held go-lives in one pass that way. The
+   ordering rule is what matters and it is already a non-goal in section
+   13: a go-live is never applied before the deployed site carries the
+   route.
+
+One naming decision that belongs with these, since it came up with the
+same question. The Suite has no Commercial & Trading, Supply Chain &
+Logistics or Energy Transition module, and it does not need one. Those
+three subjects are already covered by apps inside Midstream & Downstream:
+crude assay and blending, product blending and refinery planning for the
+first; terminals, depots and fuel supply for the second; carbon
+abatement, energy efficiency and flare gas to value for the third. The
+academy keeps one Midstream & Downstream module and lets the three themes
+appear as course titles inside it, rather than splitting the catalogue
+into thin modules that each hold one or two courses.
+
+**Data & AI is the one genuinely empty domain**, with no app, no engine
+and nothing behind it but the HSE forecast pipeline. It is not scheduled
+here. It enters through the Suite roadmap first as an app programme with
+its engine, and the course follows afterwards under the N5+ doctrine. The
+rule that decides this, and the one worth protecting above the course
+count, is in section 13: no course ships whose capstone cannot be graded
+from an extracted engine.
 
 ## 13. Non-goals
 
