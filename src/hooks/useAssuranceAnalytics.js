@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
+import { calculateRiskScore, countByBand, getRiskBand, isReviewOverdue } from '@/lib/riskScoring';
 
 export function useAssuranceAnalytics() {
   const [data, setData] = useState({
-    risks: { open: 0, critical: 0, mitigated: 0, recent: [], bySeverity: [] },
+    risks: { open: 0, critical: 0, mitigated: 0, overdueReview: 0, recent: [], bySeverity: [] },
     docs: { pending: 0, approved: 0, total: 0, recent: [], byStatus: [] },
     reviews: { active: 0, overdue: 0, completed: 0, recent: [], byStage: [] },
     timeline: [],
@@ -57,20 +58,24 @@ export function useAssuranceAnalytics() {
 
       // Process Risks
       const risks = risksRes.data || [];
-      const getSeverity = (r) => r.rating || (r.risk_score >= 15 ? 'Critical' : r.risk_score >= 10 ? 'High' : r.risk_score >= 5 ? 'Medium' : 'Low');
-      
-      const severityCounts = risks.reduce((acc, r) => {
-        const sev = getSeverity(r);
-        acc[sev] = (acc[sev] || 0) + 1;
-        return acc;
-      }, {});
+      // AS2: the band comes from the one scoring authority. This used to
+      // read `r.rating || (its own copy of the thresholds)`, preferring a
+      // stored text column that the register never wrote, so the hub
+      // would have reported a stale band the moment anything did write
+      // one. Nothing here restates a threshold.
+      const getSeverity = (r) => getRiskBand(calculateRiskScore(r.likelihood, r.impact));
+
+      const severityCounts = countByBand(risks);
 
       const riskStats = {
         open: risks.filter(r => ['Open', 'Identified', 'In Progress'].includes(r.status)).length,
         critical: risks.filter(r => getSeverity(r) === 'Critical').length,
         mitigated: risks.filter(r => ['Mitigated', 'Closed', 'Resolved'].includes(r.status)).length,
+        overdueReview: risks.filter(r => isReviewOverdue(r)).length,
         recent: risks.slice(0, 5),
-        bySeverity: Object.entries(severityCounts).map(([name, value]) => ({ name, value }))
+        bySeverity: Object.entries(severityCounts)
+          .filter(([, value]) => value > 0)
+          .map(([name, value]) => ({ name, value }))
       };
 
       // Process Docs

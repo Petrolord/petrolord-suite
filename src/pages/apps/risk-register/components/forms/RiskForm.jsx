@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { RISK_CATEGORIES, LIKELIHOOD_LEVELS, IMPACT_LEVELS } from '../../constants';
-import { calculateRiskScore } from '../../utils/riskScoring';
+import { calculateRiskScore } from '@/lib/riskScoring';
 import { RiskScoreBadge } from '../RiskBadges';
 import { Save, X, Loader2, Tag, Link } from 'lucide-react';
 

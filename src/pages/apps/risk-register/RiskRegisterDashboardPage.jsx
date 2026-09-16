@@ -6,6 +6,7 @@ import { RiskScoreBadge, RiskStatusBadge } from './components/RiskBadges';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, Loader2, TrendingUp, AlertOctagon, CheckCircle2 } from 'lucide-react';
+import { calculateRiskScore, getRiskBand } from '@/lib/riskScoring';
 
 const RiskRegisterDashboardPage = ({ setActiveTab }) => {
   const { risks, loading } = useRiskRegister();
@@ -20,7 +21,9 @@ const RiskRegisterDashboardPage = ({ setActiveTab }) => {
   }
 
   const openRisks = risks.filter(r => r.status === 'Open' || r.status === 'Under Review');
-  const criticalRisks = openRisks.filter(r => r.risk_score >= 15);
+  const criticalRisks = openRisks.filter(
+    r => getRiskBand(calculateRiskScore(r.likelihood, r.impact)) === 'Critical',
+  );
   const mitigatedRisks = risks.filter(r => r.status === 'Mitigated' || r.status === 'Closed');
 
   return (
