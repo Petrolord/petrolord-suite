@@ -77,6 +77,59 @@ const num = (v, fallback = NaN) => {
   return Number.isFinite(n) ? n : fallback;
 };
 
+/**
+ * A fitted curve that does not droop is not a pump curve, so where it
+ * crosses the system is not a duty point. The engine warns about it and
+ * then answers anyway; the studio refuses, by name, rather than printing
+ * a flow and a head as headline figures (FC3 findings P2, G8).
+ */
+export const NON_DROOPING_CURVE = 'the fitted curve does not fall with flow, so where it crosses the system is not a duty point: check the four curve points, because a centrifugal head curve must droop';
+const droops = (curve) => !curve.error && curve.coefficients?.c2 < 0;
+
+/** The band over which the affinity laws are worth quoting (FC3 finding P4). */
+export const SPEED_RATIO_MIN = 0.5;
+export const SPEED_RATIO_MAX = 1.5;
+
+/**
+ * The factors that a speed change and a trim apply to a whole curve,
+ * read OUT of the engine at unit duty rather than restated here.
+ *
+ * `speedChange` and `impellerTrim` are both homogeneous of degree one in
+ * the duty they are given, so asking them what they do to a duty of
+ * 1 gpm at 1 ft at 1 bhp returns exactly the factors, and scaling the
+ * curve by them is the same law the engine applies to a point. That is
+ * what keeps the curve and the point from disagreeing (FC3 findings S1
+ * and S2), and it means an engine repair moves both together.
+ */
+export const changeFactors = ({ speedRatio, diameterRatio }) => {
+  const trim = impellerTrim({
+    qGpm: 1, headFt: 1, brakeHp: 1, diameterRatio,
+  });
+  if (trim.error) return { error: trim.error };
+  const speed = speedChange({
+    qGpm: 1, headFt: 1, brakeHp: 1, speedRatio,
+  });
+  if (speed.error) return { error: speed.error };
+  return {
+    qScale: trim.qGpm * speed.qGpm,
+    hScale: trim.headFt * speed.headFt,
+    hpScale: trim.brakeHp * speed.brakeHp,
+    trimPercent: trim.trimPercent,
+    shortfallPct: trim.shortfallPct,
+    trimWarning: trim.warning,
+    speedWarning: (speedRatio < SPEED_RATIO_MIN || speedRatio > SPEED_RATIO_MAX)
+      ? `a speed ratio of ${speedRatio} is well outside the range the affinity laws hold over for a real machine (about ${SPEED_RATIO_MIN} to ${SPEED_RATIO_MAX} of rated speed): read the result as an extrapolation, and note that the error lands hardest on the power, which goes as the cube`
+      : null,
+  };
+};
+
+const withMultiples = (pump, nPar, nSer) => {
+  let combined = pump;
+  if (nSer > 1) combined = combineSeries({ pump: combined, n: nSer });
+  if (nPar > 1) combined = combineParallel({ pump: combined, n: nPar });
+  return combined;
+};
+
 export const PumpStudioProvider = ({ children }) => {
   const { notifications, addNotification, removeNotification } = useStudioNotifications();
 
@@ -120,45 +173,81 @@ export const PumpStudioProvider = ({ children }) => {
     const diameterRatio = num(c.diameterRatio, 1);
     const nPar = Math.max(1, Math.round(num(c.nParallel, 1)));
     const nSer = Math.max(1, Math.round(num(c.nSeries, 1)));
-    // Apply speed and trim to the curve by scaling its head function.
-    // Both act on a single machine before combining.
-    const base = curve;
-    const scaled = {
-      headAt: (q) => {
-        // invert the flow scaling, then scale head back up
-        const qEquivalent = q / (speedRatio * diameterRatio);
-        const h = base.headAt(qEquivalent);
-        const trimShortfall = diameterRatio < 0.95
-          ? Math.min(0.12, ((1 - diameterRatio) * 100 - 5) * 0.006)
-          : 0;
-        return h * speedRatio ** 2 * diameterRatio ** 2 * (1 - trimShortfall);
-      },
+    // The speed and the trim scale the whole curve, by the same factors
+    // the engine applies to a point (see changeFactors). A trim ratio
+    // above 1 or a speed ratio at or below 0 is the engine's refusal,
+    // by name, rather than a curve nobody can build.
+    const factors = changeFactors({ speedRatio, diameterRatio });
+    if (factors.error) return { error: factors.error };
+    const scaled = { headAt: (q) => curve.headAt(q / factors.qScale) * factors.hScale };
+    return {
+      curve: withMultiples(scaled, nPar, nSer),
+      // the same machine count with no speed or trim change, which is
+      // what "before" means on the changes card
+      baseCurve: withMultiples(curve, nPar, nSer),
+      factors,
+      speedRatio,
+      diameterRatio,
+      nPar,
+      nSer,
+      changed: speedRatio !== 1 || diameterRatio !== 1,
     };
-    let combined = scaled;
-    if (nSer > 1) combined = combineSeries({ pump: combined, n: nSer });
-    if (nPar > 1) combined = combineParallel({ pump: combined, n: nPar });
-    return { curve: combined, speedRatio, diameterRatio, nPar, nSer };
   }, [curve, inputs.changes]);
+
+  const qMaxSearchGpm = useMemo(
+    () => Math.max(4000, num(inputs.pump.q4, 2200) * 3),
+    [inputs.pump.q4],
+  );
 
   /** The duty point: everything else is asked here. */
   const duty = useMemo(() => {
     if (configured.error) return { error: configured.error };
     if (system.error) return { error: system.error };
-    const qMax = Math.max(4000, num(inputs.pump.q4, 2200) * 3);
-    return dutyPoint({ pump: configured.curve, system, qMaxGpm: qMax });
-  }, [configured, system, inputs.pump.q4]);
+    if (!droops(curve)) return { error: NON_DROOPING_CURVE };
+    return dutyPoint({ pump: configured.curve, system, qMaxGpm: qMaxSearchGpm });
+  }, [configured, system, curve, qMaxSearchGpm]);
 
-  /** Power at the duty. */
-  const power = useMemo(() => {
-    if (duty.error) return { error: duty.error };
-    return pumpPower({
-      qGpm: duty.qGpm,
-      headFt: duty.headFt,
+  /** The duty before any speed or trim change, on the same system. */
+  const baseDuty = useMemo(() => {
+    if (configured.error) return { error: configured.error };
+    if (system.error) return { error: system.error };
+    if (!droops(curve)) return { error: NON_DROOPING_CURVE };
+    return dutyPoint({ pump: configured.baseCurve, system, qMaxGpm: qMaxSearchGpm });
+  }, [configured, system, curve, qMaxSearchGpm]);
+
+  /**
+   * Power at a duty. The motor efficiency is the one input the engine
+   * does not bound, and an unbounded one gives a motor drawing less than
+   * its own shaft power. The shaft side does not depend on it, so the
+   * shaft side is still computed and only the motor figures are refused,
+   * by name (FC3 finding P3).
+   */
+  const powerAt = useCallback((point) => {
+    if (!point || point.error) return { error: point?.error };
+    const motorEfficiency = num(inputs.changes.motorEfficiency, 0.94);
+    const motorOk = motorEfficiency > 0 && motorEfficiency <= 1;
+    const p = pumpPower({
+      qGpm: point.qGpm,
+      headFt: point.headFt,
       sg: num(inputs.fluid.sg, 1),
       efficiency: num(inputs.pump.efficiency, 0.75),
-      motorEfficiency: num(inputs.changes.motorEfficiency, 0.94),
+      motorEfficiency: motorOk ? motorEfficiency : 0.94,
     });
-  }, [duty, inputs.fluid.sg, inputs.pump.efficiency, inputs.changes.motorEfficiency]);
+    if (p.error || motorOk) return p;
+    return {
+      hydraulicHp: p.hydraulicHp,
+      brakeHp: p.brakeHp,
+      motorInputHp: null,
+      motorInputKw: null,
+      motorError: 'the motor efficiency must be above 0 and at most 1: a motor cannot deliver more shaft power than it draws, so the motor input is not computed',
+    };
+  }, [inputs.changes.motorEfficiency, inputs.fluid.sg, inputs.pump.efficiency]);
+
+  /** Power at the duty. */
+  const power = useMemo(() => powerAt(duty), [powerAt, duty]);
+
+  /** Power at the duty before the change. */
+  const basePower = useMemo(() => powerAt(baseDuty), [powerAt, baseDuty]);
 
   /** NPSH at the duty. */
   const npsh = useMemo(() => {
@@ -212,20 +301,53 @@ export const PumpStudioProvider = ({ children }) => {
     return { rows, qMax };
   }, [curve, system, configured, duty, inputs.pump.q4]);
 
-  /** What a speed or trim change would do to the duty, as numbers. */
+  /**
+   * What the speed or trim change actually bought.
+   *
+   * Two different questions live here and the studio used to answer both
+   * as if they were one (FC3 finding S1):
+   *
+   *  - `after` is the new OPERATING point, solved as a fresh crossing of
+   *    the changed pump curve with the system. The machine changed and
+   *    the piping did not, so the operating point has to be found again.
+   *  - `onCurve` is where the old duty point LANDS on the changed curve
+   *    under the affinity and trim laws. It sits on the pump curve and
+   *    not on the system curve, so no pump ever runs there. It is what
+   *    the laws say and it is worth seeing, labelled as what it is.
+   *
+   * Both are taken from the duty BEFORE the change, so the change is
+   * applied exactly once.
+   */
   const changeEffect = useMemo(() => {
-    if (duty.error || power.error) return null;
-    const sr = num(inputs.changes.speedRatio, 1);
-    const dr = num(inputs.changes.diameterRatio, 1);
-    return {
-      speed: speedChange({
-        qGpm: duty.qGpm, headFt: duty.headFt, brakeHp: power.brakeHp, speedRatio: sr,
-      }),
-      trim: impellerTrim({
-        qGpm: duty.qGpm, headFt: duty.headFt, brakeHp: power.brakeHp, diameterRatio: dr,
-      }),
+    if (configured.error) return { error: configured.error };
+    if (baseDuty.error) return { error: baseDuty.error };
+    if (duty.error) return { error: duty.error };
+    if (power.error) return { error: power.error };
+    if (basePower.error) return { error: basePower.error };
+    const before = {
+      qGpm: baseDuty.qGpm, headFt: baseDuty.headFt, brakeHp: basePower.brakeHp,
     };
-  }, [duty, power, inputs.changes]);
+    // the engine's own laws, composed on the unchanged duty: the speed
+    // law is exact, the trim law carries the published shortfall
+    const sped = speedChange({ ...before, speedRatio: configured.speedRatio });
+    if (sped.error) return { error: sped.error };
+    const trimmed = impellerTrim({ ...sped, diameterRatio: configured.diameterRatio });
+    if (trimmed.error) return { error: trimmed.error };
+    return {
+      changed: configured.changed,
+      speedRatio: configured.speedRatio,
+      diameterRatio: configured.diameterRatio,
+      before,
+      after: { qGpm: duty.qGpm, headFt: duty.headFt, brakeHp: power.brakeHp },
+      onCurve: { qGpm: trimmed.qGpm, headFt: trimmed.headFt, brakeHp: trimmed.brakeHp },
+      idealQGpm: trimmed.idealQGpm,
+      idealHeadFt: trimmed.idealHeadFt,
+      trimPercent: trimmed.trimPercent,
+      shortfallPct: trimmed.shortfallPct,
+      trimWarning: trimmed.warning,
+      speedWarning: configured.factors.speedWarning,
+    };
+  }, [configured, baseDuty, duty, power, basePower]);
 
   // --- Project lifecycle (studio-kit recipe) ---
   const serialize = useCallback((name) => ({
@@ -346,7 +468,9 @@ export const PumpStudioProvider = ({ children }) => {
     system,
     configured,
     duty,
+    baseDuty,
     power,
+    basePower,
     npsh,
     region,
     viscosity,

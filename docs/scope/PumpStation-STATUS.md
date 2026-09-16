@@ -67,8 +67,58 @@ suite 1995 green.
   support a quadratic and nothing more, and the fit quality (R
   squared) is reported so a poor one is visible.
 
+## FC3-0 repairs (2026-09-16)
+
+Found by the NextGen FC3 course build
+(`/root/fc-wip-rotating/FINDINGS.md` section S) and repaired in
+`src/contexts/PumpStudioContext.jsx` and the panels. **The vendored
+engine is untouched**; the engine-side findings in that file are routed
+to the engines repo.
+
+- **S1. Two answers for one change, and the change was applied twice.**
+  The studio scales the whole pump curve and re-solves the crossing with
+  the system. The "what a change would buy" card then applied the
+  engine's affinity and trim laws on top of the duty that already
+  trimmed curve had produced. At a 20 percent trim the card read 752 gpm
+  and 137 ft while the chart marked 984 gpm at 236 ft, and the card's
+  point did not even sit on the curve the chart drew. **The duty
+  headline, the chart and the summary rail were always the correct
+  numbers.** The card now starts from the duty before the change and
+  keeps three quantities apart: the duty before, the duty after as a
+  fresh crossing with the same system, and where the old duty point
+  lands on the changed curve, which sits on the pump curve without
+  sitting on the system curve.
+- **S2. One trim law.** The context carried its own copy of the trim
+  shortfall model and applied it to head but not to flow, so it
+  disagreed with the engine it sits on. The curve is now scaled by
+  factors read out of `impellerTrim` and `speedChange` at unit duty,
+  which makes the curve law and the point law the same law and carries
+  an engine repair through automatically. Duty flow falls by up to 2.6
+  percent on trims deeper than 5 percent and does not move at all above
+  that.
+- **S3. Named refusals at the door.** Motor efficiency is bounded to
+  (0, 1] with the shaft power still computed and only the motor figures
+  refused, because the shaft side never depended on it. A trim ratio
+  above 1 now carries the engine's own refusal instead of quietly
+  scaling the impeller up. A speed ratio outside 0.5 to 1.5 is named as
+  an extrapolation rather than refused, because it is computable. A
+  fitted curve that does not droop no longer produces a duty point, so a
+  flat curve reported as a perfect fit refuses instead of printing a
+  flow and a head as headline figures.
+- **S4. A numeric gate.** `src/contexts/__tests__/pumpStudioContext.test.jsx`
+  asserts numbers for the first time in this app, including the
+  agreement test S1 needed: the point the card reports must lie on the
+  curve the chart draws.
+
 ## Open
 
 - Tile seed migration 20260829690000 HELD for the prod upload.
 - ARMED literature gate: published HI 9.6.7 worked examples (owner
   PDFs).
+- Engine-side, routed to the engines repo rather than patched here:
+  the unbounded motor efficiency and speed ratio in `pumps.js` itself,
+  `npshCheck` returning `severity: 'adequate'` with `pass: false` for an
+  NPSHa it could not read, `dutyPoint` answering on a curve `fitPumpCurve`
+  has just warned about, `viscosityCorrection` changing its return shape
+  between branches, and the module header's misstatement of the margin
+  rule as a ratio rule.
