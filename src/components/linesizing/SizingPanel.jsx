@@ -47,9 +47,13 @@ const ResultCards = () => {
   }
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-      <Stat label="Pressure drop" value={fmt(sizing.dpTotalPsi, 1)} unit="psi" />
+      <Stat label="Pressure drop" value={fmt(sizing.dpTotalPsi, 1)} unit="psi"
+        hint={sizing.steps ? `Beggs & Brill marched in ${sizing.steps} steps` : undefined} />
       <Stat label="Flow pattern" value={patternLabel[sizing.pattern] || sizing.pattern}
-        accent={sizing.pattern === 'intermittent' ? 'text-amber-400' : 'text-slate-100'} />
+        accent={sizing.pattern === 'intermittent' ? 'text-amber-400' : 'text-slate-100'}
+        hint={sizing.outletPattern && sizing.outletPattern !== sizing.pattern
+          ? `at the inlet; ${patternLabel[sizing.outletPattern] || sizing.outletPattern} at the outlet`
+          : 'holds the length of the line'} />
       <Stat label="Liquid holdup" value={fmt(sizing.holdup, 3)}
         hint={`no-slip ${fmt(sizing.lambdaL, 3)}`} />
       <Stat label="RP 14E status" value={sizing.exceeded ? 'EXCEEDED' : 'OK'}
@@ -123,8 +127,11 @@ const SweepTable = () => {
         </tbody>
       </table>
       <p className="text-[11px] text-slate-600 mt-2">
-        The recommendation is the smallest bore that passes every stated limit. It is a
-        hydraulic recommendation only; wall thickness is its own check on the Wall tab.
+        The recommendation is the smallest bore that passes every stated limit, which is not
+        always the first passing row above: the schedule table runs by nominal size, and a
+        heavier schedule of the same nominal size is a smaller bore. Ties break on the thinner
+        wall. It is a hydraulic recommendation only; wall thickness is its own check on the
+        Wall tab.
       </p>
     </div>
   );

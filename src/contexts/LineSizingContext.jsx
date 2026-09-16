@@ -222,7 +222,10 @@ export const LineSizingProvider = ({ children }) => {
     let zNote = 'typed';
     if (inputs.gas.zMode === 'auto' && p1Psia > 14.7) {
       const z1 = gasDensityLbFt3({ pPsia: p1Psia, tF, gasSg: sg });
-      if (!z1.error) { zAvg = z1.z; zNote = 'DAK at inlet'; }
+      // A refused z is said out loud rather than quietly replaced by the
+      // typed one: the number on screen is then known to be the typed z.
+      if (z1.error) zNote = `typed, because DAK refused at these conditions (${z1.error})`;
+      else { zAvg = z1.z; zNote = z1.warning ? `DAK at inlet (${z1.warning})` : 'DAK at inlet'; }
     }
     return {
       qScfd: num(inputs.gas.qMMscfd) * 1e6,
@@ -380,7 +383,10 @@ export const LineSizingProvider = ({ children }) => {
     const fromMp = inputs.pigging.holdupSource === 'multiphase';
     const mp = fromMp ? multiphaseLine({ ...multiphaseArgs, idIn: bore.idIn }) : null;
     if (fromMp && mp?.error) return { error: `holdup from the Multiphase tab failed: ${mp.error}` };
-    const holdupFrac = fromMp ? mp.holdup : num(inputs.pigging.holdupFrac);
+    // The liquid a pig pushes is the holdup ALONG the line, not the
+    // holdup at the inlet: marching the multiphase line makes the
+    // length-weighted value available, so the sweep estimate uses it.
+    const holdupFrac = fromMp ? (mp.avgHoldup ?? mp.holdup) : num(inputs.pigging.holdupFrac);
     const swept = sweptLiquidBbl({ idIn: bore.idIn, lengthFt, holdupFrac });
     if (swept.error) return swept;
     const run = pigRun({ lengthFt, pigSpeedFtS: num(inputs.pigging.pigSpeedFtS, 5) });
@@ -392,7 +398,9 @@ export const LineSizingProvider = ({ children }) => {
     });
     return {
       holdupFrac,
-      holdupNote: fromMp ? `Beggs & Brill holdup at the Multiphase tab's conditions (${mp.pattern})` : 'typed',
+      holdupNote: fromMp
+        ? `Beggs & Brill holdup averaged along the line at the Multiphase tab's conditions (${mp.pattern} at the inlet)`
+        : 'typed',
       lineVolumeBbl: lineVolumeBbl({ idIn: bore.idIn, lengthFt }),
       sweptBbl: swept.sweptBbl,
       runHours: run.runHours,
