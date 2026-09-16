@@ -1,5 +1,5 @@
 // Produced Water Treatment Studio (Facilities F7,
-// Facilities-ROADMAP.md §3 app 7) — rebuilt on droplet physics and
+// Facilities-ROADMAP.md §3 app 7): rebuilt on droplet physics and
 // the studio kit, keeping its slug. The engine is the vendored
 // produced-water domain; this page wires it.
 import React, { useState } from 'react';
@@ -14,6 +14,7 @@ import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import { ProducedWaterProvider, useProducedWater } from '@/contexts/ProducedWaterContext';
 import {
   WaterInputs, EquipmentInputs, FluidCard, TrainResults, DistributionChart,
+  DeviceDetail, InputFormatNote,
 } from '@/components/pwtstudio/PwtPanels';
 import PwtHelpContent from '@/components/pwtstudio/PwtHelpGuide';
 import { fmt, Row } from '@/components/pwtstudio/fields';
@@ -39,10 +40,14 @@ const Summary = () => {
       )}
       {!result.error && (
         <>
-          <Row label="Outlet OIW" value={`${fmt(result.outletOiwPpm, 1)} ppm`} />
+          <Row label="Outlet OIW" value={`${fmt(result.outletOiwPpm, 1)} ppm`}
+            hint={result.complete ? undefined : result.overallRemovalBasis} />
           <Row label="Overall removal" value={`${fmt(result.overallRemovalPct, 1)} %`} />
-          <Row label="Droplet median" value={`${fmt(result.inletMedianMicron, 0)} to ${fmt(result.outletMedianMicron, 1)} um`} />
-          <Row label="Spec" value={result.meetsSpec === null ? '--' : (result.meetsSpec ? 'met' : 'missed')} />
+          <Row label="Droplet median" value={`${fmt(result.inletMedianMicron, 1)} to ${fmt(result.outletMedianMicron, 1)} um`} />
+          <Row label="Spec"
+            value={result.meetsSpec === null ? 'no verdict' : (result.meetsSpec ? 'met' : 'missed')}
+            hint={result.verdictWithheldReason ? 'see the note on the Treatment Train tab' : undefined} />
+          <Row label="Stages that ran" value={`${result.stagesRun} of ${result.stagesRun + result.stagesSkipped}`} />
         </>
       )}
     </div>
@@ -95,10 +100,12 @@ const StudioContent = () => {
 
   const main = (
     <div className="h-full overflow-y-auto space-y-4">
+      <InputFormatNote />
       {activeTab === 'train' && (
         <>
           <FluidCard />
           <TrainResults />
+          <DeviceDetail />
         </>
       )}
       {activeTab === 'droplets' && (

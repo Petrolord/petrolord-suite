@@ -78,3 +78,105 @@ independently reproduces the textbook 0.890 cP for water at 25 C.
   upload.
 - ARMED literature gates: API 421 worked examples and published
   hydrocyclone grade-efficiency curves (owner PDFs).
+
+---
+
+# FC7-0, 2026-09-16: the repair wave
+
+The recon before the NextGen Produced Water course found **55 findings, 27 of
+them reachable by typing into a box in this studio and producing a wrong,
+unmoved or non-finite number on a screen**. Engines PR (FC7-0) and the matching
+Suite PR fix all of them. The full record, with every decision and its reason,
+is `tools/validation/facilities/FINDINGS-producedwater.md` in the engines repo.
+
+## The four that were wrong on this studio's own shipped defaults
+
+1. **The hydrocyclone rewarded buying FEWER liners, without limit.** The
+   centrifugal field went as the square of the flow per liner with nothing
+   above it, so the cut size fell as one over its square root. The shipped
+   default of 20 liners on 50,000 bwpd ran them at **7.667 times their design
+   flow at 58,786 g**, and clearing the Liners box gave ONE liner at
+   **23,514,452 g** and an outlet 78 times better. The whole headline (1.2 ppm,
+   MEETS, 27.78 ppm margin) rested on it. The field now stops rising at the
+   1.3x envelope, overload carries an inlet-shear penalty so the cut gets
+   worse, and past 2x design the engine refuses and says how many liners the
+   flow needs. **The default is 160 liners now**, which is turndown 0.958.
+2. **A device whose inputs were incomplete was SKIPPED and the train still
+   printed a verdict.** Clearing the Plate area box dropped the CPI and the
+   studio still read 1.220 ppm, 99.76 percent and MEETS with a 27.78 ppm
+   margin. The train withholds `meetsSpec` and `marginPpm` now, names the
+   stages that did not run, and this studio prints the reason in an error note
+   and paints the row.
+3. **The Bubble size and Gas ratio boxes could not change any number**, so
+   induced and dissolved gas flotation were the same device behind two menu
+   entries, and the panel hardcoded 80 micron for DAF behind the user's back.
+   Both boxes are live now and they are the whole difference between the two,
+   with a one-click preset for each. At the presets the induced cell cuts at
+   18.6 um and the dissolved cell at 6.6 um.
+4. **The Bed depth box could not change any number either**, because the filter
+   computed its removal twice by two routes that disagreed and the train read
+   the one the bed depth did not enter. One route now, and the bed depth, the
+   grain size and the loading rate all move the cut.
+
+## What else changed in this layer
+
+- **Every box is parsed strictly.** `parseFloat` read a prefix and threw the
+  rest away, so a saved study or a pasted figure carrying "50,000" came back as
+  50 and the studio designed a train for fifty barrels a day and called it
+  excellent. A box that does not hold a number is named on screen.
+- **No box has a silent fallback.** Clearing one refuses by name instead of
+  substituting a value nobody typed.
+- **The hidden constants are on the panel**: the liner design flow and its
+  field at design, the flotation cell depth and gas rate, the filter
+  coefficient (3.5 for walnut shell and 4.2 for multi-media was the ONLY
+  difference between those two menu items) and the media grain size. A new
+  "Inside each device" card shows the turndown, the field, the residence, the
+  gas holdup, the bubble Reynolds number, the loading and the cut droplet's
+  Reynolds number.
+- **The chart and the calculation discretise one distribution.** The bar chart
+  ran at 30 bins against a train at 60.
+- **All four derived blocks are wrapped**, so a throw shows a message rather
+  than a white screen.
+- **The filter bed area default moved from 6 to 16 m2**, because 6 m2 puts the
+  shipped case at 55 m/hr, over twice the loading the engine warns about.
+- **Copy**: the "29 ppm monthly average is the common offshore limit" hint is
+  gone (no source for it exists anywhere in the repo, and the engine now states
+  no limit at all), the two help-guide claims the arithmetic denied are
+  corrected, the catalogue's four-device promise is restated, the null verdict
+  is no longer painted red, and three owner copy-rule contrastives in live help
+  text are rewritten.
+
+## The shipped case, before and after
+
+| | before | after |
+| --- | --- | --- |
+| liners / filter bed area | 20 / 6 m2 | 160 / 16 m2 |
+| liner turndown, field | 7.667 x, 58,786 g | 0.958 x, 919 g |
+| filter loading | 55.2 m/hr, over its own warning | 20.7 m/hr, inside it |
+| outlet | 1.2188 ppm | 6.5387 ppm |
+| overall removal | 99.756 % | 98.692 % |
+| droplet median | 30 typed to 5.858 measured | 30.000 to 7.323, both measured |
+| verdict | MEETS, margin 27.78 ppm | MEETS, margin 22.46 ppm |
+
+The new answer is 5.4 times worse and it is the one the equipment supports.
+
+## Held for literature, stated in-app and never graded
+
+- The discharge limit itself. The spec box is the user's own permit figure.
+- The oil-in-water basis: the removal is a fraction of the oil, so it is
+  dimensionless and the outlet comes back on whatever basis the inlet was given
+  on. Converting a limit written in mg/l is the user's step.
+- API 421's horizontal velocity rule, of which only the fixed-velocity half is
+  implemented.
+- The dissolved and soluble oil floor, whose existence is stated on the
+  Treated water card and whose value is the caller's to supply.
+- Every device shape and scale constant, including the flotation attachment
+  efficiency and the field a liner develops at its design flow.
+
+## Gate
+
+Engines: 68 gates, up from 20. The planting battery went from **22 of 35
+defects leaving the suite green to 0 of 35**. Suite: the smoke test now asserts
+the hidden constants appear and that clearing an equipment box gives NO spec
+verdict, and `ProducedWaterContext.parsing.test.js` holds the strict parser and
+the re-picked defaults against the values `parseFloat` used to launder.

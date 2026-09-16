@@ -227,7 +227,7 @@ export const applications = [
         id: 'produced-water-treatment',
         slug: 'produced-water-treatment',
         name: 'Produced Water Treatment',
-        description: 'Design and model produced water treatment trains including hydrocyclones, CPI, IGF, and DAF systems.',
+        description: 'Design and model produced water treatment trains on droplet physics: API 421 basins, plate interceptors, de-oiling hydrocyclones, induced and dissolved gas flotation and media filters, each sized from its own cut size.',
         module: 'facilities',
         category: 'facilities',
         path: '/dashboard/apps/facilities/produced-water-treatment',
