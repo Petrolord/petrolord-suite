@@ -11,6 +11,7 @@ import { useStudioNotifications } from '@/components/studio/useStudioNotificatio
 import {
   compressorTrain, machineScreen, driverFuel, actualInletCfm, compressionStage,
 } from '@/utils/facilities/engine/compression';
+import { BTU_PER_HP_HR } from '@/utils/facilities/engine/fieldUnits';
 
 const TABLE = 'saved_compressor_projects';
 
@@ -73,11 +74,20 @@ const num = (v, fallback = NaN) => {
 export const ABSOLUTE_ZERO_F = -459.67;
 
 /**
- * One horsepower-hour is 2544.43 Btu, so a driver whose heat rate is
+ * One horsepower-hour is 2544.4336 Btu, so a driver whose heat rate is
  * below that figure is being reported as more than 100 percent
  * efficient (FC3 finding C3).
+ *
+ * TAKEN FROM THE ENGINE, never restated. The studio used to carry 2544.43
+ * here while the engine carried the same rounding, and engines PR #197
+ * replaced the engine's copy with the exact derived value, which is
+ * 2544.433577644024. A studio floor of 2544.43 against an engine floor of
+ * 2544.433577644024 leaves a band in which the studio accepts a heat rate
+ * the engine then refuses, and neither number is the owner of the other.
+ * The engine's `lib/units/fieldUnits.js` is the owner, so the constant is
+ * imported from it and the studio keeps only the sentence.
  */
-export const MIN_HEAT_RATE_BTU_HP_HR = 2544.43;
+export const MIN_HEAT_RATE_BTU_HP_HR = BTU_PER_HP_HR;
 
 /**
  * Every typed box this studio hands to the compression engine, checked
@@ -203,7 +213,10 @@ export const CompressorStudioProvider = ({ children }) => {
     if (!Number.isFinite(lhv) || !(lhv > 0)) return { error: 'the fuel heating value must be above zero Btu/scf' };
     if (heatRate < MIN_HEAT_RATE_BTU_HP_HR) {
       return {
-        error: `a heat rate of ${heatRate} Btu/hp-hr is below the ${MIN_HEAT_RATE_BTU_HP_HR} Btu in one horsepower-hour, which would make the driver more than 100 percent efficient`,
+        // Four decimals, because the sentence names its own threshold: at
+        // two a heat rate of 2544.43 read "2544.43 is below the 2544.43
+        // Btu", which refuses correctly and explains nothing.
+        error: `a heat rate of ${heatRate} Btu/hp-hr is below the ${MIN_HEAT_RATE_BTU_HP_HR.toFixed(4)} Btu in one horsepower-hour, which would make the driver more than 100 percent efficient`,
       };
     }
     return driverFuel({
@@ -262,34 +275,13 @@ export const CompressorStudioProvider = ({ children }) => {
       k: engineArgs.k,
       polytropicEfficiency: engineArgs.polytropicEfficiency,
       mechanicalEfficiency: engineArgs.mechanicalEfficiency,
+      // Handed the typed limit for the same reason every stage in the
+      // train is: the engine's hot-stage warning is measured against it,
+      // and left out it falls back to the 300 F default and reports this
+      // card against a threshold the user never set.
+      maxDischargeF: engineArgs.maxDischargeF,
     });
   }, [train, engineArgs]);
-
-  /**
-   * Stages that finish above the limit the user typed.
-   *
-   * The engine picks the stage count from the suction temperature for
-   * every stage, then runs every stage after the first from the
-   * intercooler outlet, so an intercooler that leaves the gas warmer
-   * than the suction runs the later stages hotter than the count was
-   * chosen for. Its own hot-stage warning is measured against a fixed
-   * 300 F rather than against the limit in the box, so it stays silent
-   * on exactly those cases (FC3 findings C1 and C2). The staging repair
-   * belongs in the engines repo; until it lands, the studio at least
-   * checks the limit the user actually typed.
-   */
-  const dischargeLimitCheck = useMemo(() => {
-    if (train.error) return null;
-    const limitF = engineArgs.maxDischargeF;
-    const over = train.stages.filter((s) => s.tDischargeF > limitF);
-    if (!over.length) return null;
-    const named = over.map((s) => `stage ${s.stage} at ${s.tDischargeF.toFixed(1)} F`).join(', ');
-    return {
-      limitF,
-      stages: over,
-      note: `${named}: above the ${limitF} F limit this train was staged against. The stage count is chosen from the suction temperature, while every stage after the first starts from the intercooler outlet, so an intercooler that leaves the gas warmer than the suction runs the later stages hotter than the count allowed for. Intercool closer to the suction temperature, or add a stage.`,
-    };
-  }, [train, engineArgs.maxDischargeF]);
 
   // --- Project lifecycle (studio-kit recipe) ---
   const serialize = useCallback((name) => ({
@@ -412,7 +404,6 @@ export const CompressorStudioProvider = ({ children }) => {
     sweep,
     acfm,
     firstStage,
-    dischargeLimitCheck,
     // projects
     projects,
     currentProjectId,

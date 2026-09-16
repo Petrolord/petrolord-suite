@@ -278,13 +278,37 @@ describe('S3: a refusal is a named refusal', () => {
     expect(api.power.error).toMatch(/does not fall with flow/i);
   });
 
-  it('refuses a flat curve, which the engine scores as a perfect fit', async () => {
+  it('refuses a flat curve, and scores its fit as undefined', async () => {
     await set('pump', 'h1', '400');
     await set('pump', 'h2', '400');
     await set('pump', 'h3', '400');
     await set('pump', 'h4', '400');
-    expect(api.curve.rSquared).toBe(1);
+    // With four identical heads there is no variance for a fit to explain,
+    // so R squared is undefined. The engine used to return 1, which read as
+    // a perfect fit beside a warning saying the curve was not a pump curve
+    // at all; engines PR #197 returns null instead.
+    expect(api.curve.rSquared).toBeNull();
     expect(api.duty.error).toMatch(/does not fall with flow/i);
+  });
+
+  it('solves a flat curve whose fit lands a whisker below zero, and still has no R squared', async () => {
+    // The undefined R squared is reachable WITH a duty on the screen: on
+    // these four flows the least-squares solve puts c2 at -2.3e-12 rather
+    // than at zero, so the studio reads the curve as drooping, the
+    // crossing solves, and the results card renders the fit quality line.
+    // That is the line whose "--" the panel now explains.
+    await set('pump', 'q1', '0');
+    await set('pump', 'q2', '600');
+    await set('pump', 'q3', '1200');
+    await set('pump', 'q4', '1800');
+    await set('pump', 'h1', '400');
+    await set('pump', 'h2', '400');
+    await set('pump', 'h3', '400');
+    await set('pump', 'h4', '400');
+    expect(api.curve.coefficients.c2).toBeLessThan(0);
+    expect(api.curve.rSquared).toBeNull();
+    expect(api.duty.error).toBeUndefined();
+    expect(Number.isFinite(api.duty.qGpm)).toBe(true);
   });
 
   it('still solves the drooping control curve', () => {
