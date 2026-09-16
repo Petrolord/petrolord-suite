@@ -101,10 +101,18 @@ const FireFields = () => {
         <Field label="Set pressure (psig)"><NumberInput section="fire" name="setPsig" /></Field>
         <Field label="Overpressure (%)" hint="21 percent is the fire-case allowance."><NumberInput section="fire" name="overpressurePct" /></Field>
       </div>
+      <Field label="Back pressure (psig)" hint="The fire case used to be sized at atmospheric whatever you stated elsewhere.">
+        <NumberInput section="fire" name="backPsig" />
+      </Field>
       <div className="grid grid-cols-3 gap-2">
         <Field label="Temp (F)"><NumberInput section="fire" name="tF" /></Field>
         <Field label="MW"><NumberInput section="fire" name="mw" step="0.1" /></Field>
         <Field label="k"><NumberInput section="fire" name="k" step="0.01" /></Field>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <Field label="Kd"><NumberInput section="fire" name="kd" step="0.001" /></Field>
+        <Field label="Kb"><NumberInput section="fire" name="kb" step="0.01" /></Field>
+        <Field label="Kc"><NumberInput section="fire" name="kc" step="0.01" /></Field>
       </div>
     </>
   );

@@ -34,7 +34,7 @@ const PsvResultsPanel = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Stat label="Required area" value={fmt(psv.areaIn2, 3)} unit="in2" />
             {o.error ? (
-              <Stat label="Selection" value={`${o.multipleOfT} x T`} accent="text-amber-400" hint="beyond a single T orifice" />
+              <Stat label="Selection" value={`${fmt(o.multipleOfT, 0)} x T`} accent="text-amber-400" hint={o.error} />
             ) : (
               <>
                 <Stat label="API 526 orifice" value={o.orifice} accent="text-emerald-400" hint={`${fmt(o.areaIn2, 3)} in2`} />
@@ -73,7 +73,7 @@ const PsvResultsPanel = () => {
                 hint="count only to 25 ft above grade; trim the level for tall vessels" />
               <Stat label="Heat input" value={fmt(psv.qBtuHr / 1e6, 2)} unit="MMBtu/hr" />
               <Stat label="Relief load" value={fmt(psv.wLbHr, 0)} unit="lb/hr"
-                hint="sized at the actual fire-case relieving pressure" />
+                hint={`sized at ${fmt(psv.p1Psia, 1)} psia, the relieving pressure your overpressure states`} />
             </div>
           </CardContent>
         </Card>

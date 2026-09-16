@@ -28,7 +28,12 @@ export const DrumInputs = () => (
       <Field label="Vapor viscosity (cp)"><NumberInput section="drum" name="muVCp" step="0.001" /></Field>
       <Field label="Drum diameter (ft)"><NumberInput section="drum" name="diameterFt" step="0.5" /></Field>
     </div>
-    <Field label="Liquid holdup fraction"><NumberInput section="drum" name="liquidFraction" step="0.05" /></Field>
+    <Field
+      label="Liquid level (fraction of diameter)"
+      hint="Read as a level: 0.25 is a quarter of the diameter deep. The vapor space is the circular segment above it."
+    >
+      <NumberInput section="drum" name="liquidFraction" step="0.05" />
+    </Field>
   </div>
 );
 
@@ -42,15 +47,19 @@ export const DrumResults = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Stat label="Dropout velocity" value={fmt(drum.udFtS, 2)} unit="ft/s"
             hint={`drag C = ${fmt(drum.dragC, 2)}, iterated`} />
-          <Stat label="Vapor velocity" value={fmt(drum.vVaporFtS, 2)} unit="ft/s" />
+          <Stat label="Vapor velocity" value={fmt(drum.vVaporFtS, 2)} unit="ft/s"
+            hint={`vapor area ${fmt(drum.areaVaporFt2, 1)} ft2`} />
           <Stat label="Required length" value={fmt(drum.requiredLengthFt, 1)} unit="ft" />
           <Stat label="L/D" value={fmt(drum.ld, 2)}
             accent={drum.ld > 6 || drum.ld < 2 ? 'text-amber-400' : 'text-emerald-400'} />
         </div>
         {drum.note && <WarnNote>{drum.note}</WarnNote>}
         <p className="text-[12px] text-slate-500">
-          The droplet must fall across the vapor space before the gas carries it the length of the
-          drum. Change the diameter and read the length it demands; the L/D column is the judgment.
+          The droplet must fall {fmt(drum.fallFt, 1)} ft, the depth of the vapor space above a
+          liquid level {fmt(drum.liquidDepthFt, 1)} ft deep, before the gas carries it the length of
+          the drum. Raise the level and the vapor space shrinks twice over, in the area the gas
+          flows through and in the distance the droplet has to fall. Change the diameter and read
+          the length it demands; the L/D column is the judgment, above six or below two.
         </p>
       </CardContent>
     </Card>
@@ -101,11 +110,12 @@ export const RadiationResults = () => {
             accent={over ? 'text-red-400' : 'text-emerald-400'}
             hint={over ? 'above the allowable' : 'inside the allowable'} />
           <Stat label="Distance the allowable demands" value={fmt(radiation.requiredDistanceM, 0)} unit="m"
-            hint="the same model inverted; a stack height or a sterile radius buys this" />
+            hint={radiation.setbackError || 'the same model inverted; a stack height or a sterile radius buys this'} />
         </div>
         <p className="text-[12px] text-slate-500">
           The point-source model ignores flame length and wind tilt, so treat it as a screening
-          answer: adequate for a first stack height, not for a detail design near the limits.
+          answer for a first stack height. A detail design near the limits needs a flame-shape
+          model.
         </p>
       </CardContent>
     </Card>
