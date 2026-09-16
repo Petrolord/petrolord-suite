@@ -46,6 +46,20 @@ const savedService = jest.requireMock('@/utils/savedProjects').__service;
 const engine = jest.requireMock('@/utils/facilities/engine/gasProcessing');
 const realEngine = jest.requireActual('@/utils/facilities/engine/gasProcessing');
 
+/**
+ * The engine either refuses this input or answers it with something
+ * that is not an engineering quantity.
+ *
+ * Stated as an invariant rather than as the number the engine returned
+ * on the day this was written, because the FC4-0 engine repair is
+ * landing beside this one and turns several of these from a confident
+ * wrong answer into a refusal. Either way the input is not answerable
+ * and the studio refuses it by name. The measured pre-repair figures
+ * are in the comment on each case.
+ */
+const notAnAnswer = (r, keys = []) => Boolean(r.error)
+  || keys.some((k) => !Number.isFinite(r[k]) || r[k] <= 0);
+
 /** The arguments this studio hands `aminePackage` on its own defaults. */
 const amineArgs = (over = {}) => ({
   gasMMscfd: 100, co2MolPct: 4, h2sMolPct: 1,
@@ -58,11 +72,12 @@ import {
   GasProcessingProvider, useGasProcessing, defaultInputs,
   FIELD_LIMITS, fieldIssue, tegIssue, amineIssue, dewpointIssue,
   dakStanding, liquidDensityUsed, amineSolutionLbFt3, nonFiniteFields,
-  nonFiniteNote, TEG_LIQUID_LB_FT3, GAL_PER_FT3, WATER_LB_PER_GAL,
+  nonFiniteNote, GAL_PER_FT3, WATER_LB_PER_GAL,
 } from '@/contexts/GasProcessingContext';
 import {
   fmt, accentFor, ABSENT, NOT_A_NUMBER, INFINITE, MINUS_INFINITE,
 } from '@/components/gasprocessing/fields';
+import { suttonPseudoCriticals, dakZ } from '@/utils/production/engine/gasProperties';
 
 let api = null;
 const Probe = () => { api = useGasProcessing(); return null; };
@@ -96,19 +111,59 @@ describe('the shipped defaults, as numbers', () => {
     expect(api.dewpoint.error).toBeUndefined();
   });
 
-  it('holds the dehydration figures the studio shipped with', () => {
+  it('wires the dehydration tab to the engine with the arguments on screen', () => {
+    // The numbers themselves belong to the engine and move when the
+    // engine is repaired. What belongs to this layer is which
+    // arguments reach it, so the tab is checked against the engine run
+    // directly with the inputs the boxes are showing.
+    const t = defaultInputs().teg;
+    const saturated = realEngine.saturatedWaterContent({ pPsia: 1000, tF: 100 });
+    const pack = realEngine.tegPackage({
+      gasMMscfd: 50,
+      inletLbMMscf: saturated.lbPerMMscf,
+      outletLbMMscf: 7,
+      circulationGalPerLb: 3,
+      leanTegWtPct: 99,
+      absorberTF: 100,
+      reboilerTF: 380,
+      refluxRatio: 0.25,
+      btexInletPpmv: 100,
+      btexAbsorbedFrac: 0.15,
+    });
+    expect(t.inletMode).toBe('saturated');
+    expect(pack.error).toBeUndefined();
     const d = api.dehydration;
-    expect(d.inletLbMMscf).toBeCloseTo(45.0458, 3);
-    expect(d.circGpm).toBeCloseTo(3.9631, 3);
-    expect(d.reboilerMMBtuHr).toBeCloseTo(0.4495, 3);
-    expect(d.contactor.diameterFt).toBeCloseTo(2.8033, 3);
+    expect(d.inletLbMMscf).toBe(saturated.lbPerMMscf);
+    expect(d.circGpm).toBe(pack.circGpm);
+    expect(d.reboilerMMBtuHr).toBe(pack.reboilerMMBtuHr);
+    expect(d.waterLbDay).toBe(pack.waterLbDay);
+    expect(d.removalNeeded).toBeCloseTo(1 - 7 / saturated.lbPerMMscf, 12);
+    expect(d.contactor.diameterFt).toBeGreaterThan(0);
   });
 
-  it('holds the sweetening figures the studio shipped with', () => {
-    const s = api.sweetening;
-    expect(s.acidMolesDay).toBeCloseTo(7904.2926, 2);
-    expect(s.circGpm).toBeCloseTo(372.3974, 2);
-    expect(s.reboilerMMBtuHr).toBeCloseTo(17.8751, 3);
+  it('wires the sweetening tab to the engine with the arguments on screen', () => {
+    const pack = realEngine.aminePackage(amineArgs());
+    expect(pack.error).toBeUndefined();
+    const sw = api.sweetening;
+    expect(sw.acidMolesDay).toBe(pack.acidMolesDay);
+    expect(sw.circGpm).toBe(pack.circGpm);
+    expect(sw.reboilerMMBtuHr).toBe(pack.reboilerMMBtuHr);
+    expect(sw.richLoadingUsed).toBe(0.5);
+    expect(sw.contactor.diameterFt).toBeGreaterThan(0);
+  });
+
+  it('wires the dew point tab to the engine with the arguments on screen', () => {
+    const mu = realEngine.jouleThomsonFPerPsi({
+      pPsia: 1000, tF: 100, gasSg: 0.65, cpBtuLbmolF: 9.5,
+    });
+    const drop = realEngine.jtDrop({
+      p1Psia: 1000, p2Psia: 600, tF: 100, gasSg: 0.65, cpBtuLbmolF: 9.5,
+    });
+    expect(api.dewpoint.muFPerPsi).toBe(mu.muFPerPsi);
+    expect(api.dewpoint.dropF).toBe(drop.dropF);
+    expect(api.dewpoint.t2F).toBe(drop.t2F);
+    expect(api.dewpoint.waterAtOutlet.lbPerMMscf)
+      .toBe(realEngine.saturatedWaterContent({ pPsia: 600, tF: drop.t2F }).lbPerMMscf);
   });
 
   it('reports nothing non-finite anywhere on the defaults', () => {
@@ -201,12 +256,11 @@ describe('every typed box carries the bounds of its quantity (F-U3)', () => {
  */
 describe('the fails-open list, refused at the box', () => {
   it('F-E4: a reboiler below the absorber is refused, and used to run the still backwards', async () => {
-    const before = realEngine.tegPackage({
+    // Measured before the repair: reboiler duty -0.32 MMBtu/hr, hint
+    // "-1432 sensible + 458 overhead Btu/gal", `warning` null.
+    expect(notAnAnswer(realEngine.tegPackage({
       gasMMscfd: 50, inletLbMMscf: 60, outletLbMMscf: 7, absorberTF: 380, reboilerTF: 100,
-    });
-    expect(before.error).toBeUndefined();
-    expect(before.reboilerMMBtuHr).toBeLessThan(0);
-    expect(before.warning).toBeNull();
+    }), ['reboilerMMBtuHr', 'dutyBtuPerGal', 'sensiblePerGal'])).toBe(true);
 
     await set('teg', 'absorberTF', '380');
     await set('teg', 'reboilerTF', '100');
@@ -214,10 +268,11 @@ describe('the fails-open list, refused at the box', () => {
   });
 
   it('F-E5: a negative circulation ratio is refused', async () => {
-    const before = realEngine.tegPackage({
+    // Measured before the repair: -5.52 gpm of glycol, -0.32 MMBtu/hr,
+    // and only the customary-band warning, which reads as a style note.
+    expect(notAnAnswer(realEngine.tegPackage({
       gasMMscfd: 50, inletLbMMscf: 60, outletLbMMscf: 7, circulationGalPerLb: -3,
-    });
-    expect(before.circGpm).toBeCloseTo(-5.5208, 3);
+    }), ['circGpm', 'reboilerMMBtuHr'])).toBe(true);
     await set('teg', 'circulationGalPerLb', '-3');
     expect(api.dehydration.error).toBe('the circulation ratio must be above 0 gal per lb');
   });
@@ -233,21 +288,21 @@ describe('the fails-open list, refused at the box', () => {
   });
 
   it('F-E8: a negative outlet spec is refused', async () => {
-    const before = realEngine.tegPackage({
-      gasMMscfd: 50, inletLbMMscf: 60, outletLbMMscf: -20,
-    });
-    expect(before.circGpm).toBeCloseTo(8.3333, 3);
+    // Measured before the repair: 8.33 gpm against 5.52, because the
+    // package removes more water than the gas was carrying. Nothing in
+    // the answer is non-finite or negative, which is why there is no
+    // engine-side invariant to assert here and the studio's refusal is
+    // the whole of the fix.
     await set('teg', 'outletLbMMscf', '-20');
     expect(api.dehydration.error).toBe('the outlet spec must be above 0 lb/MMscf');
   });
 
   it('F-E10 and F-E11: a solution strength above 100 or below zero is refused', async () => {
-    const high = realEngine.aminePackage(amineArgs({ amineWtPct: 150 }));
-    expect(high.error).toBeUndefined();
-    expect(high.circGpm).toBeCloseTo(111.7192, 3);
-    const low = realEngine.aminePackage(amineArgs({ amineWtPct: -45 }));
-    expect(low.circGpm).toBeCloseTo(-372.3974, 3);
-    expect(low.reboilerMMBtuHr).toBeCloseTo(-17.8751, 3);
+    // Measured before the repair: 111.7 gpm at 150 wt pct, which is a
+    // solution stronger than pure amine, and -372 gpm with -17.9
+    // MMBtu/hr at -45 wt pct.
+    expect(notAnAnswer(realEngine.aminePackage(amineArgs({ amineWtPct: -45 })),
+      ['circGpm', 'reboilerMMBtuHr'])).toBe(true);
     await set('amine', 'amineWtPct', '150');
     expect(api.sweetening.error).toBe('the amine strength must be below 100 wt %');
     await set('amine', 'amineWtPct', '-45');
@@ -260,18 +315,22 @@ describe('the fails-open list, refused at the box', () => {
   });
 
   it('F-E13: a regenerator that produces heat is refused', async () => {
-    const before = realEngine.aminePackage(amineArgs({ dutyBtuPerGal: -800 }));
-    expect(before.error).toBeUndefined();
-    expect(before.reboilerMMBtuHr).toBeCloseTo(-17.8751, 3);
+    // Measured before the repair: -17.9 MMBtu/hr, a regenerator that
+    // makes heat instead of taking it.
+    expect(notAnAnswer(realEngine.aminePackage(amineArgs({ dutyBtuPerGal: -800 })),
+      ['reboilerMMBtuHr'])).toBe(true);
     await set('amine', 'dutyBtuPerGal', '-800');
     expect(api.sweetening.error).toBe('the regenerator duty must be above 0 Btu/gal');
   });
 
   it('F-E16: the gas gravity that makes Sutton pseudo-criticals negative is out of reach', async () => {
-    const hot = realEngine.jouleThomsonFPerPsi({ pPsia: 1000, tF: 100, gasSg: 5.07 });
-    expect(hot.muFPerPsi).toBeLessThan(0);
-    const dead = realEngine.jouleThomsonFPerPsi({ pPsia: 1000, tF: 100, gasSg: 5.08 });
-    expect(dead.muFPerPsi).toBe(0);
+    // Measured before the repair: at gravity 5.08 Sutton's
+    // pseudo-critical pressure is NEGATIVE, `dakZ` takes its
+    // non-positive branch and returns z = 1, so the coefficient comes
+    // back EXACTLY ZERO, which reads as "this gas does not cool". At
+    // 5.07 it comes back NEGATIVE, which says the gas HEATS on
+    // expansion, with z reported as 38.5.
+    expect(suttonPseudoCriticals(5.08).ppcPsia).toBeLessThan(0);
 
     await set('dewpoint', 'gasSg', '5.07');
     expect(api.dewpoint.error).toBe('the gas gravity must be below 2');
@@ -280,17 +339,19 @@ describe('the fails-open list, refused at the box', () => {
   });
 
   it('F-E17: a temperature below absolute zero is refused', async () => {
-    const before = realEngine.jouleThomsonFPerPsi({ pPsia: 1000, tF: -600, gasSg: 0.65 });
-    expect(before.error).toBeUndefined();
+    // Measured before the repair: mu = -1.4e-10 with z = 1.000000001
+    // and no error, at 140 degF below absolute zero.
     await set('dewpoint', 'tF', '-600');
     expect(api.dewpoint.error).toBe('the upstream temperature must be above -100 F');
   });
 
   it('F-C8: a spec above its own inlet names the spec rather than the sum', async () => {
-    const before = realEngine.aminePackage(amineArgs({
+    // Measured before the repair: the engine tests the sum first, so
+    // this reported "no acid gas to remove at these specs", which sends
+    // the user to a box that is correct.
+    expect(realEngine.aminePackage(amineArgs({
       h2sMolPct: 0, co2SpecMolPct: 6, h2sSpecMolPct: 0,
-    }));
-    expect(before.error).toBe('no acid gas to remove at these specs');
+    })).error).toBeTruthy();
     await set('amine', 'h2sMolPct', '0');
     await set('amine', 'h2sSpecMolPct', '0');
     await set('amine', 'co2SpecMolPct', '6');
@@ -300,48 +361,54 @@ describe('the fails-open list, refused at the box', () => {
 
 describe('the fails-silent list, refused at the box', () => {
   it('F-S1: a stage count of zero is refused, and used to render as an empty field', async () => {
-    expect(realEngine.kremserFractionRemoved({ absorptionFactor: 2.5, stages: 0 })).toBeNaN();
+    // Measured before the repair: a bare NaN, which is the one export
+    // in the module outside the object-carrying-an-error contract, so a
+    // caller has no property to check. It reached the screen as `--`.
+    const before = realEngine.kremserFractionRemoved({ absorptionFactor: 2.5, stages: 0 });
+    expect(notAnAnswer(typeof before === 'number' ? { v: before } : before, ['v'])).toBe(true);
     await set('teg', 'stages', '0');
     expect(api.dehydration.error).toBe('the theoretical stage count must be above 0');
   });
 
   it('F-S2: a circulation ratio of exactly zero is refused, and used to go to infinity', async () => {
-    const before = realEngine.tegPackage({
+    // Measured before the repair: dutyBtuPerGal Infinity,
+    // reboilerMMBtuHr NaN, no error, and the customary-band warning
+    // firing as though the only problem were style.
+    expect(notAnAnswer(realEngine.tegPackage({
       gasMMscfd: 50, inletLbMMscf: 60, outletLbMMscf: 7, circulationGalPerLb: 0,
-    });
-    expect(before.error).toBeUndefined();
-    expect(before.dutyBtuPerGal).toBe(Infinity);
-    expect(Number.isNaN(before.reboilerMMBtuHr)).toBe(true);
+    }), ['dutyBtuPerGal', 'reboilerMMBtuHr', 'circGpm'])).toBe(true);
 
     await set('teg', 'circulationGalPerLb', '0');
     expect(api.dehydration.error).toBe('the circulation ratio must be above 0 gal per lb');
   });
 
   it('F-S3: a solution strength of exactly zero is refused, and used to go to infinity', async () => {
-    const before = realEngine.aminePackage(amineArgs({ amineWtPct: 0 }));
-    expect(before.error).toBeUndefined();
-    expect(before.circGpm).toBe(Infinity);
-    expect(before.reboilerMMBtuHr).toBe(Infinity);
+    // Measured before the repair: circulation Infinity, regenerator
+    // duty Infinity, no error.
+    expect(notAnAnswer(realEngine.aminePackage(amineArgs({ amineWtPct: 0 })),
+      ['circGpm', 'reboilerMMBtuHr'])).toBe(true);
 
     await set('amine', 'amineWtPct', '0');
     expect(api.sweetening.error).toBe('the amine strength must be above 0 wt %');
   });
 
   it('F-S4: a cleared temperature box is refused, and used to size a contactor from NaN', async () => {
-    const before = realEngine.contactorDiameter({
+    // Measured before the repair: z, gas density, allowable velocity
+    // and diameter all NaN with no error, and the hint line reading
+    // "Souders-Brown at z = --".
+    expect(notAnAnswer(realEngine.contactorDiameter({
       gasMMscfd: 50, pPsia: 1000, tF: NaN, gasSg: 0.65, ksFtS: 0.3,
-    });
-    expect(before.error).toBeUndefined();
-    expect(Number.isNaN(before.diameterFt)).toBe(true);
+    }), ['diameterFt', 'z', 'rhoG'])).toBe(true);
 
     await set('teg', 'tF', '');
     expect(api.dehydration.error).toBe('the gas temperature needs a number');
   });
 
   it('F-S5: a cleared temperature box is refused on the dew point tab too', async () => {
-    const before = realEngine.jouleThomsonFPerPsi({ pPsia: 1000, tF: NaN, gasSg: 0.65 });
-    expect(before.error).toBeUndefined();
-    expect(Number.isNaN(before.muFPerPsi)).toBe(true);
+    // Measured before the repair: coefficient and z both NaN, no error.
+    expect(notAnAnswer(realEngine.jouleThomsonFPerPsi({
+      pPsia: 1000, tF: NaN, gasSg: 0.65,
+    }), ['muFPerPsi', 'z'])).toBe(true);
 
     await set('dewpoint', 'tF', '');
     expect(api.dewpoint.error).toBe('the upstream temperature needs a number');
@@ -396,13 +463,17 @@ describe('the contactor is sized against the liquid in it (F-U1)', () => {
     expect(call.rhoLLbFt3).toBeCloseTo(64.8830, 3);
   });
 
-  it('hands the dehydration contactor the glycol density', () => {
+  it('leaves the dehydration contactor on the engine\'s own glycol density', () => {
+    // The fluid in a TEG contactor is the glycol the engine already
+    // assumes, and the engine owns the one glycol density in the
+    // system. A second one named in the Suite is how two densities for
+    // one fluid start (F-C3).
     const call = engine.contactorDiameter.mock.calls
       .map(([a]) => a)
       .filter((a) => a.gasMMscfd === 50)
       .pop();
     expect(call).toBeDefined();
-    expect(call.rhoLLbFt3).toBe(TEG_LIQUID_LB_FT3);
+    expect(call.rhoLLbFt3).toBeUndefined();
   });
 
   it('follows the amine the user picked', async () => {
@@ -412,42 +483,81 @@ describe('the contactor is sized against the liquid in it (F-U1)', () => {
     expect(api.sweetening.liquidAsked).toBeCloseTo(63.6353, 3);
   });
 
-  it('reads back the liquid the engine really used, so the screen can name it', () => {
-    // The engine hard-codes 69.9 lb/ft3 today and takes no liquid
-    // density, so the read-back is the glycol value on BOTH tabs. That
-    // is the finding, stated on screen instead of implied away.
-    expect(liquidDensityUsed(api.dehydration.contactor, 0.3)).toBeCloseTo(69.9, 6);
-    expect(liquidDensityUsed(api.sweetening.contactor, 0.25)).toBeCloseTo(69.9, 6);
-    expect(api.sweetening.liquidUsed).toBeCloseTo(69.9, 6);
-    expect(api.sweetening.liquidUsed).not.toBeCloseTo(api.sweetening.liquidAsked, 3);
+  it('reads back the density the engine really used, whatever it is', () => {
+    // vAllow = ks sqrt((rhoL - rhoG)/rhoG), inverted. Asserted against
+    // the engine's own returned velocity rather than against a number,
+    // so it holds before and after the engine takes a liquid density.
+    [[api.dehydration.contactor, 0.3], [api.sweetening.contactor, 0.25]]
+      .forEach(([c, ks]) => {
+        const back = liquidDensityUsed(c, ks);
+        expect(Number.isFinite(back)).toBe(true);
+        expect(ks * Math.sqrt((back - c.rhoG) / c.rhoG)).toBeCloseTo(c.vAllowFtS, 9);
+      });
+    // A glycol contactor, whichever published glycol density the engine
+    // carries.
+    expect(api.dehydration.liquidUsed).toBeGreaterThan(69);
+    expect(api.dehydration.liquidUsed).toBeLessThan(70);
   });
 
-  it('reads back whatever density it is given, not a constant', () => {
-    const c = realEngine.contactorDiameter({
-      gasMMscfd: 100, pPsia: 1000, tF: 110, gasSg: 0.7, ksFtS: 0.25,
-    });
-    // vAllow = ks sqrt((rhoL - rhoG)/rhoG), inverted.
-    expect(liquidDensityUsed(c, 0.25)).toBeCloseTo(69.9, 6);
+  it('inverts a density it was never told, and refuses what it cannot invert', () => {
     expect(liquidDensityUsed({ rhoG: 4, vAllowFtS: 0.25 * Math.sqrt((62.4 - 4) / 4) }, 0.25))
       .toBeCloseTo(62.4, 6);
+    expect(liquidDensityUsed({ rhoG: 4, vAllowFtS: 0.3 * Math.sqrt((69.9 - 4) / 4) }, 0.3))
+      .toBeCloseTo(69.9, 6);
     expect(liquidDensityUsed({ error: 'no' }, 0.25)).toBeNaN();
     expect(liquidDensityUsed({ rhoG: -1, vAllowFtS: 1 }, 0.25)).toBeNaN();
+    expect(liquidDensityUsed(null, 0.25)).toBeNaN();
+  });
+
+  it('names the liquid the amine column was really sized against', () => {
+    // Before the engine takes `rhoLLbFt3` this is the glycol value on
+    // BOTH tabs, which is the finding. After it takes it, the two
+    // agree. Either way the screen names the density the answer came
+    // from rather than the one it was asked for.
+    const used = api.sweetening.liquidUsed;
+    const asked = api.sweetening.liquidAsked;
+    expect(Number.isFinite(used)).toBe(true);
+    expect(asked).toBeCloseTo(64.8830, 3);
+    const sizedAgainstAmine = Math.abs(used - asked) <= 1e-6 * asked;
+    const sizedAgainstGlycol = used > 69 && used < 70;
+    expect([sizedAgainstAmine, sizedAgainstGlycol]).toContain(true);
+    expect(sizedAgainstAmine && sizedAgainstGlycol).toBe(false);
   });
 
   it('gets the amine column right the moment the engine reads the density', async () => {
     // The engine half of F-U1 is a separate repair. This is the Suite
     // half proved against an engine that honours `rhoLLbFt3`: the same
     // Souders-Brown call with the liquid this studio already passes.
+    // Sized against the engine's own default liquid, whatever it is.
+    engine.contactorDiameter.mockImplementation(({ rhoLLbFt3, ...rest }) => (
+      realEngine.contactorDiameter(rest)
+    ));
+    await mount();
+    const sizedAgainstGlycol = api.sweetening.contactor.diameterFt;
+
     engine.contactorDiameter.mockImplementation(({ rhoLLbFt3, ...rest }) => {
       const base = realEngine.contactorDiameter(rest);
       if (base.error || !(rhoLLbFt3 > 0)) return base;
       const vAllow = rest.ksFtS * Math.sqrt((rhoLLbFt3 - base.rhoG) / base.rhoG);
-      return { ...base, vAllowFtS: vAllow, diameterFt: base.diameterFt * Math.sqrt(base.vAllowFtS / vAllow) };
+      return {
+        ...base,
+        vAllowFtS: vAllow,
+        diameterFt: base.diameterFt * Math.sqrt(base.vAllowFtS / vAllow),
+      };
     });
     await mount();
-    expect(api.sweetening.contactor.diameterFt).toBeCloseTo(4.5245, 3);
+    // An amine solution is lighter than glycol, so it allows a lower
+    // gas velocity and needs a wider column. The glycol-sized figure is
+    // the one the app shows today and it is the smaller of the two.
+    expect(api.sweetening.liquidAsked).toBeLessThan(69.9);
     expect(api.sweetening.liquidUsed).toBeCloseTo(api.sweetening.liquidAsked, 6);
-    expect(api.dehydration.contactor.diameterFt).toBeCloseTo(2.8033, 3);
+    expect(api.sweetening.contactor.diameterFt).toBeGreaterThan(sizedAgainstGlycol);
+    // 1.0199 on the vendored engine's 69.9 lb/ft3 of glycol. The band
+    // is wide enough for the FC4-0 engine repair, which resolves the
+    // file's two glycol densities to one at 69.5688 lb/ft3 (F-C3).
+    const ratio = api.sweetening.contactor.diameterFt / sizedAgainstGlycol;
+    expect(ratio).toBeGreaterThan(1.01);
+    expect(ratio).toBeLessThan(1.03);
   });
 });
 
@@ -477,9 +587,8 @@ describe('the default z branch, across the range the boxes offer (F-U2)', () => 
       const c = realEngine.contactorDiameter({ gasMMscfd: 50, pPsia, tF, gasSg, ksFtS: 0.3 });
       // Nothing that passes unflagged may reach the screen as a
       // non-number or as a negative compressibility.
-      expect([pPsia, tF, gasSg, c.z > 0]).toEqual([pPsia, tF, gasSg, true]);
-      expect([pPsia, tF, gasSg, Number.isFinite(c.diameterFt)])
-        .toEqual([pPsia, tF, gasSg, true]);
+      const ok = Boolean(c.error) || (c.z > 0 && Number.isFinite(c.diameterFt));
+      expect([pPsia, tF, gasSg, ok]).toEqual([pPsia, tF, gasSg, true]);
     })));
     // 1584 combinations, 877 of them on the fitted band and clean.
     expect(clean + flagged).toBe(1584);
@@ -494,13 +603,19 @@ describe('the default z branch, across the range the boxes offer (F-U2)', () => 
     // compressibility. The engine discards `converged` (F-E15), so the
     // diameter comes back NaN with no error at all.
     const bad = { gasMMscfd: 50, pPsia: 800, tF: -30, gasSg: 1.25, ksFtS: 0.3 };
+    // Measured before the engine repair: z = -0.171, gas density
+    // -36.77 lb/ft3, diameter NaN, `error` absent, so the studio
+    // rendered `--` where a fault belonged.
     const c = realEngine.contactorDiameter(bad);
-    expect(c.error).toBeUndefined();
-    expect(c.z).toBeLessThan(0);
-    expect(Number.isNaN(c.diameterFt)).toBe(true);
+    expect(notAnAnswer(c, ['z', 'diameterFt', 'rhoG'])).toBe(true);
 
-    const standing = dakStanding(bad);
-    expect(standing.warning).toContain('did not converge');
+    const solved = dakZ({
+      ppr: 800 / suttonPseudoCriticals(1.25).ppcPsia,
+      tpr: (-30 + 459.67) / suttonPseudoCriticals(1.25).tpcR,
+    });
+    expect(solved.converged).toBe(false);
+    expect(solved.z).toBeLessThan(0);
+    expect(dakStanding(bad).warning).toContain('did not converge');
   });
 
   it('carries that all the way to the screen instead of an empty field', async () => {
@@ -510,9 +625,18 @@ describe('the default z branch, across the range the boxes offer (F-U2)', () => 
     await set('teg', 'inletMode', 'typed');
     expect(api.dehydration.error).toBeUndefined();
     expect(api.dehydration.zWarning).toContain('did not converge');
-    expect(api.dehydration.nonFinite).toContain('diameterFt');
-    expect(fmt(api.dehydration.contactor.diameterFt, 1)).toBe(NOT_A_NUMBER);
-    expect(nonFiniteNote(api.dehydration.nonFinite)).toContain('the contactor diameter');
+    // Before the engine repair the diameter came back NaN with no
+    // error, so the studio names it; once the engine refuses instead,
+    // the refusal is what reaches the hint. Either way the screen says
+    // something happened.
+    const c = api.dehydration.contactor;
+    if (c.error) {
+      expect(c.error).toBeTruthy();
+    } else {
+      expect(api.dehydration.nonFinite).toContain('diameterFt');
+      expect(fmt(c.diameterFt, 1)).toBe(NOT_A_NUMBER);
+      expect(nonFiniteNote(api.dehydration.nonFinite)).toContain('the contactor diameter');
+    }
   });
 
   it('says so when the reduced conditions leave the band DAK was fitted over', () => {
@@ -663,12 +787,17 @@ describe('blast radius: six control sweeps, chosen before the flips were counted
       amineWtPct: [-45, -1, 0, 1, 18, 45, 99, 100, 101, 150],
     });
     const flipped = flips('amine', cases).map((c) => parseFloat(c.amineWtPct));
-    expect(flipped).toEqual([-45, -1, 0, 101, 150]);
+    // The studio refuses all five whether the engine does or not.
+    [-45, -1, 0, 101, 150].forEach((wt) => {
+      expect([wt, newRefused.amine({ ...defaultInputs().amine, amineWtPct: String(wt) })])
+        .toEqual([wt, true]);
+    });
+    expect(flipped.every((wt) => wt <= 0 || wt > 100)).toBe(true);
     flipped.forEach((wt) => {
-      const before = realEngine.aminePackage(amineArgs({ amineWtPct: wt }));
-      expect(before.error).toBeUndefined();
-      const impossible = !(before.circGpm > 0) || !Number.isFinite(before.circGpm) || wt > 100;
-      expect([wt, impossible]).toEqual([wt, true]);
+      // A strength at or below zero is not a solution and a strength
+      // above 100 is stronger than pure amine. Whether the engine
+      // refuses these or answers them, no answer to them exists.
+      expect([wt, wt <= 0 || wt > 100]).toEqual([wt, true]);
     });
   });
 });

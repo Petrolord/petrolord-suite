@@ -104,16 +104,27 @@ shipped and the sizing never read it. On the app's own amine defaults the
 diameter comes out 4.436 ft where the MDEA solution density gives 4.524 ft,
 **1.99 percent small**.
 
-The studio now passes `rhoLLbFt3` for the fluid each tab is actually
-treating: the glycol value on dehydration, and the amine solution at its
-own table gravity on sweetening, derived from the same 8.34 lb/gal of
-water the engine's own amine circulation is computed from. **Until the
-engine reads that argument the diameter cannot change**, so the studio
-reads back, from the Souders-Brown velocity the engine returns, the liquid
-density it really used, prints it beside the diameter on both tabs, and
-says on the sweetening tab that the column was sized against glycol. No
-corrected diameter is computed in the Suite. The gate proves the Suite
-half against an engine that honours the argument.
+The sweetening tab now passes `rhoLLbFt3`, the amine solution at its own
+table gravity, derived from the same 8.34 lb/gal of water the engine's own
+amine circulation is computed from. **The dehydration tab passes nothing**:
+the fluid in a TEG contactor is the glycol the engine already assumes, and
+the engine owns the one glycol density in the system, so naming a second
+one here is how two densities for one fluid start (F-C3, which the engine
+repair resolves to 69.5688 lb/ft3 from a single `TEG_LB_PER_GAL`).
+
+**Until the engine reads that argument the diameter cannot change**, so the
+studio reads back, from the Souders-Brown velocity the engine returns, the
+liquid density it really used, prints it beside the diameter on both tabs,
+and says on the sweetening tab that the column was sized against glycol. No
+corrected diameter is computed in the Suite. The gates prove the Suite half
+against an engine that honours the argument, and the whole gate file is run
+against both the vendored engine and the in-flight engine repair.
+
+The parameter name was agreed with the engine repair, which now takes
+`rhoLLbFt3` with the glycol value as its default and returns it. The Suite
+also carries `amineSolutionLbFt3`, which is the same arithmetic on the same
+two constants as the engine's new `solutionLbPerFt3`; import that and delete
+this one once the engine is vendored.
 
 ### The correlation branch no published case exercises, F-U2
 
@@ -151,13 +162,23 @@ offer (gas gravity 0.55 to 2, pressure 14.7 to 3000 psia, temperature
 
 ### Gates
 
-`src/contexts/__tests__/gasProcessingContext.test.jsx` (52) and
-`src/components/gasprocessing/__tests__/gasProcessingPanels.test.jsx` (7)
-assert numbers and screen text for this app for the first time. **Nine
+`src/contexts/__tests__/gasProcessingContext.test.jsx` (54) and
+`src/components/gasprocessing/__tests__/gasProcessingPanels.test.jsx` (9)
+assert numbers and screen text for this app for the first time. **Ten
 defects were planted one at a time and every one was caught by the test
 that exists for it**, because a gate that cannot fail is the defect
 rather than the proof: this module's engine suite passes 12 of 12 with
 the correct Joule-Thomson formula substituted.
+
+The gates assert the studio's own layer rather than the engine's
+arithmetic: which arguments reach the engine, and that an input the
+engine cannot answer is refused by name. Where a finding is recorded as
+"what the engine used to do", the assertion is the version-free
+invariant (the engine refuses it, or answers it with something that is
+not an engineering quantity) and the measured pre-repair figure is in
+the comment, so the FC4-0 engine repair landing beside this one does not
+turn these gates red. All 63 pass against the vendored engine and
+against the in-flight engine repair.
 
 Blast radius: `src/components/gasprocessing/fields.jsx` is imported by
 three files, all in this studio. The same `NumberInput` and `fmt` pair is

@@ -15,6 +15,17 @@ jest.mock('@/utils/savedProjects', () => {
   };
   return { createSavedProjectsService: () => service };
 });
+// The engine is wrapped so these can drive the two states the screen
+// has to tell apart: a result the engine could not produce, and a
+// contactor sized against a liquid other than the one asked for.
+// Driving them from the engine's own behaviour would tie this file to
+// one version of the engine, and the FC4-0 engine repair is landing
+// beside this one.
+jest.mock('@/utils/facilities/engine/gasProcessing', () => {
+  const actual = jest.requireActual('@/utils/facilities/engine/gasProcessing');
+  return { ...actual, contactorDiameter: jest.fn(actual.contactorDiameter) };
+});
+
 jest.mock('@/lib/customSupabaseClient', () => {
   const builder = {
     select: jest.fn(() => builder),
@@ -23,9 +34,34 @@ jest.mock('@/lib/customSupabaseClient', () => {
   return { supabase: { from: jest.fn(() => builder) } };
 });
 
+const engine = jest.requireMock('@/utils/facilities/engine/gasProcessing');
+const realEngine = jest.requireActual('@/utils/facilities/engine/gasProcessing');
+
 import { GasProcessingProvider } from '@/contexts/GasProcessingContext';
 import { DehydrationInputs, DehydrationResults } from '@/components/gasprocessing/DehydrationPanels';
 import { SweeteningInputs, SweeteningResults } from '@/components/gasprocessing/SweeteningDewPanels';
+
+/** An engine that reads the liquid density the caller passes. */
+const honoursDensity = ({ rhoLLbFt3, ...rest }) => {
+  const base = realEngine.contactorDiameter(rest);
+  if (base.error || !(rhoLLbFt3 > 0)) return base;
+  const vAllow = rest.ksFtS * Math.sqrt((rhoLLbFt3 - base.rhoG) / base.rhoG);
+  return {
+    ...base,
+    vAllowFtS: vAllow,
+    diameterFt: base.diameterFt * Math.sqrt(base.vAllowFtS / vAllow),
+  };
+};
+
+/** An engine that hands back a diameter that is not a number. */
+const handsBackNaN = (args) => ({ ...realEngine.contactorDiameter(args), diameterFt: NaN });
+
+beforeEach(() => {
+  engine.contactorDiameter.mockImplementation((args) => {
+    const { rhoLLbFt3, ...rest } = args;
+    return realEngine.contactorDiameter(rest);
+  });
+});
 
 const mount = async (ui) => {
   await act(async () => { render(<GasProcessingProvider>{ui}</GasProcessingProvider>); });
@@ -62,32 +98,47 @@ describe('the dehydration tab on screen', () => {
 
   it('names the liquid the contactor was really sized against', async () => {
     await mount(<DehydrationResults />);
-    expect(screen.getByText(/against a liquid at 69\.9 lb\/ft3/)).toBeTruthy();
+    // Whichever published glycol density the engine carries.
+    expect(screen.getByText(/against a liquid at 69\.\d lb\/ft3/)).toBeTruthy();
   });
 
   it('shows a result that is not a number as something other than an empty field', async () => {
+    // The engine used to hand back a NaN diameter with no `error` key
+    // on rich cold gas, where the z correlation does not converge and
+    // returns a negative compressibility (F-U2). `fmt` rendered that as
+    // `--`, which is what an untouched box looks like.
+    engine.contactorDiameter.mockImplementation(handsBackNaN);
+    await mount(<DehydrationResults />);
+    expect(screen.getAllByText(/not a number/).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText('--')).toHaveLength(0);
+    expect(screen.getByText(/the contactor diameter came back as something other than a number/))
+      .toBeTruthy();
+  });
+
+  it('says on screen when the z correlation did not converge', async () => {
     await mount(<><DehydrationInputs /><DehydrationResults /></>);
-    // Rich gas at low temperature drives the z correlation off its band
-    // and it returns a negative compressibility, so the diameter comes
-    // back NaN with no error at all (F-U2).
     await typeInto('the pressure', '800');
     await typeInto('the gas temperature', '-30');
     await typeInto('the gas gravity', '1.25');
     // Cold gas holds almost no water, so the pipeline spec has to come
     // down with it or the tab refuses on the water balance first.
     await typeInto('the outlet spec', '0.1');
-    expect(screen.getAllByText(/not a number/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/the contactor diameter came back as something other than a number/))
-      .toBeTruthy();
     expect(screen.getByText(/did not converge/)).toBeTruthy();
   });
 });
 
 describe('the sweetening tab on screen', () => {
-  it('says the column was sized against glycol while the engine still does that', async () => {
+  it('says the column was sized against glycol when the engine sizes it against glycol', async () => {
     await mount(<SweeteningResults />);
     expect(screen.getByText(/which is the glycol a dehydration contactor holds/)).toBeTruthy();
     expect(screen.getByText(/The MDEA solution in this column is 64\.9 lb\/ft3/)).toBeTruthy();
+  });
+
+  it('drops the note the moment the engine reads the density it is passed', async () => {
+    engine.contactorDiameter.mockImplementation(honoursDensity);
+    await mount(<SweeteningResults />);
+    expect(screen.queryByText(/which is the glycol a dehydration contactor holds/)).toBeNull();
+    expect(screen.getByText(/against a liquid at 64\.9 lb\/ft3/)).toBeTruthy();
   });
 
   it('refuses a strength above pure amine by name', async () => {

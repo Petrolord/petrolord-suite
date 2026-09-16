@@ -92,18 +92,17 @@ export const GAL_PER_FT3 = 1728 / 231;
  */
 export const WATER_LB_PER_GAL = 8.34;
 
-/** Liquid density of an amine solution at its table gravity, lb/ft3. */
+/**
+ * Liquid density of an amine solution at its table gravity, lb/ft3.
+ *
+ * The FC4-0 engine repair exports the same quantity as
+ * `solutionLbPerFt3`. Import it from there once it is vendored and
+ * delete this; it is here only because the vendored engine predates it,
+ * and it is the same arithmetic on the same two constants.
+ */
 export const amineSolutionLbFt3 = (amine) => (
   amine && amine.sgSolution > 0 ? WATER_LB_PER_GAL * GAL_PER_FT3 * amine.sgSolution : NaN
 );
-
-/**
- * The glycol density the contactor sizing has always assumed, lb/ft3.
- * Passed explicitly on the dehydration tab so the assumption is stated
- * by the caller rather than buried in the engine (FC4 findings F-C4,
- * F-C5).
- */
-export const TEG_LIQUID_LB_FT3 = 69.9;
 
 /**
  * Dranchuk and Abou-Kassem was fitted over these reduced conditions.
@@ -294,9 +293,9 @@ export const dakStanding = ({ pPsia, tF, gasSg }) => {
  * returned. Used only to LABEL the diameter, never to correct it.
  *
  * `contactorDiameter` hard-codes a glycol density today and the amine
- * column is sized against it (FC4 findings F-C4, F-U1). This studio
- * passes `rhoLLbFt3` for the fluid each tab is actually treating; until
- * the engine reads it, this read-back is how the screen names the
+ * column is sized against it (FC4 findings F-C4, F-U1). The sweetening
+ * tab passes `rhoLLbFt3` for the solution it is actually treating;
+ * until the engine reads it, this read-back is how the screen names the
  * liquid the number really came from instead of implying the one that
  * was asked for.
  */
@@ -409,21 +408,20 @@ export const GasProcessingProvider = ({ children }) => {
       stages: num(t.stages, 2),
     });
     const ksFtS = num(t.ksFtS, 0.3);
+    // No liquid density is passed here. The fluid in a TEG contactor is
+    // the glycol the engine already assumes, and the engine owns the
+    // one glycol density in the system. Naming a second one in the
+    // Suite is how two densities for one fluid start (FC4 F-C3).
     const contactor = contactorDiameter({
       gasMMscfd: num(t.gasMMscfd), pPsia: num(t.pPsia), tF: num(t.tF),
       gasSg: num(t.gasSg, 0.65), ksFtS,
-      // Stated by the caller rather than left to the engine's own
-      // constant. The glycol value, which is what a TEG contactor is
-      // actually sized against (FC4 F-C4, F-C5).
-      rhoLLbFt3: TEG_LIQUID_LB_FT3,
     });
-    const liquidAsked = TEG_LIQUID_LB_FT3;
     const liquidUsed = liquidDensityUsed(contactor, ksFtS);
     const standing = dakStanding({ pPsia: num(t.pPsia), tF: num(t.tF), gasSg: num(t.gasSg, 0.65) });
     return {
       saturated, inletLbMMscf, ...pack,
       removalNeeded, stagesNeeded, fractionAtStages,
-      contactor, liquidAsked, liquidUsed,
+      contactor, liquidUsed,
       zWarning: standing ? standing.warning : null,
       // Only what the engine handed back, so a label of this studio's
       // own making cannot be reported as a broken result.
