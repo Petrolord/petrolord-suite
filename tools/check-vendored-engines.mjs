@@ -390,8 +390,9 @@ if (AS_JSON) {
   }
   process.stderr.write(
     'Every deviation from canonical must be either reconciled or recorded in\n'
-    + 'packages/engines/VENDOR.json with a reason and a group. Engine changes are\n'
-    + 'made in Petrolord/petrolord-engines and vendored here, never edited in place.\n',
+    + 'packages/engines/VENDOR.json with a reason, a group and a burnDownWhen saying\n'
+    + 'when the row must be removed. Engine changes are made in\n'
+    + 'Petrolord/petrolord-engines and vendored here, never edited in place.\n',
   );
 } else if (!QUIET) {
   const groups = Object.entries(byGroup).sort().map(([g, n]) => `${g} ${n}`).join(', ');
