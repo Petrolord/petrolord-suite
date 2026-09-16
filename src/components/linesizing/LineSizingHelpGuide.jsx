@@ -11,7 +11,7 @@ const helpContent = [
     icon: BookOpen,
     title: 'What this studio does',
     content:
-      'It sizes a single surface line: liquid, gas or multiphase. You state the fluid, the duty and the route, and it answers with the pressure drop of the size you picked, and then with the same line evaluated at every pipe size in the schedule table, so choosing a diameter is reading a table with limits marked rather than trusting one number. It is deliberately a single-line tool: solving a whole gathering network, where the wells and the lines set each other\'s pressures, is the Production Network Studio\'s job.',
+      'It sizes a single surface line: liquid, gas or multiphase. You state the fluid, the duty and the route, and it answers with the pressure drop of the size you picked, and then with the same line evaluated at every pipe size in the schedule table, so choosing a diameter is reading a table with limits marked rather than trusting one number. The size it marks RECOMMENDED is the smallest bore that passes every limit you stated, which is not always the first passing row you meet reading down the table, because the table runs by nominal size and a heavier schedule of the same nominal size is a smaller bore than the lighter one above it. It is deliberately a single-line tool: solving a whole gathering network, where the wells and the lines set each other\'s pressures, is the Production Network Studio\'s job.',
   },
   {
     id: 'liquid',
@@ -32,7 +32,7 @@ const helpContent = [
     icon: Waves,
     title: 'Multiphase lines',
     content:
-      'The Beggs and Brill correlation, the same golden-tested implementation the Nodal Analysis Studio runs, applied at the line\'s own inclination. Alongside the pressure drop it reports the flow pattern and the liquid holdup, and both matter: an intermittent pattern is a slugging warning for the receiving vessel, and the holdup is exactly the liquid a pig will push ahead of itself, which is why the Pigging tab can read it directly.',
+      'The Beggs and Brill correlation, the same golden-tested implementation the Nodal Analysis Studio runs, applied at the line\'s own inclination. The line is marched in steps rather than evaluated once at the inlet, because the gradient is not constant along a line that carries gas: the pressure falls, the gas expands, the mixture runs faster and the gradient steepens. A short line barely notices the difference and a long gassy one changes by several percent, and a line whose pressure reaches atmospheric partway along is reported as a line that does not deliver, naming the distance, instead of being given an arrival pressure it cannot reach. The card shows how many steps the march used. Alongside the pressure drop it reports the flow pattern and the liquid holdup at the inlet, and both matter: an intermittent pattern is a slugging warning for the receiving vessel, and the holdup is exactly the liquid a pig will push ahead of itself, which is why the Pigging tab can read it directly.',
   },
   {
     id: 'erosional',
