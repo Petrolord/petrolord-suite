@@ -13,9 +13,12 @@ import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import {
   saturatedWaterContent, kremserFractionRemoved, kremserStagesFor,
-  tegPackage, AMINES, amineOf, aminePackage, contactorDiameter,
+  tegPackage, AMINES, aminePackage, amineSolutionLbPerFt3, contactorDiameter,
   jouleThomsonFPerPsi, jtDrop,
 } from '@/utils/facilities/engine/gasProcessing';
+import {
+  DAK_PPR_MIN_FIT, DAK_PPR_MAX, DAK_TPR_MIN, DAK_TPR_MAX,
+} from '@/utils/facilities/engine/separatorSizing';
 import { suttonPseudoCriticals, dakZ, toRankine } from '@/utils/production/engine/gasProperties';
 
 const TABLE = 'saved_gasprocessing_projects';
@@ -79,37 +82,23 @@ const num = (v, fallback = NaN) => {
   return Number.isFinite(n) ? n : fallback;
 };
 
-/** Cubic feet to US gallons: 1728 in3 per ft3 over 231 in3 per gal, exact. */
-export const GAL_PER_FT3 = 1728 / 231;
-
-/**
- * The water density the engine's own amine balance divides by
- * (`solutionGpd = solutionLbDay / (8.34 * sgSolution)`), carried here
- * so the liquid density this studio hands the contactor is the same
- * water the circulation was computed from rather than a second one.
- */
-export const WATER_LB_PER_GAL = 8.34;
-
-/**
- * Liquid density of an amine solution at its table gravity, lb/ft3.
- *
- * The FC4-0 engine repair exports the same quantity as
- * `solutionLbPerFt3`. Import it from there once it is vendored and
- * delete this; it is here only because the vendored engine predates it,
- * and it is the same arithmetic on the same two constants.
- */
-export const amineSolutionLbFt3 = (amine) => (
-  amine && amine.sgSolution > 0 ? WATER_LB_PER_GAL * GAL_PER_FT3 * amine.sgSolution : NaN
-);
-
 /**
  * Dranchuk and Abou-Kassem was fitted over these reduced conditions.
  * Outside them the Newton solve can return a root that is not a
- * compressibility at all: across the range these boxes accept, 35 of
- * 8316 combinations do not converge and three of those come back with a
- * NEGATIVE z (FC4-0 F-U2 sweep).
+ * compressibility at all: across the range these boxes accept, a
+ * 35910 point sweep of the engine found 55 states returning a NEGATIVE
+ * z and 82 returning a diameter that is not a number, in both cases
+ * with no error key at all (FC4-0 F-U2).
+ *
+ * The four numbers are IMPORTED from `separatorSizing.js`, which
+ * declares and documents the window. The engine's own gas-processing
+ * module imports them from the same place since FC4-0, so the studio,
+ * the engine and the separator all read one owner rather than three
+ * copies of four numbers.
  */
-export const DAK_BAND = { pprMin: 0.2, pprMax: 30, tprMin: 1.0, tprMax: 3.0 };
+export const DAK_BAND = {
+  pprMin: DAK_PPR_MIN_FIT, pprMax: DAK_PPR_MAX, tprMin: DAK_TPR_MIN, tprMax: DAK_TPR_MAX,
+};
 
 /**
  * Every typed box in this studio, with the bounds of the quantity it
@@ -290,46 +279,20 @@ export const dakStanding = ({ pPsia, tF, gasSg }) => {
  * back out of its own answer through the Souders-Brown velocity it
  * returned. Used only to LABEL the diameter, never to correct it.
  *
- * `contactorDiameter` hard-codes a glycol density today and the amine
- * column is sized against it (FC4 findings F-C4, F-U1). The sweetening
- * tab passes `rhoLLbFt3` for the solution it is actually treating;
- * until the engine reads it, this read-back is how the screen names the
- * liquid the number really came from instead of implying the one that
- * was asked for.
+ * `contactorDiameter` reads the `rhoLLbFt3` it is handed since the
+ * FC4-0 engine repair (FC4 findings F-C4, F-U1), so on the sweetening
+ * tab this read-back now agrees with the amine solution the tab asked
+ * for and the note below it stays silent. It is kept, and kept
+ * independent of `rhoLLbFt3` in the engine's own return, because that
+ * is what makes the note a CHECK rather than an echo: if a future
+ * engine ever sizes a column against something other than the liquid it
+ * was given, the screen says so on the next render.
  */
 export const liquidDensityUsed = (contactor, ksFtS) => {
   if (!contactor || contactor.error) return NaN;
   const { rhoG, vAllowFtS } = contactor;
   if (!(rhoG > 0) || !Number.isFinite(vAllowFtS) || !(ksFtS > 0)) return NaN;
   return rhoG * (1 + (vAllowFtS / ksFtS) ** 2);
-};
-
-/**
- * `kremserFractionRemoved` read through both of its shapes.
- *
- * It was the one export in the module outside the
- * object-carrying-an-error contract: it returned a BARE NUMBER, so a
- * non-positive absorption factor or stage count came back as NaN, every
- * caller's `if (r.error)` guard passed, and this studio rendered `--`
- * where a fault belonged (FC4 finding F-S1). The FC4-0 engine repair
- * gives it the module's own contract, `{ fractionRemoved }` or
- * `{ error }`.
- *
- * That repair is merged in the engines repo and the copy vendored here
- * predates it, because the vendor pull is a separate change with its own
- * blast radius. Reading both shapes means neither ordering of the two
- * merges leaves this studio broken. **Delete this the day the pin in
- * `packages/engines/VENDOR.json` moves past the FC4-0 engine repair**,
- * and read `.fractionRemoved` directly.
- */
-export const readFractionRemoved = (r) => {
-  if (typeof r === 'number') {
-    return Number.isFinite(r)
-      ? { fractionRemoved: r }
-      : { error: 'the Kremser relation needs a positive absorption factor and a positive stage count' };
-  }
-  if (r && typeof r === 'object') return r;
-  return { error: 'the Kremser relation returned nothing' };
 };
 
 /** Names of the numeric fields that came back non-finite, in order. */
@@ -429,10 +392,16 @@ export const GasProcessingProvider = ({ children }) => {
       absorptionFactor: num(t.absorptionFactor, 2.5),
       fractionRemoved: removalNeeded,
     });
-    const fraction = readFractionRemoved(kremserFractionRemoved({
+    // `kremserFractionRemoved` carries the module's own error contract
+    // since the FC4-0 engine repair, which the pin now includes: it
+    // returns `{ fractionRemoved }` or `{ error }` and never a bare
+    // NaN, so it is read directly. The compatibility reader that used
+    // to sit here, for the ordering where the studio landed before the
+    // engine did, is gone with the pin (FC4 finding F-S1).
+    const fraction = kremserFractionRemoved({
       absorptionFactor: num(t.absorptionFactor, 2.5),
       stages: num(t.stages, 2),
-    }));
+    });
     const fractionAtStages = fraction.fractionRemoved;
     const ksFtS = num(t.ksFtS, 0.3);
     // No liquid density is passed here. The fluid in a TEG contactor is
@@ -480,8 +449,12 @@ export const GasProcessingProvider = ({ children }) => {
     // The column on this tab is full of AMINE SOLUTION, so the liquid
     // the settling velocity is measured against is the amine solution
     // at its own table gravity rather than the glycol the dehydration
-    // tab uses (FC4 findings F-C4, F-U1).
-    const liquidAsked = amineSolutionLbFt3(amineOf(a.amineId));
+    // tab uses (FC4 findings F-C4, F-U1). The density comes from the
+    // engine's `amineSolutionLbPerFt3`, so the water density behind it
+    // is the ONE the amine circulation was computed from. The Suite
+    // used to spell that arithmetic out a second time, which is how two
+    // densities for one fluid start.
+    const liquidAsked = amineSolutionLbPerFt3(a.amineId);
     const contactor = contactorDiameter({
       gasMMscfd: num(a.gasMMscfd), pPsia: num(a.pPsia), tF: num(a.tF),
       gasSg: num(a.gasSg, 0.7), ksFtS,
@@ -520,8 +493,20 @@ export const GasProcessingProvider = ({ children }) => {
     const waterAtOutlet = Number.isFinite(drop.t2F)
       ? saturatedWaterContent({ pPsia: num(d.p2Psia), tF: drop.t2F })
       : { error: 'the downstream temperature is not a number, so the water the cold gas can hold cannot be read' };
+    // `jtDrop` carries a `warning` key of its own since the FC4-0
+    // engine repair, so a plain spread would let the march's note
+    // overwrite the inlet coefficient's. Today the two agree wherever
+    // both are set, because the march's first evaluation is at the
+    // inlet, so nothing measured moves. It is composed explicitly
+    // rather than left to the spread order, so that an engine which
+    // ever notes something at the OUTLET and not at the inlet does not
+    // silently delete the note this tab already showed. The de-duplicate
+    // is why the same sentence is not printed twice.
+    const notes = [mu.warning, drop.warning].filter(Boolean);
+    const seen = notes.filter((n, i) => notes.indexOf(n) === i);
     return {
-      ...mu, ...drop, waterAtOutlet, zWarning,
+      ...mu, ...drop, warning: seen.length ? seen.join('. ') : null,
+      waterAtOutlet, zWarning,
       nonFinite: nonFiniteFields({ ...mu, ...drop }),
     };
   }, [inputs.dewpoint]);

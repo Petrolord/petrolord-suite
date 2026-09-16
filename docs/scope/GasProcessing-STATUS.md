@@ -233,37 +233,195 @@ operating envelope, chosen before any flip was counted, return zero
 flips; across 1292 wide-ladder combinations the repair newly refuses 518
 and newly answers **none**.
 
+## Engines 82ec6d4 vendored (FC4-0), 2026-09-16
+
+The pin in `packages/engines/VENDOR.json` moved from `cac92ab` to
+`82ec6d4`, engines PR #199. Five canonical paths, and the import
+closure needs nothing else: `R_UNIVERSAL` and `AIR_MW` from
+`production/gasProperties.js` and the four DAK window constants from
+`facilities/separatorSizing.js` were already exported at the previous
+pin. `npm run check:engines` is clean with an EMPTY ledger, 742 paths
+compared byte for byte, and the `--ahead` advisory reports level.
+
+### The four Dew Point numbers, measured on the studio itself
+
+Rendered from `DewpointResults` inside the real provider on the app's
+own shipped defaults (1000 to 600 psia, 100 F, gravity 0.65, Cp 9.5),
+before and after the pin moved and with nothing else changed.
+
+| On screen | Before | After | Cause |
+| --- | ---: | ---: | --- |
+| JT coefficient at the inlet | 6.6 F/100 psi | **5.7** | the relation carries no 1/z; the ratio is exactly z (0.87103) times an exact Btu packaging (0.99999941) |
+| Cooling across the drop | 27.3 F | **24.0** | the same, and a march that is second order now |
+| Downstream temperature | 72.7 F | **76.0** | the cooling |
+| Water the cold gas can hold | 31.5 lb/MMscf | **35.1** | the downstream temperature, through the saturation fit |
+| JT coefficient, mean over the drop | not shown | **6.0 F/100 psi** | new card, `muMeanFPerPsi`, live with this pin |
+
+It was anti-conservative in the direction that matters. A dew point
+skid is bought for its cooling, so a coefficient 15 percent high sold a
+depression the skid does not deliver.
+
+### The blast radius
+
+The grid and the nine controls were written to a timestamped file
+BEFORE any sweep ran. **18,075 points across all three tabs**, driven
+through the real `GasProcessingProvider` by `setSection` and read off
+the context exactly as the panels read it, plus a **35,910 point**
+engine-level probe for the z-factor door. Newly refused is counted
+separately from newly moved, and a point refused on BOTH trees is a
+control that behaved rather than a finding.
+
+| Tab | Points | Refused on both | **Newly refused** | **Newly answered** | Answered on both | Printed cell moved |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Dehydration, saturated inlet | 5184 | 2592 | **648** | **0** | 1944 | 1944 |
+| Dehydration, typed inlet | 576 | 0 | **0** | **0** | 576 | 576 |
+| Sweetening | 8640 | 0 | **0** | **0** | 8640 | 8640 |
+| Dew point | 3675 | 0 | **210** | **0** | 3465 | 3465 |
+
+Every printed cell that moves, with a named cause and a ratio:
+
+| Cell | Points moved at printed precision | Ratio | Cause |
+| --- | ---: | --- | --- |
+| Dehydration inlet water, water removed, BTEX | 180 of 1944 | 1.0000169391883849 exactly | one standard base: 379.49 became the derived 379.48357185628737 |
+| Dehydration contactor diameter | 216 | 1.003087 to 1.003581 | two causes multiplied: the base, sqrt(14.696/14.65 x 520/519.67) = 1.0018867, and glycol at 69.5688 lb/ft3 instead of a typed 69.9 |
+| Dehydration liquid named on the card | 1944 | 0.99526225 exactly | 9.3 lb/gal x 1728/231 against the typed 69.9 |
+| Sweetening acid gas, circulation, reboiler duty | 2880 / 160 / 0 | 1.0000169391883849 exactly | the same standard base |
+| Sweetening contactor diameter | 7308 | 1.020955 to 1.045896 | the base, and the column being sized against its own amine solution at last |
+| Sweetening liquid named on the card | 8640 | 0.901451 to 0.928227 | amine solution density instead of glycol |
+| Dew point JT coefficient | 3465 | 0.2516 to 0.9765 | z at the inlet, times the exact Btu packaging |
+| Dew point cooling and downstream temperature | 3002 | see below | the coefficient, and a second-order march |
+| Dew point water the cold gas can hold | 1859 | 1.0014 to 1.2028 (median 1.20) on plausible-before points | the downstream temperature |
+
+**The cooling, characterised rather than counted.** On the 2932 points
+whose pre-vendor answer was physically plausible, the cooling falls on
+**100 percent** of them, by a median 3.75 F and at most 116 F, and the
+downstream temperature rises by exactly as much. `dropF` moves by TWO
+causes multiplied, and they pull opposite ways: removing the 1/z takes
+cooling out, and making the march second order puts a little back.
+Measured at 100 F on a 0.65 gravity gas, the old 20-step march
+understated its own converged answer by 4242 ppm on 1000 to 600 psia,
+6478 ppm on 1000 to 400 and 5112 ppm on 850 to 300, always in the same
+direction, and halving with each doubling of the step count, which is
+first order. The new march lands at 0.8, 3.1 and 3.8 ppm and quarters
+with each doubling, which is second order.
+
+**352 of 3675 dew point points had a physically absurd answer before.**
+The worst printed a cooling of **34,912,209,958 F** with no error at
+all, because the old march walked below the correlation's validity
+floor and kept going. After the pin, every one of them is a named
+refusal. This was not in the brief and the sweep found it.
+
+**What the 140 F refusal removes from the shipped range.** The Magnus
+fit's guard ran to 100 C, where it reads 1.027157 times the DEFINING
+vapour pressure of water at its own normal boiling point. It is now the
+60 C its docstring always claimed, which is exactly 140 F. The
+temperature box still accepts -100 to 400 F, so the band the studio
+loses is **(140 F, 212 F]**: above 212 F the fit already refused, and
+the cold edge at -49 F has not moved. On the dehydration tab in
+saturated inlet mode that is the whole 160 F slice of the grid, 648
+points, refused by a message that names 60 degC, 140 degF and the value
+typed. On the dew point tab the water card is a second door: **722**
+points lose it because the outlet now lands above 140 F, and **155**
+GAIN it because the corrected, smaller cooling brings an outlet that
+used to fall below the -49 F floor back inside the band. A further 88
+lose it because the march itself refuses.
+
+**Newly refused, in full, and never added to the moved counts.**
+
+| Event | Count | Message |
+| --- | ---: | --- |
+| Dehydration tab refuses | 648 | the Magnus fit band, named, with the value in degC |
+| Dehydration contactor card only | 36 | Tpr below the DAK floor, at a gravity of 1.0 and -20 or -40 F |
+| Dew point tab refuses | 210 | Tpr below the DAK floor at the inlet (0 and 20 F on a 1.2 gravity gas) |
+| Dew point march only | 448 | the march refuses partway down, naming the step, the pressure and the temperature it died at; 267 of these were absurd before and 181 looked plausible |
+| Dew point water card only | 810 | 722 above 140 F, 88 behind the march |
+| **Newly answered anywhere** | **155** | the water card, at the cold end |
+| **Newly answered whole tabs** | **0** | |
+
+### The negative z, answered
+
+The brief carried three Suite-reachable points returning a negative z.
+A 35,910 point engine probe (200 to 3000 psia, -100 to 0 F, gravity
+0.55 to 2.00) finds **55** states where the pre-vendor
+`contactorDiameter` returns a negative z, **82** where it returns a
+diameter that is not a number, and **zero** where it returns an error
+key. At the brief's own point, 800 psia, -30 F, gravity 1.25, it
+reports z = **-0.17082424414878106**, a gas density of -36.77 lb/ft3
+and a NaN diameter, with `dakZ` reporting `converged: true`.
+
+After the pin the engine **refuses** them by name: "Tpr 0.876 against
+1.0 is below the DAK validity range of 1.0 to 3.0, at 800 psia and -30
+degF". Over the same 35,910 points: **0** negative z, **0** NaN
+diameters. The studio's own independent `dakStanding` check stays, and
+a new gate sweeps 2,880 states asserting the version-free invariant
+that the contactor either carries an `error` or every number it returns
+is an engineering quantity.
+
+### Suite changes that ride with the pin
+
+- The `readFractionRemoved` compatibility reader is **gone**, as its own
+  comment instructed. `kremserFractionRemoved` carries the module's
+  error contract now and is read directly. Its gate was rewritten to
+  assert the CONTRACT rather than either shape.
+- `amineSolutionLbFt3`, `WATER_LB_PER_GAL` and `GAL_PER_FT3` are gone
+  from the context; the amine column's density comes from the engine's
+  `amineSolutionLbPerFt3`. The Suite no longer keeps a second copy of
+  the water density the amine circulation is divided by.
+- `DAK_BAND` is imported from `separatorSizing.js`, which declares the
+  window. The studio, the gas-processing engine and the separator now
+  read one owner instead of three copies of four numbers.
+- The Water balance card shows the loop water balance the repaired
+  `leanTegWtPct` buys: the rich glycol strength returning and the water
+  the lean glycol already carries. That input was validated and then
+  never read, and without this it would still move nothing a user sees.
+- The dew point memo composes the inlet note and the march note
+  explicitly instead of letting a spread decide. Nothing measured
+  moves; the two agree wherever both are set, because the march's first
+  evaluation is at the inlet.
+- The sweetening liquid note is reworded. It fires on zero of 8,640
+  points now, which is the point of it, and it stays as a CHECK: the
+  density is read back out of the engine's own Souders-Brown velocity,
+  so a column ever sized against a liquid other than the one it was
+  given still says so. Worst read-back gap over the grid: 3.4e-16.
+
+### The nine controls, all registered in advance, all green
+
+| | Control | Result |
+| --- | --- | --- |
+| C1 | sweetening molar quantities move by exactly 1.0000169391883849 | PASS, worst miss 4.4e-16 over 25,920 assertions |
+| C2 | the standard base moves the SATURATED inlet and not the TYPED one | PASS, both halves; typed inlet bit-identical on 2,304 assertions |
+| C3 | contactor diameter equals the closed form of its two named causes | PASS, worst miss 4.4e-16 over 11,124 points |
+| C4 | JT coefficient ratio equals z at the inlet times the Btu packaging | PASS, worst miss 5.6e-16 over 3,465 points |
+| C5 | the march is second order now and the old one was short, one-directionally | PASS, 4242/6478/5112 ppm before against 0.8/3.1/3.8 after |
+| C6 | the 140 F refusal is one-directional and named | PASS, 0 refusals at or below 140 F, 0 tabs newly answered |
+| C7 | the Kremser contract change moves no number | PASS, bit-identical on 2,520 points |
+| C8 | the negative z is refused, never returned | PASS, 55 to 0 |
+| C9 | nothing moves without a named cause | PASS |
+
+Two figures in the canonical FINDINGS do not reproduce and are recorded
+here rather than repeated. The amine column correction is quoted as
+1.94 percent; measured on MDEA's own shipped defaults it is **1.87
+percent** against the engine's resolved 69.5688 lb/ft3 of glycol and
+**1.99 percent** against the 69.9 the Suite used to be sized by, and
+the two figures FINDINGS itself gives imply 1.99. The march's claimed
+3119, 4816 and 6775 ppm do not reproduce at the studio's own gas; the
+measured figures are above, and they are in band and one-directional,
+which is what the control was written to gate. Both were gated as bands
+rather than on the digits, which is why neither blocked the pass.
+
 ## Open
 
 - Tile rename migration 20260829570000 HELD for the prod upload.
+- Prod upload and any `supabase functions deploy` are the owner's and
+  stay held.
 - ARMED literature gates: McKetta-Wehe water-content chart, TEG
   equilibrium/absorption-factor charts, GPSA amine worked examples
   (owner PDFs).
-- Engine-side, routed to `fix/fc4-0-gasprocessing` in the engines repo
-  rather than patched from here:
-  - **F-E1/F-E2/F-E3**, the headline: `jouleThomsonFPerPsi` divides by
-    `z` where the relation carries no such factor, so all four Dew Point
-    numbers are wrong on the app's own shipped defaults (coefficient 6.6
-    against 5.7 F per 100 psi, cooling 27.3 against 24.0 F, downstream
-    temperature 72.7 against 76.0 F, water held 31.5 against 35.1
-    lb/MMscf). The docstring carries the same error. The studio displays
-    whatever the engine returns and will show the corrected figures the
-    day it lands.
-  - **F-C4**: `contactorDiameter` takes no liquid density. This studio
-    already passes `rhoLLbFt3` on both tabs, glycol on dehydration and
-    the amine solution on sweetening. The engine reading that argument
-    is the whole of the F-U1 repair; nothing further is needed here.
-  - **F-E15, F-E16, F-U5**: both engine consumers discard `dakZ`'s
-    `converged` flag. The studio now runs the same correlation itself to
-    report it, which is a display-layer defence rather than the repair.
-  - **F-C7**: `leanTegWtPct` is range-checked, refused outside 90 to 100,
-    and then never used. The studio keeps the box because the engine
-    still refuses on it; whether it constrains the achievable outlet spec
-    or is removed is an engine decision.
-  - **F-C1, F-C2, F-C3, F-C5, F-C6, F-C9**: two standard conditions and
-    two glycol densities in one file, three constants hidden against the
-    module's own doctrine, and a comment naming a latent heat that is not
-    in the code.
-  - **F-S1**: `kremserFractionRemoved` returns a bare number, so it is
-    the one export with no property for a caller to check. The studio's
-    bounds keep it out of its NaN branch; the contract is the engine's.
+- The dew point tab has no door check on the temperature against the
+  water fit, the way the dehydration tab does through its saturated
+  inlet. A user who types an upstream temperature whose OUTLET lands
+  above 140 F sees the water card refuse rather than the box. That is
+  correct and named, and a door check would be an improvement.
+- `waterOverheadBtuPerLb` and the contactor liquid density are engine
+  INPUTS since FC4-0 and the studio types neither; both run on the
+  engine defaults, which are now on screen for the overhead.

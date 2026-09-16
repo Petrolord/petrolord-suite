@@ -84,6 +84,15 @@ export const DehydrationResults = () => {
               accent={accentFor(d.reboilerMMBtuHr)}
               hint={`${fmt(d.sensiblePerGal, 0)} sensible + ${fmt(d.vaporPerGal, 0)} overhead Btu/gal`} />
           </div>
+          {Number.isFinite(d.richTegWtPct) && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Stat label="Rich glycol returning" value={fmt(d.richTegWtPct, 2)} unit="wt %"
+                accent={accentFor(d.richTegWtPct)}
+                hint={`the lean glycol already carries ${fmt(d.leanWaterLbPerGal, 3)} lb of water per gallon at the strength typed above, and the contactor adds the rest`} />
+              <Stat label="Overhead assumed" value={fmt(d.waterOverheadBtuPerLb, 0)} unit="Btu/lb water"
+                hint="latent plus the sensible heat to reach the still, folded; the engine default" />
+            </div>
+          )}
           {broken && <ErrorNote>{broken}</ErrorNote>}
           {d.saturated?.warning && <WarnNote>{d.saturated.warning}</WarnNote>}
           {d.warning && <WarnNote>{d.warning}</WarnNote>}

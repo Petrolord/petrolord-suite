@@ -122,6 +122,20 @@ describe('the dehydration tab on screen', () => {
       .toBeTruthy();
   });
 
+  it('shows what the lean glycol strength buys, which used to be nothing', async () => {
+    // `leanTegWtPct` was range checked and then never read: 99.0 and
+    // 90.001 returned every field bit-identical. The FC4-0 engine
+    // repair gives it the loop water balance, and this is where that
+    // reaches the glass. A validated box that moves nothing on screen
+    // is the same defect one layer up.
+    await mount(<><DehydrationInputs /><DehydrationResults /></>);
+    expect(screen.getByText('Rich glycol returning')).toBeTruthy();
+    const at99 = screen.getByText(/lb of water per gallon/).textContent;
+    await typeInto('the lean TEG strength', '95');
+    const at95 = screen.getByText(/lb of water per gallon/).textContent;
+    expect(at95).not.toBe(at99);
+  });
+
   it('says on screen when the z correlation did not converge', async () => {
     await mount(<><DehydrationInputs /><DehydrationResults /></>);
     await typeInto('the pressure', '800');
@@ -135,16 +149,28 @@ describe('the dehydration tab on screen', () => {
 });
 
 describe('the sweetening tab on screen', () => {
-  it('says the column was sized against glycol when the engine sizes it against glycol', async () => {
+  it('says so when the column is sized against a liquid other than the one asked for', async () => {
+    // `beforeEach` strips `rhoLLbFt3` before the call reaches the
+    // engine, which is what an engine that ignores it does. The note is
+    // asserted against THAT, not against a particular engine version,
+    // so it stays a gate on this studio's own behaviour.
     await mount(<SweeteningResults />);
-    expect(screen.getByText(/which is the glycol a dehydration contactor holds/)).toBeTruthy();
+    expect(screen.getByText(/the sizing did not use the liquid it was given/)).toBeTruthy();
     expect(screen.getByText(/The MDEA solution in this column is 64\.9 lb\/ft3/)).toBeTruthy();
   });
 
-  it('drops the note the moment the engine reads the density it is passed', async () => {
+  it('drops the note when the engine reads the density it is passed', async () => {
     engine.contactorDiameter.mockImplementation(honoursDensity);
     await mount(<SweeteningResults />);
-    expect(screen.queryByText(/which is the glycol a dehydration contactor holds/)).toBeNull();
+    expect(screen.queryByText(/the sizing did not use the liquid it was given/)).toBeNull();
+    expect(screen.getByText(/against a liquid at 64\.9 lb\/ft3/)).toBeTruthy();
+  });
+
+  it('is silent on the vendored engine, which reads the density', async () => {
+    // The unmocked path: the engine the app actually ships with.
+    engine.contactorDiameter.mockImplementation(realEngine.contactorDiameter);
+    await mount(<SweeteningResults />);
+    expect(screen.queryByText(/the sizing did not use the liquid it was given/)).toBeNull();
     expect(screen.getByText(/against a liquid at 64\.9 lb\/ft3/)).toBeTruthy();
   });
 
@@ -164,21 +190,35 @@ describe('the dew point tab on screen', () => {
     await mount(<DewpointResults />);
     expect(screen.getByText('JT coefficient at the inlet')).toBeTruthy();
     expect(screen.getByText(/re-reads it at twenty pressures/)).toBeTruthy();
+  });
+
+  it('shows no mean coefficient when the march does not report one', async () => {
+    // The card is conditional, and the condition is the ENGINE'S
+    // RETURN, so the engine is wrapped to withhold the key rather than
+    // the assertion being written against a particular engine version.
+    // Asserting "no mean card" against the shipped engine is exactly
+    // the gate that goes red on somebody else's correct fix.
+    engine.jtDrop.mockImplementation((args) => {
+      const { muMeanFPerPsi, ...rest } = realEngine.jtDrop(args);
+      return rest;
+    });
+    await mount(<DewpointResults />);
+    expect(screen.getByText('JT coefficient at the inlet')).toBeTruthy();
     expect(screen.queryByText('JT coefficient, mean over the drop')).toBeNull();
   });
 
-  it('prints the coefficient the march delivered as soon as the engine returns it', async () => {
-    // `muMeanFPerPsi` arrives with the FC4-0 engine repair, which the
-    // vendored copy here predates, so the engine is wrapped to return
-    // it. The number beside a marched temperature should be the one the
-    // march actually used.
-    engine.jtDrop.mockImplementation((args) => {
-      const drop = realEngine.jtDrop(args);
-      if (drop.error) return drop;
-      return { ...drop, muMeanFPerPsi: drop.dropF / (args.p1Psia - args.p2Psia) };
-    });
+  it('prints the coefficient the march delivered, and it is the cooling over the drop', async () => {
     await mount(<DewpointResults />);
     expect(screen.getByText('JT coefficient, mean over the drop')).toBeTruthy();
     expect(screen.getByText(/the cooling divided by the pressure drop/)).toBeTruthy();
+    // On the shipped defaults, 1000 to 600 psia: the mean coefficient
+    // is the cooling divided by the 400 psi, and it is NOT the inlet
+    // coefficient, which is the whole reason the card exists.
+    const drop = realEngine.jtDrop({
+      p1Psia: 1000, p2Psia: 600, tF: 100, gasSg: 0.65, cpBtuLbmolF: 9.5,
+    });
+    expect(drop.muMeanFPerPsi).toBeCloseTo(drop.dropF / 400, 12);
+    expect(drop.muMeanFPerPsi).not.toBeCloseTo(drop.muInletFPerPsi, 4);
+    expect(screen.getByText((drop.muMeanFPerPsi * 100).toFixed(1))).toBeTruthy();
   });
 });
