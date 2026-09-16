@@ -17,7 +17,8 @@ import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import {
   liquidLineDrop, liquidLineTraverse, gasOutletPressure, gasLineTraverse,
-  multiphaseLine, erosionalStatus, erosionalStatusAlongLine, sizeSweep, gasDensityLbFt3,
+  multiphaseLine, erosionalStatus, erosionalStatusAlongLine, gasErosionalAlongLine,
+  sizeSweep, gasDensityLbFt3,
   oilDensityLbFt3, requiredWallIn, maopPsig,
   lineVolumeBbl, sweptLiquidBbl, pigRun, piggingInterval,
   PIPE_SCHEDULE, ROUGHNESS_IN, roughnessOf, scheduleRow,
@@ -274,9 +275,17 @@ export const LineSizingProvider = ({ children }) => {
       if (inputs.mode === 'gas') {
         const inv = gasOutletPressure({ ...gasArgs, idIn: bore.idIn });
         if (inv.error) return inv;
+        // The selected bore's erosional verdict, judged where the limit
+        // binds. The sweep table has computed one per row since #489;
+        // the card showed none at all, so a gas line that now fails the
+        // check looked exactly like one that passes.
+        const ero = gasErosionalAlongLine({
+          inputs: gasArgs, idIn: bore.idIn, p2Psia: inv.p2Psia, cFactor,
+        });
         return {
           mode: 'gas', ...inv, zAvg: gasArgs.zAvg, zNote: gasArgs.zNote,
           gradientPsiPerFt: inv.dpPsi / lengthFt,
+          ...(ero.error ? { erosionalError: ero.error } : ero),
         };
       }
       const r = multiphaseLine({ ...multiphaseArgs, idIn: bore.idIn });
