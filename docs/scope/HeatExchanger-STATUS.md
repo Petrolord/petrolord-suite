@@ -59,3 +59,74 @@ RENAMES via the HELD migration 20260829590000).
 - ARMED literature gates: TEMA F charts (the closed form is
   implemented; the published chart cross-read awaits owner PDFs),
   fouling-factor tables.
+
+## FC6-0 repair wave (2026-09-16)
+
+The repair pass before the NextGen Heat Exchange & Cooling course.
+Recon: 44 findings, 21 reachable by typing into a box in this studio,
+**three wrong at the studio's own shipped defaults with nothing typed**.
+Engines PR #202, Suite PR alongside it. Full account in the engines
+repo at `tools/validation/facilities/FINDINGS-heattransfer.md`.
+
+### Numbers on screen that changed
+
+| on screen | before | now |
+| --- | --- | --- |
+| Tubes | 92 | **74** |
+| Area required | 286 ft2 | **230 ft2** |
+| U dirty | 73.9 | **92.1** |
+| Tube-side Reynolds | 16,299 | **44,052** |
+| hi | 247 | **548** |
+| Bundle / shell diameter | 10.9 / 13.4 in | **9.9 / 12.4 in** |
+| Hot-day capacity retained | 81 % | **90 %** |
+| Hot-day duty | 16.23 MMBtu/hr | **18.06 MMBtu/hr** |
+| Fan power / motor power | 96.5 bhp / 104.9 hp | **94.0 bhp / 102.2 hp** |
+
+Two causes. The whole Sizing column moved because the context
+hard-coded `nTubes: 200` into the tube-side film while the card beside
+it printed 92, so U was computed at a tube count the same screen
+contradicted; the film, the coefficient, the area and the bundle are
+iterated to one count now and the studio prints the trail. The Air
+Cooler column moved because the hot day is RATED at fixed UA and fixed
+air mass instead of being scaled by a log-mean ratio, and because the
+air density now belongs to a named draft type rather than to the mean
+of the inlet and the outlet.
+
+### Also in the studio
+
+- The hot-day card reports the NEW process outlet and the NEW air rise
+  beside the duty, and labels a check ambient below the design one as a
+  capability rather than printing 167 percent "retained" in emerald.
+- All five resistances are printed with their shares, and the
+  controlling verdict carries the margin that decided it. At the old
+  defaults that margin was 2.2 percent.
+- The dead `ntuTarget` block is gone. It inverted the effectiveness the
+  rating had just produced and was rendered nowhere.
+- The shell count, the air outlet, the area per tube and the surface
+  over the requirement are printed; the engine returned them and the
+  panels dropped them.
+- A draft type selector and a barometric pressure box, because fan
+  power depends on both.
+- The tube side is labelled as the cold stream, which it always was.
+- `num()` refuses a stored value that is not a number. A saved study
+  holding `'50,000'` used to parse to 50 and blame the physics.
+- Every derived block is wrapped; a throw used to white-screen the tab.
+- Four help-guide claims corrected, three "X, not Y" contrastives
+  rewritten, and a new help section stating the six items held for
+  literature.
+- `src/contexts/__tests__/heatExchangerContext.test.jsx`: 20 numeric
+  gates on the composition layer, where there were none.
+
+### Still open after FC6-0
+
+- The six items HELD FOR LITERATURE, recorded in the engine's exported
+  `HELD_FOR_LITERATURE` table and stated in the studio's help: the
+  `BUNDLE_K` provenance (its 45 and 90 degree rows are identical, so
+  the Layout box does nothing between them), the Dittus-Boelter
+  validity band and its cooling exponent, the Sieder-Tate exponent, the
+  cross-flow F for an air cooler, the provenance of `kWall = 26` and
+  the three fan and motor defaults, and the water density behind the
+  fan constant 6356 (measured at 62.3033 lb/ft3, not cited).
+- A hot stream on the tube side needs the held cooling exponent, so the
+  studio offers a typed hi instead.
+- Tile rename migration 20260829590000, still HELD for the prod upload.

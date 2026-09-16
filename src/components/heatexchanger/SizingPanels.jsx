@@ -4,7 +4,7 @@ import React from 'react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useHeatExchanger } from '@/contexts/HeatExchangerContext';
-import { fmt, Stat, ErrorNote, WarnNote, Field, NumberInput } from './fields';
+import { fmt, Stat, Row, ErrorNote, WarnNote, InfoNote, Field, NumberInput } from './fields';
 
 export const StreamInputs = () => {
   const { inputs, setSection } = useHeatExchanger();
@@ -90,10 +90,18 @@ export const CoefficientInputs = () => {
           {f.hiMode === 'typed' ? (
             <Field label="hi (Btu/hr ft2 F)"><NumberInput section="film" name="hiTypedBtuHrFt2F" /></Field>
           ) : (
-            <div className="grid grid-cols-2 gap-2">
-              <Field label="Tube fluid viscosity (cp)"><NumberInput section="film" name="tubeMuCp" step="0.01" /></Field>
-              <Field label="Conductivity (Btu/hr ft F)"><NumberInput section="film" name="tubeKBtuHrFtF" step="0.001" /></Field>
-            </div>
+            <>
+              <p className="text-[11px] text-slate-500">
+                The tube side is the COLD stream: its flow and specific heat come from the Cold
+                stream boxes above, and these two properties belong to it. The studio computes the
+                film in its heating form only, so putting the hot stream in the tubes needs a typed
+                hi.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="Tube fluid viscosity (cp)"><NumberInput section="film" name="tubeMuCp" step="0.01" /></Field>
+                <Field label="Conductivity (Btu/hr ft F)"><NumberInput section="film" name="tubeKBtuHrFtF" step="0.001" /></Field>
+              </div>
+            </>
           )}
           {f.hiMode === 'computed' && (
             <Field label="Wall viscosity (cp)" hint="Optional: enables the Sieder-Tate correction.">
@@ -124,6 +132,14 @@ export const CoefficientInputs = () => {
   );
 };
 
+const RESISTANCE_ROWS = [
+  ['outsideFilm', 'Outside film'],
+  ['outsideFouling', 'Outside fouling'],
+  ['wall', 'Tube wall'],
+  ['insideFouling', 'Inside fouling'],
+  ['insideFilm', 'Inside film'],
+];
+
 export const SizingResults = () => {
   const { thermal, coefficient, sizing } = useHeatExchanger();
   if (thermal.error) return <ErrorNote>{thermal.error}</ErrorNote>;
@@ -140,13 +156,16 @@ export const SizingResults = () => {
               hint={`ends ${fmt(thermal.dt1, 1)} and ${fmt(thermal.dt2, 1)} F`} />
           </div>
           {thermal.arrangement === 'shell' && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <Stat label="P" value={fmt(thermal.p, 3)} />
               <Stat label="R" value={fmt(thermal.r, 3)} />
+              <Stat label="Shells in series"
+                value={thermal.shellPassesUsed === null ? '--' : fmt(thermal.shellPassesUsed, 0)}
+                hint="a whole number, and the engine refuses a fraction" />
               <Stat label="F correction"
                 value={thermal.fError ? 'unreachable' : fmt(thermal.f, 3)}
                 accent={thermal.fError ? 'text-red-400' : (thermal.f < 0.8 ? 'text-amber-400' : 'text-emerald-400')}
-                hint="computed from the published closed form, not typed" />
+                hint="computed from the published closed form rather than read off a chart" />
               <Stat label="Corrected LMTD"
                 value={thermal.fError ? '--' : fmt(thermal.lmtdF * thermal.f, 1)} unit="F" />
             </div>
@@ -168,17 +187,45 @@ export const SizingResults = () => {
                     <Stat label="U clean" value={fmt(coefficient.uCleanBtuHrFt2F, 1)} unit="Btu/hr ft2 F" />
                     <Stat label="Fouling penalty" value={fmt(coefficient.foulingPenaltyPct, 1)} unit="%" />
                     <Stat label="Controlling resistance" value={coefficient.controlling}
-                      hint="where extra surface buys the least" />
+                      accent={coefficient.controllingClear ? 'text-slate-100' : 'text-amber-400'}
+                      hint={`${fmt(coefficient.controllingSharePct, 0)} % of the total, ahead of ${coefficient.runnerUp} by ${fmt(coefficient.controllingMarginPct, 1)} %`} />
                   </>
                 )}
               </div>
+              {!coefficient.typed && coefficient.resistances && (
+                <div className="pt-1">
+                  <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-1">
+                    The five resistances, referred to the outside area
+                  </p>
+                  {RESISTANCE_ROWS.map(([key, label]) => (
+                    <Row
+                      key={key}
+                      label={label}
+                      hint={key === coefficient.controlling ? 'the largest of the five' : undefined}
+                      value={`${coefficient.resistances[key].toExponential(3)}  (${fmt(coefficient.resistanceSharePct[key], 1)} %)`}
+                    />
+                  ))}
+                  <Row label="Total"
+                    value={`${coefficient.totalResistance.toExponential(3)}  hr ft2 F/Btu`} />
+                </div>
+              )}
+              {coefficient.controllingNote && <WarnNote>{coefficient.controllingNote}</WarnNote>}
               {coefficient.film && !coefficient.film.error && (
                 <p className="text-[12px] text-slate-500">
                   Tube side: Reynolds {fmt(coefficient.film.re, 0)} ({coefficient.film.regime}),
                   Prandtl {fmt(coefficient.film.pr, 2)}, hi = {fmt(coefficient.film.hBtuHrFt2F, 0)}
-                  {coefficient.film.siederTate ? ' with the Sieder-Tate correction' : ''}.
+                  {coefficient.film.siederTate ? ' with the Sieder-Tate correction' : ''}, at
+                  {' '}{fmt(coefficient.film.tubesPerPass, 0)} tubes per pass.
                 </p>
               )}
+              {coefficient.tubeTrail && coefficient.tubeTrail.length > 1 && (
+                <p className="text-[12px] text-slate-500">
+                  The film, the coefficient, the area and the bundle were iterated to one tube
+                  count: {coefficient.tubeTrail.join(' to ')}
+                  {coefficient.tubeCountConverged ? ', settled.' : '.'}
+                </p>
+              )}
+              {coefficient.tubeCountNote && <InfoNote>{coefficient.tubeCountNote}</InfoNote>}
               {coefficient.film?.warning && <WarnNote>{coefficient.film.warning}</WarnNote>}
             </>
           )}
@@ -189,13 +236,23 @@ export const SizingResults = () => {
         <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Surface and bundle</CardTitle></CardHeader>
         <CardContent>
           {sizing.error ? <ErrorNote>{sizing.error}</ErrorNote> : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Stat label="Area required" value={fmt(sizing.areaFt2, 0)} unit="ft2" />
-              <Stat label="Tubes" value={fmt(sizing.tubes?.nTubes, 0)}
-                hint={sizing.tubes?.error || `${fmt(sizing.tubes?.actualAreaFt2, 0)} ft2 installed`} />
-              <Stat label="Bundle diameter" value={fmt(sizing.tubes?.bundleDiameterIn, 1)} unit="in" />
-              <Stat label="Shell diameter" value={fmt(sizing.tubes?.shellDiameterIn, 1)} unit="in" />
-            </div>
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Stat label="Area required" value={fmt(sizing.areaFt2, 0)} unit="ft2" />
+                <Stat label="Tubes" value={fmt(sizing.tubes?.nTubes, 0)}
+                  hint={sizing.tubes?.error
+                    || `${fmt(sizing.tubes?.tubesPerPass, 0)} per pass, ${fmt(sizing.tubes?.actualAreaFt2, 0)} ft2 installed`} />
+                <Stat label="Bundle diameter" value={fmt(sizing.tubes?.bundleDiameterIn, 1)} unit="in" />
+                <Stat label="Shell diameter" value={fmt(sizing.tubes?.shellDiameterIn, 1)} unit="in" />
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3">
+                <Stat label="Surface over the requirement"
+                  value={fmt(sizing.tubes?.areaMarginPct, 1)} unit="%"
+                  hint="a whole number of tubes always covers a little more" />
+                <Stat label="Area per tube" value={fmt(sizing.tubes?.areaPerTubeFt2, 2)} unit="ft2" />
+              </div>
+              {sizing.tubes?.layoutNote && <InfoNote>{sizing.tubes.layoutNote}</InfoNote>}
+            </>
           )}
         </CardContent>
       </Card>

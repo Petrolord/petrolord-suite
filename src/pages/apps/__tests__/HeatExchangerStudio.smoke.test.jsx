@@ -46,6 +46,13 @@ describe('HeatExchangerStudio page', () => {
     expect(screen.getAllByText(/Controlling resistance/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Surface and bundle/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Bundle diameter/i).length).toBeGreaterThan(0);
+    // FC6-0: the five resistances are on screen, not just the winning
+    // word, and the tube-count loop shows its trail.
+    expect(screen.getAllByText(/The five resistances/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Outside film/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Tube wall/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/iterated to one tube/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Surface over the requirement/i).length).toBeGreaterThan(0);
 
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Rating' }));
     await waitFor(() => expect(screen.getAllByText(/What this exchanger delivers/i).length).toBeGreaterThan(0));
@@ -59,5 +66,12 @@ describe('HeatExchangerStudio page', () => {
     // The hot-day derate is the point of the tab.
     expect(screen.getAllByText(/On a hot day/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Capacity retained/i).length).toBeGreaterThan(0);
+    // FC6-0: the hot day is RATED, so the new outlet and the new air
+    // rise are on the tab beside the duty, and the draft type is named.
+    expect(screen.getAllByText(/Process leaves at/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Air rise then/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Effectiveness held/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Fan inlet air/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Draft type/i).length).toBeGreaterThan(0);
   });
 });
