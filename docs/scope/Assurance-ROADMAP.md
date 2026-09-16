@@ -190,10 +190,13 @@ which is conclusive at the schema level.
 
 ### 1.6 Documentation
 
-`docs/scope/AssuranceApps-STATUS.md` does not describe Assurance. Its
-contents are the Economics E4 status for PM Pro, AFE and Report
-Autopilot. The Assurance module has no status document at all. Fixed at
-AS1.
+`docs/scope/AssuranceApps-STATUS.md` did not describe Assurance. Its
+contents were the Economics E4 status for PM Pro, AFE and Report
+Autopilot, and the Assurance module had no status document at all.
+Fixed at AS1: that content moved to
+`docs/scope/ProjectManagementAfeReportAutopilot-STATUS.md` (with the two
+`Economics-ROADMAP.md` references re-pointed) and `AssuranceApps-STATUS.md`
+now describes this module.
 
 ---
 
@@ -257,8 +260,8 @@ repo conventions. Every wave ends with the relevant STATUS doc updated.
 
 | Wave | Title | Gate |
 |---|---|---|
-| **AS0** | This roadmap | — |
-| **AS1** | Foundations: honest catalogue, RLS and grants, schema in code, STATUS doc | open |
+| **AS0** | This roadmap | DONE 2026-09-16 (PR #500) |
+| **AS1** | Foundations: honest catalogue, RLS and grants, schema in code, STATUS doc | **BUILT 2026-09-16**, migrations held for the owner |
 | **AS2** | Risk Register & Heatmap: scoring authority, residual risk, actions, tests | needs AS1 |
 | **AS3** | Regulatory Compliance: obligations, expiries, environmental regimes | needs AS1 |
 | **AS4** | Document Control: de-fiction, real revision chain, review-due | needs AS1 |
@@ -293,7 +296,8 @@ oracle behind it.
    database. Backfill it into repo migrations, on the precedent of the
    `rb_*` backfill, so the module can be rebuilt from the repo.
 4. **`AssuranceApps-STATUS.md`** rewritten to describe Assurance; the
-   Economics E4 content it currently holds moved to where it belongs.
+   Economics E4 content it held moved to
+   `ProjectManagementAfeReportAutopilot-STATUS.md`.
 5. **The commerce and credential migration** of §5, prepared as a
    separate file so it can be applied and reviewed first.
 

@@ -1,213 +1,176 @@
-# PM Pro, AFE and Report Autopilot (Economics E4) — status
+# Assurance & Compliance module — status
 
-Phase: Economics E4 (Economics-ROADMAP.md §6 E4)
-Status: **SHIPPED 2026-08-29** (branch feat/economics-e4)
+Plan of record: `docs/scope/Assurance-ROADMAP.md`.
+Wave: **AS1 (foundations), BUILT 2026-09-16**, migrations held.
 
-The three remaining apps in the module, each with a surface that told the
-user something untrue.
-
-## 1. Project Management Pro
-
-### The External Systems hub, removed
-
-The D0 follow-up that was never done. A hub offered connections to Jira,
-SAP ERP, Slack, SharePoint and Salesforce. Clicking Connect waited 1.5
-seconds, wrote a row to `pm_integrations` with `status: 'connected'` and
-a config of `{ apiKey: '*****' }`, and showed a green **Connected**
-badge. Sync waited two seconds and stamped `last_sync_at`. No external
-system was contacted at any point, and the false state was persisted to
-the database rather than merely displayed.
-
-Fixing it would mean building five real integrations; the E-series
-disposition allowed "fix or honestly remove". Removed, along with its
-service. `pm_integrations` was checked before removal and holds **zero
-rows across zero projects**, so nobody had ever "connected" and nothing
-was stranded. The table is left in place rather than dropped, per the
-repo's database rules.
-
-### The five app integration panels, corrected
-
-These were worse than the hub, because they wrote fabricated content
-into the user's own project rather than only displaying it:
-
-- **PPFG** inserted two risks into the risk register reading "PPFG: High
-  Overpressure Zone Detected" and "Significant ramp in pore pressure
-  detected at 3200m based on Eaton calculation", each scored 20 and
-  tagged `ppfg_source: true`, then wrote "Imported 2 critical risks" to
-  an integration log. Nothing was ever read from the PPFG app. **Removed
-  entirely**: inventing engineering findings in a register that people
-  act on is the most serious thing found in this phase.
-- **Geomechanics** inserted an MEM report deliverable already marked
-  **Approved**, after a half-second wait commented "simulate verifying
-  MEM completion" that verified nothing, and pushed a drilling task
-  carrying a mud window of "1.20 - 1.45 SG", a value written into the
-  source file. The deliverable is now a draft, and the task asks the
-  engineer for the window instead of supplying one.
-- **Log Facies, BasinFlow and Velocity** each inserted deliverables
-  pre-set to **Approved** or **Under Review**. All now create drafts.
-
-Every panel carried a green **Connected** badge. All five now say
-plainly that there is no live link to the app yet and that nothing is
-read from it, and what they offer is described as what it is: planning
-items added to this project.
-
-The honest actions were kept. Creating a milestone or a standard task
-list is a legitimate template the user asked for, and claims nothing.
-
-## 2. AFE Cost Control Manager
-
-### JV partners were fictional and unsaved
-
-The Joint Venture tab held its partners in React state seeded with
-**"Partner A Corp" at 30 percent and "Partner B Ltd" at 15 percent**.
-Every user who opened the tab met the same two invented partners, could
-generate a billing statement PDF against them, and lost anything they
-typed on reload.
-
-Migration `20260829830000` adds `afe_partners`, scoped through the
-parent AFE. Partners are now real records that persist with the AFE, and
-the tab opens empty.
-
-### A billing hazard closed
-
-`calculatePartnerCosts` computed the operator share as 100 percent less
-the partner interests, with nothing checking that the interests add up.
-A mistyped interest produced a **negative operator share**, which bills
-out more than the cost, silently. The function now reports the partner
-total, whether it is valid, and a sentence saying what is wrong, and the
-tab shows it. A shortfall is still valid, because the operator may
-simply hold the balance.
-
-### The first tests on this app's math
-
-19 of them, over the earned-value metrics, the S curve and the JV split:
-budget, commitment and actual roll-ups, the forecast rule (entered
-forecast, else the greater of budget and committed spend), variance,
-earned value weighted by budget, CPI as earned value over actual cost,
-SPI against elapsed time with the simplification stated, division-by-zero
-on an empty AFE, and the identity that matters for billing: **the split
-allocates every currency unit exactly once**.
-
-### A help guide
-
-Explaining the four numbers per cost line, how the forecast and the two
-indexes are derived, what the schedule index's time approximation means,
-and where this stops being cost control and would need accounting.
-
-## 3. Technical Report Autopilot
-
-The E2 audit established that this app's backend is gone: it calls a
-hardcoded Heroku host that returns a 404 on every path, root included,
-so report generation, the report-type list and DOCX export are all
-unreachable.
-
-**Owner decision taken 2026-08-29: REBUILD onto Supabase edge
-functions.** Delivered the same day; see the section at the end of this
-document. What E4 fixed first was the experience in the meantime. The app used to
-dump the 404 page's HTML into a red box headed "Technical Report
-Autopilot crashed", which reads as though the user broke something.
-
-It now distinguishes an absent service from a real error and says:
-report generation is unavailable, nothing you entered caused this, there
-is no setting that will work around it, and the rest of the app still
-works so you can build a brief and save it as a project for when
-generation is restored. The Generate button is disabled rather than
-offered into a void. A genuine application error still shows as an
-error.
-
-## Verification
-
-- Jest: 19 AFE math tests, 12 E4 guard tests, full suite green.
-- `npm run build` clean.
-- Migration `20260829830000` **APPLIED 2026-08-29** after a
-  rollback-wrapped dry run. Post-apply probe: table present, RLS
-  enabled, one policy.
-- `pm_integrations` verified empty before the hub was removed.
-
-## Left open
-
-- **The owner decision on Technical Report Autopilot**: rebuild the
-  generation path onto Supabase edge functions like the rest of the
-  Suite, or archive the tile. It is Active in the catalog today with its
-  core function unreachable.
-- Real cross-app integration for PM Pro, if it is wanted. It should read
-  the Suite's own saved artifacts rather than simulate a connection.
-- `src/utils/digitizerApi.js` still points at the same dead host and has
-  zero importers; it belongs to Geoscience.
+This file replaces a document that carried the same name and described
+the Economics E4 apps. That content now lives at
+`docs/scope/ProjectManagementAfeReportAutopilot-STATUS.md`. The Assurance
+module had no status document at all before this one.
 
 ---
 
-# The rebuild (owner decision, 2026-08-29)
+## 1. Where the module actually stands
 
-The owner's call on the finding above was to rebuild the generation
-path onto Supabase edge functions like the rest of the Suite, rather
-than archive the tile. Done.
+Assurance is the only Suite module that was never rebuilt. Geoscience
+(G0-G8), Reservoir (R0-R5), Drilling, Production, Facilities (F0-F12),
+Economics (E0-E5) and Midstream & Downstream (DS0-DS10) all got
+programmes. This one is still in its Horizons-generated state.
 
-## Where each piece went
+| App | Route | Persists | State after AS1 | Wave |
+|---|---|---|---|---|
+| Risk Register | `apps/assurance/risk-register` | `risk_register` (+ snapshots) | **Active.** Real, honest errors | AS2 |
+| Risk Heatmap | redirect into the register | via the register | **Active** | AS2 |
+| Regulatory Compliance | `apps/assurance/regulatory-compliance/*` | 3 services | **Active.** Real, honest errors | AS3 |
+| ISO Compliance | `apps/assurance/iso-compliance/*` | nothing | **Demoted to Coming Soon.** `@/data/isoComplianceData` in `useState` | AS8 |
+| Document Control | `apps/assurance/document-control/*` | `documents`, mock fallback | Coming Soon | AS4 |
+| Peer Review Manager | `apps/assurance/peer-review-manager/*` | `peer_reviews`, mock fallback | Coming Soon | AS5 |
+| Management of Change | `apps/assurance/management-of-change/*` | nothing | Coming Soon | AS6 |
+| Quality Assurance Plan | `apps/assurance/qa-plan/*` | nothing | Coming Soon | AS7 |
+| Audit & Findings Manager | not built | - | New app | AS10 |
 
-The old app made four calls to the dead host. Only one of them ever
-needed a server.
+Tests: **none**, under any assurance path. Engine: **none**; there is no
+`engines/assurance` in petrolord-engines. Both are why the two NextGen
+assurance courses are deferred to AS12.
 
-| Old call | Now |
-|---|---|
-| `GET /trp/templates` | **Client-side.** Report types and their sections are static configuration in `src/data/reportAutopilotTemplates.js`. They never needed a network call, and moving them means the app opens, the brief is fillable and a project is saveable even when the writer is down. |
-| `POST /trp/generate` | **Edge function `report-autopilot`.** The one thing that genuinely needs a server: it holds the model key. |
-| `GET /trp/export-docx` | **Client-side.** A .docx is a zip of OOXML parts and the Suite already ships JSZip, so the document is assembled in the browser from the sections on screen. No round trip, no download link into a service that can disappear, and what is exported is exactly what was reviewed. |
-| `POST /trp/upload` | **Client-side, and honest.** Text and CSV attachments are read in the browser and their contents travel with the brief, so an attachment now actually reaches the writer. Before, files were posted to the service, an id came back, and nothing was ever read. Anything the browser cannot read as text is refused by name rather than accepted and silently ignored, which is what "uploaded" used to mean. |
+---
 
-## The generation prompt
+## 2. AS1, built 2026-09-16
 
-The standing hazard in a report generator is invention: a model asked
-for a drilling report will supply an ROP nobody measured. The system
-prompt is built around stopping that. It may use only the facts given;
-where the brief asks for something the inputs do not support it must
-say so in one plain sentence rather than fill the space; it may not
-restate a number to more precision than it was given; and where the
-inputs contradict each other it must name the two facts that conflict
-rather than choose one silently.
+Four migrations and two penetration tests. **Nothing is applied.**
+Production applies are owner-run.
 
-Sections are written independently and in parallel, each with the whole
-context. A chained generator starts inventing continuity between
-sections that is not in the data.
+### 2.1 The catalogue was wrong in both directions
 
-Each section carries a `brief` written as an instruction to a report
-author rather than as prose, so the model has something specific to
-answer. Temperature is 0.2, because a report is not a place for
-invention. Length is budgeted from the requested detail level and page
-count and capped, and the request is bounded at twelve sections and
-60,000 characters of context so it cannot be used as a bulk-completion
-proxy.
+`master_apps` held 33 Assurance rows, 14 `Active` with
+`is_functional = true`. **Ten of those fourteen had no page, no route and
+no code at all**: Audit Trail Manager, Safety Audit Manager,
+Environmental Compliance, Monte Carlo Analyzer, Decision Tree Analyzer,
+Charge/Seal/Trap Risk, Exploration Risk Analyzer, Prospect Ranking Tool,
+Data Privacy Manager and Security Analytics. A customer could buy all
+ten, and module price is computed from this catalogue
+(`pricing_config.module_pricing`).
 
-## What is still honest about it
+At the same time five apps that are built, routed and entitlement-gated
+sat behind a Coming Soon badge, so nobody could buy the ones that work.
 
-The preview still says, in the app, that this is an AI-generated draft
-to be reviewed before distribution, and the exported document carries
-the same line in its footer. That is not boilerplate: the generator is
-constrained to the user's facts, but a draft assembled by a model is a
-draft.
+`20260916100000_as1_assurance_honest_catalog.sql` archives the ten
+phantoms and the fourteen zero-code Coming Soon stubs, demotes ISO
+Compliance (real code, zero persistence), and leaves the five built apps
+at Coming Soon for their own waves to promote.
 
-The outage panel E4 added is kept and now covers the case that remains:
-the function reachable but unconfigured, or the model call failing. A
-brief the user can fix, such as selecting no sections, gets a toast
-telling them what to change rather than an outage banner.
+Post-state, verified on a scratch rebuild: **3 Active, 6 Coming Soon,
+24 Archived**. The three Active tiles are the three apps that are real
+and persist honestly.
 
-## Verification
+### 2.2 The assurance schema had RLS disabled
 
-- Jest **394 suites / 5575 tests green**, including 14 on the DOCX
-  writer (every OOXML part Word needs, XML escaping, empty reports) and
-  8 on the rebuild itself (the dead host is gone from the tree,
-  generation goes through the edge function, the app opens with no
-  network call at all).
-- `npm run build` clean.
-- `report-autopilot` deployed (script 64.59 kB) and smoke-tested live:
-  unauthenticated requests are refused 401 at the gateway.
-- `OPENAI_API_KEY` was already set as a function secret.
+Read live from `pg_class.relrowsecurity` and
+`information_schema.role_table_grants`: **twenty-three Assurance tables
+had RLS disabled with `SELECT, INSERT, UPDATE, DELETE, TRUNCATE` granted
+to both `anon` and `authenticated`**.
 
-## Still open
+The four parent registers had RLS. Their children did not, and the
+children are where the content lives: every risk comment, every MOC
+approval decision, every document revision and its `file_url`, every
+audit trail row. `anon` is the role behind the publishable key that
+ships in the production bundle.
 
-- `src/utils/digitizerApi.js` is now the last reference to the dead
-  Heroku host in the repo. Zero importers, and Geoscience rather than
-  Economics, so it is left for whoever next touches that module.
-- PDF and spreadsheet attachments cannot be read in the browser. The
-  app says so and tells the user to paste the figures into the notes.
-  Server-side extraction would need a storage bucket and a parser.
+The tables are empty today. That is the only reason this is a defect and
+not an incident, and it stops being true the moment the module is used.
+
+`20260916101000_as1_assurance_rls.sql` revokes `anon` on all
+twenty-three plus the nine already-protected parents, enables RLS, and
+scopes each child through its parent's `org_id` via `public.my_org_id()`.
+
+### 2.3 The schema existed only in the live database
+
+No migration in this repo created any Assurance table, so the module
+could not be rebuilt from source and its RLS posture was unauditable
+without reading production.
+`20260916099000_as1_assurance_schema_backfill.sql` backfills 33 tables,
+101 constraints and 5 indexes, on the `rb_*` precedent.
+
+Two things it records rather than fixes:
+
+- `risk_register.risk_score` is a **stored generated column**,
+  `(likelihood * impact)`, so the score tracks edits. `rating` beside it
+  is an ordinary text column written by whichever client touched the row
+  last, so the band can disagree with the score it describes. AS2 gives
+  rating one computed authority.
+- `documents`, `risks` and `actions` are unprefixed names predating the
+  product-prefix convention. Not renamed; nothing new joins them.
+
+### 2.4 The same hole is platform-wide
+
+Re-run without the Assurance filter: **121 public tables have RLS
+disabled and full CRUD granted to `anon`**. Almost all are empty legacy
+tables. These are not:
+
+- `organization_apps` (9 rows), the org entitlement table that
+  `SupabaseAuthContext` reads to decide who may open which app. Anyone
+  holding the publishable key could insert a row granting any
+  organization any app. That is a monetization bypass.
+- `pricing_config` (6 rows), the server-authoritative module pricing,
+  writable the same way.
+- `quotes` (6 rows), real customer quotes with `organization_id` and
+  `user_id`.
+- `api_keys`, `access_credentials`, `studio_access_tokens`: empty, named
+  for secrets, referenced by no code in the repo.
+
+`20260916103000_commerce_and_credential_rls.sql` closes those, shaped by
+what actually reads each table so nothing breaks. It is a separate file
+because it is not Assurance work and should be reviewed and applied on
+its own terms. **`organization_apps` and `quotes` are shared tables and
+need a second engineer's review before apply.**
+
+The remaining ~90 empty legacy tables are named, not swept. Enabling RLS
+on a table another module is quietly using breaks that module.
+
+---
+
+## 3. How AS1 was verified
+
+No production write was made. Everything below ran on a scratch
+PostgreSQL 15 instance.
+
+1. The schema backfill rebuilt all 33 tables from nothing but itself
+   plus `organizations`, `users`, `auth.users` and the two RLS helpers.
+2. The catalogue and RLS migrations applied on top; re-applying all
+   three on the rebuilt database is a clean no-op.
+3. `tools/validation/assurance/rls-pentest-as1.sql`, seven behavioural
+   blocks, all green: `anon` denied on read and on write; org isolation
+   on a child of `risk_register` (own 1, other 0, update 0, delete 0);
+   a cross-tenant child insert refused by the `WITH CHECK` half; the
+   two-level `doc_workflows` path scoped correctly, with each org seeing
+   only its own revision `file_url`; MOC approvals scoped; a
+   cross-org `risk_links` row invisible to both ends.
+4. `tools/validation/assurance/rls-pentest-commerce.sql`, eight blocks,
+   all green, including the three client reads that must keep working.
+5. **Negative controls were run for both**, because a gate that cannot
+   fail proves nothing. Against the tables in their production posture:
+   `anon` read both organizations' private risk comments and
+   successfully inserted a row; `anon` read every entitlement and every
+   quote, rewrote `pricing_config`, and granted an organization an app.
+
+Two checks could **not** be completed. Impersonating the `anon` role
+against production (`set local role anon`) and reading `pg_policies`
+bodies were blocked by the auto-mode classifier as production reads. The
+findings rest on the catalogue evidence, which is conclusive at the
+schema level, and on the scratch reproduction.
+
+---
+
+## 4. Open
+
+- **All four migrations are unapplied.** Ordered apply script:
+  `tools/validation/assurance/as1-apply.sh`. Owner-run.
+- The commerce migration needs a second engineer (shared tables).
+- Five owner questions in `Assurance-ROADMAP.md` §7. AS1 proceeded on
+  the recommendation in each case per the standing autonomous directive;
+  each decision taken is recorded in the migration headers.
+- `purchased_apps` is **inserted from the browser** by
+  `src/utils/paymentVerificationLogic.js`. Recorded, not fixed.
+- The ~90 remaining RLS-off legacy tables.
+- AS2 onward: the apps themselves. The first rule of the programme is
+  that no service in this module may return invented rows.
