@@ -72,7 +72,7 @@ import {
   GasProcessingProvider, useGasProcessing, defaultInputs,
   FIELD_LIMITS, fieldIssue, tegIssue, amineIssue, dewpointIssue,
   dakStanding, liquidDensityUsed, amineSolutionLbFt3, nonFiniteFields,
-  nonFiniteNote, GAL_PER_FT3, WATER_LB_PER_GAL,
+  nonFiniteNote, GAL_PER_FT3, WATER_LB_PER_GAL, readFractionRemoved,
 } from '@/contexts/GasProcessingContext';
 import {
   fmt, accentFor, ABSENT, NOT_A_NUMBER, INFINITE, MINUS_INFINITE,
@@ -361,11 +361,17 @@ describe('the fails-open list, refused at the box', () => {
 
 describe('the fails-silent list, refused at the box', () => {
   it('F-S1: a stage count of zero is refused, and used to render as an empty field', async () => {
-    // Measured before the repair: a bare NaN, which is the one export
-    // in the module outside the object-carrying-an-error contract, so a
-    // caller has no property to check. It reached the screen as `--`.
-    const before = realEngine.kremserFractionRemoved({ absorptionFactor: 2.5, stages: 0 });
-    expect(notAnAnswer(typeof before === 'number' ? { v: before } : before, ['v'])).toBe(true);
+    // Measured before the engine repair: a bare NaN, which is the one
+    // export in the module outside the object-carrying-an-error
+    // contract, so a caller had no property to check and it reached the
+    // screen as `--`. The repair gives it `{ fractionRemoved }` or
+    // `{ error }`, and this studio reads both shapes until the vendor
+    // pin moves.
+    const before = readFractionRemoved(
+      realEngine.kremserFractionRemoved({ absorptionFactor: 2.5, stages: 0 }),
+    );
+    expect(before.error).toBeTruthy();
+    expect(before.fractionRemoved).toBeUndefined();
     await set('teg', 'stages', '0');
     expect(api.dehydration.error).toBe('the theoretical stage count must be above 0');
   });
@@ -416,21 +422,52 @@ describe('the fails-silent list, refused at the box', () => {
 });
 
 /* ------------------------------------------------------------------ *
- * The saturated-inlet fallback
+ * The one export that had no error to carry, and the hidden fallback
  * ------------------------------------------------------------------ */
+describe('the Kremser relation is read through both of its shapes (F-S1)', () => {
+  it('reads a bare number and an object alike', () => {
+    // The bare-number shape the vendored engine still has.
+    expect(readFractionRemoved(0.42)).toEqual({ fractionRemoved: 0.42 });
+    expect(readFractionRemoved(NaN).error).toBeTruthy();
+    expect(readFractionRemoved(Infinity).error).toBeTruthy();
+    // The object shape the FC4-0 engine repair gives it.
+    expect(readFractionRemoved({ fractionRemoved: 0.42 })).toEqual({ fractionRemoved: 0.42 });
+    expect(readFractionRemoved({ error: 'no' })).toEqual({ error: 'no' });
+    expect(readFractionRemoved(undefined).error).toBeTruthy();
+  });
+
+  it('reports the removal at the stated stages through whichever shape it gets', () => {
+    const raw = realEngine.kremserFractionRemoved({ absorptionFactor: 2.5, stages: 2 });
+    const expected = typeof raw === 'number' ? raw : raw.fractionRemoved;
+    expect(api.dehydration.fractionAtStages).toBe(expected);
+    expect(api.dehydration.fractionAtStagesError).toBeNull();
+    expect(expected).toBeGreaterThan(0);
+    expect(expected).toBeLessThan(1);
+  });
+});
 
 describe('the saturated inlet mode says so when the fit refuses', () => {
   it('refuses rather than falling back to a box the mode hides', async () => {
-    // 250 F is 121 C, past the top of the saturation fit. The typed
-    // inlet box is not on screen in saturated mode, so answering from
-    // it answered from a number nobody had seen.
-    expect(realEngine.waterSatPsia(250)).toBeNaN();
+    // The typed inlet box is not on screen in saturated mode, so
+    // answering from it answered from a number nobody had seen. The
+    // FC4-0 engine repair narrows the fit's band to its own docstring's
+    // -45 to 60 degC, so it refuses from 140 degF up rather than from
+    // 212 degF up; every temperature the box accepts and the fit
+    // refuses has to reach the screen either way.
     expect(api.inputs.teg.inletMode).toBe('saturated');
     expect(api.inputs.teg.inletLbMMscf).toBe('60');
 
-    await set('teg', 'tF', '250');
-    expect(api.dehydration.error).toContain('saturated at line conditions');
-    expect(api.dehydration.inletLbMMscf).toBeUndefined();
+    for (const tF of [200, 250, 300, 400]) {
+      const refusedByTheFit = Boolean(
+        realEngine.saturatedWaterContent({ pPsia: 1000, tF }).error,
+      );
+      await set('teg', 'tF', String(tF));
+      if (refusedByTheFit) {
+        expect([tF, api.dehydration.error]).toEqual([tF, expect.stringContaining('saturated at line conditions')]);
+        expect([tF, api.dehydration.inletLbMMscf]).toEqual([tF, undefined]);
+      }
+    }
+    expect(Boolean(realEngine.saturatedWaterContent({ pPsia: 1000, tF: 250 }).error)).toBe(true);
   });
 
   it('uses the typed box when the user asked for the typed box', async () => {

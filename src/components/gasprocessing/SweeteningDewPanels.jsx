@@ -127,6 +127,12 @@ export const DewpointResults = () => {
           <Stat label="JT coefficient at the inlet" value={fmt(d.muFPerPsi * 100, 1)} unit="F/100 psi"
             accent={accentFor(d.muFPerPsi)}
             hint="from the DAK z-factor's own temperature derivative at the upstream pressure; the march below re-reads it at twenty pressures along the let-down" />
+          {Number.isFinite(d.muMeanFPerPsi) && (
+            <Stat label="JT coefficient, mean over the drop"
+              value={fmt(d.muMeanFPerPsi * 100, 1)} unit="F/100 psi"
+              accent={accentFor(d.muMeanFPerPsi)}
+              hint="the cooling divided by the pressure drop, which is the coefficient the march actually delivered" />
+          )}
           {d.dropError ? (
             <Stat label="Drop" value="--" hint={d.dropError} accent="text-amber-400" />
           ) : (
@@ -143,6 +149,7 @@ export const DewpointResults = () => {
           )}
         </div>
         {broken && <ErrorNote>{broken}</ErrorNote>}
+        {d.warning && <WarnNote>{d.warning}</WarnNote>}
         {d.zWarning && <WarnNote>{d.zWarning}</WarnNote>}
         <p className="text-[12px] text-slate-500">
           A JT drop is where hydrates form: the cold spot sits right where free water appears.

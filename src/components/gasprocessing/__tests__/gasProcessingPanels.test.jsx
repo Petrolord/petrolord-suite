@@ -23,7 +23,11 @@ jest.mock('@/utils/savedProjects', () => {
 // beside this one.
 jest.mock('@/utils/facilities/engine/gasProcessing', () => {
   const actual = jest.requireActual('@/utils/facilities/engine/gasProcessing');
-  return { ...actual, contactorDiameter: jest.fn(actual.contactorDiameter) };
+  return {
+    ...actual,
+    contactorDiameter: jest.fn(actual.contactorDiameter),
+    jtDrop: jest.fn(actual.jtDrop),
+  };
 });
 
 jest.mock('@/lib/customSupabaseClient', () => {
@@ -39,7 +43,9 @@ const realEngine = jest.requireActual('@/utils/facilities/engine/gasProcessing')
 
 import { GasProcessingProvider } from '@/contexts/GasProcessingContext';
 import { DehydrationInputs, DehydrationResults } from '@/components/gasprocessing/DehydrationPanels';
-import { SweeteningInputs, SweeteningResults } from '@/components/gasprocessing/SweeteningDewPanels';
+import {
+  SweeteningInputs, SweeteningResults, DewpointResults,
+} from '@/components/gasprocessing/SweeteningDewPanels';
 
 /** An engine that reads the liquid density the caller passes. */
 const honoursDensity = ({ rhoLLbFt3, ...rest }) => {
@@ -61,6 +67,7 @@ beforeEach(() => {
     const { rhoLLbFt3, ...rest } = args;
     return realEngine.contactorDiameter(rest);
   });
+  engine.jtDrop.mockImplementation(realEngine.jtDrop);
 });
 
 const mount = async (ui) => {
@@ -147,5 +154,31 @@ describe('the sweetening tab on screen', () => {
     expect(screen.getAllByText('the amine strength must be below 100 wt %').length)
       .toBeGreaterThanOrEqual(2);
     expect(screen.queryByText('Amine unit')).toBeNull();
+  });
+});
+
+describe('the dew point tab on screen', () => {
+  it('labels the inlet coefficient as the inlet coefficient', async () => {
+    // It used to read "JT coefficient" beside a temperature that twenty
+    // other coefficients produced (F-U4).
+    await mount(<DewpointResults />);
+    expect(screen.getByText('JT coefficient at the inlet')).toBeTruthy();
+    expect(screen.getByText(/re-reads it at twenty pressures/)).toBeTruthy();
+    expect(screen.queryByText('JT coefficient, mean over the drop')).toBeNull();
+  });
+
+  it('prints the coefficient the march delivered as soon as the engine returns it', async () => {
+    // `muMeanFPerPsi` arrives with the FC4-0 engine repair, which the
+    // vendored copy here predates, so the engine is wrapped to return
+    // it. The number beside a marched temperature should be the one the
+    // march actually used.
+    engine.jtDrop.mockImplementation((args) => {
+      const drop = realEngine.jtDrop(args);
+      if (drop.error) return drop;
+      return { ...drop, muMeanFPerPsi: drop.dropF / (args.p1Psia - args.p2Psia) };
+    });
+    await mount(<DewpointResults />);
+    expect(screen.getByText('JT coefficient, mean over the drop')).toBeTruthy();
+    expect(screen.getByText(/the cooling divided by the pressure drop/)).toBeTruthy();
   });
 });

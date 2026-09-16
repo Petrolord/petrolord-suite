@@ -79,8 +79,6 @@ const num = (v, fallback = NaN) => {
   return Number.isFinite(n) ? n : fallback;
 };
 
-export const ABSOLUTE_ZERO_F = -459.67;
-
 /** Cubic feet to US gallons: 1728 in3 per ft3 over 231 in3 per gal, exact. */
 export const GAL_PER_FT3 = 1728 / 231;
 
@@ -306,6 +304,34 @@ export const liquidDensityUsed = (contactor, ksFtS) => {
   return rhoG * (1 + (vAllowFtS / ksFtS) ** 2);
 };
 
+/**
+ * `kremserFractionRemoved` read through both of its shapes.
+ *
+ * It was the one export in the module outside the
+ * object-carrying-an-error contract: it returned a BARE NUMBER, so a
+ * non-positive absorption factor or stage count came back as NaN, every
+ * caller's `if (r.error)` guard passed, and this studio rendered `--`
+ * where a fault belonged (FC4 finding F-S1). The FC4-0 engine repair
+ * gives it the module's own contract, `{ fractionRemoved }` or
+ * `{ error }`.
+ *
+ * That repair is merged in the engines repo and the copy vendored here
+ * predates it, because the vendor pull is a separate change with its own
+ * blast radius. Reading both shapes means neither ordering of the two
+ * merges leaves this studio broken. **Delete this the day the pin in
+ * `packages/engines/VENDOR.json` moves past the FC4-0 engine repair**,
+ * and read `.fractionRemoved` directly.
+ */
+export const readFractionRemoved = (r) => {
+  if (typeof r === 'number') {
+    return Number.isFinite(r)
+      ? { fractionRemoved: r }
+      : { error: 'the Kremser relation needs a positive absorption factor and a positive stage count' };
+  }
+  if (r && typeof r === 'object') return r;
+  return { error: 'the Kremser relation returned nothing' };
+};
+
 /** Names of the numeric fields that came back non-finite, in order. */
 export const nonFiniteFields = (result) => (result && typeof result === 'object'
   ? Object.keys(result).filter((k) => typeof result[k] === 'number' && !Number.isFinite(result[k]))
@@ -403,10 +429,11 @@ export const GasProcessingProvider = ({ children }) => {
       absorptionFactor: num(t.absorptionFactor, 2.5),
       fractionRemoved: removalNeeded,
     });
-    const fractionAtStages = kremserFractionRemoved({
+    const fraction = readFractionRemoved(kremserFractionRemoved({
       absorptionFactor: num(t.absorptionFactor, 2.5),
       stages: num(t.stages, 2),
-    });
+    }));
+    const fractionAtStages = fraction.fractionRemoved;
     const ksFtS = num(t.ksFtS, 0.3);
     // No liquid density is passed here. The fluid in a TEG contactor is
     // the glycol the engine already assumes, and the engine owns the
@@ -421,6 +448,7 @@ export const GasProcessingProvider = ({ children }) => {
     return {
       saturated, inletLbMMscf, ...pack,
       removalNeeded, stagesNeeded, fractionAtStages,
+      fractionAtStagesError: fraction.error || null,
       contactor, liquidUsed,
       zWarning: standing ? standing.warning : null,
       // Only what the engine handed back, so a label of this studio's

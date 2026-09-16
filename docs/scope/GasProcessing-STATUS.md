@@ -160,11 +160,56 @@ offer (gas gravity 0.55 to 2, pressure 14.7 to 3000 psia, temperature
   pressure only while the march beside it re-read it at twenty pressures.
   The label and the hint say so.
 
+### Meeting the engine repair, which merged while this was written
+
+The FC4-0 engine repair is engines PR #199, engines main `82ec6d4`. It is
+NOT vendored here yet: `packages/engines/VENDOR.json` still pins the copy
+that predates it, and the vendor pull is its own change with its own
+blast radius and its own CI drift gate (`npm run check:engines`). So the
+three items below do nothing on the tree as it stands and everything the
+day the pin moves. Nothing here needs the two merges to land in a
+particular order.
+
+- **`kremserFractionRemoved` changed shape.** It was the one export in
+  the module outside the object-carrying-an-error contract, returning a
+  bare number, which is exactly why no `if (r.error)` guard downstream
+  could see its NaN (F-S1). It returns `{ fractionRemoved }` or
+  `{ error }` now. `readFractionRemoved` in the context reads both
+  shapes, so neither merge order leaves this studio broken, and the
+  refusal reaches the "Removal at the stated stages" card. **Delete it
+  and read `.fractionRemoved` directly when the pin moves.**
+- **`muMeanFPerPsi` is returned by `jtDrop`.** The dew point card printed
+  an inlet coefficient beside a temperature that twenty other
+  coefficients produced (F-U4). It prints both now, the inlet one
+  labelled as the inlet and the mean one as the coefficient the march
+  delivered, and the second appears only when the engine supplies it.
+- **Gas above 140 degF is refused by name in the water-content path.**
+  The engine repair narrows the Magnus fit to its own docstring's -45 to
+  60 degC, where it had been running to 100 degC and reading 1.027157
+  times the defining boiling pressure (F-E20). 200 degF used to answer
+  and refuses now, and that refusal is visible because of the F-U3 fix.
+  The gate asserts the general property rather than one temperature:
+  every temperature the box accepts and the fit refuses reaches the
+  screen.
+
+The engine repair also moves numbers this studio displays, which it
+displays and does not compute. The JT coefficient moves by z. `dropF`
+moves by two causes multiplied: 0.863906862 from removing the `/z`, and
+1.005172953 from the march being made second order. The second was in no
+finding: the old march was midpoint-in-P and Euler-in-T, first order,
+understating cooling by 3119 to 6775 ppm always in the same direction,
+and no step count could have rescued it because the error goes as 1/n.
+
+The engine also exports `amineSolutionLbPerFt3(amineId)` now, which is
+the same arithmetic on the same two constants as this file's
+`amineSolutionLbFt3`. Swap to it and delete the local one when the pin
+moves.
+
 ### Gates
 
-`src/contexts/__tests__/gasProcessingContext.test.jsx` (54) and
-`src/components/gasprocessing/__tests__/gasProcessingPanels.test.jsx` (9)
-assert numbers and screen text for this app for the first time. **Ten
+`src/contexts/__tests__/gasProcessingContext.test.jsx` (56) and
+`src/components/gasprocessing/__tests__/gasProcessingPanels.test.jsx` (11)
+assert numbers and screen text for this app for the first time. **Twelve
 defects were planted one at a time and every one was caught by the test
 that exists for it**, because a gate that cannot fail is the defect
 rather than the proof: this module's engine suite passes 12 of 12 with
@@ -177,8 +222,8 @@ engine cannot answer is refused by name. Where a finding is recorded as
 invariant (the engine refuses it, or answers it with something that is
 not an engineering quantity) and the measured pre-repair figure is in
 the comment, so the FC4-0 engine repair landing beside this one does not
-turn these gates red. All 63 pass against the vendored engine and
-against the in-flight engine repair.
+turn these gates red. All 67 pass against the vendored engine and
+against the merged engine repair (`82ec6d4`) dropped over it.
 
 Blast radius: `src/components/gasprocessing/fields.jsx` is imported by
 three files, all in this studio. The same `NumberInput` and `fmt` pair is

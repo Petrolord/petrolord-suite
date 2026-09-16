@@ -99,8 +99,11 @@ export const DehydrationResults = () => {
               value={d.stagesNeeded?.error ? 'unreachable' : fmt(d.stagesNeeded.stages, 1)}
               accent={d.stagesNeeded?.error ? 'text-red-400' : 'text-slate-100'}
               hint={d.stagesNeeded?.error || 'Kremser at the stated absorption factor'} />
-            <Stat label="Removal at the stated stages" value={fmt(d.fractionAtStages * 100, 1)} unit="%"
-              accent={accentFor(d.fractionAtStages)} />
+            <Stat label="Removal at the stated stages"
+              value={d.fractionAtStagesError ? 'unreachable' : fmt(d.fractionAtStages * 100, 1)}
+              unit={d.fractionAtStagesError ? '' : '%'}
+              accent={d.fractionAtStagesError ? 'text-amber-400' : accentFor(d.fractionAtStages)}
+              hint={d.fractionAtStagesError || 'Kremser at the stated stages and absorption factor'} />
             <Stat label="Contactor diameter"
               value={d.contactor?.error ? '--' : fmt(d.contactor.diameterFt, 1)} unit="ft"
               accent={d.contactor?.error ? 'text-amber-400' : accentFor(d.contactor?.diameterFt)}
