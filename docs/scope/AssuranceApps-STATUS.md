@@ -234,7 +234,32 @@ refuse an off-scale level, the unique index refuses a duplicate code
 inside an organization and allows the same code in another, and
 `next_risk_code` raises 42501 for a non-member.
 
-### 3.7 Left for later, deliberately
+### 3.7 AS1b: three tables the AS1 sweep missed
+
+Found while auditing Regulatory Compliance for AS3. AS1 audited
+everything matching `^(risk_|moc_|doc_|compliance_)`. Three tables the
+module actually uses do not match that pattern and kept their full
+`anon` CRUD grants: `regulatory_obligations` (the obligation register
+behind the one genuinely working compliance app),
+`regulatory_authorities`, and `audit_logs` (the platform audit trail,
+written by `SupabaseService` and the admin console).
+
+All three do have RLS with policies, so this was not an open door. It is
+the same belt-and-braces AS1 applied to the parent registers: their
+policies are written `FOR ROLE public`, so `anon` is held out only by
+`auth.uid()` being null inside the predicate.
+`20260916130000_as1b_regulatory_audit_anon_grants.sql` takes the grant
+away. The lesson is that a regex-scoped audit is only as good as its
+regex, and the AS3+ waves re-run the sweep by what the code reads rather
+than by name.
+
+**Also found: there are no `iso_*`, `qa_*`, `ncr*`, `lesson*` or
+`finding*` tables in the database at all.** ISO Compliance, Quality
+Assurance Plan and Lessons Learned do not merely fail to persist; they
+have nowhere to persist to. Their waves create schema rather than wiring
+up an app, which makes them larger than AS4 and AS5.
+
+### 3.8 Left for later, deliberately
 
 - The module's charts are still ad-hoc dark Recharts. The standing chart
   rule (white `chartTheme` plus the 40px `ChartLogo`) is applied in the
@@ -284,7 +309,7 @@ schema level, and on the scratch reproduction.
 
 ## 5. Open
 
-- **All five migrations are unapplied.** Ordered apply script:
+- **All six migrations are unapplied.** Ordered apply script:
   `tools/validation/assurance/as1-apply.sh`. Owner-run.
 - The commerce migration needs a second engineer (shared tables).
 - Five owner questions in `Assurance-ROADMAP.md` §7. AS1 proceeded on

@@ -41,6 +41,7 @@ STEPS=(
   20260916100000_as1_assurance_honest_catalog.sql
   20260916101000_as1_assurance_rls.sql
   20260916110000_as2_risk_register_residual_appetite.sql
+  20260916130000_as1b_regulatory_audit_anon_grants.sql
 )
 
 echo "=== STEP 0: baseline, before anything changes ==="
@@ -81,7 +82,7 @@ echo "--- anon grants on assurance tables: expect 0"
 supabase db query --linked "
   select count(*) as anon_grants from information_schema.role_table_grants
    where table_schema='public' and grantee='anon'
-     and table_name ~ '^(risk_|moc_|doc_|compliance_|peer_review)';"
+     and table_name ~ '^(risk_|moc_|doc_|compliance_|peer_review|regulatory_|audit_logs)';"
 
 echo
 echo "=== STEP 5: the penetration test ==="
