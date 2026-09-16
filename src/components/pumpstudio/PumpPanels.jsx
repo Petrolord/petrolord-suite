@@ -132,7 +132,12 @@ export const DutyResults = () => {
           <p className="text-[12px] text-slate-500">
             This is a solved intersection, not an assumed duty. Change the system, the trim or the
             speed and the point moves, which is the only way the knock-on questions stay honest.
-            Curve fit quality: R squared {fmt(curve.rSquared, 4)}.
+            {' '}
+            {Number.isFinite(curve.rSquared)
+              ? `Curve fit quality: R squared ${fmt(curve.rSquared, 4)}.`
+              : 'Curve fit quality cannot be scored on these points: all four catalogue heads are '
+                + 'the same, so there is no spread for a fit to explain and R squared is undefined '
+                + 'rather than perfect. Type the vendor heads at four different flows.'}
           </p>
         </CardContent>
       </Card>

@@ -53,6 +53,8 @@ gates; engines suite 1905 green.
 - Tile rename migration 20260829610000 HELD for the prod upload.
 - ARMED literature gates: GPSA K-value tables and API 12J worked
   examples (owner PDFs).
+- The conditions card does not show the `nearFloor` flag that engines
+  #195 added to `kValue` (see below). Surfacing it is new function.
 
 ## FC1-0 repairs (2026-09-15, branch fix/fc1-0-separator-layout-apps)
 
@@ -106,3 +108,38 @@ The vendored engine was repaired under FC1-0 and the studio follows it:
   times from the sized vessel, and every warning listed.
 - The conditions card shows the Ppr and Tpr behind the z-factor and the
   engine's note when Ppr is below the DAK fit range.
+
+
+## Engines #195 vendored (2026-09-16)
+
+`packages/engines` moved to canonical `fa53f7f`, which carries engines
+PR #195 beside the FC2-0 line-hydraulics work. #195 touches
+`separatorSizing.kValue`, which this studio calls on every solve, so its
+effect here was measured rather than assumed.
+
+- **`nearFloor` is additive.** `kValue` gains a third flag beside
+  `derated` and `floored`, true when the floor did not catch this K and
+  one more 100 psi step of the published derating rule would put it
+  under. A typed K reports it false, so the return shape is identical on
+  both branches and nothing in this studio changed shape. **This studio
+  does not read `nearFloor` yet**, so the flag is computed and not
+  shown. Surfacing it is new function and is listed under Open.
+- **One input moves, and it is a repair.** The floor comparison was
+  `kDerated < K_FLOOR` in binary floating point, and it now carries a
+  slack of 1e-9. A derating that lands EXACTLY on 0.12 reads as
+  0.11999999999999997, so the old comparison floored a K the published
+  rule does not floor. Swept at 0.01 psi over 0 to 6000 psig across all
+  six mist-extractor rows, **exactly one input in the whole space
+  changes**: `verticalMesh` at 2400 psig, where the rule gives
+  `0.35 - 0.01 * 23`. There, K moves from 0.12 to 0.11999999999999997
+  (3e-16 relative, below the six decimals a K is ever reported at, and
+  far below anything this studio displays), `floored` goes true to
+  false, and the "0.12 floor bound" warning that the conditions card
+  printed **stops being printed**. That warning was wrong: the rule does
+  not put that vessel under the floor.
+- The engines FINDINGS note for #195 states that five pressures are
+  affected, one per base row. That does not reproduce. Only
+  `verticalMesh` at 2400 psig lands close enough below 0.12 in binary
+  floating point for the comparison to have differed; the other five
+  rows land on 0.12 exactly or just above it. Recorded here rather than
+  silently carried, and raised upstream.

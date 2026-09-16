@@ -59,11 +59,8 @@ export const DutyInputs = () => (
 );
 
 export const TrainResults = () => {
-  const {
-    train, firstStage, acfm, dischargeLimitCheck,
-  } = useCompressor();
+  const { train, firstStage, acfm } = useCompressor();
   if (train.error) return <ErrorNote>{train.error}</ErrorNote>;
-  const overLimit = new Set((dischargeLimitCheck?.stages || []).map((s) => s.stage));
   return (
     <div className="space-y-4">
       <Card className="bg-slate-900/60 border-slate-800">
@@ -117,7 +114,7 @@ export const TrainResults = () => {
                     <td className="py-1.5 pr-3 tabular-nums">{fmt(s.pSuctionPsia, 0)}</td>
                     <td className="py-1.5 pr-3 tabular-nums">{fmt(s.pDischargePsia, 0)}</td>
                     <td className="py-1.5 pr-3 tabular-nums">{fmt(s.tSuctionF, 0)}</td>
-                    <td className={`py-1.5 pr-3 tabular-nums ${s.warning || overLimit.has(s.stage) ? 'text-amber-400' : ''}`}>
+                    <td className={`py-1.5 pr-3 tabular-nums ${s.warning ? 'text-amber-400' : ''}`}>
                       {fmt(s.tDischargeF, 0)}
                     </td>
                     <td className="py-1.5 pr-3 tabular-nums">{fmt(s.zAvg, 4)}</td>
@@ -128,7 +125,19 @@ export const TrainResults = () => {
               </tbody>
             </table>
           </div>
-          {dischargeLimitCheck && <WarnNote>{dischargeLimitCheck.note}</WarnNote>}
+          {/*
+            ONE WARNING FOR ONE CONDITION. A studio-side dischargeLimitCheck
+            used to print a second note beside these, because the engine
+            chose the stage count from the suction temperature while running
+            every stage after the first from the intercooler outlet, and
+            measured its own hot-stage warning against a hardcoded 300 F.
+            Engines PR #197 repaired both: the count is tested at the inlet
+            each stage will really have, and the warning below is measured
+            against the limit in the box. Over a 17000 point duty sweep the
+            studio check fired 4295 times before the repair and 0 times
+            after, so it was printing a second sentence for a condition the
+            engine now prevents.
+          */}
           {train.stages.filter((s) => s.warning).map((s) => (
             <WarnNote key={s.stage}>Stage {s.stage}: {s.warning}</WarnNote>
           ))}
