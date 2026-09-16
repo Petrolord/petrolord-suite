@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 4fa37e6145c6bae3db61f3f455ef55583a906ef6
+# commit cac92ab29bbf245ed66592a92f4da16d99f59011
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 5adab4fe0d3e8ee869853c2aec8fad4f116641ee README.md
@@ -692,7 +692,7 @@ f7dc721af5aea863b115770af2baf1c63d9da8e9 tools/validation/economics/oracle_portf
 09fd8ce53c96ede3620e75753ad1076e5a2ac6f7 tools/validation/economics/oracle_screening.py
 7b935d65e2e8f9a732ae602bf993bb010f540f19 tools/validation/facilities/FINDINGS-linesizing.md
 eefa0fb4c4b766ed4d167d0aafea0f1fe030d706 tools/validation/facilities/FINDINGS-rotating.md
-4bce102e031aea3148f37cab9431dbda5b51c564 tools/validation/facilities/FINDINGS-separation.md
+51f2594a1b48f5dc8268f38be48979b0b3dd812b tools/validation/facilities/FINDINGS-separation.md
 10fe384cf62c1efad9953b3e64ad3ec3a29d6ea3 tools/validation/facilities/oracle_compression.py
 f9ced76587de87a32162b243b015744dcf3c513b tools/validation/facilities/oracle_controlvalve.py
 ad943a94a84dfdd73bb9a21393f67767db7170a5 tools/validation/facilities/oracle_corrosion.py
