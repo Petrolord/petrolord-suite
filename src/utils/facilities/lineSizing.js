@@ -542,7 +542,18 @@ export const sizeSweep = ({ mode, inputs, cFactor = 100, maxLiquidVFtS = 15 }) =
     } else if (mode === 'gas') {
       const inv = gasOutletPressure({ ...inputs, idIn });
       if (inv.error) {
-        rows.push({ ...cand, idIn, dpPsi: NaN, pass: false, note: 'cannot carry the rate' });
+        // The engine's OWN words, not one label for every refusal. Until the
+        // FC2-0 re-vendor `gasOutletPressure` had exactly one failure mode a
+        // bore could hit, so a fixed "cannot carry the rate" was true. It now
+        // refuses twenty-one distinct inputs by name, and most of them are
+        // facts about the LINE rather than the bore: an efficiency outside
+        // (0, 1], an elevation change longer than the line, a static column
+        // that alone spends the inlet pressure. Printing "cannot carry the
+        // rate" twelve times for any of those would blame the pipe for the
+        // input. The row still carries the refusal rather than refusing the
+        // whole sweep, because a bore that cannot do the duty is a fact about
+        // that bore and belongs in the table.
+        rows.push({ ...cand, idIn, dpPsi: NaN, pass: false, note: inv.error });
       } else {
         // Checked where the limit binds, not at the mean pressure: the
         // gas expands as the pressure falls, so the mean describes a

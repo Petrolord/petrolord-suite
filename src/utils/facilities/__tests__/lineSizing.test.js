@@ -613,3 +613,115 @@ describe('FC2-0c: the gas sweep checks RP 14E where the limit binds', () => {
     expect(row.note).toMatch(/cannot carry/);
   });
 });
+
+// ------------------------------------------------------------------
+// The FC2-0 engine re-vendor (canonical 709172f..da9693b6, engines
+// PR #196). These gate the composition layer's side of the repair: the
+// numbers this studio SHOWS moved, and they moved here.
+//
+// The engine bracketed its outlet-pressure bisection at [14.7, p1].
+// Every published transmission form is driven by (p1^2 - es p2^2), so
+// the outlet a line approaches as its rate falls to nothing is
+// p1 / sqrt(es), not p1. On an ASCENT that ceiling sits BELOW the
+// inlet, the forms refuse a p2 above it, and the old loop read that
+// refusal as "still too much flow" and walked its LOWER bound up
+// through it: every rate the line could actually carry came back as
+// the inlet with dpPsi exactly 0. On a DESCENT the ceiling sits ABOVE
+// the inlet and the answer was outside the bracket entirely.
+//
+// The engine's own gates live in packages/engines
+// (facilities.linehydraulics.test.js, against the closed-form SI
+// inverse). What is gated HERE is that the studio's gas card, its
+// sweep table and its profile traverse carry the repaired answer.
+// ------------------------------------------------------------------
+
+describe('the re-vendored outlet-pressure bracket reaches this studio', () => {
+  const climbing = {
+    equation: 'weymouth', qScfd: 1e6, p1Psia: 800, idIn: 7.981, lengthMi: 25,
+    sg: 0.65, tAvgR: 520, zAvg: 0.9, efficiency: 0.92,
+  };
+
+  test('a climbing line no longer reports the inlet pressure with no drop', () => {
+    const up = gasOutletPressure({ ...climbing, elevChangeFt: 3000 });
+    expect(up.error).toBeUndefined();
+    // The defect returned exactly { p2Psia: 800, dpPsi: 0 } here.
+    expect(up.dpPsi).toBeGreaterThan(50);
+    expect(up.p2Psia).toBeLessThan(climbing.p1Psia);
+    // and the drop is real friction ON TOP of the static column, so it
+    // exceeds the flat line's drop at the same duty by the column's worth.
+    const flat = gasOutletPressure({ ...climbing, elevChangeFt: 0 });
+    expect(up.dpPsi).toBeGreaterThan(flat.dpPsi);
+  });
+
+  test('a descending line arrives above its inlet, and says so with a negative drop', () => {
+    const down = gasOutletPressure({ ...climbing, elevChangeFt: -3000 });
+    expect(down.error).toBeUndefined();
+    expect(down.p2Psia).toBeGreaterThan(climbing.p1Psia);
+    expect(down.dpPsi).toBeLessThan(0);
+    expect(down.dpPsi).toBeCloseTo(climbing.p1Psia - down.p2Psia, 12);
+  });
+
+  test('the flat solve is untouched, and so is any case the old bracket already contained', () => {
+    // dz = 0 makes es = 1, so the ceiling IS the inlet and the bracket
+    // never moved. This is the regression anchor: the repair changed the
+    // bracket, not the arithmetic.
+    const flat = gasOutletPressure({ ...climbing, elevChangeFt: 0 });
+    expect(flat.p2Psia).toBeGreaterThan(799);
+    expect(flat.p2Psia).toBeLessThan(800);
+    // A rate high enough that the true outlet fell inside [14.7, p1] even
+    // on a 3000 ft climb was always answered correctly, and still is.
+    const heavy = gasOutletPressure({ ...climbing, qScfd: 2e7, elevChangeFt: 3000 });
+    expect(heavy.p2Psia).toBeGreaterThan(14.7);
+    expect(heavy.p2Psia).toBeLessThan(climbing.p1Psia);
+    expect(heavy.dpPsi).toBeGreaterThan(200);
+  });
+
+  test('the profile traverse accumulates the drop it used to throw away', () => {
+    // Marched up a hill in two segments. Every segment used to return its
+    // own inlet, so the whole traverse reported the line arriving at its
+    // starting pressure.
+    const marched = gasLineTraverse({
+      equation: 'weymouth', qScfd: 1e6, p1Psia: 800, idIn: 7.981,
+      sg: 0.65, tAvgR: 520, zAvg: 0.9, efficiency: 0.92,
+      profile: [
+        { lengthFt: 66000, elevChangeFt: 1500 },
+        { lengthFt: 66000, elevChangeFt: 1500 },
+      ],
+    });
+    expect(marched.error).toBeUndefined();
+    expect(marched.dpTotalPsi).toBeGreaterThan(50);
+    expect(marched.p2Psia).toBeLessThan(800);
+    // and it is monotonic uphill: every station is below the one before it
+    marched.stations.slice(1).forEach((s, i) => {
+      expect(s.pPsia).toBeLessThan(marched.stations[i].pPsia);
+    });
+  });
+
+  test('a refused bore carries the engine reason rather than one label for all of them', () => {
+    // A bore too small for the duty still says it cannot carry the rate,
+    // which is the engine's own wording for that refusal.
+    const tooSmall = sizeSweep({
+      mode: 'gas',
+      inputs: {
+        qScfd: 8e7, p1Psia: 900, lengthMi: 50, sg: 0.65, tAvgR: 530, zAvg: 0.9, tF: 70,
+      },
+    }).rows.find((r) => r.nps === 2);
+    expect(tooSmall.pass).toBe(false);
+    expect(tooSmall.note).toMatch(/cannot carry/);
+
+    // But a refusal that is a fact about the LINE is no longer reported as
+    // if the pipe were at fault. An efficiency above 1 is impossible for
+    // every bore, and the table now says which input it refused.
+    const badEfficiency = sizeSweep({
+      mode: 'gas',
+      inputs: {
+        qScfd: 1e7, p1Psia: 900, lengthMi: 50, sg: 0.65, tAvgR: 530, zAvg: 0.9,
+        tF: 70, efficiency: 3,
+      },
+    });
+    expect(badEfficiency.error).toBeUndefined();
+    expect(badEfficiency.rows.every((r) => r.pass === false)).toBe(true);
+    expect(badEfficiency.rows[0].note).toMatch(/efficiency/);
+    expect(badEfficiency.rows[0].note).not.toMatch(/cannot carry/);
+  });
+});
