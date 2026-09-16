@@ -71,8 +71,7 @@ const amineArgs = (over = {}) => ({
 import {
   GasProcessingProvider, useGasProcessing, defaultInputs,
   FIELD_LIMITS, fieldIssue, tegIssue, amineIssue, dewpointIssue,
-  dakStanding, liquidDensityUsed, amineSolutionLbFt3, nonFiniteFields,
-  nonFiniteNote, GAL_PER_FT3, WATER_LB_PER_GAL, readFractionRemoved,
+  dakStanding, liquidDensityUsed, nonFiniteFields, nonFiniteNote, DAK_BAND,
 } from '@/contexts/GasProcessingContext';
 import {
   fmt, accentFor, ABSENT, NOT_A_NUMBER, INFINITE, MINUS_INFINITE,
@@ -365,13 +364,10 @@ describe('the fails-silent list, refused at the box', () => {
     // export in the module outside the object-carrying-an-error
     // contract, so a caller had no property to check and it reached the
     // screen as `--`. The repair gives it `{ fractionRemoved }` or
-    // `{ error }`, and this studio reads both shapes until the vendor
-    // pin moves.
-    const before = readFractionRemoved(
-      realEngine.kremserFractionRemoved({ absorptionFactor: 2.5, stages: 0 }),
-    );
-    expect(before.error).toBeTruthy();
-    expect(before.fractionRemoved).toBeUndefined();
+    // `{ error }`, and the pin now carries it.
+    const refused = realEngine.kremserFractionRemoved({ absorptionFactor: 2.5, stages: 0 });
+    expect(refused.error).toBeTruthy();
+    expect(refused.fractionRemoved).toBeUndefined();
     await set('teg', 'stages', '0');
     expect(api.dehydration.error).toBe('the theoretical stage count must be above 0');
   });
@@ -424,21 +420,30 @@ describe('the fails-silent list, refused at the box', () => {
 /* ------------------------------------------------------------------ *
  * The one export that had no error to carry, and the hidden fallback
  * ------------------------------------------------------------------ */
-describe('the Kremser relation is read through both of its shapes (F-S1)', () => {
-  it('reads a bare number and an object alike', () => {
-    // The bare-number shape the vendored engine still has.
-    expect(readFractionRemoved(0.42)).toEqual({ fractionRemoved: 0.42 });
-    expect(readFractionRemoved(NaN).error).toBeTruthy();
-    expect(readFractionRemoved(Infinity).error).toBeTruthy();
-    // The object shape the FC4-0 engine repair gives it.
-    expect(readFractionRemoved({ fractionRemoved: 0.42 })).toEqual({ fractionRemoved: 0.42 });
-    expect(readFractionRemoved({ error: 'no' })).toEqual({ error: 'no' });
-    expect(readFractionRemoved(undefined).error).toBeTruthy();
+describe('the Kremser relation carries the module error contract (F-S1)', () => {
+  it('never hands the studio a bare number or a bare NaN', () => {
+    // The compatibility reader that used to sit in the context is gone
+    // with the pin. What replaces it is this: an assertion about the
+    // CONTRACT rather than about either shape, so it holds for any
+    // engine that keeps the contract and fails for any that drops it.
+    const ok = realEngine.kremserFractionRemoved({ absorptionFactor: 2.5, stages: 2 });
+    expect(typeof ok).toBe('object');
+    expect(ok.error).toBeUndefined();
+    expect(ok.fractionRemoved).toBeGreaterThan(0);
+    expect(ok.fractionRemoved).toBeLessThan(1);
+    [{ absorptionFactor: 0, stages: 2 }, { absorptionFactor: 2.5, stages: 0 },
+      { absorptionFactor: 2.5, stages: -1 }, { absorptionFactor: NaN, stages: 2 },
+      {}].forEach((args) => {
+      const r = realEngine.kremserFractionRemoved(args);
+      expect(typeof r).toBe('object');
+      expect(typeof r.error).toBe('string');
+      expect(r.fractionRemoved).toBeUndefined();
+    });
   });
 
-  it('reports the removal at the stated stages through whichever shape it gets', () => {
-    const raw = realEngine.kremserFractionRemoved({ absorptionFactor: 2.5, stages: 2 });
-    const expected = typeof raw === 'number' ? raw : raw.fractionRemoved;
+  it('reports the removal at the stated stages straight off the engine', () => {
+    const expected = realEngine.kremserFractionRemoved({ absorptionFactor: 2.5, stages: 2 })
+      .fractionRemoved;
     expect(api.dehydration.fractionAtStages).toBe(expected);
     expect(api.dehydration.fractionAtStagesError).toBeNull();
     expect(expected).toBeGreaterThan(0);
@@ -484,11 +489,70 @@ describe('the saturated inlet mode says so when the fit refuses', () => {
 
 describe('the contactor is sized against the liquid in it (F-U1)', () => {
   it('derives the amine solution density from the same water the circulation uses', () => {
-    expect(GAL_PER_FT3).toBeCloseTo(7.4805194805, 9);
-    expect(WATER_LB_PER_GAL).toBe(8.34);
-    expect(amineSolutionLbFt3({ sgSolution: 1.04 })).toBeCloseTo(64.8830, 3);
-    expect(amineSolutionLbFt3({ sgSolution: 1.01 })).toBeCloseTo(63.0114, 3);
-    expect(amineSolutionLbFt3(null)).toBeNaN();
+    // The Suite used to spell this arithmetic out itself, on its own
+    // copy of 8.34 lb/gal and 1728/231. The engine exports it since
+    // FC4-0, so the assertion is no longer about two numbers this file
+    // also knows: it is that the density handed to the column and the
+    // water density the circulation was divided by are the SAME water.
+    // `solutionGpd = solutionLbDay / (waterLbPerGal * sgSolution)`, so
+    // the water falls out of the ratio below whatever its value is.
+    const pack = realEngine.aminePackage(amineArgs());
+    const impliedWaterLbPerGal = pack.solutionLbDay === undefined
+      ? realEngine.WATER_LB_PER_GAL
+      : pack.solutionLbDay / (pack.solutionGpd * 1.04);
+    expect(realEngine.amineSolutionLbPerFt3('MDEA'))
+      .toBeCloseTo(impliedWaterLbPerGal * realEngine.GAL_PER_FT3 * 1.04, 9);
+    expect(realEngine.GAL_PER_FT3).toBeCloseTo(1728 / 231, 12);
+    expect(realEngine.amineSolutionLbPerFt3('MDEA')).toBeCloseTo(64.8830, 3);
+    expect(realEngine.amineSolutionLbPerFt3('MEA')).toBeCloseTo(63.0114, 3);
+    expect(realEngine.amineSolutionLbPerFt3('nonsense')).toBeNull();
+  });
+
+  it('refuses a saturated inlet above the water fit by name, and says where', async () => {
+    // A LIVE BEHAVIOUR CHANGE, and the one most likely to surprise a
+    // user. The Magnus fit's guard used to run to 100 degC, where it
+    // reads 1.027157 times the DEFINING vapour pressure of water at its
+    // own normal boiling point. It is its docstring's 60 degC now,
+    // which is 140 degF. The temperature box still accepts up to
+    // 400 degF, so the refusal has to name the band and the value.
+    expect(FIELD_LIMITS.teg.tF.max).toBe(400);
+    await set('teg', 'tF', '140');
+    expect(api.dehydration.error).toBeUndefined();
+    await set('teg', 'tF', '141');
+    expect(api.dehydration.error).toContain('saturated at line conditions');
+    expect(api.dehydration.error).toContain('140');
+    expect(api.dehydration.error).toContain('141');
+    await set('teg', 'tF', '100');
+  });
+
+  it('never prints a number the engine could not stand behind (F-U2)', async () => {
+    // The version-free invariant: over the range these boxes offer, the
+    // contactor either carries an `error` or every number it returns is
+    // an engineering quantity. The pre-repair engine reported z =
+    // -0.171 at 800 psia, -30 degF and a gravity of 1.25, with a
+    // negative gas density, a diameter that was not a number and no
+    // error key at all.
+    for (let pPsia = 200; pPsia <= 3000; pPsia += 200) {
+      for (let tF = -100; tF <= 200; tF += 20) {
+        for (let sgi = 55; sgi <= 200; sgi += 15) {
+          const r = realEngine.contactorDiameter({
+            gasMMscfd: 50, pPsia, tF, gasSg: sgi / 100, ksFtS: 0.3,
+          });
+          if (r.error) continue;
+          const at = `${pPsia} psia, ${tF} degF, gravity ${sgi / 100}`;
+          expect([at, r.z > 0]).toEqual([at, true]);
+          expect([at, r.rhoG > 0]).toEqual([at, true]);
+          expect([at, Number.isFinite(r.diameterFt) && r.diameterFt > 0]).toEqual([at, true]);
+        }
+      }
+    }
+  });
+
+  it('reads the z-factor window from the one file that declares it', () => {
+    // Three copies of four numbers was the shape of the defect this
+    // band was written to report. The studio, the gas-processing engine
+    // and the separator all read `separatorSizing.js` now.
+    expect(DAK_BAND).toEqual({ pprMin: 0.2, pprMax: 30, tprMin: 1.0, tprMax: 3.0 });
   });
 
   it('hands the sweetening contactor the amine solution density', () => {

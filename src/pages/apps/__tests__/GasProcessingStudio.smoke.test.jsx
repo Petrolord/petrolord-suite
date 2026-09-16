@@ -44,9 +44,14 @@ describe('GasProcessingStudio page', () => {
     expect(await screen.findByText(/Water balance/i)).toBeInTheDocument();
     // also mirrored in the summary rail
     expect(screen.getAllByText(/TEG circulation/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/sensible/i)).toBeInTheDocument();
+    // The reboiler duty split into its named parts, which is the hint
+    // under the duty card. Matched on the split itself rather than on
+    // the bare word, which the loop water balance card also uses.
+    expect(screen.getByText(/sensible \+ .* overhead Btu\/gal/i)).toBeInTheDocument();
     expect(screen.getByText(/Stages the spec demands/i)).toBeInTheDocument();
     expect(screen.getByText(/Contactor diameter/i)).toBeInTheDocument();
+    // What the lean glycol strength buys, live with the FC4-0 engine pin.
+    expect(screen.getByText(/Rich glycol returning/i)).toBeInTheDocument();
     // The inlet is water-saturated at line conditions by default.
     expect(screen.getAllByText(/saturated at line conditions/i).length).toBeGreaterThan(0);
 
@@ -59,7 +64,11 @@ describe('GasProcessingStudio page', () => {
 
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Dew Point' }));
     await waitFor(() => expect(screen.getByText(/Joule-Thomson screening/i)).toBeInTheDocument());
-    expect(screen.getByText(/JT coefficient/i)).toBeInTheDocument();
+    // Both coefficient cards by their own names. A bare /JT coefficient/
+    // was a gate that went red the day the engine started returning the
+    // one the march actually delivered, which is a correct fix.
+    expect(screen.getByText('JT coefficient at the inlet')).toBeInTheDocument();
+    expect(screen.getByText('JT coefficient, mean over the drop')).toBeInTheDocument();
     expect(screen.getByText(/Cooling across the drop/i)).toBeInTheDocument();
     expect(screen.getByText(/Water the cold gas can hold/i)).toBeInTheDocument();
   });

@@ -56,10 +56,13 @@ export const SweeteningResults = () => {
   const { sweetening: s } = useGasProcessing();
   if (s.error) return <ErrorNote>{s.error}</ErrorNote>;
   const broken = nonFiniteNote(s.nonFinite);
-  // The column on this tab holds amine solution. Until the engine reads
-  // the liquid density this studio passes it, it sizes every contactor
-  // against glycol, so the screen names the liquid the number came from
-  // rather than the one it was asked for (FC4 findings F-C4, F-U1).
+  // The column on this tab holds amine solution, and the engine sizes
+  // it against the density this studio passes since the FC4-0 repair
+  // (FC4 findings F-C4, F-U1), so this note is silent in normal use.
+  // It stays because it is a CHECK: the density is read back out of the
+  // engine's own Souders-Brown velocity, so if a column is ever sized
+  // against a liquid other than the one it was given, the screen says
+  // so instead of printing a diameter nobody can trace.
   const wrongLiquid = Number.isFinite(s.liquidAsked) && Number.isFinite(s.liquidUsed)
     && Math.abs(s.liquidUsed - s.liquidAsked) > 1e-6 * s.liquidAsked;
   return (
@@ -84,7 +87,7 @@ export const SweeteningResults = () => {
         {broken && <ErrorNote>{broken}</ErrorNote>}
         {wrongLiquid && (
           <WarnNote>
-            {`The diameter above was sized against a liquid at ${fmt(s.liquidUsed, 1)} lb/ft3, which is the glycol a dehydration contactor holds. The ${s.amineLabel || 'amine'} solution in this column is ${fmt(s.liquidAsked, 1)} lb/ft3. A lighter liquid allows a lower gas velocity, so the column this service needs is wider than the one above. Treat the figure as a lower bound until the sizing reads the solution density.`}
+            {`The diameter above was sized against a liquid at ${fmt(s.liquidUsed, 1)} lb/ft3. The ${s.amineLabel || 'amine'} solution in this column is ${fmt(s.liquidAsked, 1)} lb/ft3, and that is the density this tab asked for. The two disagree, so the sizing did not use the liquid it was given and the diameter is not a design figure for this service.`}
           </WarnNote>
         )}
         {s.zWarning && <WarnNote>{s.zWarning}</WarnNote>}
