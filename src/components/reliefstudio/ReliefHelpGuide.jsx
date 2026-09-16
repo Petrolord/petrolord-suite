@@ -5,7 +5,7 @@ import {
   BookOpen, Gauge, Droplets, Flame, CircleDot, Sun, Timer, AlertTriangle,
 } from 'lucide-react';
 
-const helpContent = [
+export const helpContent = [
   {
     id: 'what',
     icon: BookOpen,
@@ -32,28 +32,28 @@ const helpContent = [
     icon: Flame,
     title: 'The fire case',
     content:
-      'API 521 pool fire: the heat input is 21000 F A to the 0.82 power with adequate drainage and firefighting, 34500 without, where A is the WETTED area, computed here from the vessel geometry and liquid level by exact circular-segment arithmetic. Only wetted surface below 25 feet above grade counts, so trim the level for tall or elevated vessels. The vapor generated is the duty over the latent heat, and the orifice is then sized at the actual fire-case relieving pressure of 121 percent of set, not at some assumed number. Near the critical point the latent heat collapses and the method with it; the studio flags that too.',
+      'API 521 pool fire: the heat input is 21000 F A to the 0.82 power with adequate drainage and firefighting, 34500 without, where A is the WETTED area, computed here from the vessel geometry and liquid level by exact circular-segment arithmetic. Only wetted surface below 25 feet above grade counts, so trim the level for tall or elevated vessels. The vapor generated is the duty over the latent heat, and the orifice is then sized at the relieving pressure the overpressure box states, which the studio prints beside the load. The 21 percent fire-case allowance is the customary starting value and it is yours to change. Near the critical point the latent heat collapses and the method with it; the studio flags that too.',
   },
   {
     id: 'drum',
     icon: CircleDot,
     title: 'The knockout drum',
     content:
-      'A flare header must deliver gas, not slugs of liquid, to the tip. The drum works if a droplet of the stated size falls across the vapor space before the gas carries it out the far end. The settling velocity comes from the API 521 drag-coefficient method with the coefficient iterated against the Reynolds number, and the answer is presented as the length each candidate diameter demands, with the length-to-diameter ratio as the judgment: above six, go wider.',
+      'A flare header must deliver gas to the tip, with the liquid dropped out first. The drum works if a droplet of the stated size falls across the vapor space before the gas carries it out the far end. The liquid level you state is read as a fraction of the diameter, and it sets both halves of that race: the vapor flows through the circular segment above the level, and the droplet falls the depth of that segment. The settling velocity comes from the drag-coefficient force balance with the coefficient iterated against the Reynolds number, and the answer is presented as the length each candidate diameter demands, with the length-to-diameter ratio as the judgment: above six, go wider; below two, a smaller drum may do.',
   },
   {
     id: 'radiation',
     icon: Sun,
     title: 'Flare radiation',
     content:
-      'The API 521 point-source model, asked both ways: what intensity lands at a stated distance, and what distance a stated allowable demands. The second answer is what a stack height or a sterile radius actually buys. The customary allowable levels are offered with their exposure meanings. The model ignores flame length and wind tilt, so treat it as screening: right for a first stack height, not for detail design near the limits.',
+      'The API 521 point-source model, asked both ways: what intensity lands at a stated distance, and what distance a stated allowable demands. The second answer is what a stack height or a sterile radius actually buys. The customary allowable levels are offered with their exposure meanings. The model ignores flame length and wind tilt, so treat it as screening: right for a first stack height, and short of what a detail design near the limits needs.',
   },
   {
     id: 'blowdown',
     icon: Timer,
     title: 'Blowdown',
     content:
-      'An adiabatic march of a vessel discharging through a fixed orifice in critical flow: pressure and temperature against time, with the customary 15-minute marker drawn on the curve so the API 521 depressuring question is read rather than asserted. The adiabatic assumption is the cold bound; a real vessel picks up heat from its own steel and chills less, but the low-temperature metallurgy question starts from this curve.',
+      'An adiabatic march of a vessel discharging through a fixed orifice in critical flow: pressure and temperature against time, with the customary 15-minute marker drawn on the curve so the API 521 depressuring question is read rather than asserted. The discharge coefficient you type is the only one acting, the march subdivides its own step when a step would empty the vessel, and it lands on the end pressure you state rather than stepping past it. Where the end pressure is low enough that the orifice stops being choked, the studio says so, because the time below that point is optimistic. The adiabatic assumption is the cold bound; a real vessel picks up heat from its own steel and chills less, but the low-temperature metallurgy question starts from this curve.',
   },
   {
     id: 'honesty',

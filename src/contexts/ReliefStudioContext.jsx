@@ -1,11 +1,20 @@
 // Relief & Flare Studio state (Facilities F2,
-// Facilities-ROADMAP.md §3 app 5) — the upgraded Relief & Blowdown
+// Facilities-ROADMAP.md §3 app 5). The upgraded Relief & Blowdown
 // Sizer on the studio kit, keeping its slug and its table.
 //
 // Everything is a live derivation over the vendored API 520/521
 // engine: a PSV case, the fire duty feeding it, the knockout drum,
 // the radiation solve both ways, and the blowdown march. A saved
 // study is inputs only; results are re-derived on load.
+//
+// FC5-0: this layer used to LAUNDER inputs the engine deliberately
+// refuses. `num` was `parseFloat`, which reads '50,000' as 50 and
+// '0.5.5' as 0.5, so a thousands separator typed into the relief load
+// box sized 0.002454 in2 instead of 2.453842 and printed orifice D
+// where the answer is L. A saved study carries whatever string it was
+// saved with, so this is reachable without a keyboard. `num` now
+// parses the WHOLE value or hands the engine a NaN, which the engine
+// refuses by name, and the fallback applies to an EMPTY box only.
 import React, {
   createContext, useContext, useCallback, useEffect, useMemo, useRef, useState,
 } from 'react';
@@ -21,6 +30,14 @@ import {
 } from '@/utils/facilities/engine/relief';
 
 const TABLE = 'saved_relief_projects';
+
+/** One standard base for this studio, the package's own: 14.696 psia and
+ *  519.67 R, with R = 10.7316 psia.ft3/(lbmol.R) and air at 28.9625. */
+const R_PSIA_FT3 = 10.7316;
+const AIR_MW = 28.9625;
+const P_STD_PSIA = 14.696;
+const T_STD_R = 519.67;
+export const SCF_PER_LBMOL = (R_PSIA_FT3 * T_STD_R) / P_STD_PSIA;
 
 export const service = createSavedProjectsService(TABLE, {
   signInMessage: 'Sign in to save relief studies.',
@@ -55,6 +72,7 @@ export const defaultInputs = () => ({
     orientation: 'horizontal', diameterFt: '10', lengthFt: '40', liquidLevelFt: '5',
     adequateDrainage: 'yes', envFactor: '1', latentBtuLb: '150',
     setPsig: '285', overpressurePct: '21', tF: '150', mw: '19', z: '0.9', k: '1.25',
+    backPsig: '0', kd: '0.975', kb: '1', kc: '1',
   },
   drum: {
     qVaporMMscfd: '30', pPsia: '30', tF: '150', gasSg: '0.7',
@@ -92,9 +110,14 @@ export const useRelief = () => {
   return context;
 };
 
-const num = (v, fallback = NaN) => {
-  const n = parseFloat(v);
-  return Number.isFinite(n) ? n : fallback;
+export const num = (v, fallback = NaN) => {
+  if (v === '' || v === null || v === undefined) return fallback;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : NaN;
+  // Number() parses the WHOLE string or returns NaN: '50,000', '50 000',
+  // '50000 lb/hr', '0.5.5' and '1/2' all refuse instead of being
+  // silently truncated to their leading digits.
+  const n = Number(String(v).trim());
+  return Number.isFinite(n) ? n : NaN;
 };
 
 /** Relieving pressure from set + overpressure (psia). */
@@ -173,9 +196,14 @@ export const ReliefStudioProvider = ({ children }) => {
       const load = fireReliefLoad({ qBtuHr: duty.qBtuHr, latentBtuLb: num(f.latentBtuLb) });
       if (load.error) return load;
       const p1 = relievingPsia(num(f.setPsig), num(f.overpressurePct, 21));
+      // FC5-0: the fire tab used to hardcode a 14.7 psia back pressure and
+      // drop the Kd, Kb and Kc the gas tab honours, so the fire case always
+      // ran the engine defaults. A typed Kd of 0.9 moves the app's own fire
+      // case from 1.235639 to 1.338609 in2, orifice J to orifice K.
       const r = gasVaporArea({
-        wLbHr: load.wLbHr, p1Psia: p1, p2Psia: 14.7,
+        wLbHr: load.wLbHr, p1Psia: p1, p2Psia: num(f.backPsig, 0) + 14.7,
         tR: num(f.tF) + 459.67, mw: num(f.mw), z: num(f.z, 1), k: num(f.k, 1.4),
+        kd: num(f.kd, 0.975), kb: num(f.kb, 1), kc: num(f.kc, 1),
       });
       if (r.error) return r;
       return {
@@ -196,52 +224,86 @@ export const ReliefStudioProvider = ({ children }) => {
 
   // --- Knockout drum ---
   const drum = useMemo(() => {
-    const d = inputs.drum;
-    const pPsia = num(d.pPsia);
-    const tR = num(d.tF) + 459.67;
-    // vapor density: typed, or ideal-gas at drum conditions
-    const rhoV = num(d.rhoVLbFt3, NaN) > 0
-      ? num(d.rhoVLbFt3)
-      : (28.9625 * num(d.gasSg, 0.7) * pPsia) / (10.7316 * tR);
-    const settle = dropoutVelocityFtS({
-      dropletMicron: num(d.dropletMicron, 300),
-      rhoLLbFt3: num(d.rhoLLbFt3), rhoVLbFt3: rhoV, muVCp: num(d.muVCp, 0.012),
-    });
-    if (settle.error) return settle;
-    const qActs = (num(d.qVaporMMscfd) * 1e6 / 86400) * (14.65 / pPsia) * (tR / 520);
-    const size = koDrumHorizontal({
-      qVaporAcfs: qActs, udFtS: settle.udFtS,
-      diameterFt: num(d.diameterFt), liquidFraction: num(d.liquidFraction, 0.25),
-    });
-    if (size.error) return size;
-    return { ...settle, ...size, rhoVUsed: rhoV, qVaporAcfs: qActs };
+    try {
+      const d = inputs.drum;
+      const pPsia = num(d.pPsia);
+      const tR = num(d.tF) + 459.67;
+      const mw = AIR_MW * num(d.gasSg, 0.7);
+      // vapor density: typed, or ideal-gas at drum conditions
+      const rhoV = num(d.rhoVLbFt3, NaN) > 0
+        ? num(d.rhoVLbFt3)
+        : (mw * pPsia) / (R_PSIA_FT3 * tR);
+      const settle = dropoutVelocityFtS({
+        dropletMicron: num(d.dropletMicron, 300),
+        rhoLLbFt3: num(d.rhoLLbFt3), rhoVLbFt3: rhoV, muVCp: num(d.muVCp, 0.012),
+      });
+      if (settle.error) return settle;
+      // FC5-0: the standard-to-actual conversion used to be
+      // (MMscfd 1e6 / 86400) (14.65 / P) (T / 520), a 14.65 psia and 520 R
+      // base, while the vapour density three lines above used the package's
+      // own 14.696 and 519.67. Two halves of one derivation disagreed about
+      // standard conditions, by 0.3763 percent carried straight into the
+      // answer, and no compressibility was applied either. It now goes
+      // through the MASS rate and divides by the density actually used, so
+      // there is ONE base, and a typed real density carries its own z.
+      const massLbHr = ((num(d.qVaporMMscfd) * 1e6) / SCF_PER_LBMOL) * mw / 24;
+      const qActs = massLbHr / (3600 * rhoV);
+      const size = koDrumHorizontal({
+        qVaporAcfs: qActs, udFtS: settle.udFtS,
+        diameterFt: num(d.diameterFt), liquidFraction: num(d.liquidFraction, 0.25),
+      });
+      if (size.error) return size;
+      return {
+        ...settle, ...size, rhoVUsed: rhoV, qVaporAcfs: qActs, massLbHr, mwUsed: mw,
+      };
+    } catch (e) {
+      console.error(e);
+      return { error: e.message };
+    }
   }, [inputs.drum]);
 
   // --- Radiation ---
   const radiation = useMemo(() => {
-    const r = inputs.radiation;
-    const qKw = (num(r.reliefWLbHr) * num(r.lhvBtuLb)) * 0.29307107e-3; // Btu/hr -> kW
-    if (!(qKw > 0)) return { error: 'radiation needs a positive relief rate and heating value' };
-    const at = radiationIntensity({
-      qKw, distanceM: num(r.distanceM),
-      fractionRadiated: num(r.fractionRadiated, 0.3), transmissivity: num(r.transmissivity, 1),
-    });
-    const need = distanceForIntensity({
-      qKw, allowableKwM2: num(r.allowableKwM2, 4.73),
-      fractionRadiated: num(r.fractionRadiated, 0.3), transmissivity: num(r.transmissivity, 1),
-    });
-    if (at.error) return at;
-    return { qKw, kWm2: at.kWm2, requiredDistanceM: need.error ? null : need.distanceM };
+    try {
+      const r = inputs.radiation;
+      const qKw = (num(r.reliefWLbHr) * num(r.lhvBtuLb)) * 0.29307107e-3; // Btu/hr -> kW
+      if (!(qKw > 0)) return { error: 'radiation needs a positive relief rate and heating value' };
+      const at = radiationIntensity({
+        qKw, distanceM: num(r.distanceM),
+        fractionRadiated: num(r.fractionRadiated, 0.3), transmissivity: num(r.transmissivity, 1),
+      });
+      const need = distanceForIntensity({
+        qKw, allowableKwM2: num(r.allowableKwM2, 4.73),
+        fractionRadiated: num(r.fractionRadiated, 0.3), transmissivity: num(r.transmissivity, 1),
+      });
+      if (at.error) return at;
+      // the setback solves the SAME four inputs, so if it refuses, say so
+      // rather than printing a blank beside an intensity that computed
+      return {
+        qKw,
+        kWm2: at.kWm2,
+        requiredDistanceM: need.error ? null : need.distanceM,
+        setbackError: need.error || null,
+      };
+    } catch (e) {
+      console.error(e);
+      return { error: e.message };
+    }
   }, [inputs.radiation]);
 
   // --- Blowdown ---
   const blowdownResult = useMemo(() => {
-    const b = inputs.blowdownIn;
-    return blowdown({
-      volumeFt3: num(b.volumeFt3), p0Psia: num(b.p0Psig) + 14.7, t0R: num(b.tF) + 459.67,
-      pEndPsia: num(b.pEndPsig) + 14.7, mw: num(b.mw), k: num(b.k, 1.4), z: num(b.z, 0.9),
-      orificeDIn: num(b.orificeDIn), cd: num(b.cd, 0.85),
-    });
+    try {
+      const b = inputs.blowdownIn;
+      return blowdown({
+        volumeFt3: num(b.volumeFt3), p0Psia: num(b.p0Psig) + 14.7, t0R: num(b.tF) + 459.67,
+        pEndPsia: num(b.pEndPsig) + 14.7, mw: num(b.mw), k: num(b.k, 1.4), z: num(b.z, 0.9),
+        orificeDIn: num(b.orificeDIn), cd: num(b.cd, 0.85),
+      });
+    } catch (e) {
+      console.error(e);
+      return { error: e.message };
+    }
   }, [inputs.blowdownIn]);
 
   // --- Project lifecycle (studio-kit recipe) ---
