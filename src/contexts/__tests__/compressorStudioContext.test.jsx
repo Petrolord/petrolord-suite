@@ -32,7 +32,6 @@ jest.mock('@/lib/customSupabaseClient', () => {
 
 const savedService = jest.requireMock('@/utils/savedProjects').__service;
 
-// eslint-disable-next-line import/first
 import {
   CompressorStudioProvider, useCompressor, dutyIssue, MIN_HEAT_RATE_BTU_HP_HR,
 } from '@/contexts/CompressorStudioContext';

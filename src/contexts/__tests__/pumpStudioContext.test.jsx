@@ -37,9 +37,7 @@ jest.mock('@/lib/customSupabaseClient', () => {
 
 const savedService = jest.requireMock('@/utils/savedProjects').__service;
 
-// eslint-disable-next-line import/first
 import { PumpStudioProvider, usePump, changeFactors } from '@/contexts/PumpStudioContext';
-// eslint-disable-next-line import/first
 import { impellerTrim, speedChange } from '@/utils/facilities/engine/pumps';
 
 let api = null;
@@ -133,7 +131,6 @@ describe('S1: the curve and the changes card must agree', () => {
 
   it('agrees on a speed change too, in both directions', async () => {
     for (const [sr, afterQ, onCurveQ] of [['0.8', 1056.024, 1207.093], ['1.2', 1922.922, 1810.639]]) {
-      // eslint-disable-next-line no-await-in-loop
       await set('changes', 'speedRatio', sr);
       const { onCurve, after } = api.changeEffect;
       agreesWith(api.configured.curve.headAt(onCurve.qGpm), onCurve.headFt);
