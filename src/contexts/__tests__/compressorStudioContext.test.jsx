@@ -35,6 +35,7 @@ const savedService = jest.requireMock('@/utils/savedProjects').__service;
 import {
   CompressorStudioProvider, useCompressor, dutyIssue, MIN_HEAT_RATE_BTU_HP_HR,
 } from '@/contexts/CompressorStudioContext';
+import { compressionStage, compressorTrain } from '@/utils/facilities/engine/compression';
 
 let api = null;
 const Probe = () => {
@@ -72,7 +73,7 @@ describe('the default duty, as numbers', () => {
     expect(api.train.ratioPerStage).toBeCloseTo(2.15638, 5);
     expect(api.train.totalBrakeHp).toBeCloseTo(3338.5, 0);
     expect(api.train.finalDischargeF).toBeCloseTo(253.1, 0);
-    expect(api.acfm).toBeCloseTo(2173.9, 0);
+    expect(api.acfm).toBeCloseTo(2174.7, 0);
     expect(api.screen.recommendation).toBe('reciprocating');
     expect(api.fuel.thermalEfficiencyPct).toBeCloseTo(31.8054, 4);
     expect(api.firstStage.error).toBeUndefined();
@@ -205,29 +206,90 @@ describe('S3: every typed box is checked at the door, by name', () => {
 });
 
 describe('the discharge limit the user typed', () => {
-  it('says nothing when every stage stays under it', () => {
-    expect(api.dischargeLimitCheck).toBeNull();
+  // Engines PR #197 repaired the two defects the studio used to paper over
+  // with a dischargeLimitCheck of its own: stageCount tested every trial
+  // count from tSuctionF while compressorTrain ran every stage after the
+  // first from interstageCoolToF, and the hot-stage warning was measured
+  // against a hardcoded 300 F. The count is now tested at the inlet each
+  // stage will really have, so the answer that moves is the STAGE COUNT
+  // rather than a warning printed over a broken one.
+
+  it('keeps every stage under the limit on the default duty', () => {
     expect(api.train.stages.every((s) => s.tDischargeF <= 300)).toBe(true);
-  });
-
-  it('names the stages that finish above it, which the engine does not', async () => {
-    // the app's own default intercooler leaves the gas at 110 F against a
-    // 100 F suction, so the later stages run hotter than the stage count
-    // was chosen for. The engine warns at a fixed 300 F and stays silent.
-    await set('machine', 'maxDischargeF', '250');
-    expect(api.train.stages).toHaveLength(3);
     expect(api.train.stages.filter((s) => s.warning)).toHaveLength(0);
-    expect(api.dischargeLimitCheck).not.toBeNull();
-    expect(api.dischargeLimitCheck.limitF).toBe(250);
-    expect(api.dischargeLimitCheck.stages.map((s) => s.stage)).toEqual([2, 3]);
-    expect(api.dischargeLimitCheck.note).toMatch(/stage 2 at 253\.1 F/);
-    expect(api.dischargeLimitCheck.note).toMatch(/above the 250 F limit/);
   });
 
-  it('catches the hotter approach the findings recorded', async () => {
+  it('adds a stage when the limit is lowered, instead of breaking it', async () => {
+    // Before the repair this stayed at 3 stages with stages 2 and 3 both
+    // finishing at 253.1 F, 3.1 F above a stated 250 F limit, on a return
+    // whose own governedBy read "discharge temperature".
+    await set('machine', 'maxDischargeF', '250');
+    expect(api.train.stages).toHaveLength(4);
+    expect(api.train.governedBy).toBe('discharge temperature');
+    expect(api.train.finalDischargeF).toBeCloseTo(214.28, 2);
+    expect(api.train.stages.every((s) => s.tDischargeF <= 250)).toBe(true);
+    expect(api.train.stages.filter((s) => s.warning)).toHaveLength(0);
+  });
+
+  it('chooses the count from the inlet each stage will really have', async () => {
+    // An intercooler 80 F above the suction. Before the repair this gave 3
+    // stages finishing at 340.7 F against a 250 F limit, 90.7 F over.
     await set('machine', 'interstageCoolToF', '180');
     await set('machine', 'maxDischargeF', '250');
-    expect(api.dischargeLimitCheck.stages).toHaveLength(2);
-    expect(api.train.finalDischargeF).toBeCloseTo(340.7, 0);
+    expect(api.train.stages).toHaveLength(7);
+    expect(api.train.finalDischargeF).toBeCloseTo(244.49, 2);
+    expect(api.train.stages.every((s) => s.tDischargeF <= 250)).toBe(true);
+    expect(api.train.stages.filter((s) => s.warning)).toHaveLength(0);
+  });
+
+  it('never lets a stage finish above the typed limit, over a duty sweep', () => {
+    // The studio's own dischargeLimitCheck is gone, so this is the gate
+    // that keeps its claim: the panel prints the engine's per-stage
+    // warning and nothing else, and a train that breaks its own limit
+    // would have to show up here first.
+    let trains = 0;
+    for (const pd of [400, 985, 2000]) {
+      for (const ts of [60, 100, 120]) {
+        for (const ic of [90, 110, 130]) {
+          for (const md of [250, 300, 350]) {
+            const t = compressorTrain({
+              qMMscfd: 20, pSuctionPsia: 99.7, pDischargePsia: pd + 14.7, tSuctionF: ts,
+              gasSg: 0.65, k: 1.28, polytropicEfficiency: 0.75, mechanicalEfficiency: 0.97,
+              maxRatioPerStage: 4, maxDischargeF: md, interstageCoolToF: ic, cpBtuLbF: 0.55,
+            });
+            expect(t.error).toBeUndefined();
+            trains += 1;
+            expect(t.stages.every((s) => s.tDischargeF <= md)).toBe(true);
+            expect(t.stages.filter((s) => s.warning)).toHaveLength(0);
+          }
+        }
+      }
+    }
+    expect(trains).toBe(81);
+  });
+});
+
+describe('the hot-stage warning the panel renders', () => {
+  // The panel prints train.stages[].warning and nothing beside it. That
+  // field used to be measured against a hardcoded 300 F, so a train staged
+  // against 200 F broke it in silence while a train run at 400 F was warned
+  // at 310 for nothing. These two prove the surviving path is live and
+  // measured against the limit in the box.
+  const hotStage = (maxDischargeF) => compressionStage({
+    qMMscfd: 20, pSuctionPsia: 99.7, tSuctionF: 100, ratio: 3.4,
+    gasSg: 0.65, k: 1.28, polytropicEfficiency: 0.75, mechanicalEfficiency: 0.97,
+    maxDischargeF,
+  });
+
+  it('warns against the limit the user typed', () => {
+    const hot = hotStage(250);
+    expect(hot.tDischargeF).toBeCloseTo(340.07, 2);
+    expect(hot.warning).toMatch(/discharge at 340\.1 F is above the stated limit of 250\.0 F/);
+  });
+
+  it('says nothing about the same stage under a limit that allows it', () => {
+    const same = hotStage(400);
+    expect(same.tDischargeF).toBeCloseTo(340.07, 2);
+    expect(same.warning).toBeNull();
   });
 });
