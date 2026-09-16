@@ -58,9 +58,146 @@ Scope: one app, three units (owner decision F#1).
   approach to equilibrium need rate-based simulation.
 - Hydrate margin belongs to Production's Flow Assurance Studio.
 
+## FC4-0 Suite repairs (2026-09-16)
+
+Found by the NextGen FC4 course build (`/root/fc-wip-gasprocessing/FINDINGS.md`,
+49 findings) and repaired in `src/contexts/GasProcessingContext.jsx`,
+`src/components/gasprocessing/fields.jsx` and the two panel files. **The
+vendored engine is untouched**; the engine half of FC4-0 is a separate
+repair on `fix/fc4-0-gasprocessing` in the engines repo.
+
+### The multiplier, F-U3
+
+Twenty-one of the forty-nine findings were LIVE rather than theoretical
+because of one pair of lines in this studio. `NumberInput` was a bare
+`type="number"` with no minimum, no maximum and no validation, and
+`fmt()` rendered NaN and Infinity as `--`, which is exactly what it
+rendered for a box nobody had typed in. **So a user who typed something
+the engine could not handle saw what they saw before typing anything.**
+Both halves are fixed.
+
+- **Every typed box now carries the bounds of its quantity** (`FIELD_LIMITS`),
+  puts `min` and `max` on the control, prints the refusal under the box,
+  and refuses the whole tab before the engine is called. A stage count of
+  zero, a circulation ratio of zero or below, a solution strength of zero,
+  above 100 or below zero, a negative lean loading, a negative regenerator
+  duty, a negative reflux ratio, a BTEX fraction outside zero to one, a
+  negative outlet spec, a cleared temperature box and a temperature below
+  absolute zero are each named, at the box the user typed in.
+- **A reboiler below the absorber is refused.** The engine took it and
+  reported a negative sensible heat, a negative duty per gallon and a
+  negative reboiler duty with no warning at all.
+- **A non-finite result is no longer a blank.** `fmt` renders an absent
+  value as `--` and a broken one as `not a number` or `infinite`, the Stat
+  turns amber, and the tab names the results that came back non-finite.
+- **A spec above its own inlet names the spec.** The engine tests the sum
+  first, so a CO2 spec above the CO2 inlet with no H2S in the gas reported
+  "no acid gas to remove at these specs", which sends the user to the
+  wrong box.
+
+### The amine column is full of amine, F-U1
+
+`contactorDiameter` hard-codes a glycol density of 69.9 lb/ft3, and this
+studio called it once for both units, so the amine contactor was sized
+against glycol. The AMINES table has carried `sgSolution` since the app
+shipped and the sizing never read it. On the app's own amine defaults the
+diameter comes out 4.436 ft where the MDEA solution density gives 4.524 ft,
+**1.99 percent small**.
+
+The studio now passes `rhoLLbFt3` for the fluid each tab is actually
+treating: the glycol value on dehydration, and the amine solution at its
+own table gravity on sweetening, derived from the same 8.34 lb/gal of
+water the engine's own amine circulation is computed from. **Until the
+engine reads that argument the diameter cannot change**, so the studio
+reads back, from the Souders-Brown velocity the engine returns, the liquid
+density it really used, prints it beside the diameter on both tabs, and
+says on the sweetening tab that the column was sized against glycol. No
+corrected diameter is computed in the Suite. The gate proves the Suite
+half against an engine that honours the argument.
+
+### The correlation branch no published case exercises, F-U2
+
+Both contactors and the JT screening call `dakZ` without a `z`, so the
+whole live app runs the default correlation branch, and the contactor
+golden passes `z` IN on every case. Swept over the range these boxes
+offer (gas gravity 0.55 to 2, pressure 14.7 to 3000 psia, temperature
+-100 to 400 F, 1584 combinations):
+
+- 877 combinations sit on the band DAK was fitted over and every one of
+  them returns a positive z and a finite diameter.
+- 707 are off that band, and `dakStanding` now says so on screen.
+- **35 of 8316 combinations in a finer sweep do not converge at all, and
+  three of those return a NEGATIVE z**, hence a negative gas density and
+  a NaN diameter with no `error` key. At 800 psia, -30 F and gravity 1.25
+  the engine reports z = -0.171 and a diameter that used to render as
+  `--`. This is reachable from the shipped boxes and is NOT in the recon,
+  which reached a negative z only through a caller-supplied `z` and
+  recorded that the Suite never passes one.
+- Neither engine consumer carries `dakZ`'s `converged` flag out (F-E15,
+  F-E16, F-U5), so the studio asks the same published correlation the
+  same question with the same arguments and reports the answer. The
+  number on screen still comes from the engine.
+
+### Also fixed here
+
+- **The saturated inlet mode said "saturated" and answered from a hidden
+  box.** When the saturation fit refused, the tab silently fell back to
+  the typed inlet field, which is not on screen in saturated mode, so a
+  refused fit was answered from a default nobody had seen. It refuses
+  now. Not in the recon.
+- **F-U4**: the dew point tab labelled a coefficient computed at the inlet
+  pressure only while the march beside it re-read it at twenty pressures.
+  The label and the hint say so.
+
+### Gates
+
+`src/contexts/__tests__/gasProcessingContext.test.jsx` (52) and
+`src/components/gasprocessing/__tests__/gasProcessingPanels.test.jsx` (7)
+assert numbers and screen text for this app for the first time. **Nine
+defects were planted one at a time and every one was caught by the test
+that exists for it**, because a gate that cannot fail is the defect
+rather than the proof: this module's engine suite passes 12 of 12 with
+the correct Joule-Thomson formula substituted.
+
+Blast radius: `src/components/gasprocessing/fields.jsx` is imported by
+three files, all in this studio. The same `NumberInput` and `fmt` pair is
+copy-pasted into eighteen other studios' own `fields.jsx`, which are
+separate files and are untouched. Six control sweeps over the customary
+operating envelope, chosen before any flip was counted, return zero
+flips; across 1292 wide-ladder combinations the repair newly refuses 518
+and newly answers **none**.
+
 ## Open
 
 - Tile rename migration 20260829570000 HELD for the prod upload.
 - ARMED literature gates: McKetta-Wehe water-content chart, TEG
   equilibrium/absorption-factor charts, GPSA amine worked examples
   (owner PDFs).
+- Engine-side, routed to `fix/fc4-0-gasprocessing` in the engines repo
+  rather than patched from here:
+  - **F-E1/F-E2/F-E3**, the headline: `jouleThomsonFPerPsi` divides by
+    `z` where the relation carries no such factor, so all four Dew Point
+    numbers are wrong on the app's own shipped defaults (coefficient 6.6
+    against 5.7 F per 100 psi, cooling 27.3 against 24.0 F, downstream
+    temperature 72.7 against 76.0 F, water held 31.5 against 35.1
+    lb/MMscf). The docstring carries the same error. The studio displays
+    whatever the engine returns and will show the corrected figures the
+    day it lands.
+  - **F-C4**: `contactorDiameter` takes no liquid density. This studio
+    already passes `rhoLLbFt3` on both tabs, glycol on dehydration and
+    the amine solution on sweetening. The engine reading that argument
+    is the whole of the F-U1 repair; nothing further is needed here.
+  - **F-E15, F-E16, F-U5**: both engine consumers discard `dakZ`'s
+    `converged` flag. The studio now runs the same correlation itself to
+    report it, which is a display-layer defence rather than the repair.
+  - **F-C7**: `leanTegWtPct` is range-checked, refused outside 90 to 100,
+    and then never used. The studio keeps the box because the engine
+    still refuses on it; whether it constrains the achievable outlet spec
+    or is removed is an engine decision.
+  - **F-C1, F-C2, F-C3, F-C5, F-C6, F-C9**: two standard conditions and
+    two glycol densities in one file, three constants hidden against the
+    module's own doctrine, and a comment naming a latent heat that is not
+    in the code.
+  - **F-S1**: `kremserFractionRemoved` returns a bare number, so it is
+    the one export with no property for a caller to check. The studio's
+    bounds keep it out of its NaN branch; the contract is the engine's.
