@@ -57,4 +57,43 @@ describe('ProducedWaterStudio page', () => {
     await waitFor(() => expect(screen.getAllByText(/Inlet droplets against the cut sizes/i).length).toBeGreaterThan(0));
     expect(screen.getAllByText(/what that device mostly misses/i).length).toBeGreaterThan(0);
   });
+
+  it('shows the numbers the app used to supply silently', async () => {
+    render(
+      <MemoryRouter>
+        <ProducedWaterTreatment />
+      </MemoryRouter>,
+    );
+    await screen.findByText('Produced Water Treatment Studio');
+    // the liner turndown and the centrifugal field were hidden constants
+    expect(screen.getAllByText(/Inside each device/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Turndown against design/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Centrifugal field/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Filter coefficient at this loading/i).length).toBeGreaterThan(0);
+    // and the shipped default sizes its liner bank near its design point
+    // instead of running it at 7.667 times design
+    expect(screen.getAllByText(/0.958 x/).length).toBeGreaterThan(0);
+  });
+
+  it('THE FC7 DEFECT: a cleared equipment box gives no spec verdict', async () => {
+    const { container } = render(
+      <MemoryRouter>
+        <ProducedWaterTreatment />
+      </MemoryRouter>,
+    );
+    await screen.findByText('Produced Water Treatment Studio');
+    // it used to print MEETS with a 27.78 ppm margin over a train that
+    // had silently dropped a stage
+    expect(screen.getAllByText('MEETS').length).toBeGreaterThan(0);
+
+    const label = screen.getByText('Plate area (m2)');
+    const box = label.parentElement.querySelector('input');
+    expect(box).toBeTruthy();
+    fireEvent.change(box, { target: { value: '' } });
+
+    await waitFor(() => expect(screen.getAllByText(/No verdict/i).length).toBeGreaterThan(0));
+    expect(screen.queryByText('MEETS')).toBeNull();
+    expect(screen.getAllByText(/did not run/i).length).toBeGreaterThan(0);
+    expect(container.textContent).toMatch(/positive projected plate area/);
+  });
 });
