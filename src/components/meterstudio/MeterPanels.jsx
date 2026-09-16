@@ -61,11 +61,8 @@ export const RunInputs = () => {
         <Field label="Bore (%)"><NumberInput section="uncertainty" name="boreUncertaintyPct" step="0.01" /></Field>
         <Field label="Pipe (%)"><NumberInput section="uncertainty" name="pipeUncertaintyPct" step="0.01" /></Field>
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <Field label="Differential (%)"><NumberInput section="uncertainty" name="dpUncertaintyPct" step="0.05" /></Field>
-        <Field label="Density (%)"><NumberInput section="uncertainty" name="densityUncertaintyPct" step="0.05" /></Field>
-      </div>
-      <Field label="Transmitter accuracy (% of span)">
+      <Field label="Density (%)"><NumberInput section="uncertainty" name="densityUncertaintyPct" step="0.05" /></Field>
+      <Field label="Transmitter accuracy (% of span)" hint="This IS the differential term of the budget: the reading and the span above turn it into a percentage of reading.">
         <NumberInput section="uncertainty" name="transmitterAccuracyPctOfSpan" step="0.005" />
       </Field>
     </div>
@@ -103,11 +100,17 @@ export const FlowResults = () => {
         <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">The plate a target flow needs</CardTitle></CardHeader>
         <CardContent>
           {sized.error ? <ErrorNote>{sized.error}</ErrorNote> : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Stat label="Bore" value={fmt(sized.orificeIdIn, 4)} unit="in" accent="text-emerald-400" />
-              <Stat label="Beta" value={fmt(sized.beta, 4)} />
-              <Stat label="Flow it passes" value={fmt(sized.massLbHr, 0)} unit="lb/hr" />
-              <Stat label="Cd at that bore" value={fmt(sized.cd, 5)} />
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Stat label="Bore" value={fmt(sized.orificeIdIn, 4)} unit="in" accent="text-emerald-400" />
+                <Stat label="Beta" value={fmt(sized.beta, 4)} />
+                <Stat label="Flow it passes" value={fmt(sized.massLbHr, 0)} unit="lb/hr" />
+                <Stat label="Cd at that bore" value={fmt(sized.cd, 5)} />
+              </div>
+              {/* The warning the engine attached to THIS number used to be
+                  dropped, because only the flow card's warning was rendered. */}
+              {sized.warning && <WarnNote>{sized.warning}</WarnNote>}
+              <p className="text-[12px] text-slate-500">{sized.boreNote}</p>
             </div>
           )}
         </CardContent>
@@ -133,27 +136,31 @@ export const FlowResults = () => {
               </ComposedChart>
             </ChartFrame>
             <p className="text-[12px] text-slate-500">
-              At this beta the coefficient still moves with Reynolds number, and across the full
-              beta range it spans about seven percent. That is many times the uncertainty anybody
-              argues about in a custody transfer dispute, which is why the published equation is
-              worth computing rather than assuming 0.61.
+              At this beta the coefficient moves {fmt(cdCurve.spanPctAtThisBeta, 1)} percent across
+              the Reynolds range drawn here, and it moves several times that across the beta range
+              as well. Either figure is many times the uncertainty anybody argues about in a
+              custody transfer dispute, which is why the published equation is worth computing
+              rather than assuming 0.61.
             </p>
+            <p className="text-[12px] text-slate-500">{cdCurve.reynoldsBasis}</p>
           </CardContent>
         </Card>
       )}
 
-      {!straightRun.error && (
-        <Card className="bg-slate-900/60 border-slate-800">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Meter run</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <Stat label="Upstream straight run" value={fmt(straightRun.upstreamDiameters, 0)} unit="diameters" />
-              <Stat label="Downstream" value={fmt(straightRun.downstreamDiameters, 0)} unit="diameters" />
-            </div>
-            <p className="text-[12px] text-slate-500">{straightRun.note}</p>
-          </CardContent>
-        </Card>
-      )}
+      <Card className="bg-slate-900/60 border-slate-800">
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Meter run</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          {straightRun.error ? <ErrorNote>{straightRun.error}</ErrorNote> : (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <Stat label="Upstream straight run" value={fmt(straightRun.upstreamDiameters, 0)} unit="diameters" />
+                <Stat label="Downstream" value={fmt(straightRun.downstreamDiameters, 0)} unit="diameters" />
+              </div>
+              <p className="text-[12px] text-slate-500">{straightRun.note}</p>
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
@@ -170,11 +177,18 @@ export const UncertaintyResults = () => {
       <Card className="bg-slate-900/60 border-slate-800">
         <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Where the uncertainty comes from</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Stat label="Total uncertainty" value={fmt(uncertainty.totalUncertaintyPct, 3)} unit="%"
               accent="text-emerald-400" hint="root sum square of the contributions" />
-            <Stat label="Dominant term" value={uncertainty.dominant} accent="text-amber-400" />
+            <Stat label="Dominant term" value={uncertainty.dominant}
+              accent={uncertainty.dominanceIsClear ? 'text-amber-400' : 'text-slate-300'}
+              hint={`${fmt(uncertainty.dominantShareOfVariancePct, 1)} percent of the variance`} />
+            <Stat label="Runner up" value={uncertainty.runnerUp}
+              hint={`${fmt(uncertainty.runnerUpShareOfVariancePct, 1)} percent`} />
+            <Stat label="Differential term" value={fmt(uncertainty.differentialUncertaintyPct, 3)} unit="%"
+              hint="from the transmitter, not typed" />
           </div>
+          <p className="text-[12px] text-slate-500">{uncertainty.differentialUncertaintySource}</p>
           <ChartFrame height={260} exportFilename="uncertainty-budget">
             <ComposedChart data={data} layout="vertical" margin={{ top: 8, right: 30, bottom: 8, left: 120 }}>
               <CartesianGrid {...GRID_STYLE} />
@@ -190,8 +204,11 @@ export const UncertaintyResults = () => {
           <p className="text-[12px] text-slate-500">
             This is the actual point of a metering study. The flow equation is simple; what a
             custody transfer argument is about is how well the number is known, and which term to
-            spend money on improving. A more precisely bored plate buys nothing when the
-            differential transmitter dominates the budget.
+            spend money on improving. Which term that is depends on where the run sits in its
+            span: at the top of the span the discharge coefficient's own uncertainty usually leads,
+            and the differential transmitter takes over as the reading falls. The chart above is
+            the answer for this run rather than a rule of thumb, and the differential term in it
+            is the transmitter's own contribution rather than a separate typed figure.
           </p>
         </CardContent>
       </Card>
@@ -202,17 +219,23 @@ export const UncertaintyResults = () => {
           {transmitter.error ? <ErrorNote>{transmitter.error}</ErrorNote> : (
             <>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <Stat label="Turndown" value={fmt(transmitter.turndown, 1)} unit="to 1"
-                  accent={transmitter.turndown > 3 ? 'text-amber-400' : 'text-emerald-400'} />
+                <Stat label="Differential turndown" value={fmt(transmitter.differentialTurndown, 1)} unit="to 1"
+                  hint="span over reading" />
+                <Stat label="Flow turndown" value={fmt(transmitter.flowTurndown, 2)} unit="to 1"
+                  accent={transmitter.flowTurndown > transmitter.flowTurndownLimit ? 'text-amber-400' : 'text-emerald-400'}
+                  hint={`the customary limit is ${transmitter.flowTurndownLimit} to 1`} />
                 <Stat label="Transmitter contribution" value={fmt(transmitter.uncertaintyPctOfReading, 3)} unit="% of reading"
                   hint="accuracy is quoted on span, so this rises as the reading falls" />
               </div>
               {transmitter.warning && <WarnNote>{transmitter.warning}</WarnNote>}
+              <p className="text-[12px] text-slate-500">{transmitter.turndownNote}</p>
               <p className="text-[12px] text-slate-500">
                 A transmitter accurate to a fixed fraction of its span becomes proportionally less
                 accurate as the reading falls. That single fact is why an orifice run has a usable
-                turndown of about three to one, and it is the most misunderstood thing in gas
-                measurement.
+                FLOW turndown of about three to one, and it is the most misunderstood thing in gas
+                measurement. Watch which turndown is being quoted: flow goes as the square root of
+                the differential, so a three to one flow turndown is a nine to one differential
+                turndown, and the two get swapped constantly.
               </p>
             </>
           )}

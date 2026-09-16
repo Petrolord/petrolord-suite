@@ -4,7 +4,28 @@ import React from 'react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useValve } from '@/contexts/ValveStudioContext';
+import { EROSIONAL_C } from '@/utils/production/engine/chokePerformance';
 import { fmt, Stat, ErrorNote, WarnNote, Field, NumberInput } from './fields';
+
+const EROSIONAL_PRESETS = EROSIONAL_C;
+
+/**
+ * A null travel used to mean two different things and the alarming one
+ * won: a maximum flow box the user had not filled in printed "beyond the
+ * valve" in red. The engine now separates them and so does this.
+ */
+const travelValue = (state, pct) => {
+  if (state === 'beyond the valve') return 'beyond the valve';
+  if (state === 'not given') return 'not given';
+  // one decimal, because the engine warnings beside these tiles print one
+  return fmt(pct, 1);
+};
+
+const STATE_ACCENT = (state, alarm) => {
+  if (state === 'beyond the valve') return 'text-red-400';
+  if (state === 'not given') return 'text-slate-500';
+  return alarm ? 'text-red-400' : 'text-slate-100';
+};
 
 const REGIME_ACCENT = {
   stable: 'text-emerald-400',
@@ -27,7 +48,7 @@ export const ServiceInputs = () => {
           </SelectContent>
         </Select>
       </Field>
-      <Field label="Valve style" hint="Sets the recovery factor and terminal ratio. Vendor trim data always wins.">
+      <Field label="Valve style" hint="Sets the recovery factor and terminal ratio. These are this engine's stated table values, not figures read from a standard, and certified vendor trim data always replaces them.">
         <Select value={inputs.service.styleId} onValueChange={(v) => setSection('service', 'styleId', v)}>
           <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -91,6 +112,24 @@ export const ServiceInputs = () => {
       </Field>
       <Field label="Total system drop (psi)" hint="Valve plus everything else at design flow. This sets the authority.">
         <NumberInput section="valve" name="dpSystemTotalPsi" />
+      </Field>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Piping geometry factor Fp" hint="Corrects for reducers and fittings at the valve. It divides into every Cv, so 0.5 doubles the Cv this valve needs.">
+          <NumberInput section="valve" name="fp" step="0.01" />
+        </Field>
+        <Field label="Outlet bore (in)" hint="The valve outlet or the downstream line, so an actual velocity can be compared with the RP 14E limit.">
+          <NumberInput section="valve" name="outletIdIn" step="0.001" />
+        </Field>
+      </div>
+      <Field label="Erosional C factor">
+        <Select value={inputs.valve.erosionalCPreset} onValueChange={(v) => setSection('valve', 'erosionalCPreset', v)}>
+          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {EROSIONAL_PRESETS.map((x) => (
+              <SelectItem key={x.id} value={x.id}>{x.label} (C {x.c})</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </Field>
     </div>
   );
@@ -172,29 +211,46 @@ export const SizingResults = () => {
         </CardContent>
       </Card>
 
-      {!erosional.error && (
-        <Card className="bg-slate-900/60 border-slate-800">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Body velocity limit</CardTitle></CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <Stat label="Density at outlet" value={fmt(erosional.rhoLbFt3, 2)} unit="lb/ft3" />
-              <Stat label="Erosional velocity" value={fmt(erosional.erosionalFtS, 1)} unit="ft/s"
-                hint={`API RP 14E at C = ${erosional.cFactor}`} />
-            </div>
-            <p className="text-[12px] text-slate-500 mt-3">
-              The same RP 14E limit the line sizing studio uses, applied at the valve outlet where
-              the fluid has expanded and is moving fastest. A valve that sizes correctly on Cv can
-              still erode its own body and downstream pipe.
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      <Card className="bg-slate-900/60 border-slate-800">
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Body velocity limit</CardTitle></CardHeader>
+        <CardContent>
+          {erosional.error ? <ErrorNote>{erosional.error}</ErrorNote> : (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Stat label="Density at outlet" value={fmt(erosional.rhoLbFt3, 2)} unit="lb/ft3" />
+                <Stat label="Actual velocity" value={fmt(erosional.velocityFtS, 1)} unit="ft/s"
+                  hint={`at the maximum ${erosional.phase} case through ${fmt(erosional.outletIdIn, 3)} in`} />
+                <Stat label="Erosional velocity" value={fmt(erosional.erosionalFtS, 1)} unit="ft/s"
+                  hint={`API RP 14E at C = ${erosional.cFactor}`} />
+                <Stat label="Of the limit" value={fmt(erosional.ratio * 100, 0)} unit="%"
+                  accent={erosional.exceeded ? 'text-red-400' : 'text-emerald-400'}
+                  hint={erosional.exceeded ? 'over the limit' : `${fmt(erosional.marginPct, 0)} percent margin`} />
+              </div>
+              {erosional.exceeded && (
+                <WarnNote>
+                  The outlet velocity is above the RP 14E limit at the C factor selected. A valve
+                  that sizes correctly on Cv can still erode its own body and the pipe downstream,
+                  and this is where the fluid moves fastest. Take a larger outlet, a larger
+                  downstream line, or a C factor you can justify for a clean inhibited service.
+                </WarnNote>
+              )}
+              <p className="text-[12px] text-slate-500 mt-3">
+                The same RP 14E limit the line sizing studio uses, applied at the valve outlet
+                where the fluid has expanded and is moving fastest. The velocity is the in-situ
+                rate of the maximum case through the outlet bore you state, so the check has two
+                numbers to compare rather than one.
+              </p>
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
 
 export const ControlResults = () => {
   const { authority, travel, noise, isLiquid } = useValve();
+  const travelWarnings = travel.warnings || [];
   return (
     <div className="space-y-4">
       <Card className="bg-slate-900/60 border-slate-800">
@@ -208,9 +264,12 @@ export const ControlResults = () => {
                     : (authority.verdict === 'poor' ? 'text-red-400' : 'text-yellow-400')}
                   hint={authority.verdict} />
                 <Stat label="Recommended characteristic"
-                  value={authority.recommendation?.characteristic || '--'} />
+                  value={authority.recommendation?.characteristicLabel || '--'}
+                  accent={authority.recommendationApplied ? 'text-emerald-400' : 'text-amber-400'}
+                  hint={authority.recommendationApplied ? 'this is the trim selected' : 'not the trim selected'} />
               </div>
               {authority.note && <WarnNote>{authority.note}</WarnNote>}
+              {authority.disagreement && <WarnNote>{authority.disagreement}</WarnNote>}
               {authority.recommendation?.reason && (
                 <p className="text-[12px] text-slate-500">{authority.recommendation.reason}</p>
               )}
@@ -225,16 +284,23 @@ export const ControlResults = () => {
           {travel.error ? <ErrorNote>{travel.error}</ErrorNote> : (
             <>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Stat label="At minimum" value={travel.minTravelPct === null ? 'beyond' : fmt(travel.minTravelPct, 0)} unit="%"
-                  accent={travel.minTravelPct !== null && travel.minTravelPct < 10 ? 'text-red-400' : 'text-slate-100'} />
-                <Stat label="At normal" value={travel.normalTravelPct === null ? 'beyond' : fmt(travel.normalTravelPct, 0)} unit="%"
+                <Stat label="At minimum" value={travelValue(travel.minState, travel.minTravelPct)}
+                  unit={travel.minState === 'ok' ? '%' : ''}
+                  accent={STATE_ACCENT(travel.minState, travel.minTravelPct !== null && travel.minTravelPct < 10)} />
+                <Stat label="At normal" value={travelValue(travel.normalState, travel.normalTravelPct)}
+                  unit={travel.normalState === 'ok' ? '%' : ''}
+                  accent={STATE_ACCENT(travel.normalState, false)}
                   hint="20 to 80 percent is the customary target" />
-                <Stat label="At maximum" value={travel.maxTravelPct === null ? 'beyond the valve' : fmt(travel.maxTravelPct, 0)} unit="%"
-                  accent={travel.maxTravelPct === null ? 'text-red-400' : 'text-slate-100'} />
-                <Stat label="Verdict" value={travel.pass ? 'WORKABLE' : 'CHECK'}
-                  accent={travel.pass ? 'text-emerald-400' : 'text-amber-400'} />
+                <Stat label="At maximum" value={travelValue(travel.maxState, travel.maxTravelPct)}
+                  unit={travel.maxState === 'ok' ? '%' : ''}
+                  accent={STATE_ACCENT(travel.maxState, false)} />
+                <Stat label="Verdict"
+                  value={travel.pass === null ? 'NO VERDICT' : (travel.pass ? 'WORKABLE' : 'CHECK')}
+                  accent={travel.pass === null ? 'text-slate-400' : (travel.pass ? 'text-emerald-400' : 'text-amber-400')}
+                  hint={`${travel.checksPerformed} of ${travel.checksPossible} checks ran`} />
               </div>
-              {travel.warnings.map((w) => <WarnNote key={w}>{w}</WarnNote>)}
+              {travel.passWithheldReason && <WarnNote>{travel.passWithheldReason}</WarnNote>}
+              {travelWarnings.map((w) => <WarnNote key={w}>{w}</WarnNote>)}
               <p className="text-[12px] text-slate-500">
                 A valve sized only for the maximum can sit almost on its seat at turndown, where the
                 characteristic collapses and the loop cannot control. That failure never shows in a
@@ -245,16 +311,27 @@ export const ControlResults = () => {
         </CardContent>
       </Card>
 
+      {!isLiquid && noise && noise.error && (
+        <Card className="bg-slate-900/60 border-slate-800">
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Aerodynamic noise indication</CardTitle></CardHeader>
+          <CardContent><ErrorNote>{noise.error}</ErrorNote></CardContent>
+        </Card>
+      )}
       {!isLiquid && noise && !noise.error && (
         <Card className="bg-slate-900/60 border-slate-800">
           <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Aerodynamic noise indication</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Stat label="Pressure ratio" value={fmt(noise.pressureRatio, 2)} />
+              <Stat label="Stream power" value={fmt(noise.streamPowerKw, 1)} unit="kW"
+                hint="the quantity the band is held down or raised by" />
+              <Stat label="Mass flow" value={fmt(noise.massFlowLbHr, 0)} unit="lb/hr" />
               <Stat label="Band" value={noise.band}
                 accent={noise.band === 'severe' ? 'text-red-400'
-                  : (noise.band === 'high' ? 'text-orange-400' : 'text-emerald-400')} />
+                  : (noise.band === 'high' ? 'text-orange-400' : 'text-emerald-400')}
+                hint={noise.band === noise.ratioBand ? 'from the pressure ratio' : `the ratio alone said ${noise.ratioBand}`} />
             </div>
+            {noise.powerEffect && <p className="text-[12px] text-amber-400/80">{noise.powerEffect}</p>}
             {noise.warning && <WarnNote>{noise.warning}</WarnNote>}
             <p className="text-[12px] text-slate-500">{noise.note}</p>
           </CardContent>

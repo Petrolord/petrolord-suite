@@ -14,7 +14,20 @@ import {
   VALVE_STYLES, liquidValve, gasValve,
   valveAuthority, characteristicFor, noiseIndication, travelCheck,
 } from '@/utils/facilities/engine/controlValve';
-import { erosionalVelocityFtS, erosionalC, EROSIONAL_C } from '@/utils/production/engine/chokePerformance';
+import { erosionalCheck, erosionalC, EROSIONAL_C } from '@/utils/production/engine/chokePerformance';
+
+/**
+ * Every derived block below is wrapped in this. A bare useMemo over an
+ * engine call takes the whole studio down on a throw.
+ */
+const safe = (label, fn) => {
+  try {
+    return fn();
+  } catch (e) {
+    console.error(`${label} failed`, e);
+    return { error: `The ${label} calculation could not be completed. Check the inputs above.` };
+  }
+};
 
 const TABLE = 'saved_valve_projects';
 
@@ -46,6 +59,7 @@ export const defaultInputs = () => ({
   valve: {
     cvRated: '100', rangeability: '50', characteristic: 'equalPercentage',
     dpSystemTotalPsi: '120', fp: '1',
+    outletIdIn: '4.026', erosionalCPreset: 'continuous',
   },
 });
 
@@ -95,28 +109,33 @@ export const ValveStudioProvider = ({ children }) => {
 
   /** Size at all three flows: min, normal and max. */
   const cases = useMemo(() => {
+    const built = safe('sizing', () => {
     const s = inputs.service;
     const common = {
       p1Psia: num(s.p1Psia),
       p2Psia: num(s.p2Psia),
       styleId: s.styleId,
-      fp: num(inputs.valve.fp, 1),
+      fp: num(inputs.valve.fp),
     };
+    // No fallbacks: an empty box is not the same input as a typed one.
+    // The vapour pressure one mattered most, because a cleared Pv box
+    // used to supply exactly the engine default that switched the whole
+    // cavitation screen off and printed "stable" in green.
     const build = (label, q) => {
       if (!(q > 0)) return { label, error: 'no flow stated' };
       const r = isLiquid
         ? liquidValve({
           ...common, qGpm: q,
-          sg: num(inputs.liquid.sg, 1),
-          pvPsia: num(inputs.liquid.pvPsia, 0),
-          pcPsia: num(inputs.liquid.pcPsia, 3200),
+          sg: num(inputs.liquid.sg),
+          pvPsia: num(inputs.liquid.pvPsia),
+          pcPsia: num(inputs.liquid.pcPsia),
         })
         : gasValve({
           ...common, qScfh: q,
-          gasSg: num(inputs.gas.gasSg, 0.65),
-          tF: num(inputs.gas.tF, 100),
-          z: num(inputs.gas.z, 1),
-          k: num(inputs.gas.k, 1.4),
+          gasSg: num(inputs.gas.gasSg),
+          tF: num(inputs.gas.tF),
+          z: num(inputs.gas.z),
+          k: num(inputs.gas.k),
         });
       return { label, flow: q, ...r };
     };
@@ -131,21 +150,35 @@ export const ValveStudioProvider = ({ children }) => {
         build('Normal', num(inputs.gas.qNormScfh)),
         build('Maximum', num(inputs.gas.qMaxScfh)),
       ];
+    });
+    // always an array, so no consumer has to guard the shape
+    return Array.isArray(built) ? built : [{ label: 'Sizing', error: built.error }];
   }, [inputs, isLiquid]);
 
   /** Authority and the characteristic it implies. */
-  const authority = useMemo(() => {
+  const authority = useMemo(() => safe('authority', () => {
     const dpValve = num(inputs.service.p1Psia) - num(inputs.service.p2Psia);
     const a = valveAuthority({
       dpValvePsi: dpValve,
       dpSystemTotalPsi: num(inputs.valve.dpSystemTotalPsi),
     });
     if (a.error) return a;
-    return { ...a, recommendation: characteristicFor({ authority: a.authority }) };
-  }, [inputs.service, inputs.valve.dpSystemTotalPsi]);
+    const recommendation = characteristicFor({ authority: a.authority });
+    // The studio used to show a recommended characteristic it never
+    // applied, beside a dropdown nothing reconciled it with.
+    const chosen = inputs.valve.characteristic === 'linear' ? 'linear' : 'equalPercentage';
+    return {
+      ...a,
+      recommendation,
+      chosenCharacteristic: chosen,
+      recommendationApplied: recommendation.characteristic === chosen,
+      disagreement: recommendation.characteristic === chosen ? null
+        : `the travel figures below use the ${chosen === 'linear' ? 'linear' : 'equal percentage'} trim selected in the inputs, not the ${recommendation.characteristicLabel} this authority recommends. Change the characteristic to see the recommended trim, or keep the selection deliberately`,
+    };
+  }), [inputs.service, inputs.valve.dpSystemTotalPsi, inputs.valve.characteristic]);
 
   /** Travel at each flow against the rated Cv. */
-  const travel = useMemo(() => {
+  const travel = useMemo(() => safe('travel', () => {
     const cvOf = (label) => {
       const c = cases.find((x) => x.label === label);
       return c && !c.error ? c.cv : NaN;
@@ -156,34 +189,80 @@ export const ValveStudioProvider = ({ children }) => {
       cvRequiredMax: cvOf('Maximum'),
       cvRated: num(inputs.valve.cvRated),
       characteristic: inputs.valve.characteristic === 'linear' ? 'linear' : 'equalPercentage',
-      rangeability: num(inputs.valve.rangeability, 50),
+      rangeability: num(inputs.valve.rangeability),
     });
-  }, [cases, inputs.valve]);
+  }), [cases, inputs.valve]);
 
   /** Noise indication at the maximum gas case. */
-  const noise = useMemo(() => {
+  const noise = useMemo(() => safe('noise indication', () => {
     if (isLiquid) return null;
     return noiseIndication({
       p1Psia: num(inputs.service.p1Psia),
       p2Psia: num(inputs.service.p2Psia),
       qScfh: num(inputs.gas.qMaxScfh),
-      gasSg: num(inputs.gas.gasSg, 0.65),
-      tF: num(inputs.gas.tF, 100),
+      gasSg: num(inputs.gas.gasSg),
+      tF: num(inputs.gas.tF),
     });
-  }, [isLiquid, inputs.service, inputs.gas]);
+  }), [isLiquid, inputs.service, inputs.gas]);
 
-  /** Erosional limit on the body, reusing the validated RP 14E. */
-  const erosional = useMemo(() => {
-    // approximate mixture density at valve conditions for the check
-    const rho = isLiquid
-      ? num(inputs.liquid.sg, 1) * 62.4
-      : (28.9625 * num(inputs.gas.gasSg, 0.65) * num(inputs.service.p2Psia, 14.7))
-        / (num(inputs.gas.z, 1) * 10.7316 * (num(inputs.gas.tF, 100) + 459.67));
+  /**
+   * Erosional limit on the body, reusing the validated RP 14E, AND THE
+   * ACTUAL VELOCITY TO COMPARE IT WITH. The card used to compute a limit
+   * and never compute a velocity, so the check it advertised could not
+   * fire on any input at all. The velocity comes from the maximum case's
+   * in-situ volumetric rate through the outlet bore the user states.
+   *
+   * The C factor is a stated choice from the published presets rather
+   * than a two-phase continuous-service value silently applied to a
+   * single-phase liquid.
+   */
+  const erosional = useMemo(() => safe('erosional', () => {
+    const outletIdIn = num(inputs.valve.outletIdIn);
+    if (!(outletIdIn > 0)) {
+      return { error: 'state the valve outlet or downstream line bore to compare a velocity against the limit' };
+    }
+    const preset = erosionalC(inputs.valve.erosionalCPreset);
+    let rho;
+    let inSituBpd;
+    if (isLiquid) {
+      const sg = num(inputs.liquid.sg);
+      const qGpm = num(inputs.liquid.qMaxGpm);
+      if (!(sg > 0) || !(qGpm > 0)) {
+        return { error: 'the erosional check needs a specific gravity and a maximum liquid rate' };
+      }
+      rho = sg * 62.366;
+      // gpm to bbl/d
+      inSituBpd = (qGpm * 60 * 24) / 42;
+    } else {
+      const gasSg = num(inputs.gas.gasSg);
+      const p2 = num(inputs.service.p2Psia);
+      const z = num(inputs.gas.z);
+      const tR = num(inputs.gas.tF) + 459.67;
+      const qScfh = num(inputs.gas.qMaxScfh);
+      if (!(gasSg > 0) || !(p2 > 0) || !(z > 0) || !(tR > 0) || !(qScfh > 0)) {
+        return { error: 'the erosional check needs a gas gravity, an outlet pressure, a z factor, a temperature and a maximum rate' };
+      }
+      rho = (28.9625 * gasSg * p2) / (z * 10.7316 * tR);
+      // scfh at the 14.696 psia and 519.67 R base to actual ft3/d at outlet
+      const actualFt3PerHr = qScfh * (14.696 / p2) * (tR / 519.67) * z;
+      inSituBpd = (actualFt3PerHr * 24) / 5.614583333333333;
+    }
     if (!(rho > 0)) return { error: 'cannot form a density for the erosional check' };
-    const preset = erosionalC('continuous');
-    const v = erosionalVelocityFtS({ mixtureDensityLbFt3: rho, cFactor: preset.c });
-    return { rhoLbFt3: rho, cFactor: preset.c, erosionalFtS: v, presets: EROSIONAL_C };
-  }, [isLiquid, inputs.liquid.sg, inputs.gas, inputs.service.p2Psia]);
+    const check = erosionalCheck({
+      inSituBpd, idIn: outletIdIn, mixtureDensityLbFt3: rho, cFactor: preset.c,
+    });
+    if (check.error) return { error: check.error };
+    return {
+      ...check,
+      rhoLbFt3: rho,
+      inSituBpd,
+      outletIdIn,
+      preset,
+      presets: EROSIONAL_C,
+      phase: isLiquid ? 'liquid' : 'gas',
+    };
+  }), [isLiquid, inputs.liquid.sg, inputs.liquid.qMaxGpm, inputs.gas,
+    inputs.service.p2Psia, inputs.valve.outletIdIn, inputs.valve.erosionalCPreset]);
 
   // --- Project lifecycle (studio-kit recipe) ---
   const serialize = useCallback((name) => ({
