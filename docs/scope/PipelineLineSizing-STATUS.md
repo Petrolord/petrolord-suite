@@ -157,6 +157,27 @@ still brackets its bisection at [14.7, p1] (FINDINGS D1) at Suite main
 dabfb44aa, so a line whose outlet would sit ABOVE its inlet is clamped
 to the inlet. The station walk inherits that clamp where it fires.
 
+## FC2-0d the gas card states its verdict (2026-09-16)
+
+FC2-0c recorded that the gas result card carried no RP 14E verdict at
+all, which mattered more once the gas sweep could fail a row: a user
+looking at a gas result saw nothing to distinguish a line that now fails
+the check from one that passes. Computing a verdict and not showing it
+is close to not having one.
+
+The gas card now carries the same verdict the multiphase card does,
+from the same binding-station check the sweep uses: the ratio, the
+velocity and limit at the station where it binds, how far along that
+station sits, the mean-pressure velocity the old check would have shown,
+and the number of stations walked, so a reader can tell it is a marched
+result rather than a point check. Both cards now lead with the ratio, so
+a reader does not have to know which branch they are in to read the
+verdict.
+
+The verdict is computed for the SELECTED bore in the context, so the
+card and the sweep table answer with the same rule; a refusal from the
+check is shown as its own message instead of an empty verdict.
+
 ## Honest limits (stated in-app)
 
 - Single-line only: the gathering-network solve is Production Network
@@ -178,11 +199,6 @@ to the inlet. The station walk inherits that clamp where it fires.
 - Tile rename migration 20260829530000 HELD for the prod upload.
 - Literature gates for the gas-equation constants against a GPSA
   worked example remain ARMED (owner PDFs).
-- **The gas-mode result card carries no RP 14E verdict at all.** The
-  gas card shows outlet pressure, drop, gradient and z; the erosional
-  verdict for a gas line exists only in the sweep table. Noticed during
-  FC2-0c and recorded rather than added, because adding a verdict to a
-  card that never had one is new function, not a repair.
 - Engine-side defects behind this app (descending-line outlet pressure,
   unguarded roughness, efficiency and corrosion allowance, the two
   barrel constants) remain open in the engines repo.
