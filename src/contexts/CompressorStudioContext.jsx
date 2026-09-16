@@ -70,6 +70,70 @@ const num = (v, fallback = NaN) => {
   return Number.isFinite(n) ? n : fallback;
 };
 
+export const ABSOLUTE_ZERO_F = -459.67;
+
+/**
+ * One horsepower-hour is 2544.43 Btu, so a driver whose heat rate is
+ * below that figure is being reported as more than 100 percent
+ * efficient (FC3 finding C3).
+ */
+export const MIN_HEAT_RATE_BTU_HP_HR = 2544.43;
+
+/**
+ * Every typed box this studio hands to the compression engine, checked
+ * at the door.
+ *
+ * The engine guards about half of its inputs and hands the rest
+ * straight to the arithmetic, so an unguarded one comes back as a
+ * non-finite number with no `error` key, or as a refusal that names
+ * four inputs that were all correct, or (at a negative maximum ratio
+ * per stage) as a thrown TypeError that takes the whole studio down.
+ * A refusal here is a named refusal (FC3 findings S3, C4, C6, C7).
+ */
+export const dutyIssue = (a) => {
+  const finite = [
+    ['qMMscfd', 'the gas rate'],
+    ['pSuctionPsia', 'the suction pressure'],
+    ['pDischargePsia', 'the discharge pressure'],
+    ['tSuctionF', 'the suction temperature'],
+    ['gasSg', 'the gas gravity'],
+    ['k', 'the heat capacity ratio k'],
+    ['polytropicEfficiency', 'the polytropic efficiency'],
+    ['mechanicalEfficiency', 'the mechanical efficiency'],
+    ['maxRatioPerStage', 'the maximum ratio per stage'],
+    ['maxDischargeF', 'the maximum discharge temperature'],
+    ['cpBtuLbF', 'the gas heat capacity'],
+  ];
+  const blank = finite.find(([key]) => !Number.isFinite(a[key]));
+  if (blank) return `${blank[1]} needs a number`;
+
+  if (!(a.qMMscfd > 0)) return 'the gas rate must be above zero';
+  if (!(a.pSuctionPsia > 0)) return 'the suction pressure must be above a full vacuum, which is -14.7 psig';
+  if (!(a.pDischargePsia > a.pSuctionPsia)) return 'the discharge pressure must be above the suction pressure';
+  if (!(a.gasSg > 0)) return 'the gas gravity must be above zero';
+  if (!(a.k > 1)) return 'the heat capacity ratio k must be above 1';
+  if (!(a.tSuctionF > ABSOLUTE_ZERO_F)) {
+    return `a suction temperature of ${a.tSuctionF} F is at or below absolute zero (${ABSOLUTE_ZERO_F} F)`;
+  }
+  if (!(a.maxDischargeF > ABSOLUTE_ZERO_F)) {
+    return `a maximum discharge temperature of ${a.maxDischargeF} F is at or below absolute zero (${ABSOLUTE_ZERO_F} F)`;
+  }
+  if (Number.isFinite(a.interstageCoolToF) && !(a.interstageCoolToF > ABSOLUTE_ZERO_F)) {
+    return `an intercooler outlet of ${a.interstageCoolToF} F is at or below absolute zero (${ABSOLUTE_ZERO_F} F)`;
+  }
+  if (!(a.polytropicEfficiency > 0) || a.polytropicEfficiency > 1) {
+    return 'the polytropic efficiency must be above 0 and at most 1: 0.72 to 0.82 is the usual range';
+  }
+  if (!(a.mechanicalEfficiency > 0) || a.mechanicalEfficiency > 1) {
+    return 'the mechanical efficiency must be above 0 and at most 1';
+  }
+  if (!(a.maxRatioPerStage > 1)) {
+    return 'the maximum ratio per stage must be above 1: at a ratio of 1 a stage does no compression at all, so no number of stages reaches the discharge pressure';
+  }
+  if (!(a.cpBtuLbF > 0)) return 'the gas heat capacity must be above zero';
+  return null;
+};
+
 export const CompressorStudioProvider = ({ children }) => {
   const { notifications, addNotification, removeNotification } = useStudioNotifications();
 
@@ -105,8 +169,17 @@ export const CompressorStudioProvider = ({ children }) => {
     };
   }, [inputs.duty, inputs.machine]);
 
+  /** Every typed input, checked at the door before the engine sees it. */
+  const refusal = useMemo(() => {
+    const issue = dutyIssue(engineArgs);
+    return issue ? { error: issue } : null;
+  }, [engineArgs]);
+
   /** The train. */
-  const train = useMemo(() => compressorTrain(engineArgs), [engineArgs]);
+  const train = useMemo(
+    () => refusal || compressorTrain(engineArgs),
+    [refusal, engineArgs],
+  );
 
   /** Machine screening from the train's own answer. */
   const screen = useMemo(() => {
@@ -124,10 +197,19 @@ export const CompressorStudioProvider = ({ children }) => {
   /** Driver fuel from the brake power. */
   const fuel = useMemo(() => {
     if (train.error) return { error: train.error };
+    const heatRate = num(inputs.driver.heatRateBtuHpHr);
+    const lhv = num(inputs.driver.gasLhvBtuScf);
+    if (!Number.isFinite(heatRate)) return { error: 'the driver heat rate needs a number in Btu/hp-hr' };
+    if (!Number.isFinite(lhv) || !(lhv > 0)) return { error: 'the fuel heating value must be above zero Btu/scf' };
+    if (heatRate < MIN_HEAT_RATE_BTU_HP_HR) {
+      return {
+        error: `a heat rate of ${heatRate} Btu/hp-hr is below the ${MIN_HEAT_RATE_BTU_HP_HR} Btu in one horsepower-hour, which would make the driver more than 100 percent efficient`,
+      };
+    }
     return driverFuel({
       brakeHp: train.totalBrakeHp,
-      heatRateBtuHpHr: num(inputs.driver.heatRateBtuHpHr, 8000),
-      gasLhvBtuScf: num(inputs.driver.gasLhvBtuScf, 950),
+      heatRateBtuHpHr: heatRate,
+      gasLhvBtuScf: lhv,
     });
   }, [train, inputs.driver]);
 
@@ -137,6 +219,7 @@ export const CompressorStudioProvider = ({ children }) => {
       .split(/[,\s]+/)
       .map((t) => parseFloat(t))
       .filter((n) => Number.isFinite(n) && n > 0);
+    if (refusal) return refusal;
     if (!list.length) return { error: 'list at least one discharge pressure' };
     const rows = list.map((psig) => {
       const t = compressorTrain({ ...engineArgs, pDischargePsia: psig + 14.7 });
@@ -157,7 +240,7 @@ export const CompressorStudioProvider = ({ children }) => {
       };
     });
     return { rows };
-  }, [engineArgs, inputs.sweep, inputs.driver]);
+  }, [refusal, engineArgs, inputs.sweep, inputs.driver]);
 
   /** Inlet volume, which is what the machine screen turns on. */
   const acfm = useMemo(() => actualInletCfm({
@@ -181,6 +264,32 @@ export const CompressorStudioProvider = ({ children }) => {
       mechanicalEfficiency: engineArgs.mechanicalEfficiency,
     });
   }, [train, engineArgs]);
+
+  /**
+   * Stages that finish above the limit the user typed.
+   *
+   * The engine picks the stage count from the suction temperature for
+   * every stage, then runs every stage after the first from the
+   * intercooler outlet, so an intercooler that leaves the gas warmer
+   * than the suction runs the later stages hotter than the count was
+   * chosen for. Its own hot-stage warning is measured against a fixed
+   * 300 F rather than against the limit in the box, so it stays silent
+   * on exactly those cases (FC3 findings C1 and C2). The staging repair
+   * belongs in the engines repo; until it lands, the studio at least
+   * checks the limit the user actually typed.
+   */
+  const dischargeLimitCheck = useMemo(() => {
+    if (train.error) return null;
+    const limitF = engineArgs.maxDischargeF;
+    const over = train.stages.filter((s) => s.tDischargeF > limitF);
+    if (!over.length) return null;
+    const named = over.map((s) => `stage ${s.stage} at ${s.tDischargeF.toFixed(1)} F`).join(', ');
+    return {
+      limitF,
+      stages: over,
+      note: `${named}: above the ${limitF} F limit this train was staged against. The stage count is chosen from the suction temperature, while every stage after the first starts from the intercooler outlet, so an intercooler that leaves the gas warmer than the suction runs the later stages hotter than the count allowed for. Intercool closer to the suction temperature, or add a stage.`,
+    };
+  }, [train, engineArgs.maxDischargeF]);
 
   // --- Project lifecycle (studio-kit recipe) ---
   const serialize = useCallback((name) => ({
@@ -303,6 +412,7 @@ export const CompressorStudioProvider = ({ children }) => {
     sweep,
     acfm,
     firstStage,
+    dischargeLimitCheck,
     // projects
     projects,
     currentProjectId,

@@ -59,8 +59,11 @@ export const DutyInputs = () => (
 );
 
 export const TrainResults = () => {
-  const { train, firstStage, acfm } = useCompressor();
+  const {
+    train, firstStage, acfm, dischargeLimitCheck,
+  } = useCompressor();
   if (train.error) return <ErrorNote>{train.error}</ErrorNote>;
+  const overLimit = new Set((dischargeLimitCheck?.stages || []).map((s) => s.stage));
   return (
     <div className="space-y-4">
       <Card className="bg-slate-900/60 border-slate-800">
@@ -114,7 +117,7 @@ export const TrainResults = () => {
                     <td className="py-1.5 pr-3 tabular-nums">{fmt(s.pSuctionPsia, 0)}</td>
                     <td className="py-1.5 pr-3 tabular-nums">{fmt(s.pDischargePsia, 0)}</td>
                     <td className="py-1.5 pr-3 tabular-nums">{fmt(s.tSuctionF, 0)}</td>
-                    <td className={`py-1.5 pr-3 tabular-nums ${s.warning ? 'text-amber-400' : ''}`}>
+                    <td className={`py-1.5 pr-3 tabular-nums ${s.warning || overLimit.has(s.stage) ? 'text-amber-400' : ''}`}>
                       {fmt(s.tDischargeF, 0)}
                     </td>
                     <td className="py-1.5 pr-3 tabular-nums">{fmt(s.zAvg, 4)}</td>
@@ -125,6 +128,7 @@ export const TrainResults = () => {
               </tbody>
             </table>
           </div>
+          {dischargeLimitCheck && <WarnNote>{dischargeLimitCheck.note}</WarnNote>}
           {train.stages.filter((s) => s.warning).map((s) => (
             <WarnNote key={s.stage}>Stage {s.stage}: {s.warning}</WarnNote>
           ))}
