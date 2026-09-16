@@ -5,9 +5,13 @@ import { BackButton } from './BackButton';
 import { HelpGuide } from './HelpGuide';
 import { SnapshotManager } from './SnapshotManager';
 import { useRiskReporting } from '@/hooks/useRiskReporting';
+import { useRiskRegister } from '../hooks/useRiskRegister';
 
 export const RiskRegisterShell = ({ children, activeTab, onTabChange }) => {
   const [helpOpen, setHelpOpen] = useState(false);
+  // AS2: the snapshot needs the register it is capturing. It used to
+  // capture nothing at all and say it had.
+  const { risks } = useRiskRegister();
   
   // Safely destructure with a fallback to empty object to prevent TypeError.
   // Map reportData to activeReport for backward compatibility with shell logic.
@@ -49,7 +53,7 @@ export const RiskRegisterShell = ({ children, activeTab, onTabChange }) => {
           </div>
           
           <div className="flex items-center gap-3">
-            <SnapshotManager />
+            <SnapshotManager risks={risks} />
             <button 
               onClick={() => setHelpOpen(true)}
               className="p-2 text-slate-400 hover:text-cyan-400 hover:bg-slate-800 rounded-full transition-colors"

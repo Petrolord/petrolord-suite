@@ -5,6 +5,7 @@ import { Download, Search, Filter, Plus } from 'lucide-react';
 import { useRiskRegister } from './hooks/useRiskRegister';
 import { exportDataAsCSV, exportToPDF } from '@/utils/exportUtils';
 import { useToast } from '@/hooks/use-toast';
+import { RiskScoreBadge } from './components/RiskBadges';
 
 const RiskRegisterTablePage = () => {
   const { risks, loading } = useRiskRegister();
@@ -87,9 +88,7 @@ const RiskRegisterTablePage = () => {
                   <TableCell>{risk.likelihood}</TableCell>
                   <TableCell>{risk.impact}</TableCell>
                   <TableCell>
-                    <span className={`px-2 py-1 rounded text-xs font-bold ${risk.risk_score > 15 ? 'bg-red-500/20 text-red-500' : 'bg-green-500/20 text-green-500'}`}>
-                      {risk.risk_score}
-                    </span>
+                    <RiskScoreBadge score={risk.risk_score} />
                   </TableCell>
                   <TableCell>{risk.status}</TableCell>
                 </TableRow>

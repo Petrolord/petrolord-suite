@@ -198,6 +198,7 @@ const RiskRegister = lazy(() => import('@/pages/apps/RiskRegister.jsx'));
 // Risk Register Consolidated Flow
 const NewRiskPage = lazy(() => import('@/pages/apps/risk-register/NewRiskPage.jsx'));
 const RiskDetailPage = lazy(() => import('@/pages/apps/risk-register/RiskDetailPage.jsx'));
+const EditRiskPage = lazy(() => import('@/pages/apps/risk-register/EditRiskPage.jsx'));
 
 // Document Control
 const DocControlDashboard = lazy(() => import('@/pages/apps/document-control/Dashboard.jsx'));
@@ -790,6 +791,8 @@ function App() {
                                 {/* Risk Register Full Flow Routes */}
                                 <Route path="apps/assurance/risk-register" element={<ProtectedAppRoute appId="risk-register" appName="Risk Register"><RiskRegister /></ProtectedAppRoute>} />
                                 <Route path="apps/assurance/risk-register/new" element={<ProtectedAppRoute appId="risk-register" appName="Risk Register"><NewRiskPage /></ProtectedAppRoute>} />
+                                {/* AS2: the Edit button on the detail page was a "not implemented" toast. */}
+                                <Route path="apps/assurance/risk-register/:id/edit" element={<ProtectedAppRoute appId="risk-register" appName="Risk Register"><EditRiskPage /></ProtectedAppRoute>} />
                                 <Route path="apps/assurance/risk-register/:id" element={<ProtectedAppRoute appId="risk-register" appName="Risk Register"><RiskDetailPage /></ProtectedAppRoute>} />
 
                                 {/* Document Control Flow Routes */}

@@ -6,9 +6,10 @@ import { RiskScoreBadge, RiskStatusBadge } from './components/RiskBadges';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, Loader2, TrendingUp, AlertOctagon, CheckCircle2 } from 'lucide-react';
+import { calculateRiskScore, getRiskBand } from '@/lib/riskScoring';
 
 const RiskRegisterDashboardPage = ({ setActiveTab }) => {
-  const { risks, loading } = useRiskRegister();
+  const { risks, loading, error } = useRiskRegister();
   const navigate = useNavigate();
 
   if (loading) {
@@ -19,8 +20,27 @@ const RiskRegisterDashboardPage = ({ setActiveTab }) => {
       );
   }
 
+  if (error) {
+      return (
+          <div className="p-6 max-w-2xl mx-auto">
+              <Card className="bg-slate-900 border-red-500/30">
+                  <CardContent className="p-6 space-y-2">
+                      <h3 className="text-lg font-semibold text-white">The register could not be loaded</h3>
+                      <p className="text-sm text-slate-400">{error}</p>
+                      <p className="text-xs text-slate-500">
+                          Nothing is shown rather than an empty register, because an
+                          empty register and a broken one are not the same thing.
+                      </p>
+                  </CardContent>
+              </Card>
+          </div>
+      );
+  }
+
   const openRisks = risks.filter(r => r.status === 'Open' || r.status === 'Under Review');
-  const criticalRisks = openRisks.filter(r => r.risk_score >= 15);
+  const criticalRisks = openRisks.filter(
+    r => getRiskBand(calculateRiskScore(r.likelihood, r.impact)) === 'Critical',
+  );
   const mitigatedRisks = risks.filter(r => r.status === 'Mitigated' || r.status === 'Closed');
 
   return (

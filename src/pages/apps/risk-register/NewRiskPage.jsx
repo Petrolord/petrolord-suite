@@ -35,7 +35,19 @@ const NewRiskPage = () => {
     setIsSubmitting(true);
     const res = await addRisk(formData);
     if(res.success) {
-        toast({ title: "Success", description: "New risk has been added." });
+        // AS2: tags and links are separate writes now, and a code that
+        // matched no risk in this register has to be said out loud
+        // rather than left looking linked.
+        const warnings = res.warnings || [];
+        toast(warnings.length
+          ? {
+              title: `${res.data.risk_id} saved, with something to check`,
+              description: warnings.join(' '),
+            }
+          : {
+              title: "Risk logged",
+              description: `${res.data.risk_id} has been added to the register.`,
+            });
         if (closeReport) closeReport();
         navigate('/dashboard/apps/assurance/risk-register');
     } else {

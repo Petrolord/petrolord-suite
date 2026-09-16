@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# AS1 ordered apply. OWNER-RUN.
+# AS1 and AS2 ordered apply. OWNER-RUN.
 #
 # Production DB writes are blocked for the agent, so this is the script
 # rather than the applied state. Run it from the repo root with the
@@ -40,6 +40,7 @@ STEPS=(
   20260916099000_as1_assurance_schema_backfill.sql
   20260916100000_as1_assurance_honest_catalog.sql
   20260916101000_as1_assurance_rls.sql
+  20260916110000_as2_risk_register_residual_appetite.sql
 )
 
 echo "=== STEP 0: baseline, before anything changes ==="
@@ -88,6 +89,15 @@ echo "Substitute :ORG_A, :ORG_B, :USER_A, :USER_B with two real"
 echo "organizations and one non-super-admin member of each, then:"
 echo "  supabase db query --linked -f tools/validation/assurance/rls-pentest-as1.sql"
 echo
+echo
+echo "Then the AS2 gate: no risk code may repeat inside an organization,"
+echo "and residual/rating/appetite must be populated on every row."
+supabase db query --linked "
+  select org_id, risk_id, count(*) as duplicates from risk_register
+   group by 1,2 having count(*) > 1;"
+supabase db query --linked "
+  select risk_id, risk_score, residual_score, rating, appetite_status
+    from risk_register order by risk_id;"
 echo "The commerce migration is NOT in this script. It touches shared"
 echo "tables (organization_apps, quotes) and needs a second engineer's"
 echo "review first:"
