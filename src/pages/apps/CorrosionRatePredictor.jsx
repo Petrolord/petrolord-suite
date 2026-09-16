@@ -30,20 +30,45 @@ const SectionLabel = ({ children }) => (
 
 const Summary = () => {
   const { result } = useCorrosion();
-  if (result.error) return null;
+  if (result.error) {
+    return (
+      <div className="rounded-md border border-amber-700/50 bg-amber-950/30 px-3 py-2 text-sm text-amber-300">
+        No screening: {result.error}
+      </div>
+    );
+  }
+  const r = result.rate;
   return (
     <div className="space-y-1">
-      <Row label="Rate" value={`${fmt(result.rate.rateMmYr, 3)} mm/yr`} hint={result.category} />
-      <Row label="Uninhibited" value={`${fmt(result.rate.uninhibitedMmYr, 3)} mm/yr`} />
-      <Row label="Effective inhibition" value={`${fmt(result.rate.effectiveInhibitionPct, 0)} %`} />
-      <Row label="Controlled by" value={result.rate.controlling} />
-      {!result.shear.error && (
-        <Row label="Wall shear" value={`${fmt(result.shear.tauPa, 0)} Pa`} hint={`film risk ${result.shear.filmRisk}`} />
+      <Row label="Rate"
+        value={`${fmt(r.rateMmYr, 3)} mm/yr`}
+        hint={`${fmt(result.rateMpy, 1)} mpy, ${result.category || 'not graded'}`} />
+      <Row label="Uninhibited"
+        value={`${fmt(r.uninhibitedMmYr, 3)} mm/yr`}
+        hint={`${fmt(result.uninhibitedMpy, 1)} mpy`} />
+      <Row label="Effective inhibition"
+        value={r.effectiveInhibitionPct === null ? 'not defined' : `${fmt(r.effectiveInhibitionPct, 1)} %`} />
+      <Row label="Controlled by" value={r.controlling || '--'} />
+      <Row label="Wall shear"
+        value={`${fmt(result.shear.tauPa, 0)} Pa`}
+        hint={result.filmStripped
+          ? 'film risk high, the inhibitor credit is removed'
+          : `film risk ${result.shear.filmRisk}`} />
+      <Row label="H2S threshold"
+        value={result.sour.sour ? 'above' : 'below'}
+        hint="no severity region and no material selection here" />
+      <Row label="Film regime" value={result.regime.regime} />
+      <Row label="Remaining life"
+        value={(result.life && result.life.remainingYears !== null)
+          ? `${fmt(result.life.remainingYears, 1)} yr`
+          : 'not computed'} />
+      {result.binding && (
+        <Row label="Binding constraint" value={result.binding.what} />
       )}
-      <Row label="Sour service" value={result.sour.sour ? `Region ${result.sour.region}` : 'no'} />
-      {result.life && !result.life.error && (
-        <Row label="Remaining life"
-          value={Number.isFinite(result.life.remainingYears) ? `${fmt(result.life.remainingYears, 1)} yr` : 'unbounded'} />
+      {result.withheld && (
+        <div className="mt-2 rounded-md border border-amber-700/50 bg-amber-950/30 px-3 py-2 text-[12px] text-amber-300">
+          Not graded: {result.withheld.why}
+        </div>
       )}
     </div>
   );
@@ -119,7 +144,7 @@ const StudioContent = () => {
         <title>Corrosion &amp; Integrity Studio | Petrolord Suite</title>
         <meta
           name="description"
-          content="CO2 corrosion screening on de Waard-Milliams 1995 in resistance-in-series form, so velocity and line size actually change the answer, with the protective-scale correction, wall shear against inhibitor film survival, inhibitor efficiency separated from availability, MR0175 sour-service regions from H2S and pH, and remaining life against a corrosion allowance."
+          content="CO2 corrosion screening on de Waard-Milliams 1995 in resistance-in-series form, so velocity and line size actually change the answer, with the protective-scale correction and its computed onset temperature, wall shear that removes the inhibitor credit once the film is stripped, inhibitor efficiency separated from availability, an H2S screening threshold, and remaining life against a corrosion allowance. It does not classify sour-service severity, select materials, or set an inspection interval or a retirement thickness."
         />
       </Helmet>
       <StudioLayout
@@ -144,7 +169,7 @@ const StudioContent = () => {
             <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
             <StudioHelp
               title="Corrosion & Integrity Guide"
-              description="Why velocity belongs in the model, why hotter is not always worse, and why availability beats efficiency."
+              description="Why velocity belongs in the model, why hotter is not always worse, why availability beats efficiency, and what this studio will not tell you."
               triggerTitle="Corrosion documentation"
             >
               <CorrosionHelpContent />
