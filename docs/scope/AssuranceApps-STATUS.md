@@ -1,7 +1,8 @@
 # Assurance & Compliance module — status
 
 Plan of record: `docs/scope/Assurance-ROADMAP.md`.
-Wave: **AS1 (foundations), BUILT 2026-09-16**, migrations held.
+Wave: **AS1 (foundations) and AS2 (Risk Register), BUILT 2026-09-16**,
+migrations held.
 
 This file replaces a document that carried the same name and described
 the Economics E4 apps. That content now lives at
@@ -19,8 +20,8 @@ programmes. This one is still in its Horizons-generated state.
 
 | App | Route | Persists | State after AS1 | Wave |
 |---|---|---|---|---|
-| Risk Register | `apps/assurance/risk-register` | `risk_register` (+ snapshots) | **Active.** Real, honest errors | AS2 |
-| Risk Heatmap | redirect into the register | via the register | **Active** | AS2 |
+| Risk Register | `apps/assurance/risk-register` | `risk_register`, `risk_tags`, `risk_links`, snapshots | **Active.** AS2 done | AS2 |
+| Risk Heatmap | redirect into the register | via the register | **Active.** AS2 done | AS2 |
 | Regulatory Compliance | `apps/assurance/regulatory-compliance/*` | 3 services | **Active.** Real, honest errors | AS3 |
 | ISO Compliance | `apps/assurance/iso-compliance/*` | nothing | **Demoted to Coming Soon.** `@/data/isoComplianceData` in `useState` | AS8 |
 | Document Control | `apps/assurance/document-control/*` | `documents`, mock fallback | Coming Soon | AS4 |
@@ -129,7 +130,127 @@ on a table another module is quietly using breaks that module.
 
 ---
 
-## 3. How AS1 was verified
+## 3. AS2, built 2026-09-16
+
+The Risk Register was the honest app in the module. It was still broken
+in ways nobody could have seen from a demo.
+
+### 3.1 It could not create a risk at all
+
+`RiskForm` collects `tags` and `linked_risks`. `NewRiskPage` passed the
+whole form object into an insert on `risk_register`. Neither is a column
+there, and PostgREST refuses an insert naming a column it does not know,
+so every create from the UI failed with "Could not find the 'tags'
+column of 'risk_register' in the schema cache". The four rows in the
+live register are RSK-1001 to RSK-1004: seeded, not created through the
+form.
+
+`risk_tags` and `risk_links` are their real homes and had never been
+written to. `utils/riskPayload.js` splits a form payload into the three
+writes that exist, and its test pins the writable column list against
+the schema read out of the AS1 backfill migration rather than restating
+it. A linked code that matches no risk is reported rather than dropped.
+
+### 3.2 Four scoring authorities that disagreed
+
+| Where | What it said |
+|---|---|
+| `utils/riskScoring.js` | `>= 15 / >= 10 / >= 5` |
+| `RiskHeatmapMatrix` | the same thresholds written again, in the file that imports the first one, with the imported helper left unused |
+| `RiskRegisterTablePage` | `> 15`, so a 3x5 risk was the one score in the matrix the table painted green and everything else painted red |
+| `useAssuranceAnalytics` | `r.rating || (a fourth copy)`, preferring a stored text column the register never wrote |
+
+`src/lib/riskScoring.js` is the only one now, on the
+`percentileConventions` precedent. It also refuses a level off the 1-5
+scale rather than multiplying it: the old `Number(x) || 0` scored a 9x9
+as 81, which falls in no band.
+
+`rating` is written from it on every save, so the stored band cannot
+disagree with the stored score.
+
+### 3.3 Risk codes collided by construction
+
+Codes were `RSK-${Math.floor(Math.random() * 10000)}` with no unique
+constraint anywhere. By the birthday bound two risks share a code at
+about 118 risks, silently, and people cite risk codes in audits.
+Migration 20260916110000 adds a unique index per organization and
+`next_risk_code()`, which issues codes in sequence under an advisory
+lock and raises 42501 for a caller outside the organization.
+
+### 3.4 Every number described the world before any control
+
+The register scored inherent risk only, so the dashboard's "critical
+risks", the heatmap and every count described risk before mitigation.
+`residual_score` is generated and falls back PER AXIS, because
+mitigation that cuts likelihood but not impact must not silently reset
+impact to 1. `target_score` gives `appetite_status` a meaning (it was a
+free text column, null on every row, that nothing wrote and nothing
+defined), and a risk with no target reads "Not set" rather than
+reporting a pass. `next_review_date` moved onto the register, so a risk
+that has never been reviewed can still be overdue.
+
+### 3.5 Three invented sections and a false confirmation
+
+`RiskDetailPage` rendered, as literals, on every risk in every
+organization: two tag badges reading "Drilling" and "High Priority"; one
+linked risk reading "RSK-1002 (Dependency)"; and a "Scoring History"
+that restated the current score as a creation event and reported
+"Pending mitigation validation" whether or not a residual assessment
+existed.
+
+`SnapshotManager` was worse than a stub: "Capture Current State" toasted
+"Snapshot Saved: Current risk register state has been captured" and
+wrote nothing, above an invented "Q2 2026 Summary, 42 Risks". That is
+the PM Pro "Connected" badge defect again, and the whole point of a
+snapshot is that someone can go back to it at a board review. Snapshots
+are rows now, with export and delete. Compare is removed rather than
+left as a toast.
+
+Edit was a "not implemented" toast. `EditRiskPage` reuses `RiskForm`,
+loads the risk's real tags and links, and is routed at `:id/edit`.
+
+A failed status change did nothing at all, so a status that did not save
+looked exactly like one that did.
+
+### 3.6 Verification
+
+173 tests, from none. Two of the suites are guards rather than unit
+tests, because unit tests would have passed happily while the table page
+painted a 15 green:
+
+- `riskScoring.test.js` fails if a fifth copy of the thresholds appears.
+- `noInventedData.test.js` is the module's standing rule as a test: no
+  `MOCK_` constants, no empty-result fallbacks, no hardcoded risk codes
+  or tags in rendered literals, no "not implemented" toasts, load
+  failures surfaced. It is the template AS4 to AS10 will need.
+
+Both scan code with comments stripped, so neither can be satisfied by a
+comment or fooled by one, and both were verified to fail when the defect
+is put back.
+
+Migration 20260916110000 was applied to a scratch PostgreSQL 15:
+residual follows a per-axis edit and tracks an inherent edit, the checks
+refuse an off-scale level, the unique index refuses a duplicate code
+inside an organization and allows the same code in another, and
+`next_risk_code` raises 42501 for a non-member.
+
+### 3.7 Left for later, deliberately
+
+- The module's charts are still ad-hoc dark Recharts. The standing chart
+  rule (white `chartTheme` plus the 40px `ChartLogo`) is applied in the
+  AS11 hub wave, so every screen changes at once rather than a third of
+  them changing now.
+- `risk_actions` and `risk_mitigation_actions` are still unused. Actions
+  to closure are the second half of the register and land with the
+  Audit and Findings work at AS10, which needs the same CAPA shape.
+- `risk_kris` is unused.
+- There is no scoring history table, so the mitigation card shows the
+  distance between inherent and residual rather than a timeline. A real
+  history wants `risk_activity_log`, which nothing writes yet.
+
+---
+
+## 4. How AS1 was verified
 
 No production write was made. Everything below ran on a scratch
 PostgreSQL 15 instance.
@@ -161,9 +282,9 @@ schema level, and on the scratch reproduction.
 
 ---
 
-## 4. Open
+## 5. Open
 
-- **All four migrations are unapplied.** Ordered apply script:
+- **All five migrations are unapplied.** Ordered apply script:
   `tools/validation/assurance/as1-apply.sh`. Owner-run.
 - The commerce migration needs a second engineer (shared tables).
 - Five owner questions in `Assurance-ROADMAP.md` §7. AS1 proceeded on
@@ -172,5 +293,15 @@ schema level, and on the scratch reproduction.
 - `purchased_apps` is **inserted from the browser** by
   `src/utils/paymentVerificationLogic.js`. Recorded, not fixed.
 - The ~90 remaining RLS-off legacy tables.
-- AS2 onward: the apps themselves. The first rule of the programme is
+- `npm run build` currently fails in this environment at the PWA
+  service-worker step with "Unable to write the service worker file.
+  'crypto is not defined'". The Rollup bundle itself completes and
+  writes every asset; the failure is inside workbox-build after
+  bundling. It is not caused by the AS work, which touches no build
+  config, and the repo already carries a fix for the same error
+  (6e970c8b9, whose polyfill is present). A clean control build on
+  unmodified main could not be completed here, because a git worktree
+  cannot resolve this repo's node_modules. **It blocks cutting a
+  production zip and wants its own look.**
+- AS3 onward: the rest of the apps. The first rule of the programme is
   that no service in this module may return invented rows.
