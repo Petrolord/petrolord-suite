@@ -11,7 +11,7 @@ const helpContent = [
     icon: BookOpen,
     title: 'What this studio does',
     content:
-      'Sizes a control valve to the ISA 75.01 method at three flows rather than one, and checks the things that decide whether the valve will actually control: how much of the system drop it takes, where it sits on its own travel at each flow, whether the service chokes, cavitates or flashes, and whether the outlet velocity is going to erode the body. It gives you the Cv a vendor should be quoting against and the reasons behind it, not a substitute for their trim selection.',
+      'Sizes a control valve to the ISA 75.01 method at three flows rather than one, and checks the things that decide whether the valve will actually control: how much of the system drop it takes, where it sits on its own travel at each flow, whether the service chokes, cavitates or flashes, and whether the outlet velocity is going to erode the body, which needs the outlet bore you state so there are two velocities to compare. It gives you the Cv a vendor should be quoting against and the reasons behind it, not a substitute for their trim selection.',
   },
   {
     id: 'choking',
@@ -25,7 +25,7 @@ const helpContent = [
     icon: Droplets,
     title: 'Cavitation is not flashing, and damage starts early',
     content:
-      'Two different things happen when a liquid drops below its vapour pressure inside a valve. If it recovers above the vapour pressure downstream, the bubbles collapse: that is cavitation, and the implosions destroy trim. If the downstream pressure stays below the vapour pressure, the bubbles do not collapse: that is flashing, the flow is two-phase from the valve onwards, and an anti-cavitation trim will do nothing for it because there is no collapse to prevent. The two need different valves and this studio distinguishes them. It also reports the cavitation index, because damage begins well before the flow chokes and a valve can be quietly eroding at a duty that looks perfectly stable on a Cv calculation.',
+      'Two different things happen when a liquid drops below its vapour pressure inside a valve. If it recovers above the vapour pressure downstream, the bubbles collapse: that is cavitation, and the implosions destroy trim. If the downstream pressure stays below the vapour pressure, the bubbles do not collapse: that is flashing, the flow is two-phase from the valve onwards, and an anti-cavitation trim will do nothing for it because there is no collapse to prevent. The two need different valves and this studio distinguishes them. It also reports the cavitation index, because damage begins well before the flow chokes and a valve can be quietly eroding at a duty that looks perfectly stable on a Cv calculation. The index is (inlet pressure less vapour pressure) divided by the pressure drop the valve uses, so it cannot be formed without a vapour pressure: leave that box empty and the studio refuses the sizing rather than reporting every service as stable. Its thresholds of two and three are this engine\'s stated screen and are trim dependent by nature.',
   },
   {
     id: 'gas',
@@ -39,7 +39,7 @@ const helpContent = [
     icon: Sliders,
     title: 'Authority, and the failure a Cv number never shows',
     content:
-      'Valve authority is the fraction of the system drop the valve takes at design flow, and it decides whether the loop can control at all. With low authority the system absorbs most of the drop as flow rises, which flattens the installed characteristic so severely that the valve does nearly all its work in the first few percent of travel. Equal-percentage trim exists precisely to cancel that distortion, which is why the recommended characteristic follows from the authority rather than from preference. Separately, a valve sized only for the maximum flow can sit almost on its seat at turndown, where the characteristic collapses entirely; sizing at three flows is what makes that visible.',
+      'Valve authority is the fraction of the system drop the valve takes at design flow, and it decides whether the loop can control at all. With low authority the system absorbs most of the drop as flow rises, which flattens the installed characteristic so severely that the valve does nearly all its work in the first few percent of travel. Equal-percentage trim exists precisely to cancel that distortion, which is why the recommended characteristic follows from the authority rather than from preference. The recommendation is a recommendation: the travel figures use the trim selected in the inputs, and the studio says so when the two disagree. Separately, a valve sized only for the maximum flow can sit almost on its seat at turndown, where the characteristic collapses entirely; sizing at three flows is what makes that visible.',
   },
   {
     id: 'noise',

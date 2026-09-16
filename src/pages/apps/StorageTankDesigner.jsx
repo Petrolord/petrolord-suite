@@ -43,10 +43,11 @@ const Summary = () => {
         <Row label="Governing vent case" value={venting.governing} />
       )}
       {!fire.error && (
-        <Row label="Fire vent" value={`${fmt(fire.ventScfhAir, 0)} scfh air`} />
+        <Row label="Fire heat input" value={`${fmt(fire.qBtuHr / 1e6, 2)} MMBtu/hr`}
+          hint="the required vent is withheld: see the Venting tab" />
       )}
       {!losses.error && (
-        <Row label="Losses" value={`${fmt(losses.totalLossTonsYr, 1)} tons/yr`} />
+        <Row label="Losses" value={`${fmt(losses.totalLossShortTonsYr, 1)} short tons/yr`} />
       )}
     </div>
   );

@@ -44,8 +44,13 @@ const Summary = () => {
         <Row label="Authority" value={fmt(authority.authority, 2)} hint={authority.verdict} />
       )}
       {!travel.error && (
-        <Row label="Travel at normal"
-          value={travel.normalTravelPct === null ? 'beyond' : `${fmt(travel.normalTravelPct, 0)} %`} />
+        <>
+          <Row label="Travel at normal"
+            value={travel.normalState === 'ok' ? `${fmt(travel.normalTravelPct, 1)} %` : travel.normalState} />
+          <Row label="Travel verdict"
+            value={travel.pass === null ? 'no verdict' : (travel.pass ? 'workable' : 'check')}
+            hint={`${travel.checksPerformed} of ${travel.checksPossible} checks ran`} />
+        </>
       )}
     </div>
   );

@@ -11,6 +11,19 @@ import {
   transmitterUncertaintyPct, straightRunDiameters, dischargeCoefficient,
 } from '@/utils/facilities/engine/metering';
 
+/**
+ * Every derived block below is wrapped in this. A bare useMemo over an
+ * engine call takes the whole studio down on a throw.
+ */
+const safe = (label, fn) => {
+  try {
+    return fn();
+  } catch (e) {
+    console.error(`${label} failed`, e);
+    return { error: `The ${label} calculation could not be completed. Check the inputs above.` };
+  }
+};
+
 const TABLE = 'saved_meter_projects';
 
 export const service = createSavedProjectsService(TABLE, {
@@ -37,7 +50,7 @@ export const defaultInputs = () => ({
   uncertainty: {
     cdUncertaintyPct: '0.5', expansibilityUncertaintyPct: '0.2',
     boreUncertaintyPct: '0.05', pipeUncertaintyPct: '0.1',
-    dpUncertaintyPct: '0.5', densityUncertaintyPct: '0.3',
+    densityUncertaintyPct: '0.3',
     transmitterAccuracyPctOfSpan: '0.075',
   },
 });
@@ -84,73 +97,97 @@ export const MeterStudioProvider = ({ children }) => {
     setInputs((prev) => ({ ...prev, [section]: { ...prev[section], [key]: value } }));
   }, []);
 
-  const flow = useMemo(() => orificeFlow({
+  const flow = useMemo(() => safe('flow', () => orificeFlow({
     pipeIdIn: num(inputs.run.pipeIdIn),
     orificeIdIn: num(inputs.run.orificeIdIn),
     dpInH2O: num(inputs.run.dpInH2O),
     p1Psia: num(inputs.run.p1Psia),
     densityLbFt3: num(inputs.run.densityLbFt3),
     viscosityCp: num(inputs.run.viscosityCp),
-    k: num(inputs.run.k, 1.3),
-  }), [inputs.run]);
+    k: num(inputs.run.k),
+  })), [inputs.run]);
 
-  const sized = useMemo(() => sizeOrifice({
+  const sized = useMemo(() => safe('plate sizing', () => sizeOrifice({
     pipeIdIn: num(inputs.run.pipeIdIn),
     targetMassLbHr: num(inputs.sizing.targetMassLbHr),
     dpInH2O: num(inputs.sizing.designDpInH2O),
     p1Psia: num(inputs.run.p1Psia),
     densityLbFt3: num(inputs.run.densityLbFt3),
     viscosityCp: num(inputs.run.viscosityCp),
-    k: num(inputs.run.k, 1.3),
-  }), [inputs.run, inputs.sizing]);
+    k: num(inputs.run.k),
+  })), [inputs.run, inputs.sizing]);
 
-  const loss = useMemo(() => {
+  const loss = useMemo(() => safe('permanent loss', () => {
     if (flow.error) return { error: flow.error };
     return permanentLoss({
       dpInH2O: num(inputs.run.dpInH2O), beta: flow.beta, cd: flow.cd,
     });
-  }, [flow, inputs.run.dpInH2O]);
+  }), [flow, inputs.run.dpInH2O]);
 
-  const uncertainty = useMemo(() => {
+  /**
+   * The budget and the transmitter used to be two routes that never met:
+   * the transmitter card said 0.15 percent and the budget used a typed
+   * 0.5 percent, side by side on the same screen. The reading and the
+   * span go in, so the differential term IS the transmitter's.
+   */
+  const uncertainty = useMemo(() => safe('uncertainty budget', () => {
     if (flow.error) return { error: flow.error };
     const u = inputs.uncertainty;
     return orificeUncertainty({
       beta: flow.beta,
-      cdUncertaintyPct: num(u.cdUncertaintyPct, 0.5),
-      expansibilityUncertaintyPct: num(u.expansibilityUncertaintyPct, 0.2),
-      boreUncertaintyPct: num(u.boreUncertaintyPct, 0.05),
-      pipeUncertaintyPct: num(u.pipeUncertaintyPct, 0.1),
-      dpUncertaintyPct: num(u.dpUncertaintyPct, 0.5),
-      densityUncertaintyPct: num(u.densityUncertaintyPct, 0.3),
+      cdUncertaintyPct: num(u.cdUncertaintyPct),
+      expansibilityUncertaintyPct: num(u.expansibilityUncertaintyPct),
+      boreUncertaintyPct: num(u.boreUncertaintyPct),
+      pipeUncertaintyPct: num(u.pipeUncertaintyPct),
+      densityUncertaintyPct: num(u.densityUncertaintyPct),
+      dpInH2O: num(inputs.run.dpInH2O),
+      spanInH2O: num(inputs.run.spanInH2O),
+      transmitterAccuracyPctOfSpan: num(u.transmitterAccuracyPctOfSpan),
     });
-  }, [flow, inputs.uncertainty]);
+  }), [flow, inputs.uncertainty, inputs.run.dpInH2O, inputs.run.spanInH2O]);
 
-  const transmitter = useMemo(() => transmitterUncertaintyPct({
+  const transmitter = useMemo(() => safe('transmitter', () => transmitterUncertaintyPct({
     dpInH2O: num(inputs.run.dpInH2O),
     spanInH2O: num(inputs.run.spanInH2O),
-    accuracyPctOfSpan: num(inputs.uncertainty.transmitterAccuracyPctOfSpan, 0.075),
-  }), [inputs.run.dpInH2O, inputs.run.spanInH2O, inputs.uncertainty.transmitterAccuracyPctOfSpan]);
+    accuracyPctOfSpan: num(inputs.uncertainty.transmitterAccuracyPctOfSpan),
+  })), [inputs.run.dpInH2O, inputs.run.spanInH2O, inputs.uncertainty.transmitterAccuracyPctOfSpan]);
 
-  const straightRun = useMemo(() => {
+  const straightRun = useMemo(() => safe('straight run', () => {
     if (flow.error) return { error: flow.error };
     return straightRunDiameters({
       beta: flow.beta, upstreamFitting: inputs.run.upstreamFitting,
     });
-  }, [flow, inputs.run.upstreamFitting]);
+  }), [flow, inputs.run.upstreamFitting]);
 
-  /** Cd against Reynolds, so the reader sees it is not a constant. */
-  const cdCurve = useMemo(() => {
+  /**
+   * Cd against Reynolds, so the reader sees it is not a constant. The
+   * sweep starts below where the correlation is published, and this
+   * package does not carry that floor, so the limit travels with the
+   * curve rather than being left off the screen.
+   */
+  const cdCurve = useMemo(() => safe('coefficient curve', () => {
     if (flow.error) return { error: flow.error };
     const rows = [];
+    let basis = null;
     for (let e = 3.5; e <= 7.5; e += 0.25) {
       const re = 10 ** e;
       const c = dischargeCoefficient({
         beta: flow.beta, reynolds: re, pipeIdIn: num(inputs.run.pipeIdIn),
       });
-      if (!c.error) rows.push({ reynolds: re, cd: c.cd });
+      if (!c.error) {
+        rows.push({ reynolds: re, cd: c.cd });
+        basis = c.reynoldsBasis;
+      }
     }
-    return { rows };
-  }, [flow, inputs.run.pipeIdIn]);
+    const cds = rows.map((r) => r.cd);
+    return {
+      rows,
+      reynoldsBasis: basis,
+      spanPctAtThisBeta: cds.length
+        ? ((Math.max(...cds) - Math.min(...cds)) / Math.min(...cds)) * 100
+        : NaN,
+    };
+  }), [flow, inputs.run.pipeIdIn]);
 
 
   // --- Project lifecycle (studio-kit recipe) ---
