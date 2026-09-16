@@ -2,23 +2,25 @@
   "$comment": "Vendoring contract for packages/engines. Checked by tools/check-vendored-engines.mjs; see that file for the model. The check is against the PINNED commit below and its committed manifest, never against engines HEAD: a guard pointed at HEAD goes red the moment canonical moves and then blocks every unrelated Suite PR. Moving the pin is a deliberate, reviewed vendoring pass. The Suite vendors the WHOLE canonical tree, so the expected state of this file is the one it is in: an EMPTY knownDeviations list. Any deviation that is genuinely deliberate goes in that list with a reason, a group and a burnDownWhen, and every differing or extra path is pinned to the blob currently vendored, so a second drift on an already-known path still fails. burnDownWhen states the condition under which the row must be removed, because a bare reason goes stale on its own: in NextGen a row reading \"pull only with the recut in the same deploy window\" became false the moment the recut merged and nothing in the file said so. A ledger entry whose deviation has gone is also a failure, so the list can only shrink.",
   "canonical": {
     "repo": "git@github.com:Petrolord/petrolord-engines.git",
-    "commit": "3bac13cd88f4c38bd5c2a8e699b3b51349e65ead",
+    "commit": "8b8fb6a03814353f104c3bef70bb2efc1fe99bc9",
     "manifest": "VENDOR.manifest"
   },
   "vendoring": {
     "method": "file-by-file reconciliation against a canonical clone, verified by blob hash with this guard, hashed from the files on disk rather than from the git index",
     "$comment": "NOT a whole-tree `git subtree pull`. That silently DELETED 24 Suite-only downstream files on 2026-09-14. Vendor the paths the canonical range actually touched, then run the guard, which is what proves nothing else moved.",
     "lastVendored": "2026-09-16",
-    "lastVendoredRange": "82ec6d4fef98c594b19f3eb1bc021e2810af6a0b..3bac13cd88f4c38bd5c2a8e699b3b51349e65ead (engines PR #200, the FC5-0 relief-and-flare repairs). SIX canonical paths and the import closure grows by ONE: the repaired __tests__/facilities.relief.test.js now imports RADIATION_LEVELS from engines/facilities/spacing.js, which was already vendored and is unchanged, to assert that one published table carries one set of words across two engines. The other two new paths are validation tooling (FINDINGS-relief.md and negcontrol_relief.sh), which ship because the Suite vendors the whole canonical tree. THIS ONE MOVES LIVE NUMBERS: the Blowdown tab reported 0.0 min as a pass whenever a step would have emptied the vessel (the app own 500 ft3 default with a 38 in orifice does it), the blowdown time was 2.6 percent long from a hidden 0.975 on the typed discharge coefficient, the KO Drum holdup box could not move the length beside it, and a liquid PSV below about 1 cP was undersized by up to 0.65 percent. Blast radius in docs/scope/ReliefFlare-STATUS.md."
+    "lastVendoredRange": "3bac13cd88f4c38bd5c2a8e699b3b51349e65ead..8b8fb6a03814353f104c3bef70bb2efc1fe99bc9 (engines PR #201, the FC7-0 produced water repairs), on top of the FC5-0 relief pass that moved the pin to 3bac13c one merge earlier. FIVE canonical paths, four changed and one new, and the import closure needs nothing at all: engines/facilities/producedWater.js imports nothing. This one fixes four live wrong answers rather than only golden fields, all on the Produced Water Treatment Studio's own shipped defaults: a hydrocyclone whose unbounded centrifugal field made every liner REMOVED from the bank improve the reported water (the shipped 20 liners ran at 7.667 times design flow at 58,786 g and a cleared box gave one liner at 23,514,452 g), four device functions that returned a NaN cut size with no error key so the train skipped a stage and still printed MEETS with a 27.78 ppm margin, a flotation model whose attachment term was inert so induced and dissolved gas flotation were the same device, and a media filter that computed its removal twice by two routes that disagreed. BREAKING for callers: waterDensityKgM3 and oilDensityKgM3 now return { rhoKgM3 } or { error }; the only consumer is src/contexts/ProducedWaterContext.jsx, repaired in the same pull request. Blast radius in docs/scope/ProducedWater-STATUS.md."
   },
   "testing": {
     "$comment": "The Suite needs no equivalent of NextGen's tools/run-vendored-engine-tests.mjs. jest.config.js uses testMatch '**/__tests__/**/*.test.(js|jsx|ts)' with no testPathIgnorePatterns, so all 179 suites under packages/engines/__tests__ already run in `npm test` beside the Suite's own. There is no allow-list of known engine test failures because there are none: the vendored suites are green.",
     "runner": "the repo's own jest (npm test)",
-    "knownTestFailures": { "suites": [] }
+    "knownTestFailures": {
+      "suites": []
+    }
   },
   "floors": {
-    "manifestPaths": 700,
-    "vendoredPaths": 700
+    "manifestPaths": 740,
+    "vendoredPaths": 740
   },
   "knownDeviations": []
 }
