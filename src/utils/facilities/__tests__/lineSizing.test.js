@@ -10,7 +10,7 @@ import {
   oilDensityLbFt3, gasDensityLbFt3, multiphaseLine, erosionalStatus,
   sizeSweep, gasLineTraverse, liquidLineDrop, gasOutletPressure,
   weymouthQ, PIPE_SCHEDULE, DAK_LIMITS, RECOMMENDATION_RULE,
-  erosionalStatusAlongLine,
+  erosionalStatusAlongLine, gasErosionalAlongLine,
 } from '../lineSizing';
 
 const rel = (a, b) => Math.abs(a - b) / Math.max(Math.abs(b), 1e-12);
@@ -533,5 +533,83 @@ describe('FC2-0b: the erosional limit is checked where it binds', () => {
     });
     expect(dead.error).toBeTruthy();
     expect(erosionalStatusAlongLine({ line: dead, cFactor: 100 }).error).toBeTruthy();
+  });
+});
+
+// ------------------------------------------------------------------
+// FC2-0c. The gas branch asked the same question at MEAN pressure,
+// which is neither end of the line and not where the limit binds.
+// ------------------------------------------------------------------
+
+describe('FC2-0c: the gas sweep checks RP 14E where the limit binds', () => {
+  // 30 MMscfd down 10 mi of 6 in sch 40 from 900 psia: the gas leaves
+  // at 45 ft/s and arrives at 168 ft/s as it expands into 150 psia.
+  const duty = { qScfd: 3.0e7, p1Psia: 900, lengthMi: 10, sg: 0.65, tAvgR: 530, tF: 70, zAvg: 0.9 };
+
+  test('a bore that passes at mean pressure and exceeds the limit downstream is failed', () => {
+    const sweep = sizeSweep({ mode: 'gas', inputs: duty, cFactor: 100 });
+    expect(sweep.error).toBeUndefined();
+    const row = sweep.rows.find((r) => r.label === '6 in sch 40');
+
+    const ero = gasErosionalAlongLine({
+      inputs: duty, idIn: row.idIn, p2Psia: row.p2Psia, cFactor: 100,
+    });
+    // The verdict the old check gave, from the station it used. This is
+    // the assertion that fails against the old pass logic.
+    expect(ero.meanRatio).toBeLessThan(1);
+    expect(ero.meanRatio).toBeGreaterThan(0.5);
+    // ...and the verdict where the line actually runs fastest.
+    expect(ero.ratio).toBeGreaterThan(1);
+    expect(row.pass).toBe(false);
+    expect(row.vFtS).toBeGreaterThan(2 * row.meanVFtS);
+    expect(row.bindsAtInlet).toBe(false);
+    expect(row.bindingAtFt).toBeGreaterThan(0.5 * duty.lengthMi * 5280);
+  });
+
+  test('the recommendation moves off the bore that only passed at the mean', () => {
+    const sweep = sizeSweep({ mode: 'gas', inputs: duty, cFactor: 100 });
+    expect(sweep.recommended).toBeTruthy();
+    expect(sweep.recommended.label).not.toBe('6 in sch 40');
+    expect(sweep.recommended.idIn).toBeGreaterThan(6.065);
+  });
+
+  test('boundary: a short line barely moves, because its pressure barely falls', () => {
+    const short = { ...duty, qScfd: 1.0e7, lengthMi: 2 };
+    const row = sizeSweep({ mode: 'gas', inputs: short, cFactor: 100 })
+      .rows.find((r) => r.label === '8 in sch 40');
+    const ero = gasErosionalAlongLine({
+      inputs: short, idIn: row.idIn, p2Psia: row.p2Psia, cFactor: 100,
+    });
+    expect(rel(ero.ratio, ero.meanRatio)).toBeLessThan(0.05);
+    expect(ero.exceeded).toBe(false);
+  });
+
+  test('the binding station is a feature of the line, not of the station count', () => {
+    const row = sizeSweep({ mode: 'gas', inputs: duty, cFactor: 100 })
+      .rows.find((r) => r.label === '8 in sch 80');
+    const coarse = gasErosionalAlongLine({
+      inputs: duty, idIn: row.idIn, p2Psia: row.p2Psia, cFactor: 100, stations: 6,
+    });
+    const fine = gasErosionalAlongLine({
+      inputs: duty, idIn: row.idIn, p2Psia: row.p2Psia, cFactor: 100, stations: 48,
+    });
+    expect(rel(coarse.ratio, fine.ratio)).toBeLessThan(1e-6);
+    expect(coarse.bindingAtFt).toBeCloseTo(fine.bindingAtFt, 6);
+  });
+
+  test('C scales the verdict without moving the station it is judged at', () => {
+    const row = sizeSweep({ mode: 'gas', inputs: duty, cFactor: 100 })
+      .rows.find((r) => r.label === '6 in sch 40');
+    const strict = gasErosionalAlongLine({ inputs: duty, idIn: row.idIn, p2Psia: row.p2Psia, cFactor: 100 });
+    const relaxed = gasErosionalAlongLine({ inputs: duty, idIn: row.idIn, p2Psia: row.p2Psia, cFactor: 175 });
+    expect(relaxed.bindingAtFt).toBe(strict.bindingAtFt);
+    expect(relaxed.bindingVFtS).toBeCloseTo(strict.bindingVFtS, 12);
+    expect(relaxed.ratio).toBeCloseTo((strict.ratio * 100) / 175, 12);
+  });
+
+  test('a bore that cannot carry the rate still says so rather than being checked', () => {
+    const row = sizeSweep({ mode: 'gas', inputs: duty, cFactor: 100 }).rows.find((r) => r.nps === 2);
+    expect(row.pass).toBe(false);
+    expect(row.note).toMatch(/cannot carry/);
   });
 });
