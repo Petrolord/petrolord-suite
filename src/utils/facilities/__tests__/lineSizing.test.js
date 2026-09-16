@@ -10,6 +10,7 @@ import {
   oilDensityLbFt3, gasDensityLbFt3, multiphaseLine, erosionalStatus,
   sizeSweep, gasLineTraverse, liquidLineDrop, gasOutletPressure,
   weymouthQ, PIPE_SCHEDULE, DAK_LIMITS, RECOMMENDATION_RULE,
+  erosionalStatusAlongLine,
 } from '../lineSizing';
 
 const rel = (a, b) => Math.abs(a - b) / Math.max(Math.abs(b), 1e-12);
@@ -432,5 +433,105 @@ describe('gas traverse', () => {
       p1Psia: 900, p2Psia: 500, idIn: 12, lengthMi: 50, sg: 0.65, tAvgR: 530, zAvg: 0.88,
     });
     expect(direct.qScfd).toBeGreaterThan(0);
+  });
+});
+
+// ------------------------------------------------------------------
+// FC2-0b. The RP 14E erosional check is an INTEGRITY limit, so the
+// question is whether the line exceeds it anywhere, not whether it
+// exceeds it at the inlet. Recorded in FINDINGS.md during the FC2-0
+// repair and fixed here.
+// ------------------------------------------------------------------
+
+describe('FC2-0b: the erosional limit is checked where it binds', () => {
+  // 6 in sch 40 on this gassy 20000 ft duty leaves the inlet at 29.8
+  // ft/s and reaches 146 ft/s at the far end as the gas expands. The
+  // inlet check calls it ratio 0.52 and PASSES; the line erodes.
+  const gassyDuty = {
+    qLiquidBpd: 2000, wctPct: 10, qGasScfd: 2.0e7,
+    pPsia: 600, tF: 120, lengthFt: 20000,
+  };
+  const gassy = { ...gassyDuty, idIn: 6.065 };
+
+  test('a line that passes at its inlet and exceeds the limit downstream is failed', () => {
+    const line = multiphaseLine(gassy);
+    expect(line.error).toBeUndefined();
+
+    // Exactly what the old check saw, from the same return: the inlet.
+    // This is the assertion that fails against the old pass logic.
+    const atInlet = erosionalStatus({
+      vFtS: line.vm, rhoMixLbFt3: line.rhoMixLbFt3, cFactor: 100,
+    });
+    expect(atInlet.exceeded).toBe(false);
+    expect(atInlet.ratio).toBeLessThan(0.6);
+
+    const along = erosionalStatusAlongLine({ line, cFactor: 100 });
+    expect(along.exceeded).toBe(true);
+    expect(along.ratio).toBeGreaterThan(1);
+    expect(along.bindsAtInlet).toBe(false);
+    expect(along.bindingAtFt).toBeGreaterThan(0.5 * gassy.lengthFt);
+    expect(along.bindingVFtS).toBeGreaterThan(4 * along.inletVFtS);
+    expect(along.inletRatio).toBeCloseTo(atInlet.ratio, 12);
+  });
+
+  test('the sweep fails that bore and moves the recommendation off it', () => {
+    const sweep = sizeSweep({ mode: 'multiphase', inputs: gassyDuty, cFactor: 100 });
+    expect(sweep.error).toBeUndefined();
+    const row = sweep.rows.find((r) => r.label === '6 in sch 40');
+    expect(row.pass).toBe(false);
+    // The velocity the table shows is the one the verdict is about.
+    expect(row.vFtS).toBeGreaterThan(row.inletVFtS);
+    expect(row.bindsAtInlet).toBe(false);
+    expect(sweep.recommended.label).not.toBe('6 in sch 40');
+    expect(sweep.recommended.idIn).toBeGreaterThan(row.idIn);
+  });
+
+  test('boundary: on a descending line the limit binds at the inlet', () => {
+    // The gas is compressed as the pressure recovers and the mixture
+    // slows, so the fastest point is the START. This is why the check
+    // uses the true maximum along the line and not the outlet.
+    const line = multiphaseLine({
+      qLiquidBpd: 4000, wctPct: 30, qGasScfd: 2.0e6,
+      pPsia: 500, tF: 120, idIn: 6.065, lengthFt: 20000, elevChangeFt: -1500,
+    });
+    expect(line.error).toBeUndefined();
+    expect(line.outletVmFtS).toBeLessThan(line.vm);
+
+    const along = erosionalStatusAlongLine({ line, cFactor: 100 });
+    expect(along.bindsAtInlet).toBe(true);
+    expect(along.bindingAtFt).toBe(0);
+    expect(along.ratio).toBeCloseTo(along.inletRatio, 12);
+  });
+
+  test('a line with no gas has one velocity, so the verdict does not move', () => {
+    const line = multiphaseLine({
+      qLiquidBpd: 8000, wctPct: 30, qGasScfd: 0,
+      pPsia: 500, tF: 120, idIn: 4.026, lengthFt: 15000,
+    });
+    const along = erosionalStatusAlongLine({ line, cFactor: 100 });
+    expect(along.ratio).toBeCloseTo(along.inletRatio, 9);
+    expect(along.bindsAtInlet).toBe(true);
+  });
+
+  test('the binding station is the same for every C factor, and C still decides the verdict', () => {
+    const line = multiphaseLine(gassy);
+    const strict = erosionalStatusAlongLine({ line, cFactor: 100 });
+    const relaxed = erosionalStatusAlongLine({ line, cFactor: 125 });
+    // Ratio is v * sqrt(rho) / C, so where it peaks cannot depend on C.
+    expect(relaxed.bindingAtFt).toBe(strict.bindingAtFt);
+    expect(relaxed.bindingVFtS).toBeCloseTo(strict.bindingVFtS, 12);
+    // ...but the verdict can: the same line clears the looser C factor.
+    expect(strict.exceeded).toBe(true);
+    expect(relaxed.exceeded).toBe(false);
+    expect(relaxed.ratio).toBeCloseTo((strict.ratio * 100) / 125, 12);
+  });
+
+  test('a refused line refuses the check rather than answering it', () => {
+    const dead = multiphaseLine({
+      qLiquidBpd: 2000, wctPct: 10, qGasScfd: 2.0e7,
+      pPsia: 600, tF: 120, idIn: 6.065, lengthFt: 40000,
+    });
+    expect(dead.error).toBeTruthy();
+    expect(erosionalStatusAlongLine({ line: dead, cFactor: 100 }).error).toBeTruthy();
   });
 });

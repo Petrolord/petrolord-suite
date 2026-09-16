@@ -265,6 +265,13 @@ export const multiphaseLine = ({
   let station = inlet;
   let maxVmFtS = inlet.vm;
   let holdupIntegral = 0;
+  // Where the RP 14E limit BINDS. The limit is Ve = C / sqrt(rho_m), so
+  // the ratio v / Ve is v * sqrt(rho_m) / C: the binding station is the
+  // one that maximises v * sqrt(rho_m), and that is independent of C,
+  // so it can be found once here and checked against any C factor.
+  // It is not simply the fastest station, and not simply the outlet.
+  const severity = (s) => s.vm * Math.sqrt(s.rhoMix);
+  let binding = { vm: inlet.vm, rhoMix: inlet.rhoMix, atFt: 0, sev: severity(inlet) };
   for (let i = 0; i < steps; i += 1) {
     if (i > 0) {
       const next = stationAt(p);
@@ -278,6 +285,10 @@ export const multiphaseLine = ({
     }
     holdupIntegral += station.grad.holdup * stepFt;
     maxVmFtS = Math.max(maxVmFtS, station.vm);
+    const sev = severity(station);
+    if (sev > binding.sev) {
+      binding = { vm: station.vm, rhoMix: station.rhoMix, atFt: i * stepFt, sev };
+    }
     p -= station.grad.dpdz * stepFt;
     if (!(p > ATMOSPHERIC_PSIA)) {
       return {
@@ -291,6 +302,10 @@ export const multiphaseLine = ({
 
   const outlet = stationAt(p);
   if (outlet.error) return { error: outlet.error, code: 'infeasible' };
+  const outletSev = severity(outlet);
+  if (outletSev > binding.sev) {
+    binding = { vm: outlet.vm, rhoMix: outlet.rhoMix, atFt: lengthFt, sev: outletSev };
+  }
 
   const dpTotalPsi = pPsia - p;
   return {
@@ -304,6 +319,10 @@ export const multiphaseLine = ({
     outletHoldup: outlet.grad.holdup,
     outletVmFtS: outlet.vm,
     maxVmFtS: Math.max(maxVmFtS, outlet.vm),
+    outletRhoMixLbFt3: outlet.rhoMix,
+    bindingVmFtS: binding.vm,
+    bindingRhoMixLbFt3: binding.rhoMix,
+    bindingAtFt: binding.atFt,
     inletGradientPsiPerFt: inlet.grad.dpdz,
     outletGradientPsiPerFt: outlet.grad.dpdz,
     gradientPsiPerFt: dpTotalPsi / lengthFt,
@@ -317,6 +336,49 @@ export const erosionalStatus = ({ vFtS, rhoMixLbFt3, cFactor = 100 }) => {
   const ve = erosionalVelocityFtS({ mixtureDensityLbFt3: rhoMixLbFt3, cFactor });
   if (!(ve > 0)) return { error: 'erosional limit needs a positive mixture density' };
   return { erosionalFtS: ve, ratio: vFtS / ve, exceeded: vFtS > ve };
+};
+
+/**
+ * RP 14E check of a MARCHED multiphase line, made where the limit
+ * binds rather than at the inlet.
+ *
+ * Erosional velocity is an integrity limit: it exists to stop a line
+ * eroding, so the question it answers is whether the line exceeds it
+ * ANYWHERE, not whether it exceeds it at the inlet. The inlet is the
+ * slowest point of a line that carries gas, because the gas expands as
+ * the pressure falls and the mixture accelerates toward the outlet, so
+ * checking there reports a line that erodes at its far end as passing.
+ *
+ * The binding station is not always the outlet. On a DESCENDING line
+ * the pressure recovers, the gas is compressed, the mixture slows, and
+ * the fastest point is the inlet; a line whose profile falls and then
+ * rises binds somewhere in the middle. `multiphaseLine` therefore finds
+ * the station that maximises v * sqrt(rho_m) while it marches, which is
+ * the ratio's own maximum for every C factor, and this reads it.
+ *
+ * `inletRatio` is kept alongside so the app can show the reader what
+ * the inlet alone would have said.
+ */
+export const erosionalStatusAlongLine = ({ line, cFactor = 100 }) => {
+  if (!line || line.error) return { error: line?.error || 'no line to check' };
+  if (!Number.isFinite(line.bindingVmFtS) || !Number.isFinite(line.bindingRhoMixLbFt3)) {
+    // An unmarched line (nothing else returns this shape today) is
+    // checked where it stands rather than silently assumed to be flat.
+    return erosionalStatus({ vFtS: line.vm, rhoMixLbFt3: line.rhoMixLbFt3, cFactor });
+  }
+  const at = erosionalStatus({
+    vFtS: line.bindingVmFtS, rhoMixLbFt3: line.bindingRhoMixLbFt3, cFactor,
+  });
+  if (at.error) return at;
+  const inlet = erosionalStatus({ vFtS: line.vm, rhoMixLbFt3: line.rhoMixLbFt3, cFactor });
+  return {
+    ...at,
+    bindingVFtS: line.bindingVmFtS,
+    bindingAtFt: line.bindingAtFt,
+    bindsAtInlet: line.bindingAtFt <= 0,
+    inletRatio: inlet.error ? undefined : inlet.ratio,
+    inletVFtS: line.vm,
+  };
 };
 
 /**
@@ -431,12 +493,17 @@ export const sizeSweep = ({ mode, inputs, cFactor = 100, maxLiquidVFtS = 15 }) =
         if (r.code === 'input') return { error: r.error };
         rows.push({ ...cand, idIn, dpPsi: NaN, pass: false, note: r.error });
       } else {
-        const ero = erosionalStatus({ vFtS: r.vm, rhoMixLbFt3: r.rhoMixLbFt3, cFactor });
+        // Checked where the limit binds, not at the inlet: `vFtS` is
+        // the velocity the verdict is about, so the table's velocity
+        // and its RP 14E column describe the same station.
+        const ero = erosionalStatusAlongLine({ line: r, cFactor });
         if (ero.error) {
           rows.push({ ...cand, idIn, dpPsi: r.dpTotalPsi, pass: false, note: ero.error });
         } else {
           rows.push({
-            ...cand, idIn, vFtS: r.vm, dpPsi: r.dpTotalPsi, holdup: r.holdup, pattern: r.pattern,
+            ...cand, idIn, vFtS: ero.bindingVFtS, dpPsi: r.dpTotalPsi,
+            holdup: r.holdup, pattern: r.pattern,
+            inletVFtS: ero.inletVFtS, bindingAtFt: ero.bindingAtFt, bindsAtInlet: ero.bindsAtInlet,
             p2Psia: r.p2Psia, steps: r.steps,
             erosionalFtS: ero.erosionalFtS,
             pass: !ero.exceeded && r.p2Psia > ATMOSPHERIC_PSIA,

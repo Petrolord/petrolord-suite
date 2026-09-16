@@ -96,6 +96,31 @@ which now reads the length-weighted `avgHoldup` rather than the inlet
 holdup; and cold, very high pressure or zero-gravity gas cases, which
 now refuse where they used to answer.
 
+## FC2-0b RP 14E binding-point repair (2026-09-16)
+
+The erosional check was made at the INLET mixture velocity while the
+fastest point of a gas-carrying line is downstream, so a line that
+erodes at its far end was reported as passing: a fail-open on an
+integrity limit rather than on a number.
+
+The check now runs where the limit binds. Because the limit is
+Ve = C / sqrt(rho_m), the ratio is v * sqrt(rho_m) / C, so the binding
+station is the one maximising v * sqrt(rho_m) and is the same station
+for every C factor; `multiphaseLine` finds it while marching.
+
+**The binding point is not simply the outlet.** On a descending line the
+pressure recovers, the gas is compressed and the mixture slows, so the
+limit binds at the INLET (ratio 0.1950 against 0.1814 at the outlet on a
+20000 ft, -1500 ft line). Using the true maximum covers both, and a
+profile that falls and then rises binds in the middle.
+
+Blast radius over six representative sweeps (72 rows) at C = 100: one
+row flips from pass to fail, 6 in sch 40 on a gassy 20000 ft duty, inlet
+ratio 0.524 against 1.159 where it binds at 99 percent of the length
+(29.8 ft/s at the inlet, 146.0 ft/s at the far end), and that sweep's
+recommendation moves from 6 in sch 40 to 8 in sch 80. At C = 125 nothing
+flips. Liquid lines and lines with no gas are unmoved by construction.
+
 ## Honest limits (stated in-app)
 
 - Single-line only: the gathering-network solve is Production Network
@@ -108,17 +133,21 @@ now refuse where they used to answer.
 - The multiphase line is marched and the step count is shown on the
   card; the multiphase pattern and holdup on the result cards are INLET
   values, with the outlet value shown alongside when it differs.
+- The RP 14E check is made where the limit BINDS along the line, and
+  the card names that station and its distance. The gas-mode check is
+  still made at mean pressure (recorded in FINDINGS.md, not yet moved).
 
 ## Open
 
 - Tile rename migration 20260829530000 HELD for the prod upload.
 - Literature gates for the gas-equation constants against a GPSA
   worked example remain ARMED (owner PDFs).
-- **The RP 14E check in the sweep uses the INLET mixture velocity, and
-  the fastest point of a gas-carrying line is the outlet** (4.84 ft/s
-  against 6.02 ft/s on the 50000 ft case). `maxVmFtS` and `outletVmFtS`
-  are returned and ready; moving the pass logic onto them would move
-  more results, so it was left out of a wave scoped to four defects.
+- **The gas-mode sweep still checks RP 14E at MEAN pressure**, while
+  the fastest point of a gas line is its outlet: up to a 39 percent
+  understatement of the ratio on a 30 mi, 30 MMscfd line (8 in sch 80,
+  0.359 at the mean against 0.498 at the outlet). Same defect class as
+  FC2-0b in the single-phase gas path, measured and recorded in
+  FINDINGS.md, awaiting its own authorisation.
 - Engine-side defects behind this app (descending-line outlet pressure,
   unguarded roughness, efficiency and corrosion allowance, the two
   barrel constants) remain open in the engines repo.

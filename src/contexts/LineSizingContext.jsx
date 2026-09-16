@@ -17,7 +17,7 @@ import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import {
   liquidLineDrop, liquidLineTraverse, gasOutletPressure, gasLineTraverse,
-  multiphaseLine, erosionalStatus, sizeSweep, gasDensityLbFt3,
+  multiphaseLine, erosionalStatus, erosionalStatusAlongLine, sizeSweep, gasDensityLbFt3,
   oilDensityLbFt3, requiredWallIn, maopPsig,
   lineVolumeBbl, sweptLiquidBbl, pigRun, piggingInterval,
   PIPE_SCHEDULE, ROUGHNESS_IN, roughnessOf, scheduleRow,
@@ -281,7 +281,9 @@ export const LineSizingProvider = ({ children }) => {
       }
       const r = multiphaseLine({ ...multiphaseArgs, idIn: bore.idIn });
       if (r.error) return r;
-      const ero = erosionalStatus({ vFtS: r.vm, rhoMixLbFt3: r.rhoMixLbFt3, cFactor });
+      // Judged where the limit binds along the marched line, not
+      // at the inlet, which is the slowest point of a gas-carrying line.
+      const ero = erosionalStatusAlongLine({ line: r, cFactor });
       return { mode: 'multiphase', ...r, ...ero };
     } catch (e) {
       console.error(e);
