@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 82ec6d4fef98c594b19f3eb1bc021e2810af6a0b
+# commit 3bac13cd88f4c38bd5c2a8e699b3b51349e65ead
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 5adab4fe0d3e8ee869853c2aec8fad4f116641ee README.md
@@ -73,7 +73,7 @@ e571c174b6619c09d2ccf8f2662e476178a96eed __tests__/facilities.gasprocessing.test
 49614dba71b4edddc3158953e41c8439e28fd570 __tests__/facilities.linehydraulics.test.js
 98fe53615b2d5a36587ac309455a9493cbdb508d __tests__/facilities.producedwater.test.js
 183c9e4a10796bb794ae84c5d1153ab8bac70a73 __tests__/facilities.pumps.test.js
-c5b5c787a3906d52bec4ba1e6f89f72a62b2ecba __tests__/facilities.relief.test.js
+5d2adbf1e3f76807a44cffd00802cd04c8023cb3 __tests__/facilities.relief.test.js
 d6db38e1ee991929117ce0c4027a18ebb349c882 __tests__/facilities.separator.dak.test.js
 0eb3442d5556e1443d99064b20f50a378dc87611 __tests__/facilities.separator.test.js
 1de1b5e74127f3e3f2a9ac2d150b8c8af5423cbb __tests__/facilities.spacing.test.js
@@ -286,7 +286,7 @@ b4e2c70ce978fe1c6865a5295832b291132e0fa6 engines/facilities/lineHydraulics.js
 f56420573d5d4ca424854d49aa0a64de4347a56e engines/facilities/metering.js
 c504265bd02fd5e9b7522dbc2f0b7c6547ec8490 engines/facilities/producedWater.js
 c3651e2ba41bc98d234f2f341662b3046f811990 engines/facilities/pumps.js
-52695df7958ffb1f1593213010c4abd0b85fb68c engines/facilities/relief.js
+e4262c7fa98313e46c41407306c4b9b8015ecf3f engines/facilities/relief.js
 5dacfaa6402e940bfa6a02f9465e32458a7ecf56 engines/facilities/separatorSizing.js
 e7589df252ca6bde026fa558d1fd72274ede7333 engines/facilities/spacing.js
 a084b53973942820697f3b17b1a6ce373081acb4 engines/facilities/storageTank.js
@@ -538,7 +538,7 @@ d81beecde0a5f7eef3f14a99e2ecea14d493c551 test-data/facilities/goldens/heattransf
 43c71b0b8527de15a2b496eb0e5f50fac93261e2 test-data/facilities/goldens/linehydraulics_cases.json
 be08f8b45e769b1f565da6a9831236b9875e31d2 test-data/facilities/goldens/producedwater_cases.json
 60d90188263a71aa99a7a647b940a6a02c6c7acb test-data/facilities/goldens/pumps_cases.json
-07e25b46c9ab63b471f31246b2ad76d8743b9120 test-data/facilities/goldens/relief_cases.json
+1b19c8a721b5b3c7f029d6e3d16c6d01a49a18e6 test-data/facilities/goldens/relief_cases.json
 0898a90b87d8733587406911b94bda8548ee40a3 test-data/facilities/goldens/separator_cases.json
 1fff6a14e6e0389e38f70a2b49f54a3d8f6b97c5 test-data/facilities/goldens/spacing_cases.json
 6dda42da8f79462c06300bcbf697d5fffd75574b test-data/facilities/goldens/tanksmetering_cases.json
@@ -692,8 +692,10 @@ f7dc721af5aea863b115770af2baf1c63d9da8e9 tools/validation/economics/oracle_portf
 09fd8ce53c96ede3620e75753ad1076e5a2ac6f7 tools/validation/economics/oracle_screening.py
 711b8935c93f2cbf64a163e230c12a07bd8bd93e tools/validation/facilities/FINDINGS-gasprocessing.md
 7b935d65e2e8f9a732ae602bf993bb010f540f19 tools/validation/facilities/FINDINGS-linesizing.md
+ee684cab14953edb2d6ebcd3f854e01e23adebd7 tools/validation/facilities/FINDINGS-relief.md
 eefa0fb4c4b766ed4d167d0aafea0f1fe030d706 tools/validation/facilities/FINDINGS-rotating.md
 51f2594a1b48f5dc8268f38be48979b0b3dd812b tools/validation/facilities/FINDINGS-separation.md
+4fa016c3ec13176d939471743669aa30236966c6 tools/validation/facilities/negcontrol_relief.sh
 10fe384cf62c1efad9953b3e64ad3ec3a29d6ea3 tools/validation/facilities/oracle_compression.py
 f9ced76587de87a32162b243b015744dcf3c513b tools/validation/facilities/oracle_controlvalve.py
 ad943a94a84dfdd73bb9a21393f67767db7170a5 tools/validation/facilities/oracle_corrosion.py
@@ -702,7 +704,7 @@ e73e5658526a69011f2b2e80dec23ed913ac6d7a tools/validation/facilities/oracle_heat
 953d13d1c2f34ce94909070dab94e815c267e81b tools/validation/facilities/oracle_linehydraulics.py
 33554d0cd9446a01f7c96ada3a8c3ea8c712f0dd tools/validation/facilities/oracle_producedwater.py
 fdc02cc5258bccea397b16122cb0197a64d8855d tools/validation/facilities/oracle_pumps.py
-51e90fd3974e626bbdd7dedbf7fd8289f9334428 tools/validation/facilities/oracle_relief.py
+7520155bb4a93964cd9415dc5e3acb9bcf323b14 tools/validation/facilities/oracle_relief.py
 8875fde79c92bf917fd3dd99aecc9e8a561bc659 tools/validation/facilities/oracle_separator.py
 beaa1db6ebbb2e224fc339573074bfa673410d9a tools/validation/facilities/oracle_spacing.py
 760ab601a5d7b3161c3865f25cc2dfa353142e85 tools/validation/facilities/oracle_tanksmetering.py
