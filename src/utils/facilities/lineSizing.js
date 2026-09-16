@@ -414,6 +414,92 @@ const bySmallestBore = (a, b) => (a.idIn - b.idIn)
   || (a.od - b.od)
   || (a.order - b.order);
 
+/** How finely the gas sweep walks a line to find where its limit binds. */
+export const GAS_STATIONS = 12;
+
+/**
+ * RP 14E check of a single-phase GAS line, made where the limit binds.
+ *
+ * The gas branch does not march its own hydraulics: `gasOutletPressure`
+ * inverts the published transmission equation for the whole line in one
+ * solve. So the pressures in between are walked here the way
+ * `gasLineTraverse` already walks a profile, by applying the same
+ * published equation to each sub-length, which adds no physics that the
+ * engine does not already own.
+ *
+ * WHY THE MEAN WAS WRONG. Velocity goes as z / p and density as p / z,
+ * so the erosional severity v * sqrt(rho) goes as sqrt(z / p): it rises
+ * as the pressure falls, and the check belongs where it is largest, not
+ * at the average of the two ends. Measured on a 30 mi line, the mean
+ * understates the ratio by 19 to 39 percent.
+ *
+ * As in the multiphase case, the binding station is the one maximising
+ * v * sqrt(rho) and is the SAME station for every C factor, so it is
+ * searched for rather than assumed. In every gas line that could be
+ * constructed here it came out at the outlet, because friction keeps
+ * the pressure falling even on a 4000 ft descent; it is still found by
+ * search, so a line whose profile is not monotonic is handled by the
+ * same code rather than by an assumption that happens to hold today.
+ *
+ * `meanVFtS` and `meanRatio` are returned so the app can keep showing
+ * the number this check used to report.
+ */
+export const gasErosionalAlongLine = ({
+  inputs, idIn, p2Psia, cFactor = 100, stations = GAS_STATIONS,
+}) => {
+  const tF = inputs.tF ?? 80;
+  const tR = toRankine(tF);
+  const areaFt2 = (Math.PI * idIn * idIn) / (4 * 144);
+  if (!(areaFt2 > 0) || !(inputs.qScfd > 0) || !(inputs.lengthMi > 0)) {
+    return { error: 'the gas erosional check needs a positive rate, bore and length' };
+  }
+  const stateAt = (pPsia) => {
+    const gas = gasDensityLbFt3({ pPsia, tF, gasSg: inputs.sg });
+    if (gas.error) return { error: gas.error };
+    const vFtS = ((inputs.qScfd / S_PER_DAY) * (14.65 / pPsia) * (tR / 520) * gas.z) / areaFt2;
+    return { vFtS, rhoLbFt3: gas.rhoLbFt3, severity: vFtS * Math.sqrt(gas.rhoLbFt3) };
+  };
+
+  const lengthFt = inputs.lengthMi * 5280;
+  const inlet = stateAt(inputs.p1Psia);
+  if (inlet.error) return { error: inlet.error };
+  let binding = { ...inlet, atFt: 0 };
+  let p = inputs.p1Psia;
+  for (let i = 1; i <= stations; i += 1) {
+    const inv = gasOutletPressure({
+      ...inputs,
+      idIn,
+      p1Psia: p,
+      lengthMi: inputs.lengthMi / stations,
+      elevChangeFt: (inputs.elevChangeFt || 0) / stations,
+    });
+    if (inv.error) return { error: inv.error };
+    p = inv.p2Psia;
+    const here = stateAt(p);
+    if (here.error) return { error: here.error };
+    if (here.severity > binding.severity) binding = { ...here, atFt: (i / stations) * lengthFt };
+  }
+
+  const at = erosionalStatus({ vFtS: binding.vFtS, rhoMixLbFt3: binding.rhoLbFt3, cFactor });
+  if (at.error) return at;
+
+  // The number the old check reported, kept so the app can show both.
+  const mean = Number.isFinite(p2Psia) ? stateAt((inputs.p1Psia + p2Psia) / 2) : { error: 'no outlet' };
+  const meanStatus = mean.error
+    ? null
+    : erosionalStatus({ vFtS: mean.vFtS, rhoMixLbFt3: mean.rhoLbFt3, cFactor });
+
+  return {
+    ...at,
+    bindingVFtS: binding.vFtS,
+    bindingAtFt: binding.atFt,
+    bindsAtInlet: binding.atFt <= 0,
+    meanVFtS: mean.error ? undefined : mean.vFtS,
+    meanRatio: meanStatus && !meanStatus.error ? meanStatus.ratio : undefined,
+    stations,
+  };
+};
+
 /**
  * The sizing sweep: the same line evaluated at every schedule bore,
  * with the velocity and RP 14E status of each, so choosing a size is
@@ -458,30 +544,24 @@ export const sizeSweep = ({ mode, inputs, cFactor = 100, maxLiquidVFtS = 15 }) =
       if (inv.error) {
         rows.push({ ...cand, idIn, dpPsi: NaN, pass: false, note: 'cannot carry the rate' });
       } else {
-        // actual velocity at mean pressure for the limit check
-        const pMean = (inputs.p1Psia + inv.p2Psia) / 2;
-        const gas = gasDensityLbFt3({ pPsia: pMean, tF: inputs.tF ?? 80, gasSg: inputs.sg });
-        if (gas.error) {
+        // Checked where the limit binds, not at the mean pressure: the
+        // gas expands as the pressure falls, so the mean describes a
+        // station the fluid passes through rather than the worst one.
+        const ero = gasErosionalAlongLine({
+          inputs, idIn, p2Psia: inv.p2Psia, cFactor,
+        });
+        if (ero.error) {
           rows.push({
             ...cand, idIn, dpPsi: inv.dpPsi, p2Psia: inv.p2Psia,
-            pass: false, note: gas.error,
+            pass: false, note: ero.error,
           });
         } else {
-          const areaFt2 = (Math.PI * idIn * idIn) / (4 * 144);
-          const tR = toRankine(inputs.tF ?? 80);
-          const vGas = ((inputs.qScfd / S_PER_DAY) * (14.65 / pMean) * (tR / 520) * gas.z) / areaFt2;
-          const ero = erosionalStatus({ vFtS: vGas, rhoMixLbFt3: gas.rhoLbFt3, cFactor });
-          if (ero.error) {
-            rows.push({
-              ...cand, idIn, dpPsi: inv.dpPsi, p2Psia: inv.p2Psia, vFtS: vGas,
-              pass: false, note: ero.error,
-            });
-          } else {
-            rows.push({
-              ...cand, idIn, dpPsi: inv.dpPsi, p2Psia: inv.p2Psia, vFtS: vGas,
-              erosionalFtS: ero.erosionalFtS, pass: !ero.exceeded,
-            });
-          }
+          rows.push({
+            ...cand, idIn, dpPsi: inv.dpPsi, p2Psia: inv.p2Psia,
+            vFtS: ero.bindingVFtS, meanVFtS: ero.meanVFtS,
+            bindingAtFt: ero.bindingAtFt, bindsAtInlet: ero.bindsAtInlet,
+            erosionalFtS: ero.erosionalFtS, pass: !ero.exceeded,
+          });
         }
       }
     } else {

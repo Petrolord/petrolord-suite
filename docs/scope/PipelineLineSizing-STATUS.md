@@ -121,6 +121,42 @@ ratio 0.524 against 1.159 where it binds at 99 percent of the length
 recommendation moves from 6 in sch 40 to 8 in sch 80. At C = 125 nothing
 flips. Liquid lines and lines with no gas are unmoved by construction.
 
+## FC2-0c gas-mode binding point (2026-09-16)
+
+The gas sweep evaluated velocity and the RP 14E limit at the MEAN of
+inlet and outlet pressure, so the app answered the same physical
+question two different ways depending on the mode. Fixed the way FC2-0b
+settled it, by applying the principle rather than re-deriving it.
+
+For a gas line velocity goes as z / p and density as p / z, so the
+severity v * sqrt(rho) goes as **sqrt(z / p)** and rises as the pressure
+falls. Measured: severity divided by sqrt(z/p) is constant to the digit
+across a line (858.3 at both ends of one bore), which is the derivation
+confirmed rather than assumed. The mean understates the ratio by 19 to
+39 percent on a 30 mi line and by 1.8 percent on a 5 mi one.
+
+The binding station is searched for, not assumed. `gasErosionalAlongLine`
+walks the line in 12 stations by applying the published transmission
+equation to each sub-length, exactly as `gasLineTraverse` already does,
+so no physics is added to the layer. In every gas line that could be
+built here the binding station came out at the OUTLET, because friction
+keeps the pressure falling even on a 4000 ft descent, unlike the
+multiphase descending case where it binds at the inlet. The search costs
+about 25 ms for a 12-bore sweep and its answer does not depend on the
+station count (identical to six digits from 6 stations to 96).
+
+Blast radius, measured before the change, over a 9 x 6 x 6 grid of rate,
+length and inlet pressure crossed with all 12 bores: **13 (bore, duty, C)
+combinations flip from pass to fail, 9 at C = 100 and 4 at C = 125**, and
+**5 of 6 flipping duties move the recommended size**. The sharpest:
+30 MMscfd, 10 mi, 900 psia, 6 in sch 40, ratio 0.620 at the mean against
+1.199 where it binds, the gas going from 45.0 ft/s to 168.0 ft/s.
+
+CAVEAT, engine-side and not fixed here: the vendored `gasOutletPressure`
+still brackets its bisection at [14.7, p1] (FINDINGS D1) at Suite main
+dabfb44aa, so a line whose outlet would sit ABOVE its inlet is clamped
+to the inlet. The station walk inherits that clamp where it fires.
+
 ## Honest limits (stated in-app)
 
 - Single-line only: the gathering-network solve is Production Network
@@ -142,12 +178,11 @@ flips. Liquid lines and lines with no gas are unmoved by construction.
 - Tile rename migration 20260829530000 HELD for the prod upload.
 - Literature gates for the gas-equation constants against a GPSA
   worked example remain ARMED (owner PDFs).
-- **The gas-mode sweep still checks RP 14E at MEAN pressure**, while
-  the fastest point of a gas line is its outlet: up to a 39 percent
-  understatement of the ratio on a 30 mi, 30 MMscfd line (8 in sch 80,
-  0.359 at the mean against 0.498 at the outlet). Same defect class as
-  FC2-0b in the single-phase gas path, measured and recorded in
-  FINDINGS.md, awaiting its own authorisation.
+- **The gas-mode result card carries no RP 14E verdict at all.** The
+  gas card shows outlet pressure, drop, gradient and z; the erosional
+  verdict for a gas line exists only in the sweep table. Noticed during
+  FC2-0c and recorded rather than added, because adding a verdict to a
+  card that never had one is new function, not a repair.
 - Engine-side defects behind this app (descending-line outlet pressure,
   unguarded roughness, efficiency and corrosion allowance, the two
   barrel constants) remain open in the engines repo.

@@ -137,9 +137,10 @@ const SweepTable = () => {
         Wall tab.
       </p>
       <p className="text-[11px] text-slate-600 mt-1">
-        On a multiphase line the velocity shown is the fastest point along the line, which is
-        where the RP 14E check is made. The gas expands as the pressure falls, so the inlet is
-        the slowest point and a limit checked there would pass a line that erodes at its far end.
+        On a gas or multiphase line the velocity shown is the fastest point along the line,
+        which is where the RP 14E check is made. The gas expands as the pressure falls, so the
+        fluid runs fastest near the outlet, and a limit checked at the inlet or at the average
+        of the two ends would pass a line that erodes at its far end.
       </p>
     </div>
   );
