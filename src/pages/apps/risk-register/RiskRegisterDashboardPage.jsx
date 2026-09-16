@@ -9,13 +9,30 @@ import { Plus, Loader2, TrendingUp, AlertOctagon, CheckCircle2 } from 'lucide-re
 import { calculateRiskScore, getRiskBand } from '@/lib/riskScoring';
 
 const RiskRegisterDashboardPage = ({ setActiveTab }) => {
-  const { risks, loading } = useRiskRegister();
+  const { risks, loading, error } = useRiskRegister();
   const navigate = useNavigate();
 
   if (loading) {
       return (
           <div className="flex items-center justify-center h-full min-h-[400px]">
               <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+          </div>
+      );
+  }
+
+  if (error) {
+      return (
+          <div className="p-6 max-w-2xl mx-auto">
+              <Card className="bg-slate-900 border-red-500/30">
+                  <CardContent className="p-6 space-y-2">
+                      <h3 className="text-lg font-semibold text-white">The register could not be loaded</h3>
+                      <p className="text-sm text-slate-400">{error}</p>
+                      <p className="text-xs text-slate-500">
+                          Nothing is shown rather than an empty register, because an
+                          empty register and a broken one are not the same thing.
+                      </p>
+                  </CardContent>
+              </Card>
           </div>
       );
   }
