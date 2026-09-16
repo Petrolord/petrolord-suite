@@ -58,7 +58,10 @@ const ResultCards = () => {
         hint={`no-slip ${fmt(sizing.lambdaL, 3)}`} />
       <Stat label="RP 14E status" value={sizing.exceeded ? 'EXCEEDED' : 'OK'}
         accent={sizing.exceeded ? 'text-red-400' : 'text-emerald-400'}
-        hint={`mixture ${fmt(sizing.vm, 1)} of ${fmt(sizing.erosionalFtS, 1)} ft/s`} />
+        hint={sizing.bindsAtInlet === false
+          ? `${fmt(sizing.bindingVFtS, 1)} of ${fmt(sizing.erosionalFtS, 1)} ft/s at the fastest point, `
+            + `${fmt(sizing.bindingAtFt, 0)} ft along (inlet runs ${fmt(sizing.inletVFtS, 1)} ft/s)`
+          : `mixture ${fmt(sizing.vm, 1)} of ${fmt(sizing.erosionalFtS, 1)} ft/s, fastest at the inlet`} />
     </div>
   );
 };
@@ -132,6 +135,11 @@ const SweepTable = () => {
         heavier schedule of the same nominal size is a smaller bore. Ties break on the thinner
         wall. It is a hydraulic recommendation only; wall thickness is its own check on the
         Wall tab.
+      </p>
+      <p className="text-[11px] text-slate-600 mt-1">
+        On a multiphase line the velocity shown is the fastest point along the line, which is
+        where the RP 14E check is made. The gas expands as the pressure falls, so the inlet is
+        the slowest point and a limit checked there would pass a line that erodes at its far end.
       </p>
     </div>
   );
