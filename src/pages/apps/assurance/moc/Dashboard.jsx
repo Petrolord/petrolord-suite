@@ -1,237 +1,251 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MOCPageShell } from './components/MOCPageShell';
+import { MOCPageShell, BASE } from './components/MOCPageShell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { 
-  Plus, 
-  Download, 
-  AlertTriangle, 
-  FileText, 
-  CheckCircle, 
-  Clock, 
-  ArrowRight, 
-  Activity, 
-  CheckSquare 
-} from 'lucide-react';
-import { 
-  ResponsiveContainer, 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  Tooltip, 
-  CartesianGrid, 
-  PieChart, 
-  Pie, 
-  Cell,
-  LineChart,
-  Line,
-  Legend
-} from 'recharts';
-import { exportToCSV, exportToExcel, exportToPDF } from '@/utils/exportUtils';
-import { useToast } from '@/hooks/use-toast';
+import { Activity, AlertTriangle, CheckCircle, Clock, Plus, Workflow } from 'lucide-react';
+import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
+import { format } from 'date-fns';
+import { CHART_COLORS, LEGEND_PROPS, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import ChartLogo from '@/components/charts/ChartLogo';
+import {
+  EXPIRY,
+  STAGES,
+  STAGE_CHART_COLORS,
+  byUrgency,
+  daysUntil,
+  expiryState,
+  isExpired,
+  parseDateOnly,
+  summarise,
+} from '@/lib/managementOfChange';
+import { ExpiryBadge, RiskBadge, StageBadge } from './components/MOCBadges';
+import { EmptyState, ErrorState, Loading, SchemaNotice } from './components/SharedComponents';
+import { useManagementOfChange } from './hooks/useManagementOfChange';
 
+const showDate = (v) => {
+  const d = parseDateOnly(v);
+  return d ? format(d, 'd MMM yyyy') : 'No date';
+};
+
+const Tile = ({ label, value, icon, tone, onClick }) => (
+  <Card className={`panel-elevation ${onClick ? 'cursor-pointer hover:border-[hsl(var(--primary))]/50 transition-colors' : ''}`}
+    onClick={onClick}>
+    <CardContent className="p-6 flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-[hsl(var(--muted-foreground))] mb-1">{label}</p>
+        <h3 className="text-3xl font-bold" style={tone ? { color: `hsl(var(${tone}))` } : undefined}>{value}</h3>
+      </div>
+      <div className="p-3 rounded-full" style={{ backgroundColor: `hsl(var(${tone || '--primary'}) / 0.1)` }}>
+        <span style={{ color: `hsl(var(${tone || '--primary'}))` }}>{icon}</span>
+      </div>
+    </CardContent>
+  </Card>
+);
+
+/**
+ * AS6 — the MOC dashboard.
+ *
+ * Every number was a literal: Active MOCs 42, Pending Approval 12,
+ * Overdue Actions 5, Implemented YTD 128. The stage breakdown, the
+ * monthly trend and the recent-activity list were literals too.
+ *
+ * And it carried a hardcoded alert reading "MOC-2026-015 and
+ * MOC-2026-033 expire in less than 7 days", naming two changes that do
+ * not exist. That warning is the single most safety-relevant thing an
+ * MOC dashboard shows — a temporary change past its date is a
+ * deviation the facility is running on without authority — and it was
+ * decoration.
+ *
+ * The monthly trend is not rebuilt. A trend needs dated snapshots this
+ * module does not keep, and drawing one from the current register
+ * would be the same invention in a new coat. Expiry, which is real and
+ * was missing, takes its place.
+ */
 export default function MOCDashboard() {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { records, actions, activity, loading, error, hasAs6Schema, refresh } = useManagementOfChange();
 
-  const metrics = [
-    { title: "Active MOCs", value: 42, icon: Activity, color: "text-[hsl(var(--primary))]" },
-    { title: "Pending Approval", value: 12, icon: Clock, color: "text-[hsl(var(--warning))]" },
-    { title: "Overdue Actions", value: 5, icon: AlertTriangle, color: "text-[hsl(var(--destructive))]" },
-    { title: "Implemented (YTD)", value: 128, icon: CheckCircle, color: "text-[hsl(var(--success))]" }
-  ];
+  const today = new Date();
+  const summary = useMemo(() => summarise(records, { actions }, today),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [records, actions]);
 
-  const stageData = [
-    { name: 'Draft', value: 8, fill: 'hsl(var(--muted-foreground))' },
-    { name: 'Screening', value: 5, fill: 'hsl(var(--info))' },
-    { name: 'Review', value: 12, fill: 'hsl(var(--warning))' },
-    { name: 'Approval', value: 7, fill: 'hsl(var(--warning))' },
-    { name: 'Implementation', value: 10, fill: 'hsl(var(--primary))' }
-  ];
+  const stageData = useMemo(
+    () => STAGES.map((name) => ({ name, value: summary.byStage[name] })).filter((d) => d.value > 0),
+    [summary],
+  );
 
-  const monthlyTrend = [
-    { name: 'Oct', submitted: 15, closed: 12 },
-    { name: 'Nov', submitted: 18, closed: 14 },
-    { name: 'Dec', submitted: 12, closed: 18 },
-    { name: 'Jan', submitted: 22, closed: 15 },
-    { name: 'Feb', submitted: 25, closed: 20 },
-    { name: 'Mar', submitted: 18, closed: 22 },
-  ];
+  const expiring = useMemo(
+    () => records
+      .filter((m) => [EXPIRY.EXPIRED, EXPIRY.EXPIRING].includes(expiryState(m, today)))
+      .sort(byUrgency(today))
+      .slice(0, 6),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [records],
+  );
 
-  const recentActivity = [
-    { id: 'MOC-2026-089', title: 'Upgrade Compressor C-101', stage: 'Review', time: '2h ago' },
-    { id: 'MOC-2026-088', title: 'Update bypass procedure', stage: 'Approval', time: '4h ago' },
-    { id: 'MOC-2026-085', title: 'Chemical injection rate change', stage: 'Implemented', time: '1d ago' },
-    { id: 'MOC-2026-082', title: 'Temporary pipeline clamp', stage: 'Draft', time: '2d ago' },
-  ];
+  const recent = useMemo(() => {
+    const byId = new Map(records.map((m) => [m.id, m]));
+    return activity.slice(0, 6).map((a) => ({ ...a, moc: byId.get(a.moc_id) }));
+  }, [activity, records]);
 
-  const handleExport = (type) => {
-    const filename = `MOC-Dashboard-${new Date().toISOString().split('T')[0]}`;
-    // Export combined structured data for the dashboard
-    const exportData = recentActivity.map(act => ({
-      MOC_ID: act.id,
-      Title: act.title,
-      Stage: act.stage,
-      Time: act.time
-    }));
+  if (loading) return <MOCPageShell><Loading label="Loading the change register..." /></MOCPageShell>;
+  if (error) return <MOCPageShell><ErrorState error={error} onRetry={refresh} /></MOCPageShell>;
 
-    let success = false;
-    if (type === 'csv') success = exportToCSV(exportData, filename);
-    if (type === 'excel') success = exportToExcel(exportData, filename);
-    if (type === 'pdf') success = exportToPDF('MOC Dashboard Summary', exportData, filename);
-
-    if (success) {
-      toast({ title: 'Export Successful', description: `${filename}.${type} downloaded.` });
-    } else {
-      toast({ title: 'Export Failed', description: 'No data to export.', variant: 'destructive' });
-    }
-  };
+  if (records.length === 0) {
+    return (
+      <MOCPageShell>
+        {!hasAs6Schema ? <SchemaNotice /> : null}
+        <EmptyState
+          icon={<Workflow className="w-12 h-12" />}
+          title="This organization has no change requests yet"
+          description="Nothing is shown here until there is something real to show. Raise a change and its approvals, actions and expiry will appear."
+          action={<Button onClick={() => navigate(`${BASE}/new`)}><Plus className="w-4 h-4 mr-2" /> Raise a change</Button>}
+        />
+      </MOCPageShell>
+    );
+  }
 
   return (
-    <MOCPageShell title="MOC Dashboard">
-      <div className="space-y-6 animate-in fade-in duration-500 pb-20 md:pb-0">
-        
-        {/* Sticky Action Bar */}
-        <div className="sticky-action-bar rounded-xl flex flex-col sm:flex-row justify-between items-center gap-4 mb-6 mt-2 bg-[hsl(var(--card))] p-4 border border-[hsl(var(--border))] no-print">
-           <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
-             <Button className="btn-primary whitespace-nowrap shadow-md shadow-[hsl(var(--primary))]/20" onClick={() => navigate('new')}>
-               <Plus className="w-4 h-4 mr-2" /> Create MOC
-             </Button>
-             <Button variant="outline" className="whitespace-nowrap bg-[hsl(var(--card))] border-[hsl(var(--border))] hover:bg-[hsl(var(--secondary))]" onClick={() => navigate('approvals')}>
-               <CheckSquare className="w-4 h-4 mr-2" /> My Approvals (3)
-             </Button>
-           </div>
-           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] self-end sm:self-auto">
-                <Download className="w-4 h-4 mr-2" /> Export
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-[hsl(var(--card))] border-[hsl(var(--border))] text-[hsl(var(--foreground))]">
-              <DropdownMenuItem onClick={() => handleExport('csv')}>Export as CSV</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('excel')}>Export as Excel</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('pdf')}>Export as PDF</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+    <MOCPageShell>
+      <div className="space-y-6 animate-in fade-in duration-300 pb-20 md:pb-0">
+        {!hasAs6Schema ? <SchemaNotice /> : null}
+
+        {summary.expired > 0 ? (
+          <div className="p-4 rounded-lg border border-[hsl(var(--destructive))]/40 bg-[hsl(var(--destructive))]/5 text-sm flex gap-3">
+            <AlertTriangle className="w-5 h-5 text-[hsl(var(--destructive))] shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium">
+                {summary.expired} temporary change{summary.expired === 1 ? ' is' : 's are'} past
+                {summary.expired === 1 ? ' its' : ' their'} expiry date and still in effect
+              </p>
+              <p className="text-[hsl(var(--muted-foreground))] mt-1">
+                Each one is a deviation the facility is running on without
+                current authority. They are listed below.
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Tile label="Active changes" value={summary.active}
+            icon={<Activity className="w-6 h-6" />} tone="--primary"
+            onClick={() => navigate(`${BASE}/register`)} />
+          <Tile label="Awaiting approval" value={summary.awaitingApproval}
+            icon={<Clock className="w-6 h-6" />} tone="--warning"
+            onClick={() => navigate(`${BASE}/approvals`)} />
+          <Tile label="Expired temporary" value={summary.expired}
+            icon={<AlertTriangle className="w-6 h-6" />} tone="--destructive"
+            onClick={() => navigate(`${BASE}/register`)} />
+          <Tile label="Overdue actions" value={summary.overdueActions}
+            icon={<CheckCircle className="w-6 h-6" />} tone="--warning" />
         </div>
 
-        {/* Metrics Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {metrics.map((m, i) => (
-            <Card key={i} className="panel-elevation hover:panel-glow transition-all">
-              <CardContent className="p-5 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-[hsl(var(--muted-foreground))] mb-1">{m.title}</p>
-                  <h3 className={`text-3xl font-bold ${m.color}`}>{m.value}</h3>
-                </div>
-                <div className="p-3 rounded-xl bg-[hsl(var(--secondary))]">
-                  <m.icon className={`w-6 h-6 ${m.color}`} />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card className="panel-elevation">
-            <CardHeader className="border-b border-[hsl(var(--border))] pb-3">
-              <CardTitle className="text-base">MOC Pipeline by Stage</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stageData} layout="vertical" margin={{top: 5, right: 20, left: 40, bottom: 5}}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis type="number" stroke="hsl(var(--muted-foreground))" tick={{fontSize: 12}} />
-                  <YAxis dataKey="name" type="category" stroke="hsl(var(--muted-foreground))" tick={{fontSize: 12}} width={100} />
-                  <Tooltip cursor={{fill: 'hsl(var(--secondary))'}} contentStyle={{backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))'}} />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={40}>
-                    {stageData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+            <CardHeader><CardTitle className="text-lg">The register by stage</CardTitle></CardHeader>
+            <CardContent>
+              <div className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={stageData} cx="50%" cy="45%" innerRadius={60} outerRadius={90}
+                      paddingAngle={2} dataKey="value" nameKey="name">
+                      {stageData.map((d) => <Cell key={d.name} fill={STAGE_CHART_COLORS[d.name]} />)}
+                    </Pie>
+                    <Tooltip contentStyle={TOOLTIP_STYLE} />
+                    <Legend {...LEGEND_PROPS} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <ChartLogo />
+              </div>
             </CardContent>
           </Card>
 
           <Card className="panel-elevation">
-             <CardHeader className="border-b border-[hsl(var(--border))] pb-3">
-              <CardTitle className="text-base">Monthly Trend (Submitted vs Closed)</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={monthlyTrend} margin={{top: 10, right: 10, left: -20, bottom: 0}}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" tick={{fontSize: 12}} />
-                  <YAxis stroke="hsl(var(--muted-foreground))" tick={{fontSize: 12}} allowDecimals={false} />
-                  <Tooltip contentStyle={{backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))'}} />
-                  <Legend wrapperStyle={{fontSize: '12px', paddingTop: '10px'}} />
-                  <Line type="monotone" dataKey="submitted" name="Submitted" stroke="hsl(var(--primary))" strokeWidth={2} dot={{r: 4}} />
-                  <Line type="monotone" dataKey="closed" name="Closed" stroke="hsl(var(--success))" strokeWidth={2} dot={{r: 4}} />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Lower Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="panel-elevation lg:col-span-2">
-            <CardHeader className="flex flex-row justify-between items-center border-b border-[hsl(var(--border))] pb-3">
-              <CardTitle className="text-base">Recent Activity</CardTitle>
-              <Button variant="ghost" size="sm" className="text-xs text-[hsl(var(--primary))]" onClick={() => navigate('register')}>View All</Button>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-lg">Expiring and expired</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => navigate(`${BASE}/register`)}>Register</Button>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="divide-y divide-[hsl(var(--border))]">
-                {recentActivity.map((act, i) => (
-                  <div key={i} className="p-4 flex items-center justify-between hover:bg-[hsl(var(--secondary))] transition-colors cursor-pointer" onClick={() => navigate(act.id)}>
-                    <div className="flex items-center gap-4">
-                      <div className="p-2 bg-[hsl(var(--secondary-background))] rounded-md border border-[hsl(var(--border))]">
-                        <FileText className="w-4 h-4 text-[hsl(var(--muted-foreground))]" />
+              {expiring.length ? (
+                <ul className="divide-y divide-[hsl(var(--border))]">
+                  {expiring.map((m) => (
+                    <li key={m.id}
+                      className="px-6 py-4 flex justify-between items-center gap-4 hover:bg-[hsl(var(--secondary))]/50 cursor-pointer"
+                      onClick={() => navigate(`${BASE}/${m.id}`)}>
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{m.title}</p>
+                        <p className="text-xs text-[hsl(var(--muted-foreground))] font-mono">{m.moc_code}</p>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-[hsl(var(--foreground))]">{act.id}</p>
-                        <p className="text-xs text-[hsl(var(--muted-foreground))]">{act.title}</p>
+                      <div className="text-right shrink-0">
+                        <ExpiryBadge moc={m} today={today} />
+                        <p className={`text-xs mt-1 ${isExpired(m, today) ? 'text-[hsl(var(--destructive))]' : 'text-[hsl(var(--muted-foreground))]'}`}>
+                          {showDate(m.expiry_date)}
+                          {m.expiry_date ? ` · ${Math.abs(daysUntil(m.expiry_date, today))} days` : ''}
+                        </p>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-4 text-right">
-                      <span className={`badge-status ${act.stage === 'Draft' ? 'badge-draft' : act.stage === 'Implemented' ? 'badge-success' : act.stage === 'Approval' ? 'badge-approval' : 'badge-review'}`}>
-                        {act.stage}
-                      </span>
-                      <span className="text-xs text-[hsl(var(--muted-foreground))] w-12">{act.time}</span>
-                      <ArrowRight className="w-4 h-4 text-[hsl(var(--muted-foreground))]" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="panel-elevation border-[hsl(var(--destructive))]/30 shadow-[0_0_10px_rgba(239,68,68,0.05)]">
-             <CardHeader className="border-b border-[hsl(var(--border))] pb-3 bg-[hsl(var(--destructive))]/5">
-              <CardTitle className="text-base flex items-center text-[hsl(var(--destructive))]">
-                <AlertTriangle className="w-4 h-4 mr-2" /> Attention Required
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 space-y-4">
-              <div className="p-3 rounded-md bg-[hsl(var(--secondary))] border border-[hsl(var(--border))]">
-                <p className="text-xs font-semibold text-[hsl(var(--destructive))] mb-1">Overdue Actions (5)</p>
-                <p className="text-xs text-[hsl(var(--muted-foreground))]">3 implementation tasks and 2 pre-startup safety reviews are past due.</p>
-                <Button variant="link" size="sm" className="px-0 text-[hsl(var(--primary))] h-auto mt-2 text-xs">View Actions</Button>
-              </div>
-              <div className="p-3 rounded-md bg-[hsl(var(--secondary))] border border-[hsl(var(--border))]">
-                <p className="text-xs font-semibold text-[hsl(var(--warning))] mb-1">Temporary MOCs Expiring (2)</p>
-                <p className="text-xs text-[hsl(var(--muted-foreground))]">MOC-2026-015 and MOC-2026-033 expire in less than 7 days.</p>
-                <Button variant="link" size="sm" className="px-0 text-[hsl(var(--primary))] h-auto mt-2 text-xs">Review Expiries</Button>
-              </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="p-8 text-center text-[hsl(var(--muted-foreground))]">
+                  No temporary change is expired or inside its warning window.
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
 
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="panel-elevation">
+            <CardHeader><CardTitle className="text-lg">By risk level</CardTitle></CardHeader>
+            <CardContent className="p-6">
+              <div className="flex flex-wrap gap-6">
+                {Object.entries(summary.byRisk).map(([risk, n]) => (
+                  <div key={risk}>
+                    <RiskBadge risk={risk} />
+                    <p className="text-2xl font-bold mt-2">{n}</p>
+                  </div>
+                ))}
+                <div>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
+                    Unassessed
+                  </span>
+                  <p className="text-2xl font-bold mt-2">
+                    {summary.total - Object.values(summary.byRisk).reduce((a, b) => a + b, 0)}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="panel-elevation">
+            <CardHeader><CardTitle className="text-lg">Recent activity</CardTitle></CardHeader>
+            <CardContent className="p-0">
+              {recent.length ? (
+                <ul className="divide-y divide-[hsl(var(--border))]">
+                  {recent.map((a) => (
+                    <li key={a.id} className="px-6 py-3 flex justify-between items-center gap-4">
+                      <div className="min-w-0">
+                        <p className="text-sm truncate">{a.action}</p>
+                        <p className="text-xs text-[hsl(var(--muted-foreground))] font-mono">
+                          {a.moc?.moc_code || ''}
+                        </p>
+                      </div>
+                      {a.moc ? <StageBadge stage={a.moc.stage} /> : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="p-8 text-center text-[hsl(var(--muted-foreground))]">
+                  Nothing has happened to these changes yet. Stage moves,
+                  approvals and actions appear here as they are recorded.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </MOCPageShell>
   );
