@@ -180,3 +180,86 @@ defects leaving the suite green to 0 of 35**. Suite: the smoke test now asserts
 the hidden constants appear and that clearing an equipment box gives NO spec
 verdict, and `ProducedWaterContext.parsing.test.js` holds the strict parser and
 the re-picked defaults against the values `parseFloat` used to launder.
+
+## FC7-1: the second engine repair, vendored 2026-09-17
+
+Engines PR #206 (merge `9874d58`) repaired three more defects in the same
+module, all of them classes FC7-0 had named but had not chased into every
+device. The Suite pin moved `55431d7` -> `9874d58`, seven canonical paths,
+each proved byte-identical to the canonical blob. The import closure needed
+nothing else: `engines/facilities/producedWater.js` imports nothing.
+
+1. **`mediaFilter` kept a silent `Math.max(loadingMHr, 1)`.** Below 1 m/hr
+   the bed area moved the answer by exactly nothing. At the shipped 50,000
+   bwpd, beds of 400, 600 and 2000 m2 all reported a filter coefficient of
+   11.067972 per m, a cut of 5.275789 micron and 99.9953 percent removal of
+   a reference droplet, to every digit, across a five-fold span of bed area.
+   The clamp is gone, so the area bites wherever the module answers, and
+   below a declared and pinned `filterMinLoadingMHr` of 1 m/hr the module
+   now REFUSES BY NAME, quoting the loading, the floor, the declared
+   reference loading and the bed area that would run the flow at the floor.
+   The low-rate form is HELD FOR LITERATURE.
+2. **Three thresholds were bare inlined numbers**: the flotation residence
+   warning of 60 s, and the grid's `nBins` and `spanSigma` floors. All three
+   are declared in `DECLARED_CONSTANTS`, and the flotation warning now quotes
+   the threshold it judged against. `flotation` returns `residenceWarnS` and
+   `mediaFilter` returns `loadingFloorMHr`, so the app can show both.
+3. **`medianOfBins` still fell back to the bare bin midpoint** when a bin
+   carried no edges, a silent route back to the quantised median FC7-0 had
+   removed. The path is closed and the leaf returns NaN. No in-module caller
+   can reach it, so nothing in this Studio changes.
+
+### What moves on a live screen
+
+**No shipped default moves.** The shipped filter bed is 16 m2, which at
+50,000 bwpd loads at 20.70 m/hr, twenty times the floor, and the shipped
+flotation cells sit far above the 60 s warning. The Studio's default case is
+identical to the last digit: cut 11.253503 micron, coefficient 2.432582 per m.
+
+**Above the floor nothing moves at all.** The old clamp was `Math.max(x, 1)`,
+which is the identity for every loading of 1 m/hr and above, so every answer
+the Studio can still give is bit-for-bit what it gave before.
+
+**Below the floor a frozen number becomes a named refusal.** At the shipped
+flow that is any bed past about 331.2 m2. Where the Studio used to print a
+cut size of 5.275789 micron and a 99.9953 percent reference removal for any
+bed of any size, it now prints the refusal and its reason. The train already
+handles this honestly: `treatmentTrain` marks the stage `ran: false`, the
+stage table shows "did not run" with dashes rather than a blank or a zero,
+the reason appears as a note, and the spec verdict is WITHHELD rather than
+silently computed on two stages.
+
+**The flotation residence warning is reworded** by the engine, from "less
+than a minute of flotation residence (32.0 s)" to "32.0 s of flotation
+residence is under the 60 s this module warns below". Same trigger, same
+threshold, and it now names the number it judged against.
+
+### Suite-side changes
+
+- `PwtPanels.jsx`: the **Bed area** box states the floor before you can hit
+  it; the **Loading rate** row carries the floor and the bed area at which
+  this flow would reach it; the **Residence over all cells** row carries the
+  declared 60 s warning threshold. All three read the engine's own returned
+  values rather than restating a constant.
+- `PwtHelpGuide.jsx`: the limits section states the filter refusal and why.
+
+No new refusal renders as a blank, a NaN or a zero: `DeviceDetail` gates
+every row behind `!d.error` and shows an `ErrorNote`, and the stage table
+prints "did not run".
+
+### Queued for the engines repo, not fixed from here
+
+`apiSeparator`'s short-circuit refusal string breaches the owner copy rule
+with a contrastive: "an F of zero or less is not a perfect separator, it is
+an undefined one". It predates FC7-1 and it DOES reach a live screen, because
+`DeviceDetail` renders a device's `error` verbatim and the Short-circuit
+factor F box is on the API panel for anyone to type a zero into.
+`mediaFilter`'s `cutBasis` carries the same shape, "not a second opinion",
+but nothing in the Suite renders `cutBasis`, so that one is latent.
+
+FC7-1's own new refusal string is clean: no dash of any kind and no
+contrastive. The vendored `engine.copy.lint` suite passes, though it gates
+dashes and rounding rather than contrastives.
+
+Engine copy is repaired in petrolord-engines and never from the Suite, so
+both are queued there.
