@@ -110,7 +110,7 @@ export const ObligationForm = ({
 
   const authorityOptions = authorities.map((a) => ({
     value: a.id,
-    label: a.acronym ? `${a.acronym} — ${a.name}` : a.name,
+    label: a.acronym ? `${a.acronym} · ${a.name}` : a.name,
   }));
 
   return (
@@ -167,7 +167,7 @@ export const ObligationForm = ({
               <div>
                 <Label htmlFor="jurisdiction">Jurisdiction</Label>
                 <Input id="jurisdiction" value={form.jurisdiction || ''} onChange={set('jurisdiction')}
-                  placeholder="Federal — Nigeria" />
+                  placeholder="Federal, Nigeria" />
               </div>
               <div>
                 <Label htmlFor="reference">Permit or licence number</Label>

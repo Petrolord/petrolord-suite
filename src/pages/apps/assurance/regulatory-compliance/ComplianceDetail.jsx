@@ -131,7 +131,7 @@ export default function ComplianceDetail() {
         <CardHeader><CardTitle className="text-lg">The obligation</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <DetailField label="Regulator">
-            {authority ? (authority.acronym ? `${authority.acronym} — ${authority.name}` : authority.name) : null}
+            {authority ? (authority.acronym ? `${authority.acronym} · ${authority.name}` : authority.name) : null}
           </DetailField>
           <DetailField label="Facility">{obligation.facility}</DetailField>
           <DetailField label="Jurisdiction">{obligation.jurisdiction}</DetailField>
