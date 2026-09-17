@@ -29,11 +29,11 @@ programmes. This one is still in its Horizons-generated state.
 | Document Control | `apps/assurance/document-control/*` | `documents`, `doc_revisions`, `doc_workflows`, `doc_activity_log`, `doc_categories` | **AS4 done.** Coming Soon until its own promotion migration | AS4 |
 | Peer Review Manager | `apps/assurance/peer-review-manager/*` | `peer_reviews`, `peer_review_comments`, `peer_review_audit`, `peer_review_participants` | **AS5 done.** Coming Soon until its own promotion migration | AS5 |
 | Management of Change | `apps/assurance/management-of-change/*` | `moc_records`, `moc_approvals`, `moc_actions`, `moc_impacts`, `moc_activity_log` | **AS6 done.** Coming Soon until its own promotion migration | AS6 |
-| Quality Assurance Plan | `apps/assurance/qa-plan/*` | nothing | Coming Soon | AS7 |
+| Quality Assurance Plan & NCR | `apps/assurance/qa-plan/*` | `qa_plans`, `qa_checkpoints`, `qa_ncrs`, `qa_capas`, `qa_activity_log` | **AS7 done.** Coming Soon until its own promotion migration | AS7 |
 | Audit & Findings Manager | not built | - | New app | AS10 |
 
-Tests: **264** as of AS6 (AS2 34, AS3 63, AS4 45, AS5 52, AS6 58, plus
-the shared authority suites), all under
+Tests: **343** as of AS7 (AS2 34, AS3 63, AS4 45, AS5 52, AS6 58, AS7 79,
+plus the shared authority suites), all under
 `src/lib/__tests__/` and the two app trees. There were none at all
 before AS2. Engine: **none**; there is no `engines/assurance` in
 petrolord-engines, which is why the two NextGen assurance courses are
@@ -743,6 +743,119 @@ the same lesson as §3d.4 from a different direction.
 
 ---
 
+## 3f. AS7, built 2026-09-17 — Quality Assurance Plan & NCR
+
+There were no `qa_*`, `ncr*` or `capa*` tables anywhere in the database.
+The whole app was four files under `src/data/qa-plan/`.
+
+### 3f.1 An app with no database at all
+
+Six invented quality plans, each with a `progress` percentage written in
+by hand (45, 10, 78, 90, 30, 100), two checkpoints that both belonged to
+the same plan, two NCRs, and two corrective actions **that no page
+imported at all**. Corrective action is the half of the discipline that
+closes the loop, and it was absent from the interface entirely.
+
+So an organization with no quality plans, an organization with a full
+register and an organization whose database was down all saw the same
+six plans, owned by the same invented people.
+
+Nothing could be created. `NewQAPlan.jsx` had no state — no `value`, no
+`onChange`, no `useState` for any field, exactly as AS6 found in
+`NewMOC.jsx` — and its Create Plan button toasted "QA Plan Draft
+Created" before navigating to the register of invented plans. Raise NCR
+toasted "Raise NCR form...". Add Checkpoint toasted "Add checkpoint
+dialog...".
+
+### 3f.2 Two wrong routes, and the second hid half the app
+
+`QAPlanDetail.jsx` read `useParams().id` while the shell declared
+`:qaPlanId`, so `id` was always undefined and
+
+```js
+const plan = qaPlans.find(p => p.id === (id || 'QAP-2026-001')) || qaPlans[0];
+```
+
+opened the first invented plan from every row in the register.
+
+The second one is the more serious, because it was invisible: the NCR
+register's rows navigated to `ncr/:id`, **a route the shell never
+declared**, so every click on a non-conformance fell through the
+catch-all onto the dashboard. That was the whole of the NCR lifecycle.
+An organization could raise a non-conformance and then had nowhere to
+agree a disposition, record a root cause, raise a corrective action,
+check whether it worked, or close it. `NCRDetail.jsx` is that page now,
+and it is the only caller of `canCloseNcr`.
+
+### 3f.3 The reports page drew no charts
+
+Both of its panels rendered a sentence describing a chart:
+
+```jsx
+[Chart Visualization: Active 60%, Draft 20%, Closed 20%]
+[Chart Visualization: Engineering 12, Drilling 5, Projects 8]
+```
+
+Percentages and counts of nothing, identical for every organization,
+under an Export Dashboard button that toasted "Downloading PDF..." and
+downloaded nothing at all. This is the one page in the module whose
+fiction was never exportable, which is the only good thing to say about
+it.
+
+It now leads with the report a quality manager actually needs —
+**which inspection and hold points are outstanding, and which are past
+their planned date**, hold points first — and exports the plan
+register, the NCR register and that list as CSV, each built from the
+fetched rows.
+
+### 3f.4 What AS7 built
+
+`src/lib/qualityAssurance.js` is the sixth authority in this module.
+Three rules carry it:
+
+- **A hold point stops work; a witness point does not.** That
+  distinction is the engineering content of an inspection and test
+  plan. A hold point may not be passed until the verifying party
+  attends and signs; a witness point is a notification, and work
+  proceeds if the party does not attend. `canClosePlan` refuses over an
+  outstanding hold point and lets an unattended witness point through.
+  A failed checkpoint blocks whatever its type: a failed inspection is
+  the most outstanding item on a plan.
+- **A decision is a date and a named verifier.** Any checkpoint
+  reaching Passed, Failed or Waived carries both — a Suite user, or a
+  name in text for a certifying authority surveyor who has no login
+  here. A hold point that passed with nobody named did not pass. A
+  waiver carries its reason as well, because waiving an inspection
+  point is a deliberate acceptance of less assurance.
+- **A completed corrective action is not a working one.**
+  `canCloseNcr` will not close a critical or major non-conformance
+  until a corrective action has been **verified effective**, on AS5's
+  proportionality precedent where Minor and Editorial do not block. The
+  effectiveness check is a date and a name either way, including for a
+  "not effective" verdict, which is the one that matters most: it is
+  the trigger to go round again.
+
+There is deliberately **no `progress` column**. Completion is counted
+from the checkpoints, and a plan with no ITP reads "No inspection
+points" rather than 0% complete, because it is not 0% complete.
+
+Both code series (`QAP-YYYY-NNN`, `NCR-YYYY-NNN`) are issued by the
+database under an advisory lock, per org and per year.
+
+### 3f.5 Gotcha worth keeping
+
+**A hook method with no caller is the same defect as a create form with
+no state.** Halfway through this wave the hook exposed eighteen write
+methods and the pages called five of them: `setDisposition`,
+`closeNcr`, `voidNcr`, `addCapas`, `updateCapa` and
+`recordEffectiveness` all existed, were correct, were tested through
+the authority, and were unreachable from the interface. It read as
+finished work from the service level, which is exactly the trap §1.2a
+recorded after AS3. The check that catches it is a grep for each
+exported method across the app tree, and it is now a test.
+
+---
+
 ## 4. How AS1 was verified
 
 No production write was made. Everything below ran on a scratch
@@ -777,12 +890,13 @@ schema level, and on the scratch reproduction.
 
 ## 5. Open
 
-- **All ten migrations are unapplied.** Ordered apply script:
+- **All eleven migrations are unapplied.** Ordered apply script:
   `tools/validation/assurance/as1-apply.sh`, which does not yet include
   AS3's `20260917100000_as3_regulatory_compliance.sql`, AS4's
   `20260917200000_as4_document_control.sql`, AS5's
-  `20260917300000_as5_peer_review.sql` or AS6's
-  `20260917400000_as6_management_of_change.sql`; run those after the
+  `20260917300000_as5_peer_review.sql`, AS6's
+  `20260917400000_as6_management_of_change.sql` or AS7's
+  `20260917500000_as7_quality_assurance_plan.sql`; run those after the
   AS1 pair, in that order. Owner-run.
 - **The six parent registers have no RLS or policies in the repo**
   (§3d.4). `documents`, `risk_register`, `moc_records`,
@@ -794,8 +908,10 @@ schema level, and on the scratch reproduction.
   reconstruction one.
 - **A private `documents` storage bucket** for AS4 file uploads (§3c.6).
   Owner-run through the Supabase dashboard.
-- **Document Control's tile promotion.** AS1 left it Coming Soon; AS4
-  makes it real, but the promotion migration is held with the rest.
+- **Four held tile promotions.** AS1 left Document Control, Peer Review
+  Manager, Management of Change and Quality Assurance Plan at Coming
+  Soon; AS4 to AS7 make them real, but each promotion migration is held
+  with the rest.
 - The commerce migration needs a second engineer (shared tables).
 - Five owner questions in `Assurance-ROADMAP.md` §7. AS1 proceeded on
   the recommendation in each case per the standing autonomous directive;
