@@ -57,3 +57,18 @@ $$;
 
 grant execute on function auth.uid(), public.my_org_id(),
   public.is_super_admin(), public.is_org_member(uuid) to anon, authenticated;
+
+-- AS4: the AS1 schema backfill has foreign keys into auth.users, so the
+-- fixture needs the table as well as auth.uid().
+create table if not exists auth.users (
+  id uuid primary key default gen_random_uuid(),
+  email text
+);
+
+-- And `public.users`: several AS1 foreign keys are written unqualified
+-- as `REFERENCES users(id)`, which resolves through search_path to the
+-- public table, not to auth.users.
+create table if not exists public.users (
+  id uuid primary key default gen_random_uuid(),
+  email text
+);
