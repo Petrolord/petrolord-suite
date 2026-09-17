@@ -209,11 +209,11 @@ const DocControlReports = lazy(() => import('@/pages/apps/assurance/document-con
 const DocControlDetail = lazy(() => import('@/pages/apps/assurance/document-control/DocumentDetail.jsx'));
 
 // Peer Review Manager
-const PeerReviewDashboard = lazy(() => import('@/pages/apps/peer-review/Dashboard.jsx'));
-const PeerReviewRegister = lazy(() => import('@/pages/apps/peer-review/ReviewRegister.jsx'));
-const PeerReviewNew = lazy(() => import('@/pages/apps/peer-review/NewReview.jsx'));
-const PeerReviewReports = lazy(() => import('@/pages/apps/peer-review/Reports.jsx'));
-const PeerReviewDetail = lazy(() => import('@/pages/apps/peer-review/ReviewDetail.jsx'));
+const PeerReviewDashboard = lazy(() => import('@/pages/apps/assurance/peer-review/Dashboard.jsx'));
+const PeerReviewRegister = lazy(() => import('@/pages/apps/assurance/peer-review/ReviewRegister.jsx'));
+const PeerReviewNew = lazy(() => import('@/pages/apps/assurance/peer-review/NewReview.jsx'));
+const PeerReviewReports = lazy(() => import('@/pages/apps/assurance/peer-review/Reports.jsx'));
+const PeerReviewDetail = lazy(() => import('@/pages/apps/assurance/peer-review/ReviewDetail.jsx'));
 
 // Management of Change (MOC)
 const MOCDashboard = lazy(() => import('@/pages/apps/assurance/moc/Dashboard.jsx'));

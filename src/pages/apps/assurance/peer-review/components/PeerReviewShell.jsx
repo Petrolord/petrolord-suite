@@ -1,25 +1,26 @@
 import React from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Users, LayoutDashboard, List, PlusCircle, BarChart2, ChevronLeft, Download } from 'lucide-react';
+import { Users, LayoutDashboard, List, PlusCircle, BarChart2, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
+
+export const BASE = '/dashboard/apps/assurance/peer-review-manager';
 
 export const PeerReviewShell = ({ children, title = "Peer Review Manager", subtitle = "Technical assurance and decision quality workflow" }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const path = location.pathname;
 
   const navItems = [
-    { name: 'Dashboard', path: '/dashboard/apps/assurance/peer-review-manager', icon: LayoutDashboard, exact: true },
-    { name: 'Review Register', path: '/dashboard/apps/assurance/peer-review-manager/register', icon: List },
-    { name: 'New Review', path: '/dashboard/apps/assurance/peer-review-manager/new', icon: PlusCircle },
-    { name: 'Reports', path: '/dashboard/apps/assurance/peer-review-manager/reports', icon: BarChart2 },
+    { name: 'Dashboard', path: BASE, icon: LayoutDashboard, exact: true },
+    { name: 'Register', path: `${BASE}/register`, icon: List },
+    { name: 'New Review', path: `${BASE}/new`, icon: PlusCircle },
+    { name: 'Reports', path: `${BASE}/reports`, icon: BarChart2 },
   ];
 
-  const handleExport = () => {
-     toast({ title: "Export Initiated", description: "Downloading complete peer review archive as CSV." });
-  };
+  // AS5: the Export button that stood in this header toasted
+  // "Downloading complete peer review archive as CSV" and downloaded
+  // nothing. Export lives on the register and the reports page, where
+  // the rows are.
 
   return (
     <div className="flex flex-col h-full bg-[hsl(var(--background))] text-[hsl(var(--foreground))] overflow-hidden">
@@ -46,11 +47,6 @@ export const PeerReviewShell = ({ children, title = "Peer Review Manager", subti
                 <p className="text-sm text-[hsl(var(--muted-foreground))]">{subtitle}</p>
               </div>
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={handleExport} className="border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))]">
-               <Download className="w-4 h-4 mr-2" /> Export All
-            </Button>
           </div>
         </div>
 
@@ -83,3 +79,5 @@ export const PeerReviewShell = ({ children, title = "Peer Review Manager", subti
     </div>
   );
 };
+
+export default PeerReviewShell;
