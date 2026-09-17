@@ -234,6 +234,7 @@ const ISOCompliancePageShell = lazy(() => import('@/pages/apps/assurance/iso-com
 
 // Lessons Learned Shell
 const LessonsLearnedPageShell = lazy(() => import('@/pages/apps/assurance/lessons-learned/LessonsLearnedPageShell.jsx'));
+const AuditManagerPageShell = lazy(() => import('@/pages/apps/assurance/audit-manager/AuditManagerPageShell.jsx'));
 
 // Petroleum Economics Studio Components
 
@@ -829,6 +830,9 @@ function App() {
 
                                 {/* Lessons Learned Routes */}
                                 <Route path="apps/assurance/lessons-learned/*" element={<ProtectedAppRoute appId="lesson-learned-db" appName="Lessons Learned"><LessonsLearnedPageShell /></ProtectedAppRoute>} />
+
+                                {/* Audit & Findings Manager Routes (AS10) */}
+                                <Route path="apps/assurance/audit-manager/*" element={<ProtectedAppRoute appId="audit-findings-manager" appName="Audit & Findings Manager"><AuditManagerPageShell /></ProtectedAppRoute>} />
 
                                 {/* legacy EarthModel Studio project list — retired with the ss_* drop */}
                                 <Route path="my-projects" element={<Navigate to="/dashboard" replace />} />
