@@ -2,8 +2,8 @@
 
 Plan of record: `docs/scope/Assurance-ROADMAP.md`.
 Wave: **AS1 (foundations) and AS2 (Risk Register) BUILT 2026-09-16;
-AS3 (Regulatory Compliance) and AS4 (Document Control) BUILT
-2026-09-17**, migrations held.
+AS3 (Regulatory Compliance), AS4 (Document Control) and AS5 (Peer
+Review Manager) BUILT 2026-09-17**, migrations held.
 
 This file replaces a document that carried the same name and described
 the Economics E4 apps. That content now lives at
@@ -26,12 +26,13 @@ programmes. This one is still in its Horizons-generated state.
 | Regulatory Compliance | `apps/assurance/regulatory-compliance/*` | `regulatory_obligations`, `regulatory_authorities`, `regulatory_evidence` | **Active.** AS3 done | AS3 |
 | ISO Compliance | `apps/assurance/iso-compliance/*` | nothing | **Demoted to Coming Soon.** `@/data/isoComplianceData` in `useState` | AS8 |
 | Document Control | `apps/assurance/document-control/*` | `documents`, `doc_revisions`, `doc_workflows`, `doc_activity_log`, `doc_categories` | **AS4 done.** Coming Soon until its own promotion migration | AS4 |
-| Peer Review Manager | `apps/assurance/peer-review-manager/*` | `peer_reviews`, mock fallback | Coming Soon | AS5 |
+| Peer Review Manager | `apps/assurance/peer-review-manager/*` | `peer_reviews`, `peer_review_comments`, `peer_review_audit`, `peer_review_participants` | **AS5 done.** Coming Soon until its own promotion migration | AS5 |
 | Management of Change | `apps/assurance/management-of-change/*` | nothing | Coming Soon | AS6 |
 | Quality Assurance Plan | `apps/assurance/qa-plan/*` | nothing | Coming Soon | AS7 |
 | Audit & Findings Manager | not built | - | New app | AS10 |
 
-Tests: **142** as of AS4 (AS2 34, AS3 63, AS4 45), all under
+Tests: **206** as of AS5 (AS2 34, AS3 63, AS4 45, AS5 52, plus the
+shared authority suites), all under
 `src/lib/__tests__/` and the two app trees. There were none at all
 before AS2. Engine: **none**; there is no `engines/assurance` in
 petrolord-engines, which is why the two NextGen assurance courses are
@@ -502,6 +503,131 @@ revises documents.
 
 ---
 
+## 3d. AS5, built 2026-09-17 — Peer Review Manager
+
+AS4's Document Control reported success on failed writes. This app did
+not fail. It never opened a write path at all.
+
+### 3d.1 Every write went to a JavaScript array
+
+```js
+let localReviews  = [...MOCK_REVIEWS];
+let localComments = [...MOCK_COMMENTS];
+let localAudit    = [...MOCK_AUDIT];
+```
+
+`saveReview()` pushed onto `localReviews`. `addComment()` pushed onto
+`localComments`. `updateCommentStatus()`, `updateReviewStage()` and
+`logAudit()` mutated them in place. The UI then reported "Review
+initiated", "Your comment has been successfully registered" and
+"🚧 Action recorded. Backend process triggered."
+
+There was no backend process. Every review raised, every technical
+comment written against a deliverable, every disposition, every stage
+change and the entire audit trail survived until the page was reloaded
+and were then gone, with no error at any point.
+
+For a technical assurance app this is the worst failure mode in the
+module, because the audit trail **is** the deliverable. The point of
+peer review is being able to show, afterwards, who raised what and how
+it was answered.
+
+`getDashboardStats()` never queried the database, so every KPI was
+counted from `MOCK_REVIEWS`. A customer's peer review dashboard was a
+picture of somebody else's invented project, permanently — and it
+looked entirely plausible: four KPIs and a stage doughnut, internally
+consistent, all about a field that does not exist.
+
+### 3d.2 Twelve fabricated reports, downloadable as CSV
+
+The worst artefact the AS programme has found.
+
+`getMockReportData(reportId)` generated report rows procedurally:
+
+```js
+case 1: return Array.from({length: 45}).map((_, i) => ({
+  Comment_ID: `CMT-${1000 + i}`,
+  Author: `Reviewer ${i % 5 + 1}`,
+  Status: i % 3 === 0 ? 'Open' : (i % 3 === 1 ? 'Responded' : 'Closed'),
+}))
+```
+
+Forty-five invented comments; thirty invented severities; all plausible,
+none real. Each of the twelve cards had a Download button that handed
+the result to a CSV writer which stamped it
+`"<Report title> - Generated on <today's date>"` and saved it as
+`comments_by_status_2026-09-17.csv`.
+
+**A CSV outlives the app.** It gets emailed, attached to an audit
+response and filed as a record, long after anyone remembers which
+screen produced it. Report 12 was titled "Full System Audit" and
+described as a "Complete FDA CFR 21 Part 11 compliant extract of all
+system actions": a regulatory claim on a file of invented records.
+
+The same CFR 21 Part 11 wording appears in Document Control's Reports
+page, so it came from the generator rather than from anyone's intent.
+That is precisely why it had to be found rather than trusted.
+
+### 3d.3 What AS5 built
+
+On the three tables that already existed and had never been written to.
+`peer_review_comments` already carried `response_text`,
+`responded_by`/`responded_at` and `verified_by`/`verified_at`: the
+disposition and verification loop was in the schema all along.
+
+`src/lib/peerReview.js` is the fourth authority in this module, and it
+owns the two things the app never had:
+
+- **A comment moves only along a disposition its status permits.**
+  Open leads to Responded or Withdrawn; Responded to Verified or
+  Rejected; Rejected back to the author. A comment cannot be Verified
+  before the author has actually responded, which the database cannot
+  express and the authority therefore does.
+- **A review cannot be Closed while a Critical or Major comment is
+  unresolved.** Minor and Editorial do not block, because closing over
+  those is a coordinator's judgement. A review that can be closed over
+  an open showstopper is not an assurance process; it is a list. The
+  old app moved the stage from a dropdown with no check at all.
+
+Plus a real roster on the new `peer_review_participants` table, a real
+audit trail written and read back, exports built from the rows on
+screen, and charts on the white Suite standard.
+
+Removed rather than rebuilt: the attachments panel, which toasted
+"Upload dialog opening..." and opened nothing. A reviewed deliverable is
+a controlled document and AS4 just built that, so linking the two
+belongs to AS11 rather than growing a second document store here. The
+header's Export button, which toasted "Downloading complete peer review
+archive as CSV" and downloaded nothing, is gone too.
+
+### 3d.4 THE THIRD AS1 PORTABILITY GAP, and the most serious
+
+AS1 §8 reads: "documents itself already has RLS and policies; it only
+needs the anon grant taken away. Same for risk_register, moc_records,
+peer_reviews, peer_review_comments, peer_review_audit."
+
+That is true of production, and it means **the repo cannot reconstruct
+this module's security posture**. Rebuilding the Assurance schema from
+the repo on an empty database — exactly what the AS1 backfill claims to
+support, and how a staging or recovery environment gets stood up —
+yields those six parent registers with **RLS disabled and no policy of
+any kind**. Every one of them holds a register.
+
+The AS5 schema checks caught it: on a clean rebuild, a member of Org B
+could read Org A's reviews.
+
+AS5 states RLS and policies for its own three tables. **The other
+parents are deliberately not touched**, because rewriting another app's
+live policy from a guess at what production holds is how a working
+module breaks. See §5 for the open item.
+
+This is the third gap of its kind, after the missing `authenticated`
+grants and the unqualified `REFERENCES users(id)` that AS4 found. All
+three were invisible until the module was actually rebuilt from the
+repo, which is an argument for doing that on every remaining wave.
+
+---
+
 ## 4. How AS1 was verified
 
 No production write was made. Everything below ran on a scratch
@@ -536,11 +662,20 @@ schema level, and on the scratch reproduction.
 
 ## 5. Open
 
-- **All eight migrations are unapplied.** Ordered apply script:
+- **All nine migrations are unapplied.** Ordered apply script:
   `tools/validation/assurance/as1-apply.sh`, which does not yet include
-  AS3's `20260917100000_as3_regulatory_compliance.sql` or AS4's
-  `20260917200000_as4_document_control.sql`; run those after the AS1
-  pair, AS3 then AS4. Owner-run.
+  AS3's `20260917100000_as3_regulatory_compliance.sql`, AS4's
+  `20260917200000_as4_document_control.sql` or AS5's
+  `20260917300000_as5_peer_review.sql`; run those after the AS1 pair,
+  in that order. Owner-run.
+- **The six parent registers have no RLS or policies in the repo**
+  (§3d.4). `documents`, `risk_register`, `moc_records`,
+  `compliance_rules` and the risk children AS1 listed as already
+  protected are protected in production and nowhere else, so the module
+  cannot be rebuilt securely from source. Wants its own small
+  migration, written after reading the live policies rather than
+  guessing at them. **Not a production vulnerability**; a
+  reconstruction one.
 - **A private `documents` storage bucket** for AS4 file uploads (§3c.6).
   Owner-run through the Supabase dashboard.
 - **Document Control's tile promotion.** AS1 left it Coming Soon; AS4
