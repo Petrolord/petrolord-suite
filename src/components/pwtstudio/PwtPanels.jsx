@@ -9,7 +9,7 @@ import {
 } from 'recharts';
 import ChartFrame from '@/components/charts/ChartFrame';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
-import { useProducedWater } from '@/contexts/ProducedWaterContext';
+import { useProducedWater, num } from '@/contexts/ProducedWaterContext';
 import { fmt, Stat, ErrorNote, WarnNote, Field, NumberInput, Row } from './fields';
 
 const STAGE_OPTIONS = {
@@ -204,7 +204,9 @@ export const EquipmentInputs = () => {
         <>
           <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Filter</p>
           <div className="grid grid-cols-3 gap-2">
-            <Field label="Bed area (m2)"><NumberInput section="filter" name="areaM2" step="0.5" /></Field>
+            <Field label="Bed area (m2)" hint="A bigger bed loads the media more slowly, which lifts the capture per metre and sharpens the cut. Below 1 m/h of loading the studio stops answering and says so: the filter coefficient is declared at 10 m/h and there is no calibration that far under it.">
+              <NumberInput section="filter" name="areaM2" step="0.5" />
+            </Field>
             <Field label="Bed depth (m)"><NumberInput section="filter" name="bedDepthM" step="0.1" /></Field>
             <Field label="Media grain (um)"><NumberInput section="filter" name="mediaMicron" step="50" /></Field>
           </div>
@@ -259,7 +261,7 @@ export const FluidCard = () => {
  * gas rate and holdup, the filter loading and coefficient.
  */
 export const DeviceDetail = () => {
-  const { devices } = useProducedWater();
+  const { devices, inputs } = useProducedWater();
   if (devices.error || !devices.list?.length) return null;
   return (
     <Card className="bg-slate-900/60 border-slate-800">
@@ -302,7 +304,10 @@ export const DeviceDetail = () => {
             )}
             {!d.error && (d.key === 'igf' || d.key === 'daf') && (
               <>
-                <Row label="Residence over all cells" value={`${fmt(d.residenceS, 0)} s`} />
+                <Row label="Residence over all cells" value={`${fmt(d.residenceS, 0)} s`}
+                  hint={d.residenceWarnS > 0
+                    ? `this studio warns below ${fmt(d.residenceWarnS, 0)} s. That threshold is a declared round figure with no flotation residence measurement behind it.`
+                    : undefined} />
                 <Row label="Gas into each cell" value={`${fmt(d.gasFlowPerCellM3S * 3600, 1)} m3/h`}
                   hint={`${fmt(d.totalGasFlowM3S * 3600, 1)} m3/h over the whole unit`} />
                 <Row label="Superficial gas velocity" value={`${fmt(d.superficialGasMS * 1000, 2)} mm/s`} />
@@ -313,7 +318,10 @@ export const DeviceDetail = () => {
             )}
             {!d.error && (d.key === 'nutshell' || d.key === 'media') && (
               <>
-                <Row label="Loading rate" value={`${fmt(d.loadingMHr, 1)} m/h`} />
+                <Row label="Loading rate" value={`${fmt(d.loadingMHr, 1)} m/h`}
+                  hint={d.loadingFloorMHr > 0
+                    ? `this studio stops answering below ${fmt(d.loadingFloorMHr, 0)} m/h, where the filter coefficient has no calibration. A bed past about ${fmt((num(inputs.filter.areaM2) * d.loadingMHr) / d.loadingFloorMHr, 0)} m2 would take this flow under that floor.`
+                    : undefined} />
                 <Row label="Filter coefficient at this loading" value={`${fmt(d.filterCoefficientPerM, 3)} 1/m`}
                   hint={`at the ${fmt(d.referenceDropletMicron, 0)} um reference droplet and ${fmt(d.mediaMicron, 0)} um media`} />
                 <Row label="Removal of a reference droplet" value={`${fmt(d.removalAtRefDroplet * 100, 1)} %`} />
