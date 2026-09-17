@@ -2,7 +2,8 @@
 
 Plan of record: `docs/scope/Assurance-ROADMAP.md`.
 Wave: **AS1 (foundations) and AS2 (Risk Register) BUILT 2026-09-16;
-AS3 (Regulatory Compliance) BUILT 2026-09-17**, migrations held.
+AS3 (Regulatory Compliance) and AS4 (Document Control) BUILT
+2026-09-17**, migrations held.
 
 This file replaces a document that carried the same name and described
 the Economics E4 apps. That content now lives at
@@ -24,13 +25,13 @@ programmes. This one is still in its Horizons-generated state.
 | Risk Heatmap | redirect into the register | via the register | **Active.** AS2 done | AS2 |
 | Regulatory Compliance | `apps/assurance/regulatory-compliance/*` | `regulatory_obligations`, `regulatory_authorities`, `regulatory_evidence` | **Active.** AS3 done | AS3 |
 | ISO Compliance | `apps/assurance/iso-compliance/*` | nothing | **Demoted to Coming Soon.** `@/data/isoComplianceData` in `useState` | AS8 |
-| Document Control | `apps/assurance/document-control/*` | `documents`, mock fallback | Coming Soon | AS4 |
+| Document Control | `apps/assurance/document-control/*` | `documents`, `doc_revisions`, `doc_workflows`, `doc_activity_log`, `doc_categories` | **AS4 done.** Coming Soon until its own promotion migration | AS4 |
 | Peer Review Manager | `apps/assurance/peer-review-manager/*` | `peer_reviews`, mock fallback | Coming Soon | AS5 |
 | Management of Change | `apps/assurance/management-of-change/*` | nothing | Coming Soon | AS6 |
 | Quality Assurance Plan | `apps/assurance/qa-plan/*` | nothing | Coming Soon | AS7 |
 | Audit & Findings Manager | not built | - | New app | AS10 |
 
-Tests: **97** as of AS3 (AS2 contributed 34, AS3 63), all under
+Tests: **142** as of AS4 (AS2 34, AS3 63, AS4 45), all under
 `src/lib/__tests__/` and the two app trees. There were none at all
 before AS2. Engine: **none**; there is no `engines/assurance` in
 petrolord-engines, which is why the two NextGen assurance courses are
@@ -391,6 +392,116 @@ context honours.
 
 ---
 
+## 3c. AS4, built 2026-09-17 — Document Control
+
+The roadmap called this app DE-FICTION and quoted its fail-open
+fallback. The fallback is not the worst of it.
+
+### 3c.1 Silent loss of a controlled document
+
+```js
+async saveDocument(docData) {
+  try { ... } catch (e) {
+    return { success: true, data: [{ id: 'new-id', ...docData }] }; // Mock success
+  }
+}
+```
+
+The form then toasted "Document saved as draft" and navigated to the
+library. And the errors were routine, not hypothetical: the create path
+wrote a `category` string and a `description` into a table that has
+`category_id` and had no description column, and it minted the document
+number as `Math.floor(Math.random() * 1000)` against
+`documents_org_id_document_number_key`, a real unique constraint. The
+database rejected the insert correctly. The app reported success.
+
+This is the sharpest instance of the pattern the AS programme exists
+for: the one write path in a controlled-document system told the user
+it had worked, every time it had not.
+
+### 3c.2 Everything on the screen was invented
+
+- **Five documents.** `if (total === 0) throw` then
+  `catch { return MOCK_DOCUMENTS }` showed an organization with an empty
+  library "Offshore Rig Evacuation Procedure", "Chemical Handling Safety
+  Policy" and "Subsea Manifold Schematic V2", owned by Sarah Jenkins,
+  Mike Ross, Dr. Alan Grant, Jessica Pearson and Louis Litt. The last
+  five names are from Jurassic Park and Suits.
+- `getDocumentById()` fell back to `MOCK_DOCUMENTS[0]`, so asking for a
+  document you do not have showed you a different document, complete
+  with a revision number and an owner.
+- **Four of eight methods never queried anything.** `getApprovals()`
+  returned two hardcoded rows due in March 2024. `getActivityLog()`
+  returned four rows reading "2 hours ago", permanently, to everyone.
+  `getReportData()` returned fixed distributions.
+- **`overdue: 1 // Mock overdue`** sat on the SUCCESS path of
+  `getDashboardStats()`. The single number this app exists to produce
+  was a literal even when the database answered.
+
+`doc_workflows` and `doc_activity_log` were in the database the whole
+time, carrying exactly what those two panels needed.
+
+### 3c.3 Two defects nobody had reported
+
+- **The Reports tab crashed on every render.** It built
+  `icon: FileListIcon` and imported only Download, BarChart2, PieChart
+  and TrendingUp, so the component threw a ReferenceError. Behind the
+  crash were four cards describing reports that did not exist, one
+  offering a "Full FDA CFR 21 Part 11 style audit extract" attached to
+  a not-implemented toast.
+- **The upload box accepted nothing.** "Click to upload or drag and
+  drop. PDF, DOCX, XLSX up to 50MB" was a styled `div`: no input
+  element, no `onChange`, no drop handler, no state. There was no way
+  to tell by looking.
+
+### 3c.4 What AS4 built
+
+On the tables that were already there: a real revision chain with one
+current revision enforced by a partial unique index; real file upload to
+a private storage bucket with signed-URL download; the approval queue
+from `doc_workflows` with decisions actually recorded; activity from
+`doc_activity_log`; publishing that computes the review date from the
+issue date and the review period; and reports counted from the
+organization's own rows. Numbers come from `next_document_number()`.
+Charts move to the white Suite standard. The tree moves under
+`apps/assurance/` with the rest of the module, and every hardcoded hex
+becomes a UI token.
+
+Where something half-succeeds it says so. A document written but a file
+not stored reports exactly that, rather than a success toast for a
+controlled document with no content behind it.
+
+### 3c.5 Two portability gaps in AS1, found and fixed here
+
+Rebuilding the module from the repo on a scratch PostgreSQL 15 is what
+surfaced them, and both matter for AS5 onward:
+
+- **AS1's RLS migration grants `authenticated` nothing.** It revokes
+  `anon`, enables RLS and writes policies `to authenticated`, which is
+  correct against production because the grants were already there.
+  Against an empty database, which is what the schema backfill claims to
+  support, the result is a module with perfect RLS over tables no
+  application role can read. AS4 states the grants explicitly for the
+  `doc_*` family, as AS3 did for the regulatory tables.
+- **Several AS1 foreign keys are unqualified** as
+  `REFERENCES users(id)`, which resolves through `search_path` to
+  `public.users`, not `auth.users`. The scratch fixture now carries
+  both tables.
+
+### 3c.6 The storage bucket is owner-run
+
+Deliberately not created by migration: the Suite's existing buckets
+(`seismic`, `wellsite`) were created through the Supabase dashboard, and
+doing it differently here would leave the platform with two
+conventions. The owner creates a **private** bucket named `documents`.
+Paths are `<org_id>/<document_id>/<revision_id>-<filename>`, so a
+storage policy scoping on the leading segment is the same `org_id` check
+every AS1 table policy uses. Until it exists the app asks the bucket,
+says plainly that files cannot be attached, and still registers and
+revises documents.
+
+---
+
 ## 4. How AS1 was verified
 
 No production write was made. Everything below ran on a scratch
@@ -425,10 +536,15 @@ schema level, and on the scratch reproduction.
 
 ## 5. Open
 
-- **All seven migrations are unapplied.** Ordered apply script:
+- **All eight migrations are unapplied.** Ordered apply script:
   `tools/validation/assurance/as1-apply.sh`, which does not yet include
-  AS3's `20260917100000_as3_regulatory_compliance.sql`; run that one
-  after the AS1 pair. Owner-run.
+  AS3's `20260917100000_as3_regulatory_compliance.sql` or AS4's
+  `20260917200000_as4_document_control.sql`; run those after the AS1
+  pair, AS3 then AS4. Owner-run.
+- **A private `documents` storage bucket** for AS4 file uploads (§3c.6).
+  Owner-run through the Supabase dashboard.
+- **Document Control's tile promotion.** AS1 left it Coming Soon; AS4
+  makes it real, but the promotion migration is held with the rest.
 - The commerce migration needs a second engineer (shared tables).
 - Five owner questions in `Assurance-ROADMAP.md` §7. AS1 proceeded on
   the recommendation in each case per the standing autonomous directive;
