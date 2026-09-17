@@ -25,15 +25,15 @@ programmes. This one is still in its Horizons-generated state.
 | Risk Register | `apps/assurance/risk-register` | `risk_register`, `risk_tags`, `risk_links`, snapshots | **Active.** AS2 done | AS2 |
 | Risk Heatmap | redirect into the register | via the register | **Active.** AS2 done | AS2 |
 | Regulatory Compliance | `apps/assurance/regulatory-compliance/*` | `regulatory_obligations`, `regulatory_authorities`, `regulatory_evidence` | **Active.** AS3 done | AS3 |
-| ISO Compliance | `apps/assurance/iso-compliance/*` | nothing | **Demoted to Coming Soon.** `@/data/isoComplianceData` in `useState` | AS8 |
+| ISO Compliance | `apps/assurance/iso-compliance/*` | `iso_standards`, `iso_clauses`, `iso_audits`, `iso_audit_clauses`, `iso_findings`, `iso_actions`, `iso_activity_log` | **AS8 done.** Coming Soon until its own promotion migration | AS8 |
 | Document Control | `apps/assurance/document-control/*` | `documents`, `doc_revisions`, `doc_workflows`, `doc_activity_log`, `doc_categories` | **AS4 done.** Coming Soon until its own promotion migration | AS4 |
 | Peer Review Manager | `apps/assurance/peer-review-manager/*` | `peer_reviews`, `peer_review_comments`, `peer_review_audit`, `peer_review_participants` | **AS5 done.** Coming Soon until its own promotion migration | AS5 |
 | Management of Change | `apps/assurance/management-of-change/*` | `moc_records`, `moc_approvals`, `moc_actions`, `moc_impacts`, `moc_activity_log` | **AS6 done.** Coming Soon until its own promotion migration | AS6 |
 | Quality Assurance Plan & NCR | `apps/assurance/qa-plan/*` | `qa_plans`, `qa_checkpoints`, `qa_ncrs`, `qa_capas`, `qa_activity_log` | **AS7 done.** Coming Soon until its own promotion migration | AS7 |
 | Audit & Findings Manager | not built | - | New app | AS10 |
 
-Tests: **343** as of AS7 (AS2 34, AS3 63, AS4 45, AS5 52, AS6 58, AS7 79,
-plus the shared authority suites), all under
+Tests: **436** as of AS8 (AS2 34, AS3 63, AS4 45, AS5 52, AS6 58, AS7 79,
+AS8 93, plus the shared authority suites), all under
 `src/lib/__tests__/` and the two app trees. There were none at all
 before AS2. Engine: **none**; there is no `engines/assurance` in
 petrolord-engines, which is why the two NextGen assurance courses are
@@ -856,6 +856,124 @@ exported method across the app tree, and it is now a test.
 
 ---
 
+## 3g. AS8, built 2026-09-17 — ISO Compliance
+
+There were no `iso_*` tables anywhere in the database. The whole app was
+one file.
+
+### 3g.1 The data was not invented once; it was invented on every reload
+
+`src/data/isoComplianceData.js` did not hold rows. It generated them at
+module load:
+
+```js
+score:       Math.floor(Math.random() * 20) + 80,
+dueDate:     new Date(Date.now() + Math.random() * 5000000000)...,
+lastUpdated: new Date(Date.now() - Math.random() * 10000000000)...,
+status:      i % 5 === 0 ? 'Non-Compliant' : i % 4 === 0 ? 'Partial' : 'Compliant',
+```
+
+Thirty clauses titled "Clause Title 1" to "Clause Title 30", owned by
+"User 1" to "User 10"; fifteen audits led by "Auditor 1" to "Auditor 5",
+each scoring between 80 and 100; twenty findings; fifteen actions.
+
+**So the dashboard's "Overall Compliance 73%" was a different number on
+every reload**, and the findings register's overdue column changed with
+it. This is the only app in the module whose fiction was not even
+stable, and it is the one an organization would have used to decide
+whether it was ready for a certification audit.
+
+The shell held the four arrays in `useState` and passed them down as
+props, so no page in the app could have queried anything.
+
+### 3g.2 Nothing persisted, and the one create path lied
+
+The Add Clause modal in the shell read its fields out of the DOM with
+`new FormData(e.target)`, built a row with
+`id: \`CLAUSE-${Math.floor(Math.random() * 10000)}\`` and
+**`status: 'Compliant'`**, pushed it onto `useState` and toasted "The
+new ISO clause has been successfully registered". A reload lost it.
+
+`NewISO.jsx` was a dashed box reading "Detailed form view placeholder".
+`ISODetail.jsx` rendered the URL's id as a heading over a second dashed
+box and a status panel hardcoded to **Compliant / Current / Oct 12,
+2023**, whichever clause was asked for.
+
+The reports page listed four report types in a sidebar —
+`compliance-by-standard`, `audit-schedule`, `finding-severity`,
+`action-tracking` — and rendered the same one whichever was clicked,
+because `selectedReport` was set and never read. Its Print and Export
+PDF buttons both called `handleExport`, which toasted "Your report is
+being generated and will download shortly" and generated nothing.
+
+And `isoActionsData` was imported by no page that rendered it: corrective
+action, the half of the discipline that closes the loop, missing from the
+interface — **exactly as AS7 found with `capaSampleData.js`**. Twice in
+two waves, in apps written by different hands.
+
+### 3g.3 What AS8 built
+
+Seven tables, two code series under an advisory lock, RLS from the
+start, and `src/lib/isoCompliance.js` as the seventh authority in this
+module. Four rules:
+
+- **A conformity claim is evidence, a date and a name.** "Compliant" in
+  a dropdown is an opinion; ISO conformity is a claim about documented
+  information, and the first question at a certification audit is which
+  document and when anybody last looked at it. An external assessor with
+  no Suite account is named in text, as AS7 does for a certifying
+  authority surveyor.
+- **Not applicable needs a justification** (ISO 9001:2015 §4.3), and an
+  excluded clause cannot also be claimed conformant, which is how an
+  exclusion quietly becomes a pass.
+- **An auditor may not audit their own work** (ISO 19011). Enforced by a
+  trigger from both directions — naming a lead auditor who owns a clause
+  in scope, and adding to the scope a clause its lead auditor owns — and
+  named in the interface before the row is attempted. An external lead
+  auditor is independent by construction and is not blocked.
+- **A major nonconformity is not closed by a correction** (ISO 9001
+  §10.2). The correction deals with the item, the corrective action with
+  the cause, and for a major one the corrective action must have been
+  verified effective. A minor one needs the correction; an observation
+  or an opportunity for improvement needs neither. The same
+  proportionality as AS5 and AS7.
+
+**Coverage is counted over the certification cycle**, and only an
+internal audit counts: a certification body's own audit is not the
+programme ISO 9001 §9.2 requires the organization to run. "Never
+audited" and "audited before this cycle began" are different facts and
+the register shows both rather than averaging them.
+
+**And certification readiness is a list of blockers, not a percentage.**
+`certificationReadiness()` returns named, counted work. A test asserts
+it exposes no `percent`, `complianceRate` or `score` at all.
+
+`isoCompliance.js` imports the action helpers from AS7 rather than
+restating them, and `iso_actions` carries the same column names on
+purpose. Two modules that both know when an action is overdue is the
+defect §6 exists to prevent.
+
+### 3g.4 Gotchas worth keeping
+
+**Two defects in the migration were found by running the checks, not by
+reading it.** A trigger function read `NEW.audit_id` on a table with no
+such column — in PL/pgSQL that is an error, not a null, so every insert
+into `iso_audits` failed — and it was invisible in review because the
+same function serves three tables. The other was in the checks file:
+a closure dated before the finding was raised. Both took one run to
+find and neither would have survived to production, but both would have
+survived a careful read.
+
+**The AS7 orphan test earned its place immediately.** "Every write
+method the hook exports has a caller" failed on its first run here and
+named four: `updateStandard` and `deleteStandard`, which had no Edit or
+Remove on the standards register, and `updateClause` and `deleteAudit`,
+which are now gone — `assessClause` is `updateClause`'s only caller and
+must stay the only way past the gate, and an audit is cancelled rather
+than deleted so its findings keep their provenance.
+
+---
+
 ## 4. How AS1 was verified
 
 No production write was made. Everything below ran on a scratch
@@ -890,14 +1008,15 @@ schema level, and on the scratch reproduction.
 
 ## 5. Open
 
-- **All eleven migrations are unapplied.** Ordered apply script:
+- **All twelve migrations are unapplied.** Ordered apply script:
   `tools/validation/assurance/as1-apply.sh`, which does not yet include
   AS3's `20260917100000_as3_regulatory_compliance.sql`, AS4's
   `20260917200000_as4_document_control.sql`, AS5's
   `20260917300000_as5_peer_review.sql`, AS6's
-  `20260917400000_as6_management_of_change.sql` or AS7's
-  `20260917500000_as7_quality_assurance_plan.sql`; run those after the
-  AS1 pair, in that order. Owner-run.
+  `20260917400000_as6_management_of_change.sql`, AS7's
+  `20260917500000_as7_quality_assurance_plan.sql` or AS8's
+  `20260917600000_as8_iso_compliance.sql`; run those after the AS1
+  pair, in that order. Owner-run.
 - **The six parent registers have no RLS or policies in the repo**
   (§3d.4). `documents`, `risk_register`, `moc_records`,
   `compliance_rules` and the risk children AS1 listed as already
@@ -908,10 +1027,10 @@ schema level, and on the scratch reproduction.
   reconstruction one.
 - **A private `documents` storage bucket** for AS4 file uploads (§3c.6).
   Owner-run through the Supabase dashboard.
-- **Four held tile promotions.** AS1 left Document Control, Peer Review
+- **Five held tile promotions.** AS1 left Document Control, Peer Review
   Manager, Management of Change and Quality Assurance Plan at Coming
-  Soon; AS4 to AS7 make them real, but each promotion migration is held
-  with the rest.
+  Soon and demoted ISO Compliance to it; AS4 to AS8 make them real, but
+  each promotion migration is held with the rest.
 - The commerce migration needs a second engineer (shared tables).
 - Five owner questions in `Assurance-ROADMAP.md` §7. AS1 proceeded on
   the recommendation in each case per the standing autonomous directive;

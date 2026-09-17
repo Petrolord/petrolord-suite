@@ -43,7 +43,7 @@ of them `status='Active'` with `is_functional=true`.
 | Risk Register | Active | **Real.** `risk_register` via `useRiskRegister`, honest errors |
 | Risk Heatmap | Active | **Real.** Redirects into the Risk Register heatmap tab |
 | Regulatory Compliance | Active | **Reads real, writes impossible.** See the AS3 correction below |
-| ISO Compliance Tool | Active | **Sellable, persists nothing.** `@/data/isoComplianceData` into `useState` |
+| ISO Compliance Tool | Active | **Sellable, persists nothing.** `@/data/isoComplianceData` into `useState`. AS8 rebuilt it; see the STATUS doc |
 | Audit Trail Manager | Active | **No code of any kind** |
 | Charge/Seal/Trap Risk | Active | **No code of any kind** |
 | Data Privacy Manager | Active | **No code of any kind** |
@@ -82,7 +82,7 @@ there is not even a mock page to return it.
 | Document Control | 952 | `documents`, **mock fallback**, and a create path that reported success on failure | **DE-FICTION** (AS4, done) |
 | Management of Change | 1,219 | **none** — every page a literal, and the create form had no state at all | **REBUILD** (AS6, done) |
 | Quality Assurance Plan | 458 | **none** | **REBUILD** (AS7, done) |
-| ISO Compliance | 795 | **none** — `useState` over a data file | **REBUILD** (AS8) |
+| ISO Compliance | 795 | **none** — `useState` over a data file **that regenerated itself with `Math.random()` on every load** | **REBUILD** (AS8, done) |
 | Lessons Learned | 752 | **none** | **REBUILD** (AS9) |
 
 The fail-open pattern is worth stating exactly, because it is the worst
@@ -300,7 +300,7 @@ repo conventions. Every wave ends with the relevant STATUS doc updated.
 | **AS5** | Peer Review Manager: de-fiction, real stats, comment disposition | **BUILT 2026-09-17**, migration held |
 | **AS6** | Management of Change: real persistence on `moc_records`, approval gate | **BUILT 2026-09-17**, migration held |
 | **AS7** | Quality Assurance Plan & NCR | **BUILT 2026-09-17**, migration held |
-| **AS8** | ISO Compliance: real persistence, audit programme, findings | needs AS1 |
+| **AS8** | ISO Compliance: real persistence, audit programme, findings | **BUILT 2026-09-17**, migration held |
 | **AS9** | Lessons Learned, and the push into register and MOC | needs AS2, AS6 |
 | **AS10** | Audit & Findings Manager (new) | needs AS1 |
 | **AS11** | The Assurance hub: real cross-app analytics over all nine apps | needs AS2-AS10 |
