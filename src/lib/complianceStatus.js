@@ -142,6 +142,31 @@ export const STATUS_TOKENS = Object.freeze({
   [STATUS.NOT_APPLICABLE]: '--muted-foreground',
 });
 
+/**
+ * The same statuses on the white chart surface.
+ *
+ * The CSS tokens above are for badges inside the app shell, which
+ * follows the user's theme. Charts do not: the Suite standard is a
+ * white chart background with the 40px ChartLogo watermark, so a slice
+ * painted `hsl(var(--success))` would take its lightness from a dark
+ * app theme and vanish. These are the validated hexes on white, and
+ * they live here rather than in the chart file so a slice and the badge
+ * beside it cannot come to mean different things.
+ *
+ * Colour is never the only carrier: every consumer prints the word too.
+ */
+export const STATUS_CHART_COLORS = Object.freeze({
+  [STATUS.EXPIRED]: '#881337',   // rose-900
+  [STATUS.OVERDUE]: '#dc2626',   // red-600
+  [STATUS.DUE_SOON]: '#d97706',  // amber-600
+  [STATUS.ON_TRACK]: '#2563eb',  // blue-600
+  [STATUS.COMPLIANT]: '#059669', // emerald-600
+  [STATUS.NO_DATE]: '#64748b',   // slate-500
+  [STATUS.DRAFT]: '#94a3b8',     // slate-400
+  [STATUS.SUPERSEDED]: '#cbd5e1',// slate-300
+  [STATUS.NOT_APPLICABLE]: '#e2e8f0', // slate-200
+});
+
 const MS_PER_DAY = 86400000;
 
 /**
