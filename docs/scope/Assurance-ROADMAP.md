@@ -56,7 +56,7 @@ of them `status='Active'` with `is_functional=true`.
 | Security Analytics | Active | **No code of any kind** |
 | Document Control | Coming Soon | **Built and routed** (six routes, entitlement-gated). AS4 rebuilt it; see the STATUS doc |
 | Lesson Learned DB | Coming Soon | **Built and routed** |
-| Management of Change | Coming Soon | **Built and routed** (six routes) |
+| Management of Change | Coming Soon | **Built and routed** (six routes). AS6 rebuilt it; see the STATUS doc |
 | Peer Review Manager | Coming Soon | **Built and routed** (five routes). AS5 rebuilt it; see the STATUS doc |
 | Quality Assurance Plan | Coming Soon | **Built and routed** |
 
@@ -80,7 +80,7 @@ there is not even a mock page to return it.
 | Regulatory Compliance | 972 | 3 services, no create path | **KEEP + HARDEN** (AS3, done) |
 | Peer Review Manager | 1,834 | **none** — every write went to a module-level array | **DE-FICTION** (AS5, done) |
 | Document Control | 952 | `documents`, **mock fallback**, and a create path that reported success on failure | **DE-FICTION** (AS4, done) |
-| Management of Change | 1,219 | **none** — local `mockData` array | **REBUILD** (AS6) |
+| Management of Change | 1,219 | **none** — every page a literal, and the create form had no state at all | **REBUILD** (AS6, done) |
 | Quality Assurance Plan | 458 | **none** | **REBUILD** (AS7) |
 | ISO Compliance | 795 | **none** — `useState` over a data file | **REBUILD** (AS8) |
 | Lessons Learned | 752 | **none** | **REBUILD** (AS9) |
@@ -298,7 +298,7 @@ repo conventions. Every wave ends with the relevant STATUS doc updated.
 | **AS3** | Regulatory Compliance: obligations, expiries, environmental regimes | **BUILT 2026-09-17**, migration held |
 | **AS4** | Document Control: de-fiction, real revision chain, review-due | **BUILT 2026-09-17**, migration held |
 | **AS5** | Peer Review Manager: de-fiction, real stats, comment disposition | **BUILT 2026-09-17**, migration held |
-| **AS6** | Management of Change: real persistence on `moc_records`, approval gate | needs AS1 |
+| **AS6** | Management of Change: real persistence on `moc_records`, approval gate | **BUILT 2026-09-17**, migration held |
 | **AS7** | Quality Assurance Plan & NCR | needs AS1 |
 | **AS8** | ISO Compliance: real persistence, audit programme, findings | needs AS1 |
 | **AS9** | Lessons Learned, and the push into register and MOC | needs AS2, AS6 |

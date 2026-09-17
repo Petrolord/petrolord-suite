@@ -1,310 +1,542 @@
-import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { MOCPageShell } from './components/MOCPageShell';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import React, { useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { MOCPageShell, BASE } from './components/MOCPageShell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AlertTriangle, ArrowLeft, CheckCircle, Lock, Plus, Trash2, XCircle } from 'lucide-react';
+import { format, formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { exportToCSV, exportToExcel, exportToPDF } from '@/utils/exportUtils';
-import { 
-  FileText, 
-  Edit, 
-  ShieldAlert, 
-  CheckCircle, 
-  Clock, 
-  Users, 
-  Activity, 
-  Paperclip, 
-  MessageSquare, 
-  Plus, 
-  CheckSquare,
-  Printer,
-  Download
-} from 'lucide-react';
+import {
+  ACTION_TYPES,
+  EXPIRY,
+  approvalState,
+  canAdvance,
+  daysUntil,
+  expiryState,
+  nextStages,
+  parseDateOnly,
+} from '@/lib/managementOfChange';
+import { ExpiryBadge, RiskBadge, StageBadge, TypeBadge } from './components/MOCBadges';
+import { DetailField, ErrorState, Loading } from './components/SharedComponents';
+import { useManagementOfChange } from './hooks/useManagementOfChange';
+import { validateAction } from './utils/mocPayload';
 
+const showDate = (v) => {
+  const d = parseDateOnly(v);
+  return d ? format(d, 'd MMM yyyy') : null;
+};
+
+const EMPTY_ACTION = { action_type: 'Pre-implementation', description: '', due_date: '' };
+
+/**
+ * AS6 — the change, its approvals, its actions and its audit trail.
+ *
+ * This page read `const { id = 'MOC-2026-089' } = useParams()` — a
+ * default id — and rendered one hardcoded record whatever the URL said,
+ * with an Export that wrote that invented record to CSV, Excel or PDF.
+ * Its stage button toasted "Moving to next stage..." and moved nothing.
+ *
+ * The gates are here now, and they are the app: approvals signed before
+ * implementation, pre-implementation actions closed before the change
+ * goes in, and a temporary change never implemented without a date to
+ * come back out.
+ */
 export default function MOCDetail() {
-  const { id = 'MOC-2026-089' } = useParams();
+  const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('overview');
+  const {
+    records, activityFor, loading, error, userId,
+    advance, addApprover, decideApproval, addActions, updateAction, deleteMoc, refresh,
+  } = useManagementOfChange();
 
-  const moc = {
-    id: id,
-    title: 'Upgrade Compressor C-101 Controls',
-    stage: 'Review',
-    type: 'Permanent',
-    category: 'Facility / Hardware',
-    risk: 'Medium',
-    owner: 'James Smith',
-    created: '2026-03-25',
-    description: 'Upgrade the existing pneumatic control logic to electronic DCS integration for better reliability and monitoring.',
-    justification: 'Current pneumatic systems are obsolete and causing unscheduled downtime. ROI calculated at 8 months due to reduced flaring.',
-    facility: 'Platform Alpha',
-    targetDate: '2026-05-15'
+  const [saving, setSaving] = useState(false);
+  const [addingAction, setAddingAction] = useState(false);
+  const [actionDraft, setActionDraft] = useState(EMPTY_ACTION);
+  const [actionErrors, setActionErrors] = useState({});
+  const [addingApprover, setAddingApprover] = useState(false);
+  const [approverDraft, setApproverDraft] = useState({ role: 'Technical Authority', level: 1 });
+  const [deciding, setDeciding] = useState(null);
+  const [decisionText, setDecisionText] = useState('');
+  const [rejecting, setRejecting] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+
+  const moc = records.find((m) => m.id === id);
+  const approvals = useMemo(() => moc?.approvals || [], [moc]);
+  const actions = useMemo(() => moc?.actions || [], [moc]);
+  const gate = useMemo(() => approvalState(approvals), [approvals]);
+
+  if (loading) return <MOCPageShell><Loading label="Loading the change..." /></MOCPageShell>;
+  if (error) return <MOCPageShell><ErrorState error={error} onRetry={refresh} /></MOCPageShell>;
+  if (!moc) {
+    return (
+      <MOCPageShell>
+        <div className="py-16 text-center text-[hsl(var(--muted-foreground))]">
+          That change is not in this organization&apos;s register.
+        </div>
+      </MOCPageShell>
+    );
+  }
+
+  const trail = activityFor(moc.id);
+  const expiry = expiryState(moc);
+  const expiryDays = moc.expiry_date ? daysUntil(moc.expiry_date) : null;
+
+  const handleAdvance = async (stage) => {
+    if (stage === 'Rejected') { setRejecting(true); return; }
+    setSaving(true);
+    const result = await advance(moc, stage);
+    setSaving(false);
+    toast(result.success
+      ? { description: `Moved to ${stage}.` }
+      : { title: 'Stage not changed', description: result.error, variant: 'destructive' });
   };
 
-  const handleExport = (type) => {
-    const filename = `MOC-${moc.id}-${new Date().toISOString().split('T')[0]}`;
-    // Export standard MOC array
-    const exportData = [{
-      ID: moc.id,
-      Title: moc.title,
-      Stage: moc.stage,
-      Type: moc.type,
-      Category: moc.category,
-      Risk: moc.risk,
-      Owner: moc.owner,
-      Created: moc.created,
-      TargetDate: moc.targetDate,
-      Description: moc.description,
-      Justification: moc.justification,
-      Facility: moc.facility
-    }];
+  const handleReject = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    const result = await advance(moc, 'Rejected', { rejectionReason });
+    setSaving(false);
+    if (!result.success) {
+      toast({ title: 'Not rejected', description: result.error, variant: 'destructive' });
+      return;
+    }
+    setRejecting(false); setRejectionReason('');
+    toast({ description: 'Change rejected.' });
+  };
 
-    let success = false;
-    if (type === 'csv') success = exportToCSV(exportData, filename);
-    if (type === 'excel') success = exportToExcel(exportData, filename);
-    if (type === 'pdf') success = exportToPDF(`MOC Detail: ${moc.id}`, exportData, filename);
+  const handleAddAction = async (e) => {
+    e.preventDefault();
+    const found = validateAction(actionDraft);
+    if (Object.keys(found).length) { setActionErrors(found); return; }
+    setSaving(true);
+    const result = await addActions(moc.id, [actionDraft]);
+    setSaving(false);
+    if (!result.success) {
+      toast({ title: 'The action was not saved', description: result.error, variant: 'destructive' });
+      return;
+    }
+    setAddingAction(false); setActionDraft(EMPTY_ACTION); setActionErrors({});
+    toast({ description: 'Action added.' });
+  };
 
-    if (success) {
-      toast({ title: 'Export Successful', description: `${filename}.${type} downloaded.` });
+  const handleActionStatus = async (actionRow, status) => {
+    const result = await updateAction(actionRow.id, { status });
+    toast(result.success
+      ? { description: `Action marked ${status.toLowerCase()}.` }
+      : { title: 'Not updated', description: result.error, variant: 'destructive' });
+  };
+
+  const handleAddApprover = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    const result = await addApprover(moc.id, {
+      approver_id: userId,
+      role: approverDraft.role,
+      level: Number(approverDraft.level) || 1,
+    });
+    setSaving(false);
+    if (!result.success) {
+      toast({ title: 'Not added', description: result.error, variant: 'destructive' });
+      return;
+    }
+    setAddingApprover(false);
+    toast({ description: `Approval gate ${approverDraft.level} added.` });
+  };
+
+  const handleDecision = async (approval, status) => {
+    setSaving(true);
+    const result = await decideApproval(approval, status, decisionText);
+    setSaving(false);
+    if (!result.success) {
+      toast({ title: 'Not recorded', description: result.error, variant: 'destructive' });
+      return;
+    }
+    setDeciding(null); setDecisionText('');
+    toast({ description: `Approval ${status.toLowerCase()}.` });
+  };
+
+  const handleDelete = async () => {
+    const result = await deleteMoc(moc.id);
+    if (result.success) {
+      toast({ description: `${moc.moc_code} deleted.` });
+      navigate(`${BASE}/register`);
     } else {
-      toast({ title: 'Export Failed', description: 'Failed to prepare MOC export.', variant: 'destructive' });
+      toast({ title: 'Not deleted', description: result.error, variant: 'destructive' });
     }
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const InfoItem = ({ label, value }) => (
-    <div>
-      <p className="text-xs text-[hsl(var(--muted-foreground))] mb-1">{label}</p>
-      <p className="text-sm font-medium text-[hsl(var(--foreground))]">{value || '-'}</p>
-    </div>
-  );
-
   return (
-    <MOCPageShell title={`${moc.id}: ${moc.title}`} description="MOC Details and Workflow">
-      <div className="flex flex-col h-full space-y-6 pb-20 md:pb-0 animate-in fade-in duration-300 print-only" id="moc-printable-area">
-        
-        {/* Header Summary Card */}
-        <div className="bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-xl p-6 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-1 h-full bg-[hsl(var(--warning))] no-print"></div>
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+    <MOCPageShell title={moc.moc_code} description={moc.title}>
+      <div className="space-y-6 animate-in fade-in duration-300 max-w-6xl mx-auto pb-20 md:pb-8">
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-[hsl(var(--border))] pb-6">
+          <div className="flex gap-4">
+            <Button variant="ghost" size="icon" className="mt-1" aria-label="Back"
+              onClick={() => navigate(`${BASE}/register`)}>
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
             <div>
-              <div className="flex items-center gap-3 mb-2">
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))] border border-[hsl(var(--warning))]/20">
-                  {moc.stage} Stage
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <span className="px-2 py-0.5 bg-[hsl(var(--secondary))] rounded text-xs font-mono border border-[hsl(var(--border))]">
+                  {moc.moc_code}
                 </span>
-                <span className="px-2.5 py-0.5 rounded-full text-xs bg-[hsl(var(--secondary))] text-[hsl(var(--muted-foreground))] border border-[hsl(var(--border))]">
-                  {moc.type}
-                </span>
+                <StageBadge stage={moc.stage} />
+                <TypeBadge type={moc.type} />
+                <RiskBadge risk={moc.risk_level} />
+                <ExpiryBadge moc={moc} />
               </div>
-              <h2 className="text-2xl font-bold text-[hsl(var(--foreground))]">{moc.title}</h2>
+              <h2 className="text-2xl font-bold tracking-tight">{moc.title}</h2>
+              <p className="text-sm text-[hsl(var(--muted-foreground))] mt-2">
+                {[moc.category, moc.asset_id, moc.department].filter(Boolean).join(' · ')}
+              </p>
             </div>
-            <div className="flex gap-2 no-print">
-              <Button variant="outline" size="icon" className="bg-transparent border-[hsl(var(--border))] hover:bg-[hsl(var(--secondary))]" onClick={handlePrint}>
-                <Printer className="w-4 h-4 text-[hsl(var(--muted-foreground))]" />
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" className="bg-transparent border-[hsl(var(--border))] hover:bg-[hsl(var(--secondary))]">
-                    <Download className="w-4 h-4 text-[hsl(var(--muted-foreground))]" />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {nextStages(moc.stage).map((stage) => {
+              const verdict = canAdvance(moc, stage, { approvals, actions });
+              return (
+                <Button key={stage}
+                  variant={['Rejected', 'Cancelled'].includes(stage) ? 'outline' : 'default'}
+                  disabled={saving || !verdict.ok}
+                  title={verdict.ok ? undefined : verdict.reason}
+                  onClick={() => handleAdvance(stage)}>
+                  {!verdict.ok ? <Lock className="w-3.5 h-3.5 mr-2" /> : null}
+                  {stage === 'Cancelled' ? 'Cancel' : stage === 'Rejected' ? 'Reject' : `Move to ${stage}`}
+                </Button>
+              );
+            })}
+            <Button variant="outline" className="text-[hsl(var(--destructive))]" onClick={handleDelete}>
+              <Trash2 className="w-4 h-4 mr-2" /> Delete
+            </Button>
+          </div>
+        </div>
+
+        {/* An expired temporary change is the loudest thing on the page. */}
+        {expiry === EXPIRY.EXPIRED ? (
+          <div className="p-4 rounded-lg border border-[hsl(var(--destructive))]/40 bg-[hsl(var(--destructive))]/5 text-sm flex gap-3">
+            <AlertTriangle className="w-5 h-5 text-[hsl(var(--destructive))] shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium">This {String(moc.type).toLowerCase()} change is past its expiry date</p>
+              <p className="text-[hsl(var(--muted-foreground))] mt-1">
+                It expired {Math.abs(expiryDays)} day{Math.abs(expiryDays) === 1 ? '' : 's'} ago
+                and is still in effect. Revert it, or raise a permanent change to replace it.
+              </p>
+            </div>
+          </div>
+        ) : expiry === EXPIRY.EXPIRING ? (
+          <div className="p-4 rounded-lg border border-[hsl(var(--warning))]/40 bg-[hsl(var(--warning))]/5 text-sm flex gap-3">
+            <AlertTriangle className="w-5 h-5 text-[hsl(var(--warning))] shrink-0 mt-0.5" />
+            <p>
+              This {String(moc.type).toLowerCase()} change expires in {expiryDays} day
+              {expiryDays === 1 ? '' : 's'}, on {showDate(moc.expiry_date)}.
+            </p>
+          </div>
+        ) : null}
+
+        {rejecting ? (
+          <Card className="panel-elevation">
+            <CardHeader><CardTitle className="text-lg">Reject this change</CardTitle></CardHeader>
+            <CardContent>
+              <form onSubmit={handleReject} className="space-y-3">
+                <Textarea rows={2} value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Why, so the originator knows what would make it acceptable." />
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="ghost" onClick={() => setRejecting(false)}>Cancel</Button>
+                  <Button type="submit" disabled={saving || !rejectionReason.trim()}>Reject</Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="bg-transparent border-b border-[hsl(var(--border))] w-full justify-start rounded-none h-auto p-0 space-x-6 overflow-x-auto">
+            {[['overview', 'Overview'],
+              ['approvals', `Approvals (${approvals.length})`],
+              ['actions', `Actions (${actions.length})`],
+              ['impacts', `Impacts (${moc.impacts?.length || 0})`],
+              ['audit', `Audit trail (${trail.length})`]].map(([value, label]) => (
+                <TabsTrigger key={value} value={value}
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-[hsl(var(--primary))] data-[state=active]:bg-transparent px-1 pb-3 whitespace-nowrap">
+                  {label}
+                </TabsTrigger>
+              ))}
+          </TabsList>
+
+          <TabsContent value="overview" className="pt-6 space-y-6">
+            <Card className="panel-elevation">
+              <CardContent className="p-6 grid grid-cols-1 md:grid-cols-3 gap-5">
+                <DetailField label="Type">{moc.type}</DetailField>
+                <DetailField label="Category">{moc.category}</DetailField>
+                <DetailField label="Risk level">{moc.risk_level}</DetailField>
+                <DetailField label="Priority">{moc.priority}</DetailField>
+                <DetailField label="Target implementation">{showDate(moc.target_implementation_date)}</DetailField>
+                <DetailField label="Expires">{showDate(moc.expiry_date)}</DetailField>
+                <div className="md:col-span-3">
+                  <DetailField label="Current situation">{moc.current_situation}</DetailField>
+                </div>
+                <div className="md:col-span-3">
+                  <DetailField label="Proposed change">{moc.description}</DetailField>
+                </div>
+                <div className="md:col-span-3">
+                  <DetailField label="Justification">{moc.justification}</DetailField>
+                </div>
+                {moc.rejection_reason ? (
+                  <div className="md:col-span-3">
+                    <DetailField label="Rejection reason">{moc.rejection_reason}</DetailField>
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="approvals" className="pt-6 space-y-4">
+            <Card className="panel-elevation">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-lg">
+                  Approval gates
+                  {gate.levels.length ? (
+                    <span className="ml-2 text-sm font-normal text-[hsl(var(--muted-foreground))]">
+                      {gate.complete
+                        ? 'all signed'
+                        : `level ${gate.outstanding.join(' and ')} outstanding`}
+                    </span>
+                  ) : null}
+                </CardTitle>
+                {!addingApprover ? (
+                  <Button variant="outline" size="sm" onClick={() => setAddingApprover(true)}>
+                    <Plus className="w-4 h-4 mr-2" /> Add a gate
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-[hsl(var(--card))] border-[hsl(var(--border))] text-[hsl(var(--foreground))]">
-                  <DropdownMenuItem onClick={() => handleExport('csv')}>Export as CSV</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleExport('excel')}>Export as Excel</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleExport('pdf')}>Export as PDF</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button variant="outline" size="sm" className="bg-transparent border-[hsl(var(--border))] hover:bg-[hsl(var(--secondary))] hidden sm:flex">
-                <Edit className="w-4 h-4 mr-2" /> Edit
-              </Button>
-              <Button size="sm" className="btn-primary shadow-md shadow-[hsl(var(--primary))]/20" onClick={() => toast({description: "Moving to next stage..."})}>
-                Submit for Approval
-              </Button>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-6 pt-4 border-t border-[hsl(var(--border))]">
-             <InfoItem label="Change Category" value={moc.category} />
-             <InfoItem label="Facility/Asset" value={moc.facility} />
-             <InfoItem label="Change Owner" value={moc.owner} />
-             <InfoItem label="Target Date" value={moc.targetDate} />
-             <div>
-                <p className="text-xs text-[hsl(var(--muted-foreground))] mb-1">Risk Level</p>
-                <span className="text-sm font-bold text-[hsl(var(--warning))] flex items-center">
-                  <ShieldAlert className="w-4 h-4 mr-1" /> {moc.risk}
-                </span>
-             </div>
-          </div>
-        </div>
+                ) : null}
+              </CardHeader>
+              <CardContent>
+                {addingApprover ? (
+                  <form onSubmit={handleAddApprover} className="flex flex-wrap gap-3 items-end mb-5 p-4 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/30">
+                    <div className="min-w-[200px]">
+                      <Label htmlFor="approver_role">Role</Label>
+                      <Input id="approver_role" value={approverDraft.role}
+                        onChange={(e) => setApproverDraft({ ...approverDraft, role: e.target.value })}
+                        placeholder="Technical Authority" />
+                    </div>
+                    <div className="w-32">
+                      <Label htmlFor="approver_level">Level</Label>
+                      <Input id="approver_level" type="number" min={1} max={10}
+                        value={approverDraft.level}
+                        onChange={(e) => setApproverDraft({ ...approverDraft, level: e.target.value })} />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button type="button" variant="ghost" onClick={() => setAddingApprover(false)}>Cancel</Button>
+                      <Button type="submit" disabled={saving}>Add</Button>
+                    </div>
+                    <p className="w-full text-xs text-[hsl(var(--muted-foreground))]">
+                      You are added as the approver for this gate. Assigning other
+                      people needs the member directory, which arrives with the
+                      hub at AS11.
+                    </p>
+                  </form>
+                ) : null}
 
-        {/* Tabbed Interface */}
-        <div className="flex-1 flex flex-col min-h-0 bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-xl shadow-sm overflow-hidden">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col h-full">
-            <div className="border-b border-[hsl(var(--border))] px-2 bg-[hsl(var(--secondary-background))]/50 overflow-x-auto hide-scrollbar no-print">
-              <TabsList className="bg-transparent h-12 p-0 space-x-6 w-max">
-                <TabsTrigger value="overview" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-[hsl(var(--primary))] rounded-none h-full px-2 text-[hsl(var(--muted-foreground))] data-[state=active]:text-[hsl(var(--foreground))]">Overview</TabsTrigger>
-                <TabsTrigger value="impacts" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-[hsl(var(--primary))] rounded-none h-full px-2 text-[hsl(var(--muted-foreground))] data-[state=active]:text-[hsl(var(--foreground))]">Impacts & Risk</TabsTrigger>
-                <TabsTrigger value="workflow" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-[hsl(var(--primary))] rounded-none h-full px-2 text-[hsl(var(--muted-foreground))] data-[state=active]:text-[hsl(var(--foreground))]">Reviews & Approvals</TabsTrigger>
-                <TabsTrigger value="actions" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-[hsl(var(--primary))] rounded-none h-full px-2 text-[hsl(var(--muted-foreground))] data-[state=active]:text-[hsl(var(--foreground))]">Action Tracker (3)</TabsTrigger>
-                <TabsTrigger value="documents" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-[hsl(var(--primary))] rounded-none h-full px-2 text-[hsl(var(--muted-foreground))] data-[state=active]:text-[hsl(var(--foreground))]">Documents (2)</TabsTrigger>
-              </TabsList>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-6 print-only">
-              {/* Force all tabs to display in print mode using CSS classes */}
-              <div className={activeTab === 'overview' ? 'block' : 'hidden print:block mb-8'}>
-                <h3 className="text-xl font-bold mb-4 hidden print:block border-b border-[hsl(var(--border))] pb-2">Overview</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-sm font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider mb-2">Current Situation</h3>
-                      <p className="text-sm text-[hsl(var(--foreground))] leading-relaxed p-4 bg-[hsl(var(--secondary))] rounded-lg border border-[hsl(var(--border))]">
-                        Pneumatic controllers on C-101 are 15 years old, prone to failure, and require manual daily adjustments. No remote monitoring is available.
-                      </p>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider mb-2">Proposed Change</h3>
-                      <p className="text-sm text-[hsl(var(--foreground))] leading-relaxed p-4 bg-[hsl(var(--secondary))] rounded-lg border border-[hsl(var(--border))]">
-                        {moc.description}
-                      </p>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider mb-2">Justification</h3>
-                      <p className="text-sm text-[hsl(var(--foreground))] leading-relaxed p-4 bg-[hsl(var(--secondary))] rounded-lg border border-[hsl(var(--border))]">
-                        {moc.justification}
-                      </p>
-                    </div>
-                  </div>
-                  <div>
-                    <Card className="bg-[hsl(var(--secondary-background))] border-[hsl(var(--border))]">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-sm flex items-center text-[hsl(var(--muted-foreground))]"><Activity className="w-4 h-4 mr-2" /> Recent Activity</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="flex gap-3 relative before:absolute before:left-2 before:top-6 before:bottom-[-16px] before:w-px before:bg-[hsl(var(--border))]">
-                           <div className="w-4 h-4 rounded-full bg-[hsl(var(--primary))] flex-shrink-0 z-10 mt-1 ring-4 ring-[hsl(var(--card))]"></div>
-                           <div>
-                             <p className="text-sm font-medium text-[hsl(var(--foreground))]">Moved to Review Stage</p>
-                             <p className="text-xs text-[hsl(var(--muted-foreground))]">By J. Smith • Today, 10:45 AM</p>
-                           </div>
+                {approvals.length === 0 ? (
+                  <p className="text-sm text-[hsl(var(--muted-foreground))] py-4">
+                    No approval gates have been set. A change cannot be
+                    implemented until at least one level has signed, so this is
+                    the next thing to do.
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-[hsl(var(--border))]">
+                    {approvals.map((a) => (
+                      <li key={a.id} className="py-4">
+                        <div className="flex flex-wrap justify-between items-start gap-3">
+                          <div>
+                            <p className="font-medium">
+                              Level {a.level ?? 1} · {a.role || 'Approver'}
+                            </p>
+                            <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">
+                              {a.status}
+                              {a.decision_date ? ` · ${showDate(a.decision_date.slice(0, 10))}` : ''}
+                            </p>
+                            {a.comments ? (
+                              <p className="text-sm mt-1">{a.comments}</p>
+                            ) : null}
+                          </div>
+                          {a.status === 'Pending' && deciding !== a.id ? (
+                            <Button variant="outline" size="sm" onClick={() => { setDeciding(a.id); setDecisionText(''); }}>
+                              Record a decision
+                            </Button>
+                          ) : null}
                         </div>
-                        <div className="flex gap-3 relative before:absolute before:left-2 before:top-6 before:bottom-[-16px] before:w-px before:bg-[hsl(var(--border))]">
-                           <div className="w-4 h-4 rounded-full bg-[hsl(var(--secondary))] border-2 border-[hsl(var(--border))] flex-shrink-0 z-10 mt-1 ring-4 ring-[hsl(var(--card))]"></div>
-                           <div>
-                             <p className="text-sm font-medium text-[hsl(var(--foreground))]">Document Attached: P&ID_Rev2.pdf</p>
-                             <p className="text-xs text-[hsl(var(--muted-foreground))]">By J. Smith • Yesterday, 14:20 PM</p>
-                           </div>
-                        </div>
-                        <div className="flex gap-3 relative">
-                           <div className="w-4 h-4 rounded-full bg-[hsl(var(--secondary))] border-2 border-[hsl(var(--border))] flex-shrink-0 z-10 mt-1 ring-4 ring-[hsl(var(--card))]"></div>
-                           <div>
-                             <p className="text-sm font-medium text-[hsl(var(--foreground))]">MOC Created</p>
-                             <p className="text-xs text-[hsl(var(--muted-foreground))]">By J. Smith • 2026-03-25</p>
-                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-              </div>
+                        {deciding === a.id ? (
+                          <div className="mt-3 space-y-2">
+                            <Textarea rows={2} value={decisionText}
+                              onChange={(e) => setDecisionText(e.target.value)}
+                              placeholder="Comments. Required for a rejection." />
+                            <div className="flex justify-end gap-2">
+                              <Button variant="ghost" size="sm" onClick={() => setDeciding(null)}>Cancel</Button>
+                              <Button variant="outline" size="sm" disabled={saving || !decisionText.trim()}
+                                onClick={() => handleDecision(a, 'Rejected')}>
+                                <XCircle className="w-4 h-4 mr-2" /> Reject
+                              </Button>
+                              <Button size="sm" disabled={saving}
+                                onClick={() => handleDecision(a, 'Approved')}>
+                                <CheckCircle className="w-4 h-4 mr-2" /> Approve
+                              </Button>
+                            </div>
+                          </div>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-              <div className={activeTab === 'impacts' ? 'block' : 'hidden print:block mb-8'}>
-                 <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold text-[hsl(var(--foreground))]">Impact Assessment</h3>
-                    <Button size="sm" variant="outline" className="border-[hsl(var(--border))] bg-transparent no-print"><Plus className="w-4 h-4 mr-2"/> Add Impact</Button>
-                 </div>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background))]">
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="text-sm font-bold text-[hsl(var(--foreground))]">HSE Impact</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]">Low Risk</span>
+          <TabsContent value="actions" className="pt-6">
+            <Card className="panel-elevation">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-lg">Actions</CardTitle>
+                {!addingAction ? (
+                  <Button variant="outline" size="sm" onClick={() => setAddingAction(true)}>
+                    <Plus className="w-4 h-4 mr-2" /> Add an action
+                  </Button>
+                ) : null}
+              </CardHeader>
+              <CardContent>
+                {addingAction ? (
+                  <form onSubmit={handleAddAction} className="space-y-3 mb-5 p-4 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/30">
+                    <div className="grid grid-cols-1 md:grid-cols-[200px_1fr_180px] gap-3">
+                      <div>
+                        <Label htmlFor="action_type">When</Label>
+                        <select id="action_type" value={actionDraft.action_type}
+                          onChange={(e) => setActionDraft({ ...actionDraft, action_type: e.target.value })}
+                          className="flex h-10 w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 text-sm">
+                          {ACTION_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                        </select>
                       </div>
-                      <p className="text-xs text-[hsl(var(--muted-foreground))] mb-3">Hot work required during installation. Isolation and lock-out/tag-out procedures required.</p>
-                      <p className="text-xs font-medium text-[hsl(var(--primary))]">Mitigation: Ensure permit to work system is strictly followed. Gas testing prior to work.</p>
-                    </div>
-                    <div className="p-4 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background))]">
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="text-sm font-bold text-[hsl(var(--foreground))]">Production Impact</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))]">Medium Risk</span>
+                      <div>
+                        <Label htmlFor="action_description">What</Label>
+                        <Input id="action_description" value={actionDraft.description}
+                          onChange={(e) => setActionDraft({ ...actionDraft, description: e.target.value })}
+                          placeholder="Update the P&ID and reissue it" />
                       </div>
-                      <p className="text-xs text-[hsl(var(--muted-foreground))] mb-3">Requires 12-hour shut-in of Train 1 for tie-in.</p>
-                      <p className="text-xs font-medium text-[hsl(var(--primary))]">Mitigation: Schedule during planned maintenance window on May 15th.</p>
+                      <div>
+                        <Label htmlFor="action_due">Due</Label>
+                        <Input id="action_due" type="date" value={actionDraft.due_date}
+                          onChange={(e) => setActionDraft({ ...actionDraft, due_date: e.target.value })} />
+                      </div>
                     </div>
-                 </div>
-              </div>
-
-              <div className={activeTab === 'workflow' ? 'block' : 'hidden print:block mb-8'}>
-                 <h3 className="text-lg font-semibold text-[hsl(var(--foreground))] mb-4">Technical Reviews</h3>
-                 <div className="data-grid-container mb-8 border border-[hsl(var(--border))] rounded-lg overflow-hidden">
-                   <table className="data-grid-table w-full text-sm text-left">
-                     <thead>
-                       <tr className="bg-[hsl(var(--secondary))]">
-                         <th className="data-grid-th p-3 font-semibold">Discipline</th>
-                         <th className="data-grid-th p-3 font-semibold">Reviewer</th>
-                         <th className="data-grid-th p-3 font-semibold">Status</th>
-                         <th className="data-grid-th p-3 font-semibold">Date</th>
-                         <th className="data-grid-th p-3 font-semibold w-24 no-print"></th>
-                       </tr>
-                     </thead>
-                     <tbody>
-                       <tr className="border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]">
-                         <td className="data-grid-td p-3">Process Engineering</td>
-                         <td className="data-grid-td p-3">S. Miller</td>
-                         <td className="data-grid-td p-3"><span className="text-xs text-[hsl(var(--success))] font-medium"><CheckCircle className="w-3 h-3 inline mr-1"/> Endorsed</span></td>
-                         <td className="data-grid-td p-3 text-[hsl(var(--muted-foreground))] text-xs">Today</td>
-                         <td className="data-grid-td p-3 no-print"><Button variant="ghost" size="sm" className="h-6 text-xs">View</Button></td>
-                       </tr>
-                       <tr className="border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]">
-                         <td className="data-grid-td p-3">Instrumentation</td>
-                         <td className="data-grid-td p-3">D. Roberts</td>
-                         <td className="data-grid-td p-3"><span className="text-xs text-[hsl(var(--warning))] font-medium"><Clock className="w-3 h-3 inline mr-1"/> Pending</span></td>
-                         <td className="data-grid-td p-3 text-[hsl(var(--muted-foreground))] text-xs">-</td>
-                         <td className="data-grid-td p-3 no-print"><Button variant="ghost" size="sm" className="h-6 text-xs">Remind</Button></td>
-                       </tr>
-                     </tbody>
-                   </table>
-                 </div>
-              </div>
-
-              <div className={activeTab === 'actions' ? 'block' : 'hidden print:block mb-8'}>
-                 <h3 className="text-xl font-bold mb-4 hidden print:block border-b border-[hsl(var(--border))] pb-2">Action Tracker</h3>
-                 <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-[hsl(var(--border))] rounded-xl">
-                   <CheckSquare className="w-12 h-12 text-[hsl(var(--muted-foreground))] mb-4 opacity-50" />
-                   <p className="text-[hsl(var(--foreground))] font-medium">Action Tracker</p>
-                   <p className="text-[hsl(var(--muted-foreground))] text-sm mb-4">Manage pre and post implementation tasks.</p>
-                   <Button className="bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--border))] no-print"><Plus className="w-4 h-4 mr-2"/> Add Action Item</Button>
-                 </div>
-              </div>
-
-              <div className={activeTab === 'documents' ? 'block' : 'hidden print:block mb-8'}>
-                <h3 className="text-xl font-bold mb-4 hidden print:block border-b border-[hsl(var(--border))] pb-2">Documents & Evidence</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  <div className="p-4 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background))] flex items-start gap-3 hover:border-[hsl(var(--primary))] transition-colors cursor-pointer">
-                    <div className="p-2 bg-[hsl(var(--primary))]/10 rounded text-[hsl(var(--primary))]">
-                      <FileText className="w-6 h-6" />
+                    {actionErrors.description ? (
+                      <p className="text-xs text-[hsl(var(--destructive))]">{actionErrors.description}</p>
+                    ) : null}
+                    <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                      Pre-implementation actions must be closed before the change
+                      goes in. Implementation and post-implementation actions must
+                      be closed before it closes.
+                    </p>
+                    <div className="flex justify-end gap-2">
+                      <Button type="button" variant="ghost" onClick={() => setAddingAction(false)}>Cancel</Button>
+                      <Button type="submit" disabled={saving}>Add action</Button>
                     </div>
-                    <div className="overflow-hidden">
-                      <p className="text-sm font-medium text-[hsl(var(--foreground))] truncate">PID_Markup_v2.pdf</p>
-                      <p className="text-xs text-[hsl(var(--muted-foreground))]">2.4 MB • Uploaded Yesterday</p>
-                    </div>
-                  </div>
-                  <div className="p-4 rounded-lg border border-dashed border-[hsl(var(--border))] bg-transparent flex flex-col items-center justify-center text-center hover:bg-[hsl(var(--secondary))]/50 transition-colors cursor-pointer text-[hsl(var(--muted-foreground))] min-h-[80px] no-print" onClick={() => toast({description:"Upload dialog..."})}>
-                    <Plus className="w-5 h-5 mb-1" />
-                    <span className="text-xs font-medium">Upload Document</span>
-                  </div>
-                </div>
-              </div>
+                  </form>
+                ) : null}
 
-            </div>
-          </Tabs>
-        </div>
+                {actions.length === 0 ? (
+                  <p className="text-sm text-[hsl(var(--muted-foreground))] py-4">
+                    No actions recorded against this change.
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-[hsl(var(--border))]">
+                    {actions.map((a) => {
+                      const open = !['Complete', 'Cancelled'].includes(a.status);
+                      const late = open && a.due_date && daysUntil(a.due_date) < 0;
+                      return (
+                        <li key={a.id} className="py-4 flex flex-wrap justify-between items-start gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm">{a.description}</p>
+                            <p className="text-xs text-[hsl(var(--muted-foreground))] mt-1">
+                              {a.action_type} · {a.status}
+                              {a.due_date ? ` · due ${showDate(a.due_date)}` : ''}
+                              {late ? ' · overdue' : ''}
+                            </p>
+                          </div>
+                          {open ? (
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm"
+                                onClick={() => handleActionStatus(a, 'Complete')}>
+                                Mark complete
+                              </Button>
+                              <Button variant="ghost" size="sm"
+                                onClick={() => handleActionStatus(a, 'Cancelled')}>
+                                Cancel
+                              </Button>
+                            </div>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
+          <TabsContent value="impacts" className="pt-6">
+            <Card className="panel-elevation">
+              <CardContent className="p-0">
+                {moc.impacts?.length ? (
+                  <ul className="divide-y divide-[hsl(var(--border))]">
+                    {moc.impacts.map((i) => (
+                      <li key={i.id} className="px-6 py-4">
+                        <div className="flex justify-between items-start gap-4">
+                          <p className="font-medium">{i.impact_area}</p>
+                          <span className="text-xs text-[hsl(var(--muted-foreground))]">{i.severity}</span>
+                        </div>
+                        {i.mitigation ? (
+                          <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
+                            Mitigation: {i.mitigation}
+                          </p>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="p-8 text-center text-[hsl(var(--muted-foreground))]">
+                    No impact assessment recorded. Deciding what a change affects
+                    is how its risk level gets chosen.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="audit" className="pt-6">
+            <Card className="panel-elevation">
+              <CardContent className="p-6">
+                {trail.length ? (
+                  <ul className="space-y-3">
+                    {trail.map((a) => (
+                      <li key={a.id} className="flex justify-between gap-4">
+                        <span className="text-sm">{a.action}</span>
+                        <span className="text-xs text-[hsl(var(--muted-foreground))] whitespace-nowrap">
+                          {a.created_at ? `${formatDistanceToNow(new Date(a.created_at))} ago` : ''}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-center text-[hsl(var(--muted-foreground))] py-6">
+                    Nothing has been recorded against this change yet.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </MOCPageShell>
   );

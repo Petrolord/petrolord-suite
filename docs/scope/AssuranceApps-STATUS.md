@@ -2,8 +2,9 @@
 
 Plan of record: `docs/scope/Assurance-ROADMAP.md`.
 Wave: **AS1 (foundations) and AS2 (Risk Register) BUILT 2026-09-16;
-AS3 (Regulatory Compliance), AS4 (Document Control) and AS5 (Peer
-Review Manager) BUILT 2026-09-17**, migrations held.
+AS3 (Regulatory Compliance), AS4 (Document Control), AS5 (Peer Review
+Manager) and AS6 (Management of Change) BUILT 2026-09-17**, migrations
+held.
 
 This file replaces a document that carried the same name and described
 the Economics E4 apps. That content now lives at
@@ -27,12 +28,12 @@ programmes. This one is still in its Horizons-generated state.
 | ISO Compliance | `apps/assurance/iso-compliance/*` | nothing | **Demoted to Coming Soon.** `@/data/isoComplianceData` in `useState` | AS8 |
 | Document Control | `apps/assurance/document-control/*` | `documents`, `doc_revisions`, `doc_workflows`, `doc_activity_log`, `doc_categories` | **AS4 done.** Coming Soon until its own promotion migration | AS4 |
 | Peer Review Manager | `apps/assurance/peer-review-manager/*` | `peer_reviews`, `peer_review_comments`, `peer_review_audit`, `peer_review_participants` | **AS5 done.** Coming Soon until its own promotion migration | AS5 |
-| Management of Change | `apps/assurance/management-of-change/*` | nothing | Coming Soon | AS6 |
+| Management of Change | `apps/assurance/management-of-change/*` | `moc_records`, `moc_approvals`, `moc_actions`, `moc_impacts`, `moc_activity_log` | **AS6 done.** Coming Soon until its own promotion migration | AS6 |
 | Quality Assurance Plan | `apps/assurance/qa-plan/*` | nothing | Coming Soon | AS7 |
 | Audit & Findings Manager | not built | - | New app | AS10 |
 
-Tests: **206** as of AS5 (AS2 34, AS3 63, AS4 45, AS5 52, plus the
-shared authority suites), all under
+Tests: **264** as of AS6 (AS2 34, AS3 63, AS4 45, AS5 52, AS6 58, plus
+the shared authority suites), all under
 `src/lib/__tests__/` and the two app trees. There were none at all
 before AS2. Engine: **none**; there is no `engines/assurance` in
 petrolord-engines, which is why the two NextGen assurance courses are
@@ -628,6 +629,120 @@ repo, which is an argument for doing that on every remaining wave.
 
 ---
 
+## 3e. AS6, built 2026-09-17 — Management of Change
+
+Seven `moc_*` tables exist and the app used none of them. Not one page
+issued a query.
+
+### 3e.1 The create form had no state
+
+Not one input in `NewMOC.jsx` carried a `value` or an `onChange`, and
+there was no `useState` for any field. The submit handler was:
+
+```js
+setTimeout(() => {
+  toast({ title: "MOC Draft Saved",
+          description: "Record MOC-2026-090 has been created successfully." });
+  navigate('/dashboard/apps/assurance/management-of-change/MOC-2026-090');
+}, 800);
+```
+
+A user could fill in the current situation, the proposed change, the
+justification and the target date, and none of it was read out of the
+DOM, let alone saved. The record number was a string literal, the same
+one every time.
+
+### 3e.2 Approving a change recorded nothing
+
+The approval queue was two hardcoded tasks and clicking Approve toasted
+"Approval recorded for MOC-2026-088". An MOC approval is a named person
+authorising a change to a facility. Falsely confirming one is the most
+consequential lie in this module.
+
+One of the two rows also carried `urgent: true`, which rendered an
+"Overdue" badge on a task that had no due date at all.
+
+### 3e.3 Invented change registers, exportable to PDF
+
+The register held five hardcoded rows — MOC-2026-089 down to -077,
+including an Emergency "Temporary pipeline clamp" at High risk — and
+offered them as **CSV, Excel and PDF**. An MOC register is the document
+that proves a facility's changes were controlled; a PDF of five invented
+ones, stamped with today's date, is the kind of file that ends up in an
+audit pack.
+
+The reports page did the same for its stage and category charts and,
+worst of the three, for an expiry report:
+
+```js
+const expiryData = [
+  { id: 'MOC-012', daysLeft: 2 }, { id: 'MOC-044', daysLeft: 5 },
+  { id: 'MOC-088', daysLeft: 12 }, { id: 'MOC-091', daysLeft: 15 }
+];
+```
+
+Four invented change numbers with invented countdowns, with CSV, Excel
+and PDF buttons pointed at the constant. **The temporary-change expiry
+report is the one document in this app that says which deviations a
+facility is running on and for how much longer.**
+
+### 3e.4 And the rest of it
+
+- The dashboard's tiles were 42 / 12 / 5 / 128, with a literal stage
+  breakdown and monthly trend, and a hardcoded alert reading
+  "MOC-2026-015 and MOC-2026-033 expire in less than 7 days" — naming
+  two changes that do not exist.
+- `MOCDetail.jsx` read `const { id = 'MOC-2026-089' } = useParams()`
+  and rendered one hardcoded record whatever the URL said. Its stage
+  button toasted "Moving to next stage..." and moved nothing.
+- The shell carried a notification bell with a red unread badge over
+  four invented notifications ("A. Davis approved MOC-2026-088"), with
+  mark-read and delete that mutated local state.
+
+### 3e.5 What AS6 built
+
+The unused schema was genuinely good — `expiry_date`,
+`moc_approvals.level`, `moc_actions` split by phase, `moc_impacts`,
+`moc_activity_log` — so this is wiring plus three rules.
+
+`src/lib/managementOfChange.js` is the fifth authority in this module,
+and the first statement anywhere in the Suite of what MOC enforces:
+
+- **A change does not leave Approval until every approval level has
+  signed**, and never with a rejection against it. An empty approval
+  list is not a passed gate, which is the failure mode a naive
+  `every()` would produce.
+- **Pre-implementation actions close before the change goes in**, and
+  implementation and post-implementation actions close before it
+  closes. That ordering is the whole point of splitting the list.
+- **A temporary change past its expiry is EXPIRED**, and that outranks
+  every other state it is in. It sorts above everything in the
+  register, raises a banner on the dashboard and on the change, and
+  has its own export.
+
+The third is the failure the discipline exists to catch: the clamp that
+was going to be replaced next shutdown and is still there four years
+later. It is enforced three ways — the database refuses a temporary or
+emergency change past Draft without an expiry date, the authority
+refuses to implement one without it, and the register surfaces one that
+has passed.
+
+Removed rather than rebuilt: the notification bell (real notifications
+need a table with per-user read state, which does not exist; the
+dashboard's activity and each change's audit trail read
+`moc_activity_log` instead) and PDF and Excel export.
+
+### 3e.6 Gotcha worth keeping
+
+**The guard found the notification bell, not the audit.** The AS6 audit
+read all six pages and missed it, because it sat in the shell's header
+rather than on a page. The `NO HARDCODED MOC NUMBER APPEARS ANYWHERE`
+test failed on the first run and pointed straight at it. A regex over
+the whole app tree catches what reading page by page does not, which is
+the same lesson as §3d.4 from a different direction.
+
+---
+
 ## 4. How AS1 was verified
 
 No production write was made. Everything below ran on a scratch
@@ -662,12 +777,13 @@ schema level, and on the scratch reproduction.
 
 ## 5. Open
 
-- **All nine migrations are unapplied.** Ordered apply script:
+- **All ten migrations are unapplied.** Ordered apply script:
   `tools/validation/assurance/as1-apply.sh`, which does not yet include
   AS3's `20260917100000_as3_regulatory_compliance.sql`, AS4's
-  `20260917200000_as4_document_control.sql` or AS5's
-  `20260917300000_as5_peer_review.sql`; run those after the AS1 pair,
-  in that order. Owner-run.
+  `20260917200000_as4_document_control.sql`, AS5's
+  `20260917300000_as5_peer_review.sql` or AS6's
+  `20260917400000_as6_management_of_change.sql`; run those after the
+  AS1 pair, in that order. Owner-run.
 - **The six parent registers have no RLS or policies in the repo**
   (§3d.4). `documents`, `risk_register`, `moc_records`,
   `compliance_rules` and the risk children AS1 listed as already
