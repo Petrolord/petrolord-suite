@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Plus, Search as SearchIcon, Shield } from 'lucide-react';
+import { ChevronLeft, Plus, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 import Dashboard from './Dashboard';
@@ -22,7 +22,10 @@ export default function RegulatoryCompliancePageShell() {
     { name: 'Reports', path: '/dashboard/apps/assurance/regulatory-compliance/reports' }
   ];
 
-  const isFormView = currentPath.includes('/new') || (currentPath.split('/').length > 5 && !currentPath.endsWith('register') && !currentPath.endsWith('directory') && !currentPath.endsWith('reports'));
+  // The tabs are hidden on the two form routes only. The old test
+  // counted path segments and hid them on every detail route as well,
+  // so opening an obligation lost the app's navigation entirely.
+  const isFormView = currentPath.endsWith('/new') || currentPath.endsWith('/edit');
 
   return (
     <div className="flex flex-col h-full w-full bg-[hsl(var(--background))] overflow-hidden">
@@ -51,9 +54,9 @@ export default function RegulatoryCompliancePageShell() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" className="bg-[hsl(var(--background))] border-[hsl(var(--border))] hover:bg-[hsl(var(--secondary))] text-[hsl(var(--foreground))]">
-            <SearchIcon className="w-4 h-4 mr-2" /> Search
-          </Button>
+          {/* The Search button that stood here had no handler, no state
+              and no target. Search lives on the register and the
+              directory, where the rows are. */}
           <Button size="sm" className="bg-[hsl(var(--warning))] text-white hover:bg-[hsl(var(--warning))]/90 transition-colors border-0" onClick={() => navigate('new')}>
             <Plus className="w-4 h-4 mr-2" /> Add Obligation
           </Button>
@@ -100,6 +103,7 @@ export default function RegulatoryCompliancePageShell() {
             <Route path="new" element={<NewCompliance />} />
             <Route path="directory" element={<Directory />} />
             <Route path="reports" element={<Reports />} />
+            <Route path=":id/edit" element={<NewCompliance />} />
             <Route path=":id" element={<ComplianceDetail />} />
             <Route path="*" element={<Dashboard />} />
           </Routes>

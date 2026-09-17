@@ -1,8 +1,8 @@
 # Assurance & Compliance module — status
 
 Plan of record: `docs/scope/Assurance-ROADMAP.md`.
-Wave: **AS1 (foundations) and AS2 (Risk Register), BUILT 2026-09-16**,
-migrations held.
+Wave: **AS1 (foundations) and AS2 (Risk Register) BUILT 2026-09-16;
+AS3 (Regulatory Compliance) BUILT 2026-09-17**, migrations held.
 
 This file replaces a document that carried the same name and described
 the Economics E4 apps. That content now lives at
@@ -22,7 +22,7 @@ programmes. This one is still in its Horizons-generated state.
 |---|---|---|---|---|
 | Risk Register | `apps/assurance/risk-register` | `risk_register`, `risk_tags`, `risk_links`, snapshots | **Active.** AS2 done | AS2 |
 | Risk Heatmap | redirect into the register | via the register | **Active.** AS2 done | AS2 |
-| Regulatory Compliance | `apps/assurance/regulatory-compliance/*` | 3 services | **Active.** Real, honest errors | AS3 |
+| Regulatory Compliance | `apps/assurance/regulatory-compliance/*` | `regulatory_obligations`, `regulatory_authorities`, `regulatory_evidence` | **Active.** AS3 done | AS3 |
 | ISO Compliance | `apps/assurance/iso-compliance/*` | nothing | **Demoted to Coming Soon.** `@/data/isoComplianceData` in `useState` | AS8 |
 | Document Control | `apps/assurance/document-control/*` | `documents`, mock fallback | Coming Soon | AS4 |
 | Peer Review Manager | `apps/assurance/peer-review-manager/*` | `peer_reviews`, mock fallback | Coming Soon | AS5 |
@@ -30,9 +30,11 @@ programmes. This one is still in its Horizons-generated state.
 | Quality Assurance Plan | `apps/assurance/qa-plan/*` | nothing | Coming Soon | AS7 |
 | Audit & Findings Manager | not built | - | New app | AS10 |
 
-Tests: **none**, under any assurance path. Engine: **none**; there is no
-`engines/assurance` in petrolord-engines. Both are why the two NextGen
-assurance courses are deferred to AS12.
+Tests: **97** as of AS3 (AS2 contributed 34, AS3 63), all under
+`src/lib/__tests__/` and the two app trees. There were none at all
+before AS2. Engine: **none**; there is no `engines/assurance` in
+petrolord-engines, which is why the two NextGen assurance courses are
+deferred to AS12.
 
 ---
 
@@ -275,6 +277,120 @@ up an app, which makes them larger than AS4 and AS5.
 
 ---
 
+## 3b. AS3, built 2026-09-17 — Regulatory Compliance
+
+### 3b.1 The roadmap was too kind to this app
+
+AS0 audited it as "Real. Three Supabase services, honest errors" and
+listed it as one of the three genuinely working apps in the module. The
+reads are honest. Almost nothing else was, and the audit had looked at
+the services rather than at what a user can do.
+
+**Nobody could create an obligation.** `NewCompliance.jsx` was a dashed
+box reading "New compliance creation form will be implemented here", and
+the Add Obligation button in the app header navigated to it.
+`addRecord()` and `addRegulator()` were written in the services and no
+UI ever called either one. `ComplianceDetail.jsx` was a second dashed
+box, so clicking a row went nowhere, and the dashboard's deadline list
+linked to `register?id=...`, a query string nothing read. Delete worked.
+So the only thing a user could do to their own compliance register from
+this app was destroy a row.
+
+This is the same shape as AS2's finding on the risk register, one step
+further along: there the form existed and wrote columns that did not,
+so every create failed at the database; here the form did not exist.
+
+**Twelve controls answered a click with** "🚧 This feature isn't
+implemented yet, but don't worry! You can request it in your next
+prompt! 🚀" — Filters, Export, Add Record, Edit, the row title, Add
+Regulator, the website link, Print All, Export PDF and the two report
+download buttons. That string names the prompt builder the app was
+generated in, and it shipped to paying customers.
+
+**The Reports page was fiction.** "Obligations by Authority" was a
+module-level constant: EPA 45, BSEE 32, OSHA 28, State Dept 15, Local
+Auth 22. Every organization that opened the page saw the same 142
+obligations against four American regulators, whatever was in its own
+register, with nothing on the page saying so. It is the worst thing in
+the app, because a compliance report is a document people act on.
+Beside it, "Compliance Readiness Matrix" rendered the words "Matrix
+visualization loading..." in a dashed box. It was not loading. There
+was no matrix.
+
+**The dashboard invented a trend.** The "Obligations Trend" area chart
+was `[total-10, total-7, total-5, total-2, total, total]` plotted
+against six hardcoded month names with no relation to today: a picture
+of a register growing steadily over six months, for a register that had
+never been measured over time. "Recent Activity" printed "Record
+&lt;title&gt; was updated" for the first four rows whether or not
+anything had been updated.
+
+**The app chose its own organization.**
+`compliancePermissionsService.checkAccess()` queried
+`organization_members` directly and took the first active row by
+`joined_at`. That is a second membership authority beside the Suite's
+own (`organization_members` is THE membership table, read through the
+auth context), so anyone belonging to more than one organization could
+be shown a different org's obligations from the one the app switcher
+said they were in. It also ignored impersonation, which the auth
+context honours.
+
+### 3b.2 What AS3 built
+
+- **One status authority**, `src/lib/complianceStatus.js`, on the AS2
+  `riskScoring.js` precedent. Status is derived and never typed; what a
+  person sets is the `lifecycle`. Three decisions in it are worth
+  keeping: an expired permit outranks an overdue return; evidence filed
+  in March does not clear a return that was due this month; and
+  "On track" and "Compliant" are different words, so Compliant is never
+  asserted for an obligation with no evidence against it.
+- **`expiry_date` as a first-class date.** A permit's expiry and a
+  report's due date are different obligations against the same row. The
+  register carried one date, so it could not warn that a discharge
+  permit lapses in three weeks while every return against it is up to
+  date. The earlier of the two now drives the warning, and the register
+  labels which one is counting down.
+- **`regulatory_evidence`**, which is what makes "Compliant" mean
+  anything. Recording a filing writes the evidence and rolls the due
+  date forward by frequency, **from the date that was due, not from the
+  filing date** — rolling from the filing date walks the whole schedule
+  later every period.
+- A real obligation form with a live status preview, a real detail
+  page, working filters, a CSV export of the rows actually on screen,
+  and a regulator directory that can add and edit, and that refuses to
+  delete a regulator obligations still point at.
+- Charts moved to the Suite standard: white surface, 40px `ChartLogo`.
+  The status colours live in the same authority as the status words, so
+  a slice and the badge beside it cannot come to mean different things.
+- `REG-` codes issued in sequence under an advisory lock behind a
+  unique index, with a membership check inside the SECURITY DEFINER.
+- Dead code removed: `RegulatorsDirectory.jsx` (never routed), all
+  three services, and two util files nothing imported.
+
+### 3b.3 Gotchas worth keeping
+
+- **`Number(null)` is 0, not NaN.** The first draft of the lead-time
+  fallback used `Number.isFinite()` alone, so a null `lead_time_days`
+  became a zero-day warning window: the obligation would jump from On
+  track straight to Overdue with no notice, which is the one thing that
+  field exists to prevent. The unit test caught it.
+- **`new Date('2026-09-17')` is UTC midnight**, which is 16 September in
+  every negative offset. These are calendar dates, not instants, so
+  everything parses at local midnight. Without that, an obligation due
+  today reads overdue for every user west of Greenwich.
+- **`set local role` outside a transaction is a warning and a no-op**,
+  and the whole pentest then runs as the superuser, which bypasses RLS
+  and passes everything. The first draft of `rls-pentest-as3.sql` did
+  exactly that and reported a clean sweep against a database with no
+  protection at all. Every section now runs inside its own transaction,
+  and every write sits on its own savepoint, or the first denial aborts
+  the rest of the section.
+- The tabs disappeared on every detail route, not only on forms: the
+  old `isFormView` counted path segments. Opening an obligation lost
+  the app's navigation.
+
+---
+
 ## 4. How AS1 was verified
 
 No production write was made. Everything below ran on a scratch
@@ -309,8 +425,10 @@ schema level, and on the scratch reproduction.
 
 ## 5. Open
 
-- **All six migrations are unapplied.** Ordered apply script:
-  `tools/validation/assurance/as1-apply.sh`. Owner-run.
+- **All seven migrations are unapplied.** Ordered apply script:
+  `tools/validation/assurance/as1-apply.sh`, which does not yet include
+  AS3's `20260917100000_as3_regulatory_compliance.sql`; run that one
+  after the AS1 pair. Owner-run.
 - The commerce migration needs a second engineer (shared tables).
 - Five owner questions in `Assurance-ROADMAP.md` §7. AS1 proceeded on
   the recommendation in each case per the standing autonomous directive;
@@ -318,15 +436,34 @@ schema level, and on the scratch reproduction.
 - `purchased_apps` is **inserted from the browser** by
   `src/utils/paymentVerificationLogic.js`. Recorded, not fixed.
 - The ~90 remaining RLS-off legacy tables.
-- `npm run build` currently fails in this environment at the PWA
-  service-worker step with "Unable to write the service worker file.
-  'crypto is not defined'". The Rollup bundle itself completes and
-  writes every asset; the failure is inside workbox-build after
-  bundling. It is not caused by the AS work, which touches no build
-  config, and the repo already carries a fix for the same error
-  (6e970c8b9, whose polyfill is present). A clean control build on
-  unmodified main could not be completed here, because a git worktree
-  cannot resolve this repo's node_modules. **It blocks cutting a
-  production zip and wants its own look.**
-- AS3 onward: the rest of the apps. The first rule of the programme is
-  that no service in this module may return invented rows.
+- **The `npm run build` PWA failure is diagnosed, and it is not a repo
+  bug.** AS1 recorded it as unexplained and blocking prod zips. Traced
+  in AS3 to three lines, with no Suite code involved at all:
+
+  ```
+  node -e "require('workbox-build').generateSW({globDirectory:'dist',
+    globPatterns:['**/*.css'],swDest:'/tmp/sw.js'}).catch(e=>console.log(e.message))"
+  ```
+
+  The real stack, once workbox's wrapper is removed, is
+  `ReferenceError: crypto is not defined at generateUID
+  (serialize-javascript/index.js:102)`, reached at module load from
+  `@rollup/plugin-terser`. `serialize-javascript` 7.1.1 calls the Web
+  Crypto global `crypto.getRandomValues()` at import time, and **the
+  bare `crypto` global does not exist in Node 18**; it arrives in Node
+  19+. This machine runs **Node 18.19.1** while `package.json` already
+  declares `"engines": {"node": ">=20.0.0"}`.
+
+  So the build is being run on a Node the repo does not support. On
+  Node 20 it works as written. Confirmed here by giving Node 18 the
+  behaviour it is missing: `NODE_OPTIONS=--experimental-global-webcrypto
+  npx vite build` completes end to end, emits `dist/sw.js` and
+  `dist/workbox-*.js`, and exits 0.
+
+  **The fix is to build on Node 20, not to change the build script.**
+  Patching `package.json` with the flag would paper over an engine
+  mismatch the repo already declares, and the flag is deprecated in
+  newer Node. Prod zips are unblocked either way.
+- AS4 onward: the rest of the apps. The first rule of the programme is
+  that no service in this module may return invented rows, and AS4 and
+  AS5 are where it bites hardest — both fail open into fiction today.

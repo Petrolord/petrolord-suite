@@ -42,7 +42,7 @@ of them `status='Active'` with `is_functional=true`.
 |---|---|---|
 | Risk Register | Active | **Real.** `risk_register` via `useRiskRegister`, honest errors |
 | Risk Heatmap | Active | **Real.** Redirects into the Risk Register heatmap tab |
-| Regulatory Compliance | Active | **Real.** Three Supabase services, honest errors |
+| Regulatory Compliance | Active | **Reads real, writes impossible.** See the AS3 correction below |
 | ISO Compliance Tool | Active | **Sellable, persists nothing.** `@/data/isoComplianceData` into `useState` |
 | Audit Trail Manager | Active | **No code of any kind** |
 | Charge/Seal/Trap Risk | Active | **No code of any kind** |
@@ -77,7 +77,7 @@ there is not even a mock page to return it.
 | App | LOC | Persistence | Verdict |
 |---|---|---|---|
 | Risk Register | 2,253 | `risk_register` + snapshots | **KEEP + HARDEN** (AS2) |
-| Regulatory Compliance | 972 | 3 services | **KEEP + HARDEN** (AS3) |
+| Regulatory Compliance | 972 | 3 services, no create path | **KEEP + HARDEN** (AS3, done) |
 | Peer Review Manager | 1,834 | `peer_reviews`, **mock fallback** | **DE-FICTION** (AS5) |
 | Document Control | 952 | `documents`, **mock fallback** | **DE-FICTION** (AS4) |
 | Management of Change | 1,219 | **none** — local `mockData` array | **REBUILD** (AS6) |
@@ -113,6 +113,38 @@ invented project, permanently.
 `assurance/moc/Register.jsx` filters five hardcoded records as though
 they were a register. ISO Compliance holds `@/data/isoComplianceData` in
 `useState`; nothing a user does there survives a reload.
+
+
+### 1.2a AS3 correction: this audit was too kind to Regulatory Compliance
+
+Recorded here rather than quietly edited above, because the way the
+audit got it wrong is itself a lesson for AS4 to AS10.
+
+AS0 called Regulatory Compliance "Real. Three Supabase services, honest
+errors" and counted it as one of the three working apps in the module.
+The services are real and the errors are honest. **But the audit read
+the services, not what a user can do**, and on that measure the app was
+close to unusable:
+
+- **No obligation could be created by anyone.** The create page was a
+  dashed box reading "New compliance creation form will be implemented
+  here", and the Add Obligation button in the app header navigated to
+  it. `addRecord()` and `addRegulator()` had no callers anywhere.
+- The detail page was a second dashed box, so rows opened onto nothing.
+- Twelve controls toasted "This feature isn't implemented yet... you can
+  request it in your next prompt", naming the prompt builder to paying
+  customers.
+- The Reports page drew every organization's "Obligations by Authority"
+  from a hardcoded EPA/BSEE/OSHA array, and its second panel rendered
+  "Matrix visualization loading..." forever.
+- The dashboard's trend chart was arithmetic on the current total across
+  six hardcoded month names.
+
+**The lesson for the remaining waves: a service-level read is not an
+audit.** Trace a create path from the button to the database before
+calling an app real. AS4 and AS5 are already known to fail open into
+fiction; AS6 to AS9 should be assumed to have create paths that do not
+exist until one is followed end to end.
 
 ### 1.3 The module has no tests and no engine
 
@@ -263,7 +295,7 @@ repo conventions. Every wave ends with the relevant STATUS doc updated.
 | **AS0** | This roadmap | DONE 2026-09-16 (PR #500) |
 | **AS1** | Foundations: honest catalogue, RLS and grants, schema in code, STATUS doc | **BUILT 2026-09-16**, migrations held for the owner |
 | **AS2** | Risk Register & Heatmap: scoring authority, residual risk, actions, tests | needs AS1 |
-| **AS3** | Regulatory Compliance: obligations, expiries, environmental regimes | needs AS1 |
+| **AS3** | Regulatory Compliance: obligations, expiries, environmental regimes | **BUILT 2026-09-17**, migration held |
 | **AS4** | Document Control: de-fiction, real revision chain, review-due | needs AS1 |
 | **AS5** | Peer Review Manager: de-fiction, real stats, comment disposition | needs AS1 |
 | **AS6** | Management of Change: real persistence on `moc_records`, approval gate | needs AS1 |
