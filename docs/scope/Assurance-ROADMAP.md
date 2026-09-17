@@ -55,7 +55,7 @@ of them `status='Active'` with `is_functional=true`.
 | Safety Audit Manager | Active | **No code of any kind** |
 | Security Analytics | Active | **No code of any kind** |
 | Document Control | Coming Soon | **Built and routed** (six routes, entitlement-gated). AS4 rebuilt it; see the STATUS doc |
-| Lesson Learned DB | Coming Soon | **Built and routed** |
+| Lesson Learned DB | Coming Soon | **Built and routed**. AS9 rebuilt it; see the STATUS doc |
 | Management of Change | Coming Soon | **Built and routed** (six routes). AS6 rebuilt it; see the STATUS doc |
 | Peer Review Manager | Coming Soon | **Built and routed** (five routes). AS5 rebuilt it; see the STATUS doc |
 | Quality Assurance Plan | Coming Soon | **Built and routed**. AS7 rebuilt it; see the STATUS doc |
@@ -83,7 +83,7 @@ there is not even a mock page to return it.
 | Management of Change | 1,219 | **none** — every page a literal, and the create form had no state at all | **REBUILD** (AS6, done) |
 | Quality Assurance Plan | 458 | **none** | **REBUILD** (AS7, done) |
 | ISO Compliance | 795 | **none** — `useState` over a data file **that regenerated itself with `Math.random()` on every load** | **REBUILD** (AS8, done) |
-| Lessons Learned | 752 | **none** | **REBUILD** (AS9) |
+| Lessons Learned | 752 | **none** | **REBUILD** (AS9, done) |
 
 The fail-open pattern is worth stating exactly, because it is the worst
 thing in the module and it is invisible in a demo:
@@ -301,7 +301,7 @@ repo conventions. Every wave ends with the relevant STATUS doc updated.
 | **AS6** | Management of Change: real persistence on `moc_records`, approval gate | **BUILT 2026-09-17**, migration held |
 | **AS7** | Quality Assurance Plan & NCR | **BUILT 2026-09-17**, migration held |
 | **AS8** | ISO Compliance: real persistence, audit programme, findings | **BUILT 2026-09-17**, migration held |
-| **AS9** | Lessons Learned, and the push into register and MOC | needs AS2, AS6 |
+| **AS9** | Lessons Learned, and the push into register and MOC | **BUILT 2026-09-17**, migration held |
 | **AS10** | Audit & Findings Manager (new) | needs AS1 |
 | **AS11** | The Assurance hub: real cross-app analytics over all nine apps | needs AS2-AS10 |
 | **AS12** | `engines/assurance` extraction with goldens and an independent oracle | needs AS2, AS10 |

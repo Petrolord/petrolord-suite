@@ -30,10 +30,11 @@ programmes. This one is still in its Horizons-generated state.
 | Peer Review Manager | `apps/assurance/peer-review-manager/*` | `peer_reviews`, `peer_review_comments`, `peer_review_audit`, `peer_review_participants` | **AS5 done.** Coming Soon until its own promotion migration | AS5 |
 | Management of Change | `apps/assurance/management-of-change/*` | `moc_records`, `moc_approvals`, `moc_actions`, `moc_impacts`, `moc_activity_log` | **AS6 done.** Coming Soon until its own promotion migration | AS6 |
 | Quality Assurance Plan & NCR | `apps/assurance/qa-plan/*` | `qa_plans`, `qa_checkpoints`, `qa_ncrs`, `qa_capas`, `qa_activity_log` | **AS7 done.** Coming Soon until its own promotion migration | AS7 |
+| Lessons Learned | `apps/assurance/lessons-learned/*` | `lesson_records`, `lesson_applications`, `lesson_activity_log` | **AS9 done.** Coming Soon until its own promotion migration | AS9 |
 | Audit & Findings Manager | not built | - | New app | AS10 |
 
-Tests: **436** as of AS8 (AS2 34, AS3 63, AS4 45, AS5 52, AS6 58, AS7 79,
-AS8 93, plus the shared authority suites), all under
+Tests: **499** as of AS9 (AS2 34, AS3 63, AS4 45, AS5 52, AS6 58, AS7 79,
+AS8 93, AS9 63, plus the shared authority suites), all under
 `src/lib/__tests__/` and the two app trees. There were none at all
 before AS2. Engine: **none**; there is no `engines/assurance` in
 petrolord-engines, which is why the two NextGen assurance courses are
@@ -974,6 +975,121 @@ than deleted so its findings keep their provenance.
 
 ---
 
+## 3h. AS9, built 2026-09-17 — Lessons Learned
+
+The third app in a row with no tables of its own, and the one whose
+whole point had been left out.
+
+### 3h.1 Five lessons and seven numbers
+
+`src/utils/lessons-learned/mockData.js` held five invented lessons — a
+pump failure on "Subsea Tie-back Alpha" by John Doe, a drill bit
+optimization by Jane Smith — and:
+
+```js
+export const METRICS = { total: 156, draft: 12, underReview: 24,
+  published: 110, archived: 10, pendingAction: 5, highReusability: 89 };
+```
+
+Seven literals, rendered as seven dashboard tiles, **two of them
+carrying trend badges reading "+12% MoM" and "+5% MoM"** over nothing
+at all. Above them sat a captured-trend chart of six hardcoded months
+and a category pie of four hardcoded slices.
+
+### 3h.2 The capture form had no state. Again.
+
+Not one of `NewLesson.jsx`'s six fields carried a `value` or an
+`onChange`, and there was no `useState` in the file. Save Draft ran a
+toast and a navigate:
+
+```js
+toast({ title: "Draft Saved",
+        description: "Lesson draft has been saved successfully." });
+navigate('/dashboard/apps/assurance/lessons-learned');
+```
+
+**This is the third app in this module with that exact defect**, after
+`NewMOC.jsx` (AS6) and `NewQAPlan.jsx` (AS7). Three apps, three
+different page authors, the same shape: a complete-looking form that
+reads nothing out of the DOM and confirms a save that never happened.
+
+### 3h.3 The prompt builder, and a different lesson
+
+Every control on the register — Filters, Export, Capture Lesson, and
+the menu on each row — called one handler:
+
+```js
+toast({ title: "Action triggered", description: "🚧 This feature isn't
+  implemented yet—but don't worry! You can request it in your next
+  prompt! 🚀" });
+```
+
+naming the prompt builder to paying customers, which is the AS3
+Regulatory Compliance finding in a second app. The reports page and the
+detail page did the same for Share, Print, Edit, Global Filters and
+Print All.
+
+And the detail page read:
+
+```js
+const lesson = MOCK_LESSONS.find(l => l.id === id) || MOCK_LESSONS[0]; // fallback for demo
+```
+
+so asking for a lesson this organization does not have showed it a
+different lesson — the AS4 Document Control defect, in a second app,
+with the comment saying so.
+
+### 3h.4 What AS9 built
+
+Three tables, a code series under an advisory lock, RLS from the start,
+and `src/lib/lessonsLearned.js` as the eighth authority in this module.
+Three rules:
+
+- **An author may not validate their own lesson.** The third
+  independence rule here, after AS5's peer reviewer and AS8's ISO 19011
+  auditor. A lessons database published by the people who wrote it
+  holds what individuals think happened; a validated one holds what the
+  organization accepts happened. An external validator recorded by name
+  is not blocked.
+- **An anecdote is not a lesson.** Validating or publishing needs what
+  happened, why it happened AND what to do about it. A Draft needs none
+  of it: capture comes before analysis, and a form that demands the
+  root cause on the day of the event is a form nobody fills in.
+- **A lesson that was never applied has not been learned.**
+  `lesson_applications` records each push into the thing that changes,
+  and the two Suite targets carry real foreign keys into
+  `risk_register` and `moc_records`. `Embedded` is not a status
+  somebody selects: a trigger counts the applications, because a check
+  constraint cannot, and a **rejected** application embeds nothing.
+  Archiving needs a written reason.
+
+**And reusability is counted, not claimed.** There is no reusability
+column. The old register drew a High / Medium / Low badge on every row
+from the data file and the dashboard totalled them into "High
+Reusability: 89". What replaces it is the applicability scope — this
+asset, this discipline, this organization, industry-wide — and
+`reuseRecord()`, which counts rows and names what they changed.
+
+**The push is a real write.** From a lesson's own page, `Raise a risk`
+creates a `risk_register` row through `buildRiskWrite` and
+`next_risk_code`, and `Raise a change` creates a `moc_records` row
+through `buildMocWrite` and `next_moc_code` — the modules that own
+those tables, rather than a second statement of their writable columns
+here. Both are linked back through `lesson_applications`, so the trail
+runs in both directions.
+
+### 3h.5 Gotcha worth keeping
+
+**A partial failure has to say what did happen.** If the risk is
+created and the link back to the lesson fails, `raiseRiskFromLesson`
+reports "Risk RSK-1042 was raised, but the link back to this lesson was
+not saved", rather than returning a plain failure. The alternative —
+the pattern the whole module is being rebuilt to remove — is a message
+that implies nothing happened while a row sits in another app's
+register.
+
+---
+
 ## 4. How AS1 was verified
 
 No production write was made. Everything below ran on a scratch
@@ -1008,14 +1124,15 @@ schema level, and on the scratch reproduction.
 
 ## 5. Open
 
-- **All twelve migrations are unapplied.** Ordered apply script:
+- **All thirteen migrations are unapplied.** Ordered apply script:
   `tools/validation/assurance/as1-apply.sh`, which does not yet include
   AS3's `20260917100000_as3_regulatory_compliance.sql`, AS4's
   `20260917200000_as4_document_control.sql`, AS5's
   `20260917300000_as5_peer_review.sql`, AS6's
   `20260917400000_as6_management_of_change.sql`, AS7's
-  `20260917500000_as7_quality_assurance_plan.sql` or AS8's
-  `20260917600000_as8_iso_compliance.sql`; run those after the AS1
+  `20260917500000_as7_quality_assurance_plan.sql`, AS8's
+  `20260917600000_as8_iso_compliance.sql` or AS9's
+  `20260917700000_as9_lessons_learned.sql`; run those after the AS1
   pair, in that order. Owner-run.
 - **The six parent registers have no RLS or policies in the repo**
   (§3d.4). `documents`, `risk_register`, `moc_records`,
@@ -1027,10 +1144,10 @@ schema level, and on the scratch reproduction.
   reconstruction one.
 - **A private `documents` storage bucket** for AS4 file uploads (§3c.6).
   Owner-run through the Supabase dashboard.
-- **Five held tile promotions.** AS1 left Document Control, Peer Review
-  Manager, Management of Change and Quality Assurance Plan at Coming
-  Soon and demoted ISO Compliance to it; AS4 to AS8 make them real, but
-  each promotion migration is held with the rest.
+- **Six held tile promotions.** AS1 left Document Control, Peer Review
+  Manager, Management of Change, Quality Assurance Plan and Lessons
+  Learned at Coming Soon and demoted ISO Compliance to it; AS4 to AS9
+  make them real, but each promotion migration is held with the rest.
 - The commerce migration needs a second engineer (shared tables).
 - Five owner questions in `Assurance-ROADMAP.md` §7. AS1 proceeded on
   the recommendation in each case per the standing autonomous directive;
