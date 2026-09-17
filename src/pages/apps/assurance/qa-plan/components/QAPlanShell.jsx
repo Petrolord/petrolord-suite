@@ -1,58 +1,84 @@
 import React from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, List, Plus, FileWarning, BarChart2, ArrowLeft } from 'lucide-react';
+import {
+  ArrowLeft, BarChart2, FileWarning, LayoutDashboard, List, Plus,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export const QAPlanShell = ({ children, title = "Quality Assurance Plan", description = "Manage quality requirements and compliance" }) => {
+export const BASE = '/dashboard/apps/assurance/qa-plan';
+
+/**
+ * AS7 — the app frame.
+ *
+ * The header's Create Plan button is kept, and now reaches a form that
+ * writes to a database. A Raise NCR button is added beside it, because
+ * the old app's only route to one was a button on the NCR register that
+ * toasted "Raise NCR form..." — so a non-conformance could not be
+ * raised from anywhere at all.
+ */
+export const QAPlanShell = ({
+  children,
+  title = 'Quality Assurance Plan',
+  description = 'Quality plans, inspection and test plans, non-conformance and corrective action',
+  actions,
+}) => {
   const location = useLocation();
   const navigate = useNavigate();
-  
+
   const navItems = [
-    { name: 'Dashboard', path: '/dashboard/apps/assurance/qa-plan', icon: LayoutDashboard },
-    { name: 'QA Register', path: '/dashboard/apps/assurance/qa-plan/register', icon: List },
-    { name: 'New Plan', path: '/dashboard/apps/assurance/qa-plan/new', icon: Plus },
-    { name: 'NCRs', path: '/dashboard/apps/assurance/qa-plan/ncr-register', icon: FileWarning },
-    { name: 'Reports', path: '/dashboard/apps/assurance/qa-plan/reports', icon: BarChart2 },
+    { name: 'Dashboard', path: BASE, icon: LayoutDashboard, exact: true },
+    { name: 'Quality plans', path: `${BASE}/register`, icon: List },
+    { name: 'New plan', path: `${BASE}/new`, icon: Plus },
+    { name: 'Non-conformance', path: `${BASE}/ncr-register`, icon: FileWarning },
+    { name: 'Reports', path: `${BASE}/reports`, icon: BarChart2 },
   ];
 
   return (
     <div className="flex flex-col h-full bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
-      {/* Top Nav / Header */}
-      <div className="flex-none border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard/assurance')} className="mr-2 hover:bg-[hsl(var(--secondary))]">
+      <div className="flex-none border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] px-6 py-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-4 min-w-0">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard/assurance')}
+            className="hover:bg-[hsl(var(--secondary))] shrink-0" title="Back to Assurance">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div>
-            <h1 className="text-xl font-bold text-[hsl(var(--foreground))]">{title}</h1>
-            <p className="text-sm text-[hsl(var(--muted-foreground))]">{description}</p>
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold truncate">{title}</h1>
+            <p className="text-sm text-[hsl(var(--muted-foreground))] truncate">{description}</p>
           </div>
         </div>
-        <div className="flex gap-2">
-            <Button variant="outline" className="border-[hsl(var(--border))] hover:bg-[hsl(var(--secondary))]" onClick={() => navigate('/dashboard/apps/assurance/qa-plan/new')}>
-              <Plus className="w-4 h-4 mr-2" /> Create Plan
-            </Button>
+        <div className="flex flex-wrap gap-2">
+          {actions}
+          <Button variant="outline" onClick={() => navigate(`${BASE}/ncr-register?raise=1`)}>
+            <FileWarning className="w-4 h-4 mr-2" /> Raise NCR
+          </Button>
+          <Button onClick={() => navigate(`${BASE}/new`)}>
+            <Plus className="w-4 h-4 mr-2" /> Create plan
+          </Button>
         </div>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar Nav */}
-        <div className="w-64 border-r border-[hsl(var(--border))] bg-[hsl(var(--card))]/50 flex flex-col hidden md:flex">
+        <div className="w-60 border-r border-[hsl(var(--border))] bg-[hsl(var(--card))]/50 flex-col hidden lg:flex">
           <div className="p-4 flex-1 space-y-1">
-            <p className="px-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider mb-2">Menu</p>
+            <p className="px-2 text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider mb-2">
+              Menu
+            </p>
             {navItems.map((item) => {
-              const isActive = location.pathname === item.path || (item.path !== '/dashboard/apps/assurance/qa-plan' && location.pathname.startsWith(item.path));
+              const isActive = item.exact
+                ? location.pathname === item.path || location.pathname === `${item.path}/`
+                : location.pathname.startsWith(item.path);
               return (
                 <NavLink
                   key={item.path}
                   to={item.path}
+                  end={item.exact}
                   className={`flex items-center px-3 py-2.5 text-sm rounded-md transition-colors ${
-                    isActive 
-                      ? 'bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] font-medium' 
+                    isActive
+                      ? 'bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] font-medium'
                       : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]'
                   }`}
                 >
-                  <item.icon className={`w-4 h-4 mr-3 ${isActive ? 'text-[hsl(var(--primary))]' : 'text-[hsl(var(--muted-foreground))]'}`} />
+                  <item.icon className="w-4 h-4 mr-3" />
                   {item.name}
                 </NavLink>
               );
@@ -60,11 +86,8 @@ export const QAPlanShell = ({ children, title = "Quality Assurance Plan", descri
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 overflow-y-auto p-6 bg-[hsl(var(--background))]">
-          <div className="max-w-6xl mx-auto">
-            {children}
-          </div>
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-[hsl(var(--background))]">
+          <div className="max-w-7xl mx-auto">{children}</div>
         </div>
       </div>
     </div>
