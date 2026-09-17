@@ -54,7 +54,7 @@ of them `status='Active'` with `is_functional=true`.
 | Prospect Ranking Tool | Active | **No code of any kind** |
 | Safety Audit Manager | Active | **No code of any kind** |
 | Security Analytics | Active | **No code of any kind** |
-| Document Control | Coming Soon | **Built and routed** (six routes, entitlement-gated) |
+| Document Control | Coming Soon | **Built and routed** (six routes, entitlement-gated). AS4 rebuilt it; see the STATUS doc |
 | Lesson Learned DB | Coming Soon | **Built and routed** |
 | Management of Change | Coming Soon | **Built and routed** (six routes) |
 | Peer Review Manager | Coming Soon | **Built and routed** (five routes) |
@@ -79,7 +79,7 @@ there is not even a mock page to return it.
 | Risk Register | 2,253 | `risk_register` + snapshots | **KEEP + HARDEN** (AS2) |
 | Regulatory Compliance | 972 | 3 services, no create path | **KEEP + HARDEN** (AS3, done) |
 | Peer Review Manager | 1,834 | `peer_reviews`, **mock fallback** | **DE-FICTION** (AS5) |
-| Document Control | 952 | `documents`, **mock fallback** | **DE-FICTION** (AS4) |
+| Document Control | 952 | `documents`, **mock fallback**, and a create path that reported success on failure | **DE-FICTION** (AS4, done) |
 | Management of Change | 1,219 | **none** — local `mockData` array | **REBUILD** (AS6) |
 | Quality Assurance Plan | 458 | **none** | **REBUILD** (AS7) |
 | ISO Compliance | 795 | **none** — `useState` over a data file | **REBUILD** (AS8) |
@@ -296,7 +296,7 @@ repo conventions. Every wave ends with the relevant STATUS doc updated.
 | **AS1** | Foundations: honest catalogue, RLS and grants, schema in code, STATUS doc | **BUILT 2026-09-16**, migrations held for the owner |
 | **AS2** | Risk Register & Heatmap: scoring authority, residual risk, actions, tests | needs AS1 |
 | **AS3** | Regulatory Compliance: obligations, expiries, environmental regimes | **BUILT 2026-09-17**, migration held |
-| **AS4** | Document Control: de-fiction, real revision chain, review-due | needs AS1 |
+| **AS4** | Document Control: de-fiction, real revision chain, review-due | **BUILT 2026-09-17**, migration held |
 | **AS5** | Peer Review Manager: de-fiction, real stats, comment disposition | needs AS1 |
 | **AS6** | Management of Change: real persistence on `moc_records`, approval gate | needs AS1 |
 | **AS7** | Quality Assurance Plan & NCR | needs AS1 |
