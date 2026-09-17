@@ -201,12 +201,12 @@ const RiskDetailPage = lazy(() => import('@/pages/apps/risk-register/RiskDetailP
 const EditRiskPage = lazy(() => import('@/pages/apps/risk-register/EditRiskPage.jsx'));
 
 // Document Control
-const DocControlDashboard = lazy(() => import('@/pages/apps/document-control/Dashboard.jsx'));
-const DocControlLibrary = lazy(() => import('@/pages/apps/document-control/Library.jsx'));
-const DocControlNew = lazy(() => import('@/pages/apps/document-control/NewDocument.jsx'));
-const DocControlApprovals = lazy(() => import('@/pages/apps/document-control/ApprovalQueue.jsx'));
-const DocControlReports = lazy(() => import('@/pages/apps/document-control/Reports.jsx'));
-const DocControlDetail = lazy(() => import('@/pages/apps/document-control/DocumentDetail.jsx'));
+const DocControlDashboard = lazy(() => import('@/pages/apps/assurance/document-control/Dashboard.jsx'));
+const DocControlLibrary = lazy(() => import('@/pages/apps/assurance/document-control/Library.jsx'));
+const DocControlNew = lazy(() => import('@/pages/apps/assurance/document-control/NewDocument.jsx'));
+const DocControlApprovals = lazy(() => import('@/pages/apps/assurance/document-control/ApprovalQueue.jsx'));
+const DocControlReports = lazy(() => import('@/pages/apps/assurance/document-control/Reports.jsx'));
+const DocControlDetail = lazy(() => import('@/pages/apps/assurance/document-control/DocumentDetail.jsx'));
 
 // Peer Review Manager
 const PeerReviewDashboard = lazy(() => import('@/pages/apps/peer-review/Dashboard.jsx'));

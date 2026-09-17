@@ -207,7 +207,7 @@ describe('GUARD: there is only one document control authority', () => {
     return out;
   };
 
-  const APP = path.join(ROOT, 'src', 'pages', 'apps', 'document-control');
+  const APP = path.join(ROOT, 'src', 'pages', 'apps', 'assurance', 'document-control');
   const scanned = [APP, path.join(ROOT, 'src', 'lib')]
     .filter((d) => fs.existsSync(d))
     .flatMap((d) => walk(d))
