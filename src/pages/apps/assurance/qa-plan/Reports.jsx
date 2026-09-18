@@ -148,7 +148,7 @@ export default function QAReports() {
         'Hold points outstanding': progress.holdPointsOutstanding,
         'Open NCRs': (p.ncrs || []).filter(isNcrOpen).length,
       };
-    }), `qa-plan-register-${format(today, 'yyyy-MM-dd')}.csv`);
+    }), `qa-plan-register-${format(today, 'yyyy-MM-dd')}`);
   };
 
   const exportOutstanding = () => {
@@ -168,7 +168,7 @@ export default function QAReports() {
       'Days to planned date': c.days === null ? 'No planned date' : c.days,
       Overdue: c.overdue ? 'Yes' : 'No',
       Status: c.status || '',
-    })), `qa-outstanding-inspection-points-${format(today, 'yyyy-MM-dd')}.csv`);
+    })), `qa-outstanding-inspection-points-${format(today, 'yyyy-MM-dd')}`);
   };
 
   const exportNcrs = () => {
@@ -195,7 +195,7 @@ export default function QAReports() {
       'Actions open': (n.capas || []).filter(
         (c) => !['Complete', 'Cancelled'].includes(c.status)).length,
       Closed: n.closed_date || '',
-    })), `qa-ncr-register-${format(today, 'yyyy-MM-dd')}.csv`);
+    })), `qa-ncr-register-${format(today, 'yyyy-MM-dd')}`);
   };
 
   if (loading) return <QAPlanShell title="Reports"><Loading label="Loading reports..." /></QAPlanShell>;

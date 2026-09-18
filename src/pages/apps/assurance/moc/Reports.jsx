@@ -107,7 +107,7 @@ export default function MOCReports() {
       Expires: m.expiry_date || '',
       'Expiry state': expiryState(m, today),
       'Open actions': (m.actions || []).filter((a) => !['Complete', 'Cancelled'].includes(a.status)).length,
-    })), `moc-register-${format(today, 'yyyy-MM-dd')}.csv`);
+    })), `moc-register-${format(today, 'yyyy-MM-dd')}`);
   };
 
   const exportExpiry = () => {
@@ -124,7 +124,7 @@ export default function MOCReports() {
       Expires: m.expiry_date || '',
       'Days remaining': m.days === null ? 'No expiry set' : m.days,
       State: m.state,
-    })), `moc-temporary-change-expiry-${format(today, 'yyyy-MM-dd')}.csv`);
+    })), `moc-temporary-change-expiry-${format(today, 'yyyy-MM-dd')}`);
   };
 
   if (loading) return <MOCPageShell><Loading label="Loading reports..." /></MOCPageShell>;

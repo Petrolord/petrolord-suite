@@ -176,4 +176,12 @@ describe('no invented data in Management of Change', () => {
       expect(src).toMatch(/ChartLogo/);
     });
   });
+
+  it('no export passes a file name that already ends in .csv', () => {
+    // AS13: exportToCSV (src/utils/exportUtils.js) appends the extension
+    // itself, so a caller passing `...yyyy-MM-dd}.csv` downloaded
+    // `name.csv.csv`.
+    const offenders = files.filter((f) => /\.csv[`'"]\s*,?\s*\)/.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
 });

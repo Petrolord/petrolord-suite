@@ -90,7 +90,7 @@ export default function MOCRegister() {
       'Expiry state': expiryState(m, today),
       Overdue: isOverdue(m, today) ? 'Yes' : 'No',
       'Open actions': (m.actions || []).filter((a) => !['Complete', 'Cancelled'].includes(a.status)).length,
-    })), `moc-register-${format(today, 'yyyy-MM-dd')}.csv`);
+    })), `moc-register-${format(today, 'yyyy-MM-dd')}`);
   };
 
   const selectClass = 'h-10 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 text-sm';
