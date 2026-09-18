@@ -1,5 +1,5 @@
 /**
- * AS13 — an in-memory stand-in for the PostgREST query builder, for the
+ * AS13: an in-memory stand-in for the PostgREST query builder, for the
  * assurance hook tests.
  *
  * Reads are answered from `tables`, filtered by the .eq() and .in()

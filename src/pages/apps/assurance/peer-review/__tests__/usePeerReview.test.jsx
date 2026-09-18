@@ -1,5 +1,5 @@
 /**
- * AS13 — Peer Review Manager repairs, against an in-memory query
+ * AS13: Peer Review Manager repairs, against an in-memory query
  * builder.
  *
  *   Comments could still be raised, and dispositions recorded, on a

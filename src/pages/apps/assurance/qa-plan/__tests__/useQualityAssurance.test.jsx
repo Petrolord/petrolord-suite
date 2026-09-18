@@ -1,5 +1,5 @@
 /**
- * AS13 — the hook's write paths, against an in-memory query builder.
+ * AS13: the hook's write paths, against an in-memory query builder.
  *
  * Three defects the AS13 review found live here rather than on a page:
  *

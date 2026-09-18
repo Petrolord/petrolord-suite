@@ -1,5 +1,5 @@
 /**
- * AS13 — what the app SAYS about a change's expiry.
+ * AS13: what the app SAYS about a change's expiry.
  *
  * The rule (expiryState, in the vendored engine) is unchanged: only a
  * change that is on the facility can expire, so a temporary change not

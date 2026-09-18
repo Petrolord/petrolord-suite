@@ -1,5 +1,5 @@
 /**
- * AS13 — does every `${BASE}...` target in an app resolve to a route
+ * AS13: does every `${BASE}...` target in an app resolve to a route
  * that is actually declared?
  *
  * Quality Assurance Plan sent every register row to `${BASE}/plan/<id>`

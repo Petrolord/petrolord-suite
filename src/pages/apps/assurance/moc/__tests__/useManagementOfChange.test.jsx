@@ -1,5 +1,5 @@
 /**
- * AS13 — Management of Change repairs, against an in-memory query
+ * AS13: Management of Change repairs, against an in-memory query
  * builder.
  *
  *   A temporary or emergency draft saved without an expiry date could
