@@ -48,6 +48,7 @@ export const PeerReviewShell = ({ children, title = "Peer Review Manager", subti
               </div>
             </div>
           </div>
+          {/* AS13: AssuranceHelp appKey="peerReview" goes here */}
         </div>
 
         <div className="px-6 flex gap-6 mt-2 overflow-x-auto no-scrollbar">

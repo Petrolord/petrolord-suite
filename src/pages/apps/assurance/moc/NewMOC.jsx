@@ -60,8 +60,8 @@ const FieldError = ({ children }) => (children ? (
  *
  * The impact assessment is on this page rather than buried later,
  * because deciding what a change affects is how its risk level gets
- * chosen, and the risk level is what decides how many approval gates
- * it needs.
+ * chosen. (AS13: the risk level does not set or require approval
+ * gates. Nothing reads it for that; gates are added by hand.)
  */
 export default function NewMOC() {
   const navigate = useNavigate();
@@ -169,8 +169,10 @@ export default function NewMOC() {
                 <Select id="risk_level" value={form.risk_level} onChange={set('risk_level')}
                   options={RISK_LEVELS} placeholder="Assess after the impacts below" />
                 <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                  The risk level is what decides how many approval gates this
-                  change needs, so it is worth setting after the impacts.
+                  Recorded for reporting and for whoever sets the approval
+                  gates. The app does not add or require gates from it: gates
+                  are added by hand on the change&apos;s page. Set it after the
+                  impacts below.
                 </p>
               </div>
             </div>
@@ -219,15 +221,15 @@ export default function NewMOC() {
             </div>
             {temporary ? (
               <div className="space-y-2">
-                <Label htmlFor="expiry_date">Expiry date</Label>
+                <Label htmlFor="expiry_date">Expiry date (required)</Label>
                 <Input id="expiry_date" type="date" value={form.expiry_date} onChange={set('expiry_date')} />
                 <div className="flex gap-2 items-start mt-1">
                   <AlertTriangle className="w-4 h-4 text-[hsl(var(--warning))] shrink-0 mt-0.5" />
                   <p className="text-xs text-[hsl(var(--muted-foreground))]">
                     A {form.type.toLowerCase()} change is a deviation the facility
                     runs on until a date. Without one it becomes a permanent
-                    change nobody decided to make. It is required once this
-                    leaves Draft.
+                    change nobody decided to make. It is required, for a draft
+                    too.
                   </p>
                 </div>
                 <FieldError>{errors.expiry_date}</FieldError>

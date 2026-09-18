@@ -22,6 +22,7 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { baseTargets, routesFromApp, unresolved } from '../../__tests__/routeTargets';
 
 const APP = path.resolve(__dirname, '..');
 const ROOT = path.resolve(__dirname, '../../../../../..');
@@ -187,5 +188,48 @@ describe('no invented data in Peer Review Manager', () => {
       expect(src).toMatch(/chartTheme/);
       expect(src).toMatch(/ChartLogo/);
     });
+  });
+
+  it('no export passes a file name that already ends in .csv', () => {
+    // AS13: exportToCSV (src/utils/exportUtils.js) appends the extension
+    // itself, so a caller passing `...yyyy-MM-dd}.csv` downloaded
+    // `name.csv.csv`.
+    const offenders = files.filter((f) => /\.csv[`'"]\s*,?\s*\)/.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
+
+  it('EVERY LINK AND NAVIGATE TARGET RESOLVES TO A DECLARED ROUTE', () => {
+    // AS13: the routes for this app are declared in App.jsx.
+    const declared = routesFromApp(read(path.join(ROOT, 'src/App.jsx')),
+      'apps/assurance/peer-review-manager');
+    expect(declared.length).toBeGreaterThan(3);
+    const targets = baseTargets(files.map((f) => ({ file: rel(f), src: code(f) })));
+    expect(targets.length).toBeGreaterThan(5);
+    expect(unresolved(declared, targets)).toEqual([]);
+  });
+
+  it('the comment form captures the discipline the Reports chart counts', () => {
+    expect(code(path.join(APP, 'ReviewDetail.jsx'))).toMatch(/value=\{draft\.discipline\}/);
+  });
+
+  it('a final review is locked on the page and in the hook', () => {
+    expect(code(path.join(APP, 'ReviewDetail.jsx'))).toMatch(/reviewLockReason\(review\)/);
+    const hook = code(path.join(APP, 'hooks/usePeerReview.js'));
+    ['addComment', 'disposeComment'].forEach((fn) => {
+      const start = hook.indexOf(`const ${fn} = async`);
+      expect(hook.slice(start, start + 200)).toMatch(/lockedReview\(/);
+    });
+    expect(hook).toMatch(/nextStages\(review\.stage\)\.includes\(stage\)/);
+  });
+
+  it('deleting a review asks first', () => {
+    const detail = code(path.join(APP, 'ReviewDetail.jsx'));
+    expect(detail).toMatch(/<ConfirmDelete/);
+    expect(detail).not.toMatch(/onClick=\{handleDelete\}/);
+  });
+
+  it('the header carries the help marker', () => {
+    expect(read(path.join(APP, 'components/PeerReviewShell.jsx')))
+      .toMatch(/AS13: AssuranceHelp appKey="peerReview" goes here/);
   });
 });

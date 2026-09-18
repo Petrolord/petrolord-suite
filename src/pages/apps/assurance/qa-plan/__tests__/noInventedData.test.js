@@ -231,4 +231,91 @@ describe('no invented data in Quality Assurance Plan', () => {
       expect(src).toMatch(/ChartLogo/);
     });
   });
+
+  it('no export passes a file name that already ends in .csv', () => {
+    // AS13: exportToCSV (src/utils/exportUtils.js) appends the extension
+    // itself, so a caller passing `...yyyy-MM-dd}.csv` downloaded
+    // `name.csv.csv`.
+    const offenders = files.filter((f) => /\.csv[`'"]\s*,?\s*\)/.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
+
+  /**
+   * AS13: every place the app sends the user resolves to a route the
+   * shell declares. Three links went to `${BASE}/plan/<id>` while the
+   * shell declared `:planId` at the root, so every register row, every
+   * dashboard row and every successful Create plan fell through the
+   * catch-all and showed the Dashboard.
+   */
+  it('EVERY LINK AND NAVIGATE TARGET RESOLVES TO A DECLARED ROUTE', () => {
+    const shell = code(path.join(APP, 'QAPlanPageShell.jsx'));
+    const declared = [...shell.matchAll(/<Route\s+path="([^"]+)"/g)]
+      .map((m) => m[1])
+      .filter((p) => p !== '*')
+      .map((p) => p.replace(/^\//, '').split('/').filter(Boolean));
+    expect(declared.length).toBeGreaterThan(5);
+
+    const targets = [];
+    files.forEach((f) => {
+      [...code(f).matchAll(/`\$\{BASE\}([^`]*)`/g)].forEach((m) => {
+        targets.push({ file: rel(f), target: m[1] });
+      });
+    });
+    expect(targets.length).toBeGreaterThan(10);
+
+    const resolves = (target) => {
+      const segments = target.split(/[?#]/)[0].split('/').filter(Boolean)
+        .map((s) => (/^\$\{/.test(s) ? ':dynamic' : s));
+      return declared.some((route) => route.length === segments.length
+        && route.every((r, i) => (r.startsWith(':')
+          ? segments[i] === ':dynamic'
+          : r === segments[i])));
+    };
+    const broken = targets.filter((t) => !resolves(t.target))
+      .map((t) => `${t.file}: ${t.target}`);
+    expect(broken).toEqual([]);
+  });
+
+  it('a hold point decision applies the verifier default before the gate', () => {
+    // "Verifier, if not you" could not be left blank: the gate ran
+    // first and saw no verifier.
+    const hook = code(path.join(APP, 'hooks/useQualityAssurance.js'));
+    const fill = hook.indexOf('withDecisionDefaults(patch');
+    const gate = hook.indexOf('canDecideCheckpoint(checkpoint');
+    expect(fill).toBeGreaterThan(-1);
+    expect(gate).toBeGreaterThan(fill);
+  });
+
+  it('a terminal plan is locked on the page and in the hook', () => {
+    expect(code(path.join(APP, 'QAPlanDetail.jsx'))).toMatch(/planLockReason\(plan\)/);
+    const hook = code(path.join(APP, 'hooks/useQualityAssurance.js'));
+    ['addCheckpoints', 'updateCheckpoint', 'decideCheckpoint', 'deleteCheckpoint'].forEach((fn) => {
+      const body = hook.slice(hook.indexOf(`const ${fn} = async`));
+      expect(body.slice(0, 400)).toMatch(/lockedPlanFor|lockedCheckpoint|planLockReason/);
+    });
+  });
+
+  it('no hard delete happens on one click', () => {
+    ['QAPlanDetail.jsx', 'NCRDetail.jsx'].forEach((page) => {
+      const src = code(path.join(APP, page));
+      expect(src).toMatch(/<ConfirmDelete/);
+      expect(src).not.toMatch(/onClick=\{\(\) => remove(Checkpoint|Capa)\(/);
+    });
+  });
+
+  it('the NCR raise form captures the department the Reports chart counts', () => {
+    expect(code(path.join(APP, 'NCRRegister.jsx'))).toMatch(/value=\{form\.department\}/);
+  });
+
+  it('every NCR status the filter offers is one the hook can write', () => {
+    // 'Actions in progress' and 'Verification' were offered and never set.
+    const hook = code(path.join(APP, 'hooks/useQualityAssurance.js'));
+    expect(hook).toMatch(/ncrStatusFromActions/);
+  });
+
+  it('the menu survives a small screen', () => {
+    const shell = code(path.join(APP, 'components/QAPlanShell.jsx'));
+    expect(shell).toMatch(/hidden lg:flex/);
+    expect(shell).toMatch(/lg:hidden/);
+  });
 });

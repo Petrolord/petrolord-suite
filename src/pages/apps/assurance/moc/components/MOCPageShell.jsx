@@ -1,15 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, PlusCircle, CheckSquare, BarChart, HelpCircle, ArrowLeft, Search } from 'lucide-react';
+import { LayoutDashboard, FileText, PlusCircle, CheckSquare, BarChart, ArrowLeft, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 
 export const BASE = '/dashboard/apps/assurance/management-of-change';
 
 export const MOCPageShell = ({ children, title = "Management of Change", description = "Enterprise MOC Workflow" }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  // AS13: the header search was uncontrolled and only navigated to the
+  // register on focus, so whatever was typed was thrown away. It now
+  // opens the register filtered by the text (Register reads ?q=).
+  const [query, setQuery] = useState('');
+  const submitSearch = (e) => {
+    e.preventDefault();
+    const q = query.trim();
+    navigate(q ? `${BASE}/register?q=${encodeURIComponent(q)}` : `${BASE}/register`);
+  };
   // AS6: a notification bell used to sit in this header, driven by four
   // hardcoded notifications — "A. Davis approved MOC-2026-088",
   // "S. Miller commented on MOC-2026-089" — with a red unread badge
@@ -67,10 +75,9 @@ export const MOCPageShell = ({ children, title = "Management of Change", descrip
             })}
           </nav>
         </div>
+        {/* AS13: the Support Guide button that stood here had no handler. */}
         <div className="p-4 border-t border-[hsl(var(--border))]">
-          <Button variant="outline" className="w-full justify-start text-[hsl(var(--muted-foreground))] border-[hsl(var(--border))] hover:bg-[hsl(var(--secondary))]">
-            <HelpCircle className="w-4 h-4 mr-2" /> Support Guide
-          </Button>
+          {/* AS13: AssuranceHelp appKey="moc" goes here */}
         </div>
       </div>
 
@@ -90,16 +97,17 @@ export const MOCPageShell = ({ children, title = "Management of Change", descrip
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <div className="relative hidden lg:block w-64">
+            <form role="search" onSubmit={submitSearch} className="relative hidden lg:block w-64">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[hsl(var(--muted-foreground))]" />
-              <Input 
-                placeholder="Search MOCs..."
+              <Input
+                type="search"
+                aria-label="Search the change register"
+                placeholder="Search changes, press Enter"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
                 className="pl-9 h-9 bg-[hsl(var(--secondary))] border-transparent focus:border-[hsl(var(--primary))]"
-                onFocus={() => navigate(`${BASE}/register`)}
               />
-            </div>
-
-
+            </form>
           </div>
         </header>
 
@@ -113,7 +121,8 @@ export const MOCPageShell = ({ children, title = "Management of Change", descrip
 
       {/* Mobile Footer Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[hsl(var(--card))] border-t border-[hsl(var(--border))] flex items-center justify-around px-2 z-50 no-print">
-        {navItems.slice(0, 4).map((item) => {
+        {/* AS13: every item. slice(0, 4) left Reports unreachable on a phone. */}
+        {navItems.map((item) => {
            const isActive = item.exact ? location.pathname === item.path : location.pathname.startsWith(item.path);
            return (
              <NavLink key={item.name} to={item.path} className={`flex flex-col items-center justify-center w-full h-full ${isActive ? 'text-[hsl(var(--primary))]' : 'text-[hsl(var(--muted-foreground))]'}`}>

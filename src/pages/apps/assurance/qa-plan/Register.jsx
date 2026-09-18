@@ -145,7 +145,7 @@ export default function Register() {
                     return (
                       <tr
                         key={p.id}
-                        onClick={() => navigate(`${BASE}/plan/${p.id}`)}
+                        onClick={() => navigate(`${BASE}/${p.id}`)}
                         className="border-b border-[hsl(var(--border))] last:border-0 hover:bg-[hsl(var(--secondary))]/50 cursor-pointer"
                       >
                         <td className="data-grid-td font-mono text-xs text-[hsl(var(--primary))]">

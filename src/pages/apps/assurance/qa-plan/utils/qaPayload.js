@@ -19,7 +19,13 @@
  * corrective actions: their buttons toasted "Add checkpoint dialog..."
  * and "Raise NCR form...".
  */
-import { toDateOnlyString } from '@/lib/qualityAssurance';
+import {
+  CHECKPOINT_DECIDED_STATUSES,
+  NCR_TERMINAL_STATUSES,
+  PLAN_TERMINAL_STATUSES,
+  isCapaOpen,
+  toDateOnlyString,
+} from '@/lib/qualityAssurance';
 
 /**
  * Every column a client may write on `qa_plans`. `org_id`, `plan_code`
@@ -260,4 +266,78 @@ export const validateCheckpointDecision = (form = {}) => {
     errors.remarks = 'Say why it is being waived.';
   }
   return errors;
+};
+
+/* ------------------------------------------------------------------ */
+/* AS13 repairs                                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The decision patch as it will be written, with the defaults applied.
+ *
+ * The form's "Verifier, if not you" field means a blank name is the
+ * person recording the result. The hook used to run the gate BEFORE it
+ * filled that in, so the gate saw no verifier and refused every Passed,
+ * Failed and Waived result recorded without a typed name. The defaults
+ * are applied here, first, and the gate then judges the real row.
+ *
+ * No user and no typed name leaves the verifier empty, and the gate
+ * refuses: nobody is invented.
+ */
+export const withDecisionDefaults = (patch = {}, status, userId, today = new Date()) => {
+  const row = { ...patch };
+  if (!CHECKPOINT_DECIDED_STATUSES.includes(status)) return row;
+  if (!row.result_date) row.result_date = toDateOnlyString(today);
+  if (String(row.verifier_name || '').trim()) {
+    // A named verifier with no Suite login. The name is the record; a
+    // verifier id left over from an earlier result would contradict it.
+    row.verified_by = null;
+  } else if (!row.verified_by && userId) {
+    row.verified_by = userId;
+  }
+  return row;
+};
+
+/**
+ * Why a plan's inspection and test plan may no longer be changed, or
+ * null while it may. A closed, superseded or cancelled plan is a
+ * record: its items and results are what it was finished on.
+ */
+export const planLockReason = (plan) => {
+  if (!plan || !PLAN_TERMINAL_STATUSES.includes(plan.status)) return null;
+  return `This plan is ${String(plan.status).toLowerCase()}. Its inspection points and `
+    + 'results are the record it was finished on and can no longer be changed.';
+};
+
+/** The same for a closed or voided non-conformance and its actions. */
+export const ncrLockReason = (ncr) => {
+  if (!ncr || !NCR_TERMINAL_STATUSES.includes(ncr.status)) return null;
+  return `This non-conformance is ${String(ncr.status).toLowerCase()}. Its actions are `
+    + 'part of the record and can no longer be changed.';
+};
+
+/**
+ * Where a non-conformance stands once its disposition is agreed,
+ * counted from its corrective and preventive actions:
+ *
+ *   no live action          Disposition agreed
+ *   any action still open   Actions in progress
+ *   every action finished   Verification (awaiting the close-out)
+ *
+ * Before the disposition is agreed (Open, Under investigation) and once
+ * it is closed or voided, the status is not the actions' to change.
+ * 'Actions in progress' and 'Verification' were offered in the
+ * register's filter and never written by anything, so filtering on
+ * either always returned nothing.
+ */
+export const NCR_ACTION_DRIVEN_STATUSES = Object.freeze([
+  'Disposition agreed', 'Actions in progress', 'Verification',
+]);
+
+export const ncrStatusFromActions = (ncr = {}, capas = []) => {
+  if (!NCR_ACTION_DRIVEN_STATUSES.includes(ncr.status)) return ncr.status;
+  const live = capas.filter((c) => c.status !== 'Cancelled');
+  if (!live.length) return 'Disposition agreed';
+  if (live.some(isCapaOpen)) return 'Actions in progress';
+  return 'Verification';
 };

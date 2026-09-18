@@ -21,12 +21,12 @@ import {
   STAGE_CHART_COLORS,
   countBy,
   daysUntil,
-  expiryState,
   summarise,
 } from '@/lib/managementOfChange';
 import { exportToCSV } from '@/utils/exportUtils';
 import { EmptyState, ErrorState, Loading } from './components/SharedComponents';
 import { useManagementOfChange } from './hooks/useManagementOfChange';
+import { expiryDisplay } from './utils/expiryDisplay';
 
 /**
  * AS6 — MOC reporting, from this organization's own rows.
@@ -62,12 +62,19 @@ export default function MOCReports() {
 
   const categoryData = useMemo(() => countBy(records, 'category'), [records]);
 
-  /** The real expiry report: temporary changes in effect, soonest first. */
+  /**
+   * The real expiry report: temporary and emergency changes in effect or
+   * on their way in, soonest first. AS13: Rejected and Cancelled ones
+   * never went in and are left out (expiryDisplay returns null for them),
+   * and one not yet in effect reads "Not yet in effect" rather than
+   * "No expiry" beside its own date.
+   */
   const expiryRows = useMemo(
     () => records
       .filter((m) => EXPIRING_TYPES.includes(m.type))
-      .map((m) => ({ ...m, state: expiryState(m, today), days: daysUntil(m.expiry_date, today) }))
-      .filter((m) => [EXPIRY.EXPIRED, EXPIRY.EXPIRING, EXPIRY.WITHIN, EXPIRY.NONE].includes(m.state))
+      .map((m) => ({ ...m, shown: expiryDisplay(m, today), days: daysUntil(m.expiry_date, today) }))
+      .filter((m) => m.shown)
+      .map((m) => ({ ...m, state: m.shown.state }))
       .sort((a, b) => {
         if (a.days === null) return 1;
         if (b.days === null) return -1;
@@ -105,14 +112,14 @@ export default function MOCReports() {
       Asset: m.asset_id || '',
       'Target implementation': m.target_implementation_date || '',
       Expires: m.expiry_date || '',
-      'Expiry state': expiryState(m, today),
+      'Expiry state': expiryDisplay(m, today)?.state || '',
       'Open actions': (m.actions || []).filter((a) => !['Complete', 'Cancelled'].includes(a.status)).length,
-    })), `moc-register-${format(today, 'yyyy-MM-dd')}.csv`);
+    })), `moc-register-${format(today, 'yyyy-MM-dd')}`);
   };
 
   const exportExpiry = () => {
     if (!expiryRows.length) {
-      toast({ description: 'There are no temporary or emergency changes to report on.' });
+      toast({ description: 'No temporary or emergency change is in effect or on its way in.' });
       return;
     }
     exportToCSV(expiryRows.map((m) => ({
@@ -124,7 +131,7 @@ export default function MOCReports() {
       Expires: m.expiry_date || '',
       'Days remaining': m.days === null ? 'No expiry set' : m.days,
       State: m.state,
-    })), `moc-temporary-change-expiry-${format(today, 'yyyy-MM-dd')}.csv`);
+    })), `moc-temporary-change-expiry-${format(today, 'yyyy-MM-dd')}`);
   };
 
   if (loading) return <MOCPageShell><Loading label="Loading reports..." /></MOCPageShell>;
@@ -175,8 +182,8 @@ export default function MOCReports() {
           <CardContent className="p-0">
             {expiryRows.length === 0 ? (
               <p className="p-8 text-center text-[hsl(var(--muted-foreground))]">
-                This organization has no temporary or emergency changes on the
-                register.
+                No temporary or emergency change is in effect or on its way in.
+                Closed, rejected and cancelled ones are not listed.
               </p>
             ) : (
               <table className="data-grid-table w-full">

@@ -256,7 +256,7 @@ export default function Dashboard() {
                   <button
                     type="button"
                     key={p.id}
-                    onClick={() => navigate(`${BASE}/plan/${p.id}`)}
+                    onClick={() => navigate(`${BASE}/${p.id}`)}
                     className="w-full text-left p-4 border-b border-[hsl(var(--border))] last:border-0 hover:bg-[hsl(var(--secondary))]/50"
                   >
                     <div className="flex items-start justify-between gap-3">

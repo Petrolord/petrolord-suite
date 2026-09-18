@@ -12,6 +12,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import {
   ACTION_TYPES,
+  EXPIRING_TYPES,
   EXPIRY,
   approvalState,
   canAdvance,
@@ -19,11 +20,12 @@ import {
   expiryState,
   nextStages,
   parseDateOnly,
+  toDateOnlyString,
 } from '@/lib/managementOfChange';
 import { ExpiryBadge, RiskBadge, StageBadge, TypeBadge } from './components/MOCBadges';
-import { DetailField, ErrorState, Loading } from './components/SharedComponents';
+import { ConfirmDelete, DetailField, ErrorState, Loading } from './components/SharedComponents';
 import { useManagementOfChange } from './hooks/useManagementOfChange';
-import { validateAction } from './utils/mocPayload';
+import { mocLockReason, validateAction, validateExpiryEdit } from './utils/mocPayload';
 
 const showDate = (v) => {
   const d = parseDateOnly(v);
@@ -51,7 +53,7 @@ export default function MOCDetail() {
   const { toast } = useToast();
   const {
     records, activityFor, loading, error, userId,
-    advance, addApprover, decideApproval, addActions, updateAction, deleteMoc, refresh,
+    advance, setExpiry, addApprover, decideApproval, addActions, updateAction, deleteMoc, refresh,
   } = useManagementOfChange();
 
   const [saving, setSaving] = useState(false);
@@ -64,6 +66,9 @@ export default function MOCDetail() {
   const [decisionText, setDecisionText] = useState('');
   const [rejecting, setRejecting] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [expiryDraft, setExpiryDraft] = useState(null);
+  const [expiryError, setExpiryError] = useState(null);
 
   const moc = records.find((m) => m.id === id);
   const approvals = useMemo(() => moc?.approvals || [], [moc]);
@@ -85,6 +90,13 @@ export default function MOCDetail() {
   const trail = activityFor(moc.id);
   const expiry = expiryState(moc);
   const expiryDays = moc.expiry_date ? daysUntil(moc.expiry_date) : null;
+  // AS13: a Closed, Rejected or Cancelled change is a record. The hook
+  // refuses these writes too; this hides the buttons that would try.
+  const locked = mocLockReason(moc);
+  // AS13: a temporary or emergency draft's expiry date can be added or
+  // corrected here. One saved without it could not leave Draft at all.
+  const expiryEditable = moc.stage === 'Draft' && EXPIRING_TYPES.includes(moc.type);
+  const draftMissingExpiry = expiryEditable && !parseDateOnly(moc.expiry_date);
 
   const handleAdvance = async (stage) => {
     if (stage === 'Rejected') { setRejecting(true); return; }
@@ -160,8 +172,23 @@ export default function MOCDetail() {
     toast({ description: `Approval ${status.toLowerCase()}.` });
   };
 
+  const handleSaveExpiry = async (e) => {
+    e.preventDefault();
+    const problem = validateExpiryEdit(moc, expiryDraft);
+    if (problem) { setExpiryError(problem); return; }
+    setSaving(true);
+    const result = await setExpiry(moc, expiryDraft);
+    setSaving(false);
+    if (!result.success) { setExpiryError(result.error); return; }
+    setExpiryDraft(null); setExpiryError(null);
+    toast({ description: `Expiry date set to ${showDate(expiryDraft)}.` });
+  };
+
   const handleDelete = async () => {
+    setSaving(true);
     const result = await deleteMoc(moc.id);
+    setSaving(false);
+    setConfirmingDelete(false);
     if (result.success) {
       toast({ description: `${moc.moc_code} deleted.` });
       navigate(`${BASE}/register`);
@@ -209,11 +236,31 @@ export default function MOCDetail() {
                 </Button>
               );
             })}
-            <Button variant="outline" className="text-[hsl(var(--destructive))]" onClick={handleDelete}>
-              <Trash2 className="w-4 h-4 mr-2" /> Delete
-            </Button>
+            {moc.stage === 'Draft' ? (
+              <Button variant="outline" className="text-[hsl(var(--destructive))]"
+                onClick={() => setConfirmingDelete(true)}>
+                <Trash2 className="w-4 h-4 mr-2" /> Delete
+              </Button>
+            ) : null}
           </div>
         </div>
+
+        {locked ? (
+          <div className="p-4 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/40 text-sm flex gap-3">
+            <Lock className="w-4 h-4 shrink-0 mt-0.5 text-[hsl(var(--muted-foreground))]" />
+            <p>{locked}</p>
+          </div>
+        ) : null}
+
+        {draftMissingExpiry ? (
+          <div className="p-4 rounded-lg border border-[hsl(var(--warning))]/40 bg-[hsl(var(--warning))]/5 text-sm flex gap-3">
+            <AlertTriangle className="w-5 h-5 text-[hsl(var(--warning))] shrink-0 mt-0.5" />
+            <p>
+              This {String(moc.type).toLowerCase()} draft has no expiry date, so it cannot
+              leave Draft, not even to be cancelled. Set one under Expires in the overview.
+            </p>
+          </div>
+        ) : null}
 
         {/* An expired temporary change is the loudest thing on the page. */}
         {expiry === EXPIRY.EXPIRED ? (
@@ -276,7 +323,35 @@ export default function MOCDetail() {
                 <DetailField label="Risk level">{moc.risk_level}</DetailField>
                 <DetailField label="Priority">{moc.priority}</DetailField>
                 <DetailField label="Target implementation">{showDate(moc.target_implementation_date)}</DetailField>
-                <DetailField label="Expires">{showDate(moc.expiry_date)}</DetailField>
+                <DetailField label="Expires">
+                  {expiryEditable && expiryDraft !== null ? (
+                    <form onSubmit={handleSaveExpiry} className="space-y-2">
+                      <Input id="expiry_edit" type="date" aria-label="Expiry date"
+                        value={expiryDraft}
+                        onChange={(e) => { setExpiryDraft(e.target.value); setExpiryError(null); }} />
+                      {expiryError ? (
+                        <p className="text-xs text-[hsl(var(--destructive))]">{expiryError}</p>
+                      ) : null}
+                      <div className="flex gap-2">
+                        <Button type="submit" size="sm" disabled={saving}>Save</Button>
+                        <Button type="button" size="sm" variant="ghost"
+                          onClick={() => { setExpiryDraft(null); setExpiryError(null); }}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </form>
+                  ) : (
+                    <span className="flex items-center gap-2 flex-wrap">
+                      {showDate(moc.expiry_date) || 'Not set'}
+                      {expiryEditable ? (
+                        <Button type="button" size="sm" variant="outline"
+                          onClick={() => setExpiryDraft(toDateOnlyString(moc.expiry_date) || '')}>
+                          {moc.expiry_date ? 'Change' : 'Set expiry date'}
+                        </Button>
+                      ) : null}
+                    </span>
+                  )}
+                </DetailField>
                 <div className="md:col-span-3">
                   <DetailField label="Current situation">{moc.current_situation}</DetailField>
                 </div>
@@ -308,14 +383,14 @@ export default function MOCDetail() {
                     </span>
                   ) : null}
                 </CardTitle>
-                {!addingApprover ? (
+                {!addingApprover && !locked ? (
                   <Button variant="outline" size="sm" onClick={() => setAddingApprover(true)}>
                     <Plus className="w-4 h-4 mr-2" /> Add a gate
                   </Button>
                 ) : null}
               </CardHeader>
               <CardContent>
-                {addingApprover ? (
+                {addingApprover && !locked ? (
                   <form onSubmit={handleAddApprover} className="flex flex-wrap gap-3 items-end mb-5 p-4 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/30">
                     <div className="min-w-[200px]">
                       <Label htmlFor="approver_role">Role</Label>
@@ -345,7 +420,8 @@ export default function MOCDetail() {
                   <p className="text-sm text-[hsl(var(--muted-foreground))] py-4">
                     No approval gates have been set. A change cannot be
                     implemented until at least one level has signed, so this is
-                    the next thing to do.
+                    the next thing to do. Gates are added by hand: the risk level
+                    does not add them.
                   </p>
                 ) : (
                   <ul className="divide-y divide-[hsl(var(--border))]">
@@ -364,13 +440,13 @@ export default function MOCDetail() {
                               <p className="text-sm mt-1">{a.comments}</p>
                             ) : null}
                           </div>
-                          {a.status === 'Pending' && deciding !== a.id ? (
+                          {a.status === 'Pending' && deciding !== a.id && !locked ? (
                             <Button variant="outline" size="sm" onClick={() => { setDeciding(a.id); setDecisionText(''); }}>
                               Record a decision
                             </Button>
                           ) : null}
                         </div>
-                        {deciding === a.id ? (
+                        {deciding === a.id && !locked ? (
                           <div className="mt-3 space-y-2">
                             <Textarea rows={2} value={decisionText}
                               onChange={(e) => setDecisionText(e.target.value)}
@@ -400,14 +476,14 @@ export default function MOCDetail() {
             <Card className="panel-elevation">
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-lg">Actions</CardTitle>
-                {!addingAction ? (
+                {!addingAction && !locked ? (
                   <Button variant="outline" size="sm" onClick={() => setAddingAction(true)}>
                     <Plus className="w-4 h-4 mr-2" /> Add an action
                   </Button>
                 ) : null}
               </CardHeader>
               <CardContent>
-                {addingAction ? (
+                {addingAction && !locked ? (
                   <form onSubmit={handleAddAction} className="space-y-3 mb-5 p-4 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/30">
                     <div className="grid grid-cols-1 md:grid-cols-[200px_1fr_180px] gap-3">
                       <div>
@@ -464,7 +540,7 @@ export default function MOCDetail() {
                               {late ? ' · overdue' : ''}
                             </p>
                           </div>
-                          {open ? (
+                          {open && !locked ? (
                             <div className="flex gap-2">
                               <Button variant="outline" size="sm"
                                 onClick={() => handleActionStatus(a, 'Complete')}>
@@ -506,8 +582,8 @@ export default function MOCDetail() {
                   </ul>
                 ) : (
                   <p className="p-8 text-center text-[hsl(var(--muted-foreground))]">
-                    No impact assessment recorded. Deciding what a change affects
-                    is how its risk level gets chosen.
+                    No impact assessment recorded. What a change affects is the
+                    basis for the risk level you choose for it.
                   </p>
                 )}
               </CardContent>
@@ -537,6 +613,16 @@ export default function MOCDetail() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        <ConfirmDelete
+          open={confirmingDelete}
+          title={`Delete ${moc.moc_code}?`}
+          description={`${moc.moc_code} will be deleted permanently. This cannot be undone. A draft that should not go ahead can be cancelled instead, which keeps the record.`}
+          confirmLabel="Delete change"
+          busy={saving}
+          onConfirm={handleDelete}
+          onCancel={() => setConfirmingDelete(false)}
+        />
       </div>
     </MOCPageShell>
   );

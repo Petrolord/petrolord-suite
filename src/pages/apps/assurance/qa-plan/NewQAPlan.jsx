@@ -146,7 +146,7 @@ export default function NewQAPlan() {
         || `${filledRows.length} inspection point${filledRows.length === 1 ? '' : 's'} recorded.`,
       variant: result.warning ? 'destructive' : undefined,
     });
-    navigate(`${BASE}/plan/${result.data.id}`);
+    navigate(`${BASE}/${result.data.id}`);
   };
 
   if (loading) return <QAPlanShell><Loading /></QAPlanShell>;

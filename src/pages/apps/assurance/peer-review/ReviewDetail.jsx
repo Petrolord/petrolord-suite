@@ -2,10 +2,11 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertTriangle, ArrowLeft, MessageSquarePlus, Trash2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Lock, MessageSquarePlus, Trash2 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -25,9 +26,9 @@ import { PeerReviewShell, BASE } from './components/PeerReviewShell';
 import {
   CommentStatusBadge, DecisionBadge, PriorityBadge, SeverityBadge, StageBadge,
 } from './components/StatusBadges';
-import { DetailField, ErrorState, Loading } from './components/SharedComponents';
+import { ConfirmDelete, DetailField, ErrorState, Loading } from './components/SharedComponents';
 import { usePeerReview } from './hooks/usePeerReview';
-import { validateComment } from './utils/reviewPayload';
+import { reviewLockReason, validateComment } from './utils/reviewPayload';
 
 const showDate = (v) => {
   const d = parseDateOnly(v);
@@ -67,6 +68,7 @@ export default function ReviewDetail() {
   const [actionText, setActionText] = useState('');
   const [closing, setClosing] = useState(false);
   const [decision, setDecision] = useState('Approved');
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const review = reviews.find((r) => r.id === id);
   const comments = useMemo(
@@ -88,6 +90,15 @@ export default function ReviewDetail() {
   }
 
   const trail = auditFor(review.id);
+  // AS13: a Closed or Cancelled review is a record. The hook refuses
+  // these writes too; this hides the buttons that would try.
+  const locked = reviewLockReason(review);
+  // Disciplines already in play on this review, offered as suggestions.
+  const knownDisciplines = [...new Set([
+    review.discipline,
+    ...(review.participants || []).map((p) => p.discipline),
+    ...(review.comments || []).map((c) => c.discipline),
+  ].filter(Boolean))];
   const late = isOverdue(review);
   const days = daysUntil(review.due_date);
 
@@ -140,7 +151,10 @@ export default function ReviewDetail() {
   };
 
   const handleDelete = async () => {
+    setSaving(true);
     const result = await deleteReview(review.id);
+    setSaving(false);
+    setConfirmingDelete(false);
     if (result.success) {
       toast({ description: `${review.review_code} deleted.` });
       navigate(`${BASE}/register`);
@@ -181,7 +195,7 @@ export default function ReviewDetail() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {!raising ? (
+            {!raising && !locked ? (
               <Button variant="outline" onClick={() => setRaising(true)}>
                 <MessageSquarePlus className="w-4 h-4 mr-2" /> Raise a comment
               </Button>
@@ -193,11 +207,21 @@ export default function ReviewDetail() {
                 {stage === 'Cancelled' ? 'Cancel review' : `Move to ${stage}`}
               </Button>
             ))}
-            <Button variant="outline" className="text-[hsl(var(--destructive))]" onClick={handleDelete}>
-              <Trash2 className="w-4 h-4 mr-2" /> Delete
-            </Button>
+            {review.stage === 'Draft' ? (
+              <Button variant="outline" className="text-[hsl(var(--destructive))]"
+                onClick={() => setConfirmingDelete(true)}>
+                <Trash2 className="w-4 h-4 mr-2" /> Delete
+              </Button>
+            ) : null}
           </div>
         </div>
+
+        {locked ? (
+          <div className="p-4 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/40 text-sm flex gap-3">
+            <Lock className="w-4 h-4 shrink-0 mt-0.5 text-[hsl(var(--muted-foreground))]" />
+            <p>{locked}</p>
+          </div>
+        ) : null}
 
         {/* The gate. Stated before anyone reaches for the close button. */}
         {!closeVerdict.ok && review.stage === 'Verification' ? (
@@ -238,7 +262,7 @@ export default function ReviewDetail() {
           </Card>
         ) : null}
 
-        {raising ? (
+        {raising && !locked ? (
           <Card className="panel-elevation">
             <CardHeader><CardTitle className="text-lg">Raise a comment</CardTitle></CardHeader>
             <CardContent>
@@ -253,6 +277,16 @@ export default function ReviewDetail() {
                   ) : null}
                 </div>
                 <div className="flex flex-wrap gap-4 items-end">
+                  <div className="min-w-[200px]">
+                    <Label htmlFor="comment_discipline">Discipline</Label>
+                    <Input id="comment_discipline" list="review-disciplines"
+                      value={draft.discipline}
+                      onChange={(e) => setDraft({ ...draft, discipline: e.target.value })}
+                      placeholder="Process, Structural, Subsurface" />
+                    <datalist id="review-disciplines">
+                      {knownDisciplines.map((d) => <option key={d} value={d} />)}
+                    </datalist>
+                  </div>
                   <div className="min-w-[180px]">
                     <Label htmlFor="severity">Severity</Label>
                     <select id="severity" value={draft.severity}
@@ -324,7 +358,7 @@ export default function ReviewDetail() {
                           </div>
                         ) : null}
 
-                        {acting?.commentId === c.id ? (
+                        {locked ? null : acting?.commentId === c.id ? (
                           <div className="space-y-2 pt-2 border-t border-[hsl(var(--border))]">
                             <Textarea rows={2} value={actionText}
                               onChange={(e) => setActionText(e.target.value)}
@@ -444,6 +478,16 @@ export default function ReviewDetail() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        <ConfirmDelete
+          open={confirmingDelete}
+          title={`Delete ${review.review_code}?`}
+          description={`${review.review_code} will be deleted permanently. This cannot be undone. A review that should not go ahead can be cancelled instead, which keeps its record.`}
+          confirmLabel="Delete review"
+          busy={saving}
+          onConfirm={handleDelete}
+          onCancel={() => setConfirmingDelete(false)}
+        />
       </div>
     </PeerReviewShell>
   );

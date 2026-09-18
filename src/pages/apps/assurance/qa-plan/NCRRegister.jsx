@@ -93,7 +93,7 @@ export default function NCRRegister() {
         if (status !== 'All' && status !== 'Open only' && n.status !== status) return false;
         if (!q) return true;
         return [n.ncr_code, n.title, n.description, n.supplier, n.asset_id,
-          n.requirement_ref, n.discipline]
+          n.requirement_ref, n.discipline, n.department]
           .some((v) => String(v || '').toLowerCase().includes(q));
       })
       .sort(ncrByUrgency(new Date()));
@@ -130,6 +130,7 @@ export default function NCRRegister() {
       'Requirement departed from': n.requirement_ref || '',
       Plan: plans.find((p) => p.id === n.plan_id)?.plan_code || '',
       Discipline: n.discipline || '',
+      Department: n.department || '',
       Asset: n.asset_id || '',
       Supplier: n.supplier || '',
       Raised: n.raised_date || '',
@@ -266,7 +267,7 @@ export default function NCRRegister() {
                     </label>
                     <select id="ncr-plan" value={form.plan_id} onChange={set('plan_id')}
                       className="h-10 w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 text-sm">
-                      <option value="">No plan — found outside one</option>
+                      <option value="">No plan: found outside one</option>
                       {plans.map((p) => (
                         <option key={p.id} value={p.id}>{p.plan_code} · {p.title}</option>
                       ))}
@@ -289,10 +290,14 @@ export default function NCRRegister() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium" htmlFor="ncr-discipline">Discipline</label>
                     <Input id="ncr-discipline" value={form.discipline} onChange={set('discipline')} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium" htmlFor="ncr-department">Department</label>
+                    <Input id="ncr-department" value={form.department} onChange={set('department')} />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium" htmlFor="ncr-asset">Asset</label>

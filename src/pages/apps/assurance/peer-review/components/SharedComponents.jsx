@@ -1,5 +1,36 @@
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+
+/**
+ * AS13: a hard delete asks first. In an assurance app the record is
+ * the deliverable, and one misplaced click used to remove it.
+ */
+export const ConfirmDelete = ({
+  open, title, description, confirmLabel = 'Delete', busy = false, onConfirm, onCancel,
+}) => (
+  <AlertDialog open={open} onOpenChange={(next) => { if (!next) onCancel(); }}>
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>{title}</AlertDialogTitle>
+        <AlertDialogDescription>{description}</AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+        <AlertDialogAction
+          disabled={busy}
+          className="bg-[hsl(var(--destructive))] text-white hover:bg-[hsl(var(--destructive))]/90"
+          onClick={(e) => { e.preventDefault(); onConfirm(); }}
+        >
+          {confirmLabel}
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+);
 
 /**
  * AS5 — the states the old app could not tell apart.

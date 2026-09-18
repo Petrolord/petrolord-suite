@@ -19,6 +19,7 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { baseTargets, routesFromApp, unresolved } from '../../__tests__/routeTargets';
 
 const APP = path.resolve(__dirname, '..');
 const ROOT = path.resolve(__dirname, '../../../../../..');
@@ -175,5 +176,88 @@ describe('no invented data in Management of Change', () => {
       expect(src).toMatch(/chartTheme/);
       expect(src).toMatch(/ChartLogo/);
     });
+  });
+
+  it('no export passes a file name that already ends in .csv', () => {
+    // AS13: exportToCSV (src/utils/exportUtils.js) appends the extension
+    // itself, so a caller passing `...yyyy-MM-dd}.csv` downloaded
+    // `name.csv.csv`.
+    const offenders = files.filter((f) => /\.csv[`'"]\s*,?\s*\)/.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
+
+  it('EVERY LINK AND NAVIGATE TARGET RESOLVES TO A DECLARED ROUTE', () => {
+    // AS13: the routes for this app are declared in App.jsx.
+    const declared = routesFromApp(read(path.join(ROOT, 'src/App.jsx')),
+      'apps/assurance/management-of-change');
+    expect(declared.length).toBeGreaterThan(4);
+    const targets = baseTargets(files.map((f) => ({ file: rel(f), src: code(f) })));
+    expect(targets.length).toBeGreaterThan(10);
+    expect(unresolved(declared, targets)).toEqual([]);
+  });
+
+  it('no button in the shell is dead', () => {
+    // AS13: "Support Guide" had no onClick.
+    const shell = code(path.join(APP, 'components/MOCPageShell.jsx'));
+    expect(shell).not.toMatch(/Support Guide/);
+    expect(read(path.join(APP, 'components/MOCPageShell.jsx')))
+      .toMatch(/AS13: AssuranceHelp appKey="moc" goes here/);
+  });
+
+  it('the header search is a real search that reaches the register', () => {
+    // It was uncontrolled and only navigated on focus, discarding the text.
+    const shell = code(path.join(APP, 'components/MOCPageShell.jsx'));
+    expect(shell).toMatch(/value=\{query\}/);
+    expect(shell).toMatch(/register\?q=/);
+    expect(shell).not.toMatch(/onFocus=\{\(\) => navigate/);
+    expect(code(path.join(APP, 'Register.jsx'))).toMatch(/params\.get\('q'\)/);
+  });
+
+  it('the phone footer reaches every section', () => {
+    // slice(0, 4) dropped Reports.
+    expect(code(path.join(APP, 'components/MOCPageShell.jsx'))).not.toMatch(/navItems\.slice\(/);
+  });
+
+  it('no copy claims the risk level sets the approval gates', () => {
+    // Nothing reads risk_level to add or require a gate.
+    files.forEach((f) => {
+      expect(`${rel(f)}: ${/risk level is what decides/i.test(code(f))}`)
+        .toBe(`${rel(f)}: false`);
+    });
+  });
+
+  it('what the dashboard says appears in Recent activity is logged', () => {
+    const hook = code(path.join(APP, 'hooks/useManagementOfChange.js'));
+    ['addActions', 'updateAction', 'addImpacts'].forEach((fn) => {
+      const start = hook.indexOf(`const ${fn} = async`);
+      const body = hook.slice(start, hook.indexOf('\n  };', start));
+      expect(`${fn}: ${/logActivity\(/.test(body)}`).toBe(`${fn}: true`);
+    });
+  });
+
+  it('a temporary draft cannot be saved without the expiry date, and a stuck one can gain it', () => {
+    expect(code(path.join(APP, 'utils/mocPayload.js'))).not.toMatch(/form\.stage !== 'Draft'/);
+    expect(code(path.join(APP, 'MOCDetail.jsx'))).toMatch(/setExpiry\(/);
+  });
+
+  it('a final change is locked on the page and in the hook', () => {
+    expect(code(path.join(APP, 'MOCDetail.jsx'))).toMatch(/mocLockReason\(moc\)/);
+    const hook = code(path.join(APP, 'hooks/useManagementOfChange.js'));
+    ['addApprover', 'decideApproval', 'addActions', 'updateAction', 'addImpacts'].forEach((fn) => {
+      const start = hook.indexOf(`const ${fn} = async`);
+      expect(hook.slice(start, start + 300)).toMatch(/lockedMoc\(/);
+    });
+  });
+
+  it('deleting a change asks first', () => {
+    const detail = code(path.join(APP, 'MOCDetail.jsx'));
+    expect(detail).toMatch(/<ConfirmDelete/);
+    expect(detail).not.toMatch(/onClick=\{handleDelete\}/);
+  });
+
+  it('no badge prints the rule state "No expiry" beside a date', () => {
+    const badges = code(path.join(APP, 'components/MOCBadges.jsx'));
+    expect(badges).toMatch(/expiryDisplay\(/);
+    expect(badges).not.toMatch(/\{state\}/);
   });
 });

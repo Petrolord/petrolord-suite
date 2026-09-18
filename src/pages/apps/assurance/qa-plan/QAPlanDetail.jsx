@@ -21,10 +21,11 @@ import {
   nextPlanStatuses,
   planProgress,
 } from '@/lib/qualityAssurance';
-import { validateCheckpoint } from './utils/qaPayload';
+import { planLockReason, validateCheckpoint } from './utils/qaPayload';
 import { QAPlanShell, BASE } from './components/QAPlanShell';
 import {
-  DetailField, EmptyState, ErrorState, GateNotice, Loading, MetricTile, SchemaNotice, WriteFailure,
+  ConfirmDelete, DetailField, EmptyState, ErrorState, GateNotice, Loading, MetricTile,
+  SchemaNotice, WriteFailure,
 } from './components/SharedComponents';
 import {
   CheckpointStatusBadge, HoldPointBadge, NcrStatusBadge, PlanStatusBadge,
@@ -78,6 +79,7 @@ export default function QAPlanDetail() {
   const [decision, setDecision] = useState(blankDecision());
   const [failure, setFailure] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [removing, setRemoving] = useState(null);
 
   const plan = useMemo(() => plans.find((p) => p.id === planId) || null, [plans, planId]);
   const checkpoints = useMemo(
@@ -105,6 +107,10 @@ export default function QAPlanDetail() {
       </QAPlanShell>
     );
   }
+
+  // AS13: a closed, superseded or cancelled plan is a record. Its items
+  // and results are locked here and refused by the hook as well.
+  const locked = planLockReason(plan);
 
   const submitCheckpoint = async (e) => {
     e.preventDefault();
@@ -160,6 +166,7 @@ export default function QAPlanDetail() {
     const result = await deleteCheckpoint(checkpoint.id);
     setBusy(false);
     if (!result.success) { setFailure(result.error); return; }
+    setRemoving(null);
     toast({ description: `Item ${checkpoint.item_no} removed.` });
   };
 
@@ -264,13 +271,20 @@ export default function QAPlanDetail() {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <HoldPointBadge progress={progress} />
-                <Button size="sm" variant="outline" onClick={() => setAdding((a) => !a)}>
-                  <Plus className="w-4 h-4 mr-2" /> Add item
-                </Button>
+                {!locked ? (
+                  <Button size="sm" variant="outline" onClick={() => setAdding((a) => !a)}>
+                    <Plus className="w-4 h-4 mr-2" /> Add item
+                  </Button>
+                ) : null}
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              {adding ? (
+              {locked ? (
+                <div className="p-4 border-b border-[hsl(var(--border))]">
+                  <GateNotice reason={locked} />
+                </div>
+              ) : null}
+              {adding && !locked ? (
                 <form onSubmit={submitCheckpoint}
                   className="p-5 border-b border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/30 space-y-3">
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -420,7 +434,7 @@ export default function QAPlanDetail() {
                               : '—'}
                           </td>
                           <td className="data-grid-td whitespace-nowrap">
-                            {!isResolved(c) || c.status === 'Failed' ? (
+                            {locked ? null : !isResolved(c) || c.status === 'Failed' ? (
                               <Button size="sm" variant="outline" onClick={() => openDecision(c)}>
                                 Record result
                               </Button>
@@ -429,10 +443,13 @@ export default function QAPlanDetail() {
                                 Amend
                               </Button>
                             )}
-                            <Button size="sm" variant="ghost" disabled={busy}
-                              onClick={() => removeCheckpoint(c)} title="Remove this item">
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            {!locked ? (
+                              <Button size="sm" variant="ghost" disabled={busy}
+                                onClick={() => { setFailure(null); setRemoving(c); }}
+                                title="Remove this item">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            ) : null}
                           </td>
                         </tr>
                       ))}
@@ -441,7 +458,7 @@ export default function QAPlanDetail() {
                 </div>
               )}
 
-              {deciding ? (
+              {deciding && !locked ? (
                 <form onSubmit={submitDecision}
                   className="p-5 border-t border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/30 space-y-3">
                   <p className="text-sm font-medium">
@@ -565,6 +582,18 @@ export default function QAPlanDetail() {
             ))}
           </CardContent>
         </Card>
+
+        <ConfirmDelete
+          open={Boolean(removing)}
+          title="Remove this inspection point?"
+          description={removing
+            ? `Item ${removing.item_no} (${removing.point_type}) and any result recorded against it will be deleted from ${plan.plan_code}. This cannot be undone. If the point no longer applies, recording it as Not applicable keeps the record.`
+            : ''}
+          confirmLabel="Remove item"
+          busy={busy}
+          onConfirm={() => removeCheckpoint(removing)}
+          onCancel={() => setRemoving(null)}
+        />
       </div>
     </QAPlanShell>
   );

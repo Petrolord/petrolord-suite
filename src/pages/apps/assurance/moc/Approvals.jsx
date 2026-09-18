@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { RiskBadge, StageBadge, TypeBadge } from './components/MOCBadges';
 import { EmptyState, ErrorState, Loading } from './components/SharedComponents';
+import { TERMINAL_STAGES } from '@/lib/managementOfChange';
 import { useManagementOfChange } from './hooks/useManagementOfChange';
 
 /**
@@ -41,6 +42,9 @@ export default function MOCApprovals() {
       .filter((a) => !mineOnly || a.approver_id === userId)
       .map((a) => ({ ...a, moc: byId.get(a.moc_id) }))
       .filter((a) => a.moc)
+      // AS13: a pending gate on a Closed, Rejected or Cancelled change is
+      // part of that change's record, not work waiting on anybody.
+      .filter((a) => !TERMINAL_STAGES.includes(a.moc.stage))
       .sort((a, b) => (a.level ?? 1) - (b.level ?? 1));
   }, [approvals, records, mineOnly, userId]);
 

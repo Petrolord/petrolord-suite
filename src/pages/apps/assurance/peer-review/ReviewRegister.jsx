@@ -80,7 +80,7 @@ export default function ReviewRegister() {
       Overdue: isOverdue(r, today) ? 'Yes' : 'No',
       Comments: r.comments?.length ?? 0,
       'Open comments': (r.comments || []).filter((c) => !isResolved(c)).length,
-    })), `peer-review-register-${format(today, 'yyyy-MM-dd')}.csv`);
+    })), `peer-review-register-${format(today, 'yyyy-MM-dd')}`);
   };
 
   const selectClass = 'h-10 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 text-sm';
