@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useRiskRegister } from './hooks/useRiskRegister';
 import { useRiskChildren } from './hooks/useRiskChildren';
-import { useRiskReporting } from '@/hooks/useRiskReporting';
 import { RiskRegisterShell } from './components/RiskRegisterShell';
 import { RiskForm } from './components/forms/RiskForm';
 import { Button } from '@/components/ui/button';
@@ -20,9 +19,8 @@ import { useToast } from '@/hooks/use-toast';
 const EditRiskPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { risks, loading, updateRisk } = useRiskRegister();
+  const { risks, loading, updateRisk, hasAs2Schema } = useRiskRegister();
   const { tags, linkedRisks, loading: childLoading } = useRiskChildren(id, risks);
-  const { closeReport } = useRiskReporting() || {};
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -33,7 +31,6 @@ const EditRiskPage = () => {
   }, [loading, risk, navigate]);
 
   const back = () => {
-    if (closeReport) closeReport();
     navigate(`/dashboard/apps/assurance/risk-register/${id}`);
   };
 
@@ -90,6 +87,7 @@ const EditRiskPage = () => {
           onSubmit={handleSubmit}
           onCancel={back}
           isSubmitting={isSubmitting}
+          hasAs2Schema={hasAs2Schema}
         />
       </div>
     </RiskRegisterShell>
