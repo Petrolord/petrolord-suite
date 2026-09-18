@@ -237,4 +237,47 @@ describe('no invented data in Document Control', () => {
       /recorded in audit log|would open here|coming soon|Contacting support/i.test(code(f)));
     expect(offenders.map(rel)).toEqual([]);
   });
+
+  it('an empty result is never read as proof of the new schema (AS13 hardening)', () => {
+    // `docs.length === 0 || 'review_period_months' in docs[0]` assumed
+    // the migration was applied whenever the library was empty.
+    const offenders = files.filter((f) =>
+      /length\s*===\s*0\s*\|\|\s*'[a-z_]+'\s+in\s/.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+    const hook = code(path.join(APP, 'hooks/useDocumentControl.js'));
+    expect(hook).toMatch(/from\('documents'\)\.select\('review_period_months'\)\.limit\(1\)/);
+  });
+
+  it('every page that saves reads the save\'s warning, so a dropped field is never a plain success', () => {
+    const savers = files.filter((f) => /\.jsx$/.test(f)
+      && /await\s+(createDocument|updateDocument|retireDocument|issueDocument|decideWorkflow|submitForReview)\(/.test(code(f)));
+    expect(savers.length).toBeGreaterThan(2);
+    const offenders = savers.filter((f) => !/\.warning\b/.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
+
+  it('a review outcome is computed over one round, never over every task on the revision', () => {
+    const hook = code(path.join(APP, 'hooks/useDocumentControl.js'));
+    const decide = /const decideWorkflow = async[\s\S]*?\n  };/.exec(hook)[0];
+    expect(decide).toMatch(/reviewOutcome\(round\)/);
+    expect(decide).toMatch(/roundOf\(/);
+    expect(decide).not.toMatch(/reviewOutcome\(siblings\)/);
+    // A decided round closes what it no longer needs.
+    expect(decide).toMatch(/status: CLOSED_TASK_STATUS/);
+    expect(decide).toMatch(/\.eq\('status', 'Pending'\)/);
+  });
+
+  it('nothing outside the payload module decides "pending" by status alone', () => {
+    const offenders = files.filter((f) => !/utils\/documentPayload\.js$/.test(f)
+      && /revision_id\s*===\s*\w+\.id\s*&&\s*w\.status\s*===\s*'Pending'/.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
+
+  it('the New document page offers Purpose and Review period only where they can be saved', () => {
+    const page = code(path.join(APP, 'NewDocument.jsx'));
+    expect(page).toMatch(/hasAs4Schema \? \(\s*<div className="space-y-2">\s*<Label htmlFor="description">/);
+    expect(page).toMatch(/hasAs4Schema \? \(\s*<div className="space-y-2">\s*<Label htmlFor="review_period_months">/);
+    const notice = read(path.join(APP, 'components/SharedComponents.jsx'));
+    expect(notice).toMatch(/the purpose, review periods/);
+  });
 });

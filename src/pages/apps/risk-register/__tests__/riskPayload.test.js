@@ -13,6 +13,7 @@ import path from 'path';
 import {
   AS2_COLUMNS,
   RISK_REGISTER_WRITABLE_COLUMNS,
+  appetitePreview,
   as2ValuesEntered,
   buildRiskWrite,
   nextCodeFromExisting,
@@ -21,6 +22,7 @@ import {
   parseTags,
   resolveRiskCodes,
 } from '../utils/riskPayload';
+import { getAppetiteStatus } from '@/lib/riskScoring';
 
 const ROOT = path.resolve(__dirname, '../../../../..');
 
@@ -304,5 +306,34 @@ describe('AS13: editing a risk keeps its links as stored', () => {
 
   it('never links a risk to itself', () => {
     expect(planLinkChanges(ME, [], [ME])).toEqual({ toDelete: [], toInsert: [] });
+  });
+});
+
+describe('AS13 hardening: the form shows the appetite the detail page shows', () => {
+  it('a target with no residual assessment is judged on the inherent score, not "Not assessed" alone', () => {
+    const form = { likelihood: 4, impact: 4, residual_likelihood: '', residual_impact: '', target_score: 6 };
+    expect(getAppetiteStatus(form)).toBe('Above appetite');
+    const line = appetitePreview(form);
+    expect(line).toMatch(/Not assessed, so this risk is carried at its inherent score/);
+    expect(line).toMatch(/Appetite: Above appetite \(target 6\)/);
+  });
+
+  it('within appetite on the inherent score says so', () => {
+    expect(appetitePreview({ likelihood: 1, impact: 2, target_score: 6 })).toMatch(/Appetite: Within appetite/);
+  });
+
+  it('with a residual assessment, the line is the engine answer alone', () => {
+    const form = { likelihood: 5, impact: 5, residual_likelihood: 1, residual_impact: 2, target_score: 6 };
+    expect(appetitePreview(form)).toBe(`Appetite: ${getAppetiteStatus(form)} (target 6)`);
+  });
+
+  it('with no target, Not set', () => {
+    expect(appetitePreview({ likelihood: 3, impact: 3 })).toMatch(/Appetite: Not set$/);
+  });
+
+  it('RiskForm renders appetitePreview, not its own words', () => {
+    const src = fs.readFileSync(path.join(__dirname, '../components/forms/RiskForm.jsx'), 'utf8');
+    expect(src).toMatch(/appetitePreview\(formData\)/);
+    expect(src).not.toMatch(/hasResidual\s*\?\s*`Appetite/);
   });
 });

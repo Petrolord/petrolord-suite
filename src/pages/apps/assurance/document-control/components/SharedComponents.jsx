@@ -64,7 +64,8 @@ export const DetailField = ({ label, children }) => (
 export const SchemaNotice = () => (
   <div className="mb-4 p-3 rounded-lg border border-[hsl(var(--warning))]/30 bg-[hsl(var(--warning))]/5 text-sm text-[hsl(var(--muted-foreground))]">
     This database does not have the AS4 document control schema yet, so
-    revision files, review periods and supersession links are unavailable.
+    the purpose, review periods, revision files and supersession links are
+    unavailable.
     Everything else works. Ask your administrator to apply migration
     20260917200000.
   </div>

@@ -83,7 +83,7 @@ export default {
       id: 'limits',
       title: 'What the app does not do',
       bullets: [
-        'The database update that adds regimes, types, expiry dates, lead times, lifecycles, filings and obligation codes (migration 20260917100000) is held for a database update. Until it is applied, the app shows a notice, the form shows only Title, Regulator, Facility or asset and Next due date, Record a filing is not offered, and obligations have no code.',
+        'The database update that adds regimes, types, expiry dates, lead times, lifecycles, filings and obligation codes (migration 20260917100000) is held for a database update. Until it is applied, the app shows a notice, the form shows only Title, Regulator, Facility or asset and Next due date, the regulator form leaves out Website and Notes, Record a filing is not offered, and obligations have no code. The app asks the database which columns it has, so this holds for an empty register too. A save that could not store a value you entered says what was not saved.',
         'A One-off obligation is discharged once a filing is recorded against it: it reads Compliant from then on, even after its due date, unless its permit expires. An Other obligation has no schedule either, so recording a filing leaves its due date as it is; set the next due date yourself.',
         'A filing that clears one period of a repeating obligation moves the due date on by one period only. If several periods were missed, record each one.',
         'There is no owner field on the form, so obligations are not assigned to a person.',

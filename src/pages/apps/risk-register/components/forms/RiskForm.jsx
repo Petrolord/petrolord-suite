@@ -6,10 +6,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { RISK_CATEGORIES, LIKELIHOOD_LEVELS, IMPACT_LEVELS } from '../../constants';
-import { calculateResidualScore, calculateRiskScore, getAppetiteStatus } from '@/lib/riskScoring';
+import { calculateResidualScore, calculateRiskScore } from '@/lib/riskScoring';
 import { RiskScoreBadge } from '../RiskBadges';
 import { Save, X, Loader2, Tag, Link } from 'lucide-react';
-import { AS2_SCHEMA_MESSAGE } from '../../utils/riskPayload';
+import { AS2_SCHEMA_MESSAGE, appetitePreview } from '../../utils/riskPayload';
 
 export const RiskForm = ({ initialData = {}, onSubmit, onCancel, isSubmitting, hasAs2Schema = true }) => {
   const [formData, setFormData] = useState({
@@ -34,8 +34,8 @@ export const RiskForm = ({ initialData = {}, onSubmit, onCancel, isSubmitting, h
 
   const currentScore = calculateRiskScore(formData.likelihood, formData.impact);
   const residualScore = calculateResidualScore(formData);
-  const hasResidual = Boolean(formData.residual_likelihood || formData.residual_impact);
-  const appetite = getAppetiteStatus(formData);
+  // The same answer the detail page and the stored appetite_status give.
+  const appetite = appetitePreview(formData);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -188,9 +188,7 @@ export const RiskForm = ({ initialData = {}, onSubmit, onCancel, isSubmitting, h
                 <div className="flex-1">
                   <span className="text-slate-400 text-sm font-medium block mb-1">Residual risk score</span>
                   <span className="text-xs text-slate-500 block">
-                    {hasResidual
-                      ? `Appetite: ${appetite}`
-                      : 'Not assessed, so this risk is carried at its inherent score'}
+                    {appetite}
                   </span>
                 </div>
                 <RiskScoreBadge score={residualScore} className="text-lg px-4 py-1" />

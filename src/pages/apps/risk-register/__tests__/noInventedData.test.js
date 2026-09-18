@@ -153,4 +153,18 @@ describe('no invented data in the risk register', () => {
     const dashboard = code(path.join(APP, 'RiskRegisterDashboardPage.jsx'));
     expect(dashboard).not.toMatch(/Top Critical & High Risks/);
   });
+
+  it('no component words an appetite answer of its own (AS13 hardening)', () => {
+    // RiskForm read "Not assessed" with no appetite for a risk the
+    // detail page judged Above appetite on its inherent score. Appetite
+    // words come from getAppetiteStatus (or appetitePreview) only.
+    const offenders = files.filter((f) => !/utils\/riskPayload\.js$/.test(f)
+      && /`Appetite: \$\{/.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
+
+  it('an empty register is probed for its columns, not assumed current', () => {
+    const hook = code(path.join(APP, 'hooks/useRiskRegister.js'));
+    expect(hook).toMatch(/from\('risk_register'\)\.select\('target_score'\)\.limit\(1\)/);
+  });
 });

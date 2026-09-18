@@ -187,4 +187,24 @@ describe('no invented data in Regulatory Compliance', () => {
       /recorded in audit log|would open here|coming soon|Contacting support/i.test(code(f)));
     expect(offenders.map(rel)).toEqual([]);
   });
+
+  it('an empty register is never read as proof of the new schema (AS13 hardening)', () => {
+    // `if (rows.length && !('lifecycle' in rows[0])) as3 = false;` left
+    // an empty register on the new schema by assumption.
+    const hook = code(path.join(APP, 'hooks/useRegulatoryCompliance.js'));
+    expect(hook).not.toMatch(/rows\.length\s*&&\s*!\('lifecycle' in rows\[0\]\)\)\s*as3\s*=\s*false/);
+    expect(hook).toMatch(/from\('regulatory_obligations'\)\.select\('lifecycle'\)\.limit\(1\)/);
+  });
+
+  it('every page that saves reads the save\'s warning, so a dropped field is never a plain success', () => {
+    const savers = files.filter((f) => /\.jsx$/.test(f)
+      && /await\s+(createObligation|updateObligation|createAuthority|updateAuthority|recordSubmission)\(/.test(code(f)));
+    expect(savers.length).toBeGreaterThan(1);
+    const offenders = savers.filter((f) => !/\.warning\b/.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
+
+  it('the obligation form page shows the schema notice', () => {
+    expect(code(path.join(APP, 'NewCompliance.jsx'))).toMatch(/!hasAs3Schema \? <SchemaNotice \/> : null/);
+  });
 });

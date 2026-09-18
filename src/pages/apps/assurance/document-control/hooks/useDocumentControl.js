@@ -8,6 +8,9 @@ import {
   toDateOnlyString,
 } from '@/lib/documentControl';
 import {
+  CLOSED_TASK_STATUS,
+  as4SchemaMessage,
+  as4ValuesEntered,
   buildDocumentWrite,
   buildRevisionWrite,
   buildWorkflowRows,
@@ -15,12 +18,16 @@ import {
   documentStatusAfterReview,
   prefixFor,
   reviewOutcome,
+  roundOf,
   storagePathFor,
+  tasksToClose,
   validateReviewers,
   validateRetirement,
 } from '../utils/documentPayload';
 
 const UNKNOWN_COLUMN = 'PGRST204';
+/** Postgres: undefined column, what a select naming an absent column returns. */
+const UNDEFINED_COLUMN = '42703';
 const UNKNOWN_RELATION = 'PGRST200';
 const UNDEFINED_TABLE = '42P01';
 const UNDEFINED_FUNCTION = '42883';
@@ -120,7 +127,19 @@ export const useDocumentControl = () => {
         .from('doc_categories').select('*').eq('org_id', orgId).order('name');
       if (catRes.error) throw catRes.error;
 
-      let as4 = docs.length === 0 || 'review_period_months' in docs[0];
+      let as4;
+      if (docs.length) {
+        as4 = 'review_period_months' in docs[0];
+      } else {
+        // An empty library cannot show us its columns, so ask for one,
+        // as useRiskRegister does. Assuming the new schema here offered
+        // the full form on the first document of every organization on
+        // an unapplied database, and the save then dropped the purpose
+        // and review period while reporting success (AS13).
+        const probe = await supabase.from('documents').select('review_period_months').limit(1);
+        as4 = !(probe.error
+          && (probe.error.code === UNDEFINED_COLUMN || probe.error.code === UNKNOWN_COLUMN));
+      }
 
       const ids = docs.map((d) => d.id);
       let revs = [];
@@ -351,12 +370,20 @@ export const useDocumentControl = () => {
       await logActivity(data.id, 'Document registered', { document_number: number });
       await fetchAll();
 
+      // A save without the AS4 columns that carried values for them is
+      // never a plain success: the user is told what was not stored.
+      const lost = as4 ? [] : as4ValuesEntered(form);
+      const warnings = [
+        lost.length ? as4SchemaMessage(lost) : null,
+        revResult.success ? revResult.warning : revResult.error,
+      ].filter(Boolean);
+
       return {
         success: true,
         data,
         // The first revision, so the caller can send it for review.
         revision: revResult.success ? revResult.data : null,
-        warning: revResult.success ? revResult.warning : revResult.error,
+        warning: warnings.length ? warnings.join(' ') : null,
       };
     }
     return { success: false, error: 'Could not allocate a document number. Try again in a moment.' };
@@ -373,7 +400,8 @@ export const useDocumentControl = () => {
       if (!err) {
         if (activity) await logActivity(id, activity);
         if (refresh) await fetchAll();
-        return { success: true, data };
+        const lost = as4 ? [] : as4ValuesEntered(form);
+        return { success: true, data, warning: lost.length ? as4SchemaMessage(lost) : null };
       }
       if (err.code === UNKNOWN_COLUMN && as4) {
         as4 = false; setHasAs4Schema(false); continue;
@@ -495,12 +523,13 @@ export const useDocumentControl = () => {
     });
     if (!result.success) return result;
 
-    let warning = null;
+    let warning = result.warning || null;
     if (rev) {
       const { error: revErr } = await supabase
         .from('doc_revisions').update({ status: 'Published' }).eq('id', rev.id);
       if (revErr) {
-        warning = `The document was published, but revision ${rev.revision_number} could not be marked Published: ${revErr.message}`;
+        warning = [warning, `The document was published, but revision ${rev.revision_number} could not be marked Published: ${revErr.message}`]
+          .filter(Boolean).join(' ');
       }
     }
     await fetchAll();
@@ -563,18 +592,59 @@ export const useDocumentControl = () => {
    * document's current revision.
    */
   const decideWorkflow = async (workflow, status, comments) => {
-    const { error: err } = await supabase
+    // Only a Pending task can be decided. A task closed because its
+    // round was decided, or decided a moment ago by someone else, is
+    // not overwritten.
+    const { data: decided, error: err } = await supabase
       .from('doc_workflows')
       .update({ status, comments: comments || null, completed_at: new Date().toISOString() })
-      .eq('id', workflow.id);
+      .eq('id', workflow.id)
+      .eq('status', 'Pending')
+      .select();
     if (err) return { success: false, error: err.message };
+    if (Array.isArray(decided) && decided.length === 0) {
+      await fetchAll();
+      return {
+        success: false,
+        error: 'This review task is no longer pending. Its round may already have been decided.',
+      };
+    }
 
     const document = documents.find((d) => d.id === workflow.document?.id) || workflow.document;
-    const siblings = workflows
-      .filter((w) => w.revision_id === workflow.revision_id)
+
+    // AS13 hardening: the outcome is the outcome of THIS round only.
+    // Read the revision's tasks fresh, so a decision another reviewer
+    // recorded a moment ago counts; fall back to what is loaded.
+    let revisionTasks = workflows.filter((w) => w.revision_id === workflow.revision_id);
+    const fresh = await supabase
+      .from('doc_workflows').select('*').eq('revision_id', workflow.revision_id);
+    if (!fresh.error && Array.isArray(fresh.data) && fresh.data.length) revisionTasks = fresh.data;
+    const round = roundOf(revisionTasks, workflow)
       .map((w) => (w.id === workflow.id ? { ...w, status } : w));
-    const outcome = reviewOutcome(siblings);
+    const outcome = reviewOutcome(round);
     const problems = [];
+
+    // A decided round closes the tasks it no longer needs, so a
+    // rejection does not leave the other reviewers' tasks Pending in the
+    // queue, holding up a new revision or a new round.
+    const closing = tasksToClose(round, outcome);
+    let closedNote = null;
+    if (closing.length) {
+      const { error: closeErr } = await supabase
+        .from('doc_workflows')
+        .update({
+          status: CLOSED_TASK_STATUS,
+          completed_at: new Date().toISOString(),
+          comments: `Closed without a decision: the review round was ${outcome.toLowerCase()}.`,
+        })
+        .in('id', closing.map((w) => w.id))
+        .eq('status', 'Pending');
+      if (closeErr) {
+        problems.push(`the other reviewers' tasks were not closed (${closeErr.message})`);
+      } else {
+        closedNote = `${closing.length} review task${closing.length === 1 ? '' : 's'} closed without a decision: the round was ${outcome.toLowerCase()}`;
+      }
+    }
 
     if (outcome !== 'In Review') {
       const revPatch = outcome === 'Approved'
@@ -598,10 +668,12 @@ export const useDocumentControl = () => {
     await logActivity(document?.id,
       `Review ${status.toLowerCase()}${workflow.revision?.revision_number ? ` on revision ${workflow.revision.revision_number}` : ''}`,
       comments ? { comments } : null);
+    if (closedNote) await logActivity(document?.id, closedNote);
     await fetchAll();
     return {
       success: true,
       outcome,
+      closed: closedNote ? closing.length : 0,
       warning: problems.length
         ? `The decision was recorded, but ${problems.join(' and ')}.`
         : null,
