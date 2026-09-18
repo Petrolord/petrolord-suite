@@ -429,7 +429,7 @@ export default function QAPlanDetail() {
                             ) : null}
                           </td>
                           <td className="data-grid-td text-xs">
-                            {c.planned_date || '—'}
+                            {c.planned_date || '-'}
                             {isCheckpointOverdue(c) ? (
                               <span className="block text-[hsl(var(--destructive))]">Overdue</span>
                             ) : null}
@@ -446,7 +446,7 @@ export default function QAPlanDetail() {
                                   </span>
                                   {c.remarks ? <span className="block italic">{c.remarks}</span> : null}
                                 </>
-                              : '—'}
+                              : '-'}
                           </td>
                           <td className="data-grid-td whitespace-nowrap">
                             {locked ? null : !isResolved(c) || c.status === 'Failed' ? (

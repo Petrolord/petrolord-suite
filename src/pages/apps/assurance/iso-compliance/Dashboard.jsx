@@ -93,7 +93,7 @@ export default function Dashboard() {
         <EmptyState
           icon={<ShieldCheck className="w-12 h-12" />}
           title="No management system standards yet"
-          description="Add the standards this organization runs — ISO 9001, 14001, 45001 or any other — and its clause register, internal audits and findings hang off them."
+          description="Add the standards this organization runs, such as ISO 9001, 14001 or 45001. The clause register, internal audits and findings hang off them."
           action={<Button onClick={() => navigate(`${BASE}/standards`)}>Add a standard</Button>}
         />
       </ISOShell>

@@ -159,7 +159,7 @@ export default function Register() {
                           ) : null}
                         </td>
                         <td className="data-grid-td text-[hsl(var(--muted-foreground))]">
-                          {p.department || p.discipline || '—'}
+                          {p.department || p.discipline || '-'}
                         </td>
                         <td className="data-grid-td">
                           <div className="flex items-center gap-2">
