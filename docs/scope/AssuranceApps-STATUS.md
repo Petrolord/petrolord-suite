@@ -1658,12 +1658,15 @@ Q7 and Q8 were already decided in AS13-0.
 (`assurance-launch-apply.sh schema`, upload, `activate`), the commerce
 migration (second engineer), and the private `documents` bucket.
 
-## 3o. ASC-0 part 1, built 2026-09-18: four app defects the NextGen course found
+## 3o. ASC-0, built 2026-09-18: the app repairs and peer review segregation of duties the NextGen courses found
 
-The NextGen Assurance course foundations (recon RC-5 to RC-8) found four
-defects in the Suite apps. The engines were correct in each case. Branch
-`fix/asc0-suite-app-repairs`; part 2 (the re-vendor of the engine repairs
-and peer review segregation of duties) follows on the same branch.
+The NextGen Assurance course foundations (recon RC-1 to RC-11) found four
+defects in the Suite apps (part 1, engines correct in each case) and a set
+of engine defects repaired in engines #212 (part 2: re-vendor, app
+adaptation, and peer review segregation of duties). Branch
+`fix/asc0-suite-app-repairs`.
+
+### Part 1: app defects
 
 | # | Defect | Repair |
 |---|---|---|
@@ -1685,6 +1688,53 @@ passes after; a source guard keeps `toISOString().slice(0, 10)` and date
 columns stamped as instants out of the MOC and peer review trees and the
 hub. All 62 assurance suites pass under UTC, Africa/Lagos and
 Pacific/Pago_Pago.
+
+### Part 2: engines #212 vendored, the apps adapted, D1 for peer review
+
+**Re-vendor.** `packages/engines` moved from 6b00f43 to 9d5d3b4 (engines
+#212) by file-by-file copy of the 47 paths the range touched (45 modified,
+2 added). VENDOR.json pins 9d5d3b486493; VENDOR.manifest was regenerated
+from `git ls-tree` at that commit (810 paths). The guard reports 810 paths
+byte for byte, 0 deviations, and `diff -r` of `git archive 9d5d3b4`
+against the vendored tree differs only in VENDOR.json and VENDOR.manifest.
+
+**Adaptations.**
+- ISO: `canSetClauseStatus` takes the register's standard as its fourth
+  argument in the hook (create and assess) and the clause register's
+  preview gate, so a refusal cites that standard (ISO 9001 §4.3 only on
+  a 9001 register). `certificateExpiring` no longer covers a lapsed
+  certificate, so the Standards page flags the date on either flag
+  (`certificateFlagged`) and reads "(today)" on the day of expiry.
+- Peer review: `summarise()` skips comments on Closed or Cancelled
+  reviews. The register's open comment column (and CSV) and the
+  dashboard's blocking list ask the same function (`utils/liveComments`).
+- Calendar: `shared/instantDates` formats the engine's new `localDateOf`
+  (through `src/lib/assuranceCalendar`).
+- MOC `isOverdue` (Implementation is no longer overdue), risk
+  `isReviewOverdue` (live risks only), One-off `explainStatus` wording,
+  half-up percentages and the audit outstanding count needed no app code;
+  the help states each, and `asc0HelpClaims` holds each sentence to the
+  engine.
+
+**Peer review segregation of duties (owner decision D1).** The author of
+the work under review (`peer_reviews.author_id`) is never its Lead Reviewer
+or a Reviewer, and never verifies, rejects or withdraws a comment on it.
+- App: New Review names the author (member or typed name) and picks
+  roster members; the hook refuses with the engine's reason
+  (`canAssignPeerReviewer`, `canActOnComment`); a refused comment move is
+  disabled with the reason underneath.
+- Database: migration `20260919100000_asc0_peer_review_segregation.sql`,
+  **HELD, owner-run**. Three triggers in the AS15 style (actor checks
+  only when `auth.uid()` is set, cascades exempt). Live data read
+  read-only first: 6 reviews, none with an author or lead, 0 participants,
+  2 comments, none reviewer-moved. Scratch pentest `run-asc0-pentest.sh`:
+  the negative control fails all 9 refusals, then 17/17 pass, twice.
+
+Verification for part 2: all 68 assurance suites pass (3676 tests) under
+UTC, Africa/Lagos and Pacific/Pago_Pago; `NODE_OPTIONS=--experimental-global-webcrypto npx vite build` passes.
+
+**What remains for the owner:** apply the ASC-0 migration (staging, then
+production), and upload a build.
 
 ## 4. How AS1 was verified
 
