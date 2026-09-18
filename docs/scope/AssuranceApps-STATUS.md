@@ -3,8 +3,11 @@
 Plan of record: `docs/scope/Assurance-ROADMAP.md`.
 Wave: **AS1 (foundations) and AS2 (Risk Register) BUILT 2026-09-16;
 AS3 to AS10 (all eight remaining apps) BUILT 2026-09-17**, migrations
-held; **AS11 (the hub) and AS12 (`engines/assurance`, 13 engine
-defects repaired) BUILT 2026-09-18**, no migration.
+held; **AS11 (the hub), AS12 (`engines/assurance`, 13 engine defects
+repaired) and AS13 (help, manual, 94 app repairs, launch) BUILT
+2026-09-18**. The launch is ONE owner-run script:
+`tools/validation/assurance/assurance-launch-apply.sh schema`, upload,
+then `... activate`.
 
 This file replaces a document that carried the same name and described
 the Economics E4 apps. That content now lives at
@@ -1348,6 +1351,151 @@ as 0. The repaired module gives `false` and 8.
 11. Two AS10 rules (N/A needs a reason; a cancelled audit needs a
     reason) are enforced at write time by constraints and forms. The
     engine trusts the stored status.
+
+## 3l. AS13, built 2026-09-18: help, manual, repairs and the launch
+
+AS13 was planned as "help guides, user manual, launch". Writing the help
+and the manual meant reading every app against its code. That reading
+found the module was **not ready to launch**, so the wave also became
+the largest repair pass of the programme.
+
+### 3l.1 What the help and manual writers found
+
+The first pass was nine help guides, each written against its app's
+code. It listed **81 application defects**. The worst:
+
+- **The Audit & Findings Manager could never report an audit.** The
+  "Issue the report" button was gated on a conclusion that only that
+  same button saved, so no audit could be Reported or Closed. The only
+  way a programme could complete was for every audit in it to be
+  cancelled.
+- **Document Control had no way to put a revision in the approval
+  queue.** `doc_workflows` rows were read and updated but never
+  inserted. A document could also be published with no review decision,
+  and once published it could never be re-issued.
+- **Opening a QA plan landed on the Dashboard.** Every link pointed at
+  `plan/:id`, a route the shell never declared.
+- **A One-off regulatory obligation filed on time turned Overdue for
+  good.** This is an engine rule, repaired in AS13-0.
+- The Risk Register:
+  - Edits could not clear a value.
+  - Every edit flipped incoming links to outgoing and duplicated them.
+  - Export History held invented entries ("Q2 Board Pack").
+  - Six controls toasted success and did nothing.
+- MOC:
+  - A temporary draft saved without an expiry date was stuck in Draft
+    forever. A database check blocked every move out of Draft, Cancel
+    included.
+  - The "Support Guide" button did nothing.
+  - The header search ignored what was typed.
+- "Leave blank to record yourself" was refused on three forms, because
+  the gate ran before the current user was filled in.
+- The ISO 19011 and lead-auditor independence checks never fired from
+  the UI, because the forms set typed names only.
+- Deleting a checklist question cascaded away its answers from Reported
+  audits.
+- Final records could still be edited in three apps.
+- Hard deletes had no confirmation.
+- Nine CSV exports downloaded as `.csv.csv`.
+- On small screens, three apps had no menu at all.
+
+The second pass was the user manual, written against the repaired code.
+It found **13 more**:
+
+- A rejected document revision could never be approved on a second
+  review, because the outcome counted the old rejection.
+- On an EMPTY register, Regulatory Compliance and Document Control
+  assumed the new schema. Before their migrations are applied, the first
+  save silently dropped fields and reported success. That is the likely
+  first use in production.
+- The QA hook stamped dates in UTC, so near midnight an NCR's age read
+  -1. This is the AS3 defect class again. A sweep fixed 28 sites across
+  four apps, and a guard now fails on the pattern.
+- An Embedded lesson could lose its last application and stay Embedded.
+- An ISO audit's clause scope was still editable after it was Reported.
+
+### 3l.2 What was done
+
+- **Repairs.** Five parallel repair branches, each fix with a
+  regression test. The source guards were extended per defect class and
+  each guard was negative-controlled. No migration was needed for any of
+  it.
+- **Engine rule repairs (engines #209, AS13-0).**
+  - A filed One-off obligation is Compliant.
+  - A HOLD point set Not applicable needs the waiver's record: the date,
+    who decided and a reason.
+  - A closed temporary change reads "Closed out" instead of "Permanent
+    change". It leaves the expiry report, and the badge still shows it.
+- **Help.** One shared drawer, `src/components/assurance/AssuranceHelp.jsx`,
+  opens from all nine shells and the hub. It shows every section
+  expanded and its search is real. The content lives in
+  `src/data/assuranceHelp/`. It replaced one inaccurate guide and two
+  dead buttons. The guard pins the copy rule and the engine's own
+  numbers (band thresholds, lead days, review periods, the certificate
+  window), so a rule change that forgets its guide fails the suite.
+- **Manual.** `/root/Assurance-Compliance-UserManual-v1-20260918.docx`,
+  13 chapters, about 27,400 words, built by
+  `/root/manual-kit/build_assurance.py`. The per-app chapters are in
+  `/root/manual-kit/assurance/`.
+- **Launch.** `20260918900000_as13_activate_assurance_tiles.sql` (HELD)
+  promotes the seven tiles. After it, Assurance has 10 Active, 0 Coming
+  Soon and 24 Archived.
+  - `tools/validation/assurance/assurance-launch-apply.sh` is the one
+    owner-run script, in two phases:
+    - `schema`: all 14 held AS1-AS10 migrations, each dry-run and then
+      applied.
+    - `activate`: refuses to run until the owner types SERVED,
+      confirming every route loaded on the deployed site.
+  - `as1-apply.sh` is superseded.
+  - `scratch/run-launch-check.sh` rehearses all 15 migrations twice on
+    scratch PG15 and asserts the post-state. It runs a negative control
+    first: the activation before the AS10 seed must skip the unseeded
+    tile, not insert it.
+  - The rehearsal found **a fourth AS1 portability gap**. `as1b` revokes
+    on tables nothing in the repo creates until AS3, so it runs after AS3.
+  - It pins the known RLS rebuild gap (the parent registers) so that
+    list can only shrink.
+
+### 3l.3 Decisions taken (autonomous directive)
+
+- **Launch only after repairing.** Promoting seven tiles over an audit
+  app that could not report an audit would have sold the defect.
+- **A document review is a round.** A rejected revision is resubmitted
+  as a new round, and deciding a round closes its other pending tasks.
+  A Published document stays Published while its next revision is
+  reviewed.
+- **Deletes are narrow.**
+  - MOC and Peer Review: delete is offered only on Drafts.
+  - Findings: only while Open with nothing recorded.
+  - Lessons: only while unvalidated with no applications.
+  - A checklist question: not once any audit holds a row for it.
+  - Everything else is voided or archived, and a confirmation is always
+    shown.
+- **Final records are locked in the UI and in the hook.**
+
+### 3l.4 Still open (AS14 candidates)
+
+- Removing a QA inspection point is not logged, and it gets round the
+  plan-closure gate. An NCR can be raised against a Closed plan.
+- Dashboard counts still include:
+  - open MOC actions on cancelled or rejected changes (engine `summarise`)
+  - points on terminal QA plans
+  - actions on voided NCRs
+- Peer Review:
+  - A new response after a rejection overwrites the stored rejection
+    reason.
+  - Only the latest 200 audit entries are loaded.
+- `saved_reports` (Risk Register reports) exists live but has no
+  schema-backfill migration. It needs a transcription and an
+  RLS/anon-grant check.
+- Deleting a document leaves its files in the bucket.
+- ISO clause results can still change while an audit is Reported.
+- Owner policy, not decided:
+  - segregation of duties (role labels are not enforced; any member
+    decides any MOC gate or document task)
+  - emergency-change approval authority
+  - validation by typed name
+  - plus the §3k.4 engine questions
 
 ## 4. How AS1 was verified
 

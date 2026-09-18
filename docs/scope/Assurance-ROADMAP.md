@@ -1,6 +1,6 @@
 # Petrolord Assurance & Compliance Module — Roadmap
 
-Status: **PROPOSED — awaiting owner sign-off on §7**
+Status: **AS0-AS13 BUILT (2026-09-18). Launch = owner-run `tools/validation/assurance/assurance-launch-apply.sh`. §7 questions proceeded on the recommendation.**
 Scope: the entire Assurance & Compliance module
 This file is the plan of record for the AS series. Per-app plans are
 written per wave against this roadmap.
@@ -305,7 +305,7 @@ repo conventions. Every wave ends with the relevant STATUS doc updated.
 | **AS10** | Audit & Findings Manager (new) | **BUILT 2026-09-17**, migrations held |
 | **AS11** | The Assurance hub: real cross-app analytics over all nine apps | **BUILT 2026-09-18**, no migration |
 | **AS12** | `engines/assurance` extraction with goldens and an independent oracle | **BUILT 2026-09-18** (engines #207/#208), 13 defects repaired |
-| **AS13** | Help guides, user manual, launch | needs all |
+| **AS13** | Help guides, user manual, launch | **BUILT 2026-09-18**: 94 app defects repaired first; activation HELD behind `assurance-launch-apply.sh` |
 
 The two NextGen assurance courses unlock at AS12, not before. That is
 the whole point of the §9 deferral: the capstone needs an engine with an
