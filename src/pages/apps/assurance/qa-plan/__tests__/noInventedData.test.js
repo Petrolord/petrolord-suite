@@ -286,6 +286,16 @@ describe('no invented data in Quality Assurance Plan', () => {
     expect(gate).toBeGreaterThan(fill);
   });
 
+  it('never says only hold points hold a plan open (failed points and open NCRs do too)', () => {
+    const help = read(path.join(ROOT, 'src/data/assuranceHelp/quality.js'));
+    const texts = files.filter((f) => !f.includes('__tests__')).map(read).concat(help);
+    texts.forEach((t) => {
+      expect(t).not.toMatch(/only (the )?hold points? (hold|holds)/i);
+      expect(t).not.toMatch(/only (point )?type that holds a plan open\./i);
+      expect(t).not.toMatch(/The only type that holds a plan open/i);
+    });
+  });
+
   it('a terminal plan is locked on the page and in the hook', () => {
     expect(code(path.join(APP, 'QAPlanDetail.jsx'))).toMatch(/planLockReason\(plan\)/);
     const hook = code(path.join(APP, 'hooks/useQualityAssurance.js'));

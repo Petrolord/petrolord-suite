@@ -394,7 +394,7 @@ export const useQualityAssurance = () => {
     const locked = planLockReason(plans.find((p) => p.id === checkpoint.plan_id));
     if (locked) return { success: false, error: locked };
 
-    const filled = withDecisionDefaults(patch, status, user?.id || null);
+    const filled = withDecisionDefaults(patch, status, user?.id || null, new Date(), checkpoint);
     const verdict = canDecideCheckpoint(checkpoint, status, filled);
     if (!verdict.ok) return { success: false, error: verdict.reason };
 

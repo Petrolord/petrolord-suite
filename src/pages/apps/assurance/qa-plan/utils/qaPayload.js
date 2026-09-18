@@ -23,6 +23,7 @@ import {
   CHECKPOINT_DECIDED_STATUSES,
   NCR_TERMINAL_STATUSES,
   PLAN_TERMINAL_STATUSES,
+  isBlockingPoint,
   isCapaOpen,
   toDateOnlyString,
 } from '@/lib/qualityAssurance';
@@ -255,7 +256,7 @@ export const validateCapa = (form = {}) => {
  * What the form must add before a checkpoint can be marked decided.
  * The database refuses the write; this names the field first.
  */
-export const validateCheckpointDecision = (form = {}) => {
+export const validateCheckpointDecision = (form = {}, checkpoint = null) => {
   const errors = {};
   if (!form.result_date) errors.result_date = 'Record the date this was decided.';
   if (!form.verified_by && !String(form.verifier_name || '').trim()) {
@@ -265,12 +266,32 @@ export const validateCheckpointDecision = (form = {}) => {
   if (form.status === 'Waived' && !String(form.remarks || '').trim()) {
     errors.remarks = 'Say why it is being waived.';
   }
+  if (form.status === 'Not applicable' && isBlockingPoint(checkpoint || {})
+    && !String(form.remarks || '').trim()) {
+    errors.remarks = 'Say why this hold point does not apply.';
+  }
   return errors;
 };
 
 /* ------------------------------------------------------------------ */
 /* AS13 repairs                                                       */
 /* ------------------------------------------------------------------ */
+
+/**
+ * Does recording `status` on this checkpoint need a verification record
+ * (a date and who decided it)? Every decision does. So does setting a
+ * HOLD point to Not applicable: it clears the hold for plan closure just
+ * as a waiver does, so the engine asks for the same record plus a reason
+ * (AS13-0).
+ */
+export const needsDecisionRecord = (checkpoint, status) =>
+  CHECKPOINT_DECIDED_STATUSES.includes(status)
+  || (status === 'Not applicable' && isBlockingPoint(checkpoint || {}));
+
+/** Does recording `status` on this checkpoint need a written reason? */
+export const needsDecisionReason = (checkpoint, status) =>
+  status === 'Waived'
+  || (status === 'Not applicable' && isBlockingPoint(checkpoint || {}));
 
 /**
  * The decision patch as it will be written, with the defaults applied.
@@ -281,12 +302,18 @@ export const validateCheckpointDecision = (form = {}) => {
  * Failed and Waived result recorded without a typed name. The defaults
  * are applied here, first, and the gate then judges the real row.
  *
+ * AS13 hardening: a HOLD point set to Not applicable gets the same
+ * defaults (pass the checkpoint), so the engine's new rule asks the user
+ * only for the reason.
+ *
  * No user and no typed name leaves the verifier empty, and the gate
  * refuses: nobody is invented.
  */
-export const withDecisionDefaults = (patch = {}, status, userId, today = new Date()) => {
+export const withDecisionDefaults = (
+  patch = {}, status, userId, today = new Date(), checkpoint = null,
+) => {
   const row = { ...patch };
-  if (!CHECKPOINT_DECIDED_STATUSES.includes(status)) return row;
+  if (!needsDecisionRecord(checkpoint, status)) return row;
   if (!row.result_date) row.result_date = toDateOnlyString(today);
   if (String(row.verifier_name || '').trim()) {
     // A named verifier with no Suite login. The name is the record; a

@@ -20,8 +20,9 @@ import {
   isResolved,
   nextPlanStatuses,
   planProgress,
+  toDateOnlyString,
 } from '@/lib/qualityAssurance';
-import { planLockReason, validateCheckpoint } from './utils/qaPayload';
+import { needsDecisionReason, planLockReason, validateCheckpoint } from './utils/qaPayload';
 import { QAPlanShell, BASE } from './components/QAPlanShell';
 import {
   ConfirmDelete, DetailField, EmptyState, ErrorState, GateNotice, Loading, MetricTile,
@@ -47,6 +48,14 @@ import { useQualityAssurance } from './hooks/useQualityAssurance';
  * Both buttons on the page — Add Checkpoint and View — toasted a
  * dialog that does not exist.
  */
+
+/** The Remarks label suffix: which results must say why. */
+const decisionReasonLabel = (checkpoint, status) => {
+  if (!needsDecisionReason(checkpoint, status)) return '';
+  return status === 'Waived'
+    ? ': why it is being waived (required)'
+    : ': why this hold point does not apply (required)';
+};
 
 const blankRow = () => ({
   item_no: '',
@@ -137,7 +146,7 @@ export default function QAPlanDetail() {
     setDeciding(checkpoint);
     setDecision({
       status: 'Passed',
-      result_date: new Date().toISOString().slice(0, 10),
+      result_date: toDateOnlyString(new Date()),
       verifier_name: '',
       remarks: '',
     });
@@ -146,6 +155,12 @@ export default function QAPlanDetail() {
   const submitDecision = async (e) => {
     e.preventDefault();
     setFailure(null);
+    if (needsDecisionReason(deciding, decision.status) && !String(decision.remarks || '').trim()) {
+      setFailure(decision.status === 'Waived'
+        ? 'Say why this point is being waived in Remarks.'
+        : 'Say why this hold point does not apply in Remarks. It stops work until released, so setting it aside needs a reason on the record.');
+      return;
+    }
     setBusy(true);
     const result = await decideCheckpoint(deciding, decision.status, {
       result_date: decision.result_date || null,
@@ -266,7 +281,7 @@ export default function QAPlanDetail() {
               <div>
                 <CardTitle className="text-lg">Inspection and test plan</CardTitle>
                 <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
-                  Only the hold points hold this plan open.
+                  Open hold points, failed points of any type and open non-conformances keep this plan open.
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -467,7 +482,8 @@ export default function QAPlanDetail() {
                   {isBlockingPoint(deciding) ? (
                     <p className="text-xs text-[hsl(var(--muted-foreground))]">
                       This is a hold point. Work stopped here until it was verified, so the
-                      date and the verifier are both required.
+                      date and the verifier are both required, also when it is set to Not
+                      applicable. A blank verifier records you.
                     </p>
                   ) : null}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -499,9 +515,10 @@ export default function QAPlanDetail() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium" htmlFor="dec-remarks">
-                      Remarks{decision.status === 'Waived' ? ': why it is being waived (required)' : ''}
+                      Remarks{decisionReasonLabel(deciding, decision.status)}
                     </label>
                     <Textarea id="dec-remarks" value={decision.remarks}
+                      required={needsDecisionReason(deciding, decision.status)}
                       onChange={(e) => setDecision((d) => ({ ...d, remarks: e.target.value }))}
                       className="min-h-[60px]" />
                   </div>

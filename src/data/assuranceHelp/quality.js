@@ -27,9 +27,9 @@ export default {
       id: "rules",
       title: "Rules the app enforces",
       bullets: [
-        "A hold point stops work until verified, and it is the only point type that holds a plan open. A hold point cannot be saved without acceptance criteria.",
+        "A hold point stops work until verified, and it is the only point type that holds a plan open while merely unresolved. A failed point of any type, and any open NCR raised against the plan, also keep it from closing. A hold point cannot be saved without acceptance criteria.",
         "Item numbers must be unique within a plan.",
-        "A result of Passed, Failed or Waived needs the date decided and a verifier. Leave 'Verifier, if not you' blank and you are recorded as the verifier; type a name for someone with no Suite login. A Waived result also needs a reason in Remarks.",
+        "A result of Passed, Failed or Waived needs the date decided and a verifier. Leave 'Verifier, if not you' blank and you are recorded as the verifier; type a name for someone with no Suite login. A Waived result also needs a reason in Remarks. A hold point set to Not applicable needs the same date, verifier and reason.",
         "A point is resolved when Passed, Waived or Not applicable. A Failed point stays outstanding.",
         "A plan cannot be Closed while any point has Failed, any hold point is unresolved, or any NCR raised against it is open. The reason appears under 'Move this plan'.",
         "An action needs a description, a type (Corrective or Preventive) and a due date.",
@@ -74,7 +74,7 @@ export default {
       title: "What the app does not do",
       bullets: [
         "Plan details cannot be edited after creation, nor can a point's details (while the plan is live its result can be amended, or the point removed), nor an NCR's title, severity, description, department or due date. NCRs raised before the Department field was added stay Unspecified in the department chart.",
-        "Setting a hold point to Not applicable needs the same record as a waiver: the date, who decided and a reason. Other point types can be marked Not applicable without one.",
+        "Setting a hold point to Not applicable needs the same record as a waiver: the date, who decided and a reason. A blank 'Verifier, if not you' records you, so only the reason must be typed. Other point types can be marked Not applicable without one.",
         "Action owners are recorded as typed names. There are no notifications, attachments, evidence files or cost-of-quality entries, and exports are CSV only.",
         "The whole app needs database migration 20260917500000. Where it is not applied, every page shows a notice and nothing can be stored.",
       ],
@@ -95,7 +95,7 @@ export default {
   glossary: [
     { term: "Quality plan", definition: "The plan for assuring the quality of a scope of work, numbered QAP-year-number." },
     { term: "ITP", definition: "Inspection and test plan: the numbered points at which work is inspected, witnessed or reviewed." },
-    { term: "Hold point", definition: "A point where work stops until the verifying party attends and signs. The only type that holds a plan open." },
+    { term: "Hold point", definition: "A point where work stops until the verifying party attends and signs. The only type that keeps a plan open while unresolved; a failed point of any type and an open NCR also do." },
     { term: "Witness point", definition: "A point where a party is notified and may attend. Work may proceed without them." },
     { term: "Acceptance criteria", definition: "What must be true for a point to pass. Required for a hold point." },
     { term: "Resolved", definition: "A point that is Passed, Waived or Not applicable." },
