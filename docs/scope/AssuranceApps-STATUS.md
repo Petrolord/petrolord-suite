@@ -6,9 +6,11 @@ AS3 to AS10 (all eight remaining apps) BUILT 2026-09-17**, migrations
 held; **AS11 (the hub), AS12 (`engines/assurance`, 13 engine defects
 repaired) and AS13 (help, manual, 94 app repairs, launch) BUILT
 2026-09-18**. **AS14 (the open items, and a live `documents` RLS
-hole) BUILT 2026-09-18.** The launch is ONE owner-run script:
-`tools/validation/assurance/assurance-launch-apply.sh schema` (now 15
-migrations, AS14 included), upload, then `... activate`.
+hole) BUILT 2026-09-18; AS14 MERGED (Suite #518, engines #210). AS15
+(every open owner decision, decided under delegation) BUILT 2026-09-18.**
+The launch is ONE owner-run script:
+`tools/validation/assurance/assurance-launch-apply.sh schema` (now 16
+migrations, AS14 and AS15 included), upload, then `... activate`.
 
 This file replaces a document that carried the same name and described
 the Economics E4 apps. That content now lives at
@@ -1584,9 +1586,9 @@ and the launch script now applies AS14 before activation.
 - jest: engines 2,228 assurance tests. In the Suite, new hook tests for
   every repair and updated source guards.
 
-### 3m.4 Still open
+### 3m.4 Still open after AS14 (decided in AS15, §3n)
 
-- **Owner policy, unchanged:**
+- **Owner policy, unchanged at AS14:**
   - segregation of duties (role labels are not enforced)
   - emergency-change approval authority
   - validation by typed name
@@ -1597,6 +1599,53 @@ and the launch script now applies AS14 before activation.
   header, checked by `node tools/check-vendored-engines.mjs --canonical`.
 - The commerce migration (second engineer) and the `documents` bucket
   are unchanged.
+
+---
+
+## 3n. AS15, built 2026-09-18: the owner decisions
+
+On 2026-09-18 the owner delegated every open Assurance decision ("choose
+the best options based on your judgement"). These are the choices and the
+reasoning. Each holds in the engine (engines PR #211, with extended
+oracles, and the previous engine fails every AS15 case), in the app, and
+where it matters in the database (held migration
+`20260918200000_as15_assurance_owner_decisions.sql`).
+
+| # | Question | Decision | Why |
+|---|---|---|---|
+| D1 | Segregation of duties | An MOC approval and a document review task are decided **only by the member assigned**; an originator never approves their own change, an author never reviews their own revision. Absence is covered by **Reassign** on a pending gate (logged), never by deciding for someone. | Before this any member decided anything, and "Add a gate" assigned whoever clicked it, so an originator could approve their own change. Named authority is the point of an approval. |
+| Q9 | Emergency-change authority | An Emergency change may be implemented once its **first approval level** has signed (no rejection); every other level must **ratify within 7 days**; it **cannot close** until all have. Pending and overdue ratification show on the change, the dashboard and the hub. | CCPS practice: reduced authority up front so the hazard can be dealt with, full review after the event. Requiring every level first defeats the purpose of an emergency route; no follow-up at all makes it a loophole. |
+| Q10 | Validation by typed name | The **actor is always the signed-in user**. A typed validator name records an external reviewer, but the author can never be the one recording it. | The author could validate their own lesson by typing any name. A typed name is fine for somebody without an account; it must not launder the author. |
+| Q1 | Invalid `today` | `deriveStatus` **throws**. | It failed open: every obligation read On track. A caller bug should be loud. |
+| Q2 | Evidence of any age | Evidence counts towards Compliant **only for the current period** (one frequency before the next due date). One-off, Other and undated obligations accept any filing. | A monthly return filed two years ago kept an obligation Compliant for good. |
+| Q3 | Levels like 2.5 | **Unscored.** | The matrix has five whole levels. The database columns are integer already. |
+| Q4 | ISO coverage from unreported audits | Only **Reported or Closed** audits count. | ISO 9001 §9.2.2(c): the results that count are the reported ones. |
+| Q5 | ISO independence for the lead only | **Every examiner**: the person recording a clause result may not own the clause; `examined_by` is stamped. | ISO 19011 applies to every auditor. There is no audit-team table, so the examiner is the recorder. |
+| Q6 | Expired certificate never a blocker | Expired = a **serious** readiness item; expiring within 90 days = **watch**. Neither blocks readiness. | An expired certificate is why a recertification audit is booked, not a sign the system is unready. It must be listed. |
+| Q11 | Engine trusts stored N/A and cancellation | The engine now checks: **N/A without a reason is not an answer**, and a **cancellation without a reason** does not complete a programme. | Defence in depth: the database constraint covers the write path, the engine covers any other route. |
+
+Q7 and Q8 were already decided in AS13-0.
+
+**Verification.**
+- Oracles: all five affected modules were extended by independent Python.
+  Tagged cases: compliance 25, risk 8, MOC 40, documents 13, lessons 5,
+  ISO 20 and audit 10. Each one fails on the previous engine, except the
+  lessons cases: that rule's defect was in the Suite, and a hook test
+  covers it.
+- The oracle work caught two bugs in the first draft:
+  - A change record with no id matched every approval with no `moc_id`.
+    The hub had the same pattern, and both are fixed.
+  - The certificate readiness items were pushed out of severity order.
+- `scratch/run-as15-pentest.sh`: the negative control fails on every refusal. After AS15, 14/14
+  pass, and again after a re-apply. The launch rehearsal now runs 17
+  steps twice cleanly.
+- Hook tests cover the MOC gates, reassignment and emergency implementation,
+  the document reviewer rules, lesson validation by typed name (with a
+  negative control), and ISO examiner independence.
+
+**What remains for the owner:** the launch itself
+(`assurance-launch-apply.sh schema`, upload, `activate`), the commerce
+migration (second engineer), and the private `documents` bucket.
 
 ## 4. How AS1 was verified
 
