@@ -201,7 +201,7 @@ describe('no invented data in Management of Change', () => {
     const shell = code(path.join(APP, 'components/MOCPageShell.jsx'));
     expect(shell).not.toMatch(/Support Guide/);
     expect(read(path.join(APP, 'components/MOCPageShell.jsx')))
-      .toMatch(/AS13: AssuranceHelp appKey="moc" goes here/);
+      .toMatch(/<AssuranceHelp appKey="moc" \/>/);
   });
 
   it('the header search is a real search that reaches the register', () => {

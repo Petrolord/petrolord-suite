@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Users, LayoutDashboard, List, PlusCircle, BarChart2, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import AssuranceHelp from '@/components/assurance/AssuranceHelp';
 
 export const BASE = '/dashboard/apps/assurance/peer-review-manager';
 
@@ -48,7 +49,7 @@ export const PeerReviewShell = ({ children, title = "Peer Review Manager", subti
               </div>
             </div>
           </div>
-          {/* AS13: AssuranceHelp appKey="peerReview" goes here */}
+          <AssuranceHelp appKey="peerReview" />
         </div>
 
         <div className="px-6 flex gap-6 mt-2 overflow-x-auto no-scrollbar">

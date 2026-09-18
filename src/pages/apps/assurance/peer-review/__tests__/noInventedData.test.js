@@ -230,6 +230,6 @@ describe('no invented data in Peer Review Manager', () => {
 
   it('the header carries the help marker', () => {
     expect(read(path.join(APP, 'components/PeerReviewShell.jsx')))
-      .toMatch(/AS13: AssuranceHelp appKey="peerReview" goes here/);
+      .toMatch(/<AssuranceHelp appKey="peerReview" \/>/);
   });
 });

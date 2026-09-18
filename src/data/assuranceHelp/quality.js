@@ -74,7 +74,7 @@ export default {
       title: "What the app does not do",
       bullets: [
         "Plan details cannot be edited after creation, nor can a point's details (while the plan is live its result can be amended, or the point removed), nor an NCR's title, severity, description, department or due date. NCRs raised before the Department field was added stay Unspecified in the department chart.",
-        "A result of Not applicable resolves any point, hold points included, with no verifier or reason.",
+        "Setting a hold point to Not applicable needs the same record as a waiver: the date, who decided and a reason. Other point types can be marked Not applicable without one.",
         "Action owners are recorded as typed names. There are no notifications, attachments, evidence files or cost-of-quality entries, and exports are CSV only.",
         "The whole app needs database migration 20260917500000. Where it is not applied, every page shows a notice and nothing can be stored.",
       ],

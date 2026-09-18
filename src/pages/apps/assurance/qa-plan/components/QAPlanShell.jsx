@@ -4,6 +4,7 @@ import {
   ArrowLeft, BarChart2, FileWarning, LayoutDashboard, List, Plus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import AssuranceHelp from '@/components/assurance/AssuranceHelp';
 
 export const BASE = '/dashboard/apps/assurance/qa-plan';
 
@@ -51,7 +52,7 @@ export const QAPlanShell = ({
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {/* AS13: AssuranceHelp appKey="quality" goes here */}
+          <AssuranceHelp appKey="quality" />
           {actions}
           <Button variant="outline" onClick={() => navigate(`${BASE}/ncr-register?raise=1`)}>
             <FileWarning className="w-4 h-4 mr-2" /> Raise NCR

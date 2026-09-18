@@ -36,6 +36,7 @@ export default {
         "Conformant or Partially conformant needs an evidence reference, the assessment date and the assessor. Nonconformant needs the date and the assessor. A blank Assessor records you; a typed name records that person. Each assessment records its own assessor, replacing the last one.",
         "Not applicable needs a written justification (ISO 9001:2015 §4.3), and an excluded clause cannot carry a conformity verdict. Applicability is set when the clause is added.",
         "A Certified standard needs a certificate number, a certification body and an expiry date.",
+        "A certificate reads as expiring from 90 days before its expiry date, and as expired the day after it. Readiness shows both in its counts.",
         "An auditor may not audit their own work (ISO 19011). Adding a clause to an audit's scope is refused when its owner is the lead auditor: the same Suite member, or the same name typed on both. The refusal names the clauses. The database refuses the same Suite member from either direction.",
         "Audit moves: Planned to In progress or Cancelled; In progress to Fieldwork complete or Cancelled; Fieldwork complete to Reported, In progress or Cancelled; Reported to Closed. Audits cannot be deleted.",
         "Reported is refused with no clauses in scope, any clause still Not examined, no conclusion, or no lead auditor. Issue the report is enabled once the conclusion is typed and the rest is in place.",

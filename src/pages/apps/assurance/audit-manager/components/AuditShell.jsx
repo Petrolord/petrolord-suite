@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CompactNav } from '../../shared/CompactNav';
+import AssuranceHelp from '@/components/assurance/AssuranceHelp';
 
 export const BASE = '/dashboard/apps/assurance/audit-manager';
 
@@ -47,7 +48,7 @@ export const AuditShell = ({
         </div>
         <div className="flex flex-wrap gap-2">
           {actions}
-          {/* AS13: AssuranceHelp appKey="audits" goes here */}
+          <AssuranceHelp appKey="audits" />
         </div>
       </div>
 

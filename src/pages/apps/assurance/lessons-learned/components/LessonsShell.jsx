@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CompactNav } from '../../shared/CompactNav';
+import AssuranceHelp from '@/components/assurance/AssuranceHelp';
 
 export const BASE = '/dashboard/apps/assurance/lessons-learned';
 
@@ -50,7 +51,7 @@ export const LessonsShell = ({
           <Button onClick={() => navigate(`${BASE}/new`)}>
             <Plus className="w-4 h-4 mr-2" /> Capture a lesson
           </Button>
-          {/* AS13: AssuranceHelp appKey="lessons" goes here */}
+          <AssuranceHelp appKey="lessons" />
         </div>
       </div>
 

@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CompactNav } from '../../shared/CompactNav';
+import AssuranceHelp from '@/components/assurance/AssuranceHelp';
 
 export const BASE = '/dashboard/apps/assurance/iso-compliance';
 
@@ -50,7 +51,7 @@ export const ISOShell = ({
         </div>
         <div className="flex flex-wrap gap-2">
           {actions}
-          {/* AS13: AssuranceHelp appKey="iso" goes here */}
+          <AssuranceHelp appKey="iso" />
         </div>
       </div>
 

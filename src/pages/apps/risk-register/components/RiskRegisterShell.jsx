@@ -5,6 +5,7 @@ import { BackButton } from './BackButton';
 import { SnapshotManager } from './SnapshotManager';
 import { useRiskReporting } from '../contexts/RiskReportingContext';
 import { useRiskRegister } from '../hooks/useRiskRegister';
+import AssuranceHelp from '@/components/assurance/AssuranceHelp';
 
 export const RiskRegisterShell = ({ children, activeTab, onTabChange }) => {
   // AS2: the snapshot needs the register it is capturing. It used to
@@ -55,7 +56,7 @@ export const RiskRegisterShell = ({ children, activeTab, onTabChange }) => {
           
           <div className="flex items-center gap-3">
             <SnapshotManager risks={risks} />
-            {/* AS13: AssuranceHelp appKey="risk" goes here */}
+            <AssuranceHelp appKey="risk" />
           </div>
         </div>
         

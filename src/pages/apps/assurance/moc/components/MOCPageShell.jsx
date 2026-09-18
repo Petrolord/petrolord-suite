@@ -3,6 +3,7 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { LayoutDashboard, FileText, PlusCircle, CheckSquare, BarChart, ArrowLeft, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import AssuranceHelp from '@/components/assurance/AssuranceHelp';
 
 export const BASE = '/dashboard/apps/assurance/management-of-change';
 
@@ -75,10 +76,6 @@ export const MOCPageShell = ({ children, title = "Management of Change", descrip
             })}
           </nav>
         </div>
-        {/* AS13: the Support Guide button that stood here had no handler. */}
-        <div className="p-4 border-t border-[hsl(var(--border))]">
-          {/* AS13: AssuranceHelp appKey="moc" goes here */}
-        </div>
       </div>
 
       {/* Main Content Area */}
@@ -97,6 +94,8 @@ export const MOCPageShell = ({ children, title = "Management of Change", descrip
             </div>
           </div>
           <div className="flex items-center gap-4">
+            {/* AS13: replaces the dead sidebar help button. */}
+            <AssuranceHelp appKey="moc" />
             <form role="search" onSubmit={submitSearch} className="relative hidden lg:block w-64">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[hsl(var(--muted-foreground))]" />
               <Input
