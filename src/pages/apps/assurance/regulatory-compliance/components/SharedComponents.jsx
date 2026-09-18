@@ -1,6 +1,10 @@
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { STATUS_TOKENS, deriveStatus, explainStatus } from '@/lib/complianceStatus';
 
 /**
@@ -118,4 +122,29 @@ export const SchemaNotice = () => (
     expiry dates, evidence and obligation codes are unavailable. Everything
     else works. Ask your administrator to apply migration 20260917100000.
   </div>
+);
+
+/**
+ * AS13: a destructive action asks first. Obligation and regulator deletes
+ * went straight to the database on one click, and cannot be undone.
+ * `target` is whatever is about to be deleted, or null when closed.
+ */
+export const ConfirmDelete = ({ target, title, description, confirmLabel = 'Delete', onConfirm, onCancel }) => (
+  <AlertDialog open={Boolean(target)} onOpenChange={(open) => { if (!open) onCancel(); }}>
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>{title}</AlertDialogTitle>
+        <AlertDialogDescription>{description}</AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel onClick={onCancel}>Cancel</AlertDialogCancel>
+        <AlertDialogAction
+          className="bg-[hsl(var(--destructive))] text-white hover:bg-[hsl(var(--destructive))]/90"
+          onClick={() => onConfirm(target)}
+        >
+          {confirmLabel}
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
 );

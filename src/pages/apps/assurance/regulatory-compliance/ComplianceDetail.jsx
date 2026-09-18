@@ -9,6 +9,7 @@ import { ChevronLeft, Edit, FileCheck, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import {
+  STATUS,
   explainStatus,
   parseDateOnly,
   rollForward,
@@ -16,6 +17,7 @@ import {
 } from '@/lib/complianceStatus';
 import { useRegulatoryCompliance } from './hooks/useRegulatoryCompliance';
 import {
+  ConfirmDelete,
   DetailField,
   ErrorState,
   Loading,
@@ -52,6 +54,7 @@ export default function ComplianceDetail() {
 
   const [filing, setFiling] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [confirming, setConfirming] = useState(null);
 
   if (loading) return <Loading label="Loading the obligation..." />;
   if (error) return <ErrorState error={error} onRetry={refresh} />;
@@ -66,10 +69,11 @@ export default function ComplianceDetail() {
   }
 
   const authority = authorities.find((a) => a.id === obligation.authority_id);
-  const { reason } = explainStatus(obligation, new Date());
+  const { status, reason } = explainStatus(obligation, new Date());
   const nextDue = rollForward(obligation.due_date, obligation.frequency);
 
   const handleDelete = async () => {
+    setConfirming(null);
     const result = await deleteObligation(obligation.id);
     if (result.success) {
       toast({ description: 'Obligation deleted.' });
@@ -121,7 +125,7 @@ export default function ComplianceDetail() {
             <Edit className="w-4 h-4 mr-2" /> Edit
           </Button>
           <Button variant="outline" className="bg-[hsl(var(--background))] border-[hsl(var(--border))] text-[hsl(var(--destructive))]"
-            onClick={handleDelete}>
+            onClick={() => setConfirming(obligation)}>
             <Trash2 className="w-4 h-4 mr-2" /> Delete
           </Button>
         </div>
@@ -236,12 +240,25 @@ export default function ComplianceDetail() {
             </ul>
           ) : (
             <p className="text-sm text-[hsl(var(--muted-foreground))] py-4">
-              Nothing has been filed against this obligation yet. That is why it
-              reads {hasAs3Schema ? 'On track rather than Compliant' : 'as it does'}.
+              {/* AS13: this said "That is why it reads On track rather than
+                  Compliant" whatever the status was, including Overdue,
+                  Expired and a Draft lifecycle. */}
+              Nothing has been filed against this obligation yet.
+              {status === STATUS.ON_TRACK
+                ? ' That is why it reads On track rather than Compliant.'
+                : ''}
             </p>
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDelete
+        target={confirming}
+        title="Delete this obligation?"
+        description={`${obligation.obligation_code || obligation.title} and every filing recorded against it will be removed. This cannot be undone.`}
+        onConfirm={handleDelete}
+        onCancel={() => setConfirming(null)}
+      />
     </div>
   );
 }
