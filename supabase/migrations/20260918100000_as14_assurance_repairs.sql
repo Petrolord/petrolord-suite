@@ -212,7 +212,7 @@ begin
       coalesce(old.item_no, '?'), coalesce(old.status, 'Pending') using errcode = 'P0001';
   end if;
   if old.point_type = 'Hold point' and v_plan_status is distinct from 'Draft' then
-    raise exception 'A hold point on a plan that has left Draft is released, not removed. Record it as Not applicable with the reason.'
+    raise exception 'A hold point cannot be removed once its plan has left Draft. Record it as Not applicable with the reason.'
       using errcode = 'P0001';
   end if;
   return old;
