@@ -404,8 +404,8 @@ describe('coverage is counted over the certification cycle', () => {
     }),
   ];
   const audits = [
-    audit({ id: 'a1', audit_type: 'Internal' }),
-    audit({ id: 'a2', audit_type: 'Certification' }),
+    audit({ id: 'a1', audit_type: 'Internal', status: 'Reported' }),
+    audit({ id: 'a2', audit_type: 'Certification', status: 'Reported' }),
   ];
 
   it('excludes clauses that do not apply', () => {
@@ -472,7 +472,7 @@ describe('certification readiness is a list of blockers, not a percentage', () =
     clauses: [evidenced({ id: 'c1' })],
     findings: [],
     actions: [],
-    audits: [audit({ id: 'a1', audit_type: 'Internal' })],
+    audits: [audit({ id: 'a1', audit_type: 'Internal', status: 'Reported' })],
     auditClauses: [cover({ audit_id: 'a1', clause_id: 'c1', examined_on: '2026-09-10' })],
   };
 

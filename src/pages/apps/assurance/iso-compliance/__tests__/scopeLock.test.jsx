@@ -23,12 +23,12 @@ jest.mock('@/contexts/SupabaseAuthContext', () => ({
 
 const ORG = 'org-1';
 
-const mount = async () => {
+const mount = async ({ c2Owner = null } = {}) => {
   mockDb = makeFakeSupabase({
     iso_standards: [{ id: 's1', org_id: ORG, code: 'ISO 9001', cycle_years: 3 }],
     iso_clauses: [
       { id: 'c1', org_id: ORG, standard_id: 's1', clause_ref: '7.1.5', title: 'Monitoring', status: 'Conformant', applicability: 'Applicable' },
-      { id: 'c2', org_id: ORG, standard_id: 's1', clause_ref: '8.5', title: 'Production', status: 'Not assessed', applicability: 'Applicable' },
+      { id: 'c2', org_id: ORG, standard_id: 's1', clause_ref: '8.5', title: 'Production', status: 'Not assessed', applicability: 'Applicable', owner_id: c2Owner },
     ],
     iso_audits: [
       { id: 'a1', org_id: ORG, audit_code: 'IA-2026-001', title: 'Q3', audit_type: 'Internal', status: 'Planned', standard_id: 's1', lead_auditor_name: 'Ada' },
@@ -130,3 +130,30 @@ describe('AS14: results are fixed once Reported too', () => {
     expect(mockDb.writes.filter((w) => w.table === 'iso_clauses')).toEqual([]);
   });
 });
+
+describe('AS15: ISO 19011 for whoever records a result', () => {
+  it('refuses the clause owner, and writes nothing', async () => {
+    const { result } = await mount({ c2Owner: 'user-B' });
+    let refused;
+    await act(async () => {
+      refused = await result.current.recordCoverage(
+        { id: 'ac-plan', audit_id: 'a1', clause_id: 'c2', clause_ref: '8.5', result: 'Not examined' },
+        { result: 'Conformant' });
+    });
+    expect(refused.success).toBe(false);
+    expect(refused.error).toMatch(/ISO 19011/);
+    expect(mockDb.writes.filter((x) => x.table === 'iso_audit_clauses')).toEqual([]);
+  });
+
+  it('writes examined_by as the signed-in user', async () => {
+    const { result } = await mount();
+    await act(async () => {
+      await result.current.recordCoverage(
+        { id: 'ac-plan', audit_id: 'a1', clause_id: 'c2', clause_ref: '8.5', result: 'Not examined' },
+        { result: 'Conformant' });
+    });
+    const [w] = mockDb.writes.filter((x) => x.table === 'iso_audit_clauses' && x.op === 'update');
+    expect(w.payload.examined_by).toBe('user-B');
+  });
+});
+

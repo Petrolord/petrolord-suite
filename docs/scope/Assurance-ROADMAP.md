@@ -306,7 +306,8 @@ repo conventions. Every wave ends with the relevant STATUS doc updated.
 | **AS11** | The Assurance hub: real cross-app analytics over all nine apps | **BUILT 2026-09-18**, no migration |
 | **AS12** | `engines/assurance` extraction with goldens and an independent oracle | **BUILT 2026-09-18** (engines #207/#208), 13 defects repaired |
 | **AS13** | Help guides, user manual, launch | **BUILT 2026-09-18**: 94 app defects repaired first; activation HELD behind `assurance-launch-apply.sh` |
-| **AS14** | The AS13 open items, and the `documents` RLS hole | **BUILT 2026-09-18** (engines #210): `documents` had `USING (true)` policies live; migration HELD in `schema`, before activation |
+| **AS14** | The AS13 open items, and the `documents` RLS hole | **MERGED 2026-09-18** (Suite #518, engines #210): `documents` had `USING (true)` policies live; migration HELD in `schema`, before activation |
+| **AS15** | Every open owner decision, decided under delegation (STATUS §3n) | **BUILT 2026-09-18** (engines #211): segregation of duties, emergency ratification, validation actor, nine engine questions; migration HELD in `schema` |
 
 The two NextGen assurance courses unlock at AS12, not before. That is
 the whole point of the §9 deferral: the capstone needs an engine with an
@@ -387,6 +388,8 @@ shared tables and **require a second engineer's review before apply**.
 ---
 
 ## 7. Open questions for the owner
+
+**All answered.** Questions 1 to 5 proceeded on the recommendation at AS1. The later policy and engine questions were delegated to the agent on 2026-09-18 and decided in AS15 (STATUS §3n).
 
 1. **The catalogue correction is customer-visible.** Ten tiles that say
    Active today will say Coming Soon or disappear. If any organization

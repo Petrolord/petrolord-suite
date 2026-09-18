@@ -31,6 +31,11 @@ import {
 } from '../utils/documentPayload';
 
 let mockDb;
+// AS15: a task is decided by its own reviewer, so the tests act as them.
+// The hook reads user.id when a write runs, so a getter switches actor
+// without a re-render.
+let mockUserId = 'author';
+const mockUser = { get id() { return mockUserId; } };
 jest.mock('@/lib/customSupabaseClient', () => ({
   supabase: {
     from: (...args) => mockDb.client.from(...args),
@@ -39,7 +44,7 @@ jest.mock('@/lib/customSupabaseClient', () => ({
   },
 }));
 jest.mock('@/contexts/SupabaseAuthContext', () => ({
-  useAuth: () => ({ organization: { id: 'org-1' }, user: { id: 'author' } }),
+  useAuth: () => ({ organization: { id: 'org-1' }, user: mockUser }),
 }));
 
 const ORG = 'org-1';
@@ -70,9 +75,20 @@ const seed = () => ({
 
 const setup = async (initial = seed(), missing = {}) => {
   mockDb = makeSchemaFake(initial, { missing });
+  mockUserId = 'author';
   const view = renderHook(() => useDocumentControl());
   await waitFor(() => expect(view.result.current.loading).toBe(false));
   return view;
+};
+
+/** Decide `t` as its assigned reviewer (AS15 segregation of duties). */
+const decideAs = async (result, t, status, comments) => {
+  mockUserId = t.reviewer_id;
+  try {
+    return await result.current.decideWorkflow(t, status, comments);
+  } finally {
+    mockUserId = 'author';
+  }
 };
 
 const task = (result, id) => result.current.approvals.find((a) => a.id === id);
@@ -132,7 +148,7 @@ describe('a rejection decides the round (items 1 and 2)', () => {
     const { result } = await setup();
     let out;
     await act(async () => {
-      out = await result.current.decideWorkflow(task(result, 'w1'), 'Rejected', 'Wrong scope');
+      out = await decideAs(result, task(result, 'w1'), 'Rejected', 'Wrong scope');
     });
     expect(out.success).toBe(true);
     expect(out.outcome).toBe('Rejected');
@@ -155,16 +171,16 @@ describe('a rejection decides the round (items 1 and 2)', () => {
   it('a closed task cannot then be decided', async () => {
     const { result } = await setup();
     const stale = task(result, 'w2');
-    await act(async () => { await result.current.decideWorkflow(task(result, 'w1'), 'Rejected', 'No'); });
+    await act(async () => { await decideAs(result, task(result, 'w1'), 'Rejected', 'No'); });
     let out;
-    await act(async () => { out = await result.current.decideWorkflow(stale, 'Approved', ''); });
+    await act(async () => { out = await decideAs(result, stale, 'Approved', ''); });
     expect(out.success).toBe(false);
     expect(wf('w2').status).toBe(CLOSED_TASK_STATUS);
   });
 
   it('the same revision sent again is a new round, and approval by that round approves it', async () => {
     const { result } = await setup();
-    await act(async () => { await result.current.decideWorkflow(task(result, 'w1'), 'Rejected', 'Fix 3.2'); });
+    await act(async () => { await decideAs(result, task(result, 'w1'), 'Rejected', 'Fix 3.2'); });
     await act(async () => {
       const out = await result.current.submitForReview(docOf(result), {
         reviewers: [{ reviewer_id: 'u1', role: 'Reviewer' }, { reviewer_id: 'u2', role: 'Approver' }],
@@ -175,11 +191,10 @@ describe('a rejection decides the round (items 1 and 2)', () => {
     expect(round2).toHaveLength(2);
 
     let out;
-    await act(async () => { out = await result.current.decideWorkflow(round2[0], 'Approved', ''); });
+    await act(async () => { out = await decideAs(result, round2[0], 'Approved', ''); });
     expect(out.outcome).toBe('In Review');
     await act(async () => {
-      out = await result.current.decideWorkflow(
-        result.current.approvals.find((a) => a.id === round2[1].id), 'Approved', '');
+      out = await decideAs(result, result.current.approvals.find((a) => a.id === round2[1].id), 'Approved', '');
     });
     // Before rounds, the rejection in round 1 made this 'Rejected' forever.
     expect(out.outcome).toBe('Approved');
@@ -285,3 +300,35 @@ describe('Edit details keeps the review date the document earned (item 4)', () =
     expect(mockDb.tables.documents[0].next_review_date).toBe('2027-01-15');
   });
 });
+
+describe('AS15: segregation of duties in review', () => {
+  it('nobody but the assigned reviewer decides a task, and nothing is written', async () => {
+    const { result } = await setup();
+    mockUserId = 'u3';
+    let out;
+    await act(async () => { out = await result.current.decideWorkflow(task(result, 'w1'), 'Approved', ''); });
+    mockUserId = 'author';
+    expect(out.success).toBe(false);
+    expect(out.error).toMatch(/Only the reviewer/);
+    expect(wf('w1').status).toBe('Pending');
+  });
+
+  it('the author of a revision cannot be sent it to review', async () => {
+    const seeded = seed();
+    seeded.doc_revisions[0].created_by = 'author';
+    seeded.doc_workflows = [];
+    seeded.doc_revisions[0].status = 'Draft';
+    seeded.documents[0].status = 'Draft';
+    const { result } = await setup(seeded);
+    let out;
+    await act(async () => {
+      out = await result.current.submitForReview(docOf(result), {
+        reviewers: [{ reviewer_id: 'author', role: 'Approver' }],
+      });
+    });
+    expect(out.success).toBe(false);
+    expect(out.error).toMatch(/author of a revision/);
+    expect(mockDb.tables.doc_workflows).toEqual([]);
+  });
+});
+

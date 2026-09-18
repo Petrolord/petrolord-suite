@@ -83,8 +83,8 @@ const programme = (over = {}) => ({
 describe('the checklist is the audit', () => {
   const items = [item({ id: 'i1', item_no: '1.1' }), item({ id: 'i2', item_no: '1.2', criticality: 'Minor' })];
 
-  it('counts answers, and Not applicable IS an answer', () => {
-    expect(isAnswered(response({ result: 'Not applicable' }))).toBe(true);
+  it('counts answers, and Not applicable with its reason IS an answer', () => {
+    expect(isAnswered(response({ result: 'Not applicable', note: 'No cranes on site.' }))).toBe(true);
     expect(isAnswered(response({ result: 'Not examined' }))).toBe(false);
     expect(isAnswered({})).toBe(false);
   });
@@ -104,7 +104,7 @@ describe('the checklist is the audit', () => {
   it('counts each result separately', () => {
     const progress = checklistProgress(items, [
       response({ id: 'r1', item_id: 'i1', result: 'Nonconformant' }),
-      response({ id: 'r2', item_id: 'i2', result: 'Not applicable' }),
+      response({ id: 'r2', item_id: 'i2', result: 'Not applicable', note: 'No hot work.' }),
     ]);
     expect(progress).toMatchObject({ nonconformant: 1, notApplicable: 1, answered: 2 });
   });
@@ -348,7 +348,7 @@ describe('summary and sorting', () => {
       responses: [
         response({ id: 'r1', result: 'Conformant' }),
         response({ id: 'r2', result: 'Nonconformant' }),
-        response({ id: 'r3', result: 'Not applicable' }),
+        response({ id: 'r3', result: 'Not applicable', note: 'Not a lifting site.' }),
         response({ id: 'r4', result: 'Not examined', examined_on: null }),
       ],
       findings: [finding(), finding({ id: 'f2', stop_work: true, correction: 'x' })],

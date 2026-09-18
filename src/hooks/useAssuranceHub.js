@@ -64,7 +64,11 @@ const FETCHERS = Object.freeze({
   },
   moc: async (org) => {
     const records = await byOrg('moc_records', org);
-    return { records, actions: await byParent('moc_actions', 'moc_id', ids(records)) };
+    const [actions, approvals] = await Promise.all([
+      byParent('moc_actions', 'moc_id', ids(records)),
+      byParent('moc_approvals', 'moc_id', ids(records)),
+    ]);
+    return { records, actions, approvals };
   },
   quality: async (org) => {
     const [plans, ncrs] = await Promise.all([byOrg('qa_plans', org), byOrg('qa_ncrs', org)]);

@@ -14,8 +14,12 @@ import {
   ACTION_TYPES,
   EXPIRING_TYPES,
   EXPIRY,
+  RATIFICATION,
   approvalState,
   canAdvance,
+  canAssignApprover,
+  canDecideApproval,
+  ratificationState,
   daysUntil,
   expiryState,
   nextStages,
@@ -25,6 +29,7 @@ import {
 import { ExpiryBadge, RiskBadge, StageBadge, TypeBadge } from './components/MOCBadges';
 import { ConfirmDelete, DetailField, ErrorState, Loading } from './components/SharedComponents';
 import { useManagementOfChange } from './hooks/useManagementOfChange';
+import { useOrgMembers } from '../shared/useOrgMembers';
 import { mocLockReason, validateAction, validateExpiryEdit } from './utils/mocPayload';
 
 const showDate = (v) => {
@@ -53,15 +58,18 @@ export default function MOCDetail() {
   const { toast } = useToast();
   const {
     records, activityFor, loading, error, userId,
-    advance, setExpiry, addApprover, decideApproval, addActions, updateAction, deleteMoc, refresh,
+    advance, setExpiry, addApprover, decideApproval, reassignApproval,
+    addActions, updateAction, deleteMoc, refresh,
   } = useManagementOfChange();
+  const { members, nameOf } = useOrgMembers();
 
   const [saving, setSaving] = useState(false);
   const [addingAction, setAddingAction] = useState(false);
   const [actionDraft, setActionDraft] = useState(EMPTY_ACTION);
   const [actionErrors, setActionErrors] = useState({});
   const [addingApprover, setAddingApprover] = useState(false);
-  const [approverDraft, setApproverDraft] = useState({ role: 'Technical Authority', level: 1 });
+  const [approverDraft, setApproverDraft] = useState({ role: 'Technical Authority', level: 1, approver_id: '' });
+  const [reassigning, setReassigning] = useState(null); // { id, approver_id }
   const [deciding, setDeciding] = useState(null);
   const [decisionText, setDecisionText] = useState('');
   const [rejecting, setRejecting] = useState(false);
@@ -74,6 +82,8 @@ export default function MOCDetail() {
   const approvals = useMemo(() => moc?.approvals || [], [moc]);
   const actions = useMemo(() => moc?.actions || [], [moc]);
   const gate = useMemo(() => approvalState(approvals), [approvals]);
+  const ratification = useMemo(
+    () => (moc ? ratificationState(moc, approvals) : null), [moc, approvals]);
 
   if (loading) return <MOCPageShell><Loading label="Loading the change..." /></MOCPageShell>;
   if (error) return <MOCPageShell><ErrorState error={error} onRetry={refresh} /></MOCPageShell>;
@@ -147,7 +157,7 @@ export default function MOCDetail() {
     e.preventDefault();
     setSaving(true);
     const result = await addApprover(moc.id, {
-      approver_id: userId,
+      approver_id: approverDraft.approver_id || null,
       role: approverDraft.role,
       level: Number(approverDraft.level) || 1,
     });
@@ -158,6 +168,18 @@ export default function MOCDetail() {
     }
     setAddingApprover(false);
     toast({ description: `Approval gate ${approverDraft.level} added.` });
+  };
+
+  const handleReassign = async (approval) => {
+    setSaving(true);
+    const result = await reassignApproval(approval, reassigning?.approver_id || null);
+    setSaving(false);
+    if (!result.success) {
+      toast({ title: 'Not reassigned', description: result.error, variant: 'destructive' });
+      return;
+    }
+    setReassigning(null);
+    toast({ description: `Level ${approval.level ?? 1} reassigned to ${nameOf(reassigning.approver_id) || 'the new approver'}.` });
   };
 
   const handleDecision = async (approval, status) => {
@@ -284,6 +306,30 @@ export default function MOCDetail() {
           </div>
         ) : null}
 
+        {/* AS15: an emergency change goes in on its first approval level and
+            is ratified by the rest afterwards. */}
+        {ratification && ratification.state === RATIFICATION.OVERDUE ? (
+          <div className="p-4 rounded-lg border border-[hsl(var(--destructive))]/40 bg-[hsl(var(--destructive))]/5 text-sm flex gap-3">
+            <AlertTriangle className="w-5 h-5 text-[hsl(var(--destructive))] shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium">This emergency change has not been ratified in time</p>
+              <p className="text-[hsl(var(--muted-foreground))] mt-1">
+                Approval level {ratification.outstanding.join(' and ')} still has to sign.
+                {ratification.dueDate ? ` Ratification was due on ${showDate(ratification.dueDate)}.` : ' No implementation date was recorded, so the window cannot be shown to be open.'}
+              </p>
+            </div>
+          </div>
+        ) : ratification && ratification.state === RATIFICATION.PENDING ? (
+          <div className="p-4 rounded-lg border border-[hsl(var(--warning))]/40 bg-[hsl(var(--warning))]/5 text-sm flex gap-3">
+            <AlertTriangle className="w-5 h-5 text-[hsl(var(--warning))] shrink-0 mt-0.5" />
+            <p>
+              This emergency change went in on its first approval level. Level{' '}
+              {ratification.outstanding.join(' and ')} must ratify it by {showDate(ratification.dueDate)},
+              and it cannot close until they have.
+            </p>
+          </div>
+        ) : null}
+
         {rejecting ? (
           <Card className="panel-elevation">
             <CardHeader><CardTitle className="text-lg">Reject this change</CardTitle></CardHeader>
@@ -392,6 +438,20 @@ export default function MOCDetail() {
               <CardContent>
                 {addingApprover && !locked ? (
                   <form onSubmit={handleAddApprover} className="flex flex-wrap gap-3 items-end mb-5 p-4 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/30">
+                    <div className="min-w-[220px]">
+                      <Label htmlFor="approver_id">Approver</Label>
+                      <select id="approver_id"
+                        className="h-10 w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 text-sm"
+                        value={approverDraft.approver_id}
+                        onChange={(e) => setApproverDraft({ ...approverDraft, approver_id: e.target.value })}>
+                        <option value="">Choose a member</option>
+                        {members.filter((m) => canAssignApprover(moc, m.user_id).ok).map((m) => (
+                          <option key={m.user_id} value={m.user_id}>
+                            {nameOf(m.user_id)}{m.user_id === userId ? ' (you)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     <div className="min-w-[200px]">
                       <Label htmlFor="approver_role">Role</Label>
                       <Input id="approver_role" value={approverDraft.role}
@@ -406,12 +466,11 @@ export default function MOCDetail() {
                     </div>
                     <div className="flex gap-2">
                       <Button type="button" variant="ghost" onClick={() => setAddingApprover(false)}>Cancel</Button>
-                      <Button type="submit" disabled={saving}>Add</Button>
+                      <Button type="submit" disabled={saving || !approverDraft.approver_id}>Add</Button>
                     </div>
                     <p className="w-full text-xs text-[hsl(var(--muted-foreground))]">
-                      You are added as the approver for this gate. Assigning other
-                      people needs the member directory, which arrives with the
-                      hub at AS11.
+                      Only the person assigned can decide this gate, and the
+                      originator of the change cannot be an approver.
                     </p>
                   </form>
                 ) : null}
@@ -433,7 +492,7 @@ export default function MOCDetail() {
                               Level {a.level ?? 1} · {a.role || 'Approver'}
                             </p>
                             <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">
-                              {a.status}
+                              {nameOf(a.approver_id) || 'A member'} · {a.status}
                               {a.decision_date ? ` · ${showDate(a.decision_date.slice(0, 10))}` : ''}
                             </p>
                             {a.comments ? (
@@ -441,11 +500,39 @@ export default function MOCDetail() {
                             ) : null}
                           </div>
                           {a.status === 'Pending' && deciding !== a.id && !locked ? (
-                            <Button variant="outline" size="sm" onClick={() => { setDeciding(a.id); setDecisionText(''); }}>
-                              Record a decision
-                            </Button>
+                            <div className="flex gap-2">
+                              {canDecideApproval(a, moc, userId).ok ? (
+                                <Button variant="outline" size="sm" onClick={() => { setDeciding(a.id); setDecisionText(''); }}>
+                                  Record a decision
+                                </Button>
+                              ) : null}
+                              <Button variant="ghost" size="sm"
+                                onClick={() => setReassigning({ id: a.id, approver_id: '' })}>
+                                Reassign
+                              </Button>
+                            </div>
                           ) : null}
                         </div>
+                        {reassigning?.id === a.id && !locked ? (
+                          <div className="mt-3 flex flex-wrap gap-2 items-center">
+                            <select aria-label="New approver"
+                              className="h-9 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 text-sm"
+                              value={reassigning.approver_id}
+                              onChange={(e) => setReassigning({ ...reassigning, approver_id: e.target.value })}>
+                              <option value="">Choose a member</option>
+                              {members
+                                .filter((m) => m.user_id !== a.approver_id && canAssignApprover(moc, m.user_id).ok)
+                                .map((m) => (
+                                  <option key={m.user_id} value={m.user_id}>{nameOf(m.user_id)}</option>
+                                ))}
+                            </select>
+                            <Button variant="ghost" size="sm" onClick={() => setReassigning(null)}>Cancel</Button>
+                            <Button size="sm" disabled={saving || !reassigning.approver_id}
+                              onClick={() => handleReassign(a)}>
+                              Reassign
+                            </Button>
+                          </div>
+                        ) : null}
                         {deciding === a.id && !locked ? (
                           <div className="mt-3 space-y-2">
                             <Textarea rows={2} value={decisionText}

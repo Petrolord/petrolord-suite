@@ -32,7 +32,7 @@ export default {
       bullets: [
         "A draft needs a title and what happened. Industry-wide scope also needs what to do about it.",
         "Validated, Published and Embedded all need what happened, why it happened and what to do about it. The page names what is missing.",
-        "The author may not validate their own lesson. The app and the database refuse a validation by the author's Suite account, or by the account that captured the lesson when the author was typed by name. A validator typed by name is recorded as typed and is not checked.",
+        "The author may not validate their own lesson. The app and the database refuse a validation performed by the author's Suite account, or by the account that captured the lesson when the author was typed by name, and that holds even when the author types somebody else's name as the validator. A typed validator name records an external reviewer, and a colleague who is not the author has to record it.",
         "Published needs a validation date and validator, and records today as the published date.",
         "Embedded needs at least one application with outcome Adopted or Adapted. Rejected applications do not count; the database counts them itself. Once a lesson is Embedded, its last Adopted or Adapted application cannot be removed: record the one that replaces it first, or archive or supersede the lesson.",
         "Archiving needs a written reason. Superseded asks which lesson replaces this one, from the lessons that are not archived or superseded, and a lesson cannot supersede itself.",

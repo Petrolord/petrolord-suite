@@ -270,7 +270,11 @@ export const useLessonsLearned = () => {
    */
   const validateLesson = async (lesson, { validator_name } = {}) => {
     const asSelf = !String(validator_name || '').trim();
-    const verdict = canValidate(lesson, asSelf ? (user?.id || null) : null);
+    // AS15: the actor is always the signed-in user, whoever they name. It
+    // used to be null when a name was typed, so an author could validate
+    // their own lesson by typing somebody else's name. The database
+    // refuses the same (lesson_records_validation_actor).
+    const verdict = canValidate(lesson, user?.id || null);
     if (!verdict.ok) return { success: false, error: verdict.reason };
 
     const result = await updateLesson(lesson.id, {

@@ -5,6 +5,7 @@ import {
   auditIndependence,
   canAdvanceAudit,
   canCloseFinding,
+  canExamineClause,
   canSetClauseStatus,
   toDateOnlyString,
 } from '@/lib/isoCompliance';
@@ -531,13 +532,26 @@ export const useIsoCompliance = () => {
   const recordCoverage = async (row, patch) => {
     const locked = resultLockReason(audits.find((x) => x.id === row?.audit_id));
     if (locked) return { success: false, error: locked };
-    const { row: write } = buildCoverageWrite({ ...row, ...patch });
+    // AS15 (ISO 19011 for every auditor, not only the lead): whoever
+    // records the result is examining the clause, so not its owner.
+    const clause = clauses.find((c) => c.id === row?.clause_id) || row?.clause || {};
+    const independent = canExamineClause(clause, user?.id || null);
+    if (!independent.ok) return { success: false, error: independent.reason };
+    const { row: write } = buildCoverageWrite({ ...row, ...patch, examined_by: user?.id || null });
     if (write.result && write.result !== 'Not examined' && !write.examined_on) {
       write.examined_on = toDateOnlyString(new Date());
     }
-    const { error: err } = await supabase.from('iso_audit_clauses')
+    let { error: err } = await supabase.from('iso_audit_clauses')
       .update({ ...write, updated_at: new Date().toISOString() })
       .eq('id', row.id);
+    // Before the AS15 migration there is no examined_by column. The
+    // independence check above has still run; only the record of who is lost.
+    if (err && err.code === 'PGRST204' && /examined_by/.test(err.message || '')) {
+      const { examined_by: _dropped, ...rest } = write;
+      ({ error: err } = await supabase.from('iso_audit_clauses')
+        .update({ ...rest, updated_at: new Date().toISOString() })
+        .eq('id', row.id));
+    }
     if (err) return { success: false, error: explainWriteError(err) };
     await logActivity('coverage', row.id,
       `Clause ${row.clause_ref || ''} examined: ${write.result}`.trim(), null,

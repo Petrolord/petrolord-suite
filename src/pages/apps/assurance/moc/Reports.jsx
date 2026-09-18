@@ -46,12 +46,12 @@ import { expiryDisplay, expiryReportRows } from './utils/expiryDisplay';
  */
 export default function MOCReports() {
   const { toast } = useToast();
-  const { records, actions, loading, error, refresh } = useManagementOfChange();
+  const { records, actions, approvals, loading, error, refresh } = useManagementOfChange();
   const today = new Date();
 
-  const summary = useMemo(() => summarise(records, { actions }, today),
+  const summary = useMemo(() => summarise(records, { actions, approvals }, today),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [records, actions]);
+    [records, actions, approvals]);
 
   const stageData = useMemo(
     () => STAGES.map((name) => ({ name, count: summary.byStage[name] })).filter((d) => d.count > 0),

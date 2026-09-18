@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { CHART_COLORS, LEGEND_PROPS, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import ChartLogo from '@/components/charts/ChartLogo';
 import {
+  EMERGENCY_RATIFY_DAYS,
   EXPIRY,
   STAGES,
   STAGE_CHART_COLORS,
@@ -64,12 +65,12 @@ const Tile = ({ label, value, icon, tone, onClick }) => (
  */
 export default function MOCDashboard() {
   const navigate = useNavigate();
-  const { records, actions, activity, loading, error, hasAs6Schema, refresh } = useManagementOfChange();
+  const { records, actions, approvals, activity, loading, error, hasAs6Schema, refresh } = useManagementOfChange();
 
   const today = new Date();
-  const summary = useMemo(() => summarise(records, { actions }, today),
+  const summary = useMemo(() => summarise(records, { actions, approvals }, today),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [records, actions]);
+    [records, actions, approvals]);
 
   const stageData = useMemo(
     () => STAGES.map((name) => ({ name, value: summary.byStage[name] })).filter((d) => d.value > 0),
@@ -123,6 +124,22 @@ export default function MOCDashboard() {
               <p className="text-[hsl(var(--muted-foreground))] mt-1">
                 Each one is a deviation the facility is running on without
                 current authority. They are listed below.
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        {summary.ratificationOverdue > 0 ? (
+          <div className="p-4 rounded-lg border border-[hsl(var(--destructive))]/40 bg-[hsl(var(--destructive))]/5 text-sm flex gap-3">
+            <AlertTriangle className="w-5 h-5 text-[hsl(var(--destructive))] shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium">
+                {summary.ratificationOverdue} emergency change{summary.ratificationOverdue === 1 ? ' has' : 's have'} not
+                been ratified inside {EMERGENCY_RATIFY_DAYS} days of going in
+              </p>
+              <p className="text-[hsl(var(--muted-foreground))] mt-1">
+                An emergency change goes in on its first approval level. The remaining
+                levels still have to sign, and until they do it is running on reduced authority.
               </p>
             </div>
           </div>

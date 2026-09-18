@@ -51,6 +51,7 @@ STEPS=(
   20260917800000_as10_audit_findings_manager.sql
   20260917810000_as10_seed_audit_findings_tile.sql
   20260918100000_as14_assurance_repairs.sql
+  20260918200000_as15_assurance_owner_decisions.sql
   20260918900000_as13_activate_assurance_tiles.sql
 )
 
