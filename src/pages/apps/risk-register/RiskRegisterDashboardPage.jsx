@@ -6,10 +6,9 @@ import { RiskScoreBadge, RiskStatusBadge } from './components/RiskBadges';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, Loader2, TrendingUp, AlertOctagon, CheckCircle2 } from 'lucide-react';
-import { calculateRiskScore, getRiskBand } from '@/lib/riskScoring';
+import { RISK_LIVE_STATUSES } from '@/lib/riskScoring';
 import { cellFilter } from './utils/registerFilter';
-
-const OPEN_STATUSES = ['Open', 'Under Review'];
+import { LIVE_SCOPE, liveRisks, registerCounts } from './utils/registerCounts';
 
 const RiskRegisterDashboardPage = ({ onDrillDown }) => {
   const { risks, loading, error } = useRiskRegister();
@@ -40,11 +39,10 @@ const RiskRegisterDashboardPage = ({ onDrillDown }) => {
       );
   }
 
-  const openRisks = risks.filter(r => OPEN_STATUSES.includes(r.status));
-  const criticalRisks = openRisks.filter(
-    r => getRiskBand(calculateRiskScore(r.likelihood, r.impact)) === 'Critical',
-  );
-  const mitigatedRisks = risks.filter(r => r.status === 'Mitigated' || r.status === 'Closed');
+  // ASC-0 (RC-6): one population for every live figure on this page,
+  // the engine's RISK_LIVE_STATUSES, the same one the Heatmap tab plots.
+  const live = liveRisks(risks);
+  const counts = registerCounts(risks);
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -53,31 +51,35 @@ const RiskRegisterDashboardPage = ({ onDrillDown }) => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 flex-1">
             <Card className="bg-slate-900 border-slate-800">
-              <CardContent className="p-4 flex flex-col items-center justify-center text-center h-full">
-                  <span className="text-3xl font-bold text-white">{risks.length}</span>
-                  <span className="text-xs text-slate-400 mt-1 uppercase tracking-wider">Total Risks</span>
+              <CardContent data-testid="tile-live" className="p-4 flex flex-col items-center justify-center text-center h-full">
+                  <span className="text-3xl font-bold text-white">{counts.live}</span>
+                  <span className="text-xs text-slate-400 mt-1 uppercase tracking-wider">Live risks</span>
+                  <span className="text-[10px] text-slate-500 mt-0.5">{RISK_LIVE_STATUSES.join(', ')}</span>
               </CardContent>
             </Card>
             <Card className="bg-slate-900 border-slate-800">
-              <CardContent className="p-4 flex flex-col items-center justify-center text-center h-full">
-                  <span className="text-3xl font-bold text-blue-400">{openRisks.length}</span>
-                  <span className="text-xs text-slate-400 mt-1 uppercase tracking-wider">Open</span>
-              </CardContent>
-            </Card>
-            <Card className="bg-slate-900 border-slate-800">
-              <CardContent className="p-4 flex flex-col items-center justify-center text-center h-full">
-                  <span className="text-3xl font-bold text-red-500">{criticalRisks.length}</span>
+              <CardContent data-testid="tile-live-critical" className="p-4 flex flex-col items-center justify-center text-center h-full">
+                  <span className="text-3xl font-bold text-red-500">{counts.liveCritical}</span>
                   <span className="text-xs text-slate-400 mt-1 uppercase tracking-wider flex items-center gap-1">
-                      <AlertOctagon className="w-3 h-3 text-red-500"/> Critical
+                      <AlertOctagon className="w-3 h-3 text-red-500"/> Live and Critical
                   </span>
+                  <span className="text-[10px] text-slate-500 mt-0.5">Inherent score in the Critical band</span>
               </CardContent>
             </Card>
             <Card className="bg-slate-900 border-slate-800">
-              <CardContent className="p-4 flex flex-col items-center justify-center text-center h-full">
-                  <span className="text-3xl font-bold text-green-500">{mitigatedRisks.length}</span>
+              <CardContent data-testid="tile-mitigated" className="p-4 flex flex-col items-center justify-center text-center h-full">
+                  <span className="text-3xl font-bold text-green-500">{counts.liveMitigated}</span>
                   <span className="text-xs text-slate-400 mt-1 uppercase tracking-wider flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-green-500"/> Mitigated or closed
+                      <CheckCircle2 className="w-3 h-3 text-green-500"/> Mitigated
                   </span>
+                  <span className="text-[10px] text-slate-500 mt-0.5">Still live, residual lowered</span>
+              </CardContent>
+            </Card>
+            <Card className="bg-slate-900 border-slate-800">
+              <CardContent data-testid="tile-not-live" className="p-4 flex flex-col items-center justify-center text-center h-full">
+                  <span className="text-3xl font-bold text-slate-300">{counts.notLive}</span>
+                  <span className="text-xs text-slate-400 mt-1 uppercase tracking-wider">Draft or closed</span>
+                  <span className="text-[10px] text-slate-500 mt-0.5">Of {counts.recorded} recorded</span>
               </CardContent>
             </Card>
         </div>
@@ -97,8 +99,8 @@ const RiskRegisterDashboardPage = ({ onDrillDown }) => {
               </CardHeader>
               <CardContent className="flex-1 flex items-center justify-center py-6">
                   <RiskHeatmapMatrix 
-                      risks={openRisks} 
-                      onCellClick={(l, i) => onDrillDown(cellFilter(l, i, OPEN_STATUSES, 'open and under review risks'))}
+                      risks={live}
+                      onCellClick={(l, i) => onDrillDown(cellFilter(l, i, RISK_LIVE_STATUSES, LIVE_SCOPE))}
                   />
               </CardContent>
           </Card>
@@ -110,7 +112,7 @@ const RiskRegisterDashboardPage = ({ onDrillDown }) => {
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
                   <CardTitle className="text-lg text-slate-100 flex items-center gap-2">
                       <TrendingUp className="w-5 h-5 text-red-500" />
-                      Highest scoring open risks
+                      Highest scoring live risks
                   </CardTitle>
                   <Button variant="link" className="text-indigo-400 text-sm" onClick={() => onDrillDown(null)}>
                       View All
@@ -118,7 +120,7 @@ const RiskRegisterDashboardPage = ({ onDrillDown }) => {
               </CardHeader>
               <CardContent>
                   <div className="space-y-2">
-                      {[...openRisks].sort((a,b) => (b.risk_score || 0) - (a.risk_score || 0)).slice(0, 5).map(risk => (
+                      {[...live].sort((a,b) => (b.risk_score || 0) - (a.risk_score || 0)).slice(0, 5).map(risk => (
                           <div 
                               key={risk.id} 
                               onClick={() => navigate(`/dashboard/apps/assurance/risk-register/${risk.id}`)}
@@ -137,9 +139,9 @@ const RiskRegisterDashboardPage = ({ onDrillDown }) => {
                               </div>
                           </div>
                       ))}
-                      {openRisks.length === 0 && (
+                      {live.length === 0 && (
                           <div className="text-center py-8 text-slate-500">
-                              No risk is Open or Under Review.
+                              No live risk: none is Open, Under Review, Mitigated or Realized.
                           </div>
                       )}
                   </div>

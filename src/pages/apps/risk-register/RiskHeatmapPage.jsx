@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Loader2, Info } from 'lucide-react';
 import { RISK_LIVE_STATUSES } from '@/lib/riskScoring';
 import { cellFilter } from './utils/registerFilter';
+import { LIVE_SCOPE, liveRisks } from './utils/registerCounts';
 
 const RiskHeatmapPage = ({ onDrillDown }) => {
   const { risks, loading } = useRiskRegister();
@@ -18,13 +19,13 @@ const RiskHeatmapPage = ({ onDrillDown }) => {
   }
 
   // The risks an organization still carries, from the one status split.
-  const activeRisks = risks.filter(r => RISK_LIVE_STATUSES.includes(r.status));
+  const activeRisks = liveRisks(risks);
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       <div>
           <h2 className="text-2xl font-bold text-white mb-2">Corporate Risk Heatmap</h2>
-          <p className="text-slate-400">Visual distribution of all active risks across probability and impact dimensions.</p>
+          <p className="text-slate-400">Every live risk ({RISK_LIVE_STATUSES.join(', ')}) by likelihood and impact.</p>
       </div>
 
       <Card className="bg-slate-900 border-slate-800">
@@ -37,7 +38,7 @@ const RiskHeatmapPage = ({ onDrillDown }) => {
           <CardContent className="p-12 flex flex-col items-center justify-center min-h-[500px]">
               <RiskHeatmapMatrix 
                   risks={activeRisks} 
-                  onCellClick={(l, i) => onDrillDown(cellFilter(l, i, RISK_LIVE_STATUSES, 'risks not closed or draft'))}
+                  onCellClick={(l, i) => onDrillDown(cellFilter(l, i, RISK_LIVE_STATUSES, LIVE_SCOPE))}
               />
           </CardContent>
       </Card>

@@ -37,6 +37,9 @@ const CELL_CLASSES = Object.freeze({
   [NO_BAND]: 'bg-slate-500/90',
 });
 
+/** Heatmap cell fill for a band name, for a legend swatch (ASC-0). */
+export const getBandCellClasses = (band) => CELL_CLASSES[band] || CELL_CLASSES[NO_BAND];
+
 /** Heatmap cell fill for a likelihood/impact pair. */
 export const getHeatmapCellClasses = (likelihood, impact) =>
   CELL_CLASSES[getRiskBand(calculateRiskScore(likelihood, impact))];
