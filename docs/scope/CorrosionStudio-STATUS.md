@@ -119,6 +119,16 @@ synthetic and now saying so. Engines suite 179 suites, 5865 green.
   transfer controls at the studio's own defaults, so which side it
   belongs on changes the answer materially. Unresolved and stated.
 
+## Engines copy sweep (2026-09-18)
+
+Engines #214 is vendored ahead of its pin. Seven corrosion strings are
+reworded to the owner copy rule, among them the inhibitor warning on screen,
+which now ends "availability is what limits it" (the smoke test pins the new
+words). `BAR_TO_PSIA` keeps its value, 14.503773800721815, and its comment no
+longer calls it exact: the exact conversion is 14.503773773020923, 1.91e-9
+relative lower, kept because moving it would shift six-decimal figures in the
+held FC9 course ladder. No number moved.
+
 ## Open
 
 - Tile rename migration 20260829630000 HELD for the prod upload.
