@@ -7,7 +7,9 @@ import {
   buildApprovalWrite,
   buildImpactWrite,
   buildMocWrite,
+  mocLockReason,
   nextCodeFromExisting,
+  validateExpiryEdit,
 } from '../utils/mocPayload';
 
 const UNKNOWN_COLUMN = 'PGRST204';
@@ -292,8 +294,40 @@ export const useManagementOfChange = () => {
     return result;
   };
 
+  /**
+   * AS13: a Closed, Rejected or Cancelled change is a record. Its gates,
+   * decisions, actions and impacts are what it finished on, so the page
+   * hides the controls and every write below refuses as well.
+   */
+  const lockedMoc = (mocId) => mocLockReason(records.find((m) => m.id === mocId));
+
+  /**
+   * AS13: add or correct the expiry date of a temporary or emergency
+   * change while it is in Draft.
+   *
+   * A draft saved without one could not leave Draft at all, Cancelled
+   * included, because the database refuses a temporary change past Draft
+   * with no expiry, and there was no way to add the date afterwards. The
+   * record could only be deleted. Past Draft the date is part of what was
+   * approved, and this refuses.
+   */
+  const setExpiry = async (moc, expiryDate) => {
+    const problem = validateExpiryEdit(moc, expiryDate);
+    if (problem) return { success: false, error: problem };
+    const result = await updateMoc(moc.id, { ...moc, expiry_date: expiryDate });
+    if (result.success) {
+      await logActivity(moc.id, moc.expiry_date
+        ? `Expiry date changed from ${moc.expiry_date} to ${expiryDate}`
+        : `Expiry date set to ${expiryDate}`);
+      await fetchAll();
+    }
+    return result;
+  };
+
   /** Assign an approver to a gate. */
   const addApprover = async (mocId, { approver_id, role, level }) => {
+    const locked = lockedMoc(mocId);
+    if (locked) return { success: false, error: locked };
     const { row } = buildApprovalWrite({
       moc_id: mocId, approver_id, role, level: level || 1, status: 'Pending',
     });
@@ -311,6 +345,8 @@ export const useManagementOfChange = () => {
 
   /** Record an approval decision. */
   const decideApproval = async (approval, status, comments) => {
+    const locked = lockedMoc(approval.moc_id);
+    if (locked) return { success: false, error: locked };
     if (status === 'Rejected' && !String(comments || '').trim()) {
       return { success: false, error: 'A rejection needs a reason, so the originator knows what to change.' };
     }
@@ -328,40 +364,69 @@ export const useManagementOfChange = () => {
     return { success: true };
   };
 
+  // AS13: actions and impacts now write to moc_activity_log like stage
+  // moves and approvals do. The dashboard promised that actions appear
+  // in Recent activity, and nothing ever put them there.
   const addActions = async (mocId, rows, { skipRefresh = false } = {}) => {
+    const locked = lockedMoc(mocId);
+    if (locked) return { success: false, error: locked };
     const payload = rows
       .filter((a) => String(a.description || '').trim())
       .map((a) => buildActionWrite({ ...a, moc_id: mocId, status: a.status || 'Open' }).row);
     if (!payload.length) return { success: true };
     const { error: err } = await supabase.from('moc_actions').insert(payload);
     if (err) return { success: false, error: `The actions were not saved: ${err.message}` };
+    await Promise.all(payload.map((a) => logActivity(mocId,
+      `${a.action_type || 'Action'} action added: ${a.description}`)));
     if (!skipRefresh) await fetchAll();
     return { success: true };
   };
 
   const updateAction = async (id, patch) => {
+    const existing = actions.find((a) => a.id === id);
+    const mocId = existing?.moc_id || patch.moc_id;
+    const locked = lockedMoc(mocId);
+    if (locked) return { success: false, error: locked };
     const { row } = buildActionWrite(patch);
     if (patch.status === 'Complete' && !row.completed_at) {
       row.completed_at = new Date().toISOString();
     }
     const { error: err } = await supabase.from('moc_actions').update(row).eq('id', id);
     if (err) return { success: false, error: err.message };
+    if (mocId) {
+      const what = existing?.description || patch.description || 'an action';
+      await logActivity(mocId, patch.status
+        ? `Action marked ${String(patch.status).toLowerCase()}: ${what}`
+        : `Action updated: ${what}`);
+    }
     await fetchAll();
     return { success: true };
   };
 
   const addImpacts = async (mocId, rows, { skipRefresh = false } = {}) => {
+    const locked = lockedMoc(mocId);
+    if (locked) return { success: false, error: locked };
     const payload = rows
       .filter((i) => String(i.impact_area || '').trim())
       .map((i) => buildImpactWrite({ ...i, moc_id: mocId }).row);
     if (!payload.length) return { success: true };
     const { error: err } = await supabase.from('moc_impacts').insert(payload);
     if (err) return { success: false, error: `The impact assessment was not saved: ${err.message}` };
+    await logActivity(mocId, `Impact assessment recorded: ${payload.map((i) => i.impact_area).join(', ')}`);
     if (!skipRefresh) await fetchAll();
     return { success: true };
   };
 
+  // AS13: only a draft can be deleted. Past Draft a change has been seen
+  // by somebody, and Cancel or Reject is how it ends with its record kept.
   const deleteMoc = async (id) => {
+    const moc = records.find((m) => m.id === id);
+    if (moc && moc.stage !== 'Draft') {
+      return {
+        success: false,
+        error: `Only a draft can be deleted. ${moc.moc_code} is ${String(moc.stage).toLowerCase()}, so its record stays. A change that should not go ahead is cancelled or rejected instead.`,
+      };
+    }
     const { error: err } = await supabase.from('moc_records').delete().eq('id', id);
     if (err) return { success: false, error: err.message };
     await fetchAll();
@@ -387,6 +452,7 @@ export const useManagementOfChange = () => {
     createMoc,
     updateMoc,
     advance,
+    setExpiry,
     addApprover,
     decideApproval,
     addActions,

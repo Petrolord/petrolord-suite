@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { MOCPageShell, BASE } from './components/MOCPageShell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,6 @@ import {
   RISK_LEVELS,
   STAGES,
   byUrgency,
-  expiryState,
   isExpired,
   isOverdue,
   parseDateOnly,
@@ -20,6 +19,7 @@ import { exportToCSV } from '@/utils/exportUtils';
 import { ExpiryBadge, RiskBadge, StageBadge, TypeBadge } from './components/MOCBadges';
 import { EmptyState, ErrorState, Loading, SchemaNotice } from './components/SharedComponents';
 import { useManagementOfChange } from './hooks/useManagementOfChange';
+import { NOT_YET_IN_EFFECT, expiryDisplay } from './utils/expiryDisplay';
 
 const ALL = 'All';
 const showDate = (v) => {
@@ -46,7 +46,14 @@ export default function MOCRegister() {
   const { toast } = useToast();
   const { records, loading, error, hasAs6Schema, refresh } = useManagementOfChange();
 
-  const [search, setSearch] = useState('');
+  // AS13: the shell's header search opens this page with ?q=, so what
+  // was typed there is what the register is filtered by.
+  const [params] = useSearchParams();
+  const [search, setSearch] = useState(params.get('q') || '');
+  useEffect(() => {
+    const q = params.get('q');
+    if (q !== null) setSearch(q);
+  }, [params]);
   const [stage, setStage] = useState(ALL);
   const [type, setType] = useState(ALL);
   const [risk, setRisk] = useState(ALL);
@@ -87,7 +94,7 @@ export default function MOCRegister() {
       Department: m.department || '',
       'Target implementation': m.target_implementation_date || '',
       'Expires': m.expiry_date || '',
-      'Expiry state': expiryState(m, today),
+      'Expiry state': expiryDisplay(m, today)?.state || '',
       Overdue: isOverdue(m, today) ? 'Yes' : 'No',
       'Open actions': (m.actions || []).filter((a) => !['Complete', 'Cancelled'].includes(a.status)).length,
     })), `moc-register-${format(today, 'yyyy-MM-dd')}`);
@@ -188,7 +195,9 @@ export default function MOCRegister() {
                       </td>
                       <td className="data-grid-td">
                         <div className="flex flex-col gap-1">
-                          <span className="text-xs">{showDate(m.expiry_date)}</span>
+                          {expiryDisplay(m, today)?.state !== NOT_YET_IN_EFFECT ? (
+                            <span className="text-xs">{showDate(m.expiry_date)}</span>
+                          ) : null}
                           <ExpiryBadge moc={m} today={today} />
                         </div>
                       </td>

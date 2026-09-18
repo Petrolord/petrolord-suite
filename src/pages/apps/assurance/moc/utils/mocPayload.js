@@ -12,7 +12,12 @@
  * situation, the proposed change, the justification, the target date —
  * and none of it was even read out of the DOM, let alone saved.
  */
-import { toDateOnlyString } from '@/lib/managementOfChange';
+import {
+  EXPIRING_TYPES,
+  TERMINAL_STAGES,
+  parseDateOnly,
+  toDateOnlyString,
+} from '@/lib/managementOfChange';
 
 /**
  * Every column a client may write on `moc_records`. `org_id`,
@@ -124,12 +129,14 @@ export const validateMoc = (form = {}) => {
   if (!String(form.description || '').trim()) {
     errors.description = 'Describe exactly what will be changed.';
   }
-  // Mirrors the database constraint, so the user sees which field is
-  // wrong instead of a constraint name.
-  if (['Temporary', 'Emergency'].includes(form.type)
-      && form.stage && form.stage !== 'Draft' && !form.expiry_date) {
-    errors.expiry_date = `A ${String(form.type).toLowerCase()} change needs an expiry date. `
-      + 'Without one it is a permanent change nobody decided to make.';
+  // The database refuses a temporary change past Draft without an expiry
+  // date. AS13: the form now asks for it at Save draft as well, because
+  // a draft saved without one could not leave Draft afterwards, not even
+  // to Cancelled. (Drafts saved before this can add it on the change's
+  // page: see validateExpiryEdit.)
+  if (EXPIRING_TYPES.includes(form.type) && !parseDateOnly(form.expiry_date)) {
+    errors.expiry_date = `A ${String(form.type).toLowerCase()} change needs an expiry date, `
+      + 'even as a draft. Without one it is a permanent change nobody decided to make.';
   }
   if (form.target_implementation_date && form.expiry_date
       && toDateOnlyString(form.expiry_date) < toDateOnlyString(form.target_implementation_date)) {
@@ -149,4 +156,36 @@ export const validateImpact = (form = {}) => {
   const errors = {};
   if (!String(form.impact_area || '').trim()) errors.impact_area = 'Name the area affected.';
   return errors;
+};
+
+/**
+ * AS13: why a change may no longer be changed, or null while it may.
+ * A Closed, Rejected or Cancelled change is a record.
+ */
+export const mocLockReason = (moc) => {
+  if (!moc || !TERMINAL_STAGES.includes(moc.stage)) return null;
+  return `This change is ${String(moc.stage).toLowerCase()}. Its approval gates, decisions, `
+    + 'actions and impacts are the record it finished on and can no longer be changed.';
+};
+
+/**
+ * AS13: may the expiry date be set to `value` from the change's page?
+ * Only on a temporary or emergency change, only in Draft, and only to a
+ * readable date that is not before the target implementation date.
+ * Returns the reason it may not, or null.
+ */
+export const validateExpiryEdit = (moc = {}, value) => {
+  if (!EXPIRING_TYPES.includes(moc.type)) {
+    return 'Only a temporary or emergency change has an expiry date.';
+  }
+  if (moc.stage !== 'Draft') {
+    return 'The expiry date can only be changed while the change is in Draft. After that it '
+      + 'is part of what was screened and approved.';
+  }
+  if (!parseDateOnly(value)) return 'Pick the date this change must be reverted by.';
+  if (moc.target_implementation_date
+      && toDateOnlyString(value) < toDateOnlyString(moc.target_implementation_date)) {
+    return 'The change would expire before it is implemented.';
+  }
+  return null;
 };
