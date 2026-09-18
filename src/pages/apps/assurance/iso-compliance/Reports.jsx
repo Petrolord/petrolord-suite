@@ -17,7 +17,7 @@ import {
   FINDING_TYPES,
   FINDING_TYPE_CHART_COLORS,
   certificationReadiness,
-  clauseCoverage,
+  clauseCoverageByStandard,
   countBy,
   hasEvidenceRecord,
   isActionOverdue,
@@ -64,7 +64,7 @@ export default function ISOReports() {
   const standardByT = useMemo(() => new Map(standards.map((s) => [s.id, s])), [standards]);
 
   const coverage = useMemo(
-    () => clauseCoverage({ clauses, auditClauses, audits }, today)
+    () => clauseCoverageByStandard({ standards, clauses, auditClauses, audits }, today)
       .sort((a, b) => {
         const rank = (r) => (r.lastExaminedOn ? (r.stale ? 1 : 2) : 0);
         const diff = rank(a) - rank(b);
@@ -72,7 +72,7 @@ export default function ISOReports() {
         return String(a.clause_ref).localeCompare(String(b.clause_ref), undefined, { numeric: true });
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [clauses, auditClauses, audits]);
+    [standards, clauses, auditClauses, audits]);
 
   const gaps = useMemo(() => coverage.filter((c) => !c.covered), [coverage]);
 
