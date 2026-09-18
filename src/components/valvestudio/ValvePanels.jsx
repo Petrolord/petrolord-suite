@@ -48,7 +48,7 @@ export const ServiceInputs = () => {
           </SelectContent>
         </Select>
       </Field>
-      <Field label="Valve style" hint="Sets the recovery factor and terminal ratio. These are this engine's stated table values, not figures read from a standard, and certified vendor trim data always replaces them.">
+      <Field label="Valve style" hint="Sets the recovery factor and terminal ratio. These are this engine's stated table values, no standard in this package supplies them, and certified vendor trim data always replaces them.">
         <Select value={inputs.service.styleId} onValueChange={(v) => setSection('service', 'styleId', v)}>
           <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
           <SelectContent>

@@ -247,7 +247,16 @@ No new refusal renders as a blank, a NaN or a zero: `DeviceDetail` gates
 every row behind `!d.error` and shows an `ErrorNote`, and the stage table
 prints "did not run".
 
-### Queued for the engines repo, not fixed from here
+### Resolved 2026-09-18 by engines #214 (vendored ahead of its pin)
+
+The two strings below are reworded in the engine and vendored into the Suite:
+the refusal now reads "at an F of zero or less the separator is undefined",
+and `cutBasis` ends "so the cut size and the train come from one model". The
+same sweep made the media filter's floor refusal true: it now says the module
+answers at the 1 m/hr floor and above it, and a canonical test pins 1 m/hr
+answering and one part in 10^9 below it refusing. The grid-step comment now
+gives 9.8 percent a bin at the defaults, which is what `dropletBins` returns.
+No number moved. The original finding, for the record:
 
 `apiSeparator`'s short-circuit refusal string breaches the owner copy rule
 with a contrastive: "an F of zero or less is not a perfect separator, it is

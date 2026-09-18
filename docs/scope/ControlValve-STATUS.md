@@ -69,8 +69,12 @@ through the characteristic law. 15 gates; engines suite 2011 green.
   always wins.
 - Piping geometry factors are inputs, because they depend on the
   reducers actually installed.
-- Noise is a screening indication: use it to know whether the question
-  needs asking, not to answer it.
+- Noise is a screening indication: use it to decide whether the full
+  IEC 60534-8-3 method is needed, and let that method give the answer.
+- 2026-09-18, engines #214 vendored (Suite PR fix/revendor-facilities-copy-sweep):
+  the flashing warning, the noise note and the noise threshold basis are
+  reworded to the owner copy rule. No number, key or branch moved. The help
+  guide's noise section and the Valve style hint follow the new wording.
 
 ## Open
 

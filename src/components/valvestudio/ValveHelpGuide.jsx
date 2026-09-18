@@ -46,7 +46,7 @@ const helpContent = [
     icon: Volume2,
     title: 'Noise, honestly',
     content:
-      'A real aerodynamic noise prediction needs the full IEC 60534-8-3 method with valve and pipe geometry this tool does not have. What is offered instead is a screening indication banded on the pressure ratio and the stream power, and it is labelled as exactly that. Use it to know whether the question needs asking, not to answer it. Past a pressure ratio of about four, expect to need multistage trim, a diffuser, heavier pipe wall or acoustic insulation, and expect a specialist to size them.',
+      'A real aerodynamic noise prediction needs the full IEC 60534-8-3 method with valve and pipe geometry this tool does not have. What is offered instead is a screening indication banded on the pressure ratio and the stream power, and it is labelled as exactly that. Use it to decide whether that full method is needed, and let that method give the answer. Past a pressure ratio of about four, expect to need multistage trim, a diffuser, heavier pipe wall or acoustic insulation, and expect a specialist to size them.',
   },
   {
     id: 'limits',

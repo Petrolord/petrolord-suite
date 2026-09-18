@@ -269,7 +269,7 @@ describe('inputs the studio used to answer', () => {
     const h = api.cooler.hotDay;
     expect(h.regime).toBe('colder than design');
     expect(h.dutyFraction).toBeCloseTo(1.354839, 6);
-    expect(h.note).toMatch(/capability, not a delivered duty/);
+    expect(h.note).toMatch(/a capability that the plant may never draw on/);
     // the shipped engine said 1.6670 here
     expect(Math.abs(h.dutyFraction - 1.667)).toBeGreaterThan(0.3);
   });

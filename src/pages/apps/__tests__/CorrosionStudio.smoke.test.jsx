@@ -269,7 +269,7 @@ describe('the page mounts and shows what it computed', () => {
     expect(rtl.getAllByText(/29\.7 mpy, high/).length).toBeGreaterThan(0);
     expect(rtl.getAllByText('85.5').length).toBeGreaterThan(0);    // effective inhibition
     // the inhibitor warning that could not fire before
-    expect(rtl.getAllByText(/availability, not efficiency/i).length).toBeGreaterThan(0);
+    expect(rtl.getAllByText(/availability is what limits it/i).length).toBeGreaterThan(0);
     // the binding constraint, which the studio never had
     expect(rtl.getAllByText(/Binding constraint/i).length).toBeGreaterThan(0);
     expect(rtl.getAllByText(/the corrosion allowance against the design life/i).length).toBeGreaterThan(0);
