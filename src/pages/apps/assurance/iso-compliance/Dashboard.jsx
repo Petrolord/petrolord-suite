@@ -122,7 +122,7 @@ export default function Dashboard() {
           />
           <MetricTile
             label="Claims with no evidence" value={summary.unevidencedClaims}
-            hint="Marked conformant, nothing recorded behind it"
+            hint="Marked conformant, evidence record incomplete"
             token={summary.unevidencedClaims ? '--destructive' : '--success'}
           />
           <MetricTile

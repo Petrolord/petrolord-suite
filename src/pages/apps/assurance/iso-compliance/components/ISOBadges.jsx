@@ -9,6 +9,7 @@ import {
   FINDING_TYPE_TOKENS,
   hasEvidenceRecord,
   claimsConformity,
+  missingEvidenceParts,
 } from '@/lib/isoCompliance';
 
 /**
@@ -102,7 +103,10 @@ export const EvidenceBadge = ({ clause }) => {
     );
   }
   return (
-    <Pill small token="--destructive" title="Marked conformant with no evidence reference, assessment date or assessor recorded.">
+    // ASC-1: name what is missing (engines #213 missingEvidenceParts). The
+    // title said "no evidence reference, assessment date or assessor"
+    // whatever was actually missing.
+    <Pill small token="--destructive" title={`Marked conformant. Not recorded: ${missingEvidenceParts(clause).join(', ')}.`}>
       No evidence
     </Pill>
   );

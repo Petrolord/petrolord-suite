@@ -47,7 +47,7 @@ export default {
         "A finding will not close while any action is Open or In progress. A Major or Minor nonconformity needs its correction. A Major one also needs its root cause, a Corrective action that is not Cancelled, and a corrective action verified effective; one found not effective must be followed by another that is verified. Observations and Opportunities for improvement need none of these.",
         "The effectiveness check is available only on a Complete action and records today and you. A not effective verdict needs notes. Voiding a finding needs a reason.",
         "A finding can be deleted only while it is Open with nothing recorded (no correction, root cause or actions) and its audit is not yet Reported, and only after you confirm. Anything else is voided with a reason.",
-        "Overdue: an open finding or an Open or In progress action past its due date; an audit still Planned, In progress, Fieldwork complete or Reported past its planned end; an applicable clause past its review date. Reviews are due soon within 30 days.",
+        "Overdue: an open finding or an Open or In progress action past its due date; an audit still Planned, In progress or Fieldwork complete past its planned end (a Reported audit was delivered, so it is not overdue); an applicable clause past its review date. Reviews are due soon within 30 days.",
         "Coverage counts Internal audits only, and only once the audit is Reported or Closed, because ISO 9001 §9.2.2(c) asks for reported results. A clause is examined when such an audit recorded any result other than Not examined. It is covered if that date is within the standard's cycle counted back from today, audited before this cycle if older, and never audited if there is none."
       ]
     },
@@ -66,7 +66,7 @@ export default {
       title: "Dashboard, reports and exports",
       paragraphs: [
         "Certification readiness is a list of blockers and carries no percentage. A share of clauses marked compliant by their own owners cannot tell you whether a certification audit will go well; the things that will stop one can be counted and named. Each line is something a certification auditor would raise, with its count.",
-        "Blocking: open major nonconformities; applicable clauses never internally audited; clauses claimed conformant without their evidence record; clauses assessed nonconformant; no applicable clauses at all. Serious: clauses audited before this cycle; clauses never assessed; overdue actions. Watch: open minor nonconformities; overdue clause reviews; overdue findings. A standard shows Ready for audit when nothing is blocking; otherwise its badge counts the blocking lines."
+        "Blocking: open major nonconformities; applicable clauses never internally audited; clauses claimed conformant without their full evidence record (the line names what is missing: the evidence reference, the assessed date or the assessor); clauses assessed nonconformant; no applicable clauses at all. Serious: clauses audited before this cycle; clauses never assessed; overdue actions. Watch: open minor nonconformities; overdue clause reviews; overdue findings. A standard shows Ready for audit when nothing is blocking; otherwise its badge counts the blocking lines."
       ],
       bullets: [
         "Dashboard: tiles for Applicable clauses, Never internally audited, Claims with no evidence and Major nonconformities open; readiness per standard; clauses by status; internal audit coverage; and the six most urgent findings.",

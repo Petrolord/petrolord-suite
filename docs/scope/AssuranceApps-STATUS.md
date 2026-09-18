@@ -1736,6 +1736,22 @@ UTC, Africa/Lagos and Pacific/Pago_Pago; `NODE_OPTIONS=--experimental-global-web
 **What remains for the owner:** apply the ASC-0 migration (staging, then
 production), and upload a build.
 
+### ASC-1: engines #213 vendored (2026-09-18)
+
+`packages/engines` moved from 9d5d3b4 to ab3ce6a (engines #213) by
+file-by-file copy of the 10 changed paths; the guard reports 810 paths
+byte for byte, 0 deviations, and `diff -r` against `git archive ab3ce6a`
+differs only in VENDOR.json and VENDOR.manifest.
+- ISO: a Reported audit is no longer overdue (`isAuditOverdue` asks
+  `AUDIT_UNDELIVERED_STATUSES`, as the audit module does). The Internal
+  audits page restated the old rule and now asks the engine.
+- ISO: the unevidenced-claim readiness line names what is missing
+  (`missingEvidenceParts`); the No evidence badge lists the missing parts.
+- Regulatory: the Due soon reason calls the default lead time the default;
+  the obligation page shows "30 days, the default (none is set)".
+- Help updated for all three. All 70 assurance suites pass (3731 tests)
+  under UTC, Africa/Lagos and Pacific/Pago_Pago; the build passes.
+
 ## 4. How AS1 was verified
 
 No production write was made. Everything below ran on a scratch

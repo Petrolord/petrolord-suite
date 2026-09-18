@@ -35,7 +35,7 @@ export default {
         'Expired: the permit or licence expiry date is earlier than today. Expired outranks every other status, so a lapsed permit reads Expired even if its returns are up to date.',
         'Overdue: the next due date is earlier than today. Evidence filed for an earlier period does not clear it.',
         'Due soon: the earlier of the next due date and the expiry date is within the obligation\'s warning lead time. An obligation due today reads Due soon.',
-        'Lead time: Warn this many days ahead defaults to 30 days, accepts 0 to 1095, and applies to this obligation only. A blank value is treated as 30.',
+        'Lead time: Warn this many days ahead defaults to 30 days, accepts 0 to 1095, and applies to this obligation only. A blank value is treated as 30, and the status reason then says the default 30 day lead time applied because none is set.',
         'Compliant: a filing has been recorded for the current period and nothing is within its warning window. For a repeating obligation the current period starts one frequency before the next due date, so a filing from an earlier period does not count: the obligation reads On track and says the last filing was for an earlier period. An obligation with no filing and nothing near reads On track. The app never shows Compliant for an obligation with no filing recorded.',
         'No date set: an Active obligation with neither a due date nor an expiry date. The form refuses to save one, but older rows can be in this state.',
         'The form refuses an obligation with no title, one with neither a due date nor an expiry date, and one whose expiry date is earlier than its In force from date.',
