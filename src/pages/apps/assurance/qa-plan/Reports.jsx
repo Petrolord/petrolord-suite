@@ -274,7 +274,7 @@ export default function QAReports() {
           <MetricTile
             label="Serious NCRs open"
             value={summary.seriousOpen}
-            hint="Critical or major; each blocks plan closure"
+            hint="Critical or major. Any open NCR on a plan, of any severity, stops that plan closing"
             token={summary.seriousOpen > 0 ? '--destructive' : '--success'}
           />
           <MetricTile

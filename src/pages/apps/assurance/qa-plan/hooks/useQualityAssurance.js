@@ -7,8 +7,12 @@ import {
   buildCheckpointWrite,
   buildNcrWrite,
   buildPlanWrite,
+  ncrLockReason,
+  ncrStatusFromActions,
   nextNcrCodeFromExisting,
   nextPlanCodeFromExisting,
+  planLockReason,
+  withDecisionDefaults,
 } from '../utils/qaPayload';
 
 const UNKNOWN_COLUMN = 'PGRST204';
@@ -327,7 +331,19 @@ export const useQualityAssurance = () => {
   /* Checkpoints — the inspection and test plan                       */
   /* ---------------------------------------------------------------- */
 
+  /**
+   * AS13: a closed, superseded or cancelled plan is a record. The page
+   * hides the controls; this refuses the write whatever calls it.
+   */
+  const lockedPlanFor = (planId) => planLockReason(plans.find((p) => p.id === planId));
+  const lockedCheckpoint = (id) => {
+    const checkpoint = checkpoints.find((c) => c.id === id);
+    return checkpoint ? lockedPlanFor(checkpoint.plan_id) : null;
+  };
+
   const addCheckpoints = async (planId, rows, { skipRefresh = false } = {}) => {
+    const locked = lockedPlanFor(planId);
+    if (locked) return { success: false, error: locked };
     const payload = rows
       .filter((c) => String(c.title || '').trim() && String(c.item_no || '').trim())
       .map((c, i) => buildCheckpointWrite({
@@ -352,6 +368,8 @@ export const useQualityAssurance = () => {
   };
 
   const updateCheckpoint = async (id, patch) => {
+    const locked = lockedCheckpoint(id);
+    if (locked) return { success: false, error: locked };
     const { row } = buildCheckpointWrite(patch);
     const { error: err } = await supabase.from('qa_checkpoints').update(row).eq('id', id);
     if (err) return { success: false, error: explainWriteError(err) };
@@ -366,22 +384,25 @@ export const useQualityAssurance = () => {
    * missing rather than shown a constraint name. The constraint is
    * still there: it is what stops a decision being recorded by any
    * other route.
+   *
+   * AS13: the defaults (today's date, and the current user when no
+   * verifier is named) are applied BEFORE the gate. They used to be
+   * applied after it, so the gate judged a row with no verifier and
+   * "Verifier, if not you" could not actually be left blank.
    */
   const decideCheckpoint = async (checkpoint, status, patch = {}) => {
-    const verdict = canDecideCheckpoint(checkpoint, status, patch);
+    const locked = planLockReason(plans.find((p) => p.id === checkpoint.plan_id));
+    if (locked) return { success: false, error: locked };
+
+    const filled = withDecisionDefaults(patch, status, user?.id || null);
+    const verdict = canDecideCheckpoint(checkpoint, status, filled);
     if (!verdict.ok) return { success: false, error: verdict.reason };
 
     const row = {
-      ...patch,
+      ...filled,
       status,
       updated_at: new Date().toISOString(),
     };
-    if (!row.result_date && ['Passed', 'Failed', 'Waived'].includes(status)) {
-      row.result_date = new Date().toISOString().slice(0, 10);
-    }
-    if (!row.verified_by && !String(row.verifier_name || '').trim()) {
-      row.verified_by = user?.id || null;
-    }
 
     const result = await updateCheckpoint(checkpoint.id, row);
     if (result.success) {
@@ -395,6 +416,8 @@ export const useQualityAssurance = () => {
   };
 
   const deleteCheckpoint = async (id) => {
+    const locked = lockedCheckpoint(id);
+    if (locked) return { success: false, error: locked };
     const { error: err } = await supabase.from('qa_checkpoints').delete().eq('id', id);
     if (err) return { success: false, error: explainWriteError(err) };
     await fetchAll();
@@ -472,8 +495,17 @@ export const useQualityAssurance = () => {
       disposition_rationale: disposition_rationale || null,
       disposition_date: new Date().toISOString().slice(0, 10),
       disposition_approved_by: user?.id || null,
-      status: ncr.status === 'Open' || ncr.status === 'Under investigation'
-        ? 'Disposition agreed' : ncr.status,
+      // Agreeing the disposition hands the status to the actions: with
+      // open ones it reads Actions in progress, with every one finished
+      // it reads Verification.
+      status: ncrStatusFromActions(
+        {
+          ...ncr,
+          status: ncr.status === 'Open' || ncr.status === 'Under investigation'
+            ? 'Disposition agreed' : ncr.status,
+        },
+        capasFor(ncr.id),
+      ),
     });
     if (result.success) {
       await logActivity('ncr', ncr.id, `Disposition agreed: ${disposition}`,
@@ -539,7 +571,35 @@ export const useQualityAssurance = () => {
   /* Corrective and preventive actions                                */
   /* ---------------------------------------------------------------- */
 
+  const lockedNcr = (ncrId) => ncrLockReason(ncrs.find((n) => n.id === ncrId));
+
+  /**
+   * AS13: keep the non-conformance's status in step with its actions
+   * once its disposition is agreed (ncrStatusFromActions). Returns a
+   * warning when the action was saved and the status was not, so the
+   * page can say so rather than let the two disagree silently.
+   */
+  const syncNcrStatus = async (ncrId, nextCapas) => {
+    const ncr = ncrs.find((n) => n.id === ncrId);
+    if (!ncr) return null;
+    const to = ncrStatusFromActions(ncr, nextCapas);
+    if (to === ncr.status) return null;
+    const { error: err } = await supabase
+      .from('qa_ncrs')
+      .update({ status: to, updated_at: new Date().toISOString() })
+      .eq('id', ncrId);
+    if (err) {
+      return `The action was saved, but ${ncr.ncr_code} could not be moved to ${to}: `
+        + `${explainWriteError(err)}`;
+    }
+    await logActivity('ncr', ncrId, `Status changed to ${to}`, null,
+      { ncr_id: ncrId, plan_id: ncr.plan_id });
+    return null;
+  };
+
   const addCapas = async (ncrId, rows, { skipRefresh = false } = {}) => {
+    const locked = lockedNcr(ncrId);
+    if (locked) return { success: false, error: locked };
     const payload = rows
       .filter((c) => String(c.description || '').trim())
       .map((c) => buildCapaWrite({
@@ -553,19 +613,26 @@ export const useQualityAssurance = () => {
     if (err) {
       return { success: false, error: `The actions were not saved: ${explainWriteError(err)}` };
     }
+    const warning = await syncNcrStatus(ncrId, [...capasFor(ncrId), ...payload]);
     if (!skipRefresh) await fetchAll();
-    return { success: true };
+    return { success: true, warning };
   };
 
   const updateCapa = async (id, patch) => {
+    const existing = capas.find((c) => c.id === id);
+    const ncrId = existing?.ncr_id || patch.ncr_id;
+    const locked = lockedNcr(ncrId);
+    if (locked) return { success: false, error: locked };
     const { row } = buildCapaWrite(patch);
     if (patch.status === 'Complete' && !row.completed_at) {
       row.completed_at = new Date().toISOString();
     }
     const { error: err } = await supabase.from('qa_capas').update(row).eq('id', id);
     if (err) return { success: false, error: explainWriteError(err) };
+    const warning = await syncNcrStatus(ncrId,
+      capasFor(ncrId).map((c) => (c.id === id ? { ...c, ...row } : c)));
     await fetchAll();
-    return { success: true };
+    return { success: true, warning };
   };
 
   /**
@@ -603,10 +670,16 @@ export const useQualityAssurance = () => {
   };
 
   const deleteCapa = async (id) => {
+    const ncrId = capas.find((c) => c.id === id)?.ncr_id;
+    const locked = lockedNcr(ncrId);
+    if (locked) return { success: false, error: locked };
     const { error: err } = await supabase.from('qa_capas').delete().eq('id', id);
     if (err) return { success: false, error: explainWriteError(err) };
+    const warning = ncrId
+      ? await syncNcrStatus(ncrId, capasFor(ncrId).filter((c) => c.id !== id))
+      : null;
     await fetchAll();
-    return { success: true };
+    return { success: true, warning };
   };
 
   return {

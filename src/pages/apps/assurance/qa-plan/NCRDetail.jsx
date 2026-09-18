@@ -21,7 +21,8 @@ import {
 } from '@/lib/qualityAssurance';
 import { QAPlanShell, BASE } from './components/QAPlanShell';
 import {
-  DetailField, EmptyState, ErrorState, GateNotice, Loading, MetricTile, SchemaNotice, WriteFailure,
+  ConfirmDelete, DetailField, EmptyState, ErrorState, GateNotice, Loading, MetricTile,
+  SchemaNotice, WriteFailure,
 } from './components/SharedComponents';
 import {
   CapaStatusBadge, EffectivenessBadge, NcrStatusBadge, SeverityBadge,
@@ -69,6 +70,7 @@ export default function NCRDetail() {
   const [closureNotes, setClosureNotes] = useState('');
   const [voiding, setVoiding] = useState(false);
   const [voidReason, setVoidReason] = useState('');
+  const [removing, setRemoving] = useState(null);
 
   const today = new Date();
   const ncr = useMemo(() => ncrs.find((n) => n.id === ncrId) || null, [ncrs, ncrId]);
@@ -108,7 +110,11 @@ export default function NCRDetail() {
     const result = await fn();
     setBusy(false);
     if (!result.success) { setFailure(result.error); return false; }
-    if (message) toast({ description: message });
+    if (result.warning) {
+      toast({ description: result.warning, variant: 'destructive' });
+    } else if (message) {
+      toast({ description: message });
+    }
     return true;
   };
 
@@ -179,7 +185,10 @@ export default function NCRDetail() {
     if (ok) { setVoiding(false); setVoidReason(''); }
   };
 
-  const removeCapa = (capa) => run(() => deleteCapa(capa.id), 'Action removed.');
+  const removeCapa = async (capa) => {
+    const ok = await run(() => deleteCapa(capa.id), 'Action removed.');
+    if (ok) setRemoving(null);
+  };
 
   const age = ncrAgeDays(ncr, today);
   const selectClass = 'h-10 w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 text-sm';
@@ -507,7 +516,7 @@ export default function NCRDetail() {
                             ) : null}
                             {!terminal ? (
                               <Button size="sm" variant="ghost" disabled={busy}
-                                onClick={() => removeCapa(c)} title="Remove this action">
+                                onClick={() => setRemoving(c)} title="Remove this action">
                                 <Trash2 className="w-4 h-4" />
                               </Button>
                             ) : null}
@@ -653,6 +662,18 @@ export default function NCRDetail() {
             ))}
           </CardContent>
         </Card>
+
+        <ConfirmDelete
+          open={Boolean(removing)}
+          title="Remove this action?"
+          description={removing
+            ? `"${removing.description}" will be deleted from ${ncr.ncr_code}. This cannot be undone. If the action was raised and then abandoned, marking it Cancelled keeps the record.`
+            : ''}
+          confirmLabel="Remove action"
+          busy={busy}
+          onConfirm={() => removeCapa(removing)}
+          onCancel={() => setRemoving(null)}
+        />
       </div>
     </QAPlanShell>
   );
