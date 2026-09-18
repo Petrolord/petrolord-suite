@@ -31,10 +31,10 @@ programmes. This one is still in its Horizons-generated state.
 | Management of Change | `apps/assurance/management-of-change/*` | `moc_records`, `moc_approvals`, `moc_actions`, `moc_impacts`, `moc_activity_log` | **AS6 done.** Coming Soon until its own promotion migration | AS6 |
 | Quality Assurance Plan & NCR | `apps/assurance/qa-plan/*` | `qa_plans`, `qa_checkpoints`, `qa_ncrs`, `qa_capas`, `qa_activity_log` | **AS7 done.** Coming Soon until its own promotion migration | AS7 |
 | Lessons Learned | `apps/assurance/lessons-learned/*` | `lesson_records`, `lesson_applications`, `lesson_activity_log` | **AS9 done.** Coming Soon until its own promotion migration | AS9 |
-| Audit & Findings Manager | not built | - | New app | AS10 |
+| Audit & Findings Manager | `apps/assurance/audit-manager/*` | `audit_programmes`, `audit_templates`, `audit_template_items`, `audit_records`, `audit_responses`, `audit_findings`, `audit_actions`, `audit_activity_log` | **AS10 done.** New app; its tile is seeded Coming Soon | AS10 |
 
-Tests: **499** as of AS9 (AS2 34, AS3 63, AS4 45, AS5 52, AS6 58, AS7 79,
-AS8 93, AS9 63, plus the shared authority suites), all under
+Tests: **568** as of AS10 (AS2 34, AS3 63, AS4 45, AS5 52, AS6 58, AS7 79,
+AS8 93, AS9 63, AS10 69, plus the shared authority suites), all under
 `src/lib/__tests__/` and the two app trees. There were none at all
 before AS2. Engine: **none**; there is no `engines/assurance` in
 petrolord-engines, which is why the two NextGen assurance courses are
@@ -1090,6 +1090,87 @@ register.
 
 ---
 
+## 3i. AS10, built 2026-09-17 — Audit & Findings Manager (new)
+
+The only wave in this programme that is not a rebuild, and the one that
+closes the module's original finding.
+
+### 3i.1 Two tiles, sold, with no code of any kind
+
+`safety-audit-manager` and `audit-trail-manager` were **Active** with
+`is_functional = true` in `master_apps`, and behind them there was no
+route in `App.jsx`, no page, no component, no service — nothing but a
+marketing entry. A customer could buy both. AS1 archived them and
+recorded that they would return here as one app that seeds its own
+tile; this is that app.
+
+Assurance module pricing is computed from the catalogue
+(`pricing_config.module_pricing`), so those two tiles had been priced
+as working software.
+
+### 3i.2 The decision that had to be made first
+
+AS8 had already built an audit programme. The question was whether
+this app is that app.
+
+It is not, and the migration header records why rather than leaving it
+to be inferred. **AS8's audit is an audit of a management system**: its
+scope is a set of clauses and its coverage record runs over a
+certification cycle. **A contractor HSE audit has neither** — it has a
+protocol of questions, an auditee, and answers. Forcing either shape
+onto the other damages both.
+
+What the two genuinely share is shared **in code**: `audit_findings`
+and `audit_actions` carry the same columns and the same vocabularies
+as `iso_findings` and `iso_actions` on purpose, and
+`src/lib/auditManagement.js` imports AS8's `canCloseFinding` rather
+than restating it. A unit test asserts the imported function **is** the
+ISO one (`expect(canCloseFinding).toBe(isoCanCloseFinding)`), so a
+future copy-paste fails the suite. That is §6 enforced by a test rather
+than by good intentions.
+
+### 3i.3 The five rules
+
+- **An audit is not reported with half its checklist blank, and "not
+  applicable" is an answer that needs a reason.** A 120-item protocol
+  returned with 40 items untouched and reported as "no findings" is the
+  failure a paper audit programme actually produces, and marking the
+  awkward items not applicable is the fastest way to produce it. A
+  nonconformant answer also carries its objective evidence.
+- **A nonconformant answer on a CRITICAL item must raise a finding**
+  before the audit can be reported. That link is what makes a checklist
+  a control rather than a form, and a **voided** finding does not
+  satisfy it.
+- **A stop-work finding records what was done about it immediately**,
+  from the moment it is raised rather than at closure, and a stop-work
+  observation is refused as the contradiction it is. Imminent danger
+  does not wait for the corrective action cycle.
+- **An auditor may not audit their own area** — the lead auditor and
+  the auditee. The module's fourth independence rule, after AS5's
+  reviewer, AS8's ISO 19011 auditor and AS9's lesson author.
+- **A programme is complete when its audits are, not when the year
+  ends.** Completion needs every audit reported or cancelled WITH A
+  REASON, and `programmeProgress()` counts delivery from audits
+  reported. There is deliberately no `deleteAudit` anywhere in the app:
+  a programme whose audits can be deleted can always be reported
+  complete.
+
+### 3i.4 Gotcha worth keeping
+
+**The module's own defect list became the test suite.** AS10 had no
+fiction to remove, so its 28 file-level tests are written against the
+eight defect classes the earlier waves found — a create form with no
+state (AS6, AS7, AS9), a fall-back to the first record (AS4, AS9), a
+route parameter the page does not read (AS7), `Math.random()` in the
+data (AS8), a literal standing in for a query (every wave), a "not
+implemented" toast naming the prompt builder (AS3, AS9), an export
+built from something other than fetched rows (AS5, AS6), and a hook
+method with no caller (AS7, which caught four in AS8). The last one
+caught `deleteAudit` here, and the right answer was to delete the
+method rather than add a button.
+
+---
+
 ## 4. How AS1 was verified
 
 No production write was made. Everything below ran on a scratch
@@ -1124,16 +1205,18 @@ schema level, and on the scratch reproduction.
 
 ## 5. Open
 
-- **All thirteen migrations are unapplied.** Ordered apply script:
+- **All fifteen migrations are unapplied.** Ordered apply script:
   `tools/validation/assurance/as1-apply.sh`, which does not yet include
   AS3's `20260917100000_as3_regulatory_compliance.sql`, AS4's
   `20260917200000_as4_document_control.sql`, AS5's
   `20260917300000_as5_peer_review.sql`, AS6's
   `20260917400000_as6_management_of_change.sql`, AS7's
   `20260917500000_as7_quality_assurance_plan.sql`, AS8's
-  `20260917600000_as8_iso_compliance.sql` or AS9's
-  `20260917700000_as9_lessons_learned.sql`; run those after the AS1
-  pair, in that order. Owner-run.
+  `20260917600000_as8_iso_compliance.sql`, AS9's
+  `20260917700000_as9_lessons_learned.sql` or AS10's pair
+  (`20260917800000_as10_audit_findings_manager.sql` and its tile seed
+  `20260917810000`); run those after the AS1 pair, in that order.
+  Owner-run.
 - **The six parent registers have no RLS or policies in the repo**
   (§3d.4). `documents`, `risk_register`, `moc_records`,
   `compliance_rules` and the risk children AS1 listed as already
@@ -1144,10 +1227,13 @@ schema level, and on the scratch reproduction.
   reconstruction one.
 - **A private `documents` storage bucket** for AS4 file uploads (§3c.6).
   Owner-run through the Supabase dashboard.
-- **Six held tile promotions.** AS1 left Document Control, Peer Review
-  Manager, Management of Change, Quality Assurance Plan and Lessons
-  Learned at Coming Soon and demoted ISO Compliance to it; AS4 to AS9
-  make them real, but each promotion migration is held with the rest.
+- **Seven held tile promotions.** AS1 left Document Control, Peer
+  Review Manager, Management of Change, Quality Assurance Plan and
+  Lessons Learned at Coming Soon and demoted ISO Compliance to it; AS4
+  to AS9 make them real. AS10 SEEDS a seventh tile
+  (`audit-findings-manager`) at Coming Soon, since its app is new.
+  Every promotion to Active is held for the upload that ships the
+  routes.
 - The commerce migration needs a second engineer (shared tables).
 - Five owner questions in `Assurance-ROADMAP.md` §7. AS1 proceeded on
   the recommendation in each case per the standing autonomous directive;
