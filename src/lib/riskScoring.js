@@ -44,6 +44,18 @@ export const RISK_BANDS = Object.freeze([
 
 export const RISK_BAND_NAMES = Object.freeze(RISK_BANDS.map((b) => b.band));
 
+/**
+ * The register's status vocabulary (the form's list, in
+ * `pages/apps/risk-register/constants.js`) split into the risks an
+ * organization still carries and the ones it does not. AS11 needed the
+ * split for the hub, and the hub is not the place to decide it.
+ * A Mitigated risk is still carried: mitigation lowers the residual,
+ * it does not remove the risk. A Realized risk has happened and is
+ * still carried until someone closes it. Draft has not been raised.
+ */
+export const RISK_LIVE_STATUSES = Object.freeze(['Open', 'Under Review', 'Mitigated', 'Realized']);
+export const RISK_NOT_LIVE_STATUSES = Object.freeze(['Draft', 'Closed']);
+
 /** Returned when a risk has no usable likelihood or impact. */
 export const NO_BAND = 'None';
 
