@@ -10,7 +10,6 @@ import {
   STAGES,
   byUrgency,
   isOverdue,
-  isResolved,
   parseDateOnly,
 } from '@/lib/peerReview';
 import { exportToCSV } from '@/utils/exportUtils';
@@ -18,6 +17,7 @@ import { PeerReviewShell, BASE } from './components/PeerReviewShell';
 import { DecisionBadge, PriorityBadge, StageBadge } from './components/StatusBadges';
 import { EmptyState, ErrorState, Loading, SchemaNotice } from './components/SharedComponents';
 import { usePeerReview } from './hooks/usePeerReview';
+import { openCommentsOf } from './utils/liveComments';
 
 const ALL = 'All';
 const showDate = (v) => {
@@ -79,7 +79,7 @@ export default function ReviewRegister() {
       Due: r.due_date || '',
       Overdue: isOverdue(r, today) ? 'Yes' : 'No',
       Comments: r.comments?.length ?? 0,
-      'Open comments': (r.comments || []).filter((c) => !isResolved(c)).length,
+      'Open comments': openCommentsOf(r, today),
     })), `peer-review-register-${format(today, 'yyyy-MM-dd')}`);
   };
 
@@ -157,7 +157,7 @@ export default function ReviewRegister() {
                     </td>
                   </tr>
                 ) : filtered.map((r) => {
-                  const open = (r.comments || []).filter((c) => !isResolved(c)).length;
+                  const open = openCommentsOf(r, today);
                   const late = isOverdue(r, today);
                   return (
                     <tr key={r.id}

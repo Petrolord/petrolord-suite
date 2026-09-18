@@ -22,6 +22,7 @@ import {
   summarise,
 } from '@/lib/managementOfChange';
 import { exportToCSV } from '@/utils/exportUtils';
+import { openActionsOf } from './utils/openActions';
 import { EmptyState, ErrorState, Loading } from './components/SharedComponents';
 import { useManagementOfChange } from './hooks/useManagementOfChange';
 import { expiryDisplay, expiryReportRows } from './utils/expiryDisplay';
@@ -103,7 +104,7 @@ export default function MOCReports() {
       'Target implementation': m.target_implementation_date || '',
       Expires: m.expiry_date || '',
       'Expiry state': expiryDisplay(m, today)?.state || '',
-      'Open actions': (m.actions || []).filter((a) => !['Complete', 'Cancelled'].includes(a.status)).length,
+      'Open actions': openActionsOf(m, today),
     })), `moc-register-${format(today, 'yyyy-MM-dd')}`);
   };
 

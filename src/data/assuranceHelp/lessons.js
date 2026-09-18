@@ -65,7 +65,7 @@ export default {
         "There is no reusability rating. Scope records how widely a lesson could apply; the register counts how often it has been applied, shown as Applied 2x, or Applied nowhere for a published lesson with no adopted or adapted application."
       ],
       bullets: [
-        "Dashboard tiles: Lessons, Applied nowhere (Published or Embedded, no adopted or adapted application), Awaiting validation (Submitted), and Pushed into a register (adopted or adapted applications into the risk register or Management of change).",
+        "Dashboard tiles: Lessons, Applied nowhere (Published or Embedded, no adopted or adapted application), Awaiting validation (Submitted), Pushed into a register (adopted or adapted applications into the risk register or Management of change), Review overdue (Published or Embedded, past the review due date) and Review due soon (Published or Embedded, review due within 30 days).",
         "Dashboard panels: lessons by status and by category, and Needing attention: every lesson sorted, and the first eight shown. Published or Embedded lessons applied nowhere come first, then Submitted, then Published or Embedded with an overdue review, then other Draft, Validated, Published or Embedded lessons, then Archived and Superseded. Within each group the latest event date (or capture date) comes first and undated lessons last, so with few lessons needing work the list still fills with others.",
         "Search: every word you type must appear somewhere in the lesson's text fields. Published lessons only is ticked by default and includes Embedded. Filter by category, discipline, source and scope.",
         "Reports: tiles for Applied nowhere, Applications recorded (every application, with how many changed something and how many were rejected), Into the risk register and Into change control; the list of published lessons applied to nothing; root cause categories; what lessons have changed, by target; and outcomes including rejections.",
@@ -81,7 +81,7 @@ export default {
         "Lessons captured before this change with Author left blank show the author as Not set; the account is still recorded for the independence check.",
         "Deleting a lesson removes it for good. Risks and changes raised from it remain in their own registers.",
         "Risk and change pickers list up to 500 recent records, and are empty if that register cannot be read. If those registers cannot issue a number, raise the record in its own app and link it.",
-        "No attachments, reminders or printable reports. Review dates only affect the Needing attention order."
+        "No attachments, reminders or printable reports. Review dates set the two review tiles on the Dashboard and the Needing attention order; nothing is sent when a review falls due."
       ]
     },
     {

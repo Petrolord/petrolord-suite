@@ -117,8 +117,9 @@ export default function ClauseRegister() {
     if (!assessing) return { ok: true };
     const patch = ASSESSED_STATUSES.includes(assessment.status)
       ? withAssessor(assessment, userId) : assessment;
-    return canSetClauseStatus(assessing, assessment.status, patch);
-  }, [assessing, assessment, userId]);
+    return canSetClauseStatus(assessing, assessment.status, patch,
+      standards.find((st) => st.id === assessing.standard_id) || null);
+  }, [assessing, assessment, userId, standards]);
 
   const submitClause = async (e) => {
     e.preventDefault();

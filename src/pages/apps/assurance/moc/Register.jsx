@@ -16,6 +16,7 @@ import {
   parseDateOnly,
 } from '@/lib/managementOfChange';
 import { exportToCSV } from '@/utils/exportUtils';
+import { openActionsOf } from './utils/openActions';
 import { ExpiryBadge, RiskBadge, StageBadge, TypeBadge } from './components/MOCBadges';
 import { EmptyState, ErrorState, Loading, SchemaNotice } from './components/SharedComponents';
 import { useManagementOfChange } from './hooks/useManagementOfChange';
@@ -96,7 +97,7 @@ export default function MOCRegister() {
       'Expires': m.expiry_date || '',
       'Expiry state': expiryDisplay(m, today)?.state || '',
       Overdue: isOverdue(m, today) ? 'Yes' : 'No',
-      'Open actions': (m.actions || []).filter((a) => !['Complete', 'Cancelled'].includes(a.status)).length,
+      'Open actions': openActionsOf(m, today),
     })), `moc-register-${format(today, 'yyyy-MM-dd')}`);
   };
 

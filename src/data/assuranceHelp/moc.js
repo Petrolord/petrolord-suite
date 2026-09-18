@@ -41,7 +41,7 @@ export default {
         "Only a change in Draft can be deleted, and 'Delete' asks for confirmation first. Past Draft, a change that should not go ahead is cancelled or rejected, which keeps its record.",
         "Expiry is tracked only for Temporary and Emergency changes at Implementation. Such a change is Expiring soon from 14 days before its expiry date up to and including that date, and Expired from the day after.",
         "An expired change sorts to the top of the register and raises a red banner on the dashboard and on the change itself.",
-        "A change is overdue when it is at Draft to Implementation and its target implementation date has passed. An action is overdue when it is Open or In progress and its due date has passed.",
+        "A change is overdue when it is at Draft, Screening, Review or Approval and its target implementation date has passed. Once it reaches Implementation it is on the facility and is no longer overdue against that date. An action is overdue when it is Open or In progress and its due date has passed.",
       ],
     },
     {
@@ -64,9 +64,9 @@ export default {
         "All figures are counted from your organization's own change records when the page loads.",
       ],
       bullets: [
-        "'Active changes': changes at Draft to Implementation. 'Awaiting approval': changes at the Approval stage (the tile opens the Approvals page). 'Expired temporary': expired temporary and emergency changes. 'Overdue actions': open actions past due, across every change.",
+        "'Active changes': changes at Draft to Implementation. 'Awaiting approval': changes at the Approval stage (the tile opens the Approvals page). 'Expired temporary': expired temporary and emergency changes. 'Overdue actions': open actions past due, on every change that is not Closed, Rejected or Cancelled.",
         "'The register by stage' is a doughnut of changes per stage. 'Expiring and expired' lists up to six, expired first. 'By risk level' counts changes per risk level plus Unassessed. 'Recent activity' shows the six latest audit entries.",
-        "The MOC Register sorts expired first, then expiring soon, then overdue, then other active changes, then finished ones. Search matches number, title, asset, department and category; filter by stage, type or risk level, or tick 'Expired only'. 'Export CSV' exports the rows shown, including expiry state, overdue flag and open actions. The search box in the header (on a wide screen) opens the register filtered by what you type when you press Enter.",
+        "The MOC Register sorts expired first, then expiring soon, then overdue, then other active changes, then finished ones. Search matches number, title, asset, department and category; filter by stage, type or risk level, or tick 'Expired only'. 'Export CSV' exports the rows shown, including expiry state, overdue flag and open actions. A Closed, Rejected or Cancelled change is locked, so it shows 0 open actions, as on the Dashboard. The search box in the header (on a wide screen) opens the register filtered by what you type when you press Enter.",
         "Reports exports 'Register (CSV)' for every change, and 'Temporary change expiry (CSV)' listing temporary and emergency changes still to be reverted (in effect or on their way in) with expiry date, days remaining and state, soonest first. It also shows the expiry table and charts of changes by stage, by category, and risk by stage.",
         "Expiry states are Expired, Expiring soon and Within expiry for a temporary or emergency change at Implementation, or No expiry if it has no readable date. One not yet at Implementation shows 'Expires (date) once in effect' on its badge and 'Not yet in effect' in the expiry table and exports. Rejected and Cancelled changes never went in and are left out of the expiry report. A closed temporary change reads Closed out on its badge, in the register and in the Register CSV. It is no longer tracked against its expiry, so it is left out of the expiry table and the expiry CSV.",
       ],

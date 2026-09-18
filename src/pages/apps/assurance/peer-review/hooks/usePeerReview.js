@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import {
-  canClose, canTransition, explainRefusal, nextStages,
+  canActOnComment, canClose, canTransition, nextStages,
 } from '@/lib/peerReview';
 import {
   buildCommentWrite,
@@ -11,6 +11,7 @@ import {
   nextCodeFromExisting,
   reviewLockReason,
 } from '../utils/reviewPayload';
+import { leadReviewerIdOf, rosterRefusal } from '../utils/segregation';
 
 const UNKNOWN_COLUMN = 'PGRST204';
 const UNKNOWN_RELATION = 'PGRST200';
@@ -205,6 +206,12 @@ export const usePeerReview = () => {
 
   const createReview = async (form, roster = []) => {
     if (!orgId) return { success: false, error: 'No organization is selected.' };
+    // ASC-0 (D1): the author of the work is never its lead reviewer or a
+    // reviewer. The lead is the roster's first Lead Reviewer with an
+    // account, unless the form names one.
+    form = { ...form, lead_reviewer_id: form.lead_reviewer_id || leadReviewerIdOf(roster) };
+    const refusal = rosterRefusal(form, roster);
+    if (refusal) return { success: false, error: refusal };
     let as5 = hasAs5Schema;
 
     for (let attempt = 0; attempt < CODE_RETRIES; attempt += 1) {
@@ -239,7 +246,7 @@ export const usePeerReview = () => {
 
       let warning = null;
       if (roster.length) {
-        const rosterResult = await setRoster(data.id, roster, { skipRefresh: true });
+        const rosterResult = await setRoster(data.id, roster, { skipRefresh: true, review: data });
         if (!rosterResult.success) warning = rosterResult.error;
       }
 
@@ -251,6 +258,16 @@ export const usePeerReview = () => {
   };
 
   const updateReview = async (id, form) => {
+    // ASC-0 (D1): asked only when the author or the lead reviewer changes,
+    // as the database does, so a review recorded before the rule existed
+    // still moves through its stages.
+    const stored = reviews.find((r) => r.id === id) || {};
+    const next = { ...stored, ...form };
+    if (next.author_id !== stored.author_id || next.lead_reviewer_id !== stored.lead_reviewer_id) {
+      const roster = next.author_id !== stored.author_id ? participantsFor(id) : [];
+      const refusal = rosterRefusal(next, roster);
+      if (refusal) return { success: false, error: refusal };
+    }
     let as5 = hasAs5Schema;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const { row } = buildReviewWrite(form, { hasAs5Columns: as5 });
@@ -345,11 +362,16 @@ export const usePeerReview = () => {
   const disposeComment = async (comment, to, { text } = {}) => {
     const locked = lockedReview(comment.review_id);
     if (locked) return { success: false, error: locked };
-    const refusal = explainRefusal(
+    // ASC-0 (D1): the disposition rules, then segregation of duties: the
+    // author of the work never verifies, rejects or withdraws a comment
+    // on it.
+    const verdict = canActOnComment(
       { ...comment, response_text: to === 'Verified' ? comment.response_text : text },
       to,
+      reviews.find((r) => r.id === comment.review_id) || {},
+      user?.id || null,
     );
-    if (refusal) return { success: false, error: refusal };
+    if (!verdict.ok) return { success: false, error: verdict.reason };
     if (!canTransition(comment.status || 'Open', to)) {
       return { success: false, error: `A comment cannot go from ${comment.status} to ${to}.` };
     }
@@ -388,7 +410,12 @@ export const usePeerReview = () => {
   };
 
   /** Replace a review's roster. */
-  const setRoster = async (reviewId, roster, { skipRefresh = false } = {}) => {
+  const setRoster = async (reviewId, roster, { skipRefresh = false, review = null } = {}) => {
+    // ASC-0 (D1): refused before the old roster is deleted, so a refused
+    // roster leaves the stored one as it was.
+    const owner = review || reviews.find((r) => r.id === reviewId) || {};
+    const refusal = rosterRefusal({ author_id: owner.author_id }, roster);
+    if (refusal) return { success: false, error: refusal };
     const { error: delErr } = await supabase
       .from('peer_review_participants').delete().eq('review_id', reviewId);
     if (delErr) {

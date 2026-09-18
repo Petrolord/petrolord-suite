@@ -24,6 +24,7 @@ import { exportToCSV } from '@/utils/exportUtils';
 import { PeerReviewShell } from './components/PeerReviewShell';
 import { EmptyState, ErrorState, Loading } from './components/SharedComponents';
 import { usePeerReview } from './hooks/usePeerReview';
+import { localDateOfInstant } from '../shared/instantDates';
 
 /**
  * AS5 — reporting, from this organization's own rows.
@@ -99,9 +100,11 @@ export default function Reports() {
         Discipline: c.discipline || '',
         Comment: c.comment_text || '',
         Response: c.response_text || '',
-        Raised: c.created_at ? c.created_at.slice(0, 10) : '',
-        Responded: c.responded_at ? c.responded_at.slice(0, 10) : '',
-        Verified: c.verified_at ? c.verified_at.slice(0, 10) : '',
+        // ASC-0 (RC-8): the local calendar date of each stamp. Cutting
+        // the ISO instant to ten characters printed the UTC date.
+        Raised: localDateOfInstant(c.created_at),
+        Responded: localDateOfInstant(c.responded_at),
+        Verified: localDateOfInstant(c.verified_at),
         Resolved: isResolved(c) ? 'Yes' : 'No',
       };
     }), `peer-review-comments-${format(today, 'yyyy-MM-dd')}`);

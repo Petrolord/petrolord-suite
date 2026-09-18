@@ -9,11 +9,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertTriangle, ArrowLeft, Lock, MessageSquarePlus, Trash2 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 import {
   DECISIONS,
   SEVERITIES,
   TRANSITION_ACTOR,
   bySeverityThenAge,
+  canActOnComment,
   canClose,
   daysUntil,
   isOverdue,
@@ -55,6 +57,8 @@ export default function ReviewDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const userId = user?.id || null;
   const {
     reviews, auditFor, loadAudit, loading, error,
     addComment, disposeComment, changeStage, deleteReview, refresh,
@@ -344,6 +348,13 @@ export default function ReviewDetail() {
               <div className="space-y-4">
                 {comments.map((c) => {
                   const options = nextStatuses(c.status || 'Open');
+                  // ASC-0 (D1): each move asks the engine whether this user
+                  // may take it. A refused one is disabled, with the
+                  // engine's reason shown once under the buttons.
+                  const verdictOf = (to) => canActOnComment(c, to, review, userId);
+                  const refusals = [...new Set(options
+                    .map((to) => verdictOf(to))
+                    .filter((v) => !v.ok).map((v) => v.reason))];
                   return (
                     <Card key={c.id} className="panel-elevation">
                       <CardContent className="p-5 space-y-3">
@@ -386,6 +397,8 @@ export default function ReviewDetail() {
                           <div className="flex flex-wrap gap-2 pt-1">
                             {options.map((to) => (
                               <Button key={to} variant="outline" size="sm"
+                                disabled={!verdictOf(to).ok}
+                                title={verdictOf(to).ok ? undefined : verdictOf(to).reason}
                                 onClick={() => {
                                   // Verified and Closed need no text; the
                                   // other two are an exchange.
@@ -407,6 +420,11 @@ export default function ReviewDetail() {
                                 This comment is closed out.
                               </span>
                             ) : null}
+                            {refusals.map((reason) => (
+                              <p key={reason} className="w-full text-xs text-[hsl(var(--muted-foreground))]">
+                                {reason}
+                              </p>
+                            ))}
                           </div>
                         )}
                       </CardContent>

@@ -307,7 +307,8 @@ describe('no invented data in ISO Compliance', () => {
 
   it('the certificate colour uses the engine\'s lead window, not its own number', () => {
     const standards = code(path.join(APP, 'Standards.jsx'));
-    expect(standards).toMatch(/readiness\.counts\.certificateExpiring/);
+    // ASC-0: through certificateFlagged, which reads the engine's two flags.
+    expect(standards).toMatch(/certificateFlagged\(readiness\.counts\)/);
     expect(standards).not.toMatch(/certDays < 90/);
   });
 

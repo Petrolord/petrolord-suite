@@ -17,7 +17,8 @@ export default {
       steps: [
         "Open Peer Review Manager from the Assurance hub. The tabs are Dashboard, Register, New Review and Reports. 'Back to Assurance' returns you to the hub.",
         "Select 'New Review'. Title, Review type, Project or asset and Target completion are required. Department, Discipline, Priority (Low, Medium, High or Critical; default Medium) and Scope are optional.",
-        "Under 'Review team', enter each person's name, role (Coordinator, Lead Reviewer, Reviewer, Author, Approver or Observer) and discipline. 'Add a person' adds a row; rows with no name are ignored.",
+        "Under 'Review team', first name the Author of the work under review: pick a Suite member or type the name of somebody without an account. Then add each person, their role (Coordinator, Lead Reviewer, Reviewer, Author, Approver or Observer) and discipline. 'Add a person' adds a row; rows with no person are ignored. The first Lead Reviewer with a Suite account is recorded as the lead reviewer.",
+        "The author cannot be a Lead Reviewer or a Reviewer on their own work. The form says so under the team and will not save until that row is changed; two typed names that are the same name count as the same person.",
         "Choose 'Save as draft' to store the review at Draft, or 'Raise and start the review' to store it at In Review. The database issues the code, PR-year-number, in sequence per organization per year, and the review opens.",
         "Select 'Raise a comment', describe what is wrong and what would resolve it, enter the Discipline it falls under (optional; disciplines already used on the review are suggested), pick a Severity (Critical, Major, Minor or Editorial; default Major) and select 'Raise comment'.",
         "Work each comment with the buttons on its card, and move the review with the 'Move to ...' buttons at the top of the page.",
@@ -45,7 +46,7 @@ export default {
       bullets: [
         "Draft can move to In Review or be cancelled. In Review can move to Verification, back to Draft, or be cancelled. Verification can move to Closed, back to In Review, or be cancelled.",
         "'Move to Closed' opens a panel asking for the decision: Approved, Approved with conditions or Rejected. The app records the decision, when it was made, who made it and when the review closed. Until then the decision reads Pending.",
-        "Each comment button shows whose step it is: (author) for Responded; (reviewer) for Verified, Rejected and Withdrawn; (coordinator) for Closed. These labels describe the intended role only. The app does not check who presses a button, so any member of your organization can take any step.",
+        "Each comment button shows whose step it is: (author) for Responded; (reviewer) for Verified, Rejected and Withdrawn; (coordinator) for Closed. The author of the work cannot take a reviewer's step: for them Verified, Rejected and Withdrawn are greyed out, with the reason underneath. The app and the database both refuse it. Any other member can take the reviewer's steps, and the author responds.",
         "The review page has four tabs. Comments lists unresolved comments first, then by severity, then oldest first. Overview shows the details and the count of open comments. Team shows the roster. Audit trail lists events, newest first: 'Review raised', each 'Stage changed to ...', each comment raised (for example 'Major comment raised') and each disposition (for example 'Comment responded').",
       ],
     },
@@ -57,7 +58,7 @@ export default {
       ],
       bullets: [
         "'Active reviews': reviews at Draft, In Review or Verification. 'Overdue': live reviews past their target date.",
-        "'Open comments': comments at Open, Responded or Rejected. 'Blocking closure': unresolved Critical and Major comments. Both count every review in the register, including cancelled ones.",
+        "'Open comments': comments at Open, Responded or Rejected. 'Blocking closure': unresolved Critical and Major comments. Neither counts comments on a Closed or Cancelled review, because nobody can resolve them there. The Register's open comment count and the 'Comments blocking closure' list follow the same rule.",
         "'The register by stage' is a doughnut of reviews per stage. 'Running late' lists up to five overdue reviews, earliest first. 'Comments blocking closure' lists up to five blocking comments, Critical first. Click an entry to open its review.",
         "The Register sorts overdue reviews first, then other live reviews, then closed and cancelled, each by due date. Search matches code, title, asset, discipline and department; filter by stage or priority, or tick 'Overdue only'. 'Export CSV' exports the rows your filters show, including overdue flag, comment count and open comment count.",
         "Reports shows a summary line and exports 'Register (CSV)', every review with its stage, decision, due date, overdue flag and comment counts, and 'Comments (CSV)', every comment with its review, severity, status, text, response, raised, responded and verified dates, and whether it is resolved.",
@@ -86,6 +87,7 @@ export default {
         "When is a review overdue? From the day after its target completion date, while it is at Draft, In Review or Verification.",
         "Can I reopen a closed review? No. Closed and Cancelled are final.",
         "Can I change the team later? Not at present. The team is set when the review is raised.",
+        "Why can I not verify this comment? You are recorded as the author of the work under review. A reviewer independent of the work decides each comment; you respond to it.",
       ],
     },
   ],

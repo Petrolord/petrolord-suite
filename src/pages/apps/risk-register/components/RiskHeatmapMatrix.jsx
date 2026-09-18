@@ -1,5 +1,7 @@
 import React from 'react';
-import { calculateRiskScore, getHeatmapCellClasses } from '@/lib/riskScoring';
+import {
+  RISK_BANDS, calculateRiskScore, getBandCellClasses, getHeatmapCellClasses,
+} from '@/lib/riskScoring';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export const RiskHeatmapMatrix = ({ risks = [], onCellClick }) => {
@@ -89,12 +91,14 @@ export const RiskHeatmapMatrix = ({ risks = [], onCellClick }) => {
         </div>
       </div>
       
-      {/* Legend */}
-      <div className="flex gap-4 mt-6 text-xs text-slate-400">
-          <div className="flex items-center gap-1"><div className="w-3 h-3 bg-green-500 rounded-sm"></div> Low (1-4)</div>
-          <div className="flex items-center gap-1"><div className="w-3 h-3 bg-yellow-500 rounded-sm"></div> Medium (5-9)</div>
-          <div className="flex items-center gap-1"><div className="w-3 h-3 bg-orange-500 rounded-sm"></div> High (10-14)</div>
-          <div className="flex items-center gap-1"><div className="w-3 h-3 bg-red-500 rounded-sm"></div> Critical (15-25)</div>
+      {/* Legend. ASC-0 (RC-6): the bands and their edges come from the
+          engine's RISK_BANDS, lowest first. This file restated them. */}
+      <div className="flex flex-wrap gap-4 mt-6 text-xs text-slate-400" data-testid="risk-band-legend">
+          {[...RISK_BANDS].reverse().map((b) => (
+              <div key={b.band} className="flex items-center gap-1">
+                  <div className={`w-3 h-3 rounded-sm ${getBandCellClasses(b.band)}`}></div> {b.band} ({b.min}-{b.max})
+              </div>
+          ))}
       </div>
     </div>
   );
