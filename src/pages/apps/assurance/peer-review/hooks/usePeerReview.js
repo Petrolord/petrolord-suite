@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { canClose, canTransition, explainRefusal } from '@/lib/peerReview';
+import {
+  canClose, canTransition, explainRefusal, nextStages,
+} from '@/lib/peerReview';
 import {
   buildCommentWrite,
   buildParticipantWrite,
   buildReviewWrite,
   nextCodeFromExisting,
+  reviewLockReason,
 } from '../utils/reviewPayload';
 
 const UNKNOWN_COLUMN = 'PGRST204';
@@ -253,6 +256,17 @@ export const usePeerReview = () => {
    * a decision recorded beside them.
    */
   const changeStage = async (review, stage, decision) => {
+    // AS13: the page only offers nextStages, but nothing here checked
+    // it, so any caller could reopen a Closed or Cancelled review.
+    if (!nextStages(review.stage).includes(stage)) {
+      const allowed = nextStages(review.stage);
+      return {
+        success: false,
+        error: allowed.length
+          ? `A review in ${review.stage} can only move to ${allowed.join(', ')}.`
+          : `A ${String(review.stage).toLowerCase()} review is final.`,
+      };
+    }
     if (stage === 'Closed') {
       const verdict = canClose(commentsFor(review.id));
       if (!verdict.ok) return { success: false, error: verdict.reason };
@@ -275,7 +289,15 @@ export const usePeerReview = () => {
     return result;
   };
 
+  /**
+   * AS13: a Closed or Cancelled review is a record. The page hides the
+   * controls; the writes below refuse whatever calls them.
+   */
+  const lockedReview = (reviewId) => reviewLockReason(reviews.find((r) => r.id === reviewId));
+
   const addComment = async (reviewId, form) => {
+    const locked = lockedReview(reviewId);
+    if (locked) return { success: false, error: locked };
     const { row } = buildCommentWrite({
       ...form,
       review_id: reviewId,
@@ -298,6 +320,8 @@ export const usePeerReview = () => {
    * it, so a comment could be marked Verified without a response.
    */
   const disposeComment = async (comment, to, { text } = {}) => {
+    const locked = lockedReview(comment.review_id);
+    if (locked) return { success: false, error: locked };
     const refusal = explainRefusal(
       { ...comment, response_text: to === 'Verified' ? comment.response_text : text },
       to,
@@ -359,7 +383,16 @@ export const usePeerReview = () => {
     return { success: true };
   };
 
+  // AS13: only a draft can be deleted. Past Draft a review has comments
+  // and an audit trail that are its record; Cancel ends it and keeps them.
   const deleteReview = async (id) => {
+    const review = reviews.find((r) => r.id === id);
+    if (review && review.stage !== 'Draft') {
+      return {
+        success: false,
+        error: `Only a draft review can be deleted. ${review.review_code} is ${String(review.stage).toLowerCase()}, so its record stays. A review that should not go ahead is cancelled instead.`,
+      };
+    }
     const { error: err } = await supabase.from('peer_reviews').delete().eq('id', id);
     if (err) return { success: false, error: err.message };
     await fetchAll();
