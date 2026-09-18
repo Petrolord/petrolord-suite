@@ -107,3 +107,25 @@ describe('Audits: an unexplained cancellation is still outstanding', () => {
     expect(textOf(ASSURANCE_HELP.audits)).toMatch(/a cancellation with no written reason still counts as outstanding/);
   });
 });
+
+describe('Peer review: the author never takes a reviewer step (D1)', () => {
+  // eslint-disable-next-line global-require
+  const { canActOnComment, canAssignPeerReviewer } = require('@/lib/peerReview');
+  const review = { author_id: 'a' };
+
+  it('the engine', () => {
+    expect(canAssignPeerReviewer(review, { user_id: 'a', role: 'Reviewer' }).ok).toBe(false);
+    ['Verified', 'Rejected', 'Withdrawn'].forEach((to) => {
+      const c = { status: to === 'Withdrawn' ? 'Open' : 'Responded', response_text: 'x' };
+      expect(canActOnComment(c, to, review, 'a').ok).toBe(false);
+    });
+    expect(canActOnComment({ status: 'Open' }, 'Responded', review, 'a').ok).toBe(true);
+  });
+
+  it('the guide', () => {
+    const t = textOf(ASSURANCE_HELP.peerReview);
+    expect(t).not.toMatch(/does not check who presses a button/);
+    expect(t).toMatch(/The author of the work cannot take a reviewer's step/);
+    expect(t).toMatch(/The author cannot be a Lead Reviewer or a Reviewer on their own work/);
+  });
+});

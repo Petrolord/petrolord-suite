@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,9 @@ import { PeerReviewShell, BASE } from './components/PeerReviewShell';
 import { ErrorState, Loading, SchemaNotice } from './components/SharedComponents';
 import { usePeerReview } from './hooks/usePeerReview';
 import { validateReview } from './utils/reviewPayload';
+import { formRosterRefusal } from './utils/segregation';
+import { PersonField } from '../shared/PersonField';
+import { useOrgMembers } from '../shared/useOrgMembers';
 
 const REVIEW_TYPES = [
   'Field Development Plan',
@@ -76,7 +79,12 @@ export default function NewReview() {
   const { loading, error, hasAs5Schema, createReview, refresh } = usePeerReview();
 
   const [form, setForm] = useState(EMPTY);
-  const [roster, setRoster] = useState([{ display_name: '', role: 'Lead Reviewer', discipline: '' }]);
+  const { members, userId } = useOrgMembers();
+  // ASC-0 (D1): the author of the work under review, a Suite member (sets
+  // peer_reviews.author_id) or a typed name. Nobody on the roster who
+  // wrote the work may review it.
+  const [author, setAuthor] = useState({ id: null, name: '' });
+  const [roster, setRoster] = useState([{ user_id: null, display_name: '', role: 'Lead Reviewer', discipline: '' }]);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [failure, setFailure] = useState(null);
@@ -92,15 +100,37 @@ export default function NewReview() {
     setRoster((rows) => rows.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)));
   };
 
+  const setPerson = (i) => ({ id, name }) => {
+    setRoster((rows) => rows.map((r, idx) => (idx === i
+      ? { ...r, user_id: id, display_name: name || '' } : r)));
+  };
+
+  const named = (r) => r.user_id || String(r.display_name || '').trim();
+  const independence = useMemo(() => formRosterRefusal(author, roster), [author, roster]);
+
   const handleSubmit = async (submitForReview) => {
     setFailure(null);
     const found = validateReview(form);
     if (Object.keys(found).length) { setErrors(found); return; }
+    if (independence) { setFailure(independence); return; }
+
+    // The author is on the roster under the Author role, so the review
+    // shows who wrote the work even when they have no Suite account.
+    const authorName = String(author.name || '').trim();
+    const rows = roster.filter(named);
+    const withAuthor = (author.id || authorName)
+      ? [{ user_id: author.id, display_name: authorName, role: 'Author', discipline: '' }, ...rows]
+      : rows;
 
     setSaving(true);
     const result = await createReview(
-      { ...form, stage: submitForReview ? 'In Review' : 'Draft', decision: 'Pending' },
-      roster.filter((r) => String(r.display_name || '').trim()),
+      {
+        ...form,
+        author_id: author.id || null,
+        stage: submitForReview ? 'In Review' : 'Draft',
+        decision: 'Pending',
+      },
+      withAuthor,
     );
     setSaving(false);
 
@@ -197,18 +227,35 @@ export default function NewReview() {
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Review team</CardTitle>
             <Button type="button" variant="outline" size="sm"
-              onClick={() => setRoster((r) => [...r, { display_name: '', role: 'Reviewer', discipline: '' }])}>
+              onClick={() => setRoster((r) => [...r, { user_id: null, display_name: '', role: 'Reviewer', discipline: '' }])}>
               <Plus className="w-4 h-4 mr-2" /> Add a person
             </Button>
           </CardHeader>
           <CardContent className="space-y-3">
+            <PersonField
+              id="author"
+              label="Author of the work under review"
+              members={members}
+              userId={userId}
+              personId={author.id}
+              name={author.name}
+              onChange={setAuthor}
+              namePlaceholder="Who wrote the work"
+              hint="The author responds to comments. They cannot review the work, verify, reject or withdraw a comment on it."
+            />
             {roster.map((row, i) => (
               <div key={i} className="grid grid-cols-1 md:grid-cols-[1fr_180px_1fr_40px] gap-3 items-end">
-                <div>
-                  {i === 0 ? <Label htmlFor={`name-${i}`}>Name</Label> : null}
-                  <Input id={`name-${i}`} value={row.display_name}
-                    onChange={setRow(i, 'display_name')} placeholder="Who holds this role" />
-                </div>
+                <PersonField
+                  id={`name-${i}`}
+                  label={i === 0 ? 'Name' : `Person ${i + 1}`}
+                  labelClassName={i === 0 ? 'text-sm font-medium' : 'sr-only'}
+                  members={members}
+                  userId={userId}
+                  personId={row.user_id}
+                  name={row.display_name}
+                  onChange={setPerson(i)}
+                  namePlaceholder="Who holds this role"
+                />
                 <div>
                   {i === 0 ? <Label htmlFor={`role-${i}`}>Role</Label> : null}
                   <Select id={`role-${i}`} value={row.role} onChange={setRow(i, 'role')}
@@ -226,9 +273,13 @@ export default function NewReview() {
               </div>
             ))}
             <p className="text-xs text-[hsl(var(--muted-foreground))]">
-              Rows without a name are ignored. Names are recorded as written;
-              linking them to Suite accounts comes with the hub at AS11.
+              Rows without a person are ignored. Pick a Suite member, or type the
+              name of somebody without an account. The first Lead Reviewer with a
+              Suite account is recorded as the lead reviewer.
             </p>
+            {independence ? (
+              <p role="alert" className="text-sm text-[hsl(var(--destructive))]">{independence}</p>
+            ) : null}
           </CardContent>
         </Card>
 
@@ -236,10 +287,10 @@ export default function NewReview() {
           <Button variant="ghost" onClick={() => navigate(`${BASE}/register`)} disabled={saving}>
             Cancel
           </Button>
-          <Button variant="outline" onClick={() => handleSubmit(false)} disabled={saving}>
+          <Button variant="outline" onClick={() => handleSubmit(false)} disabled={saving || Boolean(independence)}>
             Save as draft
           </Button>
-          <Button onClick={() => handleSubmit(true)} disabled={saving}>
+          <Button onClick={() => handleSubmit(true)} disabled={saving || Boolean(independence)}>
             <Send className="w-4 h-4 mr-2" />
             {saving ? 'Raising...' : 'Raise and start the review'}
           </Button>
