@@ -21,6 +21,8 @@ import {
 import { AuditStatusBadge } from './components/ISOBadges';
 import { validateAudit } from './utils/isoPayload';
 import { useIsoCompliance } from './hooks/useIsoCompliance';
+import { PersonField } from '../shared/PersonField';
+import { useOrgMembers } from '../shared/useOrgMembers';
 
 /**
  * AS8 — the internal audit programme.
@@ -42,6 +44,7 @@ const blank = (standardId) => ({
   scope: '',
   criteria: '',
   department: '',
+  lead_auditor_id: null,
   lead_auditor_name: '',
   planned_start: '',
   planned_end: '',
@@ -54,6 +57,7 @@ export default function InternalAudits() {
     standards, audits, auditClauses, findings,
     loading, error, refresh, hasAs8Schema, createAudit,
   } = useIsoCompliance();
+  const { members, userId } = useOrgMembers();
 
   const [form, setForm] = useState(null);
   const [errors, setErrors] = useState({});
@@ -176,8 +180,9 @@ export default function InternalAudits() {
               <CardTitle className="text-lg">Plan an audit</CardTitle>
               <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
                 The scope is built on the audit itself, clause by clause. An
-                auditor may not audit their own work, and the register refuses
-                the combination rather than recording it.
+                auditor may not audit their own work: a clause whose owner is the
+                lead auditor is refused when it is added to the scope, whether both
+                were picked as Suite members or typed under the same name.
               </p>
             </CardHeader>
             <CardContent className="p-6">
@@ -218,14 +223,14 @@ export default function InternalAudits() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium" htmlFor="au-lead">Lead auditor</label>
-                    <Input id="au-lead" value={form.lead_auditor_name}
-                      onChange={set('lead_auditor_name')} />
-                    {errors.lead_auditor_name ? (
-                      <p className="text-xs text-[hsl(var(--destructive))]">{errors.lead_auditor_name}</p>
-                    ) : null}
-                  </div>
+                  <PersonField
+                    id="au-lead" label="Lead auditor" members={members} userId={userId}
+                    personId={form.lead_auditor_id} name={form.lead_auditor_name}
+                    onChange={({ id, name }) => setForm(
+                      (f) => ({ ...f, lead_auditor_id: id, lead_auditor_name: name }))}
+                    error={errors.lead_auditor_name}
+                    selectClassName={`${selectClass} w-full`}
+                  />
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium" htmlFor="au-dept">Department</label>
                     <Input id="au-dept" value={form.department} onChange={set('department')} />

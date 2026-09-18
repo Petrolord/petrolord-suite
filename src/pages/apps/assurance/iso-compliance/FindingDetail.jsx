@@ -25,7 +25,7 @@ import {
 import {
   ActionStatusBadge, EffectivenessBadge, FindingStatusBadge, FindingTypeBadge,
 } from './components/ISOBadges';
-import { validateAction } from './utils/isoPayload';
+import { progressedFindingStatus, validateAction } from './utils/isoPayload';
 import { useIsoCompliance } from './hooks/useIsoCompliance';
 
 /**
@@ -118,12 +118,16 @@ export default function FindingDetail() {
 
   const submitCorrection = async (e) => {
     e.preventDefault();
-    const ok = await run(() => updateFinding(finding.id, {
+    const next = {
       ...finding,
       correction: correcting.correction || null,
       root_cause: correcting.root_cause || null,
       root_cause_category: correcting.root_cause_category || null,
-      status: finding.status === 'Open' ? 'Correction proposed' : finding.status,
+    };
+    // The status follows the record: correction proposed, action in
+    // progress, verification (AS13; AS8 never set the last two).
+    const ok = await run(() => updateFinding(finding.id, {
+      ...next, status: progressedFindingStatus(next, actions),
     }), 'Saved.');
     if (ok) setCorrecting(null);
   };

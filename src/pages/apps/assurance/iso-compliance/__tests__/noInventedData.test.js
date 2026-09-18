@@ -260,4 +260,65 @@ describe('no invented data in ISO Compliance', () => {
         .test(code(f)));
     expect(offenders.map(rel)).toEqual([]);
   });
+
+  /* AS13: the defect classes the help-guide review found, held shut. */
+
+  it('no page compares a date-only string with new Date() (the due-today off-by-one)', () => {
+    const offenders = files.filter((f) => /new Date\([^)]*due_date\)\s*[<>]/.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
+
+  it('"leave blank to record yourself" is applied before the assessment gate', () => {
+    const hook = code(path.join(APP, 'hooks/useIsoCompliance.js'));
+    const body = hook.slice(hook.indexOf('const assessClause'));
+    expect(body.indexOf('withAssessor(patch, user?.id)')).toBeGreaterThan(-1);
+    expect(body.indexOf('withAssessor(patch, user?.id)'))
+      .toBeLessThan(body.indexOf('canSetClauseStatus('));
+    expect(code(path.join(APP, 'ClauseRegister.jsx'))).toMatch(/withAssessor\(assessment, userId\)/);
+  });
+
+  it('ISO 19011 independence sees picked ids and matching typed names', () => {
+    expect(code(path.join(APP, 'hooks/useIsoCompliance.js')))
+      .toMatch(/auditIndependence\(view\.audit, view\.clauses\)/);
+    expect(code(path.join(APP, 'AuditDetail.jsx'))).toMatch(/independenceView\(audit, chosen\)/);
+    expect(code(path.join(APP, 'ClauseRegister.jsx'))).toMatch(/PersonField/);
+    expect(code(path.join(APP, 'InternalAudits.jsx'))).toMatch(/PersonField/);
+  });
+
+  it('the report gate is evaluated on the audit as the form would save it', () => {
+    expect(code(path.join(APP, 'AuditDetail.jsx')))
+      .toMatch(/canAdvanceAudit\(reporting \? \{ \.\.\.audit, \.\.\.reporting \} : audit, 'Reported'/);
+  });
+
+  it('a finding raised from an audit carries its standard', () => {
+    expect(code(path.join(APP, 'hooks/useIsoCompliance.js')))
+      .toMatch(/findingWithAuditStandard\(raw, audits\)/);
+    expect(code(path.join(APP, 'AuditDetail.jsx'))).toMatch(/&standard=\$\{audit\.standard_id\}/);
+  });
+
+  it('no delete bypasses the record: findings are checked, standards are confirmed', () => {
+    expect(code(path.join(APP, 'hooks/useIsoCompliance.js')))
+      .toMatch(/canDeleteFinding\(finding, audit, actionsFor\(id\)\)/);
+    expect(code(path.join(APP, 'FindingsRegister.jsx'))).toMatch(/ConfirmDialog/);
+    const standards = code(path.join(APP, 'Standards.jsx'));
+    expect(standards).toMatch(/ConfirmDialog/);
+    expect(standards).not.toMatch(/removes its clause register and its findings too/);
+  });
+
+  it('the certificate colour uses the engine\'s lead window, not its own number', () => {
+    const standards = code(path.join(APP, 'Standards.jsx'));
+    expect(standards).toMatch(/readiness\.counts\.certificateExpiring/);
+    expect(standards).not.toMatch(/certDays < 90/);
+  });
+
+  it('every finding status the filter offers can be reached', () => {
+    expect(code(path.join(APP, 'FindingDetail.jsx'))).toMatch(/progressedFindingStatus/);
+    expect(code(path.join(APP, 'hooks/useIsoCompliance.js'))).toMatch(/syncFindingStatus\(findingId\)/);
+  });
+
+  it('the shell has a menu below 1024 px as well as the side menu', () => {
+    const shell = code(path.join(APP, 'components/ISOShell.jsx'));
+    expect(shell).toMatch(/hidden lg:flex/);
+    expect(shell).toMatch(/<CompactNav items=\{navItems\} \/>/);
+  });
 });

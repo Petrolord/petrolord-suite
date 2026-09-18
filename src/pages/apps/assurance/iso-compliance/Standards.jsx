@@ -16,8 +16,9 @@ import {
   BlockerList, DetailField, EmptyState, ErrorState, Loading, SchemaNotice, WriteFailure,
 } from './components/SharedComponents';
 import { CertificationBadge, ReadinessBadge } from './components/ISOBadges';
-import { validateStandard } from './utils/isoPayload';
+import { standardRemovalImpact, validateStandard } from './utils/isoPayload';
 import { useIsoCompliance } from './hooks/useIsoCompliance';
+import { ConfirmDialog } from '../shared/ConfirmDialog';
 
 /**
  * AS8 — the standards an organization actually runs.
@@ -54,6 +55,7 @@ export default function Standards() {
   const [errors, setErrors] = useState({});
   const [failure, setFailure] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [removing, setRemoving] = useState(null);
   const today = new Date();
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
@@ -91,20 +93,33 @@ export default function Standards() {
   };
 
   /**
-   * Removing a standard takes its clause register, its audits' link to
-   * it and its findings with it, so the button says so rather than
-   * asking twice.
+   * Removing a standard deletes its clause register and every audit
+   * result recorded against those clauses (ON DELETE CASCADE); its audits
+   * and findings are kept, with the standard unset (ON DELETE SET NULL).
+   * AS8's tooltip said the findings went too, and it asked nothing
+   * before doing it (AS13). It now counts what goes and asks first.
    */
-  const remove = async (standard, clauseCount) => {
+  const askToRemove = (standard) => {
     setFailure(null);
+    setRemoving({
+      standard,
+      impact: standardRemovalImpact(standard, { clauses, auditClauses, audits, findings }),
+    });
+  };
+
+  const remove = async () => {
+    const { standard, impact } = removing;
     setSaving(true);
     const result = await deleteStandard(standard.id);
     setSaving(false);
+    setRemoving(null);
     if (!result.success) { setFailure(result.error); return; }
     toast({
-      description: `${standard.code} removed, with its ${clauseCount} clause${clauseCount === 1 ? '' : 's'}.`,
+      description: `${standard.code} removed, with its ${impact.clauses} clause${impact.clauses === 1 ? '' : 's'}.`,
     });
   };
+
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
   if (loading) return <ISOShell title="Standards"><Loading /></ISOShell>;
   if (error) {
@@ -248,6 +263,22 @@ export default function Standards() {
           />
         ) : null}
 
+        <ConfirmDialog
+          open={Boolean(removing)}
+          title={removing ? `Remove ${removing.standard.code}?` : ''}
+          description={removing
+            ? `This deletes its ${plural(removing.impact.clauses, 'clause', 'clauses')} and the `
+              + `${plural(removing.impact.results, 'audit result', 'audit results')} recorded against them. `
+              + `Its ${plural(removing.impact.audits, 'audit', 'audits')} and `
+              + `${plural(removing.impact.findings, 'finding', 'findings')} are kept, with no standard, `
+              + 'and no longer count towards any certification readiness. This cannot be undone.'
+            : ''}
+          confirmLabel="Remove the standard"
+          busy={saving}
+          onConfirm={remove}
+          onCancel={() => setRemoving(null)}
+        />
+
         {rows.map(({ standard, readiness, certDays }) => (
           <Card key={standard.id} className="panel-elevation">
             <CardHeader className="border-b border-[hsl(var(--border))] pb-4 flex flex-row items-start justify-between gap-3">
@@ -268,7 +299,7 @@ export default function Standards() {
                 <DetailField label="Body">{standard.certification_body}</DetailField>
                 <DetailField label="Expires">
                   {standard.certificate_expires ? (
-                    <span className={certDays !== null && certDays < 90
+                    <span className={readiness.counts.certificateExpiring
                       ? 'text-[hsl(var(--destructive))] font-medium' : ''}>
                       {standard.certificate_expires}
                       {certDays !== null
@@ -305,8 +336,8 @@ export default function Standards() {
                   Edit
                 </Button>
                 <Button size="sm" variant="ghost" disabled={saving}
-                  onClick={() => remove(standard, readiness.counts.clauses)}
-                  title="This removes its clause register and its findings too">
+                  onClick={() => askToRemove(standard)}
+                  title="Deletes its clause register and the audit results on those clauses. Its audits and findings are kept, without a standard.">
                   Remove
                 </Button>
               </div>
