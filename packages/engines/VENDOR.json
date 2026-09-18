@@ -2,14 +2,14 @@
   "$comment": "Vendoring contract for packages/engines. Checked by tools/check-vendored-engines.mjs; see that file for the model. The check is against the PINNED commit below and its committed manifest, never against engines HEAD: a guard pointed at HEAD goes red the moment canonical moves and then blocks every unrelated Suite PR. Moving the pin is a deliberate, reviewed vendoring pass. The Suite vendors the WHOLE canonical tree, so the expected state of this file is the one it is in: an EMPTY knownDeviations list. Any deviation that is genuinely deliberate goes in that list with a reason, a group and a burnDownWhen, and every differing or extra path is pinned to the blob currently vendored, so a second drift on an already-known path still fails. burnDownWhen states the condition under which the row must be removed, because a bare reason goes stale on its own: in NextGen a row reading \"pull only with the recut in the same deploy window\" became false the moment the recut merged and nothing in the file said so. A ledger entry whose deviation has gone is also a failure, so the list can only shrink.",
   "canonical": {
     "repo": "git@github.com:Petrolord/petrolord-engines.git",
-    "commit": "ab3ce6af5cd64e3dba2fe1c94493602f57e0ccdb",
+    "commit": "5cbdca5fb78cf83771ede4119fb4a92cb7aacaa9",
     "manifest": "VENDOR.manifest"
   },
   "vendoring": {
     "method": "file-by-file reconciliation against a canonical clone, verified by blob hash with this guard, hashed from the files on disk rather than from the git index",
     "$comment": "NOT a whole-tree `git subtree pull`. That silently DELETED 24 Suite-only downstream files on 2026-09-14. Vendor the paths the canonical range actually touched, then run the guard, which is what proves nothing else moved.",
     "lastVendored": "2026-09-18",
-    "lastVendoredRange": "9d5d3b486493b8d08eb7dc38557d10e63e56adc2..ab3ce6af5cd64e3dba2fe1c94493602f57e0ccdb (engines PR #213, ASC-1). 10 canonical paths, all modified. BEHAVIOUR CHANGES: isoCompliance.isAuditOverdue asks the new AUDIT_UNDELIVERED_STATUSES (Planned, In progress, Fieldwork complete), so a Reported audit is no longer overdue, as in auditManagement, and summarise().auditsOverdue follows (AUDIT_OPEN_STATUSES unchanged); new missingEvidenceParts(clause), and the unevidenced-claim readiness sentence names the missing parts; the Due soon explainStatus reason says 'inside the default 30 day lead time (none is set for this obligation)' when the default applies. Previous range: 6b00f4370e2090bcda4973626949c2dd458501d0..9d5d3b486493b8d08eb7dc38557d10e63e56adc2 (engines PR #212, ASC-0: the repairs the two Assurance courses found). 47 canonical paths (45 modified, 2 added: __tests__/assurance.copy.test.js and __tests__/assurance.instants.test.js). BEHAVIOUR CHANGES: risk isReviewOverdue reads a string as-of date as a calendar date and is true only for a RISK_LIVE_STATUSES risk; MOC isOverdue asks only before the change is on the facility (Draft to Approval), so a change in Implementation is not overdue and summarise().overdue and byUrgency follow; peer review gains REVIEWER_ROLES, canAssignPeerReviewer (the author is never a Lead Reviewer or Reviewer) and canActOnComment (the author never takes Verified, Rejected or Withdrawn), and summarise() skips comments on Closed or Cancelled reviews; refusal copy agrees in number, article and count; audit summarise().auditsOutstanding counts an unexplained cancellation as outstanding; every progress percent rounds half up on the exact rational; ISO certificateExpiring is 0 to 90 days only (a lapsed certificate is expired only), the ISO sentences name the register's standard and canSetClauseStatus takes the standard as a fourth argument; explainStatus prints 'Filed <date>. A one-off obligation, nothing further is due.' for a filed One-off; calendar gains localDateOf. Previous range: fdd6efe869abd829be92dcdd0a56b9ea948e3cc4..6b00f4370e2090bcda4973626949c2dd458501d0 (engines PR #211, AS15: the Assurance owner decisions). BEHAVIOUR CHANGES: MOC approvals and document review tasks are decided only by their assignee, and an originator/author never approves their own (canAssignApprover, canDecideApproval, canAssignReviewer, canDecideReviewTask); an Emergency change may be implemented on its first approval level and must be ratified within 7 days, and cannot close until it is (ratificationState; MOC summarise gains ratificationPending/ratificationOverdue and takes approvals); deriveStatus throws on an invalid today; evidence counts towards Compliant only for the current period (periodStart); fractional risk levels are unscored; ISO coverage counts only Reported/Closed audits, canExamineClause, an expired certificate is a serious readiness item; N/A without a reason is not an answer and a cancellation without a reason does not complete a programme. Previous range: 9600019c27c3cd8664c0d0c66eb42a760bb6a5bf..fdd6efe869abd829be92dcdd0a56b9ea948e3cc4 (engines PR #210, AS14: outstanding counts skip finished parents; canRemoveCheckpoint and canRaiseNcr). Re-pinned from the PR head 43f8cea to the squash merge commit (identical tree). 10 canonical paths. BEHAVIOUR CHANGES: MOC summarise() no longer counts actions on Closed, Rejected or Cancelled changes as open or overdue; QA summarise() no longer counts points on Closed, Superseded or Cancelled plans as outstanding, overdue or held, nor corrective actions on Voided NCRs as open, overdue or awaiting effectiveness (totals, failures and the effectiveness record unchanged; a child whose parent is not supplied still counts); new canRemoveCheckpoint(checkpoint, plan) and canRaiseNcr(plan). Previous range: 871d2f9..9600019c27c3cd8664c0d0c66eb42a760bb6a5bf (engines PR #209, AS13-0: three Assurance rule repairs before launch). BEHAVIOUR CHANGES: a filed One-off regulatory obligation is Compliant (it used to turn Overdue the day after its due date and stay in Needs attention); a HOLD point set to Not applicable needs a date, who decided and a reason (the waiver's record; it needed nothing); a closed temporary MOC reads the new EXPIRY.CLOSED_OUT, 'Closed out', where it read 'Permanent change' (the Suite shim adds its colour token). Previous range: 9874d5834de552a08ed7aa16e0fcd12438fefdb1..871d2f95634d0a0f29863a1fa6b768abbca365b2 (engines PRs #207 and #208: AS12, the new engines/assurance domain, and AS12b, clauseCoverageByStandard, which the ISO clause register and reports now call so no register falls back to the 3-year default). 52 canonical paths, all new except README.md: ten engine modules under engines/assurance/, ten ported rule-test suites plus assurance.goldens.test.js and its helper, ten goldens under test-data/assurance/goldens/, and ten oracles plus ten FINDINGS files under tools/validation/assurance/. The import closure is inside the domain (calendar.js, and isoCompliance -> qualityAssurance, auditManagement -> isoCompliance). BEHAVIOUR CHANGES for callers, all repairs the oracles found: an impossible date string ('2026-02-30') is now no date instead of a nearby real one; a risk review due today no longer reads overdue west of Greenwich; a blank residual axis falls back to the inherent level instead of scoring the residual 0 (so the Risk Register form preview and the saved appetite_status change for half-assessed risks); unreadable review and expiry dates no longer read due or expiring soon, and an unreadable expiry no longer passes the MOC implementation gate; ISO summarise() uses each standard's own certification cycle; closed and voided findings stop ageing at their closed date. Consumers are the nine src/lib Assurance modules, now re-export shims that keep their colour tokens."
+    "lastVendoredRange": "ab3ce6af5cd64e3dba2fe1c94493602f57e0ccdb..5cbdca5fb78cf83771ede4119fb4a92cb7aacaa9 (engines PR #214, the facilities owner copy rule sweep). 19 canonical paths, all modified: nine engines/facilities modules, four facilities test suites and six FINDINGS files. BEHAVIOUR CHANGES: none numeric; 23 user-facing strings reworded to the owner copy rule, the producedWater media filter floor refusal now says the module answers at 1 m/hr and above it (the code always did), and two comments corrected (the droplet grid step is 9.8 percent a bin at the defaults; BAR_TO_PSIA keeps its value and is no longer called exact). Previous range: 9d5d3b486493b8d08eb7dc38557d10e63e56adc2..ab3ce6af5cd64e3dba2fe1c94493602f57e0ccdb (engines PR #213, ASC-1). 10 canonical paths, all modified. BEHAVIOUR CHANGES: isoCompliance.isAuditOverdue asks the new AUDIT_UNDELIVERED_STATUSES (Planned, In progress, Fieldwork complete), so a Reported audit is no longer overdue, as in auditManagement, and summarise().auditsOverdue follows (AUDIT_OPEN_STATUSES unchanged); new missingEvidenceParts(clause), and the unevidenced-claim readiness sentence names the missing parts; the Due soon explainStatus reason says 'inside the default 30 day lead time (none is set for this obligation)' when the default applies. Previous range: 6b00f4370e2090bcda4973626949c2dd458501d0..9d5d3b486493b8d08eb7dc38557d10e63e56adc2 (engines PR #212, ASC-0: the repairs the two Assurance courses found). 47 canonical paths (45 modified, 2 added: __tests__/assurance.copy.test.js and __tests__/assurance.instants.test.js). BEHAVIOUR CHANGES: risk isReviewOverdue reads a string as-of date as a calendar date and is true only for a RISK_LIVE_STATUSES risk; MOC isOverdue asks only before the change is on the facility (Draft to Approval), so a change in Implementation is not overdue and summarise().overdue and byUrgency follow; peer review gains REVIEWER_ROLES, canAssignPeerReviewer (the author is never a Lead Reviewer or Reviewer) and canActOnComment (the author never takes Verified, Rejected or Withdrawn), and summarise() skips comments on Closed or Cancelled reviews; refusal copy agrees in number, article and count; audit summarise().auditsOutstanding counts an unexplained cancellation as outstanding; every progress percent rounds half up on the exact rational; ISO certificateExpiring is 0 to 90 days only (a lapsed certificate is expired only), the ISO sentences name the register's standard and canSetClauseStatus takes the standard as a fourth argument; explainStatus prints 'Filed <date>. A one-off obligation, nothing further is due.' for a filed One-off; calendar gains localDateOf. Previous range: fdd6efe869abd829be92dcdd0a56b9ea948e3cc4..6b00f4370e2090bcda4973626949c2dd458501d0 (engines PR #211, AS15: the Assurance owner decisions). BEHAVIOUR CHANGES: MOC approvals and document review tasks are decided only by their assignee, and an originator/author never approves their own (canAssignApprover, canDecideApproval, canAssignReviewer, canDecideReviewTask); an Emergency change may be implemented on its first approval level and must be ratified within 7 days, and cannot close until it is (ratificationState; MOC summarise gains ratificationPending/ratificationOverdue and takes approvals); deriveStatus throws on an invalid today; evidence counts towards Compliant only for the current period (periodStart); fractional risk levels are unscored; ISO coverage counts only Reported/Closed audits, canExamineClause, an expired certificate is a serious readiness item; N/A without a reason is not an answer and a cancellation without a reason does not complete a programme. Previous range: 9600019c27c3cd8664c0d0c66eb42a760bb6a5bf..fdd6efe869abd829be92dcdd0a56b9ea948e3cc4 (engines PR #210, AS14: outstanding counts skip finished parents; canRemoveCheckpoint and canRaiseNcr). Re-pinned from the PR head 43f8cea to the squash merge commit (identical tree). 10 canonical paths. BEHAVIOUR CHANGES: MOC summarise() no longer counts actions on Closed, Rejected or Cancelled changes as open or overdue; QA summarise() no longer counts points on Closed, Superseded or Cancelled plans as outstanding, overdue or held, nor corrective actions on Voided NCRs as open, overdue or awaiting effectiveness (totals, failures and the effectiveness record unchanged; a child whose parent is not supplied still counts); new canRemoveCheckpoint(checkpoint, plan) and canRaiseNcr(plan). Previous range: 871d2f9..9600019c27c3cd8664c0d0c66eb42a760bb6a5bf (engines PR #209, AS13-0: three Assurance rule repairs before launch). BEHAVIOUR CHANGES: a filed One-off regulatory obligation is Compliant (it used to turn Overdue the day after its due date and stay in Needs attention); a HOLD point set to Not applicable needs a date, who decided and a reason (the waiver's record; it needed nothing); a closed temporary MOC reads the new EXPIRY.CLOSED_OUT, 'Closed out', where it read 'Permanent change' (the Suite shim adds its colour token). Previous range: 9874d5834de552a08ed7aa16e0fcd12438fefdb1..871d2f95634d0a0f29863a1fa6b768abbca365b2 (engines PRs #207 and #208: AS12, the new engines/assurance domain, and AS12b, clauseCoverageByStandard, which the ISO clause register and reports now call so no register falls back to the 3-year default). 52 canonical paths, all new except README.md: ten engine modules under engines/assurance/, ten ported rule-test suites plus assurance.goldens.test.js and its helper, ten goldens under test-data/assurance/goldens/, and ten oracles plus ten FINDINGS files under tools/validation/assurance/. The import closure is inside the domain (calendar.js, and isoCompliance -> qualityAssurance, auditManagement -> isoCompliance). BEHAVIOUR CHANGES for callers, all repairs the oracles found: an impossible date string ('2026-02-30') is now no date instead of a nearby real one; a risk review due today no longer reads overdue west of Greenwich; a blank residual axis falls back to the inherent level instead of scoring the residual 0 (so the Risk Register form preview and the saved appetite_status change for half-assessed risks); unreadable review and expiry dates no longer read due or expiring soon, and an unreadable expiry no longer passes the MOC implementation gate; ISO summarise() uses each standard's own certification cycle; closed and voided findings stop ageing at their closed date. Consumers are the nine src/lib Assurance modules, now re-export shims that keep their colour tokens."
   },
   "testing": {
     "$comment": "The Suite needs no equivalent of NextGen's tools/run-vendored-engine-tests.mjs. jest.config.js uses testMatch '**/__tests__/**/*.test.(js|jsx|ts)' with no testPathIgnorePatterns, so all 179 suites under packages/engines/__tests__ already run in `npm test` beside the Suite's own. There is no allow-list of known engine test failures because there are none: the vendored suites are green.",
@@ -22,158 +22,5 @@
     "manifestPaths": 750,
     "vendoredPaths": 750
   },
-  "knownDeviations": [
-    {
-      "path": "__tests__/facilities.controlvalve.test.js",
-      "kind": "differing",
-      "group": "engines-214-facilities-copy-sweep",
-      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
-      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
-      "vendoredSha": "bf9e19947aac5f6ced87cb9e03fb609de0116880"
-    },
-    {
-      "path": "__tests__/facilities.corrosion.test.js",
-      "kind": "differing",
-      "group": "engines-214-facilities-copy-sweep",
-      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
-      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
-      "vendoredSha": "5439e0ee9afae7e5e7d27b2f8a86db21c3603cc2"
-    },
-    {
-      "path": "__tests__/facilities.heattransfer.test.js",
-      "kind": "differing",
-      "group": "engines-214-facilities-copy-sweep",
-      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
-      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
-      "vendoredSha": "f20bd531e60e3385a0af200e0acc5f795e9f1ba9"
-    },
-    {
-      "path": "__tests__/facilities.producedwater.test.js",
-      "kind": "differing",
-      "group": "engines-214-facilities-copy-sweep",
-      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
-      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
-      "vendoredSha": "caedc23a96c7a6c0d9f80743688fdeee6c1d3eed"
-    },
-    {
-      "path": "engines/facilities/compression.js",
-      "kind": "differing",
-      "group": "engines-214-facilities-copy-sweep",
-      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
-      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
-      "vendoredSha": "b2976681bf9560574051f612a344c0d8703b1a91"
-    },
-    {
-      "path": "engines/facilities/controlValve.js",
-      "kind": "differing",
-      "group": "engines-214-facilities-copy-sweep",
-      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
-      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
-      "vendoredSha": "8032507cbb6896cf3b9145c432c40fb35c160583"
-    },
-    {
-      "path": "engines/facilities/corrosion.js",
-      "kind": "differing",
-      "group": "engines-214-facilities-copy-sweep",
-      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
-      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
-      "vendoredSha": "5a5b7fb1eed49bbff68f21628d1b77a5d6659ecf"
-    },
-    {
-      "path": "engines/facilities/heatTransfer.js",
-      "kind": "differing",
-      "group": "engines-214-facilities-copy-sweep",
-      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
-      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
-      "vendoredSha": "d65e0443f7fe2b989ceb045f0664a6316822cf47"
-    },
-    {
-      "path": "engines/facilities/metering.js",
-      "kind": "differing",
-      "group": "engines-214-facilities-copy-sweep",
-      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
-      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
-      "vendoredSha": "ee9cbede4d3937fa41d170f2f1aff7ff5cc08e07"
-    },
-    {
-      "path": "engines/facilities/producedWater.js",
-      "kind": "differing",
-      "group": "engines-214-facilities-copy-sweep",
-      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
-      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
-      "vendoredSha": "1e50dac95bcfab0c720ad36a218ec00bf2ca4409"
-    },
-    {
-      "path": "engines/facilities/pumps.js",
-      "kind": "differing",
-      "group": "engines-214-facilities-copy-sweep",
-      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
-      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
-      "vendoredSha": "03ff4deb5c078d9f393fc9c599903e9bf8a9f94a"
-    },
-    {
-      "path": "engines/facilities/relief.js",
-      "kind": "differing",
-      "group": "engines-214-facilities-copy-sweep",
-      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
-      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
-      "vendoredSha": "6608ffba8625c848bcd2003cb7c73a976c3eae66"
-    },
-    {
-      "path": "engines/facilities/storageTank.js",
-      "kind": "differing",
-      "group": "engines-214-facilities-copy-sweep",
-      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
-      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
-      "vendoredSha": "9b81b94a3611c002b23850eeed0fb48297c9583e"
-    },
-    {
-      "path": "tools/validation/facilities/FINDINGS-corrosion.md",
-      "kind": "differing",
-      "group": "engines-214-facilities-copy-sweep",
-      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
-      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
-      "vendoredSha": "e8029de882ab373406f13a013e6da10ab450419b"
-    },
-    {
-      "path": "tools/validation/facilities/FINDINGS-heattransfer.md",
-      "kind": "differing",
-      "group": "engines-214-facilities-copy-sweep",
-      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
-      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
-      "vendoredSha": "e5d0316860457b7d5c83a3b827c2b6c103d83c81"
-    },
-    {
-      "path": "tools/validation/facilities/FINDINGS-metering.md",
-      "kind": "differing",
-      "group": "engines-214-facilities-copy-sweep",
-      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
-      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
-      "vendoredSha": "0a69d0308e88102327b6ac715d359740087a9cef"
-    },
-    {
-      "path": "tools/validation/facilities/FINDINGS-producedwater.md",
-      "kind": "differing",
-      "group": "engines-214-facilities-copy-sweep",
-      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
-      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
-      "vendoredSha": "31db58999dddafdaab63de33be5b7bd4f0c9d496"
-    },
-    {
-      "path": "tools/validation/facilities/FINDINGS-relief.md",
-      "kind": "differing",
-      "group": "engines-214-facilities-copy-sweep",
-      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
-      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
-      "vendoredSha": "fd87f312f47442b250e5355e5fdb67ad7e039497"
-    },
-    {
-      "path": "tools/validation/facilities/FINDINGS-rotating.md",
-      "kind": "differing",
-      "group": "engines-214-facilities-copy-sweep",
-      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
-      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
-      "vendoredSha": "f43ec4e403d797ae1dfc92b85473c5d9c742aa15"
-    }
-  ]
+  "knownDeviations": []
 }
