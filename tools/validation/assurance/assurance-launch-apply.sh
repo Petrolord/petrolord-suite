@@ -10,9 +10,8 @@
 #   ./assurance-launch-apply.sh activate   only AFTER the upload is live
 #
 # `schema` applies all sixteen held schema and catalogue migrations of
-# AS1 to AS10, AS14 and AS15, every one dry-run first inside a rolled-back
-# transaction,
-# then applied, stopping on the first failure. It is safe before the
+# AS1 to AS10, AS14 and AS15: all of them dry-run together inside one
+# rolled-back transaction, then applied one by one, stopping on the first failure. It is safe before the
 # upload: the new tables are additive, the old app screens read none of
 # them, and the AS10 tile is seeded Coming Soon.
 #
@@ -95,6 +94,25 @@ run_dry () {
   rm -f /tmp/assurance-dry.sql
 }
 
+# Every schema step in ONE transaction, rolled back. Per-file dry runs
+# cannot work here: AS14 and AS15 alter tables that AS3 to AS10 create,
+# so on a database that has none of them yet each later file fails alone
+# (found 2026-09-18 on the first owner run, which also met six live mock
+# peer_reviews rows the scratch rebuild never had; see PR #520).
+run_dry_all () {
+  echo "--- DRY RUN: all ${#SCHEMA_STEPS[@]} schema steps in one rolled-back transaction"
+  {
+    echo "begin;"
+    for s in "${SCHEMA_STEPS[@]}"; do
+      echo "-- >>> $s"
+      sed -e 's/^begin;$//' -e 's/^commit;$//' "$M/$s"
+    done
+    echo "rollback;"
+  } > /tmp/assurance-dry.sql
+  supabase db query --linked -f /tmp/assurance-dry.sql
+  rm -f /tmp/assurance-dry.sql
+}
+
 run_apply () {
   echo "--- APPLY: $1"
   supabase db query --linked -f "$M/$1"
@@ -110,7 +128,7 @@ case "$PHASE" in
   schema)
     echo "=== BASELINE ==="
     catalogue
-    for s in "${SCHEMA_STEPS[@]}"; do run_dry "$s"; done
+    run_dry_all
     echo; echo "=== Dry runs clean. Applying. ==="
     for s in "${SCHEMA_STEPS[@]}"; do run_apply "$s"; done
     echo; echo "=== POST-SCHEMA GATES ==="
