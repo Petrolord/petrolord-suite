@@ -1,13 +1,11 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import {
-  EXPIRY,
-  EXPIRY_TOKENS,
   RISK_TOKENS,
   STAGE_TOKENS,
   TYPE_TOKENS,
-  expiryState,
 } from '@/lib/managementOfChange';
+import { expiryDisplay } from '../utils/expiryDisplay';
 
 /**
  * AS6 — badges painted from the one authority.
@@ -57,18 +55,16 @@ export const RiskBadge = ({ risk }) => (
  * Shown only when it says something. A permanent change has no expiry
  * to be past, and a badge saying so on every row is noise that hides
  * the ones that matter.
+ *
+ * AS13: the words come from expiryDisplay. A change not yet in effect
+ * used to read "No expiry" beside its own expiry date.
  */
 export const ExpiryBadge = ({ moc, today }) => {
-  const state = expiryState(moc, today || new Date());
-  if (state === EXPIRY.NOT_APPLICABLE) return null;
+  const shown = expiryDisplay(moc, today || new Date());
+  if (!shown) return null;
   return (
-    <Pill
-      token={EXPIRY_TOKENS[state] || fallback}
-      title={moc?.expiry_date
-        ? `This ${String(moc.type).toLowerCase()} change expires ${moc.expiry_date}`
-        : 'This change is in effect with no expiry date set.'}
-    >
-      {state}
+    <Pill token={shown.token} title={shown.title}>
+      {shown.label}
     </Pill>
   );
 };

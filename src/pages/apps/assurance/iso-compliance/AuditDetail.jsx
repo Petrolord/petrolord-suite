@@ -13,6 +13,7 @@ import {
   canAdvanceAudit,
   isCoverageExamined,
   nextAuditStatuses,
+  toDateOnlyString,
 } from '@/lib/isoCompliance';
 import { ISOShell, BASE } from './components/ISOShell';
 import {
@@ -21,6 +22,7 @@ import {
 import {
   AuditStatusBadge, ClauseStatusBadge, FindingStatusBadge, FindingTypeBadge,
 } from './components/ISOBadges';
+import { independenceView, scopeLockReason } from './utils/isoPayload';
 import { useIsoCompliance } from './hooks/useIsoCompliance';
 
 /**
@@ -75,12 +77,19 @@ export default function AuditDetail() {
   const independence = useMemo(() => {
     if (!audit) return { ok: true };
     const chosen = clauses.filter((c) => picked.includes(c.id));
-    return auditIndependence(audit, chosen);
+    // Picked ids, or the same typed name, are the same person (AS13).
+    const view = independenceView(audit, chosen);
+    return auditIndependence(view.audit, view.clauses);
   }, [audit, clauses, picked]);
 
+  // Evaluated on the audit as the report form would save it, so the
+  // notice clears as the conclusion is typed (AS13, as the Audit &
+  // Findings Manager).
   const reportGate = useMemo(
-    () => (audit ? canAdvanceAudit(audit, 'Reported', { coverage: scope }) : { ok: false }),
-    [audit, scope]);
+    () => (audit
+      ? canAdvanceAudit(reporting ? { ...audit, ...reporting } : audit, 'Reported', { coverage: scope })
+      : { ok: false }),
+    [audit, reporting, scope]);
   const closeGate = useMemo(
     () => (audit ? canAdvanceAudit(audit, 'Closed', { findings: raised }) : { ok: false }),
     [audit, raised]);
@@ -103,6 +112,8 @@ export default function AuditDetail() {
   }
 
   const terminal = ['Closed', 'Cancelled'].includes(audit.status);
+  // Scope is fixed from Reported on; results follow `terminal`.
+  const scopeLocked = scopeLockReason(audit);
   const examined = scope.filter(isCoverageExamined).length;
 
   const run = async (fn, message) => {
@@ -212,7 +223,7 @@ export default function AuditDetail() {
                           ? setReporting({
                             ...blankConclusion(),
                             conclusion: audit.conclusion || '',
-                            report_issued_date: new Date().toISOString().slice(0, 10),
+                            report_issued_date: toDateOnlyString(new Date()),
                           })
                           : move(s))}>
                         {s}
@@ -250,7 +261,7 @@ export default function AuditDetail() {
                       <Button type="button" variant="outline" onClick={() => setReporting(null)}>
                         Cancel
                       </Button>
-                      <Button type="submit" disabled={busy}>Issue the report</Button>
+                      <Button type="submit" disabled={busy || !reportGate.ok}>Issue the report</Button>
                     </div>
                   </form>
                 ) : null}
@@ -267,14 +278,19 @@ export default function AuditDetail() {
                   auditor may not audit their own work (ISO 19011).
                 </p>
               </div>
-              {!terminal ? (
+              {!scopeLocked ? (
                 <Button size="sm" variant="outline" onClick={() => setPicking((p) => !p)}>
                   <Plus className="w-4 h-4 mr-2" /> Add clauses
                 </Button>
               ) : null}
             </CardHeader>
             <CardContent className="p-0">
-              {picking ? (
+              {scopeLocked && !terminal ? (
+                <div className="p-4 border-b border-[hsl(var(--border))]">
+                  <GateNotice reason={scopeLocked} />
+                </div>
+              ) : null}
+              {picking && !scopeLocked ? (
                 <form onSubmit={submitScope}
                   className="p-5 border-b border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/30 space-y-3">
                   {available.length === 0 ? (
@@ -363,16 +379,19 @@ export default function AuditDetail() {
                                       result: row.result === 'Not examined' ? 'Conformant' : row.result,
                                       evidence_seen: row.evidence_seen || '',
                                       examined_on: row.examined_on
-                                        || new Date().toISOString().slice(0, 10),
+                                        || toDateOnlyString(new Date()),
                                     });
                                   }}>
                                   Result
                                 </Button>
-                                <Button size="sm" variant="ghost" disabled={busy}
-                                  onClick={() => run(() => removeFromScope(row.id),
-                                    `Clause ${row.clause_ref} removed from scope.`)}>
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
+                                {!scopeLocked ? (
+                                  <Button size="sm" variant="ghost" disabled={busy}
+                                    aria-label={`Remove clause ${row.clause_ref} from scope`}
+                                    onClick={() => run(() => removeFromScope(row.id),
+                                      `Clause ${row.clause_ref} removed from scope.`)}>
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                ) : null}
                               </div>
                             ) : null}
                           </td>
@@ -431,7 +450,8 @@ export default function AuditDetail() {
           <CardHeader className="border-b border-[hsl(var(--border))] pb-4 flex flex-row items-center justify-between gap-3">
             <CardTitle className="text-lg">Findings raised by this audit</CardTitle>
             <Button size="sm" variant="outline"
-              onClick={() => navigate(`${BASE}/findings?audit=${audit.id}`)}>
+              onClick={() => navigate(`${BASE}/findings?audit=${audit.id}${
+                audit.standard_id ? `&standard=${audit.standard_id}` : ''}`)}>
               Raise a finding
             </Button>
           </CardHeader>

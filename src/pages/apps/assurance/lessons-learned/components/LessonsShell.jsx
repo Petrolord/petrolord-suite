@@ -4,6 +4,8 @@ import {
   ArrowLeft, BarChart2, BookOpen, LayoutDashboard, Plus, Search,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { CompactNav } from '../../shared/CompactNav';
+import AssuranceHelp from '@/components/assurance/AssuranceHelp';
 
 export const BASE = '/dashboard/apps/assurance/lessons-learned';
 
@@ -49,8 +51,11 @@ export const LessonsShell = ({
           <Button onClick={() => navigate(`${BASE}/new`)}>
             <Plus className="w-4 h-4 mr-2" /> Capture a lesson
           </Button>
+          <AssuranceHelp appKey="lessons" />
         </div>
       </div>
+
+      <CompactNav items={navItems} />
 
       <div className="flex flex-1 overflow-hidden">
         <div className="w-60 border-r border-[hsl(var(--border))] bg-[hsl(var(--card))]/50 flex-col hidden lg:flex">

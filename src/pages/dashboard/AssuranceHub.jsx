@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ApplicationsGrid from '@/components/ApplicationsGrid';
+import AssuranceHelp from '@/components/assurance/AssuranceHelp';
 import ChartLogo from '@/components/charts/ChartLogo';
 import {
   CHART_COLORS, CHART_MARGINS, CHART_TYPOGRAPHY, GRID_STYLE, LEGEND_PROPS, TOOLTIP_STYLE,
@@ -185,6 +186,8 @@ export default function AssuranceHub() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <AssuranceHelp appKey="hub"
+            className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800" />
           {lastUpdated ? (
             <span className="text-xs text-slate-500">
               Read at {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

@@ -7,8 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, Loader2, TrendingUp, AlertOctagon, CheckCircle2 } from 'lucide-react';
 import { calculateRiskScore, getRiskBand } from '@/lib/riskScoring';
+import { cellFilter } from './utils/registerFilter';
 
-const RiskRegisterDashboardPage = ({ setActiveTab }) => {
+const OPEN_STATUSES = ['Open', 'Under Review'];
+
+const RiskRegisterDashboardPage = ({ onDrillDown }) => {
   const { risks, loading, error } = useRiskRegister();
   const navigate = useNavigate();
 
@@ -37,7 +40,7 @@ const RiskRegisterDashboardPage = ({ setActiveTab }) => {
       );
   }
 
-  const openRisks = risks.filter(r => r.status === 'Open' || r.status === 'Under Review');
+  const openRisks = risks.filter(r => OPEN_STATUSES.includes(r.status));
   const criticalRisks = openRisks.filter(
     r => getRiskBand(calculateRiskScore(r.likelihood, r.impact)) === 'Critical',
   );
@@ -73,7 +76,7 @@ const RiskRegisterDashboardPage = ({ setActiveTab }) => {
               <CardContent className="p-4 flex flex-col items-center justify-center text-center h-full">
                   <span className="text-3xl font-bold text-green-500">{mitigatedRisks.length}</span>
                   <span className="text-xs text-slate-400 mt-1 uppercase tracking-wider flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-green-500"/> Mitigated
+                      <CheckCircle2 className="w-3 h-3 text-green-500"/> Mitigated or closed
                   </span>
               </CardContent>
             </Card>
@@ -95,25 +98,27 @@ const RiskRegisterDashboardPage = ({ setActiveTab }) => {
               <CardContent className="flex-1 flex items-center justify-center py-6">
                   <RiskHeatmapMatrix 
                       risks={openRisks} 
-                      onCellClick={(l, i) => setActiveTab('register')}
+                      onCellClick={(l, i) => onDrillDown(cellFilter(l, i, OPEN_STATUSES, 'open and under review risks'))}
                   />
               </CardContent>
           </Card>
 
-          {/* Top Critical Risks List */}
+          {/* Top open risks. It was titled "Top Critical & High Risks" with
+              no band filter, so Low and Medium risks appeared under that
+              title (AS13). */}
           <Card className="lg:col-span-2 bg-slate-900 border-slate-800">
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
                   <CardTitle className="text-lg text-slate-100 flex items-center gap-2">
                       <TrendingUp className="w-5 h-5 text-red-500" />
-                      Top Critical & High Risks
+                      Highest scoring open risks
                   </CardTitle>
-                  <Button variant="link" className="text-indigo-400 text-sm" onClick={() => setActiveTab('register')}>
+                  <Button variant="link" className="text-indigo-400 text-sm" onClick={() => onDrillDown(null)}>
                       View All
                   </Button>
               </CardHeader>
               <CardContent>
                   <div className="space-y-2">
-                      {openRisks.sort((a,b) => b.risk_score - a.risk_score).slice(0, 5).map(risk => (
+                      {[...openRisks].sort((a,b) => (b.risk_score || 0) - (a.risk_score || 0)).slice(0, 5).map(risk => (
                           <div 
                               key={risk.id} 
                               onClick={() => navigate(`/dashboard/apps/assurance/risk-register/${risk.id}`)}
@@ -134,7 +139,7 @@ const RiskRegisterDashboardPage = ({ setActiveTab }) => {
                       ))}
                       {openRisks.length === 0 && (
                           <div className="text-center py-8 text-slate-500">
-                              No open risks found. Great job!
+                              No risk is Open or Under Review.
                           </div>
                       )}
                   </div>

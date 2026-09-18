@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { BarChart2, CheckSquare, ChevronLeft, FilePlus2, FileText, LayoutDashboard, Library } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import AssuranceHelp from '@/components/assurance/AssuranceHelp';
 
 export const BASE = '/dashboard/apps/assurance/document-control';
 
@@ -56,6 +57,7 @@ export const DocControlShell = ({
               </div>
             </div>
           </div>
+          <AssuranceHelp appKey="documents" />
         </div>
 
         <div className="px-6 flex gap-6 mt-2 overflow-x-auto no-scrollbar">

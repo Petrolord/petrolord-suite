@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRegulatoryCompliance } from './hooks/useRegulatoryCompliance';
 import { validateAuthority } from './utils/obligationPayload';
 import {
+  ConfirmDelete,
   EmptyState,
   ErrorState,
   Loading,
@@ -41,6 +42,7 @@ export default function Directory() {
   const [editing, setEditing] = useState(null);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [confirming, setConfirming] = useState(null);
 
   if (loading) return <Loading label="Loading the directory..." />;
   if (error) return <ErrorState error={error} onRetry={refresh} />;
@@ -62,7 +64,11 @@ export default function Directory() {
       : await createAuthority(editing);
     setSaving(false);
     if (result.success) {
-      toast({ description: editing.id ? 'Regulator updated.' : 'Regulator added.' });
+      const done = editing.id ? 'Regulator updated' : 'Regulator added';
+      // A save that dropped fields is never a plain success (AS13).
+      toast(result.warning
+        ? { title: `${done}, with a caveat`, description: result.warning, variant: 'destructive' }
+        : { description: `${done}.` });
       setEditing(null);
       setErrors({});
     } else {
@@ -71,6 +77,7 @@ export default function Directory() {
   };
 
   const handleDelete = async (a) => {
+    setConfirming(null);
     const result = await deleteAuthority(a.id);
     toast(result.success
       ? { description: `${a.acronym || a.name} removed.` }
@@ -186,7 +193,7 @@ export default function Directory() {
                         </Button>
                         <Button variant="ghost" size="icon" aria-label="Delete"
                           className="h-8 w-8 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--destructive))]"
-                          onClick={() => handleDelete(a)}>
+                          onClick={() => setConfirming(a)}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
@@ -250,6 +257,17 @@ export default function Directory() {
           </div>
         )}
       </div>
+
+      <ConfirmDelete
+        target={confirming}
+        title="Remove this regulator?"
+        description={confirming
+          ? `${confirming.acronym || confirming.name} will be removed from the directory. This cannot be undone.`
+          : ''}
+        confirmLabel="Remove"
+        onConfirm={handleDelete}
+        onCancel={() => setConfirming(null)}
+      />
     </div>
   );
 }

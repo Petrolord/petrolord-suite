@@ -11,6 +11,7 @@
  * standard, an audit, a finding or an action.
  */
 import { toDateOnlyString } from '@/lib/isoCompliance';
+import { isSamePerson, nameKey, normaliseName } from '../../shared/people';
 
 /** `org_id`, the codes and `created_by` are set by the hook, never by a form. */
 export const STANDARD_WRITABLE_COLUMNS = Object.freeze([
@@ -261,3 +262,113 @@ export const validateCoverage = (form = {}) => {
   }
   return errors;
 };
+
+/* ------------------------------------------------------------------ */
+/* AS13: what the pages and the hook check before a write              */
+/* ------------------------------------------------------------------ */
+
+/** The verdicts that record an assessment, and so an assessor. */
+export const ASSESSED_STATUSES = Object.freeze(['Conformant', 'Partially conformant', 'Nonconformant']);
+
+/**
+ * Who assessed this, applied BEFORE the gate.
+ *
+ * "Assessor (leave blank to record yourself)": a blank name records the
+ * signed-in user; a typed name records that person (somebody without a
+ * Suite account) and clears the account. Both are written every time,
+ * so a re-assessment by B never keeps A as the assessor. AS8 filled the
+ * user in after canSetClauseStatus had already refused the blank name.
+ */
+export const withAssessor = (patch = {}, userId = null) => {
+  const typed = String(patch.assessor_name || '').trim();
+  return {
+    ...patch,
+    assessed_date: patch.assessed_date || toDateOnlyString(new Date()),
+    assessor_name: typed || null,
+    assessed_by: typed ? null : (userId || null),
+  };
+};
+
+/**
+ * The audit and the clauses as ISO 19011's independence check should
+ * see them.
+ *
+ * The engine compares the lead auditor's id with each clause owner's id.
+ * Forms that only typed names gave it nothing to compare, so the check
+ * never fired. Where the two ids are not both known, a clause whose owner
+ * is the same person as the lead auditor by name is handed the lead
+ * auditor's key, and the refusal the user reads is the engine's own.
+ * The stand-in keys are never written.
+ */
+export const independenceView = (audit = {}, clauses = []) => {
+  const leadKey = audit.lead_auditor_id
+    || (normaliseName(audit.lead_auditor_name) ? nameKey(audit.lead_auditor_name) : null);
+  if (!leadKey) return { audit, clauses };
+  return {
+    audit: { ...audit, lead_auditor_id: leadKey },
+    clauses: clauses.map((c) => {
+      if (!c) return c;
+      if (audit.lead_auditor_id && c.owner_id) return c;
+      return isSamePerson(audit.lead_auditor_id, audit.lead_auditor_name, c.owner_id, c.owner_name)
+        ? { ...c, owner_id: leadKey }
+        : c;
+    }),
+  };
+};
+
+/**
+ * A finding raised from an audit carries that audit's standard, so a
+ * major nonconformity raised from the audit page counts against the
+ * standard's certification readiness. The form may still name another.
+ */
+export const findingWithAuditStandard = (form = {}, audits = []) => {
+  if (!form.audit_id || form.standard_id) return form;
+  const audit = audits.find((a) => a.id === form.audit_id);
+  return audit?.standard_id ? { ...form, standard_id: audit.standard_id } : form;
+};
+
+/**
+ * What removing a standard takes with it, counted, for the confirmation.
+ * Migration 20260917600000: its clauses go (ON DELETE CASCADE), and with
+ * them every audit result recorded against them; its audits and findings
+ * are kept with the standard unset (ON DELETE SET NULL).
+ */
+export const standardRemovalImpact = (standard, { clauses = [], auditClauses = [], audits = [], findings = [] } = {}) => {
+  const mine = new Set(clauses.filter((c) => c.standard_id === standard?.id).map((c) => c.id));
+  return {
+    clauses: mine.size,
+    results: auditClauses.filter((r) => mine.has(r.clause_id)).length,
+    audits: audits.filter((a) => a.standard_id === standard?.id).length,
+    findings: findings.filter((f) => f.standard_id === standard?.id).length,
+  };
+};
+
+/**
+ * The words for a standard's certificate against its expiry date, from
+ * certificationReadiness's counts: 'Expired', 'Expiring soon' (within
+ * CERTIFICATE_LEAD_DAYS) or null. The Standards page and the Dashboard
+ * readiness summary both show it, so the help's claim that readiness
+ * shows both states is true (AS13 hardening). It is not a blocker.
+ */
+export const certificateState = (counts = {}) => {
+  if (counts.certificateExpired) return 'Expired';
+  if (counts.certificateExpiring) return 'Expiring soon';
+  return null;
+};
+
+/** The audit statuses at which the clause scope is fixed. */
+export const SCOPE_LOCKED_STATUSES = Object.freeze(['Reported', 'Closed', 'Cancelled']);
+
+/**
+ * Why clauses can no longer be added to or removed from this audit's
+ * scope, or null while they can. Once the audit is Reported its scope is
+ * what the report covered, so changing it afterwards would rewrite the
+ * report (AS13 hardening: it used to lock only at Closed and Cancelled).
+ */
+export const scopeLockReason = (audit) => {
+  if (!audit || !SCOPE_LOCKED_STATUSES.includes(audit.status)) return null;
+  return `This audit is ${String(audit.status).toLowerCase()}. Its clause scope is what the `
+    + 'report covered and can no longer be added to or removed from.';
+};
+
+export { canDeleteFinding, progressedFindingStatus } from '../../shared/findingWorkflow';

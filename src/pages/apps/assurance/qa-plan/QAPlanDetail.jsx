@@ -20,11 +20,13 @@ import {
   isResolved,
   nextPlanStatuses,
   planProgress,
+  toDateOnlyString,
 } from '@/lib/qualityAssurance';
-import { validateCheckpoint } from './utils/qaPayload';
+import { needsDecisionReason, planLockReason, validateCheckpoint } from './utils/qaPayload';
 import { QAPlanShell, BASE } from './components/QAPlanShell';
 import {
-  DetailField, EmptyState, ErrorState, GateNotice, Loading, MetricTile, SchemaNotice, WriteFailure,
+  ConfirmDelete, DetailField, EmptyState, ErrorState, GateNotice, Loading, MetricTile,
+  SchemaNotice, WriteFailure,
 } from './components/SharedComponents';
 import {
   CheckpointStatusBadge, HoldPointBadge, NcrStatusBadge, PlanStatusBadge,
@@ -46,6 +48,14 @@ import { useQualityAssurance } from './hooks/useQualityAssurance';
  * Both buttons on the page — Add Checkpoint and View — toasted a
  * dialog that does not exist.
  */
+
+/** The Remarks label suffix: which results must say why. */
+const decisionReasonLabel = (checkpoint, status) => {
+  if (!needsDecisionReason(checkpoint, status)) return '';
+  return status === 'Waived'
+    ? ': why it is being waived (required)'
+    : ': why this hold point does not apply (required)';
+};
 
 const blankRow = () => ({
   item_no: '',
@@ -78,6 +88,7 @@ export default function QAPlanDetail() {
   const [decision, setDecision] = useState(blankDecision());
   const [failure, setFailure] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [removing, setRemoving] = useState(null);
 
   const plan = useMemo(() => plans.find((p) => p.id === planId) || null, [plans, planId]);
   const checkpoints = useMemo(
@@ -106,6 +117,10 @@ export default function QAPlanDetail() {
     );
   }
 
+  // AS13: a closed, superseded or cancelled plan is a record. Its items
+  // and results are locked here and refused by the hook as well.
+  const locked = planLockReason(plan);
+
   const submitCheckpoint = async (e) => {
     e.preventDefault();
     setFailure(null);
@@ -131,7 +146,7 @@ export default function QAPlanDetail() {
     setDeciding(checkpoint);
     setDecision({
       status: 'Passed',
-      result_date: new Date().toISOString().slice(0, 10),
+      result_date: toDateOnlyString(new Date()),
       verifier_name: '',
       remarks: '',
     });
@@ -140,6 +155,12 @@ export default function QAPlanDetail() {
   const submitDecision = async (e) => {
     e.preventDefault();
     setFailure(null);
+    if (needsDecisionReason(deciding, decision.status) && !String(decision.remarks || '').trim()) {
+      setFailure(decision.status === 'Waived'
+        ? 'Say why this point is being waived in Remarks.'
+        : 'Say why this hold point does not apply in Remarks. It stops work until released, so setting it aside needs a reason on the record.');
+      return;
+    }
     setBusy(true);
     const result = await decideCheckpoint(deciding, decision.status, {
       result_date: decision.result_date || null,
@@ -160,6 +181,7 @@ export default function QAPlanDetail() {
     const result = await deleteCheckpoint(checkpoint.id);
     setBusy(false);
     if (!result.success) { setFailure(result.error); return; }
+    setRemoving(null);
     toast({ description: `Item ${checkpoint.item_no} removed.` });
   };
 
@@ -259,18 +281,25 @@ export default function QAPlanDetail() {
               <div>
                 <CardTitle className="text-lg">Inspection and test plan</CardTitle>
                 <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
-                  Only the hold points hold this plan open.
+                  Open hold points, failed points of any type and open non-conformances keep this plan open.
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <HoldPointBadge progress={progress} />
-                <Button size="sm" variant="outline" onClick={() => setAdding((a) => !a)}>
-                  <Plus className="w-4 h-4 mr-2" /> Add item
-                </Button>
+                {!locked ? (
+                  <Button size="sm" variant="outline" onClick={() => setAdding((a) => !a)}>
+                    <Plus className="w-4 h-4 mr-2" /> Add item
+                  </Button>
+                ) : null}
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              {adding ? (
+              {locked ? (
+                <div className="p-4 border-b border-[hsl(var(--border))]">
+                  <GateNotice reason={locked} />
+                </div>
+              ) : null}
+              {adding && !locked ? (
                 <form onSubmit={submitCheckpoint}
                   className="p-5 border-b border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/30 space-y-3">
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -400,7 +429,7 @@ export default function QAPlanDetail() {
                             ) : null}
                           </td>
                           <td className="data-grid-td text-xs">
-                            {c.planned_date || '—'}
+                            {c.planned_date || '-'}
                             {isCheckpointOverdue(c) ? (
                               <span className="block text-[hsl(var(--destructive))]">Overdue</span>
                             ) : null}
@@ -417,10 +446,10 @@ export default function QAPlanDetail() {
                                   </span>
                                   {c.remarks ? <span className="block italic">{c.remarks}</span> : null}
                                 </>
-                              : '—'}
+                              : '-'}
                           </td>
                           <td className="data-grid-td whitespace-nowrap">
-                            {!isResolved(c) || c.status === 'Failed' ? (
+                            {locked ? null : !isResolved(c) || c.status === 'Failed' ? (
                               <Button size="sm" variant="outline" onClick={() => openDecision(c)}>
                                 Record result
                               </Button>
@@ -429,10 +458,13 @@ export default function QAPlanDetail() {
                                 Amend
                               </Button>
                             )}
-                            <Button size="sm" variant="ghost" disabled={busy}
-                              onClick={() => removeCheckpoint(c)} title="Remove this item">
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            {!locked ? (
+                              <Button size="sm" variant="ghost" disabled={busy}
+                                onClick={() => { setFailure(null); setRemoving(c); }}
+                                title="Remove this item">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            ) : null}
                           </td>
                         </tr>
                       ))}
@@ -441,7 +473,7 @@ export default function QAPlanDetail() {
                 </div>
               )}
 
-              {deciding ? (
+              {deciding && !locked ? (
                 <form onSubmit={submitDecision}
                   className="p-5 border-t border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/30 space-y-3">
                   <p className="text-sm font-medium">
@@ -450,7 +482,8 @@ export default function QAPlanDetail() {
                   {isBlockingPoint(deciding) ? (
                     <p className="text-xs text-[hsl(var(--muted-foreground))]">
                       This is a hold point. Work stopped here until it was verified, so the
-                      date and the verifier are both required.
+                      date and the verifier are both required, also when it is set to Not
+                      applicable. A blank verifier records you.
                     </p>
                   ) : null}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -482,9 +515,10 @@ export default function QAPlanDetail() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium" htmlFor="dec-remarks">
-                      Remarks{decision.status === 'Waived' ? ': why it is being waived (required)' : ''}
+                      Remarks{decisionReasonLabel(deciding, decision.status)}
                     </label>
                     <Textarea id="dec-remarks" value={decision.remarks}
+                      required={needsDecisionReason(deciding, decision.status)}
                       onChange={(e) => setDecision((d) => ({ ...d, remarks: e.target.value }))}
                       className="min-h-[60px]" />
                   </div>
@@ -565,6 +599,18 @@ export default function QAPlanDetail() {
             ))}
           </CardContent>
         </Card>
+
+        <ConfirmDelete
+          open={Boolean(removing)}
+          title="Remove this inspection point?"
+          description={removing
+            ? `Item ${removing.item_no} (${removing.point_type}) and any result recorded against it will be deleted from ${plan.plan_code}. This cannot be undone. If the point no longer applies, recording it as Not applicable keeps the record.`
+            : ''}
+          confirmLabel="Remove item"
+          busy={busy}
+          onConfirm={() => removeCheckpoint(removing)}
+          onCancel={() => setRemoving(null)}
+        />
       </div>
     </QAPlanShell>
   );

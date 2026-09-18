@@ -16,8 +16,10 @@ import { LessonsShell, BASE } from './components/LessonsShell';
 import {
   ErrorState, GateNotice, Loading, SchemaNotice, WriteFailure,
 } from './components/SharedComponents';
-import { validateLesson } from './utils/lessonPayload';
+import { validateLesson, withAuthor } from './utils/lessonPayload';
 import { useLessonsLearned } from './hooks/useLessonsLearned';
+import { PersonField } from '../shared/PersonField';
+import { useOrgMembers } from '../shared/useOrgMembers';
 
 /**
  * AS9 — capture, which is where this app's defect was worst.
@@ -58,6 +60,7 @@ const blank = () => ({
   source_type: 'Operational experience',
   source_reference: '',
   applicability_scope: 'This asset',
+  author_id: null,
   author_name: '',
   keywords: '',
   review_due: '',
@@ -69,6 +72,7 @@ export default function NewLesson() {
   const {
     loading, error, refresh, hasAs9Schema, createLesson,
   } = useLessonsLearned();
+  const { members, userId, selfName } = useOrgMembers();
 
   const [form, setForm] = useState(blank());
   const [errors, setErrors] = useState({});
@@ -85,7 +89,8 @@ export default function NewLesson() {
     if (Object.keys(errs).length) return;
 
     setSaving(true);
-    const result = await createLesson(form);
+    // A blank author is you, by id and by name (AS13).
+    const result = await createLesson(withAuthor(form, userId, selfName));
     setSaving(false);
     if (!result.success) { setFailure(result.error); return; }
     toast({
@@ -149,7 +154,7 @@ export default function NewLesson() {
                 </label>
                 <Textarea id="ll-consequence" rows={2} value={form.consequence}
                   onChange={set('consequence')}
-                  placeholder="Downtime, rework, damage, delay — what this actually cost." />
+                  placeholder="Downtime, rework, damage or delay: what this actually cost." />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -264,12 +269,16 @@ export default function NewLesson() {
                   <label className="text-sm font-medium" htmlFor="ll-asset">Asset</label>
                   <Input id="ll-asset" value={form.asset_id} onChange={set('asset_id')} />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium" htmlFor="ll-author">
-                    Author (leave blank to record yourself)
-                  </label>
-                  <Input id="ll-author" value={form.author_name} onChange={set('author_name')} />
-                </div>
+                <PersonField
+                  id="ll-author" label="Author (leave blank to record yourself)"
+                  members={members} userId={userId}
+                  personId={form.author_id} name={form.author_name}
+                  onChange={({ id, name }) => setForm(
+                    (f) => ({ ...f, author_id: id, author_name: name }))}
+                  emptyOption="Yourself, or type the name of somebody without a Suite account"
+                  namePlaceholder="Leave blank for yourself"
+                  selectClassName={selectClass}
+                />
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium" htmlFor="ll-review">Review due</label>
                   <Input id="ll-review" type="date" value={form.review_due}

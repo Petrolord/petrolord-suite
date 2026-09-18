@@ -105,4 +105,66 @@ describe('no invented data in the risk register', () => {
     expect(fn).toBeTruthy();
     expect(fn[0]).toMatch(/destructive/);
   });
+
+  // AS13: the classes removed in the help-guide pass.
+  it('no invented export history', () => {
+    // RiskReportingContext seeded "Export History" with "Q2 Board Pack"
+    // and "HSE Monthly Review" for every organization.
+    const offenders = files.filter((f) =>
+      /Q2 Board Pack|HSE Monthly Review|setReportHistory|reportHistory/.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
+
+  it('no toast claims something happened that did not', () => {
+    const offenders = files.filter((f) =>
+      /recorded in audit log|would open here|coming soon|Contacting support|rendering engine initialized|Initialized`/i
+        .test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
+
+  it('no handler is named as a mock', () => {
+    const offenders = files.filter((f) => /handleMockAction|Mock Report History/.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
+
+  it('no file passes a .csv name to a helper that appends .csv', () => {
+    const offenders = files.filter((f) => /exportTo(CSV|Csv)\([\s\S]{0,800}?\.csv[`'"]\s*,?\s*\)/.test(code(f))
+      || /exportDataAsCSV\([^)]*\.csv/.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
+
+  it('the shell uses the app reporting provider, not a standalone hook', () => {
+    expect(fs.existsSync(path.resolve(APP, '../../../hooks/useRiskReporting.js'))).toBe(false);
+    const offenders = files.filter((f) => /@\/hooks\/useRiskReporting/.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
+
+  it('the old help drawer, with its dead search box and support button, is gone', () => {
+    expect(fs.existsSync(path.join(APP, 'components/HelpGuide.jsx'))).toBe(false);
+  });
+
+  it('no builder column or template reports an owner that nothing records', () => {
+    const offenders = files.filter((f) => /['"]owner_id['"]/.test(code(f))
+      && !/riskPayload\.js$/.test(f));
+    expect(offenders.map(rel)).toEqual([]);
+  });
+
+  it('the dashboard list is not titled for a band filter it does not apply', () => {
+    const dashboard = code(path.join(APP, 'RiskRegisterDashboardPage.jsx'));
+    expect(dashboard).not.toMatch(/Top Critical & High Risks/);
+  });
+
+  it('no component words an appetite answer of its own (AS13 hardening)', () => {
+    // RiskForm read "Not assessed" with no appetite for a risk the
+    // detail page judged Above appetite on its inherent score. Appetite
+    // words come from getAppetiteStatus (or appetitePreview) only.
+    const offenders = files.filter((f) => !/utils\/riskPayload\.js$/.test(f)
+      && /`Appetite: \$\{/.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
+
+  it('an empty register is probed for its columns, not assumed current', () => {
+    const hook = code(path.join(APP, 'hooks/useRiskRegister.js'));
+    expect(hook).toMatch(/from\('risk_register'\)\.select\('target_score'\)\.limit\(1\)/);
+  });
 });

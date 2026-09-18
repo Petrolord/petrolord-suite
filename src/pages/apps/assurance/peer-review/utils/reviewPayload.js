@@ -12,7 +12,7 @@
  * So had that write ever reached PostgREST it would have been rejected
  * outright. It never did, which is why nobody noticed.
  */
-import { toDateOnlyString } from '@/lib/peerReview';
+import { ACTIVE_STAGES, STAGES, toDateOnlyString } from '@/lib/peerReview';
 
 /**
  * Every column a client may write on `peer_reviews`. `org_id`,
@@ -134,4 +134,18 @@ export const validateComment = (form = {}) => {
     errors.comment_text = 'A comment needs its text.';
   }
   return errors;
+};
+
+/**
+ * AS13: why a review may no longer be changed, or null while it may.
+ * A Closed or Cancelled review is the record of what was raised and how
+ * it was answered: new comments and dispositions on it rewrote that
+ * record after the fact.
+ */
+const FINAL_STAGES = STAGES.filter((s) => !ACTIVE_STAGES.includes(s));
+
+export const reviewLockReason = (review) => {
+  if (!review || !FINAL_STAGES.includes(review.stage)) return null;
+  return `This review is ${String(review.stage).toLowerCase()}. Its comments and their `
+    + 'dispositions are the record it finished on and can no longer be changed.';
 };

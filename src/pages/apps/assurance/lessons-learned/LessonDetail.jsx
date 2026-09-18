@@ -18,6 +18,7 @@ import {
   missingSubstance,
   nextLessonStatuses,
   reuseRecord,
+  toDateOnlyString,
 } from '@/lib/lessonsLearned';
 import { CATEGORIES as MOC_CATEGORIES, CHANGE_TYPES, PRIORITIES } from '@/lib/managementOfChange';
 import { LessonsShell, BASE } from './components/LessonsShell';
@@ -28,7 +29,8 @@ import {
   LessonStatusBadge, OutcomeBadge, ScopeBadge, UnappliedBadge,
 } from './components/LessonBadges';
 import {
-  validateApplication, validateMocPush, validateRiskPush,
+  canEditLesson, canRemoveApplication, successorCandidates, validateApplication, validateMocPush,
+  validateRiskPush,
 } from './utils/lessonPayload';
 import { useLessonsLearned } from './hooks/useLessonsLearned';
 
@@ -57,7 +59,7 @@ const blankApplication = () => ({
   reference: '',
   outcome: 'Adopted',
   notes: '',
-  applied_on: new Date().toISOString().slice(0, 10),
+  applied_on: toDateOnlyString(new Date()),
 });
 
 const blankRiskPush = (lesson) => ({
@@ -86,7 +88,7 @@ export default function LessonDetail() {
   const {
     lessons, risks, mocs, userId, activityFor,
     loading, error, refresh, hasAs9Schema,
-    updateLesson, validateLesson, advanceLesson,
+    editLesson, validateLesson, advanceLesson,
     recordApplication, deleteApplication, raiseRiskFromLesson, raiseMocFromLesson,
   } = useLessonsLearned();
 
@@ -98,6 +100,7 @@ export default function LessonDetail() {
   const [pushingMoc, setPushingMoc] = useState(null);
   const [pushErrors, setPushErrors] = useState({});
   const [archiving, setArchiving] = useState(null);
+  const [superseding, setSuperseding] = useState(null);
   const [failure, setFailure] = useState(null);
   const [busy, setBusy] = useState(false);
   const today = new Date();
@@ -109,6 +112,11 @@ export default function LessonDetail() {
   const log = useMemo(() => (lesson ? activityFor(lesson.id) : []), [lesson, activityFor]);
   const riskById = useMemo(() => new Map(risks.map((r) => [r.id, r])), [risks]);
   const mocById = useMemo(() => new Map(mocs.map((m) => [m.id, m])), [mocs]);
+  const successors = useMemo(
+    () => (lesson ? successorCandidates(lesson, lessons) : []), [lesson, lessons]);
+  const successor = useMemo(
+    () => (lesson?.superseded_by ? lessons.find((l) => l.id === lesson.superseded_by) || null : null),
+    [lesson, lessons]);
 
   const validationGate = useMemo(
     () => (lesson ? canValidate(lesson, userId) : { ok: false }), [lesson, userId]);
@@ -135,6 +143,7 @@ export default function LessonDetail() {
 
   const terminal = ['Archived', 'Superseded'].includes(lesson.status);
   const missing = missingSubstance(lesson);
+  const editGate = canEditLesson(lesson);
 
   const run = async (fn, message) => {
     setFailure(null);
@@ -148,7 +157,10 @@ export default function LessonDetail() {
 
   const submitEdit = async (e) => {
     e.preventDefault();
-    const ok = await run(() => updateLesson(lesson.id, { ...lesson, ...editing }), 'Saved.');
+    const ok = await run(() => editLesson(lesson, editing),
+      lesson.status === 'Validated'
+        ? 'Saved. It is back to Submitted and needs validating again.'
+        : 'Saved.');
     if (ok) setEditing(null);
   };
 
@@ -207,8 +219,19 @@ export default function LessonDetail() {
   };
 
   const move = (to) => {
-    if (to === 'Archived') { setArchiving({ archive_reason: '' }); return; }
+    if (to === 'Archived') { setSuperseding(null); setArchiving({ archive_reason: '' }); return; }
+    // Superseded names the lesson that replaces this one. AS9 offered the
+    // button with nowhere to name it, so it always failed (AS13).
+    if (to === 'Superseded') { setArchiving(null); setSuperseding({ superseded_by: '' }); return; }
     run(() => advanceLesson(lesson, to), `${lesson.lesson_code} is now ${to}.`);
+  };
+
+  const submitSupersede = async (e) => {
+    e.preventDefault();
+    const replacement = lessons.find((l) => l.id === superseding.superseded_by);
+    const ok = await run(() => advanceLesson(lesson, 'Superseded', superseding),
+      `${lesson.lesson_code} superseded${replacement ? ` by ${replacement.lesson_code}` : ''}.`);
+    if (ok) setSuperseding(null);
   };
 
   const submitArchive = async (e) => {
@@ -277,7 +300,9 @@ export default function LessonDetail() {
                 <GateNotice reason={`This lesson is missing ${missing.join(' and ')}. It cannot be validated until it has all three.`} />
               ) : null}
 
-              {!terminal ? (
+              {!terminal && !editGate.ok ? <GateNotice reason={editGate.reason} /> : null}
+
+              {editGate.ok ? (
                 <div className="flex flex-wrap gap-2 pt-2">
                   <Button size="sm" variant="outline" disabled={busy}
                     onClick={() => setEditing(editing ? null : {
@@ -295,6 +320,9 @@ export default function LessonDetail() {
               {editing ? (
                 <form onSubmit={submitEdit}
                   className="p-4 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/30 space-y-3">
+                  {lesson.status === 'Validated' ? (
+                    <GateNotice reason="This lesson has been validated. Saving a change sends it back to Submitted and clears the validation, because the validator accepted the words that were there." />
+                  ) : null}
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium" htmlFor="ed-desc">What happened</label>
                     <Textarea id="ed-desc" rows={3} value={editing.description}
@@ -370,6 +398,16 @@ export default function LessonDetail() {
               {lesson.archive_reason ? (
                 <DetailField label="Archived because">{lesson.archive_reason}</DetailField>
               ) : null}
+              {lesson.superseded_by ? (
+                <DetailField label="Superseded by">
+                  {successor ? (
+                    <button type="button" className="text-[hsl(var(--primary))] hover:underline"
+                      onClick={() => navigate(`${BASE}/${successor.id}`)}>
+                      {successor.lesson_code}: {successor.title}
+                    </button>
+                  ) : 'A lesson no longer in this register'}
+                </DetailField>
+              ) : null}
 
               <div className="pt-2 border-t border-[hsl(var(--border))] space-y-3">
                 <p className="text-xs uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
@@ -416,6 +454,39 @@ export default function LessonDetail() {
                         Cancel
                       </Button>
                       <Button type="submit" disabled={busy}>Validate</Button>
+                    </div>
+                  </form>
+                ) : null}
+
+                {superseding ? (
+                  <form onSubmit={submitSupersede} className="space-y-3 pt-2">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium" htmlFor="su-by">
+                        Which lesson replaces this one?
+                      </label>
+                      <select id="su-by" className={selectClass} value={superseding.superseded_by}
+                        onChange={(e) => setSuperseding({ superseded_by: e.target.value })}>
+                        <option value="">Pick the lesson that replaces it</option>
+                        {successors.map((l) => (
+                          <option key={l.id} value={l.id}>
+                            {l.lesson_code}: {l.title} ({l.status})
+                          </option>
+                        ))}
+                      </select>
+                      {successors.length === 0 ? (
+                        <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                          There is no other lesson to name. Capture the lesson that replaces
+                          this one first.
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button type="button" variant="outline" onClick={() => setSuperseding(null)}>
+                        Cancel
+                      </Button>
+                      <Button type="submit" disabled={busy || !superseding.superseded_by}>
+                        Mark superseded
+                      </Button>
                     </div>
                   </form>
                 ) : null}
@@ -734,14 +805,19 @@ export default function LessonDetail() {
                           <td className="data-grid-td text-xs">{a.applied_on}</td>
                           <td className="data-grid-td text-xs max-w-sm">{a.notes || ''}</td>
                           <td className="data-grid-td text-right">
-                            {!terminal ? (
-                              <Button size="sm" variant="ghost" disabled={busy}
-                                onClick={() => run(() => deleteApplication(a.id),
-                                  'Application removed.')}
-                                title="Remove this record">
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            ) : null}
+                            {!terminal ? (() => {
+                              const removal = canRemoveApplication(lesson, a, applications);
+                              return (
+                                <Button size="sm" variant="ghost" disabled={busy}
+                                  onClick={() => (removal.ok
+                                    ? run(() => deleteApplication(a.id), 'Application removed.')
+                                    : setFailure(removal.reason))}
+                                  title={removal.ok ? 'Remove this record' : removal.reason}
+                                  aria-label={removal.ok ? 'Remove this record' : removal.reason}>
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              );
+                            })() : null}
                           </td>
                         </tr>
                       );

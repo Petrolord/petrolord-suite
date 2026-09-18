@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# SUPERSEDED at AS13 by assurance-launch-apply.sh, which applies these five
+# AND every later held Assurance migration in one rehearsed order (and runs
+# as1b after AS3, which a rebuild from the repo needs). Kept for the
+# record; run the launch script instead.
+#
 # AS1 and AS2 ordered apply. OWNER-RUN.
 #
 # Production DB writes are blocked for the agent, so this is the script

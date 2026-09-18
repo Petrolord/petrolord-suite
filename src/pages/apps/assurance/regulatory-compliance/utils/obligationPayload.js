@@ -15,7 +15,7 @@
  * So this module is the whole contract between a form and the database,
  * and it refuses to invent a column.
  */
-import { deriveStatus, toDateOnlyString } from '@/lib/complianceStatus';
+import { DEFAULT_LEAD_TIME_DAYS, deriveStatus, toDateOnlyString } from '@/lib/complianceStatus';
 
 /**
  * Every column a client may write on regulatory_obligations.
@@ -146,6 +146,63 @@ export const buildAuthorityWrite = (form = {}, { hasAs3Columns = true } = {}) =>
         && !['id', 'org_id', 'created_by', 'created_at', 'updated_at'].includes(k),
     ),
   };
+};
+
+/**
+ * AS13 hardening: what a save without migration 20260917100000 loses.
+ *
+ * The schema used to be detected only from the columns of a loaded row,
+ * so an EMPTY register (the first use of every organization) was
+ * assumed to have the new schema, the full form was offered, the insert
+ * failed on an unknown column, and the retry dropped the AS3 fields and
+ * reported "Obligation created". These helpers name what was dropped so
+ * the save is never reported as a plain success.
+ *
+ * Values left at the form's defaults are not counted: without the
+ * column the default is what the app assumes anyway.
+ */
+const AS3_OBLIGATION_LABELS = {
+  description: 'what it requires',
+  regime: 'regime',
+  obligation_type: 'type',
+  jurisdiction: 'jurisdiction',
+  reference: 'permit or licence number',
+  frequency: 'frequency',
+  lifecycle: 'lifecycle',
+  effective_date: 'in force from date',
+  expiry_date: 'expiry date',
+  last_submitted_date: 'last submission date',
+  lead_time_days: 'warning lead time',
+  consequence: 'consequence of breach',
+  notes: 'notes',
+};
+
+export const AS3_FORM_DEFAULTS = Object.freeze({
+  frequency: 'Annual',
+  lifecycle: 'Active',
+  lead_time_days: DEFAULT_LEAD_TIME_DAYS,
+});
+
+const entered = (form, col) => {
+  const v = form[col];
+  if (v === undefined || v === null || String(v).trim() === '') return false;
+  const d = AS3_FORM_DEFAULTS[col];
+  return d === undefined || String(v) !== String(d);
+};
+
+export const as3ValuesEntered = (form = {}) => AS3_OBLIGATION_COLUMNS
+  .filter((c) => entered(form, c))
+  .map((c) => AS3_OBLIGATION_LABELS[c] || c);
+
+export const as3AuthorityValuesEntered = (form = {}) => AS3_AUTHORITY_COLUMNS
+  .filter((c) => entered(form, c));
+
+/** Said on a save that could not store AS3 values. Never a plain success. */
+export const as3SchemaMessage = (labels = []) => {
+  const list = labels.length > 1
+    ? `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`
+    : labels[0];
+  return `Saved without the ${list}: this database does not have the compliance update yet (migration 20260917100000), so ${labels.length > 1 ? 'they were' : 'it was'} not stored. Ask your administrator to apply it.`;
 };
 
 /**

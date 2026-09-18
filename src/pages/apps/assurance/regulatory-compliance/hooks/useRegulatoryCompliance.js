@@ -3,6 +3,9 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { rollForward, toDateOnlyString } from '@/lib/complianceStatus';
 import {
+  as3AuthorityValuesEntered,
+  as3SchemaMessage,
+  as3ValuesEntered,
   buildAuthorityWrite,
   buildObligationWrite,
   nextCodeFromExisting,
@@ -10,6 +13,8 @@ import {
 
 /** PostgREST's code for "that column is not in my schema cache". */
 const UNKNOWN_COLUMN = 'PGRST204';
+/** Postgres: undefined column, what a select naming an absent column returns. */
+const UNDEFINED_COLUMN = '42703';
 /** PostgREST: that relationship or table is not in my schema cache. */
 const UNKNOWN_RELATION = 'PGRST200';
 /** Postgres: undefined table. */
@@ -89,7 +94,20 @@ export const useRegulatoryCompliance = () => {
       }
       if (res.error) throw res.error;
       rows = res.data || [];
-      if (rows.length && !('lifecycle' in rows[0])) as3 = false;
+      if (rows.length) {
+        if (!('lifecycle' in rows[0])) as3 = false;
+      } else {
+        // An empty register cannot show us its columns, so ask for one,
+        // as useRiskRegister does. Assuming the new schema here offered
+        // the full form on an organization's first obligation against
+        // an unapplied database; the insert failed, the retry dropped
+        // every AS3 field, and the app said "Obligation created" (AS13).
+        const probe = await supabase.from('regulatory_obligations').select('lifecycle').limit(1);
+        if (probe.error
+          && (probe.error.code === UNDEFINED_COLUMN || probe.error.code === UNKNOWN_COLUMN)) {
+          as3 = false;
+        }
+      }
 
       const authRes = await supabase
         .from('regulatory_authorities')
@@ -187,7 +205,8 @@ export const useRegulatoryCompliance = () => {
 
       if (!err) {
         await fetchAll();
-        return { success: true, data };
+        const lost = as3 ? [] : as3ValuesEntered(form);
+        return { success: true, data, warning: lost.length ? as3SchemaMessage(lost) : null };
       }
       if (err.code === UNKNOWN_COLUMN && as3) {
         as3 = false;
@@ -213,7 +232,8 @@ export const useRegulatoryCompliance = () => {
         .single();
       if (!err) {
         await fetchAll();
-        return { success: true, data };
+        const lost = as3 ? [] : as3ValuesEntered(form);
+        return { success: true, data, warning: lost.length ? as3SchemaMessage(lost) : null };
       }
       if (err.code === UNKNOWN_COLUMN && as3) {
         as3 = false;
@@ -293,7 +313,8 @@ export const useRegulatoryCompliance = () => {
         .single();
       if (!err) {
         await fetchAll();
-        return { success: true, data };
+        const lost = as3 ? [] : as3AuthorityValuesEntered(form);
+        return { success: true, data, warning: lost.length ? as3SchemaMessage(lost) : null };
       }
       if (err.code === UNKNOWN_COLUMN && as3) {
         as3 = false;
@@ -317,7 +338,8 @@ export const useRegulatoryCompliance = () => {
         .single();
       if (!err) {
         await fetchAll();
-        return { success: true, data };
+        const lost = as3 ? [] : as3AuthorityValuesEntered(form);
+        return { success: true, data, warning: lost.length ? as3SchemaMessage(lost) : null };
       }
       if (err.code === UNKNOWN_COLUMN && as3) {
         as3 = false;

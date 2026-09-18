@@ -6,42 +6,43 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, ArrowRight, Save, Play, Settings2, Filter, LayoutGrid, BarChart2, CheckCircle2, Plus, X } from 'lucide-react';
-import { RISK_CATEGORIES, RISK_STATUSES } from '../../constants';
+import { DEFAULT_CHART_GROUP, GROUP_FIELDS, REPORT_COLUMNS, columnLabel } from '../../utils/reportConfig';
 
 const STEPS = [
   { id: 'details', label: 'Details', icon: Settings2 },
   { id: 'columns', label: 'Columns', icon: LayoutGrid },
   { id: 'filters', label: 'Filters', icon: Filter },
-  { id: 'charts', label: 'Charts', icon: BarChart2 },
+  { id: 'grouping', label: 'Grouping', icon: BarChart2 },
   { id: 'review', label: 'Review', icon: CheckCircle2 }
 ];
 
-const AVAILABLE_COLUMNS = [
-  { key: 'risk_id', label: 'Risk ID' },
-  { key: 'title', label: 'Title' },
-  { key: 'category', label: 'Category' },
-  { key: 'status', label: 'Status' },
-  { key: 'likelihood', label: 'Likelihood' },
-  { key: 'impact', label: 'Impact' },
-  { key: 'risk_score', label: 'Risk Score' },
-  { key: 'owner_id', label: 'Owner' },
-  { key: 'root_cause', label: 'Root Cause' },
-  { key: 'mitigation_summary', label: 'Mitigation' },
-  { key: 'created_at', label: 'Date Created' }
-];
+const AVAILABLE_COLUMNS = REPORT_COLUMNS;
+const NO_GROUPING = 'none';
 
 export const ReportBuilder = () => {
   const { activeReport, closeReport, saveReport, openReportViewer } = useRiskReporting();
   const [currentStep, setCurrentStep] = useState(0);
-  const [config, setConfig] = useState(activeReport || {
-    name: 'Untitled Custom Report',
-    description: '',
-    columns: ['risk_id', 'title', 'risk_score', 'status'],
-    filters: []
+  const [config, setConfig] = useState(() => {
+    const base = activeReport || {
+      name: 'Untitled Custom Report',
+      description: '',
+      columns: ['risk_id', 'title', 'risk_score', 'status'],
+      filters: [],
+    };
+    return {
+      ...base,
+      description: base.description || '',
+      columns: [...(base.columns || [])],
+      filters: (base.filters || []).map((f) => ({ ...f })),
+      grouping: base.grouping || null,
+    };
   });
 
   const updateConfig = (key, val) => setConfig(prev => ({ ...prev, [key]: val }));
 
+  // saveReport returns the report with its row id, so Save & Generate
+  // opens the report just saved, and a second save updates it rather
+  // than inserting a copy (AS13).
   const handleSave = async (andGenerate = false) => {
     const saved = await saveReport(config);
     if (saved && andGenerate) {
@@ -59,10 +60,10 @@ export const ReportBuilder = () => {
     updateConfig('filters', config.filters.filter((_, i) => i !== idx));
   };
 
+  // A copy, never the object in place: the filters can belong to a
+  // template, and editing one in place changed the template.
   const updateFilter = (idx, key, val) => {
-    const newFilters = [...config.filters];
-    newFilters[idx][key] = val;
-    updateConfig('filters', newFilters);
+    updateConfig('filters', config.filters.map((f, i) => (i === idx ? { ...f, [key]: val } : f)));
   };
 
   const toggleColumn = (key) => {
@@ -207,11 +208,25 @@ export const ReportBuilder = () => {
 
             {currentStep === 3 && (
               <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-                <h3 className="text-xl font-semibold text-white mb-4">Visualizations</h3>
-                <Card className="bg-slate-900 border-slate-800 p-8 text-center text-slate-500">
-                  <BarChart2 className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                  <p>Chart builder is configured to auto-generate based on grouped columns.</p>
-                  <p className="text-sm mt-1">Select grouping in Step 2 to enable specific chart types.</p>
+                <h3 className="text-xl font-semibold text-white mb-4">Grouping</h3>
+                <Card className="bg-slate-900 border-slate-800 p-6 space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-slate-300">Group rows by</Label>
+                    <Select
+                      value={config.grouping || NO_GROUPING}
+                      onValueChange={v => updateConfig('grouping', v === NO_GROUPING ? null : v)}
+                    >
+                      <SelectTrigger className="w-[240px] bg-slate-950 border-slate-700"><SelectValue/></SelectTrigger>
+                      <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                        <SelectItem value={NO_GROUPING}>No grouping</SelectItem>
+                        {GROUP_FIELDS.map(g => <SelectItem key={g.key} value={g.key}>{g.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <p className="text-sm text-slate-400">
+                    The table lists the rows under a heading for each group. The chart view counts the risks in
+                    each group, or by {columnLabel(DEFAULT_CHART_GROUP).toLowerCase()} when no grouping is set.
+                  </p>
                 </Card>
               </div>
             )}
@@ -222,10 +237,13 @@ export const ReportBuilder = () => {
                 <Card className="bg-slate-900 border-slate-800 p-6 space-y-4">
                   <div><span className="text-slate-500 text-sm">Name:</span> <p className="text-white font-medium">{config.name}</p></div>
                   <div><span className="text-slate-500 text-sm">Columns:</span> <p className="text-white font-medium text-sm mt-1 flex flex-wrap gap-1">
-                    {config.columns.map(c => <span key={c} className="px-2 py-1 bg-slate-800 rounded">{AVAILABLE_COLUMNS.find(ac => ac.key === c)?.label || c}</span>)}
+                    {config.columns.map(c => <span key={c} className="px-2 py-1 bg-slate-800 rounded">{columnLabel(c)}</span>)}
                   </p></div>
                   <div><span className="text-slate-500 text-sm">Filters:</span> <p className="text-white font-medium text-sm mt-1">
                     {config.filters.length} active filters
+                  </p></div>
+                  <div><span className="text-slate-500 text-sm">Grouping:</span> <p className="text-white font-medium text-sm mt-1">
+                    {config.grouping ? columnLabel(config.grouping) : 'None'}
                   </p></div>
                 </Card>
               </div>

@@ -13,12 +13,16 @@ import path from 'path';
 import {
   AS2_COLUMNS,
   RISK_REGISTER_WRITABLE_COLUMNS,
+  appetitePreview,
+  as2ValuesEntered,
   buildRiskWrite,
   nextCodeFromExisting,
+  planLinkChanges,
   parseRiskCodes,
   parseTags,
   resolveRiskCodes,
 } from '../utils/riskPayload';
+import { getAppetiteStatus } from '@/lib/riskScoring';
 
 const ROOT = path.resolve(__dirname, '../../../../..');
 
@@ -198,5 +202,138 @@ describe('risk codes', () => {
     const register = Array.from({ length: 30 }, (_, i) => ({ risk_id: `RSK-${1001 + i}` }));
     const issued = nextCodeFromExisting(register);
     expect(register.map((r) => r.risk_id)).not.toContain(issued);
+  });
+});
+
+describe('AS13: an edit can clear a value', () => {
+  it('a blank residual level, target or review date is written as null, not skipped', () => {
+    // buildRiskWrite skipped every '' value, so choosing "Not assessed"
+    // or clearing the target or the date on the Edit page left the old
+    // value in the database while the save reported success.
+    const { row } = buildRiskWrite({
+      title: 't', category: 'Financial', likelihood: 4, impact: 4,
+      residual_likelihood: '', residual_impact: '', target_score: '', next_review_date: '',
+      root_cause: '',
+    });
+    expect(row.residual_likelihood).toBeNull();
+    expect(row.residual_impact).toBeNull();
+    expect(row.target_score).toBeNull();
+    expect(row.next_review_date).toBeNull();
+    expect(row.root_cause).toBeNull();
+  });
+
+  it('a merged edit over a stored value still clears it', () => {
+    const existing = { title: 't', category: 'Financial', likelihood: 4, impact: 4, target_score: 6 };
+    const { row } = buildRiskWrite({ ...existing, target_score: '' });
+    expect(row).toHaveProperty('target_score', null);
+  });
+
+  it('never sends null into a NOT NULL column', () => {
+    const { row } = buildRiskWrite({ title: '', category: '', likelihood: 1, impact: 1 });
+    expect(row).not.toHaveProperty('title');
+    expect(row).not.toHaveProperty('category');
+  });
+});
+
+describe('AS13: a blank residual is carried at the inherent score (defect list item 1)', () => {
+  it('the stored appetite is computed from the inherent score when residual is blank', () => {
+    // With '' residual axes the residual used to score 0, so every risk
+    // saved from the form with a blank axis stored appetite "Not set".
+    // Fixed at AS12 (RS-2) in the engine; pinned here at the write.
+    const { row, derived } = buildRiskWrite({
+      title: 't', category: 'Financial', likelihood: 4, impact: 4,
+      residual_likelihood: '', residual_impact: '', target_score: 6,
+    });
+    expect(derived.residualScore).toBe(16);
+    expect(row.appetite_status).toBe('Above appetite');
+  });
+
+  it('one residual axis set falls back per axis', () => {
+    const { derived } = buildRiskWrite({
+      title: 't', likelihood: 4, impact: 5, residual_likelihood: 2, residual_impact: '',
+    });
+    expect(derived.residualScore).toBe(10);
+  });
+});
+
+describe('AS13: the AS2 fields are reported when they cannot be saved', () => {
+  it('lists only the AS2 fields the user actually entered', () => {
+    expect(as2ValuesEntered({ residual_likelihood: '', target_score: 6, next_review_date: null }))
+      .toEqual(['target_score']);
+    expect(as2ValuesEntered({ title: 'x' })).toEqual([]);
+  });
+});
+
+describe('AS13: editing a risk keeps its links as stored', () => {
+  const ME = 'me';
+
+  it('an incoming link that is still wanted is left alone, not re-inserted outgoing', () => {
+    // EditRiskPage lists links in both directions. The old save deleted
+    // only this risk's outgoing links and re-inserted every code as
+    // outgoing, so each edit added a duplicate link the other way.
+    const existing = [{ id: 'l1', source_risk_id: 'other', target_risk_id: ME }];
+    expect(planLinkChanges(ME, existing, ['other'])).toEqual({ toDelete: [], toInsert: [] });
+  });
+
+  it('saving twice changes nothing the second time', () => {
+    const existing = [
+      { id: 'l1', source_risk_id: 'a', target_risk_id: ME },
+      { id: 'l2', source_risk_id: ME, target_risk_id: 'b' },
+    ];
+    expect(planLinkChanges(ME, existing, ['a', 'b'])).toEqual({ toDelete: [], toInsert: [] });
+  });
+
+  it('a removed code deletes its link in either direction', () => {
+    const existing = [
+      { id: 'l1', source_risk_id: 'a', target_risk_id: ME },
+      { id: 'l2', source_risk_id: ME, target_risk_id: 'b' },
+    ];
+    expect(planLinkChanges(ME, existing, [])).toEqual({ toDelete: ['l1', 'l2'], toInsert: [] });
+  });
+
+  it('only a risk not linked either way gets a new outgoing link', () => {
+    const existing = [{ id: 'l1', source_risk_id: 'a', target_risk_id: ME }];
+    expect(planLinkChanges(ME, existing, ['a', 'c'])).toEqual({ toDelete: [], toInsert: ['c'] });
+  });
+
+  it('clears duplicates the old save already made', () => {
+    const existing = [
+      { id: 'l1', source_risk_id: 'a', target_risk_id: ME },
+      { id: 'l2', source_risk_id: ME, target_risk_id: 'a' },
+    ];
+    expect(planLinkChanges(ME, existing, ['a'])).toEqual({ toDelete: ['l2'], toInsert: [] });
+  });
+
+  it('never links a risk to itself', () => {
+    expect(planLinkChanges(ME, [], [ME])).toEqual({ toDelete: [], toInsert: [] });
+  });
+});
+
+describe('AS13 hardening: the form shows the appetite the detail page shows', () => {
+  it('a target with no residual assessment is judged on the inherent score, not "Not assessed" alone', () => {
+    const form = { likelihood: 4, impact: 4, residual_likelihood: '', residual_impact: '', target_score: 6 };
+    expect(getAppetiteStatus(form)).toBe('Above appetite');
+    const line = appetitePreview(form);
+    expect(line).toMatch(/Not assessed, so this risk is carried at its inherent score/);
+    expect(line).toMatch(/Appetite: Above appetite \(target 6\)/);
+  });
+
+  it('within appetite on the inherent score says so', () => {
+    expect(appetitePreview({ likelihood: 1, impact: 2, target_score: 6 })).toMatch(/Appetite: Within appetite/);
+  });
+
+  it('with a residual assessment, the line is the engine answer alone', () => {
+    const form = { likelihood: 5, impact: 5, residual_likelihood: 1, residual_impact: 2, target_score: 6 };
+    expect(appetitePreview(form)).toBe(`Appetite: ${getAppetiteStatus(form)} (target 6)`);
+  });
+
+  it('with no target, Not set', () => {
+    expect(appetitePreview({ likelihood: 3, impact: 3 })).toMatch(/Appetite: Not set$/);
+  });
+
+  it('RiskForm renders appetitePreview, not its own words', () => {
+    const src = fs.readFileSync(path.join(__dirname, '../components/forms/RiskForm.jsx'), 'utf8');
+    expect(src).toMatch(/appetitePreview\(formData\)/);
+    expect(src).not.toMatch(/hasResidual\s*\?\s*`Appetite/);
   });
 });

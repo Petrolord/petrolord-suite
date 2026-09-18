@@ -104,7 +104,7 @@ export default function Reports() {
         Verified: c.verified_at ? c.verified_at.slice(0, 10) : '',
         Resolved: isResolved(c) ? 'Yes' : 'No',
       };
-    }), `peer-review-comments-${format(today, 'yyyy-MM-dd')}.csv`);
+    }), `peer-review-comments-${format(today, 'yyyy-MM-dd')}`);
   };
 
   const exportReviews = () => {
@@ -125,7 +125,7 @@ export default function Reports() {
       Overdue: isOverdue(r, today) ? 'Yes' : 'No',
       Comments: r.comments?.length ?? 0,
       'Unresolved comments': (r.comments || []).filter((c) => !isResolved(c)).length,
-    })), `peer-review-register-${format(today, 'yyyy-MM-dd')}.csv`);
+    })), `peer-review-register-${format(today, 'yyyy-MM-dd')}`);
   };
 
   if (loading) return <PeerReviewShell><Loading label="Loading reports..." /></PeerReviewShell>;

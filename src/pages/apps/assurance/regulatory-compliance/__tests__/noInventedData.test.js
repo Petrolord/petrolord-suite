@@ -151,4 +151,60 @@ describe('no invented data in Regulatory Compliance', () => {
       expect(src).toMatch(/ChartLogo/);
     });
   });
+
+  // AS13: the classes removed in the help-guide pass.
+  it('no file passes a .csv name to exportToCSV, which appends .csv itself', () => {
+    // Register and Reports downloaded compliance-register-<date>.csv.csv.
+    const offenders = files.filter((f) =>
+      /exportToCSV\([\s\S]{0,1500}?\.csv[`'"]\s*,?\s*\)/.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
+
+  it('every delete asks for confirmation first', () => {
+    ['ComplianceDetail.jsx', 'Register.jsx', 'Directory.jsx'].forEach((page) => {
+      const src = code(path.join(APP, page));
+      expect(`${page}: ${/<ConfirmDelete/.test(src)}`).toBe(`${page}: true`);
+      // No button calls a delete handler directly.
+      expect(src).not.toMatch(/onClick=\{\(?e?\)?\s*=>\s*handleDelete\(|onClick=\{handleDelete\}/);
+    });
+  });
+
+  it('the evidence card does not explain a status the obligation does not have', () => {
+    // It said "That is why it reads On track rather than Compliant" on
+    // Overdue, Expired and Draft obligations alike.
+    const src = code(path.join(APP, 'ComplianceDetail.jsx'));
+    expect(src).toMatch(/status === STATUS\.ON_TRACK[\s\S]{0,120}rather than Compliant/);
+    expect(src).not.toMatch(/hasAs3Schema \? 'On track rather than Compliant'/);
+  });
+
+  it('the form only offers What it requires where it can be saved', () => {
+    const src = code(path.join(APP, 'components/ObligationForm.jsx'));
+    expect(src).toMatch(/hasAs3Schema \? \(\s*<div className="md:col-span-2">\s*<Label htmlFor="description">/);
+  });
+
+  it('no toast claims something happened that did not', () => {
+    const offenders = files.filter((f) =>
+      /recorded in audit log|would open here|coming soon|Contacting support/i.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
+
+  it('an empty register is never read as proof of the new schema (AS13 hardening)', () => {
+    // `if (rows.length && !('lifecycle' in rows[0])) as3 = false;` left
+    // an empty register on the new schema by assumption.
+    const hook = code(path.join(APP, 'hooks/useRegulatoryCompliance.js'));
+    expect(hook).not.toMatch(/rows\.length\s*&&\s*!\('lifecycle' in rows\[0\]\)\)\s*as3\s*=\s*false/);
+    expect(hook).toMatch(/from\('regulatory_obligations'\)\.select\('lifecycle'\)\.limit\(1\)/);
+  });
+
+  it('every page that saves reads the save\'s warning, so a dropped field is never a plain success', () => {
+    const savers = files.filter((f) => /\.jsx$/.test(f)
+      && /await\s+(createObligation|updateObligation|createAuthority|updateAuthority|recordSubmission)\(/.test(code(f)));
+    expect(savers.length).toBeGreaterThan(1);
+    const offenders = savers.filter((f) => !/\.warning\b/.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
+
+  it('the obligation form page shows the schema notice', () => {
+    expect(code(path.join(APP, 'NewCompliance.jsx'))).toMatch(/!hasAs3Schema \? <SchemaNotice \/> : null/);
+  });
 });

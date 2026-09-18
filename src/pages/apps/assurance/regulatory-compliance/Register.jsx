@@ -16,6 +16,7 @@ import {
 import { exportToCSV } from '@/utils/exportUtils';
 import { useRegulatoryCompliance } from './hooks/useRegulatoryCompliance';
 import {
+  ConfirmDelete,
   EmptyState,
   ErrorState,
   Loading,
@@ -55,6 +56,7 @@ export default function Register() {
   const [status, setStatus] = useState(ALL);
   const [regime, setRegime] = useState(ALL);
   const [authority, setAuthority] = useState(ALL);
+  const [confirming, setConfirming] = useState(null);
 
   const today = new Date();
 
@@ -101,12 +103,14 @@ export default function Register() {
         'Last filed': o.last_submitted_date || '',
         Lifecycle: o.lifecycle || '',
       })),
-      `compliance-register-${format(today, 'yyyy-MM-dd')}.csv`,
+      // exportToCSV appends the extension itself (AS13: this passed
+      // '.csv' and the file downloaded as '.csv.csv').
+      `compliance-register-${format(today, 'yyyy-MM-dd')}`,
     );
   };
 
-  const handleDelete = async (e, o) => {
-    e.stopPropagation();
+  const handleDelete = async (o) => {
+    setConfirming(null);
     const result = await deleteObligation(o.id);
     toast(result.success
       ? { description: `${o.obligation_code || 'Obligation'} deleted.` }
@@ -231,7 +235,7 @@ export default function Register() {
                           </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--destructive))]"
                             aria-label="Delete"
-                            onClick={(e) => handleDelete(e, o)}>
+                            onClick={(e) => { e.stopPropagation(); setConfirming(o); }}>
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
@@ -244,6 +248,16 @@ export default function Register() {
           </div>
         )}
       </div>
+
+      <ConfirmDelete
+        target={confirming}
+        title="Delete this obligation?"
+        description={confirming
+          ? `${confirming.obligation_code || confirming.title} and every filing recorded against it will be removed. This cannot be undone.`
+          : ''}
+        onConfirm={handleDelete}
+        onCancel={() => setConfirming(null)}
+      />
     </div>
   );
 }

@@ -23,8 +23,11 @@ import {
   EmptyState, ErrorState, Loading, MetricTile, SchemaNotice, WriteFailure,
 } from './components/SharedComponents';
 import { FindingStatusBadge, FindingTypeBadge } from './components/ISOBadges';
-import { validateAction, validateFinding } from './utils/isoPayload';
+import {
+  canDeleteFinding, findingWithAuditStandard, validateAction, validateFinding,
+} from './utils/isoPayload';
 import { useIsoCompliance } from './hooks/useIsoCompliance';
+import { ConfirmDialog } from '../shared/ConfirmDialog';
 
 /**
  * AS8 — the findings register, and the only place a finding is raised.
@@ -82,12 +85,16 @@ export default function FindingsRegister() {
   const [busy, setBusy] = useState(false);
   const today = new Date();
 
+  // Raised from an audit's page: the finding carries that audit's
+  // standard unless the form names another (AS13).
   useEffect(() => {
     if (params.get('audit')) {
       setRaising(true);
-      setForm((f) => ({ ...f, audit_id: params.get('audit') }));
+      setForm((f) => findingWithAuditStandard({ ...f, audit_id: params.get('audit') }, audits));
     }
-  }, [params]);
+  }, [params, audits]);
+
+  const [deleting, setDeleting] = useState(null);
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
@@ -145,11 +152,23 @@ export default function FindingsRegister() {
     navigate(`${BASE}/findings/${result.data.id}`);
   };
 
-  const remove = async (finding) => {
+  // Deleting is for a finding raised in error with nothing recorded
+  // against it. Everything else is voided with a reason, so a delete is
+  // never the way round the closure rule (AS13).
+  const askToRemove = (finding) => {
     setFailure(null);
+    const verdict = canDeleteFinding(
+      finding, auditById.get(finding.audit_id) || null, finding.actions || []);
+    if (!verdict.ok) { setFailure(verdict.reason); return; }
+    setDeleting(finding);
+  };
+
+  const remove = async () => {
+    const finding = deleting;
     setBusy(true);
     const result = await deleteFinding(finding.id);
     setBusy(false);
+    setDeleting(null);
     if (!result.success) { setFailure(result.error); return; }
     toast({ description: `${finding.finding_code} deleted.` });
   };
@@ -203,6 +222,15 @@ export default function FindingsRegister() {
     >
       <div className="space-y-6 animate-in fade-in duration-300 pb-10">
         <WriteFailure error={failure} />
+        <ConfirmDialog
+          open={Boolean(deleting)}
+          title={deleting ? `Delete ${deleting.finding_code}?` : ''}
+          description="This removes the finding for good, as if it had never been raised. Use it only for a finding raised in error. If it was real, keep it and work it to closure, or void it with a reason on its own page."
+          confirmLabel="Delete the finding"
+          busy={busy}
+          onConfirm={remove}
+          onCancel={() => setDeleting(null)}
+        />
 
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
           <MetricTile label="Findings" value={findings.length} />
@@ -266,7 +294,9 @@ export default function FindingsRegister() {
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium" htmlFor="fd-audit">Audit</label>
                     <select id="fd-audit" className={`${selectClass} w-full`}
-                      value={form.audit_id} onChange={set('audit_id')}>
+                      value={form.audit_id}
+                      onChange={(e) => setForm(
+                        (f) => findingWithAuditStandard({ ...f, audit_id: e.target.value }, audits))}>
                       <option value="">Raised outside an audit</option>
                       {audits.map((a) => (
                         <option key={a.id} value={a.id}>{a.audit_code}: {a.title}</option>
@@ -481,8 +511,8 @@ export default function FindingsRegister() {
                         <td className="data-grid-td"><FindingStatusBadge status={f.status} /></td>
                         <td className="data-grid-td text-right">
                           <Button size="sm" variant="ghost" disabled={busy}
-                            onClick={(e) => { e.stopPropagation(); remove(f); }}
-                            title="Delete this finding">
+                            onClick={(e) => { e.stopPropagation(); askToRemove(f); }}
+                            title="Delete a finding raised in error">
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </td>

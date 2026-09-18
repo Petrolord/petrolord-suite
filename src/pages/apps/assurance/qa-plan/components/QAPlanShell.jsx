@@ -4,6 +4,7 @@ import {
   ArrowLeft, BarChart2, FileWarning, LayoutDashboard, List, Plus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import AssuranceHelp from '@/components/assurance/AssuranceHelp';
 
 export const BASE = '/dashboard/apps/assurance/qa-plan';
 
@@ -24,6 +25,10 @@ export const QAPlanShell = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
+
+  const isActive = (item) => (item.exact
+    ? location.pathname === item.path || location.pathname === `${item.path}/`
+    : location.pathname.startsWith(item.path));
 
   const navItems = [
     { name: 'Dashboard', path: BASE, icon: LayoutDashboard, exact: true },
@@ -47,6 +52,7 @@ export const QAPlanShell = ({
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          <AssuranceHelp appKey="quality" />
           {actions}
           <Button variant="outline" onClick={() => navigate(`${BASE}/ncr-register?raise=1`)}>
             <FileWarning className="w-4 h-4 mr-2" /> Raise NCR
@@ -64,16 +70,14 @@ export const QAPlanShell = ({
               Menu
             </p>
             {navItems.map((item) => {
-              const isActive = item.exact
-                ? location.pathname === item.path || location.pathname === `${item.path}/`
-                : location.pathname.startsWith(item.path);
+              const active = isActive(item);
               return (
                 <NavLink
                   key={item.path}
                   to={item.path}
                   end={item.exact}
                   className={`flex items-center px-3 py-2.5 text-sm rounded-md transition-colors ${
-                    isActive
+                    active
                       ? 'bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] font-medium'
                       : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]'
                   }`}
@@ -86,8 +90,30 @@ export const QAPlanShell = ({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-[hsl(var(--background))]">
-          <div className="max-w-7xl mx-auto">{children}</div>
+        <div className="flex-1 overflow-y-auto bg-[hsl(var(--background))]">
+          {/* AS13: the sidebar is lg-only, and below that there was no menu
+              at all, only the two header buttons. */}
+          <nav aria-label="Quality assurance sections"
+            className="lg:hidden flex gap-1 overflow-x-auto border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] px-2 py-2">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                end={item.exact}
+                className={`flex items-center shrink-0 px-3 py-1.5 text-sm rounded-md ${
+                  isActive(item)
+                    ? 'bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] font-medium'
+                    : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))]'
+                }`}
+              >
+                <item.icon className="w-4 h-4 mr-2" />
+                {item.name}
+              </NavLink>
+            ))}
+          </nav>
+          <div className="p-4 md:p-6">
+            <div className="max-w-7xl mx-auto">{children}</div>
+          </div>
         </div>
       </div>
     </div>

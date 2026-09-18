@@ -22,7 +22,9 @@ import {
 import {
   LessonStatusBadge, ReuseBadge, ScopeBadge, UnappliedBadge,
 } from './components/LessonBadges';
+import { canDeleteLesson } from './utils/lessonPayload';
 import { useLessonsLearned } from './hooks/useLessonsLearned';
+import { ConfirmDialog } from '../shared/ConfirmDialog';
 
 /**
  * AS9 — the lessons register.
@@ -53,6 +55,7 @@ export default function Register() {
   const [sourceFilter, setSourceFilter] = useState('');
   const [failure, setFailure] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [deleting, setDeleting] = useState(null);
   const today = new Date();
 
   const categories = useMemo(
@@ -70,11 +73,21 @@ export default function Register() {
     () => lessons.filter((l) => ['Published', 'Embedded'].includes(l.status)
       && reuseRecord(l.applications).applied === 0).length, [lessons]);
 
-  const remove = async (lesson) => {
+  // Only a lesson never validated and never applied is deleted; anything
+  // else is archived with a reason, on its own page (AS13).
+  const askToRemove = (lesson) => {
     setFailure(null);
+    const verdict = canDeleteLesson(lesson, lesson.applications || []);
+    if (!verdict.ok) { setFailure(verdict.reason); return; }
+    setDeleting(lesson);
+  };
+
+  const remove = async () => {
+    const lesson = deleting;
     setBusy(true);
     const result = await deleteLesson(lesson.id);
     setBusy(false);
+    setDeleting(null);
     if (!result.success) { setFailure(result.error); return; }
     toast({ description: `${lesson.lesson_code} deleted.` });
   };
@@ -129,6 +142,15 @@ export default function Register() {
     >
       <div className="space-y-6 animate-in fade-in duration-300 pb-10">
         <WriteFailure error={failure} />
+        <ConfirmDialog
+          open={Boolean(deleting)}
+          title={deleting ? `Delete ${deleting.lesson_code}?` : ''}
+          description="This removes the lesson for good. Use it for a draft captured in error. A lesson worth keeping a record of is archived with a reason on its own page instead."
+          confirmLabel="Delete the lesson"
+          busy={busy}
+          onConfirm={remove}
+          onCancel={() => setDeleting(null)}
+        />
 
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
           <MetricTile label="Lessons" value={lessons.length} />
@@ -231,8 +253,8 @@ export default function Register() {
                         <td className="data-grid-td"><LessonStatusBadge status={l.status} /></td>
                         <td className="data-grid-td text-right">
                           <Button size="sm" variant="ghost" disabled={busy}
-                            onClick={(e) => { e.stopPropagation(); remove(l); }}
-                            title="Delete this lesson">
+                            onClick={(e) => { e.stopPropagation(); askToRemove(l); }}
+                            title="Delete a lesson that was never validated">
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </td>

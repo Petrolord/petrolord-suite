@@ -8,6 +8,8 @@
  * them.
  */
 import { toDateOnlyString } from '@/lib/auditManagement';
+import { isSamePerson, nameKey } from '../../shared/people';
+import { REPORTED_AUDIT_STATUSES } from '../../shared/findingWorkflow';
 
 /** `org_id` and `created_by` are set by the hook, never by a form. */
 export const PROGRAMME_WRITABLE_COLUMNS = Object.freeze([
@@ -280,3 +282,105 @@ export const validateAction = (form = {}) => {
   if (!form.due_date) errors.due_date = 'An action with no due date is not an action.';
   return errors;
 };
+
+/* ------------------------------------------------------------------ */
+/* AS13: what the pages check before they offer a button               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The audit as it WOULD be saved, with the report form's draft merged
+ * in.
+ *
+ * AS10 evaluated the report gate against the saved audit only, and the
+ * gate asks for the conclusion, which is only ever saved by the button
+ * that gate disabled. So no audit could be reported. The gate for the
+ * form is the gate for what the form is about to write.
+ */
+export const auditAsItWouldBeSaved = (audit, draft) =>
+  (audit && draft ? { ...audit, ...draft } : audit);
+
+/**
+ * Once an audit is reported its checklist and its list of findings are
+ * the report. Answers are not changed and findings are not added after
+ * that; existing findings are still worked to closure.
+ */
+export const AUDIT_LOCKED_STATUSES = REPORTED_AUDIT_STATUSES;
+
+export const auditAcceptsWork = (audit) =>
+  Boolean(audit) && !AUDIT_LOCKED_STATUSES.includes(audit.status);
+
+export const auditLockedReason = (audit) => (audit
+  ? `${audit.audit_code || 'This audit'} is ${String(audit.status).toLowerCase()}. Its checklist and findings are the report, so answers cannot be changed and findings cannot be added now.`
+  : 'That audit is not in this register.');
+
+/**
+ * The form as the independence check should see it.
+ *
+ * The engine compares lead_auditor_id with auditee_id. A typed name
+ * has no id, so where the two NAMES are the same person and at least
+ * one side has no id, both sides are handed the same stand-in key and
+ * the engine's own refusal is what the user reads. The stand-in is
+ * never written.
+ */
+export const independenceSubject = (form = {}) => {
+  if (form.lead_auditor_id && form.auditee_id) return form;
+  if (!isSamePerson(form.lead_auditor_id, form.lead_auditor_name,
+    form.auditee_id, form.auditee_name)) return form;
+  const key = nameKey(form.lead_auditor_name);
+  return { ...form, lead_auditor_id: key, auditee_id: key };
+};
+
+/**
+ * How much of the record depends on a checklist question.
+ *
+ * Deleting an item cascades away every answer given to it (the foreign
+ * key is ON DELETE CASCADE), including answers inside reported and
+ * closed audits, and the findings raised on those answers lose their
+ * link. An item that has been used is kept.
+ */
+export const itemUsage = (itemId, responses = [], audits = []) => {
+  const mine = responses.filter((r) => r.item_id === itemId);
+  const auditIds = new Set(mine.map((r) => r.audit_id));
+  const used = audits.filter((a) => auditIds.has(a.id));
+  return {
+    responses: mine.length,
+    audits: auditIds.size,
+    reportedAudits: used.filter((a) => ['Reported', 'Closed'].includes(a.status)).length,
+  };
+};
+
+export const canDeleteTemplateItem = (item, responses = [], audits = []) => {
+  const usage = itemUsage(item?.id, responses, audits);
+  if (!usage.responses) return { ok: true, usage };
+  return {
+    ok: false,
+    usage,
+    reason: `Item ${item.item_no} is in the checklist of ${usage.audits} audit${usage.audits === 1 ? '' : 's'}`
+      + `${usage.reportedAudits ? `, ${usage.reportedAudits} of them reported` : ''}. `
+      + 'Deleting it would delete the answers given to it. Questions cannot be retired one at a '
+      + 'time, so to stop asking it, retire this checklist and issue a new version without it.',
+  };
+};
+
+/**
+ * A question's criticality decides whether its failure needed a finding,
+ * so changing it after an audit has reported rewrites what that report
+ * was held to.
+ */
+export const canChangeItemCriticality = (item, responses = [], audits = []) => {
+  const usage = itemUsage(item?.id, responses, audits);
+  if (!usage.reportedAudits) return { ok: true, usage };
+  return {
+    ok: false,
+    usage,
+    reason: `Item ${item.item_no} has been answered in ${usage.reportedAudits} reported audit${usage.reportedAudits === 1 ? '' : 's'}, `
+      + 'and its criticality is what those reports were held to. Retire this checklist and '
+      + 'issue a new version with the new criticality.',
+  };
+};
+
+/**
+ * The finding delete rule and the derived workflow status are shared
+ * with ISO Compliance, whose findings carry the same vocabulary.
+ */
+export { canDeleteFinding, progressedFindingStatus } from '../../shared/findingWorkflow';

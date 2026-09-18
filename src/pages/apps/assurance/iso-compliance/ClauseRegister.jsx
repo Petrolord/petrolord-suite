@@ -15,6 +15,7 @@ import {
   clauseCoverageByStandard,
   hasEvidenceRecord,
   isReviewOverdue,
+  toDateOnlyString,
 } from '@/lib/isoCompliance';
 import { ISOShell, BASE } from './components/ISOShell';
 import {
@@ -23,8 +24,10 @@ import {
 import {
   ClauseStatusBadge, CoverageBadge, EvidenceBadge,
 } from './components/ISOBadges';
-import { validateClause } from './utils/isoPayload';
+import { ASSESSED_STATUSES, validateClause, withAssessor } from './utils/isoPayload';
 import { useIsoCompliance } from './hooks/useIsoCompliance';
+import { PersonField } from '../shared/PersonField';
+import { useOrgMembers } from '../shared/useOrgMembers';
 
 /**
  * AS8 — the clause register, and the one place a clause is assessed.
@@ -50,6 +53,7 @@ const blankClause = (standardId) => ({
   title: '',
   requirement: '',
   department: '',
+  owner_id: null,
   owner_name: '',
   applicability: 'Applicable',
   applicability_justification: '',
@@ -60,7 +64,7 @@ const blankClause = (standardId) => ({
 const blankAssessment = () => ({
   status: 'Conformant',
   evidence_reference: '',
-  assessed_date: new Date().toISOString().slice(0, 10),
+  assessed_date: toDateOnlyString(new Date()),
   assessor_name: '',
   notes: '',
 });
@@ -72,6 +76,7 @@ export default function ClauseRegister() {
     standards, clauses, audits, auditClauses, findings,
     loading, error, refresh, hasAs8Schema, createClause, assessClause, deleteClause,
   } = useIsoCompliance();
+  const { members, userId } = useOrgMembers();
 
   const [standardFilter, setStandardFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -105,10 +110,15 @@ export default function ClauseRegister() {
     () => clauses.filter((c) => ['Conformant', 'Partially conformant'].includes(c.status)
       && !hasEvidenceRecord(c)).length, [clauses]);
 
+  // The gate sees the assessor the hook will record: a blank name is the
+  // signed-in user. AS8 checked the raw form, so "leave blank to record
+  // yourself" kept Record assessment disabled (AS13).
   const gate = useMemo(() => {
     if (!assessing) return { ok: true };
-    return canSetClauseStatus(assessing, assessment.status, assessment);
-  }, [assessing, assessment]);
+    const patch = ASSESSED_STATUSES.includes(assessment.status)
+      ? withAssessor(assessment, userId) : assessment;
+    return canSetClauseStatus(assessing, assessment.status, patch);
+  }, [assessing, assessment, userId]);
 
   const submitClause = async (e) => {
     e.preventDefault();
@@ -292,10 +302,13 @@ export default function ClauseRegister() {
                     <label className="text-sm font-medium" htmlFor="cl-dept">Department</label>
                     <Input id="cl-dept" value={creating.department} onChange={set('department')} />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium" htmlFor="cl-owner">Owner</label>
-                    <Input id="cl-owner" value={creating.owner_name} onChange={set('owner_name')} />
-                  </div>
+                  <PersonField
+                    id="cl-owner" label="Owner" members={members} userId={userId}
+                    personId={creating.owner_id} name={creating.owner_name}
+                    onChange={({ id, name }) => setCreating(
+                      (f) => ({ ...f, owner_id: id, owner_name: name }))}
+                    selectClassName={`${selectClass} w-full`}
+                  />
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium" htmlFor="cl-applic">Applicability</label>
                     <select id="cl-applic" className={`${selectClass} w-full`}
