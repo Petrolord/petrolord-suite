@@ -15,6 +15,10 @@ import {
   buildApplicationWrite,
   buildLessonWrite,
   nextLessonCodeFromExisting,
+  canDeleteLesson,
+  canEditLesson,
+  editedLesson,
+  withAuthor,
 } from '../utils/lessonPayload';
 
 const UNKNOWN_RELATION = 'PGRST200';
@@ -221,7 +225,10 @@ export const useLessonsLearned = () => {
       } catch (err) {
         return { success: false, error: explainWriteError(err) };
       }
-      const { row } = buildLessonWrite(form);
+      // A blank author is the user by id and by name; a typed author is
+      // that person, not the user who captured it (AS13).
+      const { row } = buildLessonWrite(withAuthor(form, user?.id || null,
+        user?.user_metadata?.full_name || user?.email || null));
       const { data, error: err } = await supabase
         .from('lesson_records')
         .insert([{
@@ -229,7 +236,6 @@ export const useLessonsLearned = () => {
           org_id: orgId,
           lesson_code: code,
           created_by: user?.id || null,
-          author_id: row.author_id || user?.id || null,
           status: row.status || 'Draft',
         }])
         .select().single();
@@ -311,7 +317,37 @@ export const useLessonsLearned = () => {
     return result;
   };
 
+  /**
+   * Change what a lesson says. A Validated lesson goes back to Submitted
+   * with its validation cleared; a Published or Embedded one is replaced
+   * by a new lesson rather than rewritten (AS13).
+   */
+  const editLesson = async (lesson, edits) => {
+    const verdict = canEditLesson(lesson);
+    if (!verdict.ok) return { success: false, error: verdict.reason };
+    const next = editedLesson(lesson, edits);
+    const result = await updateLesson(lesson.id, next);
+    if (result.success) {
+      await logActivity('lesson', lesson.id,
+        next.status !== lesson.status
+          ? `${lesson.lesson_code} edited after validation and returned to Submitted`
+          : `${lesson.lesson_code} edited`,
+        null, { lesson_id: lesson.id });
+      await fetchAll();
+    }
+    return result;
+  };
+
+  /**
+   * Only a lesson that was never validated and never applied. Anything
+   * else is archived with a reason (AS13: AS9 deleted Published and
+   * Embedded lessons on one click, cascading their applications).
+   */
   const deleteLesson = async (id) => {
+    const lesson = lessons.find((l) => l.id === id);
+    if (!lesson) return { success: false, error: 'That lesson is not in this register.' };
+    const verdict = canDeleteLesson(lesson, applicationsFor(id));
+    if (!verdict.ok) return { success: false, error: verdict.reason };
     const { error: err } = await supabase.from('lesson_records').delete().eq('id', id);
     if (err) return { success: false, error: explainWriteError(err) };
     await fetchAll();
@@ -509,7 +545,7 @@ export const useLessonsLearned = () => {
     applicationsFor,
     activityFor,
     createLesson,
-    updateLesson,
+    editLesson,
     validateLesson,
     advanceLesson,
     deleteLesson,

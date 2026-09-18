@@ -25,7 +25,7 @@ import {
 import {
   ActionStatusBadge, FindingStatusBadge, FindingTypeBadge, StopWorkBadge,
 } from './components/AuditBadges';
-import { validateAction } from './utils/auditPayload';
+import { progressedFindingStatus, validateAction } from './utils/auditPayload';
 import { useAuditManagement } from './hooks/useAuditManagement';
 
 /**
@@ -114,12 +114,16 @@ export default function FindingDetail() {
 
   const submitCorrection = async (e) => {
     e.preventDefault();
-    const ok = await run(() => updateFinding(finding.id, {
+    const next = {
       ...finding,
       correction: correcting.correction || null,
       root_cause: correcting.root_cause || null,
       root_cause_category: correcting.root_cause_category || null,
-      status: finding.status === 'Open' ? 'Correction proposed' : finding.status,
+    };
+    // The status follows the record: correction proposed, action in
+    // progress, verification (AS13; AS10 never set the last two).
+    const ok = await run(() => updateFinding(finding.id, {
+      ...next, status: progressedFindingStatus(next, actions),
     }), 'Saved.');
     if (ok) setCorrecting(null);
   };

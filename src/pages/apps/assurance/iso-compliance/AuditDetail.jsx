@@ -21,6 +21,7 @@ import {
 import {
   AuditStatusBadge, ClauseStatusBadge, FindingStatusBadge, FindingTypeBadge,
 } from './components/ISOBadges';
+import { independenceView } from './utils/isoPayload';
 import { useIsoCompliance } from './hooks/useIsoCompliance';
 
 /**
@@ -75,12 +76,19 @@ export default function AuditDetail() {
   const independence = useMemo(() => {
     if (!audit) return { ok: true };
     const chosen = clauses.filter((c) => picked.includes(c.id));
-    return auditIndependence(audit, chosen);
+    // Picked ids, or the same typed name, are the same person (AS13).
+    const view = independenceView(audit, chosen);
+    return auditIndependence(view.audit, view.clauses);
   }, [audit, clauses, picked]);
 
+  // Evaluated on the audit as the report form would save it, so the
+  // notice clears as the conclusion is typed (AS13, as the Audit &
+  // Findings Manager).
   const reportGate = useMemo(
-    () => (audit ? canAdvanceAudit(audit, 'Reported', { coverage: scope }) : { ok: false }),
-    [audit, scope]);
+    () => (audit
+      ? canAdvanceAudit(reporting ? { ...audit, ...reporting } : audit, 'Reported', { coverage: scope })
+      : { ok: false }),
+    [audit, reporting, scope]);
   const closeGate = useMemo(
     () => (audit ? canAdvanceAudit(audit, 'Closed', { findings: raised }) : { ok: false }),
     [audit, raised]);
@@ -250,7 +258,7 @@ export default function AuditDetail() {
                       <Button type="button" variant="outline" onClick={() => setReporting(null)}>
                         Cancel
                       </Button>
-                      <Button type="submit" disabled={busy}>Issue the report</Button>
+                      <Button type="submit" disabled={busy || !reportGate.ok}>Issue the report</Button>
                     </div>
                   </form>
                 ) : null}
@@ -431,7 +439,8 @@ export default function AuditDetail() {
           <CardHeader className="border-b border-[hsl(var(--border))] pb-4 flex flex-row items-center justify-between gap-3">
             <CardTitle className="text-lg">Findings raised by this audit</CardTitle>
             <Button size="sm" variant="outline"
-              onClick={() => navigate(`${BASE}/findings?audit=${audit.id}`)}>
+              onClick={() => navigate(`${BASE}/findings?audit=${audit.id}${
+                audit.standard_id ? `&standard=${audit.standard_id}` : ''}`)}>
               Raise a finding
             </Button>
           </CardHeader>

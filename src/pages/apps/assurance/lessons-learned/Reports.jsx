@@ -185,7 +185,11 @@ export default function Reports() {
             label="Applied nowhere" value={summary.lessonsUnapplied}
             token={summary.lessonsUnapplied ? '--destructive' : '--success'}
           />
-          <MetricTile label="Applications recorded" value={summary.applied} token="--success" />
+          <MetricTile
+            label="Applications recorded" value={summary.applications}
+            hint={`${summary.applied} changed something, ${summary.rejected} rejected`}
+            token="--success"
+          />
           <MetricTile
             label="Into the risk register" value={summary.intoRiskRegister} token="--primary" />
           <MetricTile label="Into change control" value={summary.intoMoc} token="--primary" />

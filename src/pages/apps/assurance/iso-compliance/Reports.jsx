@@ -21,7 +21,7 @@ import {
   countBy,
   hasEvidenceRecord,
   isActionOverdue,
-  isFindingOpen,
+  isFindingOverdue,
   summarise,
 } from '@/lib/isoCompliance';
 import { ISOShell, BASE } from './components/ISOShell';
@@ -62,6 +62,14 @@ export default function ISOReports() {
     [standards, clauses, audits, findings, actions, auditClauses]);
 
   const standardByT = useMemo(() => new Map(standards.map((s) => [s.id, s])), [standards]);
+
+  // The engine's overdue predicate, by calendar day. AS8 compared
+  // `new Date(due_date) < today`, which parses a date as UTC midnight and
+  // listed a finding due TODAY as past due (AS13).
+  const pastDue = useMemo(
+    () => findings.filter((f) => isFindingOverdue(f, today)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [findings]);
 
   const coverage = useMemo(
     () => clauseCoverageByStandard({ standards, clauses, auditClauses, audits }, today)
@@ -353,8 +361,7 @@ export default function ISOReports() {
             <CardTitle className="text-lg">Open findings past their due date</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            {findings.filter((f) => isFindingOpen(f) && f.due_date
-              && new Date(f.due_date) < today).length === 0 ? (
+            {pastDue.length === 0 ? (
                 <p className="p-8 text-center text-[hsl(var(--muted-foreground))]">
                   No open finding is past its due date.
                 </p>
@@ -370,9 +377,7 @@ export default function ISOReports() {
                     </tr>
                   </thead>
                   <tbody>
-                    {findings
-                      .filter((f) => isFindingOpen(f) && f.due_date && new Date(f.due_date) < today)
-                      .map((f) => (
+                    {pastDue.map((f) => (
                         <tr key={f.id}
                           className="border-b border-[hsl(var(--border))] last:border-0 cursor-pointer hover:bg-[hsl(var(--secondary))]/50"
                           onClick={() => navigate(`${BASE}/findings/${f.id}`)}>

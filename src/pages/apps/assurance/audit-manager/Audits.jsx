@@ -11,6 +11,7 @@ import { exportToCSV } from '@/utils/exportUtils';
 import {
   AUDIT_STATUSES,
   AUDIT_TYPES,
+  auditIndependence,
   checklistProgress,
   isAuditOverdue,
 } from '@/lib/auditManagement';
@@ -19,8 +20,10 @@ import {
   EmptyState, ErrorState, GateNotice, Loading, MetricTile, SchemaNotice, WriteFailure,
 } from './components/SharedComponents';
 import { AuditStatusBadge, ChecklistProgressBar } from './components/AuditBadges';
-import { validateAudit } from './utils/auditPayload';
+import { independenceSubject, validateAudit } from './utils/auditPayload';
 import { useAuditManagement } from './hooks/useAuditManagement';
+import { PersonField } from '../shared/PersonField';
+import { useOrgMembers } from '../shared/useOrgMembers';
 
 /**
  * AS10 — the audits themselves.
@@ -41,7 +44,9 @@ const blank = (programmeId) => ({
   site: '',
   department: '',
   contractor: '',
+  auditee_id: null,
   auditee_name: '',
+  lead_auditor_id: null,
   lead_auditor_name: '',
   audit_team: '',
   planned_start: '',
@@ -56,6 +61,7 @@ export default function Audits() {
     audits, programmes, templates, itemsFor, responsesFor, findingsForAudit,
     loading, error, refresh, hasAs10Schema, createAudit,
   } = useAuditManagement();
+  const { members, error: membersError, userId } = useOrgMembers();
 
   const [form, setForm] = useState(null);
   const [errors, setErrors] = useState({});
@@ -72,6 +78,8 @@ export default function Audits() {
   }, [params]);
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+  const setPerson = (prefix) => ({ id, name }) => setForm(
+    (f) => ({ ...f, [`${prefix}_id`]: id, [`${prefix}_name`]: name }));
 
   const programmeById = useMemo(
     () => new Map(programmes.map((p) => [p.id, p])), [programmes]);
@@ -161,8 +169,9 @@ export default function Audits() {
   if (!hasAs10Schema) return <AuditShell title="Audits"><SchemaNotice /></AuditShell>;
 
   const selectClass = 'h-10 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 text-sm';
-  const sameParty = Boolean(form?.auditee_name)
-    && form.auditee_name.trim().toLowerCase() === String(form.lead_auditor_name || '').trim().toLowerCase();
+  // The engine's own independence check, on picked ids or on the same
+  // typed name. AS10 only warned here, on names, and let the plan through.
+  const independence = form ? auditIndependence(independenceSubject(form)) : { ok: true };
 
   return (
     <AuditShell
@@ -269,19 +278,18 @@ export default function Audits() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium" htmlFor="au-lead">Lead auditor</label>
-                    <Input id="au-lead" value={form.lead_auditor_name}
-                      onChange={set('lead_auditor_name')} />
-                    {errors.lead_auditor_name ? (
-                      <p className="text-xs text-[hsl(var(--destructive))]">{errors.lead_auditor_name}</p>
-                    ) : null}
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium" htmlFor="au-auditee">Auditee</label>
-                    <Input id="au-auditee" value={form.auditee_name} onChange={set('auditee_name')}
-                      placeholder="Who answers for the area" />
-                  </div>
+                  <PersonField
+                    id="au-lead" label="Lead auditor" members={members} userId={userId}
+                    personId={form.lead_auditor_id} name={form.lead_auditor_name}
+                    onChange={setPerson('lead_auditor')}
+                    error={errors.lead_auditor_name}
+                  />
+                  <PersonField
+                    id="au-auditee" label="Auditee" members={members} userId={userId}
+                    personId={form.auditee_id} name={form.auditee_name}
+                    onChange={setPerson('auditee')}
+                    namePlaceholder="Who answers for the area"
+                  />
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium" htmlFor="au-start">Planned start</label>
                     <Input id="au-start" type="date" value={form.planned_start}
@@ -297,8 +305,12 @@ export default function Audits() {
                   </div>
                 </div>
 
-                {sameParty ? (
-                  <GateNotice reason="The lead auditor and the auditee are the same person. An auditor may not audit their own area." />
+                {!independence.ok ? <GateNotice reason={independence.reason} /> : null}
+                {membersError ? (
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                    The member list could not be loaded ({membersError}), so type the names.
+                    Two typed names that match are still treated as the same person.
+                  </p>
                 ) : null}
 
                 <div className="space-y-1.5">
@@ -323,7 +335,7 @@ export default function Audits() {
                   <Button type="button" variant="outline" onClick={() => setForm(null)}>
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={busy}>Plan audit</Button>
+                  <Button type="submit" disabled={busy || !independence.ok}>Plan audit</Button>
                 </div>
               </form>
             </CardContent>

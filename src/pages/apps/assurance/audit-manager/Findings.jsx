@@ -23,7 +23,9 @@ import {
 import {
   FindingStatusBadge, FindingTypeBadge, StopWorkBadge,
 } from './components/AuditBadges';
+import { canDeleteFinding } from './utils/auditPayload';
 import { useAuditManagement } from './hooks/useAuditManagement';
+import { ConfirmDialog } from '../shared/ConfirmDialog';
 
 /**
  * AS10 — the findings register.
@@ -45,6 +47,7 @@ export default function Findings() {
   const [stopWorkOnly, setStopWorkOnly] = useState(false);
   const [failure, setFailure] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [deleting, setDeleting] = useState(null);
   const today = new Date();
 
   const auditById = useMemo(() => new Map(audits.map((a) => [a.id, a])), [audits]);
@@ -63,11 +66,22 @@ export default function Findings() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [findings, query, typeFilter, statusFilter, stopWorkOnly]);
 
-  const remove = async (f) => {
+  // Deleting is for a finding raised in error with nothing recorded
+  // against it. Everything else is voided with a reason on its own page,
+  // so a delete can never be the way round a closure rule (AS13).
+  const askToRemove = (f) => {
     setFailure(null);
+    const verdict = canDeleteFinding(f, auditById.get(f.audit_id) || null, f.actions || []);
+    if (!verdict.ok) { setFailure(verdict.reason); return; }
+    setDeleting(f);
+  };
+
+  const remove = async () => {
+    const f = deleting;
     setBusy(true);
     const result = await deleteFinding(f.id);
     setBusy(false);
+    setDeleting(null);
     if (!result.success) { setFailure(result.error); return; }
     toast({ description: `${f.finding_code} deleted.` });
   };
@@ -120,6 +134,15 @@ export default function Findings() {
     >
       <div className="space-y-6 animate-in fade-in duration-300 pb-10">
         <WriteFailure error={failure} />
+        <ConfirmDialog
+          open={Boolean(deleting)}
+          title={deleting ? `Delete ${deleting.finding_code}?` : ''}
+          description="This removes the finding for good, as if it had never been raised. Use it only for a finding raised in error. If it was real, keep it and work it to closure, or void it with a reason on its own page."
+          confirmLabel="Delete the finding"
+          busy={busy}
+          onConfirm={remove}
+          onCancel={() => setDeleting(null)}
+        />
 
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
           <MetricTile label="Findings" value={findings.length} />
@@ -220,8 +243,8 @@ export default function Findings() {
                         <td className="data-grid-td"><FindingStatusBadge status={f.status} /></td>
                         <td className="data-grid-td text-right">
                           <Button size="sm" variant="ghost" disabled={busy}
-                            onClick={(e) => { e.stopPropagation(); remove(f); }}
-                            title="Delete this finding">
+                            onClick={(e) => { e.stopPropagation(); askToRemove(f); }}
+                            title="Delete a finding raised in error">
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </td>

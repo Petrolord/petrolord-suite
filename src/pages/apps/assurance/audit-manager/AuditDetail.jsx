@@ -26,7 +26,9 @@ import {
   AuditStatusBadge, ChecklistProgressBar, CriticalityBadge, FindingStatusBadge,
   FindingTypeBadge, ResultBadge, StopWorkBadge,
 } from './components/AuditBadges';
-import { validateFinding, validateResponse } from './utils/auditPayload';
+import {
+  auditAcceptsWork, auditAsItWouldBeSaved, validateFinding, validateResponse,
+} from './utils/auditPayload';
 import { useAuditManagement } from './hooks/useAuditManagement';
 
 /**
@@ -107,9 +109,16 @@ export default function AuditDetail() {
     () => criticalAnswersWithoutFindings(items, responses, findings),
     [items, responses, findings]);
 
+  // The gate is evaluated against the audit as the report form WOULD
+  // save it. AS10 evaluated it against the saved audit, whose conclusion
+  // is only ever written by the button that gate disabled, so no audit
+  // could ever be reported (AS13).
   const reportGate = useMemo(
-    () => (audit ? canAdvanceAudit(audit, 'Reported', { items, responses, findings }) : { ok: false }),
-    [audit, items, responses, findings]);
+    () => (audit
+      ? canAdvanceAudit(auditAsItWouldBeSaved(audit, reporting), 'Reported',
+        { items, responses, findings })
+      : { ok: false }),
+    [audit, reporting, items, responses, findings]);
   const closeGate = useMemo(
     () => (audit ? canAdvanceAudit(audit, 'Closed', { findings }) : { ok: false }),
     [audit, findings]);
@@ -131,7 +140,9 @@ export default function AuditDetail() {
     );
   }
 
-  const terminal = ['Closed', 'Cancelled'].includes(audit.status);
+  // Reported locks the checklist and the findings list as well as Closed
+  // and Cancelled: after the report is issued they ARE the report (AS13).
+  const locked = !auditAcceptsWork(audit);
 
   const run = async (fn, message) => {
     setFailure(null);
@@ -176,9 +187,10 @@ export default function AuditDetail() {
 
   const submitReport = async (e) => {
     e.preventDefault();
-    const saved = await run(() => updateAudit(audit.id, { ...audit, ...reporting }), null);
+    const draft = auditAsItWouldBeSaved(audit, reporting);
+    const saved = await run(() => updateAudit(audit.id, draft), null);
     if (!saved) return;
-    const moved = await run(() => advanceAudit({ ...audit, ...reporting }, 'Reported'),
+    const moved = await run(() => advanceAudit(draft, 'Reported'),
       `${audit.audit_code} reported.`);
     if (moved) setReporting(null);
   };
@@ -347,13 +359,14 @@ export default function AuditDetail() {
               <div>
                 <CardTitle className="text-lg">The checklist</CardTitle>
                 <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
-                  Every item needs an answer before this audit can report, and
-                  &quot;not applicable&quot; is an answer that carries a reason.
+                  {locked
+                    ? 'This audit is no longer open, so its answers are the record and are not changed. Its findings are still worked to closure on their own pages.'
+                    : 'Every item needs an answer before this audit can report, and "not applicable" is an answer that carries a reason.'}
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <ChecklistProgressBar progress={progress} />
-                {!terminal && audit.template_id ? (
+                {!locked && audit.template_id ? (
                   <Button size="sm" variant="outline" disabled={busy}
                     onClick={() => run(() => openChecklist(audit),
                       'The checklist is up to date with its protocol.')}>
@@ -429,7 +442,7 @@ export default function AuditDetail() {
                               ) : null}
                             </td>
                             <td className="data-grid-td text-right">
-                              {!terminal ? (
+                              {!locked ? (
                                 <div className="flex gap-1 justify-end">
                                   <Button size="sm" variant="outline" disabled={busy || !response}
                                     onClick={() => {
@@ -529,7 +542,7 @@ export default function AuditDetail() {
           </Card>
         </div>
 
-        {(outstanding.length || uncovered.length) && !terminal ? (
+        {(outstanding.length || uncovered.length) && !locked ? (
           <Card className="panel-elevation">
             <CardHeader className="border-b border-[hsl(var(--border))] pb-4">
               <CardTitle className="text-lg">What is left before this audit can report</CardTitle>
@@ -557,7 +570,7 @@ export default function AuditDetail() {
         <Card className="panel-elevation">
           <CardHeader className="border-b border-[hsl(var(--border))] pb-4 flex flex-row items-center justify-between gap-3">
             <CardTitle className="text-lg">Findings from this audit</CardTitle>
-            {!terminal ? (
+            {!locked ? (
               <Button size="sm" variant="outline" disabled={busy}
                 onClick={() => {
                   setFailure(null);
