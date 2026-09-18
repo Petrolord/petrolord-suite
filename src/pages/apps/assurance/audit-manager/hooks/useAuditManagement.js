@@ -7,6 +7,7 @@ import {
   canAdvanceProgramme,
   canCloseFinding,
   canRaiseFinding,
+  toDateOnlyString,
 } from '@/lib/auditManagement';
 import {
   buildActionWrite,
@@ -324,7 +325,7 @@ export const useAuditManagement = () => {
     // "Leave blank to record yourself" is applied BEFORE the gate. AS10
     // filled approved_by after canApproveProgramme had already refused
     // the blank name, so the promise on the form could never be kept.
-    const todayIso = new Date().toISOString().slice(0, 10);
+    const todayIso = toDateOnlyString(new Date());
     const effective = { ...patch };
     if (to === 'Approved') {
       const merged = { ...programme, ...patch };
@@ -552,7 +553,7 @@ export const useAuditManagement = () => {
     if (!auditAcceptsWork(audit)) return { success: false, error: auditLockedReason(audit) };
     const { row } = buildResponseWrite({ ...response, ...patch });
     if (row.result && row.result !== 'Not examined' && !row.examined_on) {
-      row.examined_on = new Date().toISOString().slice(0, 10);
+      row.examined_on = toDateOnlyString(new Date());
     }
     if (row.result && row.result !== 'Not examined' && !row.examined_by) {
       row.examined_by = user?.id || null;
@@ -589,7 +590,7 @@ export const useAuditManagement = () => {
     if (!verdict.ok) return { success: false, error: verdict.reason };
 
     const next = { ...audit, ...patch, status: to };
-    const todayIso = new Date().toISOString().slice(0, 10);
+    const todayIso = toDateOnlyString(new Date());
     if (to === 'In progress' && !next.actual_start) next.actual_start = todayIso;
     if (to === 'Fieldwork complete' && !next.actual_end) next.actual_end = todayIso;
     if (to === 'Reported') {
@@ -639,7 +640,7 @@ export const useAuditManagement = () => {
           org_id: orgId,
           finding_code: code,
           raised_by: row.raised_by || user?.id || null,
-          raised_date: row.raised_date || new Date().toISOString().slice(0, 10),
+          raised_date: row.raised_date || toDateOnlyString(new Date()),
           status: row.status || 'Open',
         }])
         .select().single();
@@ -682,7 +683,7 @@ export const useAuditManagement = () => {
     const result = await updateFinding(finding.id, {
       ...finding,
       status: 'Closed',
-      closed_date: new Date().toISOString().slice(0, 10),
+      closed_date: toDateOnlyString(new Date()),
       closed_by: user?.id || null,
       closure_notes: closure_notes || finding.closure_notes || null,
     });
@@ -801,7 +802,7 @@ export const useAuditManagement = () => {
     }
     const result = await updateAction(action.id, {
       effectiveness_verified: verified,
-      effectiveness_checked_at: new Date().toISOString().slice(0, 10),
+      effectiveness_checked_at: toDateOnlyString(new Date()),
       effectiveness_verified_by: user?.id || null,
       effectiveness_notes: notes || null,
     });

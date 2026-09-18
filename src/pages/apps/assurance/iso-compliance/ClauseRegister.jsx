@@ -15,6 +15,7 @@ import {
   clauseCoverageByStandard,
   hasEvidenceRecord,
   isReviewOverdue,
+  toDateOnlyString,
 } from '@/lib/isoCompliance';
 import { ISOShell, BASE } from './components/ISOShell';
 import {
@@ -63,7 +64,7 @@ const blankClause = (standardId) => ({
 const blankAssessment = () => ({
   status: 'Conformant',
   evidence_reference: '',
-  assessed_date: new Date().toISOString().slice(0, 10),
+  assessed_date: toDateOnlyString(new Date()),
   assessor_name: '',
   notes: '',
 });

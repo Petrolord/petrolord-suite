@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { format as formatDate } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Download, Search, Plus, X } from 'lucide-react';
@@ -38,7 +39,7 @@ const RiskRegisterTablePage = ({ cell = null, onClearCell }) => {
       toast({ description: 'There are no risks on screen to export.' });
       return;
     }
-    const filename = `Risk_Register_${new Date().toISOString().split('T')[0]}`;
+    const filename = `Risk_Register_${formatDate(new Date(), 'yyyy-MM-dd')}`;
     if (format === 'csv') {
       exportDataAsCSV(filteredRisks, filename);
     } else {

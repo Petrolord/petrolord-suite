@@ -18,6 +18,7 @@ import {
   missingSubstance,
   nextLessonStatuses,
   reuseRecord,
+  toDateOnlyString,
 } from '@/lib/lessonsLearned';
 import { CATEGORIES as MOC_CATEGORIES, CHANGE_TYPES, PRIORITIES } from '@/lib/managementOfChange';
 import { LessonsShell, BASE } from './components/LessonsShell';
@@ -57,7 +58,7 @@ const blankApplication = () => ({
   reference: '',
   outcome: 'Adopted',
   notes: '',
-  applied_on: new Date().toISOString().slice(0, 10),
+  applied_on: toDateOnlyString(new Date()),
 });
 
 const blankRiskPush = (lesson) => ({

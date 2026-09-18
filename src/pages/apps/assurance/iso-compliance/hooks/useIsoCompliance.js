@@ -6,6 +6,7 @@ import {
   canAdvanceAudit,
   canCloseFinding,
   canSetClauseStatus,
+  toDateOnlyString,
 } from '@/lib/isoCompliance';
 import {
   buildActionWrite,
@@ -442,7 +443,7 @@ export const useIsoCompliance = () => {
     if (!verdict.ok) return { success: false, error: verdict.reason };
 
     const patch = { ...audit, status: to };
-    const todayIso = new Date().toISOString().slice(0, 10);
+    const todayIso = toDateOnlyString(new Date());
     if (to === 'In progress' && !patch.actual_start) patch.actual_start = todayIso;
     if (to === 'Fieldwork complete' && !patch.actual_end) patch.actual_end = todayIso;
     if (to === 'Reported') {
@@ -503,7 +504,7 @@ export const useIsoCompliance = () => {
   const recordCoverage = async (row, patch) => {
     const { row: write } = buildCoverageWrite({ ...row, ...patch });
     if (write.result && write.result !== 'Not examined' && !write.examined_on) {
-      write.examined_on = new Date().toISOString().slice(0, 10);
+      write.examined_on = toDateOnlyString(new Date());
     }
     const { error: err } = await supabase.from('iso_audit_clauses')
       .update({ ...write, updated_at: new Date().toISOString() })
@@ -548,7 +549,7 @@ export const useIsoCompliance = () => {
           org_id: orgId,
           finding_code: code,
           raised_by: row.raised_by || user?.id || null,
-          raised_date: row.raised_date || new Date().toISOString().slice(0, 10),
+          raised_date: row.raised_date || toDateOnlyString(new Date()),
           status: row.status || 'Open',
         }])
         .select().single();
@@ -596,7 +597,7 @@ export const useIsoCompliance = () => {
     const result = await updateFinding(finding.id, {
       ...finding,
       status: 'Closed',
-      closed_date: new Date().toISOString().slice(0, 10),
+      closed_date: toDateOnlyString(new Date()),
       closed_by: user?.id || null,
       closure_notes: closure_notes || finding.closure_notes || null,
     });
@@ -723,7 +724,7 @@ export const useIsoCompliance = () => {
     }
     const result = await updateAction(action.id, {
       effectiveness_verified: verified,
-      effectiveness_checked_at: new Date().toISOString().slice(0, 10),
+      effectiveness_checked_at: toDateOnlyString(new Date()),
       effectiveness_verified_by: user?.id || null,
       effectiveness_notes: notes || null,
     });

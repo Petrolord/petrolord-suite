@@ -13,6 +13,7 @@ import {
   canAdvanceAudit,
   isCoverageExamined,
   nextAuditStatuses,
+  toDateOnlyString,
 } from '@/lib/isoCompliance';
 import { ISOShell, BASE } from './components/ISOShell';
 import {
@@ -220,7 +221,7 @@ export default function AuditDetail() {
                           ? setReporting({
                             ...blankConclusion(),
                             conclusion: audit.conclusion || '',
-                            report_issued_date: new Date().toISOString().slice(0, 10),
+                            report_issued_date: toDateOnlyString(new Date()),
                           })
                           : move(s))}>
                         {s}
@@ -371,7 +372,7 @@ export default function AuditDetail() {
                                       result: row.result === 'Not examined' ? 'Conformant' : row.result,
                                       evidence_seen: row.evidence_seen || '',
                                       examined_on: row.examined_on
-                                        || new Date().toISOString().slice(0, 10),
+                                        || toDateOnlyString(new Date()),
                                     });
                                   }}>
                                   Result

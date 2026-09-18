@@ -5,6 +5,7 @@ import {
   canAdvanceLesson,
   canRecordApplication,
   canValidate,
+  toDateOnlyString,
 } from '@/lib/lessonsLearned';
 // Reuse, not restatement: these two modules are the only places that
 // know what may be written to risk_register and moc_records, and AS9
@@ -274,7 +275,7 @@ export const useLessonsLearned = () => {
     const result = await updateLesson(lesson.id, {
       ...lesson,
       status: 'Validated',
-      validated_at: new Date().toISOString().slice(0, 10),
+      validated_at: toDateOnlyString(new Date()),
       validated_by: asSelf ? (user?.id || null) : null,
       validator_name: asSelf ? null : validator_name,
     });
@@ -304,7 +305,7 @@ export const useLessonsLearned = () => {
     if (!verdict.ok) return { success: false, error: verdict.reason };
 
     const next = { ...lesson, ...patch, status: to };
-    const todayIso = new Date().toISOString().slice(0, 10);
+    const todayIso = toDateOnlyString(new Date());
     if (to === 'Published' && !next.published_at) next.published_at = todayIso;
 
     const result = await updateLesson(lesson.id, next);
@@ -366,7 +367,7 @@ export const useLessonsLearned = () => {
       ...form,
       lesson_id: lesson.id,
       applied_by: form.applied_by || user?.id || null,
-      applied_on: form.applied_on || new Date().toISOString().slice(0, 10),
+      applied_on: form.applied_on || toDateOnlyString(new Date()),
     });
     const { data, error: err } = await supabase
       .from('lesson_applications').insert([row]).select().single();
@@ -446,7 +447,7 @@ export const useLessonsLearned = () => {
         reference: data.risk_id,
         outcome: form.outcome || 'Adopted',
         notes: form.notes || null,
-        applied_on: new Date().toISOString().slice(0, 10),
+        applied_on: toDateOnlyString(new Date()),
       });
       if (!applied.success) {
         // The risk exists. Say so rather than implying nothing happened.
@@ -514,7 +515,7 @@ export const useLessonsLearned = () => {
         reference: data.moc_code,
         outcome: form.outcome || 'Adopted',
         notes: form.notes || null,
-        applied_on: new Date().toISOString().slice(0, 10),
+        applied_on: toDateOnlyString(new Date()),
       });
       if (!applied.success) {
         return {

@@ -283,7 +283,7 @@ export const withAssessor = (patch = {}, userId = null) => {
   const typed = String(patch.assessor_name || '').trim();
   return {
     ...patch,
-    assessed_date: patch.assessed_date || new Date().toISOString().slice(0, 10),
+    assessed_date: patch.assessed_date || toDateOnlyString(new Date()),
     assessor_name: typed || null,
     assessed_by: typed ? null : (userId || null),
   };
