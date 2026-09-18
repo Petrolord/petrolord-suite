@@ -303,7 +303,7 @@ repo conventions. Every wave ends with the relevant STATUS doc updated.
 | **AS8** | ISO Compliance: real persistence, audit programme, findings | **BUILT 2026-09-17**, migration held |
 | **AS9** | Lessons Learned, and the push into register and MOC | **BUILT 2026-09-17**, migration held |
 | **AS10** | Audit & Findings Manager (new) | **BUILT 2026-09-17**, migrations held |
-| **AS11** | The Assurance hub: real cross-app analytics over all nine apps | needs AS2-AS10 |
+| **AS11** | The Assurance hub: real cross-app analytics over all nine apps | **BUILT 2026-09-18**, no migration |
 | **AS12** | `engines/assurance` extraction with goldens and an independent oracle | needs AS2, AS10 |
 | **AS13** | Help guides, user manual, launch | needs all |
 

@@ -266,7 +266,8 @@ describe('GUARD: there is only one scoring authority', () => {
   ]
     .filter((d) => fs.existsSync(d))
     .flatMap((d) => walk(d))
-    .concat([path.join(ROOT, 'src', 'hooks', 'useAssuranceAnalytics.js')])
+    .concat([path.join(ROOT, 'src', 'hooks', 'useAssuranceHub.js'),
+      path.join(ROOT, 'src', 'pages', 'dashboard', 'AssuranceHub.jsx')])
     .filter((f) => fs.existsSync(f))
     .filter((f) => !f.endsWith(AUTHORITY));
 
@@ -292,7 +293,8 @@ describe('GUARD: there is only one scoring authority', () => {
   });
 
   it('the hub does not prefer a stored rating over the computed band', () => {
-    const hub = path.join(ROOT, 'src', 'hooks', 'useAssuranceAnalytics.js');
+    // AS11 moved the hub's logic into src/lib/assuranceHub.js.
+    const hub = path.join(ROOT, 'src', 'lib', 'assuranceHub.js');
     const src = codeOf(hub);
     // `r.rating || (...)` trusted a text column the app never wrote.
     expect(src).not.toMatch(/\.rating\s*\|\|/);

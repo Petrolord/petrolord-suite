@@ -370,6 +370,16 @@ export const canAdvanceAudit = (audit = {}, to, context = {}) => {
 /* Findings                                                           */
 /* ------------------------------------------------------------------ */
 
+/**
+ * An audit still open past its planned end. Named at AS11 so the hub
+ * asks this module rather than restating the rule; `summarise()` uses
+ * it too. Reported counts as open here because an ISO audit is not
+ * finished until its findings are closed.
+ */
+export const isAuditOverdue = (audit = {}, today = new Date()) =>
+  AUDIT_OPEN_STATUSES.includes(audit.status)
+  && (daysUntil(audit.planned_end, today) ?? 1) < 0;
+
 export const isFindingOpen = (finding = {}) =>
   FINDING_OPEN_STATUSES.includes(finding.status);
 
@@ -656,9 +666,7 @@ export const summarise = (
     audits: audits.length,
     byAuditStatus,
     auditsOpen: audits.filter((a) => AUDIT_OPEN_STATUSES.includes(a.status)).length,
-    auditsOverdue: audits.filter(
-      (a) => AUDIT_OPEN_STATUSES.includes(a.status)
-        && (daysUntil(a.planned_end, today) ?? 1) < 0).length,
+    auditsOverdue: audits.filter((a) => isAuditOverdue(a, today)).length,
 
     clausesCovered: coverage.filter((c) => c.covered).length,
     clausesNeverAudited: coverage.filter((c) => !c.lastExaminedOn).length,

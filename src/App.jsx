@@ -37,7 +37,7 @@ const FacilitiesEngineeringHub = lazy(() => import('@/pages/dashboard/Facilities
 const MidstreamDownstreamHub = lazy(() => import('@/pages/dashboard/MidstreamDownstreamHub'));
 const GeoscienceAnalytics = lazy(() => import('@/pages/dashboard/GeoscienceAnalytics'));
 const ReservoirManagement = lazy(() => import('@/pages/dashboard/ReservoirManagement'));
-const Assurance = lazy(() => import('@/pages/dashboard/Assurance'));
+const AssuranceHub = lazy(() => import('@/pages/dashboard/AssuranceHub'));
 
 // Super Admin Console
 const SuperAdminConsole = lazy(() => import('@/pages/SuperAdminConsole'));
@@ -475,7 +475,7 @@ function App() {
                                 {/* DS0: the Suite's eighth module. Its apps are Coming Soon,
                                     so the hub is the only route it owns for now. */}
                                 <Route path="midstream-downstream" element={<AppRoute appName="midstream-downstream"><MidstreamDownstreamHub /></AppRoute>} />
-                                <Route path="assurance" element={<AppRoute appName="assurance"><Assurance /></AppRoute>} />
+                                <Route path="assurance" element={<AppRoute appName="assurance"><AssuranceHub /></AppRoute>} />
                                 
                                 <Route path="hse" element={
                                   <ProtectedRoute requiredPermission={HSE_PERMISSIONS.VIEW_DASHBOARD} appContext="hse">
