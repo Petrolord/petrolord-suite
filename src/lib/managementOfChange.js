@@ -42,6 +42,7 @@ export const EXPIRY_TOKENS = Object.freeze({
   [EXPIRY.WITHIN]: '--success',
   [EXPIRY.NONE]: '--muted-foreground',
   [EXPIRY.NOT_APPLICABLE]: '--muted-foreground',
+  [EXPIRY.CLOSED_OUT]: '--muted-foreground',
 });
 
 /** The same stages on the white chart surface. */
