@@ -11,7 +11,7 @@ import { exportToCSV } from '@/utils/exportUtils';
 import {
   AUDIT_STATUSES,
   AUDIT_TYPES,
-  daysUntil,
+  isAuditOverdue,
   isCoverageExamined,
 } from '@/lib/isoCompliance';
 import { ISOShell, BASE } from './components/ISOShell';
@@ -82,8 +82,9 @@ export default function InternalAudits() {
         openMajor: findings.filter(
           (f) => f.audit_id === a.id && f.finding_type === 'Major nonconformity'
             && !['Closed', 'Voided'].includes(f.status)).length,
-        overdue: ['Planned', 'In progress', 'Fieldwork complete', 'Reported'].includes(a.status)
-          && (daysUntil(a.planned_end, today) ?? 1) < 0,
+        // ASC-1 (engines #213): the engine's rule. This restated it and
+        // counted a Reported audit, which was delivered, as overdue.
+        overdue: isAuditOverdue(a, today),
       };
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps

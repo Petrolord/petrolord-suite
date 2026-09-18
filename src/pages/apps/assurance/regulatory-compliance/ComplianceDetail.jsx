@@ -9,6 +9,7 @@ import { ChevronLeft, Edit, FileCheck, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import {
+  DEFAULT_LEAD_TIME_DAYS,
   STATUS,
   explainStatus,
   parseDateOnly,
@@ -159,7 +160,9 @@ export default function ComplianceDetail() {
           <DetailField label="In force from">{showDate(obligation.effective_date)}</DetailField>
           <DetailField label="Frequency">{obligation.frequency}</DetailField>
           <DetailField label="Warning lead time">
-            {obligation.lead_time_days != null ? `${obligation.lead_time_days} days` : null}
+            {obligation.lead_time_days != null
+              ? `${obligation.lead_time_days} days`
+              : `${DEFAULT_LEAD_TIME_DAYS} days, the default (none is set)`}
           </DetailField>
           <DetailField label="Lifecycle">{obligation.lifecycle}</DetailField>
         </CardContent>
