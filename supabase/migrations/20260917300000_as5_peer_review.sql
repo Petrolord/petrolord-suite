@@ -108,6 +108,16 @@ begin
       add constraint peer_reviews_priority_check
       check (priority is null or priority in ('Low', 'Medium', 'High', 'Critical'));
   end if;
+  -- Production held six 2026-03-28 rows from the retired mock (no
+  -- org_id), one spelled 'Approved with Conditions'. The scratch rebuild
+  -- had no rows, so the launch dry run was the first to meet it. Fold the
+  -- spelling onto the canonical one (src/lib/peerReview.js) before the
+  -- check, so the constraint states the domain rather than failing on it.
+  update public.peer_reviews
+     set decision = 'Approved with conditions'
+   where lower(decision) = 'approved with conditions'
+     and decision <> 'Approved with conditions';
+
   if not exists (select 1 from pg_constraint
                   where conname = 'peer_reviews_decision_check'
                     and conrelid = 'public.peer_reviews'::regclass) then
