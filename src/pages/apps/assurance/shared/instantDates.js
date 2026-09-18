@@ -8,19 +8,15 @@
  * a page or an export prints such a stamp as a date, it prints the local
  * calendar date the instant fell on.
  *
- * A bare YYYY-MM-DD is already a calendar date and is returned as it
- * is: `new Date('2026-09-18')` is UTC midnight, which is 17 September
- * west of Greenwich.
+ * The rule is the engine's calendar.localDateOf (engines #212): a string
+ * with a time part is read as the instant it names, and a bare
+ * YYYY-MM-DD stays that calendar date (`new Date('2026-09-18')` would be
+ * UTC midnight, 17 September west of Greenwich). This only formats it.
  */
-import { toDateOnlyString } from '@/lib/peerReview';
-
-const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+import { localDateOf, toDateOnlyString } from '@/lib/assuranceCalendar';
 
 /** YYYY-MM-DD in local time for an instant, or '' when there is none. */
 export const localDateOfInstant = (value) => {
   if (!value) return '';
-  if (typeof value === 'string' && DATE_ONLY.test(value)) return toDateOnlyString(value) || '';
-  const d = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  return toDateOnlyString(d) || '';
+  return toDateOnlyString(localDateOf(value)) || '';
 };

@@ -58,7 +58,7 @@ export default {
       id: "reports",
       title: "Dashboard, registers and reports",
       paragraphs: [
-        "All figures are counted from your organization's own records when the page loads. Plan progress is the share of points resolved; a plan with no points reads 'No inspection points'.",
+        "All figures are counted from your organization's own records when the page loads. Plan progress is the share of points resolved, rounded half up to a whole percent; a plan with no points reads 'No inspection points'.",
       ],
       bullets: [
         "Dashboard tiles: Quality plans (and how many Active); Inspection points outstanding (and how many are hold points); Inspection points failed; Open non-conformances (and how many Critical or Major); Oldest open non-conformance in days (and mean age); Actions done, effectiveness unchecked.",

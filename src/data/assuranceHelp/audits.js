@@ -68,10 +68,10 @@ export default {
       id: "reports",
       title: "Dashboard, reports and exports",
       paragraphs: [
-        "Delivery is audits Reported or Closed divided by all audits in the programme, cancelled ones included. A programme with no audits shows Nothing planned."
+        "Delivery is audits Reported or Closed divided by all audits in the programme, cancelled ones included, rounded half up to a whole percent. A programme with no audits shows Nothing planned."
       ],
       bullets: [
-        "Dashboard tiles: Audits outstanding (with those past their planned end), Checklist items unanswered (checklist rows still Not examined across every audit, cancelled audits included; questions never synced into an audit are not counted), Work stopped, still open, and Major nonconformities open.",
+        "Dashboard tiles: Audits outstanding (with those past their planned end; a cancellation with no written reason still counts as outstanding), Checklist items unanswered (checklist rows still Not examined across every audit, cancelled audits included; questions never synced into an audit are not counted), Work stopped, still open, and Major nonconformities open.",
         "Dashboard panels: delivery for Draft, Approved and In progress programmes; audits by status; checklist answers with Not examined shown; up to six audits in progress, overdue first; up to six findings needing attention, open stop-work first, then open majors.",
         "Audits and Findings pages have search and filters (Work stopped only on Findings). The Checklist column shows answered out of total, drawn red when any answer is Nonconformant.",
         "Reports: tiles for Audits not delivered, Checklist items unanswered (counted as on the Dashboard), Work stopped, still open and Actions overdue; the audits planned and not delivered; findings by type, by site and by root cause category; open findings past due.",

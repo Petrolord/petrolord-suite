@@ -12,7 +12,6 @@ import {
   STAGE_CHART_COLORS,
   bySeverityThenAge,
   byUrgency,
-  isBlocking,
   isOverdue,
   parseDateOnly,
   summarise,
@@ -21,6 +20,7 @@ import { PeerReviewShell, BASE } from './components/PeerReviewShell';
 import { SeverityBadge, StageBadge } from './components/StatusBadges';
 import { EmptyState, ErrorState, Loading, SchemaNotice } from './components/SharedComponents';
 import { usePeerReview } from './hooks/usePeerReview';
+import { countsAsBlocking } from './utils/liveComments';
 
 const showDate = (v) => {
   const d = parseDateOnly(v);
@@ -77,8 +77,10 @@ export default function Dashboard() {
 
   const blocking = useMemo(() => {
     const byId = new Map(reviews.map((r) => [r.id, r]));
-    return comments.filter(isBlocking).sort(bySeverityThenAge).slice(0, 5)
+    // ASC-0: exactly the comments the 'Blocking closure' tile counts.
+    return comments.filter((c) => countsAsBlocking(c, byId, today)).sort(bySeverityThenAge).slice(0, 5)
       .map((c) => ({ ...c, review: byId.get(c.review_id) }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comments, reviews]);
 
   if (loading) return <PeerReviewShell><Loading label="Loading the review register..." /></PeerReviewShell>;

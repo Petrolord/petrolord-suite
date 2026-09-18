@@ -41,7 +41,7 @@ export default {
         "Only a change in Draft can be deleted, and 'Delete' asks for confirmation first. Past Draft, a change that should not go ahead is cancelled or rejected, which keeps its record.",
         "Expiry is tracked only for Temporary and Emergency changes at Implementation. Such a change is Expiring soon from 14 days before its expiry date up to and including that date, and Expired from the day after.",
         "An expired change sorts to the top of the register and raises a red banner on the dashboard and on the change itself.",
-        "A change is overdue when it is at Draft to Implementation and its target implementation date has passed. An action is overdue when it is Open or In progress and its due date has passed.",
+        "A change is overdue when it is at Draft, Screening, Review or Approval and its target implementation date has passed. Once it reaches Implementation it is on the facility and is no longer overdue against that date. An action is overdue when it is Open or In progress and its due date has passed.",
       ],
     },
     {

@@ -57,7 +57,7 @@ export default {
       ],
       bullets: [
         "'Active reviews': reviews at Draft, In Review or Verification. 'Overdue': live reviews past their target date.",
-        "'Open comments': comments at Open, Responded or Rejected. 'Blocking closure': unresolved Critical and Major comments. Both count every review in the register, including cancelled ones.",
+        "'Open comments': comments at Open, Responded or Rejected. 'Blocking closure': unresolved Critical and Major comments. Neither counts comments on a Closed or Cancelled review, because nobody can resolve them there. The Register's open comment count and the 'Comments blocking closure' list follow the same rule.",
         "'The register by stage' is a doughnut of reviews per stage. 'Running late' lists up to five overdue reviews, earliest first. 'Comments blocking closure' lists up to five blocking comments, Critical first. Click an entry to open its review.",
         "The Register sorts overdue reviews first, then other live reviews, then closed and cancelled, each by due date. Search matches code, title, asset, discipline and department; filter by stage or priority, or tick 'Overdue only'. 'Export CSV' exports the rows your filters show, including overdue flag, comment count and open comment count.",
         "Reports shows a summary line and exports 'Register (CSV)', every review with its stage, decision, due date, overdue flag and comment counts, and 'Comments (CSV)', every comment with its review, severity, status, text, response, raised, responded and verified dates, and whether it is resolved.",
