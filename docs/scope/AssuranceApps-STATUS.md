@@ -2,9 +2,8 @@
 
 Plan of record: `docs/scope/Assurance-ROADMAP.md`.
 Wave: **AS1 (foundations) and AS2 (Risk Register) BUILT 2026-09-16;
-AS3 (Regulatory Compliance), AS4 (Document Control), AS5 (Peer Review
-Manager) and AS6 (Management of Change) BUILT 2026-09-17**, migrations
-held.
+AS3 to AS10 (all eight remaining apps) BUILT 2026-09-17**, migrations
+held; **AS11 (the hub) BUILT 2026-09-18**, no migration.
 
 This file replaces a document that carried the same name and described
 the Economics E4 apps. That content now lives at
@@ -33,7 +32,7 @@ programmes. This one is still in its Horizons-generated state.
 | Lessons Learned | `apps/assurance/lessons-learned/*` | `lesson_records`, `lesson_applications`, `lesson_activity_log` | **AS9 done.** Coming Soon until its own promotion migration | AS9 |
 | Audit & Findings Manager | `apps/assurance/audit-manager/*` | `audit_programmes`, `audit_templates`, `audit_template_items`, `audit_records`, `audit_responses`, `audit_findings`, `audit_actions`, `audit_activity_log` | **AS10 done.** New app; its tile is seeded Coming Soon | AS10 |
 
-Tests: **568** as of AS10 (AS2 34, AS3 63, AS4 45, AS5 52, AS6 58, AS7 79,
+Tests: **683** as of AS11 (the hub, +115); **568** as of AS10 (AS2 34, AS3 63, AS4 45, AS5 52, AS6 58, AS7 79,
 AS8 93, AS9 63, AS10 69, plus the shared authority suites), all under
 `src/lib/__tests__/` and the two app trees. There were none at all
 before AS2. Engine: **none**; there is no `engines/assurance` in
@@ -1170,6 +1169,99 @@ caught `deleteAudit` here, and the right answer was to delete the
 method rather than add a button.
 
 ---
+
+## 3j. AS11, built 2026-09-18 — the Assurance hub
+
+### 3j.1 What the hub was
+
+`src/pages/dashboard/Assurance.jsx` called itself "Unified reporting and
+real-time analytics" across eight apps. **Three of its panels queried
+anything. The other five were literals shown to every organization as
+its own**: "Active MOCs 12", "Pending Approval 4", "Implemented 28", a
+pie of 3/4/5/28, "MOC-2026-042 Review", "Subsea Tie-back Installation
+QA — QAP-2026-012", and the same for Regulatory Compliance, Lessons
+Learned and ISO Compliance. The ninth app, Audit & Findings Manager,
+was not on the page. The MOC export button toasted "Exporting MOC
+data..." and exported nothing.
+
+The three real panels were wrong in quieter ways. They counted
+statuses the apps never write (`'Identified'`, `'Resolved'`,
+`'Pending'`), and `useAssuranceAnalytics` had **no org filter**, so a
+super admin (who passes every org's RLS policy) saw every
+organization's risks, documents and reviews summed together. It polled
+all three tables every thirty seconds whether anyone was looking.
+
+It was also the only module hub with no catalogue grid, so it was the
+one hub from which you could not open an app by its tile. A second
+file, `AssuranceAndCompliance.jsx`, had the grid but no route: an
+orphan with debug `console.log`s. Both are gone.
+
+### 3j.2 What it is now
+
+- **`src/lib/assuranceHub.js`** is the only logic. It decides nothing
+  about a record: each app's panel is that app's own `summarise()`
+  (a test asserts `toEqual` identity for all eight that have one), and
+  each attention rule is the app's own predicate (`deriveStatus`,
+  `reviewState`, `expiryState`, `isBlocking`, `isNcrOverdue`,
+  `isFindingOverdue`, `isAuditOverdue`...). The Risk Register has no
+  `summarise()`, so `summariseRisks()` is built from riskScoring calls
+  only; it restates no threshold (the AS2 guard now scans it).
+- **The cross-app attention list** is the one thing no single app can
+  show: every item across the nine that needs someone, in three tiers.
+  **Exposed now** = a temporary change running past expiry, a lapsed
+  permit or an overdue obligation, an open stop-work finding, an open
+  Critical NCR, a live risk whose RESIDUAL band is Critical. **Overdue**
+  = a control past its own date (reviews, findings, NCRs, audits,
+  implementation dates), a risk above the appetite its owner set,
+  unresolved Critical/Major comments on a live review. **Due soon** =
+  inside the owning app's own lead window. Ordered by tier, then longest
+  overdue; undated items rank after dated ones. Every item links to its
+  record; CSV export is built from the listed items.
+- **There is no assurance score**, no percentage, no index. AS8 made
+  certification readiness a list of blockers; a module-wide score
+  would be the same defect at a larger scale. A test asserts the
+  headline is integer counts with no score-shaped key.
+- **`src/hooks/useAssuranceHub.js`** reads, never writes (a test
+  greps for it), does not poll, and scopes every parent query by
+  `org_id` exactly as each app's own hook does. **Each app is fetched
+  and fails on its own**: a missing table or column (42P01, 42703,
+  PGRST200/204/205) makes that app UNAVAILABLE and the page names it
+  ("Not set up in this environment yet"); it is never drawn as zero
+  and never counted in "Apps reporting". This matters today: the
+  AS3-AS10 migrations are held, so on production most of the nine
+  will read UNAVAILABLE until the owner applies them.
+- **Every route lives in `HUB_APPS`**. A test parses `App.jsx` and each
+  app's page shell and resolves every base, record and audit link
+  against a declared route, and checks the catalogue id is the one the
+  route is gated on. The module-hub guard already forbade a hub from
+  naming a route; the page now takes every `navigate()` target from
+  the lib.
+- The page is `AssuranceHub.jsx`, so the existing module-hub guard
+  (`moduleHubs.test.js`, which scans `*Hub.jsx`) now covers it too.
+  One white-theme chart (attention by app, stacked by tier) with the
+  watermark.
+
+Two small authority additions, both used by their own modules:
+`riskScoring.RISK_LIVE_STATUSES` / `RISK_NOT_LIVE_STATUSES` (a test
+asserts together they are exactly the register's status list;
+Mitigated and Realized are live, Draft and Closed are not) and
+`isoCompliance.isAuditOverdue`, which `summarise()` now calls instead
+of an inline copy.
+
+### 3j.3 Decisions taken (autonomous directive)
+
+- **An overdue regulatory obligation is Exposed, not merely Overdue.**
+  A late statutory filing is a breach on the day it is late.
+- **A Mitigated risk is still live.** Mitigation lowers the residual;
+  it does not remove the risk. The residual band is what the hub
+  judges, never the inherent one.
+- **No auto-refresh.** A Refresh button and the read time instead.
+
+Tests: **+115** (`assuranceHub.test.js` 73 with negative controls run:
+a broken route, a restated summary and a wrong catalogue id each
+fail it; `useAssuranceHub.test.js` 19; `assuranceHubPage.test.js` 12;
+`assuranceHubRender.test.jsx` 4; plus the riskScoring guard retargeted).
+Module total **683**. No migration.
 
 ## 4. How AS1 was verified
 
