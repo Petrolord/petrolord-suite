@@ -296,9 +296,12 @@ describe('no invented data in the Audit & Findings Manager', () => {
   });
 
   it('every finding status the filter offers can be reached', () => {
-    const util = code(path.join(APP, 'utils/auditPayload.js'));
-    expect(util).toMatch(/'Action in progress'/);
-    expect(util).toMatch(/'Verification'/);
+    expect(code(path.join(APP, 'utils/auditPayload.js')))
+      .toMatch(/progressedFindingStatus \} from '\.\.\/\.\.\/shared\/findingWorkflow'/);
+    const shared = code(path.join(APP, '../shared/findingWorkflow.js'));
+    expect(shared).toMatch(/'Action in progress'/);
+    expect(shared).toMatch(/'Verification'/);
+    expect(code(path.join(APP, 'hooks/useAuditManagement.js'))).toMatch(/syncFindingStatus\(findingId\)/);
     expect(code(path.join(APP, 'FindingDetail.jsx'))).toMatch(/progressedFindingStatus/);
   });
 
