@@ -210,4 +210,31 @@ describe('no invented data in Document Control', () => {
       expect(src).toMatch(/ChartLogo/);
     });
   });
+
+  // AS13: the classes removed in the help-guide pass.
+  it('no file passes a .csv name to exportToCSV, which appends .csv itself', () => {
+    // Library and Reports downloaded document-register-<date>.csv.csv.
+    const offenders = files.filter((f) =>
+      /exportToCSV\([\s\S]{0,1500}?\.csv[`'"]\s*,?\s*\)/.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
+
+  it('deleting a document asks first', () => {
+    const src = code(path.join(APP, 'DocumentDetail.jsx'));
+    expect(src).toMatch(/<AlertDialog/);
+    expect(src).not.toMatch(/onClick=\{handleDelete\}>\s*<Trash2/);
+  });
+
+  it('the approval queue does not promise a control that does not exist', () => {
+    // It said "Revisions appear here when a reviewer is assigned to them"
+    // when nothing in the app could assign one.
+    const offenders = files.filter((f) => /when a reviewer is assigned to them/.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
+
+  it('no toast claims something happened that did not', () => {
+    const offenders = files.filter((f) =>
+      /recorded in audit log|would open here|coming soon|Contacting support/i.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
 });

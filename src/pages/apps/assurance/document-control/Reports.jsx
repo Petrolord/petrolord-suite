@@ -93,7 +93,7 @@ export default function Reports() {
       'Next review': d.next_review_date || '',
       'Review state': reviewState(d, today),
       Revisions: d.revisions?.length ?? 0,
-    })), `master-document-register-${format(today, 'yyyy-MM-dd')}.csv`);
+    })), `master-document-register-${format(today, 'yyyy-MM-dd')}`); // exportToCSV appends .csv
   };
 
   if (loading) return <DocControlShell><Loading label="Loading reports..." /></DocControlShell>;

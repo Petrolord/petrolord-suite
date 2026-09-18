@@ -10,8 +10,14 @@ import {
 import {
   buildDocumentWrite,
   buildRevisionWrite,
+  buildWorkflowRows,
+  currentRevisionOf,
+  documentStatusAfterReview,
   prefixFor,
+  reviewOutcome,
   storagePathFor,
+  validateReviewers,
+  validateRetirement,
 } from '../utils/documentPayload';
 
 const UNKNOWN_COLUMN = 'PGRST204';
@@ -22,6 +28,8 @@ const UNIQUE_VIOLATION = '23505';
 
 const NUMBER_RETRIES = 3;
 export const BUCKET = 'documents';
+/** How many library-wide activity entries the dashboard reads. */
+export const RECENT_ACTIVITY_LIMIT = 25;
 
 /**
  * AS4 — the one place this app reads and writes.
@@ -73,6 +81,13 @@ export const useDocumentControl = () => {
   const [error, setError] = useState(null);
   const [hasAs4Schema, setHasAs4Schema] = useState(true);
   const [hasBucket, setHasBucket] = useState(false);
+  /**
+   * The organization's active members, for choosing reviewers. Read from
+   * organization_members, the one membership table, scoped to the org
+   * the auth context says the user is in.
+   */
+  const [members, setMembers] = useState([]);
+  const [membersError, setMembersError] = useState(null);
 
   /** Child reads whose table may not exist yet are not failures. */
   const optional = async (promise) => {
@@ -118,9 +133,13 @@ export const useDocumentControl = () => {
         revs = r.data;
         if (r.missing) as4 = false;
 
+        // The most recent entries across the library, for the
+        // dashboard. A document's own Activity tab reads its full
+        // history with activityForDocument(), because this list is
+        // capped and silently left out older entries there (AS13).
         const l = await optional(supabase
           .from('doc_activity_log').select('*').in('document_id', ids)
-          .order('created_at', { ascending: false }).limit(25));
+          .order('created_at', { ascending: false }).limit(RECENT_ACTIVITY_LIMIT));
         log = l.data;
 
         if (revs.length) {
@@ -152,6 +171,41 @@ export const useDocumentControl = () => {
   }, [orgId]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  useEffect(() => {
+    if (!orgId) return undefined;
+    let cancelled = false;
+    (async () => {
+      const { data, error: err } = await supabase
+        .from('organization_members')
+        .select('user_id, full_name, email')
+        .eq('organization_id', orgId)
+        .eq('status', 'active')
+        .not('user_id', 'is', null)
+        .order('full_name', { ascending: true });
+      if (cancelled) return;
+      if (err) {
+        setMembers([]);
+        setMembersError(err.message || 'Could not load the members of this organization.');
+      } else {
+        setMembers(data || []);
+        setMembersError(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [orgId]);
+
+  /** Every activity entry for one document, newest first. */
+  const activityForDocument = useCallback(async (documentId) => {
+    const { data, error: err } = await supabase
+      .from('doc_activity_log').select('*').eq('document_id', documentId)
+      .order('created_at', { ascending: false });
+    if (err) {
+      if (err.code === UNDEFINED_TABLE || err.code === UNKNOWN_RELATION) return { success: true, data: [] };
+      return { success: false, error: err.message };
+    }
+    return { success: true, data: data || [] };
+  }, []);
 
   /**
    * Does the storage bucket exist?
@@ -300,13 +354,15 @@ export const useDocumentControl = () => {
       return {
         success: true,
         data,
+        // The first revision, so the caller can send it for review.
+        revision: revResult.success ? revResult.data : null,
         warning: revResult.success ? revResult.warning : revResult.error,
       };
     }
     return { success: false, error: 'Could not allocate a document number. Try again in a moment.' };
   };
 
-  const updateDocument = async (id, form) => {
+  const updateDocument = async (id, form, { activity = 'Metadata updated', refresh = true } = {}) => {
     let as4 = hasAs4Schema;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const { row } = buildDocumentWrite(form, { hasAs4Columns: as4 });
@@ -315,8 +371,8 @@ export const useDocumentControl = () => {
         .update({ ...row, updated_at: new Date().toISOString() })
         .eq('id', id).select().single();
       if (!err) {
-        await logActivity(id, 'Metadata updated');
-        await fetchAll();
+        if (activity) await logActivity(id, activity);
+        if (refresh) await fetchAll();
         return { success: true, data };
       }
       if (err.code === UNKNOWN_COLUMN && as4) {
@@ -384,9 +440,15 @@ export const useDocumentControl = () => {
       }
     }
 
-    await supabase.from('documents')
-      .update({ current_revision: data.revision_number, updated_at: new Date().toISOString() })
-      .eq('id', document.id);
+    // A document not yet published follows its current revision, so a
+    // new revision puts an Approved or Rejected document back to Draft.
+    // A Published document stays Published: its issued revision is still
+    // the one in force until the new one is approved and published.
+    const docPatch = { current_revision: data.revision_number, updated_at: new Date().toISOString() };
+    if (!skipRefresh && ['In Review', 'Approved', 'Rejected'].includes(document.status)) {
+      docPatch.status = 'Draft';
+    }
+    await supabase.from('documents').update(docPatch).eq('id', document.id);
     await logActivity(document.id, `Revision ${data.revision_number} added`);
 
     if (!skipRefresh) await fetchAll();
@@ -396,13 +458,28 @@ export const useDocumentControl = () => {
   /**
    * Issue a document: publish it and set the review date it earns.
    * The date is computed from the issue date, not typed.
+   *
+   * AS13: only an approved revision can be issued, and issuing again is
+   * how a revised document is re-issued: the issue date and the review
+   * date are reset from the new issue. Before this, Publish was offered
+   * with no review decision, and once Published a document could never
+   * be published again.
    */
   const issueDocument = async (document, { issueDate, reviewPeriodMonths } = {}) => {
+    const rev = currentRevisionOf(document);
+    const approved = rev ? rev.status === 'Approved' : document.status === 'Approved';
+    if (!approved) {
+      return {
+        success: false,
+        error: 'Only an approved revision can be published. Submit it for review and record the decision first.',
+      };
+    }
     const issued = toDateOnlyString(issueDate || new Date());
     const period = reviewPeriodMonths
       || document.review_period_months
       || DEFAULT_REVIEW_PERIOD_MONTHS;
     const review = nextReviewDate(issued, period);
+    const reissue = document.status === 'Published';
 
     const result = await updateDocument(document.id, {
       ...document,
@@ -410,23 +487,145 @@ export const useDocumentControl = () => {
       issue_date: issued,
       review_period_months: period,
       next_review_date: review ? toDateOnlyString(review) : null,
+    }, {
+      activity: rev
+        ? `Revision ${rev.revision_number} ${reissue ? 're-issued' : 'published'}`
+        : 'Document published',
+      refresh: false,
     });
-    if (result.success) await logActivity(document.id, 'Document published');
-    return result.success
-      ? { ...result, nextReview: review ? toDateOnlyString(review) : null }
-      : result;
+    if (!result.success) return result;
+
+    let warning = null;
+    if (rev) {
+      const { error: revErr } = await supabase
+        .from('doc_revisions').update({ status: 'Published' }).eq('id', rev.id);
+      if (revErr) {
+        warning = `The document was published, but revision ${rev.revision_number} could not be marked Published: ${revErr.message}`;
+      }
+    }
+    await fetchAll();
+    return { ...result, warning, nextReview: review ? toDateOnlyString(review) : null };
   };
 
-  /** Record a reviewer's decision on a revision. */
+  /**
+   * Send the current revision for review.
+   *
+   * AS13: nothing in the app ever inserted into doc_workflows, so "Submit
+   * for review" set a status and put nothing in anyone's queue. This
+   * creates one Pending review task per named reviewer against the
+   * current revision, then moves the revision (and, unless the document
+   * is already Published and the issued revision stays in force, the
+   * document) to In Review.
+   */
+  const submitForReview = async (document, { reviewers = [], dueDate = null } = {}) => {
+    const problem = validateReviewers(reviewers);
+    if (problem) return { success: false, error: problem };
+    const rev = currentRevisionOf(document);
+    if (!rev) {
+      return { success: false, error: 'This document has no revision to review. Create a revision first.' };
+    }
+
+    const rows = buildWorkflowRows(rev.id, reviewers, dueDate);
+    const { error: wfErr } = await supabase.from('doc_workflows').insert(rows);
+    if (wfErr) return { success: false, error: `No review was requested: ${wfErr.message}` };
+
+    const problems = [];
+    const { error: revErr } = await supabase
+      .from('doc_revisions').update({ status: 'In Review' }).eq('id', rev.id);
+    if (revErr) problems.push(`the revision status was not updated (${revErr.message})`);
+
+    const docStatus = documentStatusAfterReview(document, 'In Review');
+    if (docStatus !== document.status) {
+      const res = await updateDocument(document.id, { ...document, status: docStatus },
+        { activity: null, refresh: false });
+      if (!res.success) problems.push(`the document status was not updated (${res.error})`);
+    }
+    await logActivity(document.id,
+      `Revision ${rev.revision_number} submitted for review (${rows.length} reviewer${rows.length === 1 ? '' : 's'})`);
+    await fetchAll();
+    return {
+      success: true,
+      reviewers: rows.length,
+      warning: problems.length
+        ? `The review tasks were created, but ${problems.join(' and ')}.`
+        : null,
+    };
+  };
+
+  /**
+   * Record a reviewer's decision, and move the revision and the document
+   * with it.
+   *
+   * AS13: this updated the workflow row only, so an approved document
+   * stayed In Review and a rejected one stayed In Review too. The
+   * outcome across all of the revision's reviewers now sets the
+   * revision's status, and the document's, when the decision is on the
+   * document's current revision.
+   */
   const decideWorkflow = async (workflow, status, comments) => {
     const { error: err } = await supabase
       .from('doc_workflows')
       .update({ status, comments: comments || null, completed_at: new Date().toISOString() })
       .eq('id', workflow.id);
     if (err) return { success: false, error: err.message };
-    await logActivity(workflow.document?.id, `Review ${status.toLowerCase()}`);
+
+    const document = documents.find((d) => d.id === workflow.document?.id) || workflow.document;
+    const siblings = workflows
+      .filter((w) => w.revision_id === workflow.revision_id)
+      .map((w) => (w.id === workflow.id ? { ...w, status } : w));
+    const outcome = reviewOutcome(siblings);
+    const problems = [];
+
+    if (outcome !== 'In Review') {
+      const revPatch = outcome === 'Approved'
+        ? { status: 'Approved', approved_at: new Date().toISOString() }
+        : { status: 'Rejected' };
+      const { error: revErr } = await supabase
+        .from('doc_revisions').update(revPatch).eq('id', workflow.revision_id);
+      if (revErr) problems.push(`the revision status was not updated (${revErr.message})`);
+    }
+
+    const current = document ? currentRevisionOf({ ...document, revisions: revisionsFor(document.id) }) : null;
+    if (document && current && current.id === workflow.revision_id) {
+      const docStatus = documentStatusAfterReview(document, outcome);
+      if (docStatus !== document.status) {
+        const res = await updateDocument(document.id, { ...document, status: docStatus },
+          { activity: null, refresh: false });
+        if (!res.success) problems.push(`the document status was not updated (${res.error})`);
+      }
+    }
+
+    await logActivity(document?.id,
+      `Review ${status.toLowerCase()}${workflow.revision?.revision_number ? ` on revision ${workflow.revision.revision_number}` : ''}`,
+      comments ? { comments } : null);
     await fetchAll();
-    return { success: true };
+    return {
+      success: true,
+      outcome,
+      warning: problems.length
+        ? `The decision was recorded, but ${problems.join(' and ')}.`
+        : null,
+    };
+  };
+
+  /**
+   * Take a document out of force: Obsolete, or Superseded by another
+   * document. `superseded_by` existed and nothing ever wrote it, so a
+   * superseded document could not say what replaced it (AS13).
+   */
+  const retireDocument = async (document, { status, superseded_by } = {}) => {
+    const problem = validateRetirement({ status, superseded_by }, document);
+    if (problem) return { success: false, error: problem };
+    const replacement = documents.find((d) => d.id === superseded_by);
+    return updateDocument(document.id, {
+      ...document,
+      status,
+      superseded_by: status === 'Superseded' ? superseded_by : null,
+    }, {
+      activity: status === 'Superseded'
+        ? `Superseded by ${replacement?.document_number || 'another document'}`
+        : 'Marked obsolete',
+    });
   };
 
   const deleteDocument = async (id) => {
@@ -452,8 +651,11 @@ export const useDocumentControl = () => {
     documents: documentsWithRevisions,
     categories,
     revisions,
+    workflows,
     approvals,
     activity,
+    members,
+    membersError,
     loading,
     error,
     hasAs4Schema,
@@ -465,7 +667,10 @@ export const useDocumentControl = () => {
     updateDocument,
     addRevision,
     issueDocument,
+    submitForReview,
     decideWorkflow,
+    retireDocument,
+    activityForDocument,
     deleteDocument,
     createCategory,
   };
