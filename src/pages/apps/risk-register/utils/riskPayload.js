@@ -14,7 +14,7 @@
  * module splits a form payload into the three writes that actually
  * exist, and refuses to invent a column.
  */
-import { deriveRiskFields } from '@/lib/riskScoring';
+import { deriveRiskFields, getAppetiteStatus } from '@/lib/riskScoring';
 
 /**
  * Every column a client may write on risk_register. `risk_score` and
@@ -190,4 +190,21 @@ export const nextCodeFromExisting = (risks = []) => {
     .map((m) => Number(m[1]));
   const next = (numbers.length ? Math.max(...numbers) : 1000) + 1;
   return `RSK-${String(next).padStart(4, '0')}`;
+};
+
+/**
+ * AS13 hardening: the appetite line on the form's preview.
+ *
+ * With a target and no residual assessment the form read "Not assessed"
+ * and showed no appetite at all, while the detail page and the stored
+ * appetite_status judge the same risk on its inherent score. The answer
+ * comes from getAppetiteStatus, the one authority, in both places.
+ */
+export const appetitePreview = (form = {}) => {
+  const appetite = getAppetiteStatus(form);
+  const target = Number(form.target_score);
+  const hasResidual = Boolean(form.residual_likelihood || form.residual_impact);
+  const judged = hasResidual ? '' : 'Not assessed, so this risk is carried at its inherent score. ';
+  const suffix = Number.isFinite(target) && target > 0 ? ` (target ${target})` : '';
+  return `${judged}Appetite: ${appetite}${suffix}`;
 };
