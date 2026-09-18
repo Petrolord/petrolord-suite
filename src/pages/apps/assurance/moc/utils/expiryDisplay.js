@@ -8,15 +8,22 @@
  * and the Reports expiry table listed Rejected and Cancelled changes,
  * which never went in at all, as "No expiry" too.
  *
- * This file only decides the words. It never changes which changes are
- * expired.
+ * This file only decides the words, and which changes the expiry
+ * report lists. It never changes which changes are expired.
+ *
+ * AS13 hardening: a closed temporary change reads EXPIRY.CLOSED_OUT
+ * ('Closed out') in the engine. The register and the detail page show
+ * that state, but the expiry report is about changes still to be
+ * reverted, so expiryReportRows leaves closed-out changes out.
  */
 import { format } from 'date-fns';
 import {
+  EXPIRING_TYPES,
   EXPIRY,
   EXPIRY_TOKENS,
   IN_EFFECT_STAGES,
   TERMINAL_STAGES,
+  daysUntil,
   expiryState,
   parseDateOnly,
 } from '@/lib/managementOfChange';
@@ -31,9 +38,10 @@ const showDate = (value) => {
 
 /**
  * `{ state, label, token, title }`, or null when there is nothing to
- * say: a permanent change, a closed one (see the AS13 report on the
- * closed-temporary rule) and a rejected or cancelled one, which never
- * went in.
+ * say: a permanent change, and a rejected or cancelled one, which never
+ * went in. A closed temporary change returns the 'Closed out' state so
+ * the register and detail can show it; the expiry report drops it (see
+ * expiryReportRows).
  *
  * `state` is short, for a table column or a CSV. `label` is the badge,
  * and carries the date when the change is not yet in effect.
@@ -60,6 +68,15 @@ export const expiryDisplay = (moc = {}, today = new Date()) => {
       };
   }
 
+  if (state === EXPIRY.CLOSED_OUT) {
+    return {
+      state,
+      label: state,
+      token: EXPIRY_TOKENS[state] || '--muted-foreground',
+      title: `This ${String(moc.type).toLowerCase()} change was closed out through its MOC. It is no longer tracked against its expiry date.`,
+    };
+  }
+
   const date = showDate(moc.expiry_date);
   return {
     state,
@@ -70,3 +87,20 @@ export const expiryDisplay = (moc = {}, today = new Date()) => {
       : 'This change is in effect with no readable expiry date.',
   };
 };
+
+/**
+ * The temporary-change expiry report: temporary and emergency changes
+ * still to be reverted, in effect or on their way in, soonest first.
+ * Rejected and cancelled changes never went in, and closed-out ones have
+ * already been reverted or made permanent, so neither is listed.
+ */
+export const expiryReportRows = (records = [], today = new Date()) => records
+  .filter((m) => EXPIRING_TYPES.includes(m.type))
+  .map((m) => ({ ...m, shown: expiryDisplay(m, today), days: daysUntil(m.expiry_date, today) }))
+  .filter((m) => m.shown && m.shown.state !== EXPIRY.CLOSED_OUT)
+  .map((m) => ({ ...m, state: m.shown.state }))
+  .sort((a, b) => {
+    if (a.days === null) return 1;
+    if (b.days === null) return -1;
+    return a.days - b.days;
+  });

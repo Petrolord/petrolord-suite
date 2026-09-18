@@ -283,7 +283,7 @@ export const withAssessor = (patch = {}, userId = null) => {
   const typed = String(patch.assessor_name || '').trim();
   return {
     ...patch,
-    assessed_date: patch.assessed_date || new Date().toISOString().slice(0, 10),
+    assessed_date: patch.assessed_date || toDateOnlyString(new Date()),
     assessor_name: typed || null,
     assessed_by: typed ? null : (userId || null),
   };
@@ -341,6 +341,34 @@ export const standardRemovalImpact = (standard, { clauses = [], auditClauses = [
     audits: audits.filter((a) => a.standard_id === standard?.id).length,
     findings: findings.filter((f) => f.standard_id === standard?.id).length,
   };
+};
+
+/**
+ * The words for a standard's certificate against its expiry date, from
+ * certificationReadiness's counts: 'Expired', 'Expiring soon' (within
+ * CERTIFICATE_LEAD_DAYS) or null. The Standards page and the Dashboard
+ * readiness summary both show it, so the help's claim that readiness
+ * shows both states is true (AS13 hardening). It is not a blocker.
+ */
+export const certificateState = (counts = {}) => {
+  if (counts.certificateExpired) return 'Expired';
+  if (counts.certificateExpiring) return 'Expiring soon';
+  return null;
+};
+
+/** The audit statuses at which the clause scope is fixed. */
+export const SCOPE_LOCKED_STATUSES = Object.freeze(['Reported', 'Closed', 'Cancelled']);
+
+/**
+ * Why clauses can no longer be added to or removed from this audit's
+ * scope, or null while they can. Once the audit is Reported its scope is
+ * what the report covered, so changing it afterwards would rewrite the
+ * report (AS13 hardening: it used to lock only at Closed and Cancelled).
+ */
+export const scopeLockReason = (audit) => {
+  if (!audit || !SCOPE_LOCKED_STATUSES.includes(audit.status)) return null;
+  return `This audit is ${String(audit.status).toLowerCase()}. Its clause scope is what the `
+    + 'report covered and can no longer be added to or removed from.';
 };
 
 export { canDeleteFinding, progressedFindingStatus } from '../../shared/findingWorkflow';

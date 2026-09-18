@@ -18,6 +18,7 @@ import {
   missingSubstance,
   nextLessonStatuses,
   reuseRecord,
+  toDateOnlyString,
 } from '@/lib/lessonsLearned';
 import { CATEGORIES as MOC_CATEGORIES, CHANGE_TYPES, PRIORITIES } from '@/lib/managementOfChange';
 import { LessonsShell, BASE } from './components/LessonsShell';
@@ -28,7 +29,8 @@ import {
   LessonStatusBadge, OutcomeBadge, ScopeBadge, UnappliedBadge,
 } from './components/LessonBadges';
 import {
-  canEditLesson, successorCandidates, validateApplication, validateMocPush, validateRiskPush,
+  canEditLesson, canRemoveApplication, successorCandidates, validateApplication, validateMocPush,
+  validateRiskPush,
 } from './utils/lessonPayload';
 import { useLessonsLearned } from './hooks/useLessonsLearned';
 
@@ -57,7 +59,7 @@ const blankApplication = () => ({
   reference: '',
   outcome: 'Adopted',
   notes: '',
-  applied_on: new Date().toISOString().slice(0, 10),
+  applied_on: toDateOnlyString(new Date()),
 });
 
 const blankRiskPush = (lesson) => ({
@@ -803,14 +805,19 @@ export default function LessonDetail() {
                           <td className="data-grid-td text-xs">{a.applied_on}</td>
                           <td className="data-grid-td text-xs max-w-sm">{a.notes || ''}</td>
                           <td className="data-grid-td text-right">
-                            {!terminal ? (
-                              <Button size="sm" variant="ghost" disabled={busy}
-                                onClick={() => run(() => deleteApplication(a.id),
-                                  'Application removed.')}
-                                title="Remove this record">
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            ) : null}
+                            {!terminal ? (() => {
+                              const removal = canRemoveApplication(lesson, a, applications);
+                              return (
+                                <Button size="sm" variant="ghost" disabled={busy}
+                                  onClick={() => (removal.ok
+                                    ? run(() => deleteApplication(a.id), 'Application removed.')
+                                    : setFailure(removal.reason))}
+                                  title={removal.ok ? 'Remove this record' : removal.reason}
+                                  aria-label={removal.ok ? 'Remove this record' : removal.reason}>
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              );
+                            })() : null}
                           </td>
                         </tr>
                       );

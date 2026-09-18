@@ -13,6 +13,7 @@ import {
   isAuditOverdue,
   nextProgrammeStatuses,
   programmeProgress,
+  toDateOnlyString,
 } from '@/lib/auditManagement';
 import { AuditShell, BASE } from './components/AuditShell';
 import {
@@ -335,7 +336,7 @@ export default function Programmes() {
                         onClick={() => (s === 'Approved'
                           ? setApproving({
                             programme,
-                            approved_at: new Date().toISOString().slice(0, 10),
+                            approved_at: toDateOnlyString(new Date()),
                             approver_name: '',
                           })
                           : move(programme, s))}>

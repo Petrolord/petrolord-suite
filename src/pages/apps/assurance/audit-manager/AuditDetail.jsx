@@ -17,6 +17,7 @@ import {
   isAnswered,
   nextAuditStatuses,
   unansweredItems,
+  toDateOnlyString,
 } from '@/lib/auditManagement';
 import { AuditShell, BASE } from './components/AuditShell';
 import {
@@ -45,7 +46,7 @@ const blankAnswer = (response) => ({
   result: response?.result === 'Not examined' ? 'Conformant' : response?.result || 'Conformant',
   evidence: response?.evidence || '',
   note: response?.note || '',
-  examined_on: response?.examined_on || new Date().toISOString().slice(0, 10),
+  examined_on: response?.examined_on || toDateOnlyString(new Date()),
 });
 
 const blankFinding = (audit, response, item) => ({
@@ -206,7 +207,7 @@ export default function AuditDetail() {
     if (to === 'Reported') {
       setReporting({
         conclusion: audit.conclusion || '',
-        report_issued_date: new Date().toISOString().slice(0, 10),
+        report_issued_date: toDateOnlyString(new Date()),
       });
       return;
     }

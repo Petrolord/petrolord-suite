@@ -151,7 +151,7 @@ export default function Dashboard() {
           />
           <MetricTile
             label="Oldest open non-conformance"
-            value={summary.oldestOpenNcrDays === null ? '—' : `${summary.oldestOpenNcrDays} d`}
+            value={summary.oldestOpenNcrDays === null ? '-' : `${summary.oldestOpenNcrDays} d`}
             hint={summary.meanOpenNcrAgeDays === null
               ? 'Nothing open'
               : `Mean age ${summary.meanOpenNcrAgeDays} days`}

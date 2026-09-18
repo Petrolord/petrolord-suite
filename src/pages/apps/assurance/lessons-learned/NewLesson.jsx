@@ -154,7 +154,7 @@ export default function NewLesson() {
                 </label>
                 <Textarea id="ll-consequence" rows={2} value={form.consequence}
                   onChange={set('consequence')}
-                  placeholder="Downtime, rework, damage, delay — what this actually cost." />
+                  placeholder="Downtime, rework, damage or delay: what this actually cost." />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { canCloseNcr, canDecideCheckpoint, canAdvancePlan } from '@/lib/qualityAssurance';
+import { canCloseNcr, canDecideCheckpoint, canAdvancePlan, toDateOnlyString } from '@/lib/qualityAssurance';
 import {
   buildCapaWrite,
   buildCheckpointWrite,
@@ -394,7 +394,7 @@ export const useQualityAssurance = () => {
     const locked = planLockReason(plans.find((p) => p.id === checkpoint.plan_id));
     if (locked) return { success: false, error: locked };
 
-    const filled = withDecisionDefaults(patch, status, user?.id || null);
+    const filled = withDecisionDefaults(patch, status, user?.id || null, new Date(), checkpoint);
     const verdict = canDecideCheckpoint(checkpoint, status, filled);
     if (!verdict.ok) return { success: false, error: verdict.reason };
 
@@ -447,7 +447,7 @@ export const useQualityAssurance = () => {
           org_id: orgId,
           ncr_code: code,
           raised_by: row.raised_by || user?.id || null,
-          raised_date: row.raised_date || new Date().toISOString().slice(0, 10),
+          raised_date: row.raised_date || toDateOnlyString(new Date()),
           status: row.status || 'Open',
         }])
         .select()
@@ -493,7 +493,7 @@ export const useQualityAssurance = () => {
       ...ncr,
       disposition,
       disposition_rationale: disposition_rationale || null,
-      disposition_date: new Date().toISOString().slice(0, 10),
+      disposition_date: toDateOnlyString(new Date()),
       disposition_approved_by: user?.id || null,
       // Agreeing the disposition hands the status to the actions: with
       // open ones it reads Actions in progress, with every one finished
@@ -530,7 +530,7 @@ export const useQualityAssurance = () => {
     const result = await updateNcr(ncr.id, {
       ...ncr,
       status: 'Closed',
-      closed_date: new Date().toISOString().slice(0, 10),
+      closed_date: toDateOnlyString(new Date()),
       closed_by: user?.id || null,
       closure_notes: closure_notes || ncr.closure_notes || null,
     });
@@ -656,7 +656,7 @@ export const useQualityAssurance = () => {
     }
     const result = await updateCapa(capa.id, {
       effectiveness_verified: verified,
-      effectiveness_checked_at: new Date().toISOString().slice(0, 10),
+      effectiveness_checked_at: toDateOnlyString(new Date()),
       effectiveness_verified_by: user?.id || null,
       effectiveness_notes: notes || null,
     });

@@ -13,6 +13,7 @@ import {
   canAdvanceAudit,
   isCoverageExamined,
   nextAuditStatuses,
+  toDateOnlyString,
 } from '@/lib/isoCompliance';
 import { ISOShell, BASE } from './components/ISOShell';
 import {
@@ -21,7 +22,7 @@ import {
 import {
   AuditStatusBadge, ClauseStatusBadge, FindingStatusBadge, FindingTypeBadge,
 } from './components/ISOBadges';
-import { independenceView } from './utils/isoPayload';
+import { independenceView, scopeLockReason } from './utils/isoPayload';
 import { useIsoCompliance } from './hooks/useIsoCompliance';
 
 /**
@@ -111,6 +112,8 @@ export default function AuditDetail() {
   }
 
   const terminal = ['Closed', 'Cancelled'].includes(audit.status);
+  // Scope is fixed from Reported on; results follow `terminal`.
+  const scopeLocked = scopeLockReason(audit);
   const examined = scope.filter(isCoverageExamined).length;
 
   const run = async (fn, message) => {
@@ -220,7 +223,7 @@ export default function AuditDetail() {
                           ? setReporting({
                             ...blankConclusion(),
                             conclusion: audit.conclusion || '',
-                            report_issued_date: new Date().toISOString().slice(0, 10),
+                            report_issued_date: toDateOnlyString(new Date()),
                           })
                           : move(s))}>
                         {s}
@@ -275,14 +278,19 @@ export default function AuditDetail() {
                   auditor may not audit their own work (ISO 19011).
                 </p>
               </div>
-              {!terminal ? (
+              {!scopeLocked ? (
                 <Button size="sm" variant="outline" onClick={() => setPicking((p) => !p)}>
                   <Plus className="w-4 h-4 mr-2" /> Add clauses
                 </Button>
               ) : null}
             </CardHeader>
             <CardContent className="p-0">
-              {picking ? (
+              {scopeLocked && !terminal ? (
+                <div className="p-4 border-b border-[hsl(var(--border))]">
+                  <GateNotice reason={scopeLocked} />
+                </div>
+              ) : null}
+              {picking && !scopeLocked ? (
                 <form onSubmit={submitScope}
                   className="p-5 border-b border-[hsl(var(--border))] bg-[hsl(var(--secondary))]/30 space-y-3">
                   {available.length === 0 ? (
@@ -371,16 +379,19 @@ export default function AuditDetail() {
                                       result: row.result === 'Not examined' ? 'Conformant' : row.result,
                                       evidence_seen: row.evidence_seen || '',
                                       examined_on: row.examined_on
-                                        || new Date().toISOString().slice(0, 10),
+                                        || toDateOnlyString(new Date()),
                                     });
                                   }}>
                                   Result
                                 </Button>
-                                <Button size="sm" variant="ghost" disabled={busy}
-                                  onClick={() => run(() => removeFromScope(row.id),
-                                    `Clause ${row.clause_ref} removed from scope.`)}>
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
+                                {!scopeLocked ? (
+                                  <Button size="sm" variant="ghost" disabled={busy}
+                                    aria-label={`Remove clause ${row.clause_ref} from scope`}
+                                    onClick={() => run(() => removeFromScope(row.id),
+                                      `Clause ${row.clause_ref} removed from scope.`)}>
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                ) : null}
                               </div>
                             ) : null}
                           </td>

@@ -13,20 +13,18 @@ import {
 } from '@/utils/chartTheme';
 import ChartLogo from '@/components/charts/ChartLogo';
 import {
-  EXPIRING_TYPES,
   EXPIRY,
   RISK_CHART_COLORS,
   RISK_LEVELS,
   STAGES,
   STAGE_CHART_COLORS,
   countBy,
-  daysUntil,
   summarise,
 } from '@/lib/managementOfChange';
 import { exportToCSV } from '@/utils/exportUtils';
 import { EmptyState, ErrorState, Loading } from './components/SharedComponents';
 import { useManagementOfChange } from './hooks/useManagementOfChange';
-import { expiryDisplay } from './utils/expiryDisplay';
+import { expiryDisplay, expiryReportRows } from './utils/expiryDisplay';
 
 /**
  * AS6 — MOC reporting, from this organization's own rows.
@@ -63,23 +61,15 @@ export default function MOCReports() {
   const categoryData = useMemo(() => countBy(records, 'category'), [records]);
 
   /**
-   * The real expiry report: temporary and emergency changes in effect or
-   * on their way in, soonest first. AS13: Rejected and Cancelled ones
-   * never went in and are left out (expiryDisplay returns null for them),
-   * and one not yet in effect reads "Not yet in effect" rather than
+   * The real expiry report: temporary and emergency changes still to be
+   * reverted, in effect or on their way in, soonest first. Rejected and
+   * Cancelled changes never went in, and Closed ones read 'Closed out'
+   * and have nothing left to revert, so expiryReportRows leaves all three
+   * out. One not yet in effect reads "Not yet in effect" rather than
    * "No expiry" beside its own date.
    */
   const expiryRows = useMemo(
-    () => records
-      .filter((m) => EXPIRING_TYPES.includes(m.type))
-      .map((m) => ({ ...m, shown: expiryDisplay(m, today), days: daysUntil(m.expiry_date, today) }))
-      .filter((m) => m.shown)
-      .map((m) => ({ ...m, state: m.shown.state }))
-      .sort((a, b) => {
-        if (a.days === null) return 1;
-        if (b.days === null) return -1;
-        return a.days - b.days;
-      }),
+    () => expiryReportRows(records, today),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [records],
   );

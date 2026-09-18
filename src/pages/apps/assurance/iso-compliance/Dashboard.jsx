@@ -29,6 +29,7 @@ import {
   CertificationBadge, FindingStatusBadge, FindingTypeBadge, ReadinessBadge,
 } from './components/ISOBadges';
 import { useIsoCompliance } from './hooks/useIsoCompliance';
+import { certificateState } from './utils/isoPayload';
 
 /**
  * AS8 — the ISO dashboard, counted from this organization's rows.
@@ -93,7 +94,7 @@ export default function Dashboard() {
         <EmptyState
           icon={<ShieldCheck className="w-12 h-12" />}
           title="No management system standards yet"
-          description="Add the standards this organization runs — ISO 9001, 14001, 45001 or any other — and its clause register, internal audits and findings hang off them."
+          description="Add the standards this organization runs, such as ISO 9001, 14001 or 45001. The clause register, internal audits and findings hang off them."
           action={<Button onClick={() => navigate(`${BASE}/standards`)}>Add a standard</Button>}
         />
       </ISOShell>
@@ -154,8 +155,13 @@ export default function Dashboard() {
                       {readiness.counts.applicable === 1 ? '' : 's'},
                       {' '}{readiness.counts.covered} audited this cycle
                       {standard.certificate_expires
-                        ? `, certificate expires ${standard.certificate_expires}`
+                        ? `, certificate ${readiness.counts.certificateExpired ? 'expired' : 'expires'} ${standard.certificate_expires}`
                         : ''}
+                      {certificateState(readiness.counts) ? (
+                        <span className="ml-1 text-[hsl(var(--destructive))] font-medium">
+                          ({certificateState(readiness.counts)})
+                        </span>
+                      ) : null}
                     </p>
                   </div>
                   <div className="flex gap-2 shrink-0">

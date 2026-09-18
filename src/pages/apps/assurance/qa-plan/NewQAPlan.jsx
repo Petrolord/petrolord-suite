@@ -240,7 +240,8 @@ export default function NewQAPlan() {
             <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
               A hold point stops work until the verifying party attends and signs. A
               witness point notifies a party who may attend, and work proceeds if it
-              does not. Only the hold points hold the plan open.
+              does not. An unresolved hold point, a failed point of any type and an
+              open non-conformance each keep the plan from closing.
             </p>
           </CardHeader>
           <CardContent className="p-6 space-y-4">

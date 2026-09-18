@@ -487,11 +487,11 @@ export default function NCRRegister() {
                           ) : null}
                         </td>
                         <td className="data-grid-td text-xs text-[hsl(var(--muted-foreground))] font-mono">
-                          {plans.find((p) => p.id === n.plan_id)?.plan_code || '—'}
+                          {plans.find((p) => p.id === n.plan_id)?.plan_code || '-'}
                         </td>
                         <td className="data-grid-td"><SeverityBadge severity={n.severity} /></td>
                         <td className="data-grid-td text-xs">
-                          {age === null ? '—' : `${age} d`}
+                          {age === null ? '-' : `${age} d`}
                           {isNcrOverdue(n, today) ? (
                             <span className="block text-[hsl(var(--destructive))]">Overdue</span>
                           ) : null}

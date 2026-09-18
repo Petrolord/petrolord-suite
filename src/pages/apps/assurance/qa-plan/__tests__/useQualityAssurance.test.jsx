@@ -16,6 +16,8 @@ import {
   ncrStatusFromActions,
   planLockReason,
   withDecisionDefaults,
+  needsDecisionReason,
+  validateCheckpointDecision,
 } from '../utils/qaPayload';
 import { canDecideCheckpoint } from '@/lib/qualityAssurance';
 
@@ -83,6 +85,40 @@ describe('withDecisionDefaults', () => {
   });
 });
 
+describe('a hold point set to Not applicable (AS13 hardening)', () => {
+  const today = new Date(2026, 8, 18);
+
+  it('a blank verifier records the current user, so only the reason is asked for', () => {
+    const cp = hold('x', 'p');
+    const noReason = withDecisionDefaults({ verifier_name: '' }, 'Not applicable', 'user-1', today, cp);
+    expect(noReason.verified_by).toBe('user-1');
+    expect(noReason.result_date).toBe('2026-09-18');
+    const verdict = canDecideCheckpoint(cp, 'Not applicable', noReason);
+    expect(verdict.ok).toBe(false);
+    expect(verdict.reason).toMatch(/Say why this hold point does not apply/);
+
+    const withReason = withDecisionDefaults(
+      { verifier_name: '', remarks: 'Scope moved to package B' }, 'Not applicable', 'user-1', today, cp);
+    expect(canDecideCheckpoint(cp, 'Not applicable', withReason).ok).toBe(true);
+  });
+
+  it('another point type set to Not applicable gets no verifier', () => {
+    const witness = { ...hold('w', 'p'), point_type: 'Witness' };
+    expect(withDecisionDefaults({}, 'Not applicable', 'user-1', today, witness)).toEqual({});
+  });
+
+  it('the page and the form ask for a reason for that case', () => {
+    const cp = hold('x', 'p');
+    expect(needsDecisionReason(cp, 'Not applicable')).toBe(true);
+    expect(needsDecisionReason({ ...cp, point_type: 'Witness' }, 'Not applicable')).toBe(false);
+    expect(needsDecisionReason(cp, 'Waived')).toBe(true);
+    expect(needsDecisionReason(cp, 'Passed')).toBe(false);
+    expect(validateCheckpointDecision(
+      { status: 'Not applicable', result_date: '2026-09-18', verified_by: 'u' }, cp).remarks)
+      .toMatch(/does not apply/);
+  });
+});
+
 describe('planLockReason', () => {
   it('locks the three terminal statuses and nothing else', () => {
     ['Closed', 'Superseded', 'Cancelled'].forEach((s) => {
@@ -127,6 +163,27 @@ describe('useQualityAssurance writes', () => {
     expect(outcome.success).toBe(true);
     const [update] = writesTo(mockFake, 'qa_checkpoints', 'update');
     expect(update.payload.status).toBe('Passed');
+    expect(update.payload.verified_by).toBe('user-1');
+    expect(update.payload.result_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('sets a hold point Not applicable with a blank verifier once a reason is given', async () => {
+    mockFake = seed();
+    const { result } = await mount();
+    let refused;
+    let outcome;
+    await act(async () => {
+      refused = await result.current.decideCheckpoint(
+        hold('cp-live', 'live'), 'Not applicable', { verifier_name: null, remarks: null });
+    });
+    expect(refused.success).toBe(false);
+    expect(refused.error).toMatch(/Say why this hold point does not apply/);
+    await act(async () => {
+      outcome = await result.current.decideCheckpoint(
+        hold('cp-live', 'live'), 'Not applicable', { verifier_name: null, remarks: 'Deleted from scope' });
+    });
+    expect(outcome.success).toBe(true);
+    const [update] = writesTo(mockFake, 'qa_checkpoints', 'update');
     expect(update.payload.verified_by).toBe('user-1');
     expect(update.payload.result_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
