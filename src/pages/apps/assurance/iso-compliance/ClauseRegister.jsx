@@ -12,7 +12,7 @@ import {
   APPLICABILITIES,
   CLAUSE_STATUSES,
   canSetClauseStatus,
-  clauseCoverage,
+  clauseCoverageByStandard,
   hasEvidenceRecord,
   isReviewOverdue,
 } from '@/lib/isoCompliance';
@@ -87,10 +87,10 @@ export default function ClauseRegister() {
   const set = (field) => (e) => setCreating((f) => ({ ...f, [field]: e.target.value }));
 
   const coverageByClause = useMemo(() => {
-    const rows = clauseCoverage({ clauses, auditClauses, audits }, today);
+    const rows = clauseCoverageByStandard({ standards, clauses, auditClauses, audits }, today);
     return new Map(rows.map((r) => [r.clause.id, r]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clauses, auditClauses, audits]);
+  }, [standards, clauses, auditClauses, audits]);
 
   const filtered = useMemo(() => clauses.filter((c) => {
     if (standardFilter && c.standard_id !== standardFilter) return false;
