@@ -15,7 +15,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { EXPIRY } from '@/lib/managementOfChange';
 import { createFakeSupabase, writesTo } from '../../__tests__/fakeSupabase';
 import { mocLockReason, validateExpiryEdit, validateMoc } from '../utils/mocPayload';
-import { NOT_YET_IN_EFFECT, expiryDisplay } from '../utils/expiryDisplay';
+import { NOT_YET_IN_EFFECT, expiryDisplay, expiryReportRows } from '../utils/expiryDisplay';
 
 let mockFake;
 jest.mock('@/lib/customSupabaseClient', () => ({
@@ -121,6 +121,32 @@ describe('expiryDisplay', () => {
     expect(expiryDisplay(moc('a', 'Implementation', { expiry_date: '2026-09-25' }), TODAY).state)
       .toBe(EXPIRY.EXPIRING);
     expect(expiryDisplay(moc('a', 'Draft', { type: 'Permanent' }), TODAY)).toBeNull();
+  });
+});
+
+describe('a closed temporary change (AS13 hardening)', () => {
+  it('reads Closed out in the register and detail, with no expiry wording', () => {
+    const shown = expiryDisplay(moc('a', 'Closed', { expiry_date: '2026-09-01' }), TODAY);
+    expect(shown.state).toBe(EXPIRY.CLOSED_OUT);
+    expect(shown.label).toBe('Closed out');
+    expect(shown.title).not.toMatch(/expires/);
+  });
+
+  it('leaves the expiry report, which lists only changes still to be reverted', () => {
+    const rows = expiryReportRows([
+      moc('closed', 'Closed', { expiry_date: '2026-09-01' }),
+      moc('live', 'Implementation', { expiry_date: '2026-09-25' }),
+      moc('planned', 'Review', { expiry_date: '2026-10-25' }),
+      moc('rejected', 'Rejected', { expiry_date: '2026-09-20' }),
+      moc('perm', 'Implementation', { type: 'Permanent' }),
+    ], TODAY);
+    expect(rows.map((r) => r.id)).toEqual(['live', 'planned']);
+    expect(rows.map((r) => r.state)).toEqual([EXPIRY.EXPIRING, NOT_YET_IN_EFFECT]);
+  });
+
+  it('an empty report is honest when the only temporary change is closed', () => {
+    expect(expiryReportRows([moc('closed', 'Closed', { expiry_date: '2026-09-01' })], TODAY))
+      .toEqual([]);
   });
 });
 
