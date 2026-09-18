@@ -139,9 +139,16 @@ describe('clauses: a conformity claim is evidence, a date and a name', () => {
   it('REFUSES an exclusion with no justification and ALLOWS one with it (ISO 9001 4.3)', () => {
     const bare = canSetClauseStatus(clause(), 'Not applicable', {
       applicability: 'Not applicable',
-    });
+    }, { code: 'ISO 9001' });
     expect(bare.ok).toBe(false);
-    expect(bare.reason).toMatch(/4\.3/);
+    expect(bare.reason).toMatch(/ISO 9001 §4\.3/);
+    // Engines #212 (ASC-0 R5): with no standard the sentence cites no
+    // clause number, because 4.3 holds only in ISO 9001.
+    const neutral = canSetClauseStatus(clause(), 'Not applicable', {
+      applicability: 'Not applicable',
+    });
+    expect(neutral.ok).toBe(false);
+    expect(neutral.reason).not.toMatch(/4\.3/);
     expect(canSetClauseStatus(clause(), 'Not applicable', {
       applicability: 'Not applicable',
       applicability_justification: 'The organization holds no design authority.',

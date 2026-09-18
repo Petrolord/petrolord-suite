@@ -176,7 +176,13 @@ describe('review dates', () => {
   });
 
   it('yesterday is overdue', () => {
-    expect(isReviewOverdue({ next_review_date: '2026-09-15' }, asOf)).toBe(true);
+    expect(isReviewOverdue({ status: 'Open', next_review_date: '2026-09-15' }, asOf)).toBe(true);
+  });
+
+  it('only a live risk is review-overdue (engines #212, ASC-0 RC-2)', () => {
+    ['Closed', 'Draft'].forEach((status) => {
+      expect(isReviewOverdue({ status, next_review_date: '2026-09-15' }, asOf)).toBe(false);
+    });
   });
 
   it('tomorrow is not', () => {
