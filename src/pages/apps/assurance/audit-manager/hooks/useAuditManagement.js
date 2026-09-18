@@ -16,8 +16,15 @@ import {
   buildResponseWrite,
   buildTemplateItemWrite,
   buildTemplateWrite,
+  auditAcceptsWork,
+  auditLockedReason,
+  canChangeItemCriticality,
+  canDeleteFinding,
+  canDeleteTemplateItem,
+  independenceSubject,
   nextAuditCodeFromExisting,
   nextFindingCodeFromExisting,
+  progressedFindingStatus,
 } from '../utils/auditPayload';
 
 const UNKNOWN_RELATION = 'PGRST200';
@@ -314,20 +321,26 @@ export const useAuditManagement = () => {
    * neither reported nor cancelled with a reason.
    */
   const advanceProgramme = async (programme, to, patch = {}) => {
+    // "Leave blank to record yourself" is applied BEFORE the gate. AS10
+    // filled approved_by after canApproveProgramme had already refused
+    // the blank name, so the promise on the form could never be kept.
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const effective = { ...patch };
+    if (to === 'Approved') {
+      const merged = { ...programme, ...patch };
+      if (!merged.approved_at) effective.approved_at = todayIso;
+      if (!merged.approved_by && !String(merged.approver_name || '').trim() && user?.id) {
+        effective.approved_by = user.id;
+      }
+    }
+
     const verdict = canAdvanceProgramme(programme, to, {
       audits: auditsForProgramme(programme.id),
-      patch,
+      patch: effective,
     });
     if (!verdict.ok) return { success: false, error: verdict.reason };
 
-    const next = { ...programme, ...patch, status: to };
-    const todayIso = new Date().toISOString().slice(0, 10);
-    if (to === 'Approved') {
-      if (!next.approved_at) next.approved_at = todayIso;
-      if (!next.approved_by && !String(next.approver_name || '').trim()) {
-        next.approved_by = user?.id || null;
-      }
-    }
+    const next = { ...programme, ...effective, status: to };
     if (to === 'Complete' && !next.completed_at) next.completed_at = todayIso;
 
     const result = await updateProgramme(programme.id, next);
@@ -410,6 +423,11 @@ export const useAuditManagement = () => {
   };
 
   const updateTemplateItem = async (id, patch) => {
+    const current = templateItems.find((i) => i.id === id);
+    if (current && patch.criticality && patch.criticality !== current.criticality) {
+      const verdict = canChangeItemCriticality(current, responses, audits);
+      if (!verdict.ok) return { success: false, error: verdict.reason };
+    }
     const { row } = buildTemplateItemWrite(patch);
     const { error: err } = await supabase.from('audit_template_items')
       .update({ ...row, updated_at: new Date().toISOString() }).eq('id', id);
@@ -418,7 +436,16 @@ export const useAuditManagement = () => {
     return { success: true };
   };
 
+  /**
+   * Refused for a question any audit has used: the foreign key from
+   * audit_responses cascades, so the delete would take the answers in
+   * reported and closed audits with it.
+   */
   const deleteTemplateItem = async (id) => {
+    const current = templateItems.find((i) => i.id === id);
+    if (!current) return { success: false, error: 'That question is not in this checklist.' };
+    const verdict = canDeleteTemplateItem(current, responses, audits);
+    if (!verdict.ok) return { success: false, error: verdict.reason };
     const { error: err } = await supabase.from('audit_template_items').delete().eq('id', id);
     if (err) return { success: false, error: explainWriteError(err) };
     await fetchAll();
@@ -437,7 +464,10 @@ export const useAuditManagement = () => {
    */
   const createAudit = async (form) => {
     if (!orgId) return { success: false, error: 'No organization is selected.' };
-    const independence = auditIndependence(form);
+    // Ids where the form picked Suite members; the same typed name on
+    // both sides where it did not (AS13: AS10's form set names only, so
+    // the id comparison never had anything to compare).
+    const independence = auditIndependence(independenceSubject(form));
     if (!independence.ok) return { success: false, error: independence.reason };
 
     for (let attempt = 0; attempt < CODE_RETRIES; attempt += 1) {
@@ -518,6 +548,8 @@ export const useAuditManagement = () => {
 
   /** Record one answer. The gates are the database's and the form's. */
   const recordAnswer = async (response, patch) => {
+    const audit = audits.find((a) => a.id === response.audit_id) || null;
+    if (!auditAcceptsWork(audit)) return { success: false, error: auditLockedReason(audit) };
     const { row } = buildResponseWrite({ ...response, ...patch });
     if (row.result && row.result !== 'Not examined' && !row.examined_on) {
       row.examined_on = new Date().toISOString().slice(0, 10);
@@ -587,6 +619,10 @@ export const useAuditManagement = () => {
     if (!orgId) return { success: false, error: 'No organization is selected.' };
     const verdict = canRaiseFinding(form);
     if (!verdict.ok) return { success: false, error: verdict.reason };
+    if (form.audit_id) {
+      const audit = audits.find((a) => a.id === form.audit_id) || null;
+      if (!auditAcceptsWork(audit)) return { success: false, error: auditLockedReason(audit) };
+    }
 
     for (let attempt = 0; attempt < CODE_RETRIES; attempt += 1) {
       let code;
@@ -673,11 +709,47 @@ export const useAuditManagement = () => {
     return result;
   };
 
+  /**
+   * Only a finding raised in error with nothing recorded against it.
+   * Anything else is voided with a reason (AS13: AS10 deleted in any
+   * status on one click, so an open major or stop-work finding could be
+   * deleted and its audit closed over it).
+   */
   const deleteFinding = async (id) => {
+    const finding = findings.find((f) => f.id === id);
+    if (!finding) return { success: false, error: 'That finding is not in this register.' };
+    const audit = finding.audit_id ? audits.find((a) => a.id === finding.audit_id) || null : null;
+    const verdict = canDeleteFinding(finding, audit, actionsFor(id));
+    if (!verdict.ok) return { success: false, error: verdict.reason };
     const { error: err } = await supabase.from('audit_findings').delete().eq('id', id);
     if (err) return { success: false, error: explainWriteError(err) };
+    await logActivity('finding', id, `${finding.finding_code} deleted (raised in error)`, null,
+      { audit_id: finding.audit_id });
     await fetchAll();
     return { success: true };
+  };
+
+  /**
+   * Move an open finding to where its record says it is: Action in
+   * progress while an action is open, Verification once every action is
+   * finished. Reads the rows back rather than trusting local state,
+   * because it runs straight after the write that changed them.
+   */
+  const syncFindingStatus = async (findingId) => {
+    if (!findingId) return;
+    const [fRes, aRes] = await Promise.all([
+      supabase.from('audit_findings').select('*').eq('id', findingId).single(),
+      supabase.from('audit_actions').select('*').eq('finding_id', findingId),
+    ]);
+    if (fRes.error || aRes.error || !fRes.data) return;
+    const status = progressedFindingStatus(fRes.data, aRes.data || []);
+    if (status === fRes.data.status) return;
+    const { error: err } = await supabase.from('audit_findings')
+      .update({ status, updated_at: new Date().toISOString() }).eq('id', findingId);
+    if (!err) {
+      await logActivity('finding', findingId, `${fRes.data.finding_code} is now ${status}`, null,
+        { finding_id: findingId, audit_id: fRes.data.audit_id });
+    }
   };
 
   /* ---------------------------------------------------------------- */
@@ -698,6 +770,7 @@ export const useAuditManagement = () => {
     if (err) {
       return { success: false, error: `The actions were not saved: ${explainWriteError(err)}` };
     }
+    await syncFindingStatus(findingId);
     if (!skipRefresh) await fetchAll();
     return { success: true };
   };
@@ -710,6 +783,7 @@ export const useAuditManagement = () => {
     const { error: err } = await supabase.from('audit_actions')
       .update({ ...row, updated_at: new Date().toISOString() }).eq('id', id);
     if (err) return { success: false, error: explainWriteError(err) };
+    await syncFindingStatus(patch.finding_id || actions.find((a) => a.id === id)?.finding_id);
     await fetchAll();
     return { success: true };
   };
@@ -741,8 +815,10 @@ export const useAuditManagement = () => {
   };
 
   const deleteAction = async (id) => {
+    const findingId = actions.find((a) => a.id === id)?.finding_id;
     const { error: err } = await supabase.from('audit_actions').delete().eq('id', id);
     if (err) return { success: false, error: explainWriteError(err) };
+    await syncFindingStatus(findingId);
     await fetchAll();
     return { success: true };
   };

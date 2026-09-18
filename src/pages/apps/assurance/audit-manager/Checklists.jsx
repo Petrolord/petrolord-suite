@@ -13,7 +13,9 @@ import {
   EmptyState, ErrorState, Loading, MetricTile, SchemaNotice, WriteFailure,
 } from './components/SharedComponents';
 import { CriticalityBadge } from './components/AuditBadges';
-import { validateTemplate, validateTemplateItem } from './utils/auditPayload';
+import {
+  canChangeItemCriticality, canDeleteTemplateItem, validateTemplate, validateTemplateItem,
+} from './utils/auditPayload';
 import { useAuditManagement } from './hooks/useAuditManagement';
 
 /**
@@ -50,7 +52,7 @@ const blankItem = () => ({
 export default function Checklists() {
   const { toast } = useToast();
   const {
-    templates, itemsFor, audits, loading, error, refresh, hasAs10Schema,
+    templates, itemsFor, audits, responses, loading, error, refresh, hasAs10Schema,
     createTemplate, updateTemplate, deleteTemplate,
     addTemplateItems, updateTemplateItem, deleteTemplateItem,
   } = useAuditManagement();
@@ -109,6 +111,8 @@ export default function Checklists() {
 
   const setCriticality = async (row, criticality) => {
     setFailure(null);
+    const verdict = canChangeItemCriticality(row, responses, audits);
+    if (!verdict.ok) { setFailure(verdict.reason); return; }
     setBusy(true);
     const result = await updateTemplateItem(row.id, { ...row, criticality });
     setBusy(false);
@@ -116,8 +120,12 @@ export default function Checklists() {
     toast({ description: `Item ${row.item_no} is now ${criticality.toLowerCase()}.` });
   };
 
+  // A question any audit has used is kept: deleting it would cascade
+  // away its answers, including those in reported and closed audits.
   const removeItem = async (row) => {
     setFailure(null);
+    const verdict = canDeleteTemplateItem(row, responses, audits);
+    if (!verdict.ok) { setFailure(verdict.reason); return; }
     setBusy(true);
     const result = await deleteTemplateItem(row.id);
     setBusy(false);
@@ -425,7 +433,10 @@ export default function Checklists() {
                                   </Button>
                                 ))}
                                 <Button size="sm" variant="ghost" disabled={busy}
-                                  onClick={() => removeItem(row)}>
+                                  onClick={() => removeItem(row)}
+                                  title={canDeleteTemplateItem(row, responses, audits).ok
+                                    ? 'Delete this question'
+                                    : 'Used by an audit, so it is kept. Click for why.'}>
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
                               </div>

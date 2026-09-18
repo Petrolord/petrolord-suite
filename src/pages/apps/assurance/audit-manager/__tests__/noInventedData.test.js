@@ -252,4 +252,59 @@ describe('no invented data in the Audit & Findings Manager', () => {
     expect(authority).toMatch(/from '\.\/isoCompliance'/);
     expect(authority).not.toMatch(/export const canCloseFinding\s*=/);
   });
+
+  /* AS13: the defect classes the help-guide review found, held shut. */
+
+  it('no page compares a date-only string with new Date() (the due-today off-by-one)', () => {
+    const offenders = files.filter((f) => /new Date\([^)]*due_date\)\s*[<>]/.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
+
+  it('the report gate is evaluated on the audit as the form would save it', () => {
+    const detail = code(path.join(APP, 'AuditDetail.jsx'));
+    expect(detail).toMatch(/canAdvanceAudit\(auditAsItWouldBeSaved\(audit, reporting\), 'Reported'/);
+    expect(detail).not.toMatch(/canAdvanceAudit\(audit, 'Reported'/);
+  });
+
+  it('"leave blank to record yourself" is applied before the approval gate', () => {
+    const hook = code(path.join(APP, 'hooks/useAuditManagement.js'));
+    const body = hook.slice(hook.indexOf('const advanceProgramme'));
+    expect(body.indexOf('effective.approved_by = user.id'))
+      .toBeLessThan(body.indexOf('canAdvanceProgramme('));
+    expect(body.indexOf('effective.approved_by = user.id')).toBeGreaterThan(-1);
+  });
+
+  it('the independence check sees picked ids and matching typed names', () => {
+    expect(code(path.join(APP, 'hooks/useAuditManagement.js')))
+      .toMatch(/auditIndependence\(independenceSubject\(form\)\)/);
+    const page = code(path.join(APP, 'Audits.jsx'));
+    expect(page).toMatch(/PersonField/);
+    expect(page).toMatch(/disabled=\{busy \|\| !independence\.ok\}/);
+  });
+
+  it('no delete bypasses the record: questions, findings are checked in the hook', () => {
+    const hook = code(path.join(APP, 'hooks/useAuditManagement.js'));
+    expect(hook).toMatch(/canDeleteTemplateItem\(current, responses, audits\)/);
+    expect(hook).toMatch(/canDeleteFinding\(finding, audit, actionsFor\(id\)\)/);
+    expect(code(path.join(APP, 'Findings.jsx'))).toMatch(/ConfirmDialog/);
+  });
+
+  it('a reported audit takes no new answers or findings', () => {
+    const hook = code(path.join(APP, 'hooks/useAuditManagement.js'));
+    expect((hook.match(/auditAcceptsWork\(audit\)/g) || []).length).toBeGreaterThanOrEqual(2);
+    expect(code(path.join(APP, 'AuditDetail.jsx'))).toMatch(/const locked = !auditAcceptsWork\(audit\)/);
+  });
+
+  it('every finding status the filter offers can be reached', () => {
+    const util = code(path.join(APP, 'utils/auditPayload.js'));
+    expect(util).toMatch(/'Action in progress'/);
+    expect(util).toMatch(/'Verification'/);
+    expect(code(path.join(APP, 'FindingDetail.jsx'))).toMatch(/progressedFindingStatus/);
+  });
+
+  it('the shell has a menu below 1024 px as well as the side menu', () => {
+    const shell = code(path.join(APP, 'components/AuditShell.jsx'));
+    expect(shell).toMatch(/hidden lg:flex/);
+    expect(shell).toMatch(/<CompactNav items=\{navItems\} \/>/);
+  });
 });

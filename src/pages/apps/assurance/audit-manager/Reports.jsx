@@ -20,7 +20,7 @@ import {
   countBy,
   isActionOverdue,
   isAuditOverdue,
-  isFindingOpen,
+  isFindingOverdue,
   programmeProgress,
   summarise,
   unansweredItems,
@@ -74,6 +74,15 @@ export default function Reports() {
     .filter((d) => d.count > 0), [summary]);
 
   const siteData = useMemo(() => countBy(findings, 'site'), [findings]);
+
+  // The engine's overdue predicate, by calendar day. AS10 compared
+  // `new Date(due_date) < today`, which parses a date as UTC midnight and
+  // listed a finding due TODAY as past due, while the Overdue tiles,
+  // using isFindingOverdue, did not count it (AS13).
+  const pastDue = useMemo(
+    () => findings.filter((f) => isFindingOverdue(f, today)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [findings]);
 
   const rootCauseData = useMemo(
     () => countBy(findings.filter((f) => f.root_cause_category), 'root_cause_category'),
@@ -334,8 +343,9 @@ export default function Reports() {
           <CardHeader className="border-b border-[hsl(var(--border))] pb-4">
             <CardTitle className="text-lg">Root cause categories</CardTitle>
             <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
-              Over the findings that have been given one. A major nonconformity cannot
-              close without it.
+              Over the findings that have been given a category. The category is
+              optional; the root cause itself is written on the finding, and a major
+              nonconformity cannot close until it is.
             </p>
           </CardHeader>
           <CardContent className="p-6">
@@ -366,8 +376,7 @@ export default function Reports() {
             <CardTitle className="text-lg">Open findings past their due date</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            {findings.filter((f) => isFindingOpen(f) && f.due_date
-              && new Date(f.due_date) < today).length === 0 ? (
+            {pastDue.length === 0 ? (
                 <p className="p-8 text-center text-[hsl(var(--muted-foreground))]">
                   No open finding is past its due date.
                 </p>
@@ -383,9 +392,7 @@ export default function Reports() {
                     </tr>
                   </thead>
                   <tbody>
-                    {findings
-                      .filter((f) => isFindingOpen(f) && f.due_date && new Date(f.due_date) < today)
-                      .map((f) => (
+                    {pastDue.map((f) => (
                         <tr key={f.id}
                           className="border-b border-[hsl(var(--border))] last:border-0 cursor-pointer hover:bg-[hsl(var(--secondary))]/50"
                           onClick={() => navigate(`${BASE}/findings/${f.id}`)}>

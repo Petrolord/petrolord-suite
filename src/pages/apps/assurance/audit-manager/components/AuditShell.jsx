@@ -4,6 +4,7 @@ import {
   ArrowLeft, BarChart2, CalendarRange, ClipboardCheck, FileWarning, LayoutDashboard, ListChecks,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { CompactNav } from '../../shared/CompactNav';
 
 export const BASE = '/dashboard/apps/assurance/audit-manager';
 
@@ -44,8 +45,13 @@ export const AuditShell = ({
             <p className="text-sm text-[hsl(var(--muted-foreground))] truncate">{description}</p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">{actions}</div>
+        <div className="flex flex-wrap gap-2">
+          {actions}
+          {/* AS13: AssuranceHelp appKey="audits" goes here */}
+        </div>
       </div>
+
+      <CompactNav items={navItems} />
 
       <div className="flex flex-1 overflow-hidden">
         <div className="w-60 border-r border-[hsl(var(--border))] bg-[hsl(var(--card))]/50 flex-col hidden lg:flex">
