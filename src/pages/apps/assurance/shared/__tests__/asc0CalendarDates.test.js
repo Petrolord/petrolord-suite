@@ -33,6 +33,7 @@ describe('localDateOfInstant', () => {
 const ROOT = path.resolve(__dirname, '../../../../../..');
 const GUARDED = [
   'src/pages/apps/assurance/moc',
+  'src/pages/apps/assurance/peer-review',
   'src/pages/dashboard/AssuranceHub.jsx',
 ];
 // A UTC date taken from an instant: toISOString() cut to ten characters,

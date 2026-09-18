@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { BookOpen, GitBranch, ShieldAlert } from 'lucide-react';
+import { BookOpen, CalendarClock, GitBranch, ShieldAlert } from 'lucide-react';
 import {
   Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
@@ -13,6 +13,7 @@ import {
 import ChartLogo from '@/components/charts/ChartLogo';
 import {
   LESSON_STATUSES,
+  REVIEW_LEAD_DAYS,
   STATUS_CHART_COLORS,
   countBy,
   isUnapplied,
@@ -85,7 +86,7 @@ export default function Dashboard() {
   return (
     <LessonsShell>
       <div className="space-y-6 animate-in fade-in duration-300 pb-10">
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <MetricTile
             label="Lessons" value={summary.lessons}
             hint={`${summary.visible} published or embedded`}
@@ -108,6 +109,19 @@ export default function Dashboard() {
             hint={`${summary.intoRiskRegister} risks, ${summary.intoMoc} change records`}
             token="--success"
             icon={<GitBranch className="w-6 h-6" />}
+          />
+          {/* ASC-0 (RC-8): summarise() computed both review counts and
+              the page never showed them. */}
+          <MetricTile
+            label="Review overdue" value={summary.reviewsOverdue}
+            hint="Published or embedded, past its review date"
+            token={summary.reviewsOverdue ? '--destructive' : '--success'}
+            icon={<CalendarClock className="w-6 h-6" />}
+          />
+          <MetricTile
+            label="Review due soon" value={summary.reviewsDueSoon}
+            hint={`Published or embedded, review due within ${REVIEW_LEAD_DAYS} days`}
+            token={summary.reviewsDueSoon ? '--warning' : '--muted-foreground'}
           />
         </div>
 
