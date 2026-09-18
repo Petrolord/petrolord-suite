@@ -1658,6 +1658,34 @@ Q7 and Q8 were already decided in AS13-0.
 (`assurance-launch-apply.sh schema`, upload, `activate`), the commerce
 migration (second engineer), and the private `documents` bucket.
 
+## 3o. ASC-0 part 1, built 2026-09-18: four app defects the NextGen course found
+
+The NextGen Assurance course foundations (recon RC-5 to RC-8) found four
+defects in the Suite apps. The engines were correct in each case. Branch
+`fix/asc0-suite-app-repairs`; part 2 (the re-vendor of the engine repairs
+and peer review segregation of duties) follows on the same branch.
+
+| # | Defect | Repair |
+|---|---|---|
+| RC-5 | The MOC hook stamped `actual_implementation_date` and `closure_date` with `new Date().toISOString()`. The engine reads the leading date, which is the UTC date, so in Lagos a change implemented between midnight and one in the morning was dated the day before and its emergency ratification window closed a day early. | Both stamp `toDateOnlyString(new Date())`, the local calendar date. The MOC detail page printed an approval's `decision_date` as its UTC date and the hub named its CSV with the UTC date; both now use the local date (`shared/instantDates.js`). |
+| RC-6 | Risk Register counts disagreed: the dashboard heatmap and Critical tile used Open and Under Review, the Heatmap tab used the four live statuses, Total counted Draft and Closed, "Mitigated or closed" mixed a live and a finished status. The heatmap legend restated the band edges. | Every live figure comes from the engine's `RISK_LIVE_STATUSES` (`utils/registerCounts.js`). Tiles now read Live risks, Live and Critical, Mitigated, Draft or closed. Both heatmaps plot and drill down over the same live population. The legend maps `RISK_BANDS`. |
+| RC-7 | The MOC Register and Reports CSVs counted unfinished actions on Closed, Rejected and Cancelled changes as open. | The column asks the engine's `summarise()` about each change (`utils/openActions.js`), so it sums to the dashboard figure. |
+| RC-8 | Lessons Learned computed `reviewsOverdue` and `reviewsDueSoon` and never showed them. The Peer Review comments CSV wrote Raised, Responded and Verified as the UTC date. | Two dashboard tiles, Review overdue and Review due soon. The CSV writes each stamp's local calendar date. |
+
+Date fields decided one by one. Changed to a calendar date: MOC
+`actual_implementation_date`, `closure_date`. Left as instants (audit
+stamps): every `updated_at`, `created_at`, MOC `decision_date` and action
+`completed_at`, peer review `closed_at`, `decided_at`, `responded_at`,
+`verified_at`, document `superseded_at`, `approved_at`, `completed_at`,
+QA, ISO and audit action `completed_at`, risk snapshot `captured_at`.
+Where one of those is printed as a date, the page prints its local date.
+
+Verification: a jest test for each defect fails before its repair and
+passes after; a source guard keeps `toISOString().slice(0, 10)` and date
+columns stamped as instants out of the MOC and peer review trees and the
+hub. All 62 assurance suites pass under UTC, Africa/Lagos and
+Pacific/Pago_Pago.
+
 ## 4. How AS1 was verified
 
 No production write was made. Everything below ran on a scratch
