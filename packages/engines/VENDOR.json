@@ -22,5 +22,158 @@
     "manifestPaths": 750,
     "vendoredPaths": 750
   },
-  "knownDeviations": []
+  "knownDeviations": [
+    {
+      "path": "__tests__/facilities.controlvalve.test.js",
+      "kind": "differing",
+      "group": "engines-214-facilities-copy-sweep",
+      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
+      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
+      "vendoredSha": "bf9e19947aac5f6ced87cb9e03fb609de0116880"
+    },
+    {
+      "path": "__tests__/facilities.corrosion.test.js",
+      "kind": "differing",
+      "group": "engines-214-facilities-copy-sweep",
+      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
+      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
+      "vendoredSha": "5439e0ee9afae7e5e7d27b2f8a86db21c3603cc2"
+    },
+    {
+      "path": "__tests__/facilities.heattransfer.test.js",
+      "kind": "differing",
+      "group": "engines-214-facilities-copy-sweep",
+      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
+      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
+      "vendoredSha": "f20bd531e60e3385a0af200e0acc5f795e9f1ba9"
+    },
+    {
+      "path": "__tests__/facilities.producedwater.test.js",
+      "kind": "differing",
+      "group": "engines-214-facilities-copy-sweep",
+      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
+      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
+      "vendoredSha": "caedc23a96c7a6c0d9f80743688fdeee6c1d3eed"
+    },
+    {
+      "path": "engines/facilities/compression.js",
+      "kind": "differing",
+      "group": "engines-214-facilities-copy-sweep",
+      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
+      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
+      "vendoredSha": "b2976681bf9560574051f612a344c0d8703b1a91"
+    },
+    {
+      "path": "engines/facilities/controlValve.js",
+      "kind": "differing",
+      "group": "engines-214-facilities-copy-sweep",
+      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
+      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
+      "vendoredSha": "8032507cbb6896cf3b9145c432c40fb35c160583"
+    },
+    {
+      "path": "engines/facilities/corrosion.js",
+      "kind": "differing",
+      "group": "engines-214-facilities-copy-sweep",
+      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
+      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
+      "vendoredSha": "5a5b7fb1eed49bbff68f21628d1b77a5d6659ecf"
+    },
+    {
+      "path": "engines/facilities/heatTransfer.js",
+      "kind": "differing",
+      "group": "engines-214-facilities-copy-sweep",
+      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
+      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
+      "vendoredSha": "d65e0443f7fe2b989ceb045f0664a6316822cf47"
+    },
+    {
+      "path": "engines/facilities/metering.js",
+      "kind": "differing",
+      "group": "engines-214-facilities-copy-sweep",
+      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
+      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
+      "vendoredSha": "ee9cbede4d3937fa41d170f2f1aff7ff5cc08e07"
+    },
+    {
+      "path": "engines/facilities/producedWater.js",
+      "kind": "differing",
+      "group": "engines-214-facilities-copy-sweep",
+      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
+      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
+      "vendoredSha": "1e50dac95bcfab0c720ad36a218ec00bf2ca4409"
+    },
+    {
+      "path": "engines/facilities/pumps.js",
+      "kind": "differing",
+      "group": "engines-214-facilities-copy-sweep",
+      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
+      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
+      "vendoredSha": "03ff4deb5c078d9f393fc9c599903e9bf8a9f94a"
+    },
+    {
+      "path": "engines/facilities/relief.js",
+      "kind": "differing",
+      "group": "engines-214-facilities-copy-sweep",
+      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
+      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
+      "vendoredSha": "6608ffba8625c848bcd2003cb7c73a976c3eae66"
+    },
+    {
+      "path": "engines/facilities/storageTank.js",
+      "kind": "differing",
+      "group": "engines-214-facilities-copy-sweep",
+      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
+      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
+      "vendoredSha": "9b81b94a3611c002b23850eeed0fb48297c9583e"
+    },
+    {
+      "path": "tools/validation/facilities/FINDINGS-corrosion.md",
+      "kind": "differing",
+      "group": "engines-214-facilities-copy-sweep",
+      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
+      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
+      "vendoredSha": "e8029de882ab373406f13a013e6da10ab450419b"
+    },
+    {
+      "path": "tools/validation/facilities/FINDINGS-heattransfer.md",
+      "kind": "differing",
+      "group": "engines-214-facilities-copy-sweep",
+      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
+      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
+      "vendoredSha": "e5d0316860457b7d5c83a3b827c2b6c103d83c81"
+    },
+    {
+      "path": "tools/validation/facilities/FINDINGS-metering.md",
+      "kind": "differing",
+      "group": "engines-214-facilities-copy-sweep",
+      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
+      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
+      "vendoredSha": "0a69d0308e88102327b6ac715d359740087a9cef"
+    },
+    {
+      "path": "tools/validation/facilities/FINDINGS-producedwater.md",
+      "kind": "differing",
+      "group": "engines-214-facilities-copy-sweep",
+      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
+      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
+      "vendoredSha": "31db58999dddafdaab63de33be5b7bd4f0c9d496"
+    },
+    {
+      "path": "tools/validation/facilities/FINDINGS-relief.md",
+      "kind": "differing",
+      "group": "engines-214-facilities-copy-sweep",
+      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
+      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
+      "vendoredSha": "fd87f312f47442b250e5355e5fdb67ad7e039497"
+    },
+    {
+      "path": "tools/validation/facilities/FINDINGS-rotating.md",
+      "kind": "differing",
+      "group": "engines-214-facilities-copy-sweep",
+      "reason": "Vendored ahead of the pin from engines PR #214 head 6759621 (the facilities owner copy rule sweep: 23 user-facing strings reworded, the produced water bed-floor refusal made true, two comments corrected). The PR branched before #213 and touches no path #211-#213 touched, so its squash onto engines main is the pinned tree plus exactly these 19 blobs.",
+      "burnDownWhen": "engines PR #214 is squash-merged: move canonical.commit to its merge commit, regenerate VENDOR.manifest, and delete all 19 engines-214 rows in the same commit.",
+      "vendoredSha": "f43ec4e403d797ae1dfc92b85473c5d9c742aa15"
+    }
+  ]
 }

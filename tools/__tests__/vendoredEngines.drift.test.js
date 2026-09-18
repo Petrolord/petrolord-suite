@@ -83,7 +83,11 @@ describe('the vendored engines match canonical', () => {
       fs.writeFileSync(PROBE, once);
       const sha = execFileSync('git', ['hash-object', PROBE], { cwd: REPO, encoding: 'utf8' }).trim();
       const doc = JSON.parse(ledger.toString('utf8'));
-      doc.knownDeviations = [{
+      // APPENDED to the ledger in force rather than replacing it, so the case
+      // holds whether or not the committed ledger carries rows of its own (a
+      // re-vendor ahead of a canonical merge does, until the pin moves).
+      const standing = doc.knownDeviations.length;
+      doc.knownDeviations = [...doc.knownDeviations, {
         path: 'README.md',
         kind: 'differing',
         reason: 'a deviation planted by this suite to prove the ledger works',
@@ -95,7 +99,7 @@ describe('the vendored engines match canonical', () => {
 
       const recorded = runGuard();
       expect(recorded.code).toBe(0);
-      expect(recorded.out).toMatch(/1 recorded deviation\(s\)/);
+      expect(recorded.out).toMatch(new RegExp(`${standing + 1} recorded deviation\\(s\\)`));
 
       // the pin is what stops the row becoming an amnesty
       fs.writeFileSync(PROBE, Buffer.concat([once, Buffer.from('\n')]));
