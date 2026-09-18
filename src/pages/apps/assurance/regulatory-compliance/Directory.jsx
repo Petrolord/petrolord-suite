@@ -64,7 +64,11 @@ export default function Directory() {
       : await createAuthority(editing);
     setSaving(false);
     if (result.success) {
-      toast({ description: editing.id ? 'Regulator updated.' : 'Regulator added.' });
+      const done = editing.id ? 'Regulator updated' : 'Regulator added';
+      // A save that dropped fields is never a plain success (AS13).
+      toast(result.warning
+        ? { title: `${done}, with a caveat`, description: result.warning, variant: 'destructive' }
+        : { description: `${done}.` });
       setEditing(null);
       setErrors({});
     } else {
