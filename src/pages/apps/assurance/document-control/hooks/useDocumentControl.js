@@ -15,6 +15,7 @@ import {
   buildRevisionWrite,
   buildWorkflowRows,
   currentRevisionOf,
+  deleteRefusal,
   documentStatusAfterReview,
   prefixFor,
   reviewOutcome,
@@ -700,11 +701,35 @@ export const useDocumentControl = () => {
     });
   };
 
+  /**
+   * AS14: only a never-reviewed draft is deleted (deleteRefusal), and its
+   * stored files go with it. The row delete cascades to the revisions,
+   * but a storage object has no foreign key, so every file uploaded
+   * against a deleted document used to stay in the bucket with nothing
+   * pointing at it. The row goes first: if it cannot, the files stay.
+   */
   const deleteDocument = async (id) => {
+    const doc = documentsWithRevisions.find((d) => d.id === id);
+    if (!doc) return { success: false, error: 'That document is not in this library.' };
+    const refusal = deleteRefusal(doc);
+    if (refusal) return { success: false, error: refusal };
+
+    const paths = revisions
+      .filter((r) => r.document_id === id && r.storage_path)
+      .map((r) => r.storage_path);
+
     const { error: err } = await supabase.from('documents').delete().eq('id', id);
     if (err) return { success: false, error: err.message };
+
+    let warning = null;
+    if (paths.length) {
+      const { error: rmErr } = await supabase.storage.from(BUCKET).remove(paths);
+      if (rmErr) {
+        warning = `The document was deleted, but ${paths.length} stored file${paths.length === 1 ? '' : 's'} could not be removed from storage (${rmErr.message}). Ask your administrator to clear ${orgId}/${id}/.`;
+      }
+    }
     await fetchAll();
-    return { success: true };
+    return { success: true, warning };
   };
 
   const createCategory = async (name, code) => {

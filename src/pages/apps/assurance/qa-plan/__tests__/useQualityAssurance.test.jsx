@@ -287,3 +287,62 @@ describe('useQualityAssurance writes', () => {
     expect(writesTo(mockFake, 'qa_capas')).toEqual([]);
   });
 });
+
+describe('AS14: removing points and raising NCRs', () => {
+  const witness = (id, planId, over = {}) => ({
+    id, plan_id: planId, item_no: '2.1', title: 'Coating DFT', point_type: 'Witness point',
+    status: 'Pending', ...over,
+  });
+
+  it('will not delete an unreleased hold point on a live plan: that got round the closure gate', async () => {
+    mockFake = seed();
+    const { result } = await mount();
+    let out;
+    await act(async () => { out = await result.current.deleteCheckpoint('cp-live'); });
+    expect(out.success).toBe(false);
+    expect(out.error).toMatch(/cannot be removed once its plan has left Draft/);
+    expect(writesTo(mockFake, 'qa_checkpoints', 'delete')).toEqual([]);
+  });
+
+  it('will not delete a point with a result recorded', async () => {
+    mockFake = seed({
+      qa_checkpoints: [witness('cp-passed', 'live', { status: 'Passed', result_date: '2026-09-01' })],
+    });
+    const { result } = await mount();
+    let out;
+    await act(async () => { out = await result.current.deleteCheckpoint('cp-passed'); });
+    expect(out.success).toBe(false);
+    expect(writesTo(mockFake, 'qa_checkpoints', 'delete')).toEqual([]);
+  });
+
+  it('removes an unrecorded witness point and logs that it did', async () => {
+    mockFake = seed({ qa_checkpoints: [witness('cp-w', 'live')] });
+    const { result } = await mount();
+    let out;
+    await act(async () => { out = await result.current.deleteCheckpoint('cp-w'); });
+    expect(out.success).toBe(true);
+    expect(writesTo(mockFake, 'qa_checkpoints', 'delete')).toHaveLength(1);
+    const [log] = writesTo(mockFake, 'qa_activity_log', 'insert');
+    expect(log.payload[0].action).toBe('Witness point 2.1 removed from the plan');
+    expect(log.payload[0].plan_id).toBe('live');
+  });
+
+  it('refuses an NCR against a closed plan, and raises one with no plan', async () => {
+    mockFake = seed();
+    const { result } = await mount();
+    let refused;
+    await act(async () => {
+      refused = await result.current.createNcr({ title: 'Found late', severity: 'Minor', plan_id: 'closed' });
+    });
+    expect(refused.success).toBe(false);
+    expect(refused.error).toMatch(/P-closed is closed/);
+    expect(writesTo(mockFake, 'qa_ncrs', 'insert')).toEqual([]);
+
+    let allowed;
+    await act(async () => {
+      allowed = await result.current.createNcr({ title: 'Found in stores', severity: 'Minor', plan_id: null });
+    });
+    expect(allowed.success).toBe(true);
+    expect(writesTo(mockFake, 'qa_ncrs', 'insert')).toHaveLength(1);
+  });
+});

@@ -301,8 +301,23 @@ describe('no invented data in Quality Assurance Plan', () => {
     const hook = code(path.join(APP, 'hooks/useQualityAssurance.js'));
     ['addCheckpoints', 'updateCheckpoint', 'decideCheckpoint', 'deleteCheckpoint'].forEach((fn) => {
       const body = hook.slice(hook.indexOf(`const ${fn} = async`));
-      expect(body.slice(0, 400)).toMatch(/lockedPlanFor|lockedCheckpoint|planLockReason/);
+      // AS14: deleteCheckpoint goes through canRemoveCheckpoint, which
+      // refuses a finished plan first and then the two record rules.
+      expect(body.slice(0, 400)).toMatch(/lockedPlanFor|lockedCheckpoint|planLockReason|canRemoveCheckpoint/);
     });
+  });
+
+  it('AS14: point removal and NCR raising go through the engine rules, and removal is logged', () => {
+    const hook = code(path.join(APP, 'hooks/useQualityAssurance.js'));
+    const del = hook.slice(hook.indexOf('const deleteCheckpoint = async'));
+    expect(del.slice(0, 900)).toMatch(/canRemoveCheckpoint\(/);
+    expect(del.slice(0, 900)).toMatch(/logActivity\('checkpoint'[\s\S]{0,120}removed from the plan/);
+    const raise = hook.slice(hook.indexOf('const createNcr = async'));
+    expect(raise.slice(0, 400)).toMatch(/canRaiseNcr\(/);
+    const page = code(path.join(APP, 'QAPlanDetail.jsx'));
+    expect(page).toMatch(/canRemoveCheckpoint\(c, plan\)\.ok/);
+    expect(page).toMatch(/canRaiseNcr\(plan\)\.ok/);
+    expect(code(path.join(APP, 'NCRRegister.jsx'))).toMatch(/canRaiseNcr\(p\)\.ok/);
   });
 
   it('no hard delete happens on one click', () => {

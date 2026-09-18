@@ -18,6 +18,8 @@ const UNDEFINED_TABLE = '42P01';
 const UNDEFINED_FUNCTION = '42883';
 const UNIQUE_VIOLATION = '23505';
 
+/** Rows per audit read; PostgREST's default ceiling. */
+const AUDIT_PAGE = 1000;
 const CODE_RETRIES = 3;
 
 /**
@@ -55,7 +57,10 @@ export const usePeerReview = () => {
   const [reviews, setReviews] = useState([]);
   const [comments, setComments] = useState([]);
   const [participants, setParticipants] = useState([]);
-  const [audit, setAudit] = useState([]);
+  // AS14: the trail is read per review, whole, when a review is opened.
+  // It used to be the newest 200 rows across EVERY review in the org, so
+  // an older review's trail was silently empty or cut short.
+  const [auditByReview, setAuditByReview] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [hasAs5Schema, setHasAs5Schema] = useState(true);
@@ -91,7 +96,6 @@ export const usePeerReview = () => {
 
       let commentRows = [];
       let participantRows = [];
-      let auditRows = [];
       if (ids.length) {
         const c = await optional(supabase
           .from('peer_review_comments').select('*').in('review_id', ids)
@@ -103,16 +107,11 @@ export const usePeerReview = () => {
         participantRows = p.data;
         if (p.missing) as5 = false;
 
-        const a = await optional(supabase
-          .from('peer_review_audit').select('*').in('review_id', ids)
-          .order('created_at', { ascending: false }).limit(200));
-        auditRows = a.data;
       }
 
       setReviews(rows);
       setComments(commentRows);
       setParticipants(participantRows);
-      setAudit(auditRows);
       setHasAs5Schema(as5);
     } catch (err) {
       // An empty register is empty. A broken one says so.
@@ -120,7 +119,7 @@ export const usePeerReview = () => {
       setReviews([]);
       setComments([]);
       setParticipants([]);
-      setAudit([]);
+      setAuditByReview({});
     } finally {
       setLoading(false);
     }
@@ -136,9 +135,32 @@ export const usePeerReview = () => {
     (reviewId) => participants.filter((p) => p.review_id === reviewId),
     [participants],
   );
+  /**
+   * Every audit row for one review, newest first, a page at a time (the
+   * API caps a single read at 1,000 rows). A failure leaves the trail it
+   * had and says so; a partial trail shown as the whole one would be
+   * the defect this replaced.
+   */
+  const loadAudit = useCallback(async (reviewId) => {
+    if (!reviewId) return { success: true };
+    const rows = [];
+    for (let from = 0; ; from += AUDIT_PAGE) {
+      const res = await supabase
+        .from('peer_review_audit').select('*').eq('review_id', reviewId)
+        .order('created_at', { ascending: false })
+        .range(from, from + AUDIT_PAGE - 1);
+      if (res.error) return { success: false, error: res.error.message };
+      const page = res.data || [];
+      rows.push(...page);
+      if (page.length < AUDIT_PAGE) break;
+    }
+    setAuditByReview((prev) => ({ ...prev, [reviewId]: rows }));
+    return { success: true };
+  }, []);
+
   const auditFor = useCallback(
-    (reviewId) => audit.filter((a) => a.review_id === reviewId),
-    [audit],
+    (reviewId) => auditByReview[reviewId] || [],
+    [auditByReview],
   );
 
   const reviewsWithChildren = useMemo(
@@ -165,6 +187,7 @@ export const usePeerReview = () => {
       action,
       details: details || null,
     }]);
+    if (auditByReview[reviewId]) await loadAudit(reviewId);
   };
 
   const issueCode = async (attempt) => {
@@ -333,7 +356,12 @@ export const usePeerReview = () => {
 
     const patch = { status: to, updated_at: new Date().toISOString() };
     if (to === 'Responded') {
-      patch.response_text = text || comment.response_text;
+      // AS14: answering a rejection adds to the exchange. It used to
+      // replace response_text outright, which erased the reviewer's
+      // "Rejected: ..." reason along with the first answer.
+      patch.response_text = comment.status === 'Rejected' && comment.response_text && text
+        ? `${comment.response_text}\n\nResponse: ${text}`
+        : text || comment.response_text;
       patch.responded_by = user?.id || null;
       patch.responded_at = new Date().toISOString();
     }
@@ -351,7 +379,10 @@ export const usePeerReview = () => {
     const { error: err } = await supabase
       .from('peer_review_comments').update(patch).eq('id', comment.id);
     if (err) return { success: false, error: err.message };
-    await logAudit(comment.review_id, `Comment ${to.toLowerCase()}`);
+    // The words go on the audit row too: the comment holds the latest
+    // exchange, the trail holds every one of them.
+    await logAudit(comment.review_id, `Comment ${to.toLowerCase()}`,
+      text ? { comment_id: comment.id, text } : { comment_id: comment.id });
     await fetchAll();
     return { success: true };
   };
@@ -404,7 +435,6 @@ export const usePeerReview = () => {
     reviews: reviewsWithChildren,
     comments,
     participants,
-    audit,
     loading,
     error,
     hasAs5Schema,
@@ -412,6 +442,7 @@ export const usePeerReview = () => {
     commentsFor,
     participantsFor,
     auditFor,
+    loadAudit,
     createReview,
     updateReview,
     changeStage,

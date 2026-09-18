@@ -37,6 +37,7 @@ import {
   canSubmitForReview,
   pendingReviewTasks,
   currentRevisionOf,
+  deleteRefusal,
   validateFile,
 } from './utils/documentPayload';
 
@@ -270,7 +271,9 @@ export default function DocumentDetail() {
     setConfirmDelete(false);
     const result = await deleteDocument(doc.id);
     if (result.success) {
-      toast({ description: `${doc.document_number} deleted.` });
+      toast(result.warning
+        ? { title: `${doc.document_number} deleted`, description: result.warning, variant: 'destructive' }
+        : { description: `${doc.document_number} deleted.` });
       navigate(`${BASE}/library`);
     } else {
       toast({ title: 'Not deleted', description: result.error, variant: 'destructive' });
@@ -340,9 +343,11 @@ export default function DocumentDetail() {
                   <ArchiveX className="w-4 h-4 mr-2" /> Withdraw
                 </Button>
               ) : null}
-              <Button variant="outline" className="text-[hsl(var(--destructive))]" onClick={() => setConfirmDelete(true)}>
-                <Trash2 className="w-4 h-4 mr-2" /> Delete
-              </Button>
+              {!deleteRefusal(doc) ? (
+                <Button variant="outline" className="text-[hsl(var(--destructive))]" onClick={() => setConfirmDelete(true)}>
+                  <Trash2 className="w-4 h-4 mr-2" /> Delete
+                </Button>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -696,8 +701,8 @@ export default function DocumentDetail() {
             <AlertDialogHeader>
               <AlertDialogTitle>Delete {doc.document_number}?</AlertDialogTitle>
               <AlertDialogDescription>
-                The document, its revisions, its review tasks and its activity are removed. This
-                cannot be undone. To take a document out of force and keep its record, use Withdraw.
+                This draft, its revisions, its stored files and its activity are removed. This
+                cannot be undone. Only a draft that never went out for review can be deleted.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

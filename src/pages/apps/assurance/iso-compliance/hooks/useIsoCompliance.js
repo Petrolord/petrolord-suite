@@ -22,6 +22,7 @@ import {
   nextAuditCodeFromExisting,
   nextFindingCodeFromExisting,
   progressedFindingStatus,
+  resultLockReason,
   scopeLockReason,
   withAssessor,
 } from '../utils/isoPayload';
@@ -376,6 +377,18 @@ export const useIsoCompliance = () => {
   };
 
   const deleteClause = async (id) => {
+    // AS14: the clause's coverage rows cascade with it, so deleting a
+    // clause an issued audit examined would rewrite that report.
+    const reported = auditClauses
+      .filter((r) => r.clause_id === id)
+      .map((r) => audits.find((a) => a.id === r.audit_id))
+      .find((a) => resultLockReason(a));
+    if (reported) {
+      return {
+        success: false,
+        error: `This clause was examined in ${reported.audit_code || 'an audit'}, which is ${String(reported.status).toLowerCase()}. It stays in the register because that report covered it.`,
+      };
+    }
     const { error: err } = await supabase.from('iso_clauses').delete().eq('id', id);
     if (err) return { success: false, error: explainWriteError(err) };
     await fetchAll();
@@ -509,7 +522,15 @@ export const useIsoCompliance = () => {
     return { success: true };
   };
 
+  /**
+   * AS14: a result is fixed once the audit is Reported. The report was
+   * written from these results, and Reported can only go on to Closed,
+   * so changing one afterwards rewrote an issued report with no trace in
+   * it. The database refuses the same update (iso_audit_clauses_lock).
+   */
   const recordCoverage = async (row, patch) => {
+    const locked = resultLockReason(audits.find((x) => x.id === row?.audit_id));
+    if (locked) return { success: false, error: locked };
     const { row: write } = buildCoverageWrite({ ...row, ...patch });
     if (write.result && write.result !== 'Not examined' && !write.examined_on) {
       write.examined_on = toDateOnlyString(new Date());

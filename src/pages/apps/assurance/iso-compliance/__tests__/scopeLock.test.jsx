@@ -89,6 +89,44 @@ describe('an ISO audit scope is fixed once Reported', () => {
     const page = fs.readFileSync(path.resolve(__dirname, '../AuditDetail.jsx'), 'utf8');
     expect(page).toMatch(/scopeLockReason\(audit\)/);
     expect(page).toMatch(/\{!scopeLocked \? \(\s*<Button size="sm" variant="outline" onClick=\{\(\) => setPicking/);
-    expect(page).toMatch(/\{!scopeLocked \? \(\s*<Button size="sm" variant="ghost"[\s\S]{0,200}removeFromScope/);
+    // AS14: the Result button and the remove button share one gate. The
+    // Result button used to sit behind `terminal` (Closed/Cancelled only),
+    // so an issued report's results could still be changed.
+    expect(page).toMatch(/\{!scopeLocked \? \(\s*<div className="flex gap-1 justify-end">[\s\S]{0,900}setRecording\(row\)[\s\S]{0,900}removeFromScope/);
+    expect(page).not.toMatch(/\{!terminal \? \(\s*<div className="flex gap-1 justify-end">/);
+  });
+});
+
+describe('AS14: results are fixed once Reported too', () => {
+  it('refuses a new result on a Reported audit and still records one on a live audit', async () => {
+    const { result } = await mount();
+    const rows = () => mockDb.writes.filter((w) => w.table === 'iso_audit_clauses');
+    let refused;
+    await act(async () => {
+      refused = await result.current.recordCoverage(
+        { id: 'ac-rep', audit_id: 'a2', clause_ref: '7.1.5', result: 'Conformant' },
+        { result: 'Nonconformant' });
+    });
+    expect(refused.success).toBe(false);
+    expect(refused.error).toMatch(/results are what the report said/);
+    expect(rows()).toEqual([]);
+
+    let allowed;
+    await act(async () => {
+      allowed = await result.current.recordCoverage(
+        { id: 'ac-plan', audit_id: 'a1', clause_ref: '8.5', result: 'Not examined' },
+        { result: 'Conformant' });
+    });
+    expect(allowed.success).toBe(true);
+    expect(rows()).toHaveLength(1);
+  });
+
+  it('will not delete a register clause a Reported audit examined (its coverage would cascade)', async () => {
+    const { result } = await mount();
+    let out;
+    await act(async () => { out = await result.current.deleteClause('c1'); });
+    expect(out.success).toBe(false);
+    expect(out.error).toMatch(/IA-2026-002/);
+    expect(mockDb.writes.filter((w) => w.table === 'iso_clauses')).toEqual([]);
   });
 });
