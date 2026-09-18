@@ -30,6 +30,7 @@ import { ExpiryBadge, RiskBadge, StageBadge, TypeBadge } from './components/MOCB
 import { ConfirmDelete, DetailField, ErrorState, Loading } from './components/SharedComponents';
 import { useManagementOfChange } from './hooks/useManagementOfChange';
 import { useOrgMembers } from '../shared/useOrgMembers';
+import { localDateOfInstant } from '../shared/instantDates';
 import { mocLockReason, validateAction, validateExpiryEdit } from './utils/mocPayload';
 
 const showDate = (v) => {
@@ -493,7 +494,7 @@ export default function MOCDetail() {
                             </p>
                             <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">
                               {nameOf(a.approver_id) || 'A member'} · {a.status}
-                              {a.decision_date ? ` · ${showDate(a.decision_date.slice(0, 10))}` : ''}
+                              {a.decision_date ? ` · ${showDate(localDateOfInstant(a.decision_date))}` : ''}
                             </p>
                             {a.comments ? (
                               <p className="text-sm mt-1">{a.comments}</p>

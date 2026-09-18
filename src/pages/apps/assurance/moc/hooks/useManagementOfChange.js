@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { canAdvance, canAssignApprover, canDecideApproval } from '@/lib/managementOfChange';
+import {
+  canAdvance, canAssignApprover, canDecideApproval, toDateOnlyString,
+} from '@/lib/managementOfChange';
 import {
   buildActionWrite,
   buildApprovalWrite,
@@ -275,12 +277,20 @@ export const useManagementOfChange = () => {
     if (!verdict.ok) return { success: false, error: verdict.reason };
 
     const patch = { ...moc, stage: to };
+    // ASC-0 (RC-5): both columns are timestamptz but mean a CALENDAR
+    // date, and the engine reads their leading YYYY-MM-DD (the emergency
+    // ratification window runs from the implementation date). An ISO
+    // instant's leading date is the UTC date, so a change implemented in
+    // Lagos between midnight and one in the morning was stamped the day
+    // before and its seven-day window closed a day early. Stamp the local
+    // calendar date the user acted on.
+    const today = toDateOnlyString(new Date());
     if (to === 'Implementation') {
-      patch.actual_implementation_date = new Date().toISOString();
+      patch.actual_implementation_date = today;
       patch.implemented_by = user?.id || null;
     }
     if (to === 'Closed') {
-      patch.closure_date = new Date().toISOString();
+      patch.closure_date = today;
       patch.closed_by = user?.id || null;
     }
     if (to === 'Rejected') patch.rejection_reason = rejectionReason || null;

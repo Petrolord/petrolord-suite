@@ -41,6 +41,7 @@ import {
   moduleHeadline,
   summariseModule,
 } from '@/lib/assuranceHub';
+import { toDateOnlyString } from '@/lib/managementOfChange';
 
 const MODULE_FILTER = 'assurance';
 const LIST_LIMIT = 25;
@@ -169,7 +170,7 @@ export default function AssuranceHub() {
       reason: i.reason,
       days_late: i.daysLate ?? '',
     }));
-    if (!exportToCSV(rows, `assurance_attention_${new Date().toISOString().slice(0, 10)}`)) {
+    if (!exportToCSV(rows, `assurance_attention_${toDateOnlyString(new Date())}`)) {
       toast({ title: 'Nothing to export', description: 'The list is empty.' });
     }
   };
