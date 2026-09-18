@@ -36,7 +36,7 @@ export default {
         'A likelihood or impact outside 1 to 5 is refused. The app does not multiply an off-scale level, and a risk with a missing level scores 0 and has the band None.',
         'The stored rating is written from the scoring rules on every save, so the band saved with a risk always matches its likelihood and impact.',
         'Residual score: residual likelihood multiplied by residual impact. Each axis that has not been assessed falls back to its inherent level, so a control that only cuts likelihood leaves impact where it was.',
-        'Appetite: if a target score is set, a residual score at or below the target reads Within appetite and a residual score above it reads Above appetite. With no target set it reads Not set. The target must be between 1 and 25.',
+        'Appetite: if a target score is set, a residual score at or below the target reads Within appetite and a residual score above it reads Above appetite. With no target set it reads Not set. A risk with no After controls assessment is judged on its inherent score, and the form preview and the risk page give the same answer. The target must be between 1 and 25.',
         'Review date: a risk is shown as overdue on its page when its next review date is earlier than today. A review due today is not yet overdue.',
         'Risk codes are issued in sequence per organisation in the form RSK-1001, RSK-1002 and so on, and cannot be typed or changed. Two risks in one organisation cannot share a code.',
         'Linked risk codes must match a risk in your register. A code that matches nothing is reported in the confirmation message and no link is saved for it.',
