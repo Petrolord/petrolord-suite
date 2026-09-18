@@ -5,9 +5,10 @@ Wave: **AS1 (foundations) and AS2 (Risk Register) BUILT 2026-09-16;
 AS3 to AS10 (all eight remaining apps) BUILT 2026-09-17**, migrations
 held; **AS11 (the hub), AS12 (`engines/assurance`, 13 engine defects
 repaired) and AS13 (help, manual, 94 app repairs, launch) BUILT
-2026-09-18**. The launch is ONE owner-run script:
-`tools/validation/assurance/assurance-launch-apply.sh schema`, upload,
-then `... activate`.
+2026-09-18**. **AS14 (the open items, and a live `documents` RLS
+hole) BUILT 2026-09-18.** The launch is ONE owner-run script:
+`tools/validation/assurance/assurance-launch-apply.sh schema` (now 15
+migrations, AS14 included), upload, then `... activate`.
 
 This file replaces a document that carried the same name and described
 the Economics E4 apps. That content now lives at
@@ -1473,7 +1474,7 @@ It found **13 more**:
     shown.
 - **Final records are locked in the UI and in the hook.**
 
-### 3l.4 Still open (AS14 candidates)
+### 3l.4 Still open after AS13 (all closed by AS14, §3m, except owner policy)
 
 - Removing a QA inspection point is not logged, and it gets round the
   plan-closure gate. An NCR can be raised against a Closed plan.
@@ -1496,6 +1497,106 @@ It found **13 more**:
   - emergency-change approval authority
   - validation by typed name
   - plus the §3k.4 engine questions
+
+---
+
+## 3m. AS14, built 2026-09-18: the open items, and a hole AS1 missed
+
+### 3m.1 SECURITY: `documents` was open across tenants
+
+AS1 §8 left the parent registers' policies alone because production
+"already has RLS and policies". Reading `pg_policies` on 2026-09-18 (the
+read the classifier had blocked in AS1 went through this time) showed
+that is true of every parent except the one that matters most:
+
+| table | live policy | scope |
+|---|---|---|
+| `documents` | "Users can manage org documents", FOR ALL, `USING (true)` | **none** |
+| `documents` | "Users can view org documents", FOR SELECT, `USING (true)` | **none** |
+| `risk_register`, `risk_scenarios` | `is_org_member(org_id)` | org |
+| `risk_kris`, `risk_mitigation_actions` | through `risk_register` | org |
+| `compliance_rules` | members read, admins write | org |
+| `moc_records`, `peer_*` | `is_org_member` (AS5/AS6 add their own) | org |
+
+So RLS was on for `documents` and scoped nothing. Any signed-in user of
+any organization could read, rewrite and delete every organization's
+controlled documents through the API. The app never showed it because
+its query filters `org_id` itself. `documents` holds **0 rows** today, so
+nothing has leaked, but Document Control goes Active at activation.
+AS14 replaces both policies with `documents_org_rw` on `my_org_id()`,
+and the launch script now applies AS14 before activation.
+
+### 3m.2 What was built
+
+- **Engines #210** (`engines/assurance`, vendored at the merge commit
+  `fdd6efe`, see `packages/engines/VENDOR.json`):
+  - MOC and QA `summarise()` stop counting children of finished parents
+    as outstanding work: actions on closed/rejected/cancelled changes,
+    points on closed/superseded/cancelled plans, and corrective actions
+    on voided NCRs. Totals, failures and the effectiveness record still
+    count them. A child whose parent was not loaded still counts.
+  - `canRemoveCheckpoint(checkpoint, plan)`: a finished plan keeps its
+    points; a point with a result recorded is evidence; a hold point
+    outside Draft is released as Not applicable (who, when, why), never
+    deleted. Deleting it used to clear `canClosePlan` silently.
+  - `canRaiseNcr(plan)`: no NCR against a finished plan. No plan is fine.
+  - Oracles extended (MOC 229, QA 414 cases). The previous engine fails
+    every `repaired` case.
+- **QA Plan**: removal and raising go through the rules and removal is
+  logged. The page only offers Remove and Raise one where they are
+  allowed, and the NCR plan picker leaves finished plans out.
+- **Peer Review**: answering a rejected comment appends
+  `Response: ...` to the exchange instead of replacing it, which erased
+  the reviewer's `Rejected: ...` reason. Every disposition's words also
+  go on the audit row. The trail is read per review, whole and paged, when
+  the review is opened. It used to be the newest 200 rows across every
+  review in the org, so older reviews showed a short or empty trail.
+- **ISO**: a result cannot change once the audit is Reported
+  (`resultLockReason`). Reported can only go on to Closed, so a change
+  there rewrote an issued report. A register clause an issued audit
+  examined cannot be deleted either, because its coverage rows cascade
+  away with it.
+- **Document Control**: Delete is offered and allowed only on a draft
+  that never went out for review (`deleteRefusal`). It used to delete
+  Published documents with their whole revision chain. A deleted
+  draft's stored files are removed from the bucket; if that fails the
+  user is told which folder to clear.
+- **Migration `20260918100000_as14_assurance_repairs.sql`** (HELD):
+  - the `documents` fix
+  - policies for the five other parents, each no wider than the live one
+  - the `saved_reports` backfill. It existed only live, with RLS OFF
+    and full CRUD to anon, and 0 rows.
+  - DB guards mirroring the three new rules. Cascades are exempt, so
+    plan, audit and org deletes still work.
+
+### 3m.3 Verification
+
+- `scratch/run-as14-pentest.sh` rebuilds the module from the repo, puts
+  back the two live postures the repo never had, and runs
+  `rls-pentest-as14.sql`. **Negative control first:** it must fail on
+  Org B reading, rewriting, deleting and planting Org A documents, on
+  anon reading saved reports, and on every missing guard. It does.
+  After AS14: 29/29 pass, and again after a re-apply.
+- `scratch/run-launch-check.sh` rehearses all 16 steps twice. On a
+  rebuild from the repo, no assurance table has RLS off or an anon
+  grant, `documents` and `saved_reports` included. The pinned gap list
+  is now empty.
+- jest: engines 2,228 assurance tests. In the Suite, new hook tests for
+  every repair and updated source guards.
+
+### 3m.4 Still open
+
+- **Owner policy, unchanged:**
+  - segregation of duties (role labels are not enforced)
+  - emergency-change approval authority
+  - validation by typed name
+  - the §3k.4 engine questions
+- **Engines #210 must be merged before this Suite PR.** The agent could
+  not merge it (harness). Its squash commit has the same tree, so
+  re-pinning is `VENDOR.json` `canonical.commit` plus the manifest
+  header, checked by `node tools/check-vendored-engines.mjs --canonical`.
+- The commerce migration (second engineer) and the `documents` bucket
+  are unchanged.
 
 ## 4. How AS1 was verified
 
@@ -1531,26 +1632,14 @@ schema level, and on the scratch reproduction.
 
 ## 5. Open
 
-- **All fifteen migrations are unapplied.** Ordered apply script:
-  `tools/validation/assurance/as1-apply.sh`, which does not yet include
-  AS3's `20260917100000_as3_regulatory_compliance.sql`, AS4's
-  `20260917200000_as4_document_control.sql`, AS5's
-  `20260917300000_as5_peer_review.sql`, AS6's
-  `20260917400000_as6_management_of_change.sql`, AS7's
-  `20260917500000_as7_quality_assurance_plan.sql`, AS8's
-  `20260917600000_as8_iso_compliance.sql`, AS9's
-  `20260917700000_as9_lessons_learned.sql` or AS10's pair
-  (`20260917800000_as10_audit_findings_manager.sql` and its tile seed
-  `20260917810000`); run those after the AS1 pair, in that order.
-  Owner-run.
-- **The six parent registers have no RLS or policies in the repo**
-  (§3d.4). `documents`, `risk_register`, `moc_records`,
-  `compliance_rules` and the risk children AS1 listed as already
-  protected are protected in production and nowhere else, so the module
-  cannot be rebuilt securely from source. Wants its own small
-  migration, written after reading the live policies rather than
-  guessing at them. **Not a production vulnerability**; a
-  reconstruction one.
+- **All sixteen migrations are unapplied.** One owner-run script,
+  `tools/validation/assurance/assurance-launch-apply.sh`: `schema`
+  (fifteen, AS14 included, which must precede activation), upload, then
+  `activate`. `as1-apply.sh` is superseded.
+- ~~The six parent registers have no RLS or policies in the repo~~
+  **CLOSED by AS14 (§3m).** This item called it "not a production
+  vulnerability". That was wrong for `documents`, whose live policies
+  were `USING (true)`: a cross-tenant hole, with 0 rows in it today.
 - **A private `documents` storage bucket** for AS4 file uploads (§3c.6).
   Owner-run through the Supabase dashboard.
 - **Seven held tile promotions.** AS1 left Document Control, Peer

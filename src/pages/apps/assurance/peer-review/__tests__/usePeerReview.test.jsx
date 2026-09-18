@@ -113,3 +113,66 @@ describe('usePeerReview writes', () => {
     expect(writesTo(mockFake, 'peer_reviews', 'delete')).toHaveLength(1);
   });
 });
+
+describe('AS14: the exchange and the trail', () => {
+  it('answering a rejection adds to the exchange instead of erasing the reason', async () => {
+    const rejected = {
+      ...comment('c1', 'live', 'Rejected'),
+      response_text: 'Added in rev B\n\nRejected: the relief case still uses the old set pressure',
+    };
+    mockFake = seed([review('live', 'In Review')], [rejected]);
+    const { result } = await mount();
+    await act(async () => {
+      await result.current.disposeComment(rejected, 'Responded', { text: 'Rev C uses 49.6 barg' });
+    });
+    const [upd] = writesTo(mockFake, 'peer_review_comments', 'update');
+    expect(upd.payload.response_text).toBe(
+      'Added in rev B\n\nRejected: the relief case still uses the old set pressure\n\nResponse: Rev C uses 49.6 barg');
+    const [log] = writesTo(mockFake, 'peer_review_audit', 'insert');
+    expect(log.payload[0].details).toEqual({ comment_id: 'c1', text: 'Rev C uses 49.6 barg' });
+  });
+
+  it('a first response still just records the answer', async () => {
+    const open = comment('c2', 'live', 'Open');
+    mockFake = seed([review('live', 'In Review')], [open]);
+    const { result } = await mount();
+    await act(async () => {
+      await result.current.disposeComment(open, 'Responded', { text: 'Fixed' });
+    });
+    const [upd] = writesTo(mockFake, 'peer_review_comments', 'update');
+    expect(upd.payload.response_text).toBe('Fixed');
+  });
+
+  it('reads one review\'s whole trail, past the old 200-row cap, and nothing from other reviews', async () => {
+    const rows = Array.from({ length: 1250 }, (_, i) => ({
+      id: `a${i}`, review_id: 'old', action: `step ${i}`, created_at: '2026-01-01T00:00:00Z',
+    }));
+    mockFake = createFakeSupabase({
+      peer_reviews: [review('old', 'In Review'), review('other', 'In Review')],
+      peer_review_comments: [],
+      peer_review_participants: [],
+      peer_review_audit: [...rows, { id: 'x', review_id: 'other', action: 'elsewhere' }],
+    });
+    const { result } = await mount();
+    expect(result.current.auditFor('old')).toEqual([]);
+    let out;
+    await act(async () => { out = await result.current.loadAudit('old'); });
+    expect(out.success).toBe(true);
+    expect(result.current.auditFor('old')).toHaveLength(1250);
+    expect(result.current.auditFor('other')).toEqual([]);
+  });
+});
+
+
+describe('AS14: a failed register load', () => {
+  it('reports the error instead of throwing while clearing the trail', async () => {
+    mockFake = seed([review('live', 'In Review')]);
+    const from = mockFake.from;
+    mockFake.from = (table) => (table === 'peer_reviews'
+      ? { select: () => ({ eq: () => ({ order: async () => ({ data: null, error: { message: 'boom' } }) }) }) }
+      : from(table));
+    const { result } = await mount();
+    expect(result.current.error).toBe('boom');
+    expect(result.current.auditFor('live')).toEqual([]);
+  });
+});

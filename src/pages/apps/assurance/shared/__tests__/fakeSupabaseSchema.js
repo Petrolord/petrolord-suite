@@ -81,15 +81,19 @@ export const makeSchemaFake = (initial = {}, { missing = {} } = {}) => {
     return builder;
   };
 
+  // `remove` succeeds and records what it was asked to delete (AS14), so
+  // a test can assert a deleted document's files were cleared.
+  const removedPaths = [];
   const storage = {
     from: () => ({
+      remove: async (paths) => { removedPaths.push(...paths); return { data: paths, error: null }; },
       list: async () => ({ data: null, error: { message: 'Bucket not found' } }),
       upload: async () => ({ data: null, error: { message: 'Bucket not found' } }),
       createSignedUrl: async () => ({ data: null, error: { message: 'Bucket not found' } }),
     }),
   };
 
-  return { ...fake, client: { from, rpc: fake.client.rpc, storage } };
+  return { ...fake, removedPaths, client: { from, rpc: fake.client.rpc, storage } };
 };
 
 export default makeSchemaFake;

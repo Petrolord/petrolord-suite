@@ -403,6 +403,27 @@ export const canStartRevision = (doc = {}, workflows = []) => {
   return !hasPendingReview(currentRevisionOf(doc), workflows);
 };
 
+/**
+ * Why a document may not be deleted, or null when it may (AS14).
+ *
+ * Delete was offered on every document, Published ones included, and
+ * took the revision chain, the review decisions and the activity log
+ * with it (they cascade). A controlled document that has been reviewed
+ * or issued is withdrawn, never deleted: its history is the record.
+ * Only a draft that never went out for review can go.
+ */
+export const deleteRefusal = (doc = {}) => {
+  if (doc.status !== 'Draft') {
+    return `This document is ${String(doc.status || 'not a draft').toLowerCase()}. A controlled `
+      + 'document that has been reviewed or issued stays on record with its revision history. '
+      + 'Withdraw it as Obsolete or Superseded instead.';
+  }
+  if ((doc.revisions || []).some((r) => r.status && r.status !== 'Draft')) {
+    return 'This draft has been through review. Withdraw it instead, so the review stays on record.';
+  }
+  return null;
+};
+
 export const validateRetirement = ({ status, superseded_by } = {}, doc = {}) => {
   if (!WITHDRAWN_STATUSES.includes(status)) return 'Choose Superseded or Obsolete.';
   if (status === 'Superseded') {

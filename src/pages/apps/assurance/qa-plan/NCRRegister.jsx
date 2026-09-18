@@ -12,6 +12,7 @@ import {
   CAPA_TYPES,
   NCR_SEVERITIES,
   NCR_STATUSES,
+  canRaiseNcr,
   ncrAgeDays,
   ncrByUrgency,
   isNcrOpen,
@@ -268,7 +269,7 @@ export default function NCRRegister() {
                     <select id="ncr-plan" value={form.plan_id} onChange={set('plan_id')}
                       className="h-10 w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 text-sm">
                       <option value="">No plan: found outside one</option>
-                      {plans.map((p) => (
+                      {plans.filter((p) => canRaiseNcr(p).ok || p.id === form.plan_id).map((p) => (
                         <option key={p.id} value={p.id}>{p.plan_code} · {p.title}</option>
                       ))}
                     </select>

@@ -15,6 +15,8 @@ import {
   RESPONSIBLE_PARTIES,
   canAdvancePlan,
   canClosePlan,
+  canRaiseNcr,
+  canRemoveCheckpoint,
   isBlockingPoint,
   isCheckpointOverdue,
   isResolved,
@@ -458,7 +460,7 @@ export default function QAPlanDetail() {
                                 Amend
                               </Button>
                             )}
-                            {!locked ? (
+                            {!locked && canRemoveCheckpoint(c, plan).ok ? (
                               <Button size="sm" variant="ghost" disabled={busy}
                                 onClick={() => { setFailure(null); setRemoving(c); }}
                                 title="Remove this item">
@@ -539,10 +541,12 @@ export default function QAPlanDetail() {
         <Card className="panel-elevation">
           <CardHeader className="border-b border-[hsl(var(--border))] pb-4 flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Non-conformances raised against this plan</CardTitle>
-            <Button size="sm" variant="outline"
-              onClick={() => navigate(`${BASE}/ncr-register?raise=1&plan=${plan.id}`)}>
-              <FileWarning className="w-4 h-4 mr-2" /> Raise one
-            </Button>
+            {canRaiseNcr(plan).ok ? (
+              <Button size="sm" variant="outline"
+                onClick={() => navigate(`${BASE}/ncr-register?raise=1&plan=${plan.id}`)}>
+                <FileWarning className="w-4 h-4 mr-2" /> Raise one
+              </Button>
+            ) : null}
           </CardHeader>
           <CardContent className="p-0">
             {ncrs.length === 0 ? (
@@ -604,7 +608,7 @@ export default function QAPlanDetail() {
           open={Boolean(removing)}
           title="Remove this inspection point?"
           description={removing
-            ? `Item ${removing.item_no} (${removing.point_type}) and any result recorded against it will be deleted from ${plan.plan_code}. This cannot be undone. If the point no longer applies, recording it as Not applicable keeps the record.`
+            ? `Item ${removing.item_no} (${removing.point_type}) has no result recorded and will be removed from ${plan.plan_code}. The removal is written to the plan's activity log. If the point no longer applies, recording it as Not applicable keeps it on the plan with the reason.`
             : ''}
           confirmLabel="Remove item"
           busy={busy}

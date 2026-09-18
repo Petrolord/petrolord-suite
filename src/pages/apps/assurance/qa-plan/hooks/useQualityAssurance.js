@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { canCloseNcr, canDecideCheckpoint, canAdvancePlan, toDateOnlyString } from '@/lib/qualityAssurance';
+import {
+  canAdvancePlan,
+  canCloseNcr,
+  canDecideCheckpoint,
+  canRaiseNcr,
+  canRemoveCheckpoint,
+  toDateOnlyString,
+} from '@/lib/qualityAssurance';
 import {
   buildCapaWrite,
   buildCheckpointWrite,
@@ -415,11 +422,23 @@ export const useQualityAssurance = () => {
     return result;
   };
 
+  /**
+   * AS14: removal goes through canRemoveCheckpoint and is logged. It was
+   * a bare delete, so an unreleased hold point could be deleted to get
+   * a plan past canClosePlan, and nothing recorded that it had existed.
+   * The database refuses the same deletes (qa_checkpoints_guard_delete).
+   */
   const deleteCheckpoint = async (id) => {
-    const locked = lockedCheckpoint(id);
-    if (locked) return { success: false, error: locked };
+    const checkpoint = checkpoints.find((c) => c.id === id);
+    if (!checkpoint) return { success: false, error: 'That inspection point is no longer on the plan.' };
+    const verdict = canRemoveCheckpoint(checkpoint, plans.find((p) => p.id === checkpoint.plan_id) || null);
+    if (!verdict.ok) return { success: false, error: verdict.reason };
     const { error: err } = await supabase.from('qa_checkpoints').delete().eq('id', id);
     if (err) return { success: false, error: explainWriteError(err) };
+    await logActivity('checkpoint', id,
+      `${checkpoint.point_type || 'Checkpoint'} ${checkpoint.item_no || ''} removed from the plan`.trim(),
+      { title: checkpoint.title || null, status: checkpoint.status || 'Pending' },
+      { plan_id: checkpoint.plan_id });
     await fetchAll();
     return { success: true };
   };
@@ -430,6 +449,10 @@ export const useQualityAssurance = () => {
 
   const createNcr = async (form, { capas: capaRows = [] } = {}) => {
     if (!orgId) return { success: false, error: 'No organization is selected.' };
+    if (form.plan_id) {
+      const raise = canRaiseNcr(plans.find((p) => p.id === form.plan_id) || null);
+      if (!raise.ok) return { success: false, error: raise.reason };
+    }
 
     for (let attempt = 0; attempt < CODE_RETRIES; attempt += 1) {
       let code;

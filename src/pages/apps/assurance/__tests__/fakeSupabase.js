@@ -21,6 +21,7 @@ export const createFakeSupabase = (tables = {}) => {
           ? rows.filter((r) => value.includes(r[col]))
           : rows.filter((r) => r[col] === value);
       });
+      if (q.range) rows = rows.slice(q.range[0], q.range[1] + 1);
       return { data: q.single ? rows[0] || null : rows, error: null };
     }
     writes.push({
@@ -45,6 +46,7 @@ export const createFakeSupabase = (tables = {}) => {
       in(col, values) { q.filters.push([col, values, 'in']); return builder; },
       order() { return builder; },
       limit() { return builder; },
+      range(fromRow, toRow) { q.range = [fromRow, toRow]; return builder; },
       single() { q.single = true; return builder; },
       maybeSingle() { q.single = true; return builder; },
       insert(payload) { q.op = 'insert'; q.payload = payload; return builder; },

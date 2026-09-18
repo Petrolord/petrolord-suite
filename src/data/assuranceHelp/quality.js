@@ -45,6 +45,7 @@ export default {
       title: "Workflow and who acts",
       bullets: [
         "Plans: Draft can move to Under review, Active or Cancelled; Under review to Active, Draft or Cancelled; Active to Closed, Superseded or Cancelled. Closed, Superseded and Cancelled are final, and a final plan's points and results are locked: 'Add item', 'Record result', 'Amend' and remove are no longer offered. Use the buttons under 'Move this plan'.",
+        "The remove button appears only on a point with no result recorded. Once a plan has left Draft, a hold point cannot be removed: record it as Not applicable with the date, who decided and the reason, so the plan keeps the record of it being set aside. Each removal is written to the plan's activity. A non-conformance cannot be raised against a Closed, Superseded or Cancelled plan; raise it against the plan now in force, or with no plan.",
         "On a plan, 'Add item' adds an ITP point. 'Record result' asks for Result, Date decided (defaults to today), 'Verifier, if not you' and Remarks. Left blank, the verifier is you; a verifier with no Suite login, such as a certifying authority surveyor, is recorded by name. Resolved points show 'Amend'. Removing a point asks for confirmation first.",
         "When a point fails, use 'Raise one' in the plan's non-conformance section. The failed point keeps the plan open until its result is changed to a resolved one.",
         "NCRs start at Open, dated today. Saving a root cause on an Open NCR moves it to Under investigation. Agreeing a disposition records the date and who agreed it, and from then on the status follows the actions: Disposition agreed while there is no action, Actions in progress while any action is Open or In progress, and Verification once every action is Complete or Cancelled and the NCR is waiting to be closed. Adding or reopening an action moves it back to Actions in progress. Dispositions: Use as is, Repair, Rework, Regrade, Reject, Return to supplier and Scrap; Use as is and Regrade are marked as concessions.",
@@ -73,7 +74,7 @@ export default {
       id: "limits",
       title: "What the app does not do",
       bullets: [
-        "Plan details cannot be edited after creation, nor can a point's details (while the plan is live its result can be amended, or the point removed), nor an NCR's title, severity, description, department or due date. NCRs raised before the Department field was added stay Unspecified in the department chart.",
+        "Plan details cannot be edited after creation, nor can a point's details (while the plan is live its result can be amended), nor an NCR's title, severity, description, department or due date. NCRs raised before the Department field was added stay Unspecified in the department chart.",
         "Setting a hold point to Not applicable needs the same record as a waiver: the date, who decided and a reason. A blank 'Verifier, if not you' records you, so only the reason must be typed. Other point types can be marked Not applicable without one.",
         "Action owners are recorded as typed names. There are no notifications, attachments, evidence files or cost-of-quality entries, and exports are CSV only.",
         "The whole app needs database migration 20260917500000. Where it is not applied, every page shows a notice and nothing can be stored.",

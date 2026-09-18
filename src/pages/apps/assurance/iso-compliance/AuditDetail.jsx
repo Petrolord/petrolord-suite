@@ -112,7 +112,8 @@ export default function AuditDetail() {
   }
 
   const terminal = ['Closed', 'Cancelled'].includes(audit.status);
-  // Scope is fixed from Reported on; results follow `terminal`.
+  // Scope and results are both fixed from Reported on (AS14: results
+  // used to follow `terminal`, so an issued report could be rewritten).
   const scopeLocked = scopeLockReason(audit);
   const examined = scope.filter(isCoverageExamined).length;
 
@@ -369,7 +370,7 @@ export default function AuditDetail() {
                           </td>
                           <td className="data-grid-td text-xs">{row.examined_on || ''}</td>
                           <td className="data-grid-td text-right">
-                            {!terminal ? (
+                            {!scopeLocked ? (
                               <div className="flex gap-1 justify-end">
                                 <Button size="sm" variant="outline" disabled={busy}
                                   onClick={() => {
@@ -384,14 +385,12 @@ export default function AuditDetail() {
                                   }}>
                                   Result
                                 </Button>
-                                {!scopeLocked ? (
-                                  <Button size="sm" variant="ghost" disabled={busy}
-                                    aria-label={`Remove clause ${row.clause_ref} from scope`}
-                                    onClick={() => run(() => removeFromScope(row.id),
-                                      `Clause ${row.clause_ref} removed from scope.`)}>
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                ) : null}
+                                <Button size="sm" variant="ghost" disabled={busy}
+                                  aria-label={`Remove clause ${row.clause_ref} from scope`}
+                                  onClick={() => run(() => removeFromScope(row.id),
+                                    `Clause ${row.clause_ref} removed from scope.`)}>
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
                               </div>
                             ) : null}
                           </td>

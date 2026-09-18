@@ -306,6 +306,7 @@ repo conventions. Every wave ends with the relevant STATUS doc updated.
 | **AS11** | The Assurance hub: real cross-app analytics over all nine apps | **BUILT 2026-09-18**, no migration |
 | **AS12** | `engines/assurance` extraction with goldens and an independent oracle | **BUILT 2026-09-18** (engines #207/#208), 13 defects repaired |
 | **AS13** | Help guides, user manual, launch | **BUILT 2026-09-18**: 94 app defects repaired first; activation HELD behind `assurance-launch-apply.sh` |
+| **AS14** | The AS13 open items, and the `documents` RLS hole | **BUILT 2026-09-18** (engines #210): `documents` had `USING (true)` policies live; migration HELD in `schema`, before activation |
 
 The two NextGen assurance courses unlock at AS12, not before. That is
 the whole point of the §9 deferral: the capstone needs an engine with an

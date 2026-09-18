@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -56,7 +56,7 @@ export default function ReviewDetail() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const {
-    reviews, auditFor, loading, error,
+    reviews, auditFor, loadAudit, loading, error,
     addComment, disposeComment, changeStage, deleteReview, refresh,
   } = usePeerReview();
 
@@ -76,6 +76,14 @@ export default function ReviewDetail() {
     [review],
   );
   const closeVerdict = useMemo(() => canClose(comments), [comments]);
+
+  // AS14: this review's whole trail, read when it is opened.
+  const [trailError, setTrailError] = useState(null);
+  useEffect(() => {
+    let live = true;
+    loadAudit(id).then((r) => { if (live) setTrailError(r.success ? null : r.error); });
+    return () => { live = false; };
+  }, [id, loadAudit]);
 
   if (loading) return <PeerReviewShell><Loading label="Loading the review..." /></PeerReviewShell>;
   if (error) return <PeerReviewShell><ErrorState error={error} onRetry={refresh} /></PeerReviewShell>;
@@ -456,11 +464,23 @@ export default function ReviewDetail() {
           <TabsContent value="audit" className="pt-6">
             <Card className="panel-elevation">
               <CardContent className="p-6">
+                {trailError ? (
+                  <p className="text-sm text-[hsl(var(--destructive))] mb-3">
+                    The audit trail could not be read: {trailError}
+                  </p>
+                ) : null}
                 {trail.length ? (
                   <ul className="space-y-3">
                     {trail.map((a) => (
                       <li key={a.id} className="flex justify-between gap-4">
-                        <span className="text-sm">{a.action}</span>
+                        <span className="text-sm">
+                          {a.action}
+                          {a.details?.text ? (
+                            <span className="block text-xs text-[hsl(var(--muted-foreground))] whitespace-pre-wrap mt-0.5">
+                              {a.details.text}
+                            </span>
+                          ) : null}
+                        </span>
                         <span className="text-xs text-[hsl(var(--muted-foreground))] whitespace-nowrap">
                           {a.created_at ? `${formatDistanceToNow(new Date(a.created_at))} ago` : ''}
                         </span>

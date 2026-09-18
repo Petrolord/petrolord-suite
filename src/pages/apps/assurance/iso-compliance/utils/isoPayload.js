@@ -371,4 +371,15 @@ export const scopeLockReason = (audit) => {
     + 'report covered and can no longer be added to or removed from.';
 };
 
+/**
+ * AS14: the same lock for the RESULTS recorded against the scope.
+ * Reported can only go on to Closed, so a result changed after the
+ * report rewrote an issued report with no trace in it.
+ */
+export const resultLockReason = (audit) => {
+  if (!audit || !SCOPE_LOCKED_STATUSES.includes(audit.status)) return null;
+  return `This audit is ${String(audit.status).toLowerCase()}. Its clause results are what the `
+    + 'report said and can no longer be changed.';
+};
+
 export { canDeleteFinding, progressedFindingStatus } from '../../shared/findingWorkflow';
