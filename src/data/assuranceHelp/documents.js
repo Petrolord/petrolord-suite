@@ -63,7 +63,7 @@ export default {
         'Publish the approved revision with an issue date. The next review date is set from the review period.',
         'Watch the Reviews due list on the Dashboard. A document appears there 30 days before its review date.',
         'Raise a new revision when the document changes, send it for review, and re-issue it once approved.',
-        'Delete asks you to confirm, then removes the document with its revisions, review tasks and activity. It cannot be undone; use Withdraw to keep the record.',
+        'Delete is offered only on a draft that has never gone out for review. It asks you to confirm, then removes the draft with its revisions, stored files and activity, and it cannot be undone. A document that has been reviewed or issued is withdrawn with Withdraw, which keeps the record.',
       ],
     },
     {
@@ -96,7 +96,6 @@ export default {
         'Any member can record a decision on any Pending review task, including a task named for someone else, and the author of a revision can name themselves as a reviewer.',
         'There are no comments, distribution lists, read receipts or electronic signatures.',
         'The app sends no reminders when a review falls due.',
-        'Deleting a document does not remove its files from storage.',
       ],
     },
     {

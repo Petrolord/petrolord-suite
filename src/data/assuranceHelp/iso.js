@@ -40,7 +40,7 @@ export default {
         "An auditor may not audit their own work (ISO 19011). Adding a clause to an audit's scope is refused when its owner is the lead auditor: the same Suite member, or the same name typed on both. The refusal names the clauses. The database refuses the same Suite member from either direction.",
         "Audit moves: Planned to In progress or Cancelled; In progress to Fieldwork complete or Cancelled; Fieldwork complete to Reported, In progress or Cancelled; Reported to Closed. Audits cannot be deleted.",
         "Reported is refused with no clauses in scope, any clause still Not examined, no conclusion, or no lead auditor. Issue the report is enabled once the conclusion is typed and the rest is in place.",
-        "An audit's clause scope is fixed once it is Reported: Add clauses and the remove button are withdrawn, and the app refuses either change, because the scope is what the report covered. Clause results can still be recorded until the audit is Closed or Cancelled.",
+        "An audit's clause scope is fixed once it is Reported: Add clauses, Result and the remove button are withdrawn, and the app refuses any change, because the scope and its results are what the report said. A register clause that a Reported audit examined cannot be deleted either.",
         "Closed is refused until the audit is Reported, and while a Major nonconformity it raised is open. Minor ones do not block.",
         "A clause result other than Not examined needs its examination date; blank records today.",
         "A finding needs a title, a description and objective evidence. A finding raised against an audit takes the audit's standard unless another is picked. An action needs a description, a type and a due date.",
@@ -82,7 +82,7 @@ export default {
         "Evidence is a typed reference. Files are not stored.",
         "Independence between two typed names is judged by the name alone, so spell a person's name the same way each time, or pick them from the Suite members.",
         "A finding raised outside an audit, with no standard picked, is left out of every readiness list.",
-        "After adding a clause you can only Assess or Remove it; Remove acts at once and deletes the audit results recorded against that clause. Neither adding nor removing is possible once the audit is Reported. After planning an audit only the conclusion and report date change. On a finding only the correction and root cause change.",
+        "After adding a clause you can only Assess or Remove it; Remove acts at once and deletes the audit results recorded against that clause. None of these is possible once the audit is Reported. After planning an audit only the conclusion and report date change. On a finding only the correction and root cause change.",
         "Remove on a standard asks first and says what goes: its clauses and the audit results recorded against them are deleted; its audits and findings are kept with no standard and no longer count in any readiness list.",
         "No PDF, reminders or calendar. History shows the latest 40 entries per record."
       ]
