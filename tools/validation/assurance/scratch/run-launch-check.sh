@@ -50,6 +50,7 @@ STEPS=(
   20260917700000_as9_lessons_learned.sql
   20260917800000_as10_audit_findings_manager.sql
   20260917810000_as10_seed_audit_findings_tile.sql
+  20260918100000_as14_assurance_repairs.sql
   20260918900000_as13_activate_assurance_tiles.sql
 )
 
@@ -160,16 +161,15 @@ echo "catalogue: $CAT"
 BAD=$(q -c "select count(*) from master_apps where lower(module)='assurance' and status='Active' and (not is_built or not is_functional)")
 [ "$BAD" = 0 ] || { echo "FAIL: $BAD Active tiles not built+functional"; exit 1; }
 RLS=$(q -c "select coalesce(string_agg(c.relname, ', ' order by c.relname), '') from pg_class c join pg_namespace n on n.oid=c.relnamespace
-  where n.nspname='public' and c.relkind='r' and c.relname ~ '^(risk_|moc_|doc_|compliance_|regulatory_|peer_review|qa_|iso_|lesson_|audit_)' and c.relname <> 'audit_logs' and not c.relrowsecurity")
+  where n.nspname='public' and c.relkind='r' and (c.relname ~ '^(risk_|moc_|doc_|compliance_|regulatory_|peer_review|qa_|iso_|lesson_|audit_)' or c.relname in ('documents', 'saved_reports')) and c.relname <> 'audit_logs' and not c.relrowsecurity")
 echo "assurance tables with RLS off on a rebuild from the repo: ${RLS:-none}"
-# KNOWN: parent registers whose RLS and policies exist in production and in
-# no migration (AssuranceApps-STATUS.md §5, "The six parent registers have
-# no RLS or policies in the repo"). Pinned so the list can only shrink: a
-# new table here fails, and a fixed one must be removed from this line.
-KNOWN_RLS_GAP="compliance_rules, risk_kris, risk_mitigation_actions, risk_register, risk_scenarios"
+# The parent-register rebuild gap (STATUS §5) was pinned here so it could
+# only shrink. AS14 closed it: every assurance table, documents and
+# saved_reports included, has RLS on after a rebuild from the repo.
+KNOWN_RLS_GAP=""
 [ "$RLS" = "$KNOWN_RLS_GAP" ] || { echo "FAIL: RLS-off set changed. expected: $KNOWN_RLS_GAP"; exit 1; }
 ANON=$(q -c "select coalesce(string_agg(distinct table_name, ', '), '') from information_schema.role_table_grants
-  where grantee='anon' and table_schema='public' and table_name ~ '^(risk_|moc_|doc_|compliance_|regulatory_|peer_review|qa_|iso_|lesson_|audit_)'")
+  where grantee='anon' and table_schema='public' and (table_name ~ '^(risk_|moc_|doc_|compliance_|regulatory_|peer_review|qa_|iso_|lesson_|audit_)' or table_name in ('documents', 'saved_reports'))")
 echo "assurance tables granted to anon: ${ANON:-none}"
 docker rm -f "$C" >/dev/null
 [ -z "$ANON" ] || { echo "FAIL: anon grants remain"; exit 1; }

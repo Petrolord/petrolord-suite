@@ -9,8 +9,9 @@
 #   ./assurance-launch-apply.sh schema     any time BEFORE the upload
 #   ./assurance-launch-apply.sh activate   only AFTER the upload is live
 #
-# `schema` applies all fourteen held schema and catalogue migrations of
-# AS1 to AS10, every one dry-run first inside a rolled-back transaction,
+# `schema` applies all fifteen held schema and catalogue migrations of
+# AS1 to AS10 and AS14, every one dry-run first inside a rolled-back
+# transaction,
 # then applied, stopping on the first failure. It is safe before the
 # upload: the new tables are additive, the old app screens read none of
 # them, and the AS10 tile is seeded Coming Soon.
@@ -57,6 +58,10 @@ SCHEMA_STEPS=(
   20260917700000_as9_lessons_learned.sql
   20260917800000_as10_audit_findings_manager.sql
   20260917810000_as10_seed_audit_findings_tile.sql
+  # AS14 MUST precede activation: it replaces documents' two USING (true)
+  # policies, a live cross-tenant hole the day Document Control goes
+  # Active. Rehearsed by scratch/run-as14-pentest.sh.
+  20260918100000_as14_assurance_repairs.sql
 )
 ACTIVATE_STEP=20260918900000_as13_activate_assurance_tiles.sql
 
