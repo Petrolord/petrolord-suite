@@ -311,9 +311,14 @@ export const useIsoCompliance = () => {
   /* Clauses                                                          */
   /* ---------------------------------------------------------------- */
 
+  // ASC-0 (engines #212): the gate names the register's own standard,
+  // so its sentences cite that standard and not ISO 9001 by default.
+  const standardOf = (id) => standards.find((st) => st.id === id) || null;
+
   const createClause = async (form) => {
     if (!orgId) return { success: false, error: 'No organization is selected.' };
-    const verdict = canSetClauseStatus({}, form.status || 'Not assessed', form);
+    const verdict = canSetClauseStatus({}, form.status || 'Not assessed', form,
+      standardOf(form.standard_id));
     if (!verdict.ok) return { success: false, error: verdict.reason };
     const { row } = buildClauseWrite(form);
     const { data, error: err } = await supabase
@@ -361,7 +366,7 @@ export const useIsoCompliance = () => {
     // user, a typed one is that person, and either replaces whoever
     // assessed the clause last time.
     const effective = ASSESSED_STATUSES.includes(status) ? withAssessor(patch, user?.id) : patch;
-    const verdict = canSetClauseStatus(clause, status, effective);
+    const verdict = canSetClauseStatus(clause, status, effective, standardOf(clause.standard_id));
     if (!verdict.ok) return { success: false, error: verdict.reason };
 
     const next = { ...clause, ...effective, status };

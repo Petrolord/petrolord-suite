@@ -16,7 +16,9 @@ import {
   BlockerList, DetailField, EmptyState, ErrorState, Loading, SchemaNotice, WriteFailure,
 } from './components/SharedComponents';
 import { CertificationBadge, ReadinessBadge } from './components/ISOBadges';
-import { certificateState, standardRemovalImpact, validateStandard } from './utils/isoPayload';
+import {
+  certificateDaysText, certificateFlagged, certificateState, standardRemovalImpact, validateStandard,
+} from './utils/isoPayload';
 import { useIsoCompliance } from './hooks/useIsoCompliance';
 import { ConfirmDialog } from '../shared/ConfirmDialog';
 
@@ -299,12 +301,10 @@ export default function Standards() {
                 <DetailField label="Body">{standard.certification_body}</DetailField>
                 <DetailField label="Expires">
                   {standard.certificate_expires ? (
-                    <span className={readiness.counts.certificateExpiring
+                    <span className={certificateFlagged(readiness.counts)
                       ? 'text-[hsl(var(--destructive))] font-medium' : ''}>
                       {standard.certificate_expires}
-                      {certDays !== null
-                        ? ` (${certDays < 0 ? `${Math.abs(certDays)} days ago` : `in ${certDays} days`})`
-                        : ''}
+                      {certificateDaysText(certDays)}
                       {certificateState(readiness.counts)
                         ? `. ${certificateState(readiness.counts)}`
                         : ''}

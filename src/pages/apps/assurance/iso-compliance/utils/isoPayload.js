@@ -358,6 +358,25 @@ export const certificateState = (counts = {}) => {
   return null;
 };
 
+/**
+ * ASC-0 (engines #212): certificateExpiring is now 0 to
+ * CERTIFICATE_LEAD_DAYS only, so a lapsed certificate is expired and not
+ * expiring. The Standards page flagged the date on certificateExpiring
+ * alone, which would have stopped flagging a lapsed certificate. Either
+ * state flags it.
+ */
+export const certificateFlagged = (counts = {}) =>
+  Boolean(counts.certificateExpired || counts.certificateExpiring);
+
+/** "(in 12 days)", "(today)" or "(3 days ago)" beside the expiry date. */
+export const certificateDaysText = (certDays) => {
+  if (certDays === null || certDays === undefined) return '';
+  if (certDays === 0) return ' (today)';
+  const n = Math.abs(certDays);
+  const unit = n === 1 ? 'day' : 'days';
+  return certDays < 0 ? ` (${n} ${unit} ago)` : ` (in ${n} ${unit})`;
+};
+
 /** The audit statuses at which the clause scope is fixed. */
 export const SCOPE_LOCKED_STATUSES = Object.freeze(['Reported', 'Closed', 'Cancelled']);
 
