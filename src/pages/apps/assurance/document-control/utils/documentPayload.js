@@ -111,12 +111,23 @@ export const buildDocumentWrite = (form = {}, { hasAs4Columns = true } = {}) => 
     : DOCUMENT_WRITABLE_COLUMNS.filter((c) => !AS4_DOCUMENT_COLUMNS.includes(c));
 
   const source = { ...form };
+  // Derived from the document's OWN review period. With no period on
+  // the row (a document published before migration 20260917200000, or
+  // one whose period was never recorded) the review date already on it
+  // is kept: re-deriving it on the 24-month default is how Edit details
+  // used to move a 12-month document's review date a year later (AS13).
+  // The default applies only when there is neither a period nor a date.
   if (source.issue_date) {
-    const derived = nextReviewDate(
-      source.issue_date,
-      source.review_period_months || DEFAULT_REVIEW_PERIOD_MONTHS,
-    );
-    if (derived) source.next_review_date = toDateOnlyString(derived);
+    const own = Number(source.review_period_months);
+    const hasOwnPeriod = source.review_period_months !== '' && source.review_period_months != null
+      && Number.isFinite(own) && own > 0;
+    if (hasOwnPeriod || !source.next_review_date) {
+      const derived = nextReviewDate(
+        source.issue_date,
+        hasOwnPeriod ? own : DEFAULT_REVIEW_PERIOD_MONTHS,
+      );
+      if (derived) source.next_review_date = toDateOnlyString(derived);
+    }
   }
 
   return {
@@ -128,6 +139,31 @@ export const buildDocumentWrite = (form = {}, { hasAs4Columns = true } = {}) => 
       (k) => !allowed.includes(k) && !HOUSEKEEPING.includes(k),
     ),
   };
+};
+
+/**
+ * AS4 values a form actually carries, by label, for the message a save
+ * returns when it went through without migration 20260917200000. A
+ * review period left at the default is not counted: without the column
+ * the default is what the app uses anyway.
+ */
+export const as4ValuesEntered = (form = {}) => {
+  const labels = [];
+  if (String(form.description ?? '').trim()) labels.push('purpose');
+  const months = form.review_period_months;
+  if (months !== '' && months != null && Number(months) !== DEFAULT_REVIEW_PERIOD_MONTHS) {
+    labels.push('review period');
+  }
+  if (form.superseded_by) labels.push('superseding document');
+  return labels;
+};
+
+/** Said on a save that could not store AS4 values. Never a plain success. */
+export const as4SchemaMessage = (labels = []) => {
+  const list = labels.length > 1
+    ? `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`
+    : labels[0];
+  return `Saved without the ${list}: this database does not have the document control update yet (migration 20260917200000), so ${labels.length > 1 ? 'they were' : 'it was'} not stored. Ask your administrator to apply it.`;
 };
 
 export const buildRevisionWrite = (form = {}, { hasAs4Columns = true } = {}) => {
@@ -256,16 +292,65 @@ export const buildWorkflowRows = (revisionId, reviewers = [], dueDate = null) =>
   }));
 
 /**
- * Where a revision stands once its reviewers have spoken. Any rejection
+ * AS13 hardening: review ROUNDS.
+ *
+ * Every Submit for review is a new round: one insert of one Pending
+ * task per reviewer, so every task in a round carries the same
+ * created_at (Postgres's now() is the transaction time). A revision can
+ * be reviewed more than once, most often when it was rejected and is
+ * sent again, and the outcome of a round is decided by that round's
+ * tasks alone. Computing it over every task ever raised on the
+ * revision meant one old rejection rejected every later round: a
+ * rejected revision could never be approved.
+ *
+ * Tasks still Pending when their round is decided are set to Closed,
+ * which doc_workflows.status (free text, no check constraint) allows.
+ * A Closed task records that no decision was needed from that reviewer.
+ */
+export const CLOSED_TASK_STATUS = 'Closed';
+
+const roundKey = (w) => {
+  const t = Date.parse(w?.created_at);
+  return Number.isFinite(t) ? t : String(w?.created_at ?? '');
+};
+
+const later = (a, b) => (typeof a === 'number' && typeof b === 'number'
+  ? a > b
+  : String(a) > String(b));
+
+/** The tasks raised in the same Submit for review as `task`. */
+export const roundOf = (workflows = [], task) => {
+  if (!task) return [];
+  const key = roundKey(task);
+  return workflows.filter((w) => w.revision_id === task.revision_id && roundKey(w) === key);
+};
+
+/** The tasks of the latest review round on a revision. */
+export const currentRoundOf = (workflows = [], revisionId) => {
+  const mine = workflows.filter((w) => w.revision_id === revisionId);
+  if (!mine.length) return [];
+  const latest = mine.reduce((best, w) => (later(roundKey(w), roundKey(best)) ? w : best));
+  return roundOf(mine, latest);
+};
+
+/**
+ * Where a round stands once its reviewers have spoken. Any rejection
  * rejects it; it is approved only when every reviewer approved; anything
- * else is still in review.
+ * else is still in review. Closed tasks carry no decision and are left
+ * out. Pass ONE round's tasks (roundOf or currentRoundOf).
  */
 export const reviewOutcome = (workflows = []) => {
-  if (!workflows.length) return 'In Review';
-  if (workflows.some((w) => w.status === 'Rejected')) return 'Rejected';
-  if (workflows.every((w) => w.status === 'Approved')) return 'Approved';
+  const live = workflows.filter((w) => w.status !== CLOSED_TASK_STATUS);
+  if (!live.length) return 'In Review';
+  if (live.some((w) => w.status === 'Rejected')) return 'Rejected';
+  if (live.every((w) => w.status === 'Approved')) return 'Approved';
   return 'In Review';
 };
+
+/** The Pending tasks a decided round leaves behind, to be closed. */
+export const tasksToClose = (round = [], outcome) => (outcome === 'In Review'
+  ? []
+  : round.filter((w) => w.status === 'Pending'));
 
 /**
  * The document's status after a review outcome on its current revision.
@@ -275,8 +360,21 @@ export const reviewOutcome = (workflows = []) => {
 export const documentStatusAfterReview = (doc = {}, outcome) =>
   (doc.status === 'Published' ? 'Published' : outcome);
 
-const hasPendingReview = (revision, workflows = []) => Boolean(revision)
-  && workflows.some((w) => w.revision_id === revision.id && w.status === 'Pending');
+/**
+ * The Pending tasks of the current revision's latest round, while that
+ * round is undecided. Pending tasks left over in a decided round (from
+ * before a decided round closed its own tasks) do not hold the document
+ * up.
+ */
+export const pendingReviewTasks = (revision, workflows = []) => {
+  if (!revision) return [];
+  const round = currentRoundOf(workflows, revision.id);
+  if (reviewOutcome(round) !== 'In Review') return [];
+  return round.filter((w) => w.status === 'Pending');
+};
+
+const hasPendingReview = (revision, workflows = []) =>
+  pendingReviewTasks(revision, workflows).length > 0;
 
 /** Can the current revision be sent for review? */
 export const canSubmitForReview = (doc = {}, workflows = []) => {

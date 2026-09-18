@@ -246,11 +246,16 @@ export default function NewDocument() {
                   </p>
                 ) : null}
 
-                <div className="space-y-2">
-                  <Label htmlFor="description">Purpose</Label>
-                  <Textarea id="description" rows={3} value={form.description} onChange={set('description')}
-                    placeholder="What this document is for, so the next person to hold it does not have to read it end to end." />
-                </div>
+                {/* AS4-only column. On a database without migration
+                    20260917200000 the purpose would be dropped on save, so
+                    it is offered only where it can be stored (AS13). */}
+                {hasAs4Schema ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Purpose</Label>
+                    <Textarea id="description" rows={3} value={form.description} onChange={set('description')}
+                      placeholder="What this document is for, so the next person to hold it does not have to read it end to end." />
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
 
@@ -332,17 +337,24 @@ export default function NewDocument() {
                     onChange={set('confidentiality')} options={CONFIDENTIALITY_LEVELS}
                     placeholder="Select" />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="review_period_months">Review period (months)</Label>
-                  <Input id="review_period_months" type="number" min={1} max={120}
-                    value={form.review_period_months} onChange={set('review_period_months')} />
+                {hasAs4Schema ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="review_period_months">Review period (months)</Label>
+                    <Input id="review_period_months" type="number" min={1} max={120}
+                      value={form.review_period_months} onChange={set('review_period_months')} />
+                    <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                      The review date is worked out from this and the issue date
+                      when the document is published, so it cannot be typed once
+                      and forgotten.
+                    </p>
+                    <FieldError>{errors.review_period_months}</FieldError>
+                  </div>
+                ) : (
                   <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                    The review date is worked out from this and the issue date
-                    when the document is published, so it cannot be typed once
-                    and forgotten.
+                    The review period is set when the document is published.
+                    This database cannot store a period on the document yet.
                   </p>
-                  <FieldError>{errors.review_period_months}</FieldError>
-                </div>
+                )}
                 <div className="bg-[hsl(var(--secondary))]/40 p-3 rounded-lg border border-[hsl(var(--border))] flex gap-3 items-start">
                   <AlertCircle className="w-4 h-4 text-[hsl(var(--warning))] mt-0.5 shrink-0" />
                   <p className="text-xs text-[hsl(var(--muted-foreground))]">

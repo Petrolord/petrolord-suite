@@ -35,6 +35,7 @@ import {
   canPublish,
   canStartRevision,
   canSubmitForReview,
+  pendingReviewTasks,
   currentRevisionOf,
   validateFile,
 } from './utils/documentPayload';
@@ -128,9 +129,9 @@ export default function DocumentDetail() {
   const revisions = [...(doc.revisions || [])].sort(
     (a, b) => String(b.revision_number).localeCompare(String(a.revision_number)));
   const current = currentRevisionOf(doc);
-  const pendingOnCurrent = current
-    ? workflows.filter((w) => w.revision_id === current.id && w.status === 'Pending')
-    : [];
+  // Only the latest review round's tasks, and only while it is
+  // undecided: a task from an earlier round is not someone to wait on.
+  const pendingOnCurrent = pendingReviewTasks(current, workflows);
   const memberName = (userId) => {
     const m = members.find((x) => x.user_id === userId);
     return m ? (m.full_name || m.email) : 'a member no longer in this organization';
@@ -230,7 +231,9 @@ export default function DocumentDetail() {
       return;
     }
     setEditing(null);
-    toast({ description: 'Details saved.' });
+    toast(result.warning
+      ? { title: 'Saved, with a caveat', description: result.warning, variant: 'destructive' }
+      : { description: 'Details saved.' });
   };
 
   const handleRetire = async (e) => {
@@ -243,7 +246,9 @@ export default function DocumentDetail() {
       return;
     }
     setRetiring(null);
-    toast({ description: `${doc.document_number} is now ${retiring.status}.` });
+    toast(result.warning
+      ? { title: `${doc.document_number} is now ${retiring.status}, with a caveat`, description: result.warning, variant: 'destructive' }
+      : { description: `${doc.document_number} is now ${retiring.status}.` });
   };
 
   const handleDownload = async (revision) => {

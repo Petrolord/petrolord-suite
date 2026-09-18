@@ -74,7 +74,11 @@ export default function ApprovalQueue() {
       // the toast says where the document ended up.
       const where = {
         Approved: 'Every reviewer has approved this revision; it can be published from the document page.',
-        Rejected: 'The revision is rejected. The author can revise it and send it for review again.',
+        // True since the round closes its other Pending tasks: before
+        // that, they stayed Pending and blocked a new revision.
+        Rejected: result.closed
+          ? `The revision is rejected, and ${result.closed === 1 ? 'the other reviewer\'s task is' : `the other ${result.closed} reviewers' tasks are`} closed. The author can start a new revision, or send this one for review again as a new round.`
+          : 'The revision is rejected. The author can start a new revision, or send this one for review again as a new round.',
         'In Review': 'Other reviewers still have to decide.',
       }[result.outcome] || '';
       toast({
