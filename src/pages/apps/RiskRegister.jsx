@@ -10,7 +10,15 @@ import { RiskReportingProvider, useRiskReporting } from './risk-register/context
 
 // Inner component to consume context for routing overrides
 const RiskRegisterRouter = ({ activeTab, setActiveTab }) => {
-  const { activeReport, builderMode } = useRiskReporting();
+  const { activeReport } = useRiskReporting();
+  // A heatmap cell the user clicked, carried to the register tab as a
+  // filter. Both heatmaps used to switch tabs and drop the cell (AS13).
+  const [cell, setCell] = useState(null);
+
+  const drillDown = (filter) => {
+    setCell(filter);
+    setActiveTab('register');
+  };
 
   // Auto-switch to advanced-reports tab if a report is opened or builder is launched
   useEffect(() => {
@@ -21,9 +29,9 @@ const RiskRegisterRouter = ({ activeTab, setActiveTab }) => {
 
   return (
     <div className="animate-in fade-in duration-300 h-full w-full">
-      {activeTab === 'dashboard' && <RiskRegisterDashboardPage setActiveTab={setActiveTab} />}
-      {activeTab === 'register' && <RiskRegisterTablePage />}
-      {activeTab === 'heatmap' && <RiskHeatmapPage setActiveTab={setActiveTab} />}
+      {activeTab === 'dashboard' && <RiskRegisterDashboardPage onDrillDown={drillDown} />}
+      {activeTab === 'register' && <RiskRegisterTablePage cell={cell} onClearCell={() => setCell(null)} />}
+      {activeTab === 'heatmap' && <RiskHeatmapPage onDrillDown={drillDown} />}
       {activeTab === 'reports' && <RiskReportsPage />}
       {activeTab === 'advanced-reports' && <AdvancedReportingStudio />}
     </div>

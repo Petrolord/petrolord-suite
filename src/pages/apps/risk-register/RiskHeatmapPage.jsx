@@ -3,8 +3,10 @@ import { useRiskRegister } from './hooks/useRiskRegister';
 import { RiskHeatmapMatrix } from './components/RiskHeatmapMatrix';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, Info } from 'lucide-react';
+import { RISK_LIVE_STATUSES } from '@/lib/riskScoring';
+import { cellFilter } from './utils/registerFilter';
 
-const RiskHeatmapPage = ({ setActiveTab }) => {
+const RiskHeatmapPage = ({ onDrillDown }) => {
   const { risks, loading } = useRiskRegister();
 
   if (loading) {
@@ -15,8 +17,8 @@ const RiskHeatmapPage = ({ setActiveTab }) => {
       );
   }
 
-  // Usually heatmaps focus on open risks
-  const activeRisks = risks.filter(r => r.status !== 'Closed' && r.status !== 'Draft');
+  // The risks an organization still carries, from the one status split.
+  const activeRisks = risks.filter(r => RISK_LIVE_STATUSES.includes(r.status));
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
@@ -30,19 +32,19 @@ const RiskHeatmapPage = ({ setActiveTab }) => {
               <CardTitle className="flex items-center gap-2">
                   Inherent Risk Matrix
               </CardTitle>
-              <CardDescription>Click any cell to drill down into the specific risks.</CardDescription>
+              <CardDescription>Click a cell to list its risks in the register.</CardDescription>
           </CardHeader>
           <CardContent className="p-12 flex flex-col items-center justify-center min-h-[500px]">
               <RiskHeatmapMatrix 
                   risks={activeRisks} 
-                  onCellClick={(l, i) => setActiveTab('register')}
+                  onCellClick={(l, i) => onDrillDown(cellFilter(l, i, RISK_LIVE_STATUSES, 'risks not closed or draft'))}
               />
           </CardContent>
       </Card>
 
       <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 flex gap-3 text-blue-400 text-sm">
           <Info className="w-5 h-5 shrink-0" />
-          <p><strong>Note:</strong> This heatmap represents inherent risk (before mitigation). Residual risk mapping is configured in the advanced reporting module.</p>
+          <p><strong>Note:</strong> This heatmap plots inherent risk, before mitigation. Each risk&apos;s residual score is shown on its own page, and the Residual Score column can be added to a report in Advanced Reports.</p>
       </div>
     </div>
   );
