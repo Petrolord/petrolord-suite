@@ -30,6 +30,7 @@ const seed = () => ({
     { id: 'l-new', org_id: ORG, lesson_code: 'LL-2026-002', title: 'Replacement', status: 'Draft', ...substance },
     { id: 'l-val', org_id: ORG, lesson_code: 'LL-2026-003', title: 'Validated', status: 'Validated', validated_at: '2026-06-01', validated_by: 'user-9', ...substance },
     { id: 'l-draft', org_id: ORG, lesson_code: 'LL-2026-004', title: 'Captured in error', status: 'Draft' },
+    { id: 'l-mine', org_id: ORG, lesson_code: 'LL-2026-005', title: 'My own', status: 'Submitted', author_id: 'user-1', ...substance },
   ],
   lesson_applications: [
     { id: 'ap1', lesson_id: 'l-pub', target_type: 'Procedure', reference: 'SOP-1', outcome: 'Adopted', applied_on: '2026-06-01' },
@@ -126,3 +127,18 @@ describe('AS13 repairs in useLessonsLearned', () => {
     expect(row('l-pub').recommendation).toBe('Inspect seals monthly');
   });
 });
+
+describe('AS15: validation by typed name', () => {
+  it('refuses the author even when they record somebody else\'s name, and writes nothing', async () => {
+    const { result } = await setup();
+    const mine = result.current.lessons.find((l) => l.id === 'l-mine');
+    let out;
+    await act(async () => {
+      out = await result.current.validateLesson(mine, { validator_name: 'An External Reviewer' });
+    });
+    expect(out.success).toBe(false);
+    expect(out.error).toMatch(/author/);
+    expect(row('l-mine').status).toBe('Submitted');
+  });
+});
+

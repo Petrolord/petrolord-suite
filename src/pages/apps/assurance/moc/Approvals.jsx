@@ -9,8 +9,9 @@ import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { RiskBadge, StageBadge, TypeBadge } from './components/MOCBadges';
 import { EmptyState, ErrorState, Loading } from './components/SharedComponents';
-import { TERMINAL_STAGES } from '@/lib/managementOfChange';
+import { TERMINAL_STAGES, canDecideApproval } from '@/lib/managementOfChange';
 import { useManagementOfChange } from './hooks/useManagementOfChange';
+import { useOrgMembers } from '../shared/useOrgMembers';
 
 /**
  * AS6 — the approval queue, from moc_approvals.
@@ -29,6 +30,7 @@ export default function MOCApprovals() {
   const {
     records, approvals, loading, error, userId, decideApproval, refresh,
   } = useManagementOfChange();
+  const { nameOf } = useOrgMembers();
 
   const [mineOnly, setMineOnly] = useState(true);
   const [deciding, setDeciding] = useState(null);
@@ -114,10 +116,16 @@ export default function MOCApprovals() {
                     <div className="flex flex-row md:flex-col gap-2 justify-center border-t md:border-t-0 md:border-l border-[hsl(var(--border))] pt-4 md:pt-0 md:pl-6 shrink-0">
                       {deciding === a.id ? null : (
                         <>
-                          <Button size="sm" className="w-full"
-                            onClick={() => { setDeciding(a.id); setComments(''); }}>
-                            <CheckCircle className="w-4 h-4 mr-2" /> Decide
-                          </Button>
+                          {canDecideApproval(a, a.moc, userId).ok ? (
+                            <Button size="sm" className="w-full"
+                              onClick={() => { setDeciding(a.id); setComments(''); }}>
+                              <CheckCircle className="w-4 h-4 mr-2" /> Decide
+                            </Button>
+                          ) : (
+                            <p className="text-xs text-[hsl(var(--muted-foreground))] max-w-[12rem]">
+                              Assigned to {nameOf(a.approver_id) || 'another member'}. Only they can decide it.
+                            </p>
+                          )}
                           <Button variant="ghost" size="sm" className="w-full"
                             onClick={() => navigate(`${BASE}/${a.moc.id}`)}>
                             <ExternalLink className="w-4 h-4 mr-2" /> Open

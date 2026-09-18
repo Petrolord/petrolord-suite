@@ -72,6 +72,8 @@ export const AUDIT_WRITABLE_COLUMNS = Object.freeze([
 
 export const COVERAGE_WRITABLE_COLUMNS = Object.freeze([
   'audit_id',
+  // AS15: who recorded the result, the auditor the ISO 19011 check is on.
+  'examined_by',
   'clause_id',
   'result',
   'evidence_seen',

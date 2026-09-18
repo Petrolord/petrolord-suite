@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import {
+  canAssignReviewer,
+  canDecideReviewTask,
   DEFAULT_REVIEW_PERIOD_MONTHS,
   nextRevisionNumber,
   nextReviewDate,
@@ -554,6 +556,12 @@ export const useDocumentControl = () => {
     if (!rev) {
       return { success: false, error: 'This document has no revision to review. Create a revision first.' };
     }
+    // AS15 segregation of duties: the author does not review their own
+    // revision. The database refuses the same (doc_workflows_sod).
+    for (const r of reviewers.filter((x) => x && x.reviewer_id)) {
+      const assign = canAssignReviewer(rev, r.reviewer_id);
+      if (!assign.ok) return { success: false, error: assign.reason };
+    }
 
     const rows = buildWorkflowRows(rev.id, reviewers, dueDate);
     const { error: wfErr } = await supabase.from('doc_workflows').insert(rows);
@@ -593,6 +601,11 @@ export const useDocumentControl = () => {
    * document's current revision.
    */
   const decideWorkflow = async (workflow, status, comments) => {
+    // AS15: only the assigned reviewer decides, and never the author.
+    // Before this any member could approve any task.
+    const revision = workflow.revision || revisions.find((r) => r.id === workflow.revision_id) || {};
+    const allowed = canDecideReviewTask(workflow, revision, user?.id || null);
+    if (!allowed.ok) return { success: false, error: allowed.reason };
     // Only a Pending task can be decided. A task closed because its
     // round was decided, or decided a moment ago by someone else, is
     // not overwritten.

@@ -8,7 +8,8 @@ import { CheckCircle, CheckSquare, Search, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { daysUntil, parseDateOnly } from '@/lib/documentControl';
+import {
+  canDecideReviewTask, daysUntil, parseDateOnly } from '@/lib/documentControl';
 import { DocControlShell, BASE } from './components/DocControlShell';
 import { StatusBadge } from './components/StatusBadge';
 import { EmptyState, ErrorState, Loading } from './components/SharedComponents';
@@ -158,9 +159,17 @@ export default function ApprovalQueue() {
                       </div>
                       {deciding === a.id ? null : (
                         <div className="flex gap-2 shrink-0">
-                          <Button variant="outline" onClick={() => { setDeciding(a.id); setComments(''); }}>
-                            Record a decision
-                          </Button>
+                          {canDecideReviewTask(a, a.revision || {}, user?.id).ok ? (
+                            <Button variant="outline" onClick={() => { setDeciding(a.id); setComments(''); }}>
+                              Record a decision
+                            </Button>
+                          ) : (
+                            <p className="text-xs text-[hsl(var(--muted-foreground))] max-w-[14rem]">
+                              {a.reviewer_id === user?.id
+                                ? 'You wrote this revision, so you cannot review it.'
+                                : 'Assigned to another reviewer. Only they can decide it.'}
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>

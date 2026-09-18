@@ -44,7 +44,7 @@ export default {
         "A finding needs a type, a title and objective evidence. A stop-work finding must be a Major or Minor nonconformity and must record what was done at the time.",
         "A finding will not close while any action is Open or In progress. A Major or Minor nonconformity needs its correction. A Major one also needs its root cause, a Corrective action that is not Cancelled, and one verified effective. Observations and Opportunities for improvement need none of these.",
         "Effectiveness checks apply to Complete actions only and record today and you; not effective needs notes. An action needs a description, type and due date. Voiding needs a reason.",
-        "Approving a programme needs a date and an approver; a blank Approved by records you. Complete needs every audit in it Reported, Closed or Cancelled; the others are named.",
+        "Approving a programme needs a date and an approver; a blank Approved by records you. Complete needs every audit in it Reported, Closed or Cancelled with its reason; the others are named.",
         "A checklist used by any audit cannot be deleted; retire it. Retired checklists are not offered for new audits.",
         "A question that is in any audit's checklist cannot be deleted, because its answers would go with it, and its criticality cannot change once a reported audit was held to it. To change either, retire the checklist and build a new version.",
         "Once an audit is Reported its answers cannot be changed and no new findings can be raised on it. Its existing findings are still worked to closure.",

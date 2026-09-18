@@ -374,7 +374,8 @@ export default function NewDocument() {
                   later from its page.
                 </p>
                 <ReviewRequestFields value={review} onChange={setReview}
-                  members={members} membersError={membersError} userId={user?.id} idPrefix="new-review" />
+                  members={members.filter((m) => m.user_id !== user?.id)}
+                  membersError={membersError} userId={user?.id} idPrefix="new-review" />
                 <FieldError>{errors.review}</FieldError>
               </CardContent>
             </Card>

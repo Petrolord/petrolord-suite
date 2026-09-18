@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { canAdvance } from '@/lib/managementOfChange';
+import { canAdvance, canAssignApprover, canDecideApproval } from '@/lib/managementOfChange';
 import {
   buildActionWrite,
   buildApprovalWrite,
@@ -328,6 +328,10 @@ export const useManagementOfChange = () => {
   const addApprover = async (mocId, { approver_id, role, level }) => {
     const locked = lockedMoc(mocId);
     if (locked) return { success: false, error: locked };
+    // AS15 segregation of duties: the approver is a named member, and not
+    // the originator. The database refuses the same (moc_approvals_sod).
+    const assign = canAssignApprover(records.find((m) => m.id === mocId) || {}, approver_id);
+    if (!assign.ok) return { success: false, error: assign.reason };
     const { row } = buildApprovalWrite({
       moc_id: mocId, approver_id, role, level: level || 1, status: 'Pending',
     });
@@ -347,6 +351,11 @@ export const useManagementOfChange = () => {
   const decideApproval = async (approval, status, comments) => {
     const locked = lockedMoc(approval.moc_id);
     if (locked) return { success: false, error: locked };
+    // AS15: only the assignee decides, and never the originator. Before
+    // this any member could sign any level of any change.
+    const allowed = canDecideApproval(approval,
+      records.find((m) => m.id === approval.moc_id) || {}, user?.id || null);
+    if (!allowed.ok) return { success: false, error: allowed.reason };
     if (status === 'Rejected' && !String(comments || '').trim()) {
       return { success: false, error: 'A rejection needs a reason, so the originator knows what to change.' };
     }
@@ -360,6 +369,33 @@ export const useManagementOfChange = () => {
       .eq('id', approval.id);
     if (err) return { success: false, error: err.message };
     await logActivity(approval.moc_id, `Approval ${status.toLowerCase()} at level ${approval.level ?? 1}`);
+    await fetchAll();
+    return { success: true };
+  };
+
+  /**
+   * AS15: hand a pending approval to somebody else, for an absence. The
+   * only way one person's approval can be decided by another, and it is
+   * logged. A decided approval is part of the record and stays.
+   */
+  const reassignApproval = async (approval, approverId) => {
+    const locked = lockedMoc(approval.moc_id);
+    if (locked) return { success: false, error: locked };
+    if (approval.status !== 'Pending') {
+      return { success: false, error: 'Only a pending approval can be reassigned.' };
+    }
+    const assign = canAssignApprover(records.find((m) => m.id === approval.moc_id) || {}, approverId);
+    if (!assign.ok) return { success: false, error: assign.reason };
+    const { error: err } = await supabase
+      .from('moc_approvals').update({ approver_id: approverId })
+      .eq('id', approval.id).eq('status', 'Pending');
+    if (err) {
+      if (err.code === UNIQUE_VIOLATION) {
+        return { success: false, error: 'That person is already an approver at that level.' };
+      }
+      return { success: false, error: err.message };
+    }
+    await logActivity(approval.moc_id, `Approval at level ${approval.level ?? 1} reassigned`);
     await fetchAll();
     return { success: true };
   };
@@ -455,6 +491,7 @@ export const useManagementOfChange = () => {
     setExpiry,
     addApprover,
     decideApproval,
+    reassignApproval,
     addActions,
     updateAction,
     addImpacts,

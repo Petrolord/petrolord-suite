@@ -15,6 +15,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import {
+  canAssignReviewer,
   CONFIDENTIALITY_LEVELS,
   nextReviewDate,
   nextRevisionNumber,
@@ -390,7 +391,8 @@ export default function DocumentDetail() {
             <CardContent>
               <form onSubmit={handleReview} className="space-y-4">
                 <ReviewRequestFields value={review} onChange={setReview}
-                  members={members} membersError={membersError} userId={user?.id} idPrefix="detail-review" />
+                  members={members.filter((m) => canAssignReviewer(current || {}, m.user_id).ok)}
+                  membersError={membersError} userId={user?.id} idPrefix="detail-review" />
                 {reviewError ? <p className="text-sm text-[hsl(var(--destructive))]">{reviewError}</p> : null}
                 <div className="flex justify-end gap-2">
                   <Button type="button" variant="ghost" onClick={() => setReviewing(false)}>Cancel</Button>

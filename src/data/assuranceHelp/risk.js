@@ -8,7 +8,7 @@ export default {
       id: 'purpose',
       title: 'What the app is for',
       paragraphs: [
-        'The Risk Register holds the risks your organisation carries: what could go wrong, why, what it would cost, and what is being done about it. Each risk is scored for likelihood and impact on a 1 to 5 scale, and the app works out the score and the band from those two numbers.',
+        'The Risk Register holds the risks your organisation carries: what could go wrong, why, what it would cost, and what is being done about it. Each risk is scored for likelihood and impact in whole levels from 1 to 5 (a fraction such as 2.5 is not a level and leaves the risk unscored), and the app works out the score and the band from those two numbers.',
         'It is used by risk owners who log and re-score risks, by assurance and HSE leads who review the whole register, and by managers who need a snapshot for a board review.',
         'Every risk belongs to the organisation you are signed in to. You only see your own organisation\'s register.',
       ],

@@ -57,6 +57,8 @@ import {
   expiryState as mocExpiryState,
   isOverdue as isMocOverdue,
   summarise as summariseMoc,
+  RATIFICATION as MOC_RATIFICATION,
+  ratificationState as mocRatificationState,
   EXPIRY as MOC_EXPIRY,
 } from './managementOfChange';
 import {
@@ -190,7 +192,8 @@ export const summariseModule = (data = {}, today = new Date()) => {
     peerReview: has('peerReview')
       ? summarisePeerReviews(data.peerReview.reviews, data.peerReview.comments, today) : null,
     moc: has('moc')
-      ? summariseMoc(data.moc.records, { actions: data.moc.actions }, today) : null,
+      ? summariseMoc(data.moc.records,
+        { actions: data.moc.actions, approvals: data.moc.approvals || [] }, today) : null,
     quality: has('quality') ? summariseQuality(data.quality, today) : null,
     iso: has('iso') ? summariseIso(data.iso, today) : null,
     lessons: has('lessons') ? summariseLessons(data.lessons, today) : null,
@@ -330,11 +333,22 @@ const peerReviewItems = ({ reviews = [], comments = [] } = {}, today) => {
   return out;
 };
 
-const mocItems = ({ records = [] } = {}, today) => {
+const mocItems = ({ records = [], approvals = [] } = {}, today) => {
   const app = hubApp('moc');
   const out = [];
   records.forEach((m) => {
     const opts = { code: m.moc_code, href: app.record(m.id), today };
+    // AS15: an emergency change in effect that its approvers have not
+    // ratified inside the window is running on reduced authority.
+    const mine = m.id == null ? [] : approvals.filter((a) => a.moc_id === m.id);
+    const ratified = mocRatificationState(m, mine, today);
+    if (ratified.state === MOC_RATIFICATION.OVERDUE) {
+      out.push(item('moc', TIER.EXPOSED, 'Emergency change not ratified in time', m,
+        { ...opts, date: ratified.dueDate }));
+    } else if (ratified.state === MOC_RATIFICATION.PENDING) {
+      out.push(item('moc', TIER.DUE_SOON, 'Emergency change awaiting ratification', m,
+        { ...opts, date: ratified.dueDate }));
+    }
     const expiry = mocExpiryState(m, today);
     if (expiry === MOC_EXPIRY.EXPIRED) {
       out.push(item('moc', TIER.EXPOSED, 'Temporary change running past its expiry', m,
