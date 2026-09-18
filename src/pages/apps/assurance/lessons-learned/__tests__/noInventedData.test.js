@@ -228,4 +228,50 @@ describe('no invented data in Lessons Learned', () => {
       /const\s+(LESSON_STATUSES|TARGET_TYPES|SOURCE_TYPES|APPLICABILITY_SCOPES)\s*=/.test(code(f)));
     expect(offenders.map(rel)).toEqual([]);
   });
+
+  /* AS13: the defect classes the help-guide review found, held shut. */
+
+  it('no page compares a date-only string with new Date() (the due-today off-by-one)', () => {
+    const offenders = files.filter((f) => /new Date\([^)]*(due|_date|_at)\)\s*[<>]/.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
+
+  it('every status button the page offers has the field its gate needs', () => {
+    // Superseded needs superseded_by; AS9 offered the button with no field.
+    const detail = code(path.join(APP, 'LessonDetail.jsx'));
+    expect(detail).toMatch(/advanceLesson\(lesson, 'Superseded', superseding\)/);
+    expect(detail).toMatch(/successorCandidates\(lesson, lessons\)/);
+    expect(detail).toMatch(/advanceLesson\(lesson, 'Archived', archiving\)/);
+  });
+
+  it('the author is written by name as well as by id, and a typed author is not the user', () => {
+    const hook = code(path.join(APP, 'hooks/useLessonsLearned.js'));
+    expect(hook).toMatch(/buildLessonWrite\(withAuthor\(form/);
+    expect(hook).not.toMatch(/author_id: row\.author_id \|\| user\?\.id/);
+    expect(code(path.join(APP, 'NewLesson.jsx'))).toMatch(/PersonField/);
+  });
+
+  it('a count is labelled for what it counts', () => {
+    const reports = code(path.join(APP, 'Reports.jsx'));
+    expect(reports).toMatch(/label="Applications recorded" value=\{summary\.applications\}/);
+  });
+
+  it('no delete bypasses the archive rule', () => {
+    expect(code(path.join(APP, 'hooks/useLessonsLearned.js')))
+      .toMatch(/canDeleteLesson\(lesson, applicationsFor\(id\)\)/);
+    expect(code(path.join(APP, 'Register.jsx'))).toMatch(/ConfirmDialog/);
+  });
+
+  it('an edit after validation goes back for validation, and a published lesson is not rewritten', () => {
+    const hook = code(path.join(APP, 'hooks/useLessonsLearned.js'));
+    expect(hook).toMatch(/canEditLesson\(lesson\)/);
+    expect(hook).toMatch(/editedLesson\(lesson, edits\)/);
+    expect(code(path.join(APP, 'LessonDetail.jsx'))).not.toMatch(/updateLesson/);
+  });
+
+  it('the shell has a menu below 1024 px as well as the side menu', () => {
+    const shell = code(path.join(APP, 'components/LessonsShell.jsx'));
+    expect(shell).toMatch(/hidden lg:flex/);
+    expect(shell).toMatch(/<CompactNav items=\{navItems\} \/>/);
+  });
 });

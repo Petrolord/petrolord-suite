@@ -162,3 +162,95 @@ export const validateMocPush = (form = {}) => {
   }
   return errors;
 };
+
+/* ------------------------------------------------------------------ */
+/* AS13: what the pages and the hook check before a write              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Who wrote this lesson.
+ *
+ * "Author (leave blank to record yourself)": a blank author is the
+ * signed-in user, by id AND by name, so the lesson page and the exports
+ * name them (AS9 stored the id only and showed "Not set"). A picked
+ * Suite member is that member. A typed name is somebody without an
+ * account, and the capturing user is not recorded as its author: AS9
+ * set author_id to the capturing user whatever was typed, so the
+ * independence check guarded the wrong person.
+ */
+export const withAuthor = (form = {}, userId = null, selfName = null) => {
+  const typed = String(form.author_name || '').trim();
+  if (form.author_id) return { ...form, author_name: typed || null };
+  if (typed) return { ...form, author_id: null, author_name: typed };
+  return { ...form, author_id: userId || null, author_name: selfName || null };
+};
+
+/**
+ * Lessons that may replace this one: any other lesson in the register
+ * that is not itself retired, and not one this lesson already replaces.
+ */
+export const successorCandidates = (lesson = {}, lessons = []) => lessons.filter((l) =>
+  l.id !== lesson.id
+  && !['Archived', 'Superseded'].includes(l.status)
+  && l.superseded_by !== lesson.id);
+
+/**
+ * Editing what a lesson says.
+ *
+ * A Validated lesson that is edited goes back to Submitted with its
+ * validation cleared: the validator accepted the words that were there,
+ * not the new ones. A Published or Embedded lesson is not edited in
+ * place, because the workflow has no way back from Published; it is
+ * replaced by a new lesson and marked Superseded. AS9 let any of them
+ * be rewritten and kept the validation.
+ */
+export const LESSON_EDIT_LOCKED_STATUSES = Object.freeze(['Published', 'Embedded', 'Archived', 'Superseded']);
+
+export const canEditLesson = (lesson = {}) => {
+  if (LESSON_EDIT_LOCKED_STATUSES.includes(lesson.status)) {
+    return {
+      ok: false,
+      reason: ['Archived', 'Superseded'].includes(lesson.status)
+        ? `A ${String(lesson.status).toLowerCase()} lesson is final.`
+        : `This lesson is ${String(lesson.status).toLowerCase()}, so everyone may already be working from it. To change what it says, capture a new lesson and mark this one Superseded by it.`,
+    };
+  }
+  return { ok: true };
+};
+
+export const editedLesson = (lesson = {}, edits = {}) => {
+  const next = { ...lesson, ...edits };
+  if (lesson.status !== 'Validated') return next;
+  return {
+    ...next,
+    status: 'Submitted',
+    validated_at: null,
+    validated_by: null,
+    validator_name: null,
+  };
+};
+
+/**
+ * May this lesson be deleted?
+ *
+ * Only one that was never accepted and never applied: a Draft or a
+ * Submitted lesson with no validation and no applications. Anything
+ * else is archived with a reason, which is the rule AS9 states and its
+ * one-click delete went round.
+ */
+export const canDeleteLesson = (lesson = {}, applications = []) => {
+  const code = lesson.lesson_code || 'This lesson';
+  if (!['Draft', 'Submitted'].includes(lesson.status) || lesson.validated_at) {
+    return {
+      ok: false,
+      reason: `${code} is ${String(lesson.status).toLowerCase()}. Only a draft or submitted lesson that was never validated can be deleted. Archive it with a reason instead.`,
+    };
+  }
+  if (applications.length) {
+    return {
+      ok: false,
+      reason: `${code} has ${applications.length} application${applications.length === 1 ? '' : 's'} recorded, and deleting it would delete them. Archive it with a reason instead.`,
+    };
+  }
+  return { ok: true };
+};
