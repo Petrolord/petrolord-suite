@@ -8,7 +8,16 @@ repaired) and AS13 (help, manual, 94 app repairs, launch) BUILT
 2026-09-18**. **AS14 (the open items, and a live `documents` RLS
 hole) BUILT 2026-09-18; AS14 MERGED (Suite #518, engines #210). AS15
 (every open owner decision, decided under delegation) BUILT 2026-09-18.**
-The launch is ONE owner-run script:
+**LAUNCHED 2026-09-18.** Schema: all 16 migrations applied by the owner
+(after PR #520 fixed a live mis-cased `peer_reviews` decision and PR #521
+made the dry run one rolled-back transaction); gates 3/7/24, 0 anon
+grants, 0 RLS-off, `documents` USING(true) hole closed live. Prod upload
+e36846604 verified live (platformBuild-8d5793e0.js, 696 chunks all 200,
+all 10 routes served). Activation applied: **10 Active / 0 Coming Soon /
+24 Archived.** Still open: the commerce migration (second engineer), the
+private `documents` storage bucket (dashboard), owner staging walks.
+
+The launch was ONE owner-run script:
 `tools/validation/assurance/assurance-launch-apply.sh schema` (now 16
 migrations, AS14 and AS15 included), upload, then `... activate`.
 
