@@ -82,7 +82,7 @@ export default {
       id: "limits",
       title: "What the app does not do",
       bullets: [
-        "Nothing is stored until the database update for this app (migration 20260917800000) is applied; its catalogue tile is seeded as not yet available until the app ships.",
+        "Nothing is stored until the database update for this app (migration 20260917800000) is applied; its catalogue tile is seeded as not yet Active.",
         "Independence between two typed names is judged by the name alone, so spell a person's name the same way each time, or pick them from the Suite members.",
         "Questions cannot be retired one at a time; retire the whole checklist and issue a new version.",
         "Deleting a programme keeps its audits. Audit details cannot be edited after planning, apart from the conclusion and report date.",
