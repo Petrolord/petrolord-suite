@@ -3,7 +3,8 @@
 Plan of record: `docs/scope/Assurance-ROADMAP.md`.
 Wave: **AS1 (foundations) and AS2 (Risk Register) BUILT 2026-09-16;
 AS3 to AS10 (all eight remaining apps) BUILT 2026-09-17**, migrations
-held; **AS11 (the hub) BUILT 2026-09-18**, no migration.
+held; **AS11 (the hub) and AS12 (`engines/assurance`, 13 engine
+defects repaired) BUILT 2026-09-18**, no migration.
 
 This file replaces a document that carried the same name and described
 the Economics E4 apps. That content now lives at
@@ -35,9 +36,9 @@ programmes. This one is still in its Horizons-generated state.
 Tests: **683** as of AS11 (the hub, +115); **568** as of AS10 (AS2 34, AS3 63, AS4 45, AS5 52, AS6 58, AS7 79,
 AS8 93, AS9 63, AS10 69, plus the shared authority suites), all under
 `src/lib/__tests__/` and the two app trees. There were none at all
-before AS2. Engine: **none**; there is no `engines/assurance` in
-petrolord-engines, which is why the two NextGen assurance courses are
-deferred to AS12.
+before AS2. Engine: **`engines/assurance`** since AS12 (engines #207/#208, 1,747
+golden cases from independent oracles). The two NextGen assurance
+courses are unblocked on the engine side.
 
 ---
 
@@ -1262,6 +1263,91 @@ a broken route, a restated summary and a wrong catalogue id each
 fail it; `useAssuranceHub.test.js` 19; `assuranceHubPage.test.js` 12;
 `assuranceHubRender.test.jsx` 4; plus the riskScoring guard retargeted).
 Module total **683**. No migration.
+
+## 3k. AS12, built 2026-09-18 — `engines/assurance`, and what its oracles found
+
+The two NextGen assurance courses were deferred until their capstones
+could be graded against an extracted engine with goldens and an
+independent oracle. This wave builds that engine.
+
+### 3k.1 The extraction
+
+The nine rule modules moved into petrolord-engines as the new
+`engines/assurance/` domain (engines PR #207, follow-up #208, vendored
+here at `871d2f9`):
+
+- The rules move and the presentation stays. Every `*_TOKENS`,
+  `*_CHART_COLORS` and the risk band class helpers stay in the Suite.
+- The nine `src/lib/` paths become shims that re-export the engine and
+  add back those tokens, so no import in the app trees changed.
+- Five modules each carried a byte-identical copy of the calendar-date
+  helpers. There is now one copy, `engines/assurance/calendar.js`.
+- The Suite's rule tests were ported (332). The Suite keeps its
+  whole-tree guards.
+- All 810 Suite tests passed through the shims before any repair was
+  made, so the extraction itself changes no behaviour.
+
+### 3k.2 The oracles
+
+Ten stdlib Python oracles were written by three independent authors from
+the rules as the modules and this document state them, rather than from
+the JavaScript. They produced **1,747 golden cases**. The gate
+(`assurance.goldens.test.js`) enforces the following:
+
+- Every exported function has at least one case.
+- Every summary is computed independently (the DR8 rule).
+- Every case is replayed under five time zones: UTC, Los Angeles,
+  St John's, Kolkata and Auckland. The zone is proved by its offset,
+  because ICU names Kolkata "Calcutta".
+
+### 3k.3 Thirteen engine defects, all repaired in the same wave
+
+Each defect was first pinned as `knownDefect`, which means the gate
+asserts the engine still disagrees. After the repair it became a
+`repaired` case that is gated like any other.
+
+| id | defect | where a user saw it |
+|---|---|---|
+| CAL-1 | An impossible date ('2026-02-30') rolled over to a real one (2 March). | every due, expiry and review rule |
+| CAL-2 | Years below 1000 were misprinted ('0100' printed as '100'). | a date input while a year is being typed |
+| RS-1 | A risk review due today read overdue west of Greenwich, because the date was parsed as UTC (the AS3 defect, surviving in AS2's module). | Risk detail "overdue" |
+| RS-2 | A blank residual axis ('') scored the whole residual 0 instead of falling back per axis. | the form preview, and `appetite_status` saved as "Not set", which snapshots copied |
+| DC-1 | An unreadable review date read "Review due soon", because `null <= 30` is true in JavaScript. | the Document Control dashboard |
+| MOC-1 | The same `null <= 14` mistake: an unreadable expiry read "Expiring soon" and passed the implementation gate. | MOC dashboard, register, reports and the gate |
+| PR-1 | A comment with no severity sorted above Critical. | review comment order |
+| PR-2 | The refusal text read "A open comment". | the disposition refusal |
+| LL-1 | The attention sort was not transitive when a lesson had no date. | the Lessons dashboard |
+| ISO-1 | The summary judged every clause on a 3-year cycle, whatever its standard set. | ISO dashboard and reports versus the readiness cards |
+| ISO-2 | Closed and voided findings kept ageing to today. | the finding Age tile and both findings CSVs |
+| ISO-3 | On 29 February a 3-year cycle started on 1 March. | coverage on a leap day |
+
+AS12b added `clauseCoverageByStandard`, which the ISO clause register
+and reports now call, so no page falls back to the 3-year default.
+
+Negative control: under `TZ=America/Los_Angeles` the pre-repair risk
+module reports a review due today as overdue and a half-blank residual
+as 0. The repaired module gives `false` and 8.
+
+### 3k.4 Owner questions the oracles raised (not changed; see the FINDINGS files)
+
+1. An invalid `today` makes every obligation read On track. The check
+   fails open.
+2. Evidence of any age still counts towards Compliant.
+3. Risk levels such as 2.5 are accepted and multiplied.
+4. ISO coverage counts examinations from Cancelled and In-progress
+   audits. ISO 9001 §9.2.2(c) expects reported results.
+5. ISO independence is checked for the lead auditor only.
+6. An expired ISO certificate is shown in counts but never as a blocker.
+7. A hold point marked "Not applicable" needs no verifier or reason,
+   while "Waived" needs both.
+8. A closed temporary MOC reads "Permanent change" in the Register CSV.
+9. Emergency changes need full multi-level approval before
+   implementation. CCPS practice often allows reduced authority with a
+   review after the event.
+10. A lesson author can validate their own lesson by typing a name.
+11. Two AS10 rules (N/A needs a reason; a cancelled audit needs a
+    reason) are enforced at write time by constraints and forms. The
+    engine trusts the stored status.
 
 ## 4. How AS1 was verified
 
