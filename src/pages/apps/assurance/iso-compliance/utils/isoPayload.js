@@ -343,4 +343,19 @@ export const standardRemovalImpact = (standard, { clauses = [], auditClauses = [
   };
 };
 
+/** The audit statuses at which the clause scope is fixed. */
+export const SCOPE_LOCKED_STATUSES = Object.freeze(['Reported', 'Closed', 'Cancelled']);
+
+/**
+ * Why clauses can no longer be added to or removed from this audit's
+ * scope, or null while they can. Once the audit is Reported its scope is
+ * what the report covered, so changing it afterwards would rewrite the
+ * report (AS13 hardening: it used to lock only at Closed and Cancelled).
+ */
+export const scopeLockReason = (audit) => {
+  if (!audit || !SCOPE_LOCKED_STATUSES.includes(audit.status)) return null;
+  return `This audit is ${String(audit.status).toLowerCase()}. Its clause scope is what the `
+    + 'report covered and can no longer be added to or removed from.';
+};
+
 export { canDeleteFinding, progressedFindingStatus } from '../../shared/findingWorkflow';

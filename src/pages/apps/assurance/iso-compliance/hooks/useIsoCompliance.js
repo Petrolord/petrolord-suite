@@ -22,6 +22,7 @@ import {
   nextAuditCodeFromExisting,
   nextFindingCodeFromExisting,
   progressedFindingStatus,
+  scopeLockReason,
   withAssessor,
 } from '../utils/isoPayload';
 
@@ -471,11 +472,18 @@ export const useIsoCompliance = () => {
   /**
    * Put clauses in an audit's scope.
    *
+   * Refused once the audit is Reported, Closed or Cancelled: the scope is
+   * what the report covered (scopeLockReason). Removal is refused the
+   * same way.
+   *
    * Refused where the lead auditor owns one of them. The database
    * refuses it too; this names the clauses first, which a constraint
    * cannot.
    */
   const addToScope = async (audit, clauseIds = []) => {
+    // Judge the stored audit, not the caller's copy (AS13 hardening).
+    const locked = scopeLockReason(audits.find((x) => x.id === audit?.id) || audit);
+    if (locked) return { success: false, error: locked };
     const rows = clauseIds.filter(Boolean).map((id) => clauseById.get(id)).filter(Boolean);
     if (!rows.length) return { success: false, error: 'Pick at least one clause.' };
 
@@ -518,6 +526,9 @@ export const useIsoCompliance = () => {
   };
 
   const removeFromScope = async (id) => {
+    const row = auditClauses.find((r) => r.id === id);
+    const locked = scopeLockReason(audits.find((x) => x.id === row?.audit_id));
+    if (locked) return { success: false, error: locked };
     const { error: err } = await supabase.from('iso_audit_clauses').delete().eq('id', id);
     if (err) return { success: false, error: explainWriteError(err) };
     await fetchAll();
