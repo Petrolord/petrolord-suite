@@ -34,7 +34,7 @@ export default {
         "Validated, Published and Embedded all need what happened, why it happened and what to do about it. The page names what is missing.",
         "The author may not validate their own lesson. The app and the database refuse a validation by the author's Suite account, or by the account that captured the lesson when the author was typed by name. A validator typed by name is recorded as typed and is not checked.",
         "Published needs a validation date and validator, and records today as the published date.",
-        "Embedded needs at least one application with outcome Adopted or Adapted. Rejected applications do not count; the database counts them itself.",
+        "Embedded needs at least one application with outcome Adopted or Adapted. Rejected applications do not count; the database counts them itself. Once a lesson is Embedded, its last Adopted or Adapted application cannot be removed: record the one that replaces it first, or archive or supersede the lesson.",
         "Archiving needs a written reason. Superseded asks which lesson replaces this one, from the lessons that are not archived or superseded, and a lesson cannot supersede itself.",
         "A Validated lesson that is edited goes back to Submitted and its validation is cleared. A Published or Embedded lesson cannot be edited: capture the corrected lesson and mark the old one Superseded by it.",
         "Only a Draft or Submitted lesson that was never validated and has no applications can be deleted, and only after you confirm. Anything else is archived with a reason.",
@@ -55,7 +55,7 @@ export default {
         "Published: visible in searches of published lessons. Moves to Embedded, Superseded or Archived.",
         "Embedded: has changed something. Moves to Superseded or Archived.",
         "Archived and Superseded are final.",
-        "Applications can be added or removed at any status except Archived and Superseded. Every move, validation and application is written to History."
+        "Applications can be added or removed at any status except Archived and Superseded, apart from the last Adopted or Adapted application of an Embedded lesson, which stays. Every move, validation and application is written to History."
       ]
     },
     {

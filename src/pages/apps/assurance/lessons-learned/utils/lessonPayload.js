@@ -15,7 +15,7 @@
  * recommendation, press Save Draft, be told the draft had been saved
  * successfully, and land on a dashboard of five invented lessons.
  */
-import { toDateOnlyString } from '@/lib/lessonsLearned';
+import { didChangeSomething, toDateOnlyString } from '@/lib/lessonsLearned';
 
 /** `org_id`, `lesson_code` and `created_by` are set by the hook. */
 export const LESSON_WRITABLE_COLUMNS = Object.freeze([
@@ -253,4 +253,26 @@ export const canDeleteLesson = (lesson = {}, applications = []) => {
     };
   }
   return { ok: true };
+};
+
+/**
+ * May this application record be removed?
+ *
+ * An Embedded lesson is the claim that it changed something: the
+ * database lets a lesson become Embedded only with an Adopted or Adapted
+ * application behind it. That check fires on the status change alone,
+ * so removing the last such application afterwards left the lesson
+ * Embedded with nothing behind it (AS13 hardening). The last embedding
+ * application of an Embedded lesson therefore stays.
+ */
+export const canRemoveApplication = (lesson = {}, application = {}, applications = []) => {
+  if (lesson.status !== 'Embedded' || !didChangeSomething(application)) return { ok: true };
+  const others = applications.filter((a) => a.id !== application.id && didChangeSomething(a));
+  if (others.length) return { ok: true };
+  const code = lesson.lesson_code || 'This lesson';
+  return {
+    ok: false,
+    reason: `${code} is Embedded, and this is the only Adopted or Adapted application behind that. `
+      + 'Record the application that replaces it first, or archive or supersede the lesson.',
+  };
 };

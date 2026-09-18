@@ -29,7 +29,8 @@ import {
   LessonStatusBadge, OutcomeBadge, ScopeBadge, UnappliedBadge,
 } from './components/LessonBadges';
 import {
-  canEditLesson, successorCandidates, validateApplication, validateMocPush, validateRiskPush,
+  canEditLesson, canRemoveApplication, successorCandidates, validateApplication, validateMocPush,
+  validateRiskPush,
 } from './utils/lessonPayload';
 import { useLessonsLearned } from './hooks/useLessonsLearned';
 
@@ -804,14 +805,19 @@ export default function LessonDetail() {
                           <td className="data-grid-td text-xs">{a.applied_on}</td>
                           <td className="data-grid-td text-xs max-w-sm">{a.notes || ''}</td>
                           <td className="data-grid-td text-right">
-                            {!terminal ? (
-                              <Button size="sm" variant="ghost" disabled={busy}
-                                onClick={() => run(() => deleteApplication(a.id),
-                                  'Application removed.')}
-                                title="Remove this record">
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            ) : null}
+                            {!terminal ? (() => {
+                              const removal = canRemoveApplication(lesson, a, applications);
+                              return (
+                                <Button size="sm" variant="ghost" disabled={busy}
+                                  onClick={() => (removal.ok
+                                    ? run(() => deleteApplication(a.id), 'Application removed.')
+                                    : setFailure(removal.reason))}
+                                  title={removal.ok ? 'Remove this record' : removal.reason}
+                                  aria-label={removal.ok ? 'Remove this record' : removal.reason}>
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              );
+                            })() : null}
                           </td>
                         </tr>
                       );

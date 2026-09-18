@@ -18,6 +18,7 @@ import {
   nextLessonCodeFromExisting,
   canDeleteLesson,
   canEditLesson,
+  canRemoveApplication,
   editedLesson,
   withAuthor,
 } from '../utils/lessonPayload';
@@ -380,7 +381,19 @@ export const useLessonsLearned = () => {
     return { success: true, data };
   };
 
+  /**
+   * Remove an application record. Refused for the last Adopted or
+   * Adapted application of an Embedded lesson (canRemoveApplication):
+   * the database checks Embedded only when the status changes.
+   */
   const deleteApplication = async (id) => {
+    const application = applications.find((a) => a.id === id);
+    if (application) {
+      const lesson = lessons.find((l) => l.id === application.lesson_id);
+      const verdict = canRemoveApplication(lesson, application,
+        applications.filter((a) => a.lesson_id === application.lesson_id));
+      if (!verdict.ok) return { success: false, error: verdict.reason };
+    }
     const { error: err } = await supabase.from('lesson_applications').delete().eq('id', id);
     if (err) return { success: false, error: explainWriteError(err) };
     await fetchAll();
