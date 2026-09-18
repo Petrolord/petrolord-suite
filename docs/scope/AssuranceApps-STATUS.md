@@ -14,8 +14,10 @@ made the dry run one rolled-back transaction); gates 3/7/24, 0 anon
 grants, 0 RLS-off, `documents` USING(true) hole closed live. Prod upload
 e36846604 verified live (platformBuild-8d5793e0.js, 696 chunks all 200,
 all 10 routes served). Activation applied: **10 Active / 0 Coming Soon /
-24 Archived.** Still open: the commerce migration (second engineer), the
-private `documents` storage bucket (dashboard), owner staging walks.
+24 Archived.** Commerce migration APPLIED 2026-09-18 (second engineer approved;
+live pentest green). `documents` bucket + storage policies APPLIED via
+AS16 (20260918950000, #525): AS4 had written no storage policies. Still
+open: owner staging walks.
 
 The launch was ONE owner-run script:
 `tools/validation/assurance/assurance-launch-apply.sh schema` (now 16
