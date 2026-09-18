@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useRiskRegister } from './hooks/useRiskRegister';
 import { useRiskChildren } from './hooks/useRiskChildren';
 import { calculateResidualScore, getAppetiteStatus, getRiskBand, isReviewOverdue } from '@/lib/riskScoring';
-import { useRiskReporting } from '@/hooks/useRiskReporting';
+import { RISK_STATUSES } from './constants';
 import { RiskRegisterShell } from './components/RiskRegisterShell';
 import { RiskScoreBadge, RiskStatusBadge } from './components/RiskBadges';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,7 +17,6 @@ const RiskDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { risks, loading, updateRisk, deleteRisk } = useRiskRegister();
-  const { closeReport } = useRiskReporting() || {}; // Safely destructure
   const { toast } = useToast();
   
   const [risk, setRisk] = useState(null);
@@ -49,7 +48,6 @@ const RiskDetailPage = () => {
       const res = await deleteRisk(id);
       if(res.success) {
           toast({ title: "Deleted", description: "Risk removed from register." });
-          if (closeReport) closeReport();
           navigate('/dashboard/apps/assurance/risk-register');
       } else {
           toast({ variant: "destructive", title: "Error", description: res.error || "Failed to delete" });
@@ -58,7 +56,6 @@ const RiskDetailPage = () => {
   };
 
   const handleBack = () => {
-    if (closeReport) closeReport();
     navigate('/dashboard/apps/assurance/risk-register');
   };
 
@@ -105,11 +102,13 @@ const RiskDetailPage = () => {
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                        <SelectItem value="Draft">Draft</SelectItem>
-                        <SelectItem value="Open">Open</SelectItem>
-                        <SelectItem value="Under Review">Under Review</SelectItem>
-                        <SelectItem value="Mitigated">Mitigated</SelectItem>
-                        <SelectItem value="Closed">Closed</SelectItem>
+                        {/* From the one status list. This menu was typed out by
+                            hand and left out Realized, so a risk could not be
+                            set to it and a Realized risk showed a value its
+                            own menu did not have (AS13). */}
+                        {RISK_STATUSES.map((s) => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
                     </SelectContent>
                 </Select>
                 <Button

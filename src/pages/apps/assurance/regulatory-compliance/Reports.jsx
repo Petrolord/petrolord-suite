@@ -89,7 +89,8 @@ export default function Reports() {
         out.Total = presentStatuses.reduce((n, s) => n + row[s], 0);
         return out;
       }),
-      `compliance-by-regulator-${format(today, 'yyyy-MM-dd')}.csv`,
+      // exportToCSV appends the extension itself.
+      `compliance-by-regulator-${format(today, 'yyyy-MM-dd')}`,
     );
   };
 

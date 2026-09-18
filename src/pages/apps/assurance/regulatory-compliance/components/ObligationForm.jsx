@@ -131,11 +131,17 @@ export const ObligationForm = ({
               placeholder="Annual produced water discharge return" />
             <FieldError>{errors.title}</FieldError>
           </div>
-          <div className="md:col-span-2">
-            <Label htmlFor="description">What it requires</Label>
-            <Textarea id="description" rows={3} value={form.description || ''} onChange={set('description')}
-              placeholder="The obligation in the operator's own words, so the next person to hold it does not have to read the permit." />
-          </div>
+          {/* AS3-only column. Before migration 20260917100000 the text was
+              collected and then dropped by buildObligationWrite without a
+              word, so the field is only offered where it can be saved
+              (AS13). */}
+          {hasAs3Schema ? (
+            <div className="md:col-span-2">
+              <Label htmlFor="description">What it requires</Label>
+              <Textarea id="description" rows={3} value={form.description || ''} onChange={set('description')}
+                placeholder="The obligation in the operator's own words, so the next person to hold it does not have to read the permit." />
+            </div>
+          ) : null}
           <div>
             <Label htmlFor="authority_id">Regulator</Label>
             <Select id="authority_id" value={form.authority_id} onChange={set('authority_id')}

@@ -90,7 +90,7 @@ export default function Library() {
       Issued: d.issue_date || '',
       'Next review': d.next_review_date || '',
       'Review state': reviewState(d, today),
-    })), `document-register-${format(today, 'yyyy-MM-dd')}.csv`);
+    })), `document-register-${format(today, 'yyyy-MM-dd')}`); // exportToCSV appends .csv
   };
 
   const selectClass = 'h-10 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 text-sm';

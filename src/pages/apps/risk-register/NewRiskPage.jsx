@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRiskRegister } from './hooks/useRiskRegister';
-import { useRiskReporting } from '@/hooks/useRiskReporting';
 import { RiskRegisterShell } from './components/RiskRegisterShell';
 import { RiskForm } from './components/forms/RiskForm';
 import { Button } from '@/components/ui/button';
@@ -10,19 +9,12 @@ import { useToast } from '@/hooks/use-toast';
 
 const NewRiskPage = () => {
   const navigate = useNavigate();
-  const { addRisk } = useRiskRegister();
-  const { closeReport } = useRiskReporting() || {}; // Safely destructure
+  const { addRisk, hasAs2Schema } = useRiskRegister();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  /**
-   * Navigates back to the main Risk Register Dashboard.
-   * Ensures any local reporting state is cleared before navigation.
-   */
+  /** Back to the register. */
   const handleBack = () => {
-    if (closeReport) {
-      closeReport();
-    }
     navigate('/dashboard/apps/assurance/risk-register');
   };
 
@@ -48,8 +40,7 @@ const NewRiskPage = () => {
               title: "Risk logged",
               description: `${res.data.risk_id} has been added to the register.`,
             });
-        if (closeReport) closeReport();
-        navigate('/dashboard/apps/assurance/risk-register');
+            navigate('/dashboard/apps/assurance/risk-register');
     } else {
         toast({ variant: "destructive", title: "Error", description: res.error || "Failed to save risk" });
         setIsSubmitting(false);
@@ -80,6 +71,7 @@ const NewRiskPage = () => {
             onSubmit={handleSubmit} 
             onCancel={handleCancel}
             isSubmitting={isSubmitting}
+            hasAs2Schema={hasAs2Schema}
         />
       </div>
     </RiskRegisterShell>

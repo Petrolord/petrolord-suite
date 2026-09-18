@@ -70,7 +70,19 @@ export default function ApprovalQueue() {
     const result = await decideWorkflow(workflow, decision, comments);
     setSaving(false);
     if (result.success) {
-      toast({ description: `${workflow.document.document_number} ${decision.toLowerCase()}.` });
+      // AS13: the decision now moves the revision and the document, so
+      // the toast says where the document ended up.
+      const where = {
+        Approved: 'Every reviewer has approved this revision; it can be published from the document page.',
+        Rejected: 'The revision is rejected. The author can revise it and send it for review again.',
+        'In Review': 'Other reviewers still have to decide.',
+      }[result.outcome] || '';
+      toast({
+        title: result.warning ? 'Decision recorded, with a caveat' : undefined,
+        description: result.warning
+          || `${workflow.document.document_number} ${decision.toLowerCase()}. ${where}`.trim(),
+        variant: result.warning ? 'destructive' : undefined,
+      });
       setDeciding(null);
       setComments('');
     } else {
@@ -110,7 +122,7 @@ export default function ApprovalQueue() {
             title={mineOnly ? 'Nothing is waiting on you' : 'Nothing is waiting on a reviewer'}
             description={mineOnly
               ? 'No revision is assigned to you for review. Clear the filter to see everything in the queue.'
-              : 'Revisions appear here when a reviewer is assigned to them.'}
+              : 'Revisions appear here when they are sent for review. Use Submit for review on a document to name its reviewers.'}
           />
         ) : (
           <div className="space-y-4">

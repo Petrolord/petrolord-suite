@@ -9,8 +9,9 @@ import { RISK_CATEGORIES, LIKELIHOOD_LEVELS, IMPACT_LEVELS } from '../../constan
 import { calculateResidualScore, calculateRiskScore, getAppetiteStatus } from '@/lib/riskScoring';
 import { RiskScoreBadge } from '../RiskBadges';
 import { Save, X, Loader2, Tag, Link } from 'lucide-react';
+import { AS2_SCHEMA_MESSAGE } from '../../utils/riskPayload';
 
-export const RiskForm = ({ initialData = {}, onSubmit, onCancel, isSubmitting }) => {
+export const RiskForm = ({ initialData = {}, onSubmit, onCancel, isSubmitting, hasAs2Schema = true }) => {
   const [formData, setFormData] = useState({
     title: initialData.title || '',
     category: initialData.category || '',
@@ -114,7 +115,16 @@ export const RiskForm = ({ initialData = {}, onSubmit, onCancel, isSubmitting })
 
           {/* AS2: residual, appetite and review date. Every number in this
               register described inherent risk before this, which is the
-              world before any control was applied. */}
+              world before any control was applied. Without migration
+              20260916110000 these fields cannot be saved, so they are not
+              offered, and the form says why (AS13). */}
+          {!hasAs2Schema ? (
+            <div className="pt-4 border-t border-slate-800">
+              <div className="p-3 rounded-lg border border-amber-500/30 bg-amber-500/5 text-sm text-slate-400">
+                {AS2_SCHEMA_MESSAGE}
+              </div>
+            </div>
+          ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-800">
             <div className="md:col-span-2">
               <h3 className="text-sm font-semibold text-slate-200">After controls</h3>
@@ -186,6 +196,7 @@ export const RiskForm = ({ initialData = {}, onSubmit, onCancel, isSubmitting })
                 <RiskScoreBadge score={residualScore} className="text-lg px-4 py-1" />
             </div>
           </div>
+          )}
 
           <div className="space-y-4 pt-4 border-t border-slate-800">
             <div>

@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertCircle, CheckCircle2, FileText, UploadCloud, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 import {
   CONFIDENTIALITY_LEVELS,
   DEFAULT_REVIEW_PERIOD_MONTHS,
@@ -15,10 +16,12 @@ import {
 import { DocControlShell, BASE } from './components/DocControlShell';
 import { BucketNotice, ErrorState, Loading, SchemaNotice } from './components/SharedComponents';
 import { useDocumentControl } from './hooks/useDocumentControl';
+import { EMPTY_REVIEW, ReviewRequestFields } from './components/ReviewRequestFields';
 import {
   ACCEPTED_FILE_TYPES,
   validateDocument,
   validateFile,
+  validateReviewers,
 } from './utils/documentPayload';
 
 const DEPARTMENTS = ['HSE', 'Operations', 'Engineering', 'Finance', 'Human Resources', 'Subsurface', 'Drilling'];
@@ -72,9 +75,11 @@ export default function NewDocument() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const fileInput = useRef(null);
+  const { user } = useAuth();
   const {
     categories, loading, error, hasAs4Schema, hasBucket,
-    createDocument, createCategory, refresh,
+    members, membersError,
+    createDocument, createCategory, submitForReview, refresh,
   } = useDocumentControl();
 
   const [form, setForm] = useState(EMPTY);
@@ -83,6 +88,7 @@ export default function NewDocument() {
   const [saving, setSaving] = useState(false);
   const [failure, setFailure] = useState(null);
   const [dragging, setDragging] = useState(false);
+  const [review, setReview] = useState(EMPTY_REVIEW);
 
   const set = (field) => (e) => {
     const value = e?.target ? e.target.value : e;
@@ -100,9 +106,15 @@ export default function NewDocument() {
     setFile(candidate);
   };
 
-  const handleSubmit = async (submitForReview) => {
+  const handleSubmit = async (sendForReview) => {
     setFailure(null);
     const found = validateDocument(form);
+    // Submit for review needs someone to review it. Without a reviewer
+    // it used to set In Review and put nothing in anyone's queue.
+    if (sendForReview) {
+      const reviewProblem = validateReviewers(review.reviewers);
+      if (reviewProblem) found.review = reviewProblem;
+    }
     if (Object.keys(found).length) { setErrors(found); return; }
 
     setSaving(true);
@@ -126,22 +138,46 @@ export default function NewDocument() {
       }
     }
 
+    // Registered as a Draft first; the review request then moves it to
+    // In Review, so the status and the approval queue cannot disagree.
     const result = await createDocument({
       ...form,
       category_id: categoryId,
-      status: submitForReview ? 'In Review' : 'Draft',
+      status: 'Draft',
     }, file);
-    setSaving(false);
 
     if (!result.success) {
+      setSaving(false);
       setFailure(result.error);
       return;
     }
+
+    const warnings = result.warning ? [result.warning] : [];
+    let submitted = false;
+    if (sendForReview) {
+      if (!result.revision) {
+        warnings.push('It was saved as a draft and not sent for review, because its first revision was not recorded.');
+      } else {
+        const sent = await submitForReview(
+          { ...result.data, revisions: [result.revision] },
+          { reviewers: review.reviewers, dueDate: review.dueDate || null },
+        );
+        if (!sent.success) {
+          warnings.push(`It was saved as a draft and not sent for review: ${sent.error}`);
+        } else {
+          submitted = true;
+          if (sent.warning) warnings.push(sent.warning);
+        }
+      }
+    }
+    setSaving(false);
+
     toast({
-      title: result.warning ? 'Registered, with a caveat' : 'Document registered',
-      description: result.warning
-        || `${result.data.document_number} ${submitForReview ? 'submitted for review' : 'saved as a draft'}.`,
-      variant: result.warning ? 'destructive' : undefined,
+      title: warnings.length ? 'Registered, with a caveat' : 'Document registered',
+      description: warnings.length
+        ? warnings.join(' ')
+        : `${result.data.document_number} ${submitted ? 'submitted for review' : 'saved as a draft'}.`,
+      variant: warnings.length ? 'destructive' : undefined,
     });
     navigate(`${BASE}/${result.data.id}`);
   };
@@ -315,6 +351,19 @@ export default function NewDocument() {
                     file; access follows your organization membership.
                   </p>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card className="panel-elevation">
+              <CardHeader><CardTitle className="text-lg">Review</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                  Needed for Submit for review. A draft can be sent for review
+                  later from its page.
+                </p>
+                <ReviewRequestFields value={review} onChange={setReview}
+                  members={members} membersError={membersError} userId={user?.id} idPrefix="new-review" />
+                <FieldError>{errors.review}</FieldError>
               </CardContent>
             </Card>
 

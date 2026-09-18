@@ -54,6 +54,7 @@ export default function RegulatoryCompliancePageShell() {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* AS13: AssuranceHelp appKey="regulatory" goes here */}
           {/* The Search button that stood here had no handler, no state
               and no target. Search lives on the register and the
               directory, where the rows are. */}

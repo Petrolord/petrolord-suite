@@ -56,6 +56,7 @@ export const DocControlShell = ({
               </div>
             </div>
           </div>
+          {/* AS13: AssuranceHelp appKey="documents" goes here */}
         </div>
 
         <div className="px-6 flex gap-6 mt-2 overflow-x-auto no-scrollbar">
