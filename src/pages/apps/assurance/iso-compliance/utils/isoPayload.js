@@ -343,6 +343,19 @@ export const standardRemovalImpact = (standard, { clauses = [], auditClauses = [
   };
 };
 
+/**
+ * The words for a standard's certificate against its expiry date, from
+ * certificationReadiness's counts: 'Expired', 'Expiring soon' (within
+ * CERTIFICATE_LEAD_DAYS) or null. The Standards page and the Dashboard
+ * readiness summary both show it, so the help's claim that readiness
+ * shows both states is true (AS13 hardening). It is not a blocker.
+ */
+export const certificateState = (counts = {}) => {
+  if (counts.certificateExpired) return 'Expired';
+  if (counts.certificateExpiring) return 'Expiring soon';
+  return null;
+};
+
 /** The audit statuses at which the clause scope is fixed. */
 export const SCOPE_LOCKED_STATUSES = Object.freeze(['Reported', 'Closed', 'Cancelled']);
 

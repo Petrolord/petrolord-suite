@@ -16,7 +16,7 @@ import {
   BlockerList, DetailField, EmptyState, ErrorState, Loading, SchemaNotice, WriteFailure,
 } from './components/SharedComponents';
 import { CertificationBadge, ReadinessBadge } from './components/ISOBadges';
-import { standardRemovalImpact, validateStandard } from './utils/isoPayload';
+import { certificateState, standardRemovalImpact, validateStandard } from './utils/isoPayload';
 import { useIsoCompliance } from './hooks/useIsoCompliance';
 import { ConfirmDialog } from '../shared/ConfirmDialog';
 
@@ -304,6 +304,9 @@ export default function Standards() {
                       {standard.certificate_expires}
                       {certDays !== null
                         ? ` (${certDays < 0 ? `${Math.abs(certDays)} days ago` : `in ${certDays} days`})`
+                        : ''}
+                      {certificateState(readiness.counts)
+                        ? `. ${certificateState(readiness.counts)}`
                         : ''}
                     </span>
                   ) : null}

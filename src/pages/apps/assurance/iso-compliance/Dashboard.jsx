@@ -29,6 +29,7 @@ import {
   CertificationBadge, FindingStatusBadge, FindingTypeBadge, ReadinessBadge,
 } from './components/ISOBadges';
 import { useIsoCompliance } from './hooks/useIsoCompliance';
+import { certificateState } from './utils/isoPayload';
 
 /**
  * AS8 — the ISO dashboard, counted from this organization's rows.
@@ -154,8 +155,13 @@ export default function Dashboard() {
                       {readiness.counts.applicable === 1 ? '' : 's'},
                       {' '}{readiness.counts.covered} audited this cycle
                       {standard.certificate_expires
-                        ? `, certificate expires ${standard.certificate_expires}`
+                        ? `, certificate ${readiness.counts.certificateExpired ? 'expired' : 'expires'} ${standard.certificate_expires}`
                         : ''}
+                      {certificateState(readiness.counts) ? (
+                        <span className="ml-1 text-[hsl(var(--destructive))] font-medium">
+                          ({certificateState(readiness.counts)})
+                        </span>
+                      ) : null}
                     </p>
                   </div>
                   <div className="flex gap-2 shrink-0">
