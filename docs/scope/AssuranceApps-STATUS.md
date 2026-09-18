@@ -1528,8 +1528,8 @@ and the launch script now applies AS14 before activation.
 
 ### 3m.2 What was built
 
-- **Engines #210** (`engines/assurance`, vendored at the PR head
-  `43f8cea`, see `packages/engines/VENDOR.json`):
+- **Engines #210** (`engines/assurance`, vendored at the merge commit
+  `fdd6efe`, see `packages/engines/VENDOR.json`):
   - MOC and QA `summarise()` stop counting children of finished parents
     as outstanding work: actions on closed/rejected/cancelled changes,
     points on closed/superseded/cancelled plans, and corrective actions
