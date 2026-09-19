@@ -1,0 +1,21 @@
+ERROR:  permission denied for table badge_definitions
+ERROR:  permission denied for table work_permits
+ERROR:  permission denied for table pm_deliverables
+ERROR:  permission denied for table work_permits
+ERROR:  new row violates row-level security policy for table "payment_audit_log"
+ERROR:  new row violates row-level security policy for table "pm_deliverables"
+ERROR:  new row violates row-level security policy for table "pm_deliverables"
+ERROR:  new row violates row-level security policy for table "pm_resource_assignments"
+ERROR:  permission denied for table project_issues
+ERROR:  permission denied for table work_permits
+ERROR:  new row violates row-level security policy for table "work_permits"
+ERROR:  new row violates row-level security policy for table "work_permits"
+ERROR:  new row violates row-level security policy for table "work_permits"
+ERROR:  permission denied for table work_permits
+ERROR:  new row violates row-level security policy for table "feedback"
+ERROR:  new row violates row-level security policy for table "safety_moment_views"
+ERROR:  new row violates row-level security policy for table "branding_presets"
+ERROR:  new row violates row-level security policy for table "portfolios"
+ERROR:  permission denied for table payment_audit_log
+ERROR:  new row violates row-level security policy for table "work_permits"
+ERROR:  permission denied for table work_permits

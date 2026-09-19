@@ -1,0 +1,35 @@
+-- PROPOSAL ONLY. NOT A MIGRATION. NOT APPLIED. Needs the owner and a second
+-- engineer (it changes what every future table, sequence and function in
+-- the shared project gets by default).
+--
+-- Read live 2026-09-19 from pg_default_acl (schema public):
+--   postgres       tables    anon=arwdDxtm authenticated=arwdDxtm service_role=arwdDxtm
+--   postgres       sequences anon=rwU ...
+--   postgres       functions anon=X   ...
+--   supabase_admin (same three rows)
+-- i.e. the Supabase default: every new public table is born fully
+-- readable and writable by anon, and it is only safe if its migration
+-- remembers to enable RLS. The 87 tables in this incident are the tables
+-- where nobody remembered.
+--
+-- Proposed: new objects created by postgres (migrations, the SQL editor,
+-- the dashboard table editor) no longer grant anything to anon. A table
+-- that really must be public then says so with an explicit GRANT in its
+-- migration, next to its policy. authenticated keeps its default so
+-- existing migration habits (enable RLS + policies) still work.
+alter default privileges for role postgres in schema public revoke all on tables    from anon;
+alter default privileges for role postgres in schema public revoke all on sequences from anon;
+alter default privileges for role postgres in schema public revoke execute on functions from anon;
+-- Functions are also executable by PUBLIC by default (a built-in default,
+-- not a pg_default_acl row). Closing it means every new function needs an
+-- explicit grant to authenticated/service_role; recommended, but it will
+-- surprise authors, so it is listed separately:
+-- alter default privileges for role postgres in schema public revoke execute on functions from public;
+--
+-- The supabase_admin rows cover objects created by Supabase's own tooling;
+-- only supabase_admin can change them (postgres cannot), so they are left
+-- as they are.
+--
+-- Belt and braces, also a proposal: a CI check in this repo that fails any
+-- new migration creating a public table without `enable row level
+-- security` in the same file (the AS/HSE migrations already follow it).
