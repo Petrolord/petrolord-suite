@@ -57,6 +57,14 @@ export const seatTierRate = (nthSeat) => {
 // an honest convenience premium for someone who wants two tools.
 //
 // HSE is not here: it is the separate external portal, billed in naira.
+//
+// Process Safety (PS0) is deliberately ABSENT too, the way Midstream &
+// Downstream was at DS0. The module is registered for navigation and
+// entitlements, but all three of its apps are Coming Soon, and pricing it now
+// would let a customer buy a module with nothing in it. generate-quote refuses
+// to quote a module it has no price for, so leaving it out is safe. It joins
+// this table, the server fallback and pricing_config.module_pricing when its
+// first app ships (PS1, ProcessSafety-ROADMAP.md).
 export const MODULE_PRICING = {
   geoscience: 2999,
   drilling: 3299,
