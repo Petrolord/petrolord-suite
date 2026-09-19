@@ -30,6 +30,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { corsHeaders } from './cors.ts';
+import { isOrgAdmin as isOrgAdminMember, isPlatformAdmin } from '../_shared/platform-admin.ts';
 import { sendEmail } from '../_shared/email.ts';
 import {
   buildCertificateFields,
@@ -42,8 +43,6 @@ import {
 } from './helpers.js';
 import { renderCertificatePdf, toBase64 } from './certificate.ts';
 
-const SUPER_ADMIN_EMAILS = ['info@petrolord.com', 'ayoasaolu@gmail.com', 'ayodejiasaolu1@gmail.com', 'support@petrolord.com'];
-const ADMIN_ROLES = ['owner', 'admin', 'org_admin', 'super_admin'];
 const GRACE_DAYS = 30;
 const STORAGE_WALK_CAP = 100000;
 const REMOVE_BATCH = 500;
@@ -62,7 +61,7 @@ Deno.serve(async (req) => {
 
     const bearer = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
     const isServiceCall = bearer.length > 0 && bearer === serviceKey;
-    let caller: { id: string; email?: string; user_metadata?: Record<string, unknown> } | null = null;
+    let caller: { id: string; email?: string } | null = null;
     if (!isServiceCall) {
       const { data: authData } = await admin.auth.getUser(bearer);
       caller = authData?.user ?? null;
@@ -249,20 +248,17 @@ Deno.serve(async (req) => {
   }
 });
 
-async function isOrgAdmin(admin: ReturnType<typeof createClient>, caller: { id: string; email?: string; user_metadata?: Record<string, unknown> }, orgId: string): Promise<boolean> {
-  const { data: rows } = await admin.from('organization_members')
-    .select('role, status').eq('organization_id', orgId).eq('user_id', caller.id);
-  const isAdmin = (rows ?? []).some((m) =>
-    (m.status ?? 'active').toLowerCase() === 'active' && ADMIN_ROLES.includes(m.role));
-  if (isAdmin) return true;
+// Platform super admin = a row in public.platform_admins, nothing else
+// (security fix 2026-09-19: user_metadata.is_super_admin and
+// public.users.is_super_admin were user-settable, so any account could
+// schedule, execute or certify the deletion of any organization).
+async function isOrgAdmin(admin: ReturnType<typeof createClient>, caller: { id: string }, orgId: string): Promise<boolean> {
+  if (await isOrgAdminMember(admin, caller.id, orgId)) return true;
   return isPlatformSuperAdmin(admin, caller);
 }
 
-async function isPlatformSuperAdmin(admin: ReturnType<typeof createClient>, caller: { id: string; email?: string; user_metadata?: Record<string, unknown> }): Promise<boolean> {
-  if (caller.user_metadata?.is_super_admin === true) return true;
-  if (SUPER_ADMIN_EMAILS.includes(String(caller.email || '').toLowerCase())) return true;
-  const { data: urow } = await admin.from('users').select('is_super_admin').eq('id', caller.id).maybeSingle();
-  return urow?.is_super_admin === true;
+async function isPlatformSuperAdmin(admin: ReturnType<typeof createClient>, caller: { id: string }): Promise<boolean> {
+  return await isPlatformAdmin(admin, caller.id);
 }
 
 async function executeRequest(admin: ReturnType<typeof createClient>, request: Record<string, unknown>) {

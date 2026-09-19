@@ -5,8 +5,9 @@
 // from the Suite/HSE shared database.
 //
 //   1. Authenticates the CALLER from their JWT and confirms they are a
-//      super-admin (by email allow-list, public.users.is_super_admin, or auth
-//      metadata). Non-super-admins get 403.
+//      platform super admin: a row in public.platform_admins (security fix
+//      2026-09-19; user_metadata and public.users.is_super_admin were
+//      user-settable and are no longer trusted). Non-admins get 403.
 //   2. Calls the SECURITY DEFINER RPC public.admin_purge_test_orgs(dry_run, days),
 //      which is dry-run by default and transactional.
 //   3. Only when BOTH dryRun === false AND confirm === "DELETE" does it execute
@@ -24,9 +25,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "./cors.ts";
+import { isPlatformAdmin } from "../_shared/platform-admin.ts";
 
-// Mirror of the DB-side protected list (defence in depth; the RPC enforces it too).
-const SUPER_ADMIN_EMAILS = [
+// Accounts this function never deletes (defence in depth; the RPC enforces
+// its own list too). PROTECTION only: this list grants nothing.
+const PROTECTED_EMAILS = [
   "info@petrolord.com",
   "ayoasaolu@gmail.com",
   "ayodejiasaolu1@gmail.com",
@@ -65,21 +68,8 @@ serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-    // Super-admin check: email allow-list OR public.users.is_super_admin OR auth metadata.
-    const email = (user.email ?? "").toLowerCase();
-    let isSuperAdmin =
-      SUPER_ADMIN_EMAILS.includes(email) ||
-      user.user_metadata?.is_super_admin === true ||
-      user.app_metadata?.is_super_admin === true;
-
-    if (!isSuperAdmin) {
-      const { data: pu } = await admin
-        .from("users")
-        .select("is_super_admin")
-        .eq("id", user.id)
-        .maybeSingle();
-      isSuperAdmin = pu?.is_super_admin === true;
-    }
+    // Platform super admin: public.platform_admins only (fails closed).
+    const isSuperAdmin = await isPlatformAdmin(admin, user.id);
 
     if (!isSuperAdmin) {
       return json({ error: "Forbidden: super-admin privileges required." }, 403);
@@ -134,7 +124,7 @@ serve(async (req) => {
       const toDelete = Array.from(new Map(merged.map((u) => [u.id, u])).values());
       for (const u of toDelete) {
         // Never delete a protected email, even if it somehow surfaced here.
-        if (u.email && SUPER_ADMIN_EMAILS.includes(u.email.toLowerCase())) {
+        if (u.email && PROTECTED_EMAILS.includes(u.email.toLowerCase())) {
           authResults.push({ id: u.id, email: u.email, deleted: false, error: "protected — skipped" });
           continue;
         }

@@ -17,8 +17,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { corsHeaders } from './cors.ts';
 import { sendEmail } from '../_shared/email.ts';
+import { isPlatformAdmin as isPlatformAdminRow } from '../_shared/platform-admin.ts';
 
-const SUPER_ADMIN_EMAILS = ['info@petrolord.com', 'ayoasaolu@gmail.com', 'ayodejiasaolu1@gmail.com', 'support@petrolord.com'];
 const ADMIN_ROLES = ['owner', 'admin', 'org_admin', 'super_admin'];
 
 Deno.serve(async (req) => {
@@ -53,14 +53,11 @@ Deno.serve(async (req) => {
       .eq('organization_id', organization_id).eq('user_id', caller.id);
     const isOrgAdmin = (callerRows ?? []).some((m) =>
       (m.status ?? 'active').toLowerCase() === 'active' && ADMIN_ROLES.includes(m.role));
-    let allowed = isOrgAdmin ||
-      caller.user_metadata?.is_super_admin === true ||
-      SUPER_ADMIN_EMAILS.includes(String(caller.email || '').toLowerCase());
-    if (!allowed) {
-      const { data: urow } = await supabaseAdmin.from('users')
-        .select('is_super_admin').eq('id', caller.id).maybeSingle();
-      allowed = urow?.is_super_admin === true;
-    }
+    // Platform super admin = a row in public.platform_admins (security fix
+    // 2026-09-19): user_metadata.is_super_admin and users.is_super_admin were
+    // user-settable, so any account could invite itself into any org.
+    const isPlatformAdmin = await isPlatformAdminRow(supabaseAdmin, caller.id);
+    const allowed = isOrgAdmin || isPlatformAdmin;
     if (!allowed) return json({ error: 'Only organization admins can invite members.' }, 403);
 
     // 3. Upsert the invited member row. (organization_id, email) is unique:

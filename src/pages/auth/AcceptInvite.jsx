@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,67 @@ const AcceptInvite = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  // Security fix 2026-09-19: an invitation for an email that already has an
+  // account is accepted only from a signed-in session for that email.
+  const [sessionEmail, setSessionEmail] = useState(null);
+  const [needsSignIn, setNeedsSignIn] = useState(null);
+
+  useEffect(() => {
+    let live = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (live) setSessionEmail(data?.session?.user?.email ?? null);
+    }).catch(() => {});
+    return () => { live = false; };
+  }, []);
+
+  const goSignIn = () => navigate('/login', {
+    state: { from: { pathname: `/auth/accept-invite?token=${encodeURIComponent(token || '')}` } },
+  });
+
+  // functions.invoke hides a non-2xx body behind error.context; read it so
+  // the page can tell "sign in first" from other failures.
+  const readFnError = async (error) => {
+    try {
+      const body = await error?.context?.json?.();
+      if (body) return body;
+    } catch { /* not JSON */ }
+    return { error: error?.message };
+  };
+
+  const accept = async (withPassword) => {
+    setLoading(true);
+    try {
+        const { data, error } = await supabase.functions.invoke('accept-employee-invitation', {
+            body: withPassword ? { token, password } : { token }
+        });
+
+        if (error || data?.error) {
+          const body = error ? await readFnError(error) : data;
+          if (body?.requires_sign_in) {
+            setNeedsSignIn(body.error || 'Sign in to the invited account, then open this link again.');
+            return;
+          }
+          throw new Error(body?.error || error?.message || 'Activation failed');
+        }
+
+        setSuccess(true);
+        toast({
+          title: data?.linked ? "Membership Activated" : "Account Activated",
+          description: data?.linked
+            ? "Your account was added to the organization."
+            : "Redirecting to login...",
+          className: "bg-green-600 text-white",
+          duration: data?.linked ? 10000 : undefined
+        });
+
+        setTimeout(() => navigate(data?.linked ? '/dashboard' : '/login'), 2000);
+
+    } catch (err) {
+        toast({ title: "Activation Failed", description: err.message, variant: "destructive" });
+    } finally {
+        setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,31 +88,7 @@ const AcceptInvite = () => {
         return;
     }
     
-    setLoading(true);
-    try {
-        const { data, error } = await supabase.functions.invoke('accept-employee-invitation', {
-            body: { token, password }
-        });
-
-        if (error || data?.error) throw new Error(error?.message || data?.error);
-
-        setSuccess(true);
-        toast({
-          title: data?.linked ? "Membership Activated" : "Account Activated",
-          description: data?.linked
-            ? "You already had an account, so it was added to the organization. Log in with your existing password."
-            : "Redirecting to login...",
-          className: "bg-green-600 text-white",
-          duration: data?.linked ? 10000 : undefined
-        });
-        
-        setTimeout(() => navigate('/login'), 2000);
-
-    } catch (err) {
-        toast({ title: "Activation Failed", description: err.message, variant: "destructive" });
-    } finally {
-        setLoading(false);
-    }
+    await accept(true);
   };
 
   if (success) {
@@ -77,6 +114,25 @@ const AcceptInvite = () => {
                     <p className="text-slate-400 mt-2">Complete your account setup to join the team.</p>
                 </div>
                 
+                {needsSignIn && (
+                    <div className="mb-6 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-100">
+                        <p className="mb-3">{needsSignIn}</p>
+                        <Button type="button" onClick={goSignIn} className="w-full bg-slate-700 hover:bg-slate-600 text-white">
+                            Sign in
+                        </Button>
+                    </div>
+                )}
+                {sessionEmail && (
+                    <div className="mb-6 rounded-lg border border-slate-700 p-4 text-sm text-slate-300">
+                        <p className="mb-3">Signed in as <strong className="text-white">{sessionEmail}</strong>. If this invitation was sent to this address, accept it with your existing account.</p>
+                        <Button type="button" onClick={() => accept(false)} disabled={loading} className="w-full bg-lime-600 hover:bg-lime-700 text-white font-bold">
+                            {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2"/> : "Accept with this account"}
+                        </Button>
+                    </div>
+                )}
+                <p className="mb-4 text-sm text-slate-400">
+                    Already have a Petrolord account under the invited email? <button type="button" onClick={goSignIn} className="text-lime-400 underline">Sign in</button> and open this link again. New here? Set a password below.
+                </p>
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="space-y-2">
                         <Label>New Password</Label>
