@@ -1,0 +1,27 @@
+ERROR:  permission denied for function add_user_to_organization
+ERROR:  permission denied for function add_user_to_organization
+ERROR:  permission denied for function add_user_to_organization
+ERROR:  permission denied for function accept_invitation
+ERROR:  permission denied for table invitations
+ERROR:  permission denied for table invitations
+ERROR:  permission denied for function enable_hse_for_organization
+ERROR:  permission denied for function add_user_to_organization
+ERROR:  This invitation was sent to a different email address.
+ERROR:  new row violates row-level security policy for table "invitations"
+ERROR:  You can only enable HSE for your own organization
+ERROR:  Failed to initialize user: joining an existing organization requires a valid invitation
+ERROR:  Failed to initialize user: This invitation is invalid, has expired or has already been used.
+ERROR:  Failed to initialize user: This invitation was sent to a different email address.
+ERROR:  This invitation was sent to a different email address.
+ERROR:  This invitation was sent to a different email address.
+ERROR:  new row violates row-level security policy for table "invitations"
+ERROR:  new row violates row-level security policy for table "invitations"
+ERROR:  new row violates row-level security policy for table "invitations"
+ERROR:  new row violates row-level security policy for table "invitations"
+ERROR:  new row violates row-level security policy for table "invitations"
+ERROR:  This invitation is invalid, has expired or has already been used.
+ERROR:  This invitation is invalid, has expired or has already been used.
+ERROR:  Failed to initialize user: This invitation is invalid, has expired or has already been used.
+ERROR:  This invitation was not issued by an administrator of the organization.
+ERROR:  This invitation was not issued by an administrator of the organization.
+ERROR:  You can only enable HSE for your own organization

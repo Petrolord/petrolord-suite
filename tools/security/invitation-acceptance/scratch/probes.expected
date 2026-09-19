@@ -1,0 +1,391 @@
+RESET
+INSERT 0 4
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+ ?column? | ?column? | orgs_ok 
+----------+----------+---------
+ fixtures | live     | t
+(1 row)
+
+SET
+              probe               | ran 
+----------------------------------+-----
+ N1 anon add_user_to_organization | t
+(1 row)
+
+RESET
+        ?column?        | role  | status 
+------------------------+-------+--------
+ N1 stranger role in O1 | owner | active
+(1 row)
+
+DELETE 1
+SET
+       ?column?       | count 
+----------------------+-------
+ N2 anon reads tokens |     1
+(1 row)
+
+UPDATE 1
+RESET
+               ?column?               | role  
+--------------------------------------+-------
+ N2 invitation role after anon update | owner
+(1 row)
+
+UPDATE 1
+INSERT 0 1
+           ?column?            | role  | status 
+-------------------------------+-------+--------
+ N3 signup attacker role in O1 | owner | active
+(1 row)
+
+SET
+                     probe                     | ran 
+-----------------------------------------------+-----
+ N4 anon enable_hse_for_organization(owner id) | t
+(1 row)
+
+RESET
+RESET
+INSERT 0 4
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+ ?column? | ?column? | orgs_ok 
+----------+----------+---------
+ fixtures | stopgap  | t
+(1 row)
+
+SET
+RESET
+SET
+SET
+RESET
+        ?column?        | count 
+------------------------+-------
+ S3 stranger rows in O1 |     0
+(1 row)
+
+SET
+             ?column?              | has_function_privilege 
+-----------------------------------+------------------------
+ S4 service_role still may execute | t
+(1 row)
+
+RESET
+RESET
+INSERT 0 4
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+ ?column? | ?column? | orgs_ok 
+----------+----------+---------
+ fixtures | fixed    | t
+(1 row)
+
+SET
+                ?column?                 |  role  | leaks_token 
+-----------------------------------------+--------+-------------
+ F1d anon get_invitation_by_token(valid) | member | f
+(1 row)
+
+                ?column?                 | is_null | bad_text_null 
+-----------------------------------------+---------+---------------
+ F1e anon get_invitation_by_token(bogus) | t       | t
+(1 row)
+
+RESET
+SET
+SET
+           ?column?            | count 
+-------------------------------+-------
+ F2b stranger sees invitations |     0
+(1 row)
+
+UPDATE 0
+RESET
+        ?column?         | count 
+-------------------------+-------
+ F2f stranger rows in O1 |     0
+(1 row)
+
+         ?column?         |  role  | status  | same_org 
+--------------------------+--------+---------+----------
+ F2g invitation untouched | member | pending | t
+(1 row)
+
+           ?column?           | count 
+------------------------------+-------
+ F3 attacker accounts created |     0
+(1 row)
+
+        ?column?        | count 
+------------------------+-------
+ F3 attacker rows in O1 |     0
+(1 row)
+
+INSERT 0 1
+     ?column?      | role  | name  | own_org 
+-------------------+-------+-------+---------
+ F3b normal signup | owner | NewCo | t
+(1 row)
+
+SET
+SET
+RESET
+SET
+SET
+      ?column?      |  status  
+--------------------+----------
+ F5a invitee accept | accepted
+(1 row)
+
+         ?column?         |      status      
+--------------------------+------------------
+ F5b invitee accept again | already_accepted
+(1 row)
+
+               ?column?               |      status      
+--------------------------------------+------------------
+ F5c invitee accept upper-cased token | already_accepted
+(1 row)
+
+RESET
+        ?column?        | count |  min   |  min   
+------------------------+-------+--------+--------
+ F5d invitee rows in O1 |     1 | member | active
+(1 row)
+
+    ?column?    |  status  | stamped 
+----------------+----------+---------
+ F5e invitation | accepted | t
+(1 row)
+
+            ?column?            | role  
+--------------------------------+-------
+ F5f invitee still owns own org | owner
+(1 row)
+
+SET
+SET
+RESET
+SET
+SET
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+           ?column?            | count 
+-------------------------------+-------
+ F6a admin sees O1 invitations |     4
+(1 row)
+
+      ?column?       | bool_and 
+---------------------+----------
+ F6b inviter stamped | t
+(1 row)
+
+UPDATE 1
+UPDATE 1
+      ?column?       |    role    
+---------------------+------------
+ F6c admin role edit | supervisor
+(1 row)
+
+DELETE 0
+RESET
+SET
+SET
+INSERT 0 1
+           ?column?            | count 
+-------------------------------+-------
+ F6d owner sees O1 invitations |     5
+(1 row)
+
+RESET
+SET
+SET
+           ?column?            | count 
+-------------------------------+-------
+ F6e invitee reads invitations |     0
+(1 row)
+
+UPDATE 0
+RESET
+UPDATE 1
+INSERT 0 1
+SET
+SET
+      ?column?      | is_null 
+--------------------+---------
+ F7b expired lookup | t
+(1 row)
+
+RESET
+SET
+     ?column?     | decline_invitation 
+------------------+--------------------
+ F8a anon decline | t
+(1 row)
+
+     ?column?      | decline_invitation 
+-------------------+--------------------
+ F8b decline again | f
+(1 row)
+
+RESET
+INSERT 0 1
+SET
+SET
+RESET
+SET
+SET
+DELETE 1
+RESET
+               ?column?                | count 
+---------------------------------------+-------
+ F8d admin deleted declined invitation |     0
+(1 row)
+
+INSERT 0 1
+    ?column?     |    role    | status | full_name 
+-----------------+------------+--------+-----------
+ F9a new invitee | supervisor | active | New Two
+(1 row)
+
+     ?column?     | ?column? 
+------------------+----------
+ F9b orgs created |        0
+(1 row)
+
+    ?column?    |  status  
+----------------+----------
+ F9c invitation | accepted
+(1 row)
+
+            ?column?             | ?column? 
+---------------------------------+----------
+ F9d users.organization_id is O1 | t
+(1 row)
+
+            ?column?             | ?column? 
+---------------------------------+----------
+ F9e apps provisioned by invitee |        0
+(1 row)
+
+INSERT 0 1
+INSERT 0 1
+      ?column?      |   role   | status | token_cleared | linked 
+--------------------+----------+--------+---------------+--------
+ F10a suite invitee | engineer | active | t             | t
+(1 row)
+
+INSERT 0 1
+            ?column?             | count 
+---------------------------------+-------
+ F10b late suite invitee account |     0
+(1 row)
+
+SET
+SET
+INSERT 0 1
+           ?column?            | ?column? 
+-------------------------------+----------
+ F11 legacy row has no inviter | t
+(1 row)
+
+RESET
+INSERT 0 1
+SET
+SET
+RESET
+UPDATE 1
+INSERT 0 1
+SET
+SET
+RESET
+UPDATE 1
+INSERT 0 1
+   ?column?    | role  
+---------------+-------
+ F12a co-owner | owner
+(1 row)
+
+SET
+SET
+INSERT 0 1
+RESET
+SET
+SET
+             ?column?             |     status     
+----------------------------------+----------------
+ F12b admin accepts member invite | already_member
+(1 row)
+
+RESET
+       ?column?       | role  
+----------------------+-------
+ F12c admin role kept | admin
+(1 row)
+
+SET
+SET
+            probe            | ran 
+-----------------------------+-----
+ F13a owner enable (null id) | t
+(1 row)
+
+           probe            | ran 
+----------------------------+-----
+ F13b owner enable (own id) | t
+(1 row)
+
+RESET
+  ?column?  | anon_add | auth_add | anon_accept | auth_accept | auth_internal | anon_hse | anon_inv_select 
+------------+----------+----------+-------------+-------------+---------------+----------+-----------------
+ F14 grants | f        | f        | f           | t           | f             | f        | f
+(1 row)
+
+BEGIN
+                        check_name                         |                                                                                                got                                                                                                 |                                                                                                want                                                                                                | ok 
+-----------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----
+ fn public.accept_invitation(text)                         | anon=f auth=t service=t                                                                                                                                                                            | anon=f auth=t service=t                                                                                                                                                                            | t
+ fn public.add_user_to_organization(uuid,uuid,text)        | anon=f auth=f service=t                                                                                                                                                                            | anon=f auth=f service=t                                                                                                                                                                            | t
+ fn public.decline_invitation(text)                        | anon=t auth=t service=t                                                                                                                                                                            | anon=t auth=t service=t                                                                                                                                                                            | t
+ fn public.enable_hse_for_organization(uuid)               | anon=f auth=t service=t                                                                                                                                                                            | anon=f auth=t service=t                                                                                                                                                                            | t
+ fn public.get_invitation_by_token(text)                   | anon=t auth=t service=t                                                                                                                                                                            | anon=t auth=t service=t                                                                                                                                                                            | t
+ fn public.invitation_accept_internal(text,uuid,text,text) | anon=f auth=f service=f                                                                                                                                                                            | anon=f auth=f service=f                                                                                                                                                                            | t
+ fn public.invitation_role_allowed(uuid,text)              | anon=f auth=t service=t                                                                                                                                                                            | anon=f auth=t service=t                                                                                                                                                                            | t
+ invitations policies                                      | invitations_admin_delete/DELETE/{authenticated}, invitations_admin_insert/INSERT/{authenticated}, invitations_admin_select/SELECT/{authenticated}, invitations_admin_update/UPDATE/{authenticated} | invitations_admin_delete/DELETE/{authenticated}, invitations_admin_insert/INSERT/{authenticated}, invitations_admin_select/SELECT/{authenticated}, invitations_admin_update/UPDATE/{authenticated} | t
+ invitations USING/CHECK (true) policies                   | 0                                                                                                                                                                                                  | 0                                                                                                                                                                                                  | t
+ anon table privileges on invitations                      | 0                                                                                                                                                                                                  | 0                                                                                                                                                                                                  | t
+ invitations_token_key unique index                        | true                                                                                                                                                                                               | true                                                                                                                                                                                               | t
+ invitations.invited_by default                            | auth.uid()                                                                                                                                                                                         | auth.uid()                                                                                                                                                                                         | t
+ handle_new_user validates invitations                     | true                                                                                                                                                                                               | true                                                                                                                                                                                               | t
+ enable_hse_for_organization uses auth.uid()               | true                                                                                                                                                                                               | true                                                                                                                                                                                               | t
+ LIVE invitations total / pending / pending+unexpired      | 9 / 5 / 4                                                                                                                                                                                          | info                                                                                                                                                                                               | 
+ LIVE Suite invited members total / unexpired              | 1 / 0                                                                                                                                                                                              | info                                                                                                                                                                                               | 
+(16 rows)
+
+ROLLBACK
+BEGIN
+CREATE TABLE
+DO
+ n  |                      probe                       |       result       |                         detail                         
+----+--------------------------------------------------+--------------------+--------------------------------------------------------
+  1 | normal signup creates own org as owner           | PASS               | 1
+  2 | signup with organization_id and no token refused | PASS               | refused
+  3 | stranger add_user_to_organization denied         | PASS               | denied
+  4 | stranger reads 0 invitations                     | PASS               | 0
+  5 | anon select invitations denied                   | PASS               | denied
+  7 | wrong-email user cannot accept                   | PASS               | This invitation was sent to a different email address.
+  8 | invitee joined with the INVITATION role          | PASS               | member
+  9 | invitation consumed                              | PASS               | accepted
+ 10 | repeat accept is idempotent, one membership      | PASS               | already_accepted/1
+ 11 | owner can read and update own org invitation     | PASS               | 1
+ 12 | enable_hse_for_organization(other id) refused    | PASS               | refused
+ 99 | SUMMARY                                          | ALL 11 PROBES PASS | 11
+(12 rows)
+
+ROLLBACK
