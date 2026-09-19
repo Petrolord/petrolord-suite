@@ -78,6 +78,8 @@ const PumpStationDesigner = lazy(() => import('@/pages/apps/PumpStationDesigner'
 const ControlValveSizing = lazy(() => import('@/pages/apps/ControlValveSizing'));
 const StorageTankDesigner = lazy(() => import('@/pages/apps/StorageTankDesigner'));
 const CrudeAssayBlendingStudio = lazy(() => import('@/pages/apps/CrudeAssayBlendingStudio'));
+const LopaSilStudio = lazy(() => import('@/pages/apps/LopaSilStudio'));
+const LopaSilStudioHelpGuide = lazy(() => import('@/pages/apps/LopaSilStudioHelpGuide'));
 const ProductBlendingOptimizer = lazy(() => import('@/pages/apps/ProductBlendingOptimizer'));
 const RefineryPlanningStudio = lazy(() => import('@/pages/apps/RefineryPlanningStudio'));
 const ModularRefineryFeasibility = lazy(() => import('@/pages/apps/ModularRefineryFeasibility'));
@@ -759,6 +761,9 @@ function App() {
                                 <Route path="apps/facilities/flow-metering-designer" element={<ProtectedAppRoute appId="flow-metering-designer" appName="Flow Metering Designer"><FlowMeteringDesigner /></ProtectedAppRoute>} />
                                 {/* Midstream & Downstream DS1: the module's first app. */}
                                 <Route path="apps/midstream-downstream/crude-assay-blending-studio" element={<ProtectedAppRoute appId="crude-assay-blending-studio" appName="Crude Assay & Blending Studio"><CrudeAssayBlendingStudio /></ProtectedAppRoute>} />
+                                {/* Process Safety PS1: LOPA & SIL Studio (course H3 lopa). */}
+                                <Route path="apps/process-safety/lopa-sil-studio" element={<ProtectedAppRoute appId="lopa-sil-studio" appName="LOPA & SIL Studio"><LopaSilStudio /></ProtectedAppRoute>} />
+                                <Route path="apps/process-safety/lopa-sil-studio/help" element={<ProtectedAppRoute appId="lopa-sil-studio" appName="LOPA & SIL Studio"><LopaSilStudioHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/midstream-downstream/product-blending-optimizer" element={<ProtectedAppRoute appId="product-blending-optimizer" appName="Product Blending Optimizer"><ProductBlendingOptimizer /></ProtectedAppRoute>} />
                                 <Route path="apps/midstream-downstream/refinery-planning-scheduling" element={<ProtectedAppRoute appId="refinery-planning-scheduling" appName="Refinery Planning & Scheduling Studio"><RefineryPlanningStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/midstream-downstream/modular-refinery-feasibility" element={<ProtectedAppRoute appId="modular-refinery-feasibility" appName="Modular Refinery Feasibility Studio"><ModularRefineryFeasibility /></ProtectedAppRoute>} />
