@@ -172,6 +172,34 @@ describe('the page', () => {
   });
 });
 
+describe('MD5-0 on the page', () => {
+  it('asks for the trap exponent and passes it, where 1.3 was assumed', async () => {
+    mount();
+    await openTab(/Steam, intensity & register/i);
+    fireEvent.change(screen.getByLabelText(/Discharge coeff/i), { target: { value: '0.7' } });
+    // 3 mm at 11 bar a and 5.6 kg/m3, Cd 0.7: 28.1 kg/h at 1.135, 29.5 at 1.3
+    expect(await screen.findByText('28.1 kg/h')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/Isentropic exponent/i), { target: { value: '' } });
+    expect((await screen.findAllByText(/isentropic exponent above 1 is required/i)).length).toBeGreaterThan(0);
+  });
+
+  it('gives a trap no fuel with a blank boiler efficiency, where it assumed 1 (E11)', async () => {
+    mount();
+    await openTab(/Steam, intensity & register/i);
+    fireEvent.change(screen.getByLabelText(/Discharge coeff/i), { target: { value: '0.7' } });
+    fireEvent.change(screen.getByLabelText(/Boiler efficiency/i), { target: { value: '' } });
+    expect(await screen.findByText(/It is not assumed to be 1/i)).toBeInTheDocument();
+  });
+
+  it('does not compare an intensity with a stream missing (E7)', async () => {
+    mount();
+    await openTab(/Steam, intensity & register/i);
+    fireEvent.change(screen.getByLabelText(/Peer intensity/i), { target: { value: '700' } });
+    fireEvent.change(screen.getByLabelText(/Purchased power/i), { target: { value: '' } });
+    expect(await screen.findByText(/would flatter the plant/i)).toBeInTheDocument();
+  });
+});
+
 describe('the saved payload', () => {
   it('round-trips a study', () => {
     const inputs = defaultInputs();
