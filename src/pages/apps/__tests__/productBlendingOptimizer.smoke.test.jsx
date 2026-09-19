@@ -101,6 +101,36 @@ describe('the page', () => {
     expect(await screen.findByText(/What each constraint is costing/i)).toBeInTheDocument();
     expect(screen.getByText(/marginal cost of one more barrel/i)).toBeInTheDocument();
   });
+  // MD1-0. The engine gate (packages/engines/__tests__/
+  // downstream.productBlending.golden.test.js) holds these numbers to an exact
+  // oracle; these hold the page to showing them. Until MD1-0 the panel showed
+  // $0.072 for sulfur and $0.267 for RVP: row duals, not prices.
+  it('prices relief per unit of the property at the default pool', async () => {
+    mount();
+    await screen.findByText(/What each constraint is costing/i);
+    expect(screen.getByText('$55.01')).toBeInTheDocument();
+    expect(screen.getByText('$578.91')).toBeInTheDocument();
+    expect(screen.getAllByText(/per ppm/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/per psi/).length).toBeGreaterThan(0);
+  });
+
+  it('refuses a blank cost rather than treating the stream as free', async () => {
+    mount();
+    await screen.findByText('The recipe');
+    const fccCost = screen.getAllByRole('spinbutton').find((el) => el.value === '84');
+    fireEvent.change(fccCost, { target: { value: '' } });
+    expect(await screen.findByText(/No cost for FCC gasoline/)).toBeInTheDocument();
+  });
+
+  it('reads a typed maximum of zero as none available', async () => {
+    mount();
+    await screen.findByText('The recipe');
+    // Butane's Max is the last field holding 80 (FCC's MON comes first).
+    const butaneMax = screen.getAllByRole('spinbutton').filter((el) => el.value === '80').pop();
+    fireEvent.change(butaneMax, { target: { value: '0' } });
+    // The oracle's optimum without butane: $87,880.46 for 1,000 bbl.
+    expect(await screen.findByText('$87.88/bbl')).toBeInTheDocument();
+  });
 });
 
 describe('the saved payload', () => {

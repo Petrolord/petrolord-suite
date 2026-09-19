@@ -47,21 +47,21 @@ const helpContent = [
     icon: AlertTriangle,
     title: 'The asphaltene stability screen',
     content:
-      'Blending a heavy asphaltenic crude with a light paraffinic one is the classic way to drop asphaltenes in a tank or a preheat train. Where you supply a SARA analysis for every crude, the app forms the colloidal instability index, the ratio of saturates plus asphaltenes to aromatics plus resins, because saturates precipitate asphaltenes while aromatics and resins hold them. Below about 0.7 screens stable, above about 0.9 screens unstable, and the band between is where blends go either way. Without SARA it falls back to a gravity-contrast heuristic and tells you that is what it did, because a screening result whose basis is unstated invites more confidence than it has earned. Either way, a blend near the line is a spot test to ASTM D7112 or D7157, not an argument.',
+      'Blending a heavy asphaltenic crude with a light paraffinic one is the classic way to drop asphaltenes in a tank or a preheat train. Where you supply a SARA analysis for every crude, the app forms the colloidal instability index, the ratio of saturates plus asphaltenes to aromatics plus resins, because saturates precipitate asphaltenes while aromatics and resins hold them. Below about 0.7 screens stable, above about 0.9 screens unstable, and the band between is where blends go either way. Without SARA it falls back to a gravity-contrast heuristic and tells you that is what it did, because a screening result whose basis is unstated invites more confidence than it has earned. That heuristic can raise a flag and cannot clear one. When it does not see the classic combination the result is shown as not screened, because the absence of a rule-of-thumb warning says nothing about the asphaltenes. The middle CII band is shown as undecided. Either way, settle a blend near the line with a spot test to ASTM D7112 or D7157.',
   },
   {
     id: 'yields',
     icon: LineChart,
     title: 'Cut yields',
     content:
-      'A cut\'s yield is the volume between its boiling bounds, read off the distillation curve. The cut points are yours to set, because every refinery draws them where its own units want them. The blend\'s curve is built by mixing the component yields at each temperature, which is the quantity that is additive; averaging the components\' temperatures would mean nothing. If your cut set does not cover the whole curve the app says the yields do not close to 100 rather than scaling them up, because scaling would hide the gap.',
+      'A cut\'s yield is the volume between its boiling bounds, read off the distillation curve. The cut points are yours to set, because every refinery draws them where its own units want them. The blend\'s curve is built by mixing the component yields at each temperature, which is the quantity that is additive; averaging the components\' temperatures would mean nothing. If your cut set does not cover the whole curve the app says the yields do not close to 100 rather than scaling them up, because scaling would hide the gap. The curve is never extended past its measured points: below a first point at 0 percent nothing has distilled and above a last point at 100 percent everything has, and anywhere else outside the curve a cut has no yield and is named as such. Start each curve at 0 percent and end it at 100 so every cut can be read.',
   },
   {
     id: 'netback',
     icon: DollarSign,
     title: 'Netback and the differential',
     content:
-      'The value of a barrel is its own yields times the price of each cut, less losses, processing and freight. That follows the assay rather than a rule of thumb about gravity and sulfur, which is the point of doing it this way. Every term is shown separately because the argument with a seller is always about one of them. A cut with no price is named rather than counted as free: a missing price silently treated as zero understates the crude and loses the argument for the wrong reason. Enter a marker netback to see the differential.',
+      'The value of a barrel is its own yields times the price of each cut, less losses, processing and freight. That follows the assay rather than a rule of thumb about gravity and sulfur, which is the point of doing it this way. Every term is shown separately because the argument with a seller is always about one of them. A blank processing, freight or loss box is taken as zero, and the app lists which ones it took that way. A cut with no price is named rather than counted as free: a missing price silently treated as zero understates the crude and loses the argument for the wrong reason. Enter a marker netback to see the differential.',
   },
   {
     id: 'limits',

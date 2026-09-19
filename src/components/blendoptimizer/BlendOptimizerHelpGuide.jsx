@@ -61,7 +61,7 @@ const helpContent = [
     icon: Coins,
     title: 'What each constraint is costing',
     content:
-      'The shadow price of a specification is what one unit of relief on it would save. It is often the most useful number on the screen: it is the argument for a waiver, for a different crude, or for the octane investment. Zero means the constraint is not binding and relaxing it buys nothing. The volume row\'s price is the marginal cost of one more barrel of product.',
+      'The shadow price of a specification is what one unit of relief on it would save over the blend: dollars per ppm of sulfur, per psi of RVP, per octane number. Relief means raising a maximum or lowering a minimum. It is often the most useful number on the screen: it is the argument for a waiver, for a different crude, or for the octane investment. Zero means the constraint is not binding and relaxing it buys nothing. The volume row\'s price is the marginal cost of one more barrel of product. For RVP and viscosity, which blend through an index, the price is still per psi and per cSt at the limit, converted from the index the optimiser works in.',
   },
   {
     id: 'templates',

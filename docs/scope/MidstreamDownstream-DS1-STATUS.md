@@ -154,6 +154,35 @@ DS1 shipped an app, so both move:
   shows RLS enabled with one owner policy.
 - `20260829870000` (tile to Active) **HELD** for the DS1 upload.
 
+## MD1-0 validation and repairs (2026-09-19)
+
+Before the NextGen course MD1 Crude Assay & Blending, the engine went behind
+an independent oracle for the first time (engines #215, vendored at
+3709448; findings in `packages/engines/tools/validation/downstream/FINDINGS-crude.md`).
+What the oracle found here, and what changed on this page:
+
+- **At defaults, Watson K read 12.00; it is 11.75.** The page took T50 as the
+  first grid temperature past 50 percent (690 F against 617.14 F). It now
+  asks the engine's `temperatureAtVolumePercent` on the blended curve.
+- **At defaults, the stability screen showed a green tick on no evidence.**
+  With no SARA the gravity-contrast rule of thumb returned stable. It can
+  raise a flag and cannot clear one, so the page now shows "not screened".
+- **A blank sulfur was blended as zero sulfur** (1.005 to 0.087 wt% at the
+  default pair when the sour crude's box was cleared). Now n/a, with the
+  crude named under the figure. The same for TAN, nitrogen and metals.
+- **The distillation curve was clamped flat past its measured points**, so
+  a slice beyond a truncated curve came out empty and its barrels went to
+  the residue. A cut outside what a curve measured now has no yield and is
+  named. Three copies of the interpolation (engine, this context, the
+  chart) are one: the context and the chart call the engine.
+- **Refusals** for a crude with no gravity, a mixed volume and mass basis
+  and negative shares, shown as a banner. Blank processing, freight and loss
+  boxes are still zero, and the netback now says which ones it took so.
+- Tests: three new page tests pin 11.75, the not-screened message and the
+  named blank sulfur. Run against main's page code, the Watson K and blank
+  sulfur tests fail; the message test passes there because that repair is
+  in the engine, whose own gate goes red on main's engine.
+
 ## Next
 
 DS2, the Product Blending Optimizer: the first consumer of the LP kernel
