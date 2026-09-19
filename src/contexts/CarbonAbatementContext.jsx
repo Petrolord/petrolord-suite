@@ -12,7 +12,7 @@ import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useSavedProjects, missingTableMessage } from '@/hooks/useSavedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import {
-  makeFactor, makeGwpSet, combustionCo2FromCarbon, emissionLine, buildInventory,
+  makeFactor, makeGwpSet, combustionCo2FromCarbon, emissionLine, buildInventory, atomBalanceLines,
   carbonIntensity, abatementCost, abatementCurve, decarbonisationPath, SCOPE,
 } from '@/utils/downstream/engine/carbonAbatement';
 
@@ -144,27 +144,19 @@ export const CarbonAbatementProvider = ({ children }) => {
   /**
    * Atom-balance results become inventory lines through a factor of one, so
    * they sit in the same table as everything else and carry a source that
-   * says what they are: conservation of mass rather than a document.
+   * says what they are: conservation of mass rather than a document. The
+   * engine builds them (MD45-1 F8): a REFUSED combustion comes back as one
+   * blocked line with its reason, so the inventory stays not reportable
+   * while it stands. Dropped here, as it was, an inventory whose only gap
+   * was the flare read as reportable. Flaring left out of the boundary on
+   * purpose is excluded and adds nothing.
    */
-  const atomLines = useMemo(() => {
-    const rows = [];
-    const push = (label, result, gas, tonnes) => {
-      if (!result || result.error || !Number.isFinite(tonnes) || tonnes === 0) return;
-      rows.push(emissionLine({
-        label, scope: SCOPE.ONE, activity: tonnes, activityUnit: `t ${gas}`,
-        factor: makeFactor({
-          label: `${gas} from the atom balance`, value: 1, unit: `t${gas}/t${gas}`, gas,
-          source: 'Atom balance (conservation of mass)', version: 'not applicable',
-        }),
-        gwpSet,
-      }));
-    };
-    push('Fired heaters and boilers (CO2)', combustion, 'CO2', combustion.co2Tonnes);
-    push('Fired heaters and boilers (unburned CH4)', combustion, 'CH4', combustion.ch4Tonnes);
-    push('Flaring (CO2)', flare, 'CO2', flare.co2Tonnes);
-    push('Flaring (unburned CH4)', flare, 'CH4', flare.ch4Tonnes);
-    return rows;
-  }, [combustion, flare, gwpSet]);
+  const atomLines = useMemo(() => [
+    ...atomBalanceLines({ label: 'Fired heaters and boilers', scope: SCOPE.ONE, combustion, gwpSet }),
+    ...atomBalanceLines({
+      label: 'Flaring', scope: SCOPE.ONE, combustion: flare, gwpSet, excluded: !inputs.flare.include,
+    }),
+  ], [combustion, flare, gwpSet, inputs.flare.include]);
 
   const factorLines = useMemo(() => inputs.lines.map((l) => emissionLine({
     label: l.label, scope: l.scope,
@@ -259,16 +251,21 @@ export const CarbonAbatementProvider = ({ children }) => {
       const f = y1 === y0 ? 1 : (y - y0) / (y1 - y0);
       targetByYear[y] = base === null ? null : base * (1 - (pct / 100) * f);
     }
+    // A measure the cost function refused is off the curve, so it is off the
+    // path too (MD45-1): the path scheduled it from the raw inputs. It is
+    // named beside the path with the refusal.
     return decarbonisationPath({
       baselineTonnes: base,
-      measures: inputs.measures.map((m) => ({
-        label: m.label,
-        tonnesAbatedPerYear: numOrNull(m.tonnesAbatedPerYear),
-        startYear: numOrNull(m.startYear),
-      })),
+      measures: inputs.measures
+        .filter((m, i) => !(costedMeasures[i] && costedMeasures[i].error))
+        .map((m) => ({
+          label: m.label,
+          tonnesAbatedPerYear: numOrNull(m.tonnesAbatedPerYear),
+          startYear: numOrNull(m.startYear),
+        })),
       startYear: y0, endYear: y1, targetByYear,
     });
-  }, [inputs.plan, inputs.measures, baselineTonnes]);
+  }, [inputs.plan, inputs.measures, baselineTonnes, costedMeasures]);
 
   const serialize = useCallback((name) => ({
     name, schema: 1, inputs, modified: new Date().toISOString(),

@@ -111,7 +111,7 @@ describe('the page', () => {
     mount();
     await openTab(/Abatement & path/i);
     expect(await screen.findByText('The marginal abatement cost curve')).toBeInTheDocument();
-    expect(screen.getByText(/makes every measure look expensive/i)).toBeInTheDocument();
+    expect(screen.getByText(/overstates the\s+cost per tonne of a capital measure/i)).toBeInTheDocument();
     expect(screen.getByText('Pays for itself')).toBeInTheDocument();
   });
 
@@ -145,6 +145,42 @@ describe('the page', () => {
     // flare gas recovery claims 9,000 t against a flare of 3,319 tCO2e with its methane
     expect(await screen.findByText(/which emits 3,319 t/)).toBeInTheDocument();
     expect(screen.getByText('not assessed')).toBeInTheDocument();
+  });
+
+  it('AT DEFAULTS: does not say the target is met on claims no source can check (MD45-1 F1)', async () => {
+    mount();
+    await openTab(/Abatement & path/i);
+    // The flare is refused (blank efficiency), so only the heaters carry an
+    // emission; the steam and flare claims cannot be checked.
+    expect(await screen.findByText('Claims no source emission can check')).toBeInTheDocument();
+    expect(screen.getByText('not assessed')).toBeInTheDocument();
+    expect(screen.queryByText(/^met/)).not.toBeInTheDocument();
+    expect(screen.getByText(/no computed emission to check the claims on steam, flare/)).toBeInTheDocument();
+    expect(screen.getByText(/Repair failed steam traps acts on steam: no emission was given for the source/)).toBeInTheDocument();
+  });
+
+  it('keeps a refused flare in the inventory as a blocked line (MD45-1 F8)', async () => {
+    mount();
+    await screen.findByText(/Computed but NOT reportable/i);
+    fireEvent.change(screen.getByLabelText(/Assessment report/i), { target: { value: 'IPCC AR5' } });
+    fireEvent.change(screen.getByLabelText(/^CH4/i), { target: { value: '28' } });
+    screen.getAllByLabelText(/ source$/i).forEach((el) => fireEvent.change(el, { target: { value: 'Operator disclosure' } }));
+    screen.getAllByLabelText(/ version$/i).forEach((el) => fireEvent.change(el, { target: { value: '2026' } }));
+    screen.getAllByLabelText(/^Factor /i).forEach((el) => fireEvent.change(el, { target: { value: '0.45' } }));
+    // Everything filled but the flare's destruction efficiency: the refused
+    // flare used to vanish and the inventory read reportable.
+    expect(await screen.findByText(/Computed but NOT reportable/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 line\(s\) could not be computed/i)).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'Flaring' })).toBeInTheDocument();
+  });
+
+  it('names a refused measure and keeps it off the path (MD45-1 F3)', async () => {
+    mount();
+    await openTab(/Abatement & path/i);
+    await screen.findByText('The marginal abatement cost curve');
+    fireEvent.change(screen.getAllByLabelText(/^Capital/i)[1], { target: { value: '' } });
+    expect(await screen.findByText('Refused, and off the curve and the path')).toBeInTheDocument();
+    expect(screen.getByText(/Refused, so not on the path: Repair failed steam traps/)).toBeInTheDocument();
   });
 
   it('refuses a blank capital cost and a blank discount rate (MD5-0 C13)', async () => {
