@@ -31,7 +31,10 @@ const UtilitiesResults = () => {
           </div>
         ) : (
           <>
-            <p className="text-[11px] text-slate-500 mb-2">{trap.chokedNote}</p>
+            <p className={`text-[11px] mb-2 ${trap.choked ? 'text-slate-500' : 'text-amber-300'}`}>
+              {`${trap.choked ? 'Choked' : 'Not choked'}: discharging at ${fmt(trap.downstreamPressureBarA, 3)} bar a, a pressure ratio of ${fmt(trap.pressureRatio, 4)} against the critical ${fmt(trap.criticalPressureRatio, 4)}. `}
+              {trap.chokedNote}
+            </p>
             {trapPopulation.error && <p className="text-sm text-amber-300 mb-2">{trapPopulation.error}</p>}
             {trap.fuelNote && <p className="text-[11px] text-amber-300 mb-2">{trap.fuelNote}</p>}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

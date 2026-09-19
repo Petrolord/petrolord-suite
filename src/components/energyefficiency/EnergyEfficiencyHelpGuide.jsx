@@ -54,7 +54,7 @@ const helpContent = [
     icon: Droplets,
     title: 'Traps, condensate, and the term everyone forgets',
     content:
-      'A trap that has failed open is a hole in the steam system. Above a pressure ratio of about two the flow through a hole is choked, meaning it depends on the upstream pressure and not at all on what is downstream, which is why a trap blowing into a condensate header loses much the same steam as one blowing to atmosphere. Condensate is worth more than its heat: it is treated water, so losing it costs fuel to reheat the makeup, the raw water, and the treatment again. The treatment is the term routinely left out of these business cases, so it is asked for separately and the value is called a floor until it is supplied.',
+      'A trap that has failed open is a hole in the steam system. While the discharge pressure is at or below the critical fraction of the upstream pressure, (2/(k+1))^(k/(k-1)), about 0.58 for saturated steam, the flow through the hole is choked: it depends on the upstream pressure alone, which is why a trap blowing into a low-pressure condensate header loses the same steam as one blowing to atmosphere. Above that ratio the flow is subsonic and the discharge pressure lowers the loss; the page tests the ratio and says which applies. The discharge pressure defaults to atmosphere, the usual case, and a blank box is refused. Condensate is worth more than its heat: it is treated water, so losing it costs fuel to reheat the makeup, the raw water, and the treatment again. The treatment is the term routinely left out of these business cases, so it is asked for separately and the value is called a floor until it is supplied.',
   },
   {
     id: 'intensity',

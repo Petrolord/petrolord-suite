@@ -14,7 +14,7 @@ import {
   combustionStoichiometry, excessAirFromFlueOxygen, stackLossEfficiency,
   excessAirSaving, steamTrapLoss, condensateReturnValue, energyIntensity,
   pinchTargets, compositeCurve, priceSaving,
-  FUEL_REFERENCE, FUEL_REFERENCE_NOTE, PROPERTY_REFERENCE, HEATING_VALUE_BASIS,
+  FUEL_REFERENCE, FUEL_REFERENCE_NOTE, PROPERTY_REFERENCE, HEATING_VALUE_BASIS, ATMOSPHERE_BAR_A,
 } from '@/utils/downstream/engine/energyEfficiency';
 
 const TABLE = 'saved_energy_efficiency_projects';
@@ -57,6 +57,11 @@ export const defaultInputs = () => ({
     // saturated steam (the page's 11 bar a and 5.6 kg/m3 are saturated),
     // about 1.3 superheated. The engine no longer assumes one (MD5-0 E4).
     specificHeatRatio: 1.135,
+    // Where the failed trap discharges, bar a. The page's traps vent to
+    // atmosphere, the engine's stated case; into a condensate header above
+    // the critical pressure ratio the flow is subsonic and the loss lower
+    // (MD45-1 F6). A blank box is refused by the engine.
+    downstreamPressureBarA: ATMOSPHERE_BAR_A,
     steamCostPerTonne: 25, steamEnergyMJPerTonne: 2700,
     boilerEfficiencyFraction: 0.85,
     steamTonnesPerHour: 20, currentReturnFraction: 0.4, targetReturnFraction: 0.7,
@@ -211,6 +216,8 @@ export const EnergyEfficiencyProvider = ({ children }) => {
     dischargeCoefficient: numOrNull(inputs.steam.dischargeCoefficient),
     steamDensityKgM3: numOrNull(inputs.steam.steamDensityKgM3),
     specificHeatRatio: numOrNull(inputs.steam.specificHeatRatio),
+    // Passed as typed: blank is refused, never read as atmosphere.
+    downstreamPressureBarA: numOrNull(inputs.steam.downstreamPressureBarA),
     // Blank hours and a blank boiler efficiency are missing (MD5-0 E11):
     // they were read as a full year and as a 100 percent boiler.
     hoursPerYear: numOrNull(inputs.steam.hoursPerYear),

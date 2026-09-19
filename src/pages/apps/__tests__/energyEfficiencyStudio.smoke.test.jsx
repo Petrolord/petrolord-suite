@@ -127,7 +127,37 @@ describe('the page', () => {
     await openTab(/Steam, intensity & register/i);
     fireEvent.change(screen.getByLabelText(/Discharge coeff/i), { target: { value: '0.7' } });
     expect(await screen.findByText('Per trap')).toBeInTheDocument();
-    expect(screen.getByText(/not on what is downstream/i)).toBeInTheDocument();
+    // Choked is a test now (MD45-1 F6), to atmosphere by default.
+    expect(screen.getByText(/upstream pressure alone/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Choked: discharging at 1\.013 bar a/)).toBeInTheDocument();
+  });
+
+  it('tests choked flow against the critical ratio: into an 8 bar a header it is not (MD45-1 F6)', async () => {
+    mount();
+    await openTab(/Steam, intensity & register/i);
+    fireEvent.change(screen.getByLabelText(/Discharge coeff/i), { target: { value: '0.7' } });
+    await screen.findByText('Per trap');
+    fireEvent.change(screen.getByLabelText(/Discharges at/i), { target: { value: '8' } });
+    expect(await screen.findByText(/^Not choked: discharging at 8\.000 bar a/)).toBeInTheDocument();
+    expect(screen.getByText(/downstream pressure lowers the loss/i)).toBeInTheDocument();
+    expect(screen.getByText('26.4 kg/h')).toBeInTheDocument();
+  });
+
+  it('refuses a blank discharge pressure rather than assuming atmosphere (MD45-1 F6)', async () => {
+    mount();
+    await openTab(/Steam, intensity & register/i);
+    fireEvent.change(screen.getByLabelText(/Discharge coeff/i), { target: { value: '0.7' } });
+    await screen.findByText('Per trap');
+    fireEvent.change(screen.getByLabelText(/Discharges at/i), { target: { value: '' } });
+    expect(await screen.findByText(/A downstream pressure is required/i)).toBeInTheDocument();
+  });
+
+  it('refuses a heating value basis that is neither LHV nor HHV (MD45-1 F2)', async () => {
+    mount();
+    await screen.findByText('Stoichiometric air');
+    supplyRefusedInputs();
+    fireEvent.change(screen.getByLabelText(/Heating value basis/i), { target: { value: 'Btu' } });
+    expect((await screen.findAllByText(/must be LHV or HHV/i)).length).toBeGreaterThan(0);
   });
 
   it('calls the condensate value a floor until the treatment is priced', async () => {

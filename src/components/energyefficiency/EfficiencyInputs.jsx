@@ -83,6 +83,7 @@ const EfficiencyInputs = () => {
         <Cell label="Discharge coeff" value={inputs.steam.dischargeCoefficient} placeholder="required" onChange={(v) => setSection('steam', { dischargeCoefficient: v })} />
         <Cell label="Steam density" unit="kg/m3" value={inputs.steam.steamDensityKgM3} onChange={(v) => setSection('steam', { steamDensityKgM3: v })} />
         <Cell label="Isentropic exponent" value={inputs.steam.specificHeatRatio} placeholder="1.135 saturated, 1.3 superheated" onChange={(v) => setSection('steam', { specificHeatRatio: v })} />
+        <Cell label="Discharges at" unit="bar a" value={inputs.steam.downstreamPressureBarA} placeholder="1.01325 to atmosphere" onChange={(v) => setSection('steam', { downstreamPressureBarA: v })} />
         <Cell label="Steam cost" unit="/t" value={inputs.steam.steamCostPerTonne} onChange={(v) => setSection('steam', { steamCostPerTonne: v })} />
       </Group>
 
