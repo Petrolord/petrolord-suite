@@ -75,6 +75,16 @@ describe('the page', () => {
     expect(await screen.findByText('Unaccounted: -3.0 m3 (loss)')).toBeInTheDocument();
   });
 
+  // MD3-1: cover counts days of LIFTINGS. Pumpable stock tank by tank is
+  // (2,975 - 120) + (1,248 - 80) = 4,023 m3 against 640 m3 lifted a day, 6.3
+  // days; dividing by receipts plus deliveries (1,440) gave 2.8.
+  it('counts days of cover on what is lifted', async () => {
+    mount();
+    await screen.findByText('Days of cover');
+    const row = screen.getByText('Days of cover').closest('tr');
+    expect(row.textContent).toContain('6.3');
+  });
+
   it('refuses to close the day with no opening stock', async () => {
     mount();
     await screen.findByText('Unaccounted: -3.0 m3 (loss)');

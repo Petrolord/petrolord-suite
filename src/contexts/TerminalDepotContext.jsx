@@ -167,7 +167,11 @@ export const TerminalDepotProvider = ({ children }) => {
       capacityM3: num(t.capacityM3), heelM3: num(t.heelM3),
       stockM3: tankStocks[i]?.standardM3 ?? tankStocks[i]?.grossM3 ?? 0,
     })),
-    dailyThroughputM3: num(inputs.day.receiptsM3) + num(inputs.day.deliveriesM3),
+    // Days of cover are counted on what is LIFTED out each day (MD3-1): cover
+    // is how long the stock lasts, and receipts put stock in. This used to
+    // divide by receipts plus deliveries, which counted every receipt as a
+    // draw on the tank and understated cover.
+    dailyThroughputM3: num(inputs.day.deliveriesM3),
   }), [inputs.tanks, inputs.day, tankStocks]);
 
   const economics = useMemo(() => throughputEconomics({
@@ -175,7 +179,9 @@ export const TerminalDepotProvider = ({ children }) => {
     feePerM3: num(inputs.economics.feePerM3),
     variableCostPerM3: num(inputs.economics.variableCostPerM3),
     fixedCostPerPeriod: num(inputs.economics.fixedCostPerPeriod),
-    lossM3: num(inputs.day.knownLossM3) + Math.abs(reconciliation.unaccountedM3 ?? 0),
+    // Only a LOSS can have gone to air. A gain (more found than the movements
+    // explain) is not an emission; this used to count it as one via Math.abs.
+    lossM3: num(inputs.day.knownLossM3) + Math.max(0, -(reconciliation.unaccountedM3 ?? 0)),
     // No invented density (it was 800): without one the carbon side says so.
     productDensityKgM3: numOrNull(inputs.tanks[0]?.densityKgM3),
     lossEmissionFactorKgCo2ePerTonne: numOrNull(inputs.economics.lossEmissionFactorKgCo2ePerTonne),

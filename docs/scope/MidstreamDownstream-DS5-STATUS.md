@@ -121,6 +121,10 @@ Before the NextGen course MD3 (engines #221, vendored at 60ee266; findings in
   800 kg/m3, now removed).
 - Tests: page tests pin the -3.0 m3 loss and the refusal with no opening
   stock; both fail on the old page.
+- MD3-1 (the NextGen course foundation's findings): days of cover are now
+  counted on liftings (6.3 days at the sample, where receipts plus deliveries
+  gave 2.8), and only a loss, never a gain, is counted towards emissions. The
+  engine refuses a 0 minute load time and a blank throughput or fee.
 
 ## Next
 
