@@ -227,6 +227,18 @@ optimal. Findings: engines `tools/validation/downstream/FINDINGS-crude.md`.
 MD2-0 (`modularRefinery`, `refineryPlanning`, and the kernel's reach into a
 maximising plan) is next; MD3 to MD5 stay gated on their own waves.
 
+PROGRESS, 2026-09-19 (later). **MD1-0 is merged (engines #215, Suite #532)
+and MD2-0 is merged in the engines (#219).** MD2-0 built `exact_simplex.py`,
+a rational simplex that returns only certificate-proved optima, and found
+the refinery planner's crude unit carrying nothing at the default plan
+($3.49M of opex uncharged), typed zero capacities read as unlimited, a
+variance that added revenue gaps to cost gaps, and a modular refinery NPV
+that threw away construction-year tax losses (a profitable plant read
+-$12.2M; it is +$5.3M). Decisions taken under the owner's delegation: an
+opt-in loss carry-forward in the screening engine, no royalty on a refinery,
+a feedless unit is the crude unit. MD3-0 (`terminalDepot`, `fuelPricing`)
+is next, then the three Commercial & Trading courses MD1 to MD3.
+
 | wave | slug | course | engine modules |
 |---|---|---|---|
 | MD1 | `crude` | Crude Assay & Blending | crudeAssay, productBlending |

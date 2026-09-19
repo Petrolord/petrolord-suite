@@ -19,7 +19,9 @@ const PlanResults = () => {
       <div className="rounded-lg border border-amber-800/60 bg-amber-950/30 p-6 flex items-start gap-3">
         <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
         <div>
-          <h3 className="font-semibold text-amber-200">No plan solves this configuration</h3>
+          <h3 className="font-semibold text-amber-200">
+            {plan.status === 'invalid' ? 'The plan needs more input' : 'No plan solves this configuration'}
+          </h3>
           <p className="text-sm text-amber-100/90 mt-2">{plan.error}</p>
         </div>
       </div>

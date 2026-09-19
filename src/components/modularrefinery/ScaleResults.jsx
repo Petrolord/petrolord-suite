@@ -20,6 +20,11 @@ const ScaleResults = () => {
 
   return (
     <div className="space-y-5">
+      {streams.error && (
+        <div className="rounded-lg border border-amber-800/60 bg-amber-950/30 p-4 text-sm text-amber-200">
+          {streams.error}
+        </div>
+      )}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="rounded border border-slate-800 bg-slate-900/60 p-3">
           <p className="text-[11px] uppercase tracking-wide text-slate-400">Capital</p>
