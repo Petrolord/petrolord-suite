@@ -37,7 +37,7 @@ const CarbonInputs = () => {
   return (
     <div className="space-y-4">
       <Group title="Global warming potentials"
-        note="No values are shipped. They differ between IPCC assessment reports by enough to move a methane-heavy inventory by a fifth, and an inventory on one report is not comparable with one on another. Name the set you are using.">
+        note="No values are shipped. They differ between IPCC assessment reports by enough to move a methane-heavy inventory by a fifth, and an inventory on one report is not comparable with one on another. Name the set and its time horizon (100-year is the usual one). AR6 gives methane two values, fossil and non-fossil. This studio counts carbon that escapes a burner or a flare as methane only, so the fossil value is the consistent one here.">
         <Cell label="Assessment report" type="text" value={inputs.gwp.label}
           placeholder="required" onChange={(v) => setSection('gwp', { label: v })} />
         <Cell label="CH4" value={inputs.gwp.ch4} placeholder="required" onChange={(v) => setSection('gwp', { ch4: v })} />

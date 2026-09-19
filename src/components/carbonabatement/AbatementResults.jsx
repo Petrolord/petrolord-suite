@@ -22,9 +22,20 @@ const Stat = ({ label, value, hint }) => (
 );
 
 const AbatementResults = () => {
-  const { curve, path, costedMeasures, targetTonnes } = useCarbonAbatement();
+  const {
+    curve, path, costedMeasures, targetTonnes, partialInventory, inventory,
+  } = useCarbonAbatement();
   const tick = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
   const broken = costedMeasures.filter((m) => m.error);
+  const assumed = costedMeasures.filter((m) => !m.error && m.assumedZero && m.assumedZero.length);
+  // meetsTarget is null while a claim exceeds its source (MD5-0 C7), and a
+  // verdict over interacting measures is only an upper bound.
+  const targetValue = () => {
+    if (targetTonnes === null) return 'no target';
+    if (curve.meetsTarget === null) return 'not assessed';
+    if (curve.meetsTarget) return curve.additive ? 'met' : 'met, as an upper bound';
+    return `${fmt(curve.residualToTargetTonnes, 0)} t short`;
+  };
 
   return (
     <div className="space-y-5">
@@ -37,6 +48,21 @@ const AbatementResults = () => {
         </div>
       )}
 
+      {assumed.length > 0 && (
+        <p className="text-[11px] text-slate-400">
+          {assumed.map((m) => `${m.label}: blank ${m.assumedZero.join(' and ')} taken as 0.`).join(' ')}
+        </p>
+      )}
+
+      {partialInventory && targetTonnes !== null && (
+        <div className="rounded-lg border border-amber-800/60 bg-amber-950/30 p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
+          <p className="text-sm text-amber-100">
+            {`The target and the path are built on a partial inventory of ${fmt(inventory.totalTonnes, 0)} tCO2e, because ${(inventory.notReportableBecause || []).join('; ')}. Complete the inventory before relying on either.`}
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Stat label="Total abatement" value={`${fmt(curve.totalAbatementTonnes, 0)} t/yr`} />
         <Stat label="Pays for itself" value={`${fmt(curve.paysForItselfTonnes, 0)} t/yr`}
@@ -44,8 +70,9 @@ const AbatementResults = () => {
         <Stat label="Net annual cost" value={fmt(curve.netAnnualCostOfAll, 0)}
           hint={`${fmt(curve.weightedAverageCostPerTonne, 1)} per tonne on average`} />
         <Stat label="Against the target"
-          value={targetTonnes === null ? 'no target' : curve.meetsTarget ? 'met' : `${fmt(curve.residualToTargetTonnes, 0)} t short`}
-          hint={targetTonnes === null ? null : `target ${fmt(targetTonnes, 0)} t/yr`} />
+          value={targetValue()}
+          hint={targetTonnes === null ? null
+            : `target ${fmt(targetTonnes, 0)} t/yr${curve.meetsTarget === null && curve.targetBasis ? `; ${curve.targetBasis}` : ''}`} />
       </div>
 
       <div>
@@ -150,6 +177,11 @@ const AbatementResults = () => {
                 <Line type="monotone" dataKey="targetTonnes" name="Target" stroke="#dc2626" strokeWidth={2} strokeDasharray="5 5" dot={false} />
               </LineChart>
             </ChartFrame>
+            {path.unscheduledMeasures && path.unscheduledMeasures.length > 0 && (
+              <p className="text-[11px] text-amber-300 mt-1">
+                {`Not on the path: ${path.unscheduledMeasures.map((m) => `${m.label} (${m.reason})`).join(', ')}.`}
+              </p>
+            )}
             {path.firstShortfallYear !== null && (
               <p className="text-[11px] text-amber-300 mt-1">
                 {`The plan first falls short of the target in ${path.firstShortfallYear}, and the final gap is ${fmt(path.finalGapTonnes, 0)} tCO2e a year with no measure identified for it.`}
