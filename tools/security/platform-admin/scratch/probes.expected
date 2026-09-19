@@ -1,0 +1,130 @@
+ n  |                                 probe                                 |   observed   |   expected   | result 
+----+-----------------------------------------------------------------------+--------------+--------------+--------
+  1 | stranger sets own users.is_super_admin = true                         | ok           | ok           | PASS
+  2 | ... and the flag is then true                                         | true         | true         | PASS
+  3 | stranger sets own users.organization_id                               | ok           | ok           | PASS
+  4 | stranger sets own users.subscribed_modules (HSE premium gate)         | ok           | ok           | PASS
+  5 | stranger sets own users.email                                         | ok           | ok           | PASS
+  6 | stranger updates own users.primary_app (allowed)                      | ok           | ok           | PASS
+  7 | stranger inserts a users row                                          | denied 42501 | denied 42501 | PASS
+  8 | anon updates any users row                                            | ok           | ok           | PASS
+  9 | stranger with user_metadata + JWT claims is_super_admin=true          | false        | false        | PASS
+ 10 | stranger whose users flag is already true: is_super_admin()           | false        | false        | PASS
+ 11 | info@petrolord.com is_super_admin()                                   | true         | true         | PASS
+ 12 | ayoasaolu@gmail.com is_super_admin()                                  | true         | true         | PASS
+ 13 | UNCONFIRMED allow-list address is_super_admin()                       | true         | true         | PASS
+ 14 | support@petrolord.com is_super_admin() (never was, in SQL)            | false        | false        | PASS
+ 15 | admin reads another tenant's organization                             | 1            | 1            | PASS
+ 16 | stranger reads another tenant's organization                          | 0            | 0            | PASS
+ 17 | self-flagged stranger assign_app_seat in O2                           | success      | success      | PASS
+ 18 | self-flagged stranger unassign_app_seat in O2                         | success      | success      | PASS
+ 19 | platform admin assign_app_seat in O2                                  | success      | success      | PASS
+ 20 | viewer of O1 sees the pending admin invitation token                  | 1            | 1            | PASS
+ 21 | viewer of O1 still sees the active members                            | 2            | 2            | PASS
+ 22 | owner of O1 sees the pending invitation                               | 1            | 1            | PASS
+ 23 | platform admin sees the pending invitation                            | 1            | 1            | PASS
+ 24 | stranger sees no O1 members                                           | 0            | 0            | PASS
+ 25 | owner enable_hse_for_organization (definer writes subscribed_modules) | ok           | ok           | PASS
+ 26 | ... and it wrote them                                                 | true         | true         | PASS
+(26 rows)
+
+ phase | probes | failures 
+-------+--------+----------
+ live  |     26 |        0
+(1 row)
+
+migration applied twice
+ n  |                                 probe                                 |                observed                |                expected                | result 
+----+-----------------------------------------------------------------------+----------------------------------------+----------------------------------------+--------
+  1 | stranger sets own users.is_super_admin = true                         | denied 42501                           | denied 42501                           | PASS
+  2 | ... and the flag is then true                                         | false                                  | false                                  | PASS
+  3 | stranger sets own users.organization_id                               | denied 42501                           | denied 42501                           | PASS
+  4 | stranger sets own users.subscribed_modules (HSE premium gate)         | denied 42501                           | denied 42501                           | PASS
+  5 | stranger sets own users.email                                         | denied 42501                           | denied 42501                           | PASS
+  6 | stranger updates own users.primary_app (allowed)                      | ok                                     | ok                                     | PASS
+  7 | stranger inserts a users row                                          | denied 42501                           | denied 42501                           | PASS
+  8 | anon updates any users row                                            | denied 42501                           | denied 42501                           | PASS
+  9 | stranger with user_metadata + JWT claims is_super_admin=true          | false                                  | false                                  | PASS
+ 10 | stranger whose users flag is already true: is_super_admin()           | false                                  | false                                  | PASS
+ 11 | info@petrolord.com is_super_admin()                                   | true                                   | true                                   | PASS
+ 12 | ayoasaolu@gmail.com is_super_admin()                                  | true                                   | true                                   | PASS
+ 13 | UNCONFIRMED allow-list address is_super_admin()                       | false                                  | false                                  | PASS
+ 14 | support@petrolord.com is_super_admin() (never was, in SQL)            | false                                  | false                                  | PASS
+ 15 | admin reads another tenant's organization                             | 1                                      | 1                                      | PASS
+ 16 | stranger reads another tenant's organization                          | 0                                      | 0                                      | PASS
+ 17 | self-flagged stranger assign_app_seat in O2                           | error                                  | error                                  | PASS
+ 18 | self-flagged stranger unassign_app_seat in O2                         | error                                  | error                                  | PASS
+ 19 | platform admin assign_app_seat in O2                                  | success                                | success                                | PASS
+ 20 | viewer of O1 sees the pending admin invitation token                  | 0                                      | 0                                      | PASS
+ 21 | viewer of O1 still sees the active members                            | 2                                      | 2                                      | PASS
+ 22 | owner of O1 sees the pending invitation                               | 1                                      | 1                                      | PASS
+ 23 | platform admin sees the pending invitation                            | 1                                      | 1                                      | PASS
+ 24 | stranger sees no O1 members                                           | 0                                      | 0                                      | PASS
+ 25 | owner enable_hse_for_organization (definer writes subscribed_modules) | ok                                     | ok                                     | PASS
+ 26 | ... and it wrote them                                                 | true                                   | true                                   | PASS
+ 30 | stranger selects platform_admins                                      | denied 42501                           | denied 42501                           | PASS
+ 31 | stranger inserts self into platform_admins                            | denied 42501                           | denied 42501                           | PASS
+ 32 | admin selects platform_admins (server-only table)                     | denied 42501                           | denied 42501                           | PASS
+ 33 | anon selects platform_admins                                          | denied 42501                           | denied 42501                           | PASS
+ 34 | service_role reads platform_admins                                    | 2                                      | 2                                      | PASS
+ 35 | seeded exactly the confirmed allow-list accounts                      | ayoasaolu@gmail.com,info@petrolord.com | ayoasaolu@gmail.com,info@petrolord.com | PASS
+ 36 | users.is_super_admin mirrors platform_admins                          | ayoasaolu@gmail.com,info@petrolord.com | ayoasaolu@gmail.com,info@petrolord.com | PASS
+ 37 | service_role revokes info@ (delete row)                               | ok                                     | ok                                     | PASS
+ 38 | ... info@ is_super_admin() after revoke                               | false                                  | false                                  | PASS
+ 39 | ... mirror follows                                                    | false                                  | false                                  | PASS
+ 40 | service_role grants support@ (insert row)                             | ok                                     | ok                                     | PASS
+ 41 | ... support@ is_super_admin() after grant                             | true                                   | true                                   | PASS
+ 42 | anon selects public.users                                             | denied 42501                           | denied 42501                           | PASS
+(39 rows)
+
+ phase | probes | failures 
+-------+--------+----------
+ fixed |     39 |        0
+(1 row)
+
+ platform_admins_table | platform_admins_rows | users_flag_true | helper_reads_platform_admins | auth_users_table_update | auth_update_is_super_admin | auth_update_subscribed_modules | auth_update_primary_app | anon_select_users | users_guard_trigger | users_update_with_check | assign_seat_uses_helper | unassign_seat_uses_helper | member_policy_hides_invited |                                 platform_admins                                 
+-----------------------+----------------------+-----------------+------------------------------+-------------------------+----------------------------+--------------------------------+-------------------------+-------------------+---------------------+-------------------------+-------------------------+---------------------------+-----------------------------+---------------------------------------------------------------------------------
+ t                     |                    2 |               2 | t                            | f                       | f                          | f                              | t                       | f                 | t                   | t                       | t                       | t                         | t                           | ayoasaolu@gmail.com, last sign-in never; info@petrolord.com, last sign-in never
+(1 row)
+
+       result       
+--------------------
+ ALL 20 PROBES PASS
+(1 row)
+
+rollback applied
+ n  |                                 probe                                 |   observed   |   expected   | result 
+----+-----------------------------------------------------------------------+--------------+--------------+--------
+  1 | stranger sets own users.is_super_admin = true                         | ok           | ok           | PASS
+  2 | ... and the flag is then true                                         | true         | true         | PASS
+  3 | stranger sets own users.organization_id                               | ok           | ok           | PASS
+  4 | stranger sets own users.subscribed_modules (HSE premium gate)         | ok           | ok           | PASS
+  5 | stranger sets own users.email                                         | ok           | ok           | PASS
+  6 | stranger updates own users.primary_app (allowed)                      | ok           | ok           | PASS
+  7 | stranger inserts a users row                                          | denied 42501 | denied 42501 | PASS
+  8 | anon updates any users row                                            | ok           | ok           | PASS
+  9 | stranger with user_metadata + JWT claims is_super_admin=true          | false        | false        | PASS
+ 10 | stranger whose users flag is already true: is_super_admin()           | false        | false        | PASS
+ 11 | info@petrolord.com is_super_admin()                                   | true         | true         | PASS
+ 12 | ayoasaolu@gmail.com is_super_admin()                                  | true         | true         | PASS
+ 13 | UNCONFIRMED allow-list address is_super_admin()                       | true         | true         | PASS
+ 14 | support@petrolord.com is_super_admin() (never was, in SQL)            | false        | false        | PASS
+ 15 | admin reads another tenant's organization                             | 1            | 1            | PASS
+ 16 | stranger reads another tenant's organization                          | 0            | 0            | PASS
+ 17 | self-flagged stranger assign_app_seat in O2                           | success      | success      | PASS
+ 18 | self-flagged stranger unassign_app_seat in O2                         | success      | success      | PASS
+ 19 | platform admin assign_app_seat in O2                                  | success      | success      | PASS
+ 20 | viewer of O1 sees the pending admin invitation token                  | 1            | 1            | PASS
+ 21 | viewer of O1 still sees the active members                            | 2            | 2            | PASS
+ 22 | owner of O1 sees the pending invitation                               | 1            | 1            | PASS
+ 23 | platform admin sees the pending invitation                            | 1            | 1            | PASS
+ 24 | stranger sees no O1 members                                           | 0            | 0            | PASS
+ 25 | owner enable_hse_for_organization (definer writes subscribed_modules) | ok           | ok           | PASS
+ 26 | ... and it wrote them                                                 | true         | true         | PASS
+(26 rows)
+
+ phase | probes | failures 
+-------+--------+----------
+ live  |     26 |        0
+(1 row)
+
