@@ -87,7 +87,6 @@ const FeasibilityPanel = () => {
           <Cell label="Fixed opex" unit="$/yr" value={inputs.fixedOpexPerYear} onChange={(v) => set({ fixedOpexPerYear: v })} />
           <Cell label="Discount rate" unit="%" value={inputs.discountRate} onChange={(v) => set({ discountRate: v })} />
           <Cell label="Tax rate" unit="%" value={inputs.taxRate} onChange={(v) => set({ taxRate: v })} />
-          <Cell label="Royalty" unit="%" value={inputs.royaltyRate} onChange={(v) => set({ royaltyRate: v })} />
         </div>
       </div>
 

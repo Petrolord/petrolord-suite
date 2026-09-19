@@ -54,6 +54,16 @@ describe('the page', () => {
     expect(screen.getByText(/\$[\d,.-]+\/bbl/)).toBeInTheDocument();
   });
 
+  // MD2-0. The engine gate holds these to an exact, certificate-checked
+  // oracle; this holds the page to showing them. Until MD2-0 the crude unit
+  // carried nothing (0 percent) and the default margin read $21,850,909.
+  it('runs the crude through the crude unit and shows the certified margin', async () => {
+    mount();
+    await screen.findByText('Gross margin');
+    expect(screen.getByText('$18,360,000')).toBeInTheDocument();
+    expect(screen.getAllByText(/\(73%\)/).length).toBeGreaterThan(0);
+  });
+
   it('says yields are data rather than something it predicts', async () => {
     mount();
     expect(await screen.findByText(/data rather than something this app predicts/i)).toBeInTheDocument();
@@ -75,7 +85,7 @@ describe('the page', () => {
     mount();
     fireEvent.mouseDown(await screen.findByRole('tab', { name: /Actuals & variance/i }));
     expect(await screen.findByText(/Record what happened/i)).toBeInTheDocument();
-    expect(screen.getByText(/a decomposition with a residual is a/i)).toBeInTheDocument();
+    expect(screen.getByText(/a decomposition with a residual only/i)).toBeInTheDocument();
     expect(screen.getByText('Margin variance')).toBeInTheDocument();
   });
 });

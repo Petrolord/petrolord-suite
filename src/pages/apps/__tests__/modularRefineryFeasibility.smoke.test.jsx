@@ -56,6 +56,23 @@ describe('the page', () => {
     expect(screen.getByText(/cuts both ways/i)).toBeInTheDocument();
   });
 
+  // MD2-0. The oracle's accounts: the page defaults lose money every year
+  // (NPV -97.4 MM) and, with crude at 74, the construction-year tax loss
+  // carried forward turns the plant positive (+5.3 MM; the page read -12.2).
+  it('values the default plant as the accounts do, with no royalty box', async () => {
+    mount();
+    expect(await screen.findByText('$-97.4MM')).toBeInTheDocument();
+    expect(screen.queryByText(/^Royalty/)).toBeNull();
+  });
+
+  it('carries the construction-year tax loss forward on a profitable plant', async () => {
+    mount();
+    await screen.findByText('$-97.4MM');
+    const crude = screen.getAllByRole('spinbutton').find((el) => el.value === '80');
+    fireEvent.change(crude, { target: { value: '74' } });
+    expect(await screen.findByText('$5.3MM')).toBeInTheDocument();
+  });
+
   it('names the economics engine and its tier', async () => {
     mount();
     expect(await screen.findByText(/screening economics engine/i)).toBeInTheDocument();
