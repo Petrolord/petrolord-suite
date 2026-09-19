@@ -254,6 +254,33 @@ in NextGen on a shared vendor commit (downstream family at engines 60ee266):
 | MD4 | `gasvalue` | Flare Gas to Value & LPG/CNG | flareToValue, lpgCng |
 | MD5 | `carbon` | Carbon & Energy Efficiency | carbonAbatement, energyEfficiency |
 
+PROGRESS, 2026-09-19 (night). **MD1 to MD3 are built and merged in NextGen,
+go-lives HELD.** `crude` #167, `refinery` #166 (+ #168, the Suite upload gate)
+and `supply` #165, nextgen main `5fda0d5c`. Each course has 78 lessons, 396
+questions and 18 graded fields, on engines 13f0936 (MD-1 #224 and MD3-2 #225
+re-vendored). The module ruling superseded `downstream`: crude and refinery sit
+in `commercial_trading` and supply in `supply_chain`. Migrations are
+`20261010_cr_crude_*`, `20261011_rf_refinery_*` and `20261012_tds_supply_*`, each
+with a content-addressed apply script under `tools/course-waves/<slug>/`. Each
+ladder passed a rolled-back production dry run (catalogue 55 to 56 available),
+and every negative control fired. For LP fields, the go-live's second route is
+the oracle's exact rational value, and closed-form fields are recomputed in SQL.
+
+All nine tier banks went through a key-truth audit. Every tier had 12 to 22 keys
+resting on lesson sentences the digest never prints; each was replaced, and the
+lessons were fixed to match. Two lead rulings were overturned by measurement.
+First, the refinery plan does maximise margin: `solveLP(..., maximize: true)`
+is read from the engine source and printed. Second, the crude sulfur re-solve
+spread is not a vertex change: the limit scales every volume in its row. Both
+now print in the digests.
+
+**Every go-live is gated on TWO uploads:** the NextGen zip carrying
+`apps/<slug>`, and the Suite production upload carrying Suite main `1a71d9c90`
+(#532, #534 and #540, the page repairs these courses teach; production was
+e36846604). Owner order: merge is done, then `apply_<p>_<slug>.sh verify` and
+`seed` for each course, then both uploads, then `go-live` for each course. Log
+every applied migration in the NextGen MIGRATIONS.md.
+
 ## 8. Economics (EC1-EC6), path_order 53 to 58
 
 Gated on extracting the cash flow engine out of the edge function.
