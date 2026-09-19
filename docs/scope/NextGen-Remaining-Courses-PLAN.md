@@ -239,6 +239,13 @@ opt-in loss carry-forward in the screening engine, no royalty on a refinery,
 a feedless unit is the crude unit. MD3-0 (`terminalDepot`, `fuelPricing`)
 is next, then the three Commercial & Trading courses MD1 to MD3.
 
+PROGRESS, 2026-09-19 (evening). **MD3-0 is merged (engines #221) and all three
+Commercial & Trading engines are gated.** Its worst finding was on the Suite
+page: the Terminal & Depot reconciliation derived its opening stock from
+today's dip, so it balanced for every input. The three courses are in build
+in NextGen on a shared vendor commit (downstream family at engines 60ee266):
+`crude` (48), `refinery` (49), `supply` (50), module `downstream`.
+
 | wave | slug | course | engine modules |
 |---|---|---|---|
 | MD1 | `crude` | Crude Assay & Blending | crudeAssay, productBlending |

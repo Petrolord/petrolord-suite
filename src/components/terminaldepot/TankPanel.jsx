@@ -79,7 +79,11 @@ const TankPanel = () => {
 
       <div>
         <h2 className="text-sm font-semibold text-white mb-2">The day</h2>
+        <p className="text-[11px] text-slate-500 mb-2">
+          Opening stock is yesterday&apos;s closing stock. The closing stock is today&apos;s dips above.
+        </p>
         <div className="grid grid-cols-2 gap-2">
+          <Cell label="Opening stock" unit="m3" value={inputs.day.openingStockM3} onChange={(v) => setSection('day', { openingStockM3: v })} />
           <Cell label="Receipts" unit="m3" value={inputs.day.receiptsM3} onChange={(v) => setSection('day', { receiptsM3: v })} />
           <Cell label="Deliveries" unit="m3" value={inputs.day.deliveriesM3} onChange={(v) => setSection('day', { deliveriesM3: v })} />
           <Cell label="Known loss" unit="m3" value={inputs.day.knownLossM3} onChange={(v) => setSection('day', { knownLossM3: v })} />
