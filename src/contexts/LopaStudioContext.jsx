@@ -40,6 +40,9 @@ export const LopaStudioProvider = ({ children }) => {
   // organization does not rebuild it mid-save; the list reloads on switch.
   const orgRef = useRef(orgId);
   orgRef.current = orgId;
+  // orgId is a deliberate dependency: a new service on switch makes the
+  // saved-study list reload for the organization now selected.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const service = useMemo(() => createLopaStudiesService(() => orgRef.current), [orgId]);
 
   const active = study.scenarios.find((s) => s.id === study.activeScenarioId) || study.scenarios[0];

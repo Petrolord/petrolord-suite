@@ -57,16 +57,16 @@ reduction to SIL band, PFDavg for 1oo1, 1oo2 and 2oo3 with common cause
 and proof-test interval. IEC 61508/61511 tables are cited, never embedded;
 a licensed table enters only as user input.
 
-**Pricing lands here.** With the first working app, the module joins
-`pricing_config.module_pricing` (a migration), `MODULE_PRICING` and
-`MODULE_META` in `src/data/pricingModels.js`, and the generate-quote
-fallback, which must match the shared table exactly
-(`modulePricing.test.js`). The price follows the commercial rule in
-pricingModels.js (about 3.3x the module's own per-app price); for a
-three-app module that rule needs an owner decision, since the bundle would
-cost about what the three apps cost separately. The marketing surfaces
-(ModulesShowcase, Home and Solutions module counts) move from eight to nine
-modules at the same time, counting built apps only, as DS1 did.
+**Pricing landed here** (2026-09-19, decided under the owner's
+delegation): the module joins `pricing_config.module_pricing` at 1,999
+(migration 20260919230000), `MODULE_PRICING` and `MODULE_META` in
+`src/data/pricingModels.js`, and the generate-quote fallback. The literal
+3.3x rule on the inherited per-app price (699) gives about 2,299, which is
+more than the three planned apps cost a la carte (2,097), so the price is
+1,999: 2.86x, inside the 2.8x-4.0x band `modulePricing.test.js` holds, and
+below a la carte. The marketing surfaces (ModulesShowcase, Home and
+Solutions) moved to nine modules, counting the one built app, as DS1 did.
+Detail: `ProcessSafety-PS1-STATUS.md`.
 
 ### PS2: Consequence Modelling Studio (`consequence-studio`), course H4
 
@@ -97,7 +97,7 @@ course is held until the app's route serves.
 
 | Phase | Status | Landed |
 |---|---|---|
-| PS0 | **BUILT 2026-09-19** (branch feat/ps0-process-safety-module) | Module registered end to end; seed written, NOT APPLIED (owner-run, deploy-gated); pricing and marketing held for PS1 |
-| PS1 | not started | |
+| PS0 | **MERGED 2026-09-19** (PR #533, 16eb8be03) | Module registered end to end; seed written, NOT APPLIED (owner-run, deploy-gated); pricing and marketing held for PS1 |
+| PS1 | **BUILT 2026-09-19** (branch feat/ps1-lopa-sil-studio) | LOPA & SIL Studio on engines 6703c00 (vendored); `ps_lopa_studies`, tile activation and pricing migrations written and dry-run proven, NOT APPLIED (owner-run); nine-module marketing; `ProcessSafety-PS1-STATUS.md` |
 | PS2 | not started | |
 | PS3 | not started | |
