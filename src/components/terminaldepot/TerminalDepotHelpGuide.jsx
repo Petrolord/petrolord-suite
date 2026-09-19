@@ -40,7 +40,7 @@ const helpContent = [
     icon: TrendingDown,
     title: 'The reconciliation, and why the gap is the point',
     content:
-      'Opening plus receipts less deliveries less known losses is what the closing stock should be; the dip says what it is. The difference is the unaccounted figure, and it is the entire point of a terminal reconciliation. A tool that silently balanced would be worse than useless: gain and loss is what the operator is judged on, what the customer disputes, and what tells you a meter is drifting or a valve is passing. Tolerance is set as a percentage of throughput rather than of stock, because measurement error scales with what moved, not with what is sitting in the tank.',
+      'Opening plus receipts less deliveries less known losses is what the closing stock should be; the dip says what it is. The opening stock is yesterday\'s closing stock, which you enter; with no opening stock the day cannot be closed, and the app says so. The difference is the unaccounted figure, and it is the entire point of a terminal reconciliation. A tool that silently balanced would be worse than useless: gain and loss is what the operator is judged on, what the customer disputes, and what tells you a meter is drifting or a valve is passing. Tolerance is set as a percentage of throughput, because measurement error scales with what moved.',
   },
   {
     id: 'trend',

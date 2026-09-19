@@ -36,7 +36,9 @@ export const defaultInputs = () => ({
   // Published-table coefficients are not shipped; the user supplies their row
   // or a VCF read off their own tables.
   vcfCoefficients: { k0: '', k1: '', k2: '' },
-  day: { receiptsM3: 800, deliveriesM3: 640, knownLossM3: 2, tolerancePercentOfThroughput: 0.5 },
+  // openingStockM3 is yesterday's closing stock (MD3-0). The sample is chosen so
+  // the sample day closes 3 m3 short, inside tolerance, like the sample history.
+  day: { openingStockM3: 4068, receiptsM3: 800, deliveriesM3: 640, knownLossM3: 2, tolerancePercentOfThroughput: 0.5 },
   history: [
     { id: uuidv4(), date: '', unaccountedM3: -3, throughputM3: 1400 },
     { id: uuidv4(), date: '', unaccountedM3: -2, throughputM3: 1500 },
@@ -137,9 +139,12 @@ export const TerminalDepotProvider = ({ children }) => {
   );
 
   const reconciliation = useMemo(() => reconcileStock({
-    // Opening is yesterday's close, which the app takes as the dipped stock
-    // less today's net movement: a terminal reconciles forward from a dip.
-    openingM3: totalStockM3 - num(inputs.day.receiptsM3) + num(inputs.day.deliveriesM3) + num(inputs.day.knownLossM3),
+    // Opening is yesterday's closing stock, typed in. MD3-0: this page used to
+    // DERIVE it from today's dip (dip less today's net movement), which made
+    // the expected close equal the dip by construction, so the unaccounted
+    // figure was zero for every input and the terminal always read balanced.
+    // Blank, the engine refuses to close the day.
+    openingM3: numOrNull(inputs.day.openingStockM3),
     receiptsM3: num(inputs.day.receiptsM3),
     deliveriesM3: num(inputs.day.deliveriesM3),
     knownLossM3: num(inputs.day.knownLossM3),
@@ -154,7 +159,7 @@ export const TerminalDepotProvider = ({ children }) => {
   const queue = useMemo(() => rackQueue({
     arrivalsPerHour: num(inputs.rack.arrivalsPerHour),
     loadMinutes: num(inputs.rack.loadMinutes),
-    bays: num(inputs.rack.bays, 1),
+    bays: numOrNull(inputs.rack.bays),
   }), [inputs.rack]);
 
   const farm = useMemo(() => tankFarmCover({
@@ -171,7 +176,8 @@ export const TerminalDepotProvider = ({ children }) => {
     variableCostPerM3: num(inputs.economics.variableCostPerM3),
     fixedCostPerPeriod: num(inputs.economics.fixedCostPerPeriod),
     lossM3: num(inputs.day.knownLossM3) + Math.abs(reconciliation.unaccountedM3 ?? 0),
-    productDensityKgM3: num(inputs.tanks[0]?.densityKgM3, 800),
+    // No invented density (it was 800): without one the carbon side says so.
+    productDensityKgM3: numOrNull(inputs.tanks[0]?.densityKgM3),
     lossEmissionFactorKgCo2ePerTonne: numOrNull(inputs.economics.lossEmissionFactorKgCo2ePerTonne),
   }), [inputs.day, inputs.economics, inputs.tanks, reconciliation]);
 
