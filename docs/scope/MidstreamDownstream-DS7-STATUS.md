@@ -197,3 +197,15 @@ excess-air optimisation with the fuel saving quantified, steam-system
 screening, energy-intensity benchmarking per unit, and heat-integration
 targeting from the user's own stream table — with every recommendation
 priced in both money and tonnes of CO2.
+
+## MD45-1 (2026-09-19): the vaporizer outlet opens blank
+
+- **P1, at defaults:** the vaporizer opened with inlet 25 C and outlet 15 C
+  and the boiling point blank. The engine refuses a boiling point below the
+  inlet and an outlet below the boiling point, so no boiling point a user
+  typed could complete the duty. The outlet now opens blank beside the
+  boiling point ("above the boiling point"); the duty is a floor until both
+  are given. No default is invented.
+- Engines #228 rewords the blend and vaporizer floor notes to the copy rule.
+
+Gate: 1 new page test (the smoke suite is 20).

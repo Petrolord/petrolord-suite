@@ -68,7 +68,7 @@ const RolloutInputs = () => {
         <Cell label="Inlet" unit="C" value={inputs.lpg.vaporizer.inletTempC} onChange={(v) => setLpgSection('vaporizer', { inletTempC: v })} />
         <Cell label="Boiling point at vaporizer pressure" unit="C" value={inputs.lpg.vaporizer.boilingPointC} placeholder="required for the full duty" onChange={(v) => setLpgSection('vaporizer', { boilingPointC: v })} />
         <Cell label="Vapour cp" unit="kJ/kg.K" value={inputs.lpg.vaporizer.vapourCpKJkgK} onChange={(v) => setLpgSection('vaporizer', { vapourCpKJkgK: v })} />
-        <Cell label="Outlet" unit="C" value={inputs.lpg.vaporizer.outletTempC} onChange={(v) => setLpgSection('vaporizer', { outletTempC: v })} />
+        <Cell label="Outlet" unit="C" value={inputs.lpg.vaporizer.outletTempC} placeholder="above the boiling point" onChange={(v) => setLpgSection('vaporizer', { outletTempC: v })} />
         <Cell label="Design margin" unit="%" value={inputs.lpg.vaporizer.designMarginPercent} onChange={(v) => setLpgSection('vaporizer', { designMarginPercent: v })} />
       </Group>
 

@@ -189,3 +189,20 @@ no cascade) at 10, 20 and 30 C.
   refused.
 
 Gate: 3 new page tests (the smoke suite is 20).
+
+## MD45-1 (2026-09-19): what the carbon course foundation found
+
+Engines #228 (df31f53) vendored; the page follows it.
+
+- **F6:** the trap said "choked" at any pressure. The rail gains
+  "Discharges at" (bar a), opening at atmosphere (1.01325, the engine's
+  stated case); a blank box is refused. The panel states the pressure ratio
+  against the critical ratio and says choked or not choked (the page trap
+  into an 8 bar a header: 26.4 kg/h subsonic, against 28.1 kg/h choked to
+  atmosphere). The help guide says the same.
+- **F2:** a heating value basis other than LHV or HHV is refused and the
+  refusal shows on the efficiency panel (the select offers only the two).
+- F5, F7 (condensate target below current, negative losses) are engine
+  refusals the page shows through its existing error lines.
+
+Gate: 3 new page tests (the smoke suite is 23).

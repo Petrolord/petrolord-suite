@@ -26,10 +26,13 @@ const AbatementResults = () => {
     curve, path, costedMeasures, targetTonnes, partialInventory, inventory,
   } = useCarbonAbatement();
   const tick = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
-  const broken = costedMeasures.filter((m) => m.error);
+  // The curve names every refused measure with the engine's reason (MD45-1 F3).
+  const refused = curve.refusedMeasures || [];
+  const unchecked = curve.uncheckedClaims || [];
   const assumed = costedMeasures.filter((m) => !m.error && m.assumedZero && m.assumedZero.length);
-  // meetsTarget is null while a claim exceeds its source (MD5-0 C7), and a
-  // verdict over interacting measures is only an upper bound.
+  // meetsTarget is null while a claim exceeds its source (MD5-0 C7) or
+  // cannot be checked against one (MD45-1 F1), and a verdict over
+  // interacting measures is only an upper bound.
   const targetValue = () => {
     if (targetTonnes === null) return 'no target';
     if (curve.meetsTarget === null) return 'not assessed';
@@ -39,11 +42,15 @@ const AbatementResults = () => {
 
   return (
     <div className="space-y-5">
-      {broken.length > 0 && (
+      {refused.length > 0 && (
         <div className="rounded-lg border border-amber-800/60 bg-amber-950/30 p-4 flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
           <div>
-            {broken.map((m) => <p key={m.error} className="text-sm text-amber-100">{m.error}</p>)}
+            <p className="font-semibold text-white">Refused, and off the curve and the path</p>
+            <ul className="text-sm text-amber-100 mt-1 list-disc pl-4">
+              {refused.map((m, i) => <li key={`${m.label}-${i}`}>{`${m.label}: ${m.reason}`}</li>)}
+            </ul>
+            {curve.refusedNote && <p className="text-[11px] text-amber-200/90 mt-1">{curve.refusedNote}</p>}
           </div>
         </div>
       )}
@@ -80,8 +87,8 @@ const AbatementResults = () => {
         <p className="text-[11px] text-slate-500 mb-2">
           Cheapest first. Bars below the line pay for themselves and abate carbon as a side effect,
           and they are usually the ones nobody has done. Capital is annualised over each measure&apos;s
-          life, because comparing a one-off capital cost against a recurring saving makes every
-          measure look expensive.
+          life, because setting a one-off capital cost against one year&apos;s saving overstates the
+          cost per tonne of a capital measure.
         </p>
         <ChartFrame height={300} exportFilename="abatement-cost-curve">
           <BarChart data={curve.steps} margin={{ top: 12, right: 24, left: 24, bottom: 40 }}>
@@ -141,6 +148,26 @@ const AbatementResults = () => {
         </div>
       )}
 
+      {targetTonnes !== null && unchecked.length > 0 && (
+        <div className="rounded-lg border border-amber-800/60 bg-amber-950/30 p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-semibold text-white">Claims no source emission can check</p>
+            <ul className="text-sm text-amber-100 mt-1 list-disc pl-4">
+              {unchecked.map((u, i) => (
+                <li key={`${u.measure}-${u.sourceId}-${i}`}>
+                  {u.sourceId === null ? `${u.measure}: ${u.reason}.` : `${u.measure} acts on ${u.sourceId}: ${u.reason}.`}
+                </li>
+              ))}
+            </ul>
+            <p className="text-[11px] text-amber-200/90 mt-1">
+              Those tonnes may not exist, so the target is not assessed until every claim can be
+              checked. Only the heaters and the flare have an emission here, and only when they compute.
+            </p>
+          </div>
+        </div>
+      )}
+
       {curve.overClaims.length > 0 && (
         <div className="rounded-lg border border-red-800/60 bg-red-950/30 p-4 flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 shrink-0" />
@@ -177,6 +204,11 @@ const AbatementResults = () => {
                 <Line type="monotone" dataKey="targetTonnes" name="Target" stroke="#dc2626" strokeWidth={2} strokeDasharray="5 5" dot={false} />
               </LineChart>
             </ChartFrame>
+            {refused.length > 0 && (
+              <p className="text-[11px] text-amber-300 mt-1">
+                {`Refused, so not on the path: ${refused.map((m) => m.label).join(', ')}.`}
+              </p>
+            )}
             {path.unscheduledMeasures && path.unscheduledMeasures.length > 0 && (
               <p className="text-[11px] text-amber-300 mt-1">
                 {`Not on the path: ${path.unscheduledMeasures.map((m) => `${m.label} (${m.reason})`).join(', ')}.`}

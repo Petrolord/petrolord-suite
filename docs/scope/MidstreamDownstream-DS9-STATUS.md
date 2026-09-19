@@ -166,3 +166,30 @@ Engines PR #226 (squash `5c0cb97`), vendored here; findings in
   AR6.
 
 Gate: 4 new page tests (the smoke suite is 19).
+
+## MD45-1 (2026-09-19): what the carbon course foundation found
+
+Engines #228 (df31f53) vendored; the page follows it.
+
+- **F1, at defaults:** the page opened saying the target was "met, as an
+  upper bound": the flare is refused (blank destruction efficiency) so only
+  the heaters had an emission, and the flare gas recovery and steam trap
+  claims were never checked. The engine now leaves the verdict unassessed
+  while any claim cannot be checked against its source. The page reads
+  "not assessed" with the engine's basis ("no computed emission to check the
+  claims on steam, flare") and lists each unchecked claim. Only the heaters
+  and the flare carry an emission on this page, so a measure acting on any
+  other source keeps the verdict unassessed; a way to enter other sources'
+  emissions is a possible follow-up.
+- **F3:** a refused measure is named from the curve's own refused list with
+  the engine's reason, and it is kept off the path (the path scheduled it
+  from the raw inputs).
+- **F8:** the inventory's atom-balance lines are built by the engine's
+  `atomBalanceLines`. A refused flare (or heater) is now a blocked line with
+  its reason, so the inventory stays not reportable; it used to vanish, and
+  with every other box filled the inventory read reportable. Flaring left out
+  of the boundary is excluded and adds nothing.
+- The capital-life sentence ("makes every measure look expensive") was
+  untrue and is reworded on the page and in the help, as in the engine.
+
+Gate: 3 new page tests (the smoke suite is 22).
