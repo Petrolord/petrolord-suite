@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit e4d3b1014cdf4204934bbc62adf6b35738a8d369
+# commit 13f09364a16b533f0136cb835b530c8d545a4838
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 e822d2f2f06ef404054f27872cd476286604952d README.md
@@ -42,7 +42,7 @@ a21a5cfc264ece1f7051f6064067f37dc7f4cf55 __tests__/downstream.productBlending.te
 b5eb53dc76c1c8a87d40d0cd0d041414504e9e85 __tests__/downstream.refinery.golden.test.js
 ebe3ba0a67154326ebce79a138026396f4106af0 __tests__/downstream.refineryPlanning.test.js
 c4ba31006bc6fa6506ba17ce1cc61eb2e3a02f3e __tests__/downstream.streamModel.test.js
-b7486c6fb4a63c3c1001c7c017777cda5c97938a __tests__/downstream.supply.golden.test.js
+477471457d57e84e5900ca152083588ea593de4b __tests__/downstream.supply.golden.test.js
 610a3884a5b52515943abc5312f3168d4f39efd0 __tests__/downstream.terminalDepot.test.js
 3918d54dedc0062dcc3fff7179bb1a75299d512c __tests__/drilling.anticollision.test.js
 7e9d4f08863f2fd533ef4135e9035d69d1d3b084 __tests__/drilling.casingwear.test.js
@@ -236,7 +236,7 @@ ace50672a885506449dec9af652d690daf6036a8 engines/dca/typeCurve.js
 5c6bca104489a5a87f4865807a9159e488563dfa engines/downstream/crudeAssay.js
 4bc97099791f7a58f630cba8a1bb0cd8aa60dd75 engines/downstream/energyEfficiency.js
 6b1e06f3280a9285b4cdc1087d33022a729516a8 engines/downstream/flareToValue.js
-d5d9ef11c7d2f8a5e1bba8bdec09df347863d194 engines/downstream/fuelPricing.js
+e82fd76a4f5229d5c8bec402ee289ad10a74a967 engines/downstream/fuelPricing.js
 37bb177a4b690dfaa7fc87c49c25f921f9f9815c engines/downstream/lpgCng.js
 9d52aed199ffdf3facf67a58d852034d90de4455 engines/downstream/modularRefinery.js
 63fbf3983c8fb37ec46f4e04b1dec5afd5329130 engines/downstream/productBlending.js
@@ -738,11 +738,11 @@ bb7e40c744f43eee571d0eb764fa6a0b10ce8c61 tools/validation/basin/genfixtures.py
 63170e1025eeeb9cfdf030377a347d22dc8afa17 tools/validation/basin/oracle.py
 3e8d168b54f942f742f9256f044d77d4163a377f tools/validation/downstream/FINDINGS-crude.md
 3e4b0131f97b37d8e99d28f411164f469b5b1cfb tools/validation/downstream/FINDINGS-refinery.md
-4511ff5b917441816c91afb430dc73dea4c75ba0 tools/validation/downstream/FINDINGS-supply.md
+4751e28c49c8cdd3e97a68e37af7e34703da49a6 tools/validation/downstream/FINDINGS-supply.md
 eab051c171be7299b8a8b6e65c11c7545737c542 tools/validation/downstream/exact_simplex.py
 189f18b80493918c4523cba6563fd83508750eee tools/validation/downstream/negcontrol_md1.sh
 6f80c3dab507e223410f429db8a51842acca5507 tools/validation/downstream/negcontrol_md2.sh
-9368bc2085cefe1d6c1b68cde020eab9caa5dac5 tools/validation/downstream/negcontrol_md3.sh
+a84d3ed226f1cf78526155afc5c1a1167818d58a tools/validation/downstream/negcontrol_md3.sh
 223389f2e6f2923f15d429e7622aabc9d3ccd696 tools/validation/downstream/oracle_crudeassay.py
 f9bd85700688c3a82d37bc9f1133af5baeefa6a4 tools/validation/downstream/oracle_fuelpricing.py
 99493dad4dce2df26f79960e2bcc03e0f989c913 tools/validation/downstream/oracle_lp.py
