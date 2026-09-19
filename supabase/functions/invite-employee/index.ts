@@ -53,15 +53,27 @@ Deno.serve(async (req) => {
       .eq('organization_id', organization_id).eq('user_id', caller.id);
     const isOrgAdmin = (callerRows ?? []).some((m) =>
       (m.status ?? 'active').toLowerCase() === 'active' && ADMIN_ROLES.includes(m.role));
-    let allowed = isOrgAdmin ||
-      caller.user_metadata?.is_super_admin === true ||
-      SUPER_ADMIN_EMAILS.includes(String(caller.email || '').toLowerCase());
-    if (!allowed) {
-      const { data: urow } = await supabaseAdmin.from('users')
-        .select('is_super_admin').eq('id', caller.id).maybeSingle();
-      allowed = urow?.is_super_admin === true;
-    }
+    // Platform super admin = the email allow-list only (as public.is_super_admin()).
+    // Security fix 2026-09-19: user_metadata.is_super_admin (any user can set
+    // it with auth.updateUser) and public.users.is_super_admin (self-updatable
+    // under the "Users can update their own data" policy) are NOT trusted:
+    // either let any account invite itself into any organization.
+    const isPlatformAdmin = SUPER_ADMIN_EMAILS.includes(String(caller.email || '').toLowerCase());
+    const allowed = isOrgAdmin || isPlatformAdmin;
     if (!allowed) return json({ error: 'Only organization admins can invite members.' }, 403);
+
+    // Role guard (security fix 2026-09-19): 'super_admin' is never granted by
+    // invitation, and only an owner (or a platform super admin) may invite
+    // another owner. accept-employee-invitation / handle_new_user grant the
+    // role written here, so this is where it is policed.
+    const callerIsOwner = (callerRows ?? []).some((m) =>
+      (m.status ?? 'active').toLowerCase() === 'active' && ['owner', 'super_admin'].includes(m.role));
+    if (role === 'super_admin') {
+      return json({ error: 'The super_admin role cannot be granted by invitation.' }, 403);
+    }
+    if (role === 'owner' && !callerIsOwner && !isPlatformAdmin) {
+      return json({ error: 'Only an owner can invite another owner.' }, 403);
+    }
 
     // 3. Upsert the invited member row. (organization_id, email) is unique:
     //    an existing ACTIVE member is reported as such; an existing invited

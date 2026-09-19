@@ -198,8 +198,12 @@ const InviteUserDialog = ({ isOpen, setIsOpen, organization, onSuccess }) => {
     setIsSubmitting(true);
     // In real app, trigger Supabase Edge Function to send email
     try {
-        const { data, error } = await supabase.functions.invoke('invite-user', {
-        body: { email, organization_id: organization?.id, role, modules: [], apps: [] }
+        // invite-employee is the single invite door (it checks the caller is an
+        // org admin or platform super admin). The legacy 'invite-user' function
+        // it replaces had no auth check at all and wrote invitations nothing
+        // in the Suite ever accepted.
+        const { data, error } = await supabase.functions.invoke('invite-employee', {
+        body: { email, organization_id: organization?.id, role }
         });
 
         if (error || data?.error) {

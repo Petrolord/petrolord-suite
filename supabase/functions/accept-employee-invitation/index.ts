@@ -1,17 +1,21 @@
 // Accept an organization invitation (/auth/accept-invite?token=...).
 //
-// Rewritten 2026-08-05 alongside invite-employee. The invited row lives in
-// organization_members (status 'invited', invitation_token set by
-// invite-employee). Two constraints shape the flow:
-//   * (organization_id, email) is UNIQUE on organization_members, and
-//   * handle_new_user() fires on auth user creation and, when the signup
-//     metadata carries organization_id, inserts the active membership row
-//     itself — and RE-RAISES on any error.
-// So for a NEW user we delete the invited row first, then create the auth
-// user with {organization_id, role} metadata and let the trigger write the
-// active membership (restoring the invited row if creation fails). For an
-// EXISTING user we simply activate the invited row against their user id —
-// no password change, they log in as usual.
+// Rewritten 2026-08-05 alongside invite-employee; security fix 2026-09-19
+// (migration 20260919190000_security_invitation_acceptance). The invited row
+// lives in organization_members (status 'invited', invitation_token set by
+// invite-employee).
+//   * NEW user: the auth user is created with the invitation_token in its
+//     metadata. handle_new_user() validates that token against the invited
+//     row (same email, unexpired) and activates it with the row's role. The
+//     trigger no longer honours a bare organization_id (anyone can put one in
+//     signUp metadata), so the invited row is NOT deleted first any more: the
+//     trigger upserts onto it. Before the migration is applied the old
+//     trigger joins on organization_id and upserts onto the same row, so this
+//     version is safe to deploy first.
+//   * EXISTING user: the invited row is activated against their user id; no
+//     password change, they log in as usual.
+// Only rows still in status 'invited' with an unexpired token are honoured,
+// and the token is cleared once used.
 
 import { corsHeaders } from "./cors.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
@@ -36,6 +40,7 @@ Deno.serve(async (req) => {
     const { data: member, error: memberError } = await supabaseAdmin.from('organization_members')
       .select('*')
       .eq('invitation_token', token)
+      .eq('status', 'invited')
       .gte('invitation_expires_at', new Date().toISOString())
       .maybeSingle();
     if (memberError || !member) return json({ error: 'Invalid or expired invitation link. Ask your admin to re-invite you.' }, 400);
@@ -61,37 +66,33 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 3. New account: remove the invited row so handle_new_user() can insert
-    //    the active membership without violating the (org, email) unique key.
-    const { error: deleteError } = await supabaseAdmin.from('organization_members')
-      .delete().eq('id', member.id);
-    if (deleteError) return json({ error: `Could not process invitation: ${deleteError.message}` }, 500);
-
+    // 3. New account. The token travels in the metadata; handle_new_user()
+    //    validates it and activates the invited row with ITS role.
     const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: member.email,
       password,
       email_confirm: true,
       user_metadata: {
         full_name: member.full_name || member.email,
-        organization_id: member.organization_id, // handle_new_user joins this org instead of creating one
+        invitation_token: token,
+        // Checked against the token's org by the new trigger; what the old
+        // trigger joined on, so this also works before the migration.
+        organization_id: member.organization_id,
         role: member.role || 'viewer',
         primary_app: 'suite',
       },
     });
     if (createError || !created?.user) {
-      // Restore the invitation so the link keeps working after a transient failure.
-      await supabaseAdmin.from('organization_members').insert({
-        organization_id: member.organization_id,
-        email: member.email,
-        full_name: member.full_name,
-        role: member.role,
-        status: 'invited',
-        invited_at: member.invited_at,
-        invitation_token: token,
-        invitation_expires_at: member.invitation_expires_at,
-      });
       return json({ error: `Could not create your account: ${createError?.message || 'unknown error'}` }, 500);
     }
+
+    // Belt and braces for the pre-migration trigger, which does not clear
+    // the token: a used link must not work again.
+    await supabaseAdmin.from('organization_members').update({
+      invitation_token: null,
+      invitation_expires_at: null,
+      updated_at: new Date().toISOString(),
+    }).eq('id', member.id).eq('status', 'active');
 
     console.log(`[accept-invite] created user ${created.user.id} in org ${member.organization_id} as ${member.role}`);
     return json({ success: true, userId: created.user.id });
