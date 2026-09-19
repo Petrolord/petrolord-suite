@@ -132,3 +132,37 @@ mini-LNG, LPG extraction and gas-to-power, with capex and opex,
 economics through the sanctioned engine, and the emissions abated with
 carbon-credit sensitivity. It is the upstream-to-downstream bridge, and
 it consumes the abatement figures this app ranks.
+
+## MD5-0 validation and repairs (2026-09-19)
+
+Validated before the NextGen course MD5 Carbon & Energy Efficiency.
+Engines PR #226 (squash `5c0cb97`), vendored here; findings in
+`packages/engines/tools/validation/downstream/FINDINGS-carbon.md`.
+
+- **C1, at defaults:** the flare's destruction efficiency, left blank as
+  the page intends, was read as 100 percent (2,772.6 t CO2, no methane).
+  The engine refuses a blank now, and the page shows the refusal. The
+  burner's box is passed as it is too.
+- **C7:** the default curve claimed 9,000 t from flare gas recovery
+  against a smaller flare and still said the target was met. The target
+  stat now reads "not assessed" while any claim exceeds its source, and
+  "met, as an upper bound" where measures interact.
+- **C11:** a source the page could not compute was given an emission of
+  0, and a source's methane was left out. The page now passes CO2e with
+  the methane at the declared potential, and leaves out a source it could
+  not compute (or whose methane has no potential yet).
+- **C12, at defaults:** the target and the path were built on a partial
+  inventory (the methane and electricity lines blocked), from a baseline
+  of 0 when nothing computed. The page now says so in a banner, and passes
+  no baseline rather than 0; blank years or a blank target reduction are
+  no longer read as 2026, 2032 or 0.
+- **C13:** blank capital, savings, running cost and discount rate were
+  read as 0 before the engine saw them. They pass through now: a blank
+  capital or rate is refused, a blank saving or cost is taken as 0 and
+  named on the page.
+- The path names measures with no start year; the GWP note says to name
+  the horizon and that the fossil methane value is the consistent one
+  with this atom balance. HELD for the owner: whether to recommend AR5 or
+  AR6.
+
+Gate: 4 new page tests (the smoke suite is 19).

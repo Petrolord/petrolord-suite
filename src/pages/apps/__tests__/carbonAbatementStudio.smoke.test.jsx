@@ -120,7 +120,41 @@ describe('the page', () => {
     await openTab(/Abatement & path/i);
     // Two of the shipped measures both act on the heaters.
     expect(await screen.findByText('These measures are not additive')).toBeInTheDocument();
-    expect(screen.getByText(/upper bound/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/upper bound/i).length).toBeGreaterThan(0);
+  });
+
+  it('refuses the blank flare destruction efficiency rather than reading it as 100 percent (MD5-0 C1)', async () => {
+    mount();
+    expect(await screen.findByText(/Flaring: A destruction efficiency is required/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Flaring \(CO2\)/)).not.toBeInTheDocument();
+  });
+
+  it('says the target and the path rest on a partial inventory (MD5-0 C12)', async () => {
+    mount();
+    await openTab(/Abatement & path/i);
+    expect(await screen.findByText(/built on a partial inventory/i)).toBeInTheDocument();
+  });
+
+  it('will not say the target is met while a claim exceeds its source (MD5-0 C7, C11)', async () => {
+    mount();
+    await screen.findByText(/Computed but NOT reportable/i);
+    fireEvent.change(screen.getByLabelText(/Assessment report/i), { target: { value: 'IPCC AR6 GWP100' } });
+    fireEvent.change(screen.getByLabelText(/^CH4/i), { target: { value: '29.8' } });
+    fireEvent.change(screen.getAllByLabelText(/Destruction efficiency \(fraction\)/i)[1], { target: { value: '0.98' } });
+    await openTab(/Abatement & path/i);
+    // flare gas recovery claims 9,000 t against a flare of 3,319 tCO2e with its methane
+    expect(await screen.findByText(/which emits 3,319 t/)).toBeInTheDocument();
+    expect(screen.getByText('not assessed')).toBeInTheDocument();
+  });
+
+  it('refuses a blank capital cost and a blank discount rate (MD5-0 C13)', async () => {
+    mount();
+    await openTab(/Abatement & path/i);
+    await screen.findByText('The marginal abatement cost curve');
+    fireEvent.change(screen.getByLabelText(/Discount rate/i), { target: { value: '' } });
+    expect((await screen.findAllByText(/needs a discount rate/i)).length).toBeGreaterThan(0);
+    fireEvent.change(screen.getAllByLabelText(/^Capital/i)[0], { target: { value: '' } });
+    expect(await screen.findByText(/has no capital cost/i)).toBeInTheDocument();
   });
 
   it('stops flagging once the overlap is resolved by the user', async () => {

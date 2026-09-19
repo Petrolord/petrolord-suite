@@ -158,3 +158,34 @@ ledger the other apps already produce — Scope 1 and 2 inventory from the
 same stream and fuel data, carbon intensity per tonne of product, and a
 marginal abatement cost curve that ranks the measures DS8 and the rest
 of the module hand it.
+
+## MD5-0 validation and repairs (2026-09-19)
+
+Validated before the NextGen course MD5 Carbon & Energy Efficiency.
+Engines PR #226 (squash `5c0cb97`), vendored here; findings in
+`packages/engines/tools/validation/downstream/FINDINGS-carbon.md`.
+The literature gate above is closed differently: the four-stream pinch
+is now checked by an independent oracle (the largest heat deficit, with
+no cascade) at 10, 20 and 30 C.
+
+- **E4:** the trap's isentropic exponent was a hidden 1.3 (superheated).
+  The page now has an "Isentropic exponent" box, pre-filled 1.135 for the
+  dry saturated steam its 11 bar a and 5.6 kg/m3 describe; the per-trap
+  loss at Cd 0.7 moves from 29.5 to 28.1 kg/h.
+- **E11:** a blank boiler efficiency was read as 1 and blank hours as
+  8,760 before the engine saw them, and a blank trap count as 0. All pass
+  through as missing now; the trap shows "Fuel needs a boiler efficiency"
+  and the population asks for the count.
+- **E5:** a threshold problem showed a pinch at the end of the cascade
+  (the page streams at 10 C showed 30 / 20 C); it now shows none.
+- **E7:** an intensity with a stream blank was compared with the peer (it
+  flattered the plant by the missing stream); the page shows the engine's
+  peerNote instead.
+- **E9:** the ledger gains "Price and factor quoted on" (blank is not
+  declared). The tuning row carries the heater's basis, and a row the
+  engine refuses for a basis mismatch shows its reason.
+- **E1:** the cost per tonne handed on is now levelised over a life at a
+  rate (the page does not show it). **E2:** a blank target oxygen is
+  refused.
+
+Gate: 3 new page tests (the smoke suite is 20).

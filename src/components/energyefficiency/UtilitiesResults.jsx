@@ -32,13 +32,15 @@ const UtilitiesResults = () => {
         ) : (
           <>
             <p className="text-[11px] text-slate-500 mb-2">{trap.chokedNote}</p>
+            {trapPopulation.error && <p className="text-sm text-amber-300 mb-2">{trapPopulation.error}</p>}
+            {trap.fuelNote && <p className="text-[11px] text-amber-300 mb-2">{trap.fuelNote}</p>}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Stat label="Per trap" value={`${fmt(trap.kgPerHour, 1)} kg/h`} hint={`${fmt(trap.tonnesPerYear, 0)} t a year`} />
-              <Stat label={`All ${trapPopulation.count} traps`} value={`${fmt(trapPopulation.tonnesPerYear, 0)} t/yr`} />
-              <Stat label="Annual cost" value={trapPopulation.annualCost === null ? 'not priced' : fmt(trapPopulation.annualCost, 0)} />
+              <Stat label={trapPopulation.error ? 'All traps' : `All ${trapPopulation.count} traps`} value={`${fmt(trapPopulation.tonnesPerYear, 0)} t/yr`} />
+              <Stat label="Annual cost" value={trapPopulation.annualCost == null ? 'not priced' : fmt(trapPopulation.annualCost, 0)} />
               <Stat label="Carbon"
-                value={trapPopulation.annualTonnesCo2e === null ? 'absent' : `${fmt(trapPopulation.annualTonnesCo2e, 0)} tCO2e/yr`}
-                hint={trapPopulation.annualTonnesCo2e === null ? 'needs an emission factor' : null} />
+                value={trapPopulation.annualTonnesCo2e == null ? 'absent' : `${fmt(trapPopulation.annualTonnesCo2e, 0)} tCO2e/yr`}
+                hint={trapPopulation.annualTonnesCo2e == null ? 'needs an emission factor' : null} />
             </div>
           </>
         )}
@@ -87,6 +89,7 @@ const UtilitiesResults = () => {
               <Stat label="Gap"
                 value={intensity.gapMJPerTonne === null ? '-' : `${fmt(intensity.gapMJPerTonne, 1)} MJ/t`} />
             </div>
+            {intensity.peerNote && <p className="text-[11px] text-amber-300 mt-2">{intensity.peerNote}</p>}
             <p className="text-[11px] text-amber-200/90 mt-2">{intensity.disclaimer}</p>
             {!intensity.complete && (
               <p className="text-[11px] text-amber-300 mt-1">
@@ -122,7 +125,10 @@ const UtilitiesResults = () => {
               )}
               {register.map((r) => (
                 <tr key={r.id}>
-                  <td className="px-2 py-1 text-slate-200">{r.label}</td>
+                  <td className="px-2 py-1 text-slate-200">
+                    {r.label}
+                    {r.error && <span className="block text-[11px] text-amber-300">{r.error}</span>}
+                  </td>
                   <td className="px-2 py-1 text-right text-slate-300">{fmt(r.energySavedGJ, 0)}</td>
                   <td className="px-2 py-1 text-right text-white">{r.annualValue === null ? 'not priced' : fmt(r.annualValue, 0)}</td>
                   <td className="px-2 py-1 text-right text-emerald-300">{r.annualTonnesCo2e === null ? 'absent' : fmt(r.annualTonnesCo2e, 1)}</td>
@@ -131,6 +137,9 @@ const UtilitiesResults = () => {
             </tbody>
           </table>
         </div>
+        {register.some((r) => r.basisNote) && (
+          <p className="text-[11px] text-slate-400 mt-2">{register.find((r) => r.basisNote).basisNote}</p>
+        )}
         {register.some((r) => r.carbonNote) && (
           <p className="text-[11px] text-slate-400 mt-2 flex items-start gap-1.5">
             <Leaf className="w-3.5 h-3.5 text-emerald-400 mt-0.5 shrink-0" />
