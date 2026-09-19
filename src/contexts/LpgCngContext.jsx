@@ -41,8 +41,13 @@ export const defaultInputs = () => ({
       // MD4-0: no default boiling point. It is the one at the vaporizer's
       // pressure; the page used to pass n-butane's atmospheric -0.5 C,
       // which made the warming term negative and cut the duty.
+      // MD45-1 P1: no default outlet either. At inlet 25 C an outlet of 15 C
+      // left no boiling point that completes the duty (one below 25 is
+      // refused for the inlet, one of 25 or more for the outlet). The outlet
+      // follows from the boiling point and the superheat wanted, so it is
+      // asked for with it and never invented.
       massFlowKgHr: 500, liquidCpKJkgK: 2.5, inletTempC: 25, boilingPointC: '',
-      vapourCpKJkgK: 1.7, outletTempC: 15, designMarginPercent: 20,
+      vapourCpKJkgK: 1.7, outletTempC: '', designMarginPercent: 20,
     },
     bottling: {
       cylindersPerDay: 2400, fillMinutesPerCylinder: 2.5, positions: 16,

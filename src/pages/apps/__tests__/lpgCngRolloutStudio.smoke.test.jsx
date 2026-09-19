@@ -10,7 +10,7 @@
  */
 import React from 'react';
 import '@testing-library/jest-dom';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 jest.mock('@/lib/customSupabaseClient', () => ({
@@ -86,6 +86,16 @@ describe('the page', () => {
     expect(await screen.findByText(/It is a floor/i)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(/Boiling point at vaporizer pressure/i), { target: { value: '-0.5' } });
     expect(await screen.findByText(/above the boiling point given/i)).toBeInTheDocument();
+  });
+
+  it('opens with the vaporizer outlet blank, and completes the duty once both are given (MD45-1 P1)', async () => {
+    mount();
+    expect(await screen.findByText(/It is a floor/i)).toBeInTheDocument();
+    const outlet = screen.getByLabelText(/^Outlet/i);
+    expect(outlet).toHaveValue(null);
+    fireEvent.change(screen.getByLabelText(/Boiling point at vaporizer pressure/i), { target: { value: '38' } });
+    fireEvent.change(outlet, { target: { value: '55' } });
+    await waitFor(() => expect(screen.queryByText(/It is a floor/i)).not.toBeInTheDocument());
   });
 
   it('labels each blend property with the basis it mixes on', async () => {
