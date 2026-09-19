@@ -38,7 +38,7 @@ const DistanceToConcentration = () => {
         <SelectField label="Target unit" value={d.targetUnit} options={CONCENTRATION_UNITS} onChange={(v) => set({ targetUnit: v })} />
       </Grid>
       {r?.unavailable ? <Note>{r.message}</Note> : null}
-      {r && !r.unavailable ? (
+      {r && !r.unavailable && !r.upstream ? (
         r.error ? <EngineError result={r} /> : (
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -105,11 +105,14 @@ const DispersionPanel = () => {
           <NumField label="Air temperature, for ppm" unit="C" value={d.temperatureC} onChange={(v) => set({ temperatureC: v })} error={refused(first, 'temperatureK')} />
           <NumField label="Air pressure, for ppm" unit="bar absolute" value={d.pressureBar} onChange={(v) => set({ pressureBar: v })} error={refused(first, 'pressurePa')} />
         </Grid>
-        {e.rate.error ? <EngineError result={e.rate} /> : null}
-        <h4 className="pt-1 text-xs font-semibold text-slate-300">On the centreline (y = 0) at x and z</h4>
-        <Concentration label="Centreline concentration" result={e.centreline} testId="centreline" />
-        <h4 className="pt-1 text-xs font-semibold text-slate-300">At the receptor (x, y, z)</h4>
-        <Concentration label="Receptor concentration" result={e.receptor} testId="receptor" />
+        {e.rate.error ? <EngineError result={e.rate} /> : (
+          <>
+            <h4 className="pt-1 text-xs font-semibold text-slate-300">On the centreline (y = 0) at x and z</h4>
+            <Concentration label="Centreline concentration" result={e.centreline} testId="centreline" />
+            <h4 className="pt-1 text-xs font-semibold text-slate-300">At the receptor (x, y, z)</h4>
+            <Concentration label="Receptor concentration" result={e.receptor} testId="receptor" />
+          </>
+        )}
         <Note>
           ppm is by volume, converted by the ideal gas molar volume R T / P at the air temperature and pressure
           above (24.465 L/mol at 25 C and 1 atm; the CCOHS 24.45 is its rounding).
