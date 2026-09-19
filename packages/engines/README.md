@@ -370,6 +370,13 @@ and its consumers.
   and `lp.simplex.golden`, and a planted-defect battery
   (`negcontrol_md1.sh`); findings in `FINDINGS-crude.md`. The other
   eight modules have no oracle yet and stay gated for their courses.
+  MD2-0 (2026-09-19) did the same for `refineryPlanning.js`,
+  `streamModel.js` (the variance) and `modularRefinery.js`: oracles
+  `oracle_refineryplanning.py` (on `exact_simplex.py`, a rational simplex
+  that returns only certificate-proved optima) and
+  `oracle_modularrefinery.py`, gate `downstream.refinery.golden`, battery
+  `negcontrol_md2.sh`, findings `FINDINGS-refinery.md`. It added the
+  opt-in `lossCarryForward` to `engines/economics/screening.js`.
 
 - `engines/economics/` — the Economics module (EC0 extraction wave,
   2026-09-08; plan of record in the Suite at
@@ -489,6 +496,20 @@ and its consumers.
   and cannot catch (the heat-limit equations and WBGT weights have no
   printed value that reproduces them, so a change made to both engine and
   oracle passes).
+- `engines/hse/lopa.js` (HSE H3, 2026-09-19) — Layer of Protection
+  Analysis and SIL determination / verification: scenario frequency
+  (CCPS 2001: IEF x conditional modifiers x credited IPL PFDs), required
+  RRF and SIL against a supplied TMEL with explicit NO_SIF_REQUIRED,
+  below-SIL1 and BEYOND_SIL3_REDESIGN states; low-demand PFDavg by the
+  full IEC 61508-6:2010 Annex B simplified equations (1oo1, 1oo2, 2oo2,
+  2oo3, 1oo3; DD/MTTR, MRT, beta/betaD, optional proof test coverage),
+  which reduce to the ISA-TR84.00.02 forms; proof test interval
+  sensitivity and the longest interval meeting a target. No failure-rate
+  data and no architectural-constraint table are embedded. Goldens
+  (`test-data/hse/goldens/lopa_cases.json`): the 61508 Association worked
+  SIF (Dolan 2024) to every printed digit, plus an exact-rational oracle
+  and a time-dependent quadrature route (`tools/validation/hse/`,
+  FINDINGS-lopa.md, negcontrol_lopa.sh).
 - `lib/stats/` — the canonical Monte Carlo sampling primitives and
   descriptive statistics (the Suite's src/lib/monteCarlo.js with
   simple-statistics 7.8.8 vendored bit-identically: Kahan sum,
