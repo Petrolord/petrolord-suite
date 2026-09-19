@@ -70,10 +70,26 @@ Detail: `ProcessSafety-PS1-STATUS.md`.
 
 ### PS2: Consequence Modelling Studio (`consequence-studio`), course H4
 
-Engine `engines/hse/consequence`: release source terms, Gaussian plume
-dispersion, solid-flame pool and jet fires, TNT equivalence and
-multi-energy blast, probits. It grades none of the API 521 point-source
-radiation outputs FC1 and FC5 already grade.
+Engine `engines/hse/consequence` (petrolord-engines #223, merged b43f1d9):
+liquid and gas orifice discharge, pool from a spill, Mackay and Matsugu
+evaporation, the ground-reflected Gaussian plume with Briggs rural sigmas
+and the distance to a concentration, the solid-flame pool fire (burning
+rate, Thomas flame length, tilt, SEP, Mudan/Raj view factor, Bagster
+transmissivity) and the distance to a heat flux, TNT equivalence with
+Kinney and Graham overpressure and its inverse, and thermal, toxic and
+overpressure probits. It re-exposes none of the point-source radiation
+outputs FC1 and FC5 already grade (relief.js, spacing.js); it imports the
+Thomas still-air height from spacing.js, which now exports it unchanged bit
+for bit.
+
+**Dropped in the engine, and stated in the app:** jet fires (the only
+worked example, YB 6.6.2, is internally inconsistent), TNO multi-energy and
+Kingery-Bulmash (published as curves only), two-phase discharge, the
+instantaneous puff, urban sigmas and unconfined pool spreading
+(FINDINGS-consequence.md section 6). The planned "jet fires" and
+"multi-energy blast" are therefore NOT in PS2; the tile activation
+migration replaces the PS0 seed description that promised them. Detail:
+`ProcessSafety-PS2-STATUS.md`.
 
 ### PS3: QRA Studio (`qra-studio`), course H5
 
@@ -98,6 +114,6 @@ course is held until the app's route serves.
 | Phase | Status | Landed |
 |---|---|---|
 | PS0 | **MERGED 2026-09-19** (PR #533, 16eb8be03) | Module registered end to end; seed written, NOT APPLIED (owner-run, deploy-gated); pricing and marketing held for PS1 |
-| PS1 | **BUILT 2026-09-19** (branch feat/ps1-lopa-sil-studio) | LOPA & SIL Studio on the vendored engines/hse/lopa (canonical a1d8c9f); `ps_lopa_studies`, tile activation and pricing migrations written and dry-run proven, NOT APPLIED (owner-run); nine-module marketing; `ProcessSafety-PS1-STATUS.md` |
-| PS2 | not started | |
+| PS1 | **MERGED 2026-09-19** (PR #536, fc9ecdd31) | LOPA & SIL Studio on the vendored engines/hse/lopa (canonical a1d8c9f); `ps_lopa_studies`, tile activation and pricing migrations written and dry-run proven, NOT APPLIED (owner-run); nine-module marketing; `ProcessSafety-PS1-STATUS.md` |
+| PS2 | **BUILT 2026-09-19** (branch feat/ps2-consequence-studio) | Consequence Modelling Studio on the vendored engines/hse/consequence (canonical b43f1d9, which also brings #220, #221 and #222); `ps_consequence_studies` and tile activation migrations written and dry-run proven, NOT APPLIED (owner-run); no pricing change; showcase counts two apps; `ProcessSafety-PS2-STATUS.md` |
 | PS3 | not started | |

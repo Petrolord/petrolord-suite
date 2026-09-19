@@ -377,6 +377,12 @@ and its consumers.
   `oracle_modularrefinery.py`, gate `downstream.refinery.golden`, battery
   `negcontrol_md2.sh`, findings `FINDINGS-refinery.md`. It added the
   opt-in `lossCarryForward` to `engines/economics/screening.js`.
+  MD3-0 (2026-09-19) did the same for `terminalDepot.js` and
+  `fuelPricing.js`: oracles `oracle_terminaldepot.py` (strapping from tank
+  geometry, exact factorial Erlang C) and `oracle_fuelpricing.py` (a cargo
+  invoice, insurance on CIF by fixed point), gate `downstream.supply.golden`,
+  battery `negcontrol_md3.sh`, findings `FINDINGS-supply.md`. The three
+  Commercial & Trading course engines (MD1 to MD3) are now all gated.
 
 - `engines/economics/` — the Economics module (EC0 extraction wave,
   2026-09-08; plan of record in the Suite at
@@ -510,6 +516,20 @@ and its consumers.
   SIF (Dolan 2024) to every printed digit, plus an exact-rational oracle
   and a time-dependent quadrature route (`tools/validation/hse/`,
   FINDINGS-lopa.md, negcontrol_lopa.sh).
+- `engines/hse/consequence.js` (HSE H4, 2026-09-19): consequence
+  modelling. Liquid and gas orifice discharge (choked at or above the
+  critical ratio), bunded pool from a spill, Mackay-Matsugu evaporation,
+  Gaussian plume with Briggs rural sigmas and the distance to a
+  concentration, pool burning rate, Thomas flame length (still-air form
+  shared with facilities/spacing.js), tilt, surface emissive power, the
+  tilted-cylinder view factor, Bagster transmissivity, the solid-flame
+  pool fire, TNT equivalence with Kinney-Graham overpressure, and
+  thermal, toxic and overpressure probits. It exports none of the
+  point-source radiation outputs FC1 and FC5 grade. Gate:
+  `hse.consequence.test.js` replays
+  `test-data/hse/goldens/consequence_cases.json` (written by
+  `tools/validation/hse/oracle_consequence.py`); findings, errata and
+  dropped scope in `tools/validation/hse/FINDINGS-consequence.md`.
 - `lib/stats/` — the canonical Monte Carlo sampling primitives and
   descriptive statistics (the Suite's src/lib/monteCarlo.js with
   simple-statistics 7.8.8 vendored bit-identically: Kahan sum,
