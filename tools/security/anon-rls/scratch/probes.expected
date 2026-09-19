@@ -1,0 +1,130 @@
+SET
+RESET
+SET
+SET
+                   ?column?                    | count 
+-----------------------------------------------+-------
+ A2 A sees permits (both orgs, unchanged by A) |     2
+(1 row)
+
+INSERT 0 1
+         ?column?          | count 
+---------------------------+-------
+ A2 A sees own deliverable |     1
+(1 row)
+
+           ?column?           | count 
+------------------------------+-------
+ A3 A reads payment_audit_log |     0
+(1 row)
+
+RESET
+SET
+INSERT 0 1
+                ?column?                | count 
+----------------------------------------+-------
+ A4 service_role sees payment_audit_log |     2
+(1 row)
+
+RESET
+SET
+SET
+INSERT 0 1
+                 ?column?                  | count 
+-------------------------------------------+-------
+ B1 A sees deliverables (own project only) |     2
+(1 row)
+
+      ?column?       | count 
+---------------------+-------
+ B1 A sees resources |     1
+(1 row)
+
+INSERT 0 1
+DELETE 1
+INSERT 0 1
+           ?column?            | count 
+-------------------------------+-------
+ B4 A sees permits (org1 only) |     2
+(1 row)
+
+                ?column?                | count 
+----------------------------------------+-------
+ B4 A sees approvals (org1 permit only) |     1
+(1 row)
+
+INSERT 0 1
+INSERT 0 1
+      ?column?       | count 
+---------------------+-------
+ B5 A sees own views |     1
+(1 row)
+
+      ?column?       | string_agg 
+---------------------+------------
+ B7 A sees templates | g1,o1
+(1 row)
+
+       ?column?       | count 
+----------------------+-------
+ B8 A sees portfolios |     0
+(1 row)
+
+         ?column?          | count 
+---------------------------+-------
+ B9 A sees project_members |     1
+(1 row)
+
+SET
+      ?column?      | count 
+--------------------+-------
+ B11 B sees permits |     1
+(1 row)
+
+UPDATE 0
+               ?column?               | count 
+--------------------------------------+-------
+ B11 org1 permits hijacked (expect 0) |     0
+(1 row)
+
+INSERT 0 1
+       ?column?        | count 
+-----------------------+-------
+ B11 B sees own preset |     1
+(1 row)
+
+SET
+         ?column?         | count 
+--------------------------+-------
+ B12 invited sees permits |     0
+(1 row)
+
+SET
+           ?column?           | count 
+------------------------------+-------
+ B13 super admin sees permits |     3
+(1 row)
+
+RESET
+SET
+RESET
+BEGIN
+CREATE TABLE
+TRUNCATE TABLE
+INSERT 0 53
+INSERT 0 33
+CREATE TABLE
+TRUNCATE TABLE
+INSERT 0 2
+DO
+INSERT 0 0
+INSERT 0 1
+                                      check                                       |                                                                       value                                                                       
+----------------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------
+ client: tables/rls_on/anon_any/auth_select/auth_any_write/auth_truncate/policies | 33 / 33 / 0 / 33 / 17 / 0 / 57
+ dead: tables/rls_on/anon_any/auth_select/auth_any_write/auth_truncate/policies   | 53 / 53 / 0 / 0 / 0 / 0 / 22
+ anon SELECT probe: readable / denied / errored                                   | 0 / 81 / quickvol_activity_logs=42P17 quickvol_comments=42P17 quickvol_versions=42P17 quickvol_workspace_members=42P17 quickvol_workspaces=42P17 
+ public tables still RLS-off AND anon-reachable (live: expect 1, spatial_ref_sys) | 4: organization_members, organizations, petrophysics_team_members, saved_quickvol_projects
+(4 rows)
+
+ROLLBACK
