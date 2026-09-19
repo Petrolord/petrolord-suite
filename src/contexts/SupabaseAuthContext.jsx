@@ -32,6 +32,9 @@ const AuthProviderContent = ({ children }) => {
   const allModules = useMemo(() => [
     'geoscience', 'reservoir', 'drilling', 'production', 'economics', 'facilities', 'assurance',
     'midstream-downstream',
+    // PS0: the ninth module. Slug process-safety, never 'hse' (the external
+    // HSE portal owns that id and the hse_free / hse_premium entitlements).
+    'process-safety',
   ], []);
 
   const allApps = useMemo(() => [
@@ -59,7 +62,11 @@ const AuthProviderContent = ({ children }) => {
     'crude-assay-blending-studio', 'product-blending-optimizer',
     'refinery-planning-scheduling', 'modular-refinery-feasibility',
     'terminal-depot-studio', 'fuel-pricing-supply-chain', 'lpg-cng-rollout-studio',
-    'energy-utilities-efficiency', 'carbon-footprint-abatement', 'flare-gas-to-value'
+    'energy-utilities-efficiency', 'carbon-footprint-abatement', 'flare-gas-to-value',
+    // Process Safety (PS0). Registered here so the module can be quoted and
+    // licensed from the day its tiles exist; every one is Coming Soon until
+    // the phase that ships its build (PS1-PS3).
+    'lopa-sil-studio', 'consequence-studio', 'qra-studio'
   ], []);
 
   const fetchUserOrgAndPermissions = useCallback(async (userId) => {

@@ -138,5 +138,6 @@ export const MODULE_LABELS = {
   economics: 'Economics',
   facilities: 'Facilities',
   'midstream-downstream': 'Midstream & Downstream',
+  'process-safety': 'Process Safety',
   assurance: 'Assurance',
 };

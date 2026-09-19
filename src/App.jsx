@@ -35,6 +35,7 @@ const ProductionOperationsHub = lazy(() => import('@/pages/dashboard/ProductionO
 const EconomicsProjectManagementHub = lazy(() => import('@/pages/dashboard/EconomicsProjectManagementHub'));
 const FacilitiesEngineeringHub = lazy(() => import('@/pages/dashboard/FacilitiesEngineeringHub'));
 const MidstreamDownstreamHub = lazy(() => import('@/pages/dashboard/MidstreamDownstreamHub'));
+const ProcessSafetyHub = lazy(() => import('@/pages/dashboard/ProcessSafetyHub'));
 const GeoscienceAnalytics = lazy(() => import('@/pages/dashboard/GeoscienceAnalytics'));
 const ReservoirManagement = lazy(() => import('@/pages/dashboard/ReservoirManagement'));
 const AssuranceHub = lazy(() => import('@/pages/dashboard/AssuranceHub'));
@@ -475,6 +476,10 @@ function App() {
                                 {/* DS0: the Suite's eighth module. Its apps are Coming Soon,
                                     so the hub is the only route it owns for now. */}
                                 <Route path="midstream-downstream" element={<AppRoute appName="midstream-downstream"><MidstreamDownstreamHub /></AppRoute>} />
+                                {/* PS0: the Suite's ninth module. Its apps are Coming Soon,
+                                    so the hub is the only route it owns for now. The slug is
+                                    process-safety because "hse" is the external portal below. */}
+                                <Route path="process-safety" element={<AppRoute appName="process-safety"><ProcessSafetyHub /></AppRoute>} />
                                 <Route path="assurance" element={<AppRoute appName="assurance"><AssuranceHub /></AppRoute>} />
                                 
                                 <Route path="hse" element={
