@@ -46,16 +46,27 @@ const RolloutInputs = () => {
         note="The maximum fill ratio is a code limit for the product and the vessel and is not supplied by this app: LPG expands and a vessel filled liquid-full ruptures hydraulically.">
         <Cell label="Vessel capacity" unit="m3" value={inputs.lpg.vesselCapacityM3} onChange={(v) => setLpg({ vesselCapacityM3: v })} />
         <Cell label="Max fill ratio" value={inputs.lpg.maxFillRatio} placeholder="required" onChange={(v) => setLpg({ maxFillRatio: v })} />
+        <div>
+          <Label htmlFor="lc-fill-basis" className="text-[10px] text-slate-400">Fill ratio stated as</Label>
+          <select id="lc-fill-basis" value={inputs.lpg.fillRatioBasis || 'liquid_volume'}
+            onChange={(e) => setLpg({ fillRatioBasis: e.target.value })}
+            className="h-7 w-full rounded bg-slate-950 border border-slate-700 text-xs px-2 text-white">
+            <option value="liquid_volume">share of liquid volume</option>
+            <option value="water_capacity_mass">filling density on water capacity</option>
+          </select>
+        </div>
         <Cell label="Demand" unit="t/day" value={inputs.lpg.demandTonnesPerDay} onChange={(v) => setLpg({ demandTonnesPerDay: v })} />
         <Cell label="Delivery" unit="t" value={inputs.lpg.deliveryTonnes} onChange={(v) => setLpg({ deliveryTonnes: v })} />
         <Cell label="Lead time" unit="days" value={inputs.lpg.leadTimeDays} onChange={(v) => setLpg({ leadTimeDays: v })} />
         <Cell label="Safety stock" unit="days" value={inputs.lpg.safetyDays} onChange={(v) => setLpg({ safetyDays: v })} />
       </Group>
 
-      <Group title="Vaporizer">
+      <Group title="Vaporizer"
+        note="The boiling point is the blend's at the vaporizer's operating pressure. Without it the duty covers the boil alone and is a floor.">
         <Cell label="Mass flow" unit="kg/h" value={inputs.lpg.vaporizer.massFlowKgHr} onChange={(v) => setLpgSection('vaporizer', { massFlowKgHr: v })} />
         <Cell label="Liquid cp" unit="kJ/kg.K" value={inputs.lpg.vaporizer.liquidCpKJkgK} onChange={(v) => setLpgSection('vaporizer', { liquidCpKJkgK: v })} />
         <Cell label="Inlet" unit="C" value={inputs.lpg.vaporizer.inletTempC} onChange={(v) => setLpgSection('vaporizer', { inletTempC: v })} />
+        <Cell label="Boiling point at vaporizer pressure" unit="C" value={inputs.lpg.vaporizer.boilingPointC} placeholder="required for the full duty" onChange={(v) => setLpgSection('vaporizer', { boilingPointC: v })} />
         <Cell label="Vapour cp" unit="kJ/kg.K" value={inputs.lpg.vaporizer.vapourCpKJkgK} onChange={(v) => setLpgSection('vaporizer', { vapourCpKJkgK: v })} />
         <Cell label="Outlet" unit="C" value={inputs.lpg.vaporizer.outletTempC} onChange={(v) => setLpgSection('vaporizer', { outletTempC: v })} />
         <Cell label="Design margin" unit="%" value={inputs.lpg.vaporizer.designMarginPercent} onChange={(v) => setLpgSection('vaporizer', { designMarginPercent: v })} />
@@ -83,18 +94,18 @@ const RolloutInputs = () => {
         {inputs.cng.banks.map((b) => (
           <React.Fragment key={b.id}>
             <Cell label={`${b.label} volume`} unit="m3" value={b.volumeM3} onChange={(v) => setBank(b.id, { volumeM3: v })} />
-            <Cell label={`${b.label} pressure`} unit="bar" value={b.pressureBar} onChange={(v) => setBank(b.id, { pressureBar: v })} />
+            <Cell label={`${b.label} pressure`} unit="bar(a)" value={b.pressureBar} onChange={(v) => setBank(b.id, { pressureBar: v })} />
           </React.Fragment>
         ))}
         <Cell label="Vehicle tank" unit="m3" value={inputs.cng.vehicleTankM3} onChange={(v) => setCng({ vehicleTankM3: v })} />
-        <Cell label="Vehicle start" unit="bar" value={inputs.cng.vehicleStartBar} onChange={(v) => setCng({ vehicleStartBar: v })} />
-        <Cell label="Vehicle target" unit="bar" value={inputs.cng.vehicleTargetBar} onChange={(v) => setCng({ vehicleTargetBar: v })} />
+        <Cell label="Vehicle start" unit="bar(a)" value={inputs.cng.vehicleStartBar} onChange={(v) => setCng({ vehicleStartBar: v })} />
+        <Cell label="Vehicle target" unit="bar(a)" value={inputs.cng.vehicleTargetBar} onChange={(v) => setCng({ vehicleTargetBar: v })} />
       </Group>
 
       <Group title="Compression and dispensing">
         <Cell label="Throughput" unit="kg/h" value={inputs.cng.compression.throughputKgPerHour} onChange={(v) => setCngSection('compression', { throughputKgPerHour: v })} />
-        <Cell label="Suction" unit="bar" value={inputs.cng.compression.suctionBar} onChange={(v) => setCngSection('compression', { suctionBar: v })} />
-        <Cell label="Discharge" unit="bar" value={inputs.cng.compression.dischargeBar} onChange={(v) => setCngSection('compression', { dischargeBar: v })} />
+        <Cell label="Suction" unit="bar(a)" value={inputs.cng.compression.suctionBar} onChange={(v) => setCngSection('compression', { suctionBar: v })} />
+        <Cell label="Discharge" unit="bar(a)" value={inputs.cng.compression.dischargeBar} onChange={(v) => setCngSection('compression', { dischargeBar: v })} />
         <Cell label="Suction temp" unit="C" value={inputs.cng.compression.suctionTempC} onChange={(v) => setCngSection('compression', { suctionTempC: v })} />
         <Cell label="Vehicles" unit="/h" value={inputs.cng.dispensing.vehiclesPerHour} onChange={(v) => setCngSection('dispensing', { vehiclesPerHour: v })} />
         <Cell label="Fill time" unit="min" value={inputs.cng.dispensing.fillMinutes} onChange={(v) => setCngSection('dispensing', { fillMinutes: v })} />

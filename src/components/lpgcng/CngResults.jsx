@@ -72,7 +72,7 @@ const CngResults = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Stat label="Per fill" value={`${fmt(cascade.kgPerFill, 2)} kg`} />
               <Stat label="Fills before recharge" value={cascade.fillsBeforeRecharge} hint={`${fmt(cascade.deliveredKg, 0)} kg delivered`} />
-              <Stat label="Stranded below target" value={`${fmt(cascade.strandedBelowTargetKg, 0)} kg`} hint="inventory, but not usable" />
+              <Stat label="Left in the banks" value={`${fmt(cascade.leftInBanksKg, 0)} kg`} hint="for the compressor to bring back up" />
               <Stat label="Cascade efficiency" value={`${fmt(cascade.cascadeEfficiency * 100, 1)}%`} hint="of what the banks hold" />
             </div>
             <div className="overflow-x-auto rounded border border-slate-800 mt-3">
@@ -80,8 +80,8 @@ const CngResults = () => {
                 <thead className="bg-slate-900/80 text-slate-400">
                   <tr>
                     <th className="text-left px-2 py-1.5">Bank</th>
-                    <th className="text-right px-2 py-1.5">Start (bar)</th>
-                    <th className="text-right px-2 py-1.5">After the run (bar)</th>
+                    <th className="text-right px-2 py-1.5">Start (bar(a))</th>
+                    <th className="text-right px-2 py-1.5">After the run (bar(a))</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800">
@@ -95,9 +95,14 @@ const CngResults = () => {
                 </tbody>
               </table>
             </div>
-            <p className="text-[11px] text-slate-500 mt-2">
-              {`${fmt(cascade.partialFillAvailableKg, 1)} kg is left above the target: real gas, but less than one whole fill, so it is not counted as a fill.`}
-            </p>
+            {cascade.nextVehicleReachesBar !== null && (
+              <p className="text-[11px] text-slate-500 mt-2">
+                {`The next vehicle would reach only ${fmt(cascade.nextVehicleReachesBar, 1)} bar(a), short of its target, so it is not counted as a fill: the compressor has to recharge the banks first.`}
+              </p>
+            )}
+            {cascade.hitFillLimit && (
+              <p className="text-[11px] text-amber-300 mt-1">The count stopped at the fill limit; the banks could fill more.</p>
+            )}
           </>
         )}
       </div>
@@ -118,8 +123,8 @@ const CngResults = () => {
                 <thead className="bg-slate-900/80 text-slate-400">
                   <tr>
                     <th className="text-left px-2 py-1.5">Stage</th>
-                    <th className="text-right px-2 py-1.5">Suction (bar)</th>
-                    <th className="text-right px-2 py-1.5">Discharge (bar)</th>
+                    <th className="text-right px-2 py-1.5">Suction (bar(a))</th>
+                    <th className="text-right px-2 py-1.5">Discharge (bar(a))</th>
                     <th className="text-right px-2 py-1.5">Discharge (C)</th>
                     <th className="text-right px-2 py-1.5">Z</th>
                     <th className="text-right px-2 py-1.5">kW</th>
