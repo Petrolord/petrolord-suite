@@ -10,10 +10,9 @@ import React, {
 import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useSavedProjects, missingTableMessage } from '@/hooks/useSavedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
-import { calculateEconomics } from '@/utils/npvCalculations';
 import {
   CONFIGURATIONS, SCALING_EXPONENT, SUPPLY_SCENARIOS,
-  scaleCapex, scaleComparison, productSlate, feasibilityStreams, licensingProgress,
+  scaleCapex, scaleComparison, productSlate, feasibilityStreams, feasibilityEconomics, licensingProgress,
 } from '@/utils/downstream/engine/modularRefinery';
 
 const TABLE = 'saved_modular_refinery_projects';
@@ -41,7 +40,6 @@ export const defaultInputs = () => ({
   projectLife: 20,
   constructionYears: 2,
   discountRate: 12,
-  royaltyRate: 0,
   taxRate: 30,
   licensingComplete: [],
 });
@@ -63,6 +61,11 @@ const num = (v, fallback = 0) => {
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : fallback;
 };
+
+// A blank money or size box goes to the engine as ABSENT and is refused
+// there with its name (MD2-0). This page used to read it as 0, so a blank
+// crude price made the crude free and a blank capital cost made the plant free.
+const absentOr = (v) => (v === '' || v === null || v === undefined ? undefined : num(v, NaN));
 
 const Ctx = createContext();
 
@@ -120,65 +123,57 @@ export const ModularRefineryProvider = ({ children }) => {
     });
   }, [inputs.baseCost, inputs.baseCapacity, inputs.capacityBpd, inputs.modularExponent, inputs.stickBuiltExponent]);
 
+  const crudeCost = absentOr(inputs.crudeCostPerBbl);
   const streams = useMemo(() => feasibilityStreams({
-    capacityBpd: num(inputs.capacityBpd),
+    capacityBpd: absentOr(inputs.capacityBpd),
     onstreamDays: num(inputs.onstreamDays, 340),
     utilisation: scenario.utilisation,
-    crudeCostPerBbl: num(inputs.crudeCostPerBbl) + num(scenario.crudePremium),
+    crudeCostPerBbl: crudeCost === undefined ? undefined : crudeCost + num(scenario.crudePremium),
     slate,
-    fixedOpexPerYear: num(inputs.fixedOpexPerYear),
-    variableOpexPerBbl: num(inputs.variableOpexPerBbl),
+    fixedOpexPerYear: absentOr(inputs.fixedOpexPerYear),
+    variableOpexPerBbl: absentOr(inputs.variableOpexPerBbl),
     projectLife: num(inputs.projectLife, 20),
     constructionYears: num(inputs.constructionYears, 2),
-    capex: capex.cost ?? 0,
-  }), [inputs, scenario, slate, capex]);
+    capex: capex.cost ?? undefined,
+  }), [inputs, scenario, slate, capex, crudeCost]);
 
   /**
    * Value the streams through the SANCTIONED screening engine.
    *
-   * The engine above deliberately stops at the streams. This runs them
-   * through calculateEconomics, the same engine behind the NPV Scenario
-   * Builder and the Breakeven Analyzer, so a feasibility NPV means the same
-   * thing as an NPV anywhere else in the Suite. Full Nigerian fiscal detail
-   * belongs to Petroleum Economics Studio, and the app says so.
+   * The engine's feasibilityEconomics runs them through calculateEconomics,
+   * the same engine behind the NPV Scenario Builder and the Breakeven
+   * Analyzer, so a feasibility NPV means the same thing as an NPV anywhere
+   * else in the Suite. It passes product revenue AS revenue (this page used
+   * to pass it as a negative operating cost, so a royalty never applied),
+   * carries construction-year tax losses forward, and charges no royalty,
+   * because a refinery buys its crude. Full Nigerian fiscal detail belongs to
+   * Petroleum Economics Studio, and the app says so.
    */
   const economics = useMemo(() => {
-    const life = streams.years.length;
-    if (life === 0) return null;
-    const mm = (v) => v / 1e6;
-    return calculateEconomics({
-      startYear: new Date().getFullYear(),
-      projectLife: life,
+    const out = feasibilityEconomics({
+      streams,
       discountRate: num(inputs.discountRate, 12),
-      fiscalType: 'TaxRoyalty',
-      // Refinery throughput is a cost, not a revenue stream, so the "oil"
-      // production row is left empty and the product revenue is carried as a
-      // negative operating cost. Stated because it is unusual and would
-      // otherwise look like a mistake.
-      production: { oil: streams.years.map(() => 0), gas: streams.years.map(() => 0) },
-      price: { oil: streams.years.map(() => 0), gas: streams.years.map(() => 0) },
-      capex: streams.years.map((y) => mm(y.capex)),
-      opexFixed: streams.years.map((y) => mm(y.fixedOpex + y.crudeCost + y.variableOpex - y.revenue)),
-      opexVariable: streams.years.map(() => 0),
-      abandonment: streams.years.map(() => 0),
-      royaltyRate: num(inputs.royaltyRate, 0),
       taxRate: num(inputs.taxRate, 30),
     });
-  }, [streams, inputs.discountRate, inputs.royaltyRate, inputs.taxRate]);
+    return out.error ? null : out;
+  }, [streams, inputs.discountRate, inputs.taxRate]);
 
   const scenarioComparison = useMemo(() => SUPPLY_SCENARIOS.map((s) => {
     const st = feasibilityStreams({
-      capacityBpd: num(inputs.capacityBpd),
+      capacityBpd: absentOr(inputs.capacityBpd),
       onstreamDays: num(inputs.onstreamDays, 340),
       utilisation: s.utilisation,
-      crudeCostPerBbl: num(inputs.crudeCostPerBbl) + s.crudePremium,
+      crudeCostPerBbl: crudeCost === undefined ? undefined : crudeCost + s.crudePremium,
       slate,
-      fixedOpexPerYear: num(inputs.fixedOpexPerYear),
-      variableOpexPerBbl: num(inputs.variableOpexPerBbl),
+      fixedOpexPerYear: absentOr(inputs.fixedOpexPerYear),
+      variableOpexPerBbl: absentOr(inputs.variableOpexPerBbl),
       projectLife: num(inputs.projectLife, 20),
       constructionYears: num(inputs.constructionYears, 2),
-      capex: capex.cost ?? 0,
+      capex: capex.cost ?? undefined,
     });
+    if (st.error) {
+      return { ...s, annualBbl: null, grossMarginPerBbl: null, annualMargin: null, simplePaybackYears: null };
+    }
     const annualMargin = st.annualBbl * st.grossMarginPerBbl - num(inputs.fixedOpexPerYear);
     return {
       ...s,
@@ -189,7 +184,7 @@ export const ModularRefineryProvider = ({ children }) => {
       // first. The discounted picture is on the economics panel.
       simplePaybackYears: annualMargin > 0 ? (capex.cost ?? 0) / annualMargin : null,
     };
-  }), [inputs, slate, capex]);
+  }), [inputs, slate, capex, crudeCost]);
 
   const licensing = useMemo(
     () => licensingProgress(inputs.licensingComplete),

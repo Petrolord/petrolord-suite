@@ -73,6 +73,11 @@ const num = (v, fallback = 0) => {
   return Number.isFinite(n) ? n : fallback;
 };
 
+// A blank box is ABSENT: a blank cost or price is refused by the engine, a
+// blank limit is no limit, and a typed 0 is 0 (MD2-0). This page used to send
+// a blank cost as 0, which made that crude free.
+const absentOr = (v) => (v === '' || v === null || v === undefined ? undefined : num(v, NaN));
+
 const Ctx = createContext();
 
 export const useRefineryPlanning = () => {
@@ -132,15 +137,15 @@ export const RefineryPlanningProvider = ({ children }) => {
   const plan = useMemo(() => planRefinery({
     streams: inputs.streams,
     crudes: inputs.crudes.map((c) => ({
-      ...c, cost: num(c.cost), available: num(c.available, Infinity),
+      ...c, cost: absentOr(c.cost), available: absentOr(c.available),
       yields: Object.fromEntries(Object.entries(c.yields || {}).map(([k, v]) => [k, num(v)])),
     })),
     units: inputs.units.map((u) => ({
-      ...u, capacity: num(u.capacity, Infinity), opex: num(u.opex),
+      ...u, capacity: absentOr(u.capacity), opex: absentOr(u.opex),
       yields: Object.fromEntries(Object.entries(u.yields || {}).map(([k, v]) => [k, num(v)])),
     })),
     products: inputs.products.map((p) => ({
-      ...p, price: num(p.price), minDemand: num(p.minDemand, 0), maxDemand: num(p.maxDemand, Infinity),
+      ...p, price: absentOr(p.price), minDemand: absentOr(p.minDemand), maxDemand: absentOr(p.maxDemand),
       recipe: Object.fromEntries(Object.entries(p.recipe || {}).map(([k, v]) => [k, num(v)])),
     })),
   }), [inputs.streams, inputs.crudes, inputs.units, inputs.products]);

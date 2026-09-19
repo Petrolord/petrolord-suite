@@ -116,8 +116,9 @@ const ActualsPanel = () => {
         <p className="text-[11px] text-slate-500 mb-2">
           Volume variance is the difference in quantity at the planned unit value; price variance is
           the difference in unit value on the quantity actually moved. They sum to the total exactly,
-          which is what makes the split worth reporting: a decomposition with a residual is a
-          reconciliation, not an attribution.
+          which is what makes the split worth reporting: a decomposition with a residual only
+          reconciles the numbers, and cannot say where the gap came from. A gap is green when it helped the margin and red when
+          it hurt it, so spending more on crude shows red and selling more product shows green.
         </p>
         {reconciliation.lines.length === 0 ? (
           <p className="text-sm text-slate-400">Nothing to compare yet. Record an actual above.</p>
@@ -144,8 +145,9 @@ const ActualsPanel = () => {
                     <td className="p-2 text-right font-mono text-slate-300">{fmt(l.actualQuantity)}</td>
                     <td className="p-2 text-right font-mono text-slate-300">{money(l.volumeVariance)}</td>
                     <td className="p-2 text-right font-mono text-slate-300">{money(l.priceVariance)}</td>
-                    <td className={`p-2 text-right font-mono font-semibold ${l.totalVariance >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+                    <td className={`p-2 text-right font-mono font-semibold ${l.marginEffect >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
                       {money(l.totalVariance)}
+                      <span className="block text-[10px] font-sans font-normal text-slate-500">{l.direction}</span>
                     </td>
                   </tr>
                 ))}

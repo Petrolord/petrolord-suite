@@ -75,6 +75,30 @@ describe('the page', () => {
     expect(screen.getByText(/No SARA analysis supplied/i)).toBeInTheDocument();
   });
 
+  // MD1-0: T50 is interpolated on the blend's curve. The page used to take the
+  // first grid temperature past 50 percent, 690 F against 617 F at these
+  // defaults, and showed Watson K 12.00 where the oracle gives 11.75.
+  it('puts Watson K on the interpolated 50 percent point', async () => {
+    mount();
+    await screen.findByText('Watson K');
+    expect(screen.getByText('11.75')).toBeInTheDocument();
+    expect(screen.queryByText('12.00')).toBeNull();
+  });
+
+  it('does not show the gravity-contrast fallback as a stable verdict', async () => {
+    mount();
+    await screen.findByText(/Asphaltene stability screen/i);
+    expect(screen.getByText(/not evidence that the blend is stable/i)).toBeInTheDocument();
+  });
+
+  it('names a crude whose sulfur is blank rather than blending it as sulfur-free', async () => {
+    mount();
+    await screen.findByText('Blend API');
+    const sourSulfur = screen.getAllByRole('spinbutton').find((el) => el.value === '2.2');
+    fireEvent.change(sourSulfur, { target: { value: '' } });
+    expect(await screen.findByText(/no value for Medium sour \(example\)/)).toBeInTheDocument();
+  });
+
   it('recomputes when a crude changes, so the blend is live', async () => {
     mount();
     const apiBefore = (await screen.findAllByText(/^\d\d\.\d\d$/))[0].textContent;

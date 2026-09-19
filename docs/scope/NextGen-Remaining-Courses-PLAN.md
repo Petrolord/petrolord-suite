@@ -213,6 +213,32 @@ to a learner as a graded answer. There is no `test-data/downstream`
 golden set and no `tools/validation/downstream` oracle, so MD1 to MD5
 stay gated until that validation wave runs.
 
+PROGRESS, 2026-09-19. **MD-0 runs one course at a time, and MD1's gate is
+open once engines #215 and its Suite PR merge.** MD1-0 put `crudeAssay`,
+`productBlending` and the shared `simplex` behind stdlib oracles (the LP by
+exact rational vertex enumeration), goldens in `test-data/downstream/` and
+a planted-defect battery (24 of 24 caught). It found 23 things, three of
+them wrong on screen at the apps' defaults: the Blend Optimizer's shadow
+prices were row duals (sulfur relief shown as $0.072 against a re-solved
+$55.01 per ppm), the Crude Assay studio's Watson K sat on a grid point
+(12.00 against 11.75) and its stability screen gave a green tick on no
+evidence. The LP kernel could return points that broke their own rows as
+optimal. Findings: engines `tools/validation/downstream/FINDINGS-crude.md`.
+MD2-0 (`modularRefinery`, `refineryPlanning`, and the kernel's reach into a
+maximising plan) is next; MD3 to MD5 stay gated on their own waves.
+
+PROGRESS, 2026-09-19 (later). **MD1-0 is merged (engines #215, Suite #532)
+and MD2-0 is merged in the engines (#219).** MD2-0 built `exact_simplex.py`,
+a rational simplex that returns only certificate-proved optima, and found
+the refinery planner's crude unit carrying nothing at the default plan
+($3.49M of opex uncharged), typed zero capacities read as unlimited, a
+variance that added revenue gaps to cost gaps, and a modular refinery NPV
+that threw away construction-year tax losses (a profitable plant read
+-$12.2M; it is +$5.3M). Decisions taken under the owner's delegation: an
+opt-in loss carry-forward in the screening engine, no royalty on a refinery,
+a feedless unit is the crude unit. MD3-0 (`terminalDepot`, `fuelPricing`)
+is next, then the three Commercial & Trading courses MD1 to MD3.
+
 | wave | slug | course | engine modules |
 |---|---|---|---|
 | MD1 | `crude` | Crude Assay & Blending | crudeAssay, productBlending |

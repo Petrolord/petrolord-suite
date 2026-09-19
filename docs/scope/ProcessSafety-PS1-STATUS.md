@@ -20,8 +20,8 @@ Three questions about a hazardous scenario:
 
 ## The engine
 
-`packages/engines/engines/hse/lopa.js`, vendored from petrolord-engines
-6703c00 (PR #218). 91 engine tests against an independent stdlib Python
+`packages/engines/engines/hse/lopa.js`, from petrolord-engines PR #218
+(vendored at canonical a1d8c9f on main). 91 engine tests against an independent stdlib Python
 oracle (exact rationals), a time dependent second route, and the published
 61508 Association worked SIF (Dolan 2024, every printed digit, RRF 777).
 Record: `packages/engines/tools/validation/hse/FINDINGS-lopa.md`. The app
@@ -43,14 +43,14 @@ on screen as the studio's own.
 
 ## Vendoring
 
-packages/engines moved from canonical 5cbdca5 to 6703c00, file by file per
-VENDOR.json (34 paths: the whole engines/hse domain with its tests, goldens
-and tools/validation/hse, plus engines PR #215, MD1-0, which sits between
-them in canonical history). The guard compares 839 paths byte for byte with
-0 deviations. The MD1-0 files are byte-identical to Suite PR #532, which
-adapts the Crude Assay and Blend Optimizer apps to them; main's own app
-tests pass on the new engine, and #532 should merge first (the VENDOR.json
-and VENDOR.manifest conflict resolves to this PR's 6703c00 pin, a superset).
+This branch first vendored canonical 6703c00 (the engines/hse domain with
+its tests, goldens and tools/validation/hse). Suite main has since moved to
+canonical a1d8c9f (#532 and #534, MD1-0 and MD2-0), which contains 6703c00,
+and engines/hse is unchanged between the two. The merge of main therefore
+takes main's VENDOR.json, VENDOR.manifest and README.md whole: the manifest
+regenerated from the canonical clone at a1d8c9f is identical to main's, and
+the guard compares 847 paths byte for byte with 0 deviations. This PR adds
+no vendored change of its own.
 
 ## The app
 

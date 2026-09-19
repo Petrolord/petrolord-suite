@@ -98,6 +98,6 @@ course is held until the app's route serves.
 | Phase | Status | Landed |
 |---|---|---|
 | PS0 | **MERGED 2026-09-19** (PR #533, 16eb8be03) | Module registered end to end; seed written, NOT APPLIED (owner-run, deploy-gated); pricing and marketing held for PS1 |
-| PS1 | **BUILT 2026-09-19** (branch feat/ps1-lopa-sil-studio) | LOPA & SIL Studio on engines 6703c00 (vendored); `ps_lopa_studies`, tile activation and pricing migrations written and dry-run proven, NOT APPLIED (owner-run); nine-module marketing; `ProcessSafety-PS1-STATUS.md` |
+| PS1 | **BUILT 2026-09-19** (branch feat/ps1-lopa-sil-studio) | LOPA & SIL Studio on the vendored engines/hse/lopa (canonical a1d8c9f); `ps_lopa_studies`, tile activation and pricing migrations written and dry-run proven, NOT APPLIED (owner-run); nine-module marketing; `ProcessSafety-PS1-STATUS.md` |
 | PS2 | not started | |
 | PS3 | not started | |
