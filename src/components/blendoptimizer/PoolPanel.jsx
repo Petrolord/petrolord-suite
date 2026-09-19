@@ -124,7 +124,8 @@ const PoolPanel = () => {
       <p className="text-[11px] text-slate-500">
         The pool loaded here is an illustrative gasoline pool, not anyone&apos;s actual streams.
         Leave a property blank where you do not have it: a specification the pool cannot support is
-        reported as not applied rather than assumed.
+        reported as not applied rather than assumed. Every component needs a cost. Leave Max blank
+        for no limit; a Max of 0 means none is available.
       </p>
       {inputs.components.map((c) => <ComponentCard key={c.id} component={c} />)}
     </div>

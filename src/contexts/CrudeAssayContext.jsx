@@ -13,7 +13,8 @@ import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useSavedProjects, missingTableMessage } from '@/hooks/useSavedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import {
-  blendCrudes, cutYields, netbackValue, sgFromApi, watsonK,
+  blendCrudes, blendDistillationCurves, cutYields, netbackValue, sgFromApi,
+  temperatureAtVolumePercent, watsonK,
 } from '@/utils/downstream/engine/crudeAssay';
 
 const TABLE = 'saved_crude_assay_projects';
@@ -213,41 +214,24 @@ export const CrudeAssayProvider = ({ children }) => {
   /**
    * The blend's own distillation curve.
    *
-   * Yields are additive on volume, so the blended curve is built by mixing
-   * the components' yields at each temperature rather than by averaging their
-   * temperatures, which would be meaningless.
+   * Yields are additive on volume, so the blended curve mixes the components'
+   * yields at each temperature rather than averaging their temperatures. The
+   * engine forms it (blendDistillationCurves). This file used to carry its own
+   * copy of the interpolation, which disagreed with the engine below a curve's
+   * first point and clamped flat past its last one; a temperature where some
+   * crude's curve says nothing is now left out rather than invented.
    */
   const blendedCurve = useMemo(() => {
     const fractions = blend.fractions || [];
     if (fractions.length === 0) return [];
-    const temperatures = new Set();
-    inputs.crudes.forEach((c) => (c.curve || []).forEach((p) => temperatures.add(num(p.temperatureF))));
-    return [...temperatures]
-      .filter((t) => Number.isFinite(t))
-      .sort((a, b) => a - b)
-      .map((temperatureF) => {
-        let volumePercent = 0;
-        inputs.crudes.forEach((c, i) => {
-          const f = fractions[i]?.volumeFraction ?? 0;
-          const pts = (c.curve || [])
-            .map((p) => ({ v: num(p.volumePercent), t: num(p.temperatureF) }))
-            .filter((p) => Number.isFinite(p.v) && Number.isFinite(p.t))
-            .sort((a, b) => a.t - b.t);
-          if (pts.length === 0) return;
-          let v;
-          if (temperatureF <= pts[0].t) v = pts[0].v;
-          else if (temperatureF >= pts[pts.length - 1].t) v = pts[pts.length - 1].v;
-          else {
-            const k = pts.findIndex((p) => p.t >= temperatureF);
-            const lo = pts[k - 1];
-            const hi = pts[k];
-            const span = hi.t - lo.t;
-            v = span > 0 ? lo.v + ((temperatureF - lo.t) / span) * (hi.v - lo.v) : hi.v;
-          }
-          volumePercent += f * v;
-        });
-        return { temperatureF, volumePercent };
-      });
+    return blendDistillationCurves(
+      inputs.crudes.map((c) => ({
+        curve: (c.curve || []).map((p) => ({
+          volumePercent: num(p.volumePercent), temperatureF: num(p.temperatureF),
+        })),
+      })),
+      fractions.map((f) => f.volumeFraction),
+    );
   }, [inputs.crudes, blend.fractions]);
 
   const yields = useMemo(
@@ -268,9 +252,9 @@ export const CrudeAssayProvider = ({ children }) => {
       if (Number.isFinite(n)) acc[k] = n;
       return acc;
     }, {}),
-    processingCostPerBbl: num(inputs.valuation.processingCostPerBbl, 0),
-    freightPerBbl: num(inputs.valuation.freightPerBbl, 0),
-    lossPercent: num(inputs.valuation.lossPercent, 0),
+    processingCostPerBbl: num(inputs.valuation.processingCostPerBbl),
+    freightPerBbl: num(inputs.valuation.freightPerBbl),
+    lossPercent: num(inputs.valuation.lossPercent),
     marker: inputs.valuation.markerNetback === '' ? null : num(inputs.valuation.markerNetback),
   }), [yields.cuts, inputs.valuation]);
 
@@ -282,11 +266,14 @@ export const CrudeAssayProvider = ({ children }) => {
    * nobody reads it as the former.
    */
   const characterization = useMemo(() => {
-    const mid = blendedCurve.find((p) => p.volumePercent >= 50);
-    if (!mid || !Number.isFinite(blend.properties?.sg)) return null;
+    // Interpolated on the blended curve. It used to take the first grid
+    // temperature at or past 50 percent, which at the default pair is 690 F
+    // against a true 617 F, and moved Watson K from 11.75 to 12.00.
+    const t50 = temperatureAtVolumePercent(blendedCurve, 50);
+    if (t50 === null || !Number.isFinite(blend.properties?.sg)) return null;
     return {
-      meanBoilingPointF: mid.temperatureF,
-      watsonK: watsonK({ meanBoilingPointF: mid.temperatureF, sg: blend.properties.sg }),
+      meanBoilingPointF: t50,
+      watsonK: watsonK({ meanBoilingPointF: t50, sg: blend.properties.sg }),
     };
   }, [blendedCurve, blend.properties]);
 
