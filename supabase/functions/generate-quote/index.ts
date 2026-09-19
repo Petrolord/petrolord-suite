@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1';
 import { corsHeaders } from './cors.ts';
+import { getCaller, isPlatformAdmin } from '../_shared/platform-admin.ts';
 import { bridgeVerifyConfigured, verifyBridgeCode } from '../_shared/nextgen-bridge.ts';
 import { validatePromoCode } from '../_shared/promo-codes.ts';
 import { billingPeriodOf } from '../_shared/billing-term.ts';
@@ -21,25 +22,11 @@ Deno.serve(async (req)=>{
     // to zero. The caller is resolved from the request JWT (never from the
     // client-sent user_id) and this check runs BEFORE any writes.
     if ((Number(manual_discount) || 0) > 0) {
-      const jwt = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
-      let caller = null;
-      if (jwt) {
-        const { data: authData } = await supabase.auth.getUser(jwt);
-        caller = authData?.user ?? null;
-      }
-      // Mirrors SupabaseAuthContext: metadata flag or hardcoded emails, plus
-      // the users.is_super_admin column as the durable source.
-      const SUPER_ADMIN_EMAILS = ['info@petrolord.com', 'ayoasaolu@gmail.com', 'ayodejiasaolu1@gmail.com', 'support@petrolord.com'];
-      let isPlatformSuperAdmin = false;
-      if (caller) {
-        isPlatformSuperAdmin =
-          caller.user_metadata?.is_super_admin === true ||
-          SUPER_ADMIN_EMAILS.includes(String(caller.email || '').toLowerCase());
-        if (!isPlatformSuperAdmin) {
-          const { data: urow } = await supabase.from('users').select('is_super_admin').eq('id', caller.id).maybeSingle();
-          isPlatformSuperAdmin = urow?.is_super_admin === true;
-        }
-      }
+      // Platform super admin = a row in public.platform_admins (security fix
+      // 2026-09-19). user_metadata.is_super_admin and users.is_super_admin
+      // were user-settable, so any customer could self-discount to zero.
+      const caller = await getCaller(supabase, req);
+      const isPlatformSuperAdmin = caller ? await isPlatformAdmin(supabase, caller.id) : false;
       if (!isPlatformSuperAdmin) {
         throw new Error('Special discounts can only be applied by Petrolord sales. Remove the discount or contact sales@petrolord.com.');
       }

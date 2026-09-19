@@ -15,6 +15,7 @@
 
 import { corsHeaders } from "./cors.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { decideInvitationAcceptance, getCaller } from '../_shared/platform-admin.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -30,7 +31,7 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
     const { token, password } = await req.json();
-    if (!token || !password) return json({ error: 'Missing token or password' }, 400);
+    if (!token) return json({ error: 'Missing token or password' }, 400);
 
     // 1. Resolve the invitation.
     const { data: member, error: memberError } = await supabaseAdmin.from('organization_members')
@@ -40,12 +41,23 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (memberError || !member) return json({ error: 'Invalid or expired invitation link. Ask your admin to re-invite you.' }, 400);
 
-    // 2. Existing account? Link it instead of failing (the old version threw).
+    // 2. Existing account? (security fix 2026-09-19) The token alone no longer
+    //    links an existing account: the request must carry a signed-in session
+    //    whose confirmed email IS the invited email, and the membership is
+    //    linked to that session's user id. Before, anyone holding a token (a
+    //    fellow member could read it) could attach the account behind a
+    //    spoofed public.users.email to the invited role.
     const { data: existingUser } = await supabaseAdmin.from('users')
       .select('id').eq('email', member.email).maybeSingle();
-    if (existingUser?.id) {
+    const caller = await getCaller(supabaseAdmin, req);
+    const decision = decideInvitationAcceptance(!!existingUser?.id, caller, member.email);
+    if (decision.kind === 'deny') {
+      return json({ error: decision.error, requires_sign_in: true }, decision.status);
+    }
+    if (decision.kind === 'new' && !password) return json({ error: 'Missing token or password' }, 400);
+    if (decision.kind === 'link') {
       const { error: linkError } = await supabaseAdmin.from('organization_members').update({
-        user_id: existingUser.id,
+        user_id: decision.userId,
         status: 'active',
         invitation_token: null,
         invitation_expires_at: null,
@@ -53,11 +65,11 @@ Deno.serve(async (req) => {
         updated_at: new Date().toISOString(),
       }).eq('id', member.id);
       if (linkError) return json({ error: `Could not activate membership: ${linkError.message}` }, 500);
-      console.log(`[accept-invite] linked existing user ${existingUser.id} into org ${member.organization_id}`);
+      console.log(`[accept-invite] linked signed-in user ${decision.userId} into org ${member.organization_id}`);
       return json({
         success: true,
         linked: true,
-        message: 'You already have a Petrolord account, so it was added to the organization. Log in with your existing password.',
+        message: 'Your Petrolord account was added to the organization.',
       });
     }
 
