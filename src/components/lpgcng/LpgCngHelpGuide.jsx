@@ -26,7 +26,7 @@ const helpContent = [
     icon: AlertTriangle,
     title: 'The fill limit this app will not supply',
     content:
-      'A pressure vessel in LPG service is never filled liquid-full. Liquid LPG expands with temperature, and a vessel with no vapour space ruptures hydraulically. The maximum fill ratio is set by the code in force for the product and the vessel, so this app implements the arithmetic and refuses to supply the limit: a default here would be a number somebody trusted. Enter the ratio your code requires and the storage figures appear. The vapour space is then reported as a figure in its own right rather than left as a subtraction, because it is the reason the vessel does not fail, not spare capacity.',
+      'A pressure vessel in LPG service is never filled liquid-full. Liquid LPG expands with temperature, and a vessel with no vapour space ruptures hydraulically. The maximum fill ratio is set by the code in force for the product and the vessel, so this app implements the arithmetic and refuses to supply the limit: a default here would be a number somebody trusted. Enter the ratio your code requires, and say which way it is stated: as a share of the vessel\'s liquid volume (for example 0.85), or as a filling density on the vessel\'s water capacity by weight (for example 0.42). Read as a volume, a filling density roughly halves the usable stock. A blank lead time or safety stock leaves the reorder point unstated rather than zero. The vapour space is then reported as a figure in its own right rather than left as a subtraction, because it is the reason the vessel does not fail and is never spare capacity.',
   },
   {
     id: 'blend',
@@ -40,7 +40,7 @@ const helpContent = [
     icon: Flame,
     title: 'Three terms in a vaporizer, not one',
     content:
-      'Warm the liquid to its boiling point, boil it, then superheat the vapour clear of the dew point so it does not re-condense in the line. Skipping the third is how a vaporizer that is correctly sized on paper drops liquid into a burner. The terms are kept apart because they answer different questions, and a duty computed without one of them is called a floor rather than a duty.',
+      'The boiling point to enter is the one at the vaporizer\'s operating pressure. LPG in a vaporizer is under pressure and boils near the storage temperature, far above its atmospheric boiling point. A liquid entering above the boiling point it is given is not liquid, so the app refuses it rather than report a negative warming term that cuts the duty. Warm the liquid to its boiling point, boil it, then superheat the vapour clear of the dew point so it does not re-condense in the line. Skipping the third is how a vaporizer that is correctly sized on paper drops liquid into a burner. The terms are kept apart because they answer different questions, and a duty computed without one of them is called a floor rather than a duty.',
   },
   {
     id: 'float',
@@ -54,14 +54,14 @@ const helpContent = [
     icon: Gauge,
     title: 'CNG at 250 bar is not an ideal gas',
     content:
-      'The compressibility factor at storage pressure is nowhere near one, so a bank holds appreciably more gas than the ideal gas law says, and a cascade sized on ideal gas is wrong by about a fifth in a direction nobody notices until the station is built. This uses the same Dranchuk and Abou-Kassem correlation the Facilities compression app uses rather than a second implementation, shows the factor it used so it can be checked against your own data, and says explicitly when the correlation is being asked to work outside the range it was fitted over.',
+      'The compressibility factor at storage pressure is nowhere near one, so a bank holds appreciably more gas than the ideal gas law says, and a cascade sized on ideal gas is wrong by about a fifth in a direction nobody notices until the station is built. This uses the same Dranchuk and Abou-Kassem correlation the Facilities compression app uses rather than a second implementation, shows the factor it used so it can be checked against your own data, and says explicitly when the correlation is being asked to work outside the range it was fitted over. Every pressure in the CNG section is absolute, bar(a): add about one bar to a gauge reading.',
   },
   {
     id: 'cascade',
     icon: Wind,
     title: 'Why a cascade has banks',
     content:
-      'A bank can only push gas into a vehicle while its pressure exceeds the vehicle\'s. Once they equalise the bank is finished for that vehicle no matter how much gas it still holds, which is exactly why a station runs several banks at different pressures instead of one large one. Each fill draws from the lowest bank that can still deliver and works upward, which is how a cascade is really sequenced. Gas sitting below the vehicle\'s target pressure is reported as stranded rather than counted as inventory: it is real gas and the cascade cannot deliver it. A part fill is not counted as a fill, because a vehicle that leaves under-filled did not get one.',
+      'A bank can only push gas into a vehicle while its pressure exceeds the vehicle\'s. Each vehicle is connected to the lowest bank first and the two equalise, then the next bank up takes it higher, until it reaches its target. Once a bank and the vehicle equalise the bank is finished for that vehicle, which is exactly why a station runs several banks at different pressures instead of one large one: a low bank that has fallen below the target still does useful work, taking the next vehicle from empty up to its own pressure. The count stops at the first vehicle the banks cannot bring to its target, and the app says how far that vehicle would get; a part fill is not counted as a fill. The gas still in the banks is reported as inventory the compressor has to bring back up. The model is isothermal: a fast fill heats the gas and settles lower, so treat the count as a ceiling.',
   },
   {
     id: 'compression',

@@ -44,15 +44,16 @@ const FlareInputs = () => {
       </Group>
 
       <Group title="The parcel"
-        note="A flare's destruction efficiency is most of its footprint and it is contested, so it is required rather than assumed. So is the methane potential, and the assessment report it came from is yours to pick.">
+        note="A flare's destruction efficiency is most of its footprint and it is contested, so it is required rather than assumed. So is the methane potential, and the assessment report it came from is yours to pick. The combustion efficiency (the share oxidised to CO2) is optional; left blank, the destruction efficiency stands in for it and the results say so.">
         <Cell label="Volume" unit="MMscfd" value={inputs.parcel.volumeMMscfd} onChange={(v) => setSection('parcel', { volumeMMscfd: v })} />
         <Cell label="On stream" unit="days/yr" value={inputs.parcel.onstreamDays} onChange={(v) => setSection('parcel', { onstreamDays: v })} />
         <Cell label="Flare destruction efficiency" unit="fraction" value={inputs.parcel.flareDestructionEfficiency} placeholder="required" onChange={(v) => setSection('parcel', { flareDestructionEfficiency: v })} />
+        <Cell label="Flare combustion efficiency" unit="fraction" value={inputs.parcel.flareCombustionEfficiency} placeholder="optional" onChange={(v) => setSection('parcel', { flareCombustionEfficiency: v })} />
         <Cell label="Methane GWP" value={inputs.parcel.gwpMethane} placeholder="required" onChange={(v) => setSection('parcel', { gwpMethane: v })} />
       </Group>
 
       <Group title="The counterfactual"
-        note="No abatement is reported until this is stated. The flare's gross emission is not the abatement: recover the gas and somebody burns it, and whether that is better or worse depends entirely on what it displaces.">
+        note="No abatement is reported until this is stated. Only the share of the flare the credited route recovers is avoided: the gas it does not recover is still flared. The flare's gross emission is not the abatement: recover the gas and somebody burns it, and whether that is better or worse depends entirely on what it displaces.">
         <Cell label="What the product displaces" type="text" value={inputs.counterfactual.label} placeholder="required" onChange={(v) => setSection('counterfactual', { label: v })} />
         <Cell label="Product burned" unit="tCO2e/yr" value={inputs.counterfactual.productCombustionTonnesCo2ePerYear} placeholder="required" onChange={(v) => setSection('counterfactual', { productCombustionTonnesCo2ePerYear: v })} />
         <Cell label="Fuel displaced" unit="tCO2e/yr" value={inputs.counterfactual.displacedFuelTonnesCo2ePerYear} placeholder="required" onChange={(v) => setSection('counterfactual', { displacedFuelTonnesCo2ePerYear: v })} />
@@ -76,6 +77,7 @@ const FlareInputs = () => {
               <Cell label={`${r.label} reference capex`} value={r.referenceCapitalCost} onChange={(v) => setRoute(r.id, { referenceCapitalCost: v })} />
               <Cell label={`${r.label} reference capacity`} unit="MMscfd" value={r.referenceCapacityMMscfd} onChange={(v) => setRoute(r.id, { referenceCapacityMMscfd: v })} />
               <Cell label={`${r.label} fixed opex`} unit="/yr" value={r.fixedOpexPerYear} onChange={(v) => setRoute(r.id, { fixedOpexPerYear: v })} />
+              <Cell label={`${r.label} variable opex`} unit="/Mscf" value={r.variableOpexPerMscf} onChange={(v) => setRoute(r.id, { variableOpexPerMscf: v })} />
             </div>
           </div>
         ))}

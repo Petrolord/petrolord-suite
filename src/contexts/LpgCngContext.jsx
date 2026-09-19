@@ -35,10 +35,13 @@ export const defaultInputs = () => ({
       { id: uuidv4(), code: 'butane', label: butane.label, volumeFraction: 0.6, liquidDensityKgM3: butane.typicalLiquidDensityKgM3, molarMassKgKmol: butane.molarMassKgKmol, latentHeatKJkg: butane.typicalLatentHeatKJkg },
     ],
     // No default: the fill limit is a safety code limit, not a convenience.
-    vesselCapacityM3: 100, maxFillRatio: '',
+    vesselCapacityM3: 100, maxFillRatio: '', fillRatioBasis: 'liquid_volume',
     demandTonnesPerDay: 6, deliveryTonnes: 15, leadTimeDays: 3, safetyDays: 2,
     vaporizer: {
-      massFlowKgHr: 500, liquidCpKJkgK: 2.5, inletTempC: 25,
+      // MD4-0: no default boiling point. It is the one at the vaporizer's
+      // pressure; the page used to pass n-butane's atmospheric -0.5 C,
+      // which made the warming term negative and cut the duty.
+      massFlowKgHr: 500, liquidCpKJkgK: 2.5, inletTempC: 25, boilingPointC: '',
       vapourCpKJkgK: 1.7, outletTempC: 15, designMarginPercent: 20,
     },
     bottling: {
@@ -120,7 +123,6 @@ const numOrNull = (v) => {
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : null;
 };
-const num = (v, fallback = 0) => (numOrNull(v) === null ? fallback : numOrNull(v));
 
 const Ctx = createContext();
 
@@ -178,11 +180,13 @@ export const LpgCngProvider = ({ children }) => {
     vesselCapacityM3: numOrNull(inputs.lpg.vesselCapacityM3),
     // Deliberately not defaulted. See the engine note.
     maxFillRatio: numOrNull(inputs.lpg.maxFillRatio),
+    fillRatioBasis: inputs.lpg.fillRatioBasis || 'liquid_volume',
     liquidDensityKgM3: blend.error ? null : blend.densityKgM3,
     demandTonnesPerDay: numOrNull(inputs.lpg.demandTonnesPerDay),
     deliveryTonnes: numOrNull(inputs.lpg.deliveryTonnes),
-    leadTimeDays: num(inputs.lpg.leadTimeDays),
-    safetyDays: num(inputs.lpg.safetyDays),
+    // Blank is missing: the engine leaves the reorder point unstated.
+    leadTimeDays: numOrNull(inputs.lpg.leadTimeDays),
+    safetyDays: numOrNull(inputs.lpg.safetyDays),
   }), [inputs.lpg, blend]);
 
   const vaporizer = useMemo(() => vaporizerDuty({
@@ -190,26 +194,24 @@ export const LpgCngProvider = ({ children }) => {
     latentHeatKJkg: blend.error ? null : blend.latentHeatKJkg,
     liquidCpKJkgK: numOrNull(inputs.lpg.vaporizer.liquidCpKJkgK),
     inletTempC: numOrNull(inputs.lpg.vaporizer.inletTempC),
-    // The bubble point of the blend stands in for the boiling point; a mix
-    // does not have one, and the app says so rather than pretending.
-    boilingPointC: butane.typicalBoilingPointC,
+    boilingPointC: numOrNull(inputs.lpg.vaporizer.boilingPointC),
     vapourCpKJkgK: numOrNull(inputs.lpg.vaporizer.vapourCpKJkgK),
     outletTempC: numOrNull(inputs.lpg.vaporizer.outletTempC),
-    designMarginPercent: num(inputs.lpg.vaporizer.designMarginPercent),
+    designMarginPercent: numOrNull(inputs.lpg.vaporizer.designMarginPercent),
   }), [inputs.lpg.vaporizer, blend]);
 
   const bottling = useMemo(() => bottlingPlant({
     cylindersPerDay: numOrNull(inputs.lpg.bottling.cylindersPerDay),
     fillMinutesPerCylinder: numOrNull(inputs.lpg.bottling.fillMinutesPerCylinder),
     positions: numOrNull(inputs.lpg.bottling.positions),
-    shiftHoursPerDay: num(inputs.lpg.bottling.shiftHoursPerDay, 8),
-    availabilityFraction: num(inputs.lpg.bottling.availabilityFraction, 1),
+    shiftHoursPerDay: numOrNull(inputs.lpg.bottling.shiftHoursPerDay),
+    availabilityFraction: numOrNull(inputs.lpg.bottling.availabilityFraction),
   }), [inputs.lpg.bottling]);
 
   const cylinderFleet = useMemo(() => assetFloat({
     unitsPerDay: numOrNull(inputs.lpg.bottling.cylindersPerDay),
     cycleStages: inputs.lpg.cylinderCycle.map((s) => ({ label: s.label, days: numOrNull(s.days) })),
-    sparesFraction: num(inputs.lpg.cylinderSparesFraction),
+    sparesFraction: numOrNull(inputs.lpg.cylinderSparesFraction),
   }), [inputs.lpg.bottling.cylindersPerDay, inputs.lpg.cylinderCycle, inputs.lpg.cylinderSparesFraction]);
 
   const cascade = useMemo(() => cascadeFills({
@@ -219,8 +221,8 @@ export const LpgCngProvider = ({ children }) => {
     vehicleTankM3: numOrNull(inputs.cng.vehicleTankM3),
     vehicleStartBar: numOrNull(inputs.cng.vehicleStartBar),
     vehicleTargetBar: numOrNull(inputs.cng.vehicleTargetBar),
-    temperatureC: num(inputs.cng.temperatureC, 15),
-    gasSg: num(inputs.cng.gasSg, 0.6),
+    temperatureC: numOrNull(inputs.cng.temperatureC),
+    gasSg: numOrNull(inputs.cng.gasSg),
   }), [inputs.cng]);
 
   const bankInventory = useMemo(() => inputs.cng.banks.map((b) => ({
@@ -229,8 +231,8 @@ export const LpgCngProvider = ({ children }) => {
     ...gasMassInVessel({
       volumeM3: numOrNull(b.volumeM3),
       pressureBar: numOrNull(b.pressureBar),
-      temperatureC: num(inputs.cng.temperatureC, 15),
-      gasSg: num(inputs.cng.gasSg, 0.6),
+      temperatureC: numOrNull(inputs.cng.temperatureC),
+      gasSg: numOrNull(inputs.cng.gasSg),
     }),
   })), [inputs.cng.banks, inputs.cng.temperatureC, inputs.cng.gasSg]);
 
@@ -239,9 +241,9 @@ export const LpgCngProvider = ({ children }) => {
     suctionBar: numOrNull(inputs.cng.compression.suctionBar),
     dischargeBar: numOrNull(inputs.cng.compression.dischargeBar),
     suctionTempC: numOrNull(inputs.cng.compression.suctionTempC),
-    gasSg: num(inputs.cng.gasSg, 0.6),
-    k: num(inputs.cng.compression.k, 1.31),
-    polytropicEfficiency: num(inputs.cng.compression.polytropicEfficiency, 0.75),
+    gasSg: numOrNull(inputs.cng.gasSg),
+    k: numOrNull(inputs.cng.compression.k),
+    polytropicEfficiency: numOrNull(inputs.cng.compression.polytropicEfficiency),
   }), [inputs.cng.compression, inputs.cng.gasSg]);
 
   const dispensing = useMemo(() => cngDispensing({
@@ -254,7 +256,7 @@ export const LpgCngProvider = ({ children }) => {
   const trailerFleet = useMemo(() => assetFloat({
     unitsPerDay: numOrNull(inputs.cng.trailerTripsPerDay),
     cycleStages: inputs.cng.trailerCycle.map((s) => ({ label: s.label, days: numOrNull(s.days) })),
-    sparesFraction: num(inputs.cng.trailerSparesFraction),
+    sparesFraction: numOrNull(inputs.cng.trailerSparesFraction),
   }), [inputs.cng.trailerTripsPerDay, inputs.cng.trailerCycle, inputs.cng.trailerSparesFraction]);
 
   const conversion = useMemo(() => {
@@ -274,10 +276,10 @@ export const LpgCngProvider = ({ children }) => {
         pricePerUnit: numOrNull(c.newPricePerUnit),
         energyPerUnitMJ: numOrNull(c.newEnergyPerUnitMJ),
         emissionFactorKgCo2ePerUnit: numOrNull(c.newEmissionFactor),
-        efficiencyRatio: num(c.efficiencyRatio, 1),
+        efficiencyRatio: numOrNull(c.efficiencyRatio),
       },
       conversionCost: numOrNull(c.conversionCost),
-      annualExtraMaintenance: num(c.annualExtraMaintenance),
+      annualExtraMaintenance: numOrNull(c.annualExtraMaintenance),
     });
   }, [inputs.conversion]);
 

@@ -139,6 +139,24 @@ describe('the page', () => {
     expect(screen.getAllByText('fails').length).toBeGreaterThan(0);
   });
 
+  it('crowns no route while every limit is unset, and marks the leader as not fully screened (MD4-0)', async () => {
+    mount();
+    expect(await screen.findByText(/leads on value; screening incomplete/i)).toBeInTheDocument();
+    expect(screen.queryByText('best on value')).not.toBeInTheDocument();
+    expect(screen.getByText(/No route passes screening yet/i)).toBeInTheDocument();
+  });
+
+  it('prices the LPG route on liquids the gas actually holds (MD4-0)', () => {
+    const lpg = defaultInputs().routes.find((r) => r.id === 'lpg_extraction');
+    // the default gas holds 0.0056 t/Mscf of propane and heavier
+    expect(lpg.productUnitPerMscf).toBeLessThan(0.0056);
+  });
+
+  it('shows a variable operating cost box for every route (MD4-0)', async () => {
+    mount();
+    expect(await screen.findByLabelText(/Compressed natural gas variable opex/i)).toBeInTheDocument();
+  });
+
   it('warns that the ranking ignores the capital', async () => {
     mount();
     expect(await screen.findByText(/ignores the capital/i)).toBeInTheDocument();
