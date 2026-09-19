@@ -513,3 +513,114 @@ from an extracted engine.
   finds goes to petrolord-engines or the Suite as its own PR with its
   own guard.
 - The go-lives stay HELD until the deployed site carries the route.
+
+## 14. HSE, path_order 61 onward
+
+Added 2026-09-19, when the owner asked for the HSE courses to be built
+from start to finish. HSE was not in this plan when it was written. The
+academy has carried an `hse` module label since the taxonomy was drawn,
+and no course has ever used it.
+
+### Starting position (H0 audit, 2026-09-19)
+
+Checked read-only against petrolord-hse `f922a3c`, Suite `1275ee922`,
+petrolord-engines `5cbdca5` and NextGen `87c265143`.
+
+- **There is no HSE engine anywhere.** petrolord-engines has no
+  `engines/hse`. The nearest code is `assurance/riskScoring.js`, a 5x5
+  matrix already graded by `riskchange`, and EC6's `hseCalculations.js`,
+  which counts risks by band. Dispersion, blast, probits, LOPA, SIL,
+  individual risk, noise dose, exposure TWAs, WBGT and incident rates are
+  all absent.
+- **There is no app a learner could be sent to.** The Suite has no HSE
+  module and links out to hse.petrolord.com. The HSE product persists
+  real records, but it has no exposure hours, so it cannot compute any
+  frequency rate, and no measurement fields, so it cannot compute any
+  exposure. Its arithmetic is ad hoc (a health "risk score" of
+  `10 + 5*conditions + 10*exposures + 2*absenceDays`, an environmental
+  compliance percentage less five points per spill). It has no tests.
+- **Parts of the HSE product invent their numbers.** The incident trend
+  in `IncidentsAnalytics.jsx` is drawn from `Math.random()`.
+  `benchmarkingService.js` falls back to hardcoded benchmarks (TRIR 1.2
+  against 2.8) when its table is empty. `benefitsData.js` advertises a
+  Carbon Calculator and Scope 1/2/3 calculators that do not exist. These
+  are fixed in the app programme below, before any course points a
+  learner at the product.
+- **Some HSE ground is already taught and graded.** API 521 point-source
+  flare and pool-fire radiation and the setbacks built on it (FC1, FC5).
+  The 5x5 risk matrix (`riskchange` on the 15/10/5 bands; EC6 teaches a
+  second scale at 20/12/6). BTEX, oil in water and tank breathing (FC4,
+  FC7, FC8). Emissions and GHG inventory belong to MD5 `carbon`.
+
+### Roster
+
+Five courses. Each one is a professional subject with published worked
+examples that an independent oracle can reproduce, and none of them
+re-grades a live course's fields.
+
+| wave | slug | course | engine (new) | app home |
+|---|---|---|---|---|
+| H1 | `safetystats` | Safety Performance Statistics & KPIs | `engines/hse/safetyStats` | HSE product |
+| H2 | `hygiene` | Occupational Hygiene: Noise, Chemical & Heat Exposure | `engines/hse/exposure` | HSE product |
+| H3 | `lopa` | Process Safety: LOPA & SIL Determination | `engines/hse/lopa` | Suite HSE module |
+| H4 | `consequence` | Consequence Modelling: Releases, Dispersion, Fires & Explosions | `engines/hse/consequence` | Suite HSE module |
+| H5 | `qra` | Quantitative Risk Assessment | `engines/hse/qra` | Suite HSE module |
+
+- **H1** covers incidence and frequency rates on the OSHA/BLS 200,000
+  hour and IOGP million-hour bases, FAR, severity, the rolling
+  twelve-month rate (sum then divide, never the mean of monthly rates),
+  exact Poisson intervals, comparing two rates, and u-charts for rates
+  over varying exposure. The API RP 754 process safety event rate is
+  covered as a rate only, with tier taken as an input.
+- **H2** covers OSHA 1910.95 noise dose and TWA and the NIOSH criterion,
+  LEX,8h, hearing protector derating, chemical 8-hour TWA, STEL and the
+  1910.1000(d)(2) mixture index, Brief and Scala shift adjustment, and
+  WBGT with the NIOSH heat criteria.
+- **H3** covers LOPA mitigated frequency against a tolerable target,
+  required risk reduction to SIL band, and PFDavg for 1oo1, 1oo2 and
+  2oo3 with common cause and proof-test interval.
+- **H4** covers source terms, Gaussian plume dispersion, solid-flame pool
+  and jet fires, TNT equivalence and multi-energy blast, and probits. It
+  grades none of the point-source radiation outputs FC1 and FC5 already
+  grade.
+- **H5** covers event trees, individual risk, PLL, FAR, F-N curves
+  against criterion lines, ALARP and ICAF. It is built after H4 because
+  it consumes H4's probits. Any discounting imports the canonical NPV
+  module.
+
+Not courses, and why: risk matrices and qualitative bow-ties duplicate
+`riskchange` and EC6. Management systems, audits, permit to work,
+investigation and behavioural safety have no deterministic engine and
+duplicate `compliance` and `riskchange`. Emissions belong to MD5. The
+HSE product's AI forecast is a language model and cannot be graded.
+
+### DECISION, 2026-09-19: apps split by fit
+
+The section 12 doctrine holds here as it did for Assurance: a course
+follows an app with its engine, and the academy does not teach from a
+screen that invents its data. The owner chose where the apps live:
+
+- **H1 and H2 go into the HSE product**, which already holds the
+  incident and health records. It gains exposure hours and exposure
+  measurements, calls the vendored engines, and loses the invented
+  numbers listed above.
+- **H3, H4 and H5 form a new Suite HSE module** beside Facilities, built
+  on the same pattern as the other Suite modules. Tiles and pricing rows
+  are migrations and follow the database rules in CLAUDE.md.
+
+### Order, per course
+
+1. Engine in petrolord-engines with goldens from published worked
+   examples, an independent Python oracle, a negative control and a
+   FINDINGS record.
+2. The app, calling the vendored engine.
+3. The course wave on the section 11 shape, go-live HELD until the
+   route serves.
+
+H1 and H2 run first because their mathematics is closed form and
+publicly tabulated. H3 follows, then H4, then H5.
+
+**Licensed material is cited, not copied.** ACGIH TLVs, API RP 754
+threshold quantities and IEC 61508/61511 tables are not embedded in any
+engine, golden or lesson. Examples use OSHA and NIOSH public values, and
+a licensed table enters only as a user input.
