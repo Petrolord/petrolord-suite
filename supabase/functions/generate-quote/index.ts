@@ -131,13 +131,14 @@ Deno.serve(async (req)=>{
     } catch (_e) { /* keep defaults */ }
 
     // MODULE PRICING. One source of truth: pricing_config.module_pricing,
-    // seeded by 20260830060000. The fallback below exists only so a missing
+    // seeded by 20260830060000 (Process Safety added by 20260919230000). The fallback below exists only so a missing
     // config row degrades to the same numbers rather than to a flat rate
     // that undercharges by an order of magnitude, which is what the
     // hardcoded 500 this replaces actually did.
     const MODULE_PRICING_FALLBACK = {
       geoscience: 2999, drilling: 3299, reservoir: 3299, facilities: 2499,
-      production: 2499, economics: 1999, 'midstream-downstream': 1999, assurance: 1499
+      production: 2499, economics: 1999, 'midstream-downstream': 1999, assurance: 1499,
+      'process-safety': 1999
     };
     const MODULE_PRICING = asJson(configMap['module_pricing']) || MODULE_PRICING_FALLBACK;
     const computeSeatCost = (n)=>{

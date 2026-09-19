@@ -110,18 +110,31 @@ describe('the hse identifier stays with the external portal', () => {
   });
 });
 
-describe('pricing, held until the first app ships', () => {
-  it('is not priced while every app is Coming Soon', () => {
-    // A purchasable module with nothing in it is what the honest-catalog rule
-    // exists to prevent. PS1 prices it, as DS1 did for Midstream & Downstream.
-    expect(MODULE_PRICING[SLUG]).toBeUndefined();
-    expect(read('../supabase/functions/generate-quote/index.ts')).not.toContain(SLUG);
+describe('pricing, which lands with the first app (PS1)', () => {
+  const PRICING = '20260919230000_ps1_process_safety_module_pricing.sql';
+
+  it('is priced in the shared table, the server fallback and the migration alike', () => {
+    // The Coming Soon-only module was unpriced at PS0. PS1 ships the LOPA &
+    // SIL Studio and prices the module, as DS1 did for Midstream & Downstream.
+    expect(MODULE_PRICING[SLUG]).toBe(1999);
+    expect(read('../supabase/functions/generate-quote/index.ts')).toMatch(/'process-safety': 1999/);
+    expect(read(`../supabase/migrations/${PRICING}`)).toContain('{"process-safety":1999}');
   });
 });
 
 describe('marketing, which follows the catalog rather than leading it', () => {
-  it('does not advertise the module before any app in it works', () => {
-    expect(read('components/home/ModulesShowcase.jsx')).not.toContain(NAME);
+  it('counts nine modules now that the ninth has a working app', () => {
+    expect(read('pages/Home.jsx')).toMatch(/value: '9',\s*label: 'Discipline Modules'/);
+    expect(read('pages/Solutions.jsx')).toContain('Nine modules');
+  });
+
+  it('shows the module with the number of apps that actually work', () => {
+    // One of three. The count is what is built, not what is planned.
+    const showcase = read('components/home/ModulesShowcase.jsx');
+    const block = showcase.slice(showcase.indexOf(`name: '${NAME}'`));
+    expect(block).toMatch(/count: 1,/);
+    expect(block).toContain('LOPA & SIL Studio');
+    expect(block).not.toMatch(/Consequence Modelling Studio|QRA Studio/);
   });
 });
 
@@ -135,9 +148,17 @@ describe('the seed migration', () => {
   const migrations = path.resolve(ROOT, '../supabase/migrations');
   const sql = fs.readFileSync(path.join(migrations, SEED), 'utf8');
 
-  it('sorts after every other migration', () => {
+  it('sorts after every migration before it, and before every PS1 migration that needs its rows', () => {
     const all = fs.readdirSync(migrations).filter((f) => f.endsWith('.sql')).sort();
-    expect(all[all.length - 1]).toBe(SEED);
+    const at = all.indexOf(SEED);
+    expect(at).toBeGreaterThan(-1);
+    // Everything after the seed is Process Safety's own, which depends on it.
+    all.slice(at + 1).forEach((f) => expect(f).toMatch(/^\d{14}_ps\d+_/));
+    expect(all.slice(at + 1)).toEqual(expect.arrayContaining([
+      '20260919210000_ps1_lopa_studies.sql',
+      '20260919220000_ps1_activate_lopa_sil_tile.sql',
+      '20260919230000_ps1_process_safety_module_pricing.sql',
+    ]));
   });
 
   it('creates the module row on the process-safety slug, idempotently', () => {
@@ -180,5 +201,51 @@ describe('the seed migration', () => {
     const row = log.split('\n').find((l) => l.includes(SEED));
     expect(row).toBeTruthy();
     expect(row).toMatch(/NOT APPLIED \(owner-run\) \| NOT APPLIED \(owner-run\) \|$/);
+  });
+});
+
+describe('PS1: the LOPA & SIL Studio', () => {
+  const migrations = path.resolve(ROOT, '../supabase/migrations');
+  const sqlOf = (f) => fs.readFileSync(path.join(migrations, f), 'utf8');
+  const log = () => fs.readFileSync(path.resolve(ROOT, '../MIGRATIONS.md'), 'utf8');
+  const TABLE = '20260919210000_ps1_lopa_studies.sql';
+  const TILE = '20260919220000_ps1_activate_lopa_sil_tile.sql';
+  const PRICING = '20260919230000_ps1_process_safety_module_pricing.sql';
+
+  it('is routed where appRoutePath sends the tile, behind its own entitlement', () => {
+    const app = read('App.jsx');
+    expect(app).toContain("import('@/pages/apps/LopaSilStudio')");
+    expect(app).toContain('<Route path="apps/process-safety/lopa-sil-studio" element={<ProtectedAppRoute appId="lopa-sil-studio"');
+    expect(app).toContain('<Route path="apps/process-safety/lopa-sil-studio/help" element={<ProtectedAppRoute appId="lopa-sil-studio"');
+  });
+
+  it('keeps its studies in a ps_* table scoped by organization membership', () => {
+    const sql = sqlOf(TABLE);
+    expect(sql).toMatch(/create table if not exists public\.ps_lopa_studies/);
+    expect(sql).toMatch(/enable row level security/);
+    expect(sql).toMatch(/public\.is_org_member\(organization_id\)/);
+    expect(sql).toMatch(/has_org_role\(organization_id, array\['owner', 'admin'\]\)/);
+    expect(sql).toMatch(/revoke all on table public\.ps_lopa_studies from anon/);
+    expect(sql).not.toMatch(/using \(true\)/i);
+  });
+
+  it('flips only its own tile Active, and only if the PS0 seed made it', () => {
+    const sql = sqlOf(TILE);
+    expect(sql).toMatch(/v_slug text := 'lopa-sil-studio'/);
+    expect(sql).toMatch(/and module = 'Process Safety'/);
+    expect(sql).toMatch(/set status = 'Active'/);
+    expect(sql).toMatch(/is_built = true/);
+    expect(sql).toMatch(/Nothing done/);
+    expect(sql).toMatch(/DEPLOY GATE/);
+    expect(sql.slice(sql.indexOf('do $$'))).not.toMatch(/consequence-studio|qra-studio/);
+    expect(sql).not.toMatch(/[–—]/);
+  });
+
+  it('logs every PS1 migration as not applied (owner-run)', () => {
+    [TABLE, TILE, PRICING].forEach((f) => {
+      const row = log().split('\n').find((l) => l.includes(f));
+      expect(row).toBeTruthy();
+      expect(row).toMatch(/NOT APPLIED \(owner-run\) \| NOT APPLIED \(owner-run\) \|$/);
+    });
   });
 });

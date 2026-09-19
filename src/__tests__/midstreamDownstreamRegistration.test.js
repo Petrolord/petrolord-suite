@@ -110,9 +110,13 @@ describe('pricing', () => {
 });
 
 describe('marketing, which follows the catalog rather than leading it', () => {
-  it('counts eight modules now that the eighth has a working app', () => {
-    expect(read('pages/Home.jsx')).toMatch(/value: '8'/);
-    expect(read('pages/Solutions.jsx')).toContain('Eight modules');
+  it('counts itself among the modules now that it has a working app', () => {
+    // Eight at DS1; nine since Process Safety PS1 (2026-09-19), which
+    // processSafetyRegistration.test.js pins. At least eight either way.
+    const m = read('pages/Home.jsx').match(/value: '(\d+)',\s*label: 'Discipline Modules'/);
+    expect(m).toBeTruthy();
+    expect(Number(m[1])).toBeGreaterThanOrEqual(8);
+    expect(read('pages/Solutions.jsx')).toMatch(/(Eight|Nine|Ten) modules/);
   });
 
   it('shows the module with the number of apps that actually work', () => {
