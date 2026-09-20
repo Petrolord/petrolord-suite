@@ -56,8 +56,16 @@ const LpgResults = () => {
               <Stat label="Usable" value={`${fmt(storage.usableTonnes, 1)} t`} hint={`${fmt(storage.usableM3, 1)} m3 at the fill limit`} />
               <Stat label="Vapour space" value={`${fmt(storage.vapourSpaceM3, 1)} m3`} hint="not spare capacity" />
               <Stat label="Cover" value={`${fmt(storage.coverDays, 1)} days`} />
-              <Stat label="Reorder at" value={`${fmt(storage.reorderAtTonnes, 1)} t`} hint={`${fmt(storage.safetyStockTonnes, 1)} t of it is safety stock`} />
+              <Stat label="Reorder at" value={storage.reorderAtTonnes === null ? 'not stated' : `${fmt(storage.reorderAtTonnes, 1)} t`} hint={storage.reorderAtTonnes === null ? 'needs the lead time and safety stock' : `${fmt(storage.safetyStockTonnes, 1)} t of it is safety stock`} />
             </div>
+            <p className="text-[11px] text-slate-500 mt-2">
+              {storage.fillRatioBasis === 'water_capacity_mass'
+                ? 'The fill limit is read as a filling density on the water capacity, by weight.'
+                : 'The fill limit is read as a share of the vessel\'s liquid volume.'}
+            </p>
+            {storage.missingInputs && storage.missingInputs.length > 0 && (
+              <p className="text-[11px] text-amber-300 mt-1">{`No ${storage.missingInputs.join(' or ')}, so the reorder point and whether a delivery fits are not stated.`}</p>
+            )}
             {storage.deliveryWarning && (
               <div className="mt-3 rounded border border-amber-800/60 bg-amber-950/30 p-3 flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
@@ -90,6 +98,9 @@ const LpgResults = () => {
               <Stat label="Design duty" value={`${fmt(vaporizer.designDutyKW, 1)} kW`} hint={`${fmt(vaporizer.dutyKW, 1)} kW plus margin`} />
             </div>
             {vaporizer.note && <p className="text-[11px] text-amber-300 mt-2">{vaporizer.note}</p>}
+            {vaporizer.assumedZero && vaporizer.assumedZero.length > 0 && (
+              <p className="text-[11px] text-amber-300 mt-1">No design margin given, so none is added.</p>
+            )}
           </>
         )}
       </div>
@@ -135,7 +146,7 @@ const LpgResults = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Stat label="Cycle" value={`${fmt(cylinderFleet.cycleDays, 1)} days`} hint={`${cylinderFleet.dominantStage} dominates`} />
               <Stat label="In circulation" value={fmt(cylinderFleet.inCirculation, 0)} />
-              <Stat label="Spares" value={fmt(cylinderFleet.sparesAllowance, 0)} />
+              <Stat label="Spares" value={fmt(cylinderFleet.sparesAllowance, 0)} hint={cylinderFleet.assumedZero && cylinderFleet.assumedZero.length ? 'none given, taken as zero' : null} />
               <Stat label="Fleet required" value={cylinderFleet.fleetRequired.toLocaleString()} />
             </div>
             <ChartFrame height={220} exportFilename="cylinder-cycle">

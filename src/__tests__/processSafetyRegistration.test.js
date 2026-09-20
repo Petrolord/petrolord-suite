@@ -199,11 +199,12 @@ describe('the seed migration', () => {
     expect(sql).not.toMatch(/[–—]/);
   });
 
-  it('is logged in MIGRATIONS.md as not applied', () => {
+  it('is logged in MIGRATIONS.md as applied', () => {
     const log = fs.readFileSync(path.resolve(ROOT, '../MIGRATIONS.md'), 'utf8');
     const row = log.split('\n').find((l) => l.includes(SEED));
     expect(row).toBeTruthy();
-    expect(row).toMatch(/NOT APPLIED \(owner-run\) \| NOT APPLIED \(owner-run\) \|$/);
+    expect(row).toMatch(/\*\*APPLIED 2026-09-19\*\*/);
+    expect(row).not.toMatch(/NOT APPLIED/);
   });
 });
 
@@ -244,11 +245,12 @@ describe('PS1: the LOPA & SIL Studio', () => {
     expect(sql).not.toMatch(/[–—]/);
   });
 
-  it('logs every PS1 migration as not applied (owner-run)', () => {
+  it('logs every PS1 migration as applied', () => {
     [TABLE, TILE, PRICING].forEach((f) => {
       const row = log().split('\n').find((l) => l.includes(f));
       expect(row).toBeTruthy();
-      expect(row).toMatch(/NOT APPLIED \(owner-run\) \| NOT APPLIED \(owner-run\) \|$/);
+      expect(row).toMatch(/\*\*APPLIED 2026-09-19\*\*/);
+      expect(row).not.toMatch(/NOT APPLIED/);
     });
   });
 });

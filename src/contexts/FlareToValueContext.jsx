@@ -39,7 +39,9 @@ const gasRow = (code, moleFraction) => {
 const ROUTE_DEFAULTS = {
   cng: { productUnitPerMscf: 20, productUnitLabel: 'kg CNG', recoveryFraction: 0.9, pricePerProductUnit: 0.6, referenceCapitalCost: 30000000, referenceCapacityMMscfd: 8, fixedOpexPerYear: 2500000, variableOpexPerMscf: 0.4 },
   mini_lng: { productUnitPerMscf: 0.019, productUnitLabel: 't LNG', recoveryFraction: 0.88, pricePerProductUnit: 480, referenceCapitalCost: 90000000, referenceCapacityMMscfd: 20, fixedOpexPerYear: 6000000, variableOpexPerMscf: 0.7 },
-  lpg_extraction: { productUnitPerMscf: 0.02, productUnitLabel: 't LPG', recoveryFraction: 0.85, pricePerProductUnit: 500, referenceCapitalCost: 45000000, referenceCapacityMMscfd: 12, fixedOpexPerYear: 3000000, variableOpexPerMscf: 0.3 },
+  // MD4-0: 0.02 was 3.6 times the propane-plus the default gas holds
+  // (0.0056 t/Mscf); the engine refuses a yield the gas cannot supply.
+  lpg_extraction: { productUnitPerMscf: 0.0045, productUnitLabel: 't LPG', recoveryFraction: 0.85, pricePerProductUnit: 500, referenceCapitalCost: 45000000, referenceCapacityMMscfd: 12, fixedOpexPerYear: 3000000, variableOpexPerMscf: 0.3 },
   gas_to_power: { productUnitPerMscf: 0.09, productUnitLabel: 'MWh', recoveryFraction: 0.95, pricePerProductUnit: 65, referenceCapitalCost: 55000000, referenceCapacityMMscfd: 15, fixedOpexPerYear: 4000000, variableOpexPerMscf: 0.5 },
 };
 
@@ -48,7 +50,10 @@ export const defaultInputs = () => ({
     gasRow('C1', 0.78), gasRow('C2', 0.09), gasRow('C3', 0.05), gasRow('IC4', 0.01),
     gasRow('NC4', 0.02), gasRow('C5', 0.01), gasRow('N2', 0.02), gasRow('CO2', 0.02),
   ],
-  parcel: { volumeMMscfd: 10, onstreamDays: 350, flareDestructionEfficiency: '', gwpMethane: '' },
+  parcel: {
+    volumeMMscfd: 10, onstreamDays: 350,
+    flareDestructionEfficiency: '', flareCombustionEfficiency: '', gwpMethane: '',
+  },
   // Requirement limits ship unset: they are commercial, not physical law.
   routes: ROUTE_TEMPLATES.map((r) => ({
     id: r.id, label: r.label,
@@ -82,7 +87,6 @@ const numOrNull = (v) => {
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : null;
 };
-const num = (v, fallback = 0) => (numOrNull(v) === null ? fallback : numOrNull(v));
 
 const Ctx = createContext();
 
@@ -132,29 +136,36 @@ export const FlareToValueProvider = ({ children }) => {
     route: { id: r.id, label: r.label },
     gas,
     volumeMMscfd: numOrNull(inputs.parcel.volumeMMscfd),
-    onstreamDays: num(inputs.parcel.onstreamDays, 350),
+    // Blank is missing: the engine names it rather than reading 350.
+    onstreamDays: numOrNull(inputs.parcel.onstreamDays),
     productUnitPerMscf: numOrNull(r.productUnitPerMscf),
     productUnitLabel: r.productUnitLabel,
     recoveryFraction: numOrNull(r.recoveryFraction),
     pricePerProductUnit: numOrNull(r.pricePerProductUnit),
     referenceCapitalCost: numOrNull(r.referenceCapitalCost),
     referenceCapacityMMscfd: numOrNull(r.referenceCapacityMMscfd),
-    fixedOpexPerYear: num(r.fixedOpexPerYear),
-    variableOpexPerMscf: num(r.variableOpexPerMscf),
+    // Blank passes through; the engine takes it as zero and names it.
+    fixedOpexPerYear: numOrNull(r.fixedOpexPerYear),
+    variableOpexPerMscf: numOrNull(r.variableOpexPerMscf),
   })), [inputs.routes, gas, inputs.parcel]);
 
+  // MD4-0: the abatement is for the route the credits apply to, and only
+  // the share of the flare that route recovers is avoided.
+  const creditRoute = inputs.routes.find((r) => r.id === inputs.credits.appliesToRouteId) || null;
   const flareAbatement = useMemo(() => abatement({
     gas,
     volumeMMscfd: numOrNull(inputs.parcel.volumeMMscfd),
-    onstreamDays: num(inputs.parcel.onstreamDays, 350),
+    onstreamDays: numOrNull(inputs.parcel.onstreamDays),
     flareDestructionEfficiency: numOrNull(inputs.parcel.flareDestructionEfficiency),
+    flareCombustionEfficiency: numOrNull(inputs.parcel.flareCombustionEfficiency),
+    recoveryFraction: creditRoute ? numOrNull(creditRoute.recoveryFraction) : null,
     gwpMethane: numOrNull(inputs.parcel.gwpMethane),
     counterfactualLabel: inputs.counterfactual.label || null,
     productCombustionTonnesCo2ePerYear:
       numOrNull(inputs.counterfactual.productCombustionTonnesCo2ePerYear),
     displacedFuelTonnesCo2ePerYear:
       numOrNull(inputs.counterfactual.displacedFuelTonnesCo2ePerYear),
-  }), [gas, inputs.parcel, inputs.counterfactual]);
+  }), [gas, inputs.parcel, inputs.counterfactual, creditRoute]);
 
   const creditPrices = useMemo(() => String(inputs.credits.prices || '')
     .split(',').map((x) => numOrNull(x.trim())).filter((x) => x !== null),
@@ -167,7 +178,7 @@ export const FlareToValueProvider = ({ children }) => {
         ? null : flareAbatement.netAbatementTonnesCo2ePerYear,
       creditPrices,
       grossMarginPerYear: route ? route.grossMarginPerYear : null,
-      hurdleMarginPerYear: num(inputs.credits.hurdleMarginPerYear),
+      hurdleMarginPerYear: numOrNull(inputs.credits.hurdleMarginPerYear),
     });
   }, [flareAbatement, creditPrices, economics, inputs.credits]);
 

@@ -149,3 +149,34 @@ pre-deploy.
 - Owner staging E2E across the ten apps.
 - **Literature gate (DS8)**: the four-stream pinch anchor wants a
   citation against its published source.
+
+## MD4-0 validation and repairs (2026-09-19)
+
+Before the NextGen course MD4 (engines #227, vendored at f0aef14; findings in
+`packages/engines/tools/validation/downstream/FINDINGS-gasvalue.md`).
+
+- **The LPG route yielded 3.6 times the liquids in the gas.** The page
+  default was 0.02 t/Mscf; the default gas holds 0.0056 t/Mscf of propane
+  and heavier. The engine now refuses a yield above what the gas holds; the
+  default is 0.0045 t/Mscf.
+- **A route nobody had screened was marked "best on value".** With every
+  limit unset (how the page opens) the best is now none; the leader is
+  marked "leads on value; screening incomplete" in amber.
+- **The flare's methane was every unburned carbon, and the CO2 in the gas
+  was burned.** Now 40 CFR 98.233(n): at the default gas, 98 percent
+  destruction and GWP 29.8, CH4 1,047 t/yr (was 1,745), CO2e 265,829 (was
+  286,555). An optional combustion efficiency box is added; blank, the
+  destruction efficiency stands in and the page says so.
+- **The abatement credited the whole flare** to a route recovering part of
+  it. The page now passes the credited route's recovery, and only that share
+  is avoided.
+- Credits: the breakeven price in closed form is shown with the lowest tested
+  price that clears; no credits from a negative abatement; no verdict
+  without a margin or hurdle (a blank hurdle is no longer 0).
+- The variable operating cost had no input box; every route rested on a
+  hidden number. It has a box now. Blank costs are taken as zero and named;
+  blank on-stream days are refused (no longer read as 350). A missing liquid
+  density leaves the liquids content not available (it was a partial sum).
+- Tests: page tests pin the unscreened leader, the LPG default under the
+  ceiling and the variable opex box.
+

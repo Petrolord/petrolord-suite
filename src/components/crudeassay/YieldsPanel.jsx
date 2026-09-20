@@ -194,7 +194,13 @@ const YieldsPanel = () => {
               Taken as zero because the box is blank: {valuation.assumedZero.join(', ')}.
             </p>
           )}
-          {!valuation.complete && !valuation.error && (
+          {valuation.unyieldedCuts?.length > 0 && (
+            <p className="text-[11px] text-amber-300 mt-3">
+              No yield for {valuation.unyieldedCuts.join(', ')}, so those cuts are left out of the
+              value above and the netback is not complete.
+            </p>
+          )}
+          {!valuation.complete && !valuation.error && valuation.unpricedCuts?.length > 0 && (
             <p className="text-[11px] text-amber-300 mt-3">
               No price for {valuation.unpricedCuts.join(', ')}. Those cuts contribute nothing to the
               value above, so the netback is understated until they are priced.

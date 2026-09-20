@@ -101,6 +101,31 @@ not.
   with one owner policy.
 - `20260829950000` (tile to Active) **HELD** for the DS5 upload.
 
+## MD3-0 validation and repairs (2026-09-19)
+
+Before the NextGen course MD3 (engines #221, vendored at 60ee266; findings in
+`packages/engines/tools/validation/downstream/FINDINGS-supply.md`).
+
+- **The day could never show a gap.** This page had no opening-stock input.
+  It set the opening stock to today's dip less today's net movement and
+  handed that to the reconciliation, which then expected exactly the dip. The
+  unaccounted figure was zero for every tank, every day and every input, and
+  the terminal always read balanced. The page now takes the opening stock
+  (yesterday's closing stock) as an input; blank, the day cannot be closed and
+  the banner says so in amber. The sample opening stock (4,068 m3) makes the
+  sample day close 3 m3 short, inside tolerance.
+- The engine now refuses a dip below a strapping table that does not start at
+  the empty tank, a water cut it cannot convert or that sits above the dip,
+  and 0 or fractional bays; counts pumpable stock tank by tank; and gives no
+  emissions for a loss with no density (the page also invented a density of
+  800 kg/m3, now removed).
+- Tests: page tests pin the -3.0 m3 loss and the refusal with no opening
+  stock; both fail on the old page.
+- MD3-1 (the NextGen course foundation's findings): days of cover are now
+  counted on liftings (6.3 days at the sample, where receipts plus deliveries
+  gave 2.8), and only a loss, never a gain, is counted towards emissions. The
+  engine refuses a 0 minute load time and a blank throughput or fee.
+
 ## Next
 
 DS6, the Fuel Pricing & Supply Chain Studio: import-parity landed cost

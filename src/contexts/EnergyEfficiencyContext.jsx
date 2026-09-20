@@ -14,7 +14,7 @@ import {
   combustionStoichiometry, excessAirFromFlueOxygen, stackLossEfficiency,
   excessAirSaving, steamTrapLoss, condensateReturnValue, energyIntensity,
   pinchTargets, compositeCurve, priceSaving,
-  FUEL_REFERENCE, FUEL_REFERENCE_NOTE, PROPERTY_REFERENCE, HEATING_VALUE_BASIS,
+  FUEL_REFERENCE, FUEL_REFERENCE_NOTE, PROPERTY_REFERENCE, HEATING_VALUE_BASIS, ATMOSPHERE_BAR_A,
 } from '@/utils/downstream/engine/energyEfficiency';
 
 const TABLE = 'saved_energy_efficiency_projects';
@@ -53,13 +53,24 @@ export const defaultInputs = () => ({
   steam: {
     trapCount: 40, orificeDiameterMm: 3, upstreamPressureBarA: 11,
     dischargeCoefficient: '', steamDensityKgM3: 5.6, hoursPerYear: 8760,
+    // The isentropic exponent of the steam at the trap: about 1.135 for dry
+    // saturated steam (the page's 11 bar a and 5.6 kg/m3 are saturated),
+    // about 1.3 superheated. The engine no longer assumes one (MD5-0 E4).
+    specificHeatRatio: 1.135,
+    // Where the failed trap discharges, bar a. The page's traps vent to
+    // atmosphere, the engine's stated case; into a condensate header above
+    // the critical pressure ratio the flow is subsonic and the loss lower
+    // (MD45-1 F6). A blank box is refused by the engine.
+    downstreamPressureBarA: ATMOSPHERE_BAR_A,
     steamCostPerTonne: 25, steamEnergyMJPerTonne: 2700,
     boilerEfficiencyFraction: 0.85,
     steamTonnesPerHour: 20, currentReturnFraction: 0.4, targetReturnFraction: 0.7,
     condensateTempC: 90, makeupTempC: 25,
     waterCostPerTonne: 0.6, treatmentCostPerTonne: '',
   },
-  ledger: { fuelCostPerGJ: 8, emissionFactorKgCo2ePerGJ: '' },
+  // The heating value basis the fuel price and the emission factor are
+  // quoted on. Blank is undeclared; IPCC default factors are on LHV.
+  ledger: { fuelCostPerGJ: 8, emissionFactorKgCo2ePerGJ: '', priceAndFactorBasis: '' },
   intensity: {
     streams: [
       { id: uuidv4(), label: 'Fuel gas', energyGJ: 900000 },
@@ -204,17 +215,24 @@ export const EnergyEfficiencyProvider = ({ children }) => {
     upstreamPressureBarA: numOrNull(inputs.steam.upstreamPressureBarA),
     dischargeCoefficient: numOrNull(inputs.steam.dischargeCoefficient),
     steamDensityKgM3: numOrNull(inputs.steam.steamDensityKgM3),
-    hoursPerYear: num(inputs.steam.hoursPerYear, 8760),
+    specificHeatRatio: numOrNull(inputs.steam.specificHeatRatio),
+    // Passed as typed: blank is refused, never read as atmosphere.
+    downstreamPressureBarA: numOrNull(inputs.steam.downstreamPressureBarA),
+    // Blank hours and a blank boiler efficiency are missing (MD5-0 E11):
+    // they were read as a full year and as a 100 percent boiler.
+    hoursPerYear: numOrNull(inputs.steam.hoursPerYear),
     steamCostPerTonne: numOrNull(inputs.steam.steamCostPerTonne),
     steamEnergyMJPerTonne: numOrNull(inputs.steam.steamEnergyMJPerTonne),
-    boilerEfficiencyFraction: num(inputs.steam.boilerEfficiencyFraction, 1),
+    boilerEfficiencyFraction: numOrNull(inputs.steam.boilerEfficiencyFraction),
     emissionFactorKgCo2ePerGJ: numOrNull(inputs.ledger.emissionFactorKgCo2ePerGJ),
   }), [inputs.steam, inputs.ledger]);
 
   /** One failed trap is a nuisance; a population of them is a project. */
   const trapPopulation = useMemo(() => {
-    const n = num(inputs.steam.trapCount, 0);
     if (trap.error) return { error: trap.error };
+    // A blank count is missing: read as 0 it priced a population of none.
+    const n = numOrNull(inputs.steam.trapCount);
+    if (n === null || n < 0) return { error: 'The number of failed traps is required.' };
     return {
       error: null,
       count: n,
@@ -236,7 +254,7 @@ export const EnergyEfficiencyProvider = ({ children }) => {
     waterCostPerTonne: numOrNull(inputs.steam.waterCostPerTonne),
     treatmentCostPerTonne: numOrNull(inputs.steam.treatmentCostPerTonne),
     emissionFactorKgCo2ePerGJ: numOrNull(inputs.ledger.emissionFactorKgCo2ePerGJ),
-    hoursPerYear: num(inputs.steam.hoursPerYear, 8760),
+    hoursPerYear: numOrNull(inputs.steam.hoursPerYear),
   }), [inputs.steam, inputs.ledger]);
 
   const intensity = useMemo(() => energyIntensity({
@@ -269,6 +287,11 @@ export const EnergyEfficiencyProvider = ({ children }) => {
   const register = useMemo(() => {
     const fuelCost = numOrNull(inputs.ledger.fuelCostPerGJ);
     const ef = numOrNull(inputs.ledger.emissionFactorKgCo2ePerGJ);
+    // The tuning saving is on the heater's basis; the price and the factor
+    // on whatever the ledger declares. Two declared bases that differ are
+    // refused by the engine (MD5-0 E9).
+    const priceBasis = inputs.ledger.priceAndFactorBasis || null;
+    const bases = { fuelCostBasis: priceBasis, emissionFactorBasis: priceBasis };
     const rows = [];
     if (!tuningSaving.error && tuningSaving.annualEnergySavedGJ !== null) {
       rows.push({
@@ -276,6 +299,7 @@ export const EnergyEfficiencyProvider = ({ children }) => {
         ...priceSaving({
           energySavedGJ: tuningSaving.annualEnergySavedGJ,
           fuelCostPerGJ: fuelCost, emissionFactorKgCo2ePerGJ: ef,
+          energyBasis: tuningSaving.basis, ...bases,
         }),
       });
     }
@@ -284,7 +308,7 @@ export const EnergyEfficiencyProvider = ({ children }) => {
         id: 'traps', label: `Repair ${trapPopulation.count} failed traps`,
         ...priceSaving({
           energySavedGJ: trapPopulation.annualFuelGJ,
-          fuelCostPerGJ: fuelCost, emissionFactorKgCo2ePerGJ: ef,
+          fuelCostPerGJ: fuelCost, emissionFactorKgCo2ePerGJ: ef, ...bases,
         }),
       });
     }
@@ -293,7 +317,7 @@ export const EnergyEfficiencyProvider = ({ children }) => {
         id: 'condensate', label: 'Raise condensate return',
         ...priceSaving({
           energySavedGJ: condensate.energySavedGJPerYear,
-          fuelCostPerGJ: fuelCost, emissionFactorKgCo2ePerGJ: ef,
+          fuelCostPerGJ: fuelCost, emissionFactorKgCo2ePerGJ: ef, ...bases,
         }),
       });
     }
