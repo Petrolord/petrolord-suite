@@ -190,9 +190,20 @@ export const EnergyEfficiencyProvider = ({ children }) => {
       waterVapourCpKJkgK: numOrNull(h.waterVapourCpKJkgK),
       waterLatentHeatKJkg: numOrNull(h.waterLatentHeatKJkg),
       radiationLossPercent: numOrNull(h.radiationLossPercent),
-      unburnedLossPercent: num(h.unburnedLossPercent),
+      // A BLANK UNBURNED LOSS IS ABSENT. It used to be read as a measured
+      // zero, which is the page inventing a measurement the user never made:
+      // a stack making carbon monoxide has a real unburned loss and a zero
+      // here raises the efficiency by exactly that much. The blank is passed
+      // through as null and the results say the loss was not supplied.
+      unburnedLossPercent: numOrNull(h.unburnedLossPercent),
     });
   }, [stoichiometry, inputs.heater]);
+
+  /** Whether the unburned and other loss was supplied at all. */
+  const unburnedLossSupplied = useMemo(
+    () => numOrNull(inputs.heater.unburnedLossPercent) !== null,
+    [inputs.heater.unburnedLossPercent],
+  );
 
   const currentEfficiency = useMemo(
     () => efficiencyAt(numOrNull(inputs.heater.currentO2Percent)),
@@ -341,6 +352,7 @@ export const EnergyEfficiencyProvider = ({ children }) => {
     inputs, setSection, setFuelRow, setPinchStream, addPinchStream, removePinchStream,
     setIntensityStream,
     stoichiometry, currentEfficiency, targetEfficiency, tuningSaving,
+    unburnedLossSupplied,
     trap, trapPopulation, condensate, intensity, pinch, composites, register,
     persistence, notifications, removeNotification,
   };

@@ -50,7 +50,8 @@ const EfficiencyInputs = () => {
         <p className="text-[10px] text-slate-500 mb-1.5">
           The radiation loss comes off a published chart against surface area and firing rate,
           and the oxygen below which this burner makes carbon monoxide depends on the burner.
-          Neither is supplied here.
+          Neither is supplied here. The unburned and other loss comes off a flue gas measurement,
+          so left blank it stays absent and the efficiency is reported without it.
         </p>
         <div className="mb-2">
           <Label htmlFor="ee-basis" className="text-[10px] text-slate-400">Heating value basis</Label>
@@ -71,6 +72,7 @@ const EfficiencyInputs = () => {
           <Cell label="Flue gas cp" unit="kJ/kg.K" value={inputs.heater.flueGasCpKJkgK} onChange={(v) => setSection('heater', { flueGasCpKJkgK: v })} />
           <Cell label="Vapour cp" unit="kJ/kg.K" value={inputs.heater.waterVapourCpKJkgK} onChange={(v) => setSection('heater', { waterVapourCpKJkgK: v })} />
           <Cell label="Water latent heat" unit="kJ/kg" value={inputs.heater.waterLatentHeatKJkg} onChange={(v) => setSection('heater', { waterLatentHeatKJkg: v })} />
+          <Cell label="Unburned and other loss" unit="%" value={inputs.heater.unburnedLossPercent} placeholder="blank if not measured" onChange={(v) => setSection('heater', { unburnedLossPercent: v })} />
           <Cell label="Annual fuel" unit="GJ" value={inputs.heater.annualFuelEnergyGJ} onChange={(v) => setSection('heater', { annualFuelEnergyGJ: v })} />
         </div>
       </div>
