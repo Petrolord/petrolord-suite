@@ -84,6 +84,30 @@ describe('the page', () => {
     expect(screen.getByText(/must not be compared/i)).toBeInTheDocument();
   });
 
+  it('leaves a blank unburned loss absent and says the efficiency is computed without it', async () => {
+    mount();
+    await screen.findByText('Stoichiometric air');
+    supplyRefusedInputs();
+    const before = (await screen.findByText(/% efficient on LHV/i)).textContent;
+    // The shipped study supplies a zero here. Clearing the field is a blank,
+    // and the page used to read that blank as a measured zero.
+    fireEvent.change(screen.getByLabelText(/Unburned and other loss/i), { target: { value: '' } });
+    expect(await screen.findByText(/Unburned and other loss: not supplied/i)).toBeInTheDocument();
+    // The engine's own default still stands, so no number moved.
+    expect(screen.getByText(/% efficient on LHV/i).textContent).toBe(before);
+  });
+
+  it('clears the absent note once the unburned loss is entered', async () => {
+    mount();
+    await screen.findByText('Stoichiometric air');
+    supplyRefusedInputs();
+    await screen.findByText(/% efficient on LHV/i);
+    fireEvent.change(screen.getByLabelText(/Unburned and other loss/i), { target: { value: '' } });
+    await screen.findByText(/Unburned and other loss: not supplied/i);
+    fireEvent.change(screen.getByLabelText(/Unburned and other loss/i), { target: { value: '2' } });
+    expect(screen.queryByText(/Unburned and other loss: not supplied/i)).not.toBeInTheDocument();
+  });
+
   it('changes the answer and the warning when the basis changes', async () => {
     mount();
     await screen.findByText('Stoichiometric air');
@@ -239,6 +263,13 @@ describe('the saved payload', () => {
     expect(restored.heater.radiationLossPercent).toBe(1.5);
     expect(restored.pinch.minimumApproachC).toBe(15);
     expect(restored.pinch.streams.length).toBe(4);
+  });
+
+  it('restores a blank unburned loss as a blank', () => {
+    const inputs = defaultInputs();
+    inputs.heater.unburnedLossPercent = '';
+    const restored = inputsFromPayload({ name: 'A study', schema: 1, inputs });
+    expect(restored.heater.unburnedLossPercent).toBe('');
   });
 
   it('refuses a payload with no fuel', () => {
