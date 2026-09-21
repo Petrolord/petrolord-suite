@@ -19,8 +19,27 @@ const NodeTypeBadge = ({ type }) => {
 const TreeNodeEditor = ({ node, onChange, onLinkMcRun, depth = 0 }) => {
   const set = (patch) => onChange({ ...node, ...patch });
 
+  /**
+   * EC4-4 (engines #192). The engine refuses a cost or payoff that is present
+   * but blank or not a finite number, by node label; an OMITTED cost is still
+   * 0 by contract. A cleared box therefore has to remove the key, not store
+   * '' or null (a refusal) and not store 0 (a number the user did not type).
+   */
+  const omit = (obj, key) => {
+    const next = { ...obj };
+    delete next[key];
+    return next;
+  };
+
+  const setOmitting = (key) => onChange(omit(node, key));
+
   const setBranch = (i, patch) => {
     const branches = node.branches.map((b, j) => (j === i ? { ...b, ...patch } : b));
+    set({ branches });
+  };
+
+  const setBranchOmitting = (i, key) => {
+    const branches = node.branches.map((b, j) => (j === i ? omit(b, key) : b));
     set({ branches });
   };
 
@@ -70,8 +89,10 @@ const TreeNodeEditor = ({ node, onChange, onLinkMcRun, depth = 0 }) => {
             Payoff $MM
             <input
               type="number" step="any"
-              value={node.payoff ?? 0}
-              onChange={(e) => set({ payoff: e.target.value === '' ? 0 : Number(e.target.value) })}
+              value={node.payoff ?? ''}
+              onChange={(e) => (e.target.value === ''
+                ? setOmitting('payoff')
+                : set({ payoff: Number(e.target.value) }))}
               className={inputCls}
             />
           </label>
@@ -123,8 +144,10 @@ const TreeNodeEditor = ({ node, onChange, onLinkMcRun, depth = 0 }) => {
                 Cost $MM
                 <input
                   type="number" step="any"
-                  value={b.cost ?? 0}
-                  onChange={(e) => setBranch(i, { cost: e.target.value === '' ? 0 : Number(e.target.value) })}
+                  value={b.cost ?? ''}
+                  onChange={(e) => (e.target.value === ''
+                    ? setBranchOmitting(i, 'cost')
+                    : setBranch(i, { cost: Number(e.target.value) }))}
                   className={`${inputCls} w-20`}
                 />
               </label>

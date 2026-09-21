@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ChartFrame from '@/components/charts/ChartFrame';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { useRelief } from '@/contexts/ReliefStudioContext';
-import { fmt, Stat, ErrorNote, Field, NumberInput } from './fields';
+import { fmt, Stat, ErrorNote, WarnNote, Field, NumberInput } from './fields';
 
 export const BlowdownInputs = () => (
   <div className="space-y-4">
@@ -49,8 +49,10 @@ const BlowdownPanel = () => {
             hint={r.timeS > 900 ? 'above the customary 15 minutes' : 'inside the customary 15 minutes'} />
           <Stat label="Final temperature" value={fmt(r.finalTR - 459.67, 0)} unit="F"
             hint="adiabatic bound; real vessels chill less but the metal question starts here" />
-          <Stat label="Stations" value={String(r.stations.length)} />
+          <Stat label="Stations" value={String(r.stations.length)}
+            hint={`${r.steps} steps at ${fmt(r.dtS, 3)} s${r.substeps ? `, ${r.substeps} subdivided` : ''}`} />
         </div>
+        {r.warning && <WarnNote>{r.warning}</WarnNote>}
         <ChartFrame height={300} exportFilename="blowdown-curve">
           <ComposedChart data={data} margin={{ top: 8, right: 40, bottom: 24, left: 8 }}>
             <CartesianGrid {...GRID_STYLE} />

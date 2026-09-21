@@ -21,12 +21,18 @@ const ProtectedAppRoute = ({ children, appId, appName }) => {
     stampedAt,
   } = useUserEntitlements();
 
-  // Ensure fresh data on mount
+  // Ensure fresh data on mount. Keyed on who is asking, never on the identity
+  // of refetch: this effect flips `loading`, which swaps the app below for a
+  // full-screen spinner, so re-running it on every render makes the app
+  // flicker instead of open (2026-09-11).
+  const userId = user?.id || null;
   useEffect(() => {
-    if (!isSuperAdmin) {
+    if (!isSuperAdmin && userId) {
       refetch();
     }
-  }, [isSuperAdmin, refetch]);
+    // refetch is intentionally not a dependency; it is keyed on userId above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSuperAdmin, userId]);
 
   if (authLoading || (entLoading && !isSuperAdmin)) {
     return (

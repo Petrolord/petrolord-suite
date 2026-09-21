@@ -57,6 +57,13 @@ export const seatTierRate = (nthSeat) => {
 // an honest convenience premium for someone who wants two tools.
 //
 // HSE is not here: it is the separate external portal, billed in naira.
+//
+// Process Safety joined at PS1 (2026-09-19), when its first app, the LOPA &
+// SIL Studio, shipped, as Midstream & Downstream joined at DS1. Its tiles
+// carry the Facilities per-app price (699). The 3.3x rule gives about 2,299,
+// which would cost more than the module's three planned apps a la carte
+// (2,097), so it is priced at 1,999: 2.86x, inside the rule's tested band and
+// below a la carte. Migration 20260919230000; ProcessSafety-ROADMAP.md.
 export const MODULE_PRICING = {
   geoscience: 2999,
   drilling: 3299,
@@ -65,7 +72,8 @@ export const MODULE_PRICING = {
   production: 2499,
   economics: 1999,
   'midstream-downstream': 1999,
-  assurance: 1499
+  assurance: 1499,
+  'process-safety': 1999
 };
 
 // Display metadata for the quote screens, so a module's name and blurb are
@@ -78,7 +86,8 @@ export const MODULE_META = {
   production: { name: 'Production', description: 'Surveillance, nodal analysis, artificial lift and well testing' },
   economics: { name: 'Economics & Project Management', description: 'Fiscal regimes, NPV, Monte Carlo, AFE and field development' },
   'midstream-downstream': { name: 'Midstream & Downstream', description: 'Refining, blending, terminals, fuel supply chain, energy and carbon' },
-  assurance: { name: 'Assurance', description: 'Risk, compliance, competency and quality management' }
+  assurance: { name: 'Assurance', description: 'Risk, compliance, competency and quality management' },
+  'process-safety': { name: 'Process Safety', description: 'Layers of protection analysis, SIL determination and SIF verification' }
 };
 
 // Individual App Base Price (if purchased à la carte)

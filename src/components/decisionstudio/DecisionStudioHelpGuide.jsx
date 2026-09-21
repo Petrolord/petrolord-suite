@@ -29,35 +29,35 @@ const helpContent = [
     icon: BarChart3,
     title: 'Comparing cases',
     content:
-      'Saved economics runs can be overlaid as cumulative NPV curves, one line per case. Reading them together is more informative than reading their P50s: two cases with the same P50 and different spreads are different propositions, and the case whose curve crosses zero furthest to the right is the one carrying the real downside. Curves come from the stored simulation results, so what you see is the run as it was made, not a fresh approximation of it.',
+      'Saved economics runs can be overlaid as cumulative NPV curves, one line per case. Reading them together is more informative than reading their P50s: two cases with the same P50 and different spreads are different propositions, and where the curves meet the dashed zero NPV line, the case whose curve sits highest has the greatest chance of losing money. Curves come from the stored simulation results, so what you see is the run as it was made, not a fresh approximation of it.',
   },
   {
     id: 'recompute',
     icon: GitMerge,
     title: 'What is recomputed at brief time',
     content:
-      'Tree expected values are rolled back from the stored tree by the canonical decision engine when the brief is built, and portfolios are re-optimized from their saved capital limit against your current project inventory. So a brief reflects the state of your inputs today rather than a cached number from whenever the analysis was first run. If a portfolio result moves between two briefs, the inventory moved.',
+      'Tree expected values are rolled back from the stored tree by the canonical decision engine when the brief is built, and portfolios are re-optimized from their saved capital limit against your current project inventory. So a brief reflects the saved tree and your current project inventory. If a portfolio result moves between two briefs, the inventory moved. One thing is not refreshed: a tree payoff linked to a Monte Carlo run is the copy of the mean and percentiles of that run stored in the tree when it was linked, so a newer run reaches the brief only after the payoff is relinked in the Decision Tree Builder and the tree saved.',
   },
   {
     id: 'provenance',
     icon: Fingerprint,
     title: 'Provenance, and why every number carries it',
     content:
-      'Each section of the brief carries a line naming the saved item it came from, its identifier, when it was created, and for simulation results the seed and the iteration count. That is what lets a reader ask where a number came from and get an answer, and what lets you reproduce it a quarter later. Screening grade analyses are labelled as such in their own provenance lines, so nothing in a brief claims more rigour than it has.',
+      'Each section of the brief carries a line naming the saved item it came from, its identifier, when it was created, and for simulation results the seed and the iteration count. That is what lets a reader ask where a number came from and get an answer, and what lets you reproduce it a quarter later. The lines also state the assumptions behind their figures: the NPV basis for economics, that the tree EMV was rolled back at brief time, and for a portfolio how many projects are valued by linked runs and that its risk assumes independent projects, with the chance of a loss read from a seeded Monte Carlo (seed 20260829, 10,000 iterations). The brief does not grade an analysis as screening grade or full fiscal; judge that from the source and assumptions each line states.',
   },
   {
     id: 'export',
     icon: FileDown,
     title: 'The brief',
     content:
-      'Give the brief a title, a recommendation in your own words and your name, then export it. The PDF renderer draws exactly the model described above and adds nothing to it, so there is no number in the document that did not come from a saved analysis or from what you typed into the recommendation.',
+      'Give the brief a title and a recommendation in your own words, then export it. The brief is marked as prepared by the email address you are signed in with. The PDF renderer draws exactly the model described above and adds nothing to it, so there is no number in the document that did not come from a saved analysis or from what you typed into the recommendation.',
   },
   {
     id: 'limits',
     icon: AlertTriangle,
     title: 'Assumptions and limits',
     content:
-      'Decision Studio inherits the assumptions of whatever you feed it and states them rather than fixing them. It has nothing to say about anything you did not analyse: a brief built on one economics case shows one economics case. The recommendation line is yours, not the tool s. The right use is to make the reasoning behind a decision auditable, not to have the software make the decision.',
+      'Decision Studio inherits the assumptions of whatever you feed it and states them rather than fixing them. It has nothing to say about anything you did not analyse: a brief built on one economics case shows one economics case. The recommendation line is yours, and the tool does not write it. The right use is to make the reasoning behind a decision auditable, with the decision itself left to you.',
   },
 ];
 

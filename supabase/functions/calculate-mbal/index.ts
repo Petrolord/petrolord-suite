@@ -46,7 +46,6 @@ import {
   type PerTimestepResult,
   type FluidSystem,
   type AquiferModel,
-  type SolverMethod,
 } from "../_shared/mbal-engine.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -311,7 +310,11 @@ serve(async (req: Request) => {
     // back to correlations when absent. The column is added to rb_run_configs
     // via migration: 2026-05-15_rb_run_configs_pvt_lab_table.sql
     pvt_lab_table: runConfig.pvt_lab_table ?? undefined,
-    solver_method: runConfig.solver_method as SolverMethod,
+    // solver_method is deliberately NOT forwarded. The engine never branched on
+    // it and now reports what it actually ran as solver_method_used (engines
+    // #168); passing the stored value would only raise a mismatch warning on
+    // cases the config's coarse gas/oil guess gets wrong. rb_run_configs keeps
+    // the column as a record of intent.
     excluded_timesteps: runConfig.excluded_timesteps ?? [],
     production_data,
   };
@@ -385,8 +388,12 @@ serve(async (req: Request) => {
     ddi: engineResult.per_timestep.map((p: PerTimestepResult) => p.ddi ?? null),
     gdi: engineResult.per_timestep.map((p: PerTimestepResult) => p.gdi ?? null),
     wdi: engineResult.per_timestep.map((p: PerTimestepResult) => p.wdi ?? null),
+    // cdi is the rock and connate water expansion on BOTH fluid systems since
+    // engines #167. `sdi` is a DEPRECATED MIRROR of it, written only so a front
+    // end deployed before this function keeps rendering oil results; nothing in
+    // this repo reads it any more. Safe to drop once no stale client remains.
     cdi: engineResult.per_timestep.map((p: PerTimestepResult) => p.cdi ?? null),
-    sdi: engineResult.per_timestep.map((p: PerTimestepResult) => p.sdi ?? null),
+    sdi: engineResult.per_timestep.map((p: PerTimestepResult) => p.cdi ?? null),
     drive_index_sum: engineResult.per_timestep.map((p: PerTimestepResult) => p.drive_index_sum ?? null),
     // Production cumulatives from input (passed through for plotting)
     cum_oil_stb: production_data.map((p: ProductionDataPoint) => p.cum_oil_stb ?? null),
@@ -397,6 +404,10 @@ serve(async (req: Request) => {
     point_in_fit: engineResult.per_timestep.map((p: PerTimestepResult) =>
       p.timestep_index > 0 && !excludedSet.has(p.timestep_index)
     ),
+    // Which regression actually ran, straight from the engine (engines #168).
+    // Lives here rather than in a new rb_results column so no migration is
+    // needed; the report prefers it over the run config's stored intent.
+    solver_method_used: engineResult.solver_method_used ?? null,
     // MB5: history-match block (null on regression runs). Feeds the
     // pressure-match plot and the matched-parameter card in the studio.
     history_match: historyMatch
@@ -443,7 +454,9 @@ serve(async (req: Request) => {
       final_ddi: engineResult.final_ddi ?? null,
       final_gdi: engineResult.final_gdi ?? null,
       final_wdi: engineResult.final_wdi ?? null,
-      final_sdi: engineResult.final_sdi ?? null,
+      // Deprecated mirror, see plot_data above. The rb_results column stays
+      // populated so older rows and this one read the same way.
+      final_sdi: engineResult.final_cdi ?? null,
       final_cdi: engineResult.final_cdi ?? null,
       final_drive_index_sum: engineResult.final_drive_index_sum ?? null,
       drive_mechanism: engineResult.drive_mechanism,

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { ShieldAlert, AlertTriangle, CheckCircle2, Activity } from 'lucide-react';
-import { calculateRiskMatrix } from '@/utils/fdp/hseCalculations';
+import { calculateRiskMatrix, calculateComplianceScore } from '@/utils/fdp/hseCalculations';
 
 const StatCard = ({ title, value, subtitle, icon: Icon, colorClass }) => (
     <Card className="bg-slate-900 border-slate-800">
@@ -21,15 +21,20 @@ const StatCard = ({ title, value, subtitle, icon: Icon, colorClass }) => (
 );
 
 const HSEOverview = ({ data }) => {
-    const { hazards = [], kpis = [], safetySystem } = data;
+    const { hazards = [], kpis = [], safetySystem, compliance = [] } = data;
     const matrix = calculateRiskMatrix(hazards);
+    const checklist = Array.isArray(compliance) ? compliance : [];
+    const complianceScore = calculateComplianceScore(checklist);
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {/* EC6-1: the register's own bands. This tile banded on 15 and 8
+                with no Critical band at all, so a hazard scored 12 was Medium
+                here and High on the register. */}
             <StatCard 
                 title="High Risks" 
-                value={matrix.high} 
-                subtitle={`${matrix.total} total identified`}
+                value={matrix.critical + matrix.high} 
+                subtitle={`${matrix.critical} critical, ${matrix.total} identified${matrix.unscored ? `, ${matrix.unscored} unscored` : ''}`}
                 icon={AlertTriangle}
                 colorClass="bg-red-500"
             />
@@ -47,10 +52,15 @@ const HSEOverview = ({ data }) => {
                 icon={Activity}
                 colorClass="bg-blue-500"
             />
+            {/* EC6-0: this tile read 94% on every plan, an empty one included,
+                under the caption "Est. based on inputs". It counts the checklist
+                the plan actually carries, and says so when there is none. */}
             <StatCard 
-                title="Compliance" 
-                value="94%" 
-                subtitle="Est. based on inputs"
+                title="Compliance checklist" 
+                value={checklist.length ? `${complianceScore}%` : 'None yet'} 
+                subtitle={checklist.length
+                    ? `${checklist.filter((c) => c.status === 'Compliant').length} of ${checklist.length} items compliant`
+                    : 'Add compliance items to score this'}
                 icon={CheckCircle2}
                 colorClass="bg-purple-500"
             />

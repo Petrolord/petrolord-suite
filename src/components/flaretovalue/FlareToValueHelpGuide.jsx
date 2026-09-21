@@ -26,14 +26,14 @@ const helpContent = [
     icon: AlertTriangle,
     title: 'The claim this app exists to stop',
     content:
-      'You cannot claim a flare\'s whole emission as abatement unless the gas is never burned. Recover it and sell it and the customer burns it, emitting CO2 in a truck instead of at the flare tip. The abatement is the difference against a stated counterfactual, and it is not reliably smaller or larger than the flare\'s gross figure: if the product displaces a dirtier fuel the abatement is larger, because the diesel that is no longer burned is abated too; if it simply adds combustion where there was none it is smaller, and it can be negative. Which way it goes is not knowable without the counterfactual, so a gross claim is not a conservative shortcut - it is simply a different number from the right one. This app reports no abatement at all until you state what the product displaces and what burning it emits.',
+      'You cannot claim a flare\'s whole emission as abatement unless the gas is never burned. Recover it and sell it and the customer burns it, emitting CO2 in a truck instead of at the flare tip. The abatement is the difference against a stated counterfactual, and it is not reliably smaller or larger than the flare\'s gross figure: if the product displaces a dirtier fuel the abatement is larger, because the diesel that is no longer burned is abated too; if it simply adds combustion where there was none it is smaller, and it can be negative. Which way it goes is not knowable without the counterfactual, so a gross claim is not a conservative shortcut - it is simply a different number from the right one. This app reports no abatement at all until you state what the product displaces and what burning it emits. It also credits only the share of the flare the chosen route recovers: the gas the plant does not recover is still flared, so a route recovering ninety percent avoids ninety percent of the flare.',
   },
   {
     id: 'flare',
     icon: Flame,
     title: 'Most of a flare is often the methane it fails to burn',
     content:
-      'Flaring emits CO2 from the carbon that burns and methane from the carbon that does not, and methane is a far worse greenhouse gas per tonne. On a typical parcel at ninety-odd percent destruction, the few percent of carbon that escapes unburned can carry close to half the flare\'s CO2e. That is why the destruction efficiency is a required input rather than an assumed figure: for a flare it is most of the answer, and it is contested. The app computes the CO2 from the carbon in the gas atom by atom, so the two products always account for every carbon atom between them.',
+      'Flaring emits CO2 from the hydrocarbon that burns, passes the CO2 already in the gas straight through, and lets some of the methane escape unburned, and methane is a far worse greenhouse gas per tonne. On a typical parcel at ninety-odd percent destruction, the methane that escapes can carry a large share of the flare\'s CO2e. That is why the destruction efficiency is a required input, never an assumed figure: for a flare it is most of the answer, and it is contested. The arithmetic follows the US greenhouse gas reporting rule, 40 CFR 98.233(n): CO2 is the CO2 in the gas plus the combustion efficiency times the hydrocarbon carbon, atom by atom; methane is the methane in the gas times one less the destruction efficiency. Unburned ethane and heavier carry no GWP here. The combustion efficiency (the share oxidised all the way to CO2) is optional; left blank, the destruction efficiency stands in for it and the result says so.',
   },
   {
     id: 'gas',
@@ -54,7 +54,7 @@ const helpContent = [
     icon: Calculator,
     title: 'Recovery is asked for, and valuation is handed on',
     content:
-      'The recovery fraction is a required input per route, because it is a process design outcome rather than a property of the gas, and a recovery quietly assumed at a hundred percent is the optimism that sinks these business cases. Capital is scaled from a reference plant by the same power law the Modular Refinery Feasibility Studio uses, not a second implementation. And the studio stops at the cash flow: capital, operating cost and revenue are assembled and handed to the sanctioned economics engine, because a second discounted cash flow in this module would be a second answer.',
+      'A route\'s yield cannot exceed what the gas holds: the app computes the mass of gas and of propane and heavier in each thousand standard cubic feet, and the heating value, and refuses a yield above them. The recovery fraction is a required input per route, because it is a process design outcome rather than a property of the gas, and a recovery quietly assumed at a hundred percent is the optimism that sinks these business cases. Capital is scaled from a reference plant by the same power law the Modular Refinery Feasibility Studio uses, so there is one implementation of it. And the studio stops at the cash flow: capital, operating cost and revenue are assembled and handed to the sanctioned economics engine, because a second discounted cash flow in this module would be a second answer. The bid table names a best route only among routes that pass screening; while limits are unset, the route leading on value is marked as not fully screened.',
   },
   {
     id: 'credits',
@@ -96,7 +96,7 @@ export const FlareToValueHelpContent = () => (
 const FlareToValueHelpGuide = () => (
   <StudioHelp
     title="Flare Gas to Value Studio"
-    description="Why the flare's gross emission is not the abatement, why screening has three states, and what a bid actually turns on."
+    description="Why the flare's gross emission is only the starting point for the abatement, why screening has three states, and what a bid actually turns on."
   >
     <FlareToValueHelpContent />
   </StudioHelp>

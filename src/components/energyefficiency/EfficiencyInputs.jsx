@@ -50,7 +50,8 @@ const EfficiencyInputs = () => {
         <p className="text-[10px] text-slate-500 mb-1.5">
           The radiation loss comes off a published chart against surface area and firing rate,
           and the oxygen below which this burner makes carbon monoxide depends on the burner.
-          Neither is supplied here.
+          Neither is supplied here. The unburned and other loss comes off a flue gas measurement,
+          so left blank it stays absent and the efficiency is reported without it.
         </p>
         <div className="mb-2">
           <Label htmlFor="ee-basis" className="text-[10px] text-slate-400">Heating value basis</Label>
@@ -71,6 +72,7 @@ const EfficiencyInputs = () => {
           <Cell label="Flue gas cp" unit="kJ/kg.K" value={inputs.heater.flueGasCpKJkgK} onChange={(v) => setSection('heater', { flueGasCpKJkgK: v })} />
           <Cell label="Vapour cp" unit="kJ/kg.K" value={inputs.heater.waterVapourCpKJkgK} onChange={(v) => setSection('heater', { waterVapourCpKJkgK: v })} />
           <Cell label="Water latent heat" unit="kJ/kg" value={inputs.heater.waterLatentHeatKJkg} onChange={(v) => setSection('heater', { waterLatentHeatKJkg: v })} />
+          <Cell label="Unburned and other loss" unit="%" value={inputs.heater.unburnedLossPercent} placeholder="blank if not measured" onChange={(v) => setSection('heater', { unburnedLossPercent: v })} />
           <Cell label="Annual fuel" unit="GJ" value={inputs.heater.annualFuelEnergyGJ} onChange={(v) => setSection('heater', { annualFuelEnergyGJ: v })} />
         </div>
       </div>
@@ -82,6 +84,8 @@ const EfficiencyInputs = () => {
         <Cell label="Pressure" unit="bar a" value={inputs.steam.upstreamPressureBarA} onChange={(v) => setSection('steam', { upstreamPressureBarA: v })} />
         <Cell label="Discharge coeff" value={inputs.steam.dischargeCoefficient} placeholder="required" onChange={(v) => setSection('steam', { dischargeCoefficient: v })} />
         <Cell label="Steam density" unit="kg/m3" value={inputs.steam.steamDensityKgM3} onChange={(v) => setSection('steam', { steamDensityKgM3: v })} />
+        <Cell label="Isentropic exponent" value={inputs.steam.specificHeatRatio} placeholder="1.135 saturated, 1.3 superheated" onChange={(v) => setSection('steam', { specificHeatRatio: v })} />
+        <Cell label="Discharges at" unit="bar a" value={inputs.steam.downstreamPressureBarA} placeholder="1.01325 to atmosphere" onChange={(v) => setSection('steam', { downstreamPressureBarA: v })} />
         <Cell label="Steam cost" unit="/t" value={inputs.steam.steamCostPerTonne} onChange={(v) => setSection('steam', { steamCostPerTonne: v })} />
       </Group>
 
@@ -101,6 +105,16 @@ const EfficiencyInputs = () => {
         note="One fuel cost and one emission factor price every saving on the register, so the money and the carbon cannot disagree.">
         <Cell label="Fuel cost" unit="/GJ" value={inputs.ledger.fuelCostPerGJ} onChange={(v) => setSection('ledger', { fuelCostPerGJ: v })} />
         <Cell label="Emission factor" unit="kgCO2e/GJ" value={inputs.ledger.emissionFactorKgCo2ePerGJ} placeholder="required for carbon" onChange={(v) => setSection('ledger', { emissionFactorKgCo2ePerGJ: v })} />
+        <div className="col-span-2">
+          <Label htmlFor="ee-price-basis" className="text-[10px] text-slate-400">Price and factor quoted on</Label>
+          <select id="ee-price-basis" value={inputs.ledger.priceAndFactorBasis || ''}
+            onChange={(e) => setSection('ledger', { priceAndFactorBasis: e.target.value })}
+            className="h-7 w-full rounded bg-slate-950 border border-slate-700 text-xs px-2 text-white">
+            <option value="">Not declared</option>
+            <option value={HEATING_VALUE_BASIS.LHV}>LHV (IPCC default factors are on this basis)</option>
+            <option value={HEATING_VALUE_BASIS.HHV}>HHV (gas is often priced on this basis)</option>
+          </select>
+        </div>
       </Group>
 
       <Group title="Energy intensity"

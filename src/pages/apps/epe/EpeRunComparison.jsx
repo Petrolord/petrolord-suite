@@ -27,6 +27,25 @@ const SERIES_COLORS = ['#2563eb', '#059669', '#d97706', '#a21caf', '#0891b2', '#
 
 const AXIS_TICK = { fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText };
 
+/**
+ * Engine v3.10 (engines #193) moved the stored cash flow lines from field
+ * level to the working-interest share on a joint venture. `atShareBasis`
+ * says which side of that change a saved run sits on.
+ */
+export const SHARE_BASIS_VERSION = '3.10.0';
+
+/** A version string as comparable numbers, e.g. '3.9.0' to [3, 9, 0]. */
+const versionParts = (v) => String(v || '').split('.').map((p) => parseInt(p, 10) || 0);
+
+export const atShareBasis = (kpis) => {
+  const [major, minor] = versionParts(kpis?.engine_version);
+  const [reqMajor, reqMinor] = versionParts(SHARE_BASIS_VERSION);
+  if (!kpis?.engine_version) return false;
+  return major > reqMajor || (major === reqMajor && minor >= reqMinor);
+};
+
+export const engineLabel = (kpis) => (kpis?.engine_version ? `v${kpis.engine_version}` : 'an engine version it did not record');
+
 const EpeRunComparison = () => {
   const { caseId } = useParams();
   const navigate = useNavigate();
@@ -270,8 +289,26 @@ const EpeRunComparison = () => {
       base.kpis.pv_basis !== second.kpis.pv_basis
       || base.kpis.discount_rate_applied_pct !== second.kpis.discount_rate_applied_pct
     );
+    // Engine v3.10 (engines #193): below 100 percent working interest, a run
+    // saved before 3.10 holds FIELD-LEVEL revenue, volumes, opex, capex and
+    // depreciation, while 3.10 stores them at the working-interest share.
+    // Differencing one against the other differences two different bases.
+    const shareMismatch = base.kpis && second.kpis
+      && atShareBasis(base.kpis) !== atShareBasis(second.kpis);
 
-    return { baseName: base.name, secondName: second.name, rows, ratePct, npv, irr, payback, basisMismatch };
+    return {
+      baseName: base.name,
+      secondName: second.name,
+      rows,
+      ratePct,
+      npv,
+      irr,
+      payback,
+      basisMismatch,
+      shareMismatch,
+      baseEngine: engineLabel(base.kpis),
+      secondEngine: engineLabel(second.kpis),
+    };
   }, [comparisonResults]);
 
   // Wave D: labeled CSV of everything on screen (config, KPIs, deltas).
@@ -482,6 +519,16 @@ const EpeRunComparison = () => {
                   Deltas discounted at the base run's applied rate
                   {typeof incremental.ratePct === 'number' ? ` (${incremental.ratePct.toFixed(2)}%)` : ''}; both runs should share a basis for a clean read.
                 </p>
+                {incremental.shareMismatch && (
+                  <p className="text-xs text-amber-300 mb-3" data-testid="engine-share-mismatch">
+                    These runs were produced by different engine versions ({incremental.baseName}: {incremental.baseEngine};
+                    {' '}{incremental.secondName}: {incremental.secondEngine}). From engine v{SHARE_BASIS_VERSION} revenue,
+                    volumes, opex, capex and depreciation are stored at the working-interest share, and before it they
+                    were stored at field level, so on a joint venture below 100 percent working interest these two runs
+                    state those lines on different bases. Take and NPV are comparable; the lines above are not until both
+                    runs are re-run on the same engine.
+                  </p>
+                )}
                 {incremental.basisMismatch && (
                   <p className="text-xs text-amber-300 mb-3">
                     The two runs use different PV bases or discount rates. Incremental NPV is still computed at the base run's rate, but align the configs before relying on it.

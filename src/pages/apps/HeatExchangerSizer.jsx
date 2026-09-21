@@ -1,5 +1,5 @@
 // Heat Exchanger & Cooling Studio (Facilities F4,
-// Facilities-ROADMAP.md §3 app 4) — the upgraded Heat Exchanger Sizer
+// Facilities-ROADMAP.md §3 app 4): the upgraded Heat Exchanger Sizer
 // on the studio kit, keeping its slug (heat-exchanger-sizer) and its
 // table. The physics is the vendored heat-transfer engine; this page
 // wires it and decomposes the old 573-LOC inline sheet into panels.
@@ -49,13 +49,23 @@ const Summary = () => {
         <Row label="U dirty" value={`${fmt(coefficient.uDirtyBtuHrFt2F, 0)} Btu/hr ft2 F`} />
       )}
       {!sizing.error && (
-        <Row label="Area required" value={`${fmt(sizing.areaFt2, 0)} ft2`} />
+        <>
+          <Row label="Area required" value={`${fmt(sizing.areaFt2, 0)} ft2`} />
+          <Row label="Tubes" value={fmt(sizing.tubes?.nTubes, 0)} />
+        </>
       )}
       {!rating.error && (
         <Row label="Rated effectiveness" value={`${fmt(rating.effectiveness * 100, 0)} %`} />
       )}
       {!cooler.error && cooler.hotDay && !cooler.hotDay.error && (
-        <Row label="Hot-day capacity" value={`${fmt(cooler.hotDay.dutyFraction * 100, 0)} %`} />
+        <>
+          <Row
+            label={cooler.hotDay.dutyFraction > 1 ? 'Hot-day capacity available' : 'Hot-day capacity'}
+            value={`${fmt(cooler.hotDay.dutyFraction * 100, 0)} %`}
+            hint={`at ${fmt(cooler.hotDay.ambientF, 0)} F ambient`}
+          />
+          <Row label="Process leaves at" value={`${fmt(cooler.hotDay.processOutF, 1)} F`} />
+        </>
       )}
     </div>
   );

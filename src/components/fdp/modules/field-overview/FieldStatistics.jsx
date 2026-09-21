@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Droplets, Ruler, Waves, Layers } from 'lucide-react';
 import { formatNumber } from '@/utils/fdp/formatting';
+import { planReservesP50 } from '@/utils/fdp/fdpCalculations';
 
 const StatCard = ({ label, value, unit, icon: Icon, color }) => (
     <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50 flex items-center justify-between">
@@ -23,7 +24,7 @@ const FieldStatistics = ({ data, subsurface }) => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <StatCard 
                 label="P50 Reserves" 
-                value={formatNumber(subsurface?.reserves?.p50, 0)} 
+                value={formatNumber(planReservesP50({ subsurface }), 0)} 
                 unit="MMbbl" 
                 icon={Droplets} 
                 color="green" 

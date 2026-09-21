@@ -1,265 +1,288 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Shield, Clock, AlertTriangle, CheckCircle, Activity, Lock } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
-import { useToast } from '@/hooks/use-toast';
-import { compliancePermissionsService } from './services/compliancePermissionsService';
-import { complianceRecordsService } from './services/complianceRecordsService';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { AlertTriangle, CheckCircle, Clock, FileCheck, Plus, Shield } from 'lucide-react';
+import {
+  Bar, BarChart, Cell, Legend, Pie, PieChart, ResponsiveContainer,
+  Tooltip, XAxis, YAxis, CartesianGrid,
+} from 'recharts';
 import { format } from 'date-fns';
+import {
+  CHART_COLORS, CHART_MARGINS, CHART_TYPOGRAPHY, GRID_STYLE, LEGEND_PROPS, TOOLTIP_STYLE,
+} from '@/utils/chartTheme';
+import ChartLogo from '@/components/charts/ChartLogo';
+import {
+  ATTENTION_STATUSES,
+  STATUS,
+  STATUS_CHART_COLORS,
+  byUrgency,
+  countBy,
+  deriveStatus,
+  nextActionDate,
+  parseDateOnly,
+  summarise,
+} from '@/lib/complianceStatus';
+import { useRegulatoryCompliance } from './hooks/useRegulatoryCompliance';
+import {
+  EmptyState, ErrorState, Loading, SchemaNotice, StatusBadge,
+} from './components/SharedComponents';
 
-const COLORS = ['hsl(var(--success))', 'hsl(var(--warning))', 'hsl(var(--destructive))', 'hsl(var(--muted))'];
+const BASE = '/dashboard/apps/assurance/regulatory-compliance';
 
+const showDate = (value) => {
+  const d = parseDateOnly(value);
+  return d ? format(d, 'd MMM yyyy') : 'No date';
+};
+
+const Tile = ({ label, value, icon, tone, onClick }) => (
+  <Card className={`panel-elevation ${onClick ? 'cursor-pointer hover:border-[hsl(var(--warning))]/50 transition-colors' : ''}`}
+    onClick={onClick}>
+    <CardContent className="p-5 flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-[hsl(var(--muted-foreground))]">{label}</p>
+        <h3 className="text-3xl font-bold mt-1" style={tone ? { color: `hsl(var(${tone}))` } : undefined}>{value}</h3>
+      </div>
+      <div className="opacity-50" style={tone ? { color: `hsl(var(${tone}))` } : undefined}>{icon}</div>
+    </CardContent>
+  </Card>
+);
+
+/**
+ * AS3 — the compliance dashboard.
+ *
+ * Three things on this page were not true.
+ *
+ * The "Obligations Trend" area chart was labelled Oct to Mar and was
+ * computed as `metrics.total - 10`, `total - 7`, `total - 5`, `total -
+ * 2`, `total`, `total`. It was a picture of a register growing steadily
+ * over six months that had nothing to do with any register, drawn in
+ * months with no relation to today, and the only comment marking it as
+ * fiction was inside the file. It is replaced by a breakdown by regime,
+ * which is a real count of real rows. A genuine trend needs dated
+ * snapshots, which this module does not keep; drawing one anyway is
+ * exactly the invention the AS programme exists to remove.
+ *
+ * "Recent Activity" printed "Record <title> was updated" for the first
+ * four rows in the register, whether or not anything had been updated,
+ * timestamped with created_at when updated_at was null. It is replaced
+ * by real filings from regulatory_evidence.
+ *
+ * The status counts were computed in a forEach here, with their own
+ * idea of what overdue meant, so a tile could disagree with the badge
+ * on the same row in the table. They come from the one authority now.
+ */
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
-  const [access, setAccess] = useState(null);
-  const [records, setRecords] = useState([]);
-  const [metrics, setMetrics] = useState({ total: 0, pending: 0, overdue: 0, compliant: 0 });
-  const [statusData, setStatusData] = useState([]);
+  const { obligations, authorities, evidence, loading, error, hasAs3Schema, refresh } =
+    useRegulatoryCompliance();
 
-  useEffect(() => {
-    async function loadDashboard() {
-      setLoading(true);
-      const perm = await compliancePermissionsService.checkAccess();
-      setAccess(perm);
-      
-      if (perm.hasAccess && perm.orgId) {
-        try {
-          const data = await complianceRecordsService.getRecords(perm.orgId);
-          setRecords(data);
-          
-          const now = new Date();
-          let pending = 0, overdue = 0, compliant = 0;
-          
-          data.forEach(r => {
-            if (r.status === 'Compliant') compliant++;
-            else if (r.status === 'Pending Review') pending++;
-            else if (r.due_date && new Date(r.due_date) < now && r.status !== 'Compliant') overdue++;
-          });
-          
-          setMetrics({ total: data.length, pending, overdue, compliant });
-          setStatusData([
-            { name: 'Compliant', value: compliant },
-            { name: 'Pending Review', value: pending },
-            { name: 'Overdue', value: overdue },
-            { name: 'Draft/Other', value: data.length - (compliant + pending + overdue) }
-          ].filter(d => d.value > 0));
+  const today = new Date();
+  const summary = useMemo(() => summarise(obligations, today),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [obligations]);
 
-        } catch (err) {
-          toast({ title: "Error", description: "Failed to load dashboard data", variant: "destructive" });
-        }
-      }
-      setLoading(false);
-    }
-    loadDashboard();
-  }, [toast]);
+  const statusData = useMemo(
+    () => Object.entries(summary.byStatus)
+      .filter(([, n]) => n > 0)
+      .map(([name, value]) => ({ name, value })),
+    [summary],
+  );
 
-  if (loading) {
+  const regimeData = useMemo(() => countBy(obligations, 'regime'), [obligations]);
+
+  const attention = useMemo(
+    () => obligations
+      .filter((o) => ATTENTION_STATUSES.includes(deriveStatus(o, today)))
+      .sort(byUrgency(today))
+      .slice(0, 6),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [obligations],
+  );
+
+  const recentFilings = useMemo(() => {
+    const byId = new Map(obligations.map((o) => [o.id, o]));
+    return [...evidence]
+      .sort((a, b) => String(b.submitted_date).localeCompare(String(a.submitted_date)))
+      .slice(0, 5)
+      .map((e) => ({ ...e, obligation: byId.get(e.obligation_id) }));
+  }, [evidence, obligations]);
+
+  if (loading) return <Loading label="Loading the compliance dashboard..." />;
+  if (error) return <ErrorState error={error} onRetry={refresh} />;
+
+  if (obligations.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full w-full opacity-50 py-24">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[hsl(var(--warning))] mb-4"></div>
-        <p className="text-[hsl(var(--muted-foreground))]">Loading compliance dashboard...</p>
+      <div className="p-6">
+        {!hasAs3Schema ? <SchemaNotice /> : null}
+        <EmptyState
+          icon={<Shield className="w-12 h-12" />}
+          title="This organization has no compliance obligations logged"
+          description="Add the permits, licences and returns it is held to. Nothing is shown here until there is something real to show."
+          action={(
+            <Button onClick={() => navigate(`${BASE}/new`)}
+              className="bg-[hsl(var(--warning))] text-white hover:bg-[hsl(var(--warning))]/90 border-0">
+              <Plus className="w-4 h-4 mr-2" /> Add the first obligation
+            </Button>
+          )}
+        />
       </div>
     );
   }
-
-  if (!access?.hasAccess) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full w-full py-24">
-        <Lock className="w-12 h-12 text-[hsl(var(--muted-foreground))] mb-4" />
-        <h2 className="text-xl font-bold text-[hsl(var(--foreground))]">Access Denied</h2>
-        <p className="text-[hsl(var(--muted-foreground))]">You do not have permission to view the Regulatory Compliance module.</p>
-      </div>
-    );
-  }
-
-  const upcomingDeadlines = records
-    .filter(r => r.status !== 'Compliant' && r.due_date)
-    .sort((a, b) => new Date(a.due_date) - new Date(b.due_date))
-    .slice(0, 5);
-
-  // Mock trend for visual purposes since we don't have historical snapshot data in this simple schema
-  const trendData = [
-    { name: 'Oct', count: Math.max(0, metrics.total - 10) },
-    { name: 'Nov', count: Math.max(0, metrics.total - 7) },
-    { name: 'Dec', count: Math.max(0, metrics.total - 5) },
-    { name: 'Jan', count: Math.max(0, metrics.total - 2) },
-    { name: 'Feb', count: metrics.total },
-    { name: 'Mar', count: metrics.total }
-  ];
 
   return (
     <div className="p-6 space-y-6 animate-in fade-in duration-500 pb-24">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-[hsl(var(--foreground))]">Regulatory Compliance Dashboard</h1>
-        <Button onClick={() => navigate('reports')} className="bg-[hsl(var(--warning))] text-white hover:bg-[hsl(var(--warning))]/90 transition-colors border-0">
-          View Reports
-        </Button>
+      {!hasAs3Schema ? <SchemaNotice /> : null}
+
+      <div className="flex justify-between items-center flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-[hsl(var(--foreground))]">Regulatory compliance</h1>
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">
+            {summary.total} obligation{summary.total === 1 ? '' : 's'} across{' '}
+            {authorities.length} regulator{authorities.length === 1 ? '' : 's'}.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate(`${BASE}/reports`)}
+            className="bg-[hsl(var(--background))] border-[hsl(var(--border))] text-[hsl(var(--foreground))]">
+            Reports
+          </Button>
+          <Button onClick={() => navigate(`${BASE}/new`)}
+            className="bg-[hsl(var(--warning))] text-white hover:bg-[hsl(var(--warning))]/90 border-0">
+            <Plus className="w-4 h-4 mr-2" /> Add obligation
+          </Button>
+        </div>
       </div>
-      
-      {/* Metrics Row */}
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="panel-elevation">
-          <CardContent className="p-5 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-[hsl(var(--muted-foreground))]">Total Obligations</p>
-              <div className="flex items-baseline gap-2 mt-1">
-                <h3 className="text-3xl font-bold text-[hsl(var(--foreground))]">{metrics.total}</h3>
-              </div>
-            </div>
-            <Shield className="w-8 h-8 text-[hsl(var(--primary))]/50" />
-          </CardContent>
-        </Card>
-        <Card className="panel-elevation cursor-pointer hover:border-[hsl(var(--success))]/50 transition-colors" onClick={() => navigate('register')}>
-          <CardContent className="p-5 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-[hsl(var(--muted-foreground))]">Compliant</p>
-              <h3 className="text-3xl font-bold text-[hsl(var(--success))]">{metrics.compliant}</h3>
-            </div>
-            <CheckCircle className="w-8 h-8 text-[hsl(var(--success))]/50" />
-          </CardContent>
-        </Card>
-        <Card className="panel-elevation cursor-pointer hover:border-[hsl(var(--warning))]/50 transition-colors" onClick={() => navigate('register')}>
-          <CardContent className="p-5 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-[hsl(var(--muted-foreground))]">Pending Review</p>
-              <h3 className="text-3xl font-bold text-[hsl(var(--warning))]">{metrics.pending}</h3>
-            </div>
-            <Clock className="w-8 h-8 text-[hsl(var(--warning))]/50" />
-          </CardContent>
-        </Card>
-        <Card className="panel-elevation cursor-pointer hover:border-[hsl(var(--destructive))]/50 transition-colors" onClick={() => navigate('register')}>
-          <CardContent className="p-5 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-[hsl(var(--muted-foreground))]">Overdue</p>
-              <h3 className="text-3xl font-bold text-[hsl(var(--destructive))]">{metrics.overdue}</h3>
-            </div>
-            <AlertTriangle className="w-8 h-8 text-[hsl(var(--destructive))]/50" />
-          </CardContent>
-        </Card>
+        <Tile label="Needs attention" value={summary.attention}
+          tone="--destructive" icon={<AlertTriangle className="w-8 h-8" />}
+          onClick={() => navigate(`${BASE}/register`)} />
+        <Tile label="Expired permits" value={summary.byStatus[STATUS.EXPIRED]}
+          tone="--destructive" icon={<Shield className="w-8 h-8" />}
+          onClick={() => navigate(`${BASE}/register`)} />
+        <Tile label="Due soon" value={summary.byStatus[STATUS.DUE_SOON]}
+          tone="--warning" icon={<Clock className="w-8 h-8" />}
+          onClick={() => navigate(`${BASE}/register`)} />
+        <Tile label="Filed and current" value={summary.byStatus[STATUS.COMPLIANT]}
+          tone="--success" icon={<CheckCircle className="w-8 h-8" />}
+          onClick={() => navigate(`${BASE}/register`)} />
       </div>
-      
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="panel-elevation lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Activity className="w-5 h-5 text-[hsl(var(--warning))]" />
-              Obligations Trend
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--warning))" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="hsl(var(--warning))" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }} />
-                <Area type="monotone" dataKey="count" stroke="hsl(var(--warning))" strokeWidth={2} fillOpacity={1} fill="url(#colorCount)" />
-              </AreaChart>
-            </ResponsiveContainer>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="panel-elevation">
+          <CardHeader><CardTitle className="text-lg">Where the register stands</CardTitle></CardHeader>
+          <CardContent>
+            <div className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={statusData} cx="50%" cy="45%" innerRadius={60} outerRadius={90}
+                    paddingAngle={2} dataKey="value" nameKey="name">
+                    {statusData.map((d) => (
+                      <Cell key={d.name} fill={STATUS_CHART_COLORS[d.name]} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={TOOLTIP_STYLE} />
+                  <Legend {...LEGEND_PROPS} />
+                </PieChart>
+              </ResponsiveContainer>
+              <ChartLogo />
+            </div>
           </CardContent>
         </Card>
 
         <Card className="panel-elevation">
           <CardHeader>
-            <CardTitle className="text-lg">Status Breakdown</CardTitle>
+            <CardTitle className="text-lg">Obligations by regime</CardTitle>
           </CardHeader>
-          <CardContent className="h-[300px] flex flex-col items-center justify-center">
-            {statusData.length > 0 ? (
-              <>
-                <ResponsiveContainer width="100%" height="80%">
-                  <PieChart>
-                    <Pie data={statusData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="value">
-                      {statusData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))' }} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="flex flex-wrap justify-center gap-3 mt-2">
-                  {statusData.map((c, i) => (
-                    <div key={c.name} className="flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))]">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                      {c.name}
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <p className="text-[hsl(var(--muted-foreground))]">No data to display</p>
-            )}
+          <CardContent>
+            <div className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={regimeData} layout="vertical" margin={CHART_MARGINS.compact}>
+                  <CartesianGrid {...GRID_STYLE} horizontal={false} />
+                  <XAxis type="number" allowDecimals={false}
+                    stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+                  <YAxis dataKey="name" type="category" width={120}
+                    stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: CHART_COLORS.grid }} />
+                  <Bar dataKey="count" name="Obligations" fill="#2563eb" radius={[0, 4, 4, 0]} barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+              <ChartLogo />
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Panels Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="panel-elevation">
           <CardHeader className="border-b border-[hsl(var(--border))] pb-4 flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">Upcoming & Overdue Deadlines</CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => navigate('register')} className="text-[hsl(var(--warning))] hover:text-[hsl(var(--warning))]/80 hover:bg-[hsl(var(--warning))]/10">View All</Button>
+            <CardTitle className="text-lg">Needs attention</CardTitle>
+            <Button variant="ghost" size="sm" onClick={() => navigate(`${BASE}/register`)}
+              className="text-[hsl(var(--warning))] hover:bg-[hsl(var(--warning))]/10">View all</Button>
           </CardHeader>
           <CardContent className="p-0">
-             {upcomingDeadlines.length > 0 ? (
-               <ul className="divide-y divide-[hsl(var(--border))]">
-                 {upcomingDeadlines.map(item => {
-                   const isOverdue = new Date(item.due_date) < new Date();
-                   return (
-                    <li key={item.id} className="p-4 flex justify-between items-center hover:bg-[hsl(var(--secondary))]/50 transition-colors cursor-pointer" onClick={() => navigate(`register?id=${item.id}`)}>
-                      <div>
-                        <p className="font-medium text-[hsl(var(--foreground))]">{item.title}</p>
-                        <p className="text-xs text-[hsl(var(--muted-foreground))]">{item.authority?.acronym || 'Unknown'} • {item.facility || 'N/A'}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className={`text-sm font-medium ${isOverdue ? 'text-[hsl(var(--destructive))]' : 'text-[hsl(var(--warning))]'}`}>
-                          {item.due_date ? format(new Date(item.due_date), 'MMM d, yyyy') : 'No Date'}
-                        </p>
-                        {isOverdue && <span className="text-xs text-[hsl(var(--destructive))] font-bold">Overdue</span>}
-                      </div>
-                    </li>
-                   )
-                 })}
-               </ul>
-             ) : (
-               <div className="p-8 text-center text-[hsl(var(--muted-foreground))]">No upcoming deadlines found.</div>
-             )}
+            {attention.length ? (
+              <ul className="divide-y divide-[hsl(var(--border))]">
+                {attention.map((o) => (
+                  <li key={o.id}
+                    className="p-4 flex justify-between items-center gap-4 hover:bg-[hsl(var(--secondary))]/50 cursor-pointer"
+                    onClick={() => navigate(`${BASE}/${o.id}`)}>
+                    <div className="min-w-0">
+                      <p className="font-medium text-[hsl(var(--foreground))] truncate">{o.title}</p>
+                      <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                        {authorities.find((a) => a.id === o.authority_id)?.acronym || 'No regulator'}
+                        {o.facility ? ` · ${o.facility}` : ''}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <StatusBadge obligation={o} today={today} />
+                      <p className="text-xs text-[hsl(var(--muted-foreground))] mt-1">
+                        {showDate(nextActionDate(o))}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="p-8 text-center text-[hsl(var(--muted-foreground))]">
+                Nothing is expired, overdue or inside its warning window.
+              </div>
+            )}
           </CardContent>
         </Card>
 
         <Card className="panel-elevation">
           <CardHeader className="border-b border-[hsl(var(--border))] pb-4">
-            <CardTitle className="text-lg">Recent Activity</CardTitle>
+            <CardTitle className="text-lg">Recent filings</CardTitle>
           </CardHeader>
           <CardContent className="p-4">
-             <div className="space-y-4">
-                {records.slice(0,4).map(r => (
-                  <div key={`act-${r.id}`} className="flex gap-3">
+            {recentFilings.length ? (
+              <div className="space-y-4">
+                {recentFilings.map((e) => (
+                  <div key={e.id} className="flex gap-3">
                     <div className="w-8 h-8 rounded-full bg-[hsl(var(--secondary))] flex items-center justify-center shrink-0">
-                      <Activity className="w-4 h-4 text-[hsl(var(--muted-foreground))]" />
+                      <FileCheck className="w-4 h-4 text-[hsl(var(--muted-foreground))]" />
                     </div>
-                    <div>
-                      <p className="text-sm text-[hsl(var(--foreground))]">Record <span className="font-medium">{r.title}</span> was updated.</p>
+                    <div className="min-w-0">
+                      <p className="text-sm text-[hsl(var(--foreground))] truncate">
+                        {e.obligation?.title || 'An obligation'}
+                        {e.reference ? <span className="text-[hsl(var(--muted-foreground))]"> · {e.reference}</span> : null}
+                      </p>
                       <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">
-                        {r.updated_at ? format(new Date(r.updated_at), 'MMM d, h:mm a') : ''}
+                        Filed {showDate(e.submitted_date)}
+                        {e.period_label ? ` for ${e.period_label}` : ''}
                       </p>
                     </div>
                   </div>
                 ))}
-                {records.length === 0 && (
-                  <div className="text-center text-[hsl(var(--muted-foreground))]">No recent activity.</div>
-                )}
-             </div>
+              </div>
+            ) : (
+              <p className="text-sm text-[hsl(var(--muted-foreground))] py-6 text-center">
+                No filings have been recorded yet. Record one from an
+                obligation&apos;s page and it will appear here.
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>

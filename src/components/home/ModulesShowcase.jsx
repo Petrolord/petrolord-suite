@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Layers, BarChart3, Anchor, Zap, Factory, Milestone, ShieldCheck, Container } from 'lucide-react';
+import { ArrowRight, Layers, BarChart3, Anchor, Zap, Factory, Milestone, ShieldCheck, Container, ShieldHalf } from 'lucide-react';
 
 // App pills and counts mirror the live master_apps catalog (Active tiles
 // only). When the catalog changes, update this list and the stats band in
@@ -12,6 +12,10 @@ import { ArrowRight, Layers, BarChart3, Anchor, Zap, Factory, Milestone, ShieldC
 // count of 1 because exactly one of its ten apps is built. The count is the
 // number that WORKS, not the number planned; the other nine appear here as
 // each ships.
+//
+// PS1 (2026-09-19): Process Safety joins as the ninth module on the same
+// rule, with a count of 1 for the LOPA & SIL Studio. PS2 adds the
+// Consequence Modelling Studio (count 2) and PS3 the QRA Studio (count 3).
 const modules = [
   {
     name: 'Geoscience & Subsurface',
@@ -76,6 +80,14 @@ const modules = [
     count: 1,
     description: 'Refining, terminals and the fuel supply chain, with the carbon ledger running beside the money one rather than bolted on afterwards. The module is being built; one application is live today.',
     apps: ['Crude Assay & Blending Studio'],
+  },
+  {
+    name: 'Process Safety',
+    icon: ShieldHalf,
+    color: 'from-red-400 to-amber-500',
+    count: 3,
+    description: 'Layers of protection analysis and the SIL a safety function must reach; the consequences themselves, from releases, plumes, pool fires and blasts to the harm each does; and the quantitative risk they add up to, judged against ALARP.',
+    apps: ['LOPA & SIL Studio', 'Consequence Modelling Studio', 'QRA Studio'],
   },
 ];
 

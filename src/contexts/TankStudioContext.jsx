@@ -11,6 +11,20 @@ import {
   evaporativeLosses, lossControl,
 } from '@/utils/facilities/engine/storageTank';
 
+/**
+ * Every derived block below is wrapped in this. A bare useMemo over an
+ * engine call takes the whole studio down on a throw, and a studio that
+ * shows nothing is worse than one that shows a message.
+ */
+const safe = (label, fn) => {
+  try {
+    return fn();
+  } catch (e) {
+    console.error(`${label} failed`, e);
+    return { error: `The ${label} calculation could not be completed. Check the inputs above.` };
+  }
+};
+
 const TABLE = 'saved_tank_projects';
 
 export const service = createSavedProjectsService(TABLE, {
@@ -30,16 +44,17 @@ export const defaultInputs = () => ({
     diameterFt: '120', heightFt: '40', courseHeightFt: '8',
     liquidLevelFt: '38', sg: '0.85',
     designStressPsi: '23200', testStressPsi: '24900',
-    corrosionAllowanceIn: '0.0625',
+    corrosionAllowanceIn: '0.0625', minimumThicknessIn: '0.1875',
   },
   venting: {
     fillBblPerHr: '500', drawBblPerHr: '800',
     highVolatility: 'no', insulated: 'no', latitudeFactor: '1.0',
-    latentBtuLb: '130', molecularWeight: '90', environmentFactor: '1.0',
+    environmentFactor: '1.0',
   },
   losses: {
-    vapourSpaceHeightFt: '12', vapourPressurePsia: '1.5',
+    vapourPressurePsia: '1.5',
     throughputBbl: '500000', molecularWeight: '65', tempSwingF: '20',
+    avgTempR: '530', ventSettingPsi: '0.03',
     controlEfficiencyPct: '90',
   },
 });
@@ -86,13 +101,27 @@ export const TankStudioProvider = ({ children }) => {
     setInputs((prev) => ({ ...prev, [section]: { ...prev[section], [key]: value } }));
   }, []);
 
-  const capacity = useMemo(() => tankCapacity({
+  const capacity = useMemo(() => safe('capacity', () => tankCapacity({
     diameterFt: num(inputs.tank.diameterFt),
     heightFt: num(inputs.tank.heightFt),
     fillHeightFt: num(inputs.tank.liquidLevelFt),
-  }), [inputs.tank]);
+  })), [inputs.tank]);
 
-  const shell = useMemo(() => shellCourses({
+  /**
+   * The vapour space is the shell above the design liquid level, not a
+   * separate typed number. A 40 ft shell at a 38 ft level has 2 ft of
+   * vapour space; the losses block used to default to 12 ft with nothing
+   * linking them, and the standing loss shown was 17,276 lb/yr where the
+   * tank as drawn implied 4,854.
+   */
+  const vapourSpaceHeightFt = useMemo(() => {
+    const h = num(inputs.tank.heightFt);
+    const level = num(inputs.tank.liquidLevelFt);
+    if (!(h > 0) || !(level >= 0)) return NaN;
+    return h - Math.min(level, h);
+  }, [inputs.tank.heightFt, inputs.tank.liquidLevelFt]);
+
+  const shell = useMemo(() => safe('shell course', () => shellCourses({
     diameterFt: num(inputs.tank.diameterFt),
     heightFt: num(inputs.tank.heightFt),
     courseHeightFt: num(inputs.tank.courseHeightFt, 8),
@@ -101,21 +130,22 @@ export const TankStudioProvider = ({ children }) => {
     designStressPsi: num(inputs.tank.designStressPsi, 23200),
     testStressPsi: num(inputs.tank.testStressPsi, 24900),
     corrosionAllowanceIn: num(inputs.tank.corrosionAllowanceIn, 0),
-  }), [inputs.tank]);
+    minimumThicknessIn: num(inputs.tank.minimumThicknessIn),
+  })), [inputs.tank]);
 
-  const venting = useMemo(() => {
+  const venting = useMemo(() => safe('normal venting', () => {
     if (capacity.error) return { error: capacity.error };
     return normalVenting({
       nominalBbl: capacity.nominalBbl,
-      fillBblPerHr: num(inputs.venting.fillBblPerHr, 0),
-      drawBblPerHr: num(inputs.venting.drawBblPerHr, 0),
+      fillBblPerHr: num(inputs.venting.fillBblPerHr),
+      drawBblPerHr: num(inputs.venting.drawBblPerHr),
       highVolatility: inputs.venting.highVolatility === 'yes',
       insulated: inputs.venting.insulated === 'yes',
-      latitudeFactor: num(inputs.venting.latitudeFactor, 1),
+      latitudeFactor: num(inputs.venting.latitudeFactor),
     });
-  }, [capacity, inputs.venting]);
+  }), [capacity, inputs.venting]);
 
-  const fire = useMemo(() => {
+  const fire = useMemo(() => safe('fire case', () => {
     const w = wettedAreaFt2({
       diameterFt: num(inputs.tank.diameterFt),
       liquidLevelFt: num(inputs.tank.liquidLevelFt),
@@ -123,30 +153,35 @@ export const TankStudioProvider = ({ children }) => {
     if (w.error) return w;
     const f = fireVenting({
       wettedFt2: w.areaFt2,
-      environmentFactor: num(inputs.venting.environmentFactor, 1),
-      latentBtuLb: num(inputs.venting.latentBtuLb, 130),
-      molecularWeight: num(inputs.venting.molecularWeight, 90),
+      environmentFactor: num(inputs.venting.environmentFactor),
     });
     if (f.error) return f;
     return { ...w, ...f };
-  }, [inputs.tank, inputs.venting]);
+  }), [inputs.tank, inputs.venting.environmentFactor]);
 
-  const losses = useMemo(() => {
+  const losses = useMemo(() => safe('evaporative loss', () => {
+    if (!(vapourSpaceHeightFt > 0)) {
+      return {
+        error: 'there is no vapour space: the design liquid level is at or above the shell height, so the shell above the liquid is zero feet. Lower the design liquid level or raise the shell.',
+      };
+    }
     const l = evaporativeLosses({
       diameterFt: num(inputs.tank.diameterFt),
-      vapourSpaceHeightFt: num(inputs.losses.vapourSpaceHeightFt),
+      vapourSpaceHeightFt,
       vapourPressurePsia: num(inputs.losses.vapourPressurePsia),
-      throughputBbl: num(inputs.losses.throughputBbl, 0),
-      molecularWeight: num(inputs.losses.molecularWeight, 65),
-      tempSwingF: num(inputs.losses.tempSwingF, 20),
+      throughputBbl: num(inputs.losses.throughputBbl),
+      molecularWeight: num(inputs.losses.molecularWeight),
+      tempSwingF: num(inputs.losses.tempSwingF),
+      avgTempR: num(inputs.losses.avgTempR),
+      ventSettingPsi: num(inputs.losses.ventSettingPsi),
     });
     if (l.error) return l;
     const c = lossControl({
       uncontrolledLbYr: l.totalLossLbYr,
-      controlEfficiencyPct: num(inputs.losses.controlEfficiencyPct, 0),
+      controlEfficiencyPct: num(inputs.losses.controlEfficiencyPct),
     });
     return { ...l, control: c };
-  }, [inputs.tank.diameterFt, inputs.losses]);
+  }), [inputs.tank.diameterFt, vapourSpaceHeightFt, inputs.losses]);
 
 
   // --- Project lifecycle (studio-kit recipe) ---
@@ -268,6 +303,7 @@ export const TankStudioProvider = ({ children }) => {
     venting,
     fire,
     losses,
+    vapourSpaceHeightFt,
 
     projects,
     currentProjectId,

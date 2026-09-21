@@ -210,7 +210,7 @@ describe('the inventory', () => {
 
   it('says it is not a compliance register', () => {
     expect(buildInventory({ lines: good(), gwpSet }).disclaimer)
-      .toMatch(/not a regulatory compliance register/i);
+      .toMatch(/belong in the compliance register/i);
   });
 });
 
@@ -290,7 +290,7 @@ describe('abatement cost', () => {
   it('refuses a capital cost with no life to spread it over', () => {
     const r = abatementCost({ label: 'Y', capitalCost: 500000, tonnesAbatedPerYear: 100 });
     expect(r.error).toMatch(/needs a life/i);
-    expect(r.error).toMatch(/look expensive/i);
+    expect(r.error).toMatch(/overstates the cost per tonne/i); // reworded in MD45-1: the old claim was untrue
   });
 
   it('needs an abatement figure', () => {
@@ -368,10 +368,13 @@ describe('the abatement curve', () => {
   });
 
   it('names the residual against a target rather than closing it', () => {
-    const c = abatementCurve({ measures: [m('A', 1, 400, ['s1'])], targetTonnes: 1000 });
+    // MD45-1: a verdict needs every claim checkable against its source, so
+    // this test now passes the source's emission (it asserted a verdict on
+    // an unchecked claim before).
+    const c = abatementCurve({ measures: [m('A', 1, 400, ['s1'])], sourceEmissions: { s1: 5000 }, targetTonnes: 1000 });
     expect(c.meetsTarget).toBe(false);
     expect(c.residualToTargetTonnes).toBeCloseTo(600, 6);
-    const met = abatementCurve({ measures: [m('A', 1, 1200, ['s1'])], targetTonnes: 1000 });
+    const met = abatementCurve({ measures: [m('A', 1, 1200, ['s1'])], sourceEmissions: { s1: 5000 }, targetTonnes: 1000 });
     expect(met.meetsTarget).toBe(true);
     expect(met.residualToTargetTonnes).toBeCloseTo(0, 9);
   });
@@ -417,7 +420,7 @@ describe('the decarbonisation path', () => {
     // A wedge labelled "further measures" with nothing behind it is not a
     // plan, and treating it as one is how these roadmaps stop meaning
     // anything.
-    expect(p.gapNote).toMatch(/not drawn as a wedge/i);
+    expect(p.gapNote).toMatch(/wedge is drawn only for an identified measure/i);
     expect(p.rows.find((r) => r.year === 2028).unabatedGapTonnes).toBeCloseTo(50000 - 900 - 46000, 6);
   });
 

@@ -67,6 +67,14 @@ export const ErrorNote = ({ children }) => (
   </div>
 );
 
+/** FC1-0: the prefilled values are an example, and blanks are never filled in. */
+export const ExampleCaseNote = () => (
+  <p className="rounded-md border border-sky-800/50 bg-sky-950/20 px-3 py-2 text-[11px] text-sky-300">
+    Example case: a new study opens with illustrative values. Replace them with your own.
+    A field you clear stays blank and is named as missing.
+  </p>
+);
+
 export const WarnNote = ({ children }) => (
   <div className="rounded-md border border-yellow-700/50 bg-yellow-950/20 px-3 py-2 text-[12px] text-yellow-300">
     {children}

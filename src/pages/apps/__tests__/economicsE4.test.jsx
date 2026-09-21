@@ -68,6 +68,37 @@ describe('Project Management Pro', () => {
   });
 });
 
+describe('the whole PM Pro component tree', () => {
+  // EC6-0: the guards below used to scan only components/projectmanagement/
+  // integrations/, and a second copy of the PPFG importer sat one directory
+  // up, still writing three invented engineering risks into `risks` with
+  // linked_app 'PPFG'. This walks the tree.
+  const dir = path.join(ROOT, 'components/projectmanagement');
+  const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (
+    e.isDirectory() ? walk(path.join(d, e.name)) : (e.name.endsWith('.jsx') ? [path.join(d, e.name)] : [])
+  ));
+  const all = walk(dir);
+  const readAll = (f) => fs.readFileSync(f, 'utf8');
+  // Comments record what was removed and must not trip the guards.
+  const code = (f) => readAll(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  const rel = (f) => path.relative(dir, f);
+
+  it('writes no invented engineering finding into the risk register', () => {
+    const offenders = all.filter((f) => /ppfg_source|linked_app: 'PPFG'|High Overpressure Zone/.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
+
+  it('has no mock data set behind a button that writes to the database', () => {
+    const offenders = all.filter((f) => /const mock[A-Z]\w*Data\s*=/.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
+
+  it('does not draw a figure from Math.random', () => {
+    const offenders = all.filter((f) => /Math\.random/.test(code(f)));
+    expect(offenders.map(rel)).toEqual([]);
+  });
+});
+
 describe('the PM Pro integration panels', () => {
   const dir = path.join(ROOT, 'components/projectmanagement/integrations');
   const files = fs.readdirSync(dir).filter((f) => f.endsWith('.jsx'));

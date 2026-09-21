@@ -22,7 +22,7 @@ const VERDICT = {
 };
 
 const ScreeningResults = () => {
-  const { gas, screenings, comparison } = useFlareToValue();
+  const { gas, screenings, economics, comparison } = useFlareToValue();
 
   if (gas.error) {
     return (
@@ -41,14 +41,15 @@ const ScreeningResults = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Stat label="Heating value" value={gas.ghvBtuScf === null ? 'not available' : `${fmt(gas.ghvBtuScf, 0)} Btu/scf`} hint={gas.ghvNote ? 'a component is missing one' : null} />
           <Stat label="Inerts" value={`${fmt(gas.inertMoleFraction * 100, 1)}%`} hint={`${fmt(gas.co2MoleFraction * 100, 1)}% of it CO2`} />
-          <Stat label="Liquids" value={`${fmt(gas.gpmC3Plus, 2)} gal/Mscf`} hint={`C3+, and the gas is ${gas.richness}`} />
+          <Stat label="Liquids" value={gas.gpmC3Plus === null ? 'not available' : `${fmt(gas.gpmC3Plus, 2)} gal/Mscf`} hint={gas.gpmC3Plus === null ? 'a liquid density is missing' : `C3+, and the gas is ${gas.richness}`} />
           <Stat label="Carbon" value={`${fmt(gas.carbonPerMol, 2)} per mol`} hint="what the flare turns into CO2" />
         </div>
         {gas.missingLiquidDensity.length > 0 && (
           <p className="text-[11px] text-amber-300 mt-2">
-            {`No liquid density for ${gas.missingLiquidDensity.join(', ')}, so those are left out of the liquids content rather than counted as nothing.`}
+            {`No liquid density for ${gas.missingLiquidDensity.join(', ')}, so the liquids content is not given: a partial figure would read as the whole.`}
           </p>
         )}
+        {gas.normalisationNote && <p className="text-[11px] text-amber-300 mt-2">{gas.normalisationNote}</p>}
       </div>
 
       <div>
@@ -116,6 +117,9 @@ const ScreeningResults = () => {
                     {comparison.bestByValuePerMscf === r.routeId && (
                       <span className="ml-2 text-[10px] text-emerald-300">best on value</span>
                     )}
+                    {comparison.leaderNotFullyScreened === r.routeId && (
+                      <span className="ml-2 text-[10px] text-amber-300">leads on value; screening incomplete</span>
+                    )}
                   </td>
                   <td className={`px-2 py-1 ${VERDICT[r.verdict].cls}`}>{r.verdict}</td>
                   <td className="px-2 py-1 text-right text-slate-300">{r.capitalCost === null ? '-' : fmt(r.capitalCost, 0)}</td>
@@ -130,6 +134,19 @@ const ScreeningResults = () => {
           </table>
         </div>
         <p className="text-[11px] text-slate-500 mt-2">{comparison.rankingNote}</p>
+        {!comparison.bestByValuePerMscf && (
+          <p className="text-[11px] text-slate-500 mt-1">
+            Value per Mscf is the gross margin and ignores the capital. Value the shortlist in the sanctioned economics engine.
+          </p>
+        )}
+        {economics.filter((e) => e.error).map((e) => (
+          <p key={e.error} className="text-[11px] text-amber-300 mt-1">{e.error}</p>
+        ))}
+        {economics.filter((e) => !e.error && e.assumedZero && e.assumedZero.length).map((e) => (
+          <p key={e.routeId} className="text-[11px] text-amber-300 mt-1">
+            {`${e.label}: ${e.assumedZero.join(' and ')} left blank, taken as zero.`}
+          </p>
+        ))}
       </div>
     </div>
   );

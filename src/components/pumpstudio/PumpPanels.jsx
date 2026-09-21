@@ -104,10 +104,14 @@ export const DutyResults = () => {
               <>
                 <Stat label="Brake power" value={fmt(power.brakeHp, 1)} unit="bhp"
                   hint={`${fmt(power.hydraulicHp, 1)} hydraulic hp`} />
-                <Stat label="Motor input" value={fmt(power.motorInputKw, 1)} unit="kW" />
+                {power.motorError
+                  ? <Stat label="Motor input" value="--" unit="kW" accent="text-amber-400"
+                    hint="not computed: see the note below" />
+                  : <Stat label="Motor input" value={fmt(power.motorInputKw, 1)} unit="kW" />}
               </>
             )}
           </div>
+          {power.motorError && <WarnNote>{power.motorError}</WarnNote>}
           {!region.error && (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <Stat label="Of best efficiency flow" value={fmt(region.percentOfBep, 0)} unit="%"
@@ -128,7 +132,12 @@ export const DutyResults = () => {
           <p className="text-[12px] text-slate-500">
             This is a solved intersection, not an assumed duty. Change the system, the trim or the
             speed and the point moves, which is the only way the knock-on questions stay honest.
-            Curve fit quality: R squared {fmt(curve.rSquared, 4)}.
+            {' '}
+            {Number.isFinite(curve.rSquared)
+              ? `Curve fit quality: R squared ${fmt(curve.rSquared, 4)}.`
+              : 'Curve fit quality cannot be scored on these points: all four catalogue heads are '
+                + 'the same, so there is no spread for a fit to explain and R squared is undefined '
+                + 'rather than perfect. Type the vendor heads at four different flows.'}
           </p>
         </CardContent>
       </Card>
@@ -222,26 +231,53 @@ export const NpshResults = () => {
         </CardContent>
       </Card>
 
-      {changeEffect && !changeEffect.trim.error && (
+      {changeEffect && (
         <Card className="bg-slate-900/60 border-slate-800">
           <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">What a change would buy</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Stat label="Trim, ideal head" value={fmt(changeEffect.trim.idealHeadFt, 0)} unit="ft"
-                hint="what the affinity laws promise" />
-              <Stat label="Trim, real head" value={fmt(changeEffect.trim.headFt, 0)} unit="ft"
-                hint={`${fmt(changeEffect.trim.shortfallPct, 1)} percent short of ideal`} />
-              <Stat label="Speed, flow" value={fmt(changeEffect.speed.qGpm, 0)} unit="gpm" />
-              <Stat label="Speed, power" value={fmt(changeEffect.speed.brakeHp, 1)} unit="bhp"
-                hint="power goes as the cube of speed" />
-            </div>
-            {changeEffect.trim.warning && <WarnNote>{changeEffect.trim.warning}</WarnNote>}
-            <p className="text-[12px] text-slate-500">
-              A trim under-delivers what the affinity laws promise, because a cut impeller no longer
-              matches its casing, and the shortfall grows with the depth of the cut. A speed change
-              does follow the laws, which is why a variable speed drive is usually the better answer
-              when the duty has to move often.
-            </p>
+            {changeEffect.error ? <ErrorNote>{changeEffect.error}</ErrorNote> : (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <Stat label="Duty flow before" value={fmt(changeEffect.before.qGpm, 0)} unit="gpm"
+                    hint={`${fmt(changeEffect.before.headFt, 0)} ft, ${fmt(changeEffect.before.brakeHp, 1)} bhp`} />
+                  <Stat label="Duty flow after" value={fmt(changeEffect.after.qGpm, 0)} unit="gpm"
+                    accent="text-emerald-400"
+                    hint={`${fmt(changeEffect.after.headFt, 0)} ft, ${fmt(changeEffect.after.brakeHp, 1)} bhp`} />
+                  <Stat label="Change in flow"
+                    value={fmt(((changeEffect.after.qGpm / changeEffect.before.qGpm) - 1) * 100, 1)}
+                    unit="%" hint="the new crossing with the same system" />
+                  <Stat label="Change in power"
+                    value={fmt(((changeEffect.after.brakeHp / changeEffect.before.brakeHp) - 1) * 100, 1)}
+                    unit="%" />
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <Stat label="Trim, ideal head" value={fmt(changeEffect.idealHeadFt, 0)} unit="ft"
+                    hint="what the affinity laws promise" />
+                  <Stat label="Trim, real head" value={fmt(changeEffect.onCurve.headFt, 0)} unit="ft"
+                    hint={`${fmt(changeEffect.shortfallPct, 1)} percent short of ideal`} />
+                  <Stat label="Old duty, moved onto the new curve"
+                    value={fmt(changeEffect.onCurve.qGpm, 0)} unit="gpm"
+                    hint={`${fmt(changeEffect.onCurve.headFt, 0)} ft. On the pump curve, not on the system curve.`} />
+                  <Stat label="Trim depth" value={fmt(changeEffect.trimPercent, 1)} unit="%" />
+                </div>
+                {changeEffect.trimWarning && <WarnNote>{changeEffect.trimWarning}</WarnNote>}
+                {changeEffect.speedWarning && <WarnNote>{changeEffect.speedWarning}</WarnNote>}
+                <p className="text-[12px] text-slate-500">
+                  Two different numbers sit above and they answer two different questions. The duty
+                  after the change is a fresh crossing of the changed pump curve with the system,
+                  because the machine changed and the piping did not. The affinity and trim laws
+                  instead say where the old duty point lands on the new curve, and that point sits
+                  on the pump curve without sitting on the system curve, so no pump ever runs there.
+                  Size on the crossing.
+                </p>
+                <p className="text-[12px] text-slate-500">
+                  A trim under-delivers what the affinity laws promise, because a cut impeller no
+                  longer matches its casing, and the shortfall grows with the depth of the cut. A
+                  speed change does follow the laws, which is why a variable speed drive is usually
+                  the better answer when the duty has to move often.
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
       )}

@@ -66,6 +66,34 @@ describe('the page', () => {
     expect(screen.getByText(/measurement error scales with throughput/i)).toBeInTheDocument();
   });
 
+  // MD3-0. The page used to derive the opening stock from today's dip, so the
+  // day ALWAYS balanced (unaccounted 0 for every input). With the sample
+  // opening stock the sample day closes 3 m3 short (dips 2,975 + 1,248 =
+  // 4,223 against an expected 4,068 + 800 - 640 - 2 = 4,226).
+  it('closes the day from the opening stock and shows the gap', async () => {
+    mount();
+    expect(await screen.findByText('Unaccounted: -3.0 m3 (loss)')).toBeInTheDocument();
+  });
+
+  // MD3-1: cover counts days of LIFTINGS. Pumpable stock tank by tank is
+  // (2,975 - 120) + (1,248 - 80) = 4,023 m3 against 640 m3 lifted a day, 6.3
+  // days; dividing by receipts plus deliveries (1,440) gave 2.8.
+  it('counts days of cover on what is lifted', async () => {
+    mount();
+    await screen.findByText('Days of cover');
+    const row = screen.getByText('Days of cover').closest('tr');
+    expect(row.textContent).toContain('6.3');
+  });
+
+  it('refuses to close the day with no opening stock', async () => {
+    mount();
+    await screen.findByText('Unaccounted: -3.0 m3 (loss)');
+    const opening = screen.getAllByRole('spinbutton').find((el) => el.value === '4068');
+    fireEvent.change(opening, { target: { value: '' } });
+    expect(await screen.findByText('The day cannot be closed')).toBeInTheDocument();
+    expect(screen.getByText(/No opening stock/)).toBeInTheDocument();
+  });
+
   it('separates a run from noise on the trend', async () => {
     mount();
     expect(await screen.findByText(/One day's gain is noise/i)).toBeInTheDocument();

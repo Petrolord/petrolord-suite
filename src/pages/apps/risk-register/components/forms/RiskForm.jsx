@@ -6,11 +6,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { RISK_CATEGORIES, LIKELIHOOD_LEVELS, IMPACT_LEVELS } from '../../constants';
-import { calculateRiskScore } from '../../utils/riskScoring';
+import { calculateResidualScore, calculateRiskScore } from '@/lib/riskScoring';
 import { RiskScoreBadge } from '../RiskBadges';
 import { Save, X, Loader2, Tag, Link } from 'lucide-react';
+import { AS2_SCHEMA_MESSAGE, appetitePreview } from '../../utils/riskPayload';
 
-export const RiskForm = ({ initialData = {}, onSubmit, onCancel, isSubmitting }) => {
+export const RiskForm = ({ initialData = {}, onSubmit, onCancel, isSubmitting, hasAs2Schema = true }) => {
   const [formData, setFormData] = useState({
     title: initialData.title || '',
     category: initialData.category || '',
@@ -19,6 +20,10 @@ export const RiskForm = ({ initialData = {}, onSubmit, onCancel, isSubmitting })
     root_cause: initialData.root_cause || '',
     consequences: initialData.consequences || '',
     mitigation_summary: initialData.mitigation_summary || '',
+    residual_likelihood: initialData.residual_likelihood || '',
+    residual_impact: initialData.residual_impact || '',
+    target_score: initialData.target_score || '',
+    next_review_date: initialData.next_review_date || '',
     tags: initialData.tags || '',
     linked_risks: initialData.linked_risks || ''
   });
@@ -28,6 +33,9 @@ export const RiskForm = ({ initialData = {}, onSubmit, onCancel, isSubmitting })
   };
 
   const currentScore = calculateRiskScore(formData.likelihood, formData.impact);
+  const residualScore = calculateResidualScore(formData);
+  // The same answer the detail page and the stored appetite_status give.
+  const appetite = appetitePreview(formData);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -98,12 +106,95 @@ export const RiskForm = ({ initialData = {}, onSubmit, onCancel, isSubmitting })
             </div>
             <div className="md:col-span-2 flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-slate-950 p-4 rounded-lg border border-slate-800">
                 <div className="flex-1">
-                  <span className="text-slate-400 text-sm font-medium block mb-1">Calculated Inherent Risk Score:</span>
-                  <span className="text-xs text-slate-500 block">Preview (Likelihood × Impact) - Read Only</span>
+                  <span className="text-slate-400 text-sm font-medium block mb-1">Inherent risk score</span>
+                  <span className="text-xs text-slate-500 block">Likelihood × impact, before any control</span>
                 </div>
                 <RiskScoreBadge score={currentScore} className="text-lg px-4 py-1" />
             </div>
           </div>
+
+          {/* AS2: residual, appetite and review date. Every number in this
+              register described inherent risk before this, which is the
+              world before any control was applied. Without migration
+              20260916110000 these fields cannot be saved, so they are not
+              offered, and the form says why (AS13). */}
+          {!hasAs2Schema ? (
+            <div className="pt-4 border-t border-slate-800">
+              <div className="p-3 rounded-lg border border-amber-500/30 bg-amber-500/5 text-sm text-slate-400">
+                {AS2_SCHEMA_MESSAGE}
+              </div>
+            </div>
+          ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-800">
+            <div className="md:col-span-2">
+              <h3 className="text-sm font-semibold text-slate-200">After controls</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Leave these blank until the controls are in place. A risk with no
+                residual assessment is carried at its inherent score, per axis, so
+                mitigating likelihood alone does not quietly reduce the impact.
+              </p>
+            </div>
+            <div>
+              <Label className="text-slate-300">Residual likelihood</Label>
+              <Select
+                value={formData.residual_likelihood ? String(formData.residual_likelihood) : 'none'}
+                onValueChange={v => handleChange('residual_likelihood', v === 'none' ? '' : Number(v))}
+              >
+                <SelectTrigger className="bg-slate-950 border-slate-800 text-white mt-1">
+                  <SelectValue placeholder="Not assessed" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-900 border-slate-800">
+                  <SelectItem value="none">Not assessed</SelectItem>
+                  {LIKELIHOOD_LEVELS.map(l => <SelectItem key={l.value} value={l.value.toString()}>{l.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-slate-300">Residual impact</Label>
+              <Select
+                value={formData.residual_impact ? String(formData.residual_impact) : 'none'}
+                onValueChange={v => handleChange('residual_impact', v === 'none' ? '' : Number(v))}
+              >
+                <SelectTrigger className="bg-slate-950 border-slate-800 text-white mt-1">
+                  <SelectValue placeholder="Not assessed" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-900 border-slate-800">
+                  <SelectItem value="none">Not assessed</SelectItem>
+                  {IMPACT_LEVELS.map(i => <SelectItem key={i.value} value={i.value.toString()}>{i.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-slate-300">Target score (risk appetite)</Label>
+              <Input
+                type="number" min="1" max="25"
+                value={formData.target_score}
+                onChange={e => handleChange('target_score', e.target.value === '' ? '' : Number(e.target.value))}
+                className="bg-slate-950 border-slate-800 text-white mt-1"
+                placeholder="e.g. 6"
+              />
+              <p className="text-xs text-slate-500 mt-1">The score this organisation is willing to carry.</p>
+            </div>
+            <div>
+              <Label className="text-slate-300">Next review date</Label>
+              <Input
+                type="date"
+                value={formData.next_review_date || ''}
+                onChange={e => handleChange('next_review_date', e.target.value)}
+                className="bg-slate-950 border-slate-800 text-white mt-1"
+              />
+            </div>
+            <div className="md:col-span-2 flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-slate-950 p-4 rounded-lg border border-slate-800">
+                <div className="flex-1">
+                  <span className="text-slate-400 text-sm font-medium block mb-1">Residual risk score</span>
+                  <span className="text-xs text-slate-500 block">
+                    {appetite}
+                  </span>
+                </div>
+                <RiskScoreBadge score={residualScore} className="text-lg px-4 py-1" />
+            </div>
+          </div>
+          )}
 
           <div className="space-y-4 pt-4 border-t border-slate-800">
             <div>

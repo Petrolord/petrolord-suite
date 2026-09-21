@@ -183,8 +183,10 @@ const RecipeResults = () => {
         <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-4">
           <h3 className="text-sm font-semibold text-white mb-1">What each constraint is costing</h3>
           <p className="text-[11px] text-slate-500 mb-3">
-            The shadow price of a row: what one unit of relief on it would save. Zero means the
-            constraint is not binding and relaxing it buys nothing.
+            What one unit of relief on each specification would save over this blend, per unit
+            of the property: per ppm of sulfur, per psi of RVP, per octane number. Relief means
+            raising a maximum or lowering a minimum. Zero means the constraint is not binding and
+            relaxing it buys nothing.
           </p>
           <table className="w-full text-sm">
             <tbody>
@@ -192,7 +194,10 @@ const RecipeResults = () => {
                 <tr key={row.name} className="border-b border-slate-800/60 last:border-0">
                   <td className="py-2 text-slate-300">{row.name}</td>
                   <td className="py-2 text-right font-mono text-white">
-                    {Number.isFinite(row.price) ? `$${fmt(Math.abs(row.price), 3)}` : 'n/a'}
+                    {Number.isFinite(row.price) ? `$${fmt(row.price, 2)}` : 'n/a'}
+                    <span className="text-[10px] text-slate-500 font-sans">
+                      {' '}per {row.per}
+                    </span>
                   </td>
                 </tr>
               ))}

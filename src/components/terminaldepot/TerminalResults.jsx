@@ -28,12 +28,14 @@ const TerminalResults = () => {
   return (
     <div className="space-y-5">
       <div className={`rounded-lg border p-4 flex items-start gap-3 ${
-        reconciliation.withinTolerance === false
-          ? 'border-red-800/60 bg-red-950/30'
-          : 'border-emerald-800/60 bg-emerald-950/30'}`}
+        reconciliation.unaccountedM3 === null
+          ? 'border-amber-800/60 bg-amber-950/30'
+          : reconciliation.withinTolerance === false
+            ? 'border-red-800/60 bg-red-950/30'
+            : 'border-emerald-800/60 bg-emerald-950/30'}`}
       >
-        {reconciliation.withinTolerance === false
-          ? <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 shrink-0" />
+        {reconciliation.unaccountedM3 === null || reconciliation.withinTolerance === false
+          ? <AlertTriangle className={`w-5 h-5 mt-0.5 shrink-0 ${reconciliation.unaccountedM3 === null ? 'text-amber-400' : 'text-red-400'}`} />
           : <CheckCircle2 className="w-5 h-5 text-emerald-400 mt-0.5 shrink-0" />}
         <div>
           <p className="font-semibold text-white">
@@ -43,8 +45,8 @@ const TerminalResults = () => {
           </p>
           <p className="text-sm text-slate-300 mt-1">
             {reconciliation.unaccountedM3 === null
-              ? reconciliation.note
-              : `${fmt(reconciliation.unaccountedPercentOfThroughput, 2)}% of throughput, against a tolerance of ${fmt(reconciliation.toleranceM3)} m3. Tolerance is measured on what moved, not on what is in the tank, because measurement error scales with throughput.`}
+              ? (reconciliation.error || reconciliation.note)
+              : `${fmt(reconciliation.unaccountedPercentOfThroughput, 2)}% of throughput, against a tolerance of ${fmt(reconciliation.toleranceM3)} m3. Tolerance is measured on what moved, because measurement error scales with throughput.`}
           </p>
         </div>
       </div>

@@ -13,7 +13,9 @@ import {
   assetFloat, lpgBlendProperties, lpgStorageSizing, vaporizerDuty, bottlingPlant,
   gasMassInVessel, cascadeFills, cngCompression, cngDispensing, conversionEconomics,
   LPG_REFERENCE, LPG_PROPERTY_NOTE, DAK_RANGE, PSI_PER_BAR,
+  BOTTLING_QUEUE_VOCABULARY, CNG_QUEUE_VOCABULARY,
 } from '../engines/downstream/lpgCng.js';
+import { rackQueue, RACK_VOCABULARY } from '../engines/downstream/terminalDepot.js';
 
 const propane = LPG_REFERENCE.find((r) => r.code === 'propane');
 const butane = LPG_REFERENCE.find((r) => r.code === 'butane');
@@ -70,14 +72,14 @@ describe('fleets in a cycle', () => {
     expect(trailers.fleetRequired).toBe(Math.ceil(3 * 2.25));
   });
 
-  it('counts a stage with no duration as missing rather than as zero', () => {
+  it('refuses a stage with no duration rather than sizing the fleet without it', () => {
+    // MD4-0: this used to size the fleet on the stages left (complete: false)
+    // and the page printed that fleet anyway.
     const r = assetFloat({
       unitsPerDay: 100,
       cycleStages: [{ label: 'A', days: 2 }, { label: 'B', days: null }],
     });
-    expect(r.complete).toBe(false);
-    expect(r.missingStages).toBe(1);
-    expect(r.cycleDays).toBeCloseTo(2, 9);
+    expect(r.error).toMatch(/No duration for B/);
   });
 
   it('refuses without a throughput or a cycle', () => {
@@ -141,7 +143,7 @@ describe('LPG blend properties', () => {
     // Averaging over the components that have it would return a confident
     // number built from half the blend.
     expect(r.latentHeatKJkg).toBeNull();
-    expect(r.note).toMatch(/not averaged/i);
+    expect(r.note).toMatch(/never averaged/i);
   });
 
   it('requires a density for every component', () => {
@@ -201,7 +203,9 @@ describe('LPG storage', () => {
 describe('vaporizer duty', () => {
   const base = {
     massFlowKgHr: 500, latentHeatKJkg: 400,
-    liquidCpKJkgK: 2.5, inletTempC: 5, boilingPointC: -20,
+    // MD4-0: the boiling point is the one at the vaporizer pressure, above
+    // the inlet. These cases had the liquid entering above it.
+    liquidCpKJkgK: 2.5, inletTempC: 5, boilingPointC: 12,
     vapourCpKJkgK: 1.7, outletTempC: 15,
   };
 
@@ -212,7 +216,9 @@ describe('vaporizer duty', () => {
   it('sums its three terms to the duty', () => {
     const r = vaporizerDuty(base);
     const sum = r.terms.reduce((s, t) => s + t.kW, 0);
-    expect(sum).toBeCloseTo(r.dutyKW, 6);
+    // each term is rounded to 1e-6 kW on the way out, so three of them sum
+    // to within 3e-6 of the unrounded duty
+    expect(Math.abs(sum - r.dutyKW)).toBeLessThan(3e-6);
     expect(r.terms.reduce((s, t) => s + t.share, 0)).toBeCloseTo(1, 6);
   });
 
@@ -223,12 +229,14 @@ describe('vaporizer duty', () => {
     expect(latent.kW).toBeCloseTo((500 * 400) / 3600, 6);
   });
 
-  it('counts the sensible term as warming the liquid, not cooling it', () => {
-    // Inlet 5 C, boiling -20 C: the liquid must be COOLED to its boiling
-    // point, so the term is negative and the model must not hide that.
+  it('counts the sensible term as warming the liquid, and refuses a liquid above its boiling point', () => {
+    // This test used to assert the defect: inlet 5 C against a -20 C boiling
+    // point gave a NEGATIVE term that cut the duty. A liquid above its
+    // boiling point is not liquid, so that input is refused.
     const r = vaporizerDuty(base);
     expect(r.terms.find((t) => t.label === 'Warm the liquid to boiling').kW)
-      .toBeCloseTo((500 * 2.5 * (-20 - 5)) / 3600, 6);
+      .toBeCloseTo((500 * 2.5 * (12 - 5)) / 3600, 6);
+    expect(vaporizerDuty({ ...base, boilingPointC: -20 }).error).toMatch(/above the boiling point/);
   });
 
   it('applies the design margin on top of the computed duty', () => {
@@ -260,7 +268,7 @@ describe('the bottling plant', () => {
     // Erlang C has a whole number of servers, so the fractional count is
     // rounded HERE and said to be, rather than silently inside the queue.
     expect(r.queuePositions).toBe(14);
-    expect(r.positionRoundingNote).toMatch(/rounded from 14.4/);
+    expect(r.positionRoundingNote).toMatch(/rounded down from 14.4/);
     expect(r.queue.utilisation).toBeCloseTo((2400 / 8) * (2.5 / 60) / 14, 6);
   });
 
@@ -345,26 +353,28 @@ describe('the cascade', () => {
     temperatureC: 15, ...over,
   });
 
-  const deliverable = (bank, target) => {
-    const at = (p) => gasMassInVessel({ volumeM3: bank.volumeM3, pressureBar: p, temperatureC: 15 }).massKg;
-    return at(bank.pressureBar) - at(target);
-  };
-
-  it('conserves gas: what the banks gave equals what the vehicles took', () => {
+  // MD4-0: these three cases used to assert the defect, that only the gas a
+  // bank holds ABOVE THE TARGET can be delivered. A cascade equalises: a
+  // bank below the target still takes a vehicle up to its own pressure.
+  it('conserves gas: what the banks held is what they gave plus what is left', () => {
     const r = run();
-    const available = banks.reduce((s, b) => s + deliverable(b, 200), 0);
-    // Every kilogram above the target either went into a vehicle or is left
-    // over as less than one fill. Nothing evaporates in the accounting.
-    expect(r.deliveredKg + r.partialFillAvailableKg).toBeCloseTo(available, 2);
-    expect(r.deliveredKg).toBeCloseTo(r.fillsBeforeRecharge * r.kgPerFill, 3);
+    expect(r.deliveredKg + r.leftInBanksKg).toBeCloseTo(r.storedKg, 2);
+    // kgPerFill is reported to 1e-4 kg, so 33 of them agree to about 2e-3
+    expect(r.deliveredKg).toBeCloseTo(r.fillsBeforeRecharge * r.kgPerFill, 2);
   });
 
-  it('leaves less than one fill over, never more', () => {
+  it('stops at the first vehicle it cannot bring to the target, and says how far it got', () => {
     const r = run();
-    // If a whole fill were still available the loop stopped too early, which
-    // is exactly the bug this asserts against.
-    expect(r.partialFillAvailableKg).toBeLessThan(r.kgPerFill);
-    expect(r.partialFillAvailableKg).toBeGreaterThanOrEqual(0);
+    expect(r.nextVehicleReachesBar).toBeLessThan(200);
+    expect(r.nextVehicleReachesBar).toBeGreaterThan(20);
+  });
+
+  it('draws the low bank below the target, which is what the low bank is for', () => {
+    const r = run();
+    const after = Object.fromEntries(r.banksAfter.map((b) => [b.label, b.endBar]));
+    expect(after.Low).toBeLessThan(200);
+    expect(r.cascadeEfficiency).toBeGreaterThan(0.3);
+    expect(r.storedKg).toBeGreaterThan(r.deliveredKg);
   });
 
   it('empties the low bank before it touches the high bank', () => {
@@ -380,15 +390,6 @@ describe('the cascade', () => {
     // as usable, was picked forever at zero yield, and the last bank was
     // never reached.
     expect(r.banksAfter.every((b) => b.endBar < b.startBar)).toBe(true);
-  });
-
-  it('cannot deliver gas below the vehicle target, and calls it stranded', () => {
-    const r = run();
-    expect(r.strandedBelowTargetKg).toBeGreaterThan(0);
-    // The cascade is a buffer, not a reservoir: most of what it holds sits
-    // below the vehicle's target and never moves without the compressor.
-    expect(r.cascadeEfficiency).toBeLessThan(0.5);
-    expect(r.storedKg).toBeGreaterThan(r.deliveredKg);
   });
 
   it('delivers more per fill from a more depleted vehicle', () => {
@@ -590,7 +591,7 @@ describe('the conversion decision', () => {
       ...base, newFuel: { ...base.newFuel, emissionFactorKgCo2ePerUnit: null },
     });
     expect(missing.kgCo2eAvoidedPerYear).toBeNull();
-    expect(missing.carbonNote).toMatch(/absent rather than zero/i);
+    expect(missing.carbonNote).toMatch(/it is left blank/i);
   });
 
   it('does not assume a switch cuts carbon just because it cuts cost', () => {
@@ -631,5 +632,58 @@ describe('missing stays missing', () => {
     }).error).toMatch(/fill ratio is required/i);
     expect(assetFloat({ unitsPerDay: '', cycleStages: [{ label: 'A', days: 1 }] }).error).toBeTruthy();
     expect(vaporizerDuty({ massFlowKgHr: 500, latentHeatKJkg: '' }).error).toMatch(/latent heat/i);
+  });
+});
+
+describe('each queue speaks its own facility (B3 copy follow-up)', () => {
+  // The carousel and the CNG forecourt run the loading rack's M/M/c model.
+  // They used to print the rack's words ("Add a bay", "the number of bays")
+  // to a user who has filling positions or dispensers. Words only: the queue
+  // numbers are the rack model's, and are gated by the tests above.
+  const RACK_WORDS = /\bbays?\b|\brack\b|\bload faster\b/i;
+
+  it('an overloaded carousel talks about filling positions and cylinders', () => {
+    const r = bottlingPlant({
+      cylindersPerDay: 2400, fillMinutesPerCylinder: 2.5, positions: 3,
+      shiftHoursPerDay: 8, availabilityFraction: 0.9,
+    });
+    expect(r.queue.stable).toBe(false);
+    expect(r.queue.error).toBe(BOTTLING_QUEUE_VOCABULARY.overload);
+    expect(r.queue.error).toMatch(/filling position/);
+    expect(r.queue.error).not.toMatch(RACK_WORDS);
+  });
+
+  it('an overloaded CNG forecourt talks about dispensers and vehicles', () => {
+    const r = cngDispensing({ vehiclesPerHour: 40, fillMinutes: 6, dispensers: 2 });
+    expect(r.error).toBeNull();
+    expect(r.queue.error).toBe(CNG_QUEUE_VOCABULARY.overload);
+    expect(r.queue.error).toMatch(/Add a dispenser/);
+    expect(r.queue.error).not.toMatch(RACK_WORDS);
+  });
+
+  it('a fractional dispenser count is refused in dispenser words', () => {
+    const r = cngDispensing({ vehiclesPerHour: 6, fillMinutes: 5, dispensers: 2.5 });
+    expect(r.error).toBe(CNG_QUEUE_VOCABULARY.wholeServers);
+    expect(r.error).not.toMatch(RACK_WORDS);
+  });
+
+  it('the vocabulary moves no number', () => {
+    const args = { arrivalsPerHour: 20, loadMinutes: 5, bays: 2 };
+    const rack = rackQueue(args);
+    const cng = rackQueue({ ...args, vocabulary: CNG_QUEUE_VOCABULARY });
+    const { error: e1, ...n1 } = rack;
+    const { error: e2, ...n2 } = cng;
+    expect(n2).toEqual(n1);
+    expect(e1).toBeNull();
+    expect(e2).toBeNull();
+    // The loading rack keeps its own words.
+    expect(rackQueue({ ...args, arrivalsPerHour: 60 }).error).toBe(RACK_VOCABULARY.overload);
+    expect(RACK_VOCABULARY.overload).toMatch(/Add a bay/);
+  });
+
+  it('the new sentences keep the copy rule', () => {
+    const contrastive = /—|–|, not |\brather than\b|\binstead of\b|\bis not an? /i;
+    [...Object.values(BOTTLING_QUEUE_VOCABULARY), ...Object.values(CNG_QUEUE_VOCABULARY)]
+      .forEach((s) => expect(s).not.toMatch(contrastive));
   });
 });

@@ -6,6 +6,7 @@ import { BarChart, Download, Activity, Lightbulb } from 'lucide-react';
 import { exportToCSV } from '@/utils/exportUtils';
 import CollapsibleSection from './CollapsibleSection';
 import BreakevenPlots from './BreakevenPlots';
+import { breakevenPercentileLabel } from './percentileLabels';
 
 const ResultsPanel = ({ results }) => {
   const {
@@ -20,14 +21,23 @@ const ResultsPanel = ({ results }) => {
   const handleExport = () => {
     const sample = plotData?.histogram?.x || [];
     const rows = [
-      { field: 'Breakeven P10 ($/bbl)', value: kpis.p10 },
-      { field: 'Breakeven P50 ($/bbl)', value: kpis.p50 },
-      { field: 'Breakeven P90 ($/bbl)', value: kpis.p90 },
+      { field: `${breakevenPercentileLabel('q10')} ($/bbl)`, value: kpis.p10 },
+      { field: `${breakevenPercentileLabel('q50')} ($/bbl)`, value: kpis.p50 },
+      { field: `${breakevenPercentileLabel('q90')} ($/bbl)`, value: kpis.p90 },
       { field: 'Mean breakeven ($/bbl)', value: kpis.mean },
       { field: 'Deterministic base case ($/bbl)', value: baseBreakeven },
       { field: 'Iterations kept', value: sample.length },
       { field: 'Iterations excluded (no breakeven below $500)', value: excludedIterations ?? 0 },
       { field: 'Run seed', value: seed },
+      // EC3-5 and EC3-8: which belief the base case and tornado used, and how
+      // many draws were held at a physical limit.
+      ...Object.entries(results.beliefs || {}).flatMap(([key, b]) => [
+        { field: `${key} belief used for the base case and tornado`, value: b.source },
+        { field: `${key} median used ($MM or percent)`, value: b.p50 },
+      ]),
+      ...Object.entries(results.clippedDraws || {}).map(([key, n]) => ({
+        field: `${key} draws held at a physical limit`, value: n,
+      })),
       ...sample.map((v, i) => ({ field: `sample ${i + 1}`, value: v })),
     ];
     const ok = exportToCSV(rows, `breakeven-analysis-seed-${seed}`);
@@ -36,11 +46,14 @@ const ResultsPanel = ({ results }) => {
       : { variant: 'destructive', title: 'Export failed', description: 'Nothing was written.' });
   };
 
+  // A breakeven price is a quantity where more is worse, so under the Suite
+  // percentile convention it never carries a P-label: the engine's p10, p50
+  // and p90 keys are its 10th, 50th and 90th percentiles and say so (EC3-0).
   const kpiCards = [
-    { key: 'p10', label: 'Breakeven (P10)' },
-    { key: 'p50', label: 'Breakeven (P50)' },
-    { key: 'p90', label: 'Breakeven (P90)' },
-    { key: 'mean', label: 'Mean Breakeven' },
+    { key: 'p10', label: breakevenPercentileLabel('q10') },
+    { key: 'p50', label: breakevenPercentileLabel('q50') },
+    { key: 'p90', label: breakevenPercentileLabel('q90') },
+    { key: 'mean', label: 'Mean breakeven price' },
   ];
 
   return (

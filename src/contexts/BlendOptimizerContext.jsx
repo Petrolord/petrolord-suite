@@ -72,6 +72,9 @@ const num = (v, fallback = NaN) => {
   return Number.isFinite(n) ? n : fallback;
 };
 
+const isBlank = (v) => v === '' || v === null || v === undefined;
+const blankToAbsent = (v) => (isBlank(v) ? undefined : num(v));
+
 /**
  * Re-attach the index conversions a stored spec cannot carry.
  *
@@ -152,12 +155,18 @@ export const BlendOptimizerProvider = ({ children }) => {
 
   // --- Derived ---
 
+  // A blank box goes to the engine as ABSENT, never as a stand-in. This used
+  // to send a blank cost as 0 (the least-cost recipe then filled that tank for
+  // free) and a blank gravity as 0.8 (every mass-basis spec then blended on a
+  // density nobody typed). The engine refuses an unpriced component, skips a
+  // mass spec for a stream with no density, and reads a blank maximum as no
+  // limit and a typed 0 as none.
   const engineComponents = useMemo(() => inputs.components.map((c) => ({
     ...c,
-    cost: num(c.cost, 0),
-    sg: num(c.sg, num(c.density, 0.8)),
-    minVolume: num(c.minVolume, 0),
-    maxVolume: c.maxVolume === '' || c.maxVolume === null ? Infinity : num(c.maxVolume, Infinity),
+    cost: blankToAbsent(c.cost),
+    sg: isBlank(c.sg) ? blankToAbsent(c.density) : num(c.sg),
+    minVolume: blankToAbsent(c.minVolume),
+    maxVolume: blankToAbsent(c.maxVolume),
     ron: num(c.ron), mon: num(c.mon), sulfurPpm: num(c.sulfurPpm),
     rvp: num(c.rvp), density: num(c.density), cetane: num(c.cetane),
     viscosityCSt: num(c.viscosityCSt), flashPointC: num(c.flashPointC),

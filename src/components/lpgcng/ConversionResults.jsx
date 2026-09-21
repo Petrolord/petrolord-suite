@@ -52,7 +52,7 @@ const ConversionResults = () => {
           <Stat label={`${c.baseFuel.label} per km`} value={fmt(c.baseFuel.costPerKm, 2)} hint={`${fmt(c.baseFuel.unitsPerYear, 0)} units a year`} />
           <Stat label={`${c.newFuel.label} per km`} value={fmt(c.newFuel.costPerKm, 2)} hint={`${fmt(c.newFuel.unitsPerYear, 0)} units a year`} />
           <Stat label="Saving per km" value={fmt(c.savingPerKm, 2)} />
-          <Stat label="Annual saving" value={fmt(c.annualSaving, 0)} hint={`after ${fmt(c.annualExtraMaintenance, 0)} of extra maintenance`} />
+          <Stat label="Annual saving" value={fmt(c.annualSaving, 0)} hint={c.assumedZero && c.assumedZero.length ? 'no extra maintenance given, taken as zero' : `after ${fmt(c.annualExtraMaintenance, 0)} of extra maintenance`} />
         </div>
       </div>
 

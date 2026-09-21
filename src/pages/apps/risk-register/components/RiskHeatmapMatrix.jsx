@@ -1,5 +1,7 @@
 import React from 'react';
-import { getRiskBandColor } from '../utils/riskScoring';
+import {
+  RISK_BANDS, calculateRiskScore, getBandCellClasses, getHeatmapCellClasses,
+} from '@/lib/riskScoring';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export const RiskHeatmapMatrix = ({ risks = [], onCellClick }) => {
@@ -14,14 +16,6 @@ export const RiskHeatmapMatrix = ({ risks = [], onCellClick }) => {
       matrix[5 - i][l - 1].push(r);
     }
   });
-
-  const getCellBg = (l, i) => {
-      const score = l * i;
-      if (score >= 15) return 'bg-red-500/90 hover:bg-red-500';
-      if (score >= 10) return 'bg-orange-500/90 hover:bg-orange-500';
-      if (score >= 5) return 'bg-yellow-500/90 hover:bg-yellow-500';
-      return 'bg-green-500/90 hover:bg-green-500';
-  };
 
   return (
     <div className="flex flex-col items-center">
@@ -53,7 +47,7 @@ export const RiskHeatmapMatrix = ({ risks = [], onCellClick }) => {
                               disabled={count === 0}
                               className={`
                                 w-12 h-12 md:w-16 md:h-16 rounded flex items-center justify-center text-lg font-bold transition-all
-                                ${getCellBg(likelihood, impact)}
+                                ${getHeatmapCellClasses(likelihood, impact)}
                                 ${count === 0 ? 'opacity-40 cursor-not-allowed' : 'shadow-md ring-1 ring-white/20 text-slate-950 cursor-pointer hover:scale-105 z-10 relative'}
                               `}
                             >
@@ -61,7 +55,7 @@ export const RiskHeatmapMatrix = ({ risks = [], onCellClick }) => {
                             </button>
                           </TooltipTrigger>
                           <TooltipContent className="bg-slate-900 border-slate-800 text-slate-200">
-                            <p className="font-semibold mb-1">Score: {likelihood * impact}</p>
+                            <p className="font-semibold mb-1">Score: {calculateRiskScore(likelihood, impact)}</p>
                             <p className="text-xs text-slate-400 mb-2">{count} Risk{count !== 1 ? 's' : ''}</p>
                             {count > 0 && (
                                 <ul className="text-xs max-w-[200px] space-y-1 list-disc pl-4">
@@ -97,12 +91,14 @@ export const RiskHeatmapMatrix = ({ risks = [], onCellClick }) => {
         </div>
       </div>
       
-      {/* Legend */}
-      <div className="flex gap-4 mt-6 text-xs text-slate-400">
-          <div className="flex items-center gap-1"><div className="w-3 h-3 bg-green-500 rounded-sm"></div> Low (1-4)</div>
-          <div className="flex items-center gap-1"><div className="w-3 h-3 bg-yellow-500 rounded-sm"></div> Medium (5-9)</div>
-          <div className="flex items-center gap-1"><div className="w-3 h-3 bg-orange-500 rounded-sm"></div> High (10-14)</div>
-          <div className="flex items-center gap-1"><div className="w-3 h-3 bg-red-500 rounded-sm"></div> Critical (15-25)</div>
+      {/* Legend. ASC-0 (RC-6): the bands and their edges come from the
+          engine's RISK_BANDS, lowest first. This file restated them. */}
+      <div className="flex flex-wrap gap-4 mt-6 text-xs text-slate-400" data-testid="risk-band-legend">
+          {[...RISK_BANDS].reverse().map((b) => (
+              <div key={b.band} className="flex items-center gap-1">
+                  <div className={`w-3 h-3 rounded-sm ${getBandCellClasses(b.band)}`}></div> {b.band} ({b.min}-{b.max})
+              </div>
+          ))}
       </div>
     </div>
   );

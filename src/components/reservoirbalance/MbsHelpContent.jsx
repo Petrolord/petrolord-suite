@@ -92,9 +92,31 @@ const MbsHelpContent = () => (
     <P>
       The tab has two segments. Regression runs the Havlena-Odeh straight line (or the p over z pot-aquifer plot for
       gas) on the server engine and reports OOIP or OGIP, aquifer size where applicable, the regression quality, and
-      the drive index decomposition (depletion, gas cap, water and compressibility drives, which should sum to about
-      one). Engine warnings surface anything the run had to assume or found suspicious.
+      the drive index decomposition (depletion, gas cap, water and compressibility drives). Those indices are
+      fractions of the hydrocarbon voidage the reservoir had to replace, so water you have produced is netted inside
+      the water drive index rather than counted in the denominator. That makes them sum to one by construction, and a
+      sum that drifts off one points at an inconsistent solution or inconsistent inputs rather than at rounding. A
+      negative water drive index is meaningful too: it says you produced more water than the aquifer supplied, so
+      expansion energy had to make up the difference. Engine warnings surface anything the run had to assume or found
+      suspicious.
     </P>
+    <P>
+      Two warnings mean the answer cannot be used at all rather than that it needs care: an oil or gas in place at or
+      below zero, and a negative pot aquifer volume. Both come from a regression line whose intercept landed on the
+      wrong side of zero, and a high regression quality does not rescue either one, because points can sit on a
+      straight line about the wrong model. Check the aquifer model first (a real aquifer analysed as none bends the
+      plot, and a pot aquifer forced onto a depletion tank drives the water volume negative), then the pressure and
+      production history for unit or sign errors, then whether the earliest points belong to a different flow regime
+      and should be excluded.
+    </P>
+    <P>
+      A note on the acronyms, because the textbooks disagree and the studio used to follow the wrong one. Ahmed calls
+      the gas cap drive SDI, for segregation, while Pletcher and most gas work call the rock and connate water
+      expansion ICD, for compressibility. The studio labels each row by what it is: depletion, gas cap, water, and
+      rock and water. That last one is Ahmed's EDI. Results you ran before 11 September 2026 show the same numbers,
+      but the rock and water row was labelled Segregation (SDI) then, which named it after the gas cap by mistake.
+    </P>
+
     <P>
       History match works the other way round: the engine simulates the pressure history your production would have
       produced for a candidate set of tank parameters, then a Levenberg-Marquardt search adjusts the parameters you

@@ -1,5 +1,5 @@
 // Relief & Flare Studio (Facilities F2, Facilities-ROADMAP.md §3
-// app 5) — the upgraded Relief & Blowdown Sizer on the studio kit,
+// app 5). The upgraded Relief & Blowdown Sizer on the studio kit,
 // keeping its slug (relief-blowdown-sizer) and its table. The physics
 // is the vendored API 520/521 engine; this page only wires it.
 import React, { useState } from 'react';

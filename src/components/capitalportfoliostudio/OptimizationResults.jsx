@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import ChartFrame from '@/components/charts/ChartFrame';
+import { AlertTriangle } from 'lucide-react';
 import { projectEmv } from '@/utils/portfolioOptimizer';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE,
@@ -13,18 +14,35 @@ const formatCurrency = (value, unit = 'MM') => new Intl.NumberFormat('en-US', { 
 
 const AXIS_TICK = { fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText };
 
-const Metric = ({ title, value, accent }) => (
+const Metric = ({ title, value, accent, detail }) => (
   <div>
     <p className="text-xs text-slate-400 uppercase tracking-wide">{title}</p>
     <p className={`font-bold ${accent || 'text-white'}`}>{value}</p>
+    {detail && <p className="text-[11px] text-slate-400" data-testid="risk-method">{detail}</p>}
   </div>
 );
+
+// EC5-0 (owner decision 2026-09-14): the loss probability and the P90 / P10
+// cards come from the engine's seeded Monte Carlo, so each card states the
+// method, the iteration count and the seed that reproduce it.
+export const riskMethodLabel = (risk) => {
+  if (!risk) return '';
+  const method = risk.method === 'monte-carlo' ? 'Monte Carlo' : String(risk.method || 'Unknown method');
+  const iterations = Number.isFinite(risk.iterations) ? risk.iterations.toLocaleString('en-US') : 'unknown';
+  return `${method}, ${iterations} iterations, seed ${risk.seed}`;
+};
+
+const formatMM = (value) => `${Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })} $MM`;
 
 const OptimizationResults = ({ result }) => {
   if (!result) return null;
 
-  const { optimalProjects, totalCapex, totalEmv, totalNpvSuccess, frontierData, risk } = result;
+  const {
+    optimalProjects, totalCapex, totalEmv, totalNpvSuccess, frontierData, risk,
+    resolution, solveMethod, optimalityGap,
+  } = result;
   const optimalPoint = [{ capex: totalCapex, emv: totalEmv }];
+  const methodLabel = riskMethodLabel(risk);
 
   return (
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
@@ -40,25 +58,52 @@ const OptimizationResults = ({ result }) => {
               title="P(portfolio NPV < 0)"
               value={`${(risk.probLoss * 100).toFixed(1)}%`}
               accent={risk.probLoss <= 0.1 ? 'text-emerald-300' : risk.probLoss <= 0.3 ? 'text-amber-300' : 'text-red-300'}
+              detail={methodLabel}
             />
-            <Metric title="NPV P90 / P10" value={`${formatCurrency(risk.p90, '')} / ${formatCurrency(risk.p10, '')}`} />
+            <Metric
+              title="NPV P90 (low) / P10 (high)"
+              value={`${formatCurrency(risk.p90, '')} / ${formatCurrency(risk.p10, '')}`}
+              detail={methodLabel}
+            />
           </div>
+          {/* EC5 (engines #194): the knapsack is solved exactly on the capex
+              figures themselves, so there is no grid and the funded set cannot
+              exceed the limit. A grid appears only on a problem too large for
+              the exact solve, and then it says so and bounds what it may have
+              left on the table. */}
+          {solveMethod === 'grid-feasible' && Number.isFinite(resolution) && (
+            <p className="text-xs text-slate-400 pt-1" data-testid="grid-resolution">
+              This portfolio was too large to solve exactly, so capital was quantized onto a grid with a
+              resolution of {formatMM(resolution)} and every candidate rounded UP onto it, which keeps the
+              funded set inside your limit. At most {formatMM(optimalityGap)} of risked EMV could have been
+              left on the table.
+            </p>
+          )}
+          {solveMethod === 'exact' && (
+            <p className="text-xs text-slate-400 pt-1" data-testid="exact-solve">
+              Solved exactly on the capital figures you entered, so the funded set is the best that fits
+              inside the limit of {formatMM(result.capexLimit)}.
+            </p>
+          )}
           <p className="text-xs text-slate-400 pt-1">
             {risk.correlation > 0 ? (
               <>
                 Risk metrics use an average pairwise correlation of {risk.correlation.toFixed(2)}
-                {' '}between projects and a normal approximation of the summed NPV (screening basis).
+                {' '}between projects. The loss probability and the P90 and P10 come from a seeded Monte Carlo
+                {' '}of each project's success and failure cases ({methodLabel}; screening basis).
                 {' '}Assuming independence instead would report a spread of
                 {' '}{formatCurrency(risk.independentStdDev, '')} rather than {formatCurrency(risk.stdDev, '')},
                 {' '}so treat that difference as the cost of the assumption.
               </>
             ) : (
               <>
-                Risk metrics assume independent projects and a normal approximation of the summed NPV
-                (screening basis). Independence is the friendliest assumption a portfolio can be given;
-                raise the correlation above to see what shared exposure does to the downside.
+                Risk metrics assume independent projects. The loss probability and the P90 and P10 come from a
+                {' '}seeded Monte Carlo of each project's success and failure cases ({methodLabel}; screening basis).
+                {' '}Independence is the friendliest assumption a portfolio can be given;
+                {' '}raise the correlation above to see what shared exposure does to the downside.
               </>
             )}
+            {' '}P90 is the low case and P10 the high case of the portfolio NPV.
             {' '}Risked EMV weights each NPV by its chance of success and charges the failure loss.
           </p>
         </CardHeader>

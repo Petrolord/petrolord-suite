@@ -84,6 +84,30 @@ describe('the page', () => {
     expect(screen.getByText(/must not be compared/i)).toBeInTheDocument();
   });
 
+  it('leaves a blank unburned loss absent and says the efficiency is computed without it', async () => {
+    mount();
+    await screen.findByText('Stoichiometric air');
+    supplyRefusedInputs();
+    const before = (await screen.findByText(/% efficient on LHV/i)).textContent;
+    // The shipped study supplies a zero here. Clearing the field is a blank,
+    // and the page used to read that blank as a measured zero.
+    fireEvent.change(screen.getByLabelText(/Unburned and other loss/i), { target: { value: '' } });
+    expect(await screen.findByText(/Unburned and other loss: not supplied/i)).toBeInTheDocument();
+    // The engine's own default still stands, so no number moved.
+    expect(screen.getByText(/% efficient on LHV/i).textContent).toBe(before);
+  });
+
+  it('clears the absent note once the unburned loss is entered', async () => {
+    mount();
+    await screen.findByText('Stoichiometric air');
+    supplyRefusedInputs();
+    await screen.findByText(/% efficient on LHV/i);
+    fireEvent.change(screen.getByLabelText(/Unburned and other loss/i), { target: { value: '' } });
+    await screen.findByText(/Unburned and other loss: not supplied/i);
+    fireEvent.change(screen.getByLabelText(/Unburned and other loss/i), { target: { value: '2' } });
+    expect(screen.queryByText(/Unburned and other loss: not supplied/i)).not.toBeInTheDocument();
+  });
+
   it('changes the answer and the warning when the basis changes', async () => {
     mount();
     await screen.findByText('Stoichiometric air');
@@ -127,7 +151,37 @@ describe('the page', () => {
     await openTab(/Steam, intensity & register/i);
     fireEvent.change(screen.getByLabelText(/Discharge coeff/i), { target: { value: '0.7' } });
     expect(await screen.findByText('Per trap')).toBeInTheDocument();
-    expect(screen.getByText(/not on what is downstream/i)).toBeInTheDocument();
+    // Choked is a test now (MD45-1 F6), to atmosphere by default.
+    expect(screen.getByText(/upstream pressure alone/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Choked: discharging at 1\.013 bar a/)).toBeInTheDocument();
+  });
+
+  it('tests choked flow against the critical ratio: into an 8 bar a header it is not (MD45-1 F6)', async () => {
+    mount();
+    await openTab(/Steam, intensity & register/i);
+    fireEvent.change(screen.getByLabelText(/Discharge coeff/i), { target: { value: '0.7' } });
+    await screen.findByText('Per trap');
+    fireEvent.change(screen.getByLabelText(/Discharges at/i), { target: { value: '8' } });
+    expect(await screen.findByText(/^Not choked: discharging at 8\.000 bar a/)).toBeInTheDocument();
+    expect(screen.getByText(/downstream pressure lowers the loss/i)).toBeInTheDocument();
+    expect(screen.getByText('26.4 kg/h')).toBeInTheDocument();
+  });
+
+  it('refuses a blank discharge pressure rather than assuming atmosphere (MD45-1 F6)', async () => {
+    mount();
+    await openTab(/Steam, intensity & register/i);
+    fireEvent.change(screen.getByLabelText(/Discharge coeff/i), { target: { value: '0.7' } });
+    await screen.findByText('Per trap');
+    fireEvent.change(screen.getByLabelText(/Discharges at/i), { target: { value: '' } });
+    expect(await screen.findByText(/A downstream pressure is required/i)).toBeInTheDocument();
+  });
+
+  it('refuses a heating value basis that is neither LHV nor HHV (MD45-1 F2)', async () => {
+    mount();
+    await screen.findByText('Stoichiometric air');
+    supplyRefusedInputs();
+    fireEvent.change(screen.getByLabelText(/Heating value basis/i), { target: { value: 'Btu' } });
+    expect((await screen.findAllByText(/must be LHV or HHV/i)).length).toBeGreaterThan(0);
   });
 
   it('calls the condensate value a floor until the treatment is priced', async () => {
@@ -140,7 +194,7 @@ describe('the page', () => {
   it('says plainly that the intensity is not EII', async () => {
     mount();
     await openTab(/Steam, intensity & register/i);
-    expect(await screen.findByText(/NOT the Solomon Energy Intensity Index/i)).toBeInTheDocument();
+    expect(await screen.findByText(/independent of the Solomon Energy Intensity Index/i)).toBeInTheDocument();
   });
 
   it('leaves register carbon absent until an emission factor is supplied', async () => {
@@ -172,6 +226,34 @@ describe('the page', () => {
   });
 });
 
+describe('MD5-0 on the page', () => {
+  it('asks for the trap exponent and passes it, where 1.3 was assumed', async () => {
+    mount();
+    await openTab(/Steam, intensity & register/i);
+    fireEvent.change(screen.getByLabelText(/Discharge coeff/i), { target: { value: '0.7' } });
+    // 3 mm at 11 bar a and 5.6 kg/m3, Cd 0.7: 28.1 kg/h at 1.135, 29.5 at 1.3
+    expect(await screen.findByText('28.1 kg/h')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/Isentropic exponent/i), { target: { value: '' } });
+    expect((await screen.findAllByText(/isentropic exponent above 1 is required/i)).length).toBeGreaterThan(0);
+  });
+
+  it('gives a trap no fuel with a blank boiler efficiency, where it assumed 1 (E11)', async () => {
+    mount();
+    await openTab(/Steam, intensity & register/i);
+    fireEvent.change(screen.getByLabelText(/Discharge coeff/i), { target: { value: '0.7' } });
+    fireEvent.change(screen.getByLabelText(/Boiler efficiency/i), { target: { value: '' } });
+    expect(await screen.findByText(/It is not assumed to be 1/i)).toBeInTheDocument();
+  });
+
+  it('does not compare an intensity with a stream missing (E7)', async () => {
+    mount();
+    await openTab(/Steam, intensity & register/i);
+    fireEvent.change(screen.getByLabelText(/Peer intensity/i), { target: { value: '700' } });
+    fireEvent.change(screen.getByLabelText(/Purchased power/i), { target: { value: '' } });
+    expect(await screen.findByText(/would flatter the plant/i)).toBeInTheDocument();
+  });
+});
+
 describe('the saved payload', () => {
   it('round-trips a study', () => {
     const inputs = defaultInputs();
@@ -181,6 +263,13 @@ describe('the saved payload', () => {
     expect(restored.heater.radiationLossPercent).toBe(1.5);
     expect(restored.pinch.minimumApproachC).toBe(15);
     expect(restored.pinch.streams.length).toBe(4);
+  });
+
+  it('restores a blank unburned loss as a blank', () => {
+    const inputs = defaultInputs();
+    inputs.heater.unburnedLossPercent = '';
+    const restored = inputsFromPayload({ name: 'A study', schema: 1, inputs });
+    expect(restored.heater.unburnedLossPercent).toBe('');
   });
 
   it('refuses a payload with no fuel', () => {

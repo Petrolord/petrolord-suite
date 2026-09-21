@@ -108,22 +108,36 @@ const GenericRiskManager = ({ risks, type }) => {
     );
 };
 
+/**
+ * EC6-0. This chart plotted a random value against each KPI target, drawn
+ * fresh on every render: the bars moved when nothing in the project had
+ * changed. The studio records no measurement against these KPIs, so the
+ * targets are listed as the targets they are.
+ */
 const GenericKPIDashboard = ({ type }) => {
     const template = SMALL_PROJECTS_TEMPLATES[type];
-    const data = template ? template.kpis.map(k => ({ name: k.name, value: Math.floor(Math.random() * k.target), target: k.target })) : [];
+    const kpis = template ? template.kpis.slice(0, 6) : [];
 
     return (
         <Card className="bg-slate-900 border-slate-800">
-            <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300 flex items-center gap-2"><BarChart3 className="w-4 h-4"/> KPIs</CardTitle></CardHeader>
-            <CardContent className="h-[250px]">
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={data.slice(0,6)} layout="vertical" margin={{left: 40}}>
-                        <XAxis type="number" hide />
-                        <YAxis dataKey="name" type="category" width={100} stroke="#64748b" fontSize={10} />
-                        <Tooltip contentStyle={{backgroundColor: '#1e293b', border: 'none', fontSize: '12px'}} />
-                        <Bar dataKey="value" fill="#3b82f6" barSize={10} radius={[0,4,4,0]} />
-                    </BarChart>
-                </ResponsiveContainer>
+            <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300 flex items-center gap-2"><BarChart3 className="w-4 h-4"/> KPI targets</CardTitle></CardHeader>
+            <CardContent>
+                {kpis.length === 0 ? (
+                    <div className="text-xs text-slate-500">No KPI template for this project type.</div>
+                ) : (
+                    <div className="space-y-2">
+                        {kpis.map((k) => (
+                            <div key={k.name} className="flex items-center justify-between text-xs border-b border-slate-800 pb-1 last:border-0">
+                                <span className="text-slate-300">{k.name}</span>
+                                <span className="text-slate-400 font-mono">Target {k.target}{k.unit ? ` ${k.unit}` : ''}</span>
+                            </div>
+                        ))}
+                        <p className="text-[10px] text-slate-500 pt-2">
+                            Targets from the project-type template. Nothing in the studio measures
+                            against them yet, so no achieved value is shown.
+                        </p>
+                    </div>
+                )}
             </CardContent>
         </Card>
     );

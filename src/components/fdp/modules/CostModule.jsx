@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useFDP } from '@/contexts/FDPContext';
 import { Button } from '@/components/ui/button';
 import { Plus, Download, RefreshCw } from 'lucide-react';
@@ -9,6 +9,7 @@ import CostForm from './cost/CostForm';
 import EconomicsAnalysis from './cost/EconomicsAnalysis';
 import SensitivityAnalysis from './cost/SensitivityAnalysis';
 import { exampleCosts, EXAMPLE_LABEL } from '@/services/fdp/exampleData';
+import { computePlanEconomics } from '@/utils/fdp/planEconomics';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 const CostModule = () => {
@@ -16,6 +17,13 @@ const CostModule = () => {
     const { costs } = state;
     const { toast } = useToast();
     
+    // EC6-0: one screening case for the whole plan. The panels below, the
+    // summary rail and the exported PDF all read this, so they cannot
+    // disagree with each other any more.
+    const economics = useMemo(() => computePlanEconomics(state), [state]);
+    // MainLayout writes this case into state.economics (it is mounted on
+    // every tab); this module only renders it.
+
     const [view, setView] = useState('list'); // list, form
     const [editingCost, setEditingCost] = useState(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -93,10 +101,10 @@ const CostModule = () => {
                 <div className="space-y-6">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <CollapsibleSection title="Economic Indicators" defaultOpen>
-                            <EconomicsAnalysis costItems={costs.items} />
+                            <EconomicsAnalysis economics={economics} />
                         </CollapsibleSection>
                         <CollapsibleSection title="Sensitivity Analysis" defaultOpen>
-                            <SensitivityAnalysis />
+                            <SensitivityAnalysis economics={economics} />
                         </CollapsibleSection>
                     </div>
 

@@ -1,17 +1,23 @@
-import React, { useState } from 'react';
-import { ShieldAlert, LayoutDashboard, List, Grid, PieChart, FileBarChart, HelpCircle } from 'lucide-react';
+import React from 'react';
+import { ShieldAlert, LayoutDashboard, List, Grid, PieChart, FileBarChart } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BackButton } from './BackButton';
-import { HelpGuide } from './HelpGuide';
 import { SnapshotManager } from './SnapshotManager';
-import { useRiskReporting } from '@/hooks/useRiskReporting';
+import { useRiskReporting } from '../contexts/RiskReportingContext';
+import { useRiskRegister } from '../hooks/useRiskRegister';
+import AssuranceHelp from '@/components/assurance/AssuranceHelp';
 
 export const RiskRegisterShell = ({ children, activeTab, onTabChange }) => {
-  const [helpOpen, setHelpOpen] = useState(false);
-  
-  // Safely destructure with a fallback to empty object to prevent TypeError.
-  // Map reportData to activeReport for backward compatibility with shell logic.
-  const { closeReport, reportData: activeReport } = useRiskReporting() || {};
+  // AS2: the snapshot needs the register it is capturing. It used to
+  // capture nothing at all and say it had.
+  const { risks } = useRiskRegister();
+
+  // The app's reporting provider. This imported a standalone hook of the
+  // same name from @/hooks, whose closeReport acted on private state that
+  // nothing rendered, so leaving Advanced Reports never closed the
+  // report (AS13). Outside the provider (the New, Edit and Detail routes)
+  // there is no report to close.
+  const { closeReport, activeReport } = useRiskReporting() || {};
 
   const handleTabChange = (val) => {
     // If navigating away from advanced reports, clean up active report state
@@ -49,13 +55,8 @@ export const RiskRegisterShell = ({ children, activeTab, onTabChange }) => {
           </div>
           
           <div className="flex items-center gap-3">
-            <SnapshotManager />
-            <button 
-              onClick={() => setHelpOpen(true)}
-              className="p-2 text-slate-400 hover:text-cyan-400 hover:bg-slate-800 rounded-full transition-colors"
-            >
-              <HelpCircle className="w-5 h-5" />
-            </button>
+            <SnapshotManager risks={risks} />
+            <AssuranceHelp appKey="risk" />
           </div>
         </div>
         
@@ -82,8 +83,6 @@ export const RiskRegisterShell = ({ children, activeTab, onTabChange }) => {
       <div className="flex-1 overflow-y-auto relative">
          {children}
       </div>
-
-      <HelpGuide isOpen={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 };

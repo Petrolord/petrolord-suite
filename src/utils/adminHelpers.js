@@ -49,6 +49,9 @@ export const normalizeModuleName = (name) => {
     // DS0: check before the shorter words, since the module name contains both
     // "midstream" and "downstream" and either alone should resolve to it.
     if (lowerName.includes('midstream') || lowerName.includes('downstream')) return 'midstream-downstream';
+    // PS0: the ninth module. Its own id, never 'hse', which is the external
+    // HSE portal and its hse_free / hse_premium entitlements.
+    if (lowerName.includes('process safety') || lowerName.includes('process-safety')) return 'process-safety';
     if (lowerName.includes('hse')) return 'hse';
     
     // Default fallback (returns original if no match, simplified)
@@ -66,7 +69,8 @@ export const getModuleList = () => {
     { id: 'drilling', name: 'Drilling & Completions', description: 'Well planning and drilling operations', type: 'suite' },
     { id: 'facilities', name: 'Facilities Engineering', description: 'Surface facilities design and management', type: 'suite' },
     { id: 'economics', name: 'Economics & Planning', description: 'Asset valuation and portfolio management', type: 'suite' },
-    { id: 'midstream-downstream', name: 'Midstream & Downstream', description: 'Refining, terminals, fuel supply chain and the carbon ledger beside them', type: 'suite' }
+    { id: 'midstream-downstream', name: 'Midstream & Downstream', description: 'Refining, terminals, fuel supply chain and the carbon ledger beside them', type: 'suite' },
+    { id: 'process-safety', name: 'Process Safety', description: 'LOPA and SIL determination, consequence modelling and quantitative risk assessment', type: 'suite' }
   ];
 };
 

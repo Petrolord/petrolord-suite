@@ -58,4 +58,63 @@ describe('ControlValveSizing page', () => {
     // The failure a single-point Cv never shows.
     expect(screen.getAllByText(/never shows in a\s+single-point Cv|single-point Cv calculation/i).length).toBeGreaterThan(0);
   });
+
+  it('REFUSES a liquid sizing when the vapour pressure box is cleared', async () => {
+    render(
+      <MemoryRouter>
+        <ControlValveSizing />
+      </MemoryRouter>,
+    );
+    await screen.findByText(/Control Valve/i);
+    // The cleared Pv box used to supply the engine's own default of zero,
+    // which made sigma infinite, took the last branch of the regime ladder
+    // and printed Regime "stable" in GREEN for every liquid service at
+    // every pressure drop, with Sigma "n/a" beside it.
+    // The Field primitive does not associate its label with its input, so
+    // the box is found through the label's own container.
+    const boxFor = (re) => screen.getAllByText(re)[0].parentElement.querySelector('input');
+    fireEvent.change(boxFor(/^Pv \(psia\)$/i), { target: { value: '' } });
+    await waitFor(() => expect(
+      screen.getAllByText(/a true vapour pressure is needed/i).length,
+    ).toBeGreaterThan(0));
+    expect(screen.getAllByText(/every service reads as stable/i).length).toBe(3);
+    expect(screen.queryByText(/^stable$/)).not.toBeInTheDocument();
+  });
+
+  it('withholds the travel verdict when a flow is missing, and says how many checks ran', async () => {
+    render(
+      <MemoryRouter>
+        <ControlValveSizing />
+      </MemoryRouter>,
+    );
+    await screen.findByText(/Control Valve/i);
+    fireEvent.mouseDown(screen.getByRole('tab', { name: /Control/i }));
+    await waitFor(() => expect(screen.getAllByText(/Travel at each flow/i).length).toBeGreaterThan(0));
+    // all three flows given: a verdict is offered, with the count beside it
+    expect(screen.getAllByText(/checks ran/i).length).toBeGreaterThan(0);
+    // clear the minimum flow: the near-seat check cannot run, so the
+    // verdict is withheld. This used to print "WORKABLE" in green.
+    const boxFor = (re) => screen.getAllByText(re)[0].parentElement.querySelector('input');
+    fireEvent.change(boxFor(/^Min \(gpm\)$/i), { target: { value: '' } });
+    await waitFor(() => expect(screen.getAllByText(/NO VERDICT/i).length).toBeGreaterThan(0));
+    expect(screen.getByText(/near-seat rangeability check/i)).toBeInTheDocument();
+    expect(screen.queryByText(/WORKABLE/)).not.toBeInTheDocument();
+    // and "not given" is distinguished from "beyond the valve"
+    expect(screen.getAllByText(/not given/i).length).toBeGreaterThan(0);
+  });
+
+  it('exposes the piping geometry factor that used to be a hidden persisted input', async () => {
+    render(
+      <MemoryRouter>
+        <ControlValveSizing />
+      </MemoryRouter>,
+    );
+    await screen.findByText(/Control Valve/i);
+    expect(screen.getAllByText(/Piping geometry factor Fp/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/divides into every Cv/i)).toBeInTheDocument();
+    // and the erosional card has two velocities to compare rather than one
+    expect(screen.getAllByText(/Outlet bore \(in\)/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Actual velocity/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Of the limit/i).length).toBeGreaterThan(0);
+  });
 });

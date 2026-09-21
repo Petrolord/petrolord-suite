@@ -106,7 +106,8 @@ const InventoryResults = () => {
                     {l.blockedBy ? l.blockedBy : fmt(l.tCo2e, 0)}
                   </td>
                   <td className="px-2 py-1 text-slate-400">
-                    {l.provenanceComplete ? l.source : `missing ${l.missingProvenance.join(' and ')}`}
+                    {l.provenanceComplete ? l.source
+                      : (l.missingProvenance ? `missing ${l.missingProvenance.join(' and ')}` : 'not computed')}
                   </td>
                 </tr>
               ))}

@@ -165,6 +165,11 @@ course, on the RC precedent for screening-scale apps.
 
 PD1 and PD9 are gated on the extraction wave. PD2 through PD8 are not.
 
+PROGRESS, 2026-09-16. That gate is closed and the module shipped.
+`engines/production/` carries `nodal.js`, `allocation.js` and
+`surveillance.js` alongside the lift modules, so nothing in this roster is
+waiting on an extraction any more, and all nine courses are live.
+
 ## 6. Facilities (FC1-FC9), path_order 39 to 47
 
 Every wave has its golden today.
@@ -189,6 +194,58 @@ Facility Layout Mapper is absorbed into FC1 as the spacing lesson, since
 Gated on pushing the eleven downstream engine modules to the central
 repo with goldens and oracles.
 
+PROGRESS, 2026-09-16. **The gate is half open.** The code is up: all
+eleven modules are in petrolord-engines at `engines/downstream/`
+(`carbonAbatement`, `crudeAssay`, `energyEfficiency`, `flareToValue`,
+`fuelPricing`, `lpgCng`, `modularRefinery`, `productBlending`,
+`refineryPlanning`, `streamModel`, `terminalDepot`) with the LP kernel at
+`lib/lp/simplex.js`, and eleven jest suites totalling about 4,600 lines
+gate them. The statement elsewhere in this plan that they were never
+pushed is stale.
+
+What is still missing is the half that decides whether a course can be
+built on them. Those suites are self-consistency gates: they assert that
+the plan's material balance closes, that the schedule sums to the plan it
+came from, that the variance decomposes exactly. Identities of that kind
+catch an engine that contradicts itself. They cannot catch an engine that
+is wrong and consistent, which is the failure mode a capstone would ship
+to a learner as a graded answer. There is no `test-data/downstream`
+golden set and no `tools/validation/downstream` oracle, so MD1 to MD5
+stay gated until that validation wave runs.
+
+PROGRESS, 2026-09-19. **MD-0 runs one course at a time, and MD1's gate is
+open once engines #215 and its Suite PR merge.** MD1-0 put `crudeAssay`,
+`productBlending` and the shared `simplex` behind stdlib oracles (the LP by
+exact rational vertex enumeration), goldens in `test-data/downstream/` and
+a planted-defect battery (24 of 24 caught). It found 23 things, three of
+them wrong on screen at the apps' defaults: the Blend Optimizer's shadow
+prices were row duals (sulfur relief shown as $0.072 against a re-solved
+$55.01 per ppm), the Crude Assay studio's Watson K sat on a grid point
+(12.00 against 11.75) and its stability screen gave a green tick on no
+evidence. The LP kernel could return points that broke their own rows as
+optimal. Findings: engines `tools/validation/downstream/FINDINGS-crude.md`.
+MD2-0 (`modularRefinery`, `refineryPlanning`, and the kernel's reach into a
+maximising plan) is next; MD3 to MD5 stay gated on their own waves.
+
+PROGRESS, 2026-09-19 (later). **MD1-0 is merged (engines #215, Suite #532)
+and MD2-0 is merged in the engines (#219).** MD2-0 built `exact_simplex.py`,
+a rational simplex that returns only certificate-proved optima, and found
+the refinery planner's crude unit carrying nothing at the default plan
+($3.49M of opex uncharged), typed zero capacities read as unlimited, a
+variance that added revenue gaps to cost gaps, and a modular refinery NPV
+that threw away construction-year tax losses (a profitable plant read
+-$12.2M; it is +$5.3M). Decisions taken under the owner's delegation: an
+opt-in loss carry-forward in the screening engine, no royalty on a refinery,
+a feedless unit is the crude unit. MD3-0 (`terminalDepot`, `fuelPricing`)
+is next, then the three Commercial & Trading courses MD1 to MD3.
+
+PROGRESS, 2026-09-19 (evening). **MD3-0 is merged (engines #221) and all three
+Commercial & Trading engines are gated.** Its worst finding was on the Suite
+page: the Terminal & Depot reconciliation derived its opening stock from
+today's dip, so it balanced for every input. The three courses are in build
+in NextGen on a shared vendor commit (downstream family at engines 60ee266):
+`crude` (48), `refinery` (49), `supply` (50), module `downstream`.
+
 | wave | slug | course | engine modules |
 |---|---|---|---|
 | MD1 | `crude` | Crude Assay & Blending | crudeAssay, productBlending |
@@ -196,6 +253,33 @@ repo with goldens and oracles.
 | MD3 | `supply` | Terminals, Depots & Fuel Supply | terminalDepot, fuelPricing |
 | MD4 | `gasvalue` | Flare Gas to Value & LPG/CNG | flareToValue, lpgCng |
 | MD5 | `carbon` | Carbon & Energy Efficiency | carbonAbatement, energyEfficiency |
+
+PROGRESS, 2026-09-19 (night). **MD1 to MD3 are built and merged in NextGen,
+go-lives HELD.** `crude` #167, `refinery` #166 (+ #168, the Suite upload gate)
+and `supply` #165, nextgen main `5fda0d5c`. Each course has 78 lessons, 396
+questions and 18 graded fields, on engines 13f0936 (MD-1 #224 and MD3-2 #225
+re-vendored). The module ruling superseded `downstream`: crude and refinery sit
+in `commercial_trading` and supply in `supply_chain`. Migrations are
+`20261010_cr_crude_*`, `20261011_rf_refinery_*` and `20261012_tds_supply_*`, each
+with a content-addressed apply script under `tools/course-waves/<slug>/`. Each
+ladder passed a rolled-back production dry run (catalogue 55 to 56 available),
+and every negative control fired. For LP fields, the go-live's second route is
+the oracle's exact rational value, and closed-form fields are recomputed in SQL.
+
+All nine tier banks went through a key-truth audit. Every tier had 12 to 22 keys
+resting on lesson sentences the digest never prints; each was replaced, and the
+lessons were fixed to match. Two lead rulings were overturned by measurement.
+First, the refinery plan does maximise margin: `solveLP(..., maximize: true)`
+is read from the engine source and printed. Second, the crude sulfur re-solve
+spread is not a vertex change: the limit scales every volume in its row. Both
+now print in the digests.
+
+**Every go-live is gated on TWO uploads:** the NextGen zip carrying
+`apps/<slug>`, and the Suite production upload carrying Suite main `1a71d9c90`
+(#532, #534 and #540, the page repairs these courses teach; production was
+e36846604). Owner order: merge is done, then `apply_<p>_<slug>.sh verify` and
+`seed` for each course, then both uploads, then `go-live` for each course. Log
+every applied migration in the NextGen MIGRATIONS.md.
 
 ## 8. Economics (EC1-EC6), path_order 53 to 58
 
@@ -230,6 +314,46 @@ NULL for all six courses per the carried-over answer above.
 | EC5 | `portfolio` | Capital Portfolio & Cost Control | Capital Portfolio Studio, AFE Cost Control |
 | EC6 | `fdp` | Field Development Planning | FDP Accelerator, Project Management Pro, Report Autopilot |
 
+PROGRESS, 2026-09-09. **EC1 IS LIVE.** `cashflow` shipped as nextgen PR #114
+(78 lessons, 21 banks and 396 questions, three panels over one `cashflowLab`,
+and five migrations). The course and its three deep seeds were applied in
+ladder order, each behind its own rollback-wrapped dry run, and the go-live
+was applied once the cd383578 production upload was verified to carry the
+route `/dashboard/apps/cashflow`. The Academy catalogue reads 39 available
+and 0 coming_soon. Migration log: nextgen PRs #115 and #118.
+
+EC1's own finding is a process one and it is now a standing step in the wave
+kit. Seventeen bank questions across three banks were MIS-KEYED, eleven of
+them in one file where the writer listed the options in display order and
+passed the first as the correct one, so the true answer was a distractor in
+every question and the explanation underneath supported it. Every structural
+gate was green throughout, because none of them reads the answer. A
+second-reader KEY-TRUTH audit per tier, one agent reading prompt, options,
+explanation, digest and lesson for every question, now runs before
+`gen_migration.py` on every wave.
+
+PROGRESS, 2026-09-13. **EC2 is in build**, wave dir `/root/ec-wip-fiscal`, on
+nextgen branch `feat/ec2-fiscal-course`. `fiscal` takes `path_order` 54 and
+`prereq_slug` NULL. The teaching field is ODIDI and the capstone field is
+URUAN; the digest reproduces byte for byte from its one generator, and the
+leak, collision, brief and prompt gates all report zero.
+
+EC2 found a defect the EC0 oracle did not. **The regime comparison's price
+sweep reports a government share of exactly 0 percent whenever its
+denominator is not positive**, which is every price at which the contractor
+loses more over the life than the government collects. On the published
+`cmp_never_recovers` comparison all six templates plot a flat zero across all
+nine swept prices while collecting between 700.1194 and 1662.7835 million USD
+for the government. The same series has no ceiling in the other direction:
+on the Angola template at three times the default capex one curve reads
+0.0000, then 2223.0766, then 144.0692, then 85.6015 across four consecutive
+price points. One chart line, three meanings, no flag on any of them. The
+oracle agreed with the engine throughout because it implements the same guard
+from the same method statement, which is the shape this programme keeps
+finding: a function that survives its input and says nothing. Written up with
+the owner's three options in the wave's `FINDINGS.md` as EC2-1, and taught in
+the Expert tier rather than fixed.
+
 ## 9. Assurance, path_order 59 onward
 
 **This module needs a scope decision before it gets a roster.** Its
@@ -254,6 +378,52 @@ The recommendation is two assurance courses covering risk management and
 compliance, exploration risk folded into geoscience, and the decision
 apps left to Economics. That is a smaller module than the app count
 suggests, and it is deliberate.
+
+### DECISION, 2026-09-16: the split stands, and the courses wait on an app programme
+
+The split above is adopted. Exploration risk becomes an eleventh
+geoscience course, the decision and Monte Carlo material stays with EC3
+and EC4 which are built, Data Privacy Manager and Security Analytics
+leave the academy scope and belong in operator documentation, and risk
+and compliance is worth two courses.
+
+**Those two courses are deferred behind an Assurance app remediation
+programme.** The module was audited against the code on 2026-09-16 and it
+is the only module in the Suite still in its Horizons-generated state.
+Every other module was rebuilt: Geoscience G0-G8, Reservoir R0-R5,
+Drilling, Production, Facilities F0-F12, Economics E0-E5 and Midstream &
+Downstream DS0-DS10. Assurance never got a programme. What the audit
+found:
+
+- There are eight app trees, not the fourteen the catalogue claims: five
+  under `src/pages/apps/assurance/` (`iso-compliance`, `lessons-learned`,
+  `moc`, `qa-plan`, `regulatory-compliance`) and three beside it
+  (`risk-register`, `document-control`, `peer-review`).
+- Three of the eight persist anything. `regulatory-compliance`,
+  `risk-register` and `peer-review` have real Supabase services. The
+  other five have no `supabase` import anywhere in their trees.
+- `assurance/moc/Register.jsx` renders five hardcoded records from a
+  local `mockData` array and filters them as though they were a register.
+- ISO Compliance reads `@/data/isoComplianceData` into `useState`.
+  Nothing a user does there survives a reload.
+- There are no tests under any assurance path. The two files that match
+  the word are `flowAssuranceContext` and `flowAssurance`, which are
+  Production.
+- There is no `engines/assurance` in petrolord-engines, so there is
+  nothing for a capstone to be graded against even if a course were
+  written today.
+
+Teaching a course whose lab is a screen that invents its own data would
+put the academy's name behind it. So the order is: an AS0 to ASn
+remediation programme first, on the same shape as the other modules, each
+app either made real or removed honestly; then the engine extraction with
+goldens and an oracle; then the two courses. No date is set here, because
+the programme is not yet scheduled against the Suite roadmap.
+
+One documentation defect found in passing:
+`docs/scope/AssuranceApps-STATUS.md` does not describe Assurance at all.
+Its contents are the Economics E4 status for PM Pro, AFE and Report
+Autopilot. The Assurance module has no status document.
 
 ## 10. Programme size
 
@@ -337,6 +507,62 @@ questions specific to this plan:
    close-out. Is one production upload per module acceptable, or should
    the upload cadence be per course once the module is live?
 
+### ANSWERS, 2026-09-16
+
+All five are closed. One and two are decisions taken under the owner's
+standing directive to pick the best option and keep moving. Three, four
+and five were settled by what actually shipped, and are recorded here so
+the questions stop being asked.
+
+1. **Assurance scope: the two-course split, deferred.** The
+   recommendation in section 9 is adopted in full, and the two courses are
+   held behind an AS0 to ASn app remediation programme. The reasoning and
+   the code audit behind it are in section 9. The academy does not teach
+   from screens that invent their own data.
+2. **Extraction wave priority: in parallel, by repository.** The
+   economics half of this question is moot, since EC0 extracted the whole
+   module on 2026-09-08 and EC1 to EC6 are built. The downstream half runs
+   in parallel with Facilities authoring rather than after it, because the
+   two touch different repositories and neither blocks the other: the
+   validation wave is goldens and an oracle in petrolord-engines, and
+   Facilities authoring is lessons and seeds in the academy repo. The wave
+   is owed on its own merits, not only for the courses. Section 7 says
+   what it consists of.
+3. **Production roster: nine, as built.** PD9 Surveillance & Allocation
+   shipped as its own course rather than being absorbed into PD7, and all
+   nine Production courses are live.
+4. **Facilities roster: nine, as proposed.** FC9 Corrosion & Integrity
+   stays a course of its own. FC1 Separation is content-complete and FC2
+   to FC9 follow in order.
+5. **The held go-lives: batched, and applied only after the route
+   serves.** The practice that settled is neither per course nor strictly
+   per module. Go-lives accumulate as HELD, an upload goes out when the
+   owner runs it, each route is served and checked on the deployed site,
+   and only then are the go-lives applied. The 2026-09-04 Production
+   upload applied twenty-eight held go-lives in one pass that way. The
+   ordering rule is what matters and it is already a non-goal in section
+   13: a go-live is never applied before the deployed site carries the
+   route.
+
+One naming decision that belongs with these, since it came up with the
+same question. The Suite has no Commercial & Trading, Supply Chain &
+Logistics or Energy Transition module, and it does not need one. Those
+three subjects are already covered by apps inside Midstream & Downstream:
+crude assay and blending, product blending and refinery planning for the
+first; terminals, depots and fuel supply for the second; carbon
+abatement, energy efficiency and flare gas to value for the third. The
+academy keeps one Midstream & Downstream module and lets the three themes
+appear as course titles inside it, rather than splitting the catalogue
+into thin modules that each hold one or two courses.
+
+**Data & AI is the one genuinely empty domain**, with no app, no engine
+and nothing behind it but the HSE forecast pipeline. It is not scheduled
+here. It enters through the Suite roadmap first as an app programme with
+its engine, and the course follows afterwards under the N5+ doctrine. The
+rule that decides this, and the one worth protecting above the course
+count, is in section 13: no course ships whose capstone cannot be graded
+from an extracted engine.
+
 ## 13. Non-goals
 
 - No course before its engine is extracted with a golden and an oracle.
@@ -347,3 +573,150 @@ questions specific to this plan:
   finds goes to petrolord-engines or the Suite as its own PR with its
   own guard.
 - The go-lives stay HELD until the deployed site carries the route.
+
+## 14. HSE, path_order 61 onward
+
+Added 2026-09-19, when the owner asked for the HSE courses to be built
+from start to finish. HSE was not in this plan when it was written. The
+academy has carried an `hse` module label since the taxonomy was drawn,
+and no course has ever used it.
+
+### Starting position (H0 audit, 2026-09-19)
+
+Checked read-only against petrolord-hse `f922a3c`, Suite `1275ee922`,
+petrolord-engines `5cbdca5` and NextGen `87c265143`.
+
+- **There is no HSE engine anywhere.** petrolord-engines has no
+  `engines/hse`. The nearest code is `assurance/riskScoring.js`, a 5x5
+  matrix already graded by `riskchange`, and EC6's `hseCalculations.js`,
+  which counts risks by band. Dispersion, blast, probits, LOPA, SIL,
+  individual risk, noise dose, exposure TWAs, WBGT and incident rates are
+  all absent.
+- **There is no app a learner could be sent to.** The Suite has no HSE
+  module and links out to hse.petrolord.com. The HSE product persists
+  real records, but it has no exposure hours, so it cannot compute any
+  frequency rate, and no measurement fields, so it cannot compute any
+  exposure. Its arithmetic is ad hoc (a health "risk score" of
+  `10 + 5*conditions + 10*exposures + 2*absenceDays`, an environmental
+  compliance percentage less five points per spill). It has no tests.
+- **Parts of the HSE product invent their numbers.** The incident trend
+  in `IncidentsAnalytics.jsx` is drawn from `Math.random()`.
+  `benchmarkingService.js` falls back to hardcoded benchmarks (TRIR 1.2
+  against 2.8) when its table is empty. `benefitsData.js` advertises a
+  Carbon Calculator and Scope 1/2/3 calculators that do not exist. These
+  are fixed in the app programme below, before any course points a
+  learner at the product.
+- **Some HSE ground is already taught and graded.** API 521 point-source
+  flare and pool-fire radiation and the setbacks built on it (FC1, FC5).
+  The 5x5 risk matrix (`riskchange` on the 15/10/5 bands; EC6 teaches a
+  second scale at 20/12/6). BTEX, oil in water and tank breathing (FC4,
+  FC7, FC8). Emissions and GHG inventory belong to MD5 `carbon`.
+
+### Roster
+
+Five courses. Each one is a professional subject with published worked
+examples that an independent oracle can reproduce, and none of them
+re-grades a live course's fields.
+
+| wave | slug | course | engine (new) | app home |
+|---|---|---|---|---|
+| H1 | `safetystats` | Safety Performance Statistics & KPIs | `engines/hse/safetyStats` | HSE product |
+| H2 | `hygiene` | Occupational Hygiene: Noise, Chemical & Heat Exposure | `engines/hse/exposure` | HSE product |
+| H3 | `lopa` | Process Safety: LOPA & SIL Determination | `engines/hse/lopa` | Suite HSE module |
+| H4 | `consequence` | Consequence Modelling: Releases, Dispersion, Fires & Explosions | `engines/hse/consequence` | Suite HSE module |
+| H5 | `qra` | Quantitative Risk Assessment | `engines/hse/qra` | Suite HSE module |
+
+- **H1** covers incidence and frequency rates on the OSHA/BLS 200,000
+  hour and IOGP million-hour bases, FAR, severity, the rolling
+  twelve-month rate (sum then divide, never the mean of monthly rates),
+  exact Poisson intervals, comparing two rates, and u-charts for rates
+  over varying exposure. The API RP 754 process safety event rate is
+  covered as a rate only, with tier taken as an input.
+- **H2** covers OSHA 1910.95 noise dose and TWA and the NIOSH criterion,
+  LEX,8h, hearing protector derating, chemical 8-hour TWA, STEL and the
+  1910.1000(d)(2) mixture index, Brief and Scala shift adjustment, and
+  WBGT with the NIOSH heat criteria.
+- **H3** covers LOPA mitigated frequency against a tolerable target,
+  required risk reduction to SIL band, and PFDavg for 1oo1, 1oo2 and
+  2oo3 with common cause and proof-test interval.
+- **H4** covers source terms, Gaussian plume dispersion, solid-flame pool
+  and jet fires, TNT equivalence and multi-energy blast, and probits. It
+  grades none of the point-source radiation outputs FC1 and FC5 already
+  grade.
+- **H5** covers event trees, individual risk, PLL, FAR, F-N curves
+  against criterion lines, ALARP and ICAF. It is built after H4 because
+  it consumes H4's probits. Any discounting imports the canonical NPV
+  module.
+
+Not courses, and why: risk matrices and qualitative bow-ties duplicate
+`riskchange` and EC6. Management systems, audits, permit to work,
+investigation and behavioural safety have no deterministic engine and
+duplicate `compliance` and `riskchange`. Emissions belong to MD5. The
+HSE product's AI forecast is a language model and cannot be graded.
+
+### DECISION, 2026-09-19: apps split by fit
+
+The section 12 doctrine holds here as it did for Assurance: a course
+follows an app with its engine, and the academy does not teach from a
+screen that invents its data. The owner chose where the apps live:
+
+- **H1 and H2 go into the HSE product**, which already holds the
+  incident and health records. It gains exposure hours and exposure
+  measurements, calls the vendored engines, and loses the invented
+  numbers listed above.
+- **H3, H4 and H5 form a new Suite HSE module** beside Facilities, built
+  on the same pattern as the other Suite modules. Tiles and pricing rows
+  are migrations and follow the database rules in CLAUDE.md.
+
+### Order, per course
+
+1. Engine in petrolord-engines with goldens from published worked
+   examples, an independent Python oracle, a negative control and a
+   FINDINGS record.
+2. The app, calling the vendored engine.
+3. The course wave on the section 11 shape, go-live HELD until the
+   route serves.
+
+H1 and H2 run first because their mathematics is closed form and
+publicly tabulated. H3 follows, then H4, then H5.
+
+**Licensed material is cited, not copied.** ACGIH TLVs, API RP 754
+threshold quantities and IEC 61508/61511 tables are not embedded in any
+engine, golden or lesson. Examples use OSHA and NIOSH public values, and
+a licensed table enters only as a user input.
+
+### Status, 2026-09-21: all five courses built and merged, go-lives HELD
+
+| wave | engine | app | course (NextGen) | migrations |
+|---|---|---|---|---|
+| H1 `safetystats` | engines #216, #222 | HSE product #13 (Safety Statistics) | #173 | `20261003_h1_safetystats_*` |
+| H2 `hygiene` | engines #217, #220 | HSE product #15 (Occupational Hygiene), #17 re-vendor | #174 | `20261004_h2_hygiene_*` |
+| H3 `lopa` | engines #218 | Suite #536 PS1 LOPA & SIL Studio | #175 | `20261005_h3_lopa_*` |
+| H4 `consequence` | engines #223 | Suite #539 PS2 Consequence Studio | #177 | `20261006_h4_consequence_*` |
+| H5 `qra` | engines #230 | Suite #548 PS3 QRA Studio | #178 | `20261007_h5_qra_*` |
+
+Each course has 78 lessons and 396 questions across the three tiers,
+18 graded fields, three key-truth audits against the engine (no mis-keyed
+question in any tier), and a five-migration ladder whose go-live is HELD
+until a NextGen production upload serves its route. Every apply script
+verifies against NextGen main `d54538463`.
+
+Scope as built differs from the roster above in two places. H4 dropped
+jet fire and multi-energy blast (engines #223 does not compute them, and
+the PS2 tile text was corrected), and it grades no inverse of the normal
+distribution, because the engine's approximate inverse misses by about a
+thousand tolerances at one percent. H5 takes every probability of death
+and frequency as a stated input, so it re-grades nothing H4 grades.
+
+engines #231 (own-property preset lookups) closed a defect class found
+while building H5: a preset name such as `constructor` resolved to an
+inherited member and fell through to the safe side of a threshold. The
+Suite (#548), the HSE product (#17) and NextGen (#176) carry the repair,
+except two NextGen files held until a copy pass (`facilities/corrosion.js`,
+quoted by the live FC9 exam, and `hse/exposure.js`, whose line count the
+H2 digest prints).
+
+Owner steps, all owner run: the Process Safety migrations (PS0 seed and
+PS1 to PS3 tables and tiles, per MIGRATIONS.md), the Suite and HSE
+product uploads, then per course `apply_hN_<slug>.sh dryrun` and seed,
+and each go-live only after the NextGen upload serves its route.

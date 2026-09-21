@@ -160,6 +160,35 @@ tests, not by a test. Both tests exist now.
   dry run; probe shows RLS enabled with one owner policy.
 - `20260829990000` (tile to Active) **HELD** for the DS7 upload.
 
+## MD4-0 validation and repairs (2026-09-19)
+
+Before the NextGen course MD4 (engines #227, vendored at f0aef14; findings in
+`packages/engines/tools/validation/downstream/FINDINGS-gasvalue.md`).
+
+- **The cascade counted only the gas above the vehicle's target.** A real
+  cascade equalises the vehicle with the lowest bank first, so a bank below
+  the target still does work. At the defaults: 33 fills (was 10), efficiency
+  45.8 percent (was 13.9). "Stranded below target" is replaced by what is
+  left in the banks, and the page says how far the next vehicle would get.
+- **The vaporizer's warming term was negative at the defaults.** The page
+  passed n-butane's atmospheric boiling point (-0.5 C) against a 25 C inlet,
+  cutting the duty to 50.3 kW, below the 55.5 kW the boil alone needs. The
+  page now asks for the boiling point at the vaporizer pressure (no
+  default; blank, the duty is a floor), and the engine refuses a liquid
+  entering above it.
+- The fill limit has a stated basis (share of liquid volume, or a filling
+  density on water capacity by weight; read as a volume, 0.42 halves the
+  stock). A blank lead time or safety stock leaves the reorder point
+  unstated (it was an empty vessel).
+- Pressures are labelled bar(a): the engine always read them absolute.
+- The bottling queue runs on the positions wholly working (it rounded to
+  the nearest). The conversion case needs an efficiency ratio when it
+  derives consumption (it defaulted to 1). A blank cycle stage, gas SG,
+  temperature, shift, availability or k is refused rather than read as a
+  default.
+- Tests: page tests pin the 33 fills, the fill basis and the vaporizer
+  floor and refusal.
+
 ## Next
 
 DS8, the Energy & Utilities Efficiency Studio, and the first of Track C:
@@ -168,3 +197,15 @@ excess-air optimisation with the fuel saving quantified, steam-system
 screening, energy-intensity benchmarking per unit, and heat-integration
 targeting from the user's own stream table — with every recommendation
 priced in both money and tonnes of CO2.
+
+## MD45-1 (2026-09-19): the vaporizer outlet opens blank
+
+- **P1, at defaults:** the vaporizer opened with inlet 25 C and outlet 15 C
+  and the boiling point blank. The engine refuses a boiling point below the
+  inlet and an outlet below the boiling point, so no boiling point a user
+  typed could complete the duty. The outlet now opens blank beside the
+  boiling point ("above the boiling point"); the duty is a floor until both
+  are given. No default is invented.
+- Engines #228 rewords the blend and vaporizer floor notes to the copy rule.
+
+Gate: 1 new page test (the smoke suite is 20).

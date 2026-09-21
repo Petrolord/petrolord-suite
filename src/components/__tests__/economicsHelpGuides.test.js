@@ -23,6 +23,12 @@ const GUIDES = {
   'Capital Portfolio Studio': 'components/capitalportfoliostudio/PortfolioHelpGuide.jsx',
   'Decision Tree Builder': 'components/decisiontree/DecisionTreeHelpGuide.jsx',
   'Decision Studio': 'components/decisionstudio/DecisionStudioHelpGuide.jsx',
+  'AFE Cost Control Manager': 'components/afe/AfeHelpGuide.jsx',
+  // EC6-1: this app shipped with no guide at all, which is how it came to be
+  // the one place a user could put invented figures into a document without
+  // being told.
+  'Technical Report Autopilot': 'components/reportautopilot/ReportAutopilotHelpGuide.jsx',
+  'FDP Accelerator': 'components/fdp/FdpHelpGuide.jsx',
 };
 
 // Phrases that pin a shipped behaviour into its guide.
@@ -46,8 +52,12 @@ const COVERAGE = {
     // The D3 Bayes-consistency check, and the EVPI ceiling.
     /consistency/i,
     /EVPI/,
-    /ceiling|hard ceiling/i,
+    /ceiling/i,
     /risk neutral/i,
+    // EC4-0: what the repaired engine does with bad and contradictory inputs.
+    /refuses to run/i,
+    /withholds EMV with information/i,
+    /for inputs that pass the consistency check/i,
   ],
   'Fiscal Regime Designer': [
     /regime sandbox/i,
@@ -56,7 +66,7 @@ const COVERAGE = {
     // E1's two fixes, stated so a reader knows what the model now does.
     /cost oil/i,
     /carries forward/i,
-    /contractor take plus government take equals revenue minus costs/i,
+    /contractor net cash flow plus government cash flow equals revenue minus costs/i,
     // The year-end vs mid-year convention gap, quantified.
     /year end/i,
     /mid year/i,
@@ -67,10 +77,24 @@ const COVERAGE = {
     /knapsack/i,
     /efficient frontier|frontier/i,
     /risked expected value/i,
-    /quantized/i,
     // The independence assumption is the one that most often bites.
     /independent/i,
     /correlated/i,
+    // EC5-0: the risk cards are a seeded Monte Carlo.
+    /seeded Monte Carlo/i,
+    /seed/i,
+    // Engines #194 made the knapsack exact, so the guide states THAT: no
+    // grid on an ordinary portfolio, a funded set that cannot exceed the
+    // limit, and a fallback that reports its resolution and what it may have
+    // left on the table. The retired claims (a quantized grid always, a
+    // resolution always reported, an overshoot of up to half a cell per
+    // project that the app flags) are gone from the guide and from here.
+    /the answer is exact/i,
+    /can never exceed it/i,
+    /falls back to a grid/i,
+    /rounded up onto it/i,
+    /bounds how much risked expected value the fallback could have left/i,
+    /P90 is the low case/i,
   ],
   'Decision Tree Builder': [
     /rolling back|rolled back|rollback/i,
@@ -79,12 +103,51 @@ const COVERAGE = {
     /sum to one/i,
     /Monte Carlo run/i,
     /risk neutral/i,
+    // EC4-0: a linked payoff is a stored copy (DecisionTreeBuilder pickMcRun).
+    /stores a copy/i,
+    /relink/i,
   ],
   'Decision Studio': [
     /provenance/i,
     /seed/i,
     /re-optimized|re-optimised/i,
     /screening grade|screening-grade/i,
+    // EC4-0: the true statements that replaced four false ones.
+    /sits highest has the greatest chance of losing money/i,
+    /relinked in the Decision Tree Builder/i,
+    /does not grade an analysis/i,
+    /email address you are signed in with/i,
+  ],
+  // EC5-0: the wizard window, the one EAC rule, SPI Not started, partners.
+  'AFE Cost Control Manager': [
+    /its window, a start date and an end date/i,
+    /refuses an end date before the start date/i,
+    /one estimate at completion rule/i,
+    /budget less that forecast/i,
+    /Not started/,
+    /schedule index is shown as unavailable/i,
+    /negative working interest is refused/i,
+    /operator carries 100 percent/i,
+    /Integrations tab connects to nothing/i,
+  ],
+  // EC6-1: the three things a user has to know before sending a generated
+  // report to anyone.
+  'Technical Report Autopilot': [
+    /written by an OpenAI model|written by a language model/i,
+    /Reported figures/,
+    /Check every figure/i,
+    /Max Pages/,
+    /no engineering calculation/i,
+  ],
+  // EC6-1: the FDP guide has to say where the economics come from and what
+  // the critical path is computed from.
+  'FDP Accelerator': [
+    /selected concept/i,
+    /selected scenario/i,
+    /list of what is missing/i,
+    /critical path method/i,
+    /float/i,
+    /Petroleum Economics Studio/i,
   ],
 };
 
@@ -99,6 +162,61 @@ const FORBIDDEN = {
   'Fiscal Regime Designer': [
     /source of truth for/i,
     /full Nigerian fiscal math lives here/i,
+  ],
+  // EC4-0 (owner decision 2026-09-14): false claims removed from these three
+  // guides. Pinned here so they cannot come back.
+  'Value of Information Analyzer': [
+    // It did report a VOI built on contradicting numbers, before engines #177.
+    /rather than reporting a value of information built on numbers that contradict each other/i,
+    // EVPI bounds VOI only for Bayes-consistent inputs.
+    /hard ceiling/i,
+  ],
+  'Decision Tree Builder': [
+    // Nothing re-reads a linked run; the payoff is a copy taken at link time.
+    /re-solved against it/i,
+  ],
+  'Decision Studio': [
+    // Every S-curve meets NPV = 0 at the same x; the highest one there is worst.
+    /crosses zero furthest to the right/i,
+    // Linked payoffs inside a tree are exactly such a cached number.
+    /rather than a cached number/i,
+    // No provenance string grades anything as screening grade.
+    /label(l)?ed as such/i,
+    // The brief uses the signed-in email; there is no name field.
+    /and your name/i,
+    // EC4-7: portfolio loss chance is a seeded Monte Carlo since EC5-0.
+    /normal approximation/i,
+    // EC4-7: typo for "the tool's".
+    /the tool s\b/,
+  ],
+  // EC5-0: claims the repaired portfolio engine made false. The first two
+  // bans (that the funded set cannot exceed the limit) are RETIRED by engines
+  // #194: the knapsack is solved exactly, overLimit is false on every case,
+  // and the fallback grid rounds every candidate up, so the set stays inside
+  // the limit and the claim is now true. It is required by the coverage list
+  // above rather than banned here, so the guide must state it. The risk
+  // cards remain a seeded Monte Carlo, so the normal-approximation bans stand.
+  'Capital Portfolio Studio': [
+    /normal approximation/i,
+    /approximated as a normal/i,
+    /normal distribution/i,
+  ],
+  // EC5-0: an entered zero forecast is not used, and SPI is not measured
+  // against the calendar without an as-of date.
+  'AFE Cost Control Manager': [
+    /Where you have entered a forecast for a line, that is used/i,
+    /more work per pound/i,
+    /live link to (PM Pro|the rig|a rig)/i,
+  ],
+  // EC6-1: what this app must never claim.
+  'Technical Report Autopilot': [
+    /GPT-4/,
+    /verified against/i,
+    /reads your data/i,
+  ],
+  'FDP Accelerator': [
+    // The Economics tab no longer runs an illustrative profile silently.
+    /illustrative placeholders, not this project/i,
   ],
 };
 
@@ -118,13 +236,19 @@ describe('Economics help guides', () => {
   });
 
   test.each(Object.entries(GUIDES))('%s guide is wired into its app', (name, relative) => {
-    // A guide nobody can open is not help. Every guide must be imported by a
-    // routed page; this catches the file that gets written and never mounted.
+    // A guide nobody can open is not help. Every guide must be imported by
+    // something other than itself; this catches the file that gets written
+    // and never mounted. EC6-1: the walk covers the whole tree, because the
+    // FDP guide is mounted from its studio's top navigation rather than
+    // directly from the routed page.
     const base = path.basename(relative, '.jsx');
-    const pages = fs.readdirSync(path.join(ROOT, 'pages/apps'))
-      .filter((f) => f.endsWith('.jsx'))
-      .map((f) => read(path.join('pages/apps', f)));
-    expect(pages.some((src) => src.includes(base))).toBe(true);
+    const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) return e.name === '__tests__' ? [] : walk(full);
+      return e.name.endsWith('.jsx') && full !== path.join(ROOT, relative) ? [full] : [];
+    });
+    const importers = walk(ROOT).filter((f) => fs.readFileSync(f, 'utf8').includes(base));
+    expect(importers.length).toBeGreaterThan(0);
   });
 
   test.each(Object.entries(COVERAGE))('%s guide documents its shipped surface', (name, patterns) => {
@@ -139,6 +263,23 @@ describe('Economics help guides', () => {
     for (const pattern of patterns) {
       expect(source).not.toMatch(pattern);
     }
+  });
+
+  test('the Decision Studio brief footer makes no screening-grade labelling claim (EC4-0)', () => {
+    // The footer is printed on every exported PDF, so the false claim lived
+    // there as well as in the guide.
+    const model = read('components/decisionstudio/briefModel.js');
+    expect(model).not.toMatch(/label(l)?ed as such/i);
+    expect(model).toMatch(/footer: 'Prepared with Petrolord Decision Studio\. Every figure above carries its source and assumptions in the provenance line beneath its section\.'/);
+  });
+
+  test.each([
+    'components/voianalyzer/ResultsPanel.jsx',
+    'components/voianalyzer/DecisionTreePlot.jsx',
+    'pages/apps/ValueOfInformationAnalyzer.jsx',
+  ])('%s carries no em or en dashes (owner copy rule, EC4-0 surfaces)', (relative) => {
+    const offending = read(relative).split('\n').filter((line) => /[–—]/.test(line));
+    expect(offending).toEqual([]);
   });
 
   test('every economics guide states which fiscal tier it belongs to', () => {

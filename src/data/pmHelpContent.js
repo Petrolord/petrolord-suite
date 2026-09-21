@@ -6,7 +6,7 @@ export const HELP_CATEGORIES = [
   { id: 'portfolio-management', title: 'Portfolio Management', icon: BarChart3, description: 'High-level views and portfolio optimization.' },
   { id: 'analytics', title: 'Analytics & Reporting', icon: FileText, description: 'Deep dives into data, KPIs, and report generation.' },
   { id: 'mobile', title: 'Mobile App', icon: Smartphone, description: 'Using the companion mobile application.' },
-  { id: 'integrations', title: 'Integrations', icon: Plug, description: 'Connecting with Jira, SAP, Slack, and more.' },
+  { id: 'integrations', title: 'Integrations', icon: Plug, description: 'What this studio can and cannot pull in from other apps.' },
   { id: 'admin', title: 'Admin & Settings', icon: Settings, description: 'User management and system configuration.' },
   { id: 'troubleshooting', title: 'Troubleshooting', icon: AlertTriangle, description: 'Solutions to common issues and errors.' },
 ];
@@ -24,7 +24,7 @@ export const HELP_ARTICLES = [
       <ul>
         <li><strong>Lifecycle Management:</strong> Track projects from Concept to Close-out.</li>
         <li><strong>Integrated Analytics:</strong> Real-time dashboards for Budget, Schedule, and Risk.</li>
-        <li><strong>Risk Management:</strong> Advanced risk matrices and Monte Carlo simulations.</li>
+        <li><strong>Risk Management:</strong> A probability and impact register with a five by five matrix. There is no Monte Carlo simulation in this app.</li>
         <li><strong>Resource Planning:</strong> Capacity planning and resource allocation tools.</li>
       </ul>
     `
@@ -119,12 +119,13 @@ export const HELP_ARTICLES = [
     content: `
       <p>We use standard EVM metrics to track performance:</p>
       <ul>
-        <li><strong>PV (Planned Value):</strong> The approved budget for the work scheduled to be completed by a specific date.</li>
+        <li><strong>PV (Planned Value):</strong> The budget of every task in scope. It is NOT time-phased here: nothing is measured against a date, so the schedule index below measures progress against the whole budget rather than against what should have been done by today.</li>
         <li><strong>EV (Earned Value):</strong> The budget associated with the authorized work that has been completed.</li>
         <li><strong>AC (Actual Cost):</strong> The actual cost incurred for the work completed.</li>
         <li><strong>CPI (Cost Performance Index):</strong> EV / AC. A value < 1.0 indicates a cost overrun.</li>
-        <li><strong>SPI (Schedule Performance Index):</strong> EV / PV. A value < 1.0 indicates a delay.</li>
+        <li><strong>SPI (Schedule Performance Index):</strong> EV / PV. On the time-phased definition a value below 1.0 means late; on the whole-budget planned value this app uses, it means the work is not finished yet. Use it as a completion ratio, and the AFE Cost Control Manager, which is measured against an as-of date, when you need a real schedule index.</li>
       </ul>
+      <p>An index with no denominator is reported as not available rather than as 1.00: a project with no actual cost booked has no cost index, and a project with no costed task has no schedule index at all.</p>
     `
   },
   {
@@ -165,13 +166,8 @@ export const HELP_ARTICLES = [
     categoryId: 'integrations',
     title: 'Integration Hub',
     content: `
-      <p>Connect external tools to centralize your data.</p>
-      <ul>
-        <li><strong>Jira:</strong> Sync software development tasks.</li>
-        <li><strong>SAP:</strong> Import actual cost data for financial reconciliation.</li>
-        <li><strong>Slack:</strong> Send project alerts to team channels.</li>
-      </ul>
-      <p>To configure, go to <strong>Settings > Integrations</strong> or click "External Integrations" in the Input Panel.</p>
+      <p>There is no live connection to another system from this app. Jira, SAP and Slack are not connected, and nothing is imported from them.</p>
+      <p>The integration panels create deliverables and tasks in this project from your own click. They read nothing from the app they are named after.</p>
     `
   },
   

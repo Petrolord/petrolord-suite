@@ -169,9 +169,18 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, children }) 
       aquifer_model:
         defaultCfg?.aquifer_model ?? (caseData.has_aquifer ? 'pot' : 'none'),
       aquifer_params: defaultCfg?.aquifer_params ?? null,
+      // Record of intent only: the engine derives the regression from the fluid
+      // system and the aquifer model, and reports it back as
+      // solver_method_used (engines #168). Store the same derivation the engine
+      // makes so the stored config is not a guess: the pot plot is the only
+      // alternative to Havlena-Odeh, and it follows the aquifer model, not the
+      // fluid. The old `isGas ? 'pot_aquifer_plot' : 'havlena_odeh'` was wrong
+      // for every gas case without a pot aquifer.
       solver_method:
         defaultCfg?.solver_method ??
-        (isGas ? 'pot_aquifer_plot' : 'havlena_odeh'),
+        ((defaultCfg?.aquifer_model ?? (caseData.has_aquifer ? 'pot' : 'none')) === 'pot'
+          ? 'pot_aquifer_plot'
+          : 'havlena_odeh'),
     });
 
     if (configErr || !runConfig) {

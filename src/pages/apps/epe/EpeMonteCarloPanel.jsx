@@ -538,7 +538,12 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
               </div>
               <p className="text-xs text-slate-400">
                 {hasIrrStats && results.irr.nullShare > 0 && (
-                  <>IRR is undefined in {(results.irr.nullShare * 100).toFixed(1)}% of iterations. </>
+                  <>
+                    {(results.irr.nullShare * 100).toFixed(1)}% of iterations have no IRR: their
+                    cash flow either never changes sign or changes it more than once, so no single
+                    rate brings the net present value to zero. Those iterations are counted here and
+                    left out of the IRR percentiles, which describe the rest.{' '}
+                  </>
                 )}
                 {hasPaybackStats && results.payback.neverShare > 0 && (
                   <>The project never pays back in {(results.payback.neverShare * 100).toFixed(1)}% of iterations. </>

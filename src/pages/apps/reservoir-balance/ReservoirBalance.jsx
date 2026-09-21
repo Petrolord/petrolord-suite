@@ -215,7 +215,15 @@ const RunPanel = () => {
                   <DriveIndex label="Depletion (DDI)" value={lastResult.final_ddi} />
                   <DriveIndex label="Gas cap (GDI)" value={lastResult.final_gdi} />
                   <DriveIndex label="Water (WDI)" value={lastResult.final_wdi} />
-                  <DriveIndex label="Segregation (SDI)" value={lastResult.final_sdi} />
+                  {/* Ahmed calls the gas cap SDI ("segregation"); this row is his EDI,
+                      the rock and connate water expansion, which the engine calls cdi.
+                      Until engines #167 it arrived in final_sdi and was labelled
+                      "Segregation (SDI)", naming it after the wrong drive entirely.
+                      Results stored before that carry the same value in final_cdi. */}
+                  <DriveIndex
+                    label="Rock and water (EDI)"
+                    value={lastResult.final_cdi ?? lastResult.final_sdi}
+                  />
                 </>
               )}
             </div>

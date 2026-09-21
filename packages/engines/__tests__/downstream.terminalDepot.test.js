@@ -31,10 +31,12 @@ describe('dips and strapping', () => {
     expect(out.error).toMatch(/invents capacity/);
   });
 
-  it('says when a dip is under the heel rather than returning a negative', () => {
+  it('refuses a negative dip rather than reading it as an empty tank', () => {
+    // MD3-0: this used to return 0 with a heel note. A tape cannot read below
+    // zero, so a negative dip is a typing error and is refused.
     const out = volumeAtDip({ strapping: STRAPPING, heightMm: -50 });
-    expect(out.volumeM3).toBe(0);
-    expect(out.note).toMatch(/heel/);
+    expect(out.volumeM3).toBeNull();
+    expect(out.error).toMatch(/cannot be negative/);
   });
 
   it('needs a table and a reading', () => {
@@ -51,9 +53,11 @@ describe('the volume correction factor', () => {
     expect(out.error).toMatch(/does not ship/);
   });
 
+  // MD3-1: these use a SYNTHETIC K0 of 600. They used to type a figure that
+  // reads as a published table coefficient, and this package ships none.
   it('computes the correction when the caller supplies its table row', () => {
     const out = volumeCorrectionFactor({
-      densityKgM3: 840, temperatureC: 30, coefficients: { k0: 594.5418, k1: 0, k2: 0 },
+      densityKgM3: 840, temperatureC: 30, coefficients: { k0: 600, k1: 0, k2: 0 },
     });
     expect(out.error).toBeNull();
     // Warmer than 15 C means the product has expanded, so correcting back to
@@ -64,20 +68,20 @@ describe('the volume correction factor', () => {
 
   it('corrects upward below the reference temperature', () => {
     const cold = volumeCorrectionFactor({
-      densityKgM3: 840, temperatureC: 5, coefficients: { k0: 594.5418, k1: 0, k2: 0 },
+      densityKgM3: 840, temperatureC: 5, coefficients: { k0: 600, k1: 0, k2: 0 },
     });
     expect(cold.vcf).toBeGreaterThan(1);
   });
 
   it('is exactly one at the reference temperature', () => {
     const out = volumeCorrectionFactor({
-      densityKgM3: 840, temperatureC: 15, coefficients: { k0: 594.5418, k1: 0, k2: 0 },
+      densityKgM3: 840, temperatureC: 15, coefficients: { k0: 600, k1: 0, k2: 0 },
     });
     expect(out.vcf).toBeCloseTo(1, 12);
   });
 
   it('expands a light product more than a heavy one for the same warming', () => {
-    const coefficients = { k0: 594.5418, k1: 0, k2: 0 };
+    const coefficients = { k0: 600, k1: 0, k2: 0 };
     const light = volumeCorrectionFactor({ densityKgM3: 700, temperatureC: 30, coefficients });
     const heavy = volumeCorrectionFactor({ densityKgM3: 950, temperatureC: 30, coefficients });
     expect(light.vcf).toBeLessThan(heavy.vcf);

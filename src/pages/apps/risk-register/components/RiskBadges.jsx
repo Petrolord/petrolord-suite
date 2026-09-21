@@ -1,6 +1,6 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { getRiskBandClasses, getRiskBand } from '../utils/riskScoring';
+import { getRiskBandClasses, getRiskBand } from '@/lib/riskScoring';
 
 export const RiskScoreBadge = ({ score, className = "" }) => {
   const numScore = Number(score) || 0;

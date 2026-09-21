@@ -2,8 +2,12 @@
 
 > Companion to `docs/scope/ReservoirBalance.md` (full scope, decision log,
 > process patterns). This file is the fast-read snapshot.
-> Last updated: 2026-07-18 · **MB PROGRAM COMPLETE (MB1-MB7)**; prior state
-> as of the 2026-05-17 patch series.
+> Last updated: 2026-09-11 · **MB PROGRAM COMPLETE (MB1-MB7)**; prior state
+> as of the 2026-05-17 patch series. Newest entries: the oil drive-index
+> denominator fix (engines #165), the physical-sanity guards (engines #166) and
+> the drive-index rename (engines #167) and the solver_method/provenance fixes
+> (engines #168). All need a `calculate-mbal` redeploy to reach users; the
+> rename and the solver reporting need the front end shipped with them.
 
 ## What MBAL does
 
@@ -442,3 +446,176 @@ Guide's own header comment stopped at MB6; MB7 plus the 2026-08-14 and
 Copy rule was already clean in the guide itself. Note ~5 sibling UI
 strings in this tree still carry em dashes (AquiferModel.jsx:87,
 DataHub.jsx:723, PvtRock.jsx:1392, RbDiagnosticPlots.jsx:708-709).
+
+## 2026-09-11 — oil drive indices divided by the wrong voidage (engines #165)
+
+**Defect, live since the drive-index block was written.** The oil path divided
+DDI/SDI/GDI/WDI by gross withdrawal `F` while netting `Wp*Bw` inside WDI's
+numerator, so the indices summed to `(F - Wp*Bw)/F` rather than 1. Every index
+was under-reported by the water fraction of voidage, and past roughly 5 percent
+water by volume the sum left the 0.95..1.05 closure band and the engine raised
+a spurious "Possible material balance solution issue" warning on a correct
+solution. On Ahmed Example 11-1 the old code closed to 0.972; on a mature
+waterflood it approached 0.5.
+
+**Fix.** The denominator is now the hydrocarbon voidage `A = F - Wp*Bw`, the
+published convention (Ahmed REH 4th ed. Example 11-1 prints `A = 1,710,000 rb`
+with `Wp*Bw = 50,000 rb` excluded) and the shape the gas path already used
+(`Gp*Bg`). Closure is now an exact identity of the MBE at every timestep and
+any water cut. The formula lives in one exported function, `oilDriveIndices()`.
+
+**Why five months of green gates missed it.** Both the jest gate and CASE 9 of
+the validation harness re-derived the indices in the book's convention from the
+engine's raw terms. They asserted a gate-side recompute, never the shipped
+arithmetic. Both now call `oilDriveIndices()`. **Any new drive-index gate must
+call the engine's function rather than restate the formula.** No published case
+in the suite could have caught this either: Ahmed Ex. 11-1 has water at 2.8
+percent of voidage and Pletcher's oil case about 1 percent, both inside the
+closure band with the wrong denominator. That is what CASE 9W adds.
+
+**Gates added.** Harness CASE 9W (W-1..W-8) and jest GATE 3W (W-1..W-5): exact
+closure at 45 percent water voidage asserted on `computeMaterialBalance`
+output, the defect magnitude pinned, no spurious warning, negative WDI when Wp
+exceeds We, and a physical strong-waterdrive case (large aquifer, half the
+influx produced) where N and W are recovered and WDI is dominant at 0.50.
+Negative control: reverting only the denominator fails 6 of the 14 jest gates.
+
+**Verified.** Harness: all assertions passed across all twelve cases. Jest:
+mbal 14/14, reservoir-balance suites 67/67, full engines suite 4534/4534.
+
+**Deploy.** This is engine math, so it ships only when
+`supabase functions deploy calculate-mbal` runs. Merging is not deploying.
+
+## 2026-09-11 — physical-sanity guards on impossible solutions (engines #166)
+
+**Gap.** The oil branch had no sanity guard at all; the gas branch had half of
+one (negative pot W, nothing for negative OGIP). The regression returns
+impossible answers happily, because a line fitted to data that does not obey
+the assumed drive mechanism can have a negative intercept. Found 2026-08-27
+authoring RC2: a forced pot aquifer returned **OOIP = -516,449 STB with an
+empty warnings array** and tier `benchmark_verified`, reading like a good
+answer.
+
+**Fix.** One shared `physicalSanityWarnings()` on both branches: negative or
+zero OOIP/OGIP, and negative pot aquifer W. The text says the result cannot be
+used, says a high R-squared does not rescue it, and names the three usual
+causes (wrong aquifer model, unit or sign errors, early points from another
+flow regime). The help guide now carries the same guidance.
+
+**Deliberately not changed:** `validation_tier`. It describes the provenance of
+the code path, not the plausibility of one result. A negative OOIP on a
+benchmark-verified path is still running benchmark-verified code, and the
+honest signal is the warning.
+
+**Gates (jest GATE 4).** S-1 negative OOIP warns at R-squared 1.0000 (a perfect
+fit to an impossible answer); S-2 a pot aquifer forced onto a depletion tank
+warns on negative W at R-squared 0.03, the realistic misuse; S-3 negative OGIP
+warns on the gas branch; S-4 no false positive on Pletcher or on a sound
+depletion tank read as pot. Negative control: restoring the pre-fix state fails
+S-1..S-3 while S-4 still passes. **Note what R-squared does in S-1 and S-3: fit
+quality is not a sanity check.**
+
+**Still open in this engine** (all found 2026-08-27, none touched here): the
+dead `solver_method` API that nothing branches on, the `sdi`/`cdi` misnaming
+(`sdi` holds rock and connate water expansion, which Ahmed calls EDI, while
+`gdi` holds the gas cap, which Ahmed calls SDI), the wrong "regression through
+origin" comment on an ordinary least-squares fit with a free intercept, the
+stale `carter_tracy` provenance string quoting a 2026-05-17 run the engine no
+longer reproduces, and the wrong `radius_ratio` comment.
+
+## 2026-09-11 — one name per drive index, `sdi` removed (engines #167)
+
+**The mislabel.** The oil path published the rock and connate water expansion
+term in a field called `sdi` whose own interface comment read "Segregation
+drive (oil)", while the gas cap sat in `gdi`. `final_cdi` was mirrored from it.
+The studio printed that field as **"Segregation (SDI)"**, so every oil result
+told the user a number was the gas cap's segregation drive when it was the rock
+and water expansion. On Ahmed Example 11-1 those are 0.3465 and 0.0038.
+
+**Root cause is an acronym collision** between the two references this engine
+validates against:
+
+| Quantity | Ahmed (oil) | Pletcher (gas) | Engine field |
+|---|---|---|---|
+| Depletion, oil expansion | DDI | | `ddi` |
+| Gas cap | **SDI** (segregation) | | `gdi` |
+| Rock and connate water expansion | **EDI** | **ICD** | `cdi` |
+| Water drive | WDI | IWD | `wdi` |
+
+**What changed.** One field per quantity: `cdi` on both fluid systems, `gdi` for
+the gas cap only, `sdi` and `final_sdi` removed from the engine. The studio, the
+PDF and the CSV now label the row "Rock and water (EDI)"; the per-point detail
+reads "CDI (rock and water)" and distinguishes "GDI (gas)" from "GDI (gas cap)".
+
+**No migration, and stored results still read correctly.** Values did not
+change, only names, and oil rows have always carried the same number in
+`final_cdi` as in `final_sdi`. The readers prefer `cdi` and fall back to `sdi`.
+The subtle case is `plot_data`: an oil result stored before this has the series
+under `sdi` with a `cdi` array that **exists but is all null**, so a plain
+`plot.cdi ?? plot.sdi` picks the array of nulls. `buildPlotDataCsv` picks
+whichever array has data, and `src/utils/__tests__/mbalReportExport.driveIndexNaming.test.js`
+pins that (the naive version fails its second case).
+
+**The `rb_results.final_sdi` column is now a deprecated mirror.** The edge
+function writes `final_cdi`'s value into it so a browser running an older bundle
+keeps rendering. Nothing in this repo reads it. It can be dropped once no stale
+client remains; that will be a migration, logged in MIGRATIONS.md when it
+happens.
+
+**Gates.** Engine GATE 5: N-1 pins the numerators (`cdi = N·Efw/A`,
+`gdi = N·m·Eg/A`) against Ahmed's printed EDI and SDI so a future rename cannot
+swap the meanings back, N-2 asserts no `sdi` survives on results or rows. GATE 3
+caught the rename the moment the engine changed, which is what re-pointing it at
+the engine in #165 bought.
+
+## 2026-09-11 — solver_method becomes an output, provenance is checked (engines #168)
+
+Two findings from the 2026-08-27 read, both the engine stating something it does
+not do.
+
+**1. `solver_method` was a required input nothing branched on.** The regression
+comes from `fluid_system` plus `aquifer_model`. The field read like a choice the
+caller had, and the PDF printed the requested value as though it were what ran.
+Two of its four members were never implemented: a gas case with no aquifer runs
+the same `F = G·Et` regression as everything else, and Ramagost-Farshad
+(`p_over_z_modified`) is a plot overlay in this studio, not a solver. Both are
+gone from the union; the input is optional and ignored; results carry
+`solver_method_used`, and a request that disagrees now warns.
+
+How wrong was the old value in practice: the studio stored
+`isGas ? 'pot_aquifer_plot' : 'havlena_odeh'`, which is wrong for every gas case
+without a pot aquifer, and **this repo's own validation harness passed
+`havlena_odeh` on four pot-aquifer cases**. Nobody noticed, because nothing read
+it. The studio now stores the same derivation the engine makes, the edge
+function stops forwarding the field, and the report prints
+`plot_data.solver_method_used` (a jsonb key, so no migration) falling back to
+the stored config for older runs.
+
+**2. The Carter-Tracy provenance string described code that no longer exists.**
+It quoted a 2026-05-17 run (OOIP 301.0 MMSTB, R² 0.9998, indices summing to
+1.010) while the engine returns 307.2 MMSTB, R² 0.999975, sum 0.997. Both
+Carter-Tracy entries are re-measured on the current engine, the superseded
+figures kept as labelled history, and `tolerance_pct` corrected from 3.53 to
+1.53. The entries now also explain why Carter-Tracy closure is **not** expected
+to be exactly 1: `We` is marched from aquifer parameters while `N` comes from
+the regression, so closure is only as good as the fit, unlike the pot and
+no-aquifer paths where the MBE makes it an identity.
+
+**Gates.** GATE 6 P-1 parses the figures out of the reference string the engine
+returns and compares them against that same run, so the string cannot drift
+again; P-2 permits the old numbers only as labelled history. GATE 7 V-1 checks
+the reported solver against an observable signature of the regression (the pot
+plot puts the in-place volume in the intercept, every other path in the slope)
+across four fluid and aquifer combinations rather than restating the resolver;
+V-2..V-4 cover the mismatch warning, the clean path and a matching request.
+
+**Found while writing GATE 6, not fixed:** `aquifer_params` silently ignores
+unknown keys. Passing `aquifer_encroachment_angle_deg` where the engine reads
+`theta_degrees` produced OOIP = -46.9 MMSTB. The #166 sanity guard caught it
+immediately, which is the guard doing its job, but the silently-ignored key is
+the same class of defect as `solver_method` was and is still open.
+
+**Pre-existing flake, unrelated to this work:**
+`src/contexts/__tests__/gasLiftDesignContext.test.jsx` intermittently fails two
+"explicit runs" cases in large batches. It fails the same way on untouched
+`main` and passes on three consecutive solo runs.

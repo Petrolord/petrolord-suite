@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { calculateCompleteness } from '@/utils/fdp/fdpCalculations';
 
 const NavItem = ({ id, icon: Icon, label, collapsed, isActive, onClick, count }) => (
     <button
@@ -46,6 +47,7 @@ const NavItem = ({ id, icon: Icon, label, collapsed, isActive, onClick, count })
 const SidebarNavigation = () => {
     const { state, actions } = useFDP();
     const { activeTab, sidebarCollapsed } = state.navigation;
+    const completeness = calculateCompleteness(state);
 
     const navItems = [
         { id: 'overview', label: 'Field Overview', icon: LayoutDashboard },
@@ -80,12 +82,18 @@ const SidebarNavigation = () => {
             
             {!sidebarCollapsed && (
                 <div className="px-4 mt-auto">
+                    {/* EC6-0: this bar was a literal 85 percent on every plan,
+                        empty ones included, and called itself Data Quality. It is
+                        the plan's own completeness score now, which counts the
+                        sections that have something in them and says so. */}
                     <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
-                        <p className="text-xs text-slate-400 mb-1">Data Quality</p>
+                        <p className="text-xs text-slate-400 mb-1">Sections with data</p>
                         <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden mb-1">
-                            <div className="bg-green-500 h-full w-[85%]"></div>
+                            <div className="bg-green-500 h-full" style={{ width: `${completeness.score}%` }}></div>
                         </div>
-                        <p className="text-[10px] text-right text-green-400">85% Complete</p>
+                        <p className="text-[10px] text-right text-green-400">
+                            {completeness.score}% of {completeness.breakdown.length} sections
+                        </p>
                     </div>
                 </div>
             )}

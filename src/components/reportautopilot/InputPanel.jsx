@@ -33,7 +33,7 @@ const InputPanel = ({ onGenerate, loading, templates, formState, setFormState })
         const defaultSections = templates.sections[defaultTemplate.id] || [];
         const allSectionIds = defaultSections.map(s => s.id);
         setCurrentSections(defaultSections);
-        setFormState(prev => ({ ...prev, selected_sections: allSectionIds, gpt4_sections: [] }));
+        setFormState(prev => ({ ...prev, selected_sections: allSectionIds }));
       }
     }
   }, [templates, formState.report_type_id, setFormState]);
@@ -50,7 +50,6 @@ const InputPanel = ({ onGenerate, loading, templates, formState, setFormState })
       setCurrentSections(newSections);
       const allSectionIds = newSections.map(s => s.id);
       handleInputChange('selected_sections', allSectionIds);
-      handleInputChange('gpt4_sections', []);
     }
   };
 
@@ -70,13 +69,6 @@ const InputPanel = ({ onGenerate, loading, templates, formState, setFormState })
     handleInputChange('selected_sections', newSections);
   };
   
-  const handleGpt4Toggle = (sectionId, checked) => {
-    const newGpt4Sections = checked
-      ? [...formState.gpt4_sections, sectionId]
-      : formState.gpt4_sections.filter(id => id !== sectionId);
-    handleInputChange('gpt4_sections', newGpt4Sections);
-  };
-
   /**
    * Attach text-bearing files as context for the report (rebuild 2026-08-29).
    *
@@ -151,22 +143,34 @@ const InputPanel = ({ onGenerate, loading, templates, formState, setFormState })
 
         <CollapsibleSection title="Project Metadata" icon={<Settings />} defaultOpen>
           <div className="grid grid-cols-2 gap-4">
-            <div><label htmlFor="project_name">Project Name</label><Input id="project_name" value={formState.project_name} onChange={e => handleInputChange('project_name', e.target.value)} /></div>
-            <div><label htmlFor="field_name">Field</label><Input id="field_name" value={formState.field_name} onChange={e => handleInputChange('field_name', e.target.value)} /></div>
-            <div><label htmlFor="well_name">Well</label><Input id="well_name" value={formState.well_name} onChange={e => handleInputChange('well_name', e.target.value)} /></div>
-            <div><label htmlFor="author">Author</label><Input id="author" value={formState.author} onChange={e => handleInputChange('author', e.target.value)} /></div>
+            {/* EC6-1: these arrived filled in with a project, field and well
+                that belong to nobody. They are placeholders now: what the box
+                wants, not an answer it supplies. */}
+            <div><label htmlFor="project_name">Project Name</label><Input id="project_name" placeholder="Your project" value={formState.project_name} onChange={e => handleInputChange('project_name', e.target.value)} /></div>
+            <div><label htmlFor="field_name">Field</label><Input id="field_name" placeholder="Your field" value={formState.field_name} onChange={e => handleInputChange('field_name', e.target.value)} /></div>
+            <div><label htmlFor="well_name">Well</label><Input id="well_name" placeholder="Your well" value={formState.well_name} onChange={e => handleInputChange('well_name', e.target.value)} /></div>
+            <div><label htmlFor="author">Author</label><Input id="author" placeholder="Who is writing this" value={formState.author} onChange={e => handleInputChange('author', e.target.value)} /></div>
           </div>
           <div className="grid grid-cols-2 gap-4 mt-4">
             <div><label htmlFor="date_start">Date Start</label><Input id="date_start" type="date" value={formState.date_start} onChange={e => handleInputChange('date_start', e.target.value)} /></div>
             <div><label htmlFor="date_end">Date End</label><Input id="date_end" type="date" value={formState.date_end} onChange={e => handleInputChange('date_end', e.target.value)} /></div>
           </div>
-          <div className="mt-4"><label htmlFor="objectives">Objectives</label><Textarea id="objectives" value={formState.objectives} onChange={e => handleInputChange('objectives', e.target.value)} /></div>
+          <div className="mt-4"><label htmlFor="objectives">Objectives</label><Textarea id="objectives" placeholder="What this report is for, in your own words" value={formState.objectives} onChange={e => handleInputChange('objectives', e.target.value)} /></div>
           <div className="mt-4">
             <label>KPIs</label>
+            {/* EC6-1: whatever is in this list is sent to the model under the
+                heading "Reported figures". It used to arrive holding an
+                average rate of penetration of 150 ft/hr and 5 percent
+                non-productive time, so a report generated without clearing
+                them stated two invented measurements as fact. */}
+            <p className="text-xs text-slate-400 mb-2">
+                Measured values only. Every figure here is passed to the model as a reported
+                fact and will appear in the report as one.
+            </p>
             {(formState.kpis || []).map((kpi, index) => (
               <div key={index} className="flex items-center gap-2 mb-2">
-                <Input placeholder="Key" value={kpi.key} onChange={e => handleKpiChange(index, 'key', e.target.value)} />
-                <Input placeholder="Value" value={kpi.value} onChange={e => handleKpiChange(index, 'value', e.target.value)} />
+                <Input placeholder="Measured quantity, for example Average ROP" value={kpi.key} onChange={e => handleKpiChange(index, 'key', e.target.value)} />
+                <Input placeholder="The value you measured" value={kpi.value} onChange={e => handleKpiChange(index, 'value', e.target.value)} />
                 <Button type="button" variant="ghost" size="icon" onClick={() => removeKpi(index)}><MinusCircle className="h-5 w-5 text-red-400" /></Button>
               </div>
             ))}
@@ -208,19 +212,16 @@ const InputPanel = ({ onGenerate, loading, templates, formState, setFormState })
             </div>
             <div>
               <label htmlFor="max_pages">Max Pages</label>
-              <Input id="max_pages" type="number" value={formState.max_pages} onChange={e => handleInputChange('max_pages', Number(e.target.value))} />
+              <Input id="max_pages" type="number" min="1" value={formState.max_pages} onChange={e => handleInputChange('max_pages', Number(e.target.value))} />
+              <p className="text-xs text-slate-400 mt-1">
+                Shared across the sections you pick: the whole document is held to about this
+                many pages. It used to bound each section against a third of the page budget,
+                so twelve detailed sections came to roughly sixteen pages whatever this said.
+              </p>
             </div>
-            <div>
-              <label>Upgrade Sections to GPT-4</label>
-              <div className="flex flex-wrap gap-2 mt-2">
-                 {currentSections.map((section) => (
-                   <div key={`gpt4-${section.id}`} className="flex items-center space-x-2 bg-slate-700 px-3 py-1 rounded-full">
-                     <Checkbox id={`gpt4-${section.id}`} checked={formState.gpt4_sections.includes(section.id)} onCheckedChange={(checked) => handleGpt4Toggle(section.id, checked)} />
-                     <label htmlFor={`gpt4-${section.id}`} className="text-sm font-medium">{section.name}</label>
-                   </div>
-                 ))}
-              </div>
-            </div>
+            {/* EC6-1: an "Upgrade Sections to GPT-4" picker used to sit here.
+                The service never read the selection: every section is written
+                by the same model whatever was ticked. */}
           </div>
         </CollapsibleSection>
       </div>

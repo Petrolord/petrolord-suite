@@ -127,10 +127,14 @@ export const useAppsFromDatabase = (moduleFilter = null) => {
         };
     }, [fetchApps]);
 
+    // Stable identity, so a consumer can safely put this in an effect's
+    // dependency array (see useUserEntitlements, 2026-09-11).
+    const refresh = useCallback(() => fetchApps(true), [fetchApps]);
+
     return {
         apps,
         loading,
         error,
-        refresh: () => fetchApps(true)
+        refresh
     };
 };
