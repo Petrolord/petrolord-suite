@@ -97,8 +97,8 @@ const SupplyChainResults = () => {
           <>
             <p className="text-[11px] text-slate-500 mb-2">
               A forecourt and a loading rack are the same queueing system in different units, so
-              this calls the rack model rather than writing a second one that could disagree with
-              the first. Utilisation alone is misleading: a forecourt at 85 percent does not have
+              this calls the rack model, speaking in nozzles, and keeps one model with no second
+              copy to disagree with it. Utilisation alone is misleading: a forecourt at 85 percent does not have
               15 percent spare, it has a queue.
             </p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

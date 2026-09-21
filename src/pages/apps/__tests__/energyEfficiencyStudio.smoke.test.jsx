@@ -194,7 +194,7 @@ describe('the page', () => {
   it('says plainly that the intensity is not EII', async () => {
     mount();
     await openTab(/Steam, intensity & register/i);
-    expect(await screen.findByText(/NOT the Solomon Energy Intensity Index/i)).toBeInTheDocument();
+    expect(await screen.findByText(/independent of the Solomon Energy Intensity Index/i)).toBeInTheDocument();
   });
 
   it('leaves register carbon absent until an emission factor is supplied', async () => {

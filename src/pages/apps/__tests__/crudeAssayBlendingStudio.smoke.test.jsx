@@ -88,7 +88,7 @@ describe('the page', () => {
   it('does not show the gravity-contrast fallback as a stable verdict', async () => {
     mount();
     await screen.findByText(/Asphaltene stability screen/i);
-    expect(screen.getByText(/not evidence that the blend is stable/i)).toBeInTheDocument();
+    expect(screen.getByText(/that alone says nothing about whether the blend is stable/i)).toBeInTheDocument();
   });
 
   it('names a crude whose sulfur is blank rather than blending it as sulfur-free', async () => {

@@ -75,7 +75,7 @@ const helpContent = [
     icon: Leaf,
     title: 'The register, in money and in carbon',
     content:
-      'Every measure is priced from one fuel cost and one emission factor, so the money and the carbon come from the same energy and cannot disagree. Where no emission factor is supplied the carbon figure is absent rather than zero. A gigajoule on LHV is about ten percent more fuel than one on HHV, so declare the basis the fuel price and the emission factor are quoted on: IPCC default factors are on LHV. Where it differs from the heater\'s basis the tuning row is refused. An abatement cost per tonne is annualised over the measure\'s life at a discount rate, as the Carbon Studio does, and handed on rather than ranked here: ranking measures into a marginal abatement cost curve is the Carbon Footprint & Abatement Studio\'s job, and duplicating it would create two rankings that could differ.',
+      'Every measure is priced from one fuel cost and one emission factor, so the money and the carbon come from the same energy and cannot disagree. Where no emission factor is supplied the carbon figure is left blank. A gigajoule on LHV is about ten percent more fuel than one on HHV, so declare the basis the fuel price and the emission factor are quoted on: IPCC default factors are on LHV. Where it differs from the heater\'s basis the tuning row is refused. An abatement cost per tonne is annualised over the measure\'s life at a discount rate, as the Carbon Studio does, and handed on for ranking there: ranking measures into a marginal abatement cost curve is the Carbon Footprint & Abatement Studio\'s job, and duplicating it would create two rankings that could differ.',
   },
 ];
 

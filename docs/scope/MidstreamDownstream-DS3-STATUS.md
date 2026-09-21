@@ -59,9 +59,10 @@ arrives in cargoes of the size set, units run weekly, lifts spread
 across the period. A test asserts the calendar **adds up to the plan it
 came from**.
 
-It is deliberately not a berth-level scheduler, and the app says so on
-the tab: tank capacity, jetty windows and turnarounds are not modelled.
-This is the shape of the month to read actuals against.
+Tank capacity, jetty windows and turnarounds are not modelled, and the
+app says so on the tab: this is the shape of the month to read actuals
+against. Berth-level scheduling needs those constraints and a scheduling
+tool (engine note wording since engines #232).
 
 ## The reconciliation
 

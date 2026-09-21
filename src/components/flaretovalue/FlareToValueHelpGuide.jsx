@@ -33,7 +33,7 @@ const helpContent = [
     icon: Flame,
     title: 'Most of a flare is often the methane it fails to burn',
     content:
-      'Flaring emits CO2 from the hydrocarbon that burns, passes the CO2 already in the gas straight through, and lets some of the methane escape unburned, and methane is a far worse greenhouse gas per tonne. On a typical parcel at ninety-odd percent destruction, the methane that escapes can carry a large share of the flare\'s CO2e. That is why the destruction efficiency is a required input rather than an assumed figure: for a flare it is most of the answer, and it is contested. The arithmetic follows the US greenhouse gas reporting rule, 40 CFR 98.233(n): CO2 is the CO2 in the gas plus the combustion efficiency times the hydrocarbon carbon, atom by atom; methane is the methane in the gas times one less the destruction efficiency. Unburned ethane and heavier are not methane and are not counted as if they were. The combustion efficiency (the share oxidised all the way to CO2) is optional; left blank, the destruction efficiency stands in for it and the result says so.',
+      'Flaring emits CO2 from the hydrocarbon that burns, passes the CO2 already in the gas straight through, and lets some of the methane escape unburned, and methane is a far worse greenhouse gas per tonne. On a typical parcel at ninety-odd percent destruction, the methane that escapes can carry a large share of the flare\'s CO2e. That is why the destruction efficiency is a required input, never an assumed figure: for a flare it is most of the answer, and it is contested. The arithmetic follows the US greenhouse gas reporting rule, 40 CFR 98.233(n): CO2 is the CO2 in the gas plus the combustion efficiency times the hydrocarbon carbon, atom by atom; methane is the methane in the gas times one less the destruction efficiency. Unburned ethane and heavier carry no GWP here. The combustion efficiency (the share oxidised all the way to CO2) is optional; left blank, the destruction efficiency stands in for it and the result says so.',
   },
   {
     id: 'gas',
@@ -96,7 +96,7 @@ export const FlareToValueHelpContent = () => (
 const FlareToValueHelpGuide = () => (
   <StudioHelp
     title="Flare Gas to Value Studio"
-    description="Why the flare's gross emission is not the abatement, why screening has three states, and what a bid actually turns on."
+    description="Why the flare's gross emission is only the starting point for the abatement, why screening has three states, and what a bid actually turns on."
   >
     <FlareToValueHelpContent />
   </StudioHelp>
