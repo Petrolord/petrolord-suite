@@ -15,7 +15,7 @@ import { ArrowRight, Layers, BarChart3, Anchor, Zap, Factory, Milestone, ShieldC
 //
 // PS1 (2026-09-19): Process Safety joins as the ninth module on the same
 // rule, with a count of 1 for the LOPA & SIL Studio. PS2 adds the
-// Consequence Modelling Studio (count 2); QRA joins the list as PS3 ships.
+// Consequence Modelling Studio (count 2) and PS3 the QRA Studio (count 3).
 const modules = [
   {
     name: 'Geoscience & Subsurface',
@@ -85,9 +85,9 @@ const modules = [
     name: 'Process Safety',
     icon: ShieldHalf,
     color: 'from-red-400 to-amber-500',
-    count: 2,
-    description: 'Layers of protection analysis and the SIL a safety function must reach, then the consequences themselves: releases, plumes, pool fires and blasts, and the harm each does. The module is being built; two applications are live today.',
-    apps: ['LOPA & SIL Studio', 'Consequence Modelling Studio'],
+    count: 3,
+    description: 'Layers of protection analysis and the SIL a safety function must reach; the consequences themselves, from releases, plumes, pool fires and blasts to the harm each does; and the quantitative risk they add up to, judged against ALARP.',
+    apps: ['LOPA & SIL Studio', 'Consequence Modelling Studio', 'QRA Studio'],
   },
 ];
 

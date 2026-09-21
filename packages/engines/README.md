@@ -541,6 +541,26 @@ and its consumers.
   `test-data/hse/goldens/consequence_cases.json` (written by
   `tools/validation/hse/oracle_consequence.py`); findings, errata and
   dropped scope in `tools/validation/hse/FINDINGS-consequence.md`.
+- `engines/hse/qra.js` (HSE H5, 2026-09-19): quantitative risk
+  assessment. Event trees with every branch set checked to sum to 1 (and
+  a flammable-release builder with the Purple Book 0.6 / 0.4 flash fire /
+  explosion split and its Table 4.5 direct ignition), location-specific
+  individual risk, IRPA over occupied locations, PLL, FAR on the
+  safetyStats 1e8 base, F-N curves ("N or more") against the Purple Book /
+  Bevi line F = 1e-3 / N^2 or the single R2P2 point (50 deaths, 1 in 5000),
+  R2P2 ALARP banding with a stated boundary convention, cost-benefit with
+  the HSE gross disproportion test (cost / benefit > DF; VPF and DF are
+  inputs; discounting through the canonical `economics/cashflow.ts` npv),
+  the Purple Book indoor / outdoor fatality fractions, and the H4 link:
+  the toxic plume probability of death at a grid point (PB Appendix 6.B)
+  and pool fire probit transects into IR contours. Gate:
+  `hse.qra.test.js` replays `test-data/hse/goldens/qra_cases.json`
+  (written by `tools/validation/hse/oracle_qra.py`); findings, errata,
+  dropped scope, the fail-opens closed and the negative controls in
+  `tools/validation/hse/FINDINGS-qra.md` and `negcontrol_qra.sh`. It
+  re-grades nothing: point-source flare and pool radiation stay with FC1,
+  FC5 and `engines/facilities/`, and the probits, plume and solid flame
+  stay with `engines/hse/consequence.js`.
 - `lib/stats/` — the canonical Monte Carlo sampling primitives and
   descriptive statistics (the Suite's src/lib/monteCarlo.js with
   simple-statistics 7.8.8 vendored bit-identically: Kahan sum,
@@ -549,6 +569,24 @@ and its consumers.
   4.1.0 subset the economics modules use (parseISO, isValid,
   differenceInDays, addDays, light `format` tokens), pinned against the
   real library in `test-data/dates/`; UTC assumed.
+
+## Own-property lookups (2026-09-21)
+
+A preset or table read as `TABLE[key]` walks the prototype chain, so
+`'constructor'`, `'toString'`, `'valueOf'`, `'hasOwnProperty'` and
+`'__proto__'` are found in every object literal and pass a falsy guard; a
+running total keyed by a caller's name loses a `'__proto__'` row and can
+write onto `Object.prototype`. The rule for every engine: read a table
+with a caller key through an own-property check
+(`Object.prototype.hasOwnProperty.call`), and store caller-named rows with
+`Object.defineProperty` or a Map. `engines/hse/qra.js` was the first file
+repaired (H5); the repo-wide sweep closed the rest across assurance,
+basin, dca, downstream, drilling, earthmodeling, economics, facilities,
+fluid, hse, mapping, mbal, petrophysics, production, rockphysics,
+seismolord, sim, waterflood, welldata, wellsite, welltest and `lib/`.
+`__tests__/prototypeChainLookups.test.js` calls each repaired function with
+all five names and is red on the unrepaired code. Domain notes are in the
+matching `tools/validation/<domain>/FINDINGS-*.md`.
 
 ## Consumption (git subtree)
 
