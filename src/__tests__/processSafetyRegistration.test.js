@@ -303,11 +303,12 @@ describe('PS2: the Consequence Modelling Studio', () => {
     [TABLE, TILE].forEach((f) => expect(sqlOf(f)).not.toMatch(/update public\.pricing_config/));
   });
 
-  it('logs every PS2 migration as not applied (owner-run)', () => {
+  it('logs every PS2 migration as applied', () => {
     [TABLE, TILE].forEach((f) => {
       const row = log().split('\n').find((l) => l.includes(f));
       expect(row).toBeTruthy();
-      expect(row).toMatch(/NOT APPLIED \(owner-run\) \| NOT APPLIED \(owner-run\) \|$/);
+      expect(row).toMatch(/\*\*APPLIED 2026-09-21\*\*/);
+      expect(row).not.toMatch(/NOT APPLIED/);
     });
   });
 });
@@ -357,11 +358,12 @@ describe('PS3: the QRA Studio', () => {
     [TABLE, TILE].forEach((f) => expect(sqlOf(f)).not.toMatch(/update public\.pricing_config/));
   });
 
-  it('logs every PS3 migration as not applied (owner-run)', () => {
+  it('logs every PS3 migration as applied', () => {
     [TABLE, TILE].forEach((f) => {
       const row = log().split('\n').find((l) => l.includes(f));
       expect(row).toBeTruthy();
-      expect(row).toMatch(/NOT APPLIED \(owner-run\) \| NOT APPLIED \(owner-run\) \|$/);
+      expect(row).toMatch(/\*\*APPLIED 2026-09-21\*\*/);
+      expect(row).not.toMatch(/NOT APPLIED/);
     });
   });
 });
