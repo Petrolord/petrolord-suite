@@ -255,7 +255,7 @@ export const defaultStudy = () => ({
     rows: [
       {
         id: 't1', scenarioId: 's1', mode: 'thermal', values: '60, 35, 22, 12, 7, 4.5, 2.5, 1.6, 0.8',
-        exposureTimeS: '20', coefficients: 'eisenberg',
+        exposureTimeS: '20', coefficients: 'purple-book',
       },
       {
         id: 't2', scenarioId: 's2', mode: 'typed', values: '1, 1, 1, 1, 0, 0, 0, 0, 0',

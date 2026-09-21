@@ -243,7 +243,9 @@ const Transect = () => {
       <Note>
         LSIR(x) = sum f x P(x) over the scenarios on the transect; a crossing is interpolated in log10(IR) between the two
         distances either side of it (linearly in IR when one side is 0). Heat fluxes turn into a probability by the thermal
-        probit of the Consequence Modelling Studio&apos;s engine; you bring the fluxes from its Fire tab.
+        probit of the Consequence Modelling Studio&apos;s engine; you bring the fluxes from its Fire tab. The register&apos;s
+        Purple Book rule uses the purple-book probit with the exposure capped at 20 s and takes P as 1 at 35 kW/m2 and
+        above; the transect applies the probit you choose at the time you give, so choose purple-book and 20 s to match.
       </Note>
     </Panel>
   );

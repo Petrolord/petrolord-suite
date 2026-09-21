@@ -165,7 +165,7 @@ describe('the default study, every number the engine\'s', () => {
       scenarios: t.rows.map((r) => ({ name: r.name, frequencyPerYr: r.frequencyPerYr, fatalityProbabilities: r.probabilities })),
     }));
     expect(t.rows[0].probabilities).toEqual(vendored.thermalFatalityTransect({
-      heatFluxesWM2: [60, 35, 22, 12, 7, 4.5, 2.5, 1.6, 0.8].map((q) => q * 1000), exposureTimeS: 20,
+      heatFluxesWM2: [60, 35, 22, 12, 7, 4.5, 2.5, 1.6, 0.8].map((q) => q * 1000), exposureTimeS: 20, coefficients: 'purple-book',
     }).probabilities);
     expect(t.result.contours[0].crossingsM).toEqual([]);
     expect(t.result.contours[1].crossingsM).toHaveLength(1);
