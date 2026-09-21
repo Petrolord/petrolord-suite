@@ -93,10 +93,22 @@ migration replaces the PS0 seed description that promised them. Detail:
 
 ### PS3: QRA Studio (`qra-studio`), course H5
 
-Engine `engines/hse/qra`: event trees, individual risk, PLL, FAR, F-N
-curves against criterion lines, ALARP and ICAF. Built after PS2 because it
-consumes PS2's probits. Any discounting imports the canonical NPV module
-(CLAUDE.md), and any Monte Carlo imports the canonical MonteCarloEngine.
+Engine `engines/hse/qra` (petrolord-engines #230, merged abb41c3): event
+trees with PB Table 4.5 direct ignition, the PB fatality rules from a
+consequence dose, LSIR and IRPA, PLL, FAR, F-N curves against the PB/Bevi
+line, the R2P2 para 136 point or a given line, ALARP banding (a value at a
+limit belongs to the LOWER band, owner decision), LSIR transects with PB
+contour crossings, and the gross disproportion test with the ICAF. It
+consumes PS2's engine (probits, plume, solid flame) and re-grades none of
+it; discounting is the canonical `npv` of engines/economics/cashflow.ts.
+No Monte Carlo.
+
+**Dropped in the engine, and stated in the app:** an aversion-weighted risk
+integral, a slope for the R2P2 societal point, grid and wind-rose
+bookkeeping, delayed ignition over time and BLEVE probabilities as tree
+presets. The tile activation migration replaces the PS0 seed description
+("ALARP judged by the implied cost of averting a fatality") with what the
+engine does. Detail: `ProcessSafety-PS3-STATUS.md`.
 
 ## Tile activation rule
 
@@ -115,5 +127,5 @@ course is held until the app's route serves.
 |---|---|---|
 | PS0 | **MERGED 2026-09-19** (PR #533, 16eb8be03) | Module registered end to end; seed written, NOT APPLIED (owner-run, deploy-gated); pricing and marketing held for PS1 |
 | PS1 | **MERGED 2026-09-19** (PR #536, fc9ecdd31) | LOPA & SIL Studio on the vendored engines/hse/lopa (canonical a1d8c9f); `ps_lopa_studies`, tile activation and pricing migrations written and dry-run proven, NOT APPLIED (owner-run); nine-module marketing; `ProcessSafety-PS1-STATUS.md` |
-| PS2 | **BUILT 2026-09-19** (branch feat/ps2-consequence-studio) | Consequence Modelling Studio on the vendored engines/hse/consequence (canonical b43f1d9, which also brings #220, #221 and #222); `ps_consequence_studies` and tile activation migrations written and dry-run proven, NOT APPLIED (owner-run); no pricing change; showcase counts two apps; `ProcessSafety-PS2-STATUS.md` |
-| PS3 | not started | |
+| PS2 | **MERGED 2026-09-20** (PR #539, 48dab703a) | Consequence Modelling Studio on the vendored engines/hse/consequence (canonical b43f1d9, which also brings #220, #221 and #222); `ps_consequence_studies` and tile activation migrations written and dry-run proven, NOT APPLIED (owner-run); no pricing change; showcase counts two apps; `ProcessSafety-PS2-STATUS.md` |
+| PS3 | **BUILT 2026-09-21** (branch feat/ps3-qra-studio) | QRA Studio on the vendored engines/hse/qra (canonical abb41c3, which also brings #229); `ps_qra_studies` and tile activation migrations written and checked on a local scratch database, NOT APPLIED (owner-run; the owner dry run is in the PR); no pricing change; showcase counts three apps; `ProcessSafety-PS3-STATUS.md` |
