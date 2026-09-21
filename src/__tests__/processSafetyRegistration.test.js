@@ -129,13 +129,13 @@ describe('marketing, which follows the catalog rather than leading it', () => {
   });
 
   it('shows the module with the number of apps that actually work', () => {
-    // Two of three since PS2. The count is what is built, not what is planned.
+    // Three of three since PS3. The count is what is built, not what is planned.
     const showcase = read('components/home/ModulesShowcase.jsx');
     const block = showcase.slice(showcase.indexOf(`name: '${NAME}'`));
-    expect(block).toMatch(/count: 2,/);
+    expect(block).toMatch(/count: 3,/);
     expect(block).toContain('LOPA & SIL Studio');
     expect(block).toContain('Consequence Modelling Studio');
-    expect(block).not.toMatch(/QRA Studio/);
+    expect(block).toContain('QRA Studio');
   });
 });
 
@@ -149,7 +149,7 @@ describe('the seed migration', () => {
   const migrations = path.resolve(ROOT, '../supabase/migrations');
   const sql = fs.readFileSync(path.join(migrations, SEED), 'utf8');
 
-  it('sorts after every migration before it, and before every PS1 and PS2 migration that needs its rows', () => {
+  it('sorts after every migration before it, and before every PS1, PS2 and PS3 migration that needs its rows', () => {
     const all = fs.readdirSync(migrations).filter((f) => f.endsWith('.sql')).sort();
     const at = all.indexOf(SEED);
     expect(at).toBeGreaterThan(-1);
@@ -161,6 +161,8 @@ describe('the seed migration', () => {
       '20260919230000_ps1_process_safety_module_pricing.sql',
       '20260919234000_ps2_consequence_studies.sql',
       '20260919235000_ps2_activate_consequence_tile.sql',
+      '20260921100000_ps3_qra_studies.sql',
+      '20260921110000_ps3_activate_qra_tile.sql',
     ]));
   });
 
@@ -302,6 +304,60 @@ describe('PS2: the Consequence Modelling Studio', () => {
   });
 
   it('logs every PS2 migration as not applied (owner-run)', () => {
+    [TABLE, TILE].forEach((f) => {
+      const row = log().split('\n').find((l) => l.includes(f));
+      expect(row).toBeTruthy();
+      expect(row).toMatch(/NOT APPLIED \(owner-run\) \| NOT APPLIED \(owner-run\) \|$/);
+    });
+  });
+});
+
+describe('PS3: the QRA Studio', () => {
+  const migrations = path.resolve(ROOT, '../supabase/migrations');
+  const sqlOf = (f) => fs.readFileSync(path.join(migrations, f), 'utf8');
+  const log = () => fs.readFileSync(path.resolve(ROOT, '../MIGRATIONS.md'), 'utf8');
+  const TABLE = '20260921100000_ps3_qra_studies.sql';
+  const TILE = '20260921110000_ps3_activate_qra_tile.sql';
+
+  it('is routed where appRoutePath sends the tile, behind its own entitlement', () => {
+    const app = read('App.jsx');
+    expect(appRoutePath({ module: NAME, slug: 'qra-studio' }))
+      .toBe('/dashboard/apps/process-safety/qra-studio');
+    expect(app).toContain("import('@/pages/apps/QraStudio')");
+    expect(app).toContain('<Route path="apps/process-safety/qra-studio" element={<ProtectedAppRoute appId="qra-studio"');
+    expect(app).toContain('<Route path="apps/process-safety/qra-studio/help" element={<ProtectedAppRoute appId="qra-studio"');
+  });
+
+  it('keeps its studies in their own ps_* table scoped by organization membership', () => {
+    const sql = sqlOf(TABLE);
+    expect(sql).toMatch(/create table if not exists public\.ps_qra_studies/);
+    expect(sql).toMatch(/enable row level security/);
+    expect(sql).toMatch(/public\.is_org_member\(organization_id\)/);
+    expect(sql).toMatch(/has_org_role\(organization_id, array\['owner', 'admin'\]\)/);
+    expect(sql).toMatch(/revoke all on table public\.ps_qra_studies from anon/);
+    expect(sql).not.toMatch(/using \(true\)/i);
+    expect(sql).not.toMatch(/ps_lopa_studies_|ps_consequence_studies_/);
+  });
+
+  it('flips only its own tile Active, and only if the PS0 seed made it', () => {
+    const sql = sqlOf(TILE);
+    expect(sql).toMatch(/v_slug text := 'qra-studio'/);
+    expect(sql).toMatch(/and module = 'Process Safety'/);
+    expect(sql).toMatch(/set status = 'Active'/);
+    expect(sql).toMatch(/is_built = true/);
+    expect(sql).toMatch(/Nothing done/);
+    expect(sql).toMatch(/DEPLOY GATE/);
+    const body = sql.slice(sql.indexOf('do $$'));
+    expect(body).not.toMatch(/lopa-sil-studio|consequence-studio|pricing_config/);
+    expect(sql).not.toMatch(/[\u2013\u2014]/);
+  });
+
+  it('changes no price: the module was priced at PS1', () => {
+    expect(MODULE_PRICING[SLUG]).toBe(1999);
+    [TABLE, TILE].forEach((f) => expect(sqlOf(f)).not.toMatch(/update public\.pricing_config/));
+  });
+
+  it('logs every PS3 migration as not applied (owner-run)', () => {
     [TABLE, TILE].forEach((f) => {
       const row = log().split('\n').find((l) => l.includes(f));
       expect(row).toBeTruthy();
