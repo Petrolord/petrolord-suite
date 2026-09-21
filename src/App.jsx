@@ -35,9 +35,10 @@ const ProductionOperationsHub = lazy(() => import('@/pages/dashboard/ProductionO
 const EconomicsProjectManagementHub = lazy(() => import('@/pages/dashboard/EconomicsProjectManagementHub'));
 const FacilitiesEngineeringHub = lazy(() => import('@/pages/dashboard/FacilitiesEngineeringHub'));
 const MidstreamDownstreamHub = lazy(() => import('@/pages/dashboard/MidstreamDownstreamHub'));
+const ProcessSafetyHub = lazy(() => import('@/pages/dashboard/ProcessSafetyHub'));
 const GeoscienceAnalytics = lazy(() => import('@/pages/dashboard/GeoscienceAnalytics'));
 const ReservoirManagement = lazy(() => import('@/pages/dashboard/ReservoirManagement'));
-const Assurance = lazy(() => import('@/pages/dashboard/Assurance'));
+const AssuranceHub = lazy(() => import('@/pages/dashboard/AssuranceHub'));
 
 // Super Admin Console
 const SuperAdminConsole = lazy(() => import('@/pages/SuperAdminConsole'));
@@ -77,6 +78,12 @@ const PumpStationDesigner = lazy(() => import('@/pages/apps/PumpStationDesigner'
 const ControlValveSizing = lazy(() => import('@/pages/apps/ControlValveSizing'));
 const StorageTankDesigner = lazy(() => import('@/pages/apps/StorageTankDesigner'));
 const CrudeAssayBlendingStudio = lazy(() => import('@/pages/apps/CrudeAssayBlendingStudio'));
+const LopaSilStudio = lazy(() => import('@/pages/apps/LopaSilStudio'));
+const LopaSilStudioHelpGuide = lazy(() => import('@/pages/apps/LopaSilStudioHelpGuide'));
+const ConsequenceModellingStudio = lazy(() => import('@/pages/apps/ConsequenceModellingStudio'));
+const ConsequenceModellingStudioHelpGuide = lazy(() => import('@/pages/apps/ConsequenceModellingStudioHelpGuide'));
+const QraStudio = lazy(() => import('@/pages/apps/QraStudio'));
+const QraStudioHelpGuide = lazy(() => import('@/pages/apps/QraStudioHelpGuide'));
 const ProductBlendingOptimizer = lazy(() => import('@/pages/apps/ProductBlendingOptimizer'));
 const RefineryPlanningStudio = lazy(() => import('@/pages/apps/RefineryPlanningStudio'));
 const ModularRefineryFeasibility = lazy(() => import('@/pages/apps/ModularRefineryFeasibility'));
@@ -198,21 +205,22 @@ const RiskRegister = lazy(() => import('@/pages/apps/RiskRegister.jsx'));
 // Risk Register Consolidated Flow
 const NewRiskPage = lazy(() => import('@/pages/apps/risk-register/NewRiskPage.jsx'));
 const RiskDetailPage = lazy(() => import('@/pages/apps/risk-register/RiskDetailPage.jsx'));
+const EditRiskPage = lazy(() => import('@/pages/apps/risk-register/EditRiskPage.jsx'));
 
 // Document Control
-const DocControlDashboard = lazy(() => import('@/pages/apps/document-control/Dashboard.jsx'));
-const DocControlLibrary = lazy(() => import('@/pages/apps/document-control/Library.jsx'));
-const DocControlNew = lazy(() => import('@/pages/apps/document-control/NewDocument.jsx'));
-const DocControlApprovals = lazy(() => import('@/pages/apps/document-control/ApprovalQueue.jsx'));
-const DocControlReports = lazy(() => import('@/pages/apps/document-control/Reports.jsx'));
-const DocControlDetail = lazy(() => import('@/pages/apps/document-control/DocumentDetail.jsx'));
+const DocControlDashboard = lazy(() => import('@/pages/apps/assurance/document-control/Dashboard.jsx'));
+const DocControlLibrary = lazy(() => import('@/pages/apps/assurance/document-control/Library.jsx'));
+const DocControlNew = lazy(() => import('@/pages/apps/assurance/document-control/NewDocument.jsx'));
+const DocControlApprovals = lazy(() => import('@/pages/apps/assurance/document-control/ApprovalQueue.jsx'));
+const DocControlReports = lazy(() => import('@/pages/apps/assurance/document-control/Reports.jsx'));
+const DocControlDetail = lazy(() => import('@/pages/apps/assurance/document-control/DocumentDetail.jsx'));
 
 // Peer Review Manager
-const PeerReviewDashboard = lazy(() => import('@/pages/apps/peer-review/Dashboard.jsx'));
-const PeerReviewRegister = lazy(() => import('@/pages/apps/peer-review/ReviewRegister.jsx'));
-const PeerReviewNew = lazy(() => import('@/pages/apps/peer-review/NewReview.jsx'));
-const PeerReviewReports = lazy(() => import('@/pages/apps/peer-review/Reports.jsx'));
-const PeerReviewDetail = lazy(() => import('@/pages/apps/peer-review/ReviewDetail.jsx'));
+const PeerReviewDashboard = lazy(() => import('@/pages/apps/assurance/peer-review/Dashboard.jsx'));
+const PeerReviewRegister = lazy(() => import('@/pages/apps/assurance/peer-review/ReviewRegister.jsx'));
+const PeerReviewNew = lazy(() => import('@/pages/apps/assurance/peer-review/NewReview.jsx'));
+const PeerReviewReports = lazy(() => import('@/pages/apps/assurance/peer-review/Reports.jsx'));
+const PeerReviewDetail = lazy(() => import('@/pages/apps/assurance/peer-review/ReviewDetail.jsx'));
 
 // Management of Change (MOC)
 const MOCDashboard = lazy(() => import('@/pages/apps/assurance/moc/Dashboard.jsx'));
@@ -233,6 +241,7 @@ const ISOCompliancePageShell = lazy(() => import('@/pages/apps/assurance/iso-com
 
 // Lessons Learned Shell
 const LessonsLearnedPageShell = lazy(() => import('@/pages/apps/assurance/lessons-learned/LessonsLearnedPageShell.jsx'));
+const AuditManagerPageShell = lazy(() => import('@/pages/apps/assurance/audit-manager/AuditManagerPageShell.jsx'));
 
 // Petroleum Economics Studio Components
 
@@ -473,7 +482,11 @@ function App() {
                                 {/* DS0: the Suite's eighth module. Its apps are Coming Soon,
                                     so the hub is the only route it owns for now. */}
                                 <Route path="midstream-downstream" element={<AppRoute appName="midstream-downstream"><MidstreamDownstreamHub /></AppRoute>} />
-                                <Route path="assurance" element={<AppRoute appName="assurance"><Assurance /></AppRoute>} />
+                                {/* PS0: the Suite's ninth module. Its apps are Coming Soon,
+                                    so the hub is the only route it owns for now. The slug is
+                                    process-safety because "hse" is the external portal below. */}
+                                <Route path="process-safety" element={<AppRoute appName="process-safety"><ProcessSafetyHub /></AppRoute>} />
+                                <Route path="assurance" element={<AppRoute appName="assurance"><AssuranceHub /></AppRoute>} />
                                 
                                 <Route path="hse" element={
                                   <ProtectedRoute requiredPermission={HSE_PERMISSIONS.VIEW_DASHBOARD} appContext="hse">
@@ -752,6 +765,15 @@ function App() {
                                 <Route path="apps/facilities/flow-metering-designer" element={<ProtectedAppRoute appId="flow-metering-designer" appName="Flow Metering Designer"><FlowMeteringDesigner /></ProtectedAppRoute>} />
                                 {/* Midstream & Downstream DS1: the module's first app. */}
                                 <Route path="apps/midstream-downstream/crude-assay-blending-studio" element={<ProtectedAppRoute appId="crude-assay-blending-studio" appName="Crude Assay & Blending Studio"><CrudeAssayBlendingStudio /></ProtectedAppRoute>} />
+                                {/* Process Safety PS1: LOPA & SIL Studio (course H3 lopa). */}
+                                <Route path="apps/process-safety/lopa-sil-studio" element={<ProtectedAppRoute appId="lopa-sil-studio" appName="LOPA & SIL Studio"><LopaSilStudio /></ProtectedAppRoute>} />
+                                <Route path="apps/process-safety/lopa-sil-studio/help" element={<ProtectedAppRoute appId="lopa-sil-studio" appName="LOPA & SIL Studio"><LopaSilStudioHelpGuide /></ProtectedAppRoute>} />
+                                {/* Process Safety PS2: Consequence Modelling Studio (course H4 consequence). */}
+                                <Route path="apps/process-safety/consequence-studio" element={<ProtectedAppRoute appId="consequence-studio" appName="Consequence Modelling Studio"><ConsequenceModellingStudio /></ProtectedAppRoute>} />
+                                <Route path="apps/process-safety/consequence-studio/help" element={<ProtectedAppRoute appId="consequence-studio" appName="Consequence Modelling Studio"><ConsequenceModellingStudioHelpGuide /></ProtectedAppRoute>} />
+                                {/* Process Safety PS3: QRA Studio (course H5 qra). */}
+                                <Route path="apps/process-safety/qra-studio" element={<ProtectedAppRoute appId="qra-studio" appName="QRA Studio"><QraStudio /></ProtectedAppRoute>} />
+                                <Route path="apps/process-safety/qra-studio/help" element={<ProtectedAppRoute appId="qra-studio" appName="QRA Studio"><QraStudioHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/midstream-downstream/product-blending-optimizer" element={<ProtectedAppRoute appId="product-blending-optimizer" appName="Product Blending Optimizer"><ProductBlendingOptimizer /></ProtectedAppRoute>} />
                                 <Route path="apps/midstream-downstream/refinery-planning-scheduling" element={<ProtectedAppRoute appId="refinery-planning-scheduling" appName="Refinery Planning & Scheduling Studio"><RefineryPlanningStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/midstream-downstream/modular-refinery-feasibility" element={<ProtectedAppRoute appId="modular-refinery-feasibility" appName="Modular Refinery Feasibility Studio"><ModularRefineryFeasibility /></ProtectedAppRoute>} />
@@ -790,6 +812,8 @@ function App() {
                                 {/* Risk Register Full Flow Routes */}
                                 <Route path="apps/assurance/risk-register" element={<ProtectedAppRoute appId="risk-register" appName="Risk Register"><RiskRegister /></ProtectedAppRoute>} />
                                 <Route path="apps/assurance/risk-register/new" element={<ProtectedAppRoute appId="risk-register" appName="Risk Register"><NewRiskPage /></ProtectedAppRoute>} />
+                                {/* AS2: the Edit button on the detail page was a "not implemented" toast. */}
+                                <Route path="apps/assurance/risk-register/:id/edit" element={<ProtectedAppRoute appId="risk-register" appName="Risk Register"><EditRiskPage /></ProtectedAppRoute>} />
                                 <Route path="apps/assurance/risk-register/:id" element={<ProtectedAppRoute appId="risk-register" appName="Risk Register"><RiskDetailPage /></ProtectedAppRoute>} />
 
                                 {/* Document Control Flow Routes */}
@@ -826,6 +850,9 @@ function App() {
 
                                 {/* Lessons Learned Routes */}
                                 <Route path="apps/assurance/lessons-learned/*" element={<ProtectedAppRoute appId="lesson-learned-db" appName="Lessons Learned"><LessonsLearnedPageShell /></ProtectedAppRoute>} />
+
+                                {/* Audit & Findings Manager Routes (AS10) */}
+                                <Route path="apps/assurance/audit-manager/*" element={<ProtectedAppRoute appId="audit-findings-manager" appName="Audit & Findings Manager"><AuditManagerPageShell /></ProtectedAppRoute>} />
 
                                 {/* legacy EarthModel Studio project list — retired with the ss_* drop */}
                                 <Route path="my-projects" element={<Navigate to="/dashboard" replace />} />

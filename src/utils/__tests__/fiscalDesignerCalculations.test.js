@@ -10,6 +10,7 @@ import {
   calculateCashFlowForRegime,
   calculateNPV,
   calculateIRR,
+  calculateIRRResult,
   deriveInsights,
 } from '@/utils/fiscalDesignerCalculations';
 import { calculateEconomics } from '@/utils/npvCalculations';
@@ -162,12 +163,45 @@ describe('parity with the canonical screening engine', () => {
   });
 });
 
+// EC2-5 (engines #186): the sandbox adopted the screening engine's IRR
+// contract. A rate is reported only when it is a verified root inside -99 to
+// 1000 percent; otherwise `irr` is null and `irrStatus` says which case it is.
+// The bisection this replaced returned 0 both for a flow that never changes
+// sign and for one whose only root is negative, so "0.0%" meant two different
+// things and neither was a rate.
 describe('solvers', () => {
-  test('IRR is the rate at which NPV is zero', () => {
+  test('a reported IRR is a rate at which NPV is zero', () => {
+    // One sign change, so there is one rate and it is reported.
+    const rows = [
+      { year: 1, contractorNCF: -1000 },
+      { year: 2, contractorNCF: 400 },
+      { year: 3, contractorNCF: 400 },
+      { year: 4, contractorNCF: 400 },
+    ];
+    const result = calculateIRRResult(rows);
+    expect(result.irrStatus).toBe('ok');
+    expect(result.irr).toBeGreaterThan(0);
+    expect(calculateIRR(rows)).toBe(result.irr);
+    expect(calculateNPV(rows, result.irr)).toBeCloseTo(0, 6);
+    expect(result.irrRoots).toBeNull();
+  });
+
+  test('the 25 year test project has no single IRR, and every root it names is one', () => {
+    // The tail turns the contractor cash flow negative again, so the flow
+    // changes sign more than once and no single rate is "the" return.
     const rows = calculateCashFlowForRegime(flatRegime(), project);
-    const irr = calculateIRR(rows);
-    expect(irr).toBeGreaterThan(0);
-    expect(calculateNPV(rows, irr)).toBeCloseTo(0, 6);
+    const result = calculateIRRResult(rows);
+    expect(result.irr).toBeNull();
+    expect(result.irrStatus).toBe('multiple-roots');
+    expect(result.irrRoots.length).toBeGreaterThan(1);
+    // Each listed root really does zero the NPV, to the engine's scaled
+    // tolerance (the flow is thousands of $MM, so an absolute 1e-6 is not
+    // the right bar; use a relative one against the gross movement).
+    const scale = rows.reduce((sum, cf) => sum + Math.abs(cf.contractorNCF), 0);
+    result.irrRoots.forEach((root) => {
+      expect(Math.abs(calculateNPV(rows, root)) / scale).toBeLessThan(1e-6);
+    });
+    expect(calculateIRR(rows)).toBeNull();
   });
 
   test('no IRR is reported when the cash flow never changes sign', () => {
@@ -175,7 +209,32 @@ describe('solvers', () => {
       { year: 1, contractorNCF: 10 },
       { year: 2, contractorNCF: 20 },
     ];
-    expect(calculateIRR(allPositive)).toBe(0);
+    expect(calculateIRR(allPositive)).toBeNull();
+    expect(calculateIRRResult(allPositive).irrStatus).toBe('no-sign-change');
+    // and the two cases the old solver both reported as 0 are told apart:
+    // a flow whose only root is negative reports that negative root.
+    const negativeRoot = [
+      { year: 1, contractorNCF: -100 },
+      { year: 2, contractorNCF: 40 },
+      { year: 3, contractorNCF: 40 },
+    ];
+    const neg = calculateIRRResult(negativeRoot);
+    expect(neg.irrStatus).toBe('ok');
+    expect(neg.irr).toBeLessThan(0);
+  });
+
+  test('a tier table with a repeated threshold is refused, naming the regime', () => {
+    const clash = flatRegime({
+      name: 'Clashing PSC',
+      royalty: { type: 'sliding_price', tiers: [{ threshold: 60, rate: 10 }, { threshold: 60, rate: 15 }] },
+    });
+    expect(() => calculateCashFlowForRegime(clash, project))
+      .toThrow(/Fiscal regime "Clashing PSC": the royalty tier table has more than one tier at threshold 60/);
+    // Negative control: distinct thresholds are accepted, in any order.
+    const sorted = flatRegime({
+      royalty: { type: 'sliding_price', tiers: [{ threshold: 80, rate: 15 }, { threshold: 60, rate: 10 }] },
+    });
+    expect(() => calculateCashFlowForRegime(sorted, project)).not.toThrow();
   });
 
   test('a harsher regime leaves the contractor less', () => {
@@ -197,10 +256,10 @@ describe('solvers', () => {
 describe('deriveInsights', () => {
   const sens = {
     price: {
-      labels: [40, 120],
+      labels: [40, 80, 120],
       data: [
-        { regimeId: 'a', values: [30, 40] },   // +10 points
-        { regimeId: 'b', values: [35, 60] },   // +25 points, the progressive one
+        { regimeId: 'a', values: [30, 35, 40], states: ['share', 'share', 'share'] }, // +10 points
+        { regimeId: 'b', values: [35, 47, 60], states: ['share', 'share', 'share'] }, // +25 points, the progressive one
       ],
     },
     capex: {
@@ -263,11 +322,53 @@ describe('deriveInsights', () => {
 
   it('omits the sweep claims when there is only one regime to compare', () => {
     const one = [summary[0]];
-    const oneSens = { price: { labels: [40, 120], data: [sens.price.data[0]] }, capex: { labels: ['0.8', '1.5'], data: [sens.capex.data[0]] } };
+    const oneSens = { price: { labels: [40, 80, 120], data: [sens.price.data[0]] }, capex: { labels: ['0.8', '1.5'], data: [sens.capex.data[0]] } };
     const out = deriveInsights(one, oneSens);
     expect(out.some((i) => i.key === 'capex')).toBe(false);
     expect(out.some((i) => i.key === 'price')).toBe(false);
     expect(out.some((i) => i.key === 'npv')).toBe(true);
+  });
+
+  // EC2-1 (owner decision 2026-09-14): progressivity is ranked only across
+  // prices where every regime's point is a government share.
+  const withPrice = (labels, a, b) => ({ ...sens, price: { labels, data: [{ regimeId: 'a', ...a }, { regimeId: 'b', ...b }] } });
+  const priceText = (sensitivity) => deriveInsights(summary, sensitivity).find((i) => i.key === 'price').text;
+
+  it('declines to rank on fewer than three comparable prices', () => {
+    const text = priceText(withPrice([40, 120], { values: [30, 40], states: ['share', 'share'] }, { values: [35, 60], states: ['share', 'share'] }));
+    expect(text).toMatch(/^No regime can be ranked across this sweep/);
+    expect(text).not.toMatch(/most progressive/);
+  });
+
+  it('declines to rank when the lead is under one percentage point', () => {
+    const text = priceText(withPrice([40, 80, 120],
+      { values: [30, 35, 40], states: ['share', 'share', 'share'] },
+      { values: [35, 40, 45.5], states: ['share', 'share', 'share'] }));
+    expect(text).toMatch(/within one percentage point/);
+  });
+
+  it('never measures a climb from an exceeds point', () => {
+    // Read from 40, Alpha would climb from 150 to 64. Over 50 to 70 Beta leads.
+    const text = priceText(withPrice([40, 50, 60, 70],
+      { values: [150, 60, 62, 64], states: ['exceeds', 'share', 'share', 'share'] },
+      { values: [40, 45, 55, 66], states: ['share', 'share', 'share', 'share'] }));
+    expect(text).toMatch(/^"Beta" is the most progressive/);
+    expect(text).toMatch(/between 50 and 70 USD per bbl/);
+  });
+
+  it('names the first price at which a regime is economic when it cannot rank', () => {
+    const text = priceText(withPrice([40, 50, 60, 70],
+      { values: [null, null, 120, 90], states: ['undefined', 'undefined', 'exceeds', 'share'] },
+      { values: [null, 80, 70, 65], states: ['undefined', 'share', 'share', 'share'] }));
+    expect(text).toMatch(/The first regime to become economic is "Beta", at 50 USD per bbl\.$/);
+  });
+
+  it('does not call a falling share progressive', () => {
+    const text = priceText(withPrice([40, 80, 120],
+      { values: [60, 55, 50], states: ['share', 'share', 'share'] },
+      { values: [60, 50, 40], states: ['share', 'share', 'share'] }));
+    expect(text).toMatch(/^No regime is progressive/);
+    expect(text).toMatch(/"Alpha" is the least regressive, falling 10\.0 percentage points/);
   });
 
   it('returns nothing at all rather than a conclusion about no regimes', () => {

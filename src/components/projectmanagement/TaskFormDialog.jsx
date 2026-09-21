@@ -21,6 +21,12 @@ const TaskFormDialog = ({ open, onOpenChange, project, existingTask, parentTaskI
   const [priority, setPriority] = useState('Medium');
   const [status, setStatus] = useState('To Do');
   const [percentComplete, setPercentComplete] = useState(0);
+  // EC6-0: the earned value engine reads planned_cost and actual_cost, the
+  // `tasks` table has carried both columns all along, and no screen in the
+  // app has ever written either. So every project reported PV 0, EV $0,
+  // "NaN% Complete" and a "Behind Schedule" verdict on nothing.
+  const [plannedCost, setPlannedCost] = useState('');
+  const [actualCost, setActualCost] = useState('');
   const [selectedParent, setSelectedParent] = useState('none');
   const [description, setDescription] = useState('');
 
@@ -37,6 +43,8 @@ const TaskFormDialog = ({ open, onOpenChange, project, existingTask, parentTaskI
       setPriority(existingTask.priority || 'Medium');
       setStatus(existingTask.status || 'To Do');
       setPercentComplete(existingTask.percent_complete || 0);
+      setPlannedCost(existingTask.planned_cost ?? '');
+      setActualCost(existingTask.actual_cost ?? '');
       setSelectedParent(existingTask.parent_task_id || 'none');
       setDescription(existingTask.description || '');
     } else {
@@ -49,6 +57,8 @@ const TaskFormDialog = ({ open, onOpenChange, project, existingTask, parentTaskI
       setPriority('Medium');
       setStatus('To Do');
       setPercentComplete(0);
+      setPlannedCost('');
+      setActualCost('');
       setSelectedParent(parentTaskId || 'none');
       setDescription('');
     }
@@ -59,6 +69,10 @@ const TaskFormDialog = ({ open, onOpenChange, project, existingTask, parentTaskI
     if (!startDate) return "Start date is required.";
     if (!endDate) return "End date is required.";
     if (new Date(startDate) > new Date(endDate)) return "Start date cannot be after end date.";
+    // EC6-0: the engine refuses a cost it cannot read, so the form does too,
+    // here where the user can still fix it.
+    if (plannedCost !== '' && !(Number(plannedCost) >= 0)) return "Planned cost must be a number, and not negative.";
+    if (actualCost !== '' && !(Number(actualCost) >= 0)) return "Actual cost must be a number, and not negative.";
     
     if (!isEditMode) {
        const isDuplicate = tasks.some(t => t.name.toLowerCase() === name.trim().toLowerCase() && t.type === type);
@@ -92,6 +106,9 @@ const TaskFormDialog = ({ open, onOpenChange, project, existingTask, parentTaskI
         priority,
         status,
         percent_complete: percentComplete,
+        // Blank means "not costed", which is a different thing from zero.
+        planned_cost: plannedCost === '' ? null : Number(plannedCost),
+        actual_cost: actualCost === '' ? null : Number(actualCost),
         parent_task_id: selectedParent === 'none' ? null : selectedParent,
         description: description ? description.trim() : null
     };
@@ -244,6 +261,38 @@ const TaskFormDialog = ({ open, onOpenChange, project, existingTask, parentTaskI
                     <Input type="number" min="0" max="100" value={percentComplete} onChange={e => setPercentComplete(parseInt(e.target.value) || 0)} className="bg-slate-800 border-slate-700 text-white" />
                 </div>
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label>Planned cost</Label>
+                    <Input
+                        type="number"
+                        min="0"
+                        step="any"
+                        placeholder="Leave blank if not costed"
+                        value={plannedCost}
+                        onChange={e => setPlannedCost(e.target.value)}
+                        className="bg-slate-800 border-slate-700 text-white"
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label>Actual cost to date</Label>
+                    <Input
+                        type="number"
+                        min="0"
+                        step="any"
+                        placeholder="Leave blank if nothing booked"
+                        value={actualCost}
+                        onChange={e => setActualCost(e.target.value)}
+                        className="bg-slate-800 border-slate-700 text-white"
+                    />
+                </div>
+            </div>
+            <p className="text-xs text-slate-500">
+                Earned value is the planned cost of the work done: a task with no planned cost
+                contributes nothing to it, and a project with no costed tasks reports no
+                performance index at all rather than a made-up one.
+            </p>
 
             <div className="space-y-2">
                 <Label>Parent Task / Dependency</Label>

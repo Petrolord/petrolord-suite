@@ -1,118 +1,290 @@
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
 import { MOCPageShell } from './components/MOCPageShell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { 
-  Download, Printer, BarChart2, PieChart as PieChartIcon, 
-  Activity, AlertTriangle, FileText, CheckCircle, Clock 
-} from 'lucide-react';
-import { 
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, 
-  CartesianGrid, PieChart, Pie, Cell, LineChart, Line 
+import { Download } from 'lucide-react';
+import {
+  Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
-import { exportToCSV, exportToExcel, exportToPDF, printElement } from '@/utils/exportUtils';
+import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import {
+  CHART_COLORS, CHART_MARGINS, CHART_TYPOGRAPHY, GRID_STYLE, LEGEND_PROPS, TOOLTIP_STYLE,
+} from '@/utils/chartTheme';
+import ChartLogo from '@/components/charts/ChartLogo';
+import {
+  EXPIRY,
+  RISK_CHART_COLORS,
+  RISK_LEVELS,
+  STAGES,
+  STAGE_CHART_COLORS,
+  countBy,
+  summarise,
+} from '@/lib/managementOfChange';
+import { exportToCSV } from '@/utils/exportUtils';
+import { openActionsOf } from './utils/openActions';
+import { EmptyState, ErrorState, Loading } from './components/SharedComponents';
+import { useManagementOfChange } from './hooks/useManagementOfChange';
+import { expiryDisplay, expiryReportRows } from './utils/expiryDisplay';
 
+/**
+ * AS6 — MOC reporting, from this organization's own rows.
+ *
+ * Every chart on the page it replaces was a literal: a stage breakdown
+ * (8 / 15 / 10 / 20 / 45), a category breakdown (45 / 30 / 20 / 5) and,
+ * worst of the three, an EXPIRY report:
+ *
+ *   const expiryData = [
+ *     { id: 'MOC-012', daysLeft: 2 }, { id: 'MOC-044', daysLeft: 5 },
+ *     { id: 'MOC-088', daysLeft: 12 }, { id: 'MOC-091', daysLeft: 15 }
+ *   ];
+ *
+ * Four invented change numbers with invented countdowns, and each
+ * chart carried CSV, Excel and PDF export buttons pointed straight at
+ * the constant. The temporary-change expiry report is the one document
+ * in this app that says which deviations the facility is running on and
+ * for how much longer. It was fiction, and it was downloadable.
+ */
 export default function MOCReports() {
   const { toast } = useToast();
-  const COLORS = ['hsl(var(--primary))', 'hsl(var(--info))', 'hsl(var(--warning))', 'hsl(var(--success))', 'hsl(var(--muted))'];
-  
-  const stageData = [
-    { name: 'Draft', value: 8 }, { name: 'Review', value: 15 },
-    { name: 'Approval', value: 10 }, { name: 'Implementation', value: 20 }, { name: 'Closed', value: 45 }
-  ];
+  const { records, actions, approvals, loading, error, refresh } = useManagementOfChange();
+  const today = new Date();
 
-  const categoryData = [
-    { name: 'Facility', value: 45 }, { name: 'Process', value: 30 },
-    { name: 'Procedural', value: 20 }, { name: 'Organizational', value: 5 }
-  ];
+  const summary = useMemo(() => summarise(records, { actions, approvals }, today),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [records, actions, approvals]);
 
-  const expiryData = [
-    { id: 'MOC-012', daysLeft: 2 }, { id: 'MOC-044', daysLeft: 5 },
-    { id: 'MOC-088', daysLeft: 12 }, { id: 'MOC-091', daysLeft: 15 }
-  ];
-
-  const handleExport = (type, title, data) => {
-    const filename = `${title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`;
-    if (type === 'csv') exportToCSV(data, filename);
-    else if (type === 'excel') exportToExcel(data, filename);
-    else if (type === 'pdf') exportToPDF(title, data, filename);
-  };
-
-  const handlePrint = (elementId, title) => {
-    printElement(elementId, title);
-  };
-
-  const ReportCard = ({ id, title, icon: Icon, children, data }) => (
-    <Card className="bg-[hsl(var(--card))] border-[hsl(var(--border))]" id={id}>
-      <CardHeader className="border-b border-[hsl(var(--border))] pb-3 flex flex-row items-center justify-between">
-        <CardTitle className="text-base flex items-center text-[hsl(var(--foreground))]">
-          <Icon className="w-4 h-4 mr-2 text-[hsl(var(--primary))]" /> {title}
-        </CardTitle>
-        <div className="flex gap-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePrint(id, title)}>
-            <Printer className="w-4 h-4 text-[hsl(var(--muted-foreground))]" />
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <Download className="w-4 h-4 text-[hsl(var(--muted-foreground))]" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-[hsl(var(--card))] border-[hsl(var(--border))] text-[hsl(var(--foreground))]">
-              <DropdownMenuItem onClick={() => handleExport('csv', title, data)} className="cursor-pointer">Export CSV</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('excel', title, data)} className="cursor-pointer">Export Excel</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('pdf', title, data)} className="cursor-pointer">Export PDF</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </CardHeader>
-      <CardContent className="p-4 h-[300px]">
-        {children}
-      </CardContent>
-    </Card>
+  const stageData = useMemo(
+    () => STAGES.map((name) => ({ name, count: summary.byStage[name] })).filter((d) => d.count > 0),
+    [summary],
   );
 
+  const categoryData = useMemo(() => countBy(records, 'category'), [records]);
+
+  /**
+   * The real expiry report: temporary and emergency changes still to be
+   * reverted, in effect or on their way in, soonest first. Rejected and
+   * Cancelled changes never went in, and Closed ones read 'Closed out'
+   * and have nothing left to revert, so expiryReportRows leaves all three
+   * out. One not yet in effect reads "Not yet in effect" rather than
+   * "No expiry" beside its own date.
+   */
+  const expiryRows = useMemo(
+    () => expiryReportRows(records, today),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [records],
+  );
+
+  const riskByStage = useMemo(() => {
+    const rows = new Map();
+    records.forEach((m) => {
+      const key = m.stage || 'Unknown';
+      if (!rows.has(key)) rows.set(key, Object.fromEntries(RISK_LEVELS.map((r) => [r, 0])));
+      if (rows.get(key)[m.risk_level] !== undefined) rows.get(key)[m.risk_level] += 1;
+    });
+    return [...rows.entries()].map(([name, counts]) => ({ name, ...counts }));
+  }, [records]);
+
+  const presentRisks = useMemo(
+    () => RISK_LEVELS.filter((r) => summary.byRisk[r] > 0), [summary]);
+
+  const exportRegister = () => {
+    if (!records.length) {
+      toast({ description: 'There is nothing to export: the register is empty.' });
+      return;
+    }
+    exportToCSV(records.map((m) => ({
+      Number: m.moc_code || '',
+      Title: m.title || '',
+      Type: m.type || '',
+      Category: m.category || '',
+      Stage: m.stage || '',
+      Risk: m.risk_level || '',
+      Asset: m.asset_id || '',
+      'Target implementation': m.target_implementation_date || '',
+      Expires: m.expiry_date || '',
+      'Expiry state': expiryDisplay(m, today)?.state || '',
+      'Open actions': openActionsOf(m, today),
+    })), `moc-register-${format(today, 'yyyy-MM-dd')}`);
+  };
+
+  const exportExpiry = () => {
+    if (!expiryRows.length) {
+      toast({ description: 'No temporary or emergency change is in effect or on its way in.' });
+      return;
+    }
+    exportToCSV(expiryRows.map((m) => ({
+      Number: m.moc_code || '',
+      Title: m.title || '',
+      Type: m.type || '',
+      Stage: m.stage || '',
+      Asset: m.asset_id || '',
+      Expires: m.expiry_date || '',
+      'Days remaining': m.days === null ? 'No expiry set' : m.days,
+      State: m.state,
+    })), `moc-temporary-change-expiry-${format(today, 'yyyy-MM-dd')}`);
+  };
+
+  if (loading) return <MOCPageShell><Loading label="Loading reports..." /></MOCPageShell>;
+  if (error) return <MOCPageShell><ErrorState error={error} onRetry={refresh} /></MOCPageShell>;
+
+  if (records.length === 0) {
+    return (
+      <MOCPageShell>
+        <EmptyState
+          icon={<Download className="w-12 h-12" />}
+          title="Nothing to report on yet"
+          description="These reports count this organization's own change records. Raise some and they will appear here."
+        />
+      </MOCPageShell>
+    );
+  }
+
+  const axisTick = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
+
   return (
-    <MOCPageShell title="Reporting & Analytics" description="MOC Performance and Compliance Metrics">
-      <div className="space-y-6 animate-in fade-in duration-300">
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          <ReportCard id="rpt-stage" title="Changes by Stage" icon={BarChart2} data={stageData}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stageData} layout="vertical" margin={{left: 40}}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="hsl(var(--border))" />
-                <XAxis type="number" stroke="hsl(var(--muted-foreground))" tick={{fontSize: 12}} />
-                <YAxis dataKey="name" type="category" stroke="hsl(var(--muted-foreground))" tick={{fontSize: 12}} />
-                <Tooltip contentStyle={{backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))'}} />
-                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ReportCard>
-
-          <ReportCard id="rpt-category" title="Changes by Category" icon={PieChartIcon} data={categoryData}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={categoryData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} dataKey="value" label>
-                  {categoryData.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </ReportCard>
-
-          <ReportCard id="rpt-expiry" title="MOCs Nearing Expiry" icon={Clock} data={expiryData}>
-            <div className="space-y-2">
-              {expiryData.map(item => (
-                <div key={item.id} className="flex justify-between p-2 rounded bg-[hsl(var(--muted))]/30 border border-[hsl(var(--border))]">
-                  <span className="font-medium">{item.id}</span>
-                  <span className="text-orange-500 font-bold">{item.daysLeft} days left</span>
-                </div>
-              ))}
-            </div>
-          </ReportCard>
+    <MOCPageShell title="Reports" description="Counted from this organization's own change records">
+      <div className="space-y-6 animate-in fade-in duration-300 pb-20 md:pb-0">
+        <div className="flex flex-wrap justify-between items-center gap-3 bg-[hsl(var(--card))] p-4 rounded-xl border border-[hsl(var(--border))] shadow-sm">
+          <div>
+            <p className="text-sm">
+              {summary.total} change{summary.total === 1 ? '' : 's'},
+              {' '}{summary.active} active, {summary.expired} expired temporary,
+              as at {format(today, 'd MMM yyyy')}.
+            </p>
+            <p className="text-xs text-[hsl(var(--muted-foreground))] mt-1">
+              Counted from this organization&apos;s own rows.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={exportRegister}>
+              <Download className="w-4 h-4 mr-2" /> Register (CSV)
+            </Button>
+            <Button onClick={exportExpiry}>
+              <Download className="w-4 h-4 mr-2" /> Temporary change expiry (CSV)
+            </Button>
+          </div>
         </div>
+
+        <Card className="panel-elevation">
+          <CardHeader className="border-b border-[hsl(var(--border))] pb-4">
+            <CardTitle className="text-lg">Temporary and emergency changes by expiry</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {expiryRows.length === 0 ? (
+              <p className="p-8 text-center text-[hsl(var(--muted-foreground))]">
+                No temporary or emergency change is in effect or on its way in.
+                Closed, rejected and cancelled ones are not listed.
+              </p>
+            ) : (
+              <table className="data-grid-table w-full">
+                <thead>
+                  <tr>
+                    <th className="data-grid-th">Number</th>
+                    <th className="data-grid-th">Title</th>
+                    <th className="data-grid-th">Type</th>
+                    <th className="data-grid-th">Stage</th>
+                    <th className="data-grid-th">Expires</th>
+                    <th className="data-grid-th">Days</th>
+                    <th className="data-grid-th">State</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {expiryRows.map((m) => (
+                    <tr key={m.id} className="border-b border-[hsl(var(--border))] last:border-0">
+                      <td className="data-grid-td font-mono text-xs">{m.moc_code}</td>
+                      <td className="data-grid-td">{m.title}</td>
+                      <td className="data-grid-td text-xs">{m.type}</td>
+                      <td className="data-grid-td text-xs">{m.stage}</td>
+                      <td className="data-grid-td text-xs">{m.expiry_date || 'Not set'}</td>
+                      <td className="data-grid-td text-xs">
+                        {m.days === null ? '-' : m.days}
+                      </td>
+                      <td className="data-grid-td text-xs">
+                        <span className={m.state === EXPIRY.EXPIRED ? 'text-[hsl(var(--destructive))] font-medium' : ''}>
+                          {m.state}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="panel-elevation">
+            <CardHeader className="border-b border-[hsl(var(--border))] pb-4">
+              <CardTitle className="text-lg">Changes by stage</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={stageData} margin={CHART_MARGINS.compact}>
+                    <CartesianGrid {...GRID_STYLE} vertical={false} />
+                    <XAxis dataKey="name" stroke={CHART_COLORS.axisLine} tick={axisTick}
+                      interval={0} angle={-20} textAnchor="end" height={60} />
+                    <YAxis allowDecimals={false} stroke={CHART_COLORS.axisLine} tick={axisTick} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: CHART_COLORS.grid }} />
+                    <Bar dataKey="count" name="Changes" radius={[4, 4, 0, 0]} barSize={34}>
+                      {stageData.map((d) => (
+                        <Cell key={d.name} fill={STAGE_CHART_COLORS[d.name] || '#94a3b8'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+                <ChartLogo />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="panel-elevation">
+            <CardHeader className="border-b border-[hsl(var(--border))] pb-4">
+              <CardTitle className="text-lg">Changes by category</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={categoryData} layout="vertical" margin={CHART_MARGINS.compact}>
+                    <CartesianGrid {...GRID_STYLE} horizontal={false} />
+                    <XAxis type="number" allowDecimals={false} stroke={CHART_COLORS.axisLine} tick={axisTick} />
+                    <YAxis dataKey="name" type="category" width={170}
+                      stroke={CHART_COLORS.axisLine} tick={axisTick} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: CHART_COLORS.grid }} />
+                    <Bar dataKey="count" name="Changes" fill="#2563eb" radius={[0, 4, 4, 0]} barSize={20} />
+                  </BarChart>
+                </ResponsiveContainer>
+                <ChartLogo />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card className="panel-elevation">
+          <CardHeader className="border-b border-[hsl(var(--border))] pb-4">
+            <CardTitle className="text-lg">Risk by stage</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="relative h-[340px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={riskByStage} margin={CHART_MARGINS.legend}>
+                  <CartesianGrid {...GRID_STYLE} vertical={false} />
+                  <XAxis dataKey="name" stroke={CHART_COLORS.axisLine} tick={axisTick}
+                    interval={0} angle={-20} textAnchor="end" height={70} />
+                  <YAxis allowDecimals={false} stroke={CHART_COLORS.axisLine} tick={axisTick} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: CHART_COLORS.grid }} />
+                  <Legend {...LEGEND_PROPS} />
+                  {presentRisks.map((r) => (
+                    <Bar key={r} dataKey={r} stackId="risk" name={r}
+                      fill={RISK_CHART_COLORS[r]} barSize={40} />
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
+              <ChartLogo />
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </MOCPageShell>
   );

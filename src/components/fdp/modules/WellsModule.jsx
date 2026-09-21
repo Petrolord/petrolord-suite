@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useFDP } from '@/contexts/FDPContext';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Plus, Download, Upload, LayoutGrid, List } from 'lucide-react';
 import {
   AlertDialog,
@@ -21,6 +22,8 @@ import CollapsibleSection from '@/components/fdp/CollapsibleSection';
 
 const WellsModule = () => {
     const { state, actions } = useFDP();
+    const rigRate = Number.isFinite(parseFloat(state.wells?.rigRate)) ? parseFloat(state.wells.rigRate) : 250000;
+    const rigCount = Math.max(1, parseInt(state.wells?.rigs, 10) || 1);
     const { list: wells } = state.wells;
     const { toast } = useToast();
     
@@ -110,16 +113,43 @@ const WellsModule = () => {
                     </CollapsibleSection>
 
                     <CollapsibleSection title="Drilling Strategy & Schedule">
-                        <WellStrategy wells={wells} />
+                        {/* EC6-0: the campaign is laid out against the plan's own rig
+                            count and day rate, both of which the state has always
+                            carried and nothing ever read. */}
+                        <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                            <div className="space-y-1">
+                                <label className="text-xs text-slate-400 uppercase tracking-wider">Rigs</label>
+                                <Input
+                                    type="number"
+                                    min="1"
+                                    value={rigCount}
+                                    onChange={(e) => actions.updateWells({ rigs: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                                    className="bg-slate-900 border-slate-800 w-28"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs text-slate-400 uppercase tracking-wider">Rig rate (USD/day)</label>
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    step="1000"
+                                    value={rigRate}
+                                    onChange={(e) => actions.updateWells({ rigRate: parseFloat(e.target.value) || 0 })}
+                                    className="bg-slate-900 border-slate-800 w-40"
+                                />
+                            </div>
+                        </div>
+                        <WellStrategy wells={wells} rigCount={rigCount} rigRate={rigRate} />
                     </CollapsibleSection>
 
                     <CollapsibleSection title="Risk Assessment">
-                        <DrillingRiskAssessment />
+                        <DrillingRiskAssessment risks={state.risks} />
                     </CollapsibleSection>
                 </>
             ) : (
                 <WellForm 
                     initialData={editingWell}
+                    rigRate={rigRate}
                     onSave={handleSave}
                     onCancel={() => setView('list')}
                 />

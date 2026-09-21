@@ -1,4 +1,5 @@
 import React from 'react';
+import { getRiskLevel, riskScore } from '@/data/fdp/RiskManagementModel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ShieldCheck, AlertOctagon, Activity, TrendingUp } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
@@ -26,11 +27,14 @@ const RiskManagementOverview = ({ risks }) => {
     const exposure = calculateRiskExposure(risks);
     const health = calculatePortfolioHealth(risks);
 
+    // EC6-1: a risk with a factor missing is counted as unscored rather than
+    // folded into Low, where it used to improve the health score.
     const chartData = [
         { name: 'Critical', count: levels.Critical, color: '#dc2626' },
         { name: 'High', count: levels.High, color: '#f97316' },
         { name: 'Medium', count: levels.Medium, color: '#eab308' },
         { name: 'Low', count: levels.Low, color: '#22c55e' },
+        ...(levels.Unscored ? [{ name: 'Unscored', count: levels.Unscored, color: '#64748b' }] : []),
     ];
 
     return (
@@ -110,7 +114,8 @@ const RiskManagementOverview = ({ risks }) => {
                                     </div>
                                     <div className="flex items-center gap-3">
                                         <span className="text-xs text-slate-400 font-mono">Score: {risk.probability * risk.impact}</span>
-                                        <div className={`w-2 h-2 rounded-full ${risk.probability * risk.impact >= 20 ? 'bg-red-500' : 'bg-orange-500'}`} />
+                                        {/* EC6-1: on the one scale, so this dot agrees with the register. */}
+                                        <div className={`w-2 h-2 rounded-full ${getRiskLevel(riskScore(risk) ?? 0).level === 'Critical' ? 'bg-red-500' : 'bg-orange-500'}`} />
                                     </div>
                                 </div>
                             ))}

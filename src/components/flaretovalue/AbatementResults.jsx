@@ -22,6 +22,7 @@ const Stat = ({ label, value, hint }) => (
 
 const AbatementResults = () => {
   const { flareAbatement: a, creditCase } = useFlareToValue();
+  const net = a.error ? null : a.netAbatementTonnesCo2ePerYear;
   const tick = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
 
   if (a.error) {
@@ -38,7 +39,7 @@ const AbatementResults = () => {
       <div>
         <h3 className="text-sm font-semibold text-white mb-1">What the flare emits</h3>
         <p className="text-[11px] text-slate-500 mb-2">
-          Computed from the carbon in the gas, atom by atom. This is the flare&apos;s own footprint,
+          Computed from the gas analysis: the hydrocarbon carbon that burns, the CO2 already in the gas, and the methane that escapes. This is the flare&apos;s own footprint,
           which is a different question from what recovering it would abate.
         </p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -49,6 +50,8 @@ const AbatementResults = () => {
             value={a.methaneShareOfFlareCo2e === null ? '-' : `${fmt(a.methaneShareOfFlareCo2e * 100, 0)}%`}
             hint="of the flare's CO2e" />
         </div>
+        <p className="text-[11px] text-slate-500 mt-2">{a.basis}</p>
+        {a.combustionEfficiencyNote && <p className="text-[11px] text-amber-300 mt-1">{a.combustionEfficiencyNote}</p>}
         {a.methaneShareOfFlareCo2e !== null && a.methaneShareOfFlareCo2e > 0.25 && (
           <p className="text-[11px] text-amber-300 mt-2">
             Most of this flare&apos;s impact is the methane it fails to burn, not the CO2 it does.
@@ -58,25 +61,25 @@ const AbatementResults = () => {
       </div>
 
       <div className={`rounded-lg border p-4 flex items-start gap-3 ${
-        a.counterfactualDeclared
+        net !== null
           ? 'border-emerald-800/60 bg-emerald-950/30'
           : 'border-amber-800/60 bg-amber-950/30'}`}
       >
-        {a.counterfactualDeclared
+        {net !== null
           ? <CheckCircle2 className="w-5 h-5 text-emerald-400 mt-0.5 shrink-0" />
           : <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />}
         <div>
           <p className="font-semibold text-white">
-            {a.counterfactualDeclared
-              ? `${fmt(a.netAbatementTonnesCo2ePerYear, 0)} tCO2e a year abated against "${a.counterfactualLabel}"`
+            {net !== null
+              ? `${fmt(net, 0)} tCO2e a year abated against "${a.counterfactualLabel}"`
               : 'No abatement reported'}
           </p>
           <p className="text-sm text-slate-300 mt-1">
-            {a.counterfactualDeclared
-              ? `The flare emitted ${fmt(a.flareCo2eTonnes, 0)} tCO2e; the product will emit ${fmt(a.productCombustionTonnesCo2ePerYear, 0)} and displaces ${fmt(a.displacedFuelTonnesCo2ePerYear, 0)}. The abatement is the difference, and it is neither reliably above nor below the flare's own figure.`
-              : a.warning}
+            {net !== null
+              ? `The flare emitted ${fmt(a.flareCo2eTonnes, 0)} tCO2e, of which recovering ${fmt(a.recoveryFraction * 100, 0)} percent avoids ${fmt(a.avoidedFlareCo2eTonnes, 0)}; the product will emit ${fmt(a.productCombustionTonnesCo2ePerYear, 0)} and displaces ${fmt(a.displacedFuelTonnesCo2ePerYear, 0)}. The abatement is the difference, and it is neither reliably above nor below the flare's own figure.`
+              : (a.warning || 'No abatement is reported until every input it rests on is given.')}
           </p>
-          {!a.counterfactualDeclared && a.blockedBy && (
+          {net === null && a.blockedBy && (
             <p className="text-sm text-amber-200 mt-1">{`Blocked by: ${a.blockedBy}.`}</p>
           )}
         </div>
@@ -96,6 +99,11 @@ const AbatementResults = () => {
             <p className={`text-sm mb-2 ${creditCase.standsAloneWithoutCredits ? 'text-emerald-300' : 'text-amber-300'}`}>
               {creditCase.verdict}
             </p>
+            {creditCase.breakevenCreditPrice !== null && creditCase.breakevenCreditPrice > 0 && (
+              <p className="text-[11px] text-slate-400 mb-2">
+                {`Breakeven credit price ${fmt(creditCase.breakevenCreditPrice, 2)} per tonne. ${creditCase.lowestTestedClearingPrice === null ? 'No price tested reaches it.' : `The lowest price tested that clears is ${fmt(creditCase.lowestTestedClearingPrice, 2)}.`}`}
+              </p>
+            )}
             <ChartFrame height={260} exportFilename="credit-sensitivity">
               <LineChart data={creditCase.points} margin={{ top: 12, right: 24, left: 24, bottom: 28 }}>
                 <CartesianGrid {...GRID_STYLE} />

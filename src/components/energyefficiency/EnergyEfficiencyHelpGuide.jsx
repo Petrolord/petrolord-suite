@@ -38,9 +38,9 @@ const helpContent = [
   {
     id: 'refusals',
     icon: AlertTriangle,
-    title: 'The three things this app will not supply',
+    title: 'What this app will not supply',
     content:
-      'The radiation and convection loss, because it comes off a published chart against surface area and firing rate. The minimum safe stack oxygen, because below some excess air a burner makes carbon monoxide and where that point sits depends on the burner, the fuel and the draught control: the app will not recommend a setpoint you have not declared reachable, and it says so rather than quietly clamping. And the discharge coefficient for a failed trap, because it depends on the orifice and on how the trap failed, and a default would put a spurious precision on a figure that is already an estimate.',
+      'The radiation and convection loss, because it comes off a published chart against surface area and firing rate. The minimum safe stack oxygen, because below some excess air a burner makes carbon monoxide and where that point sits depends on the burner, the fuel and the draught control: the app will not recommend a setpoint you have not declared reachable, and it says so rather than quietly clamping. And the discharge coefficient for a failed trap, because it depends on the orifice and on how the trap failed, and a default would put a spurious precision on a figure that is already an estimate. The isentropic exponent of the steam at the trap is asked for too: about 1.135 for dry saturated steam and about 1.3 superheated, which moves the loss by five percent. A trap\'s fuel needs the boiler efficiency, which is never taken as 100 percent, and blank hours in service are not read as a full year. The unburned and other loss is a flue gas measurement: leave it blank and it stays absent, the efficiency is reported without it, and the panel says so, because a zero typed in for you would raise the efficiency by whatever the stack is really losing.',
   },
   {
     id: 'saving',
@@ -54,14 +54,14 @@ const helpContent = [
     icon: Droplets,
     title: 'Traps, condensate, and the term everyone forgets',
     content:
-      'A trap that has failed open is a hole in the steam system. Above a pressure ratio of about two the flow through a hole is choked, meaning it depends on the upstream pressure and not at all on what is downstream, which is why a trap blowing into a condensate header loses much the same steam as one blowing to atmosphere. Condensate is worth more than its heat: it is treated water, so losing it costs fuel to reheat the makeup, the raw water, and the treatment again. The treatment is the term routinely left out of these business cases, so it is asked for separately and the value is called a floor until it is supplied.',
+      'A trap that has failed open is a hole in the steam system. While the discharge pressure is at or below the critical fraction of the upstream pressure, (2/(k+1))^(k/(k-1)), about 0.58 for saturated steam, the flow through the hole is choked: it depends on the upstream pressure alone, which is why a trap blowing into a low-pressure condensate header loses the same steam as one blowing to atmosphere. Above that ratio the flow is subsonic and the discharge pressure lowers the loss; the page tests the ratio and says which applies. The discharge pressure defaults to atmosphere, the usual case, and a blank box is refused. Condensate is worth more than its heat: it is treated water, so losing it costs fuel to reheat the makeup, the raw water, and the treatment again. The treatment is the term routinely left out of these business cases, so it is asked for separately and the value is called a floor until it is supplied.',
   },
   {
     id: 'intensity',
     icon: Scale,
     title: 'This is not EII',
     content:
-      'The Solomon Energy Intensity Index is a proprietary benchmark with its own standard-energy methodology and a subscription behind it. Computing something similar and labelling it EII would be wrong in a way that matters commercially. What this computes is your own energy in per tonne of throughput, which is a real and useful number, compared against whatever peer figure you supply and have the right to use. The disclaimer travels with the result.',
+      'The Solomon Energy Intensity Index is a proprietary benchmark with its own standard-energy methodology and a subscription behind it. Computing something similar and labelling it EII would be wrong in a way that matters commercially. What this computes is your own energy in per tonne of throughput, which is a real and useful number, compared against whatever peer figure you supply and have the right to use. While any energy stream is blank the intensity is a floor, and a floor would flatter the plant, so there is no peer comparison until every stream is counted. The disclaimer travels with the result.',
   },
   {
     id: 'pinch',
@@ -75,7 +75,7 @@ const helpContent = [
     icon: Leaf,
     title: 'The register, in money and in carbon',
     content:
-      'Every measure is priced from one fuel cost and one emission factor, so the money and the carbon come from the same energy and cannot disagree. Where no emission factor is supplied the carbon figure is absent rather than zero. The abatement cost per tonne is computed and handed on rather than ranked here: ranking measures into a marginal abatement cost curve is the Carbon Footprint & Abatement Studio\'s job, and duplicating it would create two rankings that could differ.',
+      'Every measure is priced from one fuel cost and one emission factor, so the money and the carbon come from the same energy and cannot disagree. Where no emission factor is supplied the carbon figure is left blank. A gigajoule on LHV is about ten percent more fuel than one on HHV, so declare the basis the fuel price and the emission factor are quoted on: IPCC default factors are on LHV. Where it differs from the heater\'s basis the tuning row is refused. An abatement cost per tonne is annualised over the measure\'s life at a discount rate, as the Carbon Studio does, and handed on for ranking there: ranking measures into a marginal abatement cost curve is the Carbon Footprint & Abatement Studio\'s job, and duplicating it would create two rankings that could differ.',
   },
 ];
 

@@ -39,14 +39,21 @@ const helpContent = [
     icon: Droplets,
     title: 'Three phase and the check that catches carryover',
     content:
-      'Oil and water each need their own retention time in their own layer, and one vessel has to satisfy both, so the studio solves both and tells you which set the length. It then asks the question retention time alone cannot answer: can a water droplet actually fall through the oil layer, and an oil droplet rise through the water, in the residence available. On a thick, cold oil the answer is often no, and a vessel that meets every retention target still carries water over. The studio warns when the settling check fails, because that is the failure people are surprised by.',
+      'Oil and water each need their own retention time in their own layer. The studio splits the liquid cross-section between them in proportion to the two retention volumes and places the oil-water interface at the exact height that share implies, so one retention length satisfies both, and it tells you whether that length or the gas set the vessel. The interface height, the water layer and the oil layer are all reported. It then asks the question retention time alone cannot answer: can a water droplet of the size you name fall through the oil layer, and an oil droplet of its own size rise through the water, in the residence the sized vessel gives them. Those two droplet sizes are separate inputs, because they are different jobs: 500 micron water out of oil and 200 micron oil out of water are the customary figures. On a thick, cold oil the answer is often no, and a vessel that meets every retention target still carries water over. The studio warns when a settling check fails, because that is the failure people are surprised by, and a candidate that fails one is marked unfeasible in the L/D family so it can never be selected.',
   },
   {
     id: 'ld',
     icon: Ruler,
     title: 'The L/D family',
     content:
-      'Rather than pin one slenderness, the studio sizes every candidate diameter you give it and shows the family with the L/D of each. Three to five is the customary band for horizontal separators. A vessel outside it still separates; it is just an awkward thing to build, ship and support, and seeing the whole family makes that a choice rather than an accident.',
+      'Rather than pin one slenderness, the studio sizes every candidate diameter you give it and shows the family with the L/D of each. Three to five is the customary band for horizontal separators and two to four for vertical ones, and the band fields switch to the vertical band when you change the vessel type (unless you have edited them). The selected vessel is the smallest candidate that both works and sits inside the band, where working means it carries the gas and, on a three-phase vessel, passes both droplet checks. Each row says which of those it fails. When nothing qualifies, the studio selects nothing and says whether no candidate works at all or whether the ones that work are all outside the band. A vessel outside the band still separates; it is just an awkward thing to build, ship and support, and seeing the whole family makes that a choice rather than an accident.',
+  },
+  {
+    id: 'inputs',
+    icon: BookOpen,
+    title: 'The example case and missing inputs',
+    content:
+      'A new study opens with an illustrative example case so the whole chain has something to show. Replace those values with your own. If you clear a required field, it stays blank: the studio does not put a typical gas gravity, oil gravity, retention time, droplet size or finger size back in its place. The results are replaced by a message naming each required input that is missing. The K override is the one optional field; blank there means the derated correlation is used.',
   },
   {
     id: 'slug',

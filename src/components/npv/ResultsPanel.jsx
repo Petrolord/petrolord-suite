@@ -14,12 +14,40 @@ import TornadoChart from './charts/TornadoChart';
 import StackedCashflowChart from './charts/StackedCashflowChart';
 import SpiderChart from './charts/SpiderChart';
 import { HistogramChart, SCurveChart } from './charts/RiskCharts';
+import { RiskCaseCards, riskCases } from './riskCases';
 
 const ResultsPanel = ({ results }) => {
   const { metrics, cashflow, sensitivity, risk, scenarios } = results;
 
   const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact' }).format(val);
-  const formatPct = (val) => `${val.toFixed(1)}%`;
+  // EC6-1: the screening engine reports no internal rate of return when
+  // there is none to report (every period the same sign, several roots, or a
+  // rate above the band it searches), where it used to return the 1000
+  // percent clamp or a flat 0. A missing figure prints as what it is.
+  const formatPct = (val) => (typeof val === 'number' && Number.isFinite(val) ? `${val.toFixed(1)}%` : 'n/a');
+  const IRR_REASON = {
+    'no-sign-change': 'no IRR: the cash flow never changes sign',
+    'no-root': 'no IRR: the value is negative at every rate',
+    'above-clamp': 'the IRR is above 1000 percent, beyond the range this engine searches',
+    'multiple-roots': 'more than one rate zeroes this cash flow, so no single IRR describes it',
+  };
+
+  // EC3-1 / EC3-2: payback is the first time the cumulative cash flow turns
+  // non-negative. The engine now says what happened around that number, so
+  // a project that never pays back no longer shows its project life, and a
+  // payback of 0 beside a negative peak exposure explains itself.
+  const formatYears = (val) => (typeof val === 'number' && Number.isFinite(val) ? val.toFixed(1) : 'n/a');
+  const paybackNote = (m) => {
+    switch (m.paybackStatus) {
+      case 'not-recovered': return 'never pays back: the cumulative cash flow stays below zero';
+      case 'no-investment': return 'nothing to pay back: the cumulative cash flow is never negative';
+      case 'recrossed':
+        return typeof m.paybackLast === 'number'
+          ? `the cumulative cash flow goes back below zero afterwards and recovers for good at ${m.paybackLast.toFixed(1)} years`
+          : 'the cumulative cash flow goes back below zero afterwards and never recovers';
+      default: return null;
+    }
+  };
 
   // --- Export Functions ---
   const exportExcel = () => {
@@ -29,8 +57,9 @@ const ResultsPanel = ({ results }) => {
       const summaryData = [
           ['Metric', 'Value'],
           ['NPV @ 10%', metrics.npv],
-          ['IRR', metrics.irr],
-          ['Payback', metrics.payback],
+          ['IRR', metrics.irr === null ? (IRR_REASON[metrics.irrStatus] || 'not defined') : metrics.irr],
+          ['Payback', metrics.payback === null ? (paybackNote(metrics) || 'not defined') : metrics.payback],
+          ['Payback note', paybackNote(metrics) || ''],
           ['Max Exposure', metrics.maxExposure],
           ['Total Revenue', metrics.totalRevenue],
           ['Total CAPEX', metrics.totalCapex]
@@ -68,8 +97,12 @@ const ResultsPanel = ({ results }) => {
           head: [['Metric', 'Value', 'Unit']],
           body: [
               ['Net Present Value (NPV)', formatCurrency(metrics.npv), '$'],
-              ['Internal Rate of Return (IRR)', metrics.irr.toFixed(1), '%'],
-              ['Payback Period', metrics.payback.toFixed(1), 'Years'],
+              ['Internal Rate of Return (IRR)',
+                metrics.irr === null ? (IRR_REASON[metrics.irrStatus] || 'not defined') : metrics.irr.toFixed(1),
+                metrics.irr === null ? '' : '%'],
+              ['Payback Period',
+                metrics.payback === null ? (paybackNote(metrics) || 'not defined') : formatYears(metrics.payback),
+                metrics.payback === null ? '' : 'Years'],
               ['Total CAPEX', formatCurrency(metrics.totalCapex), '$']
           ],
           startY: 35,
@@ -93,7 +126,11 @@ const ResultsPanel = ({ results }) => {
 
   const getKPICardColor = (metric, value) => {
       if (metric === 'NPV') return value > 0 ? 'text-green-400' : 'text-red-400';
-      if (metric === 'IRR') return value > 15 ? 'text-green-400' : value > 10 ? 'text-amber-400' : 'text-red-400';
+      // EC6-1: no rate is not a red rate; it is no rate.
+      if (metric === 'IRR') {
+        if (typeof value !== 'number' || !Number.isFinite(value)) return 'text-slate-400';
+        return value > 15 ? 'text-green-400' : value > 10 ? 'text-amber-400' : 'text-red-400';
+      }
       return 'text-white';
   };
 
@@ -133,10 +170,18 @@ const ResultsPanel = ({ results }) => {
                     <Card className="bg-slate-900 border-slate-800 p-4">
                         <p className="text-xs text-slate-500 uppercase font-semibold">Internal Rate of Return</p>
                         <p className={`text-2xl font-bold ${getKPICardColor('IRR', metrics.irr)}`}>{formatPct(metrics.irr)}</p>
+                        {metrics.irr === null && IRR_REASON[metrics.irrStatus] ? (
+                          <p className="text-[11px] text-slate-500 mt-1">{IRR_REASON[metrics.irrStatus]}</p>
+                        ) : null}
                     </Card>
                     <Card className="bg-slate-900 border-slate-800 p-4">
                         <p className="text-xs text-slate-500 uppercase font-semibold">Payback Period</p>
-                        <p className="text-2xl font-bold text-blue-400">{metrics.payback.toFixed(1)} Years</p>
+                        <p className={`text-2xl font-bold ${metrics.payback === null ? 'text-slate-400' : 'text-blue-400'}`} data-testid="npv-payback">
+                          {metrics.payback === null ? 'n/a' : `${formatYears(metrics.payback)} Years`}
+                        </p>
+                        {paybackNote(metrics) ? (
+                          <p className="text-[11px] text-slate-500 mt-1" data-testid="npv-payback-note">{paybackNote(metrics)}</p>
+                        ) : null}
                     </Card>
                     <Card className="bg-slate-900 border-slate-800 p-4">
                         <p className="text-xs text-slate-500 uppercase font-semibold">Max Exposure</p>
@@ -212,7 +257,7 @@ const ResultsPanel = ({ results }) => {
                                         {[
                                             { label: 'NPV ($MM)', key: 'npv', format: (v) => formatCurrency(v) },
                                             { label: 'IRR (%)', key: 'irr', format: (v) => formatPct(v) },
-                                            { label: 'Payback (Yrs)', key: 'payback', format: (v) => v.toFixed(1) },
+                                            { label: 'Payback (Yrs)', key: 'payback', format: (v) => formatYears(v) },
                                             { label: 'Max Exposure ($MM)', key: 'maxExposure', format: (v) => formatCurrency(Math.abs(v)) }
                                         ].map(m => (
                                             <TableRow key={m.key} className="border-b-slate-800">
@@ -222,7 +267,13 @@ const ResultsPanel = ({ results }) => {
                                                 <TableCell className="text-right font-mono text-slate-400">{m.format(scenarios.High.metrics[m.key])}</TableCell>
                                                 <TableCell className="text-right font-mono">
                                                     {(() => {
-                                                        const diff = scenarios.High.metrics[m.key] - scenarios.Base.metrics[m.key];
+                                                        const high = scenarios.High.metrics[m.key];
+                                                        const base = scenarios.Base.metrics[m.key];
+                                                        // EC6-1: a difference needs two numbers.
+                                                        if (typeof high !== 'number' || typeof base !== 'number') {
+                                                          return <span className="text-slate-500">n/a</span>;
+                                                        }
+                                                        const diff = high - base;
                                                         const color = m.key === 'payback' || m.key === 'maxExposure' ? (diff < 0 ? 'text-green-400' : 'text-red-400') : (diff > 0 ? 'text-green-400' : 'text-red-400');
                                                         return <span className={color}>{diff > 0 ? '+' : ''}{m.key === 'irr' ? diff.toFixed(1)+'%' : m.key === 'payback' ? diff.toFixed(1) : formatCurrency(diff)}</span>;
                                                     })()}
@@ -231,6 +282,13 @@ const ResultsPanel = ({ results }) => {
                                         ))}
                                     </TableBody>
                                 </Table>
+                                <p className="text-[11px] text-slate-500 mt-3" data-testid="npv-scenario-definition">
+                                    Low is 20 percent lower price and production with 20 percent higher capex and fixed opex; High is the mirror image.
+                                    Variable operating cost moves with production, so a barrel not produced is a barrel not paid for.
+                                    {['Low', 'Base', 'High'].some((k) => scenarios[k].metrics.paybackStatus === 'recrossed' || scenarios[k].metrics.paybackStatus === 'not-recovered')
+                                      ? ' A payback of n/a means that case never pays back; see the Dashboard for why a payback can go back below zero.'
+                                      : ''}
+                                </p>
                             </CardContent>
                         </Card>
                     </div>
@@ -262,26 +320,22 @@ const ResultsPanel = ({ results }) => {
                          <p className="text-xs text-slate-500 uppercase font-semibold">EMV (Expected Value)</p>
                          <p className="text-xl font-bold text-blue-400">{risk ? formatCurrency(risk.emv) : '-'}</p>
                     </Card>
-                    <div className="col-span-3 grid grid-cols-3 gap-4">
-                        <div className="bg-slate-800/50 p-4 rounded border border-slate-700 text-center">
-                            <p className="text-xs text-slate-500">P90 (Conservative)</p>
-                            <p className="text-lg font-bold text-white">{risk ? formatCurrency(risk.p90) : '-'}</p>
-                        </div>
-                        <div className="bg-slate-800/50 p-4 rounded border border-slate-700 text-center">
-                            <p className="text-xs text-slate-500">P50 (Base)</p>
-                            <p className="text-lg font-bold text-white">{risk ? formatCurrency(risk.p50) : '-'}</p>
-                        </div>
-                        <div className="bg-slate-800/50 p-4 rounded border border-slate-700 text-center">
-                            <p className="text-xs text-slate-500">P10 (Optimistic)</p>
-                            <p className="text-lg font-bold text-white">{risk ? formatCurrency(risk.p10) : '-'}</p>
-                        </div>
+                    <div className="col-span-3">
+                        <RiskCaseCards risk={risk} formatValue={formatCurrency} />
+                        <p className="text-[11px] text-slate-400 mt-1" data-testid="npv-risk-sampling">
+                            Each iteration draws one factor for price, one for reserves and one for capex, within plus or minus 20 percent, and applies it to every year:
+                            reserves moves oil and gas volume and the variable operating cost with it, price moves oil and gas prices, capex moves every capex entry.
+                        </p>
                     </div>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                      <Card className="bg-slate-900 border-slate-800">
                         <CardHeader><CardTitle className="text-sm text-slate-300">NPV Distribution</CardTitle></CardHeader>
                         <CardContent>
-                            {risk && <HistogramChart data={risk.histogram} p10={risk.p10} p50={risk.p50} p90={risk.p90} />}
+                            {risk && (() => {
+                              const [low, best, high] = riskCases(risk);
+                              return <HistogramChart data={risk.histogram} lowCase={low.value} bestCase={best.value} highCase={high.value} />;
+                            })()}
                         </CardContent>
                     </Card>
                     <Card className="bg-slate-900 border-slate-800">

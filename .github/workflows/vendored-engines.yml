@@ -1,0 +1,39 @@
+# The vendored engines must match canonical, and CI is where that is proved.
+#
+# packages/engines is a hand-maintained copy of Petrolord/petrolord-engines.
+# Nothing used to compare the two, and the failure mode is silent: the build
+# is clean, the tests are green, and a repaired engine defect simply never
+# reaches the live apps. On 2026-09-16 the tree was found sitting at canonical
+# 709172f while canonical was at fa53f7f, so the Pipeline & Line Sizing
+# Studio was still marching a gasOutletPressure that reported ~60 psi of real
+# pressure drop as none on any climbing gas line. A whole-tree subtree pull
+# had also silently deleted 24 Suite-only files on 2026-09-14.
+#
+# The check is offline: it joins every tracked path under packages/engines
+# against the blob hashes committed in packages/engines/VENDOR.manifest, so it
+# needs no engines-repo credentials, no clone, no install and no build. It
+# takes well under a second, which is why it is its own workflow and runs on
+# every pull request rather than waiting for a nightly.
+name: Vendored engines
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  vendored-engines-match-canonical:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # No `npm ci`: the guard uses only node builtins and `git ls-files`.
+      # Keeping it dependency-free is deliberate, so that a broken install can
+      # never be the reason the drift check did not run.
+      - name: Vendored engines match canonical
+        run: node tools/check-vendored-engines.mjs

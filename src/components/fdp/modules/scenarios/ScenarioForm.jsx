@@ -22,7 +22,11 @@ const ScenarioForm = ({ initialData, concepts, onSave, onCancel }) => {
         if (initialData) {
             setFormData({ ...initialData });
         } else if (concepts.length > 0 && !formData.conceptId) {
-            setFormData(prev => ({ ...prev, conceptId: concepts[0].id.toString() }));
+            // EC6-0: keep the concept's own id. This used to store the default
+            // as a STRING while a pick from the list stored a number, and the
+            // card matched with ===, so a scenario saved without touching this
+            // field never found its concept and rendered nothing at all.
+            setFormData(prev => ({ ...prev, conceptId: concepts[0].id }));
         }
     }, [initialData, concepts]);
 
@@ -60,8 +64,8 @@ const ScenarioForm = ({ initialData, concepts, onSave, onCancel }) => {
                         <div className="space-y-2">
                             <Label>Linked Concept</Label>
                             <Select 
-                                value={formData.conceptId ? formData.conceptId.toString() : ''} 
-                                onValueChange={(v) => handleChange('conceptId', parseInt(v))}
+                                value={formData.conceptId !== undefined && formData.conceptId !== null ? String(formData.conceptId) : ''}
+                                onValueChange={(v) => handleChange('conceptId', concepts.find(c => String(c.id) === v)?.id ?? v)}
                             >
                                 <SelectTrigger className="bg-slate-800 border-slate-700">
                                     <SelectValue placeholder="Select Concept" />

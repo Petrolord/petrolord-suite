@@ -5,15 +5,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
-import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
+import { openStateRow, writeStamped } from '@/lib/stateVersion';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Save, FolderOpen, Trash2, Loader2 } from 'lucide-react';
+// PP0 state kind (docs/scope/ProjectPortability-PLAN.md §4.3). Version 2
+// (FC1-0) saves the spacing inputs with the layers; registered there.
+import {
+  FACILITY_LAYOUT_KIND, buildLayoutData, readLayoutData,
+} from '@/utils/facilities/layoutPersistence';
 
-// PP0 state kind (docs/scope/ProjectPortability-PLAN.md §4.3)
-const FACILITY_LAYOUT_KIND = 'facility-layout';
-registerStateKind(FACILITY_LAYOUT_KIND, { current: 1, label: 'facility layout' });
-
-const ProjectPanel = ({ layers, onLoadLayout }) => {
+const ProjectPanel = ({ layers, spacingInputs, onLoadLayout }) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [projectName, setProjectName] = useState('');
@@ -53,7 +54,11 @@ const ProjectPanel = ({ layers, onLoadLayout }) => {
     }
 
     const { error } = await writeStamped(FACILITY_LAYOUT_KIND,
-      { project_name: projectName, layout_data: layers, user_id: user.id },
+      {
+        project_name: projectName,
+        layout_data: buildLayoutData({ layers, spacingInputs }),
+        user_id: user.id,
+      },
       (row) => supabase.from('facility_layouts').insert([row]));
 
     if (error) {
@@ -75,7 +80,7 @@ const ProjectPanel = ({ layers, onLoadLayout }) => {
     if (error) {
         toast({ variant: 'destructive', title: 'Error loading project', description: error.message });
     } else if (data) {
-        onLoadLayout(openStateRow(FACILITY_LAYOUT_KIND, data).layout_data);
+        onLoadLayout(readLayoutData(openStateRow(FACILITY_LAYOUT_KIND, data).layout_data));
         setIsLoadDialogOpen(false);
     }
     setIsLoading(false);

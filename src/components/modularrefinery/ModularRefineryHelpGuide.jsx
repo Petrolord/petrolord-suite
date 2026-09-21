@@ -68,7 +68,7 @@ const helpContent = [
     icon: AlertTriangle,
     title: 'Limits',
     content:
-      'This is a feasibility screen, not a design. Yields are fixed vectors rather than functions of operating severity. Capital is scaled from a reference point rather than estimated bottom-up, so it is only as good as that reference. Working capital, financing structure and depreciation detail are not modelled; the screening engine applies a flat tax and royalty. Product prices are yours to supply and are the single largest sensitivity in the answer. And a study whose yields do not account for the whole barrel is reported as such rather than normalised, because the gap is usually a modelling error worth finding.',
+      'This is a feasibility screen, and it does no design work. Yields are fixed vectors rather than functions of operating severity. Capital is scaled from a reference point rather than estimated bottom-up, so it is only as good as that reference. Working capital, financing structure and depreciation detail are not modelled. The screening engine applies a flat income tax, with a loss in any year (the construction years, above all) carried forward against later profit. No royalty is charged, because a royalty is a charge on producing petroleum and a refinery buys its crude. Product prices are yours to supply and are the single largest sensitivity in the answer. And a study whose yields do not account for the whole barrel is reported as such rather than normalised, because the gap is usually a modelling error worth finding.',
   },
 ];
 

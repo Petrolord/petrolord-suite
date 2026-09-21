@@ -12,7 +12,7 @@ import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useSavedProjects, missingTableMessage } from '@/hooks/useSavedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import {
-  makeFactor, makeGwpSet, combustionCo2FromCarbon, emissionLine, buildInventory,
+  makeFactor, makeGwpSet, combustionCo2FromCarbon, emissionLine, buildInventory, atomBalanceLines,
   carbonIntensity, abatementCost, abatementCurve, decarbonisationPath, SCOPE,
 } from '@/utils/downstream/engine/carbonAbatement';
 
@@ -131,7 +131,8 @@ export const CarbonAbatementProvider = ({ children }) => {
   const combustion = useMemo(() => combustionCo2FromCarbon({
     fuelKmolPerYear: numOrNull(inputs.combustion.fuelKmolPerYear),
     carbonPerKmolFuel: numOrNull(inputs.combustion.carbonPerKmolFuel),
-    destructionEfficiencyFraction: num(inputs.combustion.destructionEfficiencyFraction, 1),
+    // Blank is missing here too (MD5-0 C1): the engine refuses it.
+    destructionEfficiencyFraction: numOrNull(inputs.combustion.destructionEfficiencyFraction),
   }), [inputs.combustion]);
 
   const flare = useMemo(() => (inputs.flare.include ? combustionCo2FromCarbon({
@@ -143,27 +144,19 @@ export const CarbonAbatementProvider = ({ children }) => {
   /**
    * Atom-balance results become inventory lines through a factor of one, so
    * they sit in the same table as everything else and carry a source that
-   * says what they are: conservation of mass rather than a document.
+   * says what they are: conservation of mass rather than a document. The
+   * engine builds them (MD45-1 F8): a REFUSED combustion comes back as one
+   * blocked line with its reason, so the inventory stays not reportable
+   * while it stands. Dropped here, as it was, an inventory whose only gap
+   * was the flare read as reportable. Flaring left out of the boundary on
+   * purpose is excluded and adds nothing.
    */
-  const atomLines = useMemo(() => {
-    const rows = [];
-    const push = (label, result, gas, tonnes) => {
-      if (!result || result.error || !Number.isFinite(tonnes) || tonnes === 0) return;
-      rows.push(emissionLine({
-        label, scope: SCOPE.ONE, activity: tonnes, activityUnit: `t ${gas}`,
-        factor: makeFactor({
-          label: `${gas} from the atom balance`, value: 1, unit: `t${gas}/t${gas}`, gas,
-          source: 'Atom balance (conservation of mass)', version: 'not applicable',
-        }),
-        gwpSet,
-      }));
-    };
-    push('Fired heaters and boilers (CO2)', combustion, 'CO2', combustion.co2Tonnes);
-    push('Fired heaters and boilers (unburned CH4)', combustion, 'CH4', combustion.ch4Tonnes);
-    push('Flaring (CO2)', flare, 'CO2', flare.co2Tonnes);
-    push('Flaring (unburned CH4)', flare, 'CH4', flare.ch4Tonnes);
-    return rows;
-  }, [combustion, flare, gwpSet]);
+  const atomLines = useMemo(() => [
+    ...atomBalanceLines({ label: 'Fired heaters and boilers', scope: SCOPE.ONE, combustion, gwpSet }),
+    ...atomBalanceLines({
+      label: 'Flaring', scope: SCOPE.ONE, combustion: flare, gwpSet, excluded: !inputs.flare.include,
+    }),
+  ], [combustion, flare, gwpSet, inputs.flare.include]);
 
   const factorLines = useMemo(() => inputs.lines.map((l) => emissionLine({
     label: l.label, scope: l.scope,
@@ -187,58 +180,92 @@ export const CarbonAbatementProvider = ({ children }) => {
     boundaryLabel: inputs.intensity.boundaryLabel || null,
   }), [inventory, inputs.intensity]);
 
+  // The boxes go to the engine as they are (MD5-0 C13): a blank capital
+  // cost or discount rate is refused there, and a blank saving or running
+  // cost is taken as 0 and NAMED. Reading them as 0 here hid all of that.
   const costedMeasures = useMemo(() => inputs.measures.map((m) => abatementCost({
     label: m.label,
-    capitalCost: num(m.capitalCost),
-    annualSavings: num(m.annualSavings),
-    annualCost: num(m.annualCost),
+    capitalCost: m.capitalCost ?? null,
+    annualSavings: m.annualSavings ?? null,
+    annualCost: m.annualCost ?? null,
     tonnesAbatedPerYear: numOrNull(m.tonnesAbatedPerYear),
     lifeYears: numOrNull(m.lifeYears),
-    discountRate: num(inputs.plan.discountRate),
+    discountRate: inputs.plan.discountRate ?? null,
     actsOn: m.actsOn ? [m.actsOn] : [],
   })), [inputs.measures, inputs.plan.discountRate]);
 
   /**
-   * What each source actually emits, so the curve can catch an abatement
-   * claim that exceeds it.
+   * What each source actually emits, in CO2e with its escaped methane, so
+   * the curve can catch an abatement claim that exceeds it (MD5-0 C11). A
+   * source that did not compute, or whose methane has no potential yet, is
+   * LEFT OUT: an unknown emission is not an emission of zero, and treating
+   * it as one made every claim against it an over-claim.
    */
-  const sourceEmissions = useMemo(() => ({
-    heaters: (combustion.error ? 0 : combustion.co2Tonnes) || 0,
-    flare: (flare.error ? 0 : flare.co2Tonnes) || 0,
-  }), [combustion, flare]);
+  const sourceEmissions = useMemo(() => {
+    const ch4Gwp = gwpSet.values && Number.isFinite(gwpSet.values.CH4) ? gwpSet.values.CH4 : null;
+    const co2e = (r) => {
+      if (!r || r.error || !Number.isFinite(r.co2Tonnes)) return null;
+      const ch4 = Number.isFinite(r.ch4Tonnes) ? r.ch4Tonnes : 0;
+      if (ch4 > 0 && ch4Gwp === null) return null;
+      return r.co2Tonnes + ch4 * (ch4Gwp ?? 0);
+    };
+    const out = {};
+    const heaters = co2e(combustion);
+    const flared = co2e(flare);
+    if (heaters !== null) out.heaters = heaters;
+    if (flared !== null) out.flare = flared;
+    return out;
+  }, [combustion, flare, gwpSet]);
+
+  /**
+   * The target and the path rest on the inventory's total. While the
+   * inventory is not reportable that total leaves out every blocked line, so
+   * both are built on a partial inventory and the page says so (MD5-0 C12).
+   */
+  const partialInventory = !inventory.reportable;
+  const baselineTonnes = inventory.totalTonnes > 0 ? inventory.totalTonnes : null;
 
   const targetTonnes = useMemo(() => {
     const pct = numOrNull(inputs.plan.targetReductionPercentByEnd);
-    if (pct === null || !inventory.totalTonnes) return null;
-    return (inventory.totalTonnes * pct) / 100;
-  }, [inputs.plan.targetReductionPercentByEnd, inventory.totalTonnes]);
+    if (pct === null || baselineTonnes === null) return null;
+    return (baselineTonnes * pct) / 100;
+  }, [inputs.plan.targetReductionPercentByEnd, baselineTonnes]);
 
   const curve = useMemo(() => abatementCurve({
     measures: costedMeasures, sourceEmissions, targetTonnes,
   }), [costedMeasures, sourceEmissions, targetTonnes]);
 
   const path = useMemo(() => {
-    const y0 = num(inputs.plan.startYear, 2026);
-    const y1 = num(inputs.plan.endYear, 2032);
-    const pct = num(inputs.plan.targetReductionPercentByEnd, 0);
-    const base = inventory.totalTonnes || 0;
+    // Blank years are refused by the engine, and a blank target reduction
+    // is no target (it was read as 0, a target of no change).
+    const y0 = numOrNull(inputs.plan.startYear);
+    const y1 = numOrNull(inputs.plan.endYear);
+    const pct = numOrNull(inputs.plan.targetReductionPercentByEnd);
+    // No computed inventory is no baseline: the engine refuses it rather
+    // than drawing a path down from zero.
+    const base = baselineTonnes;
     const targetByYear = {};
-    for (let y = y0; y <= y1; y += 1) {
+    for (let y = y0; pct !== null && y0 !== null && y1 !== null && y <= y1; y += 1) {
       // A straight line to the end-year target, which is what a headline
       // percentage actually implies until somebody says otherwise.
       const f = y1 === y0 ? 1 : (y - y0) / (y1 - y0);
-      targetByYear[y] = base * (1 - (pct / 100) * f);
+      targetByYear[y] = base === null ? null : base * (1 - (pct / 100) * f);
     }
+    // A measure the cost function refused is off the curve, so it is off the
+    // path too (MD45-1): the path scheduled it from the raw inputs. It is
+    // named beside the path with the refusal.
     return decarbonisationPath({
       baselineTonnes: base,
-      measures: inputs.measures.map((m) => ({
-        label: m.label,
-        tonnesAbatedPerYear: numOrNull(m.tonnesAbatedPerYear),
-        startYear: numOrNull(m.startYear),
-      })),
+      measures: inputs.measures
+        .filter((m, i) => !(costedMeasures[i] && costedMeasures[i].error))
+        .map((m) => ({
+          label: m.label,
+          tonnesAbatedPerYear: numOrNull(m.tonnesAbatedPerYear),
+          startYear: numOrNull(m.startYear),
+        })),
       startYear: y0, endYear: y1, targetByYear,
     });
-  }, [inputs.plan, inputs.measures, inventory.totalTonnes]);
+  }, [inputs.plan, inputs.measures, baselineTonnes, costedMeasures]);
 
   const serialize = useCallback((name) => ({
     name, schema: 1, inputs, modified: new Date().toISOString(),
@@ -256,7 +283,7 @@ export const CarbonAbatementProvider = ({ children }) => {
   const value = {
     inputs, setSection, setLine, setMeasure, addMeasure, removeMeasure,
     gwpSet, combustion, flare, inventory, intensity,
-    costedMeasures, curve, path, targetTonnes,
+    costedMeasures, curve, path, targetTonnes, sourceEmissions, partialInventory,
     persistence, notifications, removeNotification,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

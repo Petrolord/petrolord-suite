@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useFDP } from '@/contexts/FDPContext';
+import { selectedConcept } from '@/utils/fdp/planEconomics';
 import { Button } from '@/components/ui/button';
 import { Plus, Download } from 'lucide-react';
 import {
@@ -22,6 +23,13 @@ import CollapsibleSection from '@/components/fdp/CollapsibleSection';
 
 const FacilitiesModule = () => {
     const { state, actions } = useFDP();
+    // EC6-0: the capacity and flow assurance panels used to run against mock
+    // peak rates and mock fluid properties. They read the plan now.
+    const planConcept = selectedConcept(state);
+    const peakKbpd = parseFloat(planConcept?.peakProduction);
+    const peakOilBpd = Number.isFinite(peakKbpd) && peakKbpd > 0 ? peakKbpd * 1000 : null;
+    const gor = parseFloat(state.subsurface?.fluidProps?.gor);
+    const gorScfPerBbl = Number.isFinite(gor) && gor > 0 ? gor : null;
     const { list: facilities, selectedId } = state.facilities;
     const { toast } = useToast();
     
@@ -122,10 +130,23 @@ const FacilitiesModule = () => {
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <div className="space-y-6">
                                 <CollapsibleSection title={`Capacity Analysis - ${selectedFacility.name}`} defaultOpen>
-                                    <FacilitiesCapacityAnalysis facility={selectedFacility} />
+                                    <FacilitiesCapacityAnalysis
+                                        facility={selectedFacility}
+                                        peakOilBpd={peakOilBpd}
+                                        gorScfPerBbl={gorScfPerBbl}
+                                    />
                                 </CollapsibleSection>
                                 <CollapsibleSection title="Flow Assurance">
-                                    <FlowAssuranceAnalysis facility={selectedFacility} />
+                                    {/* EC6-3 (engines #191): the corrosion screen needs an
+                                        H2S concentration and an operating pressure, and neither
+                                        had a home in the plan, so the screen could only ever
+                                        report that H2S was not measured. Both are edited here
+                                        and stored with the plan's fluid properties. */}
+                                    <FlowAssuranceAnalysis
+                                        facility={selectedFacility}
+                                        fluidProps={state.subsurface?.fluidProps}
+                                        onFluidChange={(fluidProps) => actions.updateSubsurface({ fluidProps })}
+                                    />
                                 </CollapsibleSection>
                             </div>
                             <div className="space-y-6">

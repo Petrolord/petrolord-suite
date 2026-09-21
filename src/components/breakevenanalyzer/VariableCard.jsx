@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { X, ChevronDown } from 'lucide-react';
+import { VARIABLE_PERCENTILE_LABELS } from './percentileLabels';
 
 const VariableCard = ({ variable, onChange, onRemove }) => {
   const [isOpen, setIsOpen] = useState(true);
@@ -31,15 +32,15 @@ const VariableCard = ({ variable, onChange, onRemove }) => {
           >
             <div className="p-4 grid grid-cols-3 gap-3">
               <div>
-                <Label className="text-lime-300 text-xs">P10</Label>
+                <Label className="text-lime-300 text-xs">{VARIABLE_PERCENTILE_LABELS.p10}</Label>
                 <Input type="number" value={variable.p10} onChange={(e) => onChange(variable.id, 'p10', Number(e.target.value))} className="bg-white/5 border-white/20" />
               </div>
               <div>
-                <Label className="text-lime-300 text-xs">P50</Label>
+                <Label className="text-lime-300 text-xs">{VARIABLE_PERCENTILE_LABELS.p50}</Label>
                 <Input type="number" value={variable.p50} onChange={(e) => onChange(variable.id, 'p50', Number(e.target.value))} className="bg-white/5 border-white/20" />
               </div>
               <div>
-                <Label className="text-lime-300 text-xs">P90</Label>
+                <Label className="text-lime-300 text-xs">{VARIABLE_PERCENTILE_LABELS.p90}</Label>
                 <Input type="number" value={variable.p90} onChange={(e) => onChange(variable.id, 'p90', Number(e.target.value))} className="bg-white/5 border-white/20" />
               </div>
             </div>

@@ -78,6 +78,16 @@ const num = (v, fallback = 0) => {
   return Number.isFinite(n) ? n : fallback;
 };
 
+/** Own-property access. `obj[key]` walks the prototype chain, so a caller
+ *  key of 'constructor', 'toString', 'valueOf', 'hasOwnProperty' or
+ *  '__proto__' reads an inherited member, and writing '__proto__' replaces
+ *  the prototype instead of storing a row. */
+const hasOwn = (obj, key) => obj != null && Object.prototype.hasOwnProperty.call(obj, key);
+const ownValue = (obj, key) => (hasOwn(obj, key) ? obj[key] : undefined);
+const setOwn = (obj, key, value) => Object.defineProperty(obj, key, {
+  value, writable: true, enumerable: true, configurable: true,
+});
+
 /**
  * A material: crude, intermediate, finished product or fuel gas.
  *
@@ -165,22 +175,23 @@ export const signedQuantity = (event) => {
 export const materialBalance = ({ events, openingByMaterial = {}, ledger = LEDGER.ACTUAL, closingByMaterial = null }) => {
   const byMaterial = {};
   events.filter((e) => e.ledger === ledger).forEach((e) => {
-    if (!byMaterial[e.materialId]) {
-      byMaterial[e.materialId] = {
+    if (!hasOwn(byMaterial, e.materialId)) {
+      setOwn(byMaterial, e.materialId, {
         materialId: e.materialId,
-        opening: num(openingByMaterial[e.materialId]),
+        opening: num(ownValue(openingByMaterial, e.materialId)),
         in: 0, out: 0,
-      };
+      });
     }
+    const row = ownValue(byMaterial, e.materialId);
     const q = signedQuantity(e);
-    if (q > 0) byMaterial[e.materialId].in += q;
-    else byMaterial[e.materialId].out += -q;
+    if (q > 0) row.in += q;
+    else row.out += -q;
   });
 
   return Object.values(byMaterial).map((row) => {
     const computedClosing = row.opening + row.in - row.out;
-    const reported = closingByMaterial && closingByMaterial[row.materialId] !== undefined
-      ? num(closingByMaterial[row.materialId])
+    const reported = closingByMaterial && ownValue(closingByMaterial, row.materialId) !== undefined
+      ? num(ownValue(closingByMaterial, row.materialId))
       : null;
     return {
       ...row,
@@ -201,12 +212,18 @@ export const materialBalance = ({ events, openingByMaterial = {}, ledger = LEDGE
  */
 export const dualLedgerTotals = (events, ledger = LEDGER.ACTUAL) => {
   const rows = events.filter((e) => e.ledger === ledger);
+  // MD2-1: a DELIVERY's `cost` is what it sold for (see attributeVariance),
+  // and this used to add it into `cost` with every receipt and unit run, so
+  // spend and sales were summed as one number. They are kept apart now.
   let cost = 0;
+  let revenue = 0;
   let emissions = 0;
   let uncosted = 0;
   let unattributedEmissions = 0;
   rows.forEach((e) => {
-    if (e.cost === null) uncosted += 1; else cost += e.cost;
+    if (e.cost === null) uncosted += 1;
+    else if (e.type === EVENT_TYPE.DELIVERY) revenue += e.cost;
+    else cost += e.cost;
     if (e.emissionsKgCo2e === null) {
       // Only count it as a gap where the event emits by its nature.
       if (EMITTING_TYPES.has(e.type)) unattributedEmissions += 1;
@@ -218,6 +235,8 @@ export const dualLedgerTotals = (events, ledger = LEDGER.ACTUAL) => {
     ledger,
     events: rows.length,
     cost,
+    revenue,
+    margin: revenue - cost,
     emissionsKgCo2e: emissions,
     uncostedEvents: uncosted,
     unattributedEmissionEvents: unattributedEmissions,
@@ -279,6 +298,14 @@ export const attributeVariance = ({ events, planLedger = LEDGER.PLAN, actualLedg
     const actualUnitCost = a.quantity > 0 ? a.cost / a.quantity : 0;
     const volumeVariance = (a.quantity - p.quantity) * planUnitCost;
     const priceVariance = (actualUnitCost - planUnitCost) * a.quantity;
+    const totalVariance = a.cost - p.cost;
+    // A DELIVERY's `cost` is what it was sold for; every other event's is
+    // what it cost. So the same positive gap is good news on a delivery and
+    // bad news on a receipt, and the two cannot be added as they stand. The
+    // line says which it is, and marginEffect puts both on one footing:
+    // positive when the gap helped the margin.
+    const direction = p.type === EVENT_TYPE.DELIVERY ? 'revenue' : 'cost';
+    const sign = direction === 'revenue' ? 1 : -1;
     lines.push({
       materialId: p.materialId,
       type: p.type,
@@ -286,18 +313,38 @@ export const attributeVariance = ({ events, planLedger = LEDGER.PLAN, actualLedg
       actualQuantity: a.quantity,
       planCost: p.cost,
       actualCost: a.cost,
-      totalVariance: a.cost - p.cost,
+      totalVariance,
       volumeVariance,
       priceVariance,
+      // Zero unless a ledger moved money with no quantity (a demurrage bill
+      // on a cargo that never came): then neither a volume nor a price
+      // explains it, and it is shown rather than folded into either.
+      unexplained: totalVariance - volumeVariance - priceVariance,
+      direction,
+      marginEffect: sign * totalVariance,
       costed: p.costed && a.costed,
     });
   });
 
-  const total = lines.reduce((acc, l) => ({
-    totalVariance: acc.totalVariance + l.totalVariance,
-    volumeVariance: acc.volumeVariance + l.volumeVariance,
-    priceVariance: acc.priceVariance + l.priceVariance,
-  }), { totalVariance: 0, volumeVariance: 0, priceVariance: 0 });
+  // Totals. They used to add revenue gaps and cost gaps together as if they
+  // were the same kind of number, so selling more and paying more both
+  // counted up. Now the headline total is ON MARGIN (each line signed by its
+  // direction), and cost and revenue are also totalled apart.
+  const sumOf = (rows, signed) => rows.reduce((acc, l) => {
+    const k = signed ? (l.direction === 'revenue' ? 1 : -1) : 1;
+    return {
+      totalVariance: acc.totalVariance + k * l.totalVariance,
+      volumeVariance: acc.volumeVariance + k * l.volumeVariance,
+      priceVariance: acc.priceVariance + k * l.priceVariance,
+      unexplained: acc.unexplained + k * l.unexplained,
+    };
+  }, { totalVariance: 0, volumeVariance: 0, priceVariance: 0, unexplained: 0 });
+  const total = {
+    ...sumOf(lines, true),
+    basis: 'margin: a revenue gap counts as it is, a cost gap with its sign reversed',
+    cost: sumOf(lines.filter((l) => l.direction === 'cost'), false),
+    revenue: sumOf(lines.filter((l) => l.direction === 'revenue'), false),
+  };
 
   return { lines, unmatched, total };
 };

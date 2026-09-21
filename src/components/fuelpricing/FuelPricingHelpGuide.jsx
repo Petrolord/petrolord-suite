@@ -68,7 +68,7 @@ const helpContent = [
     icon: Building2,
     title: 'The station, and the load that will not fit',
     content:
-      'A forecourt and a loading rack are the same queueing system in different units, so this calls the rack model built for the Terminal & Depot Studio rather than writing a second one that could disagree with it. Utilisation alone is misleading: a forecourt at 85 percent does not have 15 percent spare, it has a queue. Tank cover is counted on usable stock rather than tank capacity, and the app checks the ullage at the reorder level against the delivery payload, which is the arithmetic nobody does until a full truck has been turned away from the forecourt twice.',
+      'A forecourt and a loading rack are the same queueing system in different units, so this calls the rack model built for the Terminal & Depot Studio, in nozzles, and keeps one model with no second copy to disagree with it. Its refusals speak the forecourt\'s words: nozzles and peak-hour transactions. Utilisation alone is misleading: a forecourt at 85 percent does not have 15 percent spare, it has a queue. Tank cover is counted on usable stock rather than tank capacity, and the app checks the ullage at the reorder level against the delivery payload, which is the arithmetic nobody does until a full truck has been turned away from the forecourt twice.',
   },
 ];
 

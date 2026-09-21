@@ -128,7 +128,7 @@ describe('the page', () => {
   it('leaves trucking carbon absent until a factor is supplied', async () => {
     mount();
     await openChainTab();
-    expect(await screen.findByText(/absent rather than zero/i)).toBeInTheDocument();
+    expect(await screen.findByText(/carbon figure is left blank/i)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(/Diesel factor/i), { target: { value: '2.68' } });
     expect(await screen.findByText(/kgCO2e per trip/i)).toBeInTheDocument();
   });

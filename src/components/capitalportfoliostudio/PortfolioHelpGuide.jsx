@@ -1,8 +1,13 @@
 // Capital Portfolio Studio help guide (Economics E2).
 //
-// Written against src/utils/portfolioOptimizer.js (D4), so the objective,
-// the quantization and the independence assumption below are the ones the
-// optimizer actually uses.
+// Written against src/utils/portfolioOptimizer.js (D4), so the objective and
+// the independence assumption below are the ones the optimizer actually
+// uses. Re-verified against the EC5-0 engine (owner decision 2026-09-14):
+// seeded Monte Carlo risk cards and the negative capex refusal. Engines #194
+// made the knapsack EXACT: there is no quantized grid on an ordinary
+// portfolio, the funded set cannot exceed the limit, and a grid appears only
+// as the fallback for a portfolio too large to solve exactly, which reports
+// its resolution and bounds the risked EMV it may have left on the table.
 import React from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import {
@@ -16,14 +21,14 @@ const helpContent = [
     icon: BookOpen,
     title: 'What this tool answers',
     content:
-      'Given more good projects than capital, which set should you fund. The optimizer picks the combination that maximizes total risked expected value without exceeding your capital limit. That is a different question from ranking projects by return, and it gives a different answer: a portfolio built by taking the best return first can leave capital stranded, while the optimizer will take a slightly weaker project that fits the money you have left.',
+      'Given more good projects than capital, which set should you fund. The optimizer picks the combination that maximizes total risked expected value within your capital limit. That is a different question from ranking projects by return, and it gives a different answer: a portfolio built by taking the best return first can leave capital stranded, while the optimizer will take a slightly weaker project that fits the money you have left.',
   },
   {
     id: 'projects',
     icon: Package,
     title: 'Setting up projects and a portfolio',
     content:
-      'A portfolio carries a capital limit. Each candidate project carries its capital cost, its expected value, and optionally a chance of success and the cost of failure. All money is in millions of dollars. Projects are saved to your account, so a portfolio can be revisited and re-optimized as estimates firm up.',
+      'A portfolio carries a capital limit. Each candidate project carries its capital cost, its NPV P90, P50 and P10 (P90 is the low case), and optionally a chance of success and the cost of failure. A capital cost cannot be negative: the form refuses one, and the optimizer stops with a message if one reaches it. All money is in millions of dollars ($MM). Projects are saved to your account, so a portfolio can be revisited and re-optimized as estimates firm up.',
   },
   {
     id: 'emv',
@@ -37,7 +42,7 @@ const helpContent = [
     icon: Target,
     title: 'What the optimizer does',
     content:
-      'It solves a zero or one knapsack: each project is either funded in full or not funded, and the total capital of the funded set cannot exceed the limit. The solution is exact for the quantized problem it is given. Capital amounts are quantized onto a fixed grid so the computation stays bounded whatever units you type the limit in, and the resulting resolution is reported alongside the answer. Read that resolution as the granularity of the result: two portfolios whose totals differ by less than it are not meaningfully different.',
+      'It solves a zero or one knapsack: each project is either funded in full or not funded. The answer is exact, computed on the capital figures you entered, so the funded set is the best combination that fits inside your limit and it can never exceed it. A very large portfolio, one whose projects and limit need more states than the solver holds, falls back to a grid: every candidate is rounded up onto it, which keeps the set inside the limit, and the app then says the grid resolution and bounds how much risked expected value the fallback could have left on the table. Read a reported resolution as the granularity of that fallback answer; with the exact solve there is no grid to report.',
   },
   {
     id: 'frontier',
@@ -51,21 +56,21 @@ const helpContent = [
     icon: Scale,
     title: 'The portfolio risk summary',
     content:
-      'Alongside the selection, the tool reports the mean and spread of the portfolio value and the chance the portfolio as a whole comes out below zero. Each project is treated as a mixture of its success and failure cases, which is exact, and the sum across projects is approximated as a normal distribution, which is reasonable when several projects are in play and rough when only one or two are.',
+      'Alongside the selection, the tool reports the mean and spread of the portfolio value, the chance the portfolio as a whole comes out below zero, and the NPV P90 and P10. Each project is treated as a mixture of its success and failure cases. The mean and spread are worked out exactly from that mixture. The loss probability and the P90 and P10 come from a seeded Monte Carlo that draws each project\'s success or failure and sums the outcomes, 10,000 iterations by default. The cards show the method, the iteration count and the seed, so the same inputs reproduce the same numbers. P90 is the low case and P10 the high case. With one or two risked projects the distribution is lumpy, and a P10 can sit on a failure outcome.',
   },
   {
     id: 'correlation',
     icon: Link2,
     title: 'Correlation, and why zero is the friendliest answer',
     content:
-      'The correlation slider is the average correlation between project outcomes. At zero every project is independent, which is the most flattering assumption a portfolio can be given: independent risks cancel, so the spread narrows and the chance of an overall loss looks small. Real projects sharing a basin, a partner, a rig contract or a price deck move together and can lose together. Raise the slider and the expected value stays exactly where it was while the spread and the chance of a loss grow, because correlation moves the shape of the distribution and never its centre. At a correlation of one, diversification buys nothing and the portfolio spread is simply the sum of the project spreads. If you do not know the number, run it at zero and again at a half and see whether the decision survives both.',
+      'The correlation slider is the average correlation between project outcomes. At zero every project is independent, which is the most flattering assumption a portfolio can be given: independent risks cancel, so the spread narrows and the chance of an overall loss looks small. Real projects sharing a basin, a partner, a rig contract or a price deck move together and can lose together. Raise the slider and the expected value stays exactly where it was while the spread grows, because correlation moves the shape of the distribution and never its centre. At a correlation of one, diversification buys nothing and the reported spread is simply the sum of the project spreads. In the Monte Carlo the correlation links the projects\' underlying success and value drivers, so the outcomes themselves move together somewhat less than the slider value; on a portfolio expected to make money, more correlation usually means a higher chance of a loss. If you do not know the number, run it at zero and again at a half and see whether the decision survives both.',
   },
   {
     id: 'limits',
     icon: AlertTriangle,
     title: 'Assumptions and limits',
     content:
-      'Correlation is one average figure rather than a matrix, which is as much precision as a screening tool can honestly ask for; a portfolio whose projects are correlated in very different degrees needs more than this. The sum is approximated as a normal distribution, so a portfolio of one or two projects is roughly modelled. Funding is all or nothing, so a project that could be phased or farmed down needs to be entered as separate candidates. Capital is the only constraint, so rig availability, people and schedule are yours to check. The values you enter should come from a real valuation: build them in Petroleum Economics Studio or the NPV Scenario Builder rather than typing an estimate straight in.',
+      'Correlation is one average figure rather than a matrix, which is as much precision as a screening tool can honestly ask for; a portfolio whose projects are correlated in very different degrees needs more than this. The risk cards are a sample: another seed gives slightly different figures, which is why the seed is shown. Funding is all or nothing, so a project that could be phased or farmed down needs to be entered as separate candidates. Capital is the only constraint, so rig availability, people and schedule are yours to check. The values you enter should come from a real valuation: build them in Petroleum Economics Studio or the NPV Scenario Builder rather than typing an estimate straight in.',
   },
 ];
 

@@ -7,7 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CalendarPlus as CalendarIcon, Save, X } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 
-const ScheduleForm = ({ initialData, onSave, onCancel }) => {
+/**
+ * EC6-0: the form now collects predecessors. Without them the Schedule tab
+ * could not compute the critical path it promised in its own header, and the
+ * engine behind it called every activity critical.
+ */
+const ScheduleForm = ({ initialData, onSave, onCancel, activities = [] }) => {
     const [formData, setFormData] = useState({
         id: Date.now(),
         name: '',
@@ -16,12 +21,13 @@ const ScheduleForm = ({ initialData, onSave, onCancel }) => {
         end: new Date().toISOString().split('T')[0],
         duration: 0,
         progress: 0,
+        dependencies: [],
         description: ''
     });
 
     useEffect(() => {
         if (initialData) {
-            setFormData({ ...initialData });
+            setFormData({ dependencies: [], ...initialData });
         }
     }, [initialData]);
 
@@ -39,6 +45,21 @@ const ScheduleForm = ({ initialData, onSave, onCancel }) => {
 
     const handleChange = (key, value) => {
         setFormData(prev => ({ ...prev, [key]: value }));
+    };
+
+    const others = (activities || []).filter((a) => String(a.id) !== String(formData.id));
+
+    const togglePredecessor = (id) => {
+        setFormData(prev => {
+            const current = prev.dependencies || [];
+            const has = current.some((d) => String(d) === String(id));
+            return {
+                ...prev,
+                dependencies: has
+                    ? current.filter((d) => String(d) !== String(id))
+                    : [...current, id],
+            };
+        });
     };
 
     const handleSubmit = (e) => {
@@ -117,6 +138,36 @@ const ScheduleForm = ({ initialData, onSave, onCancel }) => {
                                 className="bg-slate-900 border-slate-800 text-slate-400 cursor-not-allowed"
                             />
                         </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>Must finish first (predecessors)</Label>
+                        {others.length === 0 ? (
+                            <p className="text-xs text-slate-500">
+                                This is the only activity in the plan, so it has nothing to wait for.
+                            </p>
+                        ) : (
+                            <div className="max-h-40 overflow-y-auto rounded border border-slate-700 bg-slate-800 p-2 space-y-1">
+                                {others.map((a) => {
+                                    const checked = (formData.dependencies || []).some((d) => String(d) === String(a.id));
+                                    return (
+                                        <label key={a.id} className="flex items-center gap-2 text-sm text-slate-200 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={checked}
+                                                onChange={() => togglePredecessor(a.id)}
+                                                className="accent-purple-500"
+                                            />
+                                            <span>{a.name || a.id}</span>
+                                            <span className="text-xs text-slate-500">{Number(a.duration) || 0}d</span>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        <p className="text-xs text-slate-500">
+                            Finish to start. The critical path is computed from these links.
+                        </p>
                     </div>
 
                     <div className="space-y-2">

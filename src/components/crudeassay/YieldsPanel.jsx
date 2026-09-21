@@ -20,7 +20,9 @@ const YieldsPanel = () => {
 
   const chartRows = yields.cuts.map((c) => ({
     name: c.name,
-    yieldPct: c.yieldVolPercent ?? 0,
+    // An unknown cut draws no bar; a bar at zero would read as a measured
+    // empty cut.
+    yieldPct: c.yieldVolPercent,
   }));
 
   return (
@@ -50,7 +52,18 @@ const YieldsPanel = () => {
             </Bar>
           </BarChart>
         </ChartFrame>
-        {!yields.closes && (
+        {yields.unknownCuts?.length > 0 && (
+          <div className="mt-2 flex items-start gap-2 rounded border border-amber-800/60 bg-amber-950/30 p-3">
+            <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+            <p className="text-xs text-amber-200">
+              No yield for {yields.unknownCuts.join(', ')}. A cut point lies outside what the
+              distillation curve measured (or the cut runs backwards), and the curve says nothing
+              there. Extend the curve, starting it at 0 percent and ending it at 100, or move the
+              cut point inside it. Nothing is extrapolated.
+            </p>
+          </div>
+        )}
+        {!yields.closes && !(yields.unknownCuts?.length > 0) && (
           <div className="mt-2 flex items-start gap-2 rounded border border-amber-800/60 bg-amber-950/30 p-3">
             <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
             <p className="text-xs text-amber-200">
@@ -97,10 +110,10 @@ const YieldsPanel = () => {
                       className="h-7 w-20 bg-slate-950 border-slate-700 text-xs"
                     />
                   </td>
-                  <td className="p-2 text-right font-mono text-white">{fmt(cut.yieldVolPercent, 1)}%</td>
+                  <td className="p-2 text-right font-mono text-white">{Number.isFinite(cut.yieldVolPercent) ? `${fmt(cut.yieldVolPercent, 1)}%` : 'n/a'}</td>
                   {perCrudeYields.map((c) => (
                     <td key={c.id} className="p-2 text-right font-mono text-slate-400">
-                      {fmt(c.cuts[i]?.yieldVolPercent, 1)}%
+                      {Number.isFinite(c.cuts[i]?.yieldVolPercent) ? `${fmt(c.cuts[i].yieldVolPercent, 1)}%` : 'n/a'}
                     </td>
                   ))}
                   <td className="p-2">
@@ -173,7 +186,21 @@ const YieldsPanel = () => {
               </div>
             )}
           </dl>
-          {!valuation.complete && (
+          {valuation.error && (
+            <p className="text-[11px] text-amber-300 mt-3">{valuation.error}</p>
+          )}
+          {valuation.assumedZero?.length > 0 && (
+            <p className="text-[11px] text-slate-400 mt-3">
+              Taken as zero because the box is blank: {valuation.assumedZero.join(', ')}.
+            </p>
+          )}
+          {valuation.unyieldedCuts?.length > 0 && (
+            <p className="text-[11px] text-amber-300 mt-3">
+              No yield for {valuation.unyieldedCuts.join(', ')}, so those cuts are left out of the
+              value above and the netback is not complete.
+            </p>
+          )}
+          {!valuation.complete && !valuation.error && valuation.unpricedCuts?.length > 0 && (
             <p className="text-[11px] text-amber-300 mt-3">
               No price for {valuation.unpricedCuts.join(', ')}. Those cuts contribute nothing to the
               value above, so the netback is understated until they are priced.

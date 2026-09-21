@@ -59,9 +59,10 @@ arrives in cargoes of the size set, units run weekly, lifts spread
 across the period. A test asserts the calendar **adds up to the plan it
 came from**.
 
-It is deliberately not a berth-level scheduler, and the app says so on
-the tab: tank capacity, jetty windows and turnarounds are not modelled.
-This is the shape of the month to read actuals against.
+Tank capacity, jetty windows and turnarounds are not modelled, and the
+app says so on the tab: this is the shape of the month to read actuals
+against. Berth-level scheduling needs those constraints and a scheduling
+tool (engine note wording since engines #232).
 
 ## The reconciliation
 
@@ -87,6 +88,30 @@ not say what happens if the reformer is pushed harder. Quality is not
 carried through the plan — that is the blending optimiser's job — so
 pooling constraints are absent. One period at a time, with no inventory
 carried between periods.
+
+## MD2-0 validation and repairs (2026-09-19)
+
+Before the NextGen course MD2, the planner went behind an exact oracle for
+the first time: a rational simplex whose every answer carries a duality
+certificate (engines #219, vendored at a1d8c9f; findings in
+`packages/engines/tools/validation/downstream/FINDINGS-refinery.md`).
+
+- **At defaults, the crude distillation unit carried nothing.** It showed 0
+  barrels and 0 percent beside 2.91 million barrels of crude, its capacity
+  could not bind and its 3.49 million of operating cost was never charged.
+  Every barrel of crude now runs through the crude unit (a unit with no
+  feed): the default margin is $18,360,000 (was $21,850,909) and the CDU
+  runs at 73 percent.
+- **A capacity, availability or demand ceiling typed as 0 was unlimited;**
+  the reformer typed as shut ran 960,000 barrels. Zero is zero now, blank is
+  no limit, and a blank cost or price is refused by name.
+- **The Actuals panel coloured an overspend green.** Each line now says
+  whether it is a cost or a revenue and is coloured by what it did to margin;
+  the engine's totals are on margin instead of adding the two kinds together.
+- **Schedule dates slipped a day in the Americas** after the spring clock
+  change; the engine now dates in UTC.
+- Tests: a page test pins $18,360,000 and the CDU's 73 percent; the engine
+  gate runs the schedule in five time zones.
 
 ## Next
 

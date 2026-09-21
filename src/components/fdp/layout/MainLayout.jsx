@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useFDP } from '@/contexts/FDPContext';
 import SidebarNavigation from '../navigation/SidebarNavigation';
 import TopNavigation from '../navigation/TopNavigation';
@@ -9,6 +9,8 @@ import StudioNotifications from '@/components/studio/StudioNotifications';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Activity, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { formatCurrency } from '@/utils/fdp/formatting';
+import { computePlanEconomics, planEconomicsPayload } from '@/utils/fdp/planEconomics';
+import { planReservesP50 } from '@/utils/fdp/fdpCalculations';
 
 /**
  * What the plan is still missing, worked out from the plan (Economics E3).
@@ -24,7 +26,12 @@ import { formatCurrency } from '@/utils/fdp/formatting';
 export const openItems = (state) => {
     const items = [];
     if (!state.fieldData?.fieldName) items.push('Name the field on the Field Overview tab.');
-    if (!(state.subsurface?.reserves?.summary?.p50 > 0)) items.push('Enter P50 reserves on the Subsurface tab.');
+    // EC6-0: the reserves live in the table (reserves.breakdown); only Load
+    // example ever wrote the summary, so a fully entered table used to leave
+    // this item open for ever.
+    if (!(planReservesP50(state) > 0 || planReservesP50(state, 'Gas') > 0)) {
+        items.push('Enter P50 reserves on the Subsurface tab.');
+    }
     if (!state.wells?.list?.length) items.push('Add at least one well on the Wells tab.');
     if (!state.facilities?.list?.length) items.push('Add a facility on the Facilities tab.');
     if (!state.costs?.items?.length) items.push('Add cost items on the Economics tab.');
@@ -36,6 +43,12 @@ export const openItems = (state) => {
 const RightPanel = () => {
     const { state } = useFDP();
     const outstanding = openItems(state);
+    // EC6-0: the same screening case the Economics tab shows. This panel used
+    // to read state.economics, which nothing ever wrote, and printed NPV $0
+    // under a caption that said the figure was post royalty and tax.
+    const economics = useMemo(() => computePlanEconomics(state), [state]);
+    const oilP50 = planReservesP50(state);
+    const gasP50 = planReservesP50(state, 'Gas');
 
     return (
         <div className="h-full flex flex-col bg-slate-900 border-l border-slate-800 w-80">
@@ -50,22 +63,32 @@ const RightPanel = () => {
                         <div className="grid grid-cols-2 gap-2">
                             <div className="bg-slate-800 p-2 rounded border border-slate-700">
                                 <div className="text-xs text-slate-400">NPV</div>
-                                <div className="text-lg font-bold text-green-400">
-                                    {formatCurrency(state.economics.npv, 'USD', true)}
-                                </div>
+                                {economics.available ? (
+                                    <div className={`text-lg font-bold ${economics.metrics.npv >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                        {formatCurrency(economics.metrics.npv, 'USD', true)}
+                                    </div>
+                                ) : (
+                                    <div className="text-sm font-medium text-slate-400">Not yet</div>
+                                )}
                             </div>
                             <div className="bg-slate-800 p-2 rounded border border-slate-700">
-                                <div className="text-xs text-slate-400">Reserves (MMbbl)</div>
-                                {/* The state keeps reserves under `summary`; the old panel read
-                                    `reserves.p50` and printed undefined. */}
+                                <div className="text-xs text-slate-400">
+                                    Reserves P50 ({gasP50 > 0 && oilP50 === 0 ? 'Bcf' : 'MMbbl'})
+                                </div>
+                                {/* EC6-0: oil in MMbbl and gas in Bcf are different numbers and
+                                    are never added together. */}
                                 <div className="text-lg font-bold text-blue-400">
-                                    {state.subsurface.reserves.summary.p50 || 0}
+                                    {gasP50 > 0 && oilP50 === 0 ? gasP50 : oilP50}
                                 </div>
                             </div>
                         </div>
                         <p className="text-[11px] text-slate-500 mt-2">
-                            NPV is post royalty and tax, discounted mid year, through the Suite screening
-                            economics engine.
+                            {economics.available
+                                ? `NPV is post royalty and tax, discounted mid year, on this plan's cost items at $${economics.basis.oilPrice}/bbl.`
+                                : `No NPV yet: this plan is still missing ${economics.missing.join(', ')}.`}
+                            {gasP50 > 0 && oilP50 > 0
+                                ? ` Gas P50 is ${gasP50} Bcf, reported apart from the oil.`
+                                : ''}
                         </p>
                     </div>
 
@@ -97,7 +120,21 @@ const RightPanel = () => {
 };
 
 const MainLayout = ({ children }) => {
-    const { state, notifications, removeNotification } = useFDP();
+    const { state, actions, persistence, notifications, removeNotification } = useFDP();
+
+    // EC6-0: `updateEconomics` was defined in the context and never called, so
+    // the plan carried NPV 0 and CAPEX 0 into the summary panel, the
+    // completeness check and the exported PDF. It is written here, from the
+    // one screening case, because this layout is mounted on every tab.
+    const economicsPayload = useMemo(
+        () => planEconomicsPayload(computePlanEconomics(state)),
+        [state],
+    );
+    const payloadKey = JSON.stringify(economicsPayload);
+    useEffect(() => {
+        actions.updateEconomics(economicsPayload);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [payloadKey]);
     const { sidebarCollapsed, rightPanelOpen } = state.navigation;
 
     return (
@@ -144,7 +181,13 @@ const MainLayout = ({ children }) => {
                     <span>Region: Global</span>
                 </div>
                 <div className="flex items-center space-x-4">
-                    <span>Last Saved: {new Date().toLocaleTimeString()}</span>
+                    {/* EC6-0: this printed the current time and called it the save
+                        time, so a plan that had never been saved looked saved. */}
+                    <span>
+                        {persistence?.lastSaveTime
+                            ? `Last saved: ${new Date(persistence.lastSaveTime).toLocaleTimeString()}`
+                            : 'Not saved yet'}
+                    </span>
                     <span>{state.meta.mode.toUpperCase()} MODE</span>
                 </div>
             </div>

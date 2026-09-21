@@ -29,11 +29,15 @@ const HSERiskRegister = ({ risks, onEdit, onDelete }) => {
                         </TableHeader>
                         <TableBody>
                             {risks.map((risk) => {
+                                // EC6-1: the register and this tab band the same score the
+                                // same way now, and an unassessed hazard is not a low one.
                                 const score = calculateRiskScore(risk);
                                 const level = getRiskLevel(score);
-                                const badgeColor = level === 'High' ? 'bg-red-900 text-red-200 border-red-800' : 
-                                                 level === 'Medium' ? 'bg-yellow-900 text-yellow-200 border-yellow-800' : 
-                                                 'bg-green-900 text-green-200 border-green-800';
+                                const badgeColor = level === 'Critical' ? 'bg-red-950 text-red-100 border-red-700'
+                                    : level === 'High' ? 'bg-red-900 text-red-200 border-red-800'
+                                        : level === 'Medium' ? 'bg-yellow-900 text-yellow-200 border-yellow-800'
+                                            : level === 'Unscored' ? 'bg-slate-800 text-slate-300 border-slate-700'
+                                                : 'bg-green-900 text-green-200 border-green-800';
 
                                 return (
                                     <TableRow key={risk.id} className="border-slate-800 hover:bg-slate-800/30">
@@ -46,7 +50,7 @@ const HSERiskRegister = ({ risks, onEdit, onDelete }) => {
                                         <TableCell className="text-center text-slate-300">{risk.impact}</TableCell>
                                         <TableCell className="text-center">
                                             <Badge variant="outline" className={`${badgeColor} font-mono`}>
-                                                {score}
+                                                {score === null ? 'n/a' : score}
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-slate-400 text-sm max-w-[250px] truncate">

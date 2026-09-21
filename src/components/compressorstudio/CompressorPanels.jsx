@@ -125,6 +125,19 @@ export const TrainResults = () => {
               </tbody>
             </table>
           </div>
+          {/*
+            ONE WARNING FOR ONE CONDITION. A studio-side dischargeLimitCheck
+            used to print a second note beside these, because the engine
+            chose the stage count from the suction temperature while running
+            every stage after the first from the intercooler outlet, and
+            measured its own hot-stage warning against a hardcoded 300 F.
+            Engines PR #197 repaired both: the count is tested at the inlet
+            each stage will really have, and the warning below is measured
+            against the limit in the box. Over a 17000 point duty sweep the
+            studio check fired 4295 times before the repair and 0 times
+            after, so it was printing a second sentence for a condition the
+            engine now prevents.
+          */}
           {train.stages.filter((s) => s.warning).map((s) => (
             <WarnNote key={s.stage}>Stage {s.stage}: {s.warning}</WarnNote>
           ))}

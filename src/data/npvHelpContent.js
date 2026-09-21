@@ -6,7 +6,7 @@ export const HELP_CATEGORIES = [
   { id: 'expert-mode', title: 'Expert Mode', icon: Calculator, description: 'Detailed cashflow modeling.' },
   { id: 'scenarios', title: 'Scenario Building', icon: Layers, description: 'Manage Base, High, and Low cases.' },
   { id: 'sensitivity', title: 'Sensitivity Analysis', icon: Activity, description: 'Tornado charts and spider plots.' },
-  { id: 'risk', title: 'Monte Carlo & Risk', icon: Percent, description: 'Probabilistic simulation and P10/P90.' },
+  { id: 'risk', title: 'Monte Carlo & Risk', icon: Percent, description: 'Seeded probabilistic simulation and the low, best and high NPV cases.' },
   { id: 'portfolio', title: 'Portfolio Analysis', icon: Briefcase, description: 'Aggregated views and ranking.' },
   { id: 'integration', title: 'Integration', icon: Globe, description: 'Connecting to other apps.' },
   { id: 'governance', title: 'Governance', icon: Shield, description: 'Approvals and permissions.' },
@@ -77,9 +77,10 @@ export const HELP_ARTICLES = [
       <h3>Standard Scenarios</h3>
       <ul>
         <li><strong>Base Case:</strong> Your most likely estimate.</li>
-        <li><strong>Low Case:</strong> Pessimistic view (e.g., -20% Price, -20% Production, +20% Cost).</li>
-        <li><strong>High Case:</strong> Optimistic view (e.g., +20% Price, +20% Production, -20% Cost).</li>
+        <li><strong>Low Case:</strong> 20 percent lower price and production, 20 percent higher capex and fixed opex.</li>
+        <li><strong>High Case:</strong> 20 percent higher price and production, 20 percent lower capex and fixed opex.</li>
       </ul>
+      <p>Variable operating cost moves with production in both cases, so the Low case does not pay to lift barrels it never produces.</p>
       <h3>Custom Scenarios</h3>
       <p>Create specific scenarios for "Price Crash", "Regulatory Change", or "Schedule Delay". Compare them side-by-side in the <strong>Scenarios</strong> tab.</p>
     `
@@ -107,16 +108,19 @@ export const HELP_ARTICLES = [
     content: `
       <p>Move beyond deterministic cases to probabilistic analysis.</p>
       <h3>How it Works</h3>
-      <p>The system runs 1,000+ iterations, randomly sampling inputs (Price, Reserves, Costs) from defined probability distributions.</p>
+      <p>The system runs 1,000 iterations. Each iteration draws one factor for price, one for reserves and one for capex, uniformly within plus or minus 20 percent, and applies each factor to every year of the case. Reserves moves oil and gas volume and the variable operating cost that goes with it, price moves oil and gas prices, and capex moves every capex entry.</p>
+      <p>One factor for the whole life is what a belief such as "reserves 20 percent low" describes. Drawing every year separately would let a bad year be cancelled by an ordinary one and make the NPV range look much narrower than the belief behind it.</p>
+      <p>Every run is seeded. The default seed is 20260829 and the seed is shown with the results, so the same inputs and the same seed reproduce the same numbers exactly.</p>
       <h3>Key Metrics</h3>
+      <p>The NPV cases follow the Suite percentile convention: a P-label is the probability that the NPV meets or exceeds the value, per SPE PRMS, and the cases are shown low to high.</p>
       <ul>
-        <li><strong>P90:</strong> 90% probability of exceeding this value (Conservative).</li>
-        <li><strong>P50:</strong> 50% probability (Median).</li>
-        <li><strong>P10:</strong> 10% probability (Upside).</li>
-        <li><strong>EMV:</strong> Expected Monetary Value (Mean of all outcomes).</li>
+        <li><strong>Low case P90:</strong> a 90% probability the NPV meets or exceeds this value. It is the 10th percentile of the simulated NPVs.</li>
+        <li><strong>Best case P50:</strong> the median NPV.</li>
+        <li><strong>High case P10:</strong> a 10% probability the NPV meets or exceeds this value. It is the 90th percentile of the simulated NPVs.</li>
+        <li><strong>EMV:</strong> Expected Monetary Value, the mean of all outcomes.</li>
       </ul>
       <h3>Charts</h3>
-      <p>Use the Histogram to see the spread of outcomes and the S-Curve (Cumulative Probability) to determine the likelihood of a positive NPV.</p>
+      <p>Use the Histogram to see the spread of outcomes and the S-Curve (Cumulative Probability) to determine the likelihood of a positive NPV. The S-Curve runs from the lowest simulated NPV to the highest and passes through the three case values shown on the cards.</p>
     `
   },
   // Portfolio
@@ -158,14 +162,15 @@ export const FAQS = [
   { q: 'What discount rate is used for NPV?', a: 'The default is 10%, but you can change this in the Input Panel under "Economic Parameters".' },
   { q: 'Can I use my own fiscal regime?', a: 'Yes, in Expert Mode you can select "Custom Fiscal" and define specific royalty and tax rates.' },
   { q: 'How do I export to Excel?', a: 'Click the "Export" button in the Results Panel. This will generate a multi-sheet Excel file with summary, cashflow, and scenario data.' },
-  { q: 'Why is my IRR zero?', a: 'If the total cashflow is never positive (i.e., the project never pays back), IRR cannot be calculated or is effectively negative.' },
+  { q: 'Why does IRR say n/a?', a: 'An IRR exists only as a single rate that sets NPV to zero. The card says which case applies: the cash flow never changes sign, the value is negative at every rate, the rate is above the 1000 percent the engine searches, or more than one rate sets NPV to zero.' },
+  { q: 'Why does payback say n/a, or 0?', a: 'Payback is the first time the cumulative cash flow turns non-negative. n/a means it never does. 0 means it is never negative, so there is nothing to pay back. If the cumulative goes back below zero later, the card says so and gives the time it recovers for good.' },
   { q: 'Is inflation included?', a: 'By default, the model is Real terms (constant dollars). You can enable inflation in Expert Mode to run Nominal terms.' }
 ];
 
 export const GLOSSARY = [
   { term: 'NPV', def: 'Net Present Value. The sum of discounted future cash flows. Represents the value created by the project.' },
   { term: 'IRR', def: 'Internal Rate of Return. The discount rate at which NPV equals zero. Represents the project\'s yield.' },
-  { term: 'Payback Period', def: 'The time required for cumulative cash flow to turn positive.' },
+  { term: 'Payback Period', def: 'The time until cumulative cash flow first turns non-negative. Reported as n/a when it never does, with a note when the cumulative goes back below zero afterwards.' },
   { term: 'Max Exposure', def: 'The maximum negative cumulative cash flow (peak capital at risk).' },
   { term: 'Fiscal Regime', def: 'The set of laws, regulations, and agreements governing the economic relationship between the government and the oil company.' },
   { term: 'Royalty', def: 'A payment to the government based on a percentage of gross revenue, usually taken off the top before costs.' },

@@ -46,7 +46,7 @@ const Summary = () => {
       )}
       {!transmitter.error && (
         <Row label="Transmitter at reading" value={`${fmt(transmitter.uncertaintyPctOfReading, 2)} %`}
-          hint={`${fmt(transmitter.turndown, 1)} to 1 turndown`} />
+          hint={`${fmt(transmitter.flowTurndown, 2)} to 1 flow turndown`} />
       )}
     </div>
   );

@@ -20,10 +20,22 @@ const Stat = ({ label, value, hint }) => (
 
 const LOSS_COLORS = ['#dc2626', '#0891b2', '#f59e0b', '#7c3aed'];
 
+/** The engine's own label for the loss the user may not have measured. */
+const UNBURNED_LABEL = 'Unburned and other';
+
 const CombustionResults = () => {
   const {
     stoichiometry: st, currentEfficiency, targetEfficiency, tuningSaving,
+    unburnedLossSupplied,
   } = useEnergyEfficiency();
+
+  // An unburned loss that was never measured is absent. Drawing it as a zero
+  // bar would show a measurement nobody made, so the bar is left out and the
+  // note below says the efficiency was computed without it.
+  const drawnLosses = React.useMemo(() => (currentEfficiency.losses || [])
+    .map((l, i) => ({ ...l, color: LOSS_COLORS[i % LOSS_COLORS.length] }))
+    .filter((l) => unburnedLossSupplied || l.label !== UNBURNED_LABEL),
+  [currentEfficiency.losses, unburnedLossSupplied]);
 
   if (st.error) {
     return (
@@ -61,21 +73,27 @@ const CombustionResults = () => {
               </p>
               <p className="text-sm text-amber-200 mt-1">{currentEfficiency.comparisonWarning}</p>
               <p className="text-[11px] text-slate-500 mt-1">{currentEfficiency.moistureBasisNote}</p>
+              {!unburnedLossSupplied && (
+                <p className="text-sm text-amber-200 mt-1">
+                  Unburned and other loss: not supplied. It is absent here and the efficiency
+                  above leaves it out, so it is a best case. Enter the loss to close the ledger.
+                </p>
+              )}
             </div>
             <p className="text-[11px] text-slate-500 mb-2">
               The indirect method is used rather than the direct one because it says where the
               energy went, and that is the difference between a number and an action.
             </p>
             <ChartFrame height={240} exportFilename="stack-losses">
-              <BarChart data={currentEfficiency.losses} margin={{ top: 12, right: 24, left: 16, bottom: 28 }}>
+              <BarChart data={drawnLosses} margin={{ top: 12, right: 24, left: 16, bottom: 28 }}>
                 <CartesianGrid {...GRID_STYLE} />
                 <XAxis dataKey="label" stroke={CHART_COLORS.axisLine} tick={tickStyle()} interval={0} angle={-15} textAnchor="end" height={60} />
                 <YAxis stroke={CHART_COLORS.axisLine} tick={tickStyle()}
                   label={{ value: '% of fuel', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
                 <Tooltip {...TOOLTIP_STYLE} formatter={(v) => `${fmt(v, 2)}%`} />
                 <Bar dataKey="percent" name="Loss">
-                  {currentEfficiency.losses.map((l, i) => (
-                    <BarCell key={l.label} fill={LOSS_COLORS[i % LOSS_COLORS.length]} />
+                  {drawnLosses.map((l) => (
+                    <BarCell key={l.label} fill={l.color} />
                   ))}
                 </Bar>
               </BarChart>

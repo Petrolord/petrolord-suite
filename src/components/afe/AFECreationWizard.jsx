@@ -7,6 +7,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 
+// EC5-0 (owner decision 2026-09-14): the AFE window. The schedule index and
+// the S-curve are measured against start_date and end_date, which the live
+// afes table already carries, and the wizard never asked for them.
+export const validateAfeWindow = (startDate, endDate) => {
+  if (startDate && endDate && endDate < startDate) {
+    return 'The end date is before the start date. Choose an end date on or after the start date.';
+  }
+  return null;
+};
+
 const AFECreationWizard = ({ open, onOpenChange, projects, onSuccess }) => {
   const { toast } = useToast();
   const [step, setStep] = useState(1);
@@ -19,16 +29,33 @@ const AFECreationWizard = ({ open, onOpenChange, projects, onSuccess }) => {
     class: 'Budget',
     operator_share: 100,
     partner_share: 0,
-    status: 'Draft'
+    status: 'Draft',
+    start_date: '',
+    end_date: ''
   });
+  const windowError = validateAfeWindow(formData.start_date, formData.end_date);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const refuseBadWindow = () => {
+    if (!windowError) return false;
+    toast({ variant: 'destructive', title: 'Check the AFE dates', description: windowError });
+    return true;
+  };
+
+  const handleNext = () => {
+    if (step === 2 && refuseBadWindow()) return;
+    setStep(step + 1);
+  };
+
   const handleSubmit = async () => {
+    if (refuseBadWindow()) return;
     const { error } = await supabase.from('afes').insert([{
         ...formData,
+        start_date: formData.start_date || null,
+        end_date: formData.end_date || null,
         user_id: (await supabase.auth.getUser()).data.user.id
     }]);
 
@@ -106,6 +133,21 @@ const AFECreationWizard = ({ open, onOpenChange, projects, onSuccess }) => {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="afe-start-date">Start date</Label>
+                  <Input id="afe-start-date" type="date" value={formData.start_date} onChange={e => handleChange('start_date', e.target.value)} className="bg-slate-800 border-slate-700" />
+                </div>
+                <div>
+                  <Label htmlFor="afe-end-date">End date</Label>
+                  <Input id="afe-end-date" type="date" min={formData.start_date || undefined} value={formData.end_date} onChange={e => handleChange('end_date', e.target.value)} className="bg-slate-800 border-slate-700" />
+                </div>
+              </div>
+              {windowError ? (
+                <p role="alert" className="text-xs text-red-300">{windowError}</p>
+              ) : (
+                <p className="text-xs text-slate-400">The schedule index and the S curve are measured against this window. Without both dates the schedule index is unavailable.</p>
+              )}
             </>
           )}
 
@@ -125,6 +167,7 @@ const AFECreationWizard = ({ open, onOpenChange, projects, onSuccess }) => {
                 <p><strong>Summary:</strong></p>
                 <p>AFE: {formData.afe_number} - {formData.afe_name}</p>
                 <p>Budget: {formData.budget} {formData.currency}</p>
+                <p>Window: {formData.start_date && formData.end_date ? `${formData.start_date} to ${formData.end_date}` : 'Not set (the schedule index will be unavailable)'}</p>
                 <p>Share: {formData.operator_share}% Ops / {100 - formData.operator_share}% Partner</p>
               </div>
             </>
@@ -134,7 +177,7 @@ const AFECreationWizard = ({ open, onOpenChange, projects, onSuccess }) => {
         <DialogFooter>
           {step > 1 && <Button variant="ghost" onClick={() => setStep(step - 1)}>Back</Button>}
           {step < 3 ? (
-            <Button onClick={() => setStep(step + 1)} className="bg-blue-600">Next</Button>
+            <Button onClick={handleNext} className="bg-blue-600">Next</Button>
           ) : (
             <Button onClick={handleSubmit} className="bg-green-600">Create AFE</Button>
           )}

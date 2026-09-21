@@ -9,7 +9,6 @@ import { PlusCircle, AlertCircle, ShieldAlert, RefreshCw, Filter } from 'lucide-
 import RiskMatrix from './RiskMatrix';
 import RiskForm from './RiskForm';
 import IssueForm from './IssueForm';
-import PPFGIntegration from './PPFGIntegration';
 import { format } from 'date-fns';
 
 const RisksDashboard = ({ project, risks = [], issues = [], onDataChange }) => {
@@ -93,7 +92,6 @@ const RisksDashboard = ({ project, risks = [], issues = [], onDataChange }) => {
         <TabsList className="bg-slate-800 self-start">
             <TabsTrigger value="register">Risk Register</TabsTrigger>
             <TabsTrigger value="issues">Issue Log</TabsTrigger>
-            <TabsTrigger value="ppfg">PPFG Integration</TabsTrigger>
         </TabsList>
 
         <div className="flex-1 mt-4 bg-slate-900/50 border border-slate-800 rounded-lg overflow-hidden">
@@ -183,9 +181,14 @@ const RisksDashboard = ({ project, risks = [], issues = [], onDataChange }) => {
                 </div>
             </TabsContent>
 
-            <TabsContent value="ppfg" className="h-full m-0 p-4">
-                <PPFGIntegration project={project} onRisksImported={onDataChange} />
-            </TabsContent>
+            {/* EC6-0: a "PPFG Integration" tab used to offer three invented
+                findings (an overpressure ramp at 3200m, a narrow drilling
+                window at 4500m, shale instability at 2800m) and write the ones
+                you ticked into the risk register tagged as sourced from the
+                PPFG app, having contacted nothing. The E4 wave removed the
+                same fabrication from the integrations panels and missed this
+                copy. There is no live link to Pore Pressure; log the risks you
+                have decided on in the register above. */}
         </div>
       </Tabs>
 

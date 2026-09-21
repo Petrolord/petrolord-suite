@@ -6,19 +6,26 @@ import { BarChart, Download, GitMerge, DollarSign, BrainCircuit, CheckCircle, XC
 import CollapsibleSection from './CollapsibleSection';
 import DecisionTreePlot from './DecisionTreePlot';
 
+// EC4-0: the engine returns null for a value it withholds (EMV with
+// information, VOI and net VOI when the indicator numbers contradict the
+// stated outcome chances). A withheld value is shown as a word, never as
+// "$nullM" and never as a number.
+export const WITHHELD = 'Withheld';
+const csvValue = (v) => (v == null ? WITHHELD : v);
+
 const ResultsPanel = ({ results }) => {
-  const { kpis, tree, insights } = results;
+  const { kpis, tree, insights, bestActionWithoutInfo } = results;
   const { toast } = useToast();
 
   const handleExport = () => {
     const esc = (v) => `"${String(v).replace(/"/g, '""')}"`;
     const rows = [
       ['Metric', 'Value ($M)'],
-      ['EMV without Information', kpis.emvWithoutInfo],
-      ['EMV with Information', kpis.emvWithInfo],
-      ['Gross Value of Information (VOI)', kpis.voi],
-      ['Net Value of Information (Net VOI)', kpis.netVoi],
-      ['Expected Value of Perfect Information (EVPI)', kpis.evpi],
+      ['EMV without Information', csvValue(kpis.emvWithoutInfo)],
+      ['EMV with Information', csvValue(kpis.emvWithInfo)],
+      ['Gross Value of Information (VOI)', csvValue(kpis.voi)],
+      ['Net Value of Information (Net VOI)', csvValue(kpis.netVoi)],
+      ['Expected Value of Perfect Information (EVPI)', csvValue(kpis.evpi)],
       [],
       ['Decision Guidance'],
       [insights],
@@ -49,7 +56,11 @@ const ResultsPanel = ({ results }) => {
             <motion.div key={key} className="bg-white/5 p-4 rounded-lg text-center">
               <Icon className={`w-8 h-8 mx-auto mb-2 ${color}`} />
               <p className="text-sm text-lime-200">{label}</p>
-              <p className="text-3xl font-bold text-white mt-2">${kpis[key]}<span className="text-lg text-lime-300">M</span></p>
+              {kpis[key] == null ? (
+                <p className="text-3xl font-bold text-slate-400 mt-2" data-testid={`voi-kpi-${key}`}>{WITHHELD}</p>
+              ) : (
+                <p className="text-3xl font-bold text-white mt-2" data-testid={`voi-kpi-${key}`}>${kpis[key]}<span className="text-lg text-lime-300">M</span></p>
+              )}
             </motion.div>
           ))}
         </div>
@@ -60,8 +71,19 @@ const ResultsPanel = ({ results }) => {
       </CollapsibleSection>
       
       <CollapsibleSection title="Decision Guidance" icon={<BrainCircuit />} defaultOpen>
-        <div className="bg-sky-500/10 p-4 rounded-lg border border-sky-500/30">
+        <div className="bg-sky-500/10 p-4 rounded-lg border border-sky-500/30 space-y-2">
             <p className="text-sky-200 leading-relaxed">{insights}</p>
+            {/* EC4-1 (engines #192): the engine reports which actions tie at
+                the precision the cards print, so the sentence above and the
+                cards beside it cannot disagree about the best action. */}
+            {bestActionWithoutInfo?.indifferentAtCardPrecision && (
+              <p className="text-sky-300/90 text-sm" data-testid="voi-indifferent">
+                Without new information the decision is indifferent between{' '}
+                {bestActionWithoutInfo.tiedLabelsAtCardPrecision
+                  .map((l) => `"${l}"`)
+                  .join(' and ')}: both come to the same EMV at the precision shown.
+              </p>
+            )}
         </div>
       </CollapsibleSection>
 

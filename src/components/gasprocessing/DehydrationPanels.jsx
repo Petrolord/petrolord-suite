@@ -2,8 +2,10 @@
 import React from 'react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useGasProcessing } from '@/contexts/GasProcessingContext';
-import { fmt, Stat, ErrorNote, WarnNote, Field, NumberInput } from './fields';
+import { useGasProcessing, nonFiniteNote } from '@/contexts/GasProcessingContext';
+import {
+  fmt, accentFor, Stat, ErrorNote, WarnNote, Field, NumberInput,
+} from './fields';
 
 export const DehydrationInputs = () => {
   const { inputs, setSection } = useGasProcessing();
@@ -66,6 +68,7 @@ export const DehydrationInputs = () => {
 export const DehydrationResults = () => {
   const { dehydration: d } = useGasProcessing();
   if (d.error) return <ErrorNote>{d.error}</ErrorNote>;
+  const broken = nonFiniteNote(d.nonFinite);
   return (
     <div className="space-y-4">
       <Card className="bg-slate-900/60 border-slate-800">
@@ -75,10 +78,22 @@ export const DehydrationResults = () => {
             <Stat label="Inlet water" value={fmt(d.inletLbMMscf, 1)} unit="lb/MMscf"
               hint={d.saturated && !d.saturated.error ? 'saturated at line conditions (ideal VLE)' : 'typed'} />
             <Stat label="Water removed" value={fmt(d.waterLbDay, 0)} unit="lb/day" />
-            <Stat label="TEG circulation" value={fmt(d.circGpm, 1)} unit="gpm" />
+            <Stat label="TEG circulation" value={fmt(d.circGpm, 1)} unit="gpm"
+              accent={accentFor(d.circGpm)} />
             <Stat label="Reboiler duty" value={fmt(d.reboilerMMBtuHr, 2)} unit="MMBtu/hr"
+              accent={accentFor(d.reboilerMMBtuHr)}
               hint={`${fmt(d.sensiblePerGal, 0)} sensible + ${fmt(d.vaporPerGal, 0)} overhead Btu/gal`} />
           </div>
+          {Number.isFinite(d.richTegWtPct) && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Stat label="Rich glycol returning" value={fmt(d.richTegWtPct, 2)} unit="wt %"
+                accent={accentFor(d.richTegWtPct)}
+                hint={`the lean glycol already carries ${fmt(d.leanWaterLbPerGal, 3)} lb of water per gallon at the strength typed above, and the contactor adds the rest`} />
+              <Stat label="Overhead assumed" value={fmt(d.waterOverheadBtuPerLb, 0)} unit="Btu/lb water"
+                hint="latent plus the sensible heat to reach the still, folded; the engine default" />
+            </div>
+          )}
+          {broken && <ErrorNote>{broken}</ErrorNote>}
           {d.saturated?.warning && <WarnNote>{d.saturated.warning}</WarnNote>}
           {d.warning && <WarnNote>{d.warning}</WarnNote>}
         </CardContent>
@@ -93,11 +108,18 @@ export const DehydrationResults = () => {
               value={d.stagesNeeded?.error ? 'unreachable' : fmt(d.stagesNeeded.stages, 1)}
               accent={d.stagesNeeded?.error ? 'text-red-400' : 'text-slate-100'}
               hint={d.stagesNeeded?.error || 'Kremser at the stated absorption factor'} />
-            <Stat label="Removal at the stated stages" value={fmt(d.fractionAtStages * 100, 1)} unit="%" />
+            <Stat label="Removal at the stated stages"
+              value={d.fractionAtStagesError ? 'unreachable' : fmt(d.fractionAtStages * 100, 1)}
+              unit={d.fractionAtStagesError ? '' : '%'}
+              accent={d.fractionAtStagesError ? 'text-amber-400' : accentFor(d.fractionAtStages)}
+              hint={d.fractionAtStagesError || 'Kremser at the stated stages and absorption factor'} />
             <Stat label="Contactor diameter"
               value={d.contactor?.error ? '--' : fmt(d.contactor.diameterFt, 1)} unit="ft"
-              hint={d.contactor?.error || `Souders-Brown at z = ${fmt(d.contactor?.z, 3)}`} />
+              accent={d.contactor?.error ? 'text-amber-400' : accentFor(d.contactor?.diameterFt)}
+              hint={d.contactor?.error
+                || `Souders-Brown at z = ${fmt(d.contactor?.z, 3)}, against a liquid at ${fmt(d.liquidUsed, 1)} lb/ft3`} />
           </div>
+          {d.zWarning && <WarnNote>{d.zWarning}</WarnNote>}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <Stat label="BTEX absorbed" value={fmt(d.btexTonsYear, 1)} unit="tons/yr"
               hint="still overheads; an emissions question" />

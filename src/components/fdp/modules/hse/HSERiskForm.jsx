@@ -26,9 +26,14 @@ const HSERiskForm = ({ initialData, onSave, onCancel }) => {
         onSave(formData);
     };
 
+    // EC6-1: one banding scale, and an unassessed hazard says so rather
+    // than scoring as Low.
     const score = calculateRiskScore(formData);
     const level = getRiskLevel(score);
-    const levelColor = level === 'High' ? 'text-red-500' : level === 'Medium' ? 'text-yellow-500' : 'text-green-500';
+    const levelColor = level === 'Critical' ? 'text-red-600'
+        : level === 'High' ? 'text-red-500'
+            : level === 'Medium' ? 'text-yellow-500'
+                : level === 'Unscored' ? 'text-slate-400' : 'text-green-500';
 
     return (
         <Card className="bg-slate-900 border-slate-800 max-w-3xl mx-auto">
@@ -39,7 +44,7 @@ const HSERiskForm = ({ initialData, onSave, onCancel }) => {
                         {initialData ? 'Edit Risk' : 'New Risk Assessment'}
                     </div>
                     <div className={`text-sm font-mono border px-2 py-1 rounded bg-slate-800 ${levelColor} border-slate-700`}>
-                        Score: {score} ({level})
+                        {score === null ? 'Not scored' : `Score: ${score} (${level})`}
                     </div>
                 </CardTitle>
             </CardHeader>

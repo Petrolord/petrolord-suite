@@ -92,6 +92,11 @@ const ProjectForm = ({ project, onSave, onCancel }) => {
       toast({ variant: 'destructive', title: 'Please fill all fields correctly.' });
       return;
     }
+    // EC5-0: the optimizer refuses a negative capex, so refuse it at the door.
+    if (projectData.capex < 0) {
+      toast({ variant: 'destructive', title: 'CAPEX cannot be negative', description: 'Enter a capital cost of 0 $MM or more.' });
+      return;
+    }
 
     let error;
     if (project?.id) {
@@ -138,7 +143,7 @@ const ProjectForm = ({ project, onSave, onCancel }) => {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <div><Label htmlFor="capex">CAPEX ($MM)</Label><Input id="capex" name="capex" type="number" step="any" value={formData.capex} onChange={handleChange} className="bg-white/5 border-white/20" required /></div>
+        <div><Label htmlFor="capex">CAPEX ($MM)</Label><Input id="capex" name="capex" type="number" min="0" step="any" value={formData.capex} onChange={handleChange} className="bg-white/5 border-white/20" required /></div>
         <div><Label htmlFor="risk_score">Risk Score (1-10)</Label><Input id="risk_score" name="risk_score" type="number" min="1" max="10" value={formData.risk_score} onChange={handleChange} className="bg-white/5 border-white/20" required /></div>
       </div>
       <div className="grid grid-cols-2 gap-4">

@@ -10,7 +10,7 @@
  */
 import React from 'react';
 import '@testing-library/jest-dom';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 jest.mock('@/lib/customSupabaseClient', () => ({
@@ -72,6 +72,32 @@ describe('the page', () => {
     expect(screen.getByText('not spare capacity')).toBeInTheDocument();
   });
 
+  it('reads the fill limit on its stated basis (MD4-0)', async () => {
+    mount();
+    fireEvent.change(await screen.findByLabelText(/Max fill ratio/i), { target: { value: '0.42' } });
+    expect(await screen.findByText(/share of the vessel's liquid volume/i)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/Fill ratio stated as/i), { target: { value: 'water_capacity_mass' } });
+    expect(await screen.findByText(/filling density on the water capacity/i)).toBeInTheDocument();
+  });
+
+  it('asks for the boiling point at vaporizer pressure and refuses a liquid above it (MD4-0)', async () => {
+    mount();
+    // blank: the duty covers the boil alone and says it is a floor
+    expect(await screen.findByText(/It is a floor/i)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/Boiling point at vaporizer pressure/i), { target: { value: '-0.5' } });
+    expect(await screen.findByText(/above the boiling point given/i)).toBeInTheDocument();
+  });
+
+  it('opens with the vaporizer outlet blank, and completes the duty once both are given (MD45-1 P1)', async () => {
+    mount();
+    expect(await screen.findByText(/It is a floor/i)).toBeInTheDocument();
+    const outlet = screen.getByLabelText(/^Outlet/i);
+    expect(outlet).toHaveValue(null);
+    fireEvent.change(screen.getByLabelText(/Boiling point at vaporizer pressure/i), { target: { value: '38' } });
+    fireEvent.change(outlet, { target: { value: '55' } });
+    await waitFor(() => expect(screen.queryByText(/It is a floor/i)).not.toBeInTheDocument());
+  });
+
   it('labels each blend property with the basis it mixes on', async () => {
     mount();
     await screen.findByText('The blend');
@@ -96,12 +122,14 @@ describe('the page', () => {
     expect(screen.getByText(/wrong by about a fifth/i)).toBeInTheDocument();
   });
 
-  it('reports the gas a cascade cannot deliver as stranded', async () => {
+  it('equalises the cascade and says where the next vehicle stops (MD4-0)', async () => {
     mount();
     await openTab(/^CNG$/);
-    expect(await screen.findByText('Stranded below target')).toBeInTheDocument();
-    expect(screen.getByText('inventory, but not usable')).toBeInTheDocument();
-    expect(screen.getByText(/not counted as a fill/i)).toBeInTheDocument();
+    expect(await screen.findByText('Left in the banks')).toBeInTheDocument();
+    // three 1.5 m3 banks at 250 bar(a) fill 33 vehicles from 20 to 200
+    expect(screen.getByText('33')).toBeInTheDocument();
+    expect(screen.getByText(/short of its target, so it is not counted as a fill/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/bar\(a\)/).length).toBeGreaterThan(0);
   });
 
   it('says the compression is not reimplemented here', async () => {

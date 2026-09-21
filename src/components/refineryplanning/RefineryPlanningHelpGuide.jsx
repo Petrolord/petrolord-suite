@@ -54,7 +54,7 @@ const helpContent = [
     icon: Calendar,
     title: 'The schedule',
     content:
-      'The plan says how much over the month; the schedule says when. Crude arrives in cargoes of the size you set, units run at a steady rate across the period, and lifts are spread weekly. This gives the shape of the month to read actuals against. It is deliberately not a berth-level scheduler: tank capacity, jetty windows and turnarounds are not modelled, and the app says so on the schedule tab rather than letting you assume otherwise.',
+      'The plan says how much over the month; the schedule says when. Crude arrives in cargoes of the size you set, units run at a steady rate across the period, and lifts are spread weekly. This gives the shape of the month to read actuals against. Tank capacity, jetty windows and turnarounds are not modelled, and the app says so on the schedule tab so nobody assumes otherwise. Berth-level scheduling needs those constraints and a scheduling tool.',
   },
   {
     id: 'variance',

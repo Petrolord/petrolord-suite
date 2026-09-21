@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRiskRegister } from './hooks/useRiskRegister';
-import { useRiskReporting } from '@/hooks/useRiskReporting';
 import { RiskRegisterShell } from './components/RiskRegisterShell';
 import { RiskForm } from './components/forms/RiskForm';
 import { Button } from '@/components/ui/button';
@@ -10,19 +9,12 @@ import { useToast } from '@/hooks/use-toast';
 
 const NewRiskPage = () => {
   const navigate = useNavigate();
-  const { addRisk } = useRiskRegister();
-  const { closeReport } = useRiskReporting() || {}; // Safely destructure
+  const { addRisk, hasAs2Schema } = useRiskRegister();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  /**
-   * Navigates back to the main Risk Register Dashboard.
-   * Ensures any local reporting state is cleared before navigation.
-   */
+  /** Back to the register. */
   const handleBack = () => {
-    if (closeReport) {
-      closeReport();
-    }
     navigate('/dashboard/apps/assurance/risk-register');
   };
 
@@ -35,9 +27,20 @@ const NewRiskPage = () => {
     setIsSubmitting(true);
     const res = await addRisk(formData);
     if(res.success) {
-        toast({ title: "Success", description: "New risk has been added." });
-        if (closeReport) closeReport();
-        navigate('/dashboard/apps/assurance/risk-register');
+        // AS2: tags and links are separate writes now, and a code that
+        // matched no risk in this register has to be said out loud
+        // rather than left looking linked.
+        const warnings = res.warnings || [];
+        toast(warnings.length
+          ? {
+              title: `${res.data.risk_id} saved, with something to check`,
+              description: warnings.join(' '),
+            }
+          : {
+              title: "Risk logged",
+              description: `${res.data.risk_id} has been added to the register.`,
+            });
+            navigate('/dashboard/apps/assurance/risk-register');
     } else {
         toast({ variant: "destructive", title: "Error", description: res.error || "Failed to save risk" });
         setIsSubmitting(false);
@@ -68,6 +71,7 @@ const NewRiskPage = () => {
             onSubmit={handleSubmit} 
             onCancel={handleCancel}
             isSubmitting={isSubmitting}
+            hasAs2Schema={hasAs2Schema}
         />
       </div>
     </RiskRegisterShell>

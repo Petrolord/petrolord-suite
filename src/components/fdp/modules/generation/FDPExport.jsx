@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { FileText, FileSpreadsheet, FileCode, Download, Printer } from 'lucide-react';
+import { FileText, FileSpreadsheet, FileCode } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { FDPExportService } from '@/services/fdp/FDPExportService';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -35,11 +35,67 @@ const FDPExport = ({ state }) => {
         }
     };
 
-    const handleMockExport = (format) => {
-        toast({ title: "Export Started", description: `Generating ${format} file... (Simulation)` });
-        setTimeout(() => {
-            toast({ title: "Export Complete", description: `${format} file downloaded.` });
-        }, 1500);
+    // EC6-0: the Excel and JSON tiles used to toast "(Simulation)" and then
+    // "file downloaded" with no file. Both write a real file now.
+    const downloadBlob = (blob, filename) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    const baseName = `FDP_${(state.fieldData?.fieldName || 'Project').replace(/[^A-Za-z0-9_-]+/g, '_')}`;
+
+    const handleJSONExport = () => {
+        try {
+            downloadBlob(
+                new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' }),
+                `${baseName}.json`,
+            );
+            toast({ title: 'JSON exported', description: 'The plan as it stands, exactly as the studio holds it.' });
+        } catch (e) {
+            console.error(e);
+            toast({ title: 'Export failed', description: 'Could not write the JSON file.', variant: 'destructive' });
+        }
+    };
+
+    const handleExcelExport = () => {
+        try {
+            const wb = XLSX.utils.book_new();
+            const sheets = [
+                ['Reserves', state.subsurface?.reserves?.breakdown || []],
+                ['Wells', state.wells?.list || []],
+                ['Facilities', state.facilities?.list || []],
+                ['Concepts', state.concepts?.list || []],
+                ['Scenarios', state.scenarios?.list || []],
+                ['Costs', state.costs?.items || []],
+                ['Schedule', state.schedule?.activities || []],
+                ['Risks', state.risks || []],
+            ];
+            let written = 0;
+            sheets.forEach(([name, rows]) => {
+                if (!rows.length) return;
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), name);
+                written += 1;
+            });
+            if (written === 0) {
+                toast({
+                    title: 'Nothing to export yet',
+                    description: 'The plan has no rows in any table.',
+                    variant: 'destructive',
+                });
+                return;
+            }
+            XLSX.writeFile(wb, `${baseName}.xlsx`);
+            toast({ title: 'Excel exported', description: `${written} sheet${written === 1 ? '' : 's'} of the plan's own rows.` });
+        } catch (e) {
+            console.error(e);
+            toast({ title: 'Export failed', description: 'Could not write the workbook.', variant: 'destructive' });
+        }
     };
 
     return (
@@ -52,39 +108,30 @@ const FDPExport = ({ state }) => {
                     onClick={handlePDFExport}
                     loading={generating}
                 />
-                <ExportOption 
-                    title="Executive Summary" 
-                    icon={Printer} 
-                    description="Compact 5-page summary for management review."
-                    onClick={handlePDFExport} // Reusing for demo
-                />
+                {/* EC6-0: the Executive Summary tile called the full PDF export
+                    and was labelled a five page summary. It is gone; one PDF, one
+                    description of what it is. */}
                 <ExportOption 
                     title="Excel Data Pack" 
                     icon={FileSpreadsheet} 
-                    description="Raw data tables for drilling, costs, and economics."
-                    onClick={() => handleMockExport("Excel")}
+                    description="One sheet per table: reserves, wells, facilities, costs, schedule, risks."
+                    onClick={handleExcelExport}
                 />
                 <ExportOption 
                     title="JSON Data Model" 
                     icon={FileCode} 
                     description="Machine-readable export for system integration."
-                    onClick={() => handleMockExport("JSON")}
+                    onClick={handleJSONExport}
                 />
             </div>
 
-            <Card className="bg-slate-900 border-slate-800">
-                <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h4 className="text-white font-medium">Share Live Link</h4>
-                            <p className="text-sm text-slate-400">Give read-only access to stakeholders.</p>
-                        </div>
-                        <Button variant="outline" className="border-slate-700 text-slate-300">
-                            Generate Link
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
+            {/* EC6-0: "Share Live Link" offered a Generate Link button with no
+                handler behind it. There is no sharing in this studio; exporting a
+                file and sending it is the whole story. */}
+            <p className="text-xs text-slate-500">
+                Exports are written in your browser from the plan in front of you. Nothing is
+                uploaded, and there is no share link.
+            </p>
         </div>
     );
 };

@@ -97,22 +97,17 @@ const FieldOverviewModule = () => {
                         onChange={(newObjectives) => actions.updateFieldData({ objectives: newObjectives })} 
                     />
 
+                    {/* EC6-0: this panel claimed "Geoscience Hub Connected" and
+                        "Reservoir Sim Last sync: 2d ago" against a hardcoded list
+                        that contacted nothing. The help guide already said there
+                        is no live connection. */}
                     <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
-                        <h4 className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-4">Data Sources</h4>
-                        <div className="space-y-3">
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-slate-300">Geoscience Hub</span>
-                                <span className="text-green-400 flex items-center text-xs"><CheckCircle2 className="w-3 h-3 mr-1"/> Connected</span>
-                            </div>
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-slate-300">Reservoir Sim</span>
-                                <span className="text-slate-500 text-xs">Last sync: 2d ago</span>
-                            </div>
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-slate-300">Project Mgmt</span>
-                                <span className="text-yellow-500 flex items-center text-xs">Manual Input</span>
-                            </div>
-                        </div>
+                        <h4 className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-2">Data Sources</h4>
+                        <p className="text-xs text-slate-500">
+                            Everything in this plan is what you entered or loaded as an example. The
+                            studio holds no live link to the other Suite apps; bring their numbers in
+                            yourself and they stay yours.
+                        </p>
                     </div>
                 </div>
             </div>

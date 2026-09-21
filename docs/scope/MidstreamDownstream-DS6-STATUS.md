@@ -122,6 +122,17 @@ verified by reintroducing the real bug and watching it fail.
   dry run; probe shows RLS enabled with one owner policy.
 - `20260829970000` (tile to Active) **HELD** for the DS6 upload.
 
+## MD3-0 validation and repairs (2026-09-19)
+
+Engines #221 (vendored at 60ee266; `FINDINGS-supply.md`): insurance quoted on
+CIF is now solved in closed form (it was charged on FOB: 38,850 against
+40,464.70 on the default cargo), a freight-stage charge on C&F or CIF and an
+unknown stage are refused, and a blank trucking cost box is named as missing
+instead of read as 0. The page's template fixes insurance on C&F, so the page
+figures at its defaults do not move; the oracle confirms the landed cost, the
+pump price and waterfall, the FX breakeven, the lane and fleet, and the
+station (whose default peak hour is beyond six nozzles, as the page says).
+
 ## Next
 
 DS7, the LPG & CNG Rollout Studio: bottling-plant and storage sizing and

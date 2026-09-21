@@ -13,6 +13,7 @@ import { Bot, Loader2, ArrowLeft, Save } from 'lucide-react';
 import { REPORT_TEMPLATES, selectedSectionsFor } from '@/data/reportAutopilotTemplates';
 import { buildDocxBlob, docxFileName } from '@/utils/reportAutopilotDocx';
 import { saveAs } from 'file-saver';
+import ReportAutopilotHelpGuide from '@/components/reportautopilot/ReportAutopilotHelpGuide';
 
 window.addEventListener("error", e => console.error("GlobalError:", e.error || e.message));
 window.addEventListener("unhandledrejection", e => {
@@ -95,22 +96,28 @@ class ErrorBoundary extends React.Component {
 
 
 function TechnicalReportAutopilotPageInner() {
+  // EC6-1: the brief used to arrive filled in with a project, a field, a
+  // well, an objective and two KPIs that belong to no one: Alpha Prospect,
+  // West Delta, A-21, "Average ROP 150 ft/hr", "NPT 5%". The edge function
+  // sends the KPI list to the model under the heading "Reported figures", so
+  // anyone who pressed Generate without clearing them got a report stating a
+  // made-up rate of penetration and non-productive time as fact. The form
+  // starts empty and the fields carry placeholders instead.
   const [formState, setFormState] = useState({
     report_type_id: '',
-    project_name: 'Alpha Prospect',
-    field_name: 'West Delta',
-    well_name: 'A-21',
-    author: 'Operations Team',
+    project_name: '',
+    field_name: '',
+    well_name: '',
+    author: '',
     date_start: new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split('T')[0],
     date_end: new Date().toISOString().split('T')[0],
-    objectives: 'Evaluate the drilling performance of well A-21 and identify key areas for optimization in future wells.',
-    kpis: [{ key: 'Average ROP', value: '150 ft/hr' }, { key: 'NPT', value: '5%' }],
-    notes: 'Focus on the 8.5" section, compare bit performance against offset data.',
+    objectives: '',
+    kpis: [{ key: '', value: '' }],
+    notes: '',
     attachments: [],
     selected_sections: [],
     detail_level: 'standard',
     max_pages: 8,
-    gpt4_sections: [],
   });
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -282,12 +289,15 @@ function TechnicalReportAutopilotPageInner() {
       <div className="flex flex-col h-full bg-gradient-to-b from-slate-900 to-gray-900 text-white">
         <header className="flex items-center justify-between p-4 border-b border-white/10 bg-slate-900/50 backdrop-blur-sm">
           <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" onClick={() => navigate('/dashboard/automation')}>
+            {/* EC6-1: Back went to /dashboard/automation, a route App.jsx has
+                never carried, so it landed on the not-found page. */}
+            <Button variant="outline" size="sm" onClick={() => navigate('/dashboard/economics')}>
               <ArrowLeft className="w-4 h-4 mr-2" /> Back
             </Button>
             <h1 className="text-lg font-semibold text-white">Technical Report Autopilot</h1>
           </div>
           <div className="flex items-center gap-2">
+            <ReportAutopilotHelpGuide />
             <Button size="sm" onClick={handleSaveProject}>
               <Save className="w-4 h-4 mr-2" /> Save Project
             </Button>

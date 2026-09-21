@@ -54,7 +54,7 @@ const helpContent = [
     icon: Flame,
     title: 'Where the atom balance beats the factor',
     content:
-      'Combustion CO2 is not an empirical factor at all: every carbon atom that goes into a burner comes out as CO2. A published fuel-based emission factor is a proxy for exactly that arithmetic, carrying whatever assumptions its author made about the fuel. So where the fuel analysis is known this computes CO2 from the carbon and says it did, and reserves factors for the things that really are empirical. Carbon that escapes combustion is counted as methane, which per atom is a far worse greenhouse gas - which is why a flare\'s destruction efficiency is asked for rather than assumed. It is the whole answer for a flare, and it is contested.',
+      'Combustion CO2 is not an empirical factor at all: every carbon atom that goes into a burner comes out as CO2. A published fuel-based emission factor is a proxy for exactly that arithmetic, carrying whatever assumptions its author made about the fuel. So where the fuel analysis is known this computes CO2 from the carbon and says it did, and reserves factors for the things that really are empirical. Carbon that escapes combustion is counted as methane, which per atom is a far worse greenhouse gas - which is why a flare\'s destruction efficiency is asked for rather than assumed. It is the whole answer for a flare, and it is contested, so a blank box is refused. Because escaped carbon is counted as methane only, use the fossil methane potential for it (AR6 gives 29.8 fossil and 27.0 non-fossil over 100 years).',
   },
   {
     id: 'intensity',
@@ -68,21 +68,21 @@ const helpContent = [
     icon: BarChart3,
     title: 'The abatement curve, and why capital is annualised',
     content:
-      'Measures are sorted cheapest first as a step chart: the width of each step is the tonnes it abates and its height is the cost per tonne. Capital is annualised over the measure\'s life with a capital recovery factor, because comparing a one-off capital cost against a recurring saving is the error that makes every measure look expensive. A negative cost per tonne means the measure pays for itself and abates carbon as a side effect; those sit on the left and are usually the ones nobody has done, which is the single most useful thing this chart says.',
+      'Measures are sorted cheapest first as a step chart: the width of each step is the tonnes it abates and its height is the cost per tonne. Capital is annualised over the measure\'s life with a capital recovery factor, because setting a one-off capital cost against one year\'s saving overstates the cost per tonne of a capital measure. A negative cost per tonne means the measure pays for itself and abates carbon as a side effect; those sit on the left and are usually the ones nobody has done, which is the single most useful thing this chart says. A blank capital cost or discount rate is refused, since reading either as 0 moves a measure down the curve; a blank saving or running cost is taken as 0 and named.',
   },
   {
     id: 'interaction',
     icon: GitMerge,
     title: 'What most abatement curves get wrong',
     content:
-      'Two measures acting on the same emissions cannot both claim the full abatement. Insulating a line and then shutting it down do not abate twice, and the usual spreadsheet adds them anyway. This app does not silently merge them: it reports which measures interact, says the cumulative curve is therefore an upper bound, and separately catches the case where the claims against one source exceed what that source actually emits. It deliberately does not resolve the overlap on its own, because resolving it needs an engineering judgement about sequencing that a solver would only guess at.',
+      'Two measures acting on the same emissions cannot both claim the full abatement. Insulating a line and then shutting it down do not abate twice, and the usual spreadsheet adds them anyway. This app does not silently merge them: it reports which measures interact, says the cumulative curve is therefore an upper bound, and separately catches the case where the claims against one source exceed what that source actually emits. It deliberately does not resolve the overlap on its own, because resolving it needs an engineering judgement about sequencing that a solver would only guess at. While any claim exceeds what its source emits, the app will not say whether the target is met. Nor will it while a claim cannot be checked at all: a measure acting on a source with no computed emission (here only the heaters and the flare carry one, and only once they compute) or naming no source. The page lists those claims. A measure the cost function refused is named with its reason and kept off both the curve and the path. A combustion source that is refused, such as the flare with its destruction efficiency blank, stays in the inventory as a blocked line, so the inventory is not reportable while it stands.',
   },
   {
     id: 'path',
     icon: TrendingDown,
     title: 'The gap is named, not drawn as a wedge',
     content:
-      'Each measure counts only from the year it starts, so the trajectory is what the identified measures actually deliver. Where that falls short of the target, the difference is reported as unabated with no measure identified, and the first year of shortfall is named. It is deliberately not drawn as a wedge labelled further measures: a wedge with nothing behind it is not a plan, and treating it as one is how decarbonisation roadmaps stop meaning anything.',
+      'Each measure counts only from the year it starts, so the trajectory is what the identified measures actually deliver. Where that falls short of the target, the difference is reported as unabated with no measure identified, and the first year of shortfall is named. A measure with no start year is listed as not on the path. The target and the path both rest on the inventory total, so while the inventory is not reportable the page says they are built on a partial one. A wedge is drawn only for an identified measure, because a plan needs a named measure behind every wedge; a wedge labelled further measures is how decarbonisation roadmaps stop meaning anything.',
   },
 ];
 

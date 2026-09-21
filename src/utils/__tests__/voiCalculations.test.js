@@ -10,6 +10,11 @@
 //   EMV with info (pre cost) = 0.4*120 = 48; VOI = 33; net (cost 10) = 23.
 //   EVPI = 0.3*max(260,0) + 0.7*max(-90,0) - 15 = 78 - 15 = 63.
 // Implied priors: 0.4*0.6 + 0.6*0.1 = 0.30 = stated -> consistent.
+//
+// EC4-0 (owner decision 2026-09-14, engines #177): percent inputs that are
+// not distributions are refused with the sum named in percent, and inputs
+// whose indicator numbers contradict the stated outcome chances keep EMV
+// without information and EVPI but withhold everything else.
 
 import { generateVoiData } from '../voiCalculations';
 
@@ -31,6 +36,8 @@ const DEFAULT_INPUTS = {
   },
 };
 
+const clone = () => JSON.parse(JSON.stringify(DEFAULT_INPUTS));
+
 describe('generateVoiData (delegating to the canonical decision engine)', () => {
   const result = generateVoiData(DEFAULT_INPUTS);
 
@@ -42,9 +49,11 @@ describe('generateVoiData (delegating to the canonical decision engine)', () => 
     expect(Number(result.kpis.evpi)).toBeCloseTo(63, 2);
   });
 
-  it('reports the default inputs as Bayes-consistent, with no warning', () => {
+  it('reports the default inputs as Bayes-consistent, with no warning and nothing withheld', () => {
     expect(result.consistency.consistent).toBe(true);
+    expect(result.withheld).toBe(false);
     expect(result.insights).not.toContain('Consistency warning');
+    expect(result.insights).not.toMatch(/withheld/i);
     expect(result.insights).toContain('positive');
   });
 
@@ -58,13 +67,97 @@ describe('generateVoiData (delegating to the canonical decision engine)', () => 
     expect(r.insights).toContain('not justified');
   });
 
-  it('warns when indicator entries contradict the stated priors', () => {
-    const inconsistent = JSON.parse(JSON.stringify(DEFAULT_INPUTS));
-    inconsistent.infoScenario.indicators[0].conditionalProbabilities[0].probability = 90;
-    const r = generateVoiData(inconsistent);
-    expect(r.consistency.consistent).toBe(false);
-    expect(r.insights).toContain('Consistency warning');
+  describe('refuses percent inputs that are not distributions (EC4-0)', () => {
+    it("names an indicator's outcome chance sum in percent", () => {
+      // 90 and 40 is not a distribution. This used to compute full KPIs and
+      // only withhold the diagram, while the consistency check passed.
+      const malformed = clone();
+      malformed.infoScenario.indicators[0].conditionalProbabilities[0].probability = 90;
+      expect(() => generateVoiData(malformed)).toThrow(
+        'Outcome chances given "Positive Seismic" sum to 130 percent, expected 100',
+      );
+    });
+
+    it('names the outcome chance sum in percent', () => {
+      const bad = clone();
+      bad.outcomes[0].probability = 40;
+      expect(() => generateVoiData(bad)).toThrow('Outcome chances sum to 110 percent, expected 100');
+    });
+
+    it('names the indicator chance sum in percent', () => {
+      const bad = clone();
+      bad.infoScenario.indicators[1].probability = 50;
+      expect(() => generateVoiData(bad)).toThrow('Indicator chances sum to 90 percent, expected 100');
+    });
+
+    it('throws a DecisionTreeError, which the page toasts as its message', () => {
+      const bad = clone();
+      bad.outcomes[0].probability = 40;
+      let caught;
+      try { generateVoiData(bad); } catch (e) { caught = e; }
+      expect(caught).toBeDefined();
+      expect(caught.name).toBe('DecisionTreeError');
+      expect(caught.message).toMatch(/percent/);
+    });
   });
+
+  describe('withholds the value when indicator numbers contradict the stated chances (EC4-0)', () => {
+    // Positive Seismic posteriors [90, 10] are a distribution, but they imply
+    // P(success) = 0.4*0.9 + 0.6*0.1 = 42 percent against a stated 30.
+    const contradicting = clone();
+    contradicting.infoScenario.indicators[0].conditionalProbabilities[0].probability = 90;
+    contradicting.infoScenario.indicators[0].conditionalProbabilities[1].probability = 10;
+    const r = generateVoiData(contradicting);
+
+    it('flags the inputs inconsistent and marks the result withheld', () => {
+      expect(r.consistency.consistent).toBe(false);
+      expect(r.withheld).toBe(true);
+    });
+
+    it('keeps the two cards that depend only on the stated outcome chances', () => {
+      expect(r.kpis.emvWithoutInfo).toBe('15.00');
+      expect(r.kpis.evpi).toBe('63.00');
+    });
+
+    it('withholds EMV with information, VOI, net VOI and the tree, AND says so', () => {
+      // It survived AND it said so: null cards alone would leave a user
+      // staring at blanks, and a message alone would leave numbers on screen.
+      expect(r.kpis.emvWithInfo).toBeNull();
+      expect(r.kpis.voi).toBeNull();
+      expect(r.kpis.netVoi).toBeNull();
+      expect(r.tree).toBeNull();
+      expect(r.insights).toContain('Consistency warning');
+      expect(r.insights).toMatch(/is withheld/);
+      expect(r.insights).toContain('Success Case 42.0% vs stated 30%');
+      // No gross or net VOI figure is quoted in the text either.
+      expect(r.insights).not.toMatch(/Net VOI is/);
+      expect(r.insights).not.toMatch(/Value of Information \(VOI\) is/);
+    });
+  });
+
+  describe('the half percentage point consistency allowance', () => {
+    it('accepts a delta of exactly 0.005 (implied 30.5 against 30)', () => {
+      // 0.4*0.6125 + 0.6*0.1 = 0.305. Binary representation error used to
+      // push this just past 0.005 and flag it.
+      const edge = clone();
+      edge.infoScenario.indicators[0].conditionalProbabilities[0].probability = 61.25;
+      edge.infoScenario.indicators[0].conditionalProbabilities[1].probability = 38.75;
+      const r = generateVoiData(edge);
+      expect(r.consistency.consistent).toBe(true);
+      expect(r.withheld).toBe(false);
+      expect(r.kpis.voi).not.toBeNull();
+    });
+
+    it('withholds just past it (implied 30.6 against 30)', () => {
+      const past = clone();
+      past.infoScenario.indicators[0].conditionalProbabilities[0].probability = 61.5;
+      past.infoScenario.indicators[0].conditionalProbabilities[1].probability = 38.5;
+      const r = generateVoiData(past);
+      expect(r.consistency.consistent).toBe(false);
+      expect(r.withheld).toBe(true);
+    });
+  });
+
   // Economics E2: the panel used to be a "Chart removed" placeholder, so the
   // tree is new. It must not be a second, independent calculation: the
   // picture and the KPI card have to be the same analysis.
@@ -97,34 +190,6 @@ describe('generateVoiData (delegating to the canonical decision engine)', () => 
       const chances = signalNode.branches.map((b) => b.probability);
       expect(chances[0]).toBeCloseTo(0.4, 10);
       expect(chances[1]).toBeCloseTo(0.6, 10);
-    });
-
-    it('still draws when posteriors contradict the priors, and is not repaired', () => {
-      // Each indicator's outcome chances still sum to 100, so the tree is
-      // well formed; it simply implies different priors than the user stated.
-      // That is a warning, not a reason to withhold the picture, and the
-      // diagram must show the odds entered rather than the ones implied.
-      const contradicting = JSON.parse(JSON.stringify(DEFAULT_INPUTS));
-      contradicting.infoScenario.indicators[0].conditionalProbabilities[0].probability = 90;
-      contradicting.infoScenario.indicators[0].conditionalProbabilities[1].probability = 10;
-      const r = generateVoiData(contradicting);
-      expect(r.consistency.consistent).toBe(false);
-      expect(r.tree).toBeTruthy();
-      const chances = r.tree.branches[0].node.branches.map((b) => b.probability);
-      expect(chances[0]).toBeCloseTo(0.4, 10);
-      expect(r.tree.branches[0].branchValue).toBeCloseTo(Number(r.kpis.emvWithInfo), 8);
-    });
-
-    it('withholds the diagram when an indicator\'s outcome chances do not sum to 100', () => {
-      // 90 and 40 is not a probability distribution. No tree can be drawn
-      // from it, so none is: the KPIs still compute and the panel says why
-      // the picture is missing, rather than drawing a tree that is not the
-      // user's case.
-      const malformed = JSON.parse(JSON.stringify(DEFAULT_INPUTS));
-      malformed.infoScenario.indicators[0].conditionalProbabilities[0].probability = 90;
-      const r = generateVoiData(malformed);
-      expect(r.tree).toBeNull();
-      expect(Number(r.kpis.evpi)).toBeGreaterThan(0);
     });
   });
 });

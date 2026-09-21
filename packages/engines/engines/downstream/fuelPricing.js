@@ -36,6 +36,19 @@
 
 import { rackQueue } from './terminalDepot.js';
 
+/** The queue's refusals in forecourt words: the servers are nozzles. */
+export const FORECOURT_QUEUE_VOCABULARY = Object.freeze({
+  wholeServers: 'The number of nozzles must be a whole number, one or more.',
+  overload: 'The nozzles cannot keep up with peak-hour transactions. The forecourt queue grows without limit, so no average waiting time exists. Add a nozzle, shorten the transaction, or spread the peak.',
+});
+
+/** Own-property preset lookup. `TABLE[key]` walks the prototype chain, so
+ *  'constructor', 'toString', 'valueOf', 'hasOwnProperty' and '__proto__'
+ *  are "found" in every object literal and walk through a falsy guard. */
+const ownPreset = (table, key) => (typeof key === 'string' || typeof key === 'number') && Object.prototype.hasOwnProperty.call(table, key);
+const basisLabelOf = (key) => (ownPreset(BASIS_LABEL, key) ? BASIS_LABEL[key] : undefined);
+
+
 /**
  * Numeric coercion that treats ABSENCE as absent.
  *
@@ -182,7 +195,7 @@ export const landedCost = ({
 
   const missing = [];
   const lines = [{
-    key: 'fob', label: 'FOB cargo value', basis: BASIS_LABEL[fobBasis] || fobBasis,
+    key: 'fob', label: 'FOB cargo value', basis: basisLabelOf(fobBasis) || fobBasis,
     rate: num(fobPrice, null), amount: fob.amount, stage: 'fob',
   }];
 
@@ -192,17 +205,55 @@ export const landedCost = ({
   const bases = { fob: fob.amount, cf: fob.amount, cif: fob.amount };
   let running = fob.amount;
 
+  // MD3-0. A percentage charge can only bite on a base that exists when the
+  // walk reaches it. `bases` starts every base at FOB, so a freight-stage
+  // charge on C&F, or an insurance-stage charge on CIF, used to be computed
+  // on FOB without a word. The one that is legitimate, insurance quoted on
+  // CIF (the usual marine quote), is circular and is solved in closed form:
+  // CIF = (C&F + other insurance) / (1 - sum of the CIF rates). Any other
+  // forward reference is refused on its line.
+  const invalid = [];
+  const knownStages = new Set(['freight', 'insurance', 'landed']);
+  charges.filter((c) => !knownStages.has(c.stage || 'landed')).forEach((c) => {
+    invalid.push(`${c.label || c.id || 'unnamed charge'} has an unknown stage "${c.stage}"`);
+  });
+  const forward = (stage, basis) => (stage === 'freight' && (basis === CHARGE_BASIS.PERCENT_OF_CF || basis === CHARGE_BASIS.PERCENT_OF_CIF));
   const walk = (stage, freezeAs) => {
-    at(stage).forEach((c) => {
+    const onCif = stage === 'insurance' ? at(stage).filter((c) => c.basis === CHARGE_BASIS.PERCENT_OF_CIF) : [];
+    at(stage).filter((c) => !onCif.includes(c)).forEach((c) => {
+      if (forward(stage, c.basis)) {
+        invalid.push(`${c.label || c.id || 'unnamed charge'} is a percentage of a value that is not formed until after freight`);
+        lines.push({ key: c.id || c.label, label: c.label, basis: basisLabelOf(c.basis) || c.basis, rate: num(c.amount, null), amount: null, stage, required: true, note: c.note || null });
+        return;
+      }
       const r = chargeAmount(c, q, bases);
       if (r.missing) missing.push(c.label || c.id || 'unnamed charge');
       lines.push({
-        key: c.id || c.label, label: c.label, basis: BASIS_LABEL[c.basis] || c.basis,
+        key: c.id || c.label, label: c.label, basis: basisLabelOf(c.basis) || c.basis,
         rate: num(c.amount, null), amount: r.amount, stage,
         required: r.missing, note: c.note || null,
       });
       if (Number.isFinite(r.amount)) running += r.amount;
     });
+    if (onCif.length > 0) {
+      const rates = onCif.map((c) => num(c.amount));
+      onCif.filter((c, i) => !Number.isFinite(rates[i])).forEach((c) => missing.push(c.label || c.id || 'unnamed charge'));
+      const sumRate = rates.filter(Number.isFinite).reduce((s2, r) => s2 + r / 100, 0);
+      if (!(sumRate < 1)) {
+        invalid.push('The insurance rates on CIF add up to 100 percent or more');
+      } else {
+        const cifTotal = running / (1 - sumRate);
+        onCif.forEach((c, i) => {
+          const amount = Number.isFinite(rates[i]) ? (rates[i] / 100) * cifTotal : null;
+          lines.push({
+            key: c.id || c.label, label: c.label, basis: basisLabelOf(c.basis) || c.basis,
+            rate: Number.isFinite(rates[i]) ? rates[i] : null, amount, stage,
+            required: !Number.isFinite(rates[i]), note: c.note || null,
+          });
+          if (Number.isFinite(amount)) running += amount;
+        });
+      }
+    }
     if (freezeAs) bases[freezeAs] = running;
   };
 
@@ -211,8 +262,19 @@ export const landedCost = ({
   walk('insurance', 'cif');
   const cif = running;
   walk('landed');
+  if (invalid.length > 0) {
+    return { error: `${invalid.join('; ')}.`, complete: false, lines, invalidCharges: invalid };
+  }
 
+  // MD3-2: a BLANK ocean loss ('' or null) used to be zero loss with the
+  // build-up reported complete, which understates the cost per litre sold.
+  // It is a missing rate now, so the total is a FLOOR. Left out of the call
+  // entirely it still takes the signature's stated 0.
+  if (oceanLossPercent === '' || oceanLossPercent === null) missing.push('Ocean loss');
   const loss = num(oceanLossPercent, 0);
+  if (!(loss >= 0 && loss < 100)) {
+    return { error: 'The ocean loss must be at least 0 and under 100 percent.', complete: false, lines };
+  }
   const outturn = {
     litres: q.litres * (1 - loss / 100),
     m3: q.m3 * (1 - loss / 100),
@@ -248,7 +310,7 @@ export const landedCost = ({
     // Said plainly, because a floor read as a cost is how a cargo loses money.
     basisOfTotal: complete
       ? 'All supplied rates applied.'
-      : `A FLOOR, not a cost: ${missing.length} rate(s) not supplied.`,
+      : `A FLOOR: ${missing.length} rate(s) not supplied, so the full landed cost is at least this.`,
   };
 };
 
@@ -310,7 +372,7 @@ export const buildPumpPrice = ({ landedPerLitre, elements = [], capPerLitre = nu
     if (Number.isFinite(amount)) running += amount;
     lines.push({
       key: el.id || el.label, label: el.label,
-      basis: BASIS_LABEL[el.basis] || el.basis || 'per litre',
+      basis: basisLabelOf(el.basis) || el.basis || 'per litre',
       rate: Number.isFinite(a) ? a : null,
       amount: round(amount, 4), running: round(running, 4),
       required: !Number.isFinite(a), recipient: el.recipient || null, note: el.note || null,
@@ -337,7 +399,7 @@ export const buildPumpPrice = ({ landedPerLitre, elements = [], capPerLitre = nu
     capCoversChain: cap !== null ? cap >= price : null,
     basisOfPrice: complete
       ? 'All supplied rates applied.'
-      : `A FLOOR, not a price: ${missing.length} rate(s) not supplied.`,
+      : `A FLOOR: ${missing.length} rate(s) not supplied, so the full price is at least this.`,
   };
 };
 
@@ -432,13 +494,20 @@ export const truckingEconomics = ({
   const depreciationPerTrip = capex !== null && life !== null && life > 0 && tripsPerYear > 0
     ? capex / (life * tripsPerYear) : null;
 
-  const variableCost = num(maintenancePerKm, 0) * roundTripKm + num(tyresPerKm, 0) * roundTripKm;
+  // MD3-0: a cost box left BLANK ('' or null) used to be 0 with the lane
+  // reported complete. Left out of the call entirely it still defaults to 0,
+  // as the signature says; blank is a missing input and is named.
+  const blank = (v) => v === '' || v === null;
+  const perKm = blank(maintenancePerKm) || blank(tyresPerKm)
+    ? null
+    : num(maintenancePerKm, 0) * roundTripKm + num(tyresPerKm, 0) * roundTripKm;
+  const orMissing = (v) => (blank(v) ? null : num(v, 0));
   const components = [
     { label: 'Diesel', amount: fuelCost, required: fuelCost === null },
-    { label: 'Driver', amount: num(driverCostPerTrip, 0), required: false },
-    { label: 'Maintenance and tyres', amount: variableCost, required: false },
-    { label: 'Tolls and levies', amount: num(tollsAndLeviesPerTrip, 0), required: false },
-    { label: 'Overhead', amount: num(overheadPerTrip, 0), required: false },
+    { label: 'Driver', amount: orMissing(driverCostPerTrip), required: blank(driverCostPerTrip) },
+    { label: 'Maintenance and tyres', amount: perKm, required: perKm === null },
+    { label: 'Tolls and levies', amount: orMissing(tollsAndLeviesPerTrip), required: blank(tollsAndLeviesPerTrip) },
+    { label: 'Overhead', amount: orMissing(overheadPerTrip), required: blank(overheadPerTrip) },
     { label: 'Truck depreciation', amount: depreciationPerTrip, required: depreciationPerTrip === null },
   ];
   const missing = components.filter((c) => c.required).map((c) => c.label);
@@ -468,7 +537,7 @@ export const truckingEconomics = ({
     kgCo2ePerLitreDelivered: ef !== null && dieselLitres !== null && deliveredLitres > 0
       ? round((dieselLitres * ef) / deliveredLitres, 6) : null,
     carbonNote: ef === null
-      ? 'No diesel emission factor supplied, so the carbon figure is absent rather than zero.'
+      ? 'No diesel emission factor supplied, so the carbon figure is left blank.'
       : null,
     backhaulLoaded: !!backhaulLoaded,
   };
@@ -542,6 +611,7 @@ export const stationSizing = ({
 
   const queue = rackQueue({
     arrivalsPerHour: peakTxnPerHour, loadMinutes: serviceMinutes, bays,
+    vocabulary: FORECOURT_QUEUE_VOCABULARY,
   });
 
   const cap = num(tankCapacityLitres, null);
@@ -589,7 +659,7 @@ export const stationSizing = ({
 export const solveCrossing = ({ evaluate, lo, hi, tolerance = 1e-6, maxIterations = 200 }) => {
   const a = num(lo); const b = num(hi);
   if (!Number.isFinite(a) || !Number.isFinite(b) || a >= b) {
-    return { found: false, reason: 'The search bracket is not a valid interval.' };
+    return { found: false, reason: 'The search bracket must be a valid interval.' };
   }
   let fa = evaluate(a);
   let fb = evaluate(b);
@@ -681,7 +751,7 @@ export const PUMP_TEMPLATE = [
   { id: 'marketer', label: 'Marketer margin', basis: PRICE_ELEMENT_BASIS.PER_LITRE, amount: null, recipient: 'Marketer' },
   { id: 'dealer', label: 'Dealer margin', basis: PRICE_ELEMENT_BASIS.PER_LITRE, amount: null, recipient: 'Dealer' },
   { id: 'levies', label: 'Statutory levies at the pump', basis: PRICE_ELEMENT_BASIS.PER_LITRE, amount: null, recipient: 'Government' },
-  { id: 'vat', label: 'Value added tax', basis: PRICE_ELEMENT_BASIS.PERCENT_OF_RUNNING, amount: null, recipient: 'Government', note: 'Applies to some products and not others in some markets. Set to zero where the product is exempt, rather than deleting the line, so the exemption is visible.' },
+  { id: 'vat', label: 'Value added tax', basis: PRICE_ELEMENT_BASIS.PERCENT_OF_RUNNING, amount: null, recipient: 'Government', note: 'Applies to some products in some markets and is exempt on others. Where the product is exempt, set the line to zero and keep it, so the exemption is visible.' },
 ];
 
 /**

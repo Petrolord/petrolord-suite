@@ -24,11 +24,14 @@ const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
 
 const SERVER = 'supabase/functions/generate-quote/index.ts';
 const MIGRATION = 'supabase/migrations/20260830060000_module_pricing_single_source.sql';
+// Later migrations that MERGE a module into the seeded object (value || ...).
+const ADDITIONS = ['supabase/migrations/20260919230000_ps1_process_safety_module_pricing.sql'];
 
 describe('the shared table', () => {
   it('prices every module it names, positively', () => {
     const entries = Object.entries(MODULE_PRICING);
-    expect(entries.length).toBe(8);
+    // Nine since PS1 (2026-09-19): Process Safety joined with its first app.
+    expect(entries.length).toBe(9);
     entries.forEach(([id, price]) => {
       expect(typeof price).toBe('number');
       expect(price).toBeGreaterThan(0);
@@ -102,11 +105,25 @@ describe('the server', () => {
 });
 
 describe('the migration that seeds it', () => {
-  it('seeds exactly the shared table', () => {
+  it('seeds, with the later additions merged in, exactly the shared table', () => {
     const sql = read(MIGRATION);
     const json = sql.match(/'(\{"geoscience[^']*\})'/);
     expect(json).toBeTruthy();
-    expect(JSON.parse(json[1])).toEqual(MODULE_PRICING);
+    const merged = { ...JSON.parse(json[1]) };
+    ADDITIONS.forEach((rel) => {
+      const add = read(rel).match(/set value = value \|\| '(\{[^']*\})'::jsonb/);
+      expect(add).toBeTruthy();
+      Object.assign(merged, JSON.parse(add[1]));
+    });
+    expect(merged).toEqual(MODULE_PRICING);
+  });
+
+  it('adds a module by merging, so no other module price is overwritten', () => {
+    ADDITIONS.forEach((rel) => {
+      const sql = read(rel);
+      expect(sql).toMatch(/where key = 'module_pricing'/);
+      expect(sql).not.toMatch(/on conflict/i);
+    });
   });
 
   it('is idempotent, so re-running it is safe', () => {
@@ -118,14 +135,23 @@ describe('the commercial rule holds', () => {
   // A module costs about 3.3x its own per-app price: roughly three apps'
   // worth of money for ten to fourteen apps. These are the a la carte prices
   // on master_apps.price as at 2026-08-30.
+  // Process Safety (PS1): its tiles copy a Facilities row, so 699, and it has
+  // three apps planned (LOPA & SIL, Consequence, QRA).
   const APP_PRICE = {
     geoscience: 899, drilling: 899, reservoir: 899, facilities: 699,
     production: 699, economics: 599, 'midstream-downstream': 599, assurance: 499,
+    'process-safety': 699,
   };
   const APP_COUNT = {
     geoscience: 10, drilling: 12, reservoir: 13, facilities: 13,
     production: 12, economics: 12, 'midstream-downstream': 10, assurance: 14,
+    'process-safety': 3,
   };
+  // The 60-85 percent discount band describes a module of ten or more apps.
+  // A three-app module cannot sit in it and inside the 2.8x-4.0x rule at
+  // once, so for a small module the test is the rule's purpose: the bundle
+  // must still cost less than its apps bought one by one.
+  const SMALL_MODULE = 10;
 
   it('every module costs between three and four of its own apps', () => {
     Object.keys(MODULE_PRICING).forEach((id) => {
@@ -141,6 +167,7 @@ describe('the commercial rule holds', () => {
     Object.keys(MODULE_PRICING).forEach((id) => {
       const alaCarte = APP_PRICE[id] * APP_COUNT[id];
       expect(MODULE_PRICING[id]).toBeLessThan(alaCarte);
+      if (APP_COUNT[id] < SMALL_MODULE) return;
       const discount = 1 - MODULE_PRICING[id] / alaCarte;
       expect(discount).toBeGreaterThan(0.6);
       expect(discount).toBeLessThan(0.85);

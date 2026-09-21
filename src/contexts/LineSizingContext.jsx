@@ -17,7 +17,8 @@ import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import {
   liquidLineDrop, liquidLineTraverse, gasOutletPressure, gasLineTraverse,
-  multiphaseLine, erosionalStatus, sizeSweep, gasDensityLbFt3,
+  multiphaseLine, erosionalStatus, erosionalStatusAlongLine, gasErosionalAlongLine,
+  sizeSweep, gasDensityLbFt3,
   oilDensityLbFt3, requiredWallIn, maopPsig,
   lineVolumeBbl, sweptLiquidBbl, pigRun, piggingInterval,
   PIPE_SCHEDULE, ROUGHNESS_IN, roughnessOf, scheduleRow,
@@ -222,7 +223,10 @@ export const LineSizingProvider = ({ children }) => {
     let zNote = 'typed';
     if (inputs.gas.zMode === 'auto' && p1Psia > 14.7) {
       const z1 = gasDensityLbFt3({ pPsia: p1Psia, tF, gasSg: sg });
-      if (!z1.error) { zAvg = z1.z; zNote = 'DAK at inlet'; }
+      // A refused z is said out loud rather than quietly replaced by the
+      // typed one: the number on screen is then known to be the typed z.
+      if (z1.error) zNote = `typed, because DAK refused at these conditions (${z1.error})`;
+      else { zAvg = z1.z; zNote = z1.warning ? `DAK at inlet (${z1.warning})` : 'DAK at inlet'; }
     }
     return {
       qScfd: num(inputs.gas.qMMscfd) * 1e6,
@@ -271,14 +275,24 @@ export const LineSizingProvider = ({ children }) => {
       if (inputs.mode === 'gas') {
         const inv = gasOutletPressure({ ...gasArgs, idIn: bore.idIn });
         if (inv.error) return inv;
+        // The selected bore's erosional verdict, judged where the limit
+        // binds. The sweep table has computed one per row since #489;
+        // the card showed none at all, so a gas line that now fails the
+        // check looked exactly like one that passes.
+        const ero = gasErosionalAlongLine({
+          inputs: gasArgs, idIn: bore.idIn, p2Psia: inv.p2Psia, cFactor,
+        });
         return {
           mode: 'gas', ...inv, zAvg: gasArgs.zAvg, zNote: gasArgs.zNote,
           gradientPsiPerFt: inv.dpPsi / lengthFt,
+          ...(ero.error ? { erosionalError: ero.error } : ero),
         };
       }
       const r = multiphaseLine({ ...multiphaseArgs, idIn: bore.idIn });
       if (r.error) return r;
-      const ero = erosionalStatus({ vFtS: r.vm, rhoMixLbFt3: r.rhoMixLbFt3, cFactor });
+      // Judged where the limit binds along the marched line, not
+      // at the inlet, which is the slowest point of a gas-carrying line.
+      const ero = erosionalStatusAlongLine({ line: r, cFactor });
       return { mode: 'multiphase', ...r, ...ero };
     } catch (e) {
       console.error(e);
@@ -380,7 +394,10 @@ export const LineSizingProvider = ({ children }) => {
     const fromMp = inputs.pigging.holdupSource === 'multiphase';
     const mp = fromMp ? multiphaseLine({ ...multiphaseArgs, idIn: bore.idIn }) : null;
     if (fromMp && mp?.error) return { error: `holdup from the Multiphase tab failed: ${mp.error}` };
-    const holdupFrac = fromMp ? mp.holdup : num(inputs.pigging.holdupFrac);
+    // The liquid a pig pushes is the holdup ALONG the line, not the
+    // holdup at the inlet: marching the multiphase line makes the
+    // length-weighted value available, so the sweep estimate uses it.
+    const holdupFrac = fromMp ? (mp.avgHoldup ?? mp.holdup) : num(inputs.pigging.holdupFrac);
     const swept = sweptLiquidBbl({ idIn: bore.idIn, lengthFt, holdupFrac });
     if (swept.error) return swept;
     const run = pigRun({ lengthFt, pigSpeedFtS: num(inputs.pigging.pigSpeedFtS, 5) });
@@ -392,7 +409,9 @@ export const LineSizingProvider = ({ children }) => {
     });
     return {
       holdupFrac,
-      holdupNote: fromMp ? `Beggs & Brill holdup at the Multiphase tab's conditions (${mp.pattern})` : 'typed',
+      holdupNote: fromMp
+        ? `Beggs & Brill holdup averaged along the line at the Multiphase tab's conditions (${mp.pattern} at the inlet)`
+        : 'typed',
       lineVolumeBbl: lineVolumeBbl({ idIn: bore.idIn, lengthFt }),
       sweptBbl: swept.sweptBbl,
       runHours: run.runHours,

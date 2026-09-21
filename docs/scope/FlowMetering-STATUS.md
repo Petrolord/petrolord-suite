@@ -69,3 +69,53 @@ suite 2035 green.
 - Tile seed migration 20260829750000 HELD for the prod upload.
 - ARMED literature gate: AGA Report No. 3 / ISO 5167 worked examples
   and the published uncertainty tables (owner PDFs).
+
+## FC8-0 repair, 2026-09-16 (engines PRs #204 and #205)
+
+**THE BUDGET AND THE TRANSMITTER WERE TWO ROUTES THAT NEVER MET.**
+`transmitterUncertaintyPct` computed 0.15 percent from the reading and
+the span; `orificeUncertainty` used a TYPED 0.5 percent and could not
+accept a reading or a span at all. Both were displayed in adjacent cards
+on this screen. Worse, the budget put the discharge coefficient at 64.7
+percent of the variance while the engine header, the engine note and
+this studio's own body copy all said the differential transmitter
+dominates. The budget now takes the reading and the span and DERIVES its
+differential term, and the three claims are corrected: which term leads
+is a result and it depends on where the run sits in its span.
+
+**AND A DIFFERENTIAL TURNDOWN WAS JUDGED AGAINST A FLOW TURNDOWN RULE.**
+Flow goes as the square root of the differential, so the customary
+three-to-one FLOW rule is a NINE-to-one differential turndown. The
+warning fired about five times too early and the tile said "Turndown"
+with no qualifier above a paragraph repeating the flow rule.
+
+### What a user sees change, at this studio's own shipped defaults
+
+| screen | before | after |
+| --- | --- | --- |
+| Total uncertainty | 0.6217 % | **0.5741 %** |
+| Dominant term share | 64.69 % of variance | **75.85 %**, with a NEW runner-up tile (expansibility, 12.14 %) |
+| Differential term | 0.5 % typed | **0.150 %**, from the transmitter, with the derivation shown |
+| Turndown tile | "2.0 to 1" | **"Differential turndown 2.0 to 1"** and **"Flow turndown 1.41 to 1"** |
+| The plate a target flow needs | bore 3.6841 in, no warning | bore 3.6841 in **with the "beta above 0.6" warning the engine attached to it**, plus a stock-bore note |
+| Meter run, "Two elbows, different planes" | 75 diameters | **withheld**, with the reason |
+| Coefficient chart caption | "across the full beta range it spans about seven percent" | the measured span at THIS beta, plus the published Reynolds floor named as not carried |
+| Uncertainty budget inputs | a typed "Differential (%)" box | removed: it was a second answer to a question the transmitter answers |
+
+Mass flow (31,696 lb/hr), the discharge coefficient (0.602409), the
+permanent loss (73.87 in H2O), the sized bore and beta, and the
+single-elbow straight run (18 diameters) are unchanged.
+
+### Honest limits added
+
+The published lower Reynolds limit of the Reader-Harris/Gallagher
+correlation is named as NOT CARRIED, and it travels with every
+coefficient, because this studio's chart sweeps from 10^3.5 which is
+below it. The ISO 5167 / AGA 3 straight-run column for two elbows out of
+plane is WITHHELD: it returned 34, 50, 75, 65, 60, 80 diameters across
+its own breakpoints, falling by 15 as beta rose and then rising by 20,
+which no published table does. Nothing is answered above beta 0.75 now
+either: it used to fall through to the last row and return 44 diameters
+at beta 0.95. `turbineVolume` states that its volume is gross and that
+the API MPMS corrections are not carried, so it is not a custody
+transfer quantity.

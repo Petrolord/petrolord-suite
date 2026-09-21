@@ -75,11 +75,16 @@ function buildContext(input: Record<string, unknown>): string {
   return lines.join('\n').slice(0, MAX_CONTEXT_CHARS);
 }
 
-const wordBudget = (detail: string, maxPages: number) => {
+const wordBudget = (detail: string, maxPages: number, sectionCount: number) => {
   const perSection = detail === 'brief' ? 180 : detail === 'detailed' ? 600 : 320;
-  // A page is roughly 450 words of report prose; never exceed what the user
-  // asked the whole document to be.
-  const capped = Math.min(perSection, Math.round(((Number(maxPages) || 8) * 450) / 3));
+  // A page is roughly 450 words of report prose. EC6-1: the whole page
+  // budget is divided by the number of sections the user actually asked
+  // for. It used to be divided by a fixed 3, so "Max Pages 8" with twelve
+  // detailed sections came to 7,200 words, about sixteen pages: the control
+  // was not a cap on the document at all.
+  const pages = Number(maxPages) > 0 ? Number(maxPages) : 8;
+  const sections = Math.max(1, Number(sectionCount) || 1);
+  const capped = Math.min(perSection, Math.round((pages * 450) / sections));
   return Math.max(120, Math.min(MAX_WORDS_PER_SECTION, capped));
 };
 
@@ -124,7 +129,7 @@ Deno.serve(async (req) => {
     const context = buildContext(body?.input ?? {});
     const detail = String(body?.input?.detail_level ?? 'standard');
     const maxPages = Number(body?.input?.max_pages ?? 8);
-    const budget = wordBudget(detail, maxPages);
+    const budget = wordBudget(detail, maxPages, sections.length);
     const model = Deno.env.get('OPENAI_MODEL') ?? 'gpt-4o-mini';
 
     // Sections are written independently and in parallel. Each one gets the

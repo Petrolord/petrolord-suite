@@ -94,6 +94,44 @@ describe('portfolioSection', () => {
     expect(s.note).toContain('A');
     expect(s.note).toContain('D');
     expect(s.provenance).toContain('1 valued by linked EPE Monte Carlo runs');
+    expect(s.rows).toContainEqual(['Capital deployed', '$450.0M of $450.0M']);
+    expect(s.overLimit).toBe(false);
+  });
+
+  it('states the seeded Monte Carlo behind the loss chance, not a normal approximation', () => {
+    const s = portfolioSection(PORTFOLIO, PROJECTS);
+    expect(s.provenance).toContain('seed 20260829');
+    expect(s.provenance).toContain('10000 iterations');
+    expect(s.provenance).not.toMatch(/normal approximation/i);
+  });
+
+  // EC5 (engines #194): the exact solve cannot exceed the limit, so the case
+  // that used to overshoot by 2 now funds the best set that fits, and no
+  // brief claims otherwise. The exact figures still appear, because the
+  // rounded row alone would read "$6.00B of $6.00B" over real headroom.
+  it('funds the best fitting set on the case that used to overshoot (D3)', () => {
+    const s = portfolioSection(
+      { id: 'p3', name: 'Overshoot', capex_limit: 6000 },
+      [
+        { id: 'A', name: 'A', capex: 4000, npv_p50: 500 },
+        { id: 'B', name: 'B', capex: 2002, npv_p50: 300 },
+        { id: 'C', name: 'C', capex: 1995, npv_p50: 280 },
+      ],
+    );
+    expect(s.overLimit).toBe(false);
+    expect(s.rows).not.toContainEqual(['Over the capital limit by', '2 $MM']);
+    expect(s.note).not.toMatch(/Capital limit exceeded/);
+    expect(s.note).toMatch(/Capital deployed exactly: 5,995 \$MM of 6,000 \$MM\./);
+    expect(s.note).toContain('Funded: A, C.');
+    expect(s.provenance).toMatch(/Solved exactly on the capital figures/);
+    expect(s.provenance).not.toMatch(/grid resolution null/);
+  });
+
+  it('states a grid fallback in the provenance when one is used', () => {
+    // The brief reads the engine's own solveMethod, so a fallback says so
+    // rather than presenting a bounded answer as an exact one.
+    const s = portfolioSection(PORTFOLIO, PROJECTS);
+    expect(s.provenance).toMatch(/Solved exactly on the capital figures/);
   });
 });
 

@@ -45,7 +45,7 @@ const helpContent = [
     icon: DollarSign,
     title: 'The economics, and their tier',
     content:
-      'The Economics tab runs your cost items and a production profile through the Suite screening economics engine, post royalty and tax, discounted mid year. That means an NPV here means the same thing as one in the NPV Scenario Builder. Until August 2026 this calculation applied no fiscal terms at all: it was revenue minus operating cost on a card labelled NPV at 10 percent, which overstates project value by roughly forty percent on ordinary Nigerian terms. Full fiscal detail under the PIA and the Nigeria Tax Act belongs to Petroleum Economics Studio, and a plan heading for sanction should be valued there.',
+      'The Economics tab runs your own cost items, the selected concept\'s production profile and the selected scenario\'s oil price through the Suite screening economics engine, post royalty and tax, discounted mid year. That means an NPV here means the same thing as one in the NPV Scenario Builder. A plan that does not yet carry all three gets no NPV at all and a list of what is missing, because until September 2026 this tab ran an illustrative twenty year profile at 75 dollars a barrel whatever the plan said, and an empty plan with no cost items showed an NPV of 3.3 billion dollars in green. The tornado beside it is the engine\'s own sweep of the same case, plus and minus 30 percent on each driver; it used to be five fixed bars around a base case of 245 million dollars that belonged to no project. Until August 2026 the calculation applied no fiscal terms at all: it was revenue minus operating cost on a card labelled NPV at 10 percent, which overstates project value by roughly forty percent on ordinary Nigerian terms. Full fiscal detail under the PIA and the Nigeria Tax Act belongs to Petroleum Economics Studio, and a plan heading for sanction should be valued there.',
   },
   {
     id: 'sections',
@@ -62,11 +62,18 @@ const helpContent = [
       'The Documents tab compiles what you have entered into an FDP document and exports it. It reports what is present and what is missing rather than filling gaps, so a thin section comes out thin. The Plan status panel on the right lists what is still empty, checked against the plan itself.',
   },
   {
+    id: 'schedule',
+    icon: Layers,
+    title: 'The critical path',
+    content:
+      'Link each activity to the work that must finish before it starts, on the activity form, and the Schedule tab runs the critical path method over those links: a forward pass for the early dates, a backward pass for the late dates, float as the late start minus the early start, and critical at zero float. An activity with float can slip by that many days without moving the project end date; one on the critical path cannot slip at all. Two things worth knowing: the network duration is how long the work must take on its logic, which is a different number from the calendar span between the dates you typed, and a network where nothing depends on anything has every activity starting on day 0, so it is as long as its longest single activity. Before September 2026 this tab computed nothing and marked every activity critical.',
+  },
+  {
     id: 'limits',
     icon: AlertTriangle,
     title: 'Limits',
     content:
-      'There is no live connection to the other Suite apps yet, so data moves by hand. Economics is the screening tier described above. The tool models one plan at a time; comparing development options is the Scenarios tab, and comparing whole projects for funding belongs to Capital Portfolio Studio. Nothing here is a substitute for the specialist studies a real plan rests on.',
+      'There is no live connection to the other Suite apps yet, so data moves by hand. Economics is the screening tier described above. Facility costs are a class 5 screening estimate from type and nameplate, with no cost breakdown behind them. The studio holds no produced water forecast, no HSE incident record and no measurement against the project-type KPI templates, so none of those is reported as a number. The tool models one plan at a time; comparing development options is the Scenarios tab, and comparing whole projects for funding belongs to Capital Portfolio Studio. Nothing here is a substitute for the specialist studies a real plan rests on.',
   },
 ];
 

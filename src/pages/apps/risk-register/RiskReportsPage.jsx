@@ -2,15 +2,14 @@ import React, { useState } from 'react';
 import { useRiskReporting } from './contexts/RiskReportingContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PieChart, BarChart2, FileText, Download, Play, Edit, Trash2, Clock, Copy, Plus } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { PieChart, BarChart2, FileText, Play, Edit, Trash2, Copy, Plus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { reportConfigFromRow } from './utils/reportConfig';
 
 const RiskReportsPage = () => {
-  const { TEMPLATES, savedReports, reportHistory, openReportViewer, openReportBuilder, deleteReport, duplicateReport, loading } = useRiskReporting();
-  const { toast } = useToast();
+  const { TEMPLATES, savedReports, openReportViewer, openReportBuilder, deleteReport, duplicateReport } = useRiskReporting();
   
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [reportToDelete, setReportToDelete] = useState(null);
@@ -27,9 +26,9 @@ const RiskReportsPage = () => {
     setDeleteConfirmOpen(false);
   };
 
-  const handleMockAction = (action) => {
-    toast({ title: `${action} Initialized`, description: "Action recorded in audit log." });
-  };
+  // AS13: Schedule and Download Again toasted "Action recorded in audit
+  // log." and recorded nothing. There is no scheduler and no export
+  // archive, so neither control is offered.
 
   // Map icon strings to actual components
   const iconMap = {
@@ -53,7 +52,6 @@ const RiskReportsPage = () => {
         <TabsList className="bg-slate-900 border border-slate-800 p-1 mb-6">
           <TabsTrigger value="templates" className="data-[state=active]:bg-slate-800 data-[state=active]:text-cyan-400">Standard Templates</TabsTrigger>
           <TabsTrigger value="saved" className="data-[state=active]:bg-slate-800 data-[state=active]:text-cyan-400">My Saved Reports <Badge variant="secondary" className="ml-2 bg-slate-800 text-xs">{savedReports.length}</Badge></TabsTrigger>
-          <TabsTrigger value="history" className="data-[state=active]:bg-slate-800 data-[state=active]:text-cyan-400">Export History</TabsTrigger>
         </TabsList>
 
         <TabsContent value="templates" className="space-y-4 m-0">
@@ -108,10 +106,9 @@ const RiskReportsPage = () => {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <Button size="sm" variant="outline" className="h-8 border-cyan-900 text-cyan-400 hover:bg-cyan-900/30" onClick={() => openReportViewer(report.config)}>Open</Button>
-                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-slate-400" onClick={() => openReportBuilder(report.config)} title="Edit"><Edit className="w-4 h-4"/></Button>
+                        <Button size="sm" variant="outline" className="h-8 border-cyan-900 text-cyan-400 hover:bg-cyan-900/30" onClick={() => openReportViewer(reportConfigFromRow(report))}>Open</Button>
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-slate-400" onClick={() => openReportBuilder(reportConfigFromRow(report))} title="Edit"><Edit className="w-4 h-4"/></Button>
                         <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-slate-400" onClick={() => duplicateReport(report)} title="Duplicate"><Copy className="w-4 h-4"/></Button>
-                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-slate-400 hover:text-amber-400" onClick={() => handleMockAction('Schedule')} title="Schedule"><Clock className="w-4 h-4"/></Button>
                         <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-slate-400 hover:text-red-400" onClick={() => confirmDelete(report.id)} title="Delete"><Trash2 className="w-4 h-4"/></Button>
                       </div>
                     </div>
@@ -122,34 +119,6 @@ const RiskReportsPage = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="history" className="m-0">
-           <Card className="bg-slate-900 border-slate-800">
-            <CardContent className="p-0">
-              {reportHistory.length === 0 ? (
-                <div className="text-center py-16 text-slate-500">No export history found.</div>
-              ) : (
-                <div className="divide-y divide-slate-800">
-                  {reportHistory.map(hist => (
-                    <div key={hist.id} className="p-4 flex items-center justify-between hover:bg-slate-800/30">
-                      <div className="flex items-center gap-4">
-                        <div className="p-2 bg-slate-950 rounded border border-slate-800">
-                          <Download className="w-4 h-4 text-slate-400" />
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-slate-200">{hist.name}</h4>
-                          <p className="text-xs text-slate-500">{new Date(hist.date).toLocaleString()} • {hist.format}</p>
-                        </div>
-                      </div>
-                      <Button size="sm" variant="ghost" className="text-slate-400 hover:text-white" onClick={() => handleMockAction('Download Archive')}>
-                        Download Again
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
       {/* Delete Confirmation */}

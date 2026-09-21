@@ -7,6 +7,7 @@
 // adds nothing to it, so these numbers are testable without jsPDF.
 
 import { rollback } from '@/lib/decisionTree';
+import { firstMoveLabel, isIndifferentFirstMove } from '@/components/decisiontree/firstMoveLabel';
 import { optimizePortfolio } from '@/utils/portfolioOptimizer';
 
 const shortId = (id) => (id ? String(id).slice(0, 8) : 'n/a');
@@ -17,6 +18,13 @@ export const fmtMMUsd = (usd) => {
   const m = Number(usd) / 1e6;
   if (Math.abs(m) >= 1000) return `$${(m / 1000).toFixed(2)}B`;
   return `$${m.toFixed(1)}M`;
+};
+
+// EC4-7: a saved run with no P(NPV > 0) printed "NaN%". A missing or
+// non-finite fraction reads N/A.
+export const fmtPct = (fraction, digits = 1) => {
+  if (fraction == null || !Number.isFinite(Number(fraction))) return 'N/A';
+  return `${(Number(fraction) * 100).toFixed(digits)}%`;
 };
 
 export const fmtMM = (mm) => {
@@ -36,7 +44,7 @@ export function economicsSection(mcRun) {
       ['NPV P50', fmtMMUsd(r.npv.p50)],
       ['NPV P10 (high)', fmtMMUsd(r.npv.p10)],
       ['NPV mean', fmtMMUsd(r.npv.mean)],
-      ['Chance NPV is positive', `${(r.probNpvPositive * 100).toFixed(1)}%`],
+      ['Chance NPV is positive', fmtPct(r.probNpvPositive)],
       ['Deterministic base NPV', fmtMMUsd(r.base?.npv)],
     ],
     note: r.tornado?.length
@@ -69,11 +77,16 @@ export function decisionSection(treeProject) {
   const nextBest = alternatives.length ? Math.max(...alternatives.map((b) => b.branchValue)) : null;
   const rows = [
     ['Optimal EMV', fmtMM(annotated.emv)],
-    ['Recommended first move', best ? best.label : 'Single path'],
+    ['Recommended first move', firstMoveLabel(annotated)],
   ];
   if (nextBest != null) {
     rows.push(['Next best alternative', fmtMM(nextBest)]);
-    rows.push(['Decision advantage', fmtMM(annotated.emv - nextBest)]);
+    // EC4-1 (engines #192): a brief that prints a decision advantage of 0.00
+    // under a named recommendation is telling the reader to pick one of two
+    // options its own numbers cannot separate.
+    rows.push(['Decision advantage', isIndifferentFirstMove(annotated)
+      ? 'Indifferent at the precision shown'
+      : fmtMM(annotated.emv - nextBest)]);
   }
   return {
     heading: 'Decision analysis',
@@ -85,23 +98,43 @@ export function decisionSection(treeProject) {
 
 // Portfolio section: re-optimizes the chosen portfolio from its saved
 // CAPEX limit and the current project inventory at build time.
+// EC5 (engines #194): the knapsack is solved exactly on the capital figures,
+// so the funded set cannot exceed the limit and there is no grid resolution
+// to report. A portfolio too large for the exact solver falls back to a grid
+// that rounds every candidate UP, which also keeps the set inside the limit,
+// and the provenance then carries that resolution and the optimality gap.
+// The loss probability is the engine's seeded Monte Carlo, and the provenance
+// carries its seed and iteration count.
+const fmtMMExact = (mm) => Number(mm).toLocaleString('en-US', { maximumFractionDigits: 2 });
+
+/** How the knapsack was solved, for the provenance line. */
+const solveNote = (result) => (result.solveMethod === 'grid-feasible'
+  ? `Solved on a capital grid of resolution ${fmtMMExact(result.resolution)} $MM (the portfolio is too large to solve exactly); at most ${fmtMMExact(result.optimalityGap)} $MM of risked EMV could have been left on the table.`
+  : 'Solved exactly on the capital figures, so the funded set is the best that fits inside the limit.');
+
 export function portfolioSection(portfolio, projects) {
   if (!portfolio || !projects?.length) return null;
   const result = optimizePortfolio({ projects, capexLimit: portfolio.capex_limit });
   const linked = result.optimalProjects.filter((p) => p.source_type === 'epe_mc').length;
+  const capitalRows = [['Capital deployed', `${fmtMM(result.totalCapex)} of ${fmtMM(portfolio.capex_limit)}`]];
+  const funded = result.optimalProjects.length
+    ? `Funded: ${result.optimalProjects.map((p) => p.name).join(', ')}.`
+    : 'No project clears the risked-EMV bar under this limit.';
+  // Exact $MM beside the rounded row, because "$6.00B of $6.00B" can hide
+  // real headroom (the D3 case funds 5,995 against a limit of 6,000).
+  const exactCapital = ` Capital deployed exactly: ${fmtMMExact(result.totalCapex)} $MM of ${fmtMMExact(result.capexLimit)} $MM.`;
   return {
     heading: 'Capital allocation',
     rows: [
       ['Risked portfolio EMV', fmtMM(result.totalEmv)],
       ['Success-case NPV', fmtMM(result.totalNpvSuccess)],
-      ['Capital deployed', `${fmtMM(result.totalCapex)} of ${fmtMM(portfolio.capex_limit)}`],
+      ...capitalRows,
       ['Projects funded', `${result.optimalProjects.length} of ${projects.length}`],
       ['Chance the portfolio loses money', `${(result.risk.probLoss * 100).toFixed(1)}%`],
     ],
-    note: result.optimalProjects.length
-      ? `Funded: ${result.optimalProjects.map((p) => p.name).join(', ')}.`
-      : 'No project clears the risked-EMV bar under this limit.',
-    provenance: `Source: portfolio "${portfolio.name}" ${shortId(portfolio.id)}, optimized at brief time over ${projects.length} projects (${linked} valued by linked EPE Monte Carlo runs, the rest entered manually). Risk assumes independent projects, normal approximation. Values in $MM.`,
+    overLimit: result.overLimit,
+    note: `${funded}${exactCapital}`,
+    provenance: `Source: portfolio "${portfolio.name}" ${shortId(portfolio.id)}, optimized at brief time over ${projects.length} projects (${linked} valued by linked EPE Monte Carlo runs, the rest entered manually). ${solveNote(result)} Risk assumes independent projects; loss chance by seeded Monte Carlo, seed ${result.risk.seed}, ${result.risk.iterations} iterations. Values in $MM.`,
   };
 }
 
@@ -121,6 +154,6 @@ export function buildBriefModel({ title, recommendation, preparedBy, mcRun, tree
     preparedBy: preparedBy || '',
     generatedAt: new Date().toISOString(),
     sections,
-    footer: 'Prepared with Petrolord Decision Studio. Every figure above carries its source and assumptions; screening-grade analyses are labeled as such in their provenance lines.',
+    footer: 'Prepared with Petrolord Decision Studio. Every figure above carries its source and assumptions in the provenance line beneath its section.',
   };
 }

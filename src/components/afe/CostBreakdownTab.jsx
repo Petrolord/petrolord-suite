@@ -10,6 +10,44 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import * as XLSX from 'xlsx';
+import { AfeInputError, calculateMetrics, itemForecastCheck } from '@/utils/costControlCalculations';
+
+/**
+ * EC5-8 (engines #185). The engine refuses progress below 0 or above 100
+ * percent. The form asks the engine rather than restating the rule, so the
+ * message the user sees is the engine's own. Returns null when accepted.
+ */
+export const progressRefusal = (item) => {
+  try {
+    calculateMetrics({}, [item], [], '2026-01-01');
+    return null;
+  } catch (err) {
+    if (err instanceof AfeInputError || err?.name === 'AfeInputError') return err.message;
+    throw err;
+  }
+};
+
+const formItem = (formData) => ({
+  code: formData.code || formData.wbs_code || undefined,
+  description: formData.description || undefined,
+  budget: formData.budget,
+  progress: formData.progress,
+});
+
+// EC5-0 (owner decision 2026-09-14). The edit form used to seed the forecast
+// with the budget, so saving any edit froze the estimate at completion at the
+// budget even on a line already overrunning. The forecast field now holds only
+// a forecast someone entered; blank means the standard rule (itemForecast).
+export const costItemFormValues = (item) => ({
+  code: item.code,
+  category: item.category || 'General',
+  description: item.description,
+  budget: item.budget,
+  forecast: Number(item.forecast) > 0 ? item.forecast : '',
+  wbs_code: item.wbs_code || '',
+  vendor: item.vendor || '',
+  progress: item.progress || 0
+});
 
 const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
   const { toast } = useToast();
@@ -23,7 +61,7 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
     category: 'Drilling',
     description: '',
     budget: 0,
-    forecast: 0,
+    forecast: '',
     wbs_code: '',
     vendor: '',
     progress: 0
@@ -32,16 +70,7 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
   const handleOpenDialog = (item = null) => {
     if (item) {
       setEditingItem(item);
-      setFormData({
-        code: item.code,
-        category: item.category || 'General',
-        description: item.description,
-        budget: item.budget,
-        forecast: item.forecast || item.budget,
-        wbs_code: item.wbs_code || '',
-        vendor: item.vendor || '',
-        progress: item.progress || 0
-      });
+      setFormData(costItemFormValues(item));
     } else {
       setEditingItem(null);
       setFormData({
@@ -49,7 +78,7 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
         category: 'Drilling',
         description: '',
         budget: 0,
-        forecast: 0,
+        forecast: '',
         wbs_code: '',
         vendor: '',
         progress: 0
@@ -60,7 +89,24 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const payload = { ...formData, afe_id: afeId };
+    const progress = Number(formData.progress) || 0;
+    const refusal = progressRefusal({ ...formItem(formData), progress });
+    if (refusal) {
+      toast({
+        variant: 'destructive',
+        title: progress < 0 ? 'Progress cannot be negative' : 'Progress cannot exceed 100 percent',
+        description: refusal,
+      });
+      return;
+    }
+    const forecast = Number(formData.forecast);
+    const payload = {
+      ...formData,
+      progress,
+      // Only an entered forecast above zero is stored; 0 means the standard rule.
+      forecast: forecast > 0 ? forecast : 0,
+      afe_id: afeId,
+    };
     
     let error;
     if (editingItem) {
@@ -98,6 +144,10 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
   };
 
   const currencyFormatter = (value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value || 0);
+
+  // The progress field is capped at 100 (and floored at 0): a value outside
+  // that range shows the engine's refusal under the field and Save is off.
+  const progressError = Number.isFinite(formData.progress) ? progressRefusal(formItem(formData)) : null;
 
   // Filter and Group
   const filteredItems = activeCategory === 'All' ? costItems : costItems.filter(i => i.category === activeCategory);
@@ -146,8 +196,13 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
           </TableHeader>
           <TableBody>
             {filteredItems.map(item => {
-                const forecast = Number(item.forecast) || Number(item.budget);
-                const variance = Number(item.budget) - forecast;
+                // The one EAC rule (engine itemForecastCheck), and variance is
+                // budget less it. EC5-1 (engines #194): the check also says
+                // whether the entered forecast sits below the money already
+                // spent and committed, and whether a negative one was ignored.
+                const check = itemForecastCheck(item);
+                const forecast = check.forecast;
+                const variance = (Number(item.budget) || 0) - forecast;
                 const progress = Number(item.progress) || 0;
                 
                 return (
@@ -160,7 +215,19 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
                     <TableCell className="text-slate-400 text-sm">{item.vendor || '-'}</TableCell>
                     <TableCell className="text-right text-blue-400 font-mono">{currencyFormatter(item.budget)}</TableCell>
                     <TableCell className="text-right text-slate-300 font-mono">{currencyFormatter(item.actual)}</TableCell>
-                    <TableCell className="text-right text-amber-400 font-mono">{currencyFormatter(forecast)}</TableCell>
+                    <TableCell className="text-right text-amber-400 font-mono">
+                      {currencyFormatter(forecast)}
+                      {check.forecastBelowCommitted && (
+                        <span className="block text-[10px] font-sans text-amber-300" data-testid={`below-committed-${item.id}`}>
+                          {currencyFormatter(check.forecastBelowCommittedBy)} below spent and committed
+                        </span>
+                      )}
+                      {check.forecastIgnored === 'negative' && (
+                        <span className="block text-[10px] font-sans text-red-300" data-testid={`forecast-ignored-${item.id}`}>
+                          negative forecast ignored, standard rule used
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className={`text-right font-mono font-bold ${variance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                       {currencyFormatter(variance)}
                     </TableCell>
@@ -226,11 +293,12 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
               </div>
               <div>
                 <Label>Forecast (EAC)</Label>
-                <Input type="number" value={formData.forecast} onChange={e => setFormData({...formData, forecast: parseFloat(e.target.value)})} className="bg-slate-800 border-slate-700" />
+                <Input type="number" min="0" value={formData.forecast} placeholder="Blank uses the standard rule" onChange={e => setFormData({...formData, forecast: e.target.value})} className="bg-slate-800 border-slate-700" />
               </div>
               <div>
                 <Label>% Progress</Label>
-                <Input type="number" max="100" value={formData.progress} onChange={e => setFormData({...formData, progress: parseFloat(e.target.value)})} className="bg-slate-800 border-slate-700" />
+                <Input type="number" min="0" max="100" value={Number.isNaN(formData.progress) ? '' : formData.progress} onChange={e => setFormData({...formData, progress: parseFloat(e.target.value)})} className="bg-slate-800 border-slate-700" />
+                {progressError && <p role="alert" className="mt-1 text-xs text-red-300">{progressError}</p>}
               </div>
             </div>
             <div>
@@ -238,7 +306,7 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
                 <Input value={formData.vendor} onChange={e => setFormData({...formData, vendor: e.target.value})} className="bg-slate-800 border-slate-700" />
             </div>
             <DialogFooter>
-              <Button type="submit" className="bg-blue-600"><Save className="w-4 h-4 mr-2" /> Save Item</Button>
+              <Button type="submit" className="bg-blue-600" disabled={Boolean(progressError)}><Save className="w-4 h-4 mr-2" /> Save Item</Button>
             </DialogFooter>
           </form>
         </DialogContent>

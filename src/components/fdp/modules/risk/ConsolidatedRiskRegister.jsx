@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Filter, Edit2, Trash2, ExternalLink } from 'lucide-react';
-import { getRiskLevel } from '@/data/fdp/RiskManagementModel';
+import { getRiskLevel, riskScore } from '@/data/fdp/RiskManagementModel';
 
 const ConsolidatedRiskRegister = ({ risks, onEdit, onDelete }) => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -72,8 +72,13 @@ const ConsolidatedRiskRegister = ({ risks, onEdit, onDelete }) => {
                                     </TableRow>
                                 ) : (
                                     filteredRisks.map((risk) => {
-                                        const score = risk.probability * risk.impact;
-                                        const { level, color, text } = getRiskLevel(score);
+                                        // EC6-1: an unscored risk shows as unscored. This
+                                        // multiplied without coercion, so a risk missing a
+                                        // factor printed NaN and banded as Low.
+                                        const score = riskScore(risk);
+                                        const { level, text } = score === null
+                                            ? { level: 'Unscored', text: 'text-slate-400' }
+                                            : getRiskLevel(score);
 
                                         return (
                                             <TableRow key={risk.id} className="border-slate-800 hover:bg-slate-800/30">
@@ -88,12 +93,15 @@ const ConsolidatedRiskRegister = ({ risks, onEdit, onDelete }) => {
                                                 <TableCell className="text-slate-400">{risk.category}</TableCell>
                                                 <TableCell className="text-center">
                                                     <div className="flex flex-col items-center justify-center">
-                                                        <span className={`text-sm font-bold ${text}`}>{score}</span>
+                                                        <span className={`text-sm font-bold ${text}`}>{score === null ? 'n/a' : score}</span>
                                                         <span className="text-[10px] text-slate-500 uppercase">{level}</span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="text-slate-400 text-sm max-w-[250px] truncate" title={risk.mitigationStrategy}>
-                                                    {risk.mitigationStrategy || '-'}
+                                                <TableCell className="text-slate-400 text-sm max-w-[250px] truncate" title={risk.mitigationStrategy || risk.mitigation}>
+                                                    {/* EC6-1: the form saves `mitigation` and this read
+                                                        `mitigationStrategy`, so every mitigation typed
+                                                        into the app showed as "-". */}
+                                                    {risk.mitigationStrategy || risk.mitigation || '-'}
                                                 </TableCell>
                                                 <TableCell>
                                                     <span className={`px-2 py-1 rounded-full text-xs border ${

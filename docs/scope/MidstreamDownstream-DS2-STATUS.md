@@ -115,6 +115,34 @@ guide, and in the engine source.
   run; probe shows RLS enabled with one owner policy.
 - `20260829890000` (tile to Active) **HELD** for the DS2 upload.
 
+## MD1-0 validation and repairs (2026-09-19)
+
+Before the NextGen course MD1, the engine and the LP kernel went behind an
+exact oracle (rational vertex enumeration) for the first time (engines
+#215, vendored at 3709448; findings in
+`packages/engines/tools/validation/downstream/FINDINGS-crude.md`).
+
+- **At defaults, the shadow prices on this page were not prices.** The
+  panel promises "what one unit of relief would save" and showed the spec
+  row's dual: Sulfur $0.072 and RVP $0.267 at the default pool, where
+  re-solving gives **$55.01 per ppm** and **$578.91 per psi**, with the sign
+  reversed under a `Math.abs`. The engine now prices relief per unit of the
+  property, and the page shows the unit.
+- **A Max of 0 was an unlimited supply**; now it is none, and a blank Max
+  is no limit.
+- **A blank cost was free** (the recipe fell from $86,123 to $60,317 by
+  filling that tank); it is refused, naming the component.
+- **A blank gravity was an invented 0.8** in this context, and a stream
+  with no density was blended on mass as water in the engine. Now the mass
+  specification is reported as not applied, with the reason.
+- **The LP kernel** could return points breaking their own constraints as
+  optimal (284 in a 100k fuzz; none found in 20k blend-shaped problems) and
+  priced a floor-shifted row with the wrong sign. Both repaired.
+- Tests: new page tests pin $55.01 and $578.91, the refused blank cost, and
+  the $87.88/bbl optimum with butane at 0. Against main's page code the
+  first two fail; the butane test passes there because that repair is in
+  the engine, whose own gate goes red on main's engine.
+
 ## Next
 
 DS3, the Refinery Planning & Scheduling Studio: the same LP kernel at

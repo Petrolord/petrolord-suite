@@ -16,7 +16,7 @@ const helpContent = [
     icon: Layers,
     title: 'Shell courses, and why the water test matters',
     content:
-      'The one-foot method sizes each course for the head one foot above its own bottom, which is why courses thin as they go up until the minimum plate thickness takes over. The part people forget is that the tank is hydrostatically tested with water, and water is heavier than most products. On a light product the test case governs the shell, and designing for the product alone would under-thickness it. This studio computes both cases for every course and names which one governs.',
+      'The one-foot method sizes each course for the head one foot above its own bottom, which is why courses thin as they go up until the minimum plate thickness takes over. That minimum is an input you can see and set, because API 650 bands it by tank diameter and this package does not carry the band table. The part people forget is that the tank is hydrostatically tested with water, and water is heavier than most products. On a light product the test case governs the shell, and designing for the product alone would under-thickness it. This studio computes both cases for every course and names which one governs.',
   },
   {
     id: 'venting',
@@ -30,14 +30,14 @@ const helpContent = [
     icon: Flame,
     title: 'The fire case',
     content:
-      'A tank engulfed in a pool fire boils its contents, and the vapour has to go somewhere. The emergency requirement is normally an order of magnitude above the normal venting rate, which is why an emergency vent or a frangible roof-to-shell seam exists at all. Only the wetted shell below thirty feet counts, because that is the basis the standard is written on.',
+      'A tank engulfed in a pool fire boils its contents, and the vapour has to go somewhere. The duty is normally far above the normal venting duty, which is why an emergency vent or a frangible roof-to-shell seam exists at all. Only the wetted shell below thirty feet counts, because that is the basis the standard is written on. This studio gives you the heat input and WITHHOLDS the required vent capacity: turning a duty into scfh of air equivalent needs the API 2000 air-equivalence relation, this package does not carry it, and the two plausible forms of it differ by a factor of about twenty four. An emergency vent sized twenty four times too small is how a tank is destroyed, so no figure is offered. Size the vent from the standard against the heat input here, or from the vent manufacturer\'s certified capacity curve.',
   },
   {
     id: 'losses',
     icon: Droplets,
     title: 'Losses are money and emissions at once',
     content:
-      'Standing loss is the tank breathing daily whether or not anyone uses it, driven by the vapour space, the true vapour pressure and the temperature swing. Working loss is the vapour pushed out each time the tank is filled. The same arithmetic answers the money question and the emissions one, and control equipment is quantified by the efficiency you give it: an internal floating roof customarily saves sixty to ninety percent and a vapour recovery unit ninety to ninety-eight. Those are equipment and operating figures, so they are typed here rather than assumed.',
+      'Standing loss is the tank breathing daily whether or not anyone uses it, driven by the vapour space, the true vapour pressure and the temperature swing. The vapour space is the shell above the design liquid level rather than a separate number you type, so the geometry and the losses cannot contradict each other. Working loss is the vapour pushed out each time the tank is filled. The same arithmetic answers the money question and the emissions one, and control equipment is quantified by the efficiency you give it: an internal floating roof customarily saves sixty to ninety percent and a vapour recovery unit ninety to ninety-eight. Those are equipment and operating figures, so they are typed here rather than assumed.',
   },
   {
     id: 'limits',

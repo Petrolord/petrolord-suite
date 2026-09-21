@@ -73,6 +73,43 @@ export const WarnNote = ({ children }) => (
   </div>
 );
 
+/**
+ * What the studio does NOT provide, and which of its numbers are not
+ * sourced. Both lists come straight from the engine, so they cannot
+ * drift away from what the engine actually holds back.
+ */
+export const HeldNote = ({ notProvided = [], limits = [] }) => {
+  if (!notProvided.length && !limits.length) return null;
+  return (
+    <div className="rounded-md border border-slate-700 bg-slate-900/40 px-3 py-2 space-y-2">
+      {notProvided.length > 0 && (
+        <div>
+          <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">
+            What this studio does not provide
+          </p>
+          <ul className="mt-1 space-y-0.5">
+            {notProvided.map((n) => (
+              <li key={n} className="text-[11px] text-slate-400">{n}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {limits.length > 0 && (
+        <details>
+          <summary className="text-[10px] uppercase tracking-widest text-slate-500 font-bold cursor-pointer">
+            Numbers in this model that are not sourced ({limits.length})
+          </summary>
+          <ul className="mt-1 space-y-0.5">
+            {limits.map((l) => (
+              <li key={l.slice(0, 40)} className="text-[11px] text-slate-500">{l}</li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  );
+};
+
 export const CATEGORY_ACCENT = {
   negligible: 'text-emerald-400',
   low: 'text-emerald-400',
