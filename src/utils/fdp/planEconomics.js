@@ -177,11 +177,16 @@ export const computePlanEconomics = (state) => {
  * Why there is no single rate of return, in one clause (EC6-8 makes this the
  * ordinary case: the final year pays the abandonment, so the cash flow
  * changes sign twice and more than one rate zeroes the NPV).
+ *
+ * Each root prints to four decimals. The FDP course grades the lower root of
+ * the UKOT Board case "to four decimals in percent" (tol 0.01), and one decimal
+ * (-43.2%) sat 0.0259 from the graded -43.2259, so the only printed value
+ * failed the capstone (B5 graded-field audit).
  */
 export const irrReason = (metrics) => {
   if (Number.isFinite(metrics?.irr)) return null;
   const roots = Array.isArray(metrics?.irrRoots)
-    ? metrics.irrRoots.filter(Number.isFinite).map((r) => `${r.toFixed(1)}%`)
+    ? metrics.irrRoots.filter(Number.isFinite).map((r) => `${r.toFixed(4)}%`)
     : [];
   switch (metrics?.irrStatus) {
   case 'multiple-roots':

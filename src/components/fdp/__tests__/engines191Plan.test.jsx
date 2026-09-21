@@ -118,7 +118,14 @@ describe('the end-of-life cost', () => {
     // The helper itself, on each status.
     expect(irrReason({ irr: 12, irrStatus: 'ok' })).toBeNull();
     expect(irrReason({ irr: null, irrStatus: 'multiple-roots', irrRoots: [-20.4, 24.6] }))
-      .toBe('no single rate of return: the NPV is zero at -20.4% and 24.6%, because the final year pays the end-of-life cost');
+      .toBe('no single rate of return: the NPV is zero at -20.4000% and 24.6000%, because the final year pays the end-of-life cost');
+    // B5: the FDP Associate capstone grades the lower root to four decimals at
+    // tol 0.01. One decimal printed -43.2%, 0.0259 away, so the card could not
+    // be copied into a passing answer. Four decimals is 2.8e-5 away.
+    const ukot = irrReason({ irr: null, irrStatus: 'multiple-roots', irrRoots: [-43.22592817326132, 18.5] });
+    expect(ukot).toContain('-43.2259%');
+    const printed = Number(/(-?\d+\.\d+)%/.exec(ukot)[1]);
+    expect(Math.abs(printed - -43.22592817326132)).toBeLessThanOrEqual(0.01);
     expect(irrReason({ irr: null, irrStatus: 'no-sign-change' }))
       .toBe('no rate of return: the cash flow never changes sign');
   });
