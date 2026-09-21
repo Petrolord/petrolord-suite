@@ -88,7 +88,7 @@ describe('the page', () => {
     expect(await screen.findByText('No abatement reported')).toBeInTheDocument();
     // Said in the rail beside the counterfactual fields and again on the
     // result that refused.
-    expect(screen.getAllByText(/gross emission is not the abatement/i)).toHaveLength(2);
+    expect(screen.getAllByText(/gross emission is the starting point, and the abatement depends on what the recovered product displaces/i)).toHaveLength(2);
   });
 
   it('still shows the flare its own footprint, which is a different question', async () => {

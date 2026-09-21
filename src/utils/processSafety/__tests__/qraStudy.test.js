@@ -250,7 +250,12 @@ describe('blank stays absent, and refusals reach the page by field', () => {
     const study = defaultStudy();
     study.locations[0].occupancyHoursPerYr = '8000';
     study.locations[1].occupancyHoursPerYr = '1000';
-    expect(evaluateStudy(study).individual.irpa.field).toBe('locations');
+    const irpa = evaluateStudy(study).individual.irpa;
+    expect(irpa.field).toBe('locations');
+    // engines #232: the studio types hours, so the refusal names hours (it
+    // used to talk about occupancy fractions nobody entered).
+    expect(irpa.error).toMatch(/hoursPerYr values sum to 9000 hours, more than the 8760 hours in a year/);
+    expect(irpa.error).not.toMatch(/occupancy fractions/);
   });
 
   it('refuses a fractional life and a DF below 1 in the cost-benefit test', () => {

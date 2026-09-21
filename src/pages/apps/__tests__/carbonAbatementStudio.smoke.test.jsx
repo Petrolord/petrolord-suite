@@ -104,7 +104,7 @@ describe('the page', () => {
 
   it('says it is not a compliance register', async () => {
     mount();
-    expect(await screen.findByText(/not a regulatory compliance register/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Obligations, evidence and deadlines belong in the compliance register/i)).toBeInTheDocument();
   });
 
   it('ranks the abatement curve cheapest first', async () => {
@@ -209,7 +209,7 @@ describe('the page', () => {
     expect(await screen.findByText('Against the target')).toBeInTheDocument();
     // Named both in the path note and in the shortfall line beneath it.
     expect(screen.getAllByText(/no measure identified/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/not drawn as a wedge/i)).toBeInTheDocument();
+    expect(screen.getByText(/A wedge is drawn only for an identified measure/i)).toBeInTheDocument();
   });
 
   it('brings each measure in only from its start year', async () => {

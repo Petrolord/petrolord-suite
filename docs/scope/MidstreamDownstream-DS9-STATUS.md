@@ -95,7 +95,7 @@ set.
 - **Measures that pay for themselves sit on the left** with a negative
   cost per tonne. They abate carbon as a side effect of saving money,
   and they are usually the ones nobody has done.
-- **Measures acting on the same source are flagged as NOT additive.**
+- **Measures acting on the same source are flagged as overlapping: their abatements do not add.**
   Insulating a line and then shutting it down do not abate twice, and
   the usual spreadsheet adds them anyway. The cumulative curve is
   labelled an **upper bound** where overlaps exist, and claims that
@@ -111,8 +111,8 @@ what the **identified** measures deliver. Where that falls short, the
 difference is reported as **unabated with no measure identified**, and
 the first year of shortfall is named.
 
-It is deliberately not drawn as a wedge labelled "further measures". A
-wedge with nothing behind it is not a plan, and treating it as one is
+A wedge is drawn only for an identified measure, because a plan needs a
+named measure behind every wedge; a wedge labelled "further measures" is
 how decarbonisation roadmaps stop meaning anything.
 
 ## Verification

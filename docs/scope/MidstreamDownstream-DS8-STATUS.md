@@ -128,8 +128,8 @@ The engine's own comment claimed that subtracting the efficiency
 percentages **overstates** the fuel saving. It **understates** it.
 
 Fuel is duty over efficiency, so the saving is
-`(e_target − e_current) / e_target`. The shortcut divides that same gap
-by a hundred instead of by the target efficiency, and since the target
+`(e_target − e_current) / e_target`: the divisor is the target
+efficiency. The shortcut divides that same gap by a hundred, and since the target
 is below a hundred the shortcut comes out **smaller**. It is the safer
 of the two errors and it is still an error: it is how a tuning project
 gets turned down on a business case that was never right.

@@ -196,6 +196,18 @@ describe('proof test interval', () => {
     expect(longestInterval(t, valve.id, 1e-3).state).toBe('INTERVAL_INDEPENDENT');
   });
 
+  it('refuses, with the field, a subsystem whose interval independent floor reaches a PFDavg of 1', () => {
+    // engines #232, golden maxT-refused-floor: the search used to report this
+    // as UNACHIEVABLE; it now refuses as pfdAvgSubsystem does, so the panel
+    // shows the engine's refusal (EngineError) and never a blank state.
+    const t = { ...s, sif: { ...s.sif, subsystems: [{ ...valve, architecture: '1oo1', lambdaDuPerHour: '1e-6', lambdaDdPerHour: '1e-3', mttrHours: '2000' }] } };
+    const r = longestInterval(t, valve.id, 1e-2);
+    expect(r.state).toBeUndefined();
+    expect(r.field).toBe('lambdaDdPerHour');
+    expect(r.error).toMatch(/^lambdaDdPerHour: the simplified equations give a floor of 2\.0000\d* here/);
+    expect(r.error).toMatch(/use an exact \(Markov\) model$/);
+  });
+
   it('reports CAPPED_AT_LIFETIME under imperfect proof testing', () => {
     const t = { ...s, sif: { ...s.sif, subsystems: [{ ...valve, lambdaDuPerHour: '1e-8', proofTestCoverage: '0.9', lifetimeHours: '87600' }] } };
     expect(longestInterval(t, valve.id, 1e-2).state).toBe('CAPPED_AT_LIFETIME');

@@ -82,7 +82,7 @@ const helpContent = [
     icon: TrendingDown,
     title: 'The gap is named, not drawn as a wedge',
     content:
-      'Each measure counts only from the year it starts, so the trajectory is what the identified measures actually deliver. Where that falls short of the target, the difference is reported as unabated with no measure identified, and the first year of shortfall is named. A measure with no start year is listed as not on the path. The target and the path both rest on the inventory total, so while the inventory is not reportable the page says they are built on a partial one. It is deliberately not drawn as a wedge labelled further measures: a wedge with nothing behind it is not a plan, and treating it as one is how decarbonisation roadmaps stop meaning anything.',
+      'Each measure counts only from the year it starts, so the trajectory is what the identified measures actually deliver. Where that falls short of the target, the difference is reported as unabated with no measure identified, and the first year of shortfall is named. A measure with no start year is listed as not on the path. The target and the path both rest on the inventory total, so while the inventory is not reportable the page says they are built on a partial one. A wedge is drawn only for an identified measure, because a plan needs a named measure behind every wedge; a wedge labelled further measures is how decarbonisation roadmaps stop meaning anything.',
   },
 ];
 

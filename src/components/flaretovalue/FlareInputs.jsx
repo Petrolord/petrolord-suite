@@ -53,7 +53,7 @@ const FlareInputs = () => {
       </Group>
 
       <Group title="The counterfactual"
-        note="No abatement is reported until this is stated. Only the share of the flare the credited route recovers is avoided: the gas it does not recover is still flared. The flare's gross emission is not the abatement: recover the gas and somebody burns it, and whether that is better or worse depends entirely on what it displaces.">
+        note="No abatement is reported until this is stated. Only the share of the flare the credited route recovers is avoided: the gas it does not recover is still flared. The flare's gross emission is the starting point, and the abatement depends on what the recovered product displaces: recover the gas and somebody burns it, and whether that is better or worse depends entirely on what it displaces.">
         <Cell label="What the product displaces" type="text" value={inputs.counterfactual.label} placeholder="required" onChange={(v) => setSection('counterfactual', { label: v })} />
         <Cell label="Product burned" unit="tCO2e/yr" value={inputs.counterfactual.productCombustionTonnesCo2ePerYear} placeholder="required" onChange={(v) => setSection('counterfactual', { productCombustionTonnesCo2ePerYear: v })} />
         <Cell label="Fuel displaced" unit="tCO2e/yr" value={inputs.counterfactual.displacedFuelTonnesCo2ePerYear} placeholder="required" onChange={(v) => setSection('counterfactual', { displacedFuelTonnesCo2ePerYear: v })} />
