@@ -579,6 +579,13 @@ export async function savePvtConfig(caseId, pvtFields) {
   if (pvtFields.water_compressibility_psi !== undefined) {
     patch.water_compressibility_psi = pvtFields.water_compressibility_psi;
   }
+  // Gas cap ratio m. Until 2026-09-11 nothing in the studio wrote this: a case
+  // created as "oil with gas cap" reached the engine with m undefined, which
+  // the engine reads as m = 0 — the undersaturated material balance, not a
+  // small gas cap. Fitting it in a history match was the only way to set it.
+  if (pvtFields.gas_cap_ratio_m !== undefined) {
+    patch.gas_cap_ratio_m = pvtFields.gas_cap_ratio_m;
+  }
 
   return upsertCaseDefaultConfig(caseId, patch);
 }
