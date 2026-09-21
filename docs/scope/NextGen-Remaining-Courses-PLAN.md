@@ -684,3 +684,39 @@ publicly tabulated. H3 follows, then H4, then H5.
 threshold quantities and IEC 61508/61511 tables are not embedded in any
 engine, golden or lesson. Examples use OSHA and NIOSH public values, and
 a licensed table enters only as a user input.
+
+### Status, 2026-09-21: all five courses built and merged, go-lives HELD
+
+| wave | engine | app | course (NextGen) | migrations |
+|---|---|---|---|---|
+| H1 `safetystats` | engines #216, #222 | HSE product #13 (Safety Statistics) | #173 | `20261003_h1_safetystats_*` |
+| H2 `hygiene` | engines #217, #220 | HSE product #15 (Occupational Hygiene), #17 re-vendor | #174 | `20261004_h2_hygiene_*` |
+| H3 `lopa` | engines #218 | Suite #536 PS1 LOPA & SIL Studio | #175 | `20261005_h3_lopa_*` |
+| H4 `consequence` | engines #223 | Suite #539 PS2 Consequence Studio | #177 | `20261006_h4_consequence_*` |
+| H5 `qra` | engines #230 | Suite #548 PS3 QRA Studio | #178 | `20261007_h5_qra_*` |
+
+Each course has 78 lessons and 396 questions across the three tiers,
+18 graded fields, three key-truth audits against the engine (no mis-keyed
+question in any tier), and a five-migration ladder whose go-live is HELD
+until a NextGen production upload serves its route. Every apply script
+verifies against NextGen main `d54538463`.
+
+Scope as built differs from the roster above in two places. H4 dropped
+jet fire and multi-energy blast (engines #223 does not compute them, and
+the PS2 tile text was corrected), and it grades no inverse of the normal
+distribution, because the engine's approximate inverse misses by about a
+thousand tolerances at one percent. H5 takes every probability of death
+and frequency as a stated input, so it re-grades nothing H4 grades.
+
+engines #231 (own-property preset lookups) closed a defect class found
+while building H5: a preset name such as `constructor` resolved to an
+inherited member and fell through to the safe side of a threshold. The
+Suite (#548), the HSE product (#17) and NextGen (#176) carry the repair,
+except two NextGen files held until a copy pass (`facilities/corrosion.js`,
+quoted by the live FC9 exam, and `hse/exposure.js`, whose line count the
+H2 digest prints).
+
+Owner steps, all owner run: the Process Safety migrations (PS0 seed and
+PS1 to PS3 tables and tiles, per MIGRATIONS.md), the Suite and HSE
+product uploads, then per course `apply_hN_<slug>.sh dryrun` and seed,
+and each go-live only after the NextGen upload serves its route.
