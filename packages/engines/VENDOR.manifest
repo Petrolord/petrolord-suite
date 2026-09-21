@@ -1,9 +1,9 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit df31f538ecbb76aba6bb32a06582968025cbfd38
+# commit abb41c308676dcb66a0d59e2b8b7274d910fe851
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
-ba49d407c9c32a097bca8ebac701c64854935ad1 README.md
+cf2bdabfc05fe258f24237fb4827d51052c00c67 README.md
 6373485efb6baa9226953a76a3d6ebb740541d1c __tests__/aquifer.test.js
 168f6cedfc18af932ba587f2ff882b7571966986 __tests__/assurance.audit.test.js
 fc5248e0239b0841f542a3cba95ef72db34296d1 __tests__/assurance.compliance.test.js
@@ -112,6 +112,7 @@ d6f4f5ff8043d58a6b14f9f0feec0c443e2e3023 __tests__/helpers/assuranceGoldens.js
 f74e52c2e36fd49bade547c708102625466cc26a __tests__/hse.consequence.test.js
 d3b4c56d74031a4ab9d2900ee6a2327dc83c45d3 __tests__/hse.exposure.test.js
 5962981f07ee9bdda205547278ea854b3bd2c2ea __tests__/hse.lopa.test.js
+a31ad5f3a2bd20bb5d8488c0ead3902fa2615a0b __tests__/hse.qra.test.js
 487ed92da9e491e5504c21413b759d89c4922061 __tests__/hse.safetyStats.test.js
 4a3b30957d444d229516100f6a1a80489b3f42a6 __tests__/importExtensions.test.js
 2c560f57bd18957f6ef9c50f4c763fb0a74216fc __tests__/lp.simplex.golden.test.js
@@ -238,9 +239,9 @@ c0cd6d388a2ed6be638dc508b58e626e6c62c81b engines/downstream/carbonAbatement.js
 5c6bca104489a5a87f4865807a9159e488563dfa engines/downstream/crudeAssay.js
 c14bd491f0d2e46616becae68f370bfb777c88a8 engines/downstream/energyEfficiency.js
 8d977d91bcc590222f5585b249f8644c2b817878 engines/downstream/flareToValue.js
-e82fd76a4f5229d5c8bec402ee289ad10a74a967 engines/downstream/fuelPricing.js
+cab7bb1f6ca06ab7d4f5308fdf686e87b289e271 engines/downstream/fuelPricing.js
 b411af75c47be381ea72a02b352574a54c605bc5 engines/downstream/lpgCng.js
-9d52aed199ffdf3facf67a58d852034d90de4455 engines/downstream/modularRefinery.js
+7cc302786f477dfeb9d268a91e0472d79ef3785e engines/downstream/modularRefinery.js
 63fbf3983c8fb37ec46f4e04b1dec5afd5329130 engines/downstream/productBlending.js
 de910b9f23c2fe1952018159ef4b6261ca581fce engines/downstream/refineryPlanning.js
 ece0060a1e5fbf24c010d653504f77a24ff5a832 engines/downstream/streamModel.js
@@ -339,6 +340,7 @@ e99c56bffeaa1b6aae8138745e509c675ea04cce engines/fluid/units.js
 d3ad2e89094f01024f68d386872a500e67eefccd engines/hse/consequence.js
 3495ebf0d4e97bf6e369b7bf1fd4c9a6f8e436b9 engines/hse/exposure.js
 8b83b8e9c4047a90d107c2fa433903fafafac646 engines/hse/lopa.js
+be1b26d301c5a9a7c4682e2289c8b0d50e1e4748 engines/hse/qra.js
 954d83338f799780b6a1665d215ad8db79462183 engines/hse/safetyStats.js
 22fa8bb55bfc298027ebb6d00a59ed3b2157bb70 engines/mapping/cultureImport.js
 f3bfa281ed8307b01dd26edf8b53e5257f1d1334 engines/mapping/surface.js
@@ -609,6 +611,7 @@ e61be9ec8aef61351885727cecc4dc28c7b1b89e test-data/fluid/goldens.json
 1a4c45ec348f36091929b71382a85f44302febdf test-data/hse/goldens/consequence_cases.json
 093b3e617b6e778f59c9ffea3ab0b69478c27129 test-data/hse/goldens/exposure_cases.json
 5c855d5e563f59d718d1e7643e3698dd35bada4b test-data/hse/goldens/lopa_cases.json
+a722e6d698dca7e24d64de51d5fe4107819d2655 test-data/hse/goldens/qra_cases.json
 aa88804f9ded09fde56cdc6083f341f146e6b06a test-data/hse/goldens/safetyStats_cases.json
 6c1515e471770d9ee7a4399cf533175259206f5b test-data/mapping/culture/blocks.dbf
 8ae03a0133f8e9baac79226f0f5beb3a86de5271 test-data/mapping/culture/blocks.shp
@@ -833,14 +836,17 @@ aeaf3fb09d8c931b6f0b51e6caa4187159f0c8df tools/validation/fluid/run-validation.m
 35533934ebd37e6d508a51cbe31fce91760b0b81 tools/validation/hse/FINDINGS-consequence.md
 3e8329d34b36592045e77afc1abd300837b9a4aa tools/validation/hse/FINDINGS-exposure.md
 0e95aaea105130d4089c5ae411a86e9dcff693ca tools/validation/hse/FINDINGS-lopa.md
+cc9fe951989a0a5413f3c000bd6ce4d41a5e6fba tools/validation/hse/FINDINGS-qra.md
 6b34f529e1bd2057ae6065da1bd689b8605ea270 tools/validation/hse/FINDINGS-safetystats.md
 25bd1668fd20b151f0558e4784286ba103103161 tools/validation/hse/negcontrol_consequence.sh
 154de162b147441e4aac96f895011808a8ba081c tools/validation/hse/negcontrol_exposure.sh
 a764801ce7cb9233481b98e5b469c6e172d1a1cf tools/validation/hse/negcontrol_lopa.sh
+d36c97046aee18e98bc8859f97c346d9141a31ed tools/validation/hse/negcontrol_qra.sh
 d1b4e2179eb8eed00e25744cc19b2ff68c685865 tools/validation/hse/negcontrol_safetystats.sh
 818f80cfab5bba86fa15d79c2952f3768a9d0516 tools/validation/hse/oracle_consequence.py
 beffe81b17738b0c61704441c84983b1b97c5d66 tools/validation/hse/oracle_exposure.py
 ba0332edc1b06b93ff63eff2152d3dcd94928af9 tools/validation/hse/oracle_lopa.py
+e48e9a2352626ae2788372b24ae5ee0203b24c7e tools/validation/hse/oracle_qra.py
 540a27c41be233e07910dc6adebf02224bc43cbf tools/validation/hse/oracle_safetystats.py
 7849160c1f2605320c3a383435ce551b06c2b352 tools/validation/mapping/culture/gen_shapefiles.py
 313d8772f44c72689f332f6b00db22c667bfce65 tools/validation/mapping/oracle_kriging.py
