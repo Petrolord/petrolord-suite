@@ -54,15 +54,20 @@ are drawn on.
 
 ## Vendoring
 
-File by file from canonical df31f53 to abb41c3 (9 paths: 6 added, 3
-modified; engines #230 plus #229, two downstream copy strings), VENDOR.json
-pinned to abb41c3, VENDOR.manifest regenerated from `git ls-tree`. Guard
-`node tools/check-vendored-engines.mjs --canonical /root/petrolord-engines`:
-manifest verified, 880 paths byte for byte, 0 deviations.
+File by file from canonical df31f53 to 16fd6c9 in two commits, VENDOR.json
+pinned to 16fd6c9, VENDOR.manifest regenerated from `git ls-tree`:
 
-A parallel engines PR (fix/engines-prototype-chain-lookups, the exposure.js
-and consequence.js lookups FINDINGS-qra section 9 hands to the lead) may
-need a re-vendor after it merges.
+- df31f53..abb41c3 (9 paths: 6 added, 3 modified): engines #230, the QRA
+  engine, plus #229 (two downstream copy strings, no figure moves).
+- abb41c3..16fd6c9 (82 paths: 81 modified, 1 added): engines #231, every
+  preset, table and registry lookup asks for an own property, so an
+  inherited name (constructor, toString, __proto__) is refused by name. No
+  golden moved. This is the Suite re-vendor for #231, and it closes the
+  exposure.js and consequence.js lookups FINDINGS-qra section 9 handed on.
+
+Guard `node tools/check-vendored-engines.mjs --canonical
+/root/petrolord-engines`: manifest verified, 881 paths byte for byte, 0
+deviations.
 
 ## The app
 
