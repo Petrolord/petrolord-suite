@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit e972ae755ed8599031e430968b95853a9e163f86
+# commit c6716db58576b2b8937d7351d5fb682cdd63155a
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 b45735ce0a92fedac8004ff81b088c4e52a3c497 README.md
@@ -120,7 +120,7 @@ d3b4c56d74031a4ab9d2900ee6a2327dc83c45d3 __tests__/hse.exposure.test.js
 8060f28b96f2d488db64da2e0adcfdaf2c092c55 __tests__/mapping.cultureimport.test.js
 18ecef5c10e9fef95943227c3b9a1e936e9cde02 __tests__/mapping.kriging.test.js
 a46150ed760bc35823154ef53bc33dbcd725db96 __tests__/mapping.structurepoints.test.js
-c77421c3bc092779e59e6dbf73c72bf1e7de725f __tests__/mbal.test.ts
+66917aa10462c0197fc48e7c020bb24f62119186 __tests__/mbal.test.ts
 2c42cf594e3e98a5df4bbc5e1e4b5cb1c55f6380 __tests__/petrophysics.conditioning.test.js
 d04bc68244e5f2e9265ed57f5694167e47170c5e __tests__/petrophysics.mineral.test.js
 c6193181e5bb7a0ef38a0340b1584daeac88fad8 __tests__/petrophysics.pipeline.test.js
@@ -346,7 +346,7 @@ f6010f0bd39e1c4ba656c2a699c3b4ab8f3839ed engines/hse/qra.js
 6db14f3a4a16843ccb98908fe5da8275608a3df8 engines/mapping/cultureImport.js
 f3bfa281ed8307b01dd26edf8b53e5257f1d1334 engines/mapping/surface.js
 ef516365f4b51788d50a5d47a220329d3e545696 engines/mbal/lm.ts
-9983f4a8bae5fb9fe5034b47ad5dbe2685ae2747 engines/mbal/mbalEngine.ts
+7843df9ca9b03e9155f629c4304465701fa50165 engines/mbal/mbalEngine.ts
 879475f9762ecc41d23805c32673ab7122dac230 engines/petrophysics/conditioning.js
 1bb63a55f341a5cfaabed4e8a8ef1b8466086f42 engines/petrophysics/crossplot.js
 9b271da64524654de29b7c91d41aac458ca2928d engines/petrophysics/digitizer.js
