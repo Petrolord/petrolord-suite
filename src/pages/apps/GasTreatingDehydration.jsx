@@ -12,6 +12,7 @@ import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import StudioHelp from '@/components/studio/StudioHelp';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import { GasProcessingProvider, useGasProcessing } from '@/contexts/GasProcessingContext';
+import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
 import { DehydrationInputs, DehydrationResults } from '@/components/gasprocessing/DehydrationPanels';
 import {
   SweeteningInputs, SweeteningResults, DewpointInputs, DewpointResults,
@@ -138,6 +139,8 @@ const StudioContent = () => {
         }
         headerActions={
           <>
+            <FullPrecisionToggle app="gas-processing-studio" />
+            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
             <StudioAutoSave
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
@@ -164,7 +167,9 @@ const StudioContent = () => {
 
 const GasTreatingDehydration = () => (
   <GasProcessingProvider>
-    <StudioContent />
+    <FullPrecisionProvider>
+      <StudioContent />
+    </FullPrecisionProvider>
   </GasProcessingProvider>
 );
 
