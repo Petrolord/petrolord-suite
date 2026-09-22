@@ -10,6 +10,7 @@ import { publishSurface } from '../services/exportsService';
 import { gridHorizonSurface } from '../services/surfaceWorkflow';
 import { grvAcreFt } from '@/lib/gridding/surfaceExport';
 import { geomFromManifest } from '../engine/sliceAssembly';
+import { v4ReadInfo } from '../services/importJobs';
 
 const MAX_TOOL_ROUNDS = 6;
 const MAX_CHAT_MESSAGES = 200;       // display list cap (L4)
@@ -135,6 +136,7 @@ export default function AiPanel({ volume, manifest, docked }) {
             token,
             bucket: 'seismic',
             storagePath: volume.storage_path,
+            v4: v4ReadInfo(manifest),
             geom,
             seed: { ilIdx, xlIdx, sample },
             opts: {

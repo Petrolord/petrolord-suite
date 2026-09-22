@@ -26,6 +26,7 @@ import {
 import { SURFACE_EXPORT_FORMATS } from '../../services/surfacesService';
 import StorageMeter from '../StorageMeter';
 import WellDrawBadge, { wellRowTitle } from './WellDrawBadge';
+import { isOpenableVolume } from '../../services/importJobs';
 import {
   horizonColor, faultColor, wellColor, surfaceColor,
 } from './interpretationColors';
@@ -211,8 +212,9 @@ export default function SeismicExplorer({ tree, actions }) {
                 title={v.is_own === false
                   ? `Shared by a teammate (read-only). ${geometrySummary(v.survey_meta)}`
                   : geometrySummary(v.survey_meta)}
-                meta={v.status !== 'ready' ? v.status
-                  : (depth > 0 && v.attribute_params?.name) || ''}
+                meta={v.status === 'display_ready' ? 'display copy'
+                  : v.status !== 'ready' ? v.status
+                    : (depth > 0 && v.attribute_params?.name) || ''}
                 badge={v.organization_id ? (
                   <span
                     title={v.is_own === false
@@ -225,11 +227,11 @@ export default function SeismicExplorer({ tree, actions }) {
                   </span>
                 ) : null}
                 selected={v.id === activeVolumeId}
-                onClick={() => v.status === 'ready' && actions.selectVolume(v.id)}
+                onClick={() => isOpenableVolume(v) && actions.selectVolume(v.id)}
                 menu={(
                   <>
                     <ContextMenuItem
-                      disabled={v.status !== 'ready'}
+                      disabled={!isOpenableVolume(v)}
                       onSelect={() => actions.selectVolume(v.id)}
                     >
                       Set active

@@ -6,6 +6,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
 import { SEISMIC_BUCKET } from './seismicStorage';
 import { gateManifest } from './manifestGate';
+import { removeOpfsSpool } from './brickSpool';
 import { myOrgId } from './surfacesService';
 
 export { gateManifest };
@@ -60,7 +61,9 @@ export async function deleteVolume(volume) {
   // batches (remove() caps around 1000 keys per call), then drop the row.
   const dir = volume.storage_path;
   const paths = [`${dir}/manifest.json`];
-  for (const sub of ['bricks', 'horizons']) {
+  // v4 stores (large-survey plan): display levels and the float32 copy
+  const v4Dirs = ['v4/f', ...Array.from({ length: 8 }, (_, L) => `v4/d${L}`)];
+  for (const sub of ['bricks', 'horizons', ...v4Dirs]) {
     let offset = 0;
     for (;;) {
       const { data, error } = await supabase.storage.from(SEISMIC_BUCKET)
@@ -81,6 +84,8 @@ export async function deleteVolume(volume) {
 
   const { error } = await supabase.from('seismic_volumes').delete().eq('id', volume.id);
   if (error) throw new Error(`Could not delete volume record: ${error.message}`);
+  // an unfinished v4 upload's local copy has no further use
+  await removeOpfsSpool(volume.id);
 }
 
 // ---- W4.2 projects (explorer grouping) -----------------------------------

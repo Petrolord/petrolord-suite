@@ -20,6 +20,7 @@
 //   {type:'error', id, message}
 
 import { BrickCache, storageBrickFetcher } from '../engine/brickCache';
+import { v4BrickFetcher } from '../engine/brickCodecV4';
 import { geomFromManifest, brickKey } from '../engine/sliceAssembly';
 import { makeTraceCompute } from '../engine/attributes';
 import { DISCONTINUITY_DEFS, makeNeighborhoodCompute } from '../engine/discontinuity';
@@ -44,13 +45,15 @@ async function handleCompute({ id, config }) {
     });
   };
 
-  const fetcher = storageBrickFetcher({
+  const manifest = config.manifest;
+  // a v4 parent's float32 copy lives under v4/f/ (the job refuses to
+  // start before the parent is 'ready', so f32 is complete here)
+  const fetcher = v4BrickFetcher(storageBrickFetcher({
     supabaseUrl: config.supabaseUrl,
     getToken,
     bucket: config.bucket,
-  });
+  }), manifest);
 
-  const manifest = config.manifest;
   const geom = geomFromManifest(manifest);           // version gate at the choke point
   const { name, params = {} } = config.attribute;
   const dtUs = manifest.geometry.dt_us;

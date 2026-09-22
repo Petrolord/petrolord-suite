@@ -13,6 +13,7 @@
 //   {type:'error', id, message}
 
 import { BrickCache, storageBrickFetcher } from '../engine/brickCache';
+import { v4BrickFetcher } from '../engine/brickCodecV4';
 import { assembleTrace, brickKey } from '../engine/sliceAssembly';
 import { cacheBudgetBytes, reportedDeviceMemory } from '../sources/memoryBudget';
 import { regionGrow3D } from '../engine/horizonTrack';
@@ -54,11 +55,13 @@ self.onmessage = async (e) => {
     });
   };
   try {
-    const cache = new BrickCache(withBrickTimeout(storageBrickFetcher({
+    // v4 stores read through the v1 brick names (config.v4 is null for
+    // every other manifest, and the fetcher then comes back untouched)
+    const cache = new BrickCache(withBrickTimeout(v4BrickFetcher(storageBrickFetcher({
       supabaseUrl: config.supabaseUrl,
       getToken,
       bucket: config.bucket,
-    })), {
+    }), config.v4)), {
       // Stream L: the same machine-sized budget as the viewer (about
       // 256 MB on an 8 GB laptop) where this used a fixed 512 MiB
       maxBytes: config.maxBytes || cacheBudgetBytes(reportedDeviceMemory(self)),
