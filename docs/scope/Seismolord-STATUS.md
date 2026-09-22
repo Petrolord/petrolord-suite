@@ -1,6 +1,58 @@
 # Seismolord — STATUS
 
-Last updated: 2026-09-06 (SL0 tester readiness: depth unit, launchers, help guide)
+Last updated: 2026-09-22 (tester group 6: import readers, fault import, Make surface)
+
+## 2026-09-22: tester group 6, import readers and Make surface
+
+Owner's words: add fault import (Charisma, IESX, generic ASCII with
+column mapping); read Charisma 3D interpretation lines, IESX,
+EarthVision, ZMAP+, CPS-3 and generic XYZ with column mapping, showing
+which lines and columns fail; make a surface directly from a horizon
+with no file export in between.
+
+- **Engines** (Petrolord/petrolord-engines #236, vendored at the branch
+  head; re-pin to the merge commit): tolerant readers that record
+  rejects `{ line, reason, column, field, text }` and refuse a file only
+  when nothing reads. `horizonImport.js` (Charisma 3D lines in every
+  INLINE/XLINE marker form, optional horizon-name column, multi-horizon
+  split; IESX card image; EarthVision; CPS-3 points; CPS-3/ZMAP+/Irap
+  grids sampled onto the lattice; il/xl/x/y/z; xyz; generic mapping),
+  `faultImport.parseFaultSticks` (Charisma variants, IESX fault sticks,
+  x y z stick, generic mapping with blank-line sticks), `importText.js`,
+  `importSniff.suggestImportKind`. Fixtures and their README (layouts,
+  counts, provenance) in `packages/engines/test-data/seismolord/{picks,faults}`.
+- **Import dialog** (`ImportSurfaceDialog.jsx`, title "Import horizons,
+  faults or surfaces"): no extension filter; the content decides the
+  kind and format (both overridable); a column-mapping step
+  (`dialogs/import/ColumnMappingStep.jsx`, tabularFile preview, Excel
+  first sheet accepted); a reject report (`dialogs/import/RejectReport.jsx`,
+  first 25 with the total); a multi-horizon file lists its horizons with
+  tick boxes and creates one horizon per ticked name. Landing and saving
+  moved to `services/interpretationImport.js`. New upload icons on the
+  explorer's Horizons and Faults sections open the dialog on that kind.
+- **Make surface** (`dialogs/MakeSurfaceDialog.jsx`,
+  `services/makeSurface.js`): a horizon's right-click menu and the
+  Interpretation tab (Surface ops) open it with the horizon preselected.
+  Both buttons grid with `gridHorizonSurface` and save with
+  `saveHorizonAsSurface` (the Export dialog's provenance plus
+  `made_from: make_surface`): **Grid in Seismolord** also shows the
+  surface in the Map window; **Publish to the registry** links to Mapping
+  & Surface Studio. The Export dialog's Save as surface is unchanged.
+- Help guide: quick start step 5, horizon and fault import paragraphs and
+  the Map section now name the real buttons (it said "Publish it to the
+  registry", which matched no button); guarded in `helpGuide.test.jsx`.
+- Tests: engines `seismolord.importreaders.test.js` (47); Suite
+  `interpretationImport.test.jsx` (11: the Charisma horizon file imports
+  12 points and the Charisma fault-stick file 10 points in 2 faults
+  through the real dialog; reject report; multi-horizon; mapping step),
+  `makeSurface.test.jsx` (8).
+- Judgment calls: Charisma x y z are the first three numbers after the
+  crossline (extra numbers ignored, a trailing word is a horizon name);
+  all-zero inline/crossline rows (resqpy) are located by X/Y; IESX fault
+  layout follows the documented card-image columns (no Petrel-written
+  IESX fault file was available); scattered points (EarthVision, CPS-3
+  points, xyz) land on the nearest lattice cell, so a sparse file makes a
+  sparse horizon.
 
 ## 2026-09-06: SL0, Petrel tester readiness (units, launchers, help)
 
