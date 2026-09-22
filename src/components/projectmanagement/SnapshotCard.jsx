@@ -1,9 +1,12 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
+import { formatFull } from '@/lib/fullPrecision';
 import { ArrowUpRight, ArrowDownRight, Activity, AlertTriangle, CheckCircle2, TrendingUp } from 'lucide-react';
 
 const SnapshotCard = ({ project, latestUpdate, kpis, riskCount }) => {
+  const { full } = useFullPrecision();
   if (!project) return null;
 
   const statusColor = {
@@ -85,7 +88,12 @@ const SnapshotCard = ({ project, latestUpdate, kpis, riskCount }) => {
                     <span className={`text-lg font-semibold ${spi === null ? 'text-slate-400' : (spi >= 1 ? 'text-green-400' : 'text-red-400')}`}>{trendText}</span>
                 </div>
                 <p className="text-xs text-slate-500">
-                    SPI: {spi === null ? 'n/a' : spi.toFixed(2)} • Variance: {money(sv)}
+                    SPI: {spi === null ? 'n/a' : (full ? formatFull(spi, 6) : spi.toFixed(2))} • Variance: {money(sv)}
+                    {full && (
+                      <span data-testid="snapshot-pv">
+                        {' '}• PV: {numberOrNull(kpis?.pv) === null ? 'No cost data' : `$${formatFull(kpis.pv, 2)}`}
+                      </span>
+                    )}
                 </p>
                 <p className="text-[10px] text-slate-600 mt-1">
                     {spi === null

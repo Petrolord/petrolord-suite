@@ -163,7 +163,8 @@ describe('problems are inline, never thrown', () => {
     // A kickoff below the target leaves nothing to build into.
     fireEvent.change(screen.getByTestId('solver-kop'), { target: { value: '5000' } });
     solve();
-    expect(problem()).toHaveTextContent(/below the tie-on/i);
+    // The kickoff split moved into the engine (2026-09-22), which names it.
+    expect(problem()).toHaveTextContent(/below the (tie-on|kickoff point)/i);
     expect(onApply).not.toHaveBeenCalled();
   });
 
@@ -380,5 +381,149 @@ describe('target frame at the solver boundary', () => {
       buildRate: 3, mdUnit: 'm',
     });
     expect(onApply.mock.calls[0][0].report.holdIncDeg).toBeCloseTo(expected.report.holdIncDeg, 9);
+  });
+});
+
+// Tester fix 2026-09-22 (Darm PlanB r2): a target at the slot X and Y
+// must give a perfectly vertical well with every design method, and the
+// Point method lands exactly on a point.
+describe('vertical to target and the Point method', () => {
+  const V_TARGETS = [
+    { id: 't-below', name: 'Straight below', center_x: HEAD_X, center_y: HEAD_Y, tvdss_m: 2970 },
+    { id: 't-near', name: '0.3 m off', center_x: HEAD_X + 0.18, center_y: HEAD_Y - 0.24, tvdss_m: 2970 },
+    { id: 't-2m', name: '2 m off', center_x: HEAD_X + 2, center_y: HEAD_Y, tvdss_m: 2970 },
+  ];
+  // A vertical design end at 300 m, for the methods that append.
+  const VERTICAL_END = { inc: 0, azi: 0, n: 0, e: 0, tvd: 300, md: 300 };
+  const METHODS = ['slant', 's', 'continuous', 'horizontal', 'point'];
+
+  const run = (method, targetId, props = {}) => {
+    const u = setup({ targets: V_TARGETS, currentEnd: VERTICAL_END, ...props });
+    u.pick(METHOD, method);
+    u.pick(TARGET, targetId);
+    u.solve();
+    return u;
+  };
+
+  for (const method of METHODS) {
+    test(`${method}: a target at the slot is one vertical hold, labelled`, () => {
+      const { onApply, problem } = run(method, 't-below');
+      expect(problem()).toBeNull();
+      expect(onApply).toHaveBeenCalledTimes(1);
+      const { segments, report, note } = onApply.mock.calls[0][0];
+      expect(segments).toHaveLength(1);
+      expect(segments[0].type).toBe('Hold');
+      expect(segments[0].note).toBe('Vertical to target');
+      expect(note).toBe('Vertical to target');
+      expect(report.verticalToTarget).toBe(true);
+      // TVD below RT is TVDSS + KB; append methods start at the 300 m end.
+      const fromTvd = ['continuous', 'horizontal', 'point'].includes(method) ? 300 : 0;
+      expect(segments[0].length).toBeCloseTo(2970 + KB_M - fromTvd, 2);
+      expect(mockToast.mock.calls[0][0].title).toBe('Vertical to target');
+    });
+
+    test(`${method}: 0.3 m off is still vertical within the 0.5 m default`, () => {
+      const { onApply } = run(method, 't-near');
+      expect(onApply.mock.calls[0][0].report.verticalToTarget).toBe(true);
+      expect(onApply.mock.calls[0][0].report.horizontalMiss).toBeCloseTo(0.3, 6);
+    });
+  }
+
+  test('the Design settings tolerance reaches the solver', () => {
+    const { onApply } = run('slant', 't-near', { verticalToleranceM: 0.1 });
+    const { segments, report } = onApply.mock.calls[0][0];
+    expect(report.verticalToTarget).toBeUndefined();
+    expect(segments.map((s) => s.type)).toEqual(['Hold', 'Build', 'Hold']);
+  });
+
+  test('a feet wellbore converts the metre tolerance: 0.3 m off is still vertical', () => {
+    const { onApply } = run('slant', 't-near', { wellbore: wellboreIn('ft'), mdUnit: 'ft' });
+    const { report, segments } = onApply.mock.calls[0][0];
+    expect(report.verticalToTarget).toBe(true);
+    expect(segments[0].length).toBeCloseTo((2970 + KB_M) * M_TO_FT, 1);
+  });
+
+  test('2 m off gives a small build and the toast reports the dogleg', () => {
+    const { onApply } = run('slant', 't-2m');
+    const { report } = onApply.mock.calls[0][0];
+    expect(report.verticalToTarget).toBeUndefined();
+    expect(report.doglegDeg).toBeGreaterThan(0);
+    expect(report.doglegDeg).toBeLessThan(0.1);
+    expect(mockToast.mock.calls[0][0].description).toMatch(/Total dogleg 0\.0\d deg/);
+  });
+
+  // Point: comboboxes are method, target, point-from, mode, arrive; with
+  // typed coordinates the target select goes and the rest move up one.
+  const FROM = 2;
+  const typed = (props = {}) => {
+    const u = setup({ targets: V_TARGETS, currentEnd: VERTICAL_END, ...props });
+    u.pick(METHOD, 'point');
+    u.pick(FROM, 'manual');
+    return u;
+  };
+  const type = (id, v) => fireEvent.change(screen.getByTestId(id), { target: { value: String(v) } });
+
+  test('Point, typed: an offset point from a vertical end is curve then tangent hold', () => {
+    const { onApply, solve, problem } = typed();
+    type('solver-point-n', 400);
+    type('solver-point-e', 300);
+    type('solver-point-tvd', 2100);
+    type('solver-point-dls', 3);
+    solve();
+    expect(problem()).toBeNull();
+    const { segments, report, note } = onApply.mock.calls[0][0];
+    expect(segments.map((s) => s.type)).toEqual(['ToolfaceArc', 'Hold']);
+    expect(report.geometry).toBe('curve-hold');
+    expect(note).toBe('Point: curve, then tangent hold to the point');
+  });
+
+  test('Point, typed: from an empty design it starts at the surface', () => {
+    const { onApply, solve } = typed({ currentEnd: null });
+    type('solver-point-n', 0);
+    type('solver-point-e', 0);
+    type('solver-point-tvd', 1800);
+    solve();
+    const { segments } = onApply.mock.calls[0][0];
+    expect(segments).toHaveLength(1);
+    expect(segments[0].length).toBeCloseTo(1800, 6);
+  });
+
+  test('Point, Using MD: the solved hole length is the MD past the design end', () => {
+    const { onApply, pick, solve, problem } = typed();
+    pick(2, 'md');
+    type('solver-point-n', 250);
+    type('solver-point-e', 0);
+    type('solver-point-md', 2300);
+    solve();
+    expect(problem()).toBeNull();
+    const { segments, report } = onApply.mock.calls[0][0];
+    const total = segments.reduce((a, s) => a + s.length, 0);
+    expect(total).toBeCloseTo(2000, 1);
+    expect(report.solvedTvd).toBeGreaterThan(0);
+  });
+
+  test('Point: an unreachable point is refused inline with how far off it is', () => {
+    const { onApply, solve, problem } = typed();
+    type('solver-point-n', 300);
+    type('solver-point-e', 0);
+    type('solver-point-tvd', 500);
+    solve();
+    expect(onApply).not.toHaveBeenCalled();
+    expect(problem()).toHaveTextContent(/inside the turning circle/);
+    expect(problem()).toHaveTextContent(/needs at least/);
+  });
+
+  test('Point: a deviated end drops back to vertical onto a point below it', () => {
+    const DEVIATED_END = { inc: 12, azi: 70, n: 40, e: 110, tvd: 900, md: 950 };
+    const { onApply, solve, problem } = typed({ currentEnd: DEVIATED_END });
+    type('solver-point-n', 40);
+    type('solver-point-e', 110);
+    type('solver-point-tvd', 2100);
+    type('solver-point-dls', 2);
+    solve();
+    expect(problem()).toBeNull();
+    const { report } = onApply.mock.calls[0][0];
+    expect(report.geometry).toMatch(/vertical/);
+    expect(report.endInc).toBe(0);
   });
 });

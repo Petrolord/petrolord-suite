@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { ArrowLeft, Landmark, FileDown, GitMerge, Package, BarChart3, ExternalLink } from 'lucide-react';
 import { buildBriefModel, fmtMMUsd, fmtPct } from '@/components/decisionstudio/briefModel';
+import { FullPrecisionProvider, FullPrecisionToggle, useFullPrecision } from '@/components/fullprecision/FullPrecision';
 import { downloadBriefPdf } from '@/components/decisionstudio/briefPdf';
 import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid,
@@ -63,7 +64,8 @@ const SectionCard = ({ icon: Icon, title, children }) => (
   </div>
 );
 
-const DecisionStudio = () => {
+const DecisionStudioInner = () => {
+  const { full } = useFullPrecision();
   const { user } = useAuth();
   const { toast } = useToast();
   const [mcRuns, setMcRuns] = useState([]);
@@ -134,6 +136,7 @@ const DecisionStudio = () => {
         treeProject: selectedTree,
         portfolio: selectedPortfolio,
         portfolioProjects,
+        full,
       });
       await downloadBriefPdf(model);
       toast({ title: 'Brief exported', description: 'One-page PDF downloaded with provenance on every figure.' });
@@ -168,7 +171,10 @@ const DecisionStudio = () => {
                 <p className="text-slate-400 text-xs">Boardroom view of the decision chain: probabilistic economics, decision trees, and capital allocation, with provenance on every number.</p>
               </div>
             </div>
-            <DecisionStudioHelpGuide />
+            <div className="flex items-center gap-3">
+              <FullPrecisionToggle app="decision-studio" />
+              <DecisionStudioHelpGuide />
+            </div>
           </div>
         </div>
 
@@ -365,5 +371,14 @@ const DecisionStudio = () => {
     </>
   );
 };
+
+// W3 (D3): with Full precision on, the exported brief prints the decision
+// analysis money (Optimal EMV, Next best alternative, Decision advantage) in
+// $MM at 4 decimals.
+const DecisionStudio = () => (
+  <FullPrecisionProvider>
+    <DecisionStudioInner />
+  </FullPrecisionProvider>
+);
 
 export default DecisionStudio;

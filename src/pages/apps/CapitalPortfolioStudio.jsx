@@ -19,8 +19,11 @@ import PortfolioComparison from '@/components/capitalportfoliostudio/PortfolioCo
 import { optimizePortfolio, PortfolioInputError } from '@/utils/portfolioOptimizer';
 import { emvOrRefusal, projectRefusal, posText } from '@/components/capitalportfoliostudio/projectRefusal';
 import PortfolioHelpGuide from '@/components/capitalportfoliostudio/PortfolioHelpGuide';
+import { FullPrecisionProvider, FullPrecisionToggle, useFullPrecision } from '@/components/fullprecision/FullPrecision';
+import { formatFull, MONEY_MM_DECIMALS } from '@/lib/fullPrecision';
 
-const CapitalPortfolioStudio = () => {
+const CapitalPortfolioStudioInner = () => {
+  const { full } = useFullPrecision();
   const { user } = useAuth();
   const { toast } = useToast();
   const [projects, setProjects] = useState([]);
@@ -249,7 +252,10 @@ const CapitalPortfolioStudio = () => {
                 <h1 className="text-xl md:text-3xl font-bold">Capital Portfolio Studio</h1>
               </div>
             </div>
-            <PortfolioHelpGuide />
+            <div className="flex items-center gap-4">
+              <FullPrecisionToggle app="capital-portfolio" />
+              <PortfolioHelpGuide />
+            </div>
           </div>
         </header>
 
@@ -384,7 +390,7 @@ const CapitalPortfolioStudio = () => {
                               <TableCell className="text-right text-slate-200">{formatCurrency(p.npv_p50)}</TableCell>
                               <TableCell className="text-right text-slate-300">{posText(p, refusal)}</TableCell>
                               <TableCell className="text-right text-lime-300">
-                                {emv === null ? <span className="text-red-300" title={refusal || undefined}>n/a</span> : formatCurrency(emv)}
+                                {emv === null ? <span className="text-red-300" title={refusal || undefined}>n/a</span> : (full ? `${formatFull(emv, MONEY_MM_DECIMALS)} $MM` : formatCurrency(emv))}
                               </TableCell>
                               <TableCell className="text-right">
                                 <Button variant="ghost" size="icon" onClick={() => handleOpenProjectDialog(p)} className="text-blue-400 hover:text-blue-300 h-7 w-7"><Edit className="w-4 h-4" /></Button>
@@ -436,5 +442,13 @@ const CapitalPortfolioStudio = () => {
     </>
   );
 };
+
+// W3 (D3): the Full precision switch prints the risked EMV, success-case NPV,
+// P90 / P10 and the inventory EMV column at 4 decimals in $MM.
+const CapitalPortfolioStudio = () => (
+  <FullPrecisionProvider>
+    <CapitalPortfolioStudioInner />
+  </FullPrecisionProvider>
+);
 
 export default CapitalPortfolioStudio;

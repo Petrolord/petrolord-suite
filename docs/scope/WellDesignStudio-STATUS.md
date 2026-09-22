@@ -498,6 +498,88 @@ that the draft is used downstream as the latest plan and that Set definitive
 (design menu in the tree) makes it the plan of record. Set definitive itself
 is unchanged.
 
+## Tester feedback: Compass-style Plan Editor (2026-09-22)
+
+Owner-approved. A new **Plan** view (between Plots and Survey) is a plan
+editor table: a tie-on row, then one row per section end with MD, CL,
+Inc, Azi (wellbore reference), TVD, NS, EW, VS, DLS, TF, Build, Turn,
+section type and Target.
+
+- One plan, two views. `segments` stays the plan of record; the table is
+  derived from segments plus the compiled survey rows at each section end
+  (the compiler emits an exact station at every segment end, verified in
+  the tests) and every edit maps back to segment fields. Pure logic in
+  `src/pages/apps/well-planning/services/planEditor.js`
+  (`resolvePlan`, `derivePlanTable`, `applyPlanEdit`,
+  `changeSegmentType`, insert/delete/move, `historyReducer`); UI in
+  `components/PlanEditorTable.jsx`.
+- Editable (defining) cells per type: Hold MD/CL; Build/Drop MD/CL,
+  build rate and DLS (DLS keeps the drop sign); Turn MD/CL, turn rate;
+  TF Arc MD/CL, DLS, TF; Inc Azi MD MD/CL, Inc, Azi. MD edits set that
+  section's course length; later sections keep their lengths. Changing
+  the section type fills the new type's inputs from the row's computed
+  values, so the geometry is kept where the new type can express it.
+- New section type **Inc Azi MD** (`{type:'IncAziMD', inc, azi, md}`,
+  azimuth in the wellbore reference): compiled Suite-side at compile time
+  into one minimum-curvature toolfaceArc from the incoming attitude
+  (dogleg and toolface from engines `profileDesign.toolfaceForTarget`,
+  DLS = dogleg x interval / CL), or a hold when the attitude does not
+  change. It keeps its MD, Inc and Azi and re-solves whenever an earlier
+  row changes. An MD at or above its start (or Inc outside 0-180) is
+  reported in the compile banner and the row is skipped. The segments
+  list shows and edits the type too. No engine change
+  (packages/engines untouched).
+- Target column: a derived lookup; a section end within 1.5 m / 5 ft of a
+  site target (horizontal window widened to the target radius) shows its
+  name.
+- Undo/redo: one history at the DesignTab level covering table edits,
+  segments-list edits (typing bursts on one field fold into one step),
+  design-method applies (including the KO azimuth they set), insert,
+  delete and drag reorder. Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z or Ctrl+Y, and
+  buttons in the Plan view and the Segments header. Loading a design
+  clears the history. Text fields keep their native undo while focused.
+- Read-only designs show the table without inputs or row actions.
+- The UI-to-compiler segment mapping moved from DesignTab into
+  `resolvePlan` with the same skip rule (zero length or zero rate is left
+  out of the compile).
+- Tests: `planEditor.test.js` (32) and `planEditorTable.test.jsx` (6);
+  help guide test extended. Help guide: Inc Azi MD row, Plan editor
+  subsection, five views.
+- Not done: tie-on row is read-only (KO azimuth stays in Design
+  Settings); no Compass "Target" section type that solves to a target
+  (the design-method solvers cover that); the Survey view is unchanged.
+
+## Tester fix: vertical wells and the Point method (2026-09-22)
+
+Lordsway Energy tester, Darm PlanB r2, item 4 of 5. A vertical well planned
+to a target at the slot X and Y was forced into a build and left slightly
+deviated.
+
+- Engines PR #233 (`profileDesign.js`): `verticalToTarget` runs first in
+  build-and-hold, S-profile, curve to target and horizontal landing (no toe,
+  no azimuth). A target within the vertical tolerance of straight below a
+  vertical tie-on gives one Hold to the target TVD: inclination 0, azimuth 0,
+  no build, and no `atan2` of a zero displacement. `solveSlant` takes
+  `kopLen`, so the kickoff split no longer turns a vertical well into two
+  holds. New `solvePoint` (Using TVD or Using MD): vertical hold, curve then
+  tangent hold, or a drop back to vertical (curve-hold-curve to a vertical
+  landing). Refusals give the distance off and the smallest DLS that reaches.
+  Every report carries `doglegDeg`.
+- Suite: Design settings has **Vertical tol (m)** (default 0.5, maximum 10,
+  kept in the trajectory draft). Design methods has a **Point** method with
+  Point from (a target or typed coordinates), Mode (Using TVD or Using MD),
+  DLS and Arrive (Automatic, On a tangent hold, Vertical). From an empty
+  design it starts at the surface. Solved segments carry a note shown in the
+  segment list ("Vertical to target", "Point: drop to vertical, then
+  vertical hold to the point"). A hand edit clears the note. The solve toast
+  reports the vertical miss and tolerance, or the total dogleg.
+- Tests: engines `drilling.verticalpoint.test.js` (32, with negative
+  controls); `solverDialog.test.jsx` (+21). Every method at the slot gives
+  one hold. 0.3 m off is vertical in metres and in feet. The Design
+  settings tolerance reaches the solver. 2 m off reports its dogleg. The
+  Point method covers typed coordinates, the empty design, Using MD,
+  unreachable points and the drop back to vertical.
+
 ## Tester fix: section view true scale and DLS colour (2026-09-22)
 
 Tester case Darm PlanB: kickoff at 2,000 m, 3 deg/30 m to 6.6 deg, drawn as

@@ -15,6 +15,7 @@ import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import StudioHelp from '@/components/studio/StudioHelp';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import { RodPumpDesignProvider, useRodPump } from '@/contexts/RodPumpDesignContext';
+import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
 import WellModelPanel from '@/components/rodpump/WellModelPanel';
 import DutyPanel from '@/components/rodpump/DutyPanel';
 import UnitPanel from '@/components/rodpump/UnitPanel';
@@ -166,6 +167,8 @@ const RodPumpContent = () => {
         }
         headerActions={
           <>
+            <FullPrecisionToggle app="rod-pump-design-studio" />
+            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
             <StudioAutoSave
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
@@ -194,7 +197,9 @@ const RodPumpContent = () => {
 export default function RodPumpDesignStudio() {
   return (
     <RodPumpDesignProvider>
-      <RodPumpContent />
+      <FullPrecisionProvider>
+        <RodPumpContent />
+      </FullPrecisionProvider>
     </RodPumpDesignProvider>
   );
 }

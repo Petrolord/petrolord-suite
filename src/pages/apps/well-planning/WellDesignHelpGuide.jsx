@@ -266,8 +266,27 @@ const WellDesignHelpGuide = () => {
                   ['Build', 'Length, build rate', 'Inclination change at the rate (negative drops).'],
                   ['Turn', 'Length, turn rate', 'Azimuth change at constant inclination.'],
                   ['TF Arc', 'Length, DLS, toolface', 'A slide: circular arc at the DLS with fixed toolface; builds and turns together.'],
+                  ['Inc Azi MD', 'Inclination, azimuth, MD', 'Reaches that attitude at that MD on one circular arc from the section above. DLS and toolface are solved, and re-solve whenever an earlier section changes.'],
                 ]}
               />
+              <SubHeading>Plan editor</SubHeading>
+              <Para>
+                The <Code>Plan</Code> view is a Compass-style plan editor: a tie-on row, then one row per section end with
+                MD, course length, inclination, azimuth, TVD, NS, EW, VS, DLS, toolface, build, turn, the section type and
+                the site target the section lands on (when its end is within 1.5 m or 5 ft of one, or inside its radius).
+                Green cells are the defining inputs for that section type (MD or course length on every section; the rate on
+                a build or turn; DLS and toolface on a TF arc; inclination, azimuth and MD on an Inc Azi MD section). Type a
+                value and press Enter to apply it; the plan re-solves and every chart and the segments list follow. Editing
+                MD changes that section's course length; sections below keep their own lengths, and Inc Azi MD sections
+                keep their MD. Changing a row's section type keeps the geometry where the new type can express it. The
+                table and the segments list edit the same plan. Azimuths are in the wellbore's azimuth reference.
+              </Para>
+              <Para>
+                Use the row buttons to insert a line above or below and to delete one. <Code>Undo</Code> and{' '}
+                <Code>Redo</Code> (Ctrl+Z, Ctrl+Shift+Z; Cmd on a Mac) step back through every plan change: table edits,
+                segment list edits, design-method applies, inserts, deletes and drag reorders. Definitive and archived
+                designs show the table read-only.
+              </Para>
               <SubHeading>Design settings</SubHeading>
               <Para>
                 <Code>Station every</Code> is the survey listing interval in the wellbore unit (default 30 m or 100 ft):
@@ -288,7 +307,7 @@ const WellDesignHelpGuide = () => {
             <Section id="solvers">
               <SectionHeading icon={Wand2}>Design methods (the solvers)</SectionHeading>
               <Para>
-                Five exact solvers. Replace methods rebuild the segment list from surface; append methods continue from the
+                Six exact solvers. Replace methods rebuild the segment list from surface; append methods continue from the
                 current design end, so you can chain an upper solve with a landing.
               </Para>
               <Table
@@ -299,8 +318,21 @@ const WellDesignHelpGuide = () => {
                   ['Curve to target', 'Append', 'One circular arc from the design end to the target, with the required DLS reported.'],
                   ['Horizontal landing', 'Append', 'Curve-hold-curve arriving at a heel target. Add a toe target and both the landing azimuth and inclination come from the heel-to-toe direction; either can be overridden.'],
                   ['Nudge', 'Replace', 'A shallow deviation and return for slot separation on crowded pads.'],
+                  ['Point', 'Append', 'Lands exactly on a point set by TVD, N/S and E/W (Using TVD) or by N/S, E/W and MD (Using MD, the TVD is solved), typed or picked from a target. Straight below a vertical end it holds vertically; an offset point gets a curve at your DLS then a tangent hold; from a deviated end with the point below it the well drops back to vertical. Arrive can force a tangent hold or a vertical arrival.'],
                 ]}
               />
+              <Para>
+                A target straight below the design end is a vertical well. When a target is within the vertical tolerance
+                (Design settings, default 0.5 m horizontally) of straight below a vertical design end, every method gives
+                one vertical hold to the target TVD, with inclination and azimuth zero and no build. The segment list
+                labels it Vertical to target, and the solve message says how far off vertical the target was. A target
+                further off than the tolerance gets a real build, and the message reports its total dogleg.
+              </Para>
+              <Para>
+                When the Point method cannot reach the point at your DLS it says how far off it is: how far inside the
+                turning circle, or how much deeper the point would need to be to arrive vertically, and the smallest DLS
+                that would reach it where it is.
+              </Para>
               <Para>
                 The horizontal landing takes two targets, the way Compass builds a landing from a Final Target plus an
                 Align on Target. The heel is where the well lands. The toe sets the direction the lateral runs, and the
@@ -341,8 +373,9 @@ const WellDesignHelpGuide = () => {
             <Section id="views">
               <SectionHeading icon={LayoutGrid}>Charts, the survey table and 3D</SectionHeading>
               <Para>
-                Four views on the Design tab: Section (TVD versus vertical section, with the EOU band and the PPFG mud
-                window), Plots (plan, section, inclination, DLS), Survey (the full station table), and 3D.
+                Five views on the Design tab: Section (TVD versus vertical section, with the EOU band and the PPFG mud
+                window), Plots (plan, section, inclination, DLS), Plan (the plan editor, one editable row per section; see
+                Designing the trajectory), Survey (the full station table), and 3D.
               </Para>
               <SubHeading>Plan view</SubHeading>
               <Para>

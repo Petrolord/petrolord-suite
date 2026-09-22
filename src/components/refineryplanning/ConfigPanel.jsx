@@ -3,6 +3,7 @@ import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useRefineryPlanning } from '@/contexts/RefineryPlanningContext';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
 
 const Cell = ({ label, value, onChange, unit }) => (
   <div>
@@ -34,6 +35,7 @@ const ConfigPanel = () => {
   const {
     inputs, setCrude, setUnit, setProduct, setRecipe, setPeriod, plan,
   } = useRefineryPlanning();
+  const { show } = useFullPrecision();
 
   return (
     <div className="space-y-4">
@@ -102,7 +104,7 @@ const ConfigPanel = () => {
               <YieldGrid kind="units" row={u} streams={inputs.streams} />
               {run && run.utilisation !== null && (
                 <p className="text-[11px] text-slate-400 mt-1">
-                  Running at {(run.utilisation * 100).toFixed(0)}% of capacity.
+                  Running at {show((run.utilisation * 100).toFixed(0), run.utilisation * 100)}% of capacity.
                 </p>
               )}
             </div>

@@ -9,6 +9,7 @@ import {
 import ChartFrame from '@/components/charts/ChartFrame';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { useLineSizing } from '@/contexts/LineSizingContext';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
 import { fmt, Stat, ErrorNote } from './fields';
 
 const patternLabel = {
@@ -18,17 +19,22 @@ const patternLabel = {
 
 const ResultCards = () => {
   const { sizing, bore } = useLineSizing();
+  const { full, show } = useFullPrecision();
   if (bore.error) return <ErrorNote>{bore.error}</ErrorNote>;
   if (sizing.error) return <ErrorNote>{sizing.error}</ErrorNote>;
 
   if (sizing.mode === 'liquid') {
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Stat label="Pressure drop" value={fmt(sizing.dpTotalPsi, 1)} unit="psi" />
+        <Stat label="Pressure drop" value={show(fmt(sizing.dpTotalPsi, 1), sizing.dpTotalPsi)} unit="psi" />
+        {full && (
+          <Stat label="Friction drop" value={show('', sizing.dpFrictionPsi)} unit="psi"
+            hint="the friction term alone, before fittings and elevation" />
+        )}
         <Stat label="Velocity" value={fmt(sizing.vFtS, 2)} unit="ft/s"
           accent={sizing.vFtS > sizing.maxVFtS ? 'text-amber-400' : 'text-slate-100'}
           hint={`limit ${fmt(sizing.maxVFtS, 0)} ft/s`} />
-        <Stat label="Friction factor" value={fmt(sizing.f, 4)} hint={sizing.regime} />
+        <Stat label="Friction factor" value={show(fmt(sizing.f, 4), sizing.f, 10)} hint={sizing.regime} />
         <Stat label="RP 14E status" value={sizing.exceeded ? 'EXCEEDED' : 'OK'}
           accent={sizing.exceeded ? 'text-red-400' : 'text-emerald-400'}
           hint={`erosional ${fmt(sizing.erosionalFtS, 1)} ft/s`} />
@@ -38,8 +44,8 @@ const ResultCards = () => {
   if (sizing.mode === 'gas') {
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Stat label="Outlet pressure" value={fmt(sizing.p2Psia, 1)} unit="psia" />
-        <Stat label="Pressure drop" value={fmt(sizing.dpPsi, 1)} unit="psi" />
+        <Stat label="Outlet pressure" value={show(fmt(sizing.p2Psia, 1), sizing.p2Psia)} unit="psia" />
+        <Stat label="Pressure drop" value={show(fmt(sizing.dpPsi, 1), sizing.dpPsi)} unit="psi" />
         <Stat label="Gradient" value={fmt(sizing.gradientPsiPerFt * 1000, 2)} unit="psi/1000 ft" />
         <Stat label="z used" value={fmt(sizing.zAvg, 3)} hint={sizing.zNote} />
         <Stat label="RP 14E status"

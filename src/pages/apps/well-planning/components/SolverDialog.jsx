@@ -30,7 +30,9 @@ import { resolveWellhead, targetToLocal, assertLocalDelta } from '../services/ta
 import {
   solveSlant, solveSProfile, solveContinuousBuild,
   solveHorizontalLanding, solveNudge, solveNudgeInverse, landingFromTargets,
+  solvePoint, DEFAULT_VERTICAL_TOLERANCE_M,
 } from '../engine/profileDesign';
+import { M_TO_FT } from '../engine/surveyMath';
 
 const METHODS = [
   { id: 'slant', label: 'Build and hold (J)', mode: 'replace' },
@@ -38,7 +40,17 @@ const METHODS = [
   { id: 'continuous', label: 'Curve to target (single arc)', mode: 'append' },
   { id: 'horizontal', label: 'Horizontal landing (curve-hold-curve)', mode: 'append' },
   { id: 'nudge', label: 'Nudge (slot separation)', mode: 'replace' },
+  { id: 'point', label: 'Point (land exactly on a point)', mode: 'append' },
 ];
+
+// How the Point method arrives, as the designer reads it.
+const POINT_GEOMETRY = {
+  vertical: 'vertical to the point',
+  hold: 'hold to the point',
+  'curve-hold': 'curve, then tangent hold to the point',
+  'drop to vertical': 'drop to vertical, then vertical hold to the point',
+  'curve-hold-curve to vertical': 'curve, hold, then back to vertical at the point',
+};
 
 // The compiler emits a station every 10 units of hole. Past this many
 // stations the design is not a well, and the plan-view and KPI code
@@ -47,15 +59,26 @@ const METHODS = [
 // on top of the braces, and it names a number the designer recognises.
 const MAX_SOLVED_MD = 200000;
 
-const toUiSegments = (engineSegments) => engineSegments.map((s, i) => {
+// `note` labels what the solver made of the segments ("Vertical to
+// target", the Point geometry); the segment list shows it on the first
+// solved segment until that segment is edited by hand.
+const toUiSegments = (engineSegments, note = null) => engineSegments.map((s, i) => {
   const id = `sol-${Date.now()}-${i}`;
-  if (s.kind === 'hold') return { id, type: 'Hold', length: +s.length.toFixed(2), buildRate: 0, turnRate: 0 };
-  if (s.kind === 'build') return { id, type: 'Build', length: +s.length.toFixed(2), buildRate: +s.rate.toFixed(4), turnRate: 0 };
+  const tag = note && i === 0 ? { note } : {};
+  if (s.kind === 'hold') return { id, type: 'Hold', length: +s.length.toFixed(2), buildRate: 0, turnRate: 0, ...tag };
+  if (s.kind === 'build') return { id, type: 'Build', length: +s.length.toFixed(2), buildRate: +s.rate.toFixed(4), turnRate: 0, ...tag };
   return {
     id, type: 'ToolfaceArc', length: +s.length.toFixed(2),
-    dls: +s.dls.toFixed(4), toolface: +s.toolfaceDeg.toFixed(2), buildRate: 0, turnRate: 0,
+    dls: +s.dls.toFixed(4), toolface: +s.toolfaceDeg.toFixed(2), buildRate: 0, turnRate: 0, ...tag,
   };
 });
+
+/** Segment-list label for a solved profile, or null. */
+export const solveNote = (methodId, report) => {
+  if (report?.verticalToTarget) return 'Vertical to target';
+  if (methodId === 'point' && report?.geometry) return `Point: ${POINT_GEOMETRY[report.geometry] || report.geometry}`;
+  return null;
+};
 
 const NumField = ({ label, value, onChange, step = 'any', testid, invalid, hint }) => (
   <div>
@@ -70,6 +93,25 @@ const NumField = ({ label, value, onChange, step = 'any', testid, invalid, hint 
   </div>
 );
 
+/** Toast text for a solved profile. */
+export const describeSolve = (methodId, r, mdUnit, intervalLabel) => {
+  if (!r) return 'Segments added to the design.';
+  if (r.verticalToTarget) {
+    return `Single vertical hold of ${fmt(r.holdLen, 1)} ${mdUnit}: the target is ${fmt(r.horizontalMiss, 2)} ${mdUnit} off vertical, inside the ${fmt(r.tolerance, 2)} ${mdUnit} tolerance.`;
+  }
+  const dogleg = Number.isFinite(r.doglegDeg) ? ` Total dogleg ${fmt(r.doglegDeg, 2)} deg.` : '';
+  if (methodId === 'point') {
+    const what = POINT_GEOMETRY[r.geometry] || r.geometry;
+    const tvd = Number.isFinite(r.solvedTvd) ? ` TVD solved at ${fmt(r.solvedTvd, 1)} ${mdUnit} below the design end.` : '';
+    return `Point: ${what}, ${fmt(r.endMdDelta, 1)} ${mdUnit} of hole at ${fmt(r.dls, 2)} deg/${intervalLabel}.${dogleg}${tvd}`;
+  }
+  if (r.holdIncDeg != null) return `Hold inclination ${r.holdIncDeg.toFixed(2)} deg at azimuth ${(r.aziDeg ?? 0).toFixed(1)} deg.${dogleg}`;
+  if (r.holdInc != null) {
+    return `Hold ${r.holdInc.toFixed(1)} deg / ${r.holdAzi.toFixed(1)} deg, landing at ${r.landInc.toFixed(1)} deg on azimuth ${r.landAzi.toFixed(1)} deg.${dogleg}`;
+  }
+  return `Segments added to the design.${dogleg}`;
+};
+
 /** Finite number from a field, or null. Blank, '-', 'e' and NaN all
  *  become null so they are reported as missing rather than solved with. */
 const num = (v) => {
@@ -82,7 +124,7 @@ const fmt = (v, dp = 1) => (Number.isFinite(v) ? v.toFixed(dp) : '--');
 
 const SolverDialog = ({
   open, onOpenChange, targets = [], wellbore, site = null, mdUnit, kbM = 0,
-  currentEnd, onApply,
+  currentEnd, onApply, verticalToleranceM = DEFAULT_VERTICAL_TOLERANCE_M,
 }) => {
   const { toast } = useToast();
   const [method, setMethod] = useState('slant');
@@ -95,6 +137,8 @@ const SolverDialog = ({
     landAzi: '', landInc: '', rate1: 3, rate2: 3,
     nudgeInc: 10, nudgeAzi: 0, nudgeHold: 100,
     nudgeMode: 'forward', nudgeOffset: 50, nudgeVertical: 500,
+    pointSource: 'target', pointMode: 'tvd', pointArrive: 'auto', pointDls: 3,
+    pointTvd: '', pointN: '', pointE: '', pointMd: '',
   });
   const set = (k) => (v) => setP((f) => ({ ...f, [k]: v }));
 
@@ -103,10 +147,19 @@ const SolverDialog = ({
 
   const intervalLabel = mdUnit === 'ft' ? '100ft' : '30m';
   const methodDef = METHODS.find((m) => m.id === method) || METHODS[0];
-  const needsTarget = method !== 'nudge';
+  const isPoint = method === 'point';
+  // The Point method places its point from a target or from typed
+  // coordinates; with "Using MD" a target supplies only N/S and E/W.
+  const pointFromTarget = isPoint && p.pointSource === 'target';
+  const needsTarget = method !== 'nudge' && (!isPoint || pointFromTarget);
   const isHorizontal = method === 'horizontal';
   const target = targets.find((t) => t.id === targetId) || null;
   const toeTarget = targets.find((t) => t.id === toeTargetId) || null;
+
+  // Vertical tolerance (Design settings, metres) in the solver's unit: a
+  // target this close to straight below the design end is a vertical well.
+  const verticalTolerance = (Number.isFinite(verticalToleranceM) ? verticalToleranceM : DEFAULT_VERTICAL_TOLERANCE_M)
+    * (mdUnit === 'ft' ? M_TO_FT : 1);
 
   // Wellhead in site-CRS metres (explicit head, else slot on a pad with
   // an origin). Without it no target can be placed, and the dialog says
@@ -126,6 +179,9 @@ const SolverDialog = ({
   }, [wellbore, wellhead, kbM, mdUnit, methodDef.mode, currentEnd]);
 
   const deltaResult = useMemo(() => deltaFor(target), [deltaFor, target]);
+  // The Point method starts at the design end, or at the surface when the
+  // design is still empty.
+  const pointStart = currentEnd || { inc: 0, azi: 0, n: 0, e: 0, tvd: 0, md: 0 };
   const toeDeltaResult = useMemo(() => deltaFor(toeTarget), [deltaFor, toeTarget]);
   const delta = deltaResult?.ok ? deltaResult : null;
   const toeDelta = toeDeltaResult?.ok ? toeDeltaResult : null;
@@ -172,6 +228,19 @@ const SolverDialog = ({
     if (needsTarget && !delta) {
       return deltaResult?.error || 'That target has no usable position. Give it an easting, a northing and a TVDSS on the Targets tab.';
     }
+    if (isPoint) {
+      if (!(num(p.pointDls) > 0)) return `Enter a DLS above zero in deg/${intervalLabel}.`;
+      if (!pointFromTarget) {
+        if (num(p.pointN) == null || num(p.pointE) == null) return `Enter the point N/S and E/W in ${mdUnit} from the wellhead (north and east positive).`;
+      }
+      if (p.pointMode === 'md') {
+        if (num(p.pointMd) == null) return `Enter the point MD in ${mdUnit}.`;
+        if (num(p.pointMd) <= (pointStart.md || 0)) return `The point MD must be beyond the design end at ${fmt(pointStart.md || 0)} ${mdUnit}.`;
+      } else if (!pointFromTarget && num(p.pointTvd) == null) {
+        return `Enter the point TVD in ${mdUnit} below the rotary table.`;
+      }
+      return null;
+    }
     if (methodDef.mode === 'append' && !currentEnd) {
       return method === 'continuous'
         ? 'Design something first: the arc starts from the current design end.'
@@ -204,7 +273,11 @@ const SolverDialog = ({
       if (manualInc != null && (manualInc <= 0 || manualInc > 180)) {
         return 'Landing inclination must be above 0 and no more than 180 degrees. A horizontal lateral is 90; nose it up or down with 89 or 91.';
       }
-      if (effectiveLandAzi == null) {
+      // A heel straight below a vertical design end is a vertical well
+      // (the engine's vertical-to-target rule), so it needs no azimuth.
+      const verticalBelow = delta && currentEnd && Math.abs(currentEnd.inc || 0) < 1e-3
+        && Math.hypot(delta.dE, delta.dN) <= verticalTolerance && !toeTarget;
+      if (effectiveLandAzi == null && !verticalBelow) {
         return 'The heel target is directly below the current design end, so it does not set a landing azimuth on its own. Pick an alignment (toe) target, or type an azimuth.';
       }
     }
@@ -224,7 +297,8 @@ const SolverDialog = ({
   }, [
     needsTarget, target, delta, deltaResult, methodDef.mode, currentEnd, method, isHorizontal,
     p, mdUnit, intervalLabel, toeTargetId, targetId, toeTarget, toeDelta, toeDeltaResult,
-    alignment, manualAzi, effectiveLandAzi, manualInc,
+    alignment, manualAzi, effectiveLandAzi, manualInc, isPoint, pointFromTarget, pointStart,
+    verticalTolerance,
   ]);
 
   const runSolver = () => {
@@ -237,15 +311,13 @@ const SolverDialog = ({
     if (isHorizontal && toeDelta) assertLocalDelta(toeDelta, mdUnit, 'Alignment target');
 
     if (method === 'slant') {
-      const kop = num(p.kop) ?? 0;
-      let sol = solveSlant({
-        target: { ...delta, dTvd: delta.dTvd - kop },
-        buildRate: num(p.buildRate), mdUnit,
+      // The engine takes the kickoff itself, so a target straight below
+      // the slot comes back as one vertical hold with no kickoff split.
+      const sol = solveSlant({
+        target: delta, kopLen: num(p.kop) ?? 0,
+        buildRate: num(p.buildRate), mdUnit, verticalTolerance,
       });
-      if (sol.feasible) {
-        sol = { ...sol, segments: [{ kind: 'hold', length: kop }, ...sol.segments] };
-        kickoffAzi = sol.report.aziDeg;
-      }
+      if (sol.feasible) kickoffAzi = sol.report.aziDeg;
       return { sol, kickoffAzi, mode };
     }
     if (method === 's') {
@@ -254,7 +326,7 @@ const SolverDialog = ({
         buildRate: num(p.buildRate),
         dropRate: num(p.dropRate),
         finalIncDeg: num(p.finalInc) ?? 0,
-        target: delta, mdUnit,
+        target: delta, mdUnit, verticalTolerance,
       });
       return { sol, kickoffAzi: sol.feasible ? sol.report.aziDeg : null, mode };
     }
@@ -262,7 +334,7 @@ const SolverDialog = ({
       return {
         sol: solveContinuousBuild({
           tieOn: { inc: currentEnd.inc, azi: currentEnd.azi },
-          delta, mdUnit,
+          delta, mdUnit, verticalTolerance,
         }),
         kickoffAzi: null,
         mode,
@@ -281,7 +353,35 @@ const SolverDialog = ({
             aziDeg: manualAzi != null ? manualAzi : undefined,
             alignOn: toeDelta || undefined,
           },
-          rate1: num(p.rate1), rate2: num(p.rate2), mdUnit,
+          rate1: num(p.rate1), rate2: num(p.rate2), mdUnit, verticalTolerance,
+        }),
+        kickoffAzi: null,
+        mode,
+      };
+    }
+    if (isPoint) {
+      // Point from the design end: a target (through the one conversion)
+      // or typed wellhead-relative N/S, E/W and TVD or MD.
+      let dN;
+      let dE;
+      let dTvd = null;
+      if (pointFromTarget) {
+        const local = targetToLocal(target, { wellhead, mdUnit, kbM, from: pointStart });
+        assertLocalDelta(local, mdUnit, 'Point');
+        ({ dN, dE, dTvd } = local);
+      } else {
+        dN = num(p.pointN) - (pointStart.n || 0);
+        dE = num(p.pointE) - (pointStart.e || 0);
+        if (p.pointMode !== 'md') dTvd = num(p.pointTvd) - (pointStart.tvd || 0);
+      }
+      const point = p.pointMode === 'md'
+        ? { dN, dE, md: num(p.pointMd) - (pointStart.md || 0) }
+        : { dN, dE, dTvd };
+      return {
+        sol: solvePoint({
+          tieOn: { inc: pointStart.inc || 0, azi: pointStart.azi || 0 },
+          point, dls: num(p.pointDls), mdUnit, mode: p.pointMode,
+          arrive: p.pointArrive, verticalTolerance,
         }),
         kickoffAzi: null,
         mode,
@@ -327,18 +427,15 @@ const SolverDialog = ({
     }
 
     setProblem(null);
-    onApply({
-      segments: toUiSegments(sol.segments), kickoffAzi, mode,
-      report: sol.report, method: methodDef.label,
-    });
     const r = sol.report;
+    const note = solveNote(method, r);
+    onApply({
+      segments: toUiSegments(sol.segments, note), kickoffAzi, mode,
+      report: r, method: methodDef.label, note,
+    });
     toast({
-      title: 'Solve complete',
-      description: r.holdIncDeg != null
-        ? `Hold inclination ${r.holdIncDeg.toFixed(1)} deg at azimuth ${(r.aziDeg ?? 0).toFixed(1)} deg.`
-        : r.holdInc != null
-          ? `Hold ${r.holdInc.toFixed(1)} deg / ${r.holdAzi.toFixed(1)} deg, landing at ${r.landInc.toFixed(1)} deg on azimuth ${r.landAzi.toFixed(1)} deg.`
-          : 'Segments added to the design.',
+      title: r.verticalToTarget ? 'Vertical to target' : 'Solve complete',
+      description: describeSolve(method, r, mdUnit, intervalLabel),
       className: 'bg-green-600 text-white',
     });
     onOpenChange(false);
@@ -371,7 +468,7 @@ const SolverDialog = ({
 
           {needsTarget && (
             <div>
-              <Label className="text-xs">{isHorizontal ? 'Landing (heel) target' : 'Target'}</Label>
+              <Label className="text-xs">{isHorizontal ? 'Landing (heel) target' : isPoint ? 'Point target' : 'Target'}</Label>
               <Select value={targetId} onValueChange={setTargetId}>
                 <SelectTrigger className="h-9 bg-slate-800 border-slate-700" data-testid="solver-target-trigger"><SelectValue placeholder="Select target..." /></SelectTrigger>
                 <SelectContent className="bg-slate-800 border-slate-700">{targetItems}</SelectContent>
@@ -473,6 +570,62 @@ const SolverDialog = ({
                     : 'Blank aims at the heel target from the current design end.'}
                 />
               </div>
+            </div>
+          )}
+          {isPoint && (
+            <div className="space-y-3" data-testid="solver-point">
+              <p className="text-xs text-slate-400">
+                Lands exactly on a point from the {currentEnd ? 'current end of the design' : 'surface (the design is empty)'}. Straight below a vertical end is a vertical hold; an offset point is a curve at the DLS then a tangent hold; a deviated end with the point below it drops back to vertical.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Point from</Label>
+                  <Select value={p.pointSource} onValueChange={set('pointSource')}>
+                    <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-slate-800 border-slate-700">
+                      <SelectItem value="target">A target</SelectItem>
+                      <SelectItem value="manual">Typed coordinates</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Mode</Label>
+                  <Select value={p.pointMode} onValueChange={set('pointMode')}>
+                    <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-slate-800 border-slate-700">
+                      <SelectItem value="tvd">Using TVD</SelectItem>
+                      <SelectItem value="md">Using MD</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {!pointFromTarget && (
+                  <>
+                    <NumField label={`N/S from wellhead (${mdUnit})`} value={p.pointN} onChange={set('pointN')} testid="solver-point-n" invalid={num(p.pointN) == null} hint="North positive" />
+                    <NumField label={`E/W from wellhead (${mdUnit})`} value={p.pointE} onChange={set('pointE')} testid="solver-point-e" invalid={num(p.pointE) == null} hint="East positive" />
+                  </>
+                )}
+                {p.pointMode === 'tvd' && !pointFromTarget && (
+                  <NumField label={`TVD (${mdUnit} below RT)`} value={p.pointTvd} onChange={set('pointTvd')} testid="solver-point-tvd" invalid={num(p.pointTvd) == null} />
+                )}
+                {p.pointMode === 'md' && (
+                  <NumField label={`MD at the point (${mdUnit})`} value={p.pointMd} onChange={set('pointMd')} testid="solver-point-md" invalid={num(p.pointMd) == null} hint={pointFromTarget ? 'The target sets N/S and E/W; the TVD is solved.' : 'The TVD is solved.'} />
+                )}
+                <NumField label={`DLS (deg/${intervalLabel})`} value={p.pointDls} onChange={set('pointDls')} testid="solver-point-dls" invalid={!(num(p.pointDls) > 0)} />
+                <div>
+                  <Label className="text-xs">Arrive</Label>
+                  <Select value={p.pointArrive} onValueChange={set('pointArrive')}>
+                    <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-slate-800 border-slate-700">
+                      <SelectItem value="auto">Automatic</SelectItem>
+                      <SelectItem value="tangent">On a tangent hold</SelectItem>
+                      <SelectItem value="vertical">Vertical (drop back to vertical)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-500">
+                Design end: MD {fmt(pointStart.md || 0)}, TVD {fmt(pointStart.tvd || 0)}, N/S {fmt(pointStart.n || 0)}, E/W {fmt(pointStart.e || 0)} {mdUnit}, inclination {fmt(pointStart.inc || 0)} deg.
+              </p>
             </div>
           )}
           {method === 'nudge' && (

@@ -25,6 +25,7 @@ import WallPanel, { WallInputs } from '@/components/linesizing/WallPanel';
 import PiggingPanel, { PiggingInputs } from '@/components/linesizing/PiggingPanel';
 import SummaryPanel from '@/components/linesizing/SummaryPanel';
 import LineSizingHelpContent from '@/components/linesizing/LineSizingHelpGuide';
+import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
 
 const TABS = [
   { value: 'sizing', label: 'Line Sizing' },
@@ -146,6 +147,8 @@ const StudioContent = () => {
         }
         headerActions={
           <>
+            <FullPrecisionToggle app="line-sizing-studio" />
+            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
             <StudioAutoSave
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
@@ -172,7 +175,9 @@ const StudioContent = () => {
 
 const PipelineLineSizingStudio = () => (
   <LineSizingProvider>
-    <StudioContent />
+    <FullPrecisionProvider>
+      <StudioContent />
+    </FullPrecisionProvider>
   </LineSizingProvider>
 );
 

@@ -1,7 +1,10 @@
 // Main panel, PSV tab: the area, the orifice, and the honesty notes.
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useRelief } from '@/contexts/ReliefStudioContext';
+import { useRelief, num } from '@/contexts/ReliefStudioContext';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
+import { formatFull } from '@/lib/fullPrecision';
+import { gasConstantC } from '@/utils/facilities/engine/relief';
 import { fmt, Stat, ErrorNote, WarnNote } from './fields';
 
 const OrificeLadder = ({ selected }) => {
@@ -23,7 +26,8 @@ const OrificeLadder = ({ selected }) => {
 };
 
 const PsvResultsPanel = () => {
-  const { psv } = useRelief();
+  const { psv, inputs } = useRelief();
+  const { full, show } = useFullPrecision();
   if (psv.error) return <ErrorNote>{psv.error}</ErrorNote>;
   const o = psv.orifice;
   return (
@@ -32,7 +36,7 @@ const PsvResultsPanel = () => {
         <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Required orifice</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Stat label="Required area" value={fmt(psv.areaIn2, 3)} unit="in2" />
+            <Stat label="Required area" value={show(fmt(psv.areaIn2, 3), psv.areaIn2)} unit="in2" />
             {o.error ? (
               <Stat label="Selection" value={`${fmt(o.multipleOfT, 0)} x T`} accent="text-amber-400" hint={o.error} />
             ) : (
@@ -43,6 +47,14 @@ const PsvResultsPanel = () => {
             )}
             {psv.p1Psia && <Stat label="Relieving pressure" value={fmt(psv.p1Psia, 1)} unit="psia" />}
           </div>
+          {full && (psv.scenario === 'gas' || psv.scenario === 'fire') && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Stat label="Critical pressure ratio" value={formatFull(psv.criticalRatio)}
+                hint="back pressure over relieving pressure at which the nozzle chokes" />
+              <Stat label="Gas coefficient C"
+                value={formatFull(gasConstantC(num(inputs?.[psv.scenario]?.k, 1.4)))} />
+            </div>
+          )}
           {!o.error && <OrificeLadder selected={o.orifice} />}
           {psv.scenario === 'gas' && (
             <p className="text-[12px] text-slate-500">

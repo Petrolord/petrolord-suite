@@ -13,6 +13,8 @@ import { ShieldAlert, CheckCircle2, AlertTriangle, Info } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
+import { formatFull } from '@/lib/fullPrecision';
 import {
   runLayoutCheck, toFeet, RADIATION_LEVELS, SPACING_INPUT_LABELS,
   DEFAULT_SPACING_INPUTS, spacingInputsToRadiation, describeSkipped, incompleteReasons,
@@ -33,6 +35,7 @@ const Field = ({ label, hint, children }) => (
 const LEVELS_HINT = `API 521 levels: ${RADIATION_LEVELS.map((l) => l.kWm2).join(', ')} kW/m2.`;
 
 const SpacingPanel = ({ layers, inputs = DEFAULT_SPACING_INPUTS, onChange = () => {} }) => {
+  const { full, show } = useFullPrecision();
   const set = (k, v) => onChange({ ...inputs, [k]: v });
 
   const NumField = ({ name, step = 'any', hint }) => (
@@ -170,13 +173,15 @@ const SpacingPanel = ({ layers, inputs = DEFAULT_SPACING_INPUTS, onChange = () =
                 {result.worstAbsolute && (
                   <p>
                     Largest shortfall: {result.worstAbsolute.aName} to {result.worstAbsolute.bName},
-                    short {fmt(result.worstAbsolute.shortfallM, 1)} m of {fmt(result.worstAbsolute.requiredM, 1)} m.
+                    short {show(fmt(result.worstAbsolute.shortfallM, 1), result.worstAbsolute.shortfallM)} m of {show(fmt(result.worstAbsolute.requiredM, 1), result.worstAbsolute.requiredM)} m.
                   </p>
                 )}
                 {result.worstRelative && (
                   <p>
                     Largest shortfall against its own requirement: {result.worstRelative.aName} to {result.worstRelative.bName},
-                    {' '}{fmt(result.worstRelative.shortfallFraction * 100, 0)} percent short.
+                    {' '}{full
+                      ? `short by a fraction ${formatFull(result.worstRelative.shortfallFraction)} of its requirement.`
+                      : `${fmt(result.worstRelative.shortfallFraction * 100, 0)} percent short.`}
                   </p>
                 )}
               </div>
@@ -188,7 +193,7 @@ const SpacingPanel = ({ layers, inputs = DEFAULT_SPACING_INPUTS, onChange = () =
                   </p>
                   <p className="text-[11px] text-slate-400 tabular-nums">
                     {fmt(v.actualM, 1)} m apart, needs {fmt(v.requiredM, v.kind === 'radiation' ? 1 : 0)} m
-                    <span className="text-red-400"> (short {fmt(v.shortfallM, 1)} m, {fmt(v.shortfallFraction * 100, 0)} percent)</span>
+                    <span className="text-red-400"> (short {show(fmt(v.shortfallM, 1), v.shortfallM)} m, {full ? `fraction ${formatFull(v.shortfallFraction)}` : `${fmt(v.shortfallFraction * 100, 0)} percent`})</span>
                   </p>
                   <p className="text-[10px] text-slate-600">
                     {v.kind === 'radiation' ? (v.label || 'radiation setback') : 'spacing table'}
