@@ -28,6 +28,8 @@ export default {
     'griddingWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/griddingWorkerFactoryMock.js',
     // and for the W2.1 attribute-volume worker
     'attributeWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/attributeWorkerFactoryMock.js',
+    // and for the large-survey slice worker (Stream L)
+    'sliceWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/sliceWorkerFactoryMock.js',
     // same story for the 2D line worker (W5)
     'lineWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/lineWorkerFactoryMock.js',
     // PT10d: the Petrophysics probabilistic worker factory (import.meta)
