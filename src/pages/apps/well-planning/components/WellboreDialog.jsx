@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { convergenceAt, toLonLat } from '@/lib/crs';
+import { siteCrsOpts } from '../services/siteCrs';
 import { isTransformableTag } from '@/lib/crs/tags';
 import { declinationAt, decimalYearOf } from '../engine/magnetics';
 
@@ -64,17 +65,17 @@ const WellboreDialog = ({ open, onOpenChange, site, wellbore, siblings = [], onS
   const convergence = useMemo(() => {
     if (!head || !site?.crs || !isTransformableTag(site.crs)) return null;
     try {
-      const c = convergenceAt(site.crs, head.x, head.y);
+      const c = convergenceAt(site.crs, head.x, head.y, {}, siteCrsOpts(site));
       return Number.isFinite(c) ? c : null;
     } catch (e) { return null; }
-  }, [head, site?.crs]);
+  }, [head, site?.crs, site?.crs_provenance]);
 
   // WMM2025 declination at the wellhead for today's date (the survey
   // date belongs to each run; the cached value serves planning).
   const magnetics = useMemo(() => {
     if (!head || !site?.crs || !isTransformableTag(site.crs)) return null;
     try {
-      const { lon, lat } = toLonLat(site.crs, head.x, head.y);
+      const { lon, lat } = toLonLat(site.crs, head.x, head.y, {}, siteCrsOpts(site));
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
       const now = new Date();
       const d = declinationAt({
@@ -84,7 +85,7 @@ const WellboreDialog = ({ open, onOpenChange, site, wellbore, siblings = [], onS
       });
       return Number.isFinite(d.declinationDeg) ? d : null;
     } catch (e) { return null; }
-  }, [head, site?.crs]);
+  }, [head, site?.crs, site?.crs_provenance]);
 
   const handleSave = async () => {
     if (!form.name.trim()) return;

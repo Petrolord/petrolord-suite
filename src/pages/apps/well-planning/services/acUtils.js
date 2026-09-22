@@ -8,6 +8,7 @@
 // at the boundary.
 
 import { toLonLat } from '@/lib/crs';
+import { siteCrsOpts } from './siteCrs';
 import { isTransformableTag } from '@/lib/crs/tags';
 import { fieldAt, decimalYearOf } from '../engine/magnetics';
 import { computeWellPath } from '../engine/surveyMath';
@@ -65,7 +66,7 @@ export function resolveMagReference(site, wellbore) {
     return null;
   }
   try {
-    const { lon, lat } = toLonLat(site.crs, wellbore.head_x, wellbore.head_y);
+    const { lon, lat } = toLonLat(site.crs, wellbore.head_x, wellbore.head_y, {}, siteCrsOpts(site));
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
     const now = new Date();
     const f = fieldAt({

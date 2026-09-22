@@ -1,8 +1,14 @@
 // Site (pad) create/edit dialog (WD1): name, CRS via the suite
 // CrsPicker, pad origin in site CRS, north reference, ground elevation,
 // and a slot-template editor (name + dx/dy offsets from the origin).
+//
+// Datum transformation (tester feedback 2026-09-22): a CRS on a datum with
+// several published EPSG transformations to WGS 84 (Minna) shows the one in
+// use, its published accuracy and area of use, and lets the site choose
+// another; the choice is saved in crs_provenance.datum_transform and every
+// lon/lat conversion of this site uses it (services/siteCrs.js).
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +16,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Trash2 } from 'lucide-react';
 import CrsPicker from '@/components/crs/CrsPicker';
+import { catalogGet, datumTransformInfo, insideTransformArea, toLonLat } from '@/lib/crs';
+import { withDatumTransform } from '../services/siteCrs';
 
 const num = (v) => {
   const n = parseFloat(v);
@@ -28,6 +36,7 @@ const SiteDialog = ({ open, onOpenChange, site, onSave, customDefs = {} }) => {
       name: site?.name || '',
       description: site?.description || '',
       crs: site?.crs || null,
+      datum_transform: site?.crs_provenance?.datum_transform || null,
       origin_x: site?.origin_x ?? '',
       origin_y: site?.origin_y ?? '',
       north_reference: site?.north_reference || 'grid',
@@ -37,6 +46,26 @@ const SiteDialog = ({ open, onOpenChange, site, onSave, customDefs = {} }) => {
   }, [open, site]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  // The transformation in effect for the picked CRS (null when the CRS has
+  // no named choice), and where the origin falls against its area of use.
+  const dtInfo = useMemo(() => datumTransformInfo(form.crs, form.datum_transform), [form.crs, form.datum_transform]);
+  const crsEntry = form.crs ? catalogGet(form.crs) : null;
+  const originCheck = useMemo(() => {
+    const ox = num(form.origin_x);
+    const oy = num(form.origin_y);
+    if (!dtInfo || ox == null || oy == null) return null;
+    try {
+      const { lon, lat } = toLonLat(form.crs, ox, oy, {}, { datumTransform: dtInfo.transform.code });
+      if (!Number.isFinite(lon) || !Number.isFinite(lat)) return null;
+      return {
+        lon,
+        lat,
+        inside: insideTransformArea(dtInfo.transform, lon, lat),
+        covering: dtInfo.options.filter((t) => insideTransformArea(t, lon, lat)),
+      };
+    } catch (e) { return null; }
+  }, [dtInfo, form.crs, form.origin_x, form.origin_y]);
+
   const setSlot = (i, k, v) => setSlots((s) => s.map((row, j) => (j === i ? { ...row, [k]: v } : row)));
 
   const handleSave = async () => {
@@ -47,6 +76,10 @@ const SiteDialog = ({ open, onOpenChange, site, onSave, customDefs = {} }) => {
         name: form.name.trim(),
         description: form.description || null,
         crs: form.crs || null,
+        crs_provenance: withDatumTransform(
+          site?.crs_provenance,
+          dtInfo && !dtInfo.isDefault ? dtInfo.transform.code : null,
+        ),
         origin_x: num(form.origin_x),
         origin_y: num(form.origin_y),
         north_reference: form.north_reference,
@@ -92,8 +125,53 @@ const SiteDialog = ({ open, onOpenChange, site, onSave, customDefs = {} }) => {
           <div>
             <Label className="text-xs">Coordinate reference system</Label>
             <div className="mt-1 rounded-md border border-slate-700 bg-slate-800 p-2">
-              <CrsPicker value={form.crs} onChange={(tag) => set('crs', tag)} customDefs={customDefs} />
+              <CrsPicker
+                value={form.crs}
+                onChange={(tag) => setForm((f) => ({ ...f, crs: tag, datum_transform: null }))}
+                customDefs={customDefs}
+              />
             </div>
+            {dtInfo && (
+              <div className="mt-2 space-y-1" data-testid="site-datum-transform">
+                <Label className="text-xs">Datum transformation to WGS 84</Label>
+                <Select
+                  value={dtInfo.transform.code}
+                  onValueChange={(v) => set('datum_transform', v === crsEntry?.datumTransform ? null : v)}
+                >
+                  <SelectTrigger className="bg-slate-800 border-slate-700 h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent className="bg-slate-800 border-slate-700">
+                    {dtInfo.options.map((t) => (
+                      <SelectItem key={t.code} value={t.code}>
+                        {t.name}, {t.code}, {t.accuracyM} m{t.code === crsEntry?.datumTransform ? ' (default)' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-slate-400" data-testid="site-datum-accuracy">
+                  {dtInfo.transform.name} ({dtInfo.transform.code}), {dtInfo.transform.method}.
+                  {' '}Published accuracy {dtInfo.transform.accuracyM} m. Area of use: {dtInfo.transform.areaName}.
+                </p>
+                {dtInfo.overrideIgnored && (
+                  <p className="text-xs text-amber-300">
+                    The saved transformation does not apply to this CRS, so the default is used.
+                  </p>
+                )}
+                {originCheck && !originCheck.inside && (
+                  <p className="text-xs text-amber-300" data-testid="site-datum-outside">
+                    The site origin ({originCheck.lat.toFixed(4)}°, {originCheck.lon.toFixed(4)}°) lies outside this
+                    transformation&apos;s published area of use.
+                    {' '}{originCheck.covering.length
+                      ? `Published for this location: ${originCheck.covering.map((t) => `${t.name} (${t.code}, ${t.accuracyM} m)`).join('; ')}.`
+                      : 'No published transformation for this CRS covers this location.'}
+                  </p>
+                )}
+              </div>
+            )}
+            {!dtInfo && crsEntry?.datumAccuracyM && (
+              <p className="mt-2 text-xs text-slate-400" data-testid="site-datum-accuracy">
+                The datum shift to WGS 84 is approximate, about {crsEntry.datumAccuracyM} m.
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-3 gap-3">
