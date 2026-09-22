@@ -31,6 +31,9 @@ import { faultSticksToRows, writeCharismaFaultSticks } from '../engine/pickExpor
 import { faultHorizonIntersection } from '../engine/faultObjects';
 import { faultSurfaceXyz, faultPolygonCsv, barriersFromFaults } from '../lib/faultObjectsExport';
 import { persistentBrickFetcher, purgePersistedBricks } from '../services/brickStore';
+import { getAccessToken } from '../services/accessToken';
+import { startTrackerJob } from '../services/trackerRunner';
+import { withBrickTimeout } from '../lib/fetchWithTimeout';
 import Line2dPanel from './Line2dPanel';
 import {
   listLines, deleteLine, setLineShared, loadLineNav,
@@ -108,6 +111,7 @@ import HorizonSettingsDialog from './workspace/dialogs/HorizonSettingsDialog';
 import FaultSettingsDialog from './workspace/dialogs/FaultSettingsDialog';
 import SeismicExplorer from './workspace/SeismicExplorer';
 import StatusBar from './workspace/StatusBar';
+import SliceLoadError from './workspace/SliceLoadError';
 import RightDock from './workspace/RightDock';
 import { horizonColorFor, faultColorFor, surfaceColor } from './workspace/interpretationColors';
 import useDisplaySettings from '../hooks/useDisplaySettings';
@@ -131,11 +135,9 @@ const DRAFT_COLOR = '#facc15';
 const storageBase = () => supabase.storage.from('seismic')
   .getPublicUrl('x').data.publicUrl.split('/storage/v1/')[0];
 
-async function accessToken() {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('Not signed in');
-  return session.access_token;
-}
+// stability (2026-09-22): brick reads use the in-memory cached token
+// (services/accessToken) instead of an auth-lock getSession per brick
+const accessToken = getAccessToken;
 
 const newHorizonWorker = () =>
   new Worker(new URL('../workers/horizon.worker.js', import.meta.url), { type: 'module' });
@@ -159,7 +161,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   const { toast } = useToast();
   const cacheRef = useRef(null);
   const requestRef = useRef(0);
-  const workerRef = useRef(null);
+  const workerRef = useRef(null);               // running tracker job {promise, cancel}
   const jobIdRef = useRef(0);
   const selectSeqRef = useRef(0);               // stale volume-switch guard
   const gridCacheRef = useRef(new Map());       // horizon id -> Float32Array
@@ -1027,9 +1029,11 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
       }
       if (seq !== selectSeqRef.current) return;   // a newer selection won; drop this one
       cacheRef.current = new BrickCache(
-        persistentBrickFetcher(
+        // stability: every brick request settles (30 s timeout, one
+        // retry), so a stalled GET can never pin a cache slot forever
+        withBrickTimeout(persistentBrickFetcher(
           storageBrickFetcher({ supabaseUrl: storageBase(), getToken: accessToken }),
-        ),
+        )),
         {
           maxBytes: 256 * 1024 * 1024,
           dtype: m.brick?.dtype,             // W4.4: decode inside the cache
@@ -1232,9 +1236,11 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
         throw new Error('The volumes are not on the same survey lattice.');
       }
       cacheBRef.current = new BrickCache(
-        persistentBrickFetcher(
+        // stability: every brick request settles (30 s timeout, one
+        // retry), so a stalled GET can never pin a cache slot forever
+        withBrickTimeout(persistentBrickFetcher(
           storageBrickFetcher({ supabaseUrl: storageBase(), getToken: accessToken }),
-        ),
+        )),
         { maxBytes: 128 * 1024 * 1024, dtype: m.brick?.dtype, maxConcurrent: 8 },
       );
       setOverlayInfo({ row, manifest: m });
@@ -2077,47 +2083,34 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     return barriersFromFaults(faults, sampleLevel, geom);
   };
 
-  /** Run the region-grow worker and return {picks, confidence}. */
+  /** Run the region-grow worker and return {picks, confidence}. The
+   *  job always settles (services/trackerRunner): token failures reject,
+   *  Cancel terminates the worker, a silent worker trips a watchdog. */
   const runTracker = async ({ seed, extraOpts }) => {
     const id = ++jobIdRef.current;
     setTracking({ tracked: 0, total: geom.nIl * geom.nXl });
     const token = await accessToken();
-    const worker = newHorizonWorker();
-    workerRef.current = worker;
+    const job = startTrackerJob({
+      createWorker: newHorizonWorker,
+      id,
+      getToken: accessToken,
+      onProgress: (tracked, total) => setTracking({ tracked, total }),
+      config: {
+        supabaseUrl: storageBase(),
+        token,
+        bucket: 'seismic',
+        storagePath: volume.storage_path,
+        dtype: manifest?.brick?.dtype,   // W4.4 codec-aware worker cache
+        geom,
+        seed,
+        opts: { ...trackerOpts(), ...extraOpts },
+      },
+    });
+    workerRef.current = job;
     try {
-      return await new Promise((resolve, reject) => {
-        worker.onmessage = async (e) => {
-          const msg = e.data;
-          if (msg.id !== id) return;
-          if (msg.type === 'progress') setTracking({ tracked: msg.tracked, total: msg.total });
-          else if (msg.type === 'need-token') {
-            worker.postMessage({ type: 'token', nonce: msg.nonce, token: await accessToken() });
-          } else if (msg.type === 'done') {
-            resolve({
-              picks: new Float32Array(msg.picks),
-              confidence: msg.confidence ? new Float32Array(msg.confidence) : null,
-            });
-          } else if (msg.type === 'error') reject(new Error(msg.message));
-        };
-        worker.onerror = (ev) => reject(new Error(ev.message));
-        worker.postMessage({
-          type: 'track3d',
-          id,
-          config: {
-            supabaseUrl: storageBase(),
-            token,
-            bucket: 'seismic',
-            storagePath: volume.storage_path,
-            dtype: manifest?.brick?.dtype,   // W4.4 codec-aware worker cache
-            geom,
-            seed,
-            opts: { ...trackerOpts(), ...extraOpts },
-          },
-        });
-      });
+      return await job.promise;
     } finally {
-      worker.terminate();
-      workerRef.current = null;
+      if (workerRef.current === job) workerRef.current = null;
     }
   };
 
@@ -2209,10 +2202,9 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     }
   };
 
+  // Cancel terminates the worker and rejects the job at once
   const cancelTracking = () => {
-    if (workerRef.current) {
-      workerRef.current.postMessage({ type: 'cancel', id: jobIdRef.current });
-    }
+    if (workerRef.current) workerRef.current.cancel();
   };
 
   const toggleHorizon = (h) => {
@@ -2239,18 +2231,24 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   // Assemble the map's time slice whenever its toggle is on and the time
   // position moves. Bricks are shielded from the slice scrub's
   // cancellation (traverse/amplitude pattern); a volume switch bumps the
-  // request counter so a stale assembly can never land.
+  // request counter so a stale assembly can never land. Stability
+  // (2026-09-22): debounced, so a scrub or the player assembles only the
+  // slice it settles on (longer while playing), not every one it passes.
+  const mapSliceDebounceMs = player.playing ? 300 : 120;
   useEffect(() => {
     if (!sliceVis.time || !manifest || !geom || !volume) {
+      mapSliceReqRef.current += 1;
+      mapSliceBricksRef.current = null;
       setMapTimeSlice(null);
-      return;
+      return undefined;
     }
     const idx = Math.min(geom.ns - 1, Math.max(0, indices.time));
     const req = ++mapSliceReqRef.current;
-    const keys = new Set(bricksForSlice(geom, 'time', idx)
-      .map(({ i, j, k }) => brickKey(volume.storage_path, i, j, k)));
-    mapSliceBricksRef.current = keys;
-    (async () => {
+    const timer = setTimeout(async () => {
+      if (req !== mapSliceReqRef.current) return;
+      const keys = new Set(bricksForSlice(geom, 'time', idx)
+        .map(({ i, j, k }) => brickKey(volume.storage_path, i, j, k)));
+      mapSliceBricksRef.current = keys;
       try {
         const assembled = await assembleSlice(getBrick, geom, 'time', idx);
         if (req !== mapSliceReqRef.current) return;    // superseded
@@ -2264,8 +2262,9 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
       } finally {
         if (mapSliceBricksRef.current === keys) mapSliceBricksRef.current = null;
       }
-    })();
-  }, [sliceVis.time, manifest, geom, volume, indices.time, getBrick, toast]);
+    }, mapSliceDebounceMs);
+    return () => clearTimeout(timer);
+  }, [sliceVis.time, manifest, geom, volume, indices.time, getBrick, toast, mapSliceDebounceMs]);
 
   // ---- per-horizon display settings --------------------------------------
 
@@ -2720,7 +2719,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   useEffect(() => () => {
     if (cacheRef.current) cacheRef.current.clear();
     if (cacheBRef.current) cacheBRef.current.clear();
-    if (workerRef.current) workerRef.current.terminate();
+    if (workerRef.current) workerRef.current.cancel();
   }, []);
 
   // ---- SliceView inputs --------------------------------------------------
@@ -3607,6 +3606,8 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
               title: 'Section',
               icon: ScanLine,
               content: (
+                <div className="relative h-full min-h-0">
+                <SliceLoadError error={!loading ? error : null} onRetry={loadSlice} />
                 <SliceView
                   // only hand over a slice that matches the current
                   // orientation — an orientation switch must not render the
@@ -3645,6 +3646,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
                   planeMarks={planeMarks}
                   wellCorridor={wellCorridor}
                 />
+                </div>
               ),
             },
             {

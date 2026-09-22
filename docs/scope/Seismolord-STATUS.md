@@ -1,6 +1,60 @@
 # Seismolord — STATUS
 
-Last updated: 2026-09-22 (tester feedback: navigation, slice player, slice toggles, wells; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
+Last updated: 2026-09-22 (tester feedback: navigation, slice player, slice toggles, wells, stability; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
+
+## 2026-09-22: tester feedback, stability (SLT-3)
+
+Owner: "Intermittent hanging that needs a page refresh." Scope per the
+lead (2026-09-22): moving brick decode and slice assembly into a slice
+worker belongs to the large-survey stream
+(docs/scope/Seismolord-LARGE-SURVEY-PLAN.md); SLT-3 removes the hang
+sources on the existing path.
+
+- **Stalled brick GETs pinned cache slots forever** (the main hang).
+  `BrickCache` releases a concurrency slot only when the fetcher's
+  promise settles, and the storage fetcher had no timeout, so a few
+  requests that never answered starved every later slice (12 slots
+  primary, 8 overlay) and the spinner never stopped.
+  `lib/fetchWithTimeout.js` (worker-safe, for the slice worker to
+  reuse): `fetchWithTimeout(attempt, {signal, timeoutMs, retries})`
+  aborts each attempt after 30 s, retries once (network TypeErrors
+  retry too, HTTP errors do not), lets the caller's abort win at once,
+  and always settles; `withBrickTimeout(fetcher)` wraps a BrickFetcher.
+  Applied outermost (it also bounds an IndexedDB read that hangs) on
+  the primary and overlay caches, the 2D line cache and the horizon
+  tracking worker's cache.
+- **Error state instead of an endless spinner**: a failed section slice
+  shows `SliceLoadError` (reason + Retry, `sl-slice-error`); a failed
+  3D plane load clears its dedupe so Retry on the message bar (or the
+  next index move) loads it again.
+- **Per-brick auth lock**: every brick called
+  `supabase.auth.getSession()`. `services/accessToken.js` caches the
+  token in memory (kept current by onAuthStateChange, refreshed a
+  minute before expiry, single-flight, one forced refresh per 401
+  burst).
+- **Tracker hangs**: the async onmessage swallowed a token failure on
+  'need-token' (worker waited forever) and Cancel only posted a
+  message. `services/trackerRunner.js`: the job always settles, token
+  failure rejects, Cancel terminates and rejects, a 120 s silence
+  watchdog stops a stalled worker (it reports every 256 traces), the
+  worker is always terminated. The worker's own token wait now times
+  out after 30 s.
+- **IndexedDB main-thread scans**: `brickStore` v2 splits payloads
+  (`bricks`) from bookkeeping (`meta {path, bytes, ts}` + ts index).
+  Open sums `meta` only (v1 walked every payload, up to 512 MB of
+  ArrayBuffers cloned on the main thread), hits touch `meta` only (v1
+  rewrote the whole payload per hit), eviction and purge walk `meta`
+  and delete payloads by key, every transaction has onabort/onerror.
+  Upgrading from v1 drops the old cache once.
+- **Map time slice during scrub/play**: assembly is debounced (120 ms,
+  300 ms while the player runs) so only the settled slice assembles.
+- Not in this PR (large-survey stream): decode and assembly off the
+  main thread, streaming assembly, LOD bricks, memory budget. Depth
+  stretch, AGC and map contours also still run on the main thread.
+- Tests: `stability.test.jsx` (22) incl. the slot-pinning hang with a
+  negative control, token burst and 401 dedupe, tracker token failure /
+  cancel / watchdog, IndexedDB v2 accounting, eviction, purge and the
+  v1 upgrade (fake-indexeddb), the error overlay.
 
 ## 2026-09-22: tester feedback, slice toggles and wells (SLT-2)
 
