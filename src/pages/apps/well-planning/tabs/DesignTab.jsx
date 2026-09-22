@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, useReducer } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,13 @@ import SurveyProgramEditor from '../components/SurveyProgramEditor';
 import PublishDialog from '../components/PublishDialog';
 import WellpathCubeView from '../components/WellpathCubeView';
 import MudWindowPanel from '../charts/MudWindowPanel';
+import PlanEditorTable from '../components/PlanEditorTable';
+import { Undo2, Redo2, TableProperties } from 'lucide-react';
+import {
+    resolvePlan, derivePlanTable, applyPlanEdit, changeSegmentType, insertSegment,
+    deleteSegment, moveSegment, historyReducer, initHistory, makeSegmentId,
+    SEGMENT_TYPES, SEGMENT_TYPE_LABELS,
+} from '../services/planEditor';
 import { buildTrajectoryContract, exportFormats } from '../services/trajectoryContract';
 import { loadPpfgCurves, buildMudWindow, mudWindowSummary } from '../services/ppfg';
 import { compositeStations } from '../services/surveyUtils';
@@ -57,9 +64,14 @@ const DesignTab = () => {
     const { trajectoryDraft, updateTrajectoryDraft } = useWellPlanning();
     const { toast } = useToast();
 
-    const [viewMode, setViewMode] = useState('section'); // section | plots | table
+    const [viewMode, setViewMode] = useState('section'); // section | plots | plan | table | 3d
     const [kickoffAzi, setKickoffAzi] = useState(0);
-    const [segments, setSegments] = useState([]);
+    // Plan Editor: the segments array lives in one undo/redo history
+    // (services/planEditor historyReducer) shared by the segments panel,
+    // the Plan table, solver applies, insert/delete and drag reorder.
+    const [planHistory, dispatchPlan] = useReducer(historyReducer, undefined, () => initHistory({ segments: [] }));
+    const segments = planHistory.present.segments;
+    const [planSpans, setPlanSpans] = useState(null);
     const [solverOpen, setSolverOpen] = useState(false);
     const [constraints, setConstraints] = useState({ maxDLS: 3 });
     const [planRows, setPlanRows] = useState(null);
@@ -105,7 +117,7 @@ const DesignTab = () => {
         const draft = trajectoryDraft;
         const savedSegments = Array.isArray(design.segments) && design.segments.length
             ? design.segments : [{ id: 'seg-1', type: 'Hold', length: mdUnit === 'ft' ? 1000 : 300, buildRate: 0, turnRate: 0 }];
-        setSegments(draft?.segments?.length ? draft.segments : savedSegments);
+        dispatchPlan({ type: 'reset', value: { segments: draft?.segments?.length ? draft.segments : savedSegments } });
         const savedAzi = design.tie_on?.azi ?? 0;
         setKickoffAzi(Number.isFinite(draft?.kickoffAzi) ? draft.kickoffAzi : savedAzi);
         if (draft?.constraints) setConstraints((c) => ({ ...c, ...draft.constraints }));
@@ -273,33 +285,25 @@ const DesignTab = () => {
         : null;
 
     const calculateTrajectory = useCallback(() => {
-        if (!segments.length) { setPlanRows(null); setStations(null); return; }
+        if (!segments.length) { setPlanRows(null); setStations(null); setPlanSpans(null); return; }
+        const tieOn = { md: 0, inc: 0, azi: (parseFloat(kickoffAzi) || 0) + (aziDelta || 0) };
+        // UI segments -> compiler segments (same skip rule as before;
+        // Inc Azi MD rows resolve to one arc from the incoming attitude).
+        const resolved = resolvePlan(segments, { mdUnit, tieOn, aziDelta: aziDelta || 0 });
+        setPlanSpans(resolved.spans);
         try {
             const compiled = compileSegments({
                 mdUnit,
-                tieOn: { md: 0, inc: 0, azi: (parseFloat(kickoffAzi) || 0) + (aziDelta || 0) },
+                tieOn,
                 maxDls: parseFloat(constraints.maxDLS) || null,
                 subdivideMd: stationInterval,
-                segments: segments.map((s) => {
-                    const type = (s.type || 'Hold').toLowerCase();
-                    const length = parseFloat(s.length || 0);
-                    if (type === 'build') return { kind: 'build', rate: parseFloat(s.buildRate || 0), length };
-                    if (type === 'turn') return { kind: 'turn', rate: parseFloat(s.turnRate || 0), length };
-                    if (type === 'toolfacearc') {
-                        return {
-                            kind: 'toolfaceArc', length,
-                            dls: parseFloat(s.dls || 0), toolfaceDeg: parseFloat(s.toolface || 0),
-                        };
-                    }
-                    return { kind: 'hold', length };
-                }).filter((s) => s.length > 0
-                    && (s.kind === 'hold' || (s.kind === 'toolfaceArc' ? s.dls > 0 : Math.abs(s.rate) > 0))),
+                segments: resolved.compilerSegments,
                 kb: kbUser,
             });
             setPlanRows(compiled.table);
             setStations(compiled.stations);
             setQaResult(compiled.qa);
-            setCompileError(null);
+            setCompileError(resolved.errors.length ? resolved.errors.join(' ') : null);
         } catch (e) {
             setPlanRows(null);
             setStations(null);
@@ -344,48 +348,69 @@ const DesignTab = () => {
         }
     };
 
+    // Every segment change goes through here: one history step (typing
+    // bursts on one field fold together) and the localStorage draft.
+    const commitSegments = (next, { coalesceKey, kickoffAzi: nextAzi, prevKickoffAzi } = {}) => {
+        if (next === segments) return;
+        dispatchPlan({
+            type: 'commit', coalesceKey, at: Date.now(),
+            value: { segments: next, kickoffAzi: nextAzi, prevKickoffAzi },
+        });
+        updateTrajectoryDraft({ segments: next });
+    };
+
+    // Undo/redo restore the segments; a solver apply that also moved the
+    // KO azimuth restores that too.
+    const stepHistory = (dir) => {
+        const target = dir === 'undo'
+            ? planHistory.past[planHistory.past.length - 1]
+            : planHistory.future[0];
+        if (!target) return;
+        dispatchPlan({ type: dir });
+        const patch = { segments: target.segments };
+        const azi = dir === 'undo' ? planHistory.present.prevKickoffAzi : target.kickoffAzi;
+        if (azi !== undefined) { setKickoffAzi(azi); patch.kickoffAzi = azi; }
+        updateTrajectoryDraft(patch);
+    };
+    const stepHistoryRef = useRef(stepHistory);
+    stepHistoryRef.current = stepHistory;
+
     const handleDragEnd = (result) => {
         if (!result.destination) return;
-        const items = Array.from(segments);
-        const [reorderedItem] = items.splice(result.source.index, 1);
-        items.splice(result.destination.index, 0, reorderedItem);
-        setSegments(items);
-        updateTrajectoryDraft({ segments: items });
+        commitSegments(moveSegment(segments, result.source.index, result.destination.index));
     };
 
     const updateSegment = (index, field, value) => {
         const newSegments = [...segments];
         newSegments[index] = { ...newSegments[index], [field]: value };
-        setSegments(newSegments);
-        updateTrajectoryDraft({ segments: newSegments });
+        commitSegments(newSegments, { coalesceKey: `${newSegments[index].id ?? index}:${field}` });
     };
 
     const addSegment = () => {
-        const id = `seg-${Date.now()}`;
-        const newSegments = [...segments, { id, type: 'Hold', length: 100, buildRate: 0, turnRate: 0 }];
-        setSegments(newSegments);
-        updateTrajectoryDraft({ segments: newSegments });
+        const id = makeSegmentId();
+        commitSegments([...segments, { id, type: 'Hold', length: 100, buildRate: 0, turnRate: 0 }]);
     };
 
     const removeSegment = (index) => {
-        const newSegments = segments.filter((_, i) => i !== index);
-        setSegments(newSegments);
-        updateTrajectoryDraft({ segments: newSegments });
+        commitSegments(deleteSegment(segments, index));
     };
 
     // The design-method solvers live in engines/drilling profileDesign;
     // SolverDialog returns compiler-ready UI segments plus the mode.
     const handleSolverApply = ({ segments: solved, kickoffAzi: azi, mode }) => {
         const next = mode === 'append' ? [...segments, ...solved] : solved;
-        setSegments(next);
         const patch = { segments: next };
+        const step = {};
         if (azi != null && mode !== 'append') {
             // Solvers work in grid azimuths; the KO Azi field is in the
             // wellbore's azimuth reference.
             const refAzi = +(((azi - (aziDelta || 0)) % 360 + 360) % 360).toFixed(2);
+            step.kickoffAzi = refAzi;
+            step.prevKickoffAzi = kickoffAzi;
             setKickoffAzi(refAzi);
             patch.kickoffAzi = refAzi;
         }
+        dispatchPlan({ type: 'commit', at: Date.now(), value: { segments: next, ...step } });
         updateTrajectoryDraft(patch);
     };
 
@@ -490,6 +515,44 @@ const DesignTab = () => {
         { name: 'TVD +2σ', rows: uncertainty.band.down, color: '#0284c7', dash: '3 3' },
     ] : []), [uncertainty]);
 
+    // Plan Editor rows: a view of `segments` (defining inputs) and the
+    // compiled survey (computed cells), one row per section end.
+    const planTableRows = useMemo(() => (planSpans ? derivePlanTable({
+        segments, spans: planSpans, planRows, mdUnit, aziDelta: aziDelta || 0, targets: chartTargets,
+    }) : []), [segments, planSpans, planRows, mdUnit, aziDelta, chartTargets]);
+
+    const handlePlanEdit = (row, field, text) => {
+        try {
+            commitSegments(applyPlanEdit(segments, row, field, text));
+            return true;
+        } catch (e) {
+            toast({ variant: 'destructive', title: 'Not applied', description: e.message });
+            return false;
+        }
+    };
+    const handleTypeChange = (index, type) => {
+        const row = planTableRows.find((r) => r.segIndex === index) || null;
+        commitSegments(changeSegmentType(segments, index, type, row));
+    };
+
+    // Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z or Ctrl+Y redo. Text fields keep
+    // their own native undo while focused.
+    const designEditable = design?.status === 'draft';
+    useEffect(() => {
+        if (!designEditable) return undefined;
+        const onKey = (e) => {
+            if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+            const k = e.key.toLowerCase();
+            if (k !== 'z' && k !== 'y') return;
+            const el = e.target;
+            if (el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))) return;
+            e.preventDefault();
+            stepHistoryRef.current(k === 'y' || e.shiftKey ? 'redo' : 'undo');
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [designEditable]);
+
     if (!design) {
         return (
             <div className="flex h-[50vh] items-center justify-center text-sm text-slate-500">
@@ -564,7 +627,13 @@ const DesignTab = () => {
                             <div className="space-y-2">
                                 <div className="flex justify-between items-center">
                                     <Label className="text-slate-400 text-xs uppercase font-bold">Segments</Label>
-                                    {!readOnly && <Button size="sm" variant="ghost" onClick={addSegment} className="h-6 w-6 p-0 hover:bg-slate-800"><Plus className="w-4 h-4 text-lime-400" /></Button>}
+                                    {!readOnly && (
+                                        <div className="flex items-center gap-1">
+                                            <Button size="sm" variant="ghost" onClick={() => stepHistory('undo')} disabled={!planHistory.past.length} className="h-6 w-6 p-0 hover:bg-slate-800" title="Undo (Ctrl+Z)" data-testid="segments-undo"><Undo2 className="w-3.5 h-3.5 text-slate-300" /></Button>
+                                            <Button size="sm" variant="ghost" onClick={() => stepHistory('redo')} disabled={!planHistory.future.length} className="h-6 w-6 p-0 hover:bg-slate-800" title="Redo (Ctrl+Shift+Z)" data-testid="segments-redo"><Redo2 className="w-3.5 h-3.5 text-slate-300" /></Button>
+                                            <Button size="sm" variant="ghost" onClick={addSegment} className="h-6 w-6 p-0 hover:bg-slate-800" title="Add a segment"><Plus className="w-4 h-4 text-lime-400" /></Button>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <DragDropContext onDragEnd={handleDragEnd}>
@@ -578,14 +647,22 @@ const DesignTab = () => {
                                                                 <div className="flex items-center gap-2 mb-2">
                                                                     <div {...dragProvided.dragHandleProps} className="cursor-grab text-slate-600 hover:text-slate-400"><GripVertical className="w-4 h-4" /></div>
                                                                     <span className="font-bold text-lime-400">#{index + 1}</span>
-                                                                    <Select value={seg.type} onValueChange={(v) => updateSegment(index, 'type', v)} disabled={readOnly}>
+                                                                    <Select value={seg.type} onValueChange={(v) => handleTypeChange(index, v)} disabled={readOnly}>
                                                                         <SelectTrigger className="h-6 w-24 bg-slate-900 border-none text-[10px]"><SelectValue /></SelectTrigger>
-                                                                        <SelectContent className="bg-slate-800"><SelectItem value="Hold">Hold</SelectItem><SelectItem value="Build">Build</SelectItem><SelectItem value="Turn">Turn</SelectItem><SelectItem value="ToolfaceArc">TF Arc</SelectItem></SelectContent>
+                                                                        <SelectContent className="bg-slate-800">{SEGMENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t === 'Build' ? 'Build' : SEGMENT_TYPE_LABELS[t]}</SelectItem>)}</SelectContent>
                                                                     </Select>
                                                                     {!readOnly && <Button variant="ghost" size="icon" onClick={() => removeSegment(index)} className="ml-auto h-5 w-5 text-slate-600 hover:text-red-400"><Trash2 className="w-3 h-3" /></Button>}
                                                                 </div>
                                                                 <div className="grid grid-cols-2 gap-2 pl-6">
+                                                                    {seg.type === 'IncAziMD' ? (
+                                                                        <>
+                                                                            <div className="flex items-center justify-between"><span className="text-slate-500">MD:</span><Input type="number" className="h-6 w-16 bg-slate-900 text-right px-1 text-[10px]" value={seg.md ?? ''} onChange={(e) => updateSegment(index, 'md', e.target.value)} disabled={readOnly} data-testid={`seg-${index}-md`} /></div>
+                                                                            <div className="flex items-center justify-between"><span className="text-slate-500">Inc:</span><Input type="number" className="h-6 w-16 bg-slate-900 text-right px-1 text-[10px]" value={seg.inc ?? ''} onChange={(e) => updateSegment(index, 'inc', e.target.value)} disabled={readOnly} data-testid={`seg-${index}-inc`} /></div>
+                                                                            <div className="flex items-center justify-between"><span className="text-slate-500">Azi:</span><Input type="number" className="h-6 w-16 bg-slate-900 text-right px-1 text-[10px]" value={seg.azi ?? ''} onChange={(e) => updateSegment(index, 'azi', e.target.value)} disabled={readOnly} data-testid={`seg-${index}-azi`} title={`Azimuth in the wellbore's ${aziRef} reference`} /></div>
+                                                                        </>
+                                                                    ) : (
                                                                     <div className="flex items-center justify-between"><span className="text-slate-500">Len:</span><Input type="number" className="h-6 w-16 bg-slate-900 text-right px-1 text-[10px]" value={seg.length} onChange={(e) => updateSegment(index, 'length', e.target.value)} disabled={readOnly} /></div>
+                                                                    )}
                                                                     {(seg.type === 'Build' || seg.type === 'Turn') && <div className="flex items-center justify-between"><span className="text-slate-500">{seg.type === 'Turn' ? 'TR' : 'BR'}:</span><Input type="number" className="h-6 w-16 bg-slate-900 text-right px-1 text-[10px]" value={seg.type === 'Turn' ? seg.turnRate : seg.buildRate} onChange={(e) => updateSegment(index, seg.type === 'Turn' ? 'turnRate' : 'buildRate', e.target.value)} disabled={readOnly} /></div>}
                                                                     {seg.type === 'ToolfaceArc' && (
                                                                         <>
@@ -639,6 +716,7 @@ const DesignTab = () => {
                         <div className="flex bg-slate-800 rounded p-1">
                             <Button variant="ghost" size="sm" onClick={() => setViewMode('section')} className={`h-7 px-3 text-xs ${viewMode === 'section' ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`}><Activity className="w-3 h-3 mr-1" /> Section</Button>
                             <Button variant="ghost" size="sm" onClick={() => setViewMode('plots')} className={`h-7 px-3 text-xs ${viewMode === 'plots' ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`}><LayoutGrid className="w-3 h-3 mr-1" /> Plots</Button>
+                            <Button variant="ghost" size="sm" onClick={() => setViewMode('plan')} className={`h-7 px-3 text-xs ${viewMode === 'plan' ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`} data-testid="view-plan" title="Plan editor: one row per section, edit the defining values in place"><TableProperties className="w-3 h-3 mr-1" /> Plan</Button>
                             <Button variant="ghost" size="sm" onClick={() => setViewMode('table')} className={`h-7 px-3 text-xs ${viewMode === 'table' ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`}><TableIcon className="w-3 h-3 mr-1" /> Survey</Button>
                             <Button variant="ghost" size="sm" onClick={() => setViewMode('3d')} className={`h-7 px-3 text-xs ${viewMode === '3d' ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`} data-testid="view-3d"><Box className="w-3 h-3 mr-1" /> 3D</Button>
                         </div>
@@ -723,6 +801,25 @@ const DesignTab = () => {
                                 <SectionViewPanel rows={planRows} unit={depthUnitLabel} vsAzimuthDeg={vsAzimuthDeg} overlays={eouSectionOverlays} targets={showTargets ? sectionTargets : []} />
                                 <InclinationPanel rows={planRows} unit={depthUnitLabel} />
                                 <DlsPanel rows={planRows} unit={depthUnitLabel} />
+                            </div>
+                        )}
+
+                        {viewMode === 'plan' && (
+                            <div className="absolute inset-0 top-12 bg-slate-900">
+                                <PlanEditorTable
+                                    rows={planTableRows}
+                                    readOnly={readOnly}
+                                    mdUnit={mdUnit}
+                                    aziRef={aziRef}
+                                    onEdit={handlePlanEdit}
+                                    onChangeType={(row, type) => handleTypeChange(row.segIndex, type)}
+                                    onInsert={(at) => commitSegments(insertSegment(segments, at, { mdUnit }))}
+                                    onDelete={(index) => commitSegments(deleteSegment(segments, index))}
+                                    onUndo={() => stepHistory('undo')}
+                                    onRedo={() => stepHistory('redo')}
+                                    canUndo={planHistory.past.length > 0}
+                                    canRedo={planHistory.future.length > 0}
+                                />
                             </div>
                         )}
 

@@ -266,8 +266,27 @@ const WellDesignHelpGuide = () => {
                   ['Build', 'Length, build rate', 'Inclination change at the rate (negative drops).'],
                   ['Turn', 'Length, turn rate', 'Azimuth change at constant inclination.'],
                   ['TF Arc', 'Length, DLS, toolface', 'A slide: circular arc at the DLS with fixed toolface; builds and turns together.'],
+                  ['Inc Azi MD', 'Inclination, azimuth, MD', 'Reaches that attitude at that MD on one circular arc from the section above. DLS and toolface are solved, and re-solve whenever an earlier section changes.'],
                 ]}
               />
+              <SubHeading>Plan editor</SubHeading>
+              <Para>
+                The <Code>Plan</Code> view is a Compass-style plan editor: a tie-on row, then one row per section end with
+                MD, course length, inclination, azimuth, TVD, NS, EW, VS, DLS, toolface, build, turn, the section type and
+                the site target the section lands on (when its end is within 1.5 m or 5 ft of one, or inside its radius).
+                Green cells are the defining inputs for that section type (MD or course length on every section; the rate on
+                a build or turn; DLS and toolface on a TF arc; inclination, azimuth and MD on an Inc Azi MD section). Type a
+                value and press Enter to apply it; the plan re-solves and every chart and the segments list follow. Editing
+                MD changes that section's course length; sections below keep their own lengths, and Inc Azi MD sections
+                keep their MD. Changing a row's section type keeps the geometry where the new type can express it. The
+                table and the segments list edit the same plan. Azimuths are in the wellbore's azimuth reference.
+              </Para>
+              <Para>
+                Use the row buttons to insert a line above or below and to delete one. <Code>Undo</Code> and{' '}
+                <Code>Redo</Code> (Ctrl+Z, Ctrl+Shift+Z; Cmd on a Mac) step back through every plan change: table edits,
+                segment list edits, design-method applies, inserts, deletes and drag reorders. Definitive and archived
+                designs show the table read-only.
+              </Para>
               <SubHeading>Design settings</SubHeading>
               <Para>
                 <Code>Station every</Code> is the survey listing interval in the wellbore unit (default 30 m or 100 ft):
@@ -341,8 +360,9 @@ const WellDesignHelpGuide = () => {
             <Section id="views">
               <SectionHeading icon={LayoutGrid}>Charts, the survey table and 3D</SectionHeading>
               <Para>
-                Four views on the Design tab: Section (TVD versus vertical section, with the EOU band and the PPFG mud
-                window), Plots (plan, section, inclination, DLS), Survey (the full station table), and 3D.
+                Five views on the Design tab: Section (TVD versus vertical section, with the EOU band and the PPFG mud
+                window), Plots (plan, section, inclination, DLS), Plan (the plan editor, one editable row per section; see
+                Designing the trajectory), Survey (the full station table), and 3D.
               </Para>
               <SubHeading>Plan view</SubHeading>
               <Para>
