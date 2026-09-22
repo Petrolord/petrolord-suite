@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PlusCircle, Trash2 } from 'lucide-react';
 import { useBlendOptimizer } from '@/contexts/BlendOptimizerContext';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
 
 const Cell = ({ label, value, onChange, unit }) => (
   <div>
@@ -20,6 +21,7 @@ const Cell = ({ label, value, onChange, unit }) => (
 
 const ComponentCard = ({ component }) => {
   const { setComponent, removeComponent, result } = useBlendOptimizer();
+  const { show } = useFullPrecision();
   const line = result.status === 'optimal'
     ? result.recipe.find((r) => r.id === component.id)
     : null;
@@ -55,7 +57,7 @@ const ComponentCard = ({ component }) => {
       </div>
       {line && (
         <p className="text-[11px] text-slate-400">
-          In the recipe: <span className="font-mono text-lime-300">{line.volume.toFixed(1)} bbl</span>
+          In the recipe: <span className="font-mono text-lime-300">{show(line.volume.toFixed(1), line.volume)} bbl</span>
           {' '}({(line.volumeFraction * 100).toFixed(1)}%)
         </p>
       )}
