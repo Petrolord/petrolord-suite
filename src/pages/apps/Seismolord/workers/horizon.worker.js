@@ -15,6 +15,10 @@
 import { BrickCache, storageBrickFetcher } from '../engine/brickCache';
 import { assembleTrace, brickKey } from '../engine/sliceAssembly';
 import { regionGrow3D } from '../engine/horizonTrack';
+import { withBrickTimeout } from '../lib/fetchWithTimeout';
+
+// a token reply that never comes must not wedge the grow (2026-09-22)
+const TOKEN_WAIT_MS = 30000;
 
 const cancelled = new Set();
 // Pending token-refresh requests keyed by nonce, resolved when the main
@@ -39,17 +43,21 @@ self.onmessage = async (e) => {
   const getToken = (force) => {
     if (!force) return Promise.resolve(currentToken);
     const nonce = ++tokenNonce;
-    return new Promise((resolve) => {
-      tokenWaiters.set(nonce, (t) => { currentToken = t; resolve(t); });
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        tokenWaiters.delete(nonce);
+        reject(new Error('The sign-in could not be refreshed in time.'));
+      }, TOKEN_WAIT_MS);
+      tokenWaiters.set(nonce, (t) => { clearTimeout(timer); currentToken = t; resolve(t); });
       self.postMessage({ type: 'need-token', id, nonce });
     });
   };
   try {
-    const cache = new BrickCache(storageBrickFetcher({
+    const cache = new BrickCache(withBrickTimeout(storageBrickFetcher({
       supabaseUrl: config.supabaseUrl,
       getToken,
       bucket: config.bucket,
-    }), { maxBytes: 512 * 1024 * 1024, dtype: config.dtype });
+    })), { maxBytes: 512 * 1024 * 1024, dtype: config.dtype });
 
     const getBrick = (i, j, k) =>
       cache.get(brickKey(config.storagePath, i, j, k));

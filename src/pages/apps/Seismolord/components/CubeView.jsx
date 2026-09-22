@@ -154,6 +154,9 @@ function CubeView({
     }
     : ownPrefs), [ownPrefs, sliceVis]);
   const [busy, setBusy] = useState(0);
+  // stability (2026-09-22): a failed plane load offers Retry; the tick
+  // re-runs the reconcile with the dedupe cleared
+  const [retryTick, setRetryTick] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [glError, setGlError] = useState(null);
 
@@ -513,7 +516,11 @@ function CubeView({
       if (seq !== seqRef.current[orientation]) return;
       putPlane(orientation, orientation, index, slice);
     } catch (e) {
-      if (e.message !== ABORTED) setGlError(e.message);
+      if (e.message !== ABORTED) {
+        // let Retry (or the next index move) load this plane again
+        if (seq === seqRef.current[orientation]) desiredRef.current[orientation] = null;
+        setGlError(e.message);
+      }
     } finally {
       setBusy((b) => b - 1);
     }
@@ -545,7 +552,7 @@ function CubeView({
     }
   }, [geom, getBrick, prefs.inline, prefs.xline, prefs.time,
     indices.inline, indices.xline, indices.time,
-    loadMainPlane, dropPlane, maxFor, prefs, indices]);
+    loadMainPlane, dropPlane, maxFor, prefs, indices, retryTick]);
 
   // boundary faces ("entire cube")
   useEffect(() => {
@@ -1127,8 +1134,18 @@ function CubeView({
           </div>
         )}
         {glError && (
-          <div className="absolute inset-x-0 bottom-0 bg-red-950/80 text-red-300 text-xs p-2">
-            {glError}
+          <div className="absolute inset-x-0 bottom-0 bg-red-950/80 text-red-300 text-xs p-2 flex items-center gap-2">
+            <span className="min-w-0 flex-1">{glError}</span>
+            {geom && rendererRef.current && (
+              <button
+                type="button"
+                data-testid="cube-retry"
+                className="shrink-0 rounded border border-red-800 px-2 py-0.5 text-red-200 hover:bg-red-900/60"
+                onClick={() => { setGlError(null); setRetryTick((t) => t + 1); }}
+              >
+                Retry
+              </button>
+            )}
           </div>
         )}
       </div>

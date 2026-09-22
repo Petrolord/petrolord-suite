@@ -20,6 +20,7 @@ import { getProjectCrs } from '@/lib/crs/settingsService';
 import { normalizeTag, isTransformableTag, UNKNOWN } from '@/lib/crs/tags';
 import { BrickCache, storageBrickFetcher, ABORTED } from '../engine/brickCache';
 import { persistentBrickFetcher } from './brickStore';
+import { withBrickTimeout } from '../lib/fetchWithTimeout';
 import { NULL_VALUE } from '../engine/manifest';
 
 export { ABORTED };
@@ -316,7 +317,8 @@ export async function loadLineSection(line, manifest, {
 } = {}) {
   const geom2d = geomFromLineManifest(manifest);
   const cache = new BrickCache(
-    persistentBrickFetcher(storageBrickFetcher({ supabaseUrl, getToken })),
+    // every strip request settles (timeout + one retry, 2026-09-22)
+    withBrickTimeout(persistentBrickFetcher(storageBrickFetcher({ supabaseUrl, getToken }))),
     { maxBytes: 64 * 1024 * 1024, maxConcurrent: 8 },
   );
   const section = await assembleLineSection(
