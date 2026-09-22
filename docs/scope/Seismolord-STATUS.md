@@ -1,6 +1,60 @@
 # Seismolord — STATUS
 
-Last updated: 2026-09-22 (tester feedback: navigation and slice player; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
+Last updated: 2026-09-22 (tester feedback: navigation, slice player, slice toggles, wells; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
+
+## 2026-09-22: tester feedback, slice toggles and wells (SLT-2)
+
+- **Slice show/hide, root cause**: three visibility states. The
+  explorer eyes (`sliceVis`) reached only the Map; the 3D window kept
+  its own inline/xline/time prefs (`seismolord.cubePrefs.v1`, default
+  inline + crossline ON) toggled only from its Planes menu; and
+  CubeView's hide path dropped the plane without superseding an
+  in-flight load (`seqRef` not bumped), so hiding a plane while it
+  assembled put it back (the boundary faces had the same race). Fix:
+  one state, `hooks/useSliceVisibility.js` (default inline + crossline
+  on, time slice off), passed into CubeView (replaces its three prefs;
+  the Planes menu calls the same toggle), drawn in the Section window
+  as dashed intersection lines of the other visible planes
+  (`viewer/planeMarks.js`, IL green, XL red, time blue), and on the
+  Map as before. Hide now bumps the load sequence first.
+- **Saved with the project**: named sessions already carried
+  `sliceVis`; now it is also saved per volume, cross-browser, as a
+  reserved row in `seismic_sessions` (`kind='session'`, name
+  `__volume_display__:<volume id>`, payload `{v:1, sliceVis}`;
+  `services/volumeDisplayState.js`), loaded on volume open (a toggle
+  made before it arrives wins; a session restore wins over it) and
+  written 1 s after a toggle. No DDL. `listSessions` hides reserved
+  rows. The browser copy moved to `seismolord.sliceVis.v2` (v1 was
+  written all-off on every mount) seeded from the old 3D prefs.
+  `seismolord.cubePrefs.v1` joined the session snapshot keys.
+- **Wells** (`lib/wellDisplay.js`, a Suite-side wrapper; no engine
+  edit): `buildWellSections` returns `{sections, skipped}` with a
+  reason per undrawable visible well: no time-depth relationship (no
+  checkshots and no velocity model; no default velocity is ever
+  assumed), no well path, outside the survey time window, off the
+  survey; CRS skips from `placeWellsForHost` now carry the well id.
+  The explorer well row shows a warning badge with the reason
+  (`WellDrawBadge.jsx`, testId `sl-well-warn-<id>`), the row tooltip
+  says how a drawn well reaches time (checkshots or velocity model),
+  and one toast per well, reason and volume. Found and fixed:
+  `useWells` dropped `checkshots_derived`, so a committed tie never
+  reached the sections or 3D. **Well projection distance** (Wells tab,
+  metres, empty = 1.5 bins) converts to bins per orientation
+  (`corridorCells`, inline spacing across inlines) and feeds
+  `projectWellToSection` for paths and tops; persisted in
+  `seismolord.wellProjection.v1` (a session key). Tops were already
+  labelled ticks on sections and crosses in 3D.
+- **Tester's case**: a well with no checkshots on a time survey with no
+  velocity model has no time-depth relationship, so it correctly stays
+  off the sections; the row now says so instead of dropping it.
+- Tests: `sliceToggles.test.jsx` (12: 3D hide stays hidden across
+  scrubs and when it lands mid-load, with a negative control confirming
+  the race test fails without the sequence bump; Planes menu drives the
+  shared toggle; Section intersection line off stays off while
+  scrubbing; hook persistence precedence), `wellDisplay.test.jsx` (9:
+  no-TDR message on the badge, checkshot well draws on an inline in
+  time at the checkshot time, tie-derived set wins, other reasons,
+  projection distance).
 
 ## 2026-09-22: tester feedback, navigation and slice player (SLT-1)
 

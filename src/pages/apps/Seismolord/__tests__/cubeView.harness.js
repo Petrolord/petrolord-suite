@@ -53,6 +53,9 @@ export function stubCanvas2d() {
     get: (t, k) => {
       if (k in t) return t[k];
       if (k === 'measureText') return () => ({ width: 10 });
+      if (k === 'createImageData' || k === 'getImageData') {
+        return (w = 1, h = 1) => ({ data: new Uint8ClampedArray(Math.max(1, w * h) * 4), width: w, height: h });
+      }
       return () => {};
     },
     set: (t, k, v) => { t[k] = v; return true; },

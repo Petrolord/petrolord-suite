@@ -98,6 +98,14 @@ export default function SeismolordHelpGuide() {
           for each slice to load before stepping, stops at the end of the survey, and pauses as soon as you move
           the slice yourself. Step size and speed are saved with named sessions.
         </Para>
+        <SubHeading>Showing and hiding the slice planes</SubHeading>
+        <Para>
+          Under the active volume in the explorer, Inline, Crossline and Time slice each carry an eye. The eye is one
+          switch for every window: it shows or hides the plane in the 3D window, its dashed intersection line in the
+          Section window, and its location line (or, for the time slice, the amplitude slice) in the Map window. The
+          3D window's Planes menu flips the same switch. A plane you hide stays hidden while you scrub, and the
+          choice is saved with the volume and with named sessions.
+        </Para>
       </GuideSection>
 
       <GuideSection id="horizons">
@@ -168,6 +176,15 @@ export default function SeismolordHelpGuide() {
           builds a synthetic from sonic and density with the chosen wavelet, and the tie window drags the synthetic
           against the seismic; the resulting time-depth relation is saved with the well and drives its projection
           on sections and the map.
+        </Para>
+        <Para>
+          A well draws on the seismic in two-way time through its own checkshots (a tie-derived set wins over the
+          imported one), or through the volume's velocity model when it has none. Seismolord never guesses a
+          velocity: a visible well that cannot be drawn shows a warning on its explorer row with the reason, for
+          example no time-depth relationship (add checkshots or a time-depth table in Well Data Manager, or save a
+          velocity model for this volume), outside the survey time window, or off the survey. Well projection
+          distance in the Wells tab sets how far from a section, in metres, a well and its tops still draw on it;
+          empty means 1.5 bins. Tops show as labelled ticks on sections and crosses in 3D.
         </Para>
         <Para>
           Right-click a well in the explorer for Show or Hide, Well data (Well Data Manager on its tops) and Open in,
@@ -244,6 +261,8 @@ export default function SeismolordHelpGuide() {
         <SectionHeading icon={AlertTriangle}>Pitfalls and FAQ</SectionHeading>
         <SubHeading>The wells do not land on the survey</SubHeading>
         <Para>The volume's CRS or the project CRS is unset or wrong. Both are declared, never guessed; fix them in the status bar and the volume settings.</Para>
+        <SubHeading>A well is on the map but not on the sections</SubHeading>
+        <Para>Look for the warning on the well's explorer row. Most often the well has no checkshots and the volume has no velocity model, so it has no time-depth relationship; add checkshots or a time-depth table in Well Data Manager. A deviated well may also pass further from the section than the Well projection distance.</Para>
         <SubHeading>Depth is greyed out</SubHeading>
         <Para>Set a velocity model in the Velocity model editor; a layer cake also needs its boundary horizons loaded.</Para>
         <SubHeading>The picks look one sample off after a tie</SubHeading>

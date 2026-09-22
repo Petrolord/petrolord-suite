@@ -57,6 +57,9 @@ export default function useWells() {
       kbM: row.kb_m || 0,
       tops: row.tops || [],
       checkshots: row.checkshots || [],
+      // W3.3 tie-derived set (effectiveCheckshots prefers it); it was
+      // dropped here, so a committed tie never reached the section
+      checkshots_derived: row.checkshots_derived || null,
       deviation: row.deviation || [],
       path: wellWorldPath(row),
     })), [wells, visibleIds]);
