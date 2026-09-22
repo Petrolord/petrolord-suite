@@ -1,5 +1,6 @@
 // Horizon settings (Petrel-style "Settings" on a horizon): identity,
-// interpretation color / line weight shared by every viewport, and the
+// interpretation color / line weight / line opacity shared by every
+// viewport (opacity: section lines and the 3D surface), and the
 // map window's display style (colormap, fill opacity, contours, color
 // range). Settings apply LIVE through onChange and persist to
 // seismic_horizons.params.display (debounced by the controller); Rename
@@ -138,6 +139,22 @@ export default function HorizonSettingsDialog({
                 <option key={w.value} value={String(w.value)}>{w.label}</option>
               ))}
             </select>
+          </FieldRow>
+
+          <FieldRow label="Line opacity" hint="sections and the 3D surface">
+            <input
+              type="range"
+              min="10"
+              max="100"
+              step="5"
+              className="w-40 accent-cyan-400"
+              value={Math.round((display.lineOpacity ?? 1) * 100)}
+              onChange={(e) => onChange({ lineOpacity: Number(e.target.value) / 100 })}
+              aria-label="Line opacity"
+            />
+            <span className="text-xs text-slate-400 w-10">
+              {`${Math.round((display.lineOpacity ?? 1) * 100)}%`}
+            </span>
           </FieldRow>
 
           <SectionTitle>Map display</SectionTitle>
