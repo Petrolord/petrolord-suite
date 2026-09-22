@@ -73,6 +73,8 @@ describe('generateWallPlot', () => {
     expect(t).toMatch(/Wall plot — HAR-1/);
     expect(t).toMatch(/Plan view \(N vs E, m\)/);
     expect(t).toMatch(/Section view \(TVD vs VS, m\)/);
+    // both wall-plot views are true scale and say so on the plot
+    expect(t).toMatch(/True scale \(1:1\)/);
     expect(t).toMatch(/Amber/);
     expect(t).toMatch(/ISCWSA MWD Rev4 uncertainty/);
     expect(heads()).toEqual(expect.arrayContaining([

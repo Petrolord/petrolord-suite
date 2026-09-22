@@ -15,6 +15,7 @@
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { minOf, maxOf, extentOf } from './extent';
+import { exaggerationLabel } from './sectionScale';
 
 // ---------------------------------------------------------------------------
 // brand chrome
@@ -100,8 +101,12 @@ const fmtNum = (v, dp = 1) => (Number.isFinite(v) ? v.toFixed(dp) : '—');
 // vector chart primitives
 // ---------------------------------------------------------------------------
 
-/** Fit world points into a page rect. flipY: world +y draws upward. */
-function makeMapper(rect, xs, ys, { flipY = true, equalAspect = false, pad = 0.06 } = {}) {
+/** Fit world points into a page rect. flipY: world +y draws upward.
+ *  equalAspect fixes y mm-per-unit to `ratio` times x mm-per-unit
+ *  (1 = true scale). */
+function makeMapper(rect, xs, ys, {
+  flipY = true, equalAspect = false, ratio = 1, pad = 0.06,
+} = {}) {
   const ex = extentOf(xs); const ey = extentOf(ys);
   let minX = ex.min; let maxX = ex.max;
   let minY = ey.min; let maxY = ey.max;
@@ -112,12 +117,13 @@ function makeMapper(rect, xs, ys, { flipY = true, equalAspect = false, pad = 0.0
   let sx = rect.w / (maxX - minX);
   let sy = rect.h / (maxY - minY);
   if (equalAspect) {
-    const s = Math.min(sx, sy);
+    const r = Number.isFinite(ratio) && ratio > 0 ? ratio : 1;
+    const s = Math.min(sx, sy / r);
     const cx = (minX + maxX) / 2;
     const cy = (minY + maxY) / 2;
     minX = cx - rect.w / s / 2; maxX = cx + rect.w / s / 2;
-    minY = cy - rect.h / s / 2; maxY = cy + rect.h / s / 2;
-    sx = s; sy = s;
+    minY = cy - rect.h / (s * r) / 2; maxY = cy + rect.h / (s * r) / 2;
+    sx = s; sy = s * r;
   }
   return {
     x: (wx) => rect.x + (wx - minX) * sx,
@@ -151,6 +157,9 @@ export function drawPlanView(doc, rect, { stations, targets = [], ellipses = [] 
   const xs = stations.map((s) => s.e).concat(targets.map((t) => t.e));
   const ys = stations.map((s) => s.n).concat(targets.map((t) => t.n));
   const m = makeMapper(rect, xs.length ? xs : [0], ys.length ? ys : [0], { equalAspect: true });
+  doc.setFontSize(7);
+  doc.setTextColor(15, 23, 42);
+  doc.text(exaggerationLabel(1), rect.x + 2, rect.y + 4);
   // EOU ellipses (approximated as 24-gon vectors)
   doc.setDrawColor(2, 132, 199);
   for (const el of ellipses) {
@@ -183,13 +192,21 @@ export function drawPlanView(doc, rect, { stations, targets = [], ellipses = [] 
   return m;
 }
 
-/** Section view: TVD (down) vs VS + optional EOU band rows. */
-export function drawSectionView(doc, rect, { stations, band = null }) {
+/** Section view: TVD (down) vs VS + optional EOU band rows. True
+ *  scale by default (the on-screen tester case: independent axis fits
+ *  drew a 3 deg/30 m build as a corner); `ratio` (TVD mm-per-unit over
+ *  VS mm-per-unit) exaggerates, and the factor is printed on the plot
+ *  either way. */
+export function drawSectionView(doc, rect, { stations, band = null, ratio = 1 }) {
   frameRect(doc, rect, 'Section view (TVD vs VS, m)');
-  const xs = stations.map((s) => s.vs);
+  const xs = stations.map((s) => s.vs).concat([0]);
   const ys = stations.map((s) => s.tvd)
-    .concat(band ? band.down.map((r) => r.tvd) : []);
-  const m = makeMapper(rect, xs, ys, { flipY: false });
+    .concat(band ? band.down.map((r) => r.tvd) : [])
+    .concat(band ? band.up.map((r) => r.tvd) : []);
+  const m = makeMapper(rect, xs, ys, { flipY: false, equalAspect: true, ratio });
+  doc.setFontSize(7);
+  doc.setTextColor(15, 23, 42);
+  doc.text(exaggerationLabel(ratio), rect.x + 2, rect.y + 4);
   if (band) {
     doc.setDrawColor(2, 132, 199);
     polyline(doc, band.up.map((r) => [m.x(r.vs), m.y(r.tvd)]));
