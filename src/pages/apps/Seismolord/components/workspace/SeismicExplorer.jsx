@@ -153,7 +153,7 @@ export default function SeismicExplorer({ tree, actions }) {
     faults, visibleFaultIds, faultBusyId,
     wells, visibleWellIds, wellBusyId, wellsError,
     savedTraverses, traverseSavedId,
-    slicePlanes, horizonColorById,
+    slicePlanes, horizonColorById, faultColorById,
     appPaths = {},
   } = tree;
 
@@ -708,7 +708,7 @@ export default function SeismicExplorer({ tree, actions }) {
             <Row
               key={f.id}
               icon={Slash}
-              color={faultColor(idx)}
+              color={faultColorById?.[f.id] || faultColor(idx)}
               label={f.name}
               visible={visibleFaultIds.has(f.id)}
               onToggleVisible={() => actions.toggleFault(f)}
@@ -718,6 +718,12 @@ export default function SeismicExplorer({ tree, actions }) {
               onClick={() => actions.toggleFault(f)}
               menu={(
                 <>
+                  {f.is_own !== false && actions.openFaultSettings && (
+                    <ContextMenuItem onSelect={() => actions.openFaultSettings(f)}>
+                      <Settings2 className="w-3.5 h-3.5 mr-1.5" />
+                      Settings…
+                    </ContextMenuItem>
+                  )}
                   <ContextMenuItem onSelect={() => actions.toggleFault(f)}>
                     {visibleFaultIds.has(f.id) ? 'Hide' : 'Show'}
                   </ContextMenuItem>

@@ -52,6 +52,18 @@ function platformBuild() {
 	return { version: pkg.version, sha: sha || 'unknown', builtAt: new Date().toISOString(), source: source || 'none' };
 }
 
+// One stamp per build: injected into the bundle and written to
+// dist/version.json, which the update prompt fetches with no-store to ask
+// whether the server's build differs from the running one.
+const PLATFORM_BUILD_STAMP = platformBuild();
+const versionFilePlugin = {
+	name: 'petrolord-version-file',
+	apply: 'build',
+	generateBundle() {
+		this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify(PLATFORM_BUILD_STAMP) });
+	},
+};
+
 const configHorizonsViteErrorHandler = `
 const observer = new MutationObserver((mutations) => {
 	for (const mutation of mutations) {
@@ -324,12 +336,13 @@ logger.error = (msg, options) => {
 export default defineConfig({
 	customLogger: logger,
 	define: {
-		__PLATFORM_BUILD__: JSON.stringify(platformBuild()),
+		__PLATFORM_BUILD__: JSON.stringify(PLATFORM_BUILD_STAMP),
 	},
 	plugins: [
 		...(isDev ? [inlineEditPlugin(), editModeDevPlugin(), iframeRouteRestorationPlugin(), selectionModePlugin()] : []),
 		react(),
 		addTransformIndexHtml,
+		versionFilePlugin,
 		// Installable PWA (Wellsite Studio WS6, docs/scope/WellsiteStudio-PLAN.md section 4 "Offline boot").
 		// Prompt semantics: a new build never swaps under a user mid-shift. Only the shell is precached;
 		// hashed assets are cached as they are fetched; Supabase is never cached and never falls back to

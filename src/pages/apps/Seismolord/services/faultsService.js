@@ -67,6 +67,34 @@ export async function updateFaultSticks(fault, sticks) {
   return data;
 }
 
+/**
+ * Persist fault display settings (colour, line weight, opacity) and/or a
+ * rename WITHOUT touching the sticks: params.display is merged into the
+ * stored params jsonb, the mirror of updateHorizonMeta. No schema change
+ * (params already exists on seismic_faults).
+ *
+ * @param {Object} p
+ * @param {Object} p.fault seismic_faults row
+ * @param {Object} [p.display] display settings stored under params.display
+ * @param {string} [p.name] new fault name
+ * @returns {Promise<Object>} the refreshed row
+ */
+export async function updateFaultMeta({ fault, display, name }) {
+  const patch = {};
+  if (display !== undefined) {
+    patch.params = { ...(fault.params || {}), display };
+  }
+  if (name !== undefined && name !== fault.name) patch.name = name;
+  if (!Object.keys(patch).length) return fault;
+  patch.updated_at = new Date().toISOString();
+  const { data, error } = await supabase.from('seismic_faults')
+    .update(patch)
+    .eq('id', fault.id)
+    .select().single();
+  if (error) throw new Error(`Could not save fault settings: ${error.message}`);
+  return data;
+}
+
 export async function deleteFault(fault) {
   const { error } = await supabase.from('seismic_faults')
     .delete().eq('id', fault.id);
