@@ -30,7 +30,7 @@ import { placeWellsForHost } from '@/lib/crs/guards';
 import { faultSticksToRows, writeCharismaFaultSticks } from '../engine/pickExport';
 import { faultHorizonIntersection } from '../engine/faultObjects';
 import { faultSurfaceXyz, faultPolygonCsv, barriersFromFaults } from '../lib/faultObjectsExport';
-import { persistentBrickFetcher, purgePersistedBricks } from '../services/brickStore';
+import { purgePersistedBricks } from '../services/brickStore';
 import Line2dPanel from './Line2dPanel';
 import {
   listLines, deleteLine, setLineShared, loadLineNav,
@@ -43,10 +43,13 @@ import {
 import {
   listLogs, downloadCurve, effectiveCheckshots, saveDerivedCheckshots,
 } from '../services/wellsService';
-import { BrickCache, storageBrickFetcher, ABORTED } from '../engine/brickCache';
 import {
-  assembleSlice, assembleTrace, bricksForSlice, geomFromManifest, brickKey,
+  assembleTrace, bricksForSlice, geomFromManifest, brickKey,
 } from '../engine/sliceAssembly';
+import { getSliceClient } from '../sources/sliceWorkerClient';
+import { SOURCE_ERRORS, isAborted } from '../sources/sliceSource';
+import { useConversionProgress } from '../sources/conversionProgress';
+import SliceSourceNotice from './SliceSourceNotice';
 import {
   resampleTraverse, assembleTraverse, traverseEraseCells, sanitizeTraverses,
 } from '../engine/traverse';
@@ -68,7 +71,7 @@ import {
   normalizeVelocity, describeVelocity, velocityToManifest, makeDepthConverter,
 } from '../engine/velocityModel';
 import { NULL_VALUE } from '../engine/manifest';
-import { amplitudePercentile } from '../engine/displayEnhance';
+import { amplitudePercentile, percentileOfSorted } from '../engine/displayEnhance';
 import { UndoStack } from '../lib/undoStack';
 import { captureLocal, applyLocal, clampIndices } from '../lib/sessionSnapshot';
 import SessionsDialog from './workspace/dialogs/SessionsDialog';
@@ -156,7 +159,19 @@ const cacheGrid = (map, id, grid) => {
 /** @param {Object<string,string>} [p.appPaths] route overrides for the launchers (harness) */
 export default function ViewerPanel({ appPaths = {} } = {}) {
   const { toast } = useToast();
-  const cacheRef = useRef(null);
+  // Stream L: the active volume's SliceSource (slice worker proxy) and
+  // the co-render overlay's; a local SEG-Y opened for viewing lives in
+  // localVolumeRef until it is replaced
+  const sourceRef = useRef(null);
+  const sourceBRef = useRef(null);
+  const sliceAbortRef = useRef(null);
+  const lastSliceIndexRef = useRef({});
+  const localVolumeRef = useRef(null);
+  const localAbortRef = useRef(null);
+  const [sliceError, setSliceError] = useState(null);   // Error for the section window notice
+  const [localOpen, setLocalOpen] = useState(null);     // {name, progress, error} while indexing
+  const [mapTimeNotice, setMapTimeNotice] = useState(false);
+  const conversion = useConversionProgress();
   const requestRef = useRef(0);
   const workerRef = useRef(null);
   const jobIdRef = useRef(0);
@@ -270,7 +285,6 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   const [overlayOpacity, setOverlayOpacity] = useState(0.5);
   const [overlayBlend, setOverlayBlend] = useState('mix');
   const [overlaySlice, setOverlaySlice] = useState(null);
-  const cacheBRef = useRef(null);
   const overlayReqRef = useRef(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -395,7 +409,8 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
         // the selected volume was deleted elsewhere: clear the whole
         // viewer instead of letting every brick fetch 404 until the
         // user happens to reselect (L7)
-        if (volumeIdRef.current && !ready.some((v) => v.id === volumeIdRef.current)) {
+        if (volumeIdRef.current && !volumeIdRef.current.startsWith('local:')
+          && !ready.some((v) => v.id === volumeIdRef.current)) {
           selectVolume('');
         }
       })
@@ -851,7 +866,13 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
 
   const selectVolume = async (id) => {
     const seq = ++selectSeqRef.current;           // supersedes any in-flight select
-    const v = volumes.find((x) => x.id === id) || null;
+    const local = localVolumeRef.current;
+    const v = (local && local.id === id ? local : null) || volumes.find((x) => x.id === id) || null;
+    sliceAbortRef.current?.abort();
+    if (sourceRef.current && sourceRef.current !== local?.source) sourceRef.current.close();
+    sourceRef.current = null;
+    setSliceError(null);
+    setMapTimeNotice(false);
     volumeIdRef.current = v?.id || null;
     setVolume(v);
     setManifest(null);
@@ -884,13 +905,15 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     setOverlayVolumeId(null);
     setOverlayInfo(null);
     setOverlaySlice(null);
-    cacheBRef.current?.clear();
-    cacheBRef.current = null;
+    sourceBRef.current?.close();
+    sourceBRef.current = null;
     setError(null);
     if (!v) { setHorizons([]); setFaults([]); return; }
     setLoading(true);
     try {
-      const [m, row, hz, flt] = await Promise.all([
+      // a local SEG-Y (Stream L) has no registry row, horizons or faults
+      // yet: it is viewed straight from the file until it is converted
+      const [m, row, hz, flt] = v.local ? [v.manifest, v, [], []] : await Promise.all([
         getManifest(v),
         // the list snapshot's interp_rev may be stale; CAS needs fresh
         getVolumeRow(v.id).catch(() => v),
@@ -906,16 +929,16 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
         } catch { /* fallback already in place */ }
       }
       if (seq !== selectSeqRef.current) return;   // a newer selection won; drop this one
-      cacheRef.current = new BrickCache(
-        persistentBrickFetcher(
-          storageBrickFetcher({ supabaseUrl: storageBase(), getToken: accessToken }),
-        ),
-        {
-          maxBytes: 256 * 1024 * 1024,
-          dtype: m.brick?.dtype,             // W4.4: decode inside the cache
-          maxConcurrent: 12,                 // W4.4: read-path fetch cap
-        },
-      );
+      // Stream L: bricks stream through the slice worker (decode, slicing
+      // and the one budgeted cache all live there)
+      const src = v.local ? v.source : await getSliceClient().openBricks({
+        manifest: m, storagePath: v.storage_path, supabaseUrl: storageBase(), getToken: accessToken,
+      });
+      if (seq !== selectSeqRef.current) {
+        if (!v.local) src.close();
+        return;
+      }
+      sourceRef.current = src;
       setInterpRev(interp.rev);
       setManifest(composeManifest(m, interp));
       setHorizons(hz);
@@ -1079,8 +1102,18 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   // interpretation state (velocity, traverses) is owner-only
   const volumeReadOnly = Boolean(volume && volume.is_own === false);
 
-  const getBrick = useCallback((i, j, k) => cacheRef.current
-    .get(brickKey(volume.storage_path, i, j, k)), [volume]);
+  // bricks come from the slice worker's cache (copies; the worker keeps
+  // its own); a local file serves them cut from the file
+  const getBrick = useCallback((i, j, k) => {
+    if (!sourceRef.current) return Promise.reject(new Error('Load a seismic volume first.'));
+    return sourceRef.current.getBrick(i, j, k);
+  }, [volume]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // the 3D window asks the same source for its planes
+  const getCubeSlice = useCallback((o, idx) => {
+    if (!sourceRef.current) return Promise.reject(new Error('Load a seismic volume first.'));
+    return sourceRef.current.getSlice({ orientation: o, index: idx, prefetch: false });
+  }, [volume]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- W2.4 co-render overlay ------------------------------------------
 
@@ -1101,8 +1134,8 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     setOverlayVolumeId(id || null);
     setOverlayInfo(null);
     setOverlaySlice(null);
-    cacheBRef.current?.clear();
-    cacheBRef.current = null;
+    sourceBRef.current?.close();
+    sourceBRef.current = null;
     if (!id) return;
     const row = volumes.find((x) => x.id === id);
     if (!row) return;
@@ -1111,12 +1144,9 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
       if (!sameLattice(manifest, m)) {
         throw new Error('The volumes are not on the same survey lattice.');
       }
-      cacheBRef.current = new BrickCache(
-        persistentBrickFetcher(
-          storageBrickFetcher({ supabaseUrl: storageBase(), getToken: accessToken }),
-        ),
-        { maxBytes: 128 * 1024 * 1024, dtype: m.brick?.dtype, maxConcurrent: 8 },
-      );
+      sourceBRef.current = await getSliceClient().openBricks({
+        manifest: m, storagePath: row.storage_path, supabaseUrl: storageBase(), getToken: accessToken,
+      });
       setOverlayInfo({ row, manifest: m });
     } catch (e) {
       toast({ title: 'Co-render unavailable', description: e.message, variant: 'destructive' });
@@ -1128,32 +1158,28 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   // overlay lags one beat on scrub by design); errors degrade to a toast
   // and turn the overlay off rather than wedging the section window.
   useEffect(() => {
-    if (!slice || !overlayInfo || !cacheBRef.current) {
+    if (!slice || !overlayInfo || !sourceBRef.current) {
       setOverlaySlice(null);
       return undefined;
     }
+    if (slice.final === false) return undefined;   // wait for the sharp slice
     let stale = false;
     const req = ++overlayReqRef.current;
-    const geomB = geomFromManifest(overlayInfo.manifest);
-    const needed = new Set(bricksForSlice(geomB, slice.orientation, slice.index)
-      .map(({ i, j, k }) => brickKey(overlayInfo.row.storage_path, i, j, k)));
-    cacheBRef.current.cancelPendingExcept(needed);
-    const getB = (i, j, k) => cacheBRef.current
-      .get(brickKey(overlayInfo.row.storage_path, i, j, k));
-    assembleSlice(getB, geomB, slice.orientation, slice.index)
+    const ac = new AbortController();
+    sourceBRef.current.getSlice({ orientation: slice.orientation, index: slice.index }, { signal: ac.signal })
       .then((s) => {
         if (!stale && req === overlayReqRef.current) {
           setOverlaySlice({ ...s, orientation: slice.orientation, index: slice.index });
         }
       })
       .catch((e) => {
-        if (stale || req !== overlayReqRef.current || e.message === ABORTED) return;
+        if (stale || req !== overlayReqRef.current || isAborted(e)) return;
         toast({ title: 'Co-render overlay unavailable', description: e.message, variant: 'destructive' });
         setOverlayVolumeId(null);
         setOverlayInfo(null);
         setOverlaySlice(null);
       });
-    return () => { stale = true; };
+    return () => { stale = true; ac.abort(); };
   }, [slice, overlayInfo, toast]);
 
   /** Overlay display params: its OWN volume's rms drives the clip (the
@@ -1215,47 +1241,53 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   // colormap, clip…) are NOT dependencies — they are shader-side in
   // SliceView and never trigger a re-assembly or brick fetch.
   const loadSlice = useCallback(async () => {
-    if (!manifest || !geom || !volume) return;
+    if (!manifest || !geom || !volume || !sourceRef.current) return;
     const req = ++requestRef.current;
+    // moving away cancels the old request (and, in the worker, the brick
+    // fetches no other request needs); traverses, extraction and picking
+    // ask for bricks directly and are never cancelled by a scrub
+    sliceAbortRef.current?.abort();
+    const ac = new AbortController();
+    sliceAbortRef.current = ac;
+    const src = sourceRef.current;
+    const last = lastSliceIndexRef.current[orientation];
+    const step = Number.isFinite(last) ? Math.max(1, Math.abs(sliceIndex - last)) : 1;
+    lastSliceIndexRef.current = { ...lastSliceIndexRef.current, [orientation]: sliceIndex };
     setLoading(true);
     setError(null);
+    setSliceError(null);
     try {
-      // scrub cancellation: keep only the bricks this slice needs — plus
-      // the bricks of an in-flight traverse assembly or map amplitude
-      // extraction, which a scrub must never abort
-      const needed = new Set(bricksForSlice(geom, orientation, sliceIndex)
-        .map(({ i, j, k }) => brickKey(volume.storage_path, i, j, k)));
-      for (const shield of [traverseBricksRef.current, ampBricksRef.current,
-        mapSliceBricksRef.current]) {
-        if (shield) for (const key of shield) needed.add(key);
-      }
-      cacheRef.current.cancelPendingExcept(needed);
-
       const t0 = performance.now();
-      const assembled = await assembleSlice(getBrick, geom, orientation, sliceIndex);
+      // low resolution first where the source has it (a local crossline),
+      // then the exact slice; neighbours at the current step are warmed
+      // in the worker after it lands
+      const assembled = await src.getSlice({
+        orientation, index: sliceIndex, step, prefetch: true,
+      }, {
+        signal: ac.signal,
+        onPartial: (p) => {
+          if (req === requestRef.current) setSlice({ ...p, orientation, index: sliceIndex });
+        },
+      });
       if (req !== requestRef.current) return;          // stale scrub
       // tag orientation AND index: SliceView draws overlays at the
       // DISPLAYED slice's position, so a scrub can never paint horizon
       // lines for index N+1 over the image of index N (ML4)
       setSlice({ ...assembled, orientation, index: sliceIndex });
       setSliceMs(performance.now() - t0);
-      // W4.4 neighbor prefetch: warm the adjacent slices' bricks at idle
-      // priority (fire-and-forget; a scrub's cancelPendingExcept aborts
-      // stale prefetches, and cache hits make the common step instant)
-      const maxIdx = orientation === 'inline' ? geom.nIl - 1
-        : orientation === 'xline' ? geom.nXl - 1 : geom.ns - 1;
-      for (const nIdx of [sliceIndex - 1, sliceIndex + 1]) {
-        if (nIdx < 0 || nIdx > maxIdx) continue;
-        for (const { i, j, k } of bricksForSlice(geom, orientation, nIdx)) {
-          cacheRef.current.get(brickKey(volume.storage_path, i, j, k)).catch(() => {});
-        }
-      }
     } catch (e) {
-      if (e.message !== ABORTED && req === requestRef.current) setError(e.message);
+      if (req !== requestRef.current || isAborted(e)) return;
+      if (e.code === SOURCE_ERRORS.TIME_NEEDS_CONVERSION) {
+        setSlice(null);
+        setSliceError(e);
+        return;
+      }
+      setError(e.message);
+      setSliceError(e);
     } finally {
       if (req === requestRef.current) setLoading(false);
     }
-  }, [manifest, geom, volume, orientation, sliceIndex, getBrick]);
+  }, [manifest, geom, volume, orientation, sliceIndex]);
 
   useEffect(() => { loadSlice(); }, [loadSlice]);
 
@@ -1861,6 +1893,10 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
 
   /** Run the region-grow worker and return {picks, confidence}. */
   const runTracker = async ({ seed, extraOpts }) => {
+    if (volume?.local) {
+      // the tracker reads the uploaded bricks; a local file has none yet
+      throw new Error('3D tracking is available after conversion. Start the import to convert this survey.');
+    }
     const id = ++jobIdRef.current;
     setTracking({ tracked: 0, total: geom.nIl * geom.nXl });
     const token = await accessToken();
@@ -2006,10 +2042,18 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   // cancellation (traverse/amplitude pattern); a volume switch bumps the
   // request counter so a stale assembly can never land.
   useEffect(() => {
-    if (!sliceVis.time || !manifest || !geom || !volume) {
+    if (!sliceVis.time || !manifest || !geom || !volume || !sourceRef.current) {
       setMapTimeSlice(null);
+      setMapTimeNotice(false);
       return;
     }
+    // a local file has no time slices until it is converted: say so
+    if (sourceRef.current.capabilities?.time === false) {
+      setMapTimeSlice(null);
+      setMapTimeNotice(true);
+      return;
+    }
+    setMapTimeNotice(false);
     const idx = Math.min(geom.ns - 1, Math.max(0, indices.time));
     const req = ++mapSliceReqRef.current;
     const keys = new Set(bricksForSlice(geom, 'time', idx)
@@ -2017,13 +2061,13 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     mapSliceBricksRef.current = keys;
     (async () => {
       try {
-        const assembled = await assembleSlice(getBrick, geom, 'time', idx);
+        const assembled = await sourceRef.current.getSlice({ orientation: 'time', index: idx, prefetch: false });
         if (req !== mapSliceReqRef.current) return;    // superseded
         setMapTimeSlice({
           ...assembled, index: idx, ms: (idx * manifest.geometry.dt_us) / 1000,
         });
       } catch (e) {
-        if (e.message !== ABORTED && req === mapSliceReqRef.current) {
+        if (!isAborted(e) && req === mapSliceReqRef.current) {
           toast({ title: 'Time slice failed', description: e.message, variant: 'destructive' });
         }
       } finally {
@@ -2507,8 +2551,11 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   };
 
   useEffect(() => () => {
-    if (cacheRef.current) cacheRef.current.clear();
-    if (cacheBRef.current) cacheBRef.current.clear();
+    sliceAbortRef.current?.abort();
+    localAbortRef.current?.abort();
+    sourceRef.current?.close();
+    sourceBRef.current?.close();
+    localVolumeRef.current?.source?.close();
     if (workerRef.current) workerRef.current.terminate();
   }, []);
 
@@ -2519,7 +2566,10 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   // they always shared the global-RMS clip.
   const pctClip = useMemo(() => (
     scaleMode === 'pct' && slice
-      ? amplitudePercentile(slice.data, clipPct, { cap: 1 << 18 })
+      // the slice worker sends the sorted sample with the slice, so the
+      // sort never runs on the UI thread (same answer, bit for bit)
+      ? (slice.absSample ? percentileOfSorted(slice.absSample, clipPct)
+        : amplitudePercentile(slice.data, clipPct, { cap: 1 << 18 }))
       : null
   ), [scaleMode, slice, clipPct]);
 
@@ -2733,7 +2783,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
         lengthM: path.lengthM,
       });
     } catch (e) {
-      if (e.message !== ABORTED && req === traverseReqRef.current) {
+      if (!isAborted(e) && req === traverseReqRef.current) {
         toast({ title: 'Traverse failed', description: e.message, variant: 'destructive' });
         setTraverse(null);
       }
@@ -3211,6 +3261,84 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     />
   );
 
+  // ---- Stream L: open a local SEG-Y for viewing ------------------------
+  // Picking a file in the import dialog opens it here at once: a trace
+  // index from headers only, then inlines and crosslines straight from
+  // the file, before (and whether or not) any upload finishes.
+  const openLocalFile = async (file, mapping) => {
+    localAbortRef.current?.abort();
+    const ac = new AbortController();
+    localAbortRef.current = ac;
+    setLocalOpen({ name: file.name, file, mapping, progress: null, error: null });
+    try {
+      const src = await getSliceClient().openLocal(file, {
+        mapping,
+        signal: ac.signal,
+        onProgress: (done, total) => {
+          if (!ac.signal.aborted) setLocalOpen((st) => (st ? { ...st, progress: { done, total } } : st));
+        },
+      });
+      if (ac.signal.aborted) { src.close(); return; }
+      const prev = localVolumeRef.current;
+      localVolumeRef.current = {
+        id: `local:${src.id}`,
+        name: `${file.name} (local file)`,
+        storage_path: null,
+        is_own: false,           // read-only: interpretation saves after conversion
+        status: 'local',
+        local: true,
+        source: src,
+        manifest: src.manifest,
+        crs: null,
+      };
+      setLocalOpen(null);
+      await selectVolume(localVolumeRef.current.id);
+      if (prev && prev.source !== sourceRef.current) prev.source.close();
+      if (src.index?.warnings?.length) {
+        toast({ title: 'Opened from the local file', description: src.index.warnings.join(' ') });
+      }
+    } catch (e) {
+      if (isAborted(e) || ac.signal.aborted) return;
+      setLocalOpen((st) => ({ ...(st || { name: file.name, file, mapping }), error: e }));
+    }
+  };
+
+  const retrySlice = () => {
+    if (localOpen?.error && localOpen.file) {
+      openLocalFile(localOpen.file, localOpen.mapping);
+      return;
+    }
+    setSliceError(null);
+    loadSlice();
+  };
+
+  let sectionNotice = null;
+  if (localOpen && !localOpen.error) {
+    sectionNotice = <SliceSourceNotice kind="indexing" indexing={localOpen.progress} />;
+  } else if (localOpen?.error) {
+    sectionNotice = (
+      <SliceSourceNotice
+        kind="error"
+        error={localOpen.error}
+        what={`the file ${localOpen.name}`}
+        budgetBytes={getSliceClient().budgetBytes}
+        onRetry={retrySlice}
+      />
+    );
+  } else if (sliceError && sliceError.code === SOURCE_ERRORS.TIME_NEEDS_CONVERSION) {
+    sectionNotice = orientation === 'time'
+      ? <SliceSourceNotice kind="time-unavailable" conversion={conversion} /> : null;
+  } else if (sliceError && !loading) {
+    sectionNotice = (
+      <SliceSourceNotice
+        kind="error"
+        error={sliceError}
+        budgetBytes={sourceRef.current?.budgetBytes || getSliceClient().budgetBytes}
+        onRetry={retrySlice}
+      />
+    );
+  }
+
   return (
     <>
       <WorkspaceShell
@@ -3251,6 +3379,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
               title: 'Section',
               icon: ScanLine,
               content: (
+                <div className="relative h-full min-h-0">
                 <SliceView
                   // only hand over a slice that matches the current
                   // orientation — an orientation switch must not render the
@@ -3286,6 +3415,8 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
                   cameraApi={sectionCameraApi}
                   flatten={depthSection ? null : flatten}
                 />
+                {sectionNotice}
+                </div>
               ),
             },
             {
@@ -3297,6 +3428,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
                   geom={geom}
                   manifest={manifest}
                   getBrick={getBrick}
+                  getSlice={getCubeSlice}
                   indices={indices}
                   onChangeIndex={changeIndex}
                   display={display}
@@ -3430,6 +3562,12 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
               title: 'Map',
               icon: MapIcon,
               content: (
+                <div className="relative h-full min-h-0">
+                {mapTimeNotice && (
+                  <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 w-[min(28rem,90%)]">
+                    <SliceSourceNotice kind="time-unavailable" conversion={conversion} overlay={false} />
+                  </div>
+                )}
                 <MapView
                   depthUnit={depthUnit}
                   manifest={manifest}
@@ -3465,6 +3603,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
                   cameraApi={mapCameraApi}
                   cultureLayers={mapCulture}
                 />
+                </div>
               ),
             },
           ]}
@@ -3511,6 +3650,8 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
         open={openDialog === 'import'}
         onOpenChange={(o) => setOpenDialog(o ? 'import' : null)}
         onIngested={() => setVolumesRefresh((k) => k + 1)}
+        onFilePicked={openLocalFile}
+        onViewNow={() => setOpenDialog(null)}
       />
 
       <ExportDialog

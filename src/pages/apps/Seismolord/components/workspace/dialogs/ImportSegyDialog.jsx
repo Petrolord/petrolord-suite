@@ -9,7 +9,15 @@ import {
 } from '@/components/ui/dialog';
 import ImportPanel from '../../ImportPanel';
 
-export default function ImportSegyDialog({ open, onOpenChange, onIngested }) {
+/**
+ * @param {Object} p
+ * @param {(file: File, mapping: Object) => void} [p.onFilePicked] Stream L:
+ *   the viewer opens the picked file straight from disk
+ * @param {() => void} [p.onViewNow] close the dialog to look at it
+ */
+export default function ImportSegyDialog({
+  open, onOpenChange, onIngested, onFilePicked, onViewNow,
+}) {
   const [busy, setBusy] = useState(false);
   const guard = useCallback((e) => { if (busy) e.preventDefault(); }, [busy]);
 
@@ -29,7 +37,13 @@ export default function ImportSegyDialog({ open, onOpenChange, onIngested }) {
             Import SEG-Y volume
           </DialogTitle>
         </DialogHeader>
-        <ImportPanel frameless onIngested={onIngested} onBusyChange={setBusy} />
+        <ImportPanel
+          frameless
+          onIngested={onIngested}
+          onBusyChange={setBusy}
+          onFilePicked={onFilePicked}
+          onViewNow={onViewNow}
+        />
       </DialogContent>
     </Dialog>
   );

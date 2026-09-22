@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Upload, FileText, AlertTriangle, CheckCircle2, Loader2, XCircle, Play, Ban,
-  RotateCcw, Trash2,
+  RotateCcw, Trash2, Eye,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import { MAPPING_PRESETS, DEFAULT_MAPPING } from '../engine/segyScan';
 import { crsHintsFromText } from '../engine/crsHint';
 import { scanFile, ingestVolume } from '../services/ingestService';
 import { listVolumes, deleteVolume } from '../services/volumesService';
+import { publishConversionProgress, clearConversionProgress } from '../sources/conversionProgress';
 import CrsPicker from '@/components/crs/CrsPicker';
 import StorageMeter from './StorageMeter';
 import CrsBadge from '@/components/crs/CrsBadge';
@@ -33,8 +34,13 @@ const PHASE_LABEL = {
  * @param {(busy: boolean) => void} [p.onBusyChange] true while an ingest
  *   is running — a hosting dialog uses it to block closing mid-import
  * @param {boolean} [p.frameless] render without the Card chrome (dialogs)
+ * @param {(file: File, mapping: Object) => void} [p.onFilePicked] Stream L:
+ *   the viewer opens the picked file for viewing straight away
+ * @param {() => void} [p.onViewNow] show the viewer (the dialog closes)
  */
-export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
+export default function ImportPanel({
+  onIngested, onBusyChange, frameless, onFilePicked, onViewNow,
+}) {
   const { toast } = useToast();
   const fileRef = useRef(null);
   const cancelRef = useRef(null);
@@ -91,12 +97,14 @@ export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
     setSanityOverride(false);
     crsPrefilledRef.current = false;
     runScan(f, mapping);
+    if (onFilePicked) onFilePicked(f, mapping);
   };
 
   const onMappingChange = (next) => {
     const m = { ...mapping, ...next };
     setMapping(m);
     if (file) runScan(file, m);
+    if (file && onFilePicked) onFilePicked(file, m);
   };
 
   const startIngest = async () => {
@@ -111,7 +119,10 @@ export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
         mapping,
         nativeCrs: crsTag,
         compress16,
-        onProgress: (p) => setProgress(p),
+        onProgress: (p) => {
+          setProgress(p);
+          publishConversionProgress({ ...p, fileName: file.name });
+        },
         cancelToken,
       });
       setPhase('done');
@@ -122,6 +133,7 @@ export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
       setPhase('error');
     } finally {
       cancelRef.current = null;
+      clearConversionProgress();
     }
   };
 
@@ -224,7 +236,10 @@ export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
       const { row: updated } = await ingestVolume({
         file: f,
         resumeVolumeId: row.id,
-        onProgress: (p) => setProgress(p),
+        onProgress: (p) => {
+          setProgress(p);
+          publishConversionProgress({ ...p, fileName: f.name });
+        },
         cancelToken,
       });
       setPhase('done');
@@ -235,6 +250,7 @@ export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
       setPhase('error');
     } finally {
       cancelRef.current = null;
+      clearConversionProgress();
       setResuming(null);
     }
   };
@@ -669,6 +685,19 @@ export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
             <Play className="w-4 h-4 mr-2" />
             Start import
           </Button>
+          {file && onViewNow && (
+            // Stream L: the viewer already shows this file; the import
+            // keeps running with the dialog closed and its progress
+            // shows in the viewer (sources/conversionProgress)
+            <Button
+              variant="outline"
+              onClick={onViewNow}
+              title="Inlines and crosslines are shown straight from this file while it converts"
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              View it now
+            </Button>
+          )}
           {phase === 'ingesting' && (
             <Button
               variant="outline"
