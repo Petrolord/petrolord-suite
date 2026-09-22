@@ -216,6 +216,8 @@ export default function SeismolordHelpGuide() {
         <Para>The volume's CRS or the project CRS is unset or wrong. Both are declared, never guessed; fix them in the status bar and the volume settings.</Para>
         <SubHeading>A well is on the map but not on the sections</SubHeading>
         <Para>Look for the warning on the well's explorer row. Most often the well has no checkshots and the volume has no velocity model, so it has no time-depth relationship; add checkshots or a time-depth table in Well Data Manager. A deviated well may also pass further from the section than the Well projection distance.</Para>
+        <SubHeading>The section says the slice did not load</SubHeading>
+        <Para>A data request that gets no answer is stopped after 30 seconds and tried once more; if that also fails the Section window says so and offers Retry, and the 3D window offers Retry on its message bar. Nothing needs a page reload. A repeat usually means the connection dropped.</Para>
         <SubHeading>Depth is greyed out</SubHeading>
         <Para>Set a velocity model in the Velocity model editor; a layer cake also needs its boundary horizons loaded.</Para>
         <SubHeading>The picks look one sample off after a tie</SubHeading>
