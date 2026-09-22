@@ -86,6 +86,10 @@ const INK = {
  * @param {?Object} p.geom geomFromManifest() result
  * @param {?Object} p.manifest volume manifest
  * @param {?Function} p.getBrick (i,j,k) => Promise<Float32Array>
+ * @param {?Function} [p.getSlice] (orientation, index) => Promise<slice>:
+ *   planes come from the viewer's SliceSource (Stream L: the slice worker,
+ *   same bricks and cache as the 2D windows); without it planes are
+ *   assembled here from getBrick. The 3D view only ever draws slices.
  * @param {{inline:number, xline:number, time:number}} p.indices
  * @param {(orientation:string, index:number) => void} [p.onChangeIndex]
  * @param {{colormap, gain, polarity, clip, traceBalance}} p.display
@@ -111,8 +115,13 @@ const INK = {
  * @param {number|'fill'} [p.height] viewport CSS height, or 'fill' to
  *   stretch to the parent container's height
  */
+// Plane requests that are not failures: a scrub moved on, or a local file
+// has no time planes until it is converted (they are skipped quietly).
+const planeUnavailable = (e) => e?.message === ABORTED || e?.code === 'ABORTED'
+  || e?.code === 'TIME_SLICE_NEEDS_CONVERSION';
+
 function CubeView({
-  geom, manifest, getBrick, indices, onChangeIndex, display, vexag,
+  geom, manifest, getBrick, getSlice, indices, onChangeIndex, display, vexag,
   horizons, faults, wells, onSelectPlane, onRendered, height = 520,
   depthConv = null, steps = null, activeOrientation = 'inline',
   sliceVis = null, onToggleSlicePlane = null,
@@ -508,15 +517,19 @@ function CubeView({
     scheduleRender();
   }, [scheduleRender]);
 
+  const fetchPlane = useCallback((orientation, index) => (getSlice
+    ? getSlice(orientation, index)
+    : assembleSlice(getBrick, geom, orientation, index)), [getSlice, getBrick, geom]);
+
   const loadMainPlane = useCallback(async (orientation, index) => {
     const seq = ++seqRef.current[orientation];
     setBusy((b) => b + 1);
     try {
-      const slice = await assembleSlice(getBrick, geom, orientation, index);
+      const slice = await fetchPlane(orientation, index);
       if (seq !== seqRef.current[orientation]) return;
       putPlane(orientation, orientation, index, slice);
     } catch (e) {
-      if (e.message !== ABORTED) {
+      if (!planeUnavailable(e)) {
         // let Retry (or the next index move) load this plane again
         if (seq === seqRef.current[orientation]) desiredRef.current[orientation] = null;
         setGlError(e.message);
@@ -524,7 +537,7 @@ function CubeView({
     } finally {
       setBusy((b) => b - 1);
     }
-  }, [getBrick, geom, putPlane]);
+  }, [fetchPlane, putPlane]);
 
   const maxFor = useCallback((o) => (o === 'inline' ? geom.nIl - 1
     : o === 'xline' ? geom.nXl - 1 : geom.ns - 1), [geom]);
@@ -571,20 +584,25 @@ function CubeView({
           const key = `${o}-${idx}`;
           let slice = facesCacheRef.current.get(key);
           if (!slice) {
-            // eslint-disable-next-line no-await-in-loop
-            slice = await assembleSlice(getBrick, geom, o, idx);
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              slice = await fetchPlane(o, idx);
+            } catch (e) {
+              if (e?.code === 'TIME_SLICE_NEEDS_CONVERSION') continue;
+              throw e;
+            }
             facesCacheRef.current.set(key, slice);
           }
           if (seq !== seqRef.current.faces) return;
           putPlane(id, o, idx, slice);
         }
       } catch (e) {
-        if (e.message !== ABORTED) setGlError(e.message);
+        if (!planeUnavailable(e)) setGlError(e.message);
       } finally {
         setBusy((b) => b - 1);
       }
     })();
-  }, [geom, getBrick, prefs.faces, putPlane, dropPlane, maxFor]);
+  }, [geom, getBrick, fetchPlane, prefs.faces, putPlane, dropPlane, maxFor]);
 
   // ---- interpretation objects (horizons / faults) ------------------------
   // Mesh geometry is cached per object (rebuilt only when the underlying

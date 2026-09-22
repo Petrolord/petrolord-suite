@@ -14,6 +14,7 @@
 
 import { BrickCache, storageBrickFetcher } from '../engine/brickCache';
 import { assembleTrace, brickKey } from '../engine/sliceAssembly';
+import { cacheBudgetBytes, reportedDeviceMemory } from '../sources/memoryBudget';
 import { regionGrow3D } from '../engine/horizonTrack';
 import { withBrickTimeout } from '../lib/fetchWithTimeout';
 
@@ -57,7 +58,12 @@ self.onmessage = async (e) => {
       supabaseUrl: config.supabaseUrl,
       getToken,
       bucket: config.bucket,
-    })), { maxBytes: 512 * 1024 * 1024, dtype: config.dtype });
+    })), {
+      // Stream L: the same machine-sized budget as the viewer (about
+      // 256 MB on an 8 GB laptop) where this used a fixed 512 MiB
+      maxBytes: config.maxBytes || cacheBudgetBytes(reportedDeviceMemory(self)),
+      dtype: config.dtype,
+    });
 
     const getBrick = (i, j, k) =>
       cache.get(brickKey(config.storagePath, i, j, k));

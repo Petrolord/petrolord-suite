@@ -123,6 +123,7 @@ const SeismolordWellsHarness = lazy(() => import('@/pages/apps/Seismolord/Seismo
 const SeismolordWellTieHarness = lazy(() => import('@/pages/apps/Seismolord/SeismolordWellTieHarness'));
 const SeismolordSyntheticsHarness = lazy(() => import('@/pages/apps/Seismolord/SeismolordSyntheticsHarness'));
 const SeismolordCubeViewHarness = lazy(() => import('@/pages/apps/Seismolord/SeismolordCubeViewHarness'));
+const SeismolordLargeSurveyHarness = lazy(() => import('@/pages/apps/Seismolord/SeismolordLargeSurveyHarness'));
 const SeismolordWorkspaceHarness = lazy(() => import('@/pages/apps/Seismolord/SeismolordWorkspaceHarness'));
 const WellDataManagerHarness = lazy(() => import('@/pages/apps/WellDataManager/WellDataManagerHarness'));
 const PetrophysicsStudioHarness = lazy(() => import('@/pages/apps/PetrophysicsStudio/PetrophysicsStudioHarness'));
@@ -885,6 +886,7 @@ function App() {
                                   <Route path="/dev/seismolord-selftest" element={<SeismolordSelfTest />} />
                                   <Route path="/dev/seismolord-sliceview" element={<SeismolordSliceViewHarness />} />
                                   <Route path="/dev/seismolord-cubeview" element={<SeismolordCubeViewHarness />} />
+                                  <Route path="/dev/seismolord-largesurvey" element={<SeismolordLargeSurveyHarness />} />
                                   <Route path="/dev/seismolord-wells" element={<SeismolordWellsHarness />} />
                                   <Route path="/dev/seismolord-welltie" element={<SeismolordWellTieHarness />} />
                                   <Route path="/dev/seismolord-synthetics" element={<SeismolordSyntheticsHarness />} />
