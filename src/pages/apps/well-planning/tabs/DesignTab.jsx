@@ -12,6 +12,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toLonLat } from '@/lib/crs';
+import { siteCrsOpts } from '../services/siteCrs';
 import { isTransformableTag } from '@/lib/crs/tags';
 import Papa from 'papaparse';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -313,10 +314,10 @@ const DesignTab = () => {
     const getGeoCoords = useCallback((easting, northing) => {
         if (!site?.crs || !isTransformableTag(site.crs)) return null;
         try {
-            const { lon, lat } = toLonLat(site.crs, easting, northing);
+            const { lon, lat } = toLonLat(site.crs, easting, northing, {}, siteCrsOpts(site));
             return Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : null;
         } catch (e) { return null; }
-    }, [site?.crs]);
+    }, [site?.crs, site?.crs_provenance]);
 
     // Azimuths are entered in the wellbore's azimuth reference; the
     // compile runs in grid (WD3 chain: magnetic + declination + grid

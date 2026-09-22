@@ -103,3 +103,18 @@ the Map window via lattice resampling.
 - Engine math is validated against published oracles (EPSG GN7-2 worked
   example, first-principles Helmert cross-check, Snyder convergence);
   proj4 is injected into the engines package, bound once in src/lib/crs.
+- Named datum transformations (2026-09-22, engines #234): Minna
+  (Nigeria) entries carry EPSG Minna to WGS 84 transformations from the
+  EPSG dataset v12.029 instead of one generic shift: West/Mid Belt
+  EPSG:1754 (5 m), East Belt and Minna lat/lon EPSG:1168 (15 m), Minna
+  UTM 31N/32N EPSG:15706 (7 m), each with area-overlapping alternatives
+  (`datumTransformOptions`). `src/lib/crs` takes an optional
+  `{datumTransform}` (single tag) or `{fromTransform, toTransform}`
+  (pairs); two catalog tags on the same datum always transform as a pure
+  projection change (`catalogPairDefs`). Well Design Studio stores a
+  per-site choice in `wp_sites.crs_provenance.datum_transform`. Other
+  apps use the catalog default. Provenance and oracle:
+  packages/engines/test-data/crs/README.md.
+- The CrsPicker browses by region with an empty search (Nigeria first,
+  the 120 WGS 84 / UTM zones folded into one group) and shows match
+  counts when searching (src/components/crs/crsBrowse.js).

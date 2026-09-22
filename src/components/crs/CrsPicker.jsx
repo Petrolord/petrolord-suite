@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Search, Plus, Check } from 'lucide-react';
+import { Search, Plus, Check, ChevronRight, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { searchCatalog, catalogGet, crsDisplayName, validateCustomDefinition } from '@/lib/crs';
+import { CRS_CATALOG, catalogGet, crsDisplayName, validateCustomDefinition } from '@/lib/crs';
 import { normalizeTag, LOCAL, UNKNOWN } from '@/lib/crs/tags';
+import { browseGroups, searchResults, UTM_GROUP_KEY } from './crsBrowse';
 
 /**
  * Searchable CRS picker over the curated catalog, with sentinel options
@@ -11,6 +12,10 @@ import { normalizeTag, LOCAL, UNKNOWN } from '@/lib/crs/tags';
  * definitions. Petrel habit honored: hints from the data file (the SEG-Y
  * textual header, a GeoJSON crs member) surface at the top, each quoting
  * the evidence line so the user can judge it.
+ *
+ * With an empty search the catalog is browsed by region (Nigeria first),
+ * with the 120 WGS 84 / UTM zones folded into one group; a search lists
+ * matches with their count (see crsBrowse.js).
  *
  * @param {Object} p
  * @param {?string} p.value current tag
@@ -34,7 +39,10 @@ export default function CrsPicker({
   const [pasteError, setPasteError] = useState(null);
 
   const tag = normalizeTag(value);
-  const results = useMemo(() => searchCatalog(query).slice(0, 30), [query]);
+  const [utmOpen, setUtmOpen] = useState(false);
+  const searching = query.trim().length > 0;
+  const results = useMemo(() => (searching ? searchResults(query) : null), [query, searching]);
+  const groups = useMemo(() => browseGroups(), []);
   const codeSuggestions = suggestions.filter((s) => s.code);
 
   const pick = (t, name) => {
@@ -42,6 +50,20 @@ export default function CrsPicker({
     setQuery('');
     onChange(t, { name: name || null });
   };
+
+  const renderRow = (e) => (
+    <button
+      key={e.code}
+      type="button"
+      className="w-full text-left px-3 py-1.5 hover:bg-slate-800 text-sm flex items-center"
+      onClick={() => pick(e.code, e.name)}
+    >
+      <span className="text-slate-200">{e.name}</span>
+      <span className="ml-2 text-slate-500">{e.code}</span>
+      <span className="ml-auto text-xs text-slate-600">{e.region}</span>
+      {e.code === tag && <Check className="w-3.5 h-3.5 ml-2 text-emerald-400" />}
+    </button>
+  );
 
   const submitPaste = () => {
     try {
@@ -105,21 +127,43 @@ export default function CrsPicker({
             </div>
           )}
 
-          {results.map((e) => (
-            <button
-              key={e.code}
-              type="button"
-              className="w-full text-left px-3 py-1.5 hover:bg-slate-800 text-sm flex items-center"
-              onClick={() => pick(e.code, e.name)}
-            >
-              <span className="text-slate-200">{e.name}</span>
-              <span className="ml-2 text-slate-500">{e.code}</span>
-              <span className="ml-auto text-xs text-slate-600">{e.region}</span>
-              {e.code === tag && <Check className="w-3.5 h-3.5 ml-2 text-emerald-400" />}
-            </button>
-          ))}
-          {results.length === 0 && (
-            <div className="px-3 py-2 text-sm text-slate-500">No catalog match. Paste a definition below.</div>
+          {searching ? (
+            <div data-testid="crs-search-results">
+              <div className="px-3 pt-2 pb-1 text-xs text-slate-500">
+                {results.total === 0 && 'No catalog match. Paste a definition below.'}
+                {results.total > 0 && results.total <= results.entries.length
+                  && `${results.total} ${results.total === 1 ? 'match' : 'matches'}`}
+                {results.total > results.entries.length
+                  && `Showing ${results.entries.length} of ${results.total} matches. Add words to narrow the search.`}
+              </div>
+              {results.entries.map((e) => renderRow(e))}
+            </div>
+          ) : (
+            <div data-testid="crs-browse">
+              <div className="px-3 pt-2 pb-1 text-xs text-slate-500">
+                {CRS_CATALOG.length} systems. Type to search by name, EPSG code or region.
+              </div>
+              {groups.map((g) => (
+                <div key={g.key} data-testid={`crs-group-${g.key}`}>
+                  {g.key === UTM_GROUP_KEY ? (
+                    <button
+                      type="button"
+                      className="w-full text-left px-3 pt-2 pb-1 text-xs font-medium uppercase tracking-wide text-slate-400 hover:text-slate-200 flex items-center"
+                      onClick={() => setUtmOpen((o) => !o)}
+                    >
+                      {utmOpen ? <ChevronDown className="w-3 h-3 mr-1" /> : <ChevronRight className="w-3 h-3 mr-1" />}
+                      {g.label}
+                      <span className="ml-2 normal-case tracking-normal font-normal text-slate-600">
+                        {g.entries.length} zones{utmOpen ? '' : '. Open, or type a zone such as 32N'}
+                      </span>
+                    </button>
+                  ) : (
+                    <div className="px-3 pt-2 pb-1 text-xs font-medium uppercase tracking-wide text-slate-400">{g.label}</div>
+                  )}
+                  {(g.key !== UTM_GROUP_KEY || utmOpen) && g.entries.map((e) => renderRow(e))}
+                </div>
+              ))}
+            </div>
           )}
 
           <div className="border-t border-slate-800 p-2 space-y-1">

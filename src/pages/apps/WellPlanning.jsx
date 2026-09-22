@@ -26,6 +26,7 @@ import { WellPlanningStoreProvider, useWellPlanningStore } from './well-planning
 import { WellPlanningProvider } from './well-planning/contexts/WellPlanningContext';
 import SiteTree from './well-planning/tree/SiteTree';
 import SiteDialog from './well-planning/components/SiteDialog';
+import { siteDatumTransform } from './well-planning/services/siteCrs';
 import WellboreDialog from './well-planning/components/WellboreDialog';
 import LegacyImportDialog from './well-planning/components/LegacyImportDialog';
 import DesignTab from './well-planning/tabs/DesignTab';
@@ -215,6 +216,7 @@ const WellPlanningContent = () => {
             {site?.crs && (
               <span className="rounded-full border border-slate-700 bg-slate-800 px-2 py-0.5 text-[10px] text-slate-400">
                 {site.crs}
+                {siteDatumTransform(site) ? ` via ${siteDatumTransform(site)}` : ''}
               </span>
             )}
             <Link to="/dashboard/apps/drilling/well-planning/help"

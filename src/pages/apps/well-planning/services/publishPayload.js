@@ -44,6 +44,11 @@ export function preparePublishPayload({
       design_revision: design?.revision ?? null,
       trajectory_source: source,
       published_at: publishedAt,
+      // The site's chosen datum transformation to WGS 84, when it is not
+      // the catalog default (a record for readers of the published well).
+      ...(site?.crs_provenance?.datum_transform
+        ? { datum_transform: site.crs_provenance.datum_transform }
+        : {}),
     },
     crsNote: `Published from Well Design Studio (${design?.name ?? 'design'} r${design?.revision ?? '?'}, ${source}).`,
     unitsNote: 'Deviation: MD metres, azimuths grid north.',

@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 2b37109e889436c99a8b178c85808d7c6810b496
+# commit 738ade2d61ad68a9b1bfa83d8732a14cd50268cf
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 b45735ce0a92fedac8004ff81b088c4e52a3c497 README.md
@@ -20,9 +20,10 @@ a8c2c7336a4a7636ecdf56915fde5530f3d8d8e4 __tests__/assurance.risk.test.js
 375827102427b3f26e86dd217659b6e80ae69f72 __tests__/basin.test.js
 17552372b2f1ad85fd1cd0b6b33ab0e0b50f95fe __tests__/conventions.percentile.test.js
 6bc26dff76f9760be2e86a63196db9e3fefb06e4 __tests__/crs.affine.test.js
-2cf56480ceb187641d5a8e67feb3da97807dce2b __tests__/crs.catalog.test.js
+481a120e2fd78f97d1c7dc3d8741554a7c5a7df5 __tests__/crs.catalog.test.js
 e348fa7f85789bc4078e7c84fe574aed3f441acc __tests__/crs.convergence.test.js
 43c27892b1c1a7fcf491030b9c6abe942e7b11b4 __tests__/crs.grid.test.js
+86016e9ef3a3667a2518d44bfb57e26d36b7e238 __tests__/crs.minna.test.js
 473bbdcdb10783d96b43b0633f5a0ce9ab993409 __tests__/crs.sanity.test.js
 a512a82111f5524a5c9e28f212f9283acfb4ef1c __tests__/dates.test.js
 b64b309dd3866780f298496874ccd0532ebacb68 __tests__/dca.montecarlo.quadrature.test.js
@@ -503,7 +504,7 @@ f8c42e9dd370a4f5b77747c39e60a47901aecb84 engines/welltest/models/modelCatalog.js
 9dfa415b1e49ee63e4ab5f1c0b0aeafec4c0fe13 jest.config.cjs
 73693376b4fe6d48ddb76cf1dfeba7002d683037 lib/conventions/percentile.js
 8f605dac6b96b3efa40457b7e80f03e9fcff1112 lib/crs/affineReproject.js
-8cd6f37fc0e06f3566d57fa8bb28eace051f026b lib/crs/catalog.js
+4167dbb5333979096ce78806785a27dccdbc5483 lib/crs/catalog.js
 d6ac3fcb245821f9139a68c894d4906fdcb9cff0 lib/crs/convergence.js
 a9f4aed1007adab6744e55b6a476843715dcf375 lib/crs/gridReproject.js
 2c9e2d142f4235e0fad660feac740676c98f4736 lib/crs/sanity.js
@@ -541,6 +542,9 @@ b129488287f575558ccedfffd439f0350a5fe7ef test-data/assurance/goldens/qualityAssu
 79c826b89b8ba8a82c8dc8eaaf1226ebfecfd1b4 test-data/assurance/goldens/riskScoring_cases.json
 097c823aff784eec4d9cf9d826654403398e624b test-data/basin/README.md
 fea7984e626d8c7b4e7671d7ca2d1c60aca1547d test-data/basin/goldens.json
+d48d79ef6eccb94be4afe8cc69d732abe9ce6f91 test-data/crs/README.md
+b8b641fd2a3bc4b12fed1d2b4ed091a9397e5a17 test-data/crs/generate_minna_goldens.py
+a68fddd7a0f4eaa38ce359a9a7a10240754229da test-data/crs/goldens/minna_epsg_goldens.json
 150c0b09188f47f9b58a7e9a8f2647602fd679de test-data/dates/date_fns_pins.json
 65c43161a4ecf65a3a803c7820d88006d62c5412 test-data/dca/dca-literature-fixtures.json
 c3a7c20436a58019eb392dfb760fe96659b37440 test-data/downstream/goldens/carbonabatement_cases.json
