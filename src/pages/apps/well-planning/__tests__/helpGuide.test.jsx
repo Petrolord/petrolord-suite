@@ -47,6 +47,9 @@ describe('WellDesignHelpGuide', () => {
     expect(screen.getAllByText(/Traveling cylinder/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/deeper run wins from its tie-on down/).length).toBeGreaterThan(0);
     expect(screen.getByText(/TVD 1653\.99 ft, ND 954\.93 ft/)).toBeInTheDocument();
+    // Plan editor (tester feedback 2026-09-22)
+    expect(screen.getAllByText(/Compass-style plan editor/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Inc Azi MD/).length).toBeGreaterThan(0);
     // back link points at the app
     expect(screen.getByRole('link', { name: /Back to Well Design Studio/ }))
       .toHaveAttribute('href', '/dashboard/apps/drilling/well-planning');
