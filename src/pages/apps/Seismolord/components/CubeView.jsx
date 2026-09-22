@@ -601,6 +601,8 @@ function CubeView({
           positions: c.mesh.positions,
           indices: c.mesh.indices,
           color: hexToRgb(h.color),
+          // horizon settings "Line opacity" also fades the 3D surface
+          opacity: Number.isFinite(h.lineOpacity) ? h.lineOpacity : 1,
         });
       }
     }
@@ -627,9 +629,11 @@ function CubeView({
           fltCacheRef.current.set(f.id, c);
         }
         const rgb = hexToRgb(f.color);
+        // fault settings opacity: sticks (line alpha) and the ribbon
+        const alpha = Number.isFinite(f.opacity) ? Math.min(1, Math.max(0.05, f.opacity)) : 1;
         if (c.lines.length) {
           wanted.add(`flt-${f.id}`);
-          r.setLineSet(`flt-${f.id}`, { positions: c.lines, color: rgb });
+          r.setLineSet(`flt-${f.id}`, { positions: c.lines, color: [...rgb.slice(0, 3), alpha] });
         }
         if (c.ribbon.indices.length) {
           wanted.add(`fltrib-${f.id}`);
@@ -637,7 +641,7 @@ function CubeView({
             positions: c.ribbon.positions,
             indices: c.ribbon.indices,
             color: rgb,
-            opacity: 0.45,
+            opacity: 0.45 * alpha,
           });
         }
       }
