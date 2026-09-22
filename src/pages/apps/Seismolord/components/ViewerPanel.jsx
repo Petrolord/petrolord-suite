@@ -4,7 +4,7 @@ import { getDepthUnit as getAccountDepthUnit } from '@/lib/crs/settingsService';
 import { appPath as appRoutePath } from '@/components/wells/appLinks';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Loader2, Route, Box, ScanLine, Save, Map as MapIcon, X, Bot, Waves, Spline,
+  Loader2, Route, Box, ScanLine, Save, Map as MapIcon, X, Bot, Waves, Spline, Wrench,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -24,7 +24,7 @@ import {
   updateHorizonMeta,
 } from '../services/horizonsService';
 import {
-  saveFault, listFaults, deleteFault, updateFaultSticks,
+  saveFault, listFaults, deleteFault, updateFaultSticks, updateFaultMeta,
 } from '../services/faultsService';
 import { placeWellsForHost } from '@/lib/crs/guards';
 import { faultSticksToRows, writeCharismaFaultSticks } from '../engine/pickExport';
@@ -73,6 +73,8 @@ import {
 import { NULL_VALUE } from '../engine/manifest';
 import { amplitudePercentile } from '../engine/displayEnhance';
 import { UndoStack } from '../lib/undoStack';
+import { EditHistory } from '../lib/horizonEditHistory';
+import { createdHorizonCommand, rewriteHorizonCommand } from '../lib/horizonUndoCommands';
 import { captureLocal, applyLocal, clampIndices } from '../lib/sessionSnapshot';
 import SessionsDialog from './workspace/dialogs/SessionsDialog';
 import CultureImportDialog from '@/components/culture/CultureImportDialog';
@@ -105,11 +107,16 @@ import ImportSurfaceDialog from './workspace/dialogs/ImportSurfaceDialog';
 import WellImportDialog from './workspace/dialogs/WellImportDialog';
 import VelocityModelDialog from './workspace/dialogs/VelocityModelDialog';
 import HorizonSettingsDialog from './workspace/dialogs/HorizonSettingsDialog';
+import FaultSettingsDialog from './workspace/dialogs/FaultSettingsDialog';
 import SeismicExplorer from './workspace/SeismicExplorer';
 import StatusBar from './workspace/StatusBar';
 import SliceLoadError from './workspace/SliceLoadError';
 import RightDock from './workspace/RightDock';
-import { horizonColor, faultColor, surfaceColor } from './workspace/interpretationColors';
+import { horizonColorFor, faultColorFor, surfaceColor } from './workspace/interpretationColors';
+import useDisplaySettings from '../hooks/useDisplaySettings';
+import useFaultStickEditor from '../hooks/useFaultStickEditor';
+import { savableSticks } from '../lib/faultStickEdit';
+import InterpretationToolbox from './workspace/InterpretationToolbox';
 import useWells from '../hooks/useWells';
 import useBackendStatus from '../hooks/useBackendStatus';
 import useSlicePlayer from '../hooks/useSlicePlayer';
@@ -179,6 +186,13 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   // AI copilot right dock — the dock panel stays mounted while collapsed
   // so the chat survives open/close
   const [dockOpen, setDockOpen] = useState(false);
+  // group 5: the right dock hosts the interpretation toolbox or the
+  // copilot; both stay mounted, one is shown
+  const [dockPanel, setDockPanel] = useState('toolbox');
+  const openDockPanel = useCallback((panel) => {
+    setDockPanel(panel);
+    setDockOpen((open) => !(open && dockPanel === panel));
+  }, [dockPanel]);
 
   // cursor readout → status bar, entirely ref-driven (no re-renders):
   // the views call handleCursor per pointer move and StatusBar registers
@@ -307,13 +321,11 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   const mapSliceReqRef = useRef(0);
   const mapSliceBricksRef = useRef(null);       // Set<brickKey> while assembling
 
-  // per-horizon display settings: session overrides layered over the
-  // persisted row params.display; the settings dialog edits live and a
-  // debounced updateHorizonMeta writes them back to the row
-  const [horizonDisplay, setHorizonDisplay] = useState({});
+  // per-horizon / per-fault display settings: session overrides over the
+  // persisted row params.display (useDisplaySettings, below the rows);
+  // the settings dialogs edit live and a debounced meta update writes back
   const [settingsId, setSettingsId] = useState(null);   // horizon settings dialog target
-  const [settingsSaving, setSettingsSaving] = useState(false);
-  const settingsTimersRef = useRef(new Map());  // horizon id -> debounce timer
+  const [faultSettingsId, setFaultSettingsId] = useState(null);   // fault settings dialog target
   const horizonsRef = useRef([]);
 
   // Phase 3: picking + horizons; Phase 4: fault sticks; editing tools:
@@ -326,9 +338,11 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   // editRef holds the WORKING grid (mutated in place during a paint
   // stroke, cloned on commit so the 3D/map caches rebuild once per op)
   // plus the undo stack; `edit` mirrors the bits the UI renders.
-  const editRef = useRef(null);            // {targetId:'new'|id, grid, undo:[]}
+  const editRef = useRef(null);            // {targetId:'new'|id, grid, base, history: EditHistory}
   const [editTarget, setEditTarget] = useState('new');
-  const [edit, setEdit] = useState({ version: 0, undo: 0, active: false });
+  const [edit, setEdit] = useState({
+    version: 0, undo: 0, redo: 0, active: false,
+  });
   const [editBusy, setEditBusy] = useState(false);
   const [eraseSize, setEraseSize] = useState(1);    // BRUSH_OPTIONS radius
   const [smoothMethod, setSmoothMethod] = useState('mean');   // 'mean'|'median'
@@ -376,6 +390,31 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   // stick edit session: the saved fault whose sticks the draft holds;
   // Save then updates that row in place instead of inserting a new one
   const [editingFault, setEditingFault] = useState(null);
+  // Properties (group 5): rename, colour, line weight and opacity for
+  // horizons and faults, saved to params.display, each change undoable
+  const horizonSettings = useDisplaySettings({
+    rows: horizons,
+    persist: ({ row, display, name }) => updateHorizonMeta({ horizon: row, display, name }),
+    onSaved: (saved) => setHorizonRows((hs) => hs.map((r) => (r.id === saved.id ? { ...r, ...saved } : r))),
+    undoStack,
+    toast,
+    noun: 'Horizon',
+  });
+  const faultSettings = useDisplaySettings({
+    rows: faults,
+    persist: ({ row, display, name }) => updateFaultMeta({ fault: row, display, name }),
+    onSaved: (saved) => setFaults((fs) => fs.map((r) => (r.id === saved.id ? { ...r, ...saved } : r))),
+    undoStack,
+    toast,
+    noun: 'Fault',
+  });
+  const horizonDisplay = horizonSettings.overrides;
+  // group 5 toolbox: stick tools + selected stick for the fault draft
+  const faultEditor = useFaultStickEditor({
+    draftSticks, setDraftSticks, undoStack, orientation,
+  });
+  const [newFaultName, setNewFaultName] = useState('');
+  const faultPick = faultEditor.pick;
   // per-render mirrors for undo commands (see undoStack above)
   draftSticksRef.current = draftSticks;
   interpRevRef.current = interpRev;
@@ -697,7 +736,9 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
 
   const closeSession = useCallback(() => {
     editRef.current = null;
-    setEdit({ version: 0, undo: 0, active: false });
+    setEdit({
+      version: 0, undo: 0, redo: 0, active: false,
+    });
     setPickMode((p) => (p === 'manual' || p === 'erase' ? null : p));
   }, []);
 
@@ -710,17 +751,18 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   const openSession = useCallback(async (targetId) => {
     const cur = editRef.current;
     if (cur && cur.targetId === targetId) return cur;
-    if (cur && cur.undo.length && !window.confirm('Discard unsaved horizon edits?')) {
+    if (cur && cur.history.dirty && !window.confirm('Discard unsaved horizon edits?')) {
       return null;
     }
     if (!geom) return null;
     let grid;
+    let base = null;
     if (targetId === 'new') {
       grid = new Float32Array(geom.nIl * geom.nXl).fill(NULL_F32);
     } else {
       const h = horizons.find((x) => x.id === targetId);
       if (!h) return null;
-      let base = gridCacheRef.current.get(h.id);
+      base = gridCacheRef.current.get(h.id);
       if (!base) {
         try {
           base = await loadHorizonGrid(h);
@@ -733,56 +775,69 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
       grid = new Float32Array(base);
       setVisibleIds((s) => (s.has(h.id) ? s : new Set([...s, h.id])));
     }
-    editRef.current = { targetId, grid, undo: [] };
-    setEdit({ version: 1, undo: 0, active: true });
+    // base: the stored picks the session started from (undo of Save
+    // writes them back); history: stroke-merged cell undo + redo
+    editRef.current = {
+      targetId, grid, base, history: new EditHistory(40),
+    };
+    setEdit({
+      version: 1, undo: 0, redo: 0, active: true,
+    });
     return editRef.current;
   }, [geom, horizons, toast]);
 
-  /** Record old values, apply new ones, push an undo op. */
+  const syncEdit = (s) => setEdit((e) => ({
+    version: e.version + 1,
+    undo: s.history.undoCount,
+    redo: s.history.redoCount,
+    active: true,
+  }));
+
+  /** Record old values and apply new ones. Everything between two
+   *  commitStroke calls (one paint stroke, or one one-shot op) is ONE
+   *  undo op (group 5: a drag used to push an op per pointer move). */
   const applyOp = useCallback((cells, values) => {
     const s = editRef.current;
     if (!s || !cells.length) return;
-    const changed = [];
-    const old = [];
-    for (let i = 0; i < cells.length; i++) {
-      const c = cells[i];
-      const next = Math.fround(values[i]);
-      if (s.grid[c] === next) continue;
-      changed.push(c);
-      old.push(s.grid[c]);
-      s.grid[c] = next;
-    }
-    if (!changed.length) return;
-    // typed arrays: a whole-grid op (smoothing) stays a few MB, not tens
-    s.undo.push({ cells: Int32Array.from(changed), old: Float32Array.from(old) });
-    if (s.undo.length > 40) s.undo.shift();
-    setEdit((e) => ({ version: e.version + 1, undo: s.undo.length, active: true }));
+    if (!s.history.apply(s.grid, cells, values, { stroke: true })) return;
+    syncEdit(s);
   }, []);
 
-  /** End of a paint stroke / one-shot op: clone the grid so the 3D and
-   *  map caches (keyed by grid reference) rebuild exactly once. */
+  /** End of a paint stroke / one-shot op: close the op, and clone the
+   *  grid so the 3D and map caches (keyed by grid reference) rebuild
+   *  exactly once. */
   const commitStroke = useCallback(() => {
     const s = editRef.current;
     if (!s) return;
+    s.history.close();
     s.grid = new Float32Array(s.grid);
-    setEdit((e) => ({ ...e, version: e.version + 1 }));
+    syncEdit(s);
   }, []);
 
   const undoEdit = useCallback(() => {
     const s = editRef.current;
-    if (!s || !s.undo.length) return;
-    const op = s.undo.pop();
-    const g = new Float32Array(s.grid);
-    for (let i = 0; i < op.cells.length; i++) g[op.cells[i]] = op.old[i];
+    if (!s) return;
+    const g = s.history.undo(s.grid);
+    if (!g) return;
     s.grid = g;
-    setEdit((e) => ({ version: e.version + 1, undo: s.undo.length, active: true }));
+    syncEdit(s);
+  }, []);
+
+  const redoEdit = useCallback(() => {
+    const s = editRef.current;
+    if (!s) return;
+    const g = s.history.redo(s.grid);
+    if (!g) return;
+    s.grid = g;
+    syncEdit(s);
   }, []);
 
   // ---- W1.2 global undo/redo router ------------------------------------
-  // An active horizon edit session keeps its own cell-level undo and
-  // takes priority; everything else runs through the command stack.
+  // An active horizon edit session keeps its own cell-level undo/redo and
+  // takes priority in both directions; everything else runs through the
+  // command stack.
   const undoAction = useCallback(async () => {
-    if (editRef.current?.undo.length) { undoEdit(); return; }
+    if (editRef.current?.history.undoCount) { undoEdit(); return; }
     try {
       const c = await undoStack.undo();
       if (c) toast({ title: 'Undone', description: c.label });
@@ -792,13 +847,14 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   }, [undoEdit, undoStack, toast]);
 
   const redoAction = useCallback(async () => {
+    if (editRef.current?.history.redoCount) { redoEdit(); return; }
     try {
       const c = await undoStack.redo();
       if (c) toast({ title: 'Redone', description: c.label });
     } catch (e) {
       toast({ title: 'Redo failed', description: e.message, variant: 'destructive' });
     }
-  }, [undoStack, toast]);
+  }, [redoEdit, undoStack, toast]);
 
   // Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z (or Ctrl+Y), skipped while typing
   useEffect(() => {
@@ -916,15 +972,19 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     mapSliceReqRef.current += 1;                  // supersede in-flight time slice
     mapSliceBricksRef.current = null;
     setMapTimeSlice(null);
-    setHorizonDisplay({});
+    horizonSettings.reset();
+    faultSettings.reset();
     setSettingsId(null);
+    setFaultSettingsId(null);
     setTraverse(null);
     setTraverseSlice(null);
     setTraverseLoading(false);
     setTraverseSavedId(null);
     setCalOpen(false);
     editRef.current = null;
-    setEdit({ version: 0, undo: 0, active: false });
+    setEdit({
+      version: 0, undo: 0, redo: 0, active: false,
+    });
     setEditTarget('new');
     setPickMode(null);
     gridCacheRef.current.clear();
@@ -1342,13 +1402,14 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
         }
         // per-horizon display settings (params.display + session edits):
         // color/lineWidth feed every viewport, the rest styles the map
-        const disp = { ...(h.params?.display || {}), ...(horizonDisplay[h.id] || {}) };
+        const disp = horizonDisplay[h.id] || h.params?.display || {};
         out.push({
           id: h.id,
           name: isEditing ? `${h.name} (editing)` : h.name,
           grid,
-          color: disp.color || horizonColor(idx),
+          color: horizonColorFor(h, disp),
           lineWidth: disp.lineWidth,
+          lineOpacity: disp.lineOpacity,
           display: disp,
         });
       }
@@ -1401,50 +1462,36 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
           const d = Math.abs(m.il - ilIdx) + Math.abs(m.xl - xlIdx) + Math.abs(m.sample - sample) / 4;
           if (d <= 6 && (!best || d < best.d)) best = { i, d };
         });
-        if (best) setTerminations((list) => list.filter((_, i) => i !== best.i));
+        if (!best) return;
+        const prevT = terminations;
+        const nextT = terminations.filter((_, i) => i !== best.i);
+        setTerminations(nextT);
+        undoStack.push({
+          label: 'remove termination marker',
+          undo: () => setTerminations(prevT),
+          redo: () => setTerminations(nextT),
+        });
         return;
       }
-      setTerminations((list) => [...list, { id: `term-${Date.now()}-${list.length}`, il: ilIdx, xl: xlIdx, sample, kind: terminationKind }]);
+      const prevT = terminations;
+      const nextT = [...terminations, {
+        id: `term-${Date.now()}-${terminations.length}`, il: ilIdx, xl: xlIdx, sample, kind: terminationKind,
+      }];
+      setTerminations(nextT);
+      undoStack.push({
+        label: 'termination marker',
+        undo: () => setTerminations(prevT),
+        redo: () => setTerminations(nextT),
+      });
       return;
     }
 
     if (pickMode === 'fault') {
-      const prev = draftSticksRef.current;
-      // Alt+click deletes the nearest draft point (a few traces / samples
-      // of tolerance); a stick emptied by the deletion is dropped
-      if (altKey) {
-        let best = null;
-        prev.forEach((stick, si) => {
-          stick.forEach((p, pi) => {
-            const dLat = Math.abs(p.il - ilIdx) + Math.abs(p.xl - xlIdx);
-            const dS = Math.abs(p.s - sample);
-            const score = dLat * 4 + dS;
-            if (dLat <= 2 && dS <= 12 && (!best || score < best.score)) {
-              best = { si, pi, score };
-            }
-          });
-        });
-        if (!best) return;
-        const next = prev
-          .map((s, si) => (si === best.si ? s.filter((_, pi) => pi !== best.pi) : [...s]))
-          .filter((s, si) => s.length > 0 || si === prev.length - 1);
-        setDraftSticks(next);
-        undoStack.push({
-          label: 'delete fault stick point',
-          undo: () => setDraftSticks(prev),
-          redo: () => setDraftSticks(next),
-        });
-        return;
-      }
-      // fault points are raw picks on visible discontinuities — no snap
-      const next = prev.map((s) => [...s]);
-      if (next.length === 0) next.push([]);
-      next[next.length - 1].push({ il: ilIdx, xl: xlIdx, s: sample });
-      setDraftSticks(next);
-      undoStack.push({
-        label: 'fault stick point',
-        undo: () => setDraftSticks(prev),
-        redo: () => setDraftSticks(next),
+      // stick tools (extend / select / shorten / move / delete) live in
+      // hooks/useFaultStickEditor; each change is one undo command.
+      // Fault points are raw picks on visible discontinuities: no snap.
+      faultPick({
+        ilIdx, xlIdx, sample, altKey,
       });
       return;
     }
@@ -1491,25 +1538,25 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
       setError(err.message);
     }
   }, [pickMode, geom, volume, orientation, getBrick, toast, snapMode, snapWindow, applyOp,
-    eraseSize, undoStack, terminations, terminationKind]);
+    eraseSize, undoStack, terminations, terminationKind, faultPick]);
 
   // ---- fault stick editing ----------------------------------------------
-  const endStick = () => {
-    const prev = draftSticksRef.current;
-    if (!(prev.length && prev[prev.length - 1].length)) return;
-    const next = [...prev, []];
-    setDraftSticks(next);
-    undoStack.push({
-      label: 'end fault stick',
-      undo: () => setDraftSticks(prev),
-      redo: () => setDraftSticks(next),
-    });
+  const endStick = () => faultEditor.newStick();
+
+  /** The draft differs from the fault it was loaded from (or holds
+   *  points for a new fault): switching away would lose work. */
+  const draftDirty = () => {
+    const d = draftSticksRef.current;
+    if (!editingFault) return d.some((st) => st.length);
+    const stored = editingFault.sticks.map((st) => st.points);
+    return JSON.stringify(d) !== JSON.stringify(stored);
   };
 
   const discardDraft = () => {
     const prev = draftSticksRef.current;
     if (!prev.length) return;
     setDraftSticks([]);
+    faultEditor.select(null);
     if (editingFault) {
       // abandoned edit session: the stored fault comes back into view
       setVisibleFaultIds((s) => new Set([...s, editingFault.id]));
@@ -1527,22 +1574,61 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
    *  updates the row in place. The stored copy hides while the draft
    *  stands in for it. */
   const startEditFaultSticks = (f) => {
-    const prev = draftSticksRef.current;
-    if (prev.length && prev.some((s) => s.length)
-      && !window.confirm('Replace the current fault draft with this fault\'s sticks?')) return;
+    if (editingFault?.id === f.id) return true;
+    if (draftDirty()
+      && !window.confirm('Replace the current fault draft with this fault\'s sticks?')) return false;
+    const prevEditing = editingFault;
     setDraftSticks(f.sticks.map((st) => st.points.map((p) => ({ ...p }))));
+    faultEditor.select(null);
     setEditingFault(f);
     setPickMode('fault');
-    setVisibleFaultIds((s) => { const n = new Set(s); n.delete(f.id); return n; });
+    setVisibleFaultIds((s) => {
+      const n = new Set(s);
+      n.delete(f.id);
+      // the fault we were editing shows its stored copy again
+      if (prevEditing) n.add(prevEditing.id);
+      return n;
+    });
     toast({
       title: 'Editing fault sticks',
-      description: `${f.name}: click to add points, Alt+click a point to delete it, then Save.`,
+      description: `${f.name}: use the toolbox stick tools (or click to extend the selected stick), then Save.`,
     });
+    return true;
   };
 
-  const saveDraftFault = async () => {
-    const sticks = draftSticks.filter((s) => s.length >= 2)
-      .map((points) => ({ points }));
+  /** Toolbox "Active fault": 'new' starts a fresh unnamed draft,
+   *  an id loads that fault's sticks (new sticks then belong to it). */
+  const setActiveFault = (id) => {
+    if (id === 'new') {
+      if (!editingFault) return;
+      if (draftDirty() && !window.confirm(`Leave the unsaved stick edits of "${editingFault.name}"?`)) return;
+      const f = editingFault;
+      setDraftSticks([]);
+      faultEditor.select(null);
+      setEditingFault(null);
+      setVisibleFaultIds((s) => new Set([...s, f.id]));
+      return;
+    }
+    const f = faults.find((x) => x.id === id);
+    if (f) startEditFaultSticks(f);
+  };
+
+  /** Toolbox "Delete fault": the active saved fault (undoable through
+   *  onDeleteFault), or the unsaved draft. */
+  const deleteActiveFault = async () => {
+    if (!editingFault) { discardDraft(); return; }
+    const f = editingFault;
+    if (await onDeleteFault(f)) {
+      setDraftSticks([]);
+      faultEditor.select(null);
+      setEditingFault(null);
+    }
+  };
+
+  /** @param {string} [presetName] toolbox name for a NEW fault (the
+   *  ribbon passes a click event and keeps the prompt) */
+  const saveDraftFault = async (presetName) => {
+    const sticks = savableSticks(draftSticks);
     if (!sticks.length) {
       toast({ title: 'Nothing to save', description: 'A fault stick needs at least 2 points.' });
       return;
@@ -1574,11 +1660,14 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
       }
       return;
     }
-    // eslint-disable-next-line no-alert
-    const name = window.prompt('Fault name:', `Fault ${faults.length + 1}`);
+    const name = typeof presetName === 'string' && presetName.trim()
+      ? presetName.trim()
+      // eslint-disable-next-line no-alert
+      : window.prompt('Fault name:', `Fault ${faults.length + 1}`);
     if (!name) return;
     try {
       const row = await saveFault({ volumeId: volume.id, name, sticks });
+      setNewFaultName('');
       const prevDraft = draftSticksRef.current;
       setDraftSticks([]);
       setFaults(await listFaults(volume.id));
@@ -1694,7 +1783,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
 
   const onDeleteFault = async (f) => {
     // eslint-disable-next-line no-alert
-    if (!window.confirm(`Delete fault "${f.name}"? (Undo restores it)`)) return;
+    if (!window.confirm(`Delete fault "${f.name}"? (Undo restores it)`)) return false;
     setFaultBusyId(f.id);
     try {
       await deleteFault(f);
@@ -1718,8 +1807,10 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
           setFaults(await listFaults(volume.id));
         },
       });
+      return true;
     } catch (e) {
       toast({ title: 'Delete failed', description: e.message, variant: 'destructive' });
+      return false;
     } finally {
       setFaultBusyId(null);
     }
@@ -1859,35 +1950,101 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     toast({ title: 'Holes filled', description: `${filled.toLocaleString()} cells interpolated (interior holes only).` });
   };
 
+  // ---- group 5: undo for the horizon writes (session Save, Track 3D,
+  // Grow target). Commands read the CURRENT row through horizonsRef
+  // because they run long after the closure that made them.
+
+  /** Undo = delete the new row; redo = save it again (new id, boxed). */
+  const pushNewHorizonUndo = ({
+    label, row, picks, vol, dtUs, save, confidence = null,
+  }) => {
+    undoStack.push(createdHorizonCommand({
+      label,
+      row,
+      remove: async (r) => {
+        await deleteHorizon(r);
+        gridCacheRef.current.delete(r.id);
+        setVisibleIds((v) => { const n = new Set(v); n.delete(r.id); return n; });
+        setEditTarget((t) => (t === r.id ? 'new' : t));
+        await reloadHorizons(vol);
+      },
+      create: async () => {
+        const r = await saveHorizon({
+          volume: vol, picks, dtUs, confidence, ...save,
+        });
+        cacheGrid(gridCacheRef.current, r.id, picks);
+        setVisibleIds((v) => new Set([...v, r.id]));
+        await reloadHorizons(vol);
+        return r;
+      },
+    }));
+  };
+
+  /** Undo = write the previous picks back into the same row (same id, so
+   *  versions and confidence links survive); redo = write the new ones. */
+  const pushRewriteUndo = ({
+    label, id, before, after, prevParams, nextConfidence = null, prevConfidence = null, vol, dtUs,
+  }) => {
+    undoStack.push(rewriteHorizonCommand({
+      label,
+      before,
+      after,
+      prevParams,
+      prevConfidence,
+      nextConfidence,
+      write: async (picks, params, confidence) => {
+        const cur = (horizonsRef.current || []).find((x) => x.id === id);
+        if (!cur) throw new Error('That horizon no longer exists.');
+        if (editRef.current?.targetId === id) {
+          throw new Error('Close the edit session on this horizon first.');
+        }
+        await updateHorizon({
+          horizon: cur, picks, dtUs, params, confidence,
+        });
+        cacheGrid(gridCacheRef.current, id, picks);
+        await reloadHorizons(vol);
+      },
+    }));
+  };
+
   const saveEdits = async () => {
     const s = editRef.current;
     if (!s || !volume || !manifest) return;
     setEditBusy(true);
+    const vol = volume;
+    const dtUs = manifest.geometry.dt_us;
     try {
+      s.history.close();
       if (s.targetId === 'new') {
         const name = window.prompt('Horizon name:', `Horizon ${horizons.length + 1}`);
         if (!name) return;
+        const picks = s.grid;
+        const seed = seedPick || null;
+        const params = { mode: snapMode, window: 5, source: 'manual/2d' };
         const row = await saveHorizon({
-          volume,
-          name,
-          picks: s.grid,
-          seed: seedPick || null,
-          params: { mode: snapMode, window: 5, source: 'manual/2d' },
-          dtUs: manifest.geometry.dt_us,
+          volume: vol, name, picks, seed, params, dtUs,
         });
-        cacheGrid(gridCacheRef.current, row.id, s.grid);
+        cacheGrid(gridCacheRef.current, row.id, picks);
         setVisibleIds((v) => new Set([...v, row.id]));
+        pushNewHorizonUndo({
+          label: `save horizon "${name}"`, row, picks, vol, dtUs, save: { name, seed, params },
+        });
         toast({ title: 'Horizon saved', description: `${name}: ${row.stats.tracked} picks.` });
       } else {
         const h = horizons.find((x) => x.id === s.targetId);
         if (!h) throw new Error('The edited horizon no longer exists.');
+        const before = s.base || gridCacheRef.current.get(h.id) || await loadHorizonGrid(h);
+        const picks = s.grid;
         const row = await updateHorizon({
           horizon: h,
-          picks: s.grid,
-          dtUs: manifest.geometry.dt_us,
+          picks,
+          dtUs,
           params: { mode: snapMode, edited: true },
         });
-        cacheGrid(gridCacheRef.current, h.id, s.grid);
+        cacheGrid(gridCacheRef.current, h.id, picks);
+        pushRewriteUndo({
+          label: `save edits to "${h.name}"`, id: h.id, before, after: picks, prevParams: h.params, vol, dtUs,
+        });
         toast({ title: 'Horizon updated', description: `${h.name}: ${row.stats.tracked} picks.` });
       }
       await reloadHorizons(volume);
@@ -1900,7 +2057,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   };
 
   const discardEdits = () => {
-    if (editRef.current?.undo.length && !window.confirm('Discard horizon edits?')) return;
+    if (editRef.current?.history.dirty && !window.confirm('Discard horizon edits?')) return;
     closeSession();
   };
 
@@ -1956,18 +2113,21 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
       // eslint-disable-next-line no-alert
       const name = window.prompt('Horizon name:', `Horizon ${horizons.length + 1}`);
       if (!name) { setTracking(null); return; }
-      const row = await saveHorizon({
-        volume,
+      const save = {
         name,
-        picks,
         seed: seedPick,
         params: { ...trackerOpts(), source: 'track3d', stop_at_faults: Boolean(barriers) },
-        dtUs: manifest.geometry.dt_us,
-        confidence,
+      };
+      const dtUs = manifest.geometry.dt_us;
+      const row = await saveHorizon({
+        volume, picks, dtUs, confidence, ...save,
       });
       cacheGrid(gridCacheRef.current, row.id, picks);
       setVisibleIds((s) => new Set([...s, row.id]));
       await reloadHorizons(volume);
+      pushNewHorizonUndo({
+        label: `track horizon "${name}"`, row, picks, vol: volume, dtUs, save, confidence,
+      });
       toast({ title: 'Horizon tracked', description: `${name}: ${row.stats.tracked} traces.` });
     } catch (e) {
       if (!/cancelled/i.test(e.message)) {
@@ -1992,6 +2152,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
           ? ((h.stats.min_twt_ms + h.stats.max_twt_ms) / 2) / (manifest.geometry.dt_us / 1000)
           : null);
       const barriers = level != null ? trackingBarriers(level) : null;
+      const prevConfidence = await loadHorizonConfidence(h).catch(() => null);
       const { picks, confidence } = await runTracker({
         seed: seedPick || null,
         extraOpts: { initialPicks, ...(barriers ? { barriers } : {}) },
@@ -2005,6 +2166,19 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
       });
       cacheGrid(gridCacheRef.current, h.id, picks);
       await reloadHorizons(volume);
+      // Grow overwrote the row in place: undo writes the pre-grow picks
+      // (and confidence layer, when there was one) back into it
+      pushRewriteUndo({
+        label: `grow horizon "${h.name}"`,
+        id: h.id,
+        before: initialPicks,
+        after: picks,
+        prevParams: h.params,
+        prevConfidence,
+        nextConfidence: confidence,
+        vol: volume,
+        dtUs: manifest.geometry.dt_us,
+      });
       toast({ title: 'Horizon grown', description: `${h.name}: ${row.stats.tracked} traces.` });
     } catch (e) {
       if (!/cancelled/i.test(e.message)) {
@@ -2081,54 +2255,12 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
 
   // ---- per-horizon display settings --------------------------------------
 
-  /** Effective display settings: persisted row params.display overlaid
-   *  with this session's (possibly not-yet-persisted) edits. */
-  const displayFor = useCallback(
-    (h) => ({ ...(h.params?.display || {}), ...(horizonDisplay[h.id] || {}) }),
-    [horizonDisplay],
-  );
-
-  /** Live settings change: apply to the session immediately, persist to
-   *  the row (params.display merge) after an 800 ms debounce. The saved
-   *  row replaces the state row so a later pick-save can't clobber the
-   *  display with stale params. */
-  const changeHorizonDisplay = useCallback((h, partial) => {
-    const merged = { ...displayFor(h), ...partial };
-    for (const k of Object.keys(merged)) {
-      if (merged[k] === undefined) delete merged[k];
-    }
-    setHorizonDisplay((prev) => ({ ...prev, [h.id]: merged }));
-    const timers = settingsTimersRef.current;
-    clearTimeout(timers.get(h.id));
-    timers.set(h.id, setTimeout(async () => {
-      timers.delete(h.id);
-      const row = horizonsRef.current.find((x) => x.id === h.id);
-      if (!row) return;
-      setSettingsSaving(true);
-      try {
-        const saved = await updateHorizonMeta({ horizon: row, display: merged });
-        setHorizons((hs) => hs.map((r) => (r.id === saved.id ? saved : r)));
-      } catch (e) {
-        toast({ title: 'Settings not saved', description: e.message, variant: 'destructive' });
-      } finally {
-        setSettingsSaving(false);
-      }
-    }, 800));
-  }, [displayFor, toast]);
-
-  useEffect(() => () => {
-    for (const t of settingsTimersRef.current.values()) clearTimeout(t);
-  }, []);
-
-  const renameHorizon = useCallback(async (h, name) => {
-    try {
-      const saved = await updateHorizonMeta({ horizon: h, name });
-      setHorizons((hs) => hs.map((r) => (r.id === saved.id ? saved : r)));
-      toast({ title: 'Horizon renamed', description: name });
-    } catch (e) {
-      toast({ title: 'Rename failed', description: e.message, variant: 'destructive' });
-    }
-  }, [toast]);
+  /** Effective display settings: the session override (the full display
+   *  being edited) or the persisted row params.display. */
+  const displayFor = horizonSettings.displayFor;
+  const changeHorizonDisplay = horizonSettings.changeDisplay;
+  const renameHorizon = horizonSettings.rename;
+  const settingsSaving = horizonSettings.saving || faultSettings.saving;
 
   const settingsHorizon = useMemo(
     () => horizons.find((h) => h.id === settingsId) || null,
@@ -2138,14 +2270,32 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   const openHorizonSettings = useCallback((h) => setSettingsId(h.id), []);
 
   // explorer swatches for ALL horizons (visible or not): custom color
-  // when set, else the index-keyed house color
+  // when set, else the stable id-keyed house color
   const horizonColorById = useMemo(() => {
     const out = {};
-    horizons.forEach((h, idx) => {
-      out[h.id] = displayFor(h).color || horizonColor(idx);
+    horizons.forEach((h) => {
+      out[h.id] = horizonColorFor(h, displayFor(h));
     });
     return out;
   }, [horizons, displayFor]);
+
+  // faults: same contract (custom colour, else stable by id, so adding a
+  // fault never recolours the others)
+  const faultDisplayFor = faultSettings.displayFor;
+  const faultColorById = useMemo(() => {
+    const out = {};
+    faults.forEach((f) => {
+      out[f.id] = faultColorFor(f, faultDisplayFor(f));
+    });
+    return out;
+  }, [faults, faultDisplayFor]);
+
+  const settingsFault = useMemo(
+    () => faults.find((f) => f.id === faultSettingsId) || null,
+    [faults, faultSettingsId],
+  );
+
+  const openFaultSettings = useCallback((f) => setFaultSettingsId(f.id), []);
 
   // ---- W4.3 version chain ----------------------------------------------
 
@@ -2596,14 +2746,25 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     horizons: resolvedHorizons,
     surfaces: sectionSurfaces,
     faults: faults
-      .map((f, idx) => ({ sticks: f.sticks, color: faultColor(idx), id: f.id }))
-      .filter((f) => visibleFaultIds.has(f.id)),
+      .filter((f) => visibleFaultIds.has(f.id))
+      .map((f) => {
+        const d = faultDisplayFor(f);
+        return {
+          sticks: f.sticks,
+          color: faultColorById[f.id],
+          id: f.id,
+          lineWidth: d.lineWidth,
+          opacity: d.opacity,
+        };
+      }),
     draftSticks,
+    // toolbox: the selected draft stick draws highlighted while picking
+    draftSelected: pickMode === 'fault' && faultEditor.selected >= 0 ? faultEditor.selected : null,
     seedPick,
     wells: wellSections,
     terminations,
   }), [resolvedHorizons, sectionSurfaces, faults, visibleFaultIds, draftSticks, seedPick,
-    wellSections, terminations]);
+    wellSections, terminations, faultDisplayFor, faultColorById, pickMode, faultEditor.selected]);
 
   // ST5: per-trace flatten offsets for the displayed section (inline,
   // crossline or the traverse), from the chosen horizon's pick lattice,
@@ -2997,6 +3158,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     appPaths,
     slicePlanes,
     horizonColorById,
+    faultColorById,
     volumes: allVolumes,
     projects,
     lines2d,
@@ -3069,6 +3231,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     toggleFault,
     deleteFault: onDeleteFault,
     editFaultSticks: startEditFaultSticks,
+    openFaultSettings,
     exportFaultSticks: onExportFaultSticks,
     exportFaultSurface: onExportFaultSurface,
     exportFaultPolygon: onExportFaultPolygon,
@@ -3099,9 +3262,19 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
         </RouterLink>
         <button
           type="button"
+          title="Toggle the interpretation toolbox dock"
+          data-testid="sl-toolbox-toggle"
+          onClick={() => openDockPanel('toolbox')}
+          className={`p-1 rounded ${dockOpen && dockPanel === 'toolbox'
+            ? 'text-cyan-300 bg-cyan-500/10' : 'text-slate-400 hover:text-slate-200'}`}
+        >
+          <Wrench className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
           title="Toggle the interpretation copilot dock"
-          onClick={() => setDockOpen((o) => !o)}
-          className={`p-1 rounded ${dockOpen
+          onClick={() => openDockPanel('copilot')}
+          className={`p-1 rounded ${dockOpen && dockPanel === 'copilot'
             ? 'text-cyan-300 bg-cyan-500/10' : 'text-slate-400 hover:text-slate-200'}`}
         >
           <Bot className="w-4 h-4" />
@@ -3169,9 +3342,9 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
               onUndo={undoAction}
               onRedo={redoAction}
               canUndo={edit.undo > 0 || undoStack.canUndo}
-              canRedo={undoStack.canRedo}
+              canRedo={edit.redo > 0 || undoStack.canRedo}
               undoLabel={edit.undo > 0 ? 'horizon edit step' : undoStack.peekUndo()}
-              redoLabel={undoStack.peekRedo()}
+              redoLabel={edit.redo > 0 ? 'horizon edit step' : undoStack.peekRedo()}
               onOpenSessions={() => setSessionsOpen(true)}
               player={{
                 state: player,
@@ -3196,7 +3369,16 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
               terminations={terminations}
               terminationKind={terminationKind}
               setTerminationKind={setTerminationKind}
-              clearTerminations={() => setTerminations([])}
+              clearTerminations={() => {
+                const prevT = terminations;
+                if (!prevT.length) return;
+                setTerminations([]);
+                undoStack.push({
+                  label: 'clear termination markers',
+                  undo: () => setTerminations(prevT),
+                  redo: () => setTerminations([]),
+                });
+              }}
               seedPick={seedPick}
               snapMode={snapMode}
               setSnapMode={setSnapMode}
@@ -3221,6 +3403,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
               edit={edit}
               editBusy={editBusy}
               undoEdit={undoEdit}
+              redoEdit={redoEdit}
               saveEdits={saveEdits}
               discardEdits={discardEdits}
               smoothEdits={smoothEdits}
@@ -3237,6 +3420,8 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
               openVelocity={() => setOpenDialog('velocity')}
               velocityModel={velocityModel}
               openAttribute={() => setOpenDialog('attribute')}
+              toolboxOpen={dockOpen && dockPanel === 'toolbox'}
+              toggleToolbox={() => openDockPanel('toolbox')}
             />
           ),
         },
@@ -3276,8 +3461,8 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
           label: 'AI',
           content: (
             <AiTab
-              copilotOpen={dockOpen}
-              toggleCopilot={() => setDockOpen((o) => !o)}
+              copilotOpen={dockOpen && dockPanel === 'copilot'}
+              toggleCopilot={() => openDockPanel('copilot')}
             />
           ),
         },
@@ -3294,10 +3479,91 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
         onDockOpenChange={setDockOpen}
         dock={(
           <RightDock
-            title="Interpretation copilot"
+            title={dockPanel === 'toolbox' ? 'Interpretation toolbox' : 'Interpretation copilot'}
+            icon={dockPanel === 'toolbox' ? Wrench : undefined}
             onClose={() => setDockOpen(false)}
           >
-            <AiPanel docked volume={volume} manifest={manifest} />
+            <div className="h-full min-h-0 flex flex-col">
+              <div className="shrink-0 flex border-b border-slate-800 text-xs" role="tablist">
+                {[['toolbox', 'Toolbox'], ['copilot', 'Copilot']].map(([k, label]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    role="tab"
+                    aria-selected={dockPanel === k}
+                    onClick={() => setDockPanel(k)}
+                    className={`flex-1 px-2 py-1 ${dockPanel === k
+                      ? 'text-cyan-300 border-b-2 border-cyan-500' : 'text-slate-400 hover:text-slate-200'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className={dockPanel === 'toolbox' ? 'flex-1 min-h-0' : 'hidden'}>
+                <InterpretationToolbox
+                  hasSection={Boolean(manifest) && !depthSection
+                    && (orientation === 'inline' || orientation === 'xline')}
+                  history={{
+                    undo: undoAction,
+                    redo: redoAction,
+                    canUndo: edit.undo > 0 || undoStack.canUndo,
+                    canRedo: edit.redo > 0 || undoStack.canRedo,
+                    undoLabel: edit.undo > 0 ? 'horizon edit step' : undoStack.peekUndo(),
+                    redoLabel: edit.redo > 0 ? 'horizon edit step' : undoStack.peekRedo(),
+                  }}
+                  horizon={{
+                    hasVolume: Boolean(manifest),
+                    pickMode,
+                    setPickMode,
+                    editTarget,
+                    changeEditTarget,
+                    horizons,
+                    toggleEditTool,
+                    snapMode,
+                    setSnapMode,
+                    snapWindow,
+                    setSnapWindow,
+                    corrThreshold,
+                    setCorrThreshold,
+                    seedPick,
+                    tracking,
+                    track2D,
+                    trackHorizon,
+                    growHorizon,
+                    cancelTracking,
+                    eraseSize,
+                    setEraseSize,
+                    edit,
+                    editBusy,
+                    saveEdits,
+                    discardEdits,
+                  }}
+                  fault={{
+                    faults,
+                    editingFault,
+                    setActiveFault,
+                    newFaultName,
+                    setNewFaultName,
+                    defaultFaultName: `Fault ${faults.length + 1}`,
+                    draftSticks,
+                    tool: faultEditor.tool,
+                    setTool: faultEditor.setTool,
+                    selected: faultEditor.selected,
+                    selectedPoints: faultEditor.selectedPoints,
+                    newStick: faultEditor.newStick,
+                    trim: faultEditor.trim,
+                    deleteSelected: faultEditor.deleteSelected,
+                    saveDraftFault: () => saveDraftFault(newFaultName.trim() || `Fault ${faults.length + 1}`),
+                    discardDraft,
+                    deleteActiveFault,
+                    openFaultSettings,
+                  }}
+                />
+              </div>
+              <div className={dockPanel === 'copilot' ? 'flex-1 min-h-0' : 'hidden'}>
+                <AiPanel docked volume={volume} manifest={manifest} />
+              </div>
+            </div>
           </RightDock>
         )}
         statusBar={(
@@ -3345,7 +3611,8 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
                   overlaySlice={!depthSection && overlaySlice
                     && overlaySlice.orientation === orientation ? overlaySlice : null}
                   overlayDisplay={overlayDisplay}
-                  pickMode={depthSection ? null : pickMode}
+                  pickMode={depthSection ? null
+                    : (pickMode === 'fault' && faultEditor.streams ? 'faultMove' : pickMode)}
                   ghost={!depthSection && pickMode === 'manual'
                     ? { mode: eventSnapMode, window: snapWindow } : null}
                   loading={loading}
@@ -3353,7 +3620,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
                   depthAxisInfo={depthSection
                     ? { z0: depthSection.axis.z0, dz: depthSection.axis.dz, unit: depthUnit } : null}
                   onPick={handlePick}
-                  onPickEnd={commitStroke}
+                  onPickEnd={pickMode === 'fault' ? faultEditor.dragEnd : commitStroke}
                   onStepSlice={stepSlice}
                   onCursor={handleCursor}
                   height="fill"
@@ -3666,6 +3933,16 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
         onChange={(partial) => settingsHorizon && changeHorizonDisplay(settingsHorizon, partial)}
         onRename={(name) => settingsHorizon && renameHorizon(settingsHorizon, name)}
         saving={settingsSaving}
+      />
+
+      <FaultSettingsDialog
+        open={Boolean(settingsFault)}
+        onOpenChange={(o) => { if (!o) setFaultSettingsId(null); }}
+        fault={settingsFault}
+        display={settingsFault ? faultDisplayFor(settingsFault) : {}}
+        onChange={(partial) => settingsFault && faultSettings.changeDisplay(settingsFault, partial)}
+        onRename={(name) => settingsFault && faultSettings.rename(settingsFault, name)}
+        saving={faultSettings.saving}
       />
 
     </>
