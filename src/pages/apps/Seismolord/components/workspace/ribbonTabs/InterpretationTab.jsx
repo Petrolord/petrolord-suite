@@ -6,7 +6,7 @@
 import React from 'react';
 import {
   Crosshair, Route, Spline, Ban, Loader2, Pencil, Eraser, Undo2, Save,
-  Wand2, PaintBucket, Ruler, Slash, CheckCheck, Trash2, Waves, Sprout, MapPin } from 'lucide-react';
+  Wand2, PaintBucket, Ruler, Slash, CheckCheck, Trash2, Waves, Sprout, MapPin, Mountain } from 'lucide-react';
 import { RibbonGroup, RibbonButton, RibbonSelect } from '../Ribbon';
 import { describeVelocity } from '../../../engine/velocityModel';
 
@@ -50,7 +50,7 @@ export default function InterpretationTab({
   eraseSize, setEraseSize, edit, editBusy, undoEdit, saveEdits, discardEdits,
   smoothEdits, smoothMethod, setSmoothMethod, smoothRadius, setSmoothRadius, fillHoles,
   draftSticks, endStick, saveDraftFault, discardDraft, editingFaultName = null,
-  openVelocity, velocityModel, openAttribute,
+  openVelocity, velocityModel, openAttribute, openMakeSurface = null,
   terminations = [], terminationKind = 'onlap', setTerminationKind = null, clearTerminations = null,
 }) {
   const noSection = !manifest || orientation === 'time';
@@ -259,6 +259,15 @@ export default function InterpretationTab({
           disabled={!manifest || editBusy}
           title="Interpolate across interior holes of the edited horizon (the uninterpreted exterior never grows; undoable)"
         />
+        {openMakeSurface && (
+          <RibbonButton
+            icon={Mountain}
+            label="Make surface"
+            onClick={openMakeSurface}
+            disabled={!manifest || !horizons?.length}
+            title="Grid a horizon into a surface here, or publish it to the registry for Mapping & Surface Studio"
+          />
+        )}
       </RibbonGroup>
 
       <RibbonGroup label="Faults">
