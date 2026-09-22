@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Plus, Trash2, GripVertical, Download, AlertCircle, Wand2, Activity, Table as TableIcon, LayoutGrid, Save, Box, Share2, Target } from 'lucide-react';
+import { Loader2, Plus, Trash2, GripVertical, Download, AlertCircle, Wand2, Activity, Table as TableIcon, LayoutGrid, Save, Box, Share2, Target, Layers } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -43,7 +43,11 @@ import {
 import { buildTrajectoryContract, exportFormats } from '../services/trajectoryContract';
 import { loadPpfgCurves, buildMudWindow, mudWindowSummary } from '../services/ppfg';
 import { compositeStations } from '../services/surveyUtils';
-import { listSurveys, listDesigns } from '../services/wpApi';
+import { listSurveys } from '../services/wpApi';
+import {
+    assembleOffsetCandidates, chooseDisplayOffsets, offsetToChart, projectToSection, OFFSET_COLORS,
+} from '../services/offsetFrame';
+import { loadSiteOffsetDesigns, loadOffsetCandidates } from '../services/offsetLoader';
 import { listTops } from '@/lib/wellsRegistry';
 import PlanViewChart from '../charts/PlanViewChart';
 import { DEFAULT_EXAGGERATION } from '../services/sectionScale';
@@ -62,7 +66,10 @@ import {
 const ENGINE_VERSION = 'drilling-wd2';
 
 const DesignTab = () => {
-    const { user, site, wellbore, design, designs, targets: siteTargets, wellbores, refreshDesigns, refreshWellbores } = useWellPlanningStore();
+    const {
+        user, site, wellbore, design, designs, targets: siteTargets, wellbores, refreshDesigns, refreshWellbores,
+        acOffsetSelection,
+    } = useWellPlanningStore();
     const { trajectoryDraft, updateTrajectoryDraft } = useWellPlanning();
     const { toast } = useToast();
 
@@ -91,9 +98,14 @@ const DesignTab = () => {
     // Section view and the Plots grid) and DLS path colouring.
     const [sectionEx, setSectionEx] = useState(DEFAULT_EXAGGERATION);
     const [showDlsColor, setShowDlsColor] = useState(false);
+    // Offset wells on the section and plan views: loaded lazily the
+    // first time the toggle is on, per wellbore + design.
+    const [showOffsets, setShowOffsets] = useState(false);
+    const [offsetLoad, setOffsetLoad] = useState(null); // {key, candidates, savedRunIds, notes} | {key, loading:true}
     const [ppfg, setPpfg] = useState(null);          // {rows, summary} | 'loading' | 'none' | null
     const [scene3d, setScene3d] = useState(null);    // {composite, offsets, tops} lazy-loaded
     const loadedFor = useRef(null);
+    const offsetCovCache = useRef(new Map());
 
     const mdUnit = wellbore?.depth_unit === 'ft' ? 'ft' : 'm';
     const depthUnitLabel = mdUnit;
@@ -182,21 +194,14 @@ const DesignTab = () => {
                 );
                 if (comp.length >= 2) out.composite = comp;
             } catch (e) { /* composite is optional */ }
-            for (const w of (wellbores || []).filter((x) => x.id !== wellbore.id)) {
-                if (!Number.isFinite(w.head_x)) continue;
-                try {
-                    const ds = await listDesigns(w.id);
-                    const withStations = ds.filter((d) => Array.isArray(d.stations) && d.stations.length >= 2);
-                    const pick = withStations.find((d) => d.status === 'definitive')
-                        || withStations[withStations.length - 1];
-                    if (pick) {
-                        out.offsets.push({
-                            id: w.id, label: w.name, stations: pick.stations,
-                            headX: w.head_x, headY: w.head_y, kbElevM: w.kb_elev_m || 0,
-                        });
-                    }
-                } catch (e) { /* skip unreadable wellbores */ }
-            }
+            // Same offset loader as the Anti-collision tab (unreadable
+            // wellbores are skipped).
+            const { map } = await loadSiteOffsetDesigns(wellbores, wellbore.id, { isCancelled: () => !live });
+            out.offsets = assembleOffsetCandidates({ wellbores: wellbores || [], designsByWellbore: map, wellbore })
+                .map((c) => ({
+                    id: c.id, label: c.name, stations: c.stations,
+                    headX: c.headX, headY: c.headY, kbElevM: c.kbElevM,
+                }));
             if (wellbore.geo_well_id) {
                 try {
                     out.tops = (await listTops(wellbore.geo_well_id))
@@ -208,6 +213,36 @@ const DesignTab = () => {
         return () => { live = false; };
     }, [viewMode, scene3d, wellbore, wellbores]);
     useEffect(() => { setScene3d(null); }, [wellbore?.id]);
+
+    // Offsets overlay (Plots/Section): same loaders as the Anti-collision
+    // tab, only while the toggle is on, cancelled when it goes off or
+    // the wellbore/design changes. Failures become inline notes.
+    const offsetKey = wellbore?.id && design?.id ? `${wellbore.id}:${design.id}` : null;
+    const offsetViews = viewMode === 'section' || viewMode === 'plots';
+    useEffect(() => {
+        if (!showOffsets || !offsetViews || !offsetKey) return undefined;
+        // loaded (or loading) for this wellbore, design and wellbore list
+        if (offsetLoad?.key === offsetKey && offsetLoad.src === wellbores) return undefined;
+        let live = true;
+        setOffsetLoad({ key: offsetKey, src: wellbores, loading: true });
+        loadOffsetCandidates({
+            wellbore, wellbores, siteCrs: site?.crs || null, designId: design?.id, isCancelled: () => !live,
+        })
+            .then((res) => { if (live && !res.cancelled) setOffsetLoad({ key: offsetKey, src: wellbores, ...res }); })
+            .catch((e) => {
+                if (live) {
+                    setOffsetLoad({
+                        key: offsetKey, src: wellbores, candidates: [], savedRunIds: null, notes: [`Offsets could not be loaded: ${e.message}`],
+                    });
+                }
+            });
+        return () => {
+            live = false;
+            // a cancelled load retries next time the toggle is on
+            setOffsetLoad((cur) => (cur?.loading && cur.key === offsetKey ? null : cur));
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [showOffsets, offsetViews, offsetKey, wellbores]);
 
     const cubeWells = useMemo(() => {
         if (!gridMeterStations) return [];
@@ -516,12 +551,11 @@ const DesignTab = () => {
     // projected onto the same VS azimuth the survey rows use.
     const sectionTargets = useMemo(() => {
         if (!Number.isFinite(vsAzimuthDeg)) return [];
-        const az = (vsAzimuthDeg * Math.PI) / 180;
         return chartTargets
             .filter((t) => Number.isFinite(t.tvd))
             .map((t) => ({
                 id: t.id, name: t.name, tvd: t.tvd,
-                vs: t.n * Math.cos(az) + t.e * Math.sin(az),
+                vs: projectToSection(t.n, t.e, vsAzimuthDeg),
             }));
     }, [chartTargets, vsAzimuthDeg]);
 
@@ -538,10 +572,78 @@ const DesignTab = () => {
         };
     }, [showDlsColor, constraints.maxDLS, mdUnit, planSummary]);
 
+    // Offsets in this wellbore's frame (plan N/E from this wellhead,
+    // section on this VS azimuth, TVD below this KB), with their own EOU
+    // (same 2 sigma, this site's magnetic reference) when EOU is on.
+    const offsetView = useMemo(() => {
+        if (!showOffsets || !offsetLoad || offsetLoad.loading || offsetLoad.key !== offsetKey) return null;
+        const reachM = planSummary ? userToMeters(planSummary.horizontalDisplacement || 0) : 0;
+        const chosen = chooseDisplayOffsets(offsetLoad.candidates, {
+            selectedIds: acOffsetSelection?.[design?.id] || null,
+            savedRunIds: offsetLoad.savedRunIds,
+            wellhead,
+            reachM,
+        });
+        const wells = [];
+        const problems = [];
+        chosen.list.forEach((c) => {
+            const r = offsetToChart(c, {
+                wellhead, kbM: wellbore?.kb_elev_m || 0, mdUnit, vsAzimuthDeg,
+            });
+            if (!r.ok) { problems.push(r.error); return; }
+            const color = OFFSET_COLORS[wells.length % OFFSET_COLORS.length];
+            let eou = null;
+            if (showEou && magRef) {
+                try {
+                    // covariances depend only on the offset's stations and
+                    // the magnetic reference: cached so plan edits do not
+                    // re-run the error model for every offset
+                    let hit = offsetCovCache.current.get(c.id);
+                    if (!hit || hit.magRef !== magRef || hit.stations !== r.stationsM) {
+                        hit = { magRef, stations: r.stationsM, cov: computeStationUncertainty(r.stationsM, magRef).totalCov };
+                        offsetCovCache.current.set(c.id, hit);
+                    }
+                    const totalCov = hit.cov;
+                    eou = {
+                        ellipses: eouPlanEllipses(r.rows, totalCov, { k: 2, every: 8, metersToUser }),
+                        band: Number.isFinite(vsAzimuthDeg) ? eouSectionBand(r.rows, totalCov, { k: 2, metersToUser }) : null,
+                    };
+                } catch (e) { problems.push(`${r.name}: uncertainty could not be computed (${e.message}).`); }
+            }
+            wells.push({ ...r, color, eou });
+        });
+        return {
+            wells, problems, source: chosen.source, missing: chosen.missing, notes: offsetLoad.notes || [],
+            eouNote: showEou && !magRef ? 'Offset EOU is not drawn: this wellbore has no geomagnetic reference.' : null,
+        };
+    }, [showOffsets, offsetLoad, offsetKey, planSummary, userToMeters, acOffsetSelection, design?.id, wellhead,
+        wellbore?.kb_elev_m, mdUnit, vsAzimuthDeg, showEou, magRef, metersToUser]);
+
+    const offsetPlanPaths = useMemo(() => (offsetView?.wells || []).map((w) => ({
+        points: w.rows.map((r) => [r.e, r.n]), color: w.color, label: w.name,
+    })), [offsetView]);
+    const offsetPlanEllipses = useMemo(() => (offsetView?.wells || [])
+        .flatMap((w) => (w.eou?.ellipses || []).map((el) => ({ ...el, color: w.color }))), [offsetView]);
+    const offsetSectionOverlays = useMemo(() => {
+        if (!Number.isFinite(vsAzimuthDeg)) return [];
+        const out = [];
+        (offsetView?.wells || []).forEach((w) => {
+            out.push({ name: w.name, label: w.name, rows: w.rows, color: w.color, dash: '' });
+            if (w.eou?.band) {
+                out.push({ name: `${w.name} TVD -2σ`, rows: w.eou.band.up, color: w.color, dash: '2 3', width: 1, hideInLegend: true });
+                out.push({ name: `${w.name} TVD +2σ`, rows: w.eou.band.down, color: w.color, dash: '2 3', width: 1, hideInLegend: true });
+            }
+        });
+        return out;
+    }, [offsetView, vsAzimuthDeg]);
     const eouSectionOverlays = useMemo(() => (uncertainty?.band ? [
         { name: 'TVD −2σ', rows: uncertainty.band.up, color: '#0284c7', dash: '3 3' },
         { name: 'TVD +2σ', rows: uncertainty.band.down, color: '#0284c7', dash: '3 3' },
     ] : []), [uncertainty]);
+    const sectionOverlays = useMemo(
+        () => [...eouSectionOverlays, ...offsetSectionOverlays],
+        [eouSectionOverlays, offsetSectionOverlays],
+    );
 
     // Plan Editor rows: a view of `segments` (defining inputs) and the
     // compiled survey (computed cells), one row per section end.
@@ -749,6 +851,26 @@ const DesignTab = () => {
                     </div>
                 )}
 
+                {showOffsets && offsetViews && offsetView && (
+                    <div className="rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-xs text-slate-300" data-testid="design-offset-notes">
+                        <div>
+                            {offsetView.wells.length === 0
+                                ? 'No offset wells to draw.'
+                                : `Offsets: ${offsetView.wells.map((w) => w.name).join(', ')}.`}
+                            {' '}
+                            {offsetView.source === 'ac-selection' && 'Showing the offsets ticked on the Anti-collision tab.'}
+                            {offsetView.source === 'ac-run' && 'Showing the offsets of the latest saved anti-collision run for this design.'}
+                            {offsetView.source === 'nearby' && 'Showing this site\'s other wellbores and registry wells near this wellhead; tick offsets on the Anti-collision tab to choose.'}
+                            {offsetView.missing > 0 && ` ${offsetView.missing} selected offset${offsetView.missing === 1 ? ' is' : 's are'} no longer available.`}
+                        </div>
+                        {[...offsetView.notes, ...offsetView.problems, ...(offsetView.eouNote ? [offsetView.eouNote] : [])].map((n) => (
+                            <div key={n} className="mt-0.5 flex items-start gap-1 text-amber-300">
+                                <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" /> {n}
+                            </div>
+                        ))}
+                    </div>
+                )}
+
                 <div className="flex-1 bg-slate-900 rounded-lg border border-slate-800 flex flex-col overflow-hidden relative">
                     <div className="flex items-center justify-between p-2 border-b border-slate-800 bg-slate-900/90 backdrop-blur z-10 absolute top-0 left-0 right-0">
                         <div className="flex bg-slate-800 rounded p-1">
@@ -764,6 +886,16 @@ const DesignTab = () => {
                                     className={`h-7 px-2 text-xs ${showTargets ? 'bg-slate-700 text-amber-300' : 'text-slate-400'}`}
                                     title="Show site targets on the section and plan views">
                                     <Target className="w-3 h-3 mr-1" /> Targets
+                                </Button>
+                            )}
+                            {(viewMode === 'section' || viewMode === 'plots') && (
+                                <Button size="sm" variant="ghost" onClick={() => setShowOffsets((v) => !v)}
+                                    className={`h-7 px-2 text-xs ${showOffsets ? 'bg-slate-700 text-indigo-300' : 'text-slate-400'}`}
+                                    data-testid="toggle-offsets"
+                                    title="Show offset wells on the section and plan views: the offsets ticked on the Anti-collision tab, else the last saved anti-collision run, else this site's other wellbores and nearby registry wells">
+                                    {offsetLoad?.loading && showOffsets
+                                        ? <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                        : <Layers className="w-3 h-3 mr-1" />} Offsets
                                 </Button>
                             )}
                             {(viewMode === 'section' || viewMode === 'plots') && (
@@ -808,7 +940,7 @@ const DesignTab = () => {
                         {viewMode === 'section' && planRows && (
                             <div className="flex h-full w-full bg-white">
                                 <div className="min-w-0 flex-1">
-                                    <SectionViewPanel rows={planRows} unit={depthUnitLabel} vsAzimuthDeg={vsAzimuthDeg} overlays={eouSectionOverlays} targets={showTargets ? sectionTargets : []} exaggeration={sectionEx} onExaggerationChange={setSectionEx} dlsScale={dlsScale} />
+                                    <SectionViewPanel rows={planRows} unit={depthUnitLabel} vsAzimuthDeg={vsAzimuthDeg} overlays={sectionOverlays} targets={showTargets ? sectionTargets : []} exaggeration={sectionEx} onExaggerationChange={setSectionEx} dlsScale={dlsScale} />
                                 </div>
                                 {showPpfg && (
                                     <div className="w-[340px] shrink-0 border-l border-slate-200">
@@ -843,8 +975,8 @@ const DesignTab = () => {
 
                         {viewMode === 'plots' && planRows && (
                             <div className="grid grid-cols-2 grid-rows-2 gap-px bg-slate-800 h-full w-full">
-                                <PlanViewChart rows={planRows} targets={showTargets ? chartTargets : []} slots={chartSlots} leaseLines={chartLeaseLines} unit={depthUnitLabel} ellipses={uncertainty?.ellipses || []} dlsScale={dlsScale} />
-                                <SectionViewPanel rows={planRows} unit={depthUnitLabel} vsAzimuthDeg={vsAzimuthDeg} overlays={eouSectionOverlays} targets={showTargets ? sectionTargets : []} exaggeration={sectionEx} onExaggerationChange={setSectionEx} dlsScale={dlsScale} />
+                                <PlanViewChart rows={planRows} targets={showTargets ? chartTargets : []} slots={chartSlots} leaseLines={chartLeaseLines} unit={depthUnitLabel} ellipses={[...(uncertainty?.ellipses || []), ...offsetPlanEllipses]} extraPaths={offsetPlanPaths} dlsScale={dlsScale} />
+                                <SectionViewPanel rows={planRows} unit={depthUnitLabel} vsAzimuthDeg={vsAzimuthDeg} overlays={sectionOverlays} targets={showTargets ? sectionTargets : []} exaggeration={sectionEx} onExaggerationChange={setSectionEx} dlsScale={dlsScale} />
                                 <InclinationPanel rows={planRows} unit={depthUnitLabel} />
                                 <DlsPanel rows={planRows} unit={depthUnitLabel} />
                             </div>
