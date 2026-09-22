@@ -8,6 +8,9 @@ import {
 import ChartFrame from '@/components/charts/ChartFrame';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { usePump } from '@/contexts/PumpStudioContext';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
+import { formatFull } from '@/lib/fullPrecision';
+import { headFtToPsi } from '@/utils/facilities/engine/pumps';
 import { fmt, Stat, ErrorNote, WarnNote, Field, NumberInput } from './fields';
 
 export const PumpInputs = () => (
@@ -77,7 +80,8 @@ export const PumpInputs = () => (
 );
 
 export const DutyResults = () => {
-  const { duty, power, region, curve, configured } = usePump();
+  const { duty, power, region, curve, configured, inputs } = usePump();
+  const { full, show } = useFullPrecision();
   if (curve.error) return <ErrorNote>{curve.error}</ErrorNote>;
   if (duty.error) {
     return (
@@ -98,17 +102,22 @@ export const DutyResults = () => {
         <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Where the pump and the system meet</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Stat label="Duty flow" value={fmt(duty.qGpm, 0)} unit="gpm" accent="text-emerald-400" />
-            <Stat label="Duty head" value={fmt(duty.headFt, 0)} unit="ft" />
+            <Stat label="Duty flow" value={show(fmt(duty.qGpm, 0), duty.qGpm)} unit="gpm" accent="text-emerald-400" />
+            <Stat label="Duty head" value={show(fmt(duty.headFt, 0), duty.headFt)} unit="ft" />
             {!power.error && (
               <>
-                <Stat label="Brake power" value={fmt(power.brakeHp, 1)} unit="bhp"
-                  hint={`${fmt(power.hydraulicHp, 1)} hydraulic hp`} />
+                <Stat label="Brake power" value={show(fmt(power.brakeHp, 1), power.brakeHp)} unit="bhp"
+                  hint={`${show(fmt(power.hydraulicHp, 1), power.hydraulicHp)} hydraulic hp`} />
                 {power.motorError
                   ? <Stat label="Motor input" value="--" unit="kW" accent="text-amber-400"
                     hint="not computed: see the note below" />
-                  : <Stat label="Motor input" value={fmt(power.motorInputKw, 1)} unit="kW" />}
+                  : <Stat label="Motor input" value={show(fmt(power.motorInputKw, 1), power.motorInputKw)} unit="kW" />}
               </>
+            )}
+            {full && (
+              <Stat label="Duty head as pressure"
+                value={formatFull(headFtToPsi({ headFt: duty.headFt, sg: parseFloat(inputs?.fluid?.sg) }))}
+                unit="psi" hint="duty head x SG / 2.31" />
             )}
           </div>
           {power.motorError && <WarnNote>{power.motorError}</WarnNote>}
@@ -182,6 +191,7 @@ export const CurveChart = () => {
 
 export const NpshResults = () => {
   const { npsh, viscosity, changeEffect } = usePump();
+  const { show } = useFullPrecision();
   return (
     <div className="space-y-4">
       <Card className="bg-slate-900/60 border-slate-800">
@@ -238,11 +248,11 @@ export const NpshResults = () => {
             {changeEffect.error ? <ErrorNote>{changeEffect.error}</ErrorNote> : (
               <>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <Stat label="Duty flow before" value={fmt(changeEffect.before.qGpm, 0)} unit="gpm"
-                    hint={`${fmt(changeEffect.before.headFt, 0)} ft, ${fmt(changeEffect.before.brakeHp, 1)} bhp`} />
-                  <Stat label="Duty flow after" value={fmt(changeEffect.after.qGpm, 0)} unit="gpm"
+                  <Stat label="Duty flow before" value={show(fmt(changeEffect.before.qGpm, 0), changeEffect.before.qGpm)} unit="gpm"
+                    hint={`${show(fmt(changeEffect.before.headFt, 0), changeEffect.before.headFt)} ft, ${show(fmt(changeEffect.before.brakeHp, 1), changeEffect.before.brakeHp)} bhp`} />
+                  <Stat label="Duty flow after" value={show(fmt(changeEffect.after.qGpm, 0), changeEffect.after.qGpm)} unit="gpm"
                     accent="text-emerald-400"
-                    hint={`${fmt(changeEffect.after.headFt, 0)} ft, ${fmt(changeEffect.after.brakeHp, 1)} bhp`} />
+                    hint={`${show(fmt(changeEffect.after.headFt, 0), changeEffect.after.headFt)} ft, ${show(fmt(changeEffect.after.brakeHp, 1), changeEffect.after.brakeHp)} bhp`} />
                   <Stat label="Change in flow"
                     value={fmt(((changeEffect.after.qGpm / changeEffect.before.qGpm) - 1) * 100, 1)}
                     unit="%" hint="the new crossing with the same system" />
@@ -253,11 +263,11 @@ export const NpshResults = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <Stat label="Trim, ideal head" value={fmt(changeEffect.idealHeadFt, 0)} unit="ft"
                     hint="what the affinity laws promise" />
-                  <Stat label="Trim, real head" value={fmt(changeEffect.onCurve.headFt, 0)} unit="ft"
+                  <Stat label="Trim, real head" value={show(fmt(changeEffect.onCurve.headFt, 0), changeEffect.onCurve.headFt)} unit="ft"
                     hint={`${fmt(changeEffect.shortfallPct, 1)} percent short of ideal`} />
                   <Stat label="Old duty, moved onto the new curve"
-                    value={fmt(changeEffect.onCurve.qGpm, 0)} unit="gpm"
-                    hint={`${fmt(changeEffect.onCurve.headFt, 0)} ft. On the pump curve, not on the system curve.`} />
+                    value={show(fmt(changeEffect.onCurve.qGpm, 0), changeEffect.onCurve.qGpm)} unit="gpm"
+                    hint={`${show(fmt(changeEffect.onCurve.headFt, 0), changeEffect.onCurve.headFt)} ft. On the pump curve, not on the system curve.`} />
                   <Stat label="Trim depth" value={fmt(changeEffect.trimPercent, 1)} unit="%" />
                 </div>
                 {changeEffect.trimWarning && <WarnNote>{changeEffect.trimWarning}</WarnNote>}

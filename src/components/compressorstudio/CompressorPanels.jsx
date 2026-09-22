@@ -8,6 +8,7 @@ import {
 import ChartFrame from '@/components/charts/ChartFrame';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { useCompressor } from '@/contexts/CompressorStudioContext';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
 import { fmt, Stat, ErrorNote, WarnNote, Field, NumberInput, TextInput } from './fields';
 
 export const DutyInputs = () => (
@@ -60,6 +61,7 @@ export const DutyInputs = () => (
 
 export const TrainResults = () => {
   const { train, firstStage, acfm } = useCompressor();
+  const { show } = useFullPrecision();
   if (train.error) return <ErrorNote>{train.error}</ErrorNote>;
   return (
     <div className="space-y-4">
@@ -71,8 +73,8 @@ export const TrainResults = () => {
               accent="text-emerald-400" hint={`set by ${train.governedBy}`} />
             <Stat label="Ratio per stage" value={fmt(train.ratioPerStage, 2)}
               hint={`overall ${fmt(train.overallRatio, 2)}`} />
-            <Stat label="Brake power" value={fmt(train.totalBrakeHp, 0)} unit="bhp"
-              hint={`${fmt(train.totalGasHp, 0)} gas hp`} />
+            <Stat label="Brake power" value={show(fmt(train.totalBrakeHp, 0), train.totalBrakeHp)} unit="bhp"
+              hint={`${show(fmt(train.totalGasHp, 0), train.totalGasHp)} gas hp`} />
             <Stat label="Final discharge" value={fmt(train.finalDischargeF, 0)} unit="F" />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -118,7 +120,7 @@ export const TrainResults = () => {
                       {fmt(s.tDischargeF, 0)}
                     </td>
                     <td className="py-1.5 pr-3 tabular-nums">{fmt(s.zAvg, 4)}</td>
-                    <td className="py-1.5 pr-3 tabular-nums">{fmt(s.gasHp, 0)}</td>
+                    <td className="py-1.5 pr-3 tabular-nums">{show(fmt(s.gasHp, 0), s.gasHp)}</td>
                     <td className="py-1.5 tabular-nums">{s.coolingBtuHr ? fmt(s.coolingBtuHr / 1e6, 2) : '--'}</td>
                   </tr>
                 ))}
@@ -149,7 +151,7 @@ export const TrainResults = () => {
           <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Head, both ways</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Stat label="Polytropic head" value={fmt(firstStage.headPolyFtLbfLbm, 0)} unit="ft lbf/lbm" />
+              <Stat label="Polytropic head" value={show(fmt(firstStage.headPolyFtLbfLbm, 0), firstStage.headPolyFtLbfLbm)} unit="ft lbf/lbm" />
               <Stat label="Isentropic head" value={fmt(firstStage.headIsenFtLbfLbm, 0)} unit="ft lbf/lbm" />
               <Stat label="Polytropic efficiency" value={fmt(firstStage.polytropicEfficiency, 3)} />
               <Stat label="Isentropic efficiency" value={fmt(firstStage.isentropicEfficiency, 3)}
@@ -171,6 +173,7 @@ export const TrainResults = () => {
 
 export const ScreenResults = () => {
   const { screen, fuel, train, inputs } = useCompressor();
+  const { show } = useFullPrecision();
   const throughputMMscfd = parseFloat(inputs.duty.qMMscfd);
   if (screen.error) return <ErrorNote>{screen.error}</ErrorNote>;
   return (
@@ -201,7 +204,7 @@ export const ScreenResults = () => {
           {fuel.error ? <ErrorNote>{fuel.error}</ErrorNote> : (
             <>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <Stat label="Fuel gas" value={fmt(fuel.fuelMMscfd, 3)} unit="MMscfd" />
+                <Stat label="Fuel gas" value={show(fmt(fuel.fuelMMscfd, 3), fuel.fuelMMscfd, 9)} unit="MMscfd" />
                 <Stat label="Driver thermal efficiency" value={fmt(fuel.thermalEfficiencyPct, 1)} unit="%" />
                 <Stat label="Fuel as a share of throughput"
                   value={fmt((fuel.fuelMMscfd / Math.max(1e-9, throughputMMscfd)) * 100, 2)}
