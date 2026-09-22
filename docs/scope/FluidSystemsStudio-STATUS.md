@@ -92,6 +92,14 @@ pseudo std-condition SG recovers 0.9075 vs its defining 0.8515).
   under-determined target sets stay tame. Bo compares at the engine's own
   Psat when the untuned model is two-phase at lab reservoir conditions
   (CASE 19 convention) and self-heals as Psat converges.
+  Fix 2026-09-22 (engines #235): that fallback now scans the same window as
+  the Psat row, reuses its result at the same temperature, and evaluates the
+  feed 0.25 psia (5 bisection tolerances) above the boundary. Before, it
+  rescanned the default window and stepped 1e-6 relative, which could land
+  on the two-phase side and return a null Bo (Good Oil at 180, 200, 260 and
+  280 F), so the regression met its penalty residual. Good Oil joint fit
+  (100 psig test) is now psat -0.05% / GOR -0.97% / API -1.95 / Bo -0.60%
+  (was Bo -1.1%), in 10 LM iterations (was 38).
 - **Optimizer:** the canonical LM kernel `src/utils/welltest/lmFit.js`
   (bounded, numeric Jacobian, covariance) is imported, not reimplemented.
 - **Plumbing:** tuning is plain data `{fTc, fPc, kC1, sPlus}` carried inside
