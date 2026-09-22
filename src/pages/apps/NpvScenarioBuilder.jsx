@@ -18,6 +18,7 @@ import { useStudioNotifications } from '@/components/studio/useStudioNotificatio
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import StudioNotifications from '@/components/studio/StudioNotifications';
+import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
 
 const TABLE = 'saved_npv_projects';
 export const service = createSavedProjectsService(TABLE, {
@@ -43,6 +44,7 @@ const NpvScenarioBuilder = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
+  const [riskRunning, setRiskRunning] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [state, setState] = useState(defaultState);
   const { notifications, addNotification, removeNotification } = useStudioNotifications();
@@ -93,11 +95,12 @@ const NpvScenarioBuilder = () => {
             const riskResults = await runMonteCarlo(inputs, { iterations: 1000, uncertainties, seed: DEFAULT_MC_SEED });
 
             setResults({
+                inputs,
                 metrics: detResults.metrics,
                 cashflow: detResults.cashflow,
                 scenarios,
                 sensitivity,
-                risk: riskResults
+                risk: { ...riskResults, uncertainties }
             });
 
             toast({ title: "Calculation Complete", description: "All economic indicators, scenarios, and risk metrics updated." });
@@ -110,8 +113,23 @@ const NpvScenarioBuilder = () => {
     }, 100);
   };
 
+  // W3 (D3): with Full precision on, the Risk tab lets the Monte Carlo run at
+  // chosen settings on the case last calculated. Same engine, same seed rule.
+  const handleRerunRisk = async (settings) => {
+    if (!results?.inputs) return;
+    setRiskRunning(true);
+    try {
+      const risk = await runMonteCarlo(results.inputs, settings);
+      setResults((prev) => (prev ? { ...prev, risk: { ...risk, uncertainties: settings.uncertainties } } : prev));
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Monte Carlo not run', description: err.message });
+    } finally {
+      setRiskRunning(false);
+    }
+  };
+
   return (
-    <>
+    <FullPrecisionProvider>
       <Helmet>
         <title>NPV Scenario Builder - Petrolord Suite</title>
         <meta name="description" content="Advanced economic modeling with Quick and Expert modes." />
@@ -141,6 +159,7 @@ const NpvScenarioBuilder = () => {
             </div>
 
             <div className="flex items-end gap-3">
+                <FullPrecisionToggle app="npv-scenario-builder" className="pb-2" />
                 <div className="w-56">
                     <StudioProjectManager
                         label="Saved scenario"
@@ -176,7 +195,7 @@ const NpvScenarioBuilder = () => {
                 {/* Right Results Panel */}
                 <div className="lg:w-2/3 xl:w-[70%] flex flex-col overflow-hidden">
                     {results ? (
-                    <ResultsPanel results={results} />
+                    <ResultsPanel results={results} onRerunRisk={handleRerunRisk} riskRunning={riskRunning} />
                     ) : (
                     <EmptyState />
                     )}
@@ -187,7 +206,7 @@ const NpvScenarioBuilder = () => {
         {/* Help System Modal */}
         <HelpSystem open={isHelpOpen} onOpenChange={setIsHelpOpen} />
       </div>
-    </>
+    </FullPrecisionProvider>
   );
 };
 
