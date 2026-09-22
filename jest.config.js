@@ -34,6 +34,8 @@ export default {
     'probabilisticWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/probabilisticWorkerFactoryMock.js',
     // EC3 repairs: the Breakeven Analyzer worker factory (import.meta)
     'breakevenWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/breakevenWorkerFactoryMock.js',
+    // Seismolord v4 import: the conversion worker factory (import.meta)
+    'convertWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/convertWorkerFactoryMock.js',
     // the PWA register hook is a Vite virtual module (WS6)
     '^virtual:pwa-register/react$': '<rootDir>/src/__mocks__/pwaRegisterMock.js',
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
