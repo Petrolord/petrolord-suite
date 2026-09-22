@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -21,6 +21,7 @@ import {
 } from '@/components/projectmanagement/smallprojects/SmallProjectDashboards';
 import EmptyState from '@/components/projectmanagement/EmptyState';
 import { calculateEVM, formatTasksForGantt } from '@/utils/projectManagementCalculations';
+import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
 
 /** Today as a local calendar date, the as-of date the dashboard measures to. */
 const todayIsoDate = () => {
@@ -32,7 +33,15 @@ const todayIsoDate = () => {
   ].join('-');
 };
 
-const ProjectManagementPro = () => {
+// W3 (NextGen graded-field follow-on, §1): earned value used to be measured
+// only as of today. A typed as-of date (default today, so nothing changes
+// until someone types one) measures planned value and SPI at the date a
+// report, or a course case, names. A blank or unreadable date means today.
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+export const resolveAsOf = (typed, today = todayIsoDate()) => (
+  typeof typed === 'string' && ISO_DATE.test(typed) && !Number.isNaN(Date.parse(typed)) ? typed : today);
+
+const ProjectManagementProInner = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const location = useLocation();
@@ -49,6 +58,8 @@ const ProjectManagementPro = () => {
   const [deliverables, setDeliverables] = useState([]);
   const [evm, setEvm] = useState(null);
   const [evmError, setEvmError] = useState(null);
+  const [asOfInput, setAsOfInput] = useState(todayIsoDate());
+  const asOfRef = useRef(asOfInput);
   const [loading, setLoading] = useState(false);
 
   const fetchProjects = useCallback(async () => {
@@ -108,7 +119,7 @@ const ProjectManagementPro = () => {
     // clock inside the engine, so the figure on screen and the figure in a
     // saved progress update are the same measurement.
     try {
-      setEvm(calculateEVM(tasksData || [], { asOf: todayIsoDate() }));
+      setEvm(calculateEVM(tasksData || [], { asOf: resolveAsOf(asOfRef.current) }));
       setEvmError(null);
     } catch (err) {
       setEvm(null);
@@ -118,6 +129,20 @@ const ProjectManagementPro = () => {
 
     setLoading(false);
   }, [toast]);
+
+  // a new as-of date re-measures the loaded tasks; nothing is refetched
+  useEffect(() => {
+    asOfRef.current = asOfInput;
+    if (!activeProject) return;
+    try {
+      setEvm(calculateEVM(tasks || [], { asOf: resolveAsOf(asOfInput) }));
+      setEvmError(null);
+    } catch (err) {
+      setEvm(null);
+      setEvmError(err.message);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [asOfInput]);
 
   useEffect(() => {
     if (location.state?.loadedProject) {
@@ -194,6 +219,21 @@ const ProjectManagementPro = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {activeProject && (
+                <div className="flex items-center gap-2 text-xs text-slate-400 mr-2">
+                  <label htmlFor="pmp-as-of" className="font-medium">As of</label>
+                  <input
+                    id="pmp-as-of"
+                    type="date"
+                    data-testid="pmp-as-of"
+                    value={asOfInput}
+                    onChange={(e) => setAsOfInput(e.target.value)}
+                    className="h-8 rounded border border-slate-700 bg-slate-900 px-2 text-slate-200"
+                    title="Planned value and SPI are measured at this date"
+                  />
+                </div>
+              )}
+              <FullPrecisionToggle app="project-management-pro" className="mr-2" />
                 <Button variant="ghost" size="sm" onClick={handleShowPortfolio} className={`text-slate-300 hover:text-white ${isPortfolioView ? 'bg-slate-800' : ''}`}><LayoutDashboard className="w-4 h-4 mr-2" /> Portfolio</Button>
               {!isPortfolioView && <Button onClick={handleSaveProject} disabled={!activeProject} size="sm" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20" variant="outline"><Save className="w-4 h-4 mr-2" /> Save Project</Button>}
             </div>
@@ -212,5 +252,13 @@ const ProjectManagementPro = () => {
     </>
   );
 };
+
+// W3 (D3): the Full precision switch prints SPI at 6 decimals and planned
+// value to the cent, without digit grouping.
+const ProjectManagementPro = () => (
+  <FullPrecisionProvider>
+    <ProjectManagementProInner />
+  </FullPrecisionProvider>
+);
 
 export default ProjectManagementPro;

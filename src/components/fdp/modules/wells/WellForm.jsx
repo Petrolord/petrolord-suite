@@ -6,8 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Hammer as Drill, Save, X } from 'lucide-react';
 import { calculateDrillingTime, calculateDrillingCost } from '@/utils/fdp/wellCalculations';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
+import { formatFull } from '@/lib/fullPrecision';
 
 const WellForm = ({ initialData, onSave, onCancel, rigRate = 250000 }) => {
+    const { full } = useFullPrecision();
     const [formData, setFormData] = useState({
         id: Date.now(),
         name: '',
@@ -179,7 +182,7 @@ const WellForm = ({ initialData, onSave, onCancel, rigRate = 250000 }) => {
                         </div>
                         <div className="text-sm">
                             <span className="text-slate-400">Est. Cost: </span>
-                            <span className="text-green-400 font-mono ml-2">${(formData.cost / 1000000).toFixed(1)}M</span>
+                            <span className="text-green-400 font-mono ml-2">{full ? `$${formatFull(formData.cost, 0)}` : `$${(formData.cost / 1000000).toFixed(1)}M`}</span>
                         </div>
                     </div>
 
