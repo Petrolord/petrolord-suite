@@ -12,6 +12,7 @@ import { MAPPING_PRESETS, DEFAULT_MAPPING } from '../engine/segyScan';
 import { crsHintsFromText } from '../engine/crsHint';
 import { scanFile, ingestVolume } from '../services/ingestService';
 import { listVolumes, deleteVolume } from '../services/volumesService';
+import { getImportJobs, v4ImportSupport, V4_STATUS } from '../services/importJobsRuntime';
 import CrsPicker from '@/components/crs/CrsPicker';
 import StorageMeter from './StorageMeter';
 import CrsBadge from '@/components/crs/CrsBadge';
@@ -20,6 +21,37 @@ import { getProjectCrs, addCustomDef } from '@/lib/crs/settingsService';
 import { isTransformableTag, normalizeTag, UNKNOWN } from '@/lib/crs/tags';
 
 const fmtInt = (v) => (v == null ? '—' : v.toLocaleString('en-US'));
+
+const MB = 1024 * 1024;
+// display copy with its levels of detail, compressed, as a share of the
+// SEG-Y (measured on the tester-shaped synthetic survey)
+const DISPLAY_SHARE = 0.09;
+
+/** Plain expectations before a large import (plan: on a machine that
+ *  reports 8 GB of memory or less, say what to expect). */
+export function importExpectation(fileSize, deviceMemoryGb) {
+  const displayMb = Math.max(1, Math.round((fileSize * DISPLAY_SHARE) / MB));
+  const minutesAt10 = Math.max(1, Math.round((fileSize * DISPLAY_SHARE * 8) / 10e6 / 60));
+  const lowMemory = Number.isFinite(deviceMemoryGb) && deviceMemoryGb <= 8;
+  return {
+    lowMemory,
+    displayMb,
+    minutesAt10,
+    text: `${lowMemory ? 'This computer reports 8 GB of memory or less. ' : ''}`
+      + 'The import runs in the background: this dialog closes and you can keep working. '
+      + 'Converting takes a few minutes and uses up to about 400 MB of memory. '
+      + `The survey opens as soon as its display copy (about ${displayMb.toLocaleString('en-US')} MB, `
+      + `roughly ${minutesAt10} min at 10 Mbps) is uploaded; the full-precision copy follows. `
+      + 'Keep this tab open until the upload finishes, or come back later to resume it.',
+  };
+}
+
+const V4_FALLBACK_REASON = {
+  'no-opfs': 'this browser has no private file storage',
+  'no-deflate': 'this browser cannot compress bricks',
+  'no-worker': 'this browser cannot run background workers',
+  'no-space': 'there is not enough free disk space for a local copy',
+};
 
 const PHASE_LABEL = {
   scan: 'Scanning trace headers',
@@ -34,7 +66,9 @@ const PHASE_LABEL = {
  *   is running — a hosting dialog uses it to block closing mid-import
  * @param {boolean} [p.frameless] render without the Card chrome (dialogs)
  */
-export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
+export default function ImportPanel({
+  onIngested, onBusyChange, frameless, onBackgroundStarted,
+}) {
   const { toast } = useToast();
   const fileRef = useRef(null);
   const cancelRef = useRef(null);
@@ -62,6 +96,18 @@ export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
   const [interrupted, setInterrupted] = useState([]); // status 'ingesting' rows
   const [resuming, setResuming] = useState(null);     // row being resumed
   const [discardingId, setDiscardingId] = useState(null);
+  // v4 background import (large-survey plan): available when the browser
+  // can keep a local copy; otherwise the v1 path runs in this dialog
+  const [v4Support, setV4Support] = useState(null);
+  useEffect(() => {
+    if (!file) { setV4Support(null); return undefined; }
+    let stale = false;
+    v4ImportSupport(file.size)
+      .then((r) => { if (!stale) setV4Support(r); })
+      .catch(() => { if (!stale) setV4Support({ ok: false, reason: 'no-opfs' }); });
+    return () => { stale = true; };
+  }, [file]);
+  const useV4 = Boolean(v4Support?.ok) && !compress16;
 
   const runScan = async (f, m) => {
     // rapid mapping edits fire overlapping scans; only the LATEST result
@@ -99,7 +145,34 @@ export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
     if (file) runScan(file, m);
   };
 
+  const startBackground = async () => {
+    setPhase('ingesting');
+    setError(null);
+    setProgress(null);
+    try {
+      await getImportJobs().start({
+        file,
+        mapping,
+        scan: scanData.scan,
+        nativeCrs: crsTag,
+        // the viewer re-lists volumes as the row becomes openable
+        onRowChange: (status) => { if (onIngested) onIngested({ status, name: file.name }); },
+      });
+      setPhase('background');
+      toast({
+        title: 'Import running in the background',
+        description: `${file.name}: progress is in the status bar. The survey opens once its display copy is uploaded.`,
+      });
+      if (onIngested) onIngested({ status: V4_STATUS.CONVERTING, name: file.name });
+      if (onBackgroundStarted) onBackgroundStarted();
+    } catch (e) {
+      setError(e.message);
+      setPhase('error');
+    }
+  };
+
   const startIngest = async () => {
+    if (useV4) { await startBackground(); return; }
     setPhase('ingesting');
     setError(null);
     setProgress(null);
@@ -202,7 +275,12 @@ export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
       .then((vs) => {
         // derived (attribute) jobs are recomputed, never file-resumed
         if (!stale) {
-          setInterrupted(vs.filter((v) => v.status === 'ingesting' && v.kind !== 'attribute'));
+          // v4 rows still 'converting' with no job in this tab and no
+          // local copy to resume (the status bar lists those) are
+          // interrupted conversions: discard and import again
+          const live = new Set(getImportJobs().getSnapshot().map((j) => j.id));
+          setInterrupted(vs.filter((v) => v.kind !== 'attribute'
+            && (v.status === 'ingesting' || (v.status === V4_STATUS.CONVERTING && !live.has(v.id)))));
         }
       })
       .catch(() => {});   // the list is a convenience — never block importing on it
@@ -283,10 +361,12 @@ export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
                   </span>
                   <Button
                     size="sm" variant="outline"
-                    disabled={!rec?.fingerprint || discardingId === v.id}
-                    title={rec?.fingerprint
-                      ? 'Pick the original SEG-Y file to continue where the import stopped'
-                      : 'No identity record to verify against — discard and import again'}
+                    disabled={!rec?.fingerprint || discardingId === v.id || v.status === V4_STATUS.CONVERTING}
+                    title={v.status === V4_STATUS.CONVERTING
+                      ? 'The conversion stopped before it finished. Discard it and import the file again.'
+                      : rec?.fingerprint
+                        ? 'Pick the original SEG-Y file to continue where the import stopped'
+                        : 'No identity record to verify against. Discard and import again.'}
                     onClick={() => {
                       resumeRowRef.current = v;
                       resumeFileRef.current?.click();
@@ -632,6 +712,23 @@ export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
           </div>
         )}
 
+        {phase === 'background' && (
+          <div className="flex items-center text-emerald-400 text-sm">
+            <CheckCircle2 className="w-4 h-4 mr-2" />
+            Import started. It continues in the background; progress is in the status bar.
+          </div>
+        )}
+        {file && scan && useV4 && phase !== 'ingesting' && phase !== 'background' && (
+          <div className="text-xs text-slate-400 leading-relaxed" data-testid="import-expectation">
+            {importExpectation(file.size, typeof navigator !== 'undefined' ? navigator.deviceMemory : null).text}
+          </div>
+        )}
+        {file && v4Support && !v4Support.ok && (
+          <div className="text-xs text-amber-300/90 leading-relaxed">
+            The import will upload as it converts and this dialog stays open until it finishes,
+            because {V4_FALLBACK_REASON[v4Support.reason] || 'this browser cannot run the background import'}.
+          </div>
+        )}
         {phase === 'done' && (
           <div className="flex items-center text-emerald-400 text-sm">
             <CheckCircle2 className="w-4 h-4 mr-2" />
@@ -645,7 +742,7 @@ export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
         )}
 
         <div className="flex items-center gap-3 text-sm text-slate-300">
-          <label className="flex items-center gap-2" title="Bricks store as scaled 16-bit integers with per-brick scaling — half the storage and egress. Quantization error is bounded by 1/65534 of each brick's own amplitude range; display and every computation still run in float32. Attribute volumes need a float32 parent.">
+          <label className="flex items-center gap-2" title={`${v4Support?.ok ? 'Uses the older import path: it uploads while converting, keeps this dialog open and makes no display copy. ' : ''}Bricks store as scaled 16-bit integers with per-brick scaling: half the storage and egress. Quantization error is bounded by 1/65534 of each brick's own amplitude range; display and every computation still run in float32. Attribute volumes need a float32 parent.`}>
             <input
               type="checkbox"
               checked={compress16}

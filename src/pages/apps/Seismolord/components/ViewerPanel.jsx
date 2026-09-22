@@ -47,6 +47,8 @@ import {
   listLogs, downloadCurve, effectiveCheckshots, saveDerivedCheckshots,
 } from '../services/wellsService';
 import { BrickCache, storageBrickFetcher, ABORTED } from '../engine/brickCache';
+import { v4BrickFetcher } from '../engine/brickCodecV4';
+import { isOpenableVolume, useImportJobs, v4ReadInfo } from '../services/importJobs';
 import {
   assembleSlice, assembleTrace, bricksForSlice, geomFromManifest, brickKey,
 } from '../engine/sliceAssembly';
@@ -176,6 +178,13 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   const backend = useBackendStatus();
 
   const [volumesRefresh, setVolumesRefresh] = useState(0);
+  // background imports: a row turning display_ready or ready re-lists
+  // the volumes so it becomes openable without a reload
+  const importJobs = useImportJobs();
+  const importStatusKey = importJobs.map((j) => `${j.id}:${j.status}`).join('|');
+  useEffect(() => {
+    if (importStatusKey) setVolumesRefresh((k) => k + 1);
+  }, [importStatusKey]);
   const [projects, setProjects] = useState([]);      // W4.2 explorer grouping
   const [lines2d, setLines2d] = useState([]);        // W5 2D line registry
   const [visibleLineIds, setVisibleLineIds] = useState(new Set());
@@ -440,7 +449,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     listVolumes()
       .then((vs) => {
         setAllVolumes(vs);
-        const ready = vs.filter((v) => v.status === 'ready');
+        const ready = vs.filter(isOpenableVolume);   // display_ready opens too
         setVolumes(ready);
         // the selected volume was deleted elsewhere: clear the whole
         // viewer instead of letting every brick fetch 404 until the
@@ -1031,9 +1040,11 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
       cacheRef.current = new BrickCache(
         // stability: every brick request settles (30 s timeout, one
         // retry), so a stalled GET can never pin a cache slot forever
-        withBrickTimeout(persistentBrickFetcher(
+        // v4 stores read through the v1 brick names: float32 once it is
+        // uploaded, the dequantised display copy before that
+        withBrickTimeout(v4BrickFetcher(persistentBrickFetcher(
           storageBrickFetcher({ supabaseUrl: storageBase(), getToken: accessToken }),
-        )),
+        ), m)),
         {
           maxBytes: 256 * 1024 * 1024,
           dtype: m.brick?.dtype,             // W4.4: decode inside the cache
@@ -1215,7 +1226,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     if (!volume || !manifest) return [];
     const pm = { geometry: manifest.geometry };
     return volumes
-      .filter((v) => v.id !== volume.id && v.status === 'ready'
+      .filter((v) => v.id !== volume.id && isOpenableVolume(v)
         && v.survey_meta?.il && sameLattice(pm, { geometry: v.survey_meta }))
       .sort((a, b) => (b.parent_volume_id === volume.id ? 1 : 0)
         - (a.parent_volume_id === volume.id ? 1 : 0));
@@ -1238,9 +1249,9 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
       cacheBRef.current = new BrickCache(
         // stability: every brick request settles (30 s timeout, one
         // retry), so a stalled GET can never pin a cache slot forever
-        withBrickTimeout(persistentBrickFetcher(
+        withBrickTimeout(v4BrickFetcher(persistentBrickFetcher(
           storageBrickFetcher({ supabaseUrl: storageBase(), getToken: accessToken }),
-        )),
+        ), m)),
         { maxBytes: 128 * 1024 * 1024, dtype: m.brick?.dtype, maxConcurrent: 8 },
       );
       setOverlayInfo({ row, manifest: m });
@@ -2101,6 +2112,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
         bucket: 'seismic',
         storagePath: volume.storage_path,
         dtype: manifest?.brick?.dtype,   // W4.4 codec-aware worker cache
+        v4: v4ReadInfo(manifest),        // v4 stores: which copy to read
         geom,
         seed,
         opts: { ...trackerOpts(), ...extraOpts },

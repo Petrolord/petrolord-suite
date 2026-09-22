@@ -8,6 +8,7 @@ import { Loader2, XCircle, Globe2 } from 'lucide-react';
 import ProjectCrsDialog from '@/components/crs/ProjectCrsDialog';
 import { getProjectCrs } from '@/lib/crs/settingsService';
 import { UNKNOWN } from '@/lib/crs/tags';
+import ImportJobsIndicator from './ImportJobsIndicator';
 
 const BACKEND_DOT = {
   ok: 'bg-emerald-400',
@@ -104,6 +105,8 @@ export default function StatusBar({
           <span className="truncate">{error}</span>
         </span>
       )}
+
+      <ImportJobsIndicator />
 
       <span className="ml-auto flex items-center gap-4">
         <ProjectCrsChip />

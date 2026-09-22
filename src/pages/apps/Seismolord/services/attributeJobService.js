@@ -83,6 +83,10 @@ async function accessToken() {
 export async function computeAttributeVolume({
   parent, parentManifest, attribute, name, onProgress, cancelToken = {}, workerFactory,
 }) {
+  if (parent?.status === 'display_ready') {
+    // v4: only the 8-bit display copy is up; attributes compute on float32
+    throw new Error('This volume is still uploading its full-precision copy. Attributes can be computed once that finishes.');
+  }
   if (!parent || parent.status !== 'ready') {
     throw new Error('Attributes need a fully ingested (ready) parent volume.');
   }
