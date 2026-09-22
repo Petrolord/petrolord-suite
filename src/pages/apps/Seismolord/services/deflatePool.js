@@ -8,7 +8,9 @@
 //
 // makeWorker is injected (the conversion worker passes a `new Worker(...)`
 // factory; jest passes fakes). Protocol: post {id, buf} (buf transferred),
-// receive {id, buf} or {id, error}.
+// receive {id, buf} or {id, error}. The worker decides the operation, so
+// the slice worker runs the same pool over inflate helpers
+// (workers/inflate.worker.js) and calls run().
 
 /**
  * @param {number} size workers
@@ -50,17 +52,21 @@ export function createDeflatePool(size, makeWorker) {
     };
   }
 
+  /** Compress (deflate-raw) a copy of bytes; the caller keeps its buffer. */
+  const deflate = (bytes) => {
+    const copy = bytes.slice();
+    return new Promise((resolve, reject) => {
+      seq += 1;
+      queue.push({ id: seq, buf: copy.buffer, resolve, reject });
+      dispatch();
+    });
+  };
+
   return {
     size,
-    /** Compress (deflate-raw) a copy of bytes; the caller keeps its buffer. */
-    deflate(bytes) {
-      const copy = bytes.slice();
-      return new Promise((resolve, reject) => {
-        seq += 1;
-        queue.push({ id: seq, buf: copy.buffer, resolve, reject });
-        dispatch();
-      });
-    },
+    deflate,
+    /** The helper's operation (inflate for an inflate pool) on a copy of bytes. */
+    run: deflate,
     close() { workers.forEach((w) => w.terminate()); },
   };
 }

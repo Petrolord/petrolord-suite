@@ -10,8 +10,13 @@
 // Nothing here talks to Supabase: the benchmark never uploads to the live
 // project. Build the brick file with tools/seismolord-bench/make-bricks.mjs.
 //
+// With --store <dir> it serves a v4 display store instead (built by
+// make-bricks-v4.mjs): <dir>/manifest.json and every object under
+// <dir>/v4/, at <volume>/v4/d{L}/{i}-{j}-{k}.u8z.
+//
 // usage: node mock-storage.mjs --bricks <file> --manifest <file>
 //        [--port 8899] [--volume bench] [--mbps 0] [--latency-ms 0]
+//        node mock-storage.mjs --store <dir> [--volume bench-v4] [...]
 //
 // --mbps shapes the whole link, shared by every connection, the way a
 // real 10 Mbps line is (a per-connection rate would multiply by the
@@ -32,10 +37,11 @@ const mbps = Number(arg('mbps', 0));          // 0 = as fast as the disk
 const bytesPerMs = mbps ? (mbps * 1e6) / 8 / 1000 : 0;
 const latencyMs = Number(arg('latency-ms', 0));
 
-const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+const storeDir = arg('store', '');
+const manifest = JSON.parse(fs.readFileSync(storeDir ? `${storeDir}/manifest.json` : manifestPath, 'utf8'));
 const [ni, nj, nk] = manifest.brick.grid;
 const brickBytes = manifest.brick.size ** 3 * 4;
-const fd = fs.openSync(bricksPath, 'r');
+const fd = storeDir ? null : fs.openSync(bricksPath, 'r');
 const stats = { bricks: 0, bytes: 0 };
 
 const sleep = (ms) => new Promise((r) => { setTimeout(r, ms); });
@@ -68,23 +74,33 @@ const server = http.createServer(async (req, res) => {
     res.end(JSON.stringify(manifest));
     return;
   }
-  const m = new RegExp(`^${base}bricks/(\\d+)-(\\d+)-(\\d+)\\.f32$`).exec(url);
-  if (!m) { res.writeHead(404, cors); res.end('not found'); return; }
-  const [i, j, k] = m.slice(1).map(Number);
-  if (i >= ni || j >= nj || k >= nk) { res.writeHead(404, cors); res.end('out of grid'); return; }
-  const buf = Buffer.allocUnsafe(brickBytes);
-  fs.readSync(fd, buf, 0, brickBytes, ((i * nj + j) * nk + k) * brickBytes);
+  let buf;
+  if (storeDir) {
+    const v4 = new RegExp(`^${base}(v4/d\\d+/\\d+-\\d+-\\d+\\.u8z)$`).exec(url);
+    if (!v4) { res.writeHead(404, cors); res.end('not found'); return; }
+    try {
+      buf = fs.readFileSync(`${storeDir}/${v4[1]}`);
+    } catch { res.writeHead(404, cors); res.end('not found'); return; }
+  } else {
+    const m = new RegExp(`^${base}bricks/(\\d+)-(\\d+)-(\\d+)\\.f32$`).exec(url);
+    if (!m) { res.writeHead(404, cors); res.end('not found'); return; }
+    const [i, j, k] = m.slice(1).map(Number);
+    if (i >= ni || j >= nj || k >= nk) { res.writeHead(404, cors); res.end('out of grid'); return; }
+    buf = Buffer.allocUnsafe(brickBytes);
+    fs.readSync(fd, buf, 0, brickBytes, ((i * nj + j) * nk + k) * brickBytes);
+  }
+  const n = buf.length;
   stats.bricks += 1;
-  stats.bytes += brickBytes;
+  stats.bytes += n;
   if (latencyMs) await sleep(latencyMs);
-  res.writeHead(200, { ...cors, 'content-type': 'application/octet-stream', 'content-length': brickBytes });
+  res.writeHead(200, { ...cors, 'content-type': 'application/octet-stream', 'content-length': n });
   if (!bytesPerMs) { res.end(buf); return; }
   // shaped: 64 KB pieces, each waiting for its slot on the shared link
   const piece = 64 * 1024;
   let aborted = false;
   res.on('close', () => { if (!res.writableFinished) aborted = true; });
-  for (let off = 0; off < brickBytes && !aborted; off += piece) {
-    const end = Math.min(off + piece, brickBytes);
+  for (let off = 0; off < n && !aborted; off += piece) {
+    const end = Math.min(off + piece, n);
     // eslint-disable-next-line no-await-in-loop
     await sendOnLink(end - off);
     res.write(buf.subarray(off, end));
@@ -94,6 +110,6 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(port, '127.0.0.1', () => {
   process.stdout.write(`mock storage on http://127.0.0.1:${port} volume ${volume} `
-    + `(${ni}x${nj}x${nk} bricks of ${brickBytes} B)`
+    + `(${storeDir ? `v4 display store ${storeDir}` : `${ni}x${nj}x${nk} bricks of ${brickBytes} B`})`
     + `${mbps ? `, link ${mbps} Mbps` : ''}${latencyMs ? `, +${latencyMs} ms` : ''}\n`);
 });

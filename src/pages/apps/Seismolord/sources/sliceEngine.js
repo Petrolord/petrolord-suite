@@ -9,16 +9,31 @@
 // them; neighbouring slices in the same brick row are cut from the same
 // bricks and kept in the slice cache, which is what makes the next inline
 // or crossline instant.
+//
+// v4 stores (manifest_version 4, display copy uploaded) are viewed from
+// the 8-bit display copy: the coarsest level of detail first (a few
+// hundred KB for an inline) as a partial, then level 0; the levels in
+// between are fetched alongside level 0, as further partials, only when
+// level 0's measured pace says it is more than SHARPEN_IF_REMAINING_MS
+// away (a slow link). Display bricks sit in the brick cache as their u8
+// codes (a quarter of float32), so a survey's inline fits the budget and
+// steps within a brick row are cache hits. The slice carries codec 'u8'
+// and the clip; its amplitudes are the centres of the code bins (within
+// clip / 254 inside the clip). Computation (getBrick, getTrace) still
+// reads float32 through the v1 brick names.
 
 import { BrickCache } from '../engine/brickCache';
 import { decodeBrickPayload } from '../engine/brickCodec';
 import {
-  assembleSlices, assembleTrace, bricksForSlice, geomFromManifest, brickKey,
+  decodeU8Brick, u8DecodeTable, nativeInflateRaw, NO_COMPRESSION, DEFLATE_RAW,
+} from '../engine/brickCodecV4';
+import {
+  assembleSlices, assembleTrace, bricksForSlice, geomFromManifest, brickKey, sliceTraceRms, sliceShape,
 } from '../engine/sliceAssembly';
 import { absAmplitudeSample } from '../engine/displayEnhance';
 import { buildTraceIndex, manifestFromTraceIndex } from '../engine/traceIndex';
 import { readLocalSlice, readLocalBrick, readLocalTrace } from '../engine/localSlice';
-import { DEFAULT_BRICK_SIZE } from '../engine/manifest';
+import { DEFAULT_BRICK_SIZE, displayBrickRelPath } from '../engine/manifest';
 import { splitBudget } from './memoryBudget';
 import {
   SOURCE_KINDS, SOURCE_ERRORS, sliceKey, sourceError, toEngineOrientation, isAborted,
@@ -31,6 +46,12 @@ export const PERCENTILE_CAP = 1 << 18;
 
 /** Neighbours cut from the same bricks on each side of a requested slice. */
 export const SAME_ROW_NEIGHBOURS = 2;
+
+/** v4 display copy: how long level 0 runs before its pace is measured,
+ *  and the remaining time above which the levels between the coarsest
+ *  and level 0 are fetched alongside it (a slow link). */
+export const SHARPEN_CHECK_MS = 500;
+export const SHARPEN_IF_REMAINING_MS = 5000;
 
 const sliceBytes = (s) => s.data.byteLength + (s.traceRms ? s.traceRms.byteLength : 0)
   + (s.absSample ? s.absSample.byteLength : 0);
@@ -93,6 +114,52 @@ function trimBrickCache(cache, targetBytes) {
   }
 }
 
+/**
+ * The display copy of a v4 manifest, when it is uploaded: per level the
+ * lattice it is bricked on, and the code -> amplitude table.
+ * @returns {null|{clip: number, table: Float32Array, maxLevel: number,
+ *   compression: string, levels: Map<number, Object>}}
+ */
+export function displayCopyOf(manifest) {
+  const d = manifest?.display;
+  if ((manifest?.manifest_version ?? 1) !== 4 || !d?.complete || !Array.isArray(d.levels)) return null;
+  const levels = new Map();
+  for (const l of d.levels) {
+    levels.set(l.level, {
+      nIl: l.dims[0], nXl: l.dims[1], ns: l.dims[2], brickSize: d.brick_size, grid: l.bricks,
+    });
+  }
+  if (!levels.has(0)) return null;
+  return {
+    clip: d.clip,
+    table: u8DecodeTable(d.clip),
+    maxLevel: Math.max(...levels.keys()),
+    compression: d.compression || DEFLATE_RAW,
+    levels,
+  };
+}
+
+/**
+ * A level-L slice (width and height both decimated by 2^L) spread over the
+ * full slice's shape by repetition, the way a coarse local slice is.
+ */
+export function upsampleSlice(data, w, level, width, height) {
+  if (level === 0) return data;
+  const out = new Float32Array(width * height);
+  for (let r = 0; r < height; r++) {
+    const src = (r >> level) * w;
+    const dst = r * width;
+    for (let c = 0; c < width; c++) out[dst + c] = data[src + (c >> level)];
+  }
+  return out;
+}
+
+/** Display codes (assembled into a float32 slice as 0..255) to amplitudes, in place. */
+function decodeCodesInPlace(data, table) {
+  for (let n = 0; n < data.length; n++) data[n] = table[data[n]];
+  return data;
+}
+
 /** Attach what the main thread needs besides the samples. */
 function finishSlice(s, extra) {
   return {
@@ -106,10 +173,16 @@ function finishSlice(s, extra) {
 export class SliceEngine {
   /**
    * @param {{budgetBytes: number, assemblyConcurrency?: number,
-   *   maxConcurrentFetches?: number}} opts
+   *   maxConcurrentFetches?: number, sharpenCheckMs?: number,
+   *   sharpenIfRemainingMs?: number}} opts
    */
-  constructor({ budgetBytes, assemblyConcurrency = 12, maxConcurrentFetches = 12 }) {
+  constructor({
+    budgetBytes, assemblyConcurrency = 12, maxConcurrentFetches = 12,
+    sharpenCheckMs = SHARPEN_CHECK_MS, sharpenIfRemainingMs = SHARPEN_IF_REMAINING_MS,
+  }) {
     this.budgetBytes = budgetBytes;
+    this.sharpenCheckMs = sharpenCheckMs;
+    this.sharpenIfRemainingMs = sharpenIfRemainingMs;
     const split = splitBudget(budgetBytes);
     this.assemblyConcurrency = assemblyConcurrency;
     this.sources = new Map();
@@ -163,6 +236,22 @@ export class SliceEngine {
       return b.buffer;
     }
     const raw = await src.fetcher(path, signal);
+    if (src.display && path.startsWith(`${src.storagePath}/v4/d`)) {
+      // display codes stored as they are: the brick cache wraps every
+      // payload as float32, and a whole 64^3 u8 brick is a multiple of 4
+      // bytes, so its byte accounting is exact; #displayBrick reads the
+      // bytes back as codes
+      const codes = await decodeU8Brick(raw, {
+        compression: src.display.compression,
+        inflate: src.display.compression === NO_COMPRESSION ? null : (src.inflate || nativeInflateRaw),
+      });
+      const b = src.display.levels.get(0).brickSize;
+      if (codes.length !== b * b * b) {
+        throw new Error(`Display brick ${path} has ${codes.length} codes, expected ${b * b * b}.`);
+      }
+      return codes.byteOffset === 0 && codes.byteLength === codes.buffer.byteLength
+        ? codes.buffer : codes.slice().buffer;
+    }
     const f32 = decodeBrickPayload(raw, src.dtype);
     return f32.byteOffset === 0 && f32.byteLength === f32.buffer.byteLength
       ? f32.buffer : f32.slice().buffer;
@@ -171,6 +260,23 @@ export class SliceEngine {
   #brickPath(src, i, j, k) {
     return src.kind === SOURCE_KINDS.LOCAL
       ? `local:${src.id}/${i}-${j}-${k}` : brickKey(src.storagePath, i, j, k);
+  }
+
+  #displayPath(src, level, i, j, k) {
+    return `${src.storagePath}/${displayBrickRelPath(level, i, j, k)}`;
+  }
+
+  /** One display brick's u8 codes (cache-owned view). */
+  async #displayBrick(src, level, i, j, k) {
+    const f = await this.cache.get(this.#displayPath(src, level, i, j, k));
+    return new Uint8Array(f.buffer, f.byteOffset, f.byteLength);
+  }
+
+  /** The source's prefixes in the brick cache and the route table. */
+  #prefixes(src) {
+    if (src.kind === SOURCE_KINDS.LOCAL) return [`local:${src.id}/`];
+    return src.display ? [`${src.storagePath}/bricks/`, `${src.storagePath}/v4/d`]
+      : [`${src.storagePath}/bricks/`];
   }
 
   #source(sourceId) {
@@ -221,12 +327,17 @@ export class SliceEngine {
   }
 
   /**
-   * Open an ingested volume's v1 brick store.
+   * Open an ingested volume's brick store (v1, or v4: slices from the
+   * display copy once it is uploaded).
    * @param {string} sourceId
    * @param {{manifest: Object, storagePath: string,
-   *   fetcher: (path: string, signal: AbortSignal) => Promise<ArrayBuffer>}} p
+   *   fetcher: (path: string, signal: AbortSignal) => Promise<ArrayBuffer>,
+   *   inflate?: Function}} p inflate: deflate-raw for display bricks
+   *   (defaults to the platform DecompressionStream)
    */
-  openBricks(sourceId, { manifest, storagePath, fetcher }) {
+  openBricks(sourceId, {
+    manifest, storagePath, fetcher, inflate,
+  }) {
     const geom = geomFromManifest(manifest);   // version gate lives here
     const src = {
       id: sourceId,
@@ -236,10 +347,12 @@ export class SliceEngine {
       fetcher,
       dtype: manifest.brick?.dtype || 'float32le',
       geom,
+      display: displayCopyOf(manifest),
+      inflate,
     };
     this.sources.set(sourceId, src);
-    this.routes.set(`${storagePath}/bricks/`, src);
-    return { capabilities: { time: true } };
+    for (const p of this.#prefixes(src)) this.routes.set(p, src);
+    return { capabilities: { time: true }, display: src.display ? { clip: src.display.clip, levels: src.display.maxLevel + 1 } : null };
   }
 
   close(sourceId) {
@@ -251,12 +364,12 @@ export class SliceEngine {
     this.sources.delete(sourceId);
     for (const [prefix, s] of this.routes) if (s === src) this.routes.delete(prefix);
     this.slices.deletePrefix(`${sourceId}|`);
-    const prefix = src.kind === SOURCE_KINDS.LOCAL ? `local:${sourceId}/` : `${src.storagePath}/bricks/`;
+    const prefixes = this.#prefixes(src);
     // other sources may share a storage path (overlay of the same volume)
     const shared = [...this.sources.values()].some((s) => s.storagePath && s.storagePath === src.storagePath);
     if (!shared) {
       for (const [path, data] of [...this.cache.cache]) {
-        if (path.startsWith(prefix)) {
+        if (prefixes.some((p) => path.startsWith(p))) {
           this.cache.cache.delete(path);
           this.cache.bytes -= data.byteLength;
         }
@@ -309,7 +422,7 @@ export class SliceEngine {
     if (cached) return cached;
 
     let job = this.jobs.get(key);
-    if (!job) job = this.#startJob(src, o, index, req);
+    if (!job) job = this.#startJob(src, o, index, { ...req, partials: Boolean(onPartial) });
     else if (!req.background) job.background = false;
     job.waiters += 1;
     if (onPartial) job.partials.push(onPartial);
@@ -374,6 +487,7 @@ export class SliceEngine {
         }
         throw new Error('No exact level was read.');
       }
+      const progress = (done, total) => { for (const f of job.progress) f(done, total); };
       // bricks: cut same-row neighbours from the same fetch set
       const b = src.geom.brickSize;
       const step = Math.max(1, Math.floor(req.step || 1));
@@ -388,17 +502,93 @@ export class SliceEngine {
           }
         }
       }
-      job.bricks = new Set(bricksForSlice(src.geom, o, index)
-        .map(({ i, j, k }) => this.#brickPath(src, i, j, k)));
-      const getBrick = (i, j, k) => this.cache.get(this.#brickPath(src, i, j, k));
-      const out = await assembleSlices(getBrick, src.geom, o, wanted, {
-        concurrency: this.assemblyConcurrency,
-        signal: controller.signal,
-        onProgress: (done, total) => { for (const f of job.progress) f(done, total); },
-      });
+      const d = src.display;
+      const pathOf = d ? (i, j, k) => this.#displayPath(src, 0, i, j, k)
+        : (i, j, k) => this.#brickPath(src, i, j, k);
+      const level0 = bricksForSlice(src.geom, o, index).map(({ i, j, k }) => pathOf(i, j, k));
+      job.bricks = new Set(level0);
+      const getBrick = d ? (i, j, k) => this.#displayBrick(src, 0, i, j, k)
+        : (i, j, k) => this.cache.get(pathOf(i, j, k));
+
+      let finished = false;
+      let done0 = 0;
+      let total0 = 0;
+      let started0 = 0;
+      const startLevel0 = () => {
+        started0 = Date.now();
+        const p = assembleSlices(getBrick, src.geom, o, wanted, {
+          concurrency: this.assemblyConcurrency,
+          signal: controller.signal,
+          onProgress: (dn, t) => { done0 = dn; total0 = t; progress(dn, t); },
+        });
+        p.then(() => { finished = true; }, () => { finished = true; });
+        return p;
+      };
+
+      // v4 display copy, a caller that shows partials, level 0 not cached:
+      // the coarsest level first; then level 0 at once, and the levels in
+      // between alongside it only when level 0 is slow (a slow link), so a
+      // fast one is not held up by bricks it replaces a moment later
+      const showCoarse = Boolean(d) && req.partials && !req.background
+        && level0.some((p) => !this.cache.cache.has(p));
+      const shape = sliceShape(src.geom, o);
+      const publishCoarse = async (L) => {
+        const g = d.levels.get(L);
+        if (!g) return;
+        const idx = index >> L;
+        for (const { i, j, k } of bricksForSlice(g, o, idx)) job.bricks.add(this.#displayPath(src, L, i, j, k));
+        const out = await assembleSlices((i, j, k) => this.#displayBrick(src, L, i, j, k), g, o, [idx], {
+          concurrency: this.assemblyConcurrency, signal: controller.signal,
+        });
+        if (finished) return;
+        const c = out.get(idx);
+        const data = upsampleSlice(decodeCodesInPlace(c.data, d.table), c.width, L, shape.width, shape.height);
+        job.partial = finishSlice({
+          data,
+          width: shape.width,
+          height: shape.height,
+          traceRms: o === 'time' ? null : sliceTraceRms(data, shape.width, shape.height),
+          nullValue: c.nullValue,
+        }, {
+          final: false, level: L, codec: 'u8', clip: d.clip,
+        });
+        for (const f of job.partials) f(job.partial);
+      };
+
+      let p0;
+      if (showCoarse) {
+        await publishCoarse(d.maxLevel);
+        p0 = startLevel0();
+        p0.catch(() => {});
+        if (d.maxLevel > 1) {
+          const early = await Promise.race([
+            p0.then(() => true, () => true),
+            new Promise((r) => { setTimeout(() => r(false), this.sharpenCheckMs); }),
+          ]);
+          if (!early && !finished) {
+            const elapsed = Math.max(1, Date.now() - started0);
+            const remainingMs = done0 > 0 ? ((total0 - done0) * elapsed) / done0 : Infinity;
+            if (remainingMs > this.sharpenIfRemainingMs) {
+              for (let L = d.maxLevel - 1; L >= 1 && !finished; L--) {
+                await publishCoarse(L);
+              }
+            }
+          }
+        }
+      } else {
+        p0 = startLevel0();
+      }
+      const out = await p0;
       let primary = null;
-      for (const [idx, s] of out) {
-        const done = finishSlice(s, { final: true, level: 0 });
+      for (const [idx, raw] of out) {
+        let s = raw;
+        if (d) {
+          decodeCodesInPlace(s.data, d.table);
+          s = { ...s, traceRms: o === 'time' ? null : sliceTraceRms(s.data, s.width, s.height) };
+        }
+        const done = finishSlice(s, d ? {
+          final: true, level: 0, codec: 'u8', clip: d.clip,
+        } : { final: true, level: 0 });
         if (idx === index) primary = done;
         else this.slices.set(sliceKey(src.id, o, idx, 0), done);
       }

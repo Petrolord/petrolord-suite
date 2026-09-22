@@ -70,6 +70,9 @@ function transferableSlice(s) {
  *   inflate(bytes) -> bytes for v4 bricks (defaults to the browser's deflate-raw)
  * @returns {{onMessage: (data: Object) => void, engine: () => SliceEngine}}
  */
+/** How long a sign-in token is reused before the main thread is asked again. */
+export const TOKEN_REUSE_MS = 60 * 1000;
+
 export function createSliceWorkerHandler(post, env = {}) {
   let engine = null;
   const controllers = new Map();       // request id -> AbortController
@@ -87,11 +90,28 @@ export function createSliceWorkerHandler(post, env = {}) {
     return engine;
   };
 
-  const tokenFor = (sourceId) => (force) => new Promise((resolve, reject) => {
+  const askToken = (sourceId, force) => new Promise((resolve, reject) => {
     tokenSeq += 1;
     tokenWaiters.set(tokenSeq, { resolve, reject });
     post({ type: 'token-request', id: tokenSeq, sourceId, force: Boolean(force) });
   });
+
+  // One token per survey, reused by every brick fetch for up to
+  // TOKEN_REUSE_MS (a round trip to the main thread per brick queued
+  // behind its rendering and cost seconds on a 392-brick inline). Fetches
+  // arriving together share one request; a 401/403 asks again with force
+  // (storageBrickFetcher), which replaces the cached one.
+  const tokens = new Map();          // sourceId -> {promise, at}
+  const tokenFor = (sourceId) => (force) => {
+    const now = Date.now();
+    const hit = tokens.get(sourceId);
+    if (!force && hit && now - hit.at < TOKEN_REUSE_MS) return hit.promise;
+    const promise = askToken(sourceId, force);
+    const entry = { promise, at: now };
+    tokens.set(sourceId, entry);
+    promise.catch(() => { if (tokens.get(sourceId) === entry) tokens.delete(sourceId); });
+    return promise;
+  };
 
   const fail = (id, e) => {
     const code = e?.message === BRICK_ABORTED ? SOURCE_ERRORS.ABORTED : errorCode(e);
@@ -149,7 +169,7 @@ export function createSliceWorkerHandler(post, env = {}) {
         fetcher = v4BrickFetcher(fetcher, m.manifest, { inflate: env.inflate });
         fetcher = withFetchTimeout(fetcher, m.fetchTimeoutMs || DEFAULT_FETCH_TIMEOUT_MS);
         const res = eng.openBricks(m.sourceId, {
-          manifest: m.manifest, storagePath: m.storagePath, fetcher,
+          manifest: m.manifest, storagePath: m.storagePath, fetcher, inflate: env.inflate,
         });
         post({ type: 'result', id: m.id, value: res });
       });
@@ -203,6 +223,7 @@ export function createSliceWorkerHandler(post, env = {}) {
 
     close(m) {
       if (engine) engine.close(m.sourceId);
+      tokens.delete(m.sourceId);
     },
 
     stats(m) {

@@ -787,7 +787,8 @@ function CubeView({
       + `IL ${geo.il.min + hit.ilIdx * geo.il.step}   `
       + `XL ${geo.xl.min + hit.xlIdx * geo.xl.step}   ${ms.toFixed(1)} ms   `
       + (z != null ? `TVD ${z.toFixed(1)} m   ` : '')
-      + `amp ${amp === null || amp === NULL_F32 ? 'null' : amp.toExponential(3)}`;
+      + `amp ${amp === null || amp === NULL_F32 ? 'null'
+        : `${meta.slice?.codec === 'u8' ? '≈' : ''}${amp.toExponential(3)}`}`;
   }, []);
 
   // ---- interactions ------------------------------------------------------
