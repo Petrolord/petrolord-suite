@@ -17,6 +17,7 @@ import {
 } from '@/components/pumpstudio/PumpPanels';
 import PumpHelpContent from '@/components/pumpstudio/PumpHelpGuide';
 import { fmt, Row } from '@/components/pumpstudio/fields';
+import { FullPrecisionProvider, FullPrecisionToggle, useFullPrecision } from '@/components/fullprecision/FullPrecision';
 
 const TABS = [
   { value: 'duty', label: 'Duty Point' },
@@ -29,17 +30,18 @@ const SectionLabel = ({ children }) => (
 
 const Summary = () => {
   const { duty, power, npsh, region } = usePump();
+  const { show } = useFullPrecision();
   return (
     <div className="space-y-1">
       {duty.error ? (
         <Row label="Duty point" value="none" hint="the curves do not cross" />
       ) : (
         <>
-          <Row label="Duty flow" value={`${fmt(duty.qGpm, 0)} gpm`} />
-          <Row label="Duty head" value={`${fmt(duty.headFt, 0)} ft`} />
+          <Row label="Duty flow" value={`${show(fmt(duty.qGpm, 0), duty.qGpm)} gpm`} />
+          <Row label="Duty head" value={`${show(fmt(duty.headFt, 0), duty.headFt)} ft`} />
         </>
       )}
-      {!power.error && <Row label="Brake power" value={`${fmt(power.brakeHp, 1)} bhp`} />}
+      {!power.error && <Row label="Brake power" value={`${show(fmt(power.brakeHp, 1), power.brakeHp)} bhp`} />}
       {!npsh.error && npsh.check && (
         <Row label="NPSH margin" value={`${fmt(npsh.check.marginFt, 1)} ft`} hint={npsh.check.severity} />
       )}
@@ -126,6 +128,8 @@ const StudioContent = () => {
         }
         headerActions={
           <>
+            <FullPrecisionToggle app="pump-station-designer" />
+            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
             <StudioAutoSave
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
@@ -152,7 +156,9 @@ const StudioContent = () => {
 
 const PumpStationDesigner = () => (
   <PumpStudioProvider>
-    <StudioContent />
+    <FullPrecisionProvider>
+      <StudioContent />
+    </FullPrecisionProvider>
   </PumpStudioProvider>
 );
 

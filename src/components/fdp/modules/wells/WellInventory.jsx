@@ -3,8 +3,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Edit2, Trash2, Copy, CheckCircle, Circle } from 'lucide-react';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
+import { formatFull } from '@/lib/fullPrecision';
 
 const WellInventory = ({ wells, onEdit, onDelete, onDuplicate }) => {
+    // W3 (D3): with Full precision on, each well cost prints to the USD and a
+    // campaign total row appears; off, the column prints $MM to 1 dp as before.
+    const { full } = useFullPrecision();
     if (wells.length === 0) {
         return (
             <div className="text-center py-12 bg-slate-900/50 border border-dashed border-slate-800 rounded-lg">
@@ -25,7 +30,7 @@ const WellInventory = ({ wells, onEdit, onDelete, onDuplicate }) => {
                                 <TableHead className="text-slate-300">Type</TableHead>
                                 <TableHead className="text-slate-300">Trajectory</TableHead>
                                 <TableHead className="text-slate-300 text-right">MD (ft)</TableHead>
-                                <TableHead className="text-slate-300 text-right">Est. Cost ($MM)</TableHead>
+                                <TableHead className="text-slate-300 text-right">{full ? 'Est. Cost (USD)' : 'Est. Cost ($MM)'}</TableHead>
                                 <TableHead className="text-slate-300">Status</TableHead>
                                 <TableHead className="text-right w-[120px]">Actions</TableHead>
                             </TableRow>
@@ -47,7 +52,7 @@ const WellInventory = ({ wells, onEdit, onDelete, onDuplicate }) => {
                                     </TableCell>
                                     <TableCell className="text-slate-400">{well.trajectory}</TableCell>
                                     <TableCell className="text-right font-mono text-slate-300">{well.md?.toLocaleString()}</TableCell>
-                                    <TableCell className="text-right font-mono text-slate-300">{(well.cost / 1000000).toFixed(1)}</TableCell>
+                                    <TableCell className="text-right font-mono text-slate-300">{full ? formatFull(well.cost, 0) : (well.cost / 1000000).toFixed(1)}</TableCell>
                                     <TableCell>
                                         <div className="flex items-center">
                                             {well.status === 'Completed' ? (
@@ -73,6 +78,15 @@ const WellInventory = ({ wells, onEdit, onDelete, onDuplicate }) => {
                                     </TableCell>
                                 </TableRow>
                             ))}
+                            {full && (
+                                <TableRow className="border-slate-800" data-testid="well-campaign-total">
+                                    <TableCell className="font-medium text-white" colSpan={4}>Campaign total</TableCell>
+                                    <TableCell className="text-right font-mono text-white">
+                                        {formatFull(wells.reduce((sum, w) => sum + (Number(w.cost) || 0), 0), 0)}
+                                    </TableCell>
+                                    <TableCell colSpan={2} />
+                                </TableRow>
+                            )}
                         </TableBody>
                     </Table>
                 </div>

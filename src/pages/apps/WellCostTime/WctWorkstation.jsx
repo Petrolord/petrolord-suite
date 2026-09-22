@@ -4,12 +4,15 @@
 // demand (seeded, canonical sampler) and rides into the immutable run
 // history.
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { Home, HelpCircle, Save, Copy } from 'lucide-react';
+import { Home, HelpCircle, Save, Copy, Upload, Download } from 'lucide-react';
+import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
+import { downloadText } from '@/lib/fullPrecision';
+import { caseDocFromFile, caseFileText, caseFilename, CASE_FILE_EXTENSION } from './services/wctCaseFile';
 import Explorer from '../TorqueDragStudio/components/Explorer';
 import ProgramTab from './components/ProgramTab';
 import CostTab from './components/CostTab';
@@ -47,6 +50,7 @@ export default function WctWorkstation({ backend }) {
   const [savingRun, setSavingRun] = useState(false);
   const [mc, setMc] = useState(null);
   const [runningMc, setRunningMc] = useState(false);
+  const fileRef = useRef(null);
 
   const fail = useCallback((e) => {
     toast({ title: 'Well Cost & Time', description: e.message, variant: 'destructive' });
@@ -200,6 +204,31 @@ export default function WctWorkstation({ backend }) {
     } catch (e) { fail(e); }
   };
 
+  // W3: a case file carries the whole estimate (program, AFE, risk with its
+  // iterations and seed), so a loaded case reruns exactly. Import makes a
+  // new estimate on the selected wellbore; export downloads the draft.
+  const onImportFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !wellboreId) return;
+    try {
+      const doc = caseDocFromFile(await file.text());
+      const created = await backend.saveCase({
+        wellbore_id: wellboreId,
+        design_id: trajectory?.design?.id ?? null,
+        ...doc,
+      });
+      setCases((rows) => [...(rows || []), created]);
+      setCaseId(created.id);
+      toast({ title: 'Case imported', description: `Created "${created.name}".` });
+    } catch (err) { fail(err); }
+  };
+
+  const onExportFile = () => {
+    if (!caseDraft) return;
+    downloadText(caseFilename(caseDraft.name), caseFileText(caseDraft), 'application/json');
+  };
+
   const onDeleteCase = async (id) => {
     try {
       await backend.deleteCase(id);
@@ -281,6 +310,21 @@ export default function WctWorkstation({ backend }) {
             {banner}
           </span>
         )}
+        <FullPrecisionToggle app="well-cost-time" />
+        {wellboreId && (
+          <>
+            <input ref={fileRef} type="file" accept={`${CASE_FILE_EXTENSION},.json,application/json`} className="hidden"
+              onChange={onImportFile} data-testid="wct-import-file" />
+            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => fileRef.current?.click()} data-testid="wct-import-case">
+              <Upload className="mr-1 h-3 w-3" /> Import case
+            </Button>
+          </>
+        )}
+        {caseDraft && (
+          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={onExportFile} data-testid="wct-export-case">
+            <Download className="mr-1 h-3 w-3" /> Export case
+          </Button>
+        )}
         {caseDraft && (
           <Button size="sm" variant="outline" className="h-7 text-xs" onClick={onDuplicateCase} data-testid="wct-duplicate-case">
             <Copy className="mr-1 h-3 w-3" /> Duplicate
@@ -341,6 +385,7 @@ export default function WctWorkstation({ backend }) {
   );
 
   return (
+    <FullPrecisionProvider>
     <WorkspaceShell
       ribbon={ribbon}
       explorer={(
@@ -358,5 +403,6 @@ export default function WctWorkstation({ backend }) {
       autoSaveId="well-cost-time.workspace.v1"
       minWidth={1100}
     />
+    </FullPrecisionProvider>
   );
 }

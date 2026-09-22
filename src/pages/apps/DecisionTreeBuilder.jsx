@@ -13,6 +13,8 @@ import TreeNodeEditor from '@/components/decisiontree/TreeNodeEditor';
 import TreeDiagram from '@/components/decisiontree/TreeDiagram';
 import DecisionTreeHelpGuide from '@/components/decisiontree/DecisionTreeHelpGuide';
 import { firstMoveLabel, isIndifferentFirstMove } from '@/components/decisiontree/firstMoveLabel';
+import { FullPrecisionProvider, FullPrecisionToggle, useFullPrecision } from '@/components/fullprecision/FullPrecision';
+import { formatFull, MONEY_MM_DECIMALS } from '@/lib/fullPrecision';
 
 // Decision Tree Builder (D3, docs/scope/Economics-ROADMAP.md): multi-stage
 // EMV decision trees on the canonical src/lib/decisionTree.js engine. The
@@ -24,6 +26,9 @@ import { firstMoveLabel, isIndifferentFirstMove } from '@/components/decisiontre
 const TABLE = 'saved_decision_tree_projects';
 
 const fmtMM = (v) => (Number.isFinite(v) ? `${v.toLocaleString(undefined, { maximumFractionDigits: 2 })} $MM` : 'N/A');
+// W3 (D3): with Full precision on, the KPI cards print $MM at 4 decimals with
+// no digit grouping; off, fmtMM as before.
+const fmtMMFull = (v) => (Number.isFinite(v) ? `${formatFull(v, MONEY_MM_DECIMALS)} $MM` : 'N/A');
 
 const KpiCard = ({ title, value, accent }) => (
   <div className="bg-white/5 p-4 rounded-lg">
@@ -32,8 +37,10 @@ const KpiCard = ({ title, value, accent }) => (
   </div>
 );
 
-const DecisionTreeBuilder = () => {
+const DecisionTreeBuilderInner = () => {
   const { toast } = useToast();
+  const { full } = useFullPrecision();
+  const money = full ? fmtMMFull : fmtMM;
   const [tree, setTree] = useState(() => TEMPLATES.drillFarmOut.build());
   const [projectName, setProjectName] = useState('Untitled decision');
   const [projects, setProjects] = useState([]);
@@ -171,6 +178,7 @@ const DecisionTreeBuilder = () => {
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <FullPrecisionToggle app="decision-tree-builder" className="mr-2" />
               <DecisionTreeHelpGuide />
               <select
                 onChange={(e) => { if (TEMPLATES[e.target.value]) { setTree(TEMPLATES[e.target.value].build()); } e.target.value = ''; }}
@@ -214,12 +222,12 @@ const DecisionTreeBuilder = () => {
 
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          <KpiCard title="Optimal EMV" value={root ? fmtMM(root.emv) : 'N/A'} accent="text-lime-300" />
+          <KpiCard title="Optimal EMV" value={root ? money(root.emv) : 'N/A'} accent="text-lime-300" />
           <KpiCard title="Recommended first move" value={firstMoveLabel(root)} accent="text-sky-300" />
           <KpiCard
             title="Next best alternative"
             value={root?.type === 'decision' && root.branches.length > 1
-              ? fmtMM(Math.max(...root.branches.filter((_, i) => i !== root.bestBranchIndex).map((b) => b.branchValue)))
+              ? money(Math.max(...root.branches.filter((_, i) => i !== root.bestBranchIndex).map((b) => b.branchValue)))
               : 'N/A'}
           />
           {/* EC4-1: at a tie the advantage is 0.00, which reads as a real
@@ -229,7 +237,7 @@ const DecisionTreeBuilder = () => {
             value={isIndifferentFirstMove(root)
               ? 'Indifferent'
               : (root?.type === 'decision' && root.branches.length > 1
-                ? fmtMM(root.emv - Math.max(...root.branches.filter((_, i) => i !== root.bestBranchIndex).map((b) => b.branchValue)))
+                ? money(root.emv - Math.max(...root.branches.filter((_, i) => i !== root.bestBranchIndex).map((b) => b.branchValue)))
                 : 'N/A')}
           />
         </div>
@@ -290,5 +298,11 @@ const DecisionTreeBuilder = () => {
     </>
   );
 };
+
+const DecisionTreeBuilder = () => (
+  <FullPrecisionProvider>
+    <DecisionTreeBuilderInner />
+  </FullPrecisionProvider>
+);
 
 export default DecisionTreeBuilder;

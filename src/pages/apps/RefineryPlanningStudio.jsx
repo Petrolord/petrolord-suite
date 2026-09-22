@@ -11,6 +11,7 @@ import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import StudioNotifications from '@/components/studio/StudioNotifications';
 import { RefineryPlanningProvider, useRefineryPlanning } from '@/contexts/RefineryPlanningContext';
+import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
 import ConfigPanel from '@/components/refineryplanning/ConfigPanel';
 import PlanResults from '@/components/refineryplanning/PlanResults';
 import SchedulePanel from '@/components/refineryplanning/SchedulePanel';
@@ -62,6 +63,7 @@ const Workspace = () => {
                 onSave={persistence.manualSave}
                 disabled={!persistence.currentProjectId}
               />
+              <FullPrecisionToggle app="refinery-planning-studio" className="mb-2" />
               <RefineryPlanningHelpGuide />
             </div>
           </div>
@@ -96,7 +98,9 @@ const RefineryPlanningStudio = () => (
       <meta name="description" content="Configuration-level refinery planning LP that cascades to a schedule and reconciles against actuals with variance attributed to volume and price." />
     </Helmet>
     <RefineryPlanningProvider>
-      <Workspace />
+      <FullPrecisionProvider>
+        <Workspace />
+      </FullPrecisionProvider>
     </RefineryPlanningProvider>
   </>
 );

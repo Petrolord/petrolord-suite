@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ChartFrame from '@/components/charts/ChartFrame';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { useRelief } from '@/contexts/ReliefStudioContext';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
+import { formatFull } from '@/lib/fullPrecision';
 import { fmt, Stat, ErrorNote, WarnNote, Field, NumberInput } from './fields';
 
 export const BlowdownInputs = () => (
@@ -29,11 +31,15 @@ export const BlowdownInputs = () => (
       <Field label="Orifice diameter (in)"><NumberInput section="blowdownIn" name="orificeDIn" step="0.05" /></Field>
       <Field label="Discharge coefficient"><NumberInput section="blowdownIn" name="cd" step="0.01" /></Field>
     </div>
+    <Field label="Flare back pressure (psia)" hint="Sets where the flow stops being choked.">
+      <NumberInput section="blowdownIn" name="pBackPsia" step="0.1" />
+    </Field>
   </div>
 );
 
 const BlowdownPanel = () => {
   const { blowdownResult: r } = useRelief();
+  const { full } = useFullPrecision();
   if (r.error) return <ErrorNote>{r.error}</ErrorNote>;
   const data = r.stations.map((s) => ({
     t: s.tS / 60, p: s.pPsia, T: s.tR - 459.67,
@@ -52,6 +58,15 @@ const BlowdownPanel = () => {
           <Stat label="Stations" value={String(r.stations.length)}
             hint={`${r.steps} steps at ${fmt(r.dtS, 3)} s${r.substeps ? `, ${r.substeps} subdivided` : ''}`} />
         </div>
+        {full && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <Stat label="Time to end pressure, seconds" value={formatFull(r.timeS)} unit="s" />
+            <Stat label="Final temperature, degR" value={formatFull(r.finalTR)} unit="degR" />
+            <Stat label="Choked floor" value={r.chokedToPsia === null ? '--' : formatFull(r.chokedToPsia)} unit="psia"
+              hint="vessel pressure below which the flow stops being choked" />
+            <Stat label="Initial gas inventory" value={formatFull(r.initialMassLb)} unit="lb" />
+          </div>
+        )}
         {r.warning && <WarnNote>{r.warning}</WarnNote>}
         <ChartFrame height={300} exportFilename="blowdown-curve">
           <ComposedChart data={data} margin={{ top: 8, right: 40, bottom: 24, left: 8 }}>

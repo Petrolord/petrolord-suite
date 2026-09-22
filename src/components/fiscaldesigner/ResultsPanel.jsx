@@ -39,6 +39,8 @@ import {
   FISCAL_METRIC_KEYS, GOVERNMENT_CASH_FLOW, basisLabel, metricDefinition, metricLabel,
 } from '@/utils/fiscalConventions';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { useFullPrecision, FullPrecisionNote } from '@/components/fullprecision/FullPrecision';
+import { formatFull } from '@/lib/fullPrecision';
 
 // Validated on the white chart surface: distinguishable in normal vision,
 // under the common colour-vision deficiencies, and in black and white print.
@@ -74,6 +76,14 @@ const toRows = (labels, series, summary, pick) =>
 
 const ResultsPanel = ({ results }) => {
   const { summary, annualCashFlows, sensitivityData, insights = [] } = results;
+  // W3 (D3): Full precision prints NPV and government cash flow at 4 decimals
+  // and adds each regime's total tax over the life (sum of the engine's
+  // annual tax rows); off, the summary prints exactly as before.
+  const { full, show } = useFullPrecision();
+  const totalTax = (regimeId) => {
+    const rows = annualCashFlows.find((d) => d.regimeId === regimeId)?.data || [];
+    return rows.reduce((sum, r) => sum + (Number.isFinite(r.tax) ? r.tax : 0), 0);
+  };
 
   const years = annualCashFlows[0]?.data.map((d) => d.year) || [];
   const seriesFor = (key) => years.map((year, i) => {
@@ -133,6 +143,7 @@ const ResultsPanel = ({ results }) => {
                   <th className="p-2 text-lime-300">IRR (%)</th>
                   <th className="p-2 text-lime-300">Payback (yrs)</th>
                   <th className="p-2 text-lime-300" title={GOVERNMENT_CASH_FLOW.definition}>{GOVERNMENT_CASH_FLOW.title} ($MM)</th>
+                  {full && <th className="p-2 text-lime-300" data-testid="fiscal-total-tax-head">Total tax ($MM)</th>}
                   <th className="p-2 text-lime-300 text-base" data-metric="headline" title={metricDefinition(TAKE)}>{metricLabel(TAKE)}, %</th>
                   <th className="p-2 text-lime-300/80 text-xs font-normal" data-metric="secondary" title={metricDefinition(SHARE_OF_NR)}>{metricLabel(SHARE_OF_NR)}, %</th>
                 </tr>
@@ -141,7 +152,7 @@ const ResultsPanel = ({ results }) => {
                 {summary.map((s) => (
                   <tr key={s.id} className="border-b border-white/10 last:border-b-0">
                     <td className="p-2 text-white font-semibold">{s.name}</td>
-                    <td className="p-2 font-bold text-green-400">{s.npv.toFixed(1)}</td>
+                    <td className="p-2 font-bold text-green-400">{show(s.npv.toFixed(1), s.npv, 4)}</td>
                     <td className="p-2 text-white" data-metric="irr">
                       {irrText(s).value}
                       {irrText(s).reason && (
@@ -149,7 +160,8 @@ const ResultsPanel = ({ results }) => {
                       )}
                     </td>
                     <td className="p-2 text-white">{s.paybackPeriod || 'N/A'}</td>
-                    <td className="p-2 text-white" title={GOVERNMENT_CASH_FLOW.definition}>{s.govTake.toFixed(1)}</td>
+                    <td className="p-2 text-white" title={GOVERNMENT_CASH_FLOW.definition}>{show(s.govTake.toFixed(1), s.govTake, 4)}</td>
+                    {full && <td className="p-2 text-white" data-testid="fiscal-total-tax">{formatFull(totalTax(s.id), 4)}</td>}
                     <td className="p-2 text-white text-lg font-bold" data-metric="headline" title={metricDefinition(TAKE)}>
                       {takeText(s.governmentTakePct, s.governmentTakeState)}
                       <span
@@ -166,6 +178,12 @@ const ResultsPanel = ({ results }) => {
                 ))}
               </tbody>
             </table>
+            <FullPrecisionNote className="mt-3" />
+            {full && (
+              <p className="text-[12px] text-slate-300 mt-1">
+                Total tax is the sum over the project life, undiscounted, of each year&apos;s tax: income tax plus resource rent tax, or the minimum tax where that is larger.
+              </p>
+            )}
             <div className="text-[12px] text-slate-300 mt-3 space-y-1" data-testid="fiscal-metric-definitions">
               <p>Contractor NPV is discounted at year end, matching Petroleum Economics Studio.</p>
               <p>{GOVERNMENT_CASH_FLOW.title}: {GOVERNMENT_CASH_FLOW.definition}</p>

@@ -1,0 +1,275 @@
+{
+  "format": "petrolord-wct-case",
+  "version": 1,
+  "name": "MERLIN A-12 capstone",
+  "program": {
+    "activities": [
+      {
+        "id": "w1",
+        "kind": "flat",
+        "label": "Rig move and spud",
+        "durationHr": 31
+      },
+      {
+        "id": "w2",
+        "kind": "drill",
+        "label": "Drill 26in surface hole",
+        "fromMdM": 0,
+        "toMdM": 640,
+        "ropMPerHr": 34.5
+      },
+      {
+        "id": "w3",
+        "kind": "casing",
+        "label": "Run and cement 20in casing",
+        "mdM": 640,
+        "runSpeedMPerHr": 445,
+        "flatHr": 13.5
+      },
+      {
+        "id": "w4",
+        "kind": "drill",
+        "label": "Drill 17-1/2in intermediate hole",
+        "fromMdM": 640,
+        "toMdM": 2180,
+        "ropMPerHr": 9.4
+      },
+      {
+        "id": "w5",
+        "kind": "flat",
+        "label": "Stuck pipe, jarring and fishing",
+        "durationHr": 62
+      },
+      {
+        "id": "w6",
+        "kind": "flat",
+        "label": "Wait on weather",
+        "durationHr": 18.5
+      },
+      {
+        "id": "w7",
+        "kind": "trip",
+        "label": "Round trip at 2180 m",
+        "mdM": 2180,
+        "tripSpeedMPerHr": 620
+      },
+      {
+        "id": "w8",
+        "kind": "casing",
+        "label": "Run and cement 13-3/8in casing",
+        "mdM": 2180,
+        "runSpeedMPerHr": 385,
+        "flatHr": 26.5
+      },
+      {
+        "id": "w9",
+        "kind": "flat",
+        "label": "Remedial cement squeeze on the 13-3/8in shoe",
+        "durationHr": 27
+      },
+      {
+        "id": "w10",
+        "kind": "drill",
+        "label": "Drill 12-1/4in production hole",
+        "fromMdM": 2180,
+        "toMdM": 3320,
+        "ropMPerHr": 7.4
+      },
+      {
+        "id": "w11",
+        "kind": "trip",
+        "label": "Round trip at 3320 m",
+        "mdM": 3320,
+        "tripSpeedMPerHr": 620
+      },
+      {
+        "id": "w12",
+        "kind": "casing",
+        "label": "Run and cement 9-5/8in casing",
+        "mdM": 3320,
+        "runSpeedMPerHr": 268,
+        "flatHr": 31
+      },
+      {
+        "id": "w13",
+        "kind": "drill",
+        "label": "Drill 8-1/2in reservoir hole",
+        "fromMdM": 3320,
+        "toMdM": 3945,
+        "ropMPerHr": 4.85
+      },
+      {
+        "id": "w14",
+        "kind": "flat",
+        "label": "Wireline evaluation at TD",
+        "durationHr": 34.5
+      },
+      {
+        "id": "w15",
+        "kind": "trip",
+        "label": "Round trip at TD",
+        "mdM": 3945,
+        "tripSpeedMPerHr": 620
+      },
+      {
+        "id": "w16",
+        "kind": "casing",
+        "label": "Run and cement 7in liner",
+        "mdM": 3945,
+        "runSpeedMPerHr": 210,
+        "flatHr": 22.5
+      },
+      {
+        "id": "w17",
+        "kind": "flat",
+        "label": "Completion and handover",
+        "durationHr": 96
+      }
+    ],
+    "nptFrac": 0.285
+  },
+  "costs": {
+    "items": [
+      {
+        "id": "k1",
+        "label": "Rig dayrate",
+        "category": "intangible",
+        "basis": "per-day",
+        "rate": 138500
+      },
+      {
+        "id": "k2",
+        "label": "Integrated services spread",
+        "category": "intangible",
+        "basis": "per-day",
+        "rate": 74200
+      },
+      {
+        "id": "k3",
+        "label": "Mud and consumables",
+        "category": "intangible",
+        "basis": "per-meter",
+        "rate": 218
+      },
+      {
+        "id": "k4",
+        "label": "Bits and downhole tools",
+        "category": "intangible",
+        "basis": "per-meter",
+        "rate": 96.5
+      },
+      {
+        "id": "k5",
+        "label": "Wellhead and tree",
+        "category": "tangible",
+        "basis": "lump",
+        "value": 615000,
+        "atActivityId": "w3"
+      },
+      {
+        "id": "k6",
+        "label": "Fishing tools and services",
+        "category": "intangible",
+        "basis": "lump",
+        "value": 158000,
+        "atActivityId": "w5"
+      },
+      {
+        "id": "k7",
+        "label": "Cementing services",
+        "category": "intangible",
+        "basis": "lump",
+        "value": 372000,
+        "atActivityId": "w12"
+      },
+      {
+        "id": "k8",
+        "label": "Wireline and LWD evaluation",
+        "category": "intangible",
+        "basis": "lump",
+        "value": 265000,
+        "atActivityId": "w14"
+      },
+      {
+        "id": "k9",
+        "label": "Casing, liner and accessories",
+        "category": "tangible",
+        "basis": "lump",
+        "value": 1145000,
+        "atActivityId": "w16"
+      },
+      {
+        "id": "k10",
+        "label": "Completion equipment",
+        "category": "tangible",
+        "basis": "lump",
+        "value": 1380000,
+        "atActivityId": "w17"
+      }
+    ],
+    "contingencyFrac": 0.235
+  },
+  "risk": {
+    "iterations": 20000,
+    "seed": 20260904,
+    "uncertainties": [
+      {
+        "target": "activity",
+        "id": "w4",
+        "field": "ropMPerHr",
+        "dist": {
+          "type": "triangular",
+          "min": 6.4,
+          "mode": 9.4,
+          "max": 15.5
+        }
+      },
+      {
+        "target": "activity",
+        "id": "w13",
+        "field": "ropMPerHr",
+        "dist": {
+          "type": "triangular",
+          "min": 2.9,
+          "mode": 4.85,
+          "max": 8.2
+        }
+      },
+      {
+        "target": "activity",
+        "id": "w5",
+        "field": "durationHr",
+        "dist": {
+          "type": "triangular",
+          "min": 24,
+          "mode": 62,
+          "max": 240
+        }
+      },
+      {
+        "target": "item",
+        "id": "k1",
+        "field": "rate",
+        "dist": {
+          "type": "triangular",
+          "min": 121000,
+          "mode": 138500,
+          "max": 187500
+        }
+      },
+      {
+        "target": "item",
+        "id": "k10",
+        "field": "value",
+        "dist": {
+          "type": "triangular",
+          "min": 1050000,
+          "mode": 1380000,
+          "max": 2150000
+        }
+      }
+    ]
+  },
+  "params": {},
+  "notes": "MERLIN A-12, the NextGen Well Cost and Time advanced capstone case. Risked run: 20000 iterations at seed 20260904, sampled in the order listed."
+}

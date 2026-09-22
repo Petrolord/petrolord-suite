@@ -357,7 +357,7 @@ export default defineConfig({
 				globPatterns: ['index.html', 'assets/index-*.{js,css}', 'icons/*.png', 'favicon.ico', 'favicon.png'],
 				maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
 				navigateFallback: '/index.html',
-				navigateFallbackDenylist: [/^\/dev\//, /\/rest\/v1\//, /\/auth\/v1\//, /\/storage\/v1\//, /\/functions\/v1\//, /\/realtime\/v1\//],
+				navigateFallbackDenylist: [/^\/dev\//, /^\/course-cases\//, /\/rest\/v1\//, /\/auth\/v1\//, /\/storage\/v1\//, /\/functions\/v1\//, /\/realtime\/v1\//],
 				runtimeCaching: [
 					{ urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/assets/'), handler: 'CacheFirst', options: { cacheName: 'suite-assets', expiration: { maxEntries: 600, maxAgeSeconds: 60 * 24 * 3600 } } },
 					{ urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\//, handler: 'StaleWhileRevalidate', options: { cacheName: 'suite-fonts', expiration: { maxEntries: 30, maxAgeSeconds: 180 * 24 * 3600 } } },

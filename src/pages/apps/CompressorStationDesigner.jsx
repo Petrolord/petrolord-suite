@@ -13,6 +13,7 @@ import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import StudioHelp from '@/components/studio/StudioHelp';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import { CompressorStudioProvider, useCompressor } from '@/contexts/CompressorStudioContext';
+import { FullPrecisionProvider, FullPrecisionToggle, useFullPrecision } from '@/components/fullprecision/FullPrecision';
 import {
   DutyInputs, TrainResults, ScreenResults, SweepChart,
 } from '@/components/compressorstudio/CompressorPanels';
@@ -31,17 +32,18 @@ const SectionLabel = ({ children }) => (
 
 const Summary = () => {
   const { train, screen, fuel, acfm } = useCompressor();
+  const { show } = useFullPrecision();
   if (train.error) return null;
   return (
     <div className="space-y-1">
       <Row label="Stages" value={String(train.stages.length)} hint={`set by ${train.governedBy}`} />
       <Row label="Ratio per stage" value={fmt(train.ratioPerStage, 2)} />
-      <Row label="Brake power" value={`${fmt(train.totalBrakeHp, 0)} bhp`} />
+      <Row label="Brake power" value={`${show(fmt(train.totalBrakeHp, 0), train.totalBrakeHp)} bhp`} />
       <Row label="Final discharge" value={`${fmt(train.finalDischargeF, 0)} F`} />
       <Row label="Interstage cooling" value={`${fmt(train.totalCoolingMMBtuHr, 2)} MMBtu/hr`} />
       <Row label="Inlet volume" value={`${fmt(acfm, 0)} acfm`} />
       {!screen.error && <Row label="Machine" value={screen.recommendation} />}
-      {!fuel.error && <Row label="Driver fuel" value={`${fmt(fuel.fuelMMscfd, 3)} MMscfd`} />}
+      {!fuel.error && <Row label="Driver fuel" value={`${show(fmt(fuel.fuelMMscfd, 3), fuel.fuelMMscfd, 9)} MMscfd`} />}
     </div>
   );
 };
@@ -118,6 +120,8 @@ const StudioContent = () => {
         }
         headerActions={
           <>
+            <FullPrecisionToggle app="compressor-station-designer" />
+            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
             <StudioAutoSave
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
@@ -144,7 +148,9 @@ const StudioContent = () => {
 
 const CompressorStationDesigner = () => (
   <CompressorStudioProvider>
-    <StudioContent />
+    <FullPrecisionProvider>
+      <StudioContent />
+    </FullPrecisionProvider>
   </CompressorStudioProvider>
 );
 

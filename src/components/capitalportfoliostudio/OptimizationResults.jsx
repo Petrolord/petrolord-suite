@@ -6,6 +6,8 @@ import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend } f
 import ChartFrame from '@/components/charts/ChartFrame';
 import { AlertTriangle } from 'lucide-react';
 import { projectEmv } from '@/utils/portfolioOptimizer';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
+import { formatFull, MONEY_MM_DECIMALS } from '@/lib/fullPrecision';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE,
 } from '@/utils/chartTheme';
@@ -35,7 +37,13 @@ export const riskMethodLabel = (risk) => {
 const formatMM = (value) => `${Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })} $MM`;
 
 const OptimizationResults = ({ result }) => {
+  // W3 (D3): with Full precision on, the $MM figures a course reads print at
+  // 4 decimals with no grouping; off, every card prints as before.
+  const { full } = useFullPrecision();
   if (!result) return null;
+  const money = (v, unit = 'MM') => (full
+    ? `${formatFull(v || 0, MONEY_MM_DECIMALS)}${unit ? ` $${unit}` : ''}`
+    : formatCurrency(v, unit));
 
   const {
     optimalProjects, totalCapex, totalEmv, totalNpvSuccess, frontierData, risk,
@@ -50,8 +58,8 @@ const OptimizationResults = ({ result }) => {
         <CardHeader>
           <CardTitle className="text-2xl text-green-300">Optimal Portfolio</CardTitle>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 pt-2">
-            <Metric title="Risked EMV" value={formatCurrency(totalEmv)} accent="text-lime-300" />
-            <Metric title="Success-case NPV" value={formatCurrency(totalNpvSuccess)} accent="text-emerald-200" />
+            <Metric title="Risked EMV" value={money(totalEmv)} accent="text-lime-300" />
+            <Metric title="Success-case NPV" value={money(totalNpvSuccess)} accent="text-emerald-200" />
             <Metric title="Total CAPEX" value={formatCurrency(totalCapex)} accent="text-amber-300" />
             <Metric title="Projects" value={optimalProjects.length} />
             <Metric
@@ -62,7 +70,7 @@ const OptimizationResults = ({ result }) => {
             />
             <Metric
               title="NPV P90 (low) / P10 (high)"
-              value={`${formatCurrency(risk.p90, '')} / ${formatCurrency(risk.p10, '')}`}
+              value={`${money(risk.p90, '')} / ${money(risk.p10, '')}`}
               detail={methodLabel}
             />
           </div>
@@ -127,7 +135,7 @@ const OptimizationResults = ({ result }) => {
                         <TableCell className="font-medium">{p.name}</TableCell>
                         <TableCell className="text-right text-amber-300">{formatCurrency(p.capex)}</TableCell>
                         <TableCell className="text-right text-slate-300">{Math.round((p.pos ?? 1) * 100)}%</TableCell>
-                        <TableCell className="text-right text-lime-300">{formatCurrency(projectEmv(p))}</TableCell>
+                        <TableCell className="text-right text-lime-300">{money(projectEmv(p))}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

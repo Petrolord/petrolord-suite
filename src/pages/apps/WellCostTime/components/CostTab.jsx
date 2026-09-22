@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Trash2, Plus } from 'lucide-react';
 import { costPerMeter, COST_BASES, COST_CATEGORIES } from '../services/wctRun';
 import { CostTimeChart } from '../charts/WctCharts';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
+import { formatFull } from '@/lib/fullPrecision';
 
 const Card = ({ title, children, testId }) => (
   <div className="rounded border border-slate-800 bg-slate-900/40" data-testid={testId}>
@@ -30,6 +32,9 @@ const CPM_DEFAULT = {
 };
 
 export default function CostTab({ caseDraft, onCaseChange, res }) {
+  // W3 (D3): Full precision prints the rollup to the cent, cost per metre at
+  // 6 decimals and adds the cumulative cost at each activity end.
+  const { full, show } = useFullPrecision();
   const items = caseDraft.costs.items || [];
   const costs = res?.costs || null;
   const acts = caseDraft.program.activities || [];
@@ -123,7 +128,7 @@ export default function CostTab({ caseDraft, onCaseChange, res }) {
           <div className="mt-2 text-xs text-slate-300">
             Interval drilling cost
             <span className="float-right font-mono text-lime-300" data-testid="wct-cpm-result">
-              {cpm == null ? '--' : `${cpm.toFixed(2)} USD/m`}
+              {cpm == null ? '--' : `${show(cpm.toFixed(2), cpm)} USD/m`}
             </span>
           </div>
         </Card>
@@ -141,12 +146,12 @@ export default function CostTab({ caseDraft, onCaseChange, res }) {
               ].map(([lab, v, tid]) => (
                 <div key={tid} className="flex justify-between border-b border-slate-800/60 py-1">
                   <span>{lab}</span>
-                  <span className="font-mono" data-testid={tid}>{usd(v)} USD</span>
+                  <span className="font-mono" data-testid={tid}>{show(usd(v), v, 2)} USD</span>
                 </div>
               ))}
               <div className="flex justify-between py-1 font-semibold text-lime-300">
                 <span>AFE total</span>
-                <span className="font-mono" data-testid="wct-total-usd">{usd(costs.totalUsd)} USD</span>
+                <span className="font-mono" data-testid="wct-total-usd">{show(usd(costs.totalUsd), costs.totalUsd, 2)} USD</span>
               </div>
             </div>
           </Card>
@@ -154,6 +159,31 @@ export default function CostTab({ caseDraft, onCaseChange, res }) {
         <div className="h-72 min-h-0">
           <CostTimeChart points={res?.costCurve} />
         </div>
+        {full && res?.costCurve?.length > 1 && (
+          <Card title="Cumulative cost at the end of each activity" testId="wct-curve-table">
+            <table className="w-full text-[11px]">
+              <thead>
+                <tr className="text-slate-500">
+                  <th className="text-left font-normal">Activity</th>
+                  <th className="text-right font-normal">Elapsed h</th>
+                  <th className="text-right font-normal">Cumulative USD</th>
+                </tr>
+              </thead>
+              <tbody>
+                {res.program.rows.map((r, i) => (
+                  <tr key={r.id} className="border-t border-slate-800/60 text-slate-300" data-testid={`wct-curve-${r.id}`}>
+                    <td className="py-0.5">{r.label || r.id}</td>
+                    <td className="py-0.5 text-right font-mono">{formatFull(res.costCurve[i + 1]?.tHr, 6)}</td>
+                    <td className="py-0.5 text-right font-mono">{formatFull(res.costCurve[i + 1]?.usd, 2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-1 text-[10px] text-slate-500">
+              Elapsed time is the productive clock stretched by the NPT allowance. The cumulative cost has no contingency line.
+            </p>
+          </Card>
+        )}
       </div>
     </div>
   );
