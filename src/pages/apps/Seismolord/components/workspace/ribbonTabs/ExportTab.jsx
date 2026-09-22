@@ -25,7 +25,7 @@ export default function ExportTab({
           label="Import…"
           onClick={openSurfaceImport}
           disabled={!volume}
-          title="Import a surface grid file (XYZ / CPS-3 / ZMAP+ / Irap, auto-detected) into the surface registry, or a horizon picks file (Charisma 3D / IL-XL / XYZ) as an editable horizon"
+          title="Import horizons (Charisma 3D, IESX, EarthVision, CPS-3, ZMAP+, XYZ or any table with column mapping), fault sticks (Charisma, IESX or a table) or a surface grid. The content decides the format, whatever the file extension."
         />
       </RibbonGroup>
       <RibbonGroup label="Plotting">
