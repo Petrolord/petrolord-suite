@@ -307,7 +307,7 @@ const WellDesignHelpGuide = () => {
             <Section id="solvers">
               <SectionHeading icon={Wand2}>Design methods (the solvers)</SectionHeading>
               <Para>
-                Five exact solvers. Replace methods rebuild the segment list from surface; append methods continue from the
+                Six exact solvers. Replace methods rebuild the segment list from surface; append methods continue from the
                 current design end, so you can chain an upper solve with a landing.
               </Para>
               <Table
@@ -318,8 +318,21 @@ const WellDesignHelpGuide = () => {
                   ['Curve to target', 'Append', 'One circular arc from the design end to the target, with the required DLS reported.'],
                   ['Horizontal landing', 'Append', 'Curve-hold-curve arriving at a heel target. Add a toe target and both the landing azimuth and inclination come from the heel-to-toe direction; either can be overridden.'],
                   ['Nudge', 'Replace', 'A shallow deviation and return for slot separation on crowded pads.'],
+                  ['Point', 'Append', 'Lands exactly on a point set by TVD, N/S and E/W (Using TVD) or by N/S, E/W and MD (Using MD, the TVD is solved), typed or picked from a target. Straight below a vertical end it holds vertically; an offset point gets a curve at your DLS then a tangent hold; from a deviated end with the point below it the well drops back to vertical. Arrive can force a tangent hold or a vertical arrival.'],
                 ]}
               />
+              <Para>
+                A target straight below the design end is a vertical well. When a target is within the vertical tolerance
+                (Design settings, default 0.5 m horizontally) of straight below a vertical design end, every method gives
+                one vertical hold to the target TVD, with inclination and azimuth zero and no build. The segment list
+                labels it Vertical to target, and the solve message says how far off vertical the target was. A target
+                further off than the tolerance gets a real build, and the message reports its total dogleg.
+              </Para>
+              <Para>
+                When the Point method cannot reach the point at your DLS it says how far off it is: how far inside the
+                turning circle, or how much deeper the point would need to be to arrive vertically, and the smallest DLS
+                that would reach it where it is.
+              </Para>
               <Para>
                 The horizontal landing takes two targets, the way Compass builds a landing from a Final Target plus an
                 Align on Target. The heel is where the well lands. The toe sets the direction the lateral runs, and the

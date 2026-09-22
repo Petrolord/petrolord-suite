@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 5f9aaf9e750f86bf14552098af4d4a91cbcc2124
+# commit 2b37109e889436c99a8b178c85808d7c6810b496
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 b45735ce0a92fedac8004ff81b088c4e52a3c497 README.md
@@ -65,6 +65,7 @@ bb2435bc380b6cc88f609d18e86ff90d9d4d25a8 __tests__/drilling.segmentcompiler.test
 d4a68d2c12a1deec55c53e21d07d04d152cca692 __tests__/drilling.surveyprogram.test.js
 8842f0283de4077164ce2627640d2d6f9b49b116 __tests__/drilling.torquedrag.test.js
 524606d0e5a55e429db1f1d468676031572a5a8a __tests__/drilling.tubular.test.js
+81a0319153bbbbbba19ab5c93e4e33efb924b8e7 __tests__/drilling.verticalpoint.test.js
 1ece2b1c5f72e41c46496b4e1d4b7967c6a696ca __tests__/drilling.wellcontrol.test.js
 ffb106cd4a256678f2679f4ddf6850858c300e02 __tests__/drilling.wellcost.test.js
 5f614da4379b29899ee32989e734c6bf49475ec2 __tests__/drilling.wellintegrity.test.js
@@ -164,6 +165,7 @@ bf7806d278a935fac4082f53a7fc2f2f5147e5fe __tests__/seismolord.stratal.test.js
 afed8248d99e1a36f732a2abadf0fe862e281f87 __tests__/seismolord.tracker2.test.js
 d237aeeab187916aa16410cf54afc9df2a272363 __tests__/seismolord.volumejob.test.js
 af4704eede39adce98766de98d382ba2a7342386 __tests__/sim.deckgen.test.js
+07c7b1702ac088f849737b8e32982b0254264f6d __tests__/sim.ekene.test.js
 8744cbc68e9efcf7b98edbef034c245f36a64991 __tests__/sim.s4.test.js
 587f776600152336594cae71c220d5dbd016764f __tests__/smoke.test.js
 dbfd55a425be27e98ec7098ceb5ce167b8e3b125 __tests__/stats.fitNotePercentileWords.test.js
@@ -179,6 +181,7 @@ f10949f2708dc7b233fdc3cb3e09bf6cc9ff7842 __tests__/stratigraphy.stretch.test.js
 9ec2d6370d2c01f76bccbceef0dd83cf20f9f96c __tests__/stratigraphy.timescale.test.js
 d7ab63fcc9594647465ab7cc6b1437350f4dfeac __tests__/stratigraphy.vocabulary.test.js
 ba54dfab0b41ade99cb94fa4f754b029058674f9 __tests__/stratigraphy.wheeler.test.js
+5e4a18db7a0cfb1e3534b1f6644cd30dc8576fdb __tests__/waterflood.ekene.test.js
 bdce3673af2e925999830c495979476f0d66ee14 __tests__/waterflood.layeredsweep.test.js
 1b2f3e5b9afca4b0fc39b272cfcac2290d6e48d8 __tests__/waterflood.patternforecast.test.js
 c78a318b502a4be6b60d100e705149221df5eeb0 __tests__/waterflood.vrr.test.js
@@ -268,7 +271,7 @@ cca95cc318fa87b0123c72a232763e639e40c74f engines/drilling/geomech.js
 87b42e5d783b69783b3df6eb0e90af08d7468036 engines/drilling/magnetics.js
 ea88a8ca39dc6955b9709e40d6c5e05802c8cd26 engines/drilling/perforation.js
 66e01c5a5d4b59522dc858f5c07d14b4ddcac3e0 engines/drilling/plugAbandonment.js
-9b0ab7a5ed0ff9ab1dc39c83a0aee65195eb549e engines/drilling/profileDesign.js
+e1f85177458e1905bf5c330742e04778f572fb69 engines/drilling/profileDesign.js
 2a077fc888b8df0381e9f6b173bbca05cf74bd2a engines/drilling/rheology.js
 be8bef91735576d7c651c6cf888dbc7d1e4cc54d engines/drilling/sandControl.js
 66a353877b1829447893b9d5a05fe2ae685bb895 engines/drilling/segmentCompiler.js
@@ -591,7 +594,8 @@ fcff521a92a7e707c67388e8b04d02515cf91298 test-data/economics/goldens/screening_c
 0a8fe8f4b5a1b93900906dfbc8a39360b1f03314 test-data/ekene-dynamic/mbal.json
 e40aadd1ebc15de499438b952ef90e0ca0b887d2 test-data/ekene-dynamic/rates.json
 86e210fbe20149a3ae1560efbda5eb908f9b2960 test-data/ekene-dynamic/scal.json
-b2b0e750a9d3b3d75ede32d60df3f9cb59c0270a test-data/ekene-dynamic/waterflood.json
+e54c1b25a05e2fc5102c020a44ea2957688e7b66 test-data/ekene-dynamic/sim.json
+531ebbddb8c22d0324e92619ba0954feae3bf9d7 test-data/ekene-dynamic/waterflood.json
 42c28da29567f3022527f1a5712d5b3e65eebf12 test-data/facilities/goldens/compression_cases.json
 731eb1a2b89ecbae61aa1ff10a526bb2f2f69f9d test-data/facilities/goldens/controlvalve_cases.json
 b0965cb3c04a3c1442a78ce2d3700a40106181da test-data/facilities/goldens/corrosion_cases.json
@@ -723,7 +727,7 @@ f6171432027bc000d93ddb0f16516ea9f503f09d test-data/wellsite/report-day.json
 22614aec5357c9cf484d7b5b09b6c80dc3b5ddbb test-data/wellsite/show-goldens.json
 b048061614f28bb0c0bff26ae51fd6ce38e301f5 test-data/wellsite/ws0-goldens.json
 9b919a6b50b7c829ee2587afd26cca7b1d07bbd9 test-data/welltest/goldens.json
-455c9ec932ffb19bd8941205cb9e2968605d0bc1 tools/ekene-dynamic/generate.mjs
+7d8f8d3460c2c826783d77bc2c8fe174e2ae29cc tools/ekene-dynamic/generate.mjs
 7bfe014d304f2e4865d11df48e6445f5694852cc tools/validation/assurance/FINDINGS-audit.md
 646fa6079a9b52b2b7ed83b70e8cede541eaa319 tools/validation/assurance/FINDINGS-calendar.md
 074cbb1ef43d32bf376997a67fd62662a7444856 tools/validation/assurance/FINDINGS-compliance.md

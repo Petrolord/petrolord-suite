@@ -548,3 +548,34 @@ section type and Target.
 - Not done: tie-on row is read-only (KO azimuth stays in Design
   Settings); no Compass "Target" section type that solves to a target
   (the design-method solvers cover that); the Survey view is unchanged.
+
+## Tester fix: vertical wells and the Point method (2026-09-22)
+
+Lordsway Energy tester, Darm PlanB r2, item 4 of 5. A vertical well planned
+to a target at the slot X and Y was forced into a build and left slightly
+deviated.
+
+- Engines PR #233 (`profileDesign.js`): `verticalToTarget` runs first in
+  build-and-hold, S-profile, curve to target and horizontal landing (no toe,
+  no azimuth). A target within the vertical tolerance of straight below a
+  vertical tie-on gives one Hold to the target TVD: inclination 0, azimuth 0,
+  no build, and no `atan2` of a zero displacement. `solveSlant` takes
+  `kopLen`, so the kickoff split no longer turns a vertical well into two
+  holds. New `solvePoint` (Using TVD or Using MD): vertical hold, curve then
+  tangent hold, or a drop back to vertical (curve-hold-curve to a vertical
+  landing). Refusals give the distance off and the smallest DLS that reaches.
+  Every report carries `doglegDeg`.
+- Suite: Design settings has **Vertical tol (m)** (default 0.5, maximum 10,
+  kept in the trajectory draft). Design methods has a **Point** method with
+  Point from (a target or typed coordinates), Mode (Using TVD or Using MD),
+  DLS and Arrive (Automatic, On a tangent hold, Vertical). From an empty
+  design it starts at the surface. Solved segments carry a note shown in the
+  segment list ("Vertical to target", "Point: drop to vertical, then
+  vertical hold to the point"). A hand edit clears the note. The solve toast
+  reports the vertical miss and tolerance, or the total dogleg.
+- Tests: engines `drilling.verticalpoint.test.js` (32, with negative
+  controls); `solverDialog.test.jsx` (+21). Every method at the slot gives
+  one hold. 0.3 m off is vertical in metres and in feet. The Design
+  settings tolerance reaches the solver. 2 m off reports its dogleg. The
+  Point method covers typed coordinates, the empty design, Using MD,
+  unreachable points and the drop back to vertical.
