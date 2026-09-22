@@ -8,10 +8,12 @@ import { AlertTriangle } from 'lucide-react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { useRodPump } from '@/contexts/RodPumpDesignContext';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
 import { Field, NumberInput } from './fields';
 
 const UnitPanel = () => {
   const { inputs, setSection, plungerSizes, unit } = useRodPump();
+  const { show } = useFullPrecision();
   const u = inputs.unit;
 
   return (
@@ -89,7 +91,7 @@ const UnitPanel = () => {
       )}
       {unit?.ok && (
         <p className="text-[11px] text-slate-600">
-          This linkage gives a {unit.kin.strokeIn.toFixed(1)} in stroke and spends{' '}
+          This linkage gives a {show(unit.kin.strokeIn.toFixed(1), unit.kin.strokeIn)} in stroke and spends{' '}
           {(unit.kin.upstrokeFraction * 100).toFixed(1)} percent of each revolution on the upstroke.
           A conventional unit is never the even 50 percent a sine wave would give.
         </p>

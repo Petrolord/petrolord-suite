@@ -13,6 +13,7 @@ import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import StudioHelp from '@/components/studio/StudioHelp';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import { HeatExchangerProvider, useHeatExchanger } from '@/contexts/HeatExchangerContext';
+import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
 import {
   StreamInputs, CoefficientInputs, SizingResults,
 } from '@/components/heatexchanger/SizingPanels';
@@ -169,6 +170,8 @@ const StudioContent = () => {
         }
         headerActions={
           <>
+            <FullPrecisionToggle app="heat-exchanger-sizer" />
+            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
             <StudioAutoSave
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
@@ -195,7 +198,9 @@ const StudioContent = () => {
 
 const HeatExchangerSizer = () => (
   <HeatExchangerProvider>
-    <StudioContent />
+    <FullPrecisionProvider>
+      <StudioContent />
+    </FullPrecisionProvider>
   </HeatExchangerProvider>
 );
 
