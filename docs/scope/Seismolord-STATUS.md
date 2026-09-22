@@ -2,6 +2,32 @@
 
 Last updated: 2026-09-22 (group 5 tester feedback: interpretation properties, undo and redo, toolbox)
 
+## 2026-09-22: group 5b, undo and redo for every picking action
+
+Owner: "Undo and redo for every picking action." The audit found the
+horizon edit session had undo only (no redo; `redoAction` replayed
+FAULT commands while a session was open), one op per pointer move (a
+drag burned the 40-op cap), and four writes with no undo at all.
+
+- `lib/horizonEditHistory.js` (EditHistory): everything between two
+  `commitStroke` calls is ONE op (first old value of a cell wins); undo
+  keeps the replaced values so redo is exact; a new edit clears the redo
+  lane. ViewerPanel's session holds `{grid, base, history}`; the router
+  sends Ctrl+Z and Ctrl+Shift+Z / Ctrl+Y to the session first in both
+  directions, then the global stack. Ribbon Edit horizon gains Redo.
+- `lib/horizonUndoCommands.js`: session Save (new horizon: undo deletes
+  the row; edited horizon: undo writes the session's base picks back
+  into the SAME row), Track 3D (undo deletes the created row, redo
+  re-creates it and tracks the new id), Grow target (undo writes the
+  pre-grow picks and confidence layer back into the same row). A rewrite
+  undo refuses while an edit session is open on that horizon.
+- Termination markers (place, Alt+click remove, Clear) are undoable.
+- Display settings and renames were made undoable in 5a.
+- Known gap kept: undoing a horizon DELETE still re-creates the head
+  under a new id (archived versions and confidence are not restored).
+  Grow undo leaves the grown confidence layer when the horizon had none.
+- Tests: `__tests__/horizonEditHistory.test.js`.
+
 ## 2026-09-22: group 5a, fault and horizon properties with stable colours
 
 Owner: "Fault and horizon properties: rename, colour, line thickness and
