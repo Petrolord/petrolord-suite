@@ -1129,7 +1129,7 @@ function SliceView({
       vals.textContent = `IL ${info.il}   XL ${info.xl}   `
         + (info.ms != null ? `${info.ms.toFixed(1)} ms   ` : '')
         + (info.z != null ? `TVD ${info.z.toFixed(1)} m   ` : '')
-        + `amp ${info.amp === null ? 'null' : info.amp.toExponential(3)}`;
+        + `amp ${info.amp === null ? 'null' : `${info.ampApprox ? '≈' : ''}${info.amp.toExponential(3)}`}`;
       vals.style.display = '';
       hint.style.display = 'none';
     } else {
@@ -1163,6 +1163,7 @@ function SliceView({
         ms: null,
         z: p.depthAxisInfo.z0 + hit.sample * p.depthAxisInfo.dz,
         amp: amp === NULL_F32 ? null : amp,
+        ampApprox: p.slice.codec === 'u8',
       });
       return;
     }
@@ -1181,6 +1182,8 @@ function SliceView({
       ms,
       z,
       amp: amp === NULL_F32 ? null : amp,
+      // 8-bit display copy: the centre of the code's bin
+      ampApprox: p.slice.codec === 'u8',
     });
   }, [pickAt, setCursorReadout]);
 

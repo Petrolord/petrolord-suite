@@ -26,7 +26,9 @@ import {
   createImportJobManager, JOB_PHASE, V4_STATUS, isOpenableVolume, v4SurveyMeta,
 } from '../services/importJobs';
 import { buildManifestV4, withV4Complete, NULL_VALUE } from '../engine/manifest';
-import { v4BrickFetcher, DEFLATE_RAW } from '../engine/brickCodecV4';
+import {
+  v4BrickFetcher, DEFLATE_RAW, quantizeU8, dequantizeU8,
+} from '../engine/brickCodecV4';
 import { transcodeToBricks } from '../engine/brickTranscode';
 import { bufferReader } from '../engine/reader';
 import { makeSegy, scanOf } from '../../../../../packages/engines/__tests__/seismolordSegyFixture';
@@ -461,7 +463,7 @@ describe('conversion into the spool, then the background job', () => {
     }
   });
 
-  test('the slice worker reads the v4 store: every inline and crossline equals the local SEG-Y read', async () => {
+  test('the slice worker reads the v4 store: slices from the display copy, float32 bricks exact, against the local SEG-Y read', async () => {
     const storage = mockStorage();
     const rows = new Map();
     const m = manager({ storage, rows, spools: new Map(), unloadGuards: [] });
@@ -510,12 +512,28 @@ describe('conversion into the spool, then the background job', () => {
       ...Array.from({ length: shape.nIl }, (_, i) => ['inline', i]),
       ...Array.from({ length: shape.nXl }, (_, i) => ['xline', i]),
     ];
+    // slices come from the 8-bit display copy: the local read through the
+    // display codec, bit for bit
+    const { clip } = manifest.display;
     for (const [orientation, index] of cases) {
       // eslint-disable-next-line no-await-in-loop
       const a = await call({ type: 'slice', sourceId: 'V4', orientation, index });
       // eslint-disable-next-line no-await-in-loop
       const b = await call({ type: 'slice', sourceId: 'L', orientation, index });
-      expect(u32(a)).toEqual(u32(b));
+      expect(a.codec).toBe('u8');
+      const e = b.data.map((v) => dequantizeU8(quantizeU8(v, clip), clip));
+      expect(u32(a)).toEqual(new Uint32Array(e.buffer));
+    }
+    // computation reads float32 through the v4 wrap: every trace (assembled
+    // from float32 bricks) exact
+    for (let il = 0; il < shape.nIl; il++) {
+      for (let xl = 0; xl < shape.nXl; xl++) {
+        // eslint-disable-next-line no-await-in-loop
+        const a = await call({ type: 'trace', sourceId: 'V4', il, xl });
+        // eslint-disable-next-line no-await-in-loop
+        const b = await call({ type: 'trace', sourceId: 'L', il, xl });
+        expect(new Uint32Array(a.buffer, a.byteOffset, a.length)).toEqual(new Uint32Array(b.buffer, b.byteOffset, b.length));
+      }
     }
     // negative control: the same store with the v4 wrap bypassed reads
     // v1 brick names that a v4 store does not have, and fails
