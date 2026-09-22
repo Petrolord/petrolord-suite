@@ -60,6 +60,7 @@ import {
 } from '../engine/horizonAmplitude';
 import { flattenOffsets, datumForHorizon } from '../engine/flatten';
 import { buildWellSections, corridorCells } from '../lib/wellDisplay';
+import { makeTvdssToTwt } from '../engine/wellSection';
 import {
   depthAxisFor, depthStretchSlice, depthRowGrid, depthRowOfSample,
 } from '../engine/depthConvert';
