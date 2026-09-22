@@ -109,6 +109,12 @@ export default function SeismolordHelpGuide() {
           can show in the Map and 3D windows. Fault polygons drawn in Mapping &amp; Surface Studio are listed under
           Culture and can be shown on the map for comparison.
         </Para>
+        <Para>
+          Right-click a horizon or a fault in the explorer and choose Settings to rename it or set its colour, line
+          weight and opacity. The settings apply to sections, the 3D window and the map at once and are saved with
+          the interpretation, so they come back on the next visit. A new fault keeps the colour of every existing
+          one, and each settings change or rename can be undone with Ctrl+Z.
+        </Para>
       </GuideSection>
 
       <GuideSection id="wells">

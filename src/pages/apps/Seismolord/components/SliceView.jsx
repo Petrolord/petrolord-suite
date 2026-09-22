@@ -325,9 +325,13 @@ function SliceView({
     // surface never reads as an editable pick lattice
     const gridOverlays = ov.surfaces?.length
       ? [...ov.horizons, ...ov.surfaces] : ov.horizons;
-    for (const { grid, color, lineWidth: weight, dash } of gridOverlays) {
+    for (const {
+      grid, color, lineWidth: weight, dash, lineOpacity,
+    } of gridOverlays) {
       ctx.strokeStyle = color;
       ctx.fillStyle = color;
+      // per-horizon line opacity (settings dialog); reset after the loop
+      ctx.globalAlpha = Number.isFinite(lineOpacity) ? Math.min(1, Math.max(0.05, lineOpacity)) : 1;
       // per-horizon line weight (settings dialog); 1 = the house default
       ctx.lineWidth = lw * (weight || 1);
       ctx.setLineDash(dash ? [5 * dpr, 4 * dpr] : []);
@@ -382,6 +386,7 @@ function SliceView({
       }
     }
     ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
 
     // W5.3 per-trace pick overlays (2D line window): value = sample per
     // TRACE, no lattice involved — pen-break at nulls, small markers
@@ -409,12 +414,16 @@ function SliceView({
       ctx.setLineDash([]);
     }
 
-    const drawSticks = (sticks, color, dashed) => {
+    // style: per-fault line weight (multiplier) and opacity from the
+    // fault settings dialog
+    const drawSticks = (sticks, color, dashed, style = null) => {
       const posn = ori === 'traverse' ? p.slice?.positions : null;
       if (ori === 'traverse' && !posn) return;
       ctx.strokeStyle = color;
       ctx.fillStyle = color;
-      ctx.lineWidth = lw;
+      ctx.lineWidth = lw * (style?.lineWidth || 1);
+      ctx.globalAlpha = Number.isFinite(style?.opacity)
+        ? Math.min(1, Math.max(0.05, style.opacity)) : 1;
       ctx.setLineDash(dashed ? [6 * dpr, 4 * dpr] : []);
       const mk = Math.max(4, 2 * dpr);
       for (const stick of sticks) {
@@ -466,8 +475,9 @@ function SliceView({
         }
       }
       ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
     };
-    for (const f of ov.faults) drawSticks(f.sticks, f.color, false);
+    for (const f of ov.faults) drawSticks(f.sticks, f.color, false, f);
     if (ov.draftSticks.length) drawSticks(ov.draftSticks, '#fbbf24', true);
 
     // wells: corridor-projected paths (pen-breaking outside ~1.5 cells,

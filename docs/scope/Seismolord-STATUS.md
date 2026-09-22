@@ -1,6 +1,36 @@
 # Seismolord — STATUS
 
-Last updated: 2026-09-06 (SL0 tester readiness: depth unit, launchers, help guide)
+Last updated: 2026-09-22 (group 5 tester feedback: interpretation properties, undo and redo, toolbox)
+
+## 2026-09-22: group 5a, fault and horizon properties with stable colours
+
+Owner: "Fault and horizon properties: rename, colour, line thickness and
+opacity, editable from the object list and saved with the
+interpretation." Faults had no settings at all, and both object kinds
+took their fallback colour from their LIST INDEX while `listFaults` and
+`listHorizons` sort newest first, so adding a fault or a horizon
+recoloured every existing one.
+
+- `FaultSettingsDialog` (explorer fault menu, Settings…): name, colour,
+  line weight, opacity. Stored in `seismic_faults.params.display` via
+  `updateFaultMeta` (services/faultsService.js), the mirror of
+  `updateHorizonMeta`. No schema change (params exists since
+  20260819210000).
+- Horizon settings gain **Line opacity** (`params.display.lineOpacity`),
+  applied to section lines (canvas globalAlpha) and the 3D surface
+  (mesh opacity). The map fill opacity is unchanged.
+- Fault line weight and opacity drive the section sticks (SliceView
+  `drawSticks`) and the 3D sticks and ribbon (CubeView; CubeRenderer
+  now blends translucent line sets). WebGL line width is fixed at 1 px
+  on most platforms, so line weight is a section-only setting.
+- Stable colours: `stableColor(id, palette)` (FNV-1a of the row id) is
+  the fallback for horizons and faults (`horizonColorFor`,
+  `faultColorFor`), used by the explorer swatches and every viewport.
+  Existing horizons without a saved colour change colour once.
+- Shared `hooks/useDisplaySettings.js` for both kinds: live session
+  override, one debounced write per burst, and each burst and each
+  rename is one undo step on the global stack.
+- Tests: `__tests__/interpProperties.test.jsx`.
 
 ## 2026-09-06: SL0, Petrel tester readiness (units, launchers, help)
 
