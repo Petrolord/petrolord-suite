@@ -1,6 +1,56 @@
 # Seismolord — STATUS
 
-Last updated: 2026-09-22 (tester feedback: navigation, slice player, slice toggles, wells, stability; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
+Last updated: 2026-09-22 (large surveys Stream L: slice worker, local-file view, budgeted cache; tester feedback: navigation, slice player, slice toggles, wells, stability; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
+
+## 2026-09-22: large surveys, Stream L (viewer side)
+
+Plan of record: docs/scope/Seismolord-LARGE-SURVEY-PLAN.md. Engines PR
+#237 (trace index, local SEG-Y slices, streaming slice assembly; vendored
+at its branch head 53a962d, which includes engines main 346fbc3) and this
+Suite branch feat/seismolord-viewer-sources.
+
+What shipped:
+- Slice worker (workers/slice.worker.js, sources/): every source, the one
+  brick cache and the slice cache under one budget from
+  navigator.deviceMemory (256 MB on 8 GB, 512 MB on 16 GB, 1 GB cap).
+  Bricks stream through the assembler (12 pinned at most); same-row
+  neighbours are cut from the same bricks; prefetch at the player's step.
+- LocalSegySource: "View it now" in the import dialog shows inlines and
+  crosslines straight from the picked file while it converts (trace index
+  from about 2,150 header reads; crosslines coarse first). Time slices say
+  they need conversion, with the conversion progress.
+- 3D planes and the Map time slice come from the same sources.
+- Failure states: plain messages with Retry, the out-of-memory message
+  names the budget, a crashed worker restarts on the next request. Slice
+  timeouts count silence (every brick re-arms them), so a 392 MiB inline
+  over a slow link lands instead of timing out at 60 s; slow slices show
+  "Loading N of M bricks". Brick fetches use lib/fetchWithTimeout (30 s,
+  one retry).
+- Benchmark: /dev/seismolord-largesurvey + e2e/seismolord-large-survey
+  (SEIS_BENCH=1), tools/seismolord-bench (brick store builder, local mock
+  storage with a shared-link --mbps shaper). Never Supabase.
+
+Numbers (synthetic 4.5 GB survey, headless Chromium, SwiftShader, shared
+4-vCPU box; "before" = the harness replaying the old main-thread cache
+and all-bricks-at-once assembly in the same run):
+
+| | target | before | after |
+|---|---|---|---|
+| 1. first inline from the local file | < 10 s | not possible (whole ingest first) | 2.6 s (index 1.8 s + inline 0.75 s), preview scan running alongside |
+| 2. next inline, cached | < 1 s | 1.5 s | 0.50 s (data 7 ms, the rest is software GL paint) |
+| 2. crossline from the local file, uncached | < 3 s | n/a | 1.1 to 1.3 s (coarse at 0.17 to 0.4 s) |
+| 2. inline from v1 bricks, uncached | < 3 s | 3.9 s | 4.4 to 7.6 s: MISSED |
+| 3. time slice from bricks | < 5 s | 1.8 s | 1.9 s |
+| 4. first inline over 10 Mbps (v1 bricks) | < 5 s | about 330 s | 329 s: MISSED |
+| 5. tab peak, local file | < 1.5 GB | n/a | 379 MiB |
+| 5. tab peak, bricks incl. 3 planes | < 1.5 GB | 978 MiB | 961 MiB (first inline 770 -> 598) |
+
+Open: target 4 and uncached target 2 need Stream C's v4 display bricks
+(u8, levels of detail) and a BrickSource v4 reader in the slice worker
+(Stream L follow-up, once C's codec and manifest v4 merge). Re-pin the
+vendored engines to the #237 merge commit when it lands. Tab RSS is
+dominated by the page and V8 keeping freed brick buffers; the worker's
+own accounted bytes peak at 255 MiB of its 256 MiB budget.
 
 ## 2026-09-22: tester feedback, stability (SLT-3)
 
