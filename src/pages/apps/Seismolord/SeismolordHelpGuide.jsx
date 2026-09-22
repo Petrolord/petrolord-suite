@@ -116,6 +116,18 @@ export default function SeismolordHelpGuide() {
           Culture and can be shown on the map for comparison.
         </Para>
         <Para>
+          The interpretation toolbox (the wrench button at the top right, or Toolbox in the Interpretation tab)
+          docks every picking tool beside the viewports. For horizons it has the target, Manual picking, Seed, the
+          eraser with its brush size, and seeded tracking (Track 2D, Track 3D, Grow) with the event, the search
+          window and the correlation threshold. For faults, choose the active fault first: New fault starts a named
+          fault, and choosing an existing fault loads its sticks so new sticks belong to it. The stick tools are
+          Extend (a click adds a point at the nearer end of the selected stick), Select stick, Shorten (click a
+          point: it and the part of the stick beyond it are removed), Move node (drag a point), Delete node and
+          Delete stick; Trim top and Trim bottom shorten the selected stick by one point, and Delete fault removes
+          the active fault. Save writes the sticks to the active fault. Alt+click deletes the nearest point in any
+          stick tool, and every step can be undone.
+        </Para>
+        <Para>
           Right-click a horizon or a fault in the explorer and choose Settings to rename it or set its colour, line
           weight and opacity. The settings apply to sections, the 3D window and the map at once and are saved with
           the interpretation, so they come back on the next visit. A new fault keeps the colour of every existing

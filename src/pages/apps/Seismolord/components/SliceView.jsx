@@ -479,6 +479,9 @@ function SliceView({
     };
     for (const f of ov.faults) drawSticks(f.sticks, f.color, false, f);
     if (ov.draftSticks.length) drawSticks(ov.draftSticks, '#fbbf24', true);
+    // the toolbox's selected draft stick: solid and heavier on top
+    const selStick = Number.isInteger(ov.draftSelected) ? ov.draftSticks[ov.draftSelected] : null;
+    if (selStick && selStick.length) drawSticks([selStick], '#fde047', false, { lineWidth: 2 });
 
     // wells: corridor-projected paths (pen-breaking outside ~1.5 cells,
     // off-survey and out-of-window samples) + labeled top ticks. On
@@ -1140,7 +1143,8 @@ function SliceView({
     });
   }, [pickAt, setCursorReadout]);
 
-  const isPaintMode = pickMode === 'manual' || pickMode === 'erase';
+  // streamed gestures: horizon paint tools and the fault Move node drag
+  const isPaintMode = pickMode === 'manual' || pickMode === 'erase' || pickMode === 'faultMove';
 
   const onPointerDown = useCallback((e) => {
     if (e.button !== 0 && e.button !== 1) return;

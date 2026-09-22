@@ -2,6 +2,47 @@
 
 Last updated: 2026-09-22 (group 5 tester feedback: interpretation properties, undo and redo, toolbox)
 
+## 2026-09-22: group 5c, docked interpretation toolbox and fault stick tools
+
+Owner: "Add a docked interpretation toolbox for horizon picking and
+fault picking ... Fault picking needs new stick, extend, shorten, move
+a node, delete a node, delete a stick and delete a fault. At the moment
+a fault can be lengthened but not shortened or erased." Required test:
+"a fault shortened and erased, then undone".
+
+- `components/workspace/InterpretationToolbox.jsx` in the WorkspaceShell
+  right dock, which now holds Toolbox and Copilot tabs (both stay
+  mounted; the wrench and bot buttons in the ribbon corner and the new
+  Interpretation > Toolbox button open them). It drives the same
+  ViewerPanel state and handlers as the ribbon, which keeps working.
+  Horizon block: target, Manual / Seed / Erase, Track 2D / 3D / Grow,
+  event, window, an ALWAYS visible correlation threshold (with a "Track
+  by correlation" shortcut when the event is not NCC), brush size,
+  session Save / Discard, and Undo / Redo. Fault block: Active fault
+  (New fault with a name field, or an existing fault, which loads its
+  sticks so new sticks belong to it), the six stick tools, New stick,
+  Trim top / bottom, Delete stick, Save, Discard, Delete fault,
+  Properties.
+- `lib/faultStickEdit.js`: pure stick operations (nearestNode,
+  nearestStick, extendStick at the NEARER end, moveNode, deleteNode,
+  deleteStick, shortenStick, trimStickAt, newStick, savableSticks),
+  measured in the displayed section (points more than a line away are
+  never hit). Extend fixes the zig-zag the audit found (picking above a
+  stick's top appended to its bottom).
+- `hooks/useFaultStickEditor.js`: tool, selected stick, section pick
+  handler; each change is one global undo command; a Move node drag is
+  one command from pointer down to up. SliceView streams the drag
+  (`faultMove` joins the paint modes) and draws the selected draft
+  stick highlighted (`overlays.draftSelected`).
+- The draft model is unchanged (Save writes a new fault or updates the
+  active one in place); switching the active fault asks only when the
+  draft differs from the stored sticks.
+- Tests: `__tests__/faultStickEdit.test.js` (pure ops + shortened,
+  erased, undone on the UndoStack) and
+  `__tests__/interpretationToolbox.test.jsx` (the real toolbox + hook +
+  UndoStack: shorten, trim, delete node, delete stick, delete fault,
+  then five undos back to the original; node drag = one undo step).
+
 ## 2026-09-22: group 5b, undo and redo for every picking action
 
 Owner: "Undo and redo for every picking action." The audit found the
