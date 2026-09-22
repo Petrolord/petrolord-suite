@@ -18,6 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { compileSegments } from '../engine/segmentCompiler';
 import { M_TO_FT } from '../engine/surveyMath';
+import { DEFAULT_VERTICAL_TOLERANCE_M, MAX_VERTICAL_TOLERANCE_M } from '../engine/profileDesign';
 import { resolveWellhead, targetsToChart } from '../services/targetFrame';
 import { gridAzimuthDelta } from '../services/surveyUtils';
 import {
@@ -95,6 +96,12 @@ const DesignTab = () => {
     const stationInterval = (() => {
         const v = parseFloat(constraints.stationInterval);
         return Number.isFinite(v) && v > 0 ? v : defaultStationInterval;
+    })();
+    // Vertical tolerance (metres, horizontal): a target this close to
+    // straight below the design end is solved as a vertical hold.
+    const verticalToleranceM = (() => {
+        const v = parseFloat(constraints.verticalTolM);
+        return Number.isFinite(v) && v >= 0 && v <= MAX_VERTICAL_TOLERANCE_M ? v : DEFAULT_VERTICAL_TOLERANCE_M;
     })();
 
     // Load the design payload once per design; the localStorage draft
@@ -355,7 +362,10 @@ const DesignTab = () => {
 
     const updateSegment = (index, field, value) => {
         const newSegments = [...segments];
-        newSegments[index] = { ...newSegments[index], [field]: value };
+        // A hand edit ends what the solver's note ("Vertical to target")
+        // said about the segment.
+        const { note, ...rest } = newSegments[index];
+        newSegments[index] = { ...rest, [field]: value };
         setSegments(newSegments);
         updateTrajectoryDraft({ segments: newSegments });
     };
@@ -394,7 +404,7 @@ const DesignTab = () => {
     const currentEnd = useMemo(() => {
         if (!planRows || planRows.length < 2) return null;
         const last = planRows[planRows.length - 1];
-        return { inc: last.inc, azi: last.azi, n: last.n, e: last.e, tvd: last.tvd };
+        return { inc: last.inc, azi: last.azi, n: last.n, e: last.e, tvd: last.tvd, md: last.md };
     }, [planRows]);
 
     const handleExportCsv = () => {
@@ -522,9 +532,10 @@ const DesignTab = () => {
                         )}
                         <div className="space-y-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
                             <Label className="text-slate-400 text-xs uppercase font-bold">Design Settings</Label>
-                            <div className="grid grid-cols-4 gap-2 mt-2">
+                            <div className="grid grid-cols-3 gap-2 mt-2">
                                 <div><Label className="text-[10px]">Station every ({mdUnit})</Label><Input type="number" min="1" step="1" value={constraints.stationInterval ?? defaultStationInterval} data-testid="design-station-interval" title="Survey listing interval: a station is emitted every this many depth units along holds and curves (the trajectory itself does not change)" onChange={e => { setConstraints({ ...constraints, stationInterval: e.target.value }); updateTrajectoryDraft({ constraints: { ...constraints, stationInterval: e.target.value } }); }} className="h-7 bg-slate-900 text-xs" disabled={readOnly} /></div>
                                 <div><Label className="text-[10px]">Max DLS (/{mdUnit === 'ft' ? '100ft' : '30m'})</Label><Input type="number" value={constraints.maxDLS} onChange={e => { setConstraints({ ...constraints, maxDLS: e.target.value }); updateTrajectoryDraft({ constraints: { ...constraints, maxDLS: e.target.value } }); }} className="h-7 bg-slate-900 text-xs" disabled={readOnly} /></div>
+                                <div><Label className="text-[10px]">Vertical tol (m)</Label><Input type="number" min="0" max={MAX_VERTICAL_TOLERANCE_M} step="0.1" value={constraints.verticalTolM ?? DEFAULT_VERTICAL_TOLERANCE_M} data-testid="design-vertical-tolerance" title="A target within this horizontal distance of straight below the design end is designed as a vertical hold, with every design method" onChange={e => { setConstraints({ ...constraints, verticalTolM: e.target.value }); updateTrajectoryDraft({ constraints: { ...constraints, verticalTolM: e.target.value } }); }} className="h-7 bg-slate-900 text-xs" disabled={readOnly} /></div>
                                 <div><Label className="text-[10px]">KO Azi (deg {aziRef})</Label><Input type="number" value={kickoffAzi} onChange={e => { setKickoffAzi(e.target.value); updateTrajectoryDraft({ kickoffAzi: parseFloat(e.target.value) || 0 }); }} className="h-7 bg-slate-900 text-xs" disabled={readOnly} /></div>
                                 <div className="flex items-end">
                                     {!readOnly && (
@@ -582,6 +593,7 @@ const DesignTab = () => {
                                                                         <SelectTrigger className="h-6 w-24 bg-slate-900 border-none text-[10px]"><SelectValue /></SelectTrigger>
                                                                         <SelectContent className="bg-slate-800"><SelectItem value="Hold">Hold</SelectItem><SelectItem value="Build">Build</SelectItem><SelectItem value="Turn">Turn</SelectItem><SelectItem value="ToolfaceArc">TF Arc</SelectItem></SelectContent>
                                                                     </Select>
+                                                                    {seg.note && <span className="truncate rounded bg-lime-900/40 px-1.5 py-0.5 text-[10px] text-lime-300" data-testid="segment-note" title={seg.note}>{seg.note}</span>}
                                                                     {!readOnly && <Button variant="ghost" size="icon" onClick={() => removeSegment(index)} className="ml-auto h-5 w-5 text-slate-600 hover:text-red-400"><Trash2 className="w-3 h-3" /></Button>}
                                                                 </div>
                                                                 <div className="grid grid-cols-2 gap-2 pl-6">
@@ -792,6 +804,7 @@ const DesignTab = () => {
                 mdUnit={mdUnit}
                 kbM={wellbore?.kb_elev_m || 0}
                 currentEnd={currentEnd}
+                verticalToleranceM={verticalToleranceM}
                 onApply={handleSolverApply}
             />
         </div>
