@@ -3,6 +3,7 @@ import React from 'react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSeparator } from '@/contexts/SeparatorStudioContext';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
 import { SWEEP_REASON_TEXT } from '@/contexts/SeparatorStudioContext';
 import { fmt, Stat, ErrorNote, WarnNote, Field, NumberInput, TextInput, ExampleCaseNote } from './fields';
 
@@ -112,6 +113,7 @@ export const VesselInputs = () => {
 
 const ConditionsCard = () => {
   const { conditions } = useSeparator();
+  const { show } = useFullPrecision();
   if (conditions.error) return <ErrorNote>{conditions.error}</ErrorNote>;
   return (
     <Card className="bg-slate-900/60 border-slate-800">
@@ -120,17 +122,17 @@ const ConditionsCard = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Stat label="z-factor" value={fmt(conditions.z, 4)}
             hint="from the validated correlation, not assumed" />
-          <Stat label="Gas density" value={fmt(conditions.rhoGas, 3)} unit="lb/ft3" />
+          <Stat label="Gas density" value={show(fmt(conditions.rhoGas, 3), conditions.rhoGas)} unit="lb/ft3" />
           <Stat label="Liquid density" value={fmt(conditions.rhoLiquid, 2)} unit="lb/ft3"
             hint="oil and water at their production split" />
-          <Stat label="Actual gas rate" value={fmt(conditions.qGasActFt3S, 2)} unit="ft3/s" />
+          <Stat label="Actual gas rate" value={show(fmt(conditions.qGasActFt3S, 2), conditions.qGasActFt3S)} unit="ft3/s" />
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Stat label="K used" value={fmt(conditions.k, 3)} unit="ft/s"
             hint={conditions.kResult.source === 'typed'
               ? 'typed override'
               : `${conditions.kResult.kBase} base${conditions.kResult.derated ? ', derated for pressure' : ''}`} />
-          <Stat label="Settling velocity" value={fmt(conditions.vTerminalFtS, 3)} unit="ft/s" />
+          <Stat label="Settling velocity" value={show(fmt(conditions.vTerminalFtS, 3), conditions.vTerminalFtS)} unit="ft/s" />
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Stat label="Ppr" value={fmt(conditions.ppr, 3)} hint="pseudo-reduced pressure behind the z-factor" />
@@ -169,6 +171,7 @@ const verdictColour = (row, preferred) => {
 
 const SweepTable = () => {
   const { sweep, inputs } = useSeparator();
+  const { show } = useFullPrecision();
   if (sweep.error) return <ErrorNote>{sweep.error}</ErrorNote>;
   const vertical = inputs.vessel.type === 'vertical2';
   return (
@@ -187,7 +190,7 @@ const SweepTable = () => {
           {sweep.rows.map((r) => (
             <tr key={r.diameterFt} className={`border-b border-slate-800/60 ${sweep.preferred?.diameterFt === r.diameterFt ? 'bg-emerald-900/20' : ''}`}>
               <td className="py-1.5 pr-3 tabular-nums text-slate-300">{fmt(r.diameterFt, 1)}</td>
-              <td className="py-1.5 pr-3 tabular-nums">{r.error ? '--' : fmt(r.lengthFt, 1)}</td>
+              <td className="py-1.5 pr-3 tabular-nums">{r.error ? '--' : show(fmt(r.lengthFt, 1), r.lengthFt)}</td>
               <td className="py-1.5 pr-3 tabular-nums">{r.error ? '--' : fmt(r.ldRatio, 2)}</td>
               {!vertical && <td className="py-1.5 pr-3 text-slate-400">{r.error ? '--' : controllingText(r.controlling)}</td>}
               <td className={`py-1.5 font-semibold ${verdictColour(r, sweep.preferred)}`}>
@@ -208,6 +211,7 @@ const SweepTable = () => {
 
 const SelectedCard = () => {
   const { selected, detail, inputs } = useSeparator();
+  const { show } = useFullPrecision();
   if (selected.error) return <ErrorNote>{selected.error}</ErrorNote>;
   const threePhase = inputs.vessel.type === 'horizontal3';
   const vertical = inputs.vessel.type === 'vertical2';
@@ -217,10 +221,10 @@ const SelectedCard = () => {
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Stat label="Diameter" value={fmt(selected.diameterFt, 1)} unit="ft" />
-          <Stat label={vertical ? 'Height' : 'Length'} value={fmt(selected.lengthFt, 1)} unit="ft" />
+          <Stat label={vertical ? 'Height' : 'Length'} value={show(fmt(selected.lengthFt, 1), selected.lengthFt)} unit="ft" />
           <Stat label="L/D" value={fmt(selected.ldRatio, 2)}
             accent={selected.inRange ? 'text-emerald-400' : 'text-amber-400'} />
-          <Stat label="Gas velocity" value={fmt(detail.gasVelocityFtS, 3)} unit="ft/s"
+          <Stat label="Gas velocity" value={show(fmt(detail.gasVelocityFtS, 3), detail.gasVelocityFtS)} unit="ft/s"
             hint="in the vessel just sized" />
         </div>
         {!vertical && !threePhase && (
@@ -241,7 +245,7 @@ const SelectedCard = () => {
                 hint="of the liquid cross-section" />
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Stat label="Interface height" value={fmt(detail.interfaceHeightFt, 2)} unit="ft"
+              <Stat label="Interface height" value={show(fmt(detail.interfaceHeightFt, 2), detail.interfaceHeightFt)} unit="ft"
                 hint="above the vessel bottom, from the exact segment area" />
               <Stat label="Water layer" value={fmt(detail.waterLayerFt, 2)} unit="ft" />
               <Stat label="Oil layer" value={fmt(detail.oilLayerFt, 2)} unit="ft" />
@@ -259,8 +263,8 @@ const SelectedCard = () => {
         {vertical && (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <Stat label="Liquid height" value={fmt(detail.hLiquidFt, 1)} unit="ft" />
-            <Stat label="Diameter the gas needs" value={fmt(detail.diameterGasFt, 1)} unit="ft" />
-            <Stat label="Velocity margin" value={fmt(detail.velocityMargin, 2)} unit="x"
+            <Stat label="Diameter the gas needs" value={show(fmt(detail.diameterGasFt, 1), detail.diameterGasFt)} unit="ft" />
+            <Stat label="Velocity margin" value={show(fmt(detail.velocityMargin, 2), detail.velocityMargin)} unit="x"
               hint="settling velocity over actual" />
           </div>
         )}

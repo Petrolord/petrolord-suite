@@ -12,6 +12,7 @@ import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import StudioHelp from '@/components/studio/StudioHelp';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import { SeparatorStudioProvider, useSeparator } from '@/contexts/SeparatorStudioContext';
+import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
 import { VesselInputs, VesselResults } from '@/components/separatorstudio/SeparatorPanels';
 import { SlugInputs, SlugResults } from '@/components/separatorstudio/SlugCatcherPanels';
 import SeparatorHelpContent from '@/components/separatorstudio/SeparatorHelpGuide';
@@ -133,6 +134,8 @@ const StudioContent = () => {
         }
         headerActions={
           <>
+            <FullPrecisionToggle app="separator-studio" />
+            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
             <StudioAutoSave
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
@@ -159,7 +162,9 @@ const StudioContent = () => {
 
 const SeparatorSlugCatcherDesigner = () => (
   <SeparatorStudioProvider>
-    <StudioContent />
+    <FullPrecisionProvider>
+      <StudioContent />
+    </FullPrecisionProvider>
   </SeparatorStudioProvider>
 );
 
