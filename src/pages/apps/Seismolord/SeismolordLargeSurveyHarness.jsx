@@ -18,6 +18,8 @@ import { scanFile } from './services/ingestService';
 //                 256 MiB and an assembly that pins every brick of the
 //                 slice at once, so the two are measured side by side
 //   ?storage=http://127.0.0.1:8899  tools/seismolord-bench/mock-storage.mjs
+//   ?volume=bench-v4  the volume to open (a v4 display store opens coarse
+//                 levels first; show() reports the first partial's paint)
 //   ?deviceMemory=8  the budget to run with (an 8 GB laptop by default)
 //
 // Everything is driven through window.__seisBench; nothing here talks to
@@ -155,6 +157,8 @@ export default function SeismolordLargeSurveyHarness() {
   const show = useCallback(async (o, idx, { together = false } = {}) => {
     const t0 = performance.now();
     let partialMs = null;
+    let partialOnScreenMs = null;
+    let partialLevel = null;
     let s;
     if (MODE === 'before' && stateRef.current.cache) {
       const g = stateRef.current.geom;
@@ -176,8 +180,15 @@ export default function SeismolordLargeSurveyHarness() {
         orientation: o, index: idx, step: 1, prefetch: true,
       }, {
         onPartial: (p) => {
-          if (partialMs === null) partialMs = performance.now() - t0;
+          const first = partialMs === null;
+          if (first) {
+            partialMs = performance.now() - t0;
+            partialLevel = p.level ?? null;
+          }
+          setOrientation(o === 'crossline' ? 'xline' : o);
+          setIndex(idx);
           setSlice({ ...p, orientation: o === 'crossline' ? 'xline' : o, index: idx });
+          if (first) afterPaint().then((t) => { if (partialOnScreenMs === null) partialOnScreenMs = t - t0; });
         },
       });
     }
@@ -187,7 +198,14 @@ export default function SeismolordLargeSurveyHarness() {
     setSlice({ ...s, orientation: o === 'crossline' ? 'xline' : o, index: idx });
     const painted = await afterPaint();
     return {
-      dataMs, onScreenMs: painted - t0, partialMs, level: s.level ?? 0, height: s.height,
+      dataMs,
+      onScreenMs: painted - t0,
+      partialMs,
+      partialOnScreenMs,
+      partialLevel,
+      level: s.level ?? 0,
+      codec: s.codec,
+      height: s.height,
     };
   }, []);
 

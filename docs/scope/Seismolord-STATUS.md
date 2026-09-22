@@ -1,6 +1,56 @@
 # Seismolord — STATUS
 
-Last updated: 2026-09-22 (large surveys Stream C: v4 conversion to a local spool, two-stage resumable background upload; Stream L: slice worker, local-file view, budgeted cache; tester feedback: navigation, slice player, slice toggles, wells, stability; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
+Last updated: 2026-09-22 (large surveys: the viewer reads the v4 display copy, coarse first; Stream C: v4 conversion to a local spool, two-stage resumable background upload; Stream L: slice worker, local-file view, budgeted cache; tester feedback: navigation, slice player, slice toggles, wells, stability; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
+
+## 2026-09-22: large surveys, the viewer reads the v4 display copy
+
+Closes the two targets Stream L missed. Suite only (no engine change, no
+DDL). Branch feat/seismolord-v4-display-reader.
+
+What changed:
+- The slice worker views a v4 volume (display copy uploaded) from its
+  8-bit display bricks: the coarsest level of detail at once (8 bricks,
+  about 0.2 MB for the tester's inline), then level 0. The levels in
+  between are fetched alongside level 0, as further partials, only when
+  level 0's measured pace says it is more than 5 s away (a slow link);
+  on a fast link they would only delay it (SHARPEN_CHECK_MS 500,
+  SHARPEN_IF_REMAINING_MS 5000 in sources/sliceEngine.js).
+- Display bricks sit in the one brick cache as u8 codes (a quarter of
+  float32), so an inline (98 MiB) fits the 8 GB budget and steps within a
+  brick row are hits. Slices carry codec 'u8' and the clip; the cursor
+  readouts (2D, 3D, status bar) mark display-copy amplitudes with a
+  leading "≈" (bin centres, within clip / 254 inside the clip).
+- Computation (tracking, attributes, traverses, extraction) still reads
+  float32 through the v1 brick names (getBrick / getTrace).
+- The slice worker inflates v4 bricks on a pool of helper workers
+  (workers/inflate.worker.js over services/deflatePool.js); one thread
+  took about 1 s for an inline's 392 bricks.
+- The sign-in token is reused by every brick fetch for 60 s (one round
+  trip to the main thread per brick cost seconds); a 401/403 still
+  forces a fresh one.
+- Benchmark: tools/seismolord-bench/make-bricks-v4.mjs builds the v4
+  display store of the synthetic survey (4,704 + 588 + 84 + 16 bricks,
+  371 + 38 + 3.8 + 0.4 MB); mock-storage.mjs --store serves it;
+  e2e/seismolord-large-survey.spec.js has two v4 tests.
+
+Numbers (synthetic 4.5 GB survey, headless Chromium, SwiftShader, shared
+4-vCPU box; on-screen times include a software GL paint of about 0.35 s):
+
+| | target | v1 bricks (Stream L) | v4 display copy |
+|---|---|---|---|
+| 2. inline, uncached | < 3 s | 3.9 to 4.9 s | 2.0 to 2.3 s (coarse at 0.35 to 0.85 s) |
+| 2. crossline, uncached | < 3 s | 3.5 s | 1.7 s |
+| 2. next inline, cached | < 1 s | 0.40 s | 0.35 to 0.38 s |
+| 3. time slice | < 5 s | 4.0 s | 1.1 s |
+| 4. first inline over 10 Mbps | < 5 s | 330 s | 0.7 to 1.1 s (coarse), level 0 at 34 s |
+| 4. bytes for that inline | | 392 MiB | 42 MB |
+| 5. tab peak | < 1.5 GB | 965 MiB | 883 to 916 MiB |
+
+Open: full resolution over 10 Mbps is still 34 s (31 MB of level-0
+display bricks); fewer, larger objects (range-read shards, plan section
+3) would cut the per-request cost on a real link, where every brick also
+pays a CORS preflight. Upload-stage timings at the tester shape are still
+not measured.
 
 ## 2026-09-22: large surveys, Stream C (conversion and upload)
 
@@ -33,11 +83,9 @@ What shipped:
   inline and crossline bit-identical to the local SEG-Y read; fails with
   the wrap removed).
 
-Open: the viewer still reads v4 at full float32 size (dequantised). The
-speed targets L missed (4: first inline over 10 Mbps; uncached 2) need a
-BrickSource v4 in the slice worker that fetches the u8 display bricks
-and the LOD levels directly. Before/after numbers for the upload stages
-are not yet measured against the tester survey shape.
+Open: before/after numbers for the upload stages are not yet measured
+against the tester survey shape. (The viewer reading the display copy
+directly is done: see the entry above.)
 
 ## 2026-09-22: large surveys, Stream L (viewer side)
 
