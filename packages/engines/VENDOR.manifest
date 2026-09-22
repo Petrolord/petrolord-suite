@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 738ade2d61ad68a9b1bfa83d8732a14cd50268cf
+# commit 54cf7c48cc7fcd03d1f1e99dbcdfd0fbb434724d
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 b45735ce0a92fedac8004ff81b088c4e52a3c497 README.md
@@ -104,7 +104,7 @@ d6db38e1ee991929117ce0c4027a18ebb349c882 __tests__/facilities.separator.dak.test
 72252f12e550b753743e10bd834b01f03828e931 __tests__/fluid.envelope.test.js
 8008d12d43b927761c8a451219c0d81236a975df __tests__/fluid.experiments.test.js
 0f5b3f77f1b92c6deb2af25bb57e1c03bee496b1 __tests__/fluid.flash.test.js
-ea609fbc97cd911fadcf53b1f0fd8eb0c74b1d84 __tests__/fluid.labTune.test.js
+0b844ec44b9835c23031bc738435f686c6e3eb38 __tests__/fluid.labTune.test.js
 d3c1e09e1dedcf22307ba3a7321fc069182157a3 __tests__/fluid.pr78.test.js
 80cb97128c75cb1a5dc419ceb48cfed6a99dc907 __tests__/fluid.separator.test.js
 af737299d0d9a9ba931d9fb48f738da9adbc1e26 __tests__/fluid.transport.test.js
@@ -336,7 +336,7 @@ d8e0bd20b81c4ae63504297890bdd1c62329140a engines/fluid/characterization.js
 0f1ca3375704a5e33316c9a67b19de62470c77a5 engines/fluid/envelope.js
 33dfb53b631b15b57d5553d3e55686ce5b7a8a27 engines/fluid/experiments.js
 8bf2b484608f8f4ffca3672ae9b8bd0c809fb5ab engines/fluid/flash.js
-af448d5f94cf591302547ab422e9f9f690ffe03e engines/fluid/labTune.js
+3e0f4c5589ee4672ba70697f0601ce13cffe3fd3 engines/fluid/labTune.js
 346159521805315addd85bc1898d60ee08a3e325 engines/fluid/pr78.js
 0305404519c988f38ff79a9cb8f8e354615465a1 engines/fluid/separator.js
 31471299c8fd2fbbe2995ab3738cc92a72335f74 engines/fluid/transport.js
