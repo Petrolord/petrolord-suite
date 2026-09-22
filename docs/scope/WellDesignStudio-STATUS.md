@@ -580,6 +580,76 @@ deviated.
   Point method covers typed coordinates, the empty design, Using MD,
   unreachable points and the drop back to vertical.
 
+## Tester fix: section view true scale and DLS colour (2026-09-22)
+
+Tester case Darm PlanB: kickoff at 2,000 m, 3 deg/30 m to 6.6 deg, drawn as
+a sharp corner. The section view was a Recharts panel that fitted VS and TVD
+independently (about 10:1 on that well), so a gentle build read as a kink.
+
+- **Section view is now an SVG at true scale** (`charts/SectionViewChart.jsx`;
+  `SectionViewPanel` keeps its name and props and delegates, so the Design tab
+  Section view, the Plots grid, the Surveys compare view and the harness all
+  change together). Equal length per pixel on VS and TVD, square grid cells,
+  frame measured with ResizeObserver. Targets, EOU band, overlays with legend,
+  the PPFG side panel and a nearest-station hover readout are kept.
+- **Scale picker** in the section header: 1:1 true scale (default), VS 2x/5x/10x
+  (horizontal exaggeration, the readable choice for a deep near-vertical well)
+  and TVD 2x/5x/10x (vertical exaggeration). The factor is printed inside the
+  plot ("True scale (1:1)", "Vertical exaggeration 5x", "Horizontal exaggeration
+  10x (VS stretched)"). One setting is shared by the Section view and the Plots
+  grid; elsewhere the chart keeps its own.
+- **Plan view** was already equal aspect (verified); it now prints True scale
+  (1:1) in its corner.
+- **DLS colour** toggle (toolbar, next to Targets) colours the path on the
+  section and plan views: sequential green ramp from 0 to the design's Max DLS,
+  segments above Max DLS thicker and red, legend on each plot. No Max DLS set:
+  ramp runs to the plan maximum and nothing is flagged.
+- **Wall plot PDF** (`services/reportPack.js`): its section plot had the same
+  independent fit; it is now true scale by default (`drawSectionView` takes a
+  `ratio`), and both wall-plot views print their scale on the plot.
+- Pure math in `services/sectionScale.js` (equal-aspect frame fit with a ratio,
+  exaggeration labels, DLS binning and colour runs). Tests:
+  `__tests__/sectionScale.test.jsx` (tester geometry: the drawn hold slope equals
+  6.6 deg at true scale and the old fit drew it above 40 deg; VE ratio; DLS at
+  and above Max DLS; chart prints the factor), `reportPack.test.js` (+1 assertion).
+
+## Tester item: offset wells on the Plots and Section views (2026-09-22)
+
+Stacked on the true-scale section work above.
+
+- **Offsets toggle** (toolbar, next to Targets, Section and Plots views) draws
+  offset wellbores on the section and plan views, labelled by well name, in
+  fixed-order colours distinct from the plan, targets and EOU.
+- **One loader, one candidate definition.** `services/offsetFrame.js`
+  (pure: `pickOffsetDesign`, `assembleOffsetCandidates`, `chooseDisplayOffsets`,
+  `offsetToChart`, `projectToSection`) and `services/offsetLoader.js` (async:
+  `loadSiteOffsetDesigns`, `loadOffsetCandidates`; never throws, failures are
+  notes, cooperative cancellation). The Anti-collision tab picker and the
+  Design tab 3D scene were refactored onto them, so there is no second copy of
+  the offset-loading logic. AC offset labels lost their em dash in the process.
+- **Which offsets.** The offsets ticked on the Anti-collision tab for this
+  design (the selection moved into the WellPlanningStore per design, so it also
+  survives tab switches now); else the offsets of the design's latest saved
+  anti-collision run (`wp_ac_runs.offsets`); else the site's other wellbores plus
+  registry wells whose wellhead is within 2 km plus the plan's horizontal reach,
+  nearest first, capped at 10. An inline note names the rule used.
+- **Frame.** Offset stations (grid metres) go through `computeWellPath` from the
+  offset's own head and KB; N/E are relative to this wellhead in this wellbore's
+  depth unit, VS is the projection on this plan's VS azimuth (same function the
+  section targets now use), and TVD is below this well's KB
+  (`tvdss_offset + kb_this`). A wellhead farther than `MAX_TARGET_REACH_M` is
+  refused as a different coordinate frame and listed in the note.
+- **EOU.** With EOU on and a magnetic reference, each offset gets 2 sigma plan
+  ellipses and a section TVD band (same `computeStationUncertainty` /
+  `eouPlanEllipses` / `eouSectionBand` as the plan; covariances cached per
+  offset). Without a magnetic reference the note says offset EOU is not drawn.
+- **Lazy.** Nothing loads until the toggle is on in Section or Plots; toggling
+  off or changing wellbore/design cancels the load.
+- Tests: `__tests__/offsetFrame.test.js` (10: 100 m east vertical offset at
+  e=100 and vs=100 sin(az); KB difference; ft wellbore; deviated offset;
+  refusals; candidate rules; selection priority), `__tests__/offsetLoader.test.js`
+  (2: failures become notes, cancellation).
+
 ## Tester fix: Minna / Nigeria CRS and datum transformation (2026-09-22)
 
 Tester: "The Edit site dialog lists only WGS 84 / UTM zones", asking for

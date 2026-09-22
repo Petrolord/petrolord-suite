@@ -8,20 +8,14 @@ import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { CHART_COLORS } from '@/utils/chartTheme';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { extentOf } from '../services/extent';
+import { niceStep, dlsRuns } from '../services/sectionScale';
+import DlsLegend from './DlsLegend';
 
 const PAD = 42;
 
-function niceStep(span) {
-  const raw = span / 6;
-  const mag = 10 ** Math.floor(Math.log10(raw || 1));
-  const n = raw / mag;
-  const step = n < 1.5 ? 1 : n < 3.5 ? 2 : n < 7.5 ? 5 : 10;
-  return step * mag;
-}
-
 const PlanViewChart = ({
   rows = [], targets = [], slots = [], leaseLines = [], unit = 'm',
-  extraPaths = [], ellipses = [], title = 'Plan view',
+  extraPaths = [], ellipses = [], title = 'Plan view', dlsScale = null,
 }) => {
   const holder = useRef(null);
   const [size, setSize] = useState({ w: 640, h: 420 });
@@ -90,6 +84,10 @@ const PlanViewChart = ({
     }
     return { step, lines };
   }, [frame]);
+
+  const runs = useMemo(() => (dlsScale
+    ? dlsRuns(rows, (r) => [r.e, r.n], (r) => r[dlsScale.key], dlsScale)
+    : null), [rows, dlsScale]);
 
   const pathD = rows.length
     ? `M ${rows.map((r) => `${X(r.e).toFixed(1)} ${Y(r.n).toFixed(1)}`).join(' L ')}`
@@ -167,6 +165,17 @@ const PlanViewChart = ({
             points={p.points.map(([px, py]) => `${X(px).toFixed(1)},${Y(py).toFixed(1)}`).join(' ')}
             fill="none" stroke={p.color || '#64748b'} strokeWidth={1.5} strokeDasharray={p.dash || ''} />
         ))}
+        {/* offset labels at the wellhead and at TD */}
+        {extraPaths.filter((p) => p.label && p.points.length).map((p, i) => {
+          const [hx, hy] = p.points[0];
+          const [tx, ty] = p.points[p.points.length - 1];
+          return (
+            <g key={`extralbl${i}`}>
+              <circle cx={X(hx)} cy={Y(hy)} r={2.5} fill={p.color || '#64748b'} />
+              <text x={X(tx) + 5} y={Y(ty) + 3} fontSize={9} fill="#334155">{p.label}</text>
+            </g>
+          );
+        })}
 
         {/* targets */}
         {targets.map((t) => (
@@ -185,18 +194,36 @@ const PlanViewChart = ({
             rx={Math.max(1, el.semiMajor * frame.scale)}
             ry={Math.max(1, el.semiMinor * frame.scale)}
             transform={`rotate(${(el.azimuthDeg || 0) - 90} ${X(el.e)} ${Y(el.n)})`}
-            fill="#0ea5e922" stroke="#0284c7" strokeWidth={1} strokeDasharray="3 2" />
+            fill={el.color ? 'none' : '#0ea5e922'} stroke={el.color || '#0284c7'} strokeWidth={1} strokeDasharray="3 2" />
         ))}
 
         {/* wellpath */}
-        {pathD && <path d={pathD} fill="none" stroke="#166534" strokeWidth={2} />}
+        {runs
+          ? runs.map((run, i) => (
+            <polyline key={`run${i}`}
+              points={run.points.map(([px, py]) => `${X(px).toFixed(1)},${Y(py).toFixed(1)}`).join(' ')}
+              fill="none" stroke={run.color} strokeWidth={run.over ? 4.5 : 2.5}
+              strokeLinecap="round" strokeLinejoin="round" />
+          ))
+          : pathD && <path d={pathD} fill="none" stroke="#166534" strokeWidth={2} />}
         {rows.length > 0 && (
           <>
             <circle cx={X(rows[0].e)} cy={Y(rows[0].n)} r={4} fill="#166534" />
             <circle cx={X(rows[rows.length - 1].e)} cy={Y(rows[rows.length - 1].n)} r={3.5} fill="none" stroke="#166534" strokeWidth={2} />
           </>
         )}
+
+        {/* scale note: the plan view is always equal aspect */}
+        <g data-testid="plan-scale-note">
+          <rect x={PAD + 4} y={PAD + 4} width={96} height={15} fill="#ffffff" fillOpacity={0.9} stroke={CHART_COLORS.grid} />
+          <text x={PAD + 9} y={PAD + 14.5} fontSize={9.5} fontWeight={600} fill={CHART_COLORS.axisLabel}>True scale (1:1)</text>
+        </g>
       </svg>
+      {dlsScale && (
+        <div className="pointer-events-none absolute" style={{ right: PAD + 4, top: PAD + 44 }}>
+          <DlsLegend scale={dlsScale} />
+        </div>
+      )}
       <ChartLogo style={{ height: 40 }} />
     </div>
   );
