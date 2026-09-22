@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Trash2, Plus, Play } from 'lucide-react';
 import { uncertaintyLabel } from '../services/wctRun';
 import { CostHistogramChart, SCurveChart, TornadoChart } from '../charts/WctCharts';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
+import { formatFull } from '@/lib/fullPrecision';
 
 const Card = ({ title, children, testId }) => (
   <div className="rounded border border-slate-800 bg-slate-900/40" data-testid={testId}>
@@ -50,6 +52,11 @@ const DIST_PARAMS = {
 };
 
 export default function RiskTab({ caseDraft, onCaseChange, res, mc, onRunMc, runningMc }) {
+  // W3 (D3): with Full precision on, the percentiles print cost in USD to the
+  // cent and days at 6 decimals; off, the card prints as before.
+  const { full } = useFullPrecision();
+  const costText = (v) => (full ? `${formatFull(v, 2)} USD` : `${musd(v)} MM`);
+  const daysText = (v) => (full ? `${formatFull(v, 6)} d` : `${v.toFixed(1)} d`);
   const risk = caseDraft.risk || {};
   const uncertainties = risk.uncertainties || [];
   const acts = caseDraft.program.activities || [];
@@ -167,11 +174,20 @@ export default function RiskTab({ caseDraft, onCaseChange, res, mc, onRunMc, run
               {['p10', 'p50', 'p90'].map((p) => (
                 <div key={p}>
                   <div className="text-[10px] uppercase text-slate-500">{p} cost</div>
-                  <div className="font-mono text-lime-300" data-testid={`wct-mc-cost-${p}`}>{musd(mc.cost[p])} MM</div>
-                  <div className="font-mono text-slate-300" data-testid={`wct-mc-days-${p}`}>{mc.days[p].toFixed(1)} d</div>
+                  <div className="font-mono text-lime-300" data-testid={`wct-mc-cost-${p}`}>{costText(mc.cost[p])}</div>
+                  <div className="font-mono text-slate-300" data-testid={`wct-mc-days-${p}`}>{daysText(mc.days[p])}</div>
                 </div>
               ))}
             </div>
+            {full && (
+              <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-slate-300" data-testid="wct-mc-full">
+                <div>mean cost <span className="font-mono">{formatFull(mc.cost.mean, 2)} USD</span></div>
+                <div>mean days <span className="font-mono">{formatFull(mc.days.mean, 6)} d</span></div>
+                <div className="col-span-2 text-slate-500">
+                  Run seed {caseDraft.risk?.seed ?? 'none'}; the same case, iteration count and seed reproduce these values exactly.
+                </div>
+              </div>
+            )}
             <div className="mt-2 text-[10px] text-slate-500" data-testid="wct-mc-meta">
               {mc.valid} valid of {mc.iterations} realizations{mc.failed ? ` (${mc.failed} skipped as invalid)` : ''};
               P10 is the low outcome, P90 the high (AFE convention).

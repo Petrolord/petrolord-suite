@@ -11,6 +11,7 @@ import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import StudioNotifications from '@/components/studio/StudioNotifications';
 import { BlendOptimizerProvider, useBlendOptimizer } from '@/contexts/BlendOptimizerContext';
+import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
 import PoolPanel from '@/components/blendoptimizer/PoolPanel';
 import RecipeResults from '@/components/blendoptimizer/RecipeResults';
 import BlendOptimizerHelpGuide from '@/components/blendoptimizer/BlendOptimizerHelpGuide';
@@ -59,6 +60,7 @@ const Workspace = () => {
                 onSave={persistence.manualSave}
                 disabled={!persistence.currentProjectId}
               />
+              <FullPrecisionToggle app="product-blending-optimizer" className="mb-2" />
               <BlendOptimizerHelpGuide />
             </div>
           </div>
@@ -84,7 +86,9 @@ const ProductBlendingOptimizer = () => (
       <meta name="description" content="Least-cost fuel blend recipes under octane, RVP, sulfur and viscosity specifications, with quality giveaway and shadow prices." />
     </Helmet>
     <BlendOptimizerProvider>
-      <Workspace />
+      <FullPrecisionProvider>
+        <Workspace />
+      </FullPrecisionProvider>
     </BlendOptimizerProvider>
   </>
 );

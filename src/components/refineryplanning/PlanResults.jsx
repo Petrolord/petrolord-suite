@@ -7,12 +7,14 @@ import { AlertTriangle } from 'lucide-react';
 import ChartFrame from '@/components/charts/ChartFrame';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { useRefineryPlanning } from '@/contexts/RefineryPlanningContext';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
 
 const fmt = (v, dp = 0) => (Number.isFinite(v) ? v.toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp }) : 'n/a');
 const COLORS = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#dc2626', '#0891b2'];
 
 const PlanResults = () => {
   const { plan } = useRefineryPlanning();
+  const { show } = useFullPrecision();
 
   if (plan.status !== 'optimal') {
     return (
@@ -95,7 +97,7 @@ const PlanResults = () => {
                   <td className="py-1.5 text-slate-400">{u.name}</td>
                   <td className="py-1.5 text-right font-mono text-slate-300">
                     {fmt(u.throughput)} bbl
-                    {u.utilisation !== null && <span className="text-slate-500"> ({(u.utilisation * 100).toFixed(0)}%)</span>}
+                    {u.utilisation !== null && <span className="text-slate-500"> ({show((u.utilisation * 100).toFixed(0), u.utilisation * 100)}%)</span>}
                   </td>
                 </tr>
               ))}

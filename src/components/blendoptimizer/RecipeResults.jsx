@@ -8,12 +8,14 @@ import { Input } from '@/components/ui/input';
 import ChartFrame from '@/components/charts/ChartFrame';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { useBlendOptimizer } from '@/contexts/BlendOptimizerContext';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
 
 const fmt = (v, dp = 2) => (Number.isFinite(v) ? v.toFixed(dp) : 'n/a');
 const COLORS = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#dc2626', '#0891b2'];
 
 const RecipeResults = () => {
   const { result, giveaway, inputs, setUnitValue } = useBlendOptimizer();
+  const { show } = useFullPrecision();
 
   if (result.status === 'invalid') {
     return (
@@ -52,7 +54,7 @@ const RecipeResults = () => {
         </div>
         <div className="rounded border border-slate-800 bg-slate-900/60 p-3">
           <p className="text-[11px] uppercase tracking-wide text-slate-400">Total</p>
-          <p className="text-xl font-bold text-white mt-1">${fmt(result.totalCost, 0)}</p>
+          <p className="text-xl font-bold text-white mt-1">${show(fmt(result.totalCost, 0), result.totalCost)}</p>
         </div>
         <div className="rounded border border-slate-800 bg-slate-900/60 p-3">
           <p className="text-[11px] uppercase tracking-wide text-slate-400">Volume</p>
@@ -84,7 +86,7 @@ const RecipeResults = () => {
                 fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
               }}
             />
-            <Tooltip {...TOOLTIP_STYLE} formatter={(v) => [`${fmt(v, 1)} bbl`, 'Volume']} />
+            <Tooltip {...TOOLTIP_STYLE} formatter={(v) => [`${show(fmt(v, 1), v)} bbl`, 'Volume']} />
             <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
             <Bar dataKey="volume" name="Volume">
               {recipeRows.map((r, i) => <Cell key={r.id} fill={COLORS[i % COLORS.length]} />)}
@@ -194,7 +196,7 @@ const RecipeResults = () => {
                 <tr key={row.name} className="border-b border-slate-800/60 last:border-0">
                   <td className="py-2 text-slate-300">{row.name}</td>
                   <td className="py-2 text-right font-mono text-white">
-                    {Number.isFinite(row.price) ? `$${fmt(row.price, 2)}` : 'n/a'}
+                    {Number.isFinite(row.price) ? `$${show(fmt(row.price, 2), row.price)}` : 'n/a'}
                     <span className="text-[10px] text-slate-500 font-sans">
                       {' '}per {row.per}
                     </span>

@@ -2,8 +2,13 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { calculateFacilityCost } from '@/utils/fdp/facilitiesCalculations';
 import { DollarSign } from 'lucide-react';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
+import { formatFull, MONEY_MM_DECIMALS } from '@/lib/fullPrecision';
 
 const FacilitiesCostEstimation = ({ facility }) => {
+    // W3 (D3): Full precision prints the estimate in $MM at 4 decimals.
+    const { full } = useFullPrecision();
+    const mm = (v) => (full ? formatFull(v, MONEY_MM_DECIMALS) : v.toFixed(1));
     if (!facility) return <div className="text-slate-500 p-4">Select a facility to view costs.</div>;
 
     const costs = calculateFacilityCost(facility);
@@ -16,14 +21,14 @@ const FacilitiesCostEstimation = ({ facility }) => {
                 <Card className="bg-slate-900 border-slate-800">
                     <div className="p-4">
                         <div className="text-xs text-slate-400 uppercase">Total CAPEX</div>
-                        <div className="text-2xl font-bold text-orange-400">${costs.capex.toFixed(1)}M</div>
+                        <div className="text-2xl font-bold text-orange-400">${mm(costs.capex)}M</div>
                         <div className="text-xs text-slate-500 mt-1">Initial investment</div>
                     </div>
                 </Card>
                 <Card className="bg-slate-900 border-slate-800">
                     <div className="p-4">
                         <div className="text-xs text-slate-400 uppercase">Annual OPEX</div>
-                        <div className="text-2xl font-bold text-orange-300">${costs.opex.toFixed(1)}M</div>
+                        <div className="text-2xl font-bold text-orange-300">${mm(costs.opex)}M</div>
                         <div className="text-xs text-slate-500 mt-1">Per year operation</div>
                     </div>
                 </Card>
@@ -31,7 +36,7 @@ const FacilitiesCostEstimation = ({ facility }) => {
                     <div className="p-4">
                         <div className="text-xs text-slate-400 uppercase">Decommissioning</div>
                         <div className="text-2xl font-bold text-orange-200" data-testid="decommissioning">
-                            ${costs.decommissioning.toFixed(1)}M
+                            ${mm(costs.decommissioning)}M
                         </div>
                         <div className="text-xs text-slate-500 mt-1">15 percent of the sized capex</div>
                     </div>
@@ -39,7 +44,7 @@ const FacilitiesCostEstimation = ({ facility }) => {
                 <Card className="bg-slate-900 border-slate-800">
                     <div className="p-4">
                         <div className="text-xs text-slate-400 uppercase">Lifecycle Cost</div>
-                        <div className="text-2xl font-bold text-white">${totalLifecycle.toFixed(1)}M</div>
+                        <div className="text-2xl font-bold text-white">${mm(totalLifecycle)}M</div>
                         <div className="text-xs text-slate-500 mt-1">{lifeOfField} years + decom</div>
                     </div>
                 </Card>

@@ -7,12 +7,17 @@ import { exportToCSV } from '@/utils/exportUtils';
 import CollapsibleSection from './CollapsibleSection';
 import BreakevenPlots from './BreakevenPlots';
 import { breakevenPercentileLabel } from './percentileLabels';
+import { useFullPrecision, FullPrecisionNote } from '@/components/fullprecision/FullPrecision';
+import { formatFull } from '@/lib/fullPrecision';
 
 const ResultsPanel = ({ results }) => {
   const {
     kpis, plotData, tornadoData, insights, seed, baseBreakeven, excludedIterations,
   } = results;
   const { toast } = useToast();
+  // W3 (D3): Full precision prints the breakeven prices at 4 decimals and adds
+  // the tornado as a table; off, the cards print as they always did.
+  const { full, show } = useFullPrecision();
 
   // Economics E1: this used to be a toast that said "Generating report"
   // and produced nothing. It writes a real file now, or says why it did
@@ -64,7 +69,7 @@ const ResultsPanel = ({ results }) => {
             <motion.div key={key} className="bg-white/5 p-4 rounded-lg">
               <p className="text-sm text-lime-200">{label}</p>
               <p className="text-3xl font-bold text-white mt-2">
-                {typeof kpis[key] === 'number' ? `${kpis[key].toFixed(2)}` : kpis[key]}
+                {typeof kpis[key] === 'number' ? show(`${kpis[key].toFixed(2)}`, kpis[key], 4) : kpis[key]}
                 <span className="text-lg text-lime-300">/STB</span>
               </p>
             </motion.div>
@@ -75,6 +80,12 @@ const ResultsPanel = ({ results }) => {
           discounting convention. Run seed {seed}: the same inputs and seed reproduce this
           result exactly.
         </p>
+        <FullPrecisionNote className="mt-1" />
+        {full && Number.isFinite(baseBreakeven) && (
+          <p className="text-xs text-slate-300 mt-1" data-testid="breakeven-base-full">
+            Deterministic base case: {formatFull(baseBreakeven, 4)} $/bbl
+          </p>
+        )}
       </CollapsibleSection>
 
       <CollapsibleSection title="Probabilistic Distributions & Sensitivity" icon={<Activity />} defaultOpen>
@@ -84,6 +95,33 @@ const ResultsPanel = ({ results }) => {
           tornadoData={tornadoData}
           kpis={kpis}
         />
+        {full && tornadoData?.y?.length > 0 && (
+          <div className="mt-4 bg-white/5 p-4 rounded-lg" data-testid="breakeven-tornado-table">
+            <p className="text-sm text-lime-200 mb-2">Tornado, change in breakeven price vs the base case ($/bbl)</p>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-slate-400 text-xs">
+                  <th className="text-left font-normal py-1">Variable</th>
+                  <th className="text-right font-normal py-1">Favourable end</th>
+                  <th className="text-right font-normal py-1">Adverse end</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tornadoData.y.map((name, i) => (
+                  <tr key={name} className="border-t border-white/10 text-white">
+                    <td className="py-1">{name}</td>
+                    <td className="py-1 text-right font-mono">{formatFull(tornadoData.low?.[i], 4)}</td>
+                    <td className="py-1 text-right font-mono">{formatFull(tornadoData.high?.[i], 4)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-[11px] text-slate-500 mt-2">
+              The favourable end is each variable at the end of its range that lowers the breakeven price; the
+              adverse end raises it. A dash means that end has no breakeven below $500 a barrel.
+            </p>
+          </div>
+        )}
       </CollapsibleSection>
 
       <CollapsibleSection title="Interpretation" icon={<Lightbulb />}>

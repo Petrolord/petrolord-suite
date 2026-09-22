@@ -9,9 +9,12 @@ import { Slider } from "@/components/ui/slider";
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Loader2, Save, TrendingUp } from 'lucide-react';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
+import { formatFull } from '@/lib/fullPrecision';
 
 const ProgressUpdateForm = ({ open, onOpenChange, project, kpis, onUpdateSaved }) => {
   const { toast } = useToast();
+  const { full } = useFullPrecision();
   const [loading, setLoading] = useState(false);
   
   const [status, setStatus] = useState('Green');
@@ -32,7 +35,7 @@ const ProgressUpdateForm = ({ open, onOpenChange, project, kpis, onUpdateSaved }
   }, [open, kpis]);
 
   const money = (v) => (typeof v === 'number' && Number.isFinite(v)
-    ? `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+    ? (full ? `$${formatFull(v, 2)}` : `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`)
     : 'No cost data');
 
   const handleSubmit = async (e) => {
@@ -136,7 +139,7 @@ const ProgressUpdateForm = ({ open, onOpenChange, project, kpis, onUpdateSaved }
                  <div>
                     <Label className="text-xs text-slate-500">Schedule Index (SPI)</Label>
                     <div className={`text-lg font-mono ${typeof kpis?.spi !== 'number' ? 'text-slate-400' : (kpis.spi < 1 ? 'text-red-400' : 'text-green-400')}`}>
-                        {typeof kpis?.spi === 'number' ? kpis.spi.toFixed(2) : 'n/a'}
+                        {typeof kpis?.spi === 'number' ? (full ? formatFull(kpis.spi, 6) : kpis.spi.toFixed(2)) : 'n/a'}
                     </div>
                     {/* EC6-1: planned value is time-phased to today, so this
                         index says early or late. When it cannot be computed the

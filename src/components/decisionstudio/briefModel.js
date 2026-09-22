@@ -9,6 +9,7 @@
 import { rollback } from '@/lib/decisionTree';
 import { firstMoveLabel, isIndifferentFirstMove } from '@/components/decisiontree/firstMoveLabel';
 import { optimizePortfolio } from '@/utils/portfolioOptimizer';
+import { formatFull, MONEY_MM_DECIMALS } from '@/lib/fullPrecision';
 
 const shortId = (id) => (id ? String(id).slice(0, 8) : 'n/a');
 const stamp = (iso) => (iso ? new Date(iso).toLocaleString() : 'n/a');
@@ -27,8 +28,10 @@ export const fmtPct = (fraction, digits = 1) => {
   return `${(Number(fraction) * 100).toFixed(digits)}%`;
 };
 
-export const fmtMM = (mm) => {
+export const fmtMM = (mm, full = false) => {
   if (mm == null || !Number.isFinite(Number(mm))) return 'N/A';
+  // W3 (D3): with Full precision on, $MM at 4 decimals with no grouping.
+  if (full) return `$${formatFull(Number(mm), MONEY_MM_DECIMALS)}M`;
   if (Math.abs(mm) >= 1000) return `$${(mm / 1000).toFixed(2)}B`;
   return `$${Number(mm).toFixed(1)}M`;
 };
@@ -56,7 +59,7 @@ export function economicsSection(mcRun) {
 
 // Decision section from a saved_decision_tree_projects row. The EMV is
 // recomputed from the stored tree by the canonical engine at build time.
-export function decisionSection(treeProject) {
+export function decisionSection(treeProject, { full = false } = {}) {
   const tree = treeProject?.inputs_data?.tree;
   if (!tree) return null;
   let annotated;
@@ -76,17 +79,17 @@ export function decisionSection(treeProject) {
     : [];
   const nextBest = alternatives.length ? Math.max(...alternatives.map((b) => b.branchValue)) : null;
   const rows = [
-    ['Optimal EMV', fmtMM(annotated.emv)],
+    ['Optimal EMV', fmtMM(annotated.emv, full)],
     ['Recommended first move', firstMoveLabel(annotated)],
   ];
   if (nextBest != null) {
-    rows.push(['Next best alternative', fmtMM(nextBest)]);
+    rows.push(['Next best alternative', fmtMM(nextBest, full)]);
     // EC4-1 (engines #192): a brief that prints a decision advantage of 0.00
     // under a named recommendation is telling the reader to pick one of two
     // options its own numbers cannot separate.
     rows.push(['Decision advantage', isIndifferentFirstMove(annotated)
       ? 'Indifferent at the precision shown'
-      : fmtMM(annotated.emv - nextBest)]);
+      : fmtMM(annotated.emv - nextBest, full)]);
   }
   return {
     heading: 'Decision analysis',
@@ -142,10 +145,10 @@ export function portfolioSection(portfolio, projects) {
  * Assemble the full brief model. Sections are included only when their
  * source is provided; every included section carries provenance.
  */
-export function buildBriefModel({ title, recommendation, preparedBy, mcRun, treeProject, portfolio, portfolioProjects }) {
+export function buildBriefModel({ title, recommendation, preparedBy, mcRun, treeProject, portfolio, portfolioProjects, full = false }) {
   const sections = [
     economicsSection(mcRun),
-    decisionSection(treeProject),
+    decisionSection(treeProject, { full }),
     portfolioSection(portfolio, portfolioProjects),
   ].filter(Boolean);
   return {

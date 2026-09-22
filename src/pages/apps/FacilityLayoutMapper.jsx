@@ -11,6 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
 import LayoutMapperHelpGuide from '@/components/facilitylayoutmapper/LayoutMapperHelpGuide';
 import { nextEquipmentTag } from '@/utils/facilities/layoutTags';
 import { DEFAULT_SPACING_INPUTS, normaliseSpacingInputs } from '@/utils/facilities/layoutSpacing';
+import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
 
 const iconMap = {
   'Wellhead': CircleDot,
@@ -93,7 +94,7 @@ const FacilityLayoutMapper = () => {
 
 
   return (
-    <>
+    <FullPrecisionProvider>
       <Helmet>
         <title>Facility Layout Mapper - Petrolord</title>
         <meta name="description" content="Draw scaled field layouts and schematics with standard oil & gas icons." />
@@ -116,6 +117,7 @@ const FacilityLayoutMapper = () => {
                 <LayoutMapperHelpGuide />
               </div>
             </div>
+            <FullPrecisionToggle app="facility-layout-mapper" className="mt-3" />
           </div>
           <div className="flex-grow overflow-y-auto">
             <ControlPanel
@@ -151,7 +153,7 @@ const FacilityLayoutMapper = () => {
           />
         </main>
       </div>
-    </>
+    </FullPrecisionProvider>
   );
 };
 

@@ -3,6 +3,7 @@ import React from 'react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useGasProcessing, nonFiniteNote } from '@/contexts/GasProcessingContext';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
 import {
   fmt, accentFor, Stat, ErrorNote, WarnNote, Field, NumberInput,
 } from './fields';
@@ -120,6 +121,7 @@ export const DewpointInputs = () => (
 
 export const DewpointResults = () => {
   const { dewpoint: d } = useGasProcessing();
+  const { full, show } = useFullPrecision();
   if (d.error) return <ErrorNote>{d.error}</ErrorNote>;
   const broken = nonFiniteNote(d.nonFinite);
   return (
@@ -127,9 +129,13 @@ export const DewpointResults = () => {
       <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Joule-Thomson screening</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Stat label="JT coefficient at the inlet" value={fmt(d.muFPerPsi * 100, 1)} unit="F/100 psi"
+          <Stat label="JT coefficient at the inlet" value={show(fmt(d.muFPerPsi * 100, 1), d.muFPerPsi * 100)} unit="F/100 psi"
             accent={accentFor(d.muFPerPsi)}
             hint="from the DAK z-factor's own temperature derivative at the upstream pressure; the march below re-reads it at twenty pressures along the let-down" />
+          {full && (
+            <Stat label="z temperature derivative at the inlet" value={show('', d.dzdT, 9)} unit="1/R"
+              hint="dz/dT of the DAK z-factor at the upstream pressure, the input to the JT coefficient" />
+          )}
           {Number.isFinite(d.muMeanFPerPsi) && (
             <Stat label="JT coefficient, mean over the drop"
               value={fmt(d.muMeanFPerPsi * 100, 1)} unit="F/100 psi"
@@ -140,12 +146,12 @@ export const DewpointResults = () => {
             <Stat label="Drop" value="--" hint={d.dropError} accent="text-amber-400" />
           ) : (
             <>
-              <Stat label="Cooling across the drop" value={fmt(d.dropF, 1)} unit="F"
+              <Stat label="Cooling across the drop" value={show(fmt(d.dropF, 1), d.dropF)} unit="F"
                 accent={accentFor(d.dropF)} />
-              <Stat label="Downstream temperature" value={fmt(d.t2F, 1)} unit="F"
+              <Stat label="Downstream temperature" value={show(fmt(d.t2F, 1), d.t2F)} unit="F"
                 accent={accentFor(d.t2F)} />
               <Stat label="Water the cold gas can hold"
-                value={d.waterAtOutlet?.error ? '--' : fmt(d.waterAtOutlet.lbPerMMscf, 1)} unit="lb/MMscf"
+                value={d.waterAtOutlet?.error ? '--' : show(fmt(d.waterAtOutlet.lbPerMMscf, 1), d.waterAtOutlet.lbPerMMscf)} unit="lb/MMscf"
                 accent={d.waterAtOutlet?.error ? 'text-amber-400' : accentFor(d.waterAtOutlet?.lbPerMMscf)}
                 hint={d.waterAtOutlet?.error || 'anything above this condenses at the cold spot'} />
             </>

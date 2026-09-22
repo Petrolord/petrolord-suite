@@ -15,11 +15,21 @@ import StackedCashflowChart from './charts/StackedCashflowChart';
 import SpiderChart from './charts/SpiderChart';
 import { HistogramChart, SCurveChart } from './charts/RiskCharts';
 import { RiskCaseCards, riskCases } from './riskCases';
+import MonteCarloSettings from './MonteCarloSettings';
+import { useFullPrecision, FullPrecisionNote } from '@/components/fullprecision/FullPrecision';
+import { formatFull } from '@/lib/fullPrecision';
 
-const ResultsPanel = ({ results }) => {
+const ResultsPanel = ({ results, onRerunRisk, riskRunning = false }) => {
   const { metrics, cashflow, sensitivity, risk, scenarios } = results;
+  // W3 (D3): with Full precision on, every money figure (held in million USD)
+  // prints at 4 decimals, costs as positive amounts; off, nothing changes.
+  const { full } = useFullPrecision();
 
-  const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact' }).format(val);
+  const compactCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact' }).format(val);
+  const formatCurrency = (val) => (full ? formatFull(val, 4) : compactCurrency(val));
+  // cashflow rows hold million USD; the product text scales them to USD first
+  const cfMoney = (mm, sign = '') => (full ? formatFull(mm, 4) : `${sign}${compactCurrency(mm * 1e6)}`);
+  const mmUnit = full ? <span className="text-xs font-normal text-slate-500"> $MM</span> : null;
   // EC6-1: the screening engine reports no internal rate of return when
   // there is none to report (every period the same sign, several roots, or a
   // rate above the band it searches), where it used to return the 1000
@@ -96,14 +106,14 @@ const ResultsPanel = ({ results }) => {
       doc.autoTable({
           head: [['Metric', 'Value', 'Unit']],
           body: [
-              ['Net Present Value (NPV)', formatCurrency(metrics.npv), '$'],
+              ['Net Present Value (NPV)', compactCurrency(metrics.npv), '$'],
               ['Internal Rate of Return (IRR)',
                 metrics.irr === null ? (IRR_REASON[metrics.irrStatus] || 'not defined') : metrics.irr.toFixed(1),
                 metrics.irr === null ? '' : '%'],
               ['Payback Period',
                 metrics.payback === null ? (paybackNote(metrics) || 'not defined') : formatYears(metrics.payback),
                 metrics.payback === null ? '' : 'Years'],
-              ['Total CAPEX', formatCurrency(metrics.totalCapex), '$']
+              ['Total CAPEX', compactCurrency(metrics.totalCapex), '$']
           ],
           startY: 35,
           theme: 'grid'
@@ -162,10 +172,11 @@ const ResultsPanel = ({ results }) => {
 
             {/* 1. Dashboard Tab */}
             <TabsContent value="dashboard" className="flex-1 overflow-y-auto space-y-4 mt-4">
+                <FullPrecisionNote />
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <Card className="bg-slate-900 border-slate-800 p-4">
                         <p className="text-xs text-slate-500 uppercase font-semibold">Net Present Value</p>
-                        <p className={`text-2xl font-bold ${getKPICardColor('NPV', metrics.npv)}`}>{formatCurrency(metrics.npv)}</p>
+                        <p className={`text-2xl font-bold ${getKPICardColor('NPV', metrics.npv)}`}>{formatCurrency(metrics.npv)}{mmUnit}</p>
                     </Card>
                     <Card className="bg-slate-900 border-slate-800 p-4">
                         <p className="text-xs text-slate-500 uppercase font-semibold">Internal Rate of Return</p>
@@ -185,7 +196,7 @@ const ResultsPanel = ({ results }) => {
                     </Card>
                     <Card className="bg-slate-900 border-slate-800 p-4">
                         <p className="text-xs text-slate-500 uppercase font-semibold">Max Exposure</p>
-                        <p className="text-2xl font-bold text-red-400">{formatCurrency(Math.abs(metrics.maxExposure))}</p>
+                        <p className="text-2xl font-bold text-red-400">{formatCurrency(Math.abs(metrics.maxExposure))}{mmUnit}</p>
                     </Card>
                 </div>
                 <Card className="bg-slate-900 border-slate-800 flex-1 min-h-[400px]">
@@ -205,6 +216,11 @@ const ResultsPanel = ({ results }) => {
                     </CardContent>
                 </Card>
                 <Card className="bg-slate-900 border-slate-800 overflow-hidden">
+                    {full && (
+                      <p className="text-[11px] text-amber-300 px-4 pt-3" data-testid="npv-cashflow-full">
+                        Million USD at 4 decimals. Royalty, OPEX, CAPEX and tax print as positive amounts.
+                      </p>
+                    )}
                     <Table>
                         <TableHeader>
                             <TableRow className="border-b-slate-800 bg-slate-950">
@@ -222,13 +238,13 @@ const ResultsPanel = ({ results }) => {
                             {cashflow.map((row, i) => (
                                 <TableRow key={i} className="border-b-slate-800 hover:bg-slate-800/50">
                                     <TableCell className="font-mono text-xs text-slate-400">{row.year}</TableCell>
-                                    <TableCell className="font-mono text-xs text-right text-emerald-400">{formatCurrency(row.grossRevenue * 1e6)}</TableCell>
-                                    <TableCell className="font-mono text-xs text-right text-slate-400">-{formatCurrency(row.royalty * 1e6)}</TableCell>
-                                    <TableCell className="font-mono text-xs text-right text-amber-400">-{formatCurrency(row.opex * 1e6)}</TableCell>
-                                    <TableCell className="font-mono text-xs text-right text-blue-400">-{formatCurrency(row.capex * 1e6)}</TableCell>
-                                    <TableCell className="font-mono text-xs text-right text-red-400">-{formatCurrency(row.tax * 1e6)}</TableCell>
-                                    <TableCell className={`font-mono text-xs text-right font-bold ${row.ncf >= 0 ? 'text-white' : 'text-red-400'}`}>{formatCurrency(row.ncf * 1e6)}</TableCell>
-                                    <TableCell className="font-mono text-xs text-right text-slate-500">{formatCurrency(row.cumulativeNCF * 1e6)}</TableCell>
+                                    <TableCell className="font-mono text-xs text-right text-emerald-400">{cfMoney(row.grossRevenue)}</TableCell>
+                                    <TableCell className="font-mono text-xs text-right text-slate-400">{cfMoney(row.royalty, '-')}</TableCell>
+                                    <TableCell className="font-mono text-xs text-right text-amber-400">{cfMoney(row.opex, '-')}</TableCell>
+                                    <TableCell className="font-mono text-xs text-right text-blue-400">{cfMoney(row.capex, '-')}</TableCell>
+                                    <TableCell className="font-mono text-xs text-right text-red-400">{cfMoney(row.tax, '-')}</TableCell>
+                                    <TableCell className={`font-mono text-xs text-right font-bold ${row.ncf >= 0 ? 'text-white' : 'text-red-400'}`}>{cfMoney(row.ncf)}</TableCell>
+                                    <TableCell className="font-mono text-xs text-right text-slate-500">{cfMoney(row.cumulativeNCF)}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
@@ -311,14 +327,42 @@ const ResultsPanel = ({ results }) => {
                         </CardContent>
                     </Card>
                 </div>
+                {full && sensitivity && (
+                    <Card className="bg-slate-900 border-slate-800" data-testid="npv-sensitivity-table">
+                        <CardHeader><CardTitle className="text-sm text-slate-300">Sensitivity sweep (NPV, million USD)</CardTitle></CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="border-b-slate-800">
+                                        <TableHead className="text-slate-300">Variable</TableHead>
+                                        <TableHead className="text-right text-slate-400">At 30 percent lower</TableHead>
+                                        <TableHead className="text-right text-slate-400">Base</TableHead>
+                                        <TableHead className="text-right text-slate-400">At 30 percent higher</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {sensitivity.map((s) => (
+                                        <TableRow key={s.name} className="border-b-slate-800">
+                                            <TableCell className="text-slate-300">{s.name}</TableCell>
+                                            <TableCell className="text-right font-mono text-slate-300">{formatFull(s.lowParamNPV, 4)}</TableCell>
+                                            <TableCell className="text-right font-mono text-slate-300">{formatFull(s.baseNPV, 4)}</TableCell>
+                                            <TableCell className="text-right font-mono text-slate-300">{formatFull(s.highParamNPV, 4)}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                )}
             </TabsContent>
 
             {/* 5. Risk Tab */}
             <TabsContent value="risk" className="flex-1 overflow-y-auto space-y-4 mt-4">
+                {full && <MonteCarloSettings risk={risk} onRun={onRerunRisk} running={riskRunning} />}
                 <div className="grid grid-cols-4 gap-4 mb-2">
                     <Card className="bg-slate-900 border-slate-800 p-4 col-span-1">
                          <p className="text-xs text-slate-500 uppercase font-semibold">EMV (Expected Value)</p>
-                         <p className="text-xl font-bold text-blue-400">{risk ? formatCurrency(risk.emv) : '-'}</p>
+                         <p className="text-xl font-bold text-blue-400" data-testid="npv-risk-emv">{risk ? formatCurrency(risk.emv) : '-'}{risk ? mmUnit : null}</p>
                     </Card>
                     <div className="col-span-3">
                         <RiskCaseCards risk={risk} formatValue={formatCurrency} />

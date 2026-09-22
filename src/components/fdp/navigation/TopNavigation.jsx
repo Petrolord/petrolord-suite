@@ -18,6 +18,7 @@ import { useNavigate } from 'react-router-dom';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import FdpHelpGuide from '@/components/fdp/FdpHelpGuide';
+import { FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
 
 const TopNavigation = () => {
     const { state, actions, persistence } = useFDP();
@@ -105,6 +106,7 @@ const TopNavigation = () => {
                     Export
                 </Button>
 
+                <FullPrecisionToggle app="fdp-accelerator" className="mr-2" />
                 <FdpHelpGuide />
 
                 <div className="h-6 w-px bg-slate-700 mx-2"></div>
