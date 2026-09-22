@@ -4,6 +4,8 @@ import React from 'react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useHeatExchanger } from '@/contexts/HeatExchangerContext';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
+import { formatFull } from '@/lib/fullPrecision';
 import { fmt, Stat, Row, ErrorNote, WarnNote, InfoNote, Field, NumberInput } from './fields';
 
 export const StreamInputs = () => {
@@ -142,6 +144,7 @@ const RESISTANCE_ROWS = [
 
 export const SizingResults = () => {
   const { thermal, coefficient, sizing } = useHeatExchanger();
+  const { full, show } = useFullPrecision();
   if (thermal.error) return <ErrorNote>{thermal.error}</ErrorNote>;
   return (
     <div className="space-y-4">
@@ -157,17 +160,21 @@ export const SizingResults = () => {
           </div>
           {thermal.arrangement === 'shell' && (
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <Stat label="P" value={fmt(thermal.p, 3)} />
-              <Stat label="R" value={fmt(thermal.r, 3)} />
+              <Stat label="P" value={show(fmt(thermal.p, 3), thermal.p)} />
+              <Stat label="R" value={show(fmt(thermal.r, 3), thermal.r)} />
               <Stat label="Shells in series"
                 value={thermal.shellPassesUsed === null ? '--' : fmt(thermal.shellPassesUsed, 0)}
                 hint="a whole number, and the engine refuses a fraction" />
               <Stat label="F correction"
-                value={thermal.fError ? 'unreachable' : fmt(thermal.f, 3)}
+                value={thermal.fError ? 'unreachable' : show(fmt(thermal.f, 3), thermal.f)}
                 accent={thermal.fError ? 'text-red-400' : (thermal.f < 0.8 ? 'text-amber-400' : 'text-emerald-400')}
                 hint="computed from the published closed form rather than read off a chart" />
               <Stat label="Corrected LMTD"
                 value={thermal.fError ? '--' : fmt(thermal.lmtdF * thermal.f, 1)} unit="F" />
+              {full && !thermal.fError && Number.isFinite(thermal.fResult?.p1) && (
+                <Stat label="Equivalent single-shell P" value={formatFull(thermal.fResult.p1)}
+                  hint="the P one shell pass would need for the same F" />
+              )}
             </div>
           )}
           {thermal.fError && <ErrorNote>{thermal.fError}</ErrorNote>}
