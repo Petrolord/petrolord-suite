@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/context-menu';
 import { SURFACE_EXPORT_FORMATS } from '../../services/surfacesService';
 import StorageMeter from '../StorageMeter';
+import WellDrawBadge, { wellRowTitle } from './WellDrawBadge';
 import {
   horizonColor, faultColor, wellColor, surfaceColor,
 } from './interpretationColors';
@@ -127,15 +128,17 @@ const geometrySummary = (meta) => (meta?.il
   : 'No geometry recorded');
 
 // The active volume's slice-plane children (Petrel-style): one row per
-// orientation with its own visibility eye. The eye shows/hides that
-// plane's footprint in the MAP window (the time slice as an amplitude
-// raster, inline/crossline as location lines); clicking the row makes it
-// the Section window's orientation.
+// orientation with its own visibility eye. The eye is the workspace's
+// ONE plane visibility (useSliceVisibility): it shows or hides the plane
+// in the 3D window, its intersection line in the Section window and its
+// footprint in the Map window (the time slice as an amplitude raster,
+// inline/crossline as location lines). Clicking the row makes it the
+// Section window's orientation.
 const PLANE_ICONS = { inline: Rows, xline: Columns, time: Clock };
 const PLANE_TITLES = {
-  inline: 'Inline plane — eye shows its location line in the Map window; click to open in the Section window',
-  xline: 'Crossline plane — eye shows its location line in the Map window; click to open in the Section window',
-  time: 'Time slice — eye shows the amplitude slice in the Map window; click to open in the Section window',
+  inline: 'Inline plane. The eye shows or hides it in the 3D, Section and Map windows; click to open it in the Section window',
+  xline: 'Crossline plane. The eye shows or hides it in the 3D, Section and Map windows; click to open it in the Section window',
+  time: 'Time slice. The eye shows or hides it in the 3D, Section and Map windows; click to open it in the Section window',
 };
 
 /**
@@ -151,7 +154,7 @@ export default function SeismicExplorer({ tree, actions }) {
     surfaces, surfaceBusyId, visibleSurfaceIds,
     culture, cultureBusyId, visibleCultureIds,
     faults, visibleFaultIds, faultBusyId,
-    wells, visibleWellIds, wellBusyId, wellsError,
+    wells, visibleWellIds, wellBusyId, wellsError, wellDrawStatus = {},
     savedTraverses, traverseSavedId,
     slicePlanes, horizonColorById,
     appPaths = {},
@@ -793,7 +796,9 @@ export default function SeismicExplorer({ tree, actions }) {
               meta={`${w.deviation?.length >= 2 ? `${w.deviation.length} stn` : 'vertical'}`
                 + `${w.tops?.length ? ` · ${w.tops.length} tops` : ''}`
                 + `${w.checkshots?.length ? ' · T-D' : ''}`}
-              title={w.td_md_m ? `TD ${Math.round(w.td_md_m)} m MD` : undefined}
+              title={wellRowTitle(w, visibleWellIds.has(w.id) ? wellDrawStatus[w.id] : null)}
+              badge={visibleWellIds.has(w.id)
+                ? <WellDrawBadge status={wellDrawStatus[w.id]} wellId={w.id} /> : null}
               onClick={() => actions.toggleWell(w)}
               menu={(
                 <>

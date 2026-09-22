@@ -27,7 +27,7 @@ import { agcGainMap, wiggleDeviations, varAreaRuns } from '../engine/displayEnha
 import { snapPick } from '../engine/horizonTrack';
 import { shiftedSample } from '../engine/flatten';
 import { projectStickToTraverse } from '../engine/traverse';
-import { projectWellToSection } from '../engine/wellSection';
+import { wellSectionMarks } from '../lib/wellDisplay';
 import { ViewTransform, MIN_ZOOM, MAX_ZOOM } from '../viewer/viewTransform';
 import {
   drawAxes, drawScaleBar, drawNorthArrow, drawColorbar,
@@ -119,13 +119,19 @@ const gutters = (showAxes) => (showAxes ? { left: 52, top: 24 } : { left: 0, top
  *   ST5 flatten on a horizon: per-trace offsets in samples (NaN =
  *   untracked, unshifted). The renderer shifts the image in the shader;
  *   every overlay and the pick inverse apply the same offsets here.
+ * @param {Array<{axis:'x'|'y', at:number, color:string}>} [p.planeMarks]
+ *   dashed lines where the other VISIBLE slice planes cut this section
+ *   (viewer/planeMarks.planeMarksFor); hidden planes are simply absent
+ * @param {?{inline:number, xline:number}} [p.wellCorridor] well projection
+ *   half-width in lattice cells per section orientation (the ribbon's
+ *   "Well projection distance"); null = the engine default
  */
 function SliceView({
   slice, geom, manifest, orientation, sliceIndex, display, overlays,
   pickMode, ghost, loading, onPick, onPickEnd, onStepSlice, height = 520,
   vexag: vexagProp, onVexagChange, emptyHint, depthConv = null, onCursor = null,
   cameraApi = null, overlaySlice = null, overlayDisplay = null,
-  depthAxisInfo = null, flatten = null,
+  depthAxisInfo = null, flatten = null, planeMarks = null, wellCorridor = null,
 }) {
   const wrapRef = useRef(null);        // fullscreen target (toolbar + view)
   const viewportRef = useRef(null);    // the canvas container
@@ -190,6 +196,7 @@ function SliceView({
     flatten,
     slice, geom, manifest, orientation, sliceIndex, display, overlays,
     pickMode, ghost, prefs, gutter: g, depthConv, onCursor, agcMap, depthAxisInfo,
+    planeMarks, wellCorridor,
   };
 
   // ---- axis metadata per orientation ----------------------------------
@@ -319,6 +326,32 @@ function SliceView({
     // ST5 flatten: every overlay sample shifts by its trace's offset
     const flatOff = (ori !== 'time' && p.flatten?.offsets) ? p.flatten.offsets : null;
     const sh = (z, tr) => (flatOff ? shiftedSample(z, flatOff[tr]) : z);
+
+    // intersections with the other visible slice planes (the explorer
+    // eyes / 3D Planes menu state); a time line on a flattened or depth
+    // section has no single row, so only column lines draw there
+    if (p.planeMarks?.length) {
+      ctx.save();
+      ctx.lineWidth = Math.max(1, dpr);
+      ctx.setLineDash([6 * dpr, 5 * dpr]);
+      for (const m of p.planeMarks) {
+        if (m.axis === 'y' && ori !== 'time' && (flatOff || p.depthAxisInfo)) continue;
+        ctx.strokeStyle = m.color;
+        ctx.globalAlpha = 0.8;
+        ctx.beginPath();
+        if (m.axis === 'x') {
+          const x = t.worldToScreen(m.at + 0.5, 0).x;
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, H);
+        } else {
+          const y = t.worldToScreen(0, m.at + 0.5).y;
+          ctx.moveTo(0, y);
+          ctx.lineTo(W, y);
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
 
     // stored surfaces share the horizon overlay contract (sample-index
     // lattice grids) and draw in the same loop, dashed so a registry
@@ -496,6 +529,7 @@ function SliceView({
           continue;
         }
         let proj;
+        let sectionTops = null;
         if (ori === 'traverse') {
           let c = wellProjRef.current.get(w.points);
           if (!c || c.positions !== posn) {
@@ -504,7 +538,10 @@ function SliceView({
           }
           proj = c.proj;
         } else {
-          proj = projectWellToSection(w.points, ori, idx);
+          // corridor from the ribbon's projection distance (cells)
+          const marks = wellSectionMarks(w, ori, idx, p.wellCorridor?.[ori] ?? undefined);
+          proj = marks.path;
+          sectionTops = marks.tops;
         }
         if (proj) {
           ctx.beginPath();
@@ -517,12 +554,13 @@ function SliceView({
           }
           ctx.stroke();
         }
-        for (const tp of w.tops || []) {
-          const tv = ori === 'traverse'
-            ? projectStickToTraverse([tp], posn)
-            : projectWellToSection([tp], ori, idx);
+        const topMarks = sectionTops || (w.tops || []).map((tp) => {
+          const tv = projectStickToTraverse([tp], posn);
           const at = tv && tv[0];
-          if (!at || at.s == null) continue;
+          return at && at.s != null ? { name: tp.name, trace: at.trace, s: at.s } : null;
+        }).filter(Boolean);
+        for (const at of topMarks) {
+          const tp = at;
           const s = t.worldToScreen(at.trace + 0.5, sh(at.s, at.trace) + 0.5);
           const h = 5 * dpr;
           ctx.beginPath();
@@ -940,7 +978,9 @@ function SliceView({
   }, [slice, overlayDisplay, scheduleView]);
 
   // overlays / prefs / ghost mode / depth conversion changed -> repaint 2D layers
-  useEffect(() => { scheduleView(); }, [overlays, prefs, ghost, depthConv, scheduleView]);
+  useEffect(() => {
+    scheduleView();
+  }, [overlays, prefs, ghost, depthConv, planeMarks, wellCorridor, scheduleView]);
 
   // controlled exaggeration (shared with the 3D window)
   useEffect(() => {

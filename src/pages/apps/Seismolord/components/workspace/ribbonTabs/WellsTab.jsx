@@ -5,11 +5,13 @@
 import React from 'react';
 import { PlusCircle, Eye, EyeOff, Ruler, Waves } from 'lucide-react';
 import { RibbonGroup, RibbonButton } from '../Ribbon';
+import WellProjectionInput from '../WellProjectionInput';
 
 export default function WellsTab({
   openWellImport, setAllWellsVisible, wellsCount,
   openCalibrate, velocityForDisplay, visibleWells, horizons,
   openSynthetics, hasVolume,
+  projectionM = null, setProjectionM = null,
 }) {
   return (
     <>
@@ -33,6 +35,12 @@ export default function WellsTab({
           disabled={!wellsCount}
         />
       </RibbonGroup>
+
+      {setProjectionM && (
+        <RibbonGroup label="Display">
+          <WellProjectionInput distanceM={projectionM} onChange={setProjectionM} />
+        </RibbonGroup>
+      )}
 
       <RibbonGroup label="Tie">
         <RibbonButton

@@ -52,13 +52,14 @@ export function placeWellsForHost(wells, hostTag, customDefs = {}) {
         });
         converted += 1;
       } catch {
-        skipped.push({ name: w.name, reason: `cannot transform ${normalizeTag(w.crs)}` });
+        skipped.push({ id: w.id, name: w.name, reason: `cannot transform ${normalizeTag(w.crs)}` });
       }
     } else if (rel === 'unknown') {
       out.push({ ...w, crsStatus: 'unverified' });
       unverified += 1;
     } else {
       skipped.push({
+        id: w.id,
         name: w.name,
         reason: 'local grid data cannot be placed on this frame',
       });

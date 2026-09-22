@@ -56,7 +56,7 @@ import {
   extractStratalSlice, bricksForStratalSlice,
 } from '../engine/horizonAmplitude';
 import { flattenOffsets, datumForHorizon } from '../engine/flatten';
-import { makeTvdssToTwt, buildWellLatticePath } from '../engine/wellSection';
+import { buildWellSections, corridorCells } from '../lib/wellDisplay';
 import {
   depthAxisFor, depthStretchSlice, depthRowGrid, depthRowOfSample,
 } from '../engine/depthConvert';
@@ -109,25 +109,15 @@ import { horizonColor, faultColor, surfaceColor } from './workspace/interpretati
 import useWells from '../hooks/useWells';
 import useBackendStatus from '../hooks/useBackendStatus';
 import useSlicePlayer from '../hooks/useSlicePlayer';
+import useSliceVisibility from '../hooks/useSliceVisibility';
+import useWellProjection from '../hooks/useWellProjection';
+import { planeMarksFor } from '../viewer/planeMarks';
 import { surveyValueToIndex, indexToSurveyValue, stepIndex } from '../lib/sliceNav';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 
 const NULL_F32 = Math.fround(NULL_VALUE);
 
 const DRAFT_COLOR = '#facc15';
-
-// Explorer slice-plane visibility (Feature: volume tree children). Same
-// localStorage idiom as the map/cube layer prefs — a display preference,
-// not project data.
-const SLICE_VIS_KEY = 'seismolord.sliceVis.v1';
-const DEFAULT_SLICE_VIS = { inline: false, xline: false, time: false };
-const loadSliceVis = () => {
-  try {
-    return { ...DEFAULT_SLICE_VIS, ...JSON.parse(localStorage.getItem(SLICE_VIS_KEY) || '{}') };
-  } catch {
-    return { ...DEFAULT_SLICE_VIS };
-  }
-};
 
 // storage base URL without touching the shared client module
 const storageBase = () => supabase.storage.from('seismic')
@@ -305,9 +295,12 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   // slice scrub's cancellation exactly like an in-flight traverse
   const ampBricksRef = useRef(null);
 
-  // explorer slice-plane toggles + the assembled time slice the Map
-  // window rasters (independent of the Section window's slice)
-  const [sliceVis, setSliceVis] = useState(loadSliceVis);
+  // slice-plane visibility: ONE state for the explorer eyes, the 3D
+  // planes, the Section window's intersection lines and the Map (saved
+  // per volume, see useSliceVisibility) + the assembled time slice the
+  // Map window rasters (independent of the Section window's slice)
+  const sliceVisApi = useSliceVisibility({ volumeId: volume?.id || null });
+  const { sliceVis } = sliceVisApi;
   const [mapTimeSlice, setMapTimeSlice] = useState(null);
   const mapSliceReqRef = useRef(0);
   const mapSliceBricksRef = useRef(null);       // Set<brickKey> while assembling
@@ -604,33 +597,63 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     [manifest],
   );
 
-  // wells in TWT: per-well T(z) (its own checkshots first, else the
-  // volume model inverted — plan decision #4, never mixed) + the dense
-  // lattice path with tops; wells without either stay map-only
-  const wellSections = useMemo(() => {
-    if (!wells || !wells.length || !manifest || !geom) return [];
-    if (!affine) return [];
-    const dtUs = manifest.geometry.dt_us;
-    const maxTwtMs = ((geom.ns - 1) * dtUs) / 1000;
-    const out = [];
-    for (const w of wells) {
-      // W3.3: a committed tie-derived checkshot set wins over imported
-      const timeConv = makeTvdssToTwt({
-        checkshots: effectiveCheckshots(w).rows,
-        velocity: velocityForDisplay,
-        boundaries: velBoundaries,
-        dtUs,
-        maxTwtMs,
-      });
-      if (!timeConv) continue;
-      const built = buildWellLatticePath(w, { affine, timeConv, geom, dtUs });
-      if (!built) continue;
-      out.push({
-        id: w.id, name: w.name, color: w.color, source: timeConv.source, ...built,
-      });
+  // wells in TWT: per-well T(z) (its own checkshots first, a committed
+  // tie-derived set winning over imported; else the volume model
+  // inverted; plan decision #4, never mixed) + the dense lattice path
+  // with tops. A well that cannot be drawn gets a REASON (tester
+  // feedback 2026-09-22) shown on its explorer row and in a toast.
+  const wellBuild = useMemo(() => {
+    if (!manifest || !geom) return { sections: [], skipped: [] };
+    return buildWellSections({
+      wells,
+      geom,
+      dtUs: manifest.geometry.dt_us,
+      affine,
+      velocity: velocityForDisplay,
+      boundaries: velBoundaries,
+      checkshotsOf: (w) => effectiveCheckshots(w).rows,
+    });
+  }, [wells, manifest, geom, affine, velocityForDisplay, velBoundaries]);
+  const wellSections = wellBuild.sections;
+
+  // per visible well: drawn (with its T-D source) or why not; CRS skips
+  // come from the placement guard above
+  const wellDrawStatus = useMemo(() => {
+    const out = {};
+    if (!manifest) return out;
+    for (const w of wellSections) out[w.id] = { drawn: true, source: w.source };
+    for (const k of wellBuild.skipped) out[k.id] = { drawn: false, code: k.code, reason: k.reason };
+    for (const k of wellsPlacement.skipped) {
+      if (k.id) out[k.id] = { drawn: false, code: 'crs', reason: `Not placed on this survey: ${k.reason}.` };
     }
     return out;
-  }, [wells, manifest, geom, affine, velocityForDisplay, velBoundaries]);
+  }, [manifest, wellSections, wellBuild.skipped, wellsPlacement.skipped]);
+
+  // one toast per well, reason and volume (the badge stays on the row);
+  // the JSON key keeps the effect from re-running on identical content
+  const wellToastedRef = useRef(new Set());
+  const wellSkipKey = JSON.stringify(wellBuild.skipped.map((k) => [k.id, k.code, k.name, k.reason]));
+  const wellSkipVolume = volume?.id || '';
+  useEffect(() => {
+    const fresh = JSON.parse(wellSkipKey).filter(([id, code]) => {
+      const key = `${wellSkipVolume}|${id}|${code}`;
+      if (wellToastedRef.current.has(key)) return false;
+      wellToastedRef.current.add(key);
+      return true;
+    });
+    if (!fresh.length) return;
+    toast({
+      title: fresh.length === 1 ? 'Well not drawn on the seismic' : `${fresh.length} wells not drawn on the seismic`,
+      description: fresh.map(([, , name, reason]) => `${name}: ${reason}`).join(' '),
+    });
+  }, [wellSkipKey, wellSkipVolume, toast]);
+
+  // "Well projection distance" (Wells tab) -> corridor cells per section
+  const wellProjection = useWellProjection(sessionEpoch);
+  const wellCorridor = useMemo(
+    () => corridorCells(wellProjection.distanceM, affine),
+    [wellProjection.distanceM, affine],
+  );
 
   const maxIndex = useMemo(() => {
     if (!geom) return 0;
@@ -961,7 +984,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
         if (Array.isArray(pr.visibleSurfaceIds)) {
           setVisibleSurfaceIds(new Set(pr.visibleSurfaceIds));
         }
-        if (pr.sliceVis) setSliceVis(pr.sliceVis);
+        if (pr.sliceVis) sliceVisApi.restore(pr.sliceVis);
         if (Number.isFinite(pr.vexag)) setVexag(pr.vexag);
         setFlattenHorizonId(pr.flattenHorizonId && hz.some((h) => h.id === pr.flattenHorizonId) ? pr.flattenHorizonId : null);
         setTerminations(Array.isArray(pr.terminations) ? pr.terminations.filter((m) => Number.isFinite(m.il) && Number.isFinite(m.xl) && Number.isFinite(m.sample)) : []);
@@ -2018,13 +2041,13 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
 
   horizonsRef.current = horizons;
 
-  useEffect(() => {
-    try { localStorage.setItem(SLICE_VIS_KEY, JSON.stringify(sliceVis)); } catch { /* private mode */ }
-  }, [sliceVis]);
+  const toggleSlicePlane = sliceVisApi.toggle;
 
-  const toggleSlicePlane = useCallback((o) => {
-    setSliceVis((v) => ({ ...v, [o]: !v[o] }));
-  }, []);
+  // dashed lines where the other VISIBLE planes cut the Section window
+  const planeMarks = useMemo(
+    () => planeMarksFor(orientation, indices, sliceVis),
+    [orientation, indices, sliceVis],
+  );
 
   // Assemble the map's time slice whenever its toggle is on and the time
   // position moves. Bricks are shielded from the slice scrub's
@@ -3001,6 +3024,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     visibleWellIds: wellsApi.visibleIds,
     wellBusyId: wellsApi.busyId,
     wellsError: wellsApi.error,
+    wellDrawStatus,
     savedTraverses,
     traverseSavedId,
   };
@@ -3231,6 +3255,8 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
               horizons={horizons}
               openSynthetics={() => setWinFocus((f) => ({ key: 'synthetic', seq: (f?.seq || 0) + 1 }))}
               hasVolume={!!manifest}
+              projectionM={wellProjection.distanceM}
+              setProjectionM={wellProjection.setDistanceM}
             />
           ),
         },
@@ -3334,6 +3360,8 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
                   onVexagChange={setVexag}
                   cameraApi={sectionCameraApi}
                   flatten={depthSection ? null : flatten}
+                  planeMarks={planeMarks}
+                  wellCorridor={wellCorridor}
                 />
               ),
             },
@@ -3350,6 +3378,8 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
                   onChangeIndex={changeIndex}
                   steps={player.steps}
                   activeOrientation={orientation}
+                  sliceVis={sliceVis}
+                  onToggleSlicePlane={toggleSlicePlane}
                   display={display}
                   vexag={vexag}
                   horizons={resolvedHorizons}
