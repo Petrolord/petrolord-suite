@@ -12,6 +12,7 @@ import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import StudioNotifications from '@/components/studio/StudioNotifications';
 import { EnergyEfficiencyProvider, useEnergyEfficiency } from '@/contexts/EnergyEfficiencyContext';
+import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
 import EfficiencyInputs from '@/components/energyefficiency/EfficiencyInputs';
 import CombustionResults from '@/components/energyefficiency/CombustionResults';
 import UtilitiesResults from '@/components/energyefficiency/UtilitiesResults';
@@ -63,6 +64,7 @@ const Workspace = () => {
                 onSave={persistence.manualSave}
                 disabled={!persistence.currentProjectId}
               />
+              <FullPrecisionToggle app="energy-efficiency-studio" className="mb-2" />
               <EnergyEfficiencyHelpGuide />
             </div>
           </div>
@@ -97,7 +99,9 @@ const EnergyEfficiencyStudio = () => (
       <meta name="description" content="Fired-heater efficiency by the indirect stack-loss method, excess-air optimisation, steam system screening, energy intensity and pinch heat-integration targets." />
     </Helmet>
     <EnergyEfficiencyProvider>
-      <Workspace />
+      <FullPrecisionProvider>
+        <Workspace />
+      </FullPrecisionProvider>
     </EnergyEfficiencyProvider>
   </>
 );
