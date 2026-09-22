@@ -1,6 +1,43 @@
 # Seismolord — STATUS
 
-Last updated: 2026-09-22 (large surveys Stream L: slice worker, local-file view, budgeted cache; tester feedback: navigation, slice player, slice toggles, wells, stability; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
+Last updated: 2026-09-22 (large surveys Stream C: v4 conversion to a local spool, two-stage resumable background upload; Stream L: slice worker, local-file view, budgeted cache; tester feedback: navigation, slice player, slice toggles, wells, stability; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
+
+## 2026-09-22: large surveys, Stream C (conversion and upload)
+
+Engines PR #238 (manifest v4: brickTranscodeV4, brickCodecV4 with
+v4BrickFetcher; 22 seismolord suites, 313 gates) and this Suite branch
+feat/seismolord-two-stage-upload, which carries Stream L merged in. The
+vendored engines are pinned to cd0561a on engines branch
+integration/seismolord-large-survey-lc (the merge of #237 and #238);
+re-pin to engines main once both land.
+
+What shipped:
+- One conversion pass in a worker into a local OPFS brick spool: u8
+  display copy (level 0 plus LOD 1-3) and float32 (shuffle4 +
+  deflate-raw, bit-identical to v1). The v1 full geometry scan is gone:
+  the transcoder checks every trace header against the preview scan's
+  grid. The raw file is not read again after conversion.
+- Two-stage resumable upload from the spool: display bricks coarse to
+  fine, manifest, row 'display_ready' (openable); then float32,
+  manifest, row 'ready'. Per-object retry with backoff, pause, resume,
+  cancel, resume in a later session without the SEG-Y. Status is free
+  text: no DDL.
+- Background job in the status bar; the import dialog closes. Browsers
+  without OPFS, deflate-raw or disk space fall back to the v1 path and
+  say so.
+- Every float32 reader (the slice worker, horizon and AI tracking,
+  attribute jobs) reads v4 stores through v4BrickFetcher: float32 when
+  complete, the dequantised display copy before that. Attributes wait
+  for float32. The slice worker wraps its fetcher in sliceWorkerHandler
+  (gate: twoStageUpload "the slice worker reads the v4 store", every
+  inline and crossline bit-identical to the local SEG-Y read; fails with
+  the wrap removed).
+
+Open: the viewer still reads v4 at full float32 size (dequantised). The
+speed targets L missed (4: first inline over 10 Mbps; uncached 2) need a
+BrickSource v4 in the slice worker that fetches the u8 display bricks
+and the LOD levels directly. Before/after numbers for the upload stages
+are not yet measured against the tester survey shape.
 
 ## 2026-09-22: large surveys, Stream L (viewer side)
 

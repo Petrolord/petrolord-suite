@@ -20,6 +20,7 @@
 import { SliceEngine } from './sliceEngine';
 import { fileReader } from '../engine/reader';
 import { storageBrickFetcher, ABORTED as BRICK_ABORTED } from '../engine/brickCache';
+import { v4BrickFetcher } from '../engine/brickCodecV4';
 import { cacheBudgetBytes } from './memoryBudget';
 import { fetchWithTimeout, FetchTimeoutError } from '../lib/fetchWithTimeout';
 import { SOURCE_ERRORS, errorCode, sourceError } from './sliceSource';
@@ -63,9 +64,10 @@ function transferableSlice(s) {
 /**
  * @param {(msg: Object, transfer?: Transferable[]) => void} post
  * @param {{deviceMemory?: number, makeFetcher?: Function, makeReader?: Function,
- *   wrapPersistent?: Function}} [env]
+ *   wrapPersistent?: Function, inflate?: Function}} [env]
  *   makeFetcher(cfg) -> (path, signal) => ArrayBuffer (defaults to Storage),
- *   makeReader(file) -> ByteReader, wrapPersistent(fetcher) -> fetcher (IndexedDB)
+ *   makeReader(file) -> ByteReader, wrapPersistent(fetcher) -> fetcher (IndexedDB),
+ *   inflate(bytes) -> bytes for v4 bricks (defaults to the browser's deflate-raw)
  * @returns {{onMessage: (data: Object) => void, engine: () => SliceEngine}}
  */
 export function createSliceWorkerHandler(post, env = {}) {
@@ -141,6 +143,10 @@ export function createSliceWorkerHandler(post, env = {}) {
         const eng = ensureEngine();
         let fetcher = makeFetcher({ supabaseUrl: m.supabaseUrl, getToken: tokenFor(m.sourceId) });
         if (m.persistent && env.wrapPersistent) fetcher = env.wrapPersistent(fetcher);
+        // v4 stores read through the v1 brick names: float32 once it is
+        // uploaded, the dequantised display copy before that (v1 manifests
+        // come back untouched). The persistent cache keeps the v4 objects.
+        fetcher = v4BrickFetcher(fetcher, m.manifest, { inflate: env.inflate });
         fetcher = withFetchTimeout(fetcher, m.fetchTimeoutMs || DEFAULT_FETCH_TIMEOUT_MS);
         const res = eng.openBricks(m.sourceId, {
           manifest: m.manifest, storagePath: m.storagePath, fetcher,

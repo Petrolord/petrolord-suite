@@ -1,6 +1,7 @@
 // SEG-Y import as a modal dialog (launched from the ribbon and the
-// explorer toolbar). Closing is blocked while an ingest is streaming so
-// the transcode/upload pipeline is never torn down mid-import.
+// explorer toolbar). A v4 import runs as a background job and the dialog
+// closes as soon as it starts; the v1 fallback path still blocks closing
+// while it streams so its transcode/upload is never torn down mid-import.
 
 import React, { useCallback, useState } from 'react';
 import { Upload } from 'lucide-react';
@@ -43,6 +44,9 @@ export default function ImportSegyDialog({
           onBusyChange={setBusy}
           onFilePicked={onFilePicked}
           onViewNow={onViewNow}
+          // a v4 import runs as a background job: the dialog closes and
+          // progress moves to the status bar
+          onBackgroundStarted={() => { setBusy(false); onOpenChange(false); }}
         />
       </DialogContent>
     </Dialog>
