@@ -8,11 +8,14 @@ Irap classic (surfaces) and Charisma 3D / IL-XL points (horizon picks)
 for downstream apps (ReservoirCalc Pro and some other apps which you will determine consume our exports).
 Horizon PICKS (seismic_horizons, the interpretation) and SURFACES
 (gridded objects in the shared geo_surfaces registry) are distinct
-first-class objects; conversion is the export dialog's "Save as
-surface". Both directions exist: the import dialog reads the same
-dialects back (surface grids into the registry, TWT picks onto the
-volume lattice as a normal horizon), and stored surfaces display in
-the Map window via lattice resampling.
+first-class objects; conversion is "Make surface" (a horizon's
+right-click menu or the Interpretation tab) or the export dialog's
+"Save as surface". Both directions exist: the import dialog reads the
+same dialects back and more (surface grids into the registry; Charisma,
+IESX, EarthVision, CPS-3, ZMAP+ and mapped ASCII horizons onto the
+volume lattice as normal horizons; Charisma, IESX and mapped fault
+sticks as faults; bad rows reported by line and column), and stored
+surfaces display in the Map window via lattice resampling.
 
 ## Stack (revised 2026-07-10 — see Seismolord-PLAN.md, the plan of record)
 - Frontend: React 18 + Vite, WebGL2 renderer (raw WebGL, no three.js for the

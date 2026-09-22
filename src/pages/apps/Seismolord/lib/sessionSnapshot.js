@@ -9,6 +9,9 @@ export const LOCAL_KEYS = [
   'seismolord.viewerPrefs.v2',
   'seismolord.workspace.v1',
   'seismolord.ribbon.v1',
+  'seismolord.player.v1',        // slice player step size + speed
+  'seismolord.cubePrefs.v1',     // 3D window rendering prefs (faces, labels, bg...)
+  'seismolord.wellProjection.v1', // well projection distance (m)
 ];
 
 /** Snapshot the session-relevant localStorage entries (raw strings). */

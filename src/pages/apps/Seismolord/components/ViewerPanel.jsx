@@ -31,6 +31,8 @@ import { faultSticksToRows, writeCharismaFaultSticks } from '../engine/pickExpor
 import { faultHorizonIntersection } from '../engine/faultObjects';
 import { faultSurfaceXyz, faultPolygonCsv, barriersFromFaults } from '../lib/faultObjectsExport';
 import { purgePersistedBricks } from '../services/brickStore';
+import { getAccessToken } from '../services/accessToken';
+import { startTrackerJob } from '../services/trackerRunner';
 import Line2dPanel from './Line2dPanel';
 import {
   listLines, deleteLine, setLineShared, loadLineNav,
@@ -59,7 +61,9 @@ import {
   extractStratalSlice, bricksForStratalSlice,
 } from '../engine/horizonAmplitude';
 import { flattenOffsets, datumForHorizon } from '../engine/flatten';
-import { makeTvdssToTwt, buildWellLatticePath } from '../engine/wellSection';
+import { buildWellSections, corridorCells } from '../lib/wellDisplay';
+// depth surfaces on sections invert the volume model (surfaceTimeConv)
+import { makeTvdssToTwt } from '../engine/wellSection';
 import {
   depthAxisFor, depthStretchSlice, depthRowGrid, depthRowOfSample,
 } from '../engine/depthConvert';
@@ -104,12 +108,14 @@ import VelocityModelEditor from './workspace/VelocityModelEditor';
 import ImportSegyDialog from './workspace/dialogs/ImportSegyDialog';
 import ExportDialog from './workspace/dialogs/ExportDialog';
 import ImportSurfaceDialog from './workspace/dialogs/ImportSurfaceDialog';
+import MakeSurfaceDialog from './workspace/dialogs/MakeSurfaceDialog';
 import WellImportDialog from './workspace/dialogs/WellImportDialog';
 import VelocityModelDialog from './workspace/dialogs/VelocityModelDialog';
 import HorizonSettingsDialog from './workspace/dialogs/HorizonSettingsDialog';
 import FaultSettingsDialog from './workspace/dialogs/FaultSettingsDialog';
 import SeismicExplorer from './workspace/SeismicExplorer';
 import StatusBar from './workspace/StatusBar';
+import SliceLoadError from './workspace/SliceLoadError';
 import RightDock from './workspace/RightDock';
 import { horizonColorFor, faultColorFor, surfaceColor } from './workspace/interpretationColors';
 import useDisplaySettings from '../hooks/useDisplaySettings';
@@ -118,33 +124,24 @@ import { savableSticks } from '../lib/faultStickEdit';
 import InterpretationToolbox from './workspace/InterpretationToolbox';
 import useWells from '../hooks/useWells';
 import useBackendStatus from '../hooks/useBackendStatus';
+import useSlicePlayer from '../hooks/useSlicePlayer';
+import useSliceVisibility from '../hooks/useSliceVisibility';
+import useWellProjection from '../hooks/useWellProjection';
+import { planeMarksFor } from '../viewer/planeMarks';
+import { surveyValueToIndex, indexToSurveyValue, stepIndex } from '../lib/sliceNav';
+import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 
 const NULL_F32 = Math.fround(NULL_VALUE);
 
 const DRAFT_COLOR = '#facc15';
 
-// Explorer slice-plane visibility (Feature: volume tree children). Same
-// localStorage idiom as the map/cube layer prefs — a display preference,
-// not project data.
-const SLICE_VIS_KEY = 'seismolord.sliceVis.v1';
-const DEFAULT_SLICE_VIS = { inline: false, xline: false, time: false };
-const loadSliceVis = () => {
-  try {
-    return { ...DEFAULT_SLICE_VIS, ...JSON.parse(localStorage.getItem(SLICE_VIS_KEY) || '{}') };
-  } catch {
-    return { ...DEFAULT_SLICE_VIS };
-  }
-};
-
 // storage base URL without touching the shared client module
 const storageBase = () => supabase.storage.from('seismic')
   .getPublicUrl('x').data.publicUrl.split('/storage/v1/')[0];
 
-async function accessToken() {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('Not signed in');
-  return session.access_token;
-}
+// stability (2026-09-22): brick reads use the in-memory cached token
+// (services/accessToken) instead of an auth-lock getSession per brick
+const accessToken = getAccessToken;
 
 const newHorizonWorker = () =>
   new Worker(new URL('../workers/horizon.worker.js', import.meta.url), { type: 'module' });
@@ -172,7 +169,6 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   const sourceRef = useRef(null);
   const sourceBRef = useRef(null);
   const sliceAbortRef = useRef(null);
-  const lastSliceIndexRef = useRef({});
   const localVolumeRef = useRef(null);
   const localAbortRef = useRef(null);
   const [sliceError, setSliceError] = useState(null);   // Error for the section window notice
@@ -180,7 +176,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   const [mapTimeNotice, setMapTimeNotice] = useState(false);
   const conversion = useConversionProgress();
   const requestRef = useRef(0);
-  const workerRef = useRef(null);
+  const workerRef = useRef(null);               // running tracker job {promise, cancel}
   const jobIdRef = useRef(0);
   const selectSeqRef = useRef(0);               // stale volume-switch guard
   const gridCacheRef = useRef(new Map());       // horizon id -> Float32Array
@@ -203,6 +199,18 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   const [volumeBusyId, setVolumeBusyId] = useState(null);
   // heavyweight workflows open as modal dialogs over the workspace
   const [openDialog, setOpenDialog] = useState(null); // null|'import'|'wellImport'|'export'|'velocity'
+  // interpretation import: the kind the opening door implies (Horizons or
+  // Faults section icon), null = sniff the file; Make surface: preselected horizon
+  const [importKind, setImportKind] = useState(null);
+  const [makeSurfaceHorizonId, setMakeSurfaceHorizonId] = useState(null);
+  const openInterpImport = (k = null) => {
+    setImportKind(typeof k === 'string' ? k : null);
+    setOpenDialog('importSurface');
+  };
+  const openMakeSurface = (horizonId = null) => {
+    setMakeSurfaceHorizonId(horizonId);
+    setOpenDialog('makeSurface');
+  };
   // AI copilot right dock — the dock panel stays mounted while collapsed
   // so the chat survives open/close
   const [dockOpen, setDockOpen] = useState(false);
@@ -332,9 +340,12 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   // slice scrub's cancellation exactly like an in-flight traverse
   const ampBricksRef = useRef(null);
 
-  // explorer slice-plane toggles + the assembled time slice the Map
-  // window rasters (independent of the Section window's slice)
-  const [sliceVis, setSliceVis] = useState(loadSliceVis);
+  // slice-plane visibility: ONE state for the explorer eyes, the 3D
+  // planes, the Section window's intersection lines and the Map (saved
+  // per volume, see useSliceVisibility) + the assembled time slice the
+  // Map window rasters (independent of the Section window's slice)
+  const sliceVisApi = useSliceVisibility({ volumeId: volume?.id || null });
+  const { sliceVis } = sliceVisApi;
   const [mapTimeSlice, setMapTimeSlice] = useState(null);
   const mapSliceReqRef = useRef(0);
   const mapSliceBricksRef = useRef(null);       // Set<brickKey> while assembling
@@ -657,39 +668,90 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     [manifest],
   );
 
-  // wells in TWT: per-well T(z) (its own checkshots first, else the
-  // volume model inverted — plan decision #4, never mixed) + the dense
-  // lattice path with tops; wells without either stay map-only
-  const wellSections = useMemo(() => {
-    if (!wells || !wells.length || !manifest || !geom) return [];
-    if (!affine) return [];
-    const dtUs = manifest.geometry.dt_us;
-    const maxTwtMs = ((geom.ns - 1) * dtUs) / 1000;
-    const out = [];
-    for (const w of wells) {
-      // W3.3: a committed tie-derived checkshot set wins over imported
-      const timeConv = makeTvdssToTwt({
-        checkshots: effectiveCheckshots(w).rows,
-        velocity: velocityForDisplay,
-        boundaries: velBoundaries,
-        dtUs,
-        maxTwtMs,
-      });
-      if (!timeConv) continue;
-      const built = buildWellLatticePath(w, { affine, timeConv, geom, dtUs });
-      if (!built) continue;
-      out.push({
-        id: w.id, name: w.name, color: w.color, source: timeConv.source, ...built,
-      });
+  // wells in TWT: per-well T(z) (its own checkshots first, a committed
+  // tie-derived set winning over imported; else the volume model
+  // inverted; plan decision #4, never mixed) + the dense lattice path
+  // with tops. A well that cannot be drawn gets a REASON (tester
+  // feedback 2026-09-22) shown on its explorer row and in a toast.
+  const wellBuild = useMemo(() => {
+    if (!manifest || !geom) return { sections: [], skipped: [] };
+    return buildWellSections({
+      wells,
+      geom,
+      dtUs: manifest.geometry.dt_us,
+      affine,
+      velocity: velocityForDisplay,
+      boundaries: velBoundaries,
+      checkshotsOf: (w) => effectiveCheckshots(w).rows,
+    });
+  }, [wells, manifest, geom, affine, velocityForDisplay, velBoundaries]);
+  const wellSections = wellBuild.sections;
+
+  // per visible well: drawn (with its T-D source) or why not; CRS skips
+  // come from the placement guard above
+  const wellDrawStatus = useMemo(() => {
+    const out = {};
+    if (!manifest) return out;
+    for (const w of wellSections) out[w.id] = { drawn: true, source: w.source };
+    for (const k of wellBuild.skipped) out[k.id] = { drawn: false, code: k.code, reason: k.reason };
+    for (const k of wellsPlacement.skipped) {
+      if (k.id) out[k.id] = { drawn: false, code: 'crs', reason: `Not placed on this survey: ${k.reason}.` };
     }
     return out;
-  }, [wells, manifest, geom, affine, velocityForDisplay, velBoundaries]);
+  }, [manifest, wellSections, wellBuild.skipped, wellsPlacement.skipped]);
+
+  // one toast per well, reason and volume (the badge stays on the row);
+  // the JSON key keeps the effect from re-running on identical content
+  const wellToastedRef = useRef(new Set());
+  const wellSkipKey = JSON.stringify(wellBuild.skipped.map((k) => [k.id, k.code, k.name, k.reason]));
+  const wellSkipVolume = volume?.id || '';
+  useEffect(() => {
+    const fresh = JSON.parse(wellSkipKey).filter(([id, code]) => {
+      const key = `${wellSkipVolume}|${id}|${code}`;
+      if (wellToastedRef.current.has(key)) return false;
+      wellToastedRef.current.add(key);
+      return true;
+    });
+    if (!fresh.length) return;
+    toast({
+      title: fresh.length === 1 ? 'Well not drawn on the seismic' : `${fresh.length} wells not drawn on the seismic`,
+      description: fresh.map(([, , name, reason]) => `${name}: ${reason}`).join(' '),
+    });
+  }, [wellSkipKey, wellSkipVolume, toast]);
+
+  // "Well projection distance" (Wells tab) -> corridor cells per section
+  const wellProjection = useWellProjection(sessionEpoch);
+  const wellCorridor = useMemo(
+    () => corridorCells(wellProjection.distanceM, affine),
+    [wellProjection.distanceM, affine],
+  );
 
   const maxIndex = useMemo(() => {
     if (!geom) return 0;
     return orientation === 'inline' ? geom.nIl - 1
       : orientation === 'xline' ? geom.nXl - 1 : geom.ns - 1;
   }, [geom, orientation]);
+
+  // ---- slice player (tester feedback 2026-09-22) ------------------------
+  // step size per orientation + play/pause; the player moves the index
+  // through playerSetIndex, every USER move goes through pause() first
+  const playerSetIndex = useCallback((o, idx) => {
+    setIndices((prev) => (prev[o] === idx ? prev : { ...prev, [o]: idx }));
+  }, []);
+  const player = useSlicePlayer({
+    orientation,
+    index: sliceIndex,
+    maxIndex,
+    displayedIndex: slice && slice.orientation === orientation ? slice.index : null,
+    loading,
+    error,
+    setIndex: playerSetIndex,
+    resetKey: volume?.id || null,
+    epoch: sessionEpoch,
+  });
+  const playerStepRef = useRef(1);
+  playerStepRef.current = player.step;
+  const pausePlayer = player.pause;
 
   const reloadHorizons = useCallback(async (vol) => {
     if (!vol) { setHorizons([]); return; }
@@ -1022,7 +1084,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
         if (Array.isArray(pr.visibleSurfaceIds)) {
           setVisibleSurfaceIds(new Set(pr.visibleSurfaceIds));
         }
-        if (pr.sliceVis) setSliceVis(pr.sliceVis);
+        if (pr.sliceVis) sliceVisApi.restore(pr.sliceVis);
         if (Number.isFinite(pr.vexag)) setVexag(pr.vexag);
         setFlattenHorizonId(pr.flattenHorizonId && hz.some((h) => h.id === pr.flattenHorizonId) ? pr.flattenHorizonId : null);
         setTerminations(Array.isArray(pr.terminations) ? pr.terminations.filter((m) => Number.isFinite(m.il) && Number.isFinite(m.xl) && Number.isFinite(m.sample)) : []);
@@ -1312,9 +1374,8 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     const ac = new AbortController();
     sliceAbortRef.current = ac;
     const src = sourceRef.current;
-    const last = lastSliceIndexRef.current[orientation];
-    const step = Number.isFinite(last) ? Math.max(1, Math.abs(sliceIndex - last)) : 1;
-    lastSliceIndexRef.current = { ...lastSliceIndexRef.current, [orientation]: sliceIndex };
+    // the worker warms the neighbours at the slice player's step
+    const step = playerStepRef.current || 1;
     setLoading(true);
     setSliceProgress(null);
     setError(null);
@@ -2063,7 +2124,9 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     return barriersFromFaults(faults, sampleLevel, geom);
   };
 
-  /** Run the region-grow worker and return {picks, confidence}. */
+  /** Run the region-grow worker and return {picks, confidence}. The
+   *  job always settles (services/trackerRunner): token failures reject,
+   *  Cancel terminates the worker, a silent worker trips a watchdog. */
   const runTracker = async ({ seed, extraOpts }) => {
     if (volume?.local) {
       // the tracker reads the uploaded bricks; a local file has none yet
@@ -2072,42 +2135,27 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     const id = ++jobIdRef.current;
     setTracking({ tracked: 0, total: geom.nIl * geom.nXl });
     const token = await accessToken();
-    const worker = newHorizonWorker();
-    workerRef.current = worker;
+    const job = startTrackerJob({
+      createWorker: newHorizonWorker,
+      id,
+      getToken: accessToken,
+      onProgress: (tracked, total) => setTracking({ tracked, total }),
+      config: {
+        supabaseUrl: storageBase(),
+        token,
+        bucket: 'seismic',
+        storagePath: volume.storage_path,
+        dtype: manifest?.brick?.dtype,   // W4.4 codec-aware worker cache
+        geom,
+        seed,
+        opts: { ...trackerOpts(), ...extraOpts },
+      },
+    });
+    workerRef.current = job;
     try {
-      return await new Promise((resolve, reject) => {
-        worker.onmessage = async (e) => {
-          const msg = e.data;
-          if (msg.id !== id) return;
-          if (msg.type === 'progress') setTracking({ tracked: msg.tracked, total: msg.total });
-          else if (msg.type === 'need-token') {
-            worker.postMessage({ type: 'token', nonce: msg.nonce, token: await accessToken() });
-          } else if (msg.type === 'done') {
-            resolve({
-              picks: new Float32Array(msg.picks),
-              confidence: msg.confidence ? new Float32Array(msg.confidence) : null,
-            });
-          } else if (msg.type === 'error') reject(new Error(msg.message));
-        };
-        worker.onerror = (ev) => reject(new Error(ev.message));
-        worker.postMessage({
-          type: 'track3d',
-          id,
-          config: {
-            supabaseUrl: storageBase(),
-            token,
-            bucket: 'seismic',
-            storagePath: volume.storage_path,
-            dtype: manifest?.brick?.dtype,   // W4.4 codec-aware worker cache
-            geom,
-            seed,
-            opts: { ...trackerOpts(), ...extraOpts },
-          },
-        });
-      });
+      return await job.promise;
     } finally {
-      worker.terminate();
-      workerRef.current = null;
+      if (workerRef.current === job) workerRef.current = null;
     }
   };
 
@@ -2199,10 +2247,9 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     }
   };
 
+  // Cancel terminates the worker and rejects the job at once
   const cancelTracking = () => {
-    if (workerRef.current) {
-      workerRef.current.postMessage({ type: 'cancel', id: jobIdRef.current });
-    }
+    if (workerRef.current) workerRef.current.cancel();
   };
 
   const toggleHorizon = (h) => {
@@ -2218,37 +2265,44 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
 
   horizonsRef.current = horizons;
 
-  useEffect(() => {
-    try { localStorage.setItem(SLICE_VIS_KEY, JSON.stringify(sliceVis)); } catch { /* private mode */ }
-  }, [sliceVis]);
+  const toggleSlicePlane = sliceVisApi.toggle;
 
-  const toggleSlicePlane = useCallback((o) => {
-    setSliceVis((v) => ({ ...v, [o]: !v[o] }));
-  }, []);
+  // dashed lines where the other VISIBLE planes cut the Section window
+  const planeMarks = useMemo(
+    () => planeMarksFor(orientation, indices, sliceVis),
+    [orientation, indices, sliceVis],
+  );
 
   // Assemble the map's time slice whenever its toggle is on and the time
   // position moves. Bricks are shielded from the slice scrub's
   // cancellation (traverse/amplitude pattern); a volume switch bumps the
-  // request counter so a stale assembly can never land.
+  // request counter so a stale assembly can never land. Stability
+  // (2026-09-22): debounced, so a scrub or the player assembles only the
+  // slice it settles on (longer while playing), not every one it passes.
+  const mapSliceDebounceMs = player.playing ? 300 : 120;
   useEffect(() => {
     if (!sliceVis.time || !manifest || !geom || !volume || !sourceRef.current) {
+      mapSliceReqRef.current += 1;
+      mapSliceBricksRef.current = null;
       setMapTimeSlice(null);
       setMapTimeNotice(false);
-      return;
+      return undefined;
     }
     // a local file has no time slices until it is converted: say so
     if (sourceRef.current.capabilities?.time === false) {
+      mapSliceReqRef.current += 1;
       setMapTimeSlice(null);
       setMapTimeNotice(true);
-      return;
+      return undefined;
     }
     setMapTimeNotice(false);
     const idx = Math.min(geom.ns - 1, Math.max(0, indices.time));
     const req = ++mapSliceReqRef.current;
-    const keys = new Set(bricksForSlice(geom, 'time', idx)
-      .map(({ i, j, k }) => brickKey(volume.storage_path, i, j, k)));
-    mapSliceBricksRef.current = keys;
-    (async () => {
+    const timer = setTimeout(async () => {
+      if (req !== mapSliceReqRef.current) return;
+      const keys = new Set(bricksForSlice(geom, 'time', idx)
+        .map(({ i, j, k }) => brickKey(volume.storage_path, i, j, k)));
+      mapSliceBricksRef.current = keys;
       try {
         const assembled = await sourceRef.current.getSlice({ orientation: 'time', index: idx, prefetch: false });
         if (req !== mapSliceReqRef.current) return;    // superseded
@@ -2262,8 +2316,9 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
       } finally {
         if (mapSliceBricksRef.current === keys) mapSliceBricksRef.current = null;
       }
-    })();
-  }, [sliceVis.time, manifest, geom, volume, indices.time, getBrick, toast]);
+    }, mapSliceDebounceMs);
+    return () => clearTimeout(timer);
+  }, [sliceVis.time, manifest, geom, volume, indices.time, getBrick, toast, mapSliceDebounceMs]);
 
   // ---- per-horizon display settings --------------------------------------
 
@@ -2721,7 +2776,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     sourceRef.current?.close();
     sourceBRef.current?.close();
     localVolumeRef.current?.source?.close();
-    if (workerRef.current) workerRef.current.terminate();
+    if (workerRef.current) workerRef.current.cancel();
   }, []);
 
   // ---- SliceView inputs --------------------------------------------------
@@ -2888,26 +2943,40 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     };
   }, [depthSection, overlays, geom, manifest, depthConv]);
 
+  // user stepping (arrows, Shift+wheel, ribbon buttons): one increment
+  // of the step size; any user move pauses the player
   const stepSlice = useCallback((delta) => {
+    pausePlayer();
     setIndices((prev) => ({
       ...prev,
-      [orientation]: Math.min(maxIndex, Math.max(0, prev[orientation] + delta)),
+      [orientation]: stepIndex(prev[orientation], delta, playerStepRef.current, maxIndex),
     }));
-  }, [orientation, maxIndex]);
+  }, [orientation, maxIndex, pausePlayer]);
 
   /** 3D window edits any orientation's position (Shift+wheel over a plane). */
   const changeIndex = useCallback((o, idx) => {
+    pausePlayer();
     setIndices((prev) => (prev[o] === idx ? prev : { ...prev, [o]: idx }));
-  }, []);
+  }, [pausePlayer]);
+
+  /** Ribbon go-to box: survey units (IL / XL number, or ms) -> index. */
+  const goToSurveyValue = useCallback((value) => {
+    if (!manifest || orientation === 'traverse') return false;
+    const idx = surveyValueToIndex(manifest.geometry, orientation, value);
+    if (idx === null) return false;
+    changeIndex(orientation, idx);
+    return true;
+  }, [manifest, orientation, changeIndex]);
 
   /** Clicking a plane in 3D opens that orientation in the 2D viewer. */
   const selectPlane = useCallback((o) => setOrientation(o), []);
 
   /** Map click: move the shared inline AND crossline positions there. */
   const navigateTo = useCallback(({ ilIdx, xlIdx }) => {
+    pausePlayer();
     setIndices((prev) => (prev.inline === ilIdx && prev.xline === xlIdx
       ? prev : { ...prev, inline: ilIdx, xline: xlIdx }));
-  }, []);
+  }, [pausePlayer]);
 
   /** Map-drawn or saved traverse: resample the polyline to trace
    *  positions, assemble the section, and focus the Traverse window.
@@ -3189,6 +3258,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     visibleWellIds: wellsApi.visibleIds,
     wellBusyId: wellsApi.busyId,
     wellsError: wellsApi.error,
+    wellDrawStatus,
     savedTraverses,
     traverseSavedId,
   };
@@ -3223,7 +3293,8 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     deleteSurface: onDeleteSurface,
     shareSurface: onShareSurface,
     toggleSurface,
-    openSurfaceImport: () => setOpenDialog('importSurface'),
+    openSurfaceImport: openInterpImport,
+    makeSurface: (h) => openMakeSurface(h?.id || null),
     toggleCulture,
     shareCulture: onShareCulture,
     deleteCulture: onDeleteCulture,
@@ -3248,7 +3319,10 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   const ribbon = (
     <Ribbon
       corner={(
-        <span className="text-sm font-bold text-white mr-3 pb-0.5">Seismolord</span>
+        <span className="flex items-center gap-2 mr-3 pb-0.5">
+          <ModuleHomeLink module="geoscience" testId="sl-home" />
+          <span className="text-sm font-bold text-white">Seismolord</span>
+        </span>
       )}
       trailing={(
         <>
@@ -3346,6 +3420,13 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
               undoLabel={edit.undo > 0 ? 'horizon edit step' : undoStack.peekUndo()}
               redoLabel={edit.redo > 0 ? 'horizon edit step' : undoStack.peekRedo()}
               onOpenSessions={() => setSessionsOpen(true)}
+              player={{
+                state: player,
+                currentValue: manifest && orientation !== 'traverse'
+                  ? indexToSurveyValue(manifest.geometry, orientation, sliceIndex) : null,
+                onStep: stepSlice,
+                onGoTo: goToSurveyValue,
+              }}
             />
           ),
         },
@@ -3415,6 +3496,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
               openAttribute={() => setOpenDialog('attribute')}
               toolboxOpen={dockOpen && dockPanel === 'toolbox'}
               toggleToolbox={() => openDockPanel('toolbox')}
+              openMakeSurface={() => openMakeSurface(editTarget !== 'new' ? editTarget : null)}
             />
           ),
         },
@@ -3432,6 +3514,8 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
               horizons={horizons}
               openSynthetics={() => setWinFocus((f) => ({ key: 'synthetic', seq: (f?.seq || 0) + 1 }))}
               hasVolume={!!manifest}
+              projectionM={wellProjection.distanceM}
+              setProjectionM={wellProjection.setDistanceM}
             />
           ),
         },
@@ -3442,7 +3526,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
             <ExportTab
               volume={volume}
               openExport={() => setOpenDialog('export')}
-              openSurfaceImport={() => setOpenDialog('importSurface')}
+              openSurfaceImport={() => openInterpImport()}
               openPlot={() => setOpenDialog('plot')}
             />
           ),
@@ -3661,6 +3745,13 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
               icon: ScanLine,
               content: (
                 <div className="relative h-full min-h-0">
+                {/* failures of the slice itself show in sectionNotice below
+                    (plain message, Retry); anything else that stops the
+                    viewer (a volume that did not open) shows here */}
+                <SliceLoadError
+                  error={!loading && !sliceError && !localOpen ? error : null}
+                  onRetry={retrySlice}
+                />
                 <SliceView
                   // only hand over a slice that matches the current
                   // orientation — an orientation switch must not render the
@@ -3698,6 +3789,8 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
                   onVexagChange={setVexag}
                   cameraApi={sectionCameraApi}
                   flatten={depthSection ? null : flatten}
+                  planeMarks={planeMarks}
+                  wellCorridor={wellCorridor}
                 />
                 {sectionNotice}
                 </div>
@@ -3715,6 +3808,10 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
                   getSlice={getCubeSlice}
                   indices={indices}
                   onChangeIndex={changeIndex}
+                  steps={player.steps}
+                  activeOrientation={orientation}
+                  sliceVis={sliceVis}
+                  onToggleSlicePlane={toggleSlicePlane}
                   display={display}
                   vexag={vexag}
                   horizons={resolvedHorizons}
@@ -3952,6 +4049,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
         onOpenChange={(o) => setOpenDialog(o ? 'importSurface' : null)}
         volume={volume}
         manifest={manifest}
+        initialKind={importKind}
         onSurfaceImported={() => setSurfacesRefresh((k) => k + 1)}
         onHorizonImported={() => reloadHorizons(volume)}
         onFaultsImported={async (saved) => {
@@ -3959,6 +4057,17 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
           // imported faults show immediately (the fault-save behavior)
           setVisibleFaultIds((s) => new Set([...s, ...saved.map((f) => f.id)]));
         }}
+      />
+
+      <MakeSurfaceDialog
+        open={openDialog === 'makeSurface'}
+        onOpenChange={(o) => setOpenDialog(o ? 'makeSurface' : null)}
+        volume={volume}
+        manifest={manifest}
+        horizons={horizons}
+        initialHorizonId={makeSurfaceHorizonId}
+        onSurfaceSaved={() => setSurfacesRefresh((k) => k + 1)}
+        showSurface={(s) => toggleSurface(s)}
       />
 
       <WellImportDialog

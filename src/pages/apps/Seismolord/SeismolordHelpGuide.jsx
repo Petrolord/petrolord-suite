@@ -62,7 +62,7 @@ export default function SeismolordHelpGuide() {
         <Step n={2} title="Look around">Select the volume in Home; step inlines with the slider or the wheel; switch to crosslines and time slices; adjust gain, AGC and the colormap in the Display group.</Step>
         <Step n={3} title="Pick a horizon">Interpretation: New horizon, then click seeds on a section and Track along the line or through the volume; Undo and Redo cover every pick.</Step>
         <Step n={4} title="Tie a well">Wells: import a well or use one from the registry, load its sonic and density, build the synthetic and drag the tie; the T-D relation is saved with the well.</Step>
-        <Step n={5} title="Map and publish">Surfaces: grid the horizon, look at it in the Map window in time or depth, then Publish it to the registry or export it as a file.</Step>
+        <Step n={5} title="Make a surface">Right-click the horizon in the explorer and choose Make surface: Grid in Seismolord shows the surface in the Map window, Publish to the registry saves it for Mapping &amp; Surface Studio. Export writes it as a file.</Step>
       </GuideSection>
 
       <GuideSection id="volumes">
@@ -89,6 +89,23 @@ export default function SeismolordHelpGuide() {
           model (a constant, a gradient or a layer cake set in the Velocity model editor); depth is a display
           stretch, so picking stays in time.
         </Para>
+        <SubHeading>Stepping, going to a line and the player</SubHeading>
+        <Para>
+          The Line group in Home holds the slice player. Step sets the increment (every Nth inline, crossline or
+          sample, remembered per orientation); the arrow keys in the Section and 3D windows, Shift and wheel, and the
+          step buttons all move by it. Go to takes an inline or crossline number, or a time in ms on a time slice,
+          and jumps straight there. Play runs through the slices at the chosen speed in slices per second; it waits
+          for each slice to load before stepping, stops at the end of the survey, and pauses as soon as you move
+          the slice yourself. Step size and speed are saved with named sessions.
+        </Para>
+        <SubHeading>Showing and hiding the slice planes</SubHeading>
+        <Para>
+          Under the active volume in the explorer, Inline, Crossline and Time slice each carry an eye. The eye is one
+          switch for every window: it shows or hides the plane in the 3D window, its dashed intersection line in the
+          Section window, and its location line (or, for the time slice, the amplitude slice) in the Map window. The
+          3D window's Planes menu flips the same switch. A plane you hide stays hidden while you scrub, and the
+          choice is saved with the volume and with named sessions.
+        </Para>
       </GuideSection>
 
       <GuideSection id="horizons">
@@ -105,6 +122,15 @@ export default function SeismolordHelpGuide() {
           the same buttons). In a horizon edit session one whole paint or erase stroke is one step. Saving the
           session, Track volume and Grow target are undoable too: undoing a Save or a Grow writes the previous picks
           back into the same horizon, and undoing a Track volume removes the horizon it created.
+        </Para>
+        <Para>
+          Import horizons with the upload icon on the Horizons section (or Export, Import). Any file name or extension
+          is accepted: the content decides the format. Supported: Charisma 3D interpretation lines (every INLINE and
+          XLINE marker form, with or without a horizon-name column), IESX, EarthVision scattered data, CPS-3 points,
+          CPS-3 and ZMAP+ grids, il xl x y z, x y z, and any other table through the column mapping step. A file that
+          holds several named horizons becomes one horizon per name; tick the ones to import. Lines that cannot be
+          read are listed with their line and column, and the rest of the file imports. Imported picks are two-way
+          time.
         </Para>
       </GuideSection>
 
@@ -133,6 +159,13 @@ export default function SeismolordHelpGuide() {
           the interpretation, so they come back on the next visit. A new fault keeps the colour of every existing
           one, and each settings change or rename can be undone with Ctrl+Z.
         </Para>
+        <Para>
+          Import fault sticks with the upload icon on the Faults section. Supported: Charisma fault sticks (split or
+          joined INLINE markers, names with spaces), IESX fault sticks, x y z stick number, and any table through the
+          column mapping (X, Y, time, stick, fault name; without a stick column a blank line ends each stick). Each
+          named fault saves as its own fault with its stick order kept; unreadable lines are listed by line and
+          column.
+        </Para>
       </GuideSection>
 
       <GuideSection id="wells">
@@ -145,6 +178,15 @@ export default function SeismolordHelpGuide() {
           on sections and the map.
         </Para>
         <Para>
+          A well draws on the seismic in two-way time through its own checkshots (a tie-derived set wins over the
+          imported one), or through the volume's velocity model when it has none. Seismolord never guesses a
+          velocity: a visible well that cannot be drawn shows a warning on its explorer row with the reason, for
+          example no time-depth relationship (add checkshots or a time-depth table in Well Data Manager, or save a
+          velocity model for this volume), outside the survey time window, or off the survey. Well projection
+          distance in the Wells tab sets how far from a section, in metres, a well and its tops still draw on it;
+          empty means 1.5 bins. Tops show as labelled ticks on sections and crosses in 3D.
+        </Para>
+        <Para>
           Right-click a well in the explorer for Show or Hide, Well data (Well Data Manager on its tops) and Open in,
           which lists the other Geoscience apps for that well.
         </Para>
@@ -155,8 +197,15 @@ export default function SeismolordHelpGuide() {
         <Para>
           The Map window draws a horizon as a structure map in two-way time or, with a velocity model, in depth; it
           extracts amplitude attributes along the horizon, contours and labels the map, and overlays wells, faults,
-          registry surfaces and culture. Surfaces gridded from horizons are first-class objects: publish them to the
-          registry for Mapping &amp; Surface Studio, Earth Modeling and ReservoirCalc Pro, or export them as files.
+          registry surfaces and culture. Surfaces gridded from horizons are first-class objects in the shared
+          registry that Mapping &amp; Surface Studio, Earth Modeling and ReservoirCalc Pro read.
+        </Para>
+        <Para>
+          To make one, right-click a horizon and choose Make surface (or Make surface in the Interpretation tab). Both
+          buttons grid the picks here with the fault-aware gridder and save one surface: Grid in Seismolord also shows
+          it in the Map window, and Publish to the registry leaves the view as it is and links to Mapping &amp; Surface
+          Studio. No file export or re-import is involved. The Export dialog offers the same through Save as surface,
+          with every gridding option, and Grid &amp; download writes the surface as a file.
         </Para>
         <Table headers={['Format', 'Notes']} rows={SURFACE_EXPORT_FORMATS.map((f) => [f.label, `.${f.ext}`])} />
         <Callout tone="info" title="Sign convention">
@@ -170,7 +219,9 @@ export default function SeismolordHelpGuide() {
         <Para>
           The 3D window shows the three slice planes, the interpreted horizons and faults and the wells in one
           cube; orbit with the mouse, exaggerate the vertical axis, hide a surface, and click a plane to open that
-          orientation in the section viewer. Shift and wheel over a plane steps its position.
+          orientation in the section viewer. Shift and wheel over a plane steps its position by the step size; with
+          the 3D window focused, the arrow keys step the plane under the cursor, or the Section window's
+          orientation when the cursor is elsewhere.
         </Para>
       </GuideSection>
 
@@ -202,7 +253,7 @@ export default function SeismolordHelpGuide() {
           ['Petrophysics Studio, Well Correlation, Pore Pressure Studio and the rest', 'Open in on a well lists the Geoscience apps for it.'],
           ['Mapping & Surface Studio and Earth Modeling', 'Published surfaces are listed there; their surfaces and fault polygons are listed here under Surfaces and Culture.'],
           ['ReservoirCalc Pro', 'Reads published surfaces in its Surface import.'],
-          ['Geoscience home', 'The back arrow at the top of the explorer.'],
+          ['Geoscience home', 'The Geoscience link at the left end of the ribbon, as in the other Geoscience studios.'],
         ]} />
       </GuideSection>
 
@@ -210,6 +261,10 @@ export default function SeismolordHelpGuide() {
         <SectionHeading icon={AlertTriangle}>Pitfalls and FAQ</SectionHeading>
         <SubHeading>The wells do not land on the survey</SubHeading>
         <Para>The volume's CRS or the project CRS is unset or wrong. Both are declared, never guessed; fix them in the status bar and the volume settings.</Para>
+        <SubHeading>A well is on the map but not on the sections</SubHeading>
+        <Para>Look for the warning on the well's explorer row. Most often the well has no checkshots and the volume has no velocity model, so it has no time-depth relationship; add checkshots or a time-depth table in Well Data Manager. A deviated well may also pass further from the section than the Well projection distance.</Para>
+        <SubHeading>The section says the slice did not load</SubHeading>
+        <Para>A data request that gets no answer is stopped after 30 seconds and tried once more; if that also fails the Section window says so and offers Retry, and the 3D window offers Retry on its message bar. Nothing needs a page reload. A repeat usually means the connection dropped.</Para>
         <SubHeading>Depth is greyed out</SubHeading>
         <Para>Set a velocity model in the Velocity model editor; a layer cake also needs its boundary horizons loaded.</Para>
         <SubHeading>The picks look one sample off after a tie</SubHeading>

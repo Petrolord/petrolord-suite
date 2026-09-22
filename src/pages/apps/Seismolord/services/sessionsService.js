@@ -13,6 +13,12 @@ import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersio
 const SEISMIC_SESSION_KIND = 'seismic-session';
 registerStateKind(SEISMIC_SESSION_KIND, { current: 1, label: 'session' });
 
+// Reserved per-volume display rows (volumeDisplayState.js) share this
+// table; the Sessions dialog never lists them.
+export const RESERVED_SESSION_PREFIX = '__volume_display__:';
+export const isReservedSessionName = (name) => typeof name === 'string'
+  && name.startsWith(RESERVED_SESSION_PREFIX);
+
 export async function listSessions(kind = 'session') {
   const { data, error } = await supabase
     .from('seismic_sessions')
@@ -20,7 +26,9 @@ export async function listSessions(kind = 'session') {
     .eq('kind', kind)
     .order('updated_at', { ascending: false });
   if (error) throw new Error(`Could not load ${kind}s: ${error.message}`);
-  return (data || []).map((row) => openStateRow(SEISMIC_SESSION_KIND, row));
+  return (data || [])
+    .filter((row) => !isReservedSessionName(row.name))
+    .map((row) => openStateRow(SEISMIC_SESSION_KIND, row));
 }
 
 export async function saveSession({ name, kind = 'session', payload }) {

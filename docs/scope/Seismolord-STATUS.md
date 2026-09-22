@@ -1,6 +1,198 @@
 # Seismolord — STATUS
 
-Last updated: 2026-09-22 (group 5 tester feedback: interpretation properties, undo and redo, toolbox)
+Last updated: 2026-09-22 (tester feedback: navigation, slice player, slice toggles, wells, stability; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
+
+## 2026-09-22: tester feedback, stability (SLT-3)
+
+Owner: "Intermittent hanging that needs a page refresh." Scope per the
+lead (2026-09-22): moving brick decode and slice assembly into a slice
+worker belongs to the large-survey stream
+(docs/scope/Seismolord-LARGE-SURVEY-PLAN.md); SLT-3 removes the hang
+sources on the existing path.
+
+- **Stalled brick GETs pinned cache slots forever** (the main hang).
+  `BrickCache` releases a concurrency slot only when the fetcher's
+  promise settles, and the storage fetcher had no timeout, so a few
+  requests that never answered starved every later slice (12 slots
+  primary, 8 overlay) and the spinner never stopped.
+  `lib/fetchWithTimeout.js` (worker-safe, for the slice worker to
+  reuse): `fetchWithTimeout(attempt, {signal, timeoutMs, retries})`
+  aborts each attempt after 30 s, retries once (network TypeErrors
+  retry too, HTTP errors do not), lets the caller's abort win at once,
+  and always settles; `withBrickTimeout(fetcher)` wraps a BrickFetcher.
+  Applied outermost (it also bounds an IndexedDB read that hangs) on
+  the primary and overlay caches, the 2D line cache and the horizon
+  tracking worker's cache.
+- **Error state instead of an endless spinner**: a failed section slice
+  shows `SliceLoadError` (reason + Retry, `sl-slice-error`); a failed
+  3D plane load clears its dedupe so Retry on the message bar (or the
+  next index move) loads it again.
+- **Per-brick auth lock**: every brick called
+  `supabase.auth.getSession()`. `services/accessToken.js` caches the
+  token in memory (kept current by onAuthStateChange, refreshed a
+  minute before expiry, single-flight, one forced refresh per 401
+  burst).
+- **Tracker hangs**: the async onmessage swallowed a token failure on
+  'need-token' (worker waited forever) and Cancel only posted a
+  message. `services/trackerRunner.js`: the job always settles, token
+  failure rejects, Cancel terminates and rejects, a 120 s silence
+  watchdog stops a stalled worker (it reports every 256 traces), the
+  worker is always terminated. The worker's own token wait now times
+  out after 30 s.
+- **IndexedDB main-thread scans**: `brickStore` v2 splits payloads
+  (`bricks`) from bookkeeping (`meta {path, bytes, ts}` + ts index).
+  Open sums `meta` only (v1 walked every payload, up to 512 MB of
+  ArrayBuffers cloned on the main thread), hits touch `meta` only (v1
+  rewrote the whole payload per hit), eviction and purge walk `meta`
+  and delete payloads by key, every transaction has onabort/onerror.
+  Upgrading from v1 drops the old cache once.
+- **Map time slice during scrub/play**: assembly is debounced (120 ms,
+  300 ms while the player runs) so only the settled slice assembles.
+- Not in this PR (large-survey stream): decode and assembly off the
+  main thread, streaming assembly, LOD bricks, memory budget. Depth
+  stretch, AGC and map contours also still run on the main thread.
+- Tests: `stability.test.jsx` (22) incl. the slot-pinning hang with a
+  negative control, token burst and 401 dedupe, tracker token failure /
+  cancel / watchdog, IndexedDB v2 accounting, eviction, purge and the
+  v1 upgrade (fake-indexeddb), the error overlay.
+
+## 2026-09-22: tester feedback, slice toggles and wells (SLT-2)
+
+- **Slice show/hide, root cause**: three visibility states. The
+  explorer eyes (`sliceVis`) reached only the Map; the 3D window kept
+  its own inline/xline/time prefs (`seismolord.cubePrefs.v1`, default
+  inline + crossline ON) toggled only from its Planes menu; and
+  CubeView's hide path dropped the plane without superseding an
+  in-flight load (`seqRef` not bumped), so hiding a plane while it
+  assembled put it back (the boundary faces had the same race). Fix:
+  one state, `hooks/useSliceVisibility.js` (default inline + crossline
+  on, time slice off), passed into CubeView (replaces its three prefs;
+  the Planes menu calls the same toggle), drawn in the Section window
+  as dashed intersection lines of the other visible planes
+  (`viewer/planeMarks.js`, IL green, XL red, time blue), and on the
+  Map as before. Hide now bumps the load sequence first.
+- **Saved with the project**: named sessions already carried
+  `sliceVis`; now it is also saved per volume, cross-browser, as a
+  reserved row in `seismic_sessions` (`kind='session'`, name
+  `__volume_display__:<volume id>`, payload `{v:1, sliceVis}`;
+  `services/volumeDisplayState.js`), loaded on volume open (a toggle
+  made before it arrives wins; a session restore wins over it) and
+  written 1 s after a toggle. No DDL. `listSessions` hides reserved
+  rows. The browser copy moved to `seismolord.sliceVis.v2` (v1 was
+  written all-off on every mount) seeded from the old 3D prefs.
+  `seismolord.cubePrefs.v1` joined the session snapshot keys.
+- **Wells** (`lib/wellDisplay.js`, a Suite-side wrapper; no engine
+  edit): `buildWellSections` returns `{sections, skipped}` with a
+  reason per undrawable visible well: no time-depth relationship (no
+  checkshots and no velocity model; no default velocity is ever
+  assumed), no well path, outside the survey time window, off the
+  survey; CRS skips from `placeWellsForHost` now carry the well id.
+  The explorer well row shows a warning badge with the reason
+  (`WellDrawBadge.jsx`, testId `sl-well-warn-<id>`), the row tooltip
+  says how a drawn well reaches time (checkshots or velocity model),
+  and one toast per well, reason and volume. Found and fixed:
+  `useWells` dropped `checkshots_derived`, so a committed tie never
+  reached the sections or 3D. **Well projection distance** (Wells tab,
+  metres, empty = 1.5 bins) converts to bins per orientation
+  (`corridorCells`, inline spacing across inlines) and feeds
+  `projectWellToSection` for paths and tops; persisted in
+  `seismolord.wellProjection.v1` (a session key). Tops were already
+  labelled ticks on sections and crosses in 3D.
+- **Tester's case**: a well with no checkshots on a time survey with no
+  velocity model has no time-depth relationship, so it correctly stays
+  off the sections; the row now says so instead of dropping it.
+- Tests: `sliceToggles.test.jsx` (12: 3D hide stays hidden across
+  scrubs and when it lands mid-load, with a negative control confirming
+  the race test fails without the sequence bump; Planes menu drives the
+  shared toggle; Section intersection line off stays off while
+  scrubbing; hook persistence precedence), `wellDisplay.test.jsx` (9:
+  no-TDR message on the badge, checkshot well draws on an inline in
+  time at the checkshot time, tie-derived set wins, other reasons,
+  projection distance).
+
+## 2026-09-22: tester feedback, navigation and slice player (SLT-1)
+
+Owner-authorised tester feedback programme, three stacked PRs
+(navigation and player; slice toggles and wells; stability).
+
+- **Home link**: the ribbon corner now starts with the shared
+  `ModuleHomeLink` (Home icon + "Geoscience", testId `sl-home`), the
+  same element and position as the other Geoscience studios. The
+  explorer's small back arrow stays as a second way out.
+- **Slice player** (Home, Line group, `SlicePlayerControls.jsx`, state
+  in `hooks/useSlicePlayer.js`, pure math in `lib/sliceNav.js`):
+  - Step size per orientation (every Nth inline, crossline or sample).
+    Arrow keys and Shift+wheel in the Section window, the new arrow
+    keys and Shift+wheel in the 3D window, and the step buttons all
+    move by it. Neighbour prefetch warms +/- one step.
+  - Go to: an IL or XL number, or a time in ms on a time slice,
+    converted with (value - min) / step or ms * 1000 / dt_us, rounded
+    and clamped; a bad entry is flagged in place.
+  - Play/Pause at 0.5 to 8 slices per second: a setTimeout chain that
+    only schedules the next step once the current slice is on screen
+    (never setInterval, so a slow load slows the player instead of
+    stacking requests); stops at the end of the survey and on a load
+    error; any user move (slider, arrows, wheel, go to, map click, 3D
+    drag, orientation or volume change) pauses it.
+  - Step size and speed persist in `seismolord.player.v1`, one of the
+    session snapshot keys, so named sessions carry them.
+- 3D window: focusable viewport (`cube-viewport`), arrow keys step the
+  plane under the cursor or the Section window's orientation.
+- Tests: `slicePlayer.test.jsx` (conversion, clamping, player loop with
+  fake timers, controls), `cubeView.keys.test.jsx` (CubeView with a
+  recording renderer stand-in, `__tests__/cubeView.harness.js`).
+
+## 2026-09-22: tester group 6, import readers and Make surface
+
+Owner's words: add fault import (Charisma, IESX, generic ASCII with
+column mapping); read Charisma 3D interpretation lines, IESX,
+EarthVision, ZMAP+, CPS-3 and generic XYZ with column mapping, showing
+which lines and columns fail; make a surface directly from a horizon
+with no file export in between.
+
+- **Engines** (Petrolord/petrolord-engines #236, vendored at the branch
+  head; re-pin to the merge commit): tolerant readers that record
+  rejects `{ line, reason, column, field, text }` and refuse a file only
+  when nothing reads. `horizonImport.js` (Charisma 3D lines in every
+  INLINE/XLINE marker form, optional horizon-name column, multi-horizon
+  split; IESX card image; EarthVision; CPS-3 points; CPS-3/ZMAP+/Irap
+  grids sampled onto the lattice; il/xl/x/y/z; xyz; generic mapping),
+  `faultImport.parseFaultSticks` (Charisma variants, IESX fault sticks,
+  x y z stick, generic mapping with blank-line sticks), `importText.js`,
+  `importSniff.suggestImportKind`. Fixtures and their README (layouts,
+  counts, provenance) in `packages/engines/test-data/seismolord/{picks,faults}`.
+- **Import dialog** (`ImportSurfaceDialog.jsx`, title "Import horizons,
+  faults or surfaces"): no extension filter; the content decides the
+  kind and format (both overridable); a column-mapping step
+  (`dialogs/import/ColumnMappingStep.jsx`, tabularFile preview, Excel
+  first sheet accepted); a reject report (`dialogs/import/RejectReport.jsx`,
+  first 25 with the total); a multi-horizon file lists its horizons with
+  tick boxes and creates one horizon per ticked name. Landing and saving
+  moved to `services/interpretationImport.js`. New upload icons on the
+  explorer's Horizons and Faults sections open the dialog on that kind.
+- **Make surface** (`dialogs/MakeSurfaceDialog.jsx`,
+  `services/makeSurface.js`): a horizon's right-click menu and the
+  Interpretation tab (Surface ops) open it with the horizon preselected.
+  Both buttons grid with `gridHorizonSurface` and save with
+  `saveHorizonAsSurface` (the Export dialog's provenance plus
+  `made_from: make_surface`): **Grid in Seismolord** also shows the
+  surface in the Map window; **Publish to the registry** links to Mapping
+  & Surface Studio. The Export dialog's Save as surface is unchanged.
+- Help guide: quick start step 5, horizon and fault import paragraphs and
+  the Map section now name the real buttons (it said "Publish it to the
+  registry", which matched no button); guarded in `helpGuide.test.jsx`.
+- Tests: engines `seismolord.importreaders.test.js` (47); Suite
+  `interpretationImport.test.jsx` (11: the Charisma horizon file imports
+  12 points and the Charisma fault-stick file 10 points in 2 faults
+  through the real dialog; reject report; multi-horizon; mapping step),
+  `makeSurface.test.jsx` (8).
+- Judgment calls: Charisma x y z are the first three numbers after the
+  crossline (extra numbers ignored, a trailing word is a horizon name);
+  all-zero inline/crossline rows (resqpy) are located by X/Y; IESX fault
+  layout follows the documented card-image columns (no Petrel-written
+  IESX fault file was available); scattered points (EarthVision, CPS-3
+  points, xyz) land on the nearest lattice cell, so a sparse file makes a
+  sparse horizon.
 
 ## 2026-09-22: group 5c, docked interpretation toolbox and fault stick tools
 

@@ -100,6 +100,16 @@ const INK = {
  * @param {Array<{id, name, color, points: Array, tops: Array}>} [p.wells]
  *   visible wells' lattice paths (wellSection.buildWellLatticePath) —
  *   drawn as cube-space polylines with 3D-cross top markers
+ * @param {{inline:number, xline:number, time:number}} [p.steps] step size
+ *   per orientation (Shift+wheel and the arrow keys move a plane by it)
+ * @param {'inline'|'xline'|'time'} [p.activeOrientation] the plane the
+ *   arrow keys step when the cursor is not over a plane (the Section
+ *   window's orientation)
+ * @param {{inline:boolean, xline:boolean, time:boolean}} [p.sliceVis] the
+ *   workspace's shared slice-plane visibility (explorer eyes); when given
+ *   it replaces this window's own inline/xline/time prefs and the Planes
+ *   menu toggles it through onToggleSlicePlane
+ * @param {(orientation:string) => void} [p.onToggleSlicePlane]
  * @param {(orientation:string) => void} [p.onSelectPlane]
  * @param {() => void} [p.onRendered] fired after each GL frame (harness)
  * @param {number|'fill'} [p.height] viewport CSS height, or 'fill' to
@@ -113,7 +123,8 @@ const planeUnavailable = (e) => e?.message === ABORTED || e?.code === 'ABORTED'
 function CubeView({
   geom, manifest, getBrick, getSlice, indices, onChangeIndex, display, vexag,
   horizons, faults, wells, onSelectPlane, onRendered, height = 520,
-  depthConv = null,
+  depthConv = null, steps = null, activeOrientation = 'inline',
+  sliceVis = null, onToggleSlicePlane = null,
 }) {
   const wrapRef = useRef(null);
   const viewportRef = useRef(null);
@@ -141,14 +152,26 @@ function CubeView({
   const activeWellRef = useRef(new Set());
   const gizmoRef = useRef(null);           // {cx, cy, r, tips:[{x,y,axis}]} device px
 
-  const [prefs, setPrefs] = useState(loadPrefs);
+  const [ownPrefs, setPrefs] = useState(loadPrefs);
+  // the workspace's shared plane visibility wins over the local prefs
+  const prefs = useMemo(() => (sliceVis
+    ? {
+      ...ownPrefs,
+      inline: Boolean(sliceVis.inline),
+      xline: Boolean(sliceVis.xline),
+      time: Boolean(sliceVis.time),
+    }
+    : ownPrefs), [ownPrefs, sliceVis]);
   const [busy, setBusy] = useState(0);
+  // stability (2026-09-22): a failed plane load offers Retry; the tick
+  // re-runs the reconcile with the dedupe cleared
+  const [retryTick, setRetryTick] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [glError, setGlError] = useState(null);
 
   useEffect(() => {
-    try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch { /* private mode */ }
-  }, [prefs]);
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify(ownPrefs)); } catch { /* private mode */ }
+  }, [ownPrefs]);
 
   const ext = useMemo(
     () => (geom ? cubeExtents(manifest, geom, vexag) : null),
@@ -159,7 +182,7 @@ function CubeView({
 
   propsRef.current = {
     geom, manifest, ext, prefs, display, indices, spacing, northLocal,
-    depthConv,
+    depthConv, steps, activeOrientation,
   };
 
   // ---- rendering --------------------------------------------------------
@@ -506,7 +529,11 @@ function CubeView({
       if (seq !== seqRef.current[orientation]) return;
       putPlane(orientation, orientation, index, slice);
     } catch (e) {
-      if (!planeUnavailable(e)) setGlError(e.message);
+      if (!planeUnavailable(e)) {
+        // let Retry (or the next index move) load this plane again
+        if (seq === seqRef.current[orientation]) desiredRef.current[orientation] = null;
+        setGlError(e.message);
+      }
     } finally {
       setBusy((b) => b - 1);
     }
@@ -522,7 +549,12 @@ function CubeView({
     if (!geom || !getBrick) return;
     for (const o of ORIENTATIONS) {
       if (!prefs[o]) {
-        desiredRef.current[o] = null;
+        if (desiredRef.current[o] !== null) {
+          // supersede an in-flight load: without the bump its putPlane
+          // would land AFTER the drop and bring the hidden plane back
+          seqRef.current[o] += 1;
+          desiredRef.current[o] = null;
+        }
         dropPlane(o);
         continue;
       }
@@ -533,12 +565,13 @@ function CubeView({
     }
   }, [geom, getBrick, prefs.inline, prefs.xline, prefs.time,
     indices.inline, indices.xline, indices.time,
-    loadMainPlane, dropPlane, maxFor, prefs, indices]);
+    loadMainPlane, dropPlane, maxFor, prefs, indices, retryTick]);
 
   // boundary faces ("entire cube")
   useEffect(() => {
     if (!geom || !getBrick) return;
     if (!prefs.faces) {
+      seqRef.current.faces += 1;           // stop an in-flight face load
       for (const [id] of FACES) dropPlane(id);
       return;
     }
@@ -729,7 +762,7 @@ function CubeView({
     const p = propsRef.current;
     if (!hit || !p.manifest) {
       el.textContent = 'drag: rotate · Shift/middle-drag: pan · wheel: zoom '
-        + '· Ctrl/Alt+drag a plane: move it · Shift+wheel over a plane: step it '
+        + '· Ctrl/Alt+drag a plane: move it · Shift+wheel or arrows: step a plane '
         + '· click a plane: open in 2D · gizmo axis: snap view · dbl-click: fit';
       return;
     }
@@ -763,6 +796,10 @@ function CubeView({
     if (e.button !== 0 && e.button !== 1 && e.button !== 2) return;
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
+    // keyboard stepping needs focus; preventDefault above suppresses it
+    if (viewportRef.current && viewportRef.current.focus) {
+      viewportRef.current.focus({ preventScroll: true });
+    }
     const { sx, sy } = toDevice(e);
     // Ctrl/Alt + left-drag over a main plane: move THAT plane along its
     // axis instead of orbiting (boundary faces are fixed by definition)
@@ -892,8 +929,9 @@ function CubeView({
       if (e.shiftKey && hoverPlaneRef.current && onChangeIndex) {
         const meta = planesMetaRef.current.get(hoverPlaneRef.current);
         if (meta && ORIENTATIONS.includes(hoverPlaneRef.current)) {
+          const step = propsRef.current.steps?.[meta.orientation] || 1;
           const next = Math.min(maxFor(meta.orientation),
-            Math.max(0, meta.index + (e.deltaY > 0 ? 1 : -1)));
+            Math.max(0, meta.index + (e.deltaY > 0 ? step : -step)));
           onChangeIndex(meta.orientation, next);
         }
         return;
@@ -905,13 +943,38 @@ function CubeView({
     return () => el.removeEventListener('wheel', onWheel);
   }, [scheduleRender, onChangeIndex, maxFor]);
 
+  /** Arrow keys step the plane under the cursor (else the Section
+   *  window's orientation) by one increment of the step size. */
+  const onKeyDown = useCallback((e) => {
+    let delta = 0;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') delta = 1;
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') delta = -1;
+    if (!delta || !onChangeIndex) return;
+    const p = propsRef.current;
+    if (!p.geom) return;
+    const hovered = hoverPlaneRef.current;
+    const o = ORIENTATIONS.includes(hovered) ? hovered
+      : (ORIENTATIONS.includes(p.activeOrientation) ? p.activeOrientation : 'inline');
+    const step = p.steps?.[o] || 1;
+    const cur = p.indices?.[o] || 0;
+    const next = Math.min(maxFor(o), Math.max(0, cur + delta * step));
+    e.preventDefault();
+    if (next !== cur) onChangeIndex(o, next);
+  }, [onChangeIndex, maxFor]);
+
   // ---- toolbar -----------------------------------------------------------
 
   const zoomBtn = (f) => { cameraRef.current.dolly(f); scheduleRender(); };
   const fitView = () => {
     if (ext) { cameraRef.current.fitTo(ext); scheduleRender(); }
   };
-  const togglePref = (key) => setPrefs((p0) => ({ ...p0, [key]: !p0[key] }));
+  const togglePref = (key) => {
+    if (sliceVis && onToggleSlicePlane && ORIENTATIONS.includes(key)) {
+      onToggleSlicePlane(key);
+      return;
+    }
+    setPrefs((p0) => ({ ...p0, [key]: !p0[key] }));
+  };
   const toggleBg = () => setPrefs((p0) => ({ ...p0, bg: p0.bg === 'dark' ? 'light' : 'dark' }));
 
   const toggleFullscreen = async () => {
@@ -987,16 +1050,19 @@ function CubeView({
             <DropdownMenuLabel>Slice planes</DropdownMenuLabel>
             <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()}
               checked={prefs.inline} onCheckedChange={() => togglePref('inline')}
+              data-testid="cube-plane-inline"
             >
               Inline plane
             </DropdownMenuCheckboxItem>
             <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()}
               checked={prefs.xline} onCheckedChange={() => togglePref('xline')}
+              data-testid="cube-plane-xline"
             >
               Crossline plane
             </DropdownMenuCheckboxItem>
             <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()}
               checked={prefs.time} onCheckedChange={() => togglePref('time')}
+              data-testid="cube-plane-time"
             >
               Time slice plane
             </DropdownMenuCheckboxItem>
@@ -1065,7 +1131,10 @@ function CubeView({
 
       <div
         ref={viewportRef}
-        className={`relative rounded-lg border overflow-hidden ${lightBg
+        tabIndex={0}
+        onKeyDown={onKeyDown}
+        data-testid="cube-viewport"
+        className={`relative rounded-lg border overflow-hidden outline-none ${lightBg
           ? 'border-slate-300 bg-white' : 'border-slate-800 bg-slate-950'}
           ${fillHeight ? 'flex-1 min-h-0' : ''}`}
         style={fillHeight ? undefined : { height }}
@@ -1078,6 +1147,7 @@ function CubeView({
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
+          onPointerLeave={() => { if (!dragRef.current) hoverPlaneRef.current = null; }}
           onDoubleClick={onDoubleClick}
         />
         {!geom && (
@@ -1086,8 +1156,18 @@ function CubeView({
           </div>
         )}
         {glError && (
-          <div className="absolute inset-x-0 bottom-0 bg-red-950/80 text-red-300 text-xs p-2">
-            {glError}
+          <div className="absolute inset-x-0 bottom-0 bg-red-950/80 text-red-300 text-xs p-2 flex items-center gap-2">
+            <span className="min-w-0 flex-1">{glError}</span>
+            {geom && rendererRef.current && (
+              <button
+                type="button"
+                data-testid="cube-retry"
+                className="shrink-0 rounded border border-red-800 px-2 py-0.5 text-red-200 hover:bg-red-900/60"
+                onClick={() => { setGlError(null); setRetryTick((t) => t + 1); }}
+              >
+                Retry
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -1097,7 +1177,7 @@ function CubeView({
         className="text-xs text-slate-500 font-mono mt-1 h-5 whitespace-pre overflow-hidden"
       >
         drag: rotate · Shift/middle-drag: pan · wheel: zoom · Ctrl/Alt+drag a
-        plane: move it · Shift+wheel over a plane: step it · click a plane:
+        plane: move it · Shift+wheel or arrows: step a plane · click a plane:
         open in 2D · gizmo axis: snap view · dbl-click: fit
       </div>
     </div>
