@@ -24,6 +24,14 @@ export const WellPlanningStoreProvider = ({ children }) => {
   const [targets, setTargets] = useState([]);     // of the selected site
   const [selection, setSelection] = useState({ siteId: null, wellboreId: null, designId: null });
   const [loading, setLoading] = useState(true);
+  // Offsets ticked on the Anti-collision tab, per design id. Held here
+  // (the tab unmounts when hidden) so the choice survives tab switches
+  // and the Design plots draw the same offsets.
+  const [acOffsetSelection, setAcOffsetSelectionMap] = useState({});
+  const setAcOffsetSelection = useCallback((designId, ids) => {
+    if (!designId) return;
+    setAcOffsetSelectionMap((prev) => ({ ...prev, [designId]: ids }));
+  }, []);
 
   const fail = useCallback((title, e) => {
     toast({ variant: 'destructive', title, description: e.message });
@@ -99,10 +107,12 @@ export const WellPlanningStoreProvider = ({ children }) => {
     selection, site, wellbore, design,
     selectSite, selectWellbore, selectDesign,
     refreshSites, refreshWellbores, refreshDesigns, refreshTargets,
+    acOffsetSelection, setAcOffsetSelection,
     wpApi,
   }), [user, loading, sites, wellbores, designs, targets, selection, site,
     wellbore, design, selectSite, selectWellbore, selectDesign,
-    refreshSites, refreshWellbores, refreshDesigns, refreshTargets]);
+    refreshSites, refreshWellbores, refreshDesigns, refreshTargets,
+    acOffsetSelection, setAcOffsetSelection]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 };

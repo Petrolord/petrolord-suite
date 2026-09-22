@@ -31,6 +31,8 @@ import {
   deserializeAcRun, DEFAULT_AC_PARAMS,
 } from '../services/acUtils';
 import { compositeStations } from '../services/surveyUtils';
+import { assembleOffsetCandidates } from '../services/offsetFrame';
+import { loadSiteOffsetDesigns } from '../services/offsetLoader';
 import * as wpApi from '../services/wpApi';
 import LadderChart from '../charts/LadderChart';
 import TravelingCylinderChart from '../charts/TravelingCylinderChart';
@@ -44,6 +46,7 @@ const STATUS_CHIP = {
 const AntiCollisionTab = () => {
   const {
     user, site, wellbore, design, wellbores, selection,
+    acOffsetSelection, setAcOffsetSelection,
   } = useWellPlanningStore();
   const { toast } = useToast();
 
@@ -55,7 +58,15 @@ const AntiCollisionTab = () => {
   const [surveys, setSurveys] = useState([]);
   const [designsByWellbore, setDesignsByWellbore] = useState({});
   const [geoWells, setGeoWells] = useState(null);
-  const [checkedOffsets, setCheckedOffsets] = useState({});
+  // Ticked offsets live in the store per design (shared with the
+  // Design plots' Offsets overlay and kept across tab switches).
+  const checkedOffsets = useMemo(() => Object.fromEntries(
+    (acOffsetSelection?.[design?.id] || []).map((id) => [id, true]),
+  ), [acOffsetSelection, design?.id]);
+  const setCheckedOffsets = useCallback((updater) => {
+    const next = typeof updater === 'function' ? updater(checkedOffsets) : updater;
+    setAcOffsetSelection(design?.id, Object.keys(next).filter((id) => next[id]));
+  }, [checkedOffsets, setAcOffsetSelection, design?.id]);
   const [params, setParams] = useState(DEFAULT_AC_PARAMS);
   const [running, setRunning] = useState(false);
   const [scan, setScan] = useState(null);            // live results
@@ -76,18 +87,8 @@ const AntiCollisionTab = () => {
     // Definitive/latest designs for the site's OTHER wellbores (offset
     // candidates). Sequential fetch is fine at pad scale.
     let live = true;
-    (async () => {
-      const map = {};
-      for (const w of wellbores.filter((x) => x.id !== wellbore?.id)) {
-        try {
-          const designs = await wpApi.listDesigns(w.id);
-          const withStations = designs.filter((d) => Array.isArray(d.stations) && d.stations.length >= 2);
-          map[w.id] = withStations.find((d) => d.status === 'definitive')
-            || withStations[withStations.length - 1] || null;
-        } catch (e) { map[w.id] = null; }
-      }
-      if (live) setDesignsByWellbore(map);
-    })();
+    loadSiteOffsetDesigns(wellbores, wellbore?.id, { isCancelled: () => !live })
+      .then(({ map, cancelled }) => { if (live && !cancelled) setDesignsByWellbore(map); });
     return () => { live = false; };
   }, [wellbores, wellbore?.id]);
 
@@ -114,38 +115,9 @@ const AntiCollisionTab = () => {
     return Array.isArray(design?.stations) && design.stations.length >= 2 ? design.stations : null;
   }, [reference, design, composite]);
 
-  const offsetCandidates = useMemo(() => {
-    const out = [];
-    for (const w of wellbores.filter((x) => x.id !== wellbore?.id)) {
-      const d = designsByWellbore[w.id];
-      if (!d || !Number.isFinite(w.head_x) || !Number.isFinite(w.head_y)) continue;
-      out.push({
-        id: `wp:${w.id}`,
-        label: `${w.name} — ${d.name} r${d.revision}${d.status === 'definitive' ? ' (definitive)' : ''}`,
-        kind: 'wp-plan',
-        stations: d.stations,
-        headX: w.head_x,
-        headY: w.head_y,
-        kbElevM: w.kb_elev_m || 0,
-      });
-    }
-    for (const g of (geoWells || [])) {
-      if (g.id === wellbore?.geo_well_id) continue;
-      if (!Array.isArray(g.deviation) || g.deviation.length < 2) continue;
-      if ((g.crs || null) !== (site?.crs || null)) continue;
-      if (!Number.isFinite(g.surface_x) || !Number.isFinite(g.surface_y)) continue;
-      out.push({
-        id: `geo:${g.id}`,
-        label: `${g.name} (registry)`,
-        kind: 'geo',
-        stations: g.deviation,
-        headX: g.surface_x,
-        headY: g.surface_y,
-        kbElevM: g.kb_m || 0,
-      });
-    }
-    return out;
-  }, [wellbores, designsByWellbore, geoWells, wellbore, site?.crs]);
+  const offsetCandidates = useMemo(() => assembleOffsetCandidates({
+    wellbores, designsByWellbore, geoWells, wellbore, siteCrs: site?.crs,
+  }), [wellbores, designsByWellbore, geoWells, wellbore, site?.crs]);
 
   const selectedOffsets = offsetCandidates.filter((c) => checkedOffsets[c.id]);
 

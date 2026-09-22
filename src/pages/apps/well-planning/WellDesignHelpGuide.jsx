@@ -366,6 +366,23 @@ const WellDesignHelpGuide = () => {
                 in red and the legend labels it as flagged. Use it to tell a real sharp dogleg from an exaggerated plot.
                 With no Max DLS set, the scale runs to the plan&apos;s own maximum and nothing is flagged.
               </Para>
+              <SubHeading>Offset wells on the plots</SubHeading>
+              <Para>
+                The Offsets button next to Targets draws offset wellbores on the section and plan views, each labelled with its
+                well name. They are the same wells the Anti-collision tab offers: the site&apos;s other wellbores (their definitive
+                design, else the latest saved one) and registry wells in the site CRS. The offsets you tick on the
+                Anti-collision tab are the ones drawn; with none ticked, the offsets of the design&apos;s latest saved
+                anti-collision run are used; with neither, the plots show the site&apos;s other wellbores and registry wells
+                whose wellhead lies within 2 km plus this plan&apos;s reach. A note above the plot says which rule applied.
+              </Para>
+              <Para>
+                Offsets are placed in this wellbore&apos;s frame: north and east from this wellhead in its depth unit, vertical
+                section on this plan&apos;s section azimuth, and TVD below this well&apos;s KB, so a KB elevation difference between
+                wells is accounted for. With EOU on, each offset carries its own 2 sigma ellipses and TVD band from this site&apos;s
+                magnetic reference; without a magnetic reference the note says so. Offsets load only while the button is on, and
+                a well that cannot be placed (no wellhead, or a wellhead in another coordinate frame) is listed in the note and
+                left off the plot.
+              </Para>
               <SubHeading>The 3D window</SubHeading>
               <Para>
                 The pad in an interactive cube: your plan, the definitive actual composite, the other wellbores' definitive

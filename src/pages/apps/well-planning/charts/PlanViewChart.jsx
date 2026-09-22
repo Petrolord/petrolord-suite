@@ -165,6 +165,17 @@ const PlanViewChart = ({
             points={p.points.map(([px, py]) => `${X(px).toFixed(1)},${Y(py).toFixed(1)}`).join(' ')}
             fill="none" stroke={p.color || '#64748b'} strokeWidth={1.5} strokeDasharray={p.dash || ''} />
         ))}
+        {/* offset labels at the wellhead and at TD */}
+        {extraPaths.filter((p) => p.label && p.points.length).map((p, i) => {
+          const [hx, hy] = p.points[0];
+          const [tx, ty] = p.points[p.points.length - 1];
+          return (
+            <g key={`extralbl${i}`}>
+              <circle cx={X(hx)} cy={Y(hy)} r={2.5} fill={p.color || '#64748b'} />
+              <text x={X(tx) + 5} y={Y(ty) + 3} fontSize={9} fill="#334155">{p.label}</text>
+            </g>
+          );
+        })}
 
         {/* targets */}
         {targets.map((t) => (
@@ -183,7 +194,7 @@ const PlanViewChart = ({
             rx={Math.max(1, el.semiMajor * frame.scale)}
             ry={Math.max(1, el.semiMinor * frame.scale)}
             transform={`rotate(${(el.azimuthDeg || 0) - 90} ${X(el.e)} ${Y(el.n)})`}
-            fill="#0ea5e922" stroke="#0284c7" strokeWidth={1} strokeDasharray="3 2" />
+            fill={el.color ? 'none' : '#0ea5e922'} stroke={el.color || '#0284c7'} strokeWidth={1} strokeDasharray="3 2" />
         ))}
 
         {/* wellpath */}
