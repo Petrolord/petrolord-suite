@@ -101,6 +101,7 @@ import VelocityModelEditor from './workspace/VelocityModelEditor';
 import ImportSegyDialog from './workspace/dialogs/ImportSegyDialog';
 import ExportDialog from './workspace/dialogs/ExportDialog';
 import ImportSurfaceDialog from './workspace/dialogs/ImportSurfaceDialog';
+import MakeSurfaceDialog from './workspace/dialogs/MakeSurfaceDialog';
 import WellImportDialog from './workspace/dialogs/WellImportDialog';
 import VelocityModelDialog from './workspace/dialogs/VelocityModelDialog';
 import HorizonSettingsDialog from './workspace/dialogs/HorizonSettingsDialog';
@@ -191,6 +192,18 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   const [volumeBusyId, setVolumeBusyId] = useState(null);
   // heavyweight workflows open as modal dialogs over the workspace
   const [openDialog, setOpenDialog] = useState(null); // null|'import'|'wellImport'|'export'|'velocity'
+  // interpretation import: the kind the opening door implies (Horizons or
+  // Faults section icon), null = sniff the file; Make surface: preselected horizon
+  const [importKind, setImportKind] = useState(null);
+  const [makeSurfaceHorizonId, setMakeSurfaceHorizonId] = useState(null);
+  const openInterpImport = (k = null) => {
+    setImportKind(typeof k === 'string' ? k : null);
+    setOpenDialog('importSurface');
+  };
+  const openMakeSurface = (horizonId = null) => {
+    setMakeSurfaceHorizonId(horizonId);
+    setOpenDialog('makeSurface');
+  };
   // AI copilot right dock — the dock panel stays mounted while collapsed
   // so the chat survives open/close
   const [dockOpen, setDockOpen] = useState(false);
@@ -3197,7 +3210,8 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     deleteSurface: onDeleteSurface,
     shareSurface: onShareSurface,
     toggleSurface,
-    openSurfaceImport: () => setOpenDialog('importSurface'),
+    openSurfaceImport: openInterpImport,
+    makeSurface: (h) => openMakeSurface(h?.id || null),
     toggleCulture,
     shareCulture: onShareCulture,
     deleteCulture: onDeleteCulture,
@@ -3399,6 +3413,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
               openAttribute={() => setOpenDialog('attribute')}
               toolboxOpen={dockOpen && dockPanel === 'toolbox'}
               toggleToolbox={() => openDockPanel('toolbox')}
+              openMakeSurface={() => openMakeSurface(editTarget !== 'new' ? editTarget : null)}
             />
           ),
         },
@@ -3426,7 +3441,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
             <ExportTab
               volume={volume}
               openExport={() => setOpenDialog('export')}
-              openSurfaceImport={() => setOpenDialog('importSurface')}
+              openSurfaceImport={() => openInterpImport()}
               openPlot={() => setOpenDialog('plot')}
             />
           ),
@@ -3845,6 +3860,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
         onOpenChange={(o) => setOpenDialog(o ? 'importSurface' : null)}
         volume={volume}
         manifest={manifest}
+        initialKind={importKind}
         onSurfaceImported={() => setSurfacesRefresh((k) => k + 1)}
         onHorizonImported={() => reloadHorizons(volume)}
         onFaultsImported={async (saved) => {
@@ -3852,6 +3868,17 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
           // imported faults show immediately (the fault-save behavior)
           setVisibleFaultIds((s) => new Set([...s, ...saved.map((f) => f.id)]));
         }}
+      />
+
+      <MakeSurfaceDialog
+        open={openDialog === 'makeSurface'}
+        onOpenChange={(o) => setOpenDialog(o ? 'makeSurface' : null)}
+        volume={volume}
+        manifest={manifest}
+        horizons={horizons}
+        initialHorizonId={makeSurfaceHorizonId}
+        onSurfaceSaved={() => setSurfacesRefresh((k) => k + 1)}
+        showSurface={(s) => toggleSurface(s)}
       />
 
       <WellImportDialog
