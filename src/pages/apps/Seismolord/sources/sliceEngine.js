@@ -287,10 +287,13 @@ export class SliceEngine {
    * @param {string} sourceId
    * @param {{orientation: string, index: number, level?: number, step?: number,
    *   background?: boolean}} req
-   * @param {{signal?: AbortSignal, onPartial?: (slice: Object) => void}} [opts]
+   * @param {{signal?: AbortSignal, onPartial?: (slice: Object) => void,
+   *   onProgress?: (done: number, total: number) => void}} [opts]
+   *   onProgress: bricks assembled so far (brick sources), so a slow link
+   *   shows progress and the caller can time out on silence only
    * @returns {Promise<Object>} slice (cache-owned: copy before transferring)
    */
-  async getSlice(sourceId, req, { signal, onPartial } = {}) {
+  async getSlice(sourceId, req, { signal, onPartial, onProgress } = {}) {
     const src = this.#source(sourceId);
     const o = toEngineOrientation(req.orientation);
     const index = req.index;
@@ -311,6 +314,7 @@ export class SliceEngine {
     job.waiters += 1;
     if (onPartial) job.partials.push(onPartial);
     if (job.partial && onPartial) onPartial(job.partial);
+    if (onProgress) job.progress.push(onProgress);
 
     const onAbort = () => {
       job.waiters -= 1;
@@ -332,6 +336,7 @@ export class SliceEngine {
     } finally {
       if (signal) signal.removeEventListener('abort', onAbort);
       if (onPartial) job.partials = job.partials.filter((f) => f !== onPartial);
+      if (onProgress) job.progress = job.progress.filter((f) => f !== onProgress);
     }
   }
 
@@ -340,7 +345,7 @@ export class SliceEngine {
     const controller = new AbortController();
     const job = {
       controller, waiters: 0, background: Boolean(req.background), partials: [], partial: null,
-      bricks: null,
+      progress: [], bricks: null,
     };
     // a new foreground request cancels background work the user moved past
     if (!req.background) {
@@ -387,7 +392,9 @@ export class SliceEngine {
         .map(({ i, j, k }) => this.#brickPath(src, i, j, k)));
       const getBrick = (i, j, k) => this.cache.get(this.#brickPath(src, i, j, k));
       const out = await assembleSlices(getBrick, src.geom, o, wanted, {
-        concurrency: this.assemblyConcurrency, signal: controller.signal,
+        concurrency: this.assemblyConcurrency,
+        signal: controller.signal,
+        onProgress: (done, total) => { for (const f of job.progress) f(done, total); },
       });
       let primary = null;
       for (const [idx, s] of out) {

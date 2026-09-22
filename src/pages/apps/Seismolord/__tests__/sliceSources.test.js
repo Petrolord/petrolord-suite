@@ -399,6 +399,50 @@ describe('SliceWorkerClient over the worker protocol', () => {
 
 // ---- error classification ------------------------------------------------------------
 
+describe('slice timeouts count silence', () => {
+  test('a slow slice whose bricks keep arriving lands; a silent one times out', async () => {
+    const vol = await brickVolume('dome_ieee', {}, 8);
+    // each brick takes 50 ms, so the inline (4 x 8 = 32 bricks, 12 in
+    // flight, 3 rounds) takes about 150 ms against a 110 ms timeout, but
+    // is never silent for more than about 50 ms
+    const client = new SliceWorkerClient({
+      createWorker: () => inProcessWorker({
+        makeFetcher: () => mapFetcher(vol.bricks, { delay: 50 }),
+      }),
+      budgetBytes: 64 * MB,
+      sliceTimeoutMs: 110,
+    });
+    const src = await client.openBricks({
+      manifest: vol.manifest, storagePath: vol.storagePath, supabaseUrl: 'http://x', getToken: async () => 'tok',
+    });
+    const progress = [];
+    const t0 = Date.now();
+    const s = await src.getSlice({ orientation: 'inline', index: 9, prefetch: false }, {
+      onProgress: (d, t) => progress.push([d, t]),
+    });
+    expect(Date.now() - t0).toBeGreaterThan(110);
+    expect(s.height).toBe(32);
+    expect(progress).toHaveLength(32);
+    expect(progress[31]).toEqual([32, 32]);
+
+    // silence: a fetcher that never answers
+    const stuck = new SliceWorkerClient({
+      createWorker: () => inProcessWorker({
+        makeFetcher: () => (p, signal) => new Promise((resolve, reject) => {
+          signal?.addEventListener('abort', () => reject(new Error('BRICK_FETCH_ABORTED')));
+        }),
+      }),
+      budgetBytes: 64 * MB,
+      sliceTimeoutMs: 110,
+    });
+    const src2 = await stuck.openBricks({
+      manifest: vol.manifest, storagePath: vol.storagePath, supabaseUrl: 'http://x', getToken: async () => 'tok',
+    });
+    const e = await src2.getSlice({ orientation: 'inline', index: 9, prefetch: false }).catch((x) => x);
+    expect(e.code).toBe(SOURCE_ERRORS.TIMEOUT);
+  });
+});
+
 describe('error classification and copy', () => {
   test('out-of-memory shapes', () => {
     expect(isOutOfMemory(new RangeError('Array buffer allocation failed'))).toBe(true);

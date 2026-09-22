@@ -104,6 +104,7 @@ const gutters = (showAxes) => (showAxes ? { left: 52, top: 24 } : { left: 0, top
  *   the cursor before any click — circle = snapped to an event, square
  *   = no event nearby (the raw click position would be used)
  * @param {boolean} p.loading
+ * @param {string} [p.loadingText] shown beside the spinner (bricks so far)
  * @param {(pick:{ilIdx:number,xlIdx:number,sample:number,altKey?:boolean}) => void} p.onPick
  *   click picks carry altKey (modifier actions, e.g. fault point delete);
  *   paint-stroke picks do not
@@ -122,7 +123,7 @@ const gutters = (showAxes) => (showAxes ? { left: 52, top: 24 } : { left: 0, top
  */
 function SliceView({
   slice, geom, manifest, orientation, sliceIndex, display, overlays,
-  pickMode, ghost, loading, onPick, onPickEnd, onStepSlice, height = 520,
+  pickMode, ghost, loading, loadingText, onPick, onPickEnd, onStepSlice, height = 520,
   vexag: vexagProp, onVexagChange, emptyHint, depthConv = null, onCursor = null,
   cameraApi = null, overlaySlice = null, overlayDisplay = null,
   depthAxisInfo = null, flatten = null,
@@ -1473,7 +1474,12 @@ function SliceView({
           </div>
         )}
         {loading && (
-          <div className="absolute top-2 right-2 text-cyan-300">
+          <div className="absolute top-2 right-2 text-cyan-300 flex items-center gap-2">
+            {loadingText && (
+              <span className="text-xs bg-slate-950/70 rounded px-1.5 py-0.5" data-testid="slice-loading-text">
+                {loadingText}
+              </span>
+            )}
             <Loader2 className="w-5 h-5 animate-spin" />
           </div>
         )}

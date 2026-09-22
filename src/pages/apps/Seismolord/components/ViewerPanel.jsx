@@ -301,6 +301,8 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   const [overlaySlice, setOverlaySlice] = useState(null);
   const overlayReqRef = useRef(0);
   const [loading, setLoading] = useState(false);
+  // bricks assembled so far for a slow uncached slice ("120 of 392")
+  const [sliceProgress, setSliceProgress] = useState(null);
   const [error, setError] = useState(null);
   const [sliceMs, setSliceMs] = useState(null);
   const [slice, setSlice] = useState(null);              // assembled slice for SliceView
@@ -1314,10 +1316,12 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     const step = Number.isFinite(last) ? Math.max(1, Math.abs(sliceIndex - last)) : 1;
     lastSliceIndexRef.current = { ...lastSliceIndexRef.current, [orientation]: sliceIndex };
     setLoading(true);
+    setSliceProgress(null);
     setError(null);
     setSliceError(null);
     try {
       const t0 = performance.now();
+      let shownPct = -1;
       // low resolution first where the source has it (a local crossline),
       // then the exact slice; neighbours at the current step are warmed
       // in the worker after it lands
@@ -1327,6 +1331,14 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
         signal: ac.signal,
         onPartial: (p) => {
           if (req === requestRef.current) setSlice({ ...p, orientation, index: sliceIndex });
+        },
+        // only worth showing when the slice is slow: re-render every 5 %
+        onProgress: (done, total) => {
+          if (req !== requestRef.current || performance.now() - t0 < 1000) return;
+          const pct = Math.floor((20 * done) / total);
+          if (pct === shownPct) return;
+          shownPct = pct;
+          setSliceProgress({ done, total });
         },
       });
       if (req !== requestRef.current) return;          // stale scrub
@@ -1345,7 +1357,10 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
       setError(e.message);
       setSliceError(e);
     } finally {
-      if (req === requestRef.current) setLoading(false);
+      if (req === requestRef.current) {
+        setLoading(false);
+        setSliceProgress(null);
+      }
     }
   }, [manifest, geom, volume, orientation, sliceIndex]);
 
@@ -3669,6 +3684,8 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
                   ghost={!depthSection && pickMode === 'manual'
                     ? { mode: eventSnapMode, window: snapWindow } : null}
                   loading={loading}
+                  loadingText={sliceProgress
+                    ? `Loading ${sliceProgress.done} of ${sliceProgress.total} bricks` : null}
                   depthConv={depthSection ? null : depthConv}
                   depthAxisInfo={depthSection
                     ? { z0: depthSection.axis.z0, dz: depthSection.axis.dz, unit: depthUnit } : null}

@@ -14,6 +14,7 @@
 //   token       { id, token?, error? }   answer to a token-request
 // worker -> main:
 //   result { id, value } | partial { id, slice } | progress { id, done, total, phase }
+//               (phase 'bricks' on a slice request: bricks assembled so far)
 //   error { id, code, message } | token-request { id, sourceId, force }
 
 import { SliceEngine } from './sliceEngine';
@@ -169,6 +170,12 @@ export function createSliceWorkerHandler(post, env = {}) {
         };
         const s = await eng.getSlice(m.sourceId, req, {
           signal,
+          // one message per brick assembled (a few hundred per slice): the
+          // client's timeout counts silence, not total time, so a big
+          // slice on a slow link still lands
+          onProgress: (done, total) => post({
+            type: 'progress', id: m.id, done, total, phase: 'bricks',
+          }),
           onPartial: (p) => {
             const { out, transfer } = transferableSlice(p);
             post({ type: 'partial', id: m.id, slice: out }, transfer);

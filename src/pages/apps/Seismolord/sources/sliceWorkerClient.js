@@ -8,6 +8,9 @@ import { createSliceWorker } from '../services/sliceWorkerFactory';
 import { cacheBudgetBytes, reportedDeviceMemory } from './memoryBudget';
 import { SOURCE_KINDS, SOURCE_ERRORS, sourceError } from './sliceSource';
 
+/** A slice fails when nothing arrives for this long. It counts silence,
+ *  not total time: an uncached float32 inline is hundreds of MB, which a
+ *  10 Mbps link needs minutes for, and every brick that lands re-arms it. */
 export const SLICE_TIMEOUT_MS = 60000;
 export const BRICK_TIMEOUT_MS = 60000;
 /** An index build fails when no progress arrives for this long. */
@@ -76,6 +79,7 @@ export class SliceWorkerClient {
     const p = this.pending.get(msg.id);
     if (!p) return;
     if (msg.type === 'partial') {
+      if (p.idleMs) this.#arm(msg.id, p, p.idleMs);
       if (p.onPartial) p.onPartial(msg.slice);
       return;
     }
@@ -198,7 +202,8 @@ export class SliceWorkerClient {
       /**
        * @param {{orientation: string, index: number, level?: number, step?: number,
        *   prefetch?: boolean}} req
-       * @param {{signal?: AbortSignal, onPartial?: Function, timeoutMs?: number}|AbortSignal} [o]
+       * @param {{signal?: AbortSignal, onPartial?: Function, timeoutMs?: number,
+       *   onProgress?: (done: number, total: number) => void}|AbortSignal} [o]
        */
       async getSlice(req, o = {}) {
         const opts = o instanceof AbortSignal ? { signal: o } : o;
@@ -214,8 +219,9 @@ export class SliceWorkerClient {
         }, {
           signal: opts.signal,
           onPartial: opts.onPartial,
-          timeoutMs: opts.timeoutMs || client.sliceTimeoutMs,
-          timeoutMessage: 'Loading the slice took too long.',
+          onProgress: opts.onProgress,
+          idleMs: opts.timeoutMs || client.sliceTimeoutMs,
+          timeoutMessage: 'Loading the slice stopped making progress.',
         });
       },
       async getBrick(i, j, k, o = {}) {
