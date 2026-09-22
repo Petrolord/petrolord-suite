@@ -96,6 +96,11 @@ const INK = {
  * @param {Array<{id, name, color, points: Array, tops: Array}>} [p.wells]
  *   visible wells' lattice paths (wellSection.buildWellLatticePath) —
  *   drawn as cube-space polylines with 3D-cross top markers
+ * @param {{inline:number, xline:number, time:number}} [p.steps] step size
+ *   per orientation (Shift+wheel and the arrow keys move a plane by it)
+ * @param {'inline'|'xline'|'time'} [p.activeOrientation] the plane the
+ *   arrow keys step when the cursor is not over a plane (the Section
+ *   window's orientation)
  * @param {(orientation:string) => void} [p.onSelectPlane]
  * @param {() => void} [p.onRendered] fired after each GL frame (harness)
  * @param {number|'fill'} [p.height] viewport CSS height, or 'fill' to
@@ -104,7 +109,7 @@ const INK = {
 function CubeView({
   geom, manifest, getBrick, indices, onChangeIndex, display, vexag,
   horizons, faults, wells, onSelectPlane, onRendered, height = 520,
-  depthConv = null,
+  depthConv = null, steps = null, activeOrientation = 'inline',
 }) {
   const wrapRef = useRef(null);
   const viewportRef = useRef(null);
@@ -150,7 +155,7 @@ function CubeView({
 
   propsRef.current = {
     geom, manifest, ext, prefs, display, indices, spacing, northLocal,
-    depthConv,
+    depthConv, steps, activeOrientation,
   };
 
   // ---- rendering --------------------------------------------------------
@@ -707,7 +712,7 @@ function CubeView({
     const p = propsRef.current;
     if (!hit || !p.manifest) {
       el.textContent = 'drag: rotate · Shift/middle-drag: pan · wheel: zoom '
-        + '· Ctrl/Alt+drag a plane: move it · Shift+wheel over a plane: step it '
+        + '· Ctrl/Alt+drag a plane: move it · Shift+wheel or arrows: step a plane '
         + '· click a plane: open in 2D · gizmo axis: snap view · dbl-click: fit';
       return;
     }
@@ -741,6 +746,10 @@ function CubeView({
     if (e.button !== 0 && e.button !== 1 && e.button !== 2) return;
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
+    // keyboard stepping needs focus; preventDefault above suppresses it
+    if (viewportRef.current && viewportRef.current.focus) {
+      viewportRef.current.focus({ preventScroll: true });
+    }
     const { sx, sy } = toDevice(e);
     // Ctrl/Alt + left-drag over a main plane: move THAT plane along its
     // axis instead of orbiting (boundary faces are fixed by definition)
@@ -870,8 +879,9 @@ function CubeView({
       if (e.shiftKey && hoverPlaneRef.current && onChangeIndex) {
         const meta = planesMetaRef.current.get(hoverPlaneRef.current);
         if (meta && ORIENTATIONS.includes(hoverPlaneRef.current)) {
+          const step = propsRef.current.steps?.[meta.orientation] || 1;
           const next = Math.min(maxFor(meta.orientation),
-            Math.max(0, meta.index + (e.deltaY > 0 ? 1 : -1)));
+            Math.max(0, meta.index + (e.deltaY > 0 ? step : -step)));
           onChangeIndex(meta.orientation, next);
         }
         return;
@@ -882,6 +892,25 @@ function CubeView({
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
   }, [scheduleRender, onChangeIndex, maxFor]);
+
+  /** Arrow keys step the plane under the cursor (else the Section
+   *  window's orientation) by one increment of the step size. */
+  const onKeyDown = useCallback((e) => {
+    let delta = 0;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') delta = 1;
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') delta = -1;
+    if (!delta || !onChangeIndex) return;
+    const p = propsRef.current;
+    if (!p.geom) return;
+    const hovered = hoverPlaneRef.current;
+    const o = ORIENTATIONS.includes(hovered) ? hovered
+      : (ORIENTATIONS.includes(p.activeOrientation) ? p.activeOrientation : 'inline');
+    const step = p.steps?.[o] || 1;
+    const cur = p.indices?.[o] || 0;
+    const next = Math.min(maxFor(o), Math.max(0, cur + delta * step));
+    e.preventDefault();
+    if (next !== cur) onChangeIndex(o, next);
+  }, [onChangeIndex, maxFor]);
 
   // ---- toolbar -----------------------------------------------------------
 
@@ -1043,7 +1072,10 @@ function CubeView({
 
       <div
         ref={viewportRef}
-        className={`relative rounded-lg border overflow-hidden ${lightBg
+        tabIndex={0}
+        onKeyDown={onKeyDown}
+        data-testid="cube-viewport"
+        className={`relative rounded-lg border overflow-hidden outline-none ${lightBg
           ? 'border-slate-300 bg-white' : 'border-slate-800 bg-slate-950'}
           ${fillHeight ? 'flex-1 min-h-0' : ''}`}
         style={fillHeight ? undefined : { height }}
@@ -1056,6 +1088,7 @@ function CubeView({
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
+          onPointerLeave={() => { if (!dragRef.current) hoverPlaneRef.current = null; }}
           onDoubleClick={onDoubleClick}
         />
         {!geom && (
@@ -1075,7 +1108,7 @@ function CubeView({
         className="text-xs text-slate-500 font-mono mt-1 h-5 whitespace-pre overflow-hidden"
       >
         drag: rotate · Shift/middle-drag: pan · wheel: zoom · Ctrl/Alt+drag a
-        plane: move it · Shift+wheel over a plane: step it · click a plane:
+        plane: move it · Shift+wheel or arrows: step a plane · click a plane:
         open in 2D · gizmo axis: snap view · dbl-click: fit
       </div>
     </div>

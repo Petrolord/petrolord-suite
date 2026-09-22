@@ -9,6 +9,7 @@ export const LOCAL_KEYS = [
   'seismolord.viewerPrefs.v2',
   'seismolord.workspace.v1',
   'seismolord.ribbon.v1',
+  'seismolord.player.v1',        // slice player step size + speed
 ];
 
 /** Snapshot the session-relevant localStorage entries (raw strings). */
