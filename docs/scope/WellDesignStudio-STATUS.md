@@ -579,3 +579,54 @@ deviated.
   settings tolerance reaches the solver. 2 m off reports its dogleg. The
   Point method covers typed coordinates, the empty design, Using MD,
   unreachable points and the drop back to vertical.
+
+## Tester fix: Minna / Nigeria CRS and datum transformation (2026-09-22)
+
+Tester: "The Edit site dialog lists only WGS 84 / UTM zones", asking for
+Minna / Nigeria West, Mid and East Belt (EPSG:26391-26393) and Minna / UTM
+31N and 32N (EPSG:26331-26332) with the EPSG Minna to WGS 84 transformation.
+Owner decision: split the transformation by region, per-site override,
+always show the accuracy. Engines PR #234 + this Suite PR.
+
+- **Why they looked missing.** The Site dialog already used the shared
+  CrsPicker over the shared catalog, which already held all five codes and
+  whose search already matched them. With an empty search the picker
+  showed the first 30 catalog entries, which are WGS 84 / UTM zones 1N to
+  15S. The picker now browses by region with headers (Nigeria onshore,
+  Nigeria offshore, Nigeria, then the rest alphabetically), folds the 120
+  WGS 84 / UTM zones into one group that opens on click, states the
+  catalog size and "type to search", and shows the match count when a
+  search is capped (50 rows). Shared by every CrsPicker caller (Seismolord
+  import, surface/culture/well import, WellDataManager, Project CRS);
+  props unchanged.
+- **Transformations (EPSG dataset v12.029, read from PROJ 9.8.1 proj.db).**
+  West/Mid Belt: EPSG:1754 Minna to WGS 84 (3), Position Vector 7-param,
+  Nigeria onshore south, 5 m. East Belt: EPSG:1168 Minna to WGS 84 (2),
+  3-param, all Nigeria, 15 m (EPSG:1754's area ends at 9.45°E; the belt
+  starts at 10.49°E). UTM 31N/32N: EPSG:15706 Minna to WGS 84 (13), 3-param,
+  offshore beyond the continental shelf, 7 m. Minna lat/lon: EPSG:1168.
+  The old shared shift was EPSG:1168 labelled 5 m (published 15 m). West
+  Belt lon/lat moves about 10 m at 5.5°N 5°E.
+- **Site dialog.** For a Minna CRS: a "Datum transformation to WGS 84"
+  select (default first, then every EPSG transformation whose area
+  overlaps the CRS), the name, code, method, published accuracy and area
+  of use of the one in effect, and an amber note when the site origin lies
+  outside that transformation's area, naming the ones published for that
+  location. Other datums with a known approximate shift (ED50, NAD27,
+  OSGB36) show their accuracy.
+- **Storage, no migration.** The choice is saved in the existing
+  `wp_sites.crs_provenance` jsonb as `datum_transform: 'EPSG:<code>'`
+  (absent = catalog default); changing the CRS clears it.
+  `services/siteCrs.js` (`siteCrsOpts`) feeds it to every site lon/lat
+  conversion: DesignTab bottom-hole lat/lon, WellboreDialog magnetics
+  auto-fill and grid convergence, and the anti-collision live magnetics
+  fallback. Publishing a design records it in the geo_wells
+  `crs_provenance.datum_transform`; registry consumers still use the
+  catalog default (follow-up if a cross-app per-well override is wanted).
+  The header CRS badge reads "EPSG:26391 via EPSG:1168" when overridden.
+- Tests: `src/lib/crs/__tests__/datumTransforms.test.js` (7, PROJ oracle
+  for default and override, ~10 m separation reproduced within 1 cm),
+  `src/components/crs/__tests__/crsPicker.test.jsx` (6: 'Nigeria' and
+  'Minna' find all five, empty browse lists them first with UTM folded),
+  `well-planning/__tests__/siteDatumTransform.test.jsx` (6); engines
+  `crs.minna.test.js` (12) vendored.
