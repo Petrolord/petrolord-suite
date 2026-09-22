@@ -109,6 +109,12 @@ export default function SeismolordHelpGuide() {
           can be shown, compared or restored. Picks live on the volume's lattice in two-way time and are yours until
           you share the horizon with the organization.
         </Para>
+        <Para>
+          Every picking action can be undone with Ctrl+Z and redone with Ctrl+Shift+Z or Ctrl+Y (the Home tab has
+          the same buttons). In a horizon edit session one whole paint or erase stroke is one step. Saving the
+          session, Track volume and Grow target are undoable too: undoing a Save or a Grow writes the previous picks
+          back into the same horizon, and undoing a Track volume removes the horizon it created.
+        </Para>
       </GuideSection>
 
       <GuideSection id="faults">
@@ -117,6 +123,24 @@ export default function SeismolordHelpGuide() {
           Faults are sets of sticks picked on sections; sticks on neighbouring lines are joined into a surface you
           can show in the Map and 3D windows. Fault polygons drawn in Mapping &amp; Surface Studio are listed under
           Culture and can be shown on the map for comparison.
+        </Para>
+        <Para>
+          The interpretation toolbox (the wrench button at the top right, or Toolbox in the Interpretation tab)
+          docks every picking tool beside the viewports. For horizons it has the target, Manual picking, Seed, the
+          eraser with its brush size, and seeded tracking (Track 2D, Track 3D, Grow) with the event, the search
+          window and the correlation threshold. For faults, choose the active fault first: New fault starts a named
+          fault, and choosing an existing fault loads its sticks so new sticks belong to it. The stick tools are
+          Extend (a click adds a point at the nearer end of the selected stick), Select stick, Shorten (click a
+          point: it and the part of the stick beyond it are removed), Move node (drag a point), Delete node and
+          Delete stick; Trim top and Trim bottom shorten the selected stick by one point, and Delete fault removes
+          the active fault. Save writes the sticks to the active fault. Alt+click deletes the nearest point in any
+          stick tool, and every step can be undone.
+        </Para>
+        <Para>
+          Right-click a horizon or a fault in the explorer and choose Settings to rename it or set its colour, line
+          weight and opacity. The settings apply to sections, the 3D window and the map at once and are saved with
+          the interpretation, so they come back on the next visit. A new fault keeps the colour of every existing
+          one, and each settings change or rename can be undone with Ctrl+Z.
         </Para>
       </GuideSection>
 

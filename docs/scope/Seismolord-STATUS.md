@@ -34,6 +34,103 @@ Owner-authorised tester feedback programme, three stacked PRs
   fake timers, controls), `cubeView.keys.test.jsx` (CubeView with a
   recording renderer stand-in, `__tests__/cubeView.harness.js`).
 
+## 2026-09-22: group 5c, docked interpretation toolbox and fault stick tools
+
+Owner: "Add a docked interpretation toolbox for horizon picking and
+fault picking ... Fault picking needs new stick, extend, shorten, move
+a node, delete a node, delete a stick and delete a fault. At the moment
+a fault can be lengthened but not shortened or erased." Required test:
+"a fault shortened and erased, then undone".
+
+- `components/workspace/InterpretationToolbox.jsx` in the WorkspaceShell
+  right dock, which now holds Toolbox and Copilot tabs (both stay
+  mounted; the wrench and bot buttons in the ribbon corner and the new
+  Interpretation > Toolbox button open them). It drives the same
+  ViewerPanel state and handlers as the ribbon, which keeps working.
+  Horizon block: target, Manual / Seed / Erase, Track 2D / 3D / Grow,
+  event, window, an ALWAYS visible correlation threshold (with a "Track
+  by correlation" shortcut when the event is not NCC), brush size,
+  session Save / Discard, and Undo / Redo. Fault block: Active fault
+  (New fault with a name field, or an existing fault, which loads its
+  sticks so new sticks belong to it), the six stick tools, New stick,
+  Trim top / bottom, Delete stick, Save, Discard, Delete fault,
+  Properties.
+- `lib/faultStickEdit.js`: pure stick operations (nearestNode,
+  nearestStick, extendStick at the NEARER end, moveNode, deleteNode,
+  deleteStick, shortenStick, trimStickAt, newStick, savableSticks),
+  measured in the displayed section (points more than a line away are
+  never hit). Extend fixes the zig-zag the audit found (picking above a
+  stick's top appended to its bottom).
+- `hooks/useFaultStickEditor.js`: tool, selected stick, section pick
+  handler; each change is one global undo command; a Move node drag is
+  one command from pointer down to up. SliceView streams the drag
+  (`faultMove` joins the paint modes) and draws the selected draft
+  stick highlighted (`overlays.draftSelected`).
+- The draft model is unchanged (Save writes a new fault or updates the
+  active one in place); switching the active fault asks only when the
+  draft differs from the stored sticks.
+- Tests: `__tests__/faultStickEdit.test.js` (pure ops + shortened,
+  erased, undone on the UndoStack) and
+  `__tests__/interpretationToolbox.test.jsx` (the real toolbox + hook +
+  UndoStack: shorten, trim, delete node, delete stick, delete fault,
+  then five undos back to the original; node drag = one undo step).
+
+## 2026-09-22: group 5b, undo and redo for every picking action
+
+Owner: "Undo and redo for every picking action." The audit found the
+horizon edit session had undo only (no redo; `redoAction` replayed
+FAULT commands while a session was open), one op per pointer move (a
+drag burned the 40-op cap), and four writes with no undo at all.
+
+- `lib/horizonEditHistory.js` (EditHistory): everything between two
+  `commitStroke` calls is ONE op (first old value of a cell wins); undo
+  keeps the replaced values so redo is exact; a new edit clears the redo
+  lane. ViewerPanel's session holds `{grid, base, history}`; the router
+  sends Ctrl+Z and Ctrl+Shift+Z / Ctrl+Y to the session first in both
+  directions, then the global stack. Ribbon Edit horizon gains Redo.
+- `lib/horizonUndoCommands.js`: session Save (new horizon: undo deletes
+  the row; edited horizon: undo writes the session's base picks back
+  into the SAME row), Track 3D (undo deletes the created row, redo
+  re-creates it and tracks the new id), Grow target (undo writes the
+  pre-grow picks and confidence layer back into the same row). A rewrite
+  undo refuses while an edit session is open on that horizon.
+- Termination markers (place, Alt+click remove, Clear) are undoable.
+- Display settings and renames were made undoable in 5a.
+- Known gap kept: undoing a horizon DELETE still re-creates the head
+  under a new id (archived versions and confidence are not restored).
+  Grow undo leaves the grown confidence layer when the horizon had none.
+- Tests: `__tests__/horizonEditHistory.test.js`.
+
+## 2026-09-22: group 5a, fault and horizon properties with stable colours
+
+Owner: "Fault and horizon properties: rename, colour, line thickness and
+opacity, editable from the object list and saved with the
+interpretation." Faults had no settings at all, and both object kinds
+took their fallback colour from their LIST INDEX while `listFaults` and
+`listHorizons` sort newest first, so adding a fault or a horizon
+recoloured every existing one.
+
+- `FaultSettingsDialog` (explorer fault menu, Settings…): name, colour,
+  line weight, opacity. Stored in `seismic_faults.params.display` via
+  `updateFaultMeta` (services/faultsService.js), the mirror of
+  `updateHorizonMeta`. No schema change (params exists since
+  20260819210000).
+- Horizon settings gain **Line opacity** (`params.display.lineOpacity`),
+  applied to section lines (canvas globalAlpha) and the 3D surface
+  (mesh opacity). The map fill opacity is unchanged.
+- Fault line weight and opacity drive the section sticks (SliceView
+  `drawSticks`) and the 3D sticks and ribbon (CubeView; CubeRenderer
+  now blends translucent line sets). WebGL line width is fixed at 1 px
+  on most platforms, so line weight is a section-only setting.
+- Stable colours: `stableColor(id, palette)` (FNV-1a of the row id) is
+  the fallback for horizons and faults (`horizonColorFor`,
+  `faultColorFor`), used by the explorer swatches and every viewport.
+  Existing horizons without a saved colour change colour once.
+- Shared `hooks/useDisplaySettings.js` for both kinds: live session
+  override, one debounced write per burst, and each burst and each
+  rename is one undo step on the global stack.
+- Tests: `__tests__/interpProperties.test.jsx`.
+
 ## 2026-09-06: SL0, Petrel tester readiness (units, launchers, help)
 
 The last app of the Geoscience tester-readiness program (owner's

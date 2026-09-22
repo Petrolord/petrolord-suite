@@ -5,8 +5,8 @@
 
 import React from 'react';
 import {
-  Crosshair, Route, Spline, Ban, Loader2, Pencil, Eraser, Undo2, Save,
-  Wand2, PaintBucket, Ruler, Slash, CheckCheck, Trash2, Waves, Sprout, MapPin } from 'lucide-react';
+  Crosshair, Route, Spline, Ban, Loader2, Pencil, Eraser, Undo2, Redo2, Save,
+  Wand2, PaintBucket, Ruler, Slash, CheckCheck, Trash2, Waves, Sprout, MapPin, Wrench } from 'lucide-react';
 import { RibbonGroup, RibbonButton, RibbonSelect } from '../Ribbon';
 import { describeVelocity } from '../../../engine/velocityModel';
 
@@ -47,16 +47,29 @@ export default function InterpretationTab({
   corrThreshold, setCorrThreshold, stopAtFaults, setStopAtFaults, hasFaults,
   tracking, trackHorizon, growHorizon, cancelTracking, track2D,
   editTarget, changeEditTarget, horizons, toggleEditTool,
-  eraseSize, setEraseSize, edit, editBusy, undoEdit, saveEdits, discardEdits,
+  eraseSize, setEraseSize, edit, editBusy, undoEdit, redoEdit = null, saveEdits, discardEdits,
   smoothEdits, smoothMethod, setSmoothMethod, smoothRadius, setSmoothRadius, fillHoles,
   draftSticks, endStick, saveDraftFault, discardDraft, editingFaultName = null,
   openVelocity, velocityModel, openAttribute,
   terminations = [], terminationKind = 'onlap', setTerminationKind = null, clearTerminations = null,
+  toolboxOpen = false, toggleToolbox = null,
 }) {
   const noSection = !manifest || orientation === 'time';
 
   return (
     <>
+      {toggleToolbox && (
+        <RibbonGroup label="Toolbox">
+          <RibbonButton
+            icon={Wrench}
+            label="Toolbox"
+            active={toolboxOpen}
+            onClick={toggleToolbox}
+            testId="sl-ribbon-toolbox"
+            title="Dock the interpretation toolbox beside the viewports: horizon picking, tracking and eraser, fault stick tools"
+          />
+        </RibbonGroup>
+      )}
       <RibbonGroup label="Seed & track">
         <RibbonButton
           icon={Crosshair}
@@ -202,7 +215,17 @@ export default function InterpretationTab({
               label={edit.undo ? `Undo (${edit.undo})` : 'Undo'}
               onClick={undoEdit}
               disabled={!edit.undo}
+              title="Undo the last horizon edit (one whole stroke or one operation)"
             />
+            {redoEdit && (
+              <RibbonButton
+                icon={Redo2}
+                label={edit.redo ? `Redo (${edit.redo})` : 'Redo'}
+                onClick={redoEdit}
+                disabled={!edit.redo}
+                title="Redo the last undone horizon edit"
+              />
+            )}
             <RibbonButton
               icon={Save}
               label={editTarget === 'new' ? 'Save as…' : 'Save'}
@@ -277,7 +300,7 @@ export default function InterpretationTab({
               icon={CheckCheck}
               label="End stick"
               onClick={endStick}
-              title="Finish the current stick and start a new one"
+              title="Finish the current stick and start a new one (the toolbox has the full stick tools)"
             />
             <RibbonButton
               icon={Save}
