@@ -11,6 +11,8 @@ import {
   sectionsFromGeometry, programFromSections,
 } from '../services/wctRun';
 import { TimeDepthChart } from '../charts/WctCharts';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
+import { formatFull } from '@/lib/fullPrecision';
 
 const Card = ({ title, children, testId }) => (
   <div className="rounded border border-slate-800 bg-slate-900/40" data-testid={testId}>
@@ -48,6 +50,8 @@ let seq = 0;
 const nid = () => { seq += 1; return `new-${Date.now()}-${seq}`; };
 
 export default function ProgramTab({ caseDraft, onCaseChange, res, depthUnit, geometry }) {
+  // W3 (D3): Full precision prints durations and schedule totals at 6 decimals.
+  const { full, show } = useFullPrecision();
   const acts = caseDraft.program.activities || [];
   const rows = res?.program?.rows || [];
   const unit = depthLabel(depthUnit);
@@ -88,8 +92,12 @@ export default function ProgramTab({ caseDraft, onCaseChange, res, depthUnit, ge
                         : num(e.target.value);
                     })} />
                 ))}
-                <span className="w-14 text-right font-mono text-[10px] text-slate-500" data-testid={`wct-act-${a.id}-dur`}>
-                  {rows[i] ? `${rows[i].durationHr.toFixed(1)} h` : '--'}
+                <span className={`${full ? 'w-44' : 'w-14'} text-right font-mono text-[10px] text-slate-500`} data-testid={`wct-act-${a.id}-dur`}>
+                  {rows[i]
+                    ? (full
+                      ? `${formatFull(rows[i].productiveHr, 6)} h, ${formatFull(rows[i].durationHr, 6)} h with NPT`
+                      : `${rows[i].durationHr.toFixed(1)} h`)
+                    : '--'}
                 </span>
                 <button type="button" className="text-slate-500 hover:text-slate-200" onClick={() => move(i, -1)}>
                   <ArrowUp className="h-3 w-3" />
@@ -180,15 +188,15 @@ export default function ProgramTab({ caseDraft, onCaseChange, res, depthUnit, ge
             <div className="grid grid-cols-3 gap-2 text-center text-xs">
               <div>
                 <div className="text-[10px] uppercase text-slate-500">productive</div>
-                <div className="font-mono text-slate-200" data-testid="wct-productive-hr">{res.program.totals.productiveHr.toFixed(0)} h</div>
+                <div className="font-mono text-slate-200" data-testid="wct-productive-hr">{show(res.program.totals.productiveHr.toFixed(0), res.program.totals.productiveHr)} h</div>
               </div>
               <div>
                 <div className="text-[10px] uppercase text-slate-500">NPT</div>
-                <div className="font-mono text-slate-200">{res.program.totals.nptHr.toFixed(0)} h</div>
+                <div className="font-mono text-slate-200">{show(res.program.totals.nptHr.toFixed(0), res.program.totals.nptHr)} h</div>
               </div>
               <div>
                 <div className="text-[10px] uppercase text-slate-500">total</div>
-                <div className="font-mono text-lime-300" data-testid="wct-total-days">{res.program.totals.totalDays.toFixed(1)} days</div>
+                <div className="font-mono text-lime-300" data-testid="wct-total-days">{show(res.program.totals.totalDays.toFixed(1), res.program.totals.totalDays)} days</div>
               </div>
             </div>
           </Card>

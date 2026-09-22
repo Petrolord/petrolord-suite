@@ -4,6 +4,7 @@ import React from 'react';
 import { ArrowDownToLine, Gauge } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRodPump } from '@/contexts/RodPumpDesignContext';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
 import { fmt, Stat, Row } from './fields';
 
 const ratingAccent = (pct) => {
@@ -15,6 +16,7 @@ const ratingAccent = (pct) => {
 
 const LoadsPanel = () => {
   const { design, string } = useRodPump();
+  const { show } = useFullPrecision();
   if (!design) return null;
   const { intake, gas, balance, rating, groups } = design;
 
@@ -87,7 +89,7 @@ const LoadsPanel = () => {
                 label="Production"
                 value={fmt(design.producedBpd, 1)}
                 unit="bbl/d"
-                hint={`Swept ${fmt(design.sweptBpd, 1)}, rated ${fmt(design.ratedBpd, 1)}`}
+                hint={`Swept ${show(fmt(design.sweptBpd, 1), design.sweptBpd)}, rated ${show(fmt(design.ratedBpd, 1), design.ratedBpd)}`}
               />
               <Stat
                 label="Polished rod power"

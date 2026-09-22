@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { CHART_COLORS, CHART_TYPOGRAPHY } from '@/utils/chartTheme';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
+import { formatFull, MONEY_MM_DECIMALS } from '@/lib/fullPrecision';
 
 // SVG decision-tree diagram (D3). Industry drawing conventions: squares are
 // decisions, circles are chance nodes, triangles are terminals. Branches on
@@ -14,7 +16,7 @@ const COL_W = 190;
 const ROW_H = 56;
 const PAD = { left: 16, right: 170, top: 24, bottom: 16 };
 
-const fmt = (v) => {
+const fmtProduct = (v) => {
   if (!Number.isFinite(v)) return '';
   const digits = Math.abs(v) >= 100 ? 0 : Math.abs(v) >= 10 ? 1 : 2;
   return v.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
@@ -60,7 +62,13 @@ const NodeGlyph = ({ type, x, y, onPath }) => {
   return <path d={`M ${x - NODE_R} ${y - NODE_R} L ${x + NODE_R} ${y} L ${x - NODE_R} ${y + NODE_R} Z`} fill={fill} stroke={stroke} strokeWidth={1.4} />;
 };
 
+// W3 (D3): with Full precision on, node EMVs and branch costs print at 4
+// decimals with no digit grouping.
+const fmtFull = (v) => (Number.isFinite(v) ? formatFull(v, MONEY_MM_DECIMALS) : '');
+
 const TreeDiagram = ({ annotated, unit = '$MM' }) => {
+  const { full } = useFullPrecision();
+  const fmt = full ? fmtFull : fmtProduct;
   const layout = useMemo(() => (annotated ? layoutTree(annotated) : null), [annotated]);
   if (!layout) return null;
 

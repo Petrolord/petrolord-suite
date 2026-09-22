@@ -5,6 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell as BarCell } 
 import ChartFrame from '@/components/charts/ChartFrame';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { useEnergyEfficiency } from '@/contexts/EnergyEfficiencyContext';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
 
 const fmt = (v, dp = 2) => (Number.isFinite(v)
   ? v.toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })
@@ -28,6 +29,7 @@ const CombustionResults = () => {
     stoichiometry: st, currentEfficiency, targetEfficiency, tuningSaving,
     unburnedLossSupplied,
   } = useEnergyEfficiency();
+  const { show } = useFullPrecision();
 
   // An unburned loss that was never measured is absent. Drawing it as a zero
   // bar would show a measurement nobody made, so the bar is left out and the
@@ -69,7 +71,7 @@ const CombustionResults = () => {
           <>
             <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-4 mb-3">
               <p className="font-semibold text-white">
-                {`${fmt(currentEfficiency.efficiencyPercent, 2)}% efficient on ${currentEfficiency.basis}`}
+                {`${show(fmt(currentEfficiency.efficiencyPercent, 2), currentEfficiency.efficiencyPercent)}% efficient on ${currentEfficiency.basis}`}
               </p>
               <p className="text-sm text-amber-200 mt-1">{currentEfficiency.comparisonWarning}</p>
               <p className="text-[11px] text-slate-500 mt-1">{currentEfficiency.moistureBasisNote}</p>
@@ -117,8 +119,8 @@ const CombustionResults = () => {
         ) : (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Stat label="Now" value={`${fmt(currentEfficiency.efficiencyPercent, 2)}%`} hint={`at ${fmt(currentEfficiency.excessAirPercent, 0)}% excess air`} />
-              <Stat label="Tuned" value={`${fmt(targetEfficiency.efficiencyPercent, 2)}%`} hint={`at ${fmt(targetEfficiency.excessAirPercent, 0)}% excess air`} />
+              <Stat label="Now" value={`${show(fmt(currentEfficiency.efficiencyPercent, 2), currentEfficiency.efficiencyPercent)}%`} hint={`at ${fmt(currentEfficiency.excessAirPercent, 0)}% excess air`} />
+              <Stat label="Tuned" value={`${show(fmt(targetEfficiency.efficiencyPercent, 2), targetEfficiency.efficiencyPercent)}%`} hint={`at ${fmt(targetEfficiency.excessAirPercent, 0)}% excess air`} />
               <Stat label="Fuel saved" value={`${fmt(tuningSaving.fuelSavingPercent, 2)}%`} />
               <Stat label="Energy saved" value={tuningSaving.annualEnergySavedGJ === null ? 'no annual fuel' : `${fmt(tuningSaving.annualEnergySavedGJ, 0)} GJ/yr`} />
             </div>

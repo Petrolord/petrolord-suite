@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import LoadProjectDialog from '@/components/fiscaldesigner/LoadProjectDialog';
 import FiscalDesignerHelpGuide from '@/components/fiscaldesigner/FiscalDesignerHelpGuide';
+import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
 
 const FiscalRegimeDesigner = () => {
   const { toast } = useToast();
@@ -123,7 +124,7 @@ const FiscalRegimeDesigner = () => {
   };
 
   return (
-    <>
+    <FullPrecisionProvider>
       <Helmet>
         <title>Fiscal Regime Designer - Petrolord Suite</title>
         <meta name="description" content="Build, compare, and stress-test petroleum fiscal terms with advanced analytics." />
@@ -149,6 +150,7 @@ const FiscalRegimeDesigner = () => {
                 </div>
             </div>
             <div className="flex items-center gap-2">
+                <FullPrecisionToggle app="fiscal-regime-designer" />
                 <FiscalDesignerHelpGuide />
                 <Button onClick={() => setIsLoadDialogOpen(true)} variant="outline" className="text-lime-300 border-lime-400/50 hover:bg-lime-500/20">
                     <FolderOpen className="w-4 h-4 mr-2" /> Load
@@ -204,7 +206,7 @@ const FiscalRegimeDesigner = () => {
         onOpenChange={setIsLoadDialogOpen}
         onLoadProject={handleLoadProject}
       />
-    </>
+    </FullPrecisionProvider>
   );
 };
 

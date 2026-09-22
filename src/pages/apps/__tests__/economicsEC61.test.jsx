@@ -119,7 +119,9 @@ describe('Project Management Pro earned value', () => {
 
   test('the dashboard passes an as-of date rather than letting the engine read the clock', () => {
     const code = read('pages/apps/ProjectManagementPro.jsx');
-    expect(code).toMatch(/calculateEVM\(tasksData \|\| \[\], \{ asOf: todayIsoDate\(\) \}\)/);
+    // W3: the date is the typed as-of, which defaults to today
+    expect(code).toMatch(/calculateEVM\(tasksData \|\| \[\], \{ asOf: resolveAsOf\(asOfRef\.current\) \}\)/);
+    expect(code).toMatch(/useState\(todayIsoDate\(\)\)/);
   });
 });
 

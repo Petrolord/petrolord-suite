@@ -12,6 +12,7 @@ import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import StudioNotifications from '@/components/studio/StudioNotifications';
 import InputPanel from '@/components/breakevenanalyzer/InputPanel';
 import ResultsPanel from '@/components/breakevenanalyzer/ResultsPanel';
+import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
 import EmptyState from '@/components/breakevenanalyzer/EmptyState';
 import BreakevenHelpGuide from '@/components/breakevenanalyzer/BreakevenHelpGuide';
 
@@ -128,7 +129,7 @@ const ProbabilisticBreakevenAnalyzer = () => {
   }, [toast]);
 
   return (
-    <>
+    <FullPrecisionProvider>
       <Helmet>
         <title>Probabilistic Breakeven Analyzer - Petrolord Suite</title>
         <meta name="description" content="Risk-informed project viability analysis with Monte Carlo simulation for breakeven price/volume." />
@@ -156,6 +157,7 @@ const ProbabilisticBreakevenAnalyzer = () => {
               />
               <BreakevenHelpGuide />
             </div>
+            <FullPrecisionToggle app="breakeven-analyzer" />
           </div>
           <InputPanel
             onAnalyze={handleAnalyze}
@@ -189,7 +191,7 @@ const ProbabilisticBreakevenAnalyzer = () => {
           )}
         </div>
       </div>
-    </>
+    </FullPrecisionProvider>
   );
 };
 
