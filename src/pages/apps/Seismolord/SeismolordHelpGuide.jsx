@@ -100,6 +100,12 @@ export default function SeismolordHelpGuide() {
           can be shown, compared or restored. Picks live on the volume's lattice in two-way time and are yours until
           you share the horizon with the organization.
         </Para>
+        <Para>
+          Every picking action can be undone with Ctrl+Z and redone with Ctrl+Shift+Z or Ctrl+Y (the Home tab has
+          the same buttons). In a horizon edit session one whole paint or erase stroke is one step. Saving the
+          session, Track volume and Grow target are undoable too: undoing a Save or a Grow writes the previous picks
+          back into the same horizon, and undoing a Track volume removes the horizon it created.
+        </Para>
       </GuideSection>
 
       <GuideSection id="faults">

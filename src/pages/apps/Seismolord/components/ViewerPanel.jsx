@@ -70,6 +70,8 @@ import {
 import { NULL_VALUE } from '../engine/manifest';
 import { amplitudePercentile } from '../engine/displayEnhance';
 import { UndoStack } from '../lib/undoStack';
+import { EditHistory } from '../lib/horizonEditHistory';
+import { createdHorizonCommand, rewriteHorizonCommand } from '../lib/horizonUndoCommands';
 import { captureLocal, applyLocal, clampIndices } from '../lib/sessionSnapshot';
 import SessionsDialog from './workspace/dialogs/SessionsDialog';
 import CultureImportDialog from '@/components/culture/CultureImportDialog';
@@ -328,9 +330,11 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   // editRef holds the WORKING grid (mutated in place during a paint
   // stroke, cloned on commit so the 3D/map caches rebuild once per op)
   // plus the undo stack; `edit` mirrors the bits the UI renders.
-  const editRef = useRef(null);            // {targetId:'new'|id, grid, undo:[]}
+  const editRef = useRef(null);            // {targetId:'new'|id, grid, base, history: EditHistory}
   const [editTarget, setEditTarget] = useState('new');
-  const [edit, setEdit] = useState({ version: 0, undo: 0, active: false });
+  const [edit, setEdit] = useState({
+    version: 0, undo: 0, redo: 0, active: false,
+  });
   const [editBusy, setEditBusy] = useState(false);
   const [eraseSize, setEraseSize] = useState(1);    // BRUSH_OPTIONS radius
   const [smoothMethod, setSmoothMethod] = useState('mean');   // 'mean'|'median'
@@ -667,7 +671,9 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
 
   const closeSession = useCallback(() => {
     editRef.current = null;
-    setEdit({ version: 0, undo: 0, active: false });
+    setEdit({
+      version: 0, undo: 0, redo: 0, active: false,
+    });
     setPickMode((p) => (p === 'manual' || p === 'erase' ? null : p));
   }, []);
 
@@ -680,17 +686,18 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   const openSession = useCallback(async (targetId) => {
     const cur = editRef.current;
     if (cur && cur.targetId === targetId) return cur;
-    if (cur && cur.undo.length && !window.confirm('Discard unsaved horizon edits?')) {
+    if (cur && cur.history.dirty && !window.confirm('Discard unsaved horizon edits?')) {
       return null;
     }
     if (!geom) return null;
     let grid;
+    let base = null;
     if (targetId === 'new') {
       grid = new Float32Array(geom.nIl * geom.nXl).fill(NULL_F32);
     } else {
       const h = horizons.find((x) => x.id === targetId);
       if (!h) return null;
-      let base = gridCacheRef.current.get(h.id);
+      base = gridCacheRef.current.get(h.id);
       if (!base) {
         try {
           base = await loadHorizonGrid(h);
@@ -703,56 +710,69 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
       grid = new Float32Array(base);
       setVisibleIds((s) => (s.has(h.id) ? s : new Set([...s, h.id])));
     }
-    editRef.current = { targetId, grid, undo: [] };
-    setEdit({ version: 1, undo: 0, active: true });
+    // base: the stored picks the session started from (undo of Save
+    // writes them back); history: stroke-merged cell undo + redo
+    editRef.current = {
+      targetId, grid, base, history: new EditHistory(40),
+    };
+    setEdit({
+      version: 1, undo: 0, redo: 0, active: true,
+    });
     return editRef.current;
   }, [geom, horizons, toast]);
 
-  /** Record old values, apply new ones, push an undo op. */
+  const syncEdit = (s) => setEdit((e) => ({
+    version: e.version + 1,
+    undo: s.history.undoCount,
+    redo: s.history.redoCount,
+    active: true,
+  }));
+
+  /** Record old values and apply new ones. Everything between two
+   *  commitStroke calls (one paint stroke, or one one-shot op) is ONE
+   *  undo op (group 5: a drag used to push an op per pointer move). */
   const applyOp = useCallback((cells, values) => {
     const s = editRef.current;
     if (!s || !cells.length) return;
-    const changed = [];
-    const old = [];
-    for (let i = 0; i < cells.length; i++) {
-      const c = cells[i];
-      const next = Math.fround(values[i]);
-      if (s.grid[c] === next) continue;
-      changed.push(c);
-      old.push(s.grid[c]);
-      s.grid[c] = next;
-    }
-    if (!changed.length) return;
-    // typed arrays: a whole-grid op (smoothing) stays a few MB, not tens
-    s.undo.push({ cells: Int32Array.from(changed), old: Float32Array.from(old) });
-    if (s.undo.length > 40) s.undo.shift();
-    setEdit((e) => ({ version: e.version + 1, undo: s.undo.length, active: true }));
+    if (!s.history.apply(s.grid, cells, values, { stroke: true })) return;
+    syncEdit(s);
   }, []);
 
-  /** End of a paint stroke / one-shot op: clone the grid so the 3D and
-   *  map caches (keyed by grid reference) rebuild exactly once. */
+  /** End of a paint stroke / one-shot op: close the op, and clone the
+   *  grid so the 3D and map caches (keyed by grid reference) rebuild
+   *  exactly once. */
   const commitStroke = useCallback(() => {
     const s = editRef.current;
     if (!s) return;
+    s.history.close();
     s.grid = new Float32Array(s.grid);
-    setEdit((e) => ({ ...e, version: e.version + 1 }));
+    syncEdit(s);
   }, []);
 
   const undoEdit = useCallback(() => {
     const s = editRef.current;
-    if (!s || !s.undo.length) return;
-    const op = s.undo.pop();
-    const g = new Float32Array(s.grid);
-    for (let i = 0; i < op.cells.length; i++) g[op.cells[i]] = op.old[i];
+    if (!s) return;
+    const g = s.history.undo(s.grid);
+    if (!g) return;
     s.grid = g;
-    setEdit((e) => ({ version: e.version + 1, undo: s.undo.length, active: true }));
+    syncEdit(s);
+  }, []);
+
+  const redoEdit = useCallback(() => {
+    const s = editRef.current;
+    if (!s) return;
+    const g = s.history.redo(s.grid);
+    if (!g) return;
+    s.grid = g;
+    syncEdit(s);
   }, []);
 
   // ---- W1.2 global undo/redo router ------------------------------------
-  // An active horizon edit session keeps its own cell-level undo and
-  // takes priority; everything else runs through the command stack.
+  // An active horizon edit session keeps its own cell-level undo/redo and
+  // takes priority in both directions; everything else runs through the
+  // command stack.
   const undoAction = useCallback(async () => {
-    if (editRef.current?.undo.length) { undoEdit(); return; }
+    if (editRef.current?.history.undoCount) { undoEdit(); return; }
     try {
       const c = await undoStack.undo();
       if (c) toast({ title: 'Undone', description: c.label });
@@ -762,13 +782,14 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   }, [undoEdit, undoStack, toast]);
 
   const redoAction = useCallback(async () => {
+    if (editRef.current?.history.redoCount) { redoEdit(); return; }
     try {
       const c = await undoStack.redo();
       if (c) toast({ title: 'Redone', description: c.label });
     } catch (e) {
       toast({ title: 'Redo failed', description: e.message, variant: 'destructive' });
     }
-  }, [undoStack, toast]);
+  }, [redoEdit, undoStack, toast]);
 
   // Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z (or Ctrl+Y), skipped while typing
   useEffect(() => {
@@ -896,7 +917,9 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     setTraverseSavedId(null);
     setCalOpen(false);
     editRef.current = null;
-    setEdit({ version: 0, undo: 0, active: false });
+    setEdit({
+      version: 0, undo: 0, redo: 0, active: false,
+    });
     setEditTarget('new');
     setPickMode(null);
     gridCacheRef.current.clear();
@@ -1369,10 +1392,27 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
           const d = Math.abs(m.il - ilIdx) + Math.abs(m.xl - xlIdx) + Math.abs(m.sample - sample) / 4;
           if (d <= 6 && (!best || d < best.d)) best = { i, d };
         });
-        if (best) setTerminations((list) => list.filter((_, i) => i !== best.i));
+        if (!best) return;
+        const prevT = terminations;
+        const nextT = terminations.filter((_, i) => i !== best.i);
+        setTerminations(nextT);
+        undoStack.push({
+          label: 'remove termination marker',
+          undo: () => setTerminations(prevT),
+          redo: () => setTerminations(nextT),
+        });
         return;
       }
-      setTerminations((list) => [...list, { id: `term-${Date.now()}-${list.length}`, il: ilIdx, xl: xlIdx, sample, kind: terminationKind }]);
+      const prevT = terminations;
+      const nextT = [...terminations, {
+        id: `term-${Date.now()}-${terminations.length}`, il: ilIdx, xl: xlIdx, sample, kind: terminationKind,
+      }];
+      setTerminations(nextT);
+      undoStack.push({
+        label: 'termination marker',
+        undo: () => setTerminations(prevT),
+        redo: () => setTerminations(nextT),
+      });
       return;
     }
 
@@ -1827,35 +1867,101 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     toast({ title: 'Holes filled', description: `${filled.toLocaleString()} cells interpolated (interior holes only).` });
   };
 
+  // ---- group 5: undo for the horizon writes (session Save, Track 3D,
+  // Grow target). Commands read the CURRENT row through horizonsRef
+  // because they run long after the closure that made them.
+
+  /** Undo = delete the new row; redo = save it again (new id, boxed). */
+  const pushNewHorizonUndo = ({
+    label, row, picks, vol, dtUs, save, confidence = null,
+  }) => {
+    undoStack.push(createdHorizonCommand({
+      label,
+      row,
+      remove: async (r) => {
+        await deleteHorizon(r);
+        gridCacheRef.current.delete(r.id);
+        setVisibleIds((v) => { const n = new Set(v); n.delete(r.id); return n; });
+        setEditTarget((t) => (t === r.id ? 'new' : t));
+        await reloadHorizons(vol);
+      },
+      create: async () => {
+        const r = await saveHorizon({
+          volume: vol, picks, dtUs, confidence, ...save,
+        });
+        cacheGrid(gridCacheRef.current, r.id, picks);
+        setVisibleIds((v) => new Set([...v, r.id]));
+        await reloadHorizons(vol);
+        return r;
+      },
+    }));
+  };
+
+  /** Undo = write the previous picks back into the same row (same id, so
+   *  versions and confidence links survive); redo = write the new ones. */
+  const pushRewriteUndo = ({
+    label, id, before, after, prevParams, nextConfidence = null, prevConfidence = null, vol, dtUs,
+  }) => {
+    undoStack.push(rewriteHorizonCommand({
+      label,
+      before,
+      after,
+      prevParams,
+      prevConfidence,
+      nextConfidence,
+      write: async (picks, params, confidence) => {
+        const cur = (horizonsRef.current || []).find((x) => x.id === id);
+        if (!cur) throw new Error('That horizon no longer exists.');
+        if (editRef.current?.targetId === id) {
+          throw new Error('Close the edit session on this horizon first.');
+        }
+        await updateHorizon({
+          horizon: cur, picks, dtUs, params, confidence,
+        });
+        cacheGrid(gridCacheRef.current, id, picks);
+        await reloadHorizons(vol);
+      },
+    }));
+  };
+
   const saveEdits = async () => {
     const s = editRef.current;
     if (!s || !volume || !manifest) return;
     setEditBusy(true);
+    const vol = volume;
+    const dtUs = manifest.geometry.dt_us;
     try {
+      s.history.close();
       if (s.targetId === 'new') {
         const name = window.prompt('Horizon name:', `Horizon ${horizons.length + 1}`);
         if (!name) return;
+        const picks = s.grid;
+        const seed = seedPick || null;
+        const params = { mode: snapMode, window: 5, source: 'manual/2d' };
         const row = await saveHorizon({
-          volume,
-          name,
-          picks: s.grid,
-          seed: seedPick || null,
-          params: { mode: snapMode, window: 5, source: 'manual/2d' },
-          dtUs: manifest.geometry.dt_us,
+          volume: vol, name, picks, seed, params, dtUs,
         });
-        cacheGrid(gridCacheRef.current, row.id, s.grid);
+        cacheGrid(gridCacheRef.current, row.id, picks);
         setVisibleIds((v) => new Set([...v, row.id]));
+        pushNewHorizonUndo({
+          label: `save horizon "${name}"`, row, picks, vol, dtUs, save: { name, seed, params },
+        });
         toast({ title: 'Horizon saved', description: `${name}: ${row.stats.tracked} picks.` });
       } else {
         const h = horizons.find((x) => x.id === s.targetId);
         if (!h) throw new Error('The edited horizon no longer exists.');
+        const before = s.base || gridCacheRef.current.get(h.id) || await loadHorizonGrid(h);
+        const picks = s.grid;
         const row = await updateHorizon({
           horizon: h,
-          picks: s.grid,
-          dtUs: manifest.geometry.dt_us,
+          picks,
+          dtUs,
           params: { mode: snapMode, edited: true },
         });
-        cacheGrid(gridCacheRef.current, h.id, s.grid);
+        cacheGrid(gridCacheRef.current, h.id, picks);
+        pushRewriteUndo({
+          label: `save edits to "${h.name}"`, id: h.id, before, after: picks, prevParams: h.params, vol, dtUs,
+        });
         toast({ title: 'Horizon updated', description: `${h.name}: ${row.stats.tracked} picks.` });
       }
       await reloadHorizons(volume);
@@ -1868,7 +1974,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   };
 
   const discardEdits = () => {
-    if (editRef.current?.undo.length && !window.confirm('Discard horizon edits?')) return;
+    if (editRef.current?.history.dirty && !window.confirm('Discard horizon edits?')) return;
     closeSession();
   };
 
@@ -1937,18 +2043,21 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
       // eslint-disable-next-line no-alert
       const name = window.prompt('Horizon name:', `Horizon ${horizons.length + 1}`);
       if (!name) { setTracking(null); return; }
-      const row = await saveHorizon({
-        volume,
+      const save = {
         name,
-        picks,
         seed: seedPick,
         params: { ...trackerOpts(), source: 'track3d', stop_at_faults: Boolean(barriers) },
-        dtUs: manifest.geometry.dt_us,
-        confidence,
+      };
+      const dtUs = manifest.geometry.dt_us;
+      const row = await saveHorizon({
+        volume, picks, dtUs, confidence, ...save,
       });
       cacheGrid(gridCacheRef.current, row.id, picks);
       setVisibleIds((s) => new Set([...s, row.id]));
       await reloadHorizons(volume);
+      pushNewHorizonUndo({
+        label: `track horizon "${name}"`, row, picks, vol: volume, dtUs, save, confidence,
+      });
       toast({ title: 'Horizon tracked', description: `${name}: ${row.stats.tracked} traces.` });
     } catch (e) {
       if (!/cancelled/i.test(e.message)) {
@@ -1973,6 +2082,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
           ? ((h.stats.min_twt_ms + h.stats.max_twt_ms) / 2) / (manifest.geometry.dt_us / 1000)
           : null);
       const barriers = level != null ? trackingBarriers(level) : null;
+      const prevConfidence = await loadHorizonConfidence(h).catch(() => null);
       const { picks, confidence } = await runTracker({
         seed: seedPick || null,
         extraOpts: { initialPicks, ...(barriers ? { barriers } : {}) },
@@ -1986,6 +2096,19 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
       });
       cacheGrid(gridCacheRef.current, h.id, picks);
       await reloadHorizons(volume);
+      // Grow overwrote the row in place: undo writes the pre-grow picks
+      // (and confidence layer, when there was one) back into it
+      pushRewriteUndo({
+        label: `grow horizon "${h.name}"`,
+        id: h.id,
+        before: initialPicks,
+        after: picks,
+        prevParams: h.params,
+        prevConfidence,
+        nextConfidence: confidence,
+        vol: volume,
+        dtUs: manifest.geometry.dt_us,
+      });
       toast({ title: 'Horizon grown', description: `${h.name}: ${row.stats.tracked} traces.` });
     } catch (e) {
       if (!/cancelled/i.test(e.message)) {
@@ -3113,9 +3236,9 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
               onUndo={undoAction}
               onRedo={redoAction}
               canUndo={edit.undo > 0 || undoStack.canUndo}
-              canRedo={undoStack.canRedo}
+              canRedo={edit.redo > 0 || undoStack.canRedo}
               undoLabel={edit.undo > 0 ? 'horizon edit step' : undoStack.peekUndo()}
-              redoLabel={undoStack.peekRedo()}
+              redoLabel={edit.redo > 0 ? 'horizon edit step' : undoStack.peekRedo()}
               onOpenSessions={() => setSessionsOpen(true)}
             />
           ),
@@ -3133,7 +3256,16 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
               terminations={terminations}
               terminationKind={terminationKind}
               setTerminationKind={setTerminationKind}
-              clearTerminations={() => setTerminations([])}
+              clearTerminations={() => {
+                const prevT = terminations;
+                if (!prevT.length) return;
+                setTerminations([]);
+                undoStack.push({
+                  label: 'clear termination markers',
+                  undo: () => setTerminations(prevT),
+                  redo: () => setTerminations([]),
+                });
+              }}
               seedPick={seedPick}
               snapMode={snapMode}
               setSnapMode={setSnapMode}
@@ -3158,6 +3290,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
               edit={edit}
               editBusy={editBusy}
               undoEdit={undoEdit}
+              redoEdit={redoEdit}
               saveEdits={saveEdits}
               discardEdits={discardEdits}
               smoothEdits={smoothEdits}

@@ -5,7 +5,7 @@
 
 import React from 'react';
 import {
-  Crosshair, Route, Spline, Ban, Loader2, Pencil, Eraser, Undo2, Save,
+  Crosshair, Route, Spline, Ban, Loader2, Pencil, Eraser, Undo2, Redo2, Save,
   Wand2, PaintBucket, Ruler, Slash, CheckCheck, Trash2, Waves, Sprout, MapPin } from 'lucide-react';
 import { RibbonGroup, RibbonButton, RibbonSelect } from '../Ribbon';
 import { describeVelocity } from '../../../engine/velocityModel';
@@ -47,7 +47,7 @@ export default function InterpretationTab({
   corrThreshold, setCorrThreshold, stopAtFaults, setStopAtFaults, hasFaults,
   tracking, trackHorizon, growHorizon, cancelTracking, track2D,
   editTarget, changeEditTarget, horizons, toggleEditTool,
-  eraseSize, setEraseSize, edit, editBusy, undoEdit, saveEdits, discardEdits,
+  eraseSize, setEraseSize, edit, editBusy, undoEdit, redoEdit = null, saveEdits, discardEdits,
   smoothEdits, smoothMethod, setSmoothMethod, smoothRadius, setSmoothRadius, fillHoles,
   draftSticks, endStick, saveDraftFault, discardDraft, editingFaultName = null,
   openVelocity, velocityModel, openAttribute,
@@ -202,7 +202,17 @@ export default function InterpretationTab({
               label={edit.undo ? `Undo (${edit.undo})` : 'Undo'}
               onClick={undoEdit}
               disabled={!edit.undo}
+              title="Undo the last horizon edit (one whole stroke or one operation)"
             />
+            {redoEdit && (
+              <RibbonButton
+                icon={Redo2}
+                label={edit.redo ? `Redo (${edit.redo})` : 'Redo'}
+                onClick={redoEdit}
+                disabled={!edit.redo}
+                title="Redo the last undone horizon edit"
+              />
+            )}
             <RibbonButton
               icon={Save}
               label={editTarget === 'new' ? 'Save as…' : 'Save'}
