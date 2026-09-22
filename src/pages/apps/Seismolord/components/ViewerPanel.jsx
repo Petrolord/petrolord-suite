@@ -62,7 +62,6 @@ import {
 } from '../engine/horizonAmplitude';
 import { flattenOffsets, datumForHorizon } from '../engine/flatten';
 import { buildWellSections, corridorCells } from '../lib/wellDisplay';
-// depth surfaces on sections invert the volume model (surfaceTimeConv)
 import { makeTvdssToTwt } from '../engine/wellSection';
 import {
   depthAxisFor, depthStretchSlice, depthRowGrid, depthRowOfSample,

@@ -35,6 +35,12 @@ const DISPLAY = {
   colormap: 'seismic_rwb', gain: 1, polarity: 1, clip: 1000, traceBalance: false,
 };
 
+// SliceView's overlay contract: every list present, all empty here
+const NO_OVERLAYS = Object.freeze({
+  horizons: [], surfaces: [], faults: [], draftSticks: [], draftSelected: null,
+  seedPick: null, terminations: [], tracePicks: [], wells: [],
+});
+
 /** Two frames after a commit the canvas has drawn. */
 const afterPaint = () => new Promise((resolve) => {
   requestAnimationFrame(() => requestAnimationFrame(() => resolve(performance.now())));
@@ -217,6 +223,7 @@ export default function SeismolordLargeSurveyHarness() {
             orientation={orientation}
             sliceIndex={index}
             display={DISPLAY}
+            overlays={NO_OVERLAYS}
             height="fill"
             vexag={1}
           />
