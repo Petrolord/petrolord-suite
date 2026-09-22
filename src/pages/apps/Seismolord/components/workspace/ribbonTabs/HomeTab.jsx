@@ -8,6 +8,7 @@ import {
   RibbonGroup, RibbonButton, RibbonSelect, RibbonSlider,
 } from '../Ribbon';
 import { SEISMIC_COLORMAPS } from '../../../viewer/SliceRenderer';
+import SlicePlayerControls from '../SlicePlayerControls';
 
 const ORIENTATIONS = [
   { key: 'inline', label: 'Inline' },
@@ -29,6 +30,7 @@ export default function HomeTab({
   onUndo, onRedo, canUndo, canRedo, undoLabel, redoLabel, onOpenSessions,
   sectionDomain, setSectionDomain, depthReady, depthUnit = 'm', setDepthUnit = null,
   flattenHorizonId = null, setFlattenHorizonId = null, flattenChoices = [], flattenInfo = null,
+  player = null,
 }) {
   const isTimeSlice = orientation === 'time';
   return (
@@ -85,6 +87,16 @@ export default function HomeTab({
           disabled={!manifest}
           className="w-44"
         />
+        {player && (
+          <SlicePlayerControls
+            disabled={!manifest}
+            orientation={orientation}
+            currentValue={player.currentValue}
+            player={player.state}
+            onStep={player.onStep}
+            onGoTo={player.onGoTo}
+          />
+        )}
         <RibbonSelect
           label="Domain"
           testId="sl-section-domain"

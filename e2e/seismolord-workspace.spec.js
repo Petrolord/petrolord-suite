@@ -77,3 +77,16 @@ test('ST5: the Home tab offers Flatten and the Interpretation tab a Terminations
   await expect(page.getByTestId('sl-tool-termination')).toBeVisible();
   await expect(page.getByTestId('sl-term-count')).toHaveText('0');
 });
+
+test('SLT-1: the ribbon links Geoscience home and Home carries the slice player', async ({ page }) => {
+  await page.goto('/dev/seismolord-workspace');
+  await expect(page.locator('[data-testid="viewer-windows"]')).toBeVisible();
+  await expect(page.getByTestId('sl-home')).toHaveAttribute('href', '/dashboard/geoscience');
+  await expect(page.getByTestId('sl-home')).toHaveText(/Geoscience/);
+  await page.getByRole('button', { name: 'Home', exact: true }).click();
+  for (const id of ['sl-step', 'sl-goto', 'sl-play', 'sl-speed', 'sl-step-prev', 'sl-step-next']) {
+    await expect(page.getByTestId(id)).toBeVisible();
+  }
+  // no volume in the authless harness: the player is disabled
+  await expect(page.getByTestId('sl-play')).toBeDisabled();
+});

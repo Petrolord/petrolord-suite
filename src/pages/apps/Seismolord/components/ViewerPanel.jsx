@@ -116,6 +116,9 @@ import { savableSticks } from '../lib/faultStickEdit';
 import InterpretationToolbox from './workspace/InterpretationToolbox';
 import useWells from '../hooks/useWells';
 import useBackendStatus from '../hooks/useBackendStatus';
+import useSlicePlayer from '../hooks/useSlicePlayer';
+import { surveyValueToIndex, indexToSurveyValue, stepIndex } from '../lib/sliceNav';
+import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 
 const NULL_F32 = Math.fround(NULL_VALUE);
 
@@ -686,6 +689,27 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     return orientation === 'inline' ? geom.nIl - 1
       : orientation === 'xline' ? geom.nXl - 1 : geom.ns - 1;
   }, [geom, orientation]);
+
+  // ---- slice player (tester feedback 2026-09-22) ------------------------
+  // step size per orientation + play/pause; the player moves the index
+  // through playerSetIndex, every USER move goes through pause() first
+  const playerSetIndex = useCallback((o, idx) => {
+    setIndices((prev) => (prev[o] === idx ? prev : { ...prev, [o]: idx }));
+  }, []);
+  const player = useSlicePlayer({
+    orientation,
+    index: sliceIndex,
+    maxIndex,
+    displayedIndex: slice && slice.orientation === orientation ? slice.index : null,
+    loading,
+    error,
+    setIndex: playerSetIndex,
+    resetKey: volume?.id || null,
+    epoch: sessionEpoch,
+  });
+  const playerStepRef = useRef(1);
+  playerStepRef.current = player.step;
+  const pausePlayer = player.pause;
 
   const reloadHorizons = useCallback(async (vol) => {
     if (!vol) { setHorizons([]); return; }
@@ -1317,7 +1341,8 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
       // stale prefetches, and cache hits make the common step instant)
       const maxIdx = orientation === 'inline' ? geom.nIl - 1
         : orientation === 'xline' ? geom.nXl - 1 : geom.ns - 1;
-      for (const nIdx of [sliceIndex - 1, sliceIndex + 1]) {
+      const pStep = playerStepRef.current || 1;
+      for (const nIdx of [sliceIndex - pStep, sliceIndex + pStep]) {
         if (nIdx < 0 || nIdx > maxIdx) continue;
         for (const { i, j, k } of bricksForSlice(geom, orientation, nIdx)) {
           cacheRef.current.get(brickKey(volume.storage_path, i, j, k)).catch(() => {});
@@ -2836,26 +2861,40 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     };
   }, [depthSection, overlays, geom, manifest, depthConv]);
 
+  // user stepping (arrows, Shift+wheel, ribbon buttons): one increment
+  // of the step size; any user move pauses the player
   const stepSlice = useCallback((delta) => {
+    pausePlayer();
     setIndices((prev) => ({
       ...prev,
-      [orientation]: Math.min(maxIndex, Math.max(0, prev[orientation] + delta)),
+      [orientation]: stepIndex(prev[orientation], delta, playerStepRef.current, maxIndex),
     }));
-  }, [orientation, maxIndex]);
+  }, [orientation, maxIndex, pausePlayer]);
 
   /** 3D window edits any orientation's position (Shift+wheel over a plane). */
   const changeIndex = useCallback((o, idx) => {
+    pausePlayer();
     setIndices((prev) => (prev[o] === idx ? prev : { ...prev, [o]: idx }));
-  }, []);
+  }, [pausePlayer]);
+
+  /** Ribbon go-to box: survey units (IL / XL number, or ms) -> index. */
+  const goToSurveyValue = useCallback((value) => {
+    if (!manifest || orientation === 'traverse') return false;
+    const idx = surveyValueToIndex(manifest.geometry, orientation, value);
+    if (idx === null) return false;
+    changeIndex(orientation, idx);
+    return true;
+  }, [manifest, orientation, changeIndex]);
 
   /** Clicking a plane in 3D opens that orientation in the 2D viewer. */
   const selectPlane = useCallback((o) => setOrientation(o), []);
 
   /** Map click: move the shared inline AND crossline positions there. */
   const navigateTo = useCallback(({ ilIdx, xlIdx }) => {
+    pausePlayer();
     setIndices((prev) => (prev.inline === ilIdx && prev.xline === xlIdx
       ? prev : { ...prev, inline: ilIdx, xline: xlIdx }));
-  }, []);
+  }, [pausePlayer]);
 
   /** Map-drawn or saved traverse: resample the polyline to trace
    *  positions, assemble the section, and focus the Traverse window.
@@ -3197,7 +3236,10 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   const ribbon = (
     <Ribbon
       corner={(
-        <span className="text-sm font-bold text-white mr-3 pb-0.5">Seismolord</span>
+        <span className="flex items-center gap-2 mr-3 pb-0.5">
+          <ModuleHomeLink module="geoscience" testId="sl-home" />
+          <span className="text-sm font-bold text-white">Seismolord</span>
+        </span>
       )}
       trailing={(
         <>
@@ -3295,6 +3337,13 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
               undoLabel={edit.undo > 0 ? 'horizon edit step' : undoStack.peekUndo()}
               redoLabel={edit.redo > 0 ? 'horizon edit step' : undoStack.peekRedo()}
               onOpenSessions={() => setSessionsOpen(true)}
+              player={{
+                state: player,
+                currentValue: manifest && orientation !== 'traverse'
+                  ? indexToSurveyValue(manifest.geometry, orientation, sliceIndex) : null,
+                onStep: stepSlice,
+                onGoTo: goToSurveyValue,
+              }}
             />
           ),
         },
@@ -3581,6 +3630,8 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
                   getBrick={getBrick}
                   indices={indices}
                   onChangeIndex={changeIndex}
+                  steps={player.steps}
+                  activeOrientation={orientation}
                   display={display}
                   vexag={vexag}
                   horizons={resolvedHorizons}

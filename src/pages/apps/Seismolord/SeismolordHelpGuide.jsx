@@ -89,6 +89,15 @@ export default function SeismolordHelpGuide() {
           model (a constant, a gradient or a layer cake set in the Velocity model editor); depth is a display
           stretch, so picking stays in time.
         </Para>
+        <SubHeading>Stepping, going to a line and the player</SubHeading>
+        <Para>
+          The Line group in Home holds the slice player. Step sets the increment (every Nth inline, crossline or
+          sample, remembered per orientation); the arrow keys in the Section and 3D windows, Shift and wheel, and the
+          step buttons all move by it. Go to takes an inline or crossline number, or a time in ms on a time slice,
+          and jumps straight there. Play runs through the slices at the chosen speed in slices per second; it waits
+          for each slice to load before stepping, stops at the end of the survey, and pauses as soon as you move
+          the slice yourself. Step size and speed are saved with named sessions.
+        </Para>
       </GuideSection>
 
       <GuideSection id="horizons">
@@ -193,7 +202,9 @@ export default function SeismolordHelpGuide() {
         <Para>
           The 3D window shows the three slice planes, the interpreted horizons and faults and the wells in one
           cube; orbit with the mouse, exaggerate the vertical axis, hide a surface, and click a plane to open that
-          orientation in the section viewer. Shift and wheel over a plane steps its position.
+          orientation in the section viewer. Shift and wheel over a plane steps its position by the step size; with
+          the 3D window focused, the arrow keys step the plane under the cursor, or the Section window's
+          orientation when the cursor is elsewhere.
         </Para>
       </GuideSection>
 
@@ -225,7 +236,7 @@ export default function SeismolordHelpGuide() {
           ['Petrophysics Studio, Well Correlation, Pore Pressure Studio and the rest', 'Open in on a well lists the Geoscience apps for it.'],
           ['Mapping & Surface Studio and Earth Modeling', 'Published surfaces are listed there; their surfaces and fault polygons are listed here under Surfaces and Culture.'],
           ['ReservoirCalc Pro', 'Reads published surfaces in its Surface import.'],
-          ['Geoscience home', 'The back arrow at the top of the explorer.'],
+          ['Geoscience home', 'The Geoscience link at the left end of the ribbon, as in the other Geoscience studios.'],
         ]} />
       </GuideSection>
 
