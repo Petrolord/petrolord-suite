@@ -21,8 +21,9 @@ import JVPartnerManagement from '@/components/afe/JVPartnerManagement';
 import ReportingEngine from '@/components/afe/ReportingEngine';
 import IntegrationsTab from '@/components/afe/IntegrationsTab';
 import AfeHelpGuide from '@/components/afe/AfeHelpGuide';
+import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
 
-const AfeCostControlManager = () => {
+const AfeCostControlManagerInner = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   
@@ -118,6 +119,7 @@ const AfeCostControlManager = () => {
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            <FullPrecisionToggle app="afe-cost-control" className="mr-2" />
             <AfeHelpGuide />
             <Button onClick={() => setIsWizardOpen(true)} className="bg-blue-600 hover:bg-blue-700">
               <PlusCircle className="w-4 h-4 mr-2" /> New AFE
@@ -263,5 +265,12 @@ const AfeCostControlManager = () => {
     </div>
   );
 };
+
+// W3 (D3): the Full precision switch prints CPI and SPI at 6 decimals.
+const AfeCostControlManager = () => (
+  <FullPrecisionProvider>
+    <AfeCostControlManagerInner />
+  </FullPrecisionProvider>
+);
 
 export default AfeCostControlManager;
