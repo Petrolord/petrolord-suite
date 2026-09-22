@@ -1,6 +1,4 @@
-# Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
-# Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 346fbc34aadfae37f9193697ab4fd80f76f7f75c
+# commit 768e06978f0d97787707e334e187145167985243
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 b45735ce0a92fedac8004ff81b088c4e52a3c497 README.md
@@ -160,12 +158,14 @@ e4f3077ef409febee84ffbc11ee97ed5185488e9 __tests__/seismolord.faultobjects.test.
 65d29290a18eab1e3c9d164faf9d71fab94efe00 __tests__/seismolord.importreaders.test.js
 e80da8efdd7cd8a39a69cfc427173837c5ebfeda __tests__/seismolord.latticeexport.test.js
 0f33cdf054912f7d9515a2bb5a87b463f2c65a0e __tests__/seismolord.line2d.test.js
-d4b9fe3743d5126ca8d2cc49a8fdcd27c36c530f __tests__/seismolord.manifestgate.test.js
+b0bae05701a81bdc60ed1f72bb230c19b099b073 __tests__/seismolord.manifestgate.test.js
 636459112a6ddc831edc8c35f26b83215593641f __tests__/seismolord.pickexport.test.js
 bf7806d278a935fac4082f53a7fc2f2f5147e5fe __tests__/seismolord.stratal.test.js
 3778276afdb6625456cc8f5210d492f209661b29 __tests__/seismolord.tiewarp.test.js
 afed8248d99e1a36f732a2abadf0fe862e281f87 __tests__/seismolord.tracker2.test.js
+9a7c585967122edb38db31edd06f3b02d1656b5c __tests__/seismolord.v4bricks.test.js
 d237aeeab187916aa16410cf54afc9df2a272363 __tests__/seismolord.volumejob.test.js
+bfbf553fdf6db8892a4df9b27b82f23a3526e9b0 __tests__/seismolordSegyFixture.js
 af4704eede39adce98766de98d382ba2a7342386 __tests__/sim.deckgen.test.js
 07c7b1702ac088f849737b8e32982b0254264f6d __tests__/sim.ekene.test.js
 8744cbc68e9efcf7b98edbef034c245f36a64991 __tests__/sim.s4.test.js
@@ -415,7 +415,9 @@ a3706390e5e5dbe06ae9a793e351e448351e5282 engines/rockphysics/wedge.js
 d7f407f215be00012305db70dffe29a6a0227a69 engines/seismolord/attributes.js
 de49eaf2fa7ac219ce9ff0f771135b2fcbd0b98f engines/seismolord/brickCache.js
 8eddc4f357121d21cdc7c727adcc1dfff79ca8c6 engines/seismolord/brickCodec.js
+95fa16da6d7ec4f3fd3c4f0b839d9a07851d303a engines/seismolord/brickCodecV4.js
 c3ca63fe26f9af3f1abab5533ad9cdd5f769d10c engines/seismolord/brickTranscode.js
+569a8c908b95e49689f4313fb4aa94dbdd70095b engines/seismolord/brickTranscodeV4.js
 51dfe9ea937eb0b46ad7f2b654cce4965666b453 engines/seismolord/crsHint.js
 06d057f53227b041e2928677700753705651a7c8 engines/seismolord/depthConvert.js
 1ac489afd22f9a3ba9d4881c4d865ff77969b732 engines/seismolord/discontinuity.js
@@ -431,7 +433,7 @@ e0898e97a6379d78d75703b30fe838326a5f80e5 engines/seismolord/horizonAmplitude.js
 2c41ffcca2b5b77886c97dcf47e9950036366863 engines/seismolord/importText.js
 8f6404ac6e8f862d9a01307619f1b5835c89201b engines/seismolord/line2d.js
 4fb412da20575176ef2c87334847c8edcc53cad9 engines/seismolord/line2dIntegration.js
-015343128c667db6eef027ccf641e3abb1397ab6 engines/seismolord/manifest.js
+c352fe76d01254fe9ea24a068da707e1fdcbd92e engines/seismolord/manifest.js
 40d9b65d7514d91e6e8da6eec765aa2fb0f20c8e engines/seismolord/pickExport.js
 86ec91bef9453522dabde1db8e78076a1c8eb363 engines/seismolord/pickImport.js
 de3474443e760832527784db15aada29e62baeee engines/seismolord/reader.js
