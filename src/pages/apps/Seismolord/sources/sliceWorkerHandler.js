@@ -21,37 +21,24 @@ import { SliceEngine } from './sliceEngine';
 import { fileReader } from '../engine/reader';
 import { storageBrickFetcher, ABORTED as BRICK_ABORTED } from '../engine/brickCache';
 import { cacheBudgetBytes } from './memoryBudget';
+import { fetchWithTimeout, FetchTimeoutError } from '../lib/fetchWithTimeout';
 import { SOURCE_ERRORS, errorCode, sourceError } from './sliceSource';
 
-/** Per-brick fetch timeout. The shared fetch-timeout module
- *  (lib/fetchWithTimeout.js, another stream) can replace this wrapper. */
+/** Per-brick fetch timeout, per attempt (lib/fetchWithTimeout). */
 export const DEFAULT_FETCH_TIMEOUT_MS = 30000;
 
-/** Wrap a fetcher with a timeout that reports TIMEOUT (a user abort stays
- *  an abort). */
-export function withFetchTimeout(fetcher, ms) {
-  return async (path, signal) => {
-    const ac = new AbortController();
-    let timedOut = false;
-    const timer = setTimeout(() => { timedOut = true; ac.abort(); }, ms);
-    const relay = () => ac.abort();
-    if (signal) {
-      if (signal.aborted) ac.abort();
-      else signal.addEventListener('abort', relay, { once: true });
-    }
-    try {
-      return await fetcher(path, ac.signal);
-    } catch (e) {
-      if (timedOut) {
-        throw sourceError(SOURCE_ERRORS.TIMEOUT,
-          `A survey brick took longer than ${Math.round(ms / 1000)} seconds to arrive.`);
-      }
-      throw e;
-    } finally {
-      clearTimeout(timer);
-      if (signal) signal.removeEventListener('abort', relay);
-    }
-  };
+/**
+ * Wrap a fetcher with the shared brick deadline (stability, 2026-09-22:
+ * a timed-out attempt is aborted and retried once). Running out of
+ * attempts reports TIMEOUT; a user abort stays an abort.
+ */
+export function withFetchTimeout(fetcher, ms, { retries = 1 } = {}) {
+  return (path, signal) => fetchWithTimeout((s) => fetcher(path, s), {
+    signal, timeoutMs: ms, retries,
+  }).catch((e) => {
+    if (e instanceof FetchTimeoutError) throw sourceError(SOURCE_ERRORS.TIMEOUT, e.message);
+    throw e;
+  });
 }
 
 /** Copy a cache-owned slice for transfer (the cache keeps its copy). */

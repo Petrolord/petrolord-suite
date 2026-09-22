@@ -278,8 +278,11 @@ describe('brick source', () => {
       const never = (p, signal) => new Promise((_, reject) => {
         signal.addEventListener('abort', () => reject(new Error('BRICK_FETCH_ABORTED')));
       });
-      const f = withFetchTimeout(never, 1000);
+      const calls = [];
+      const f = withFetchTimeout((p, signal) => { calls.push(p); return never(p, signal); }, 1000);
       const p = f('x', new AbortController().signal);
+      jest.advanceTimersByTime(1001);          // first attempt times out, one retry
+      expect(calls).toHaveLength(2);
       jest.advanceTimersByTime(1001);
       await expect(p).rejects.toMatchObject({ code: SOURCE_ERRORS.TIMEOUT });
     } finally {
