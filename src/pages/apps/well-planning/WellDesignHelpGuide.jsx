@@ -347,7 +347,24 @@ const WellDesignHelpGuide = () => {
               <SubHeading>Plan view</SubHeading>
               <Para>
                 A true equal-aspect map: north is never stretched against east. Wellpath, slots, lease lines, targets in true
-                shape, EOU ellipses and a north arrow.
+                shape, EOU ellipses and a north arrow. The plot says True scale (1:1) in its corner.
+              </Para>
+              <SubHeading>Section view and true scale</SubHeading>
+              <Para>
+                The section view is drawn at true scale by default: one metre (or foot) of vertical section spans the same
+                screen length as one metre of TVD, and the grid cells are square. A 3 deg/30 m build then looks like the
+                gentle arc it is. At true scale a deep near-vertical well is a thin line near VS zero, which is its real
+                shape. The Scale picker in the section header stretches one axis when you need to read it: VS 2x, 5x or
+                10x widens the section sideways, and TVD 2x, 5x or 10x stretches depth (useful on a long horizontal). The
+                factor in use is printed inside the plot, for example Horizontal exaggeration 5x (VS stretched), so a
+                screenshot always carries it. The setting is shared by the Section view and the Plots grid.
+              </Para>
+              <SubHeading>DLS colour</SubHeading>
+              <Para>
+                The DLS colour button next to Targets colours the path on the section and plan views by dogleg severity,
+                light to dark green from zero up to the Max DLS in Design settings. Any stretch above Max DLS is drawn thicker
+                in red and the legend labels it as flagged. Use it to tell a real sharp dogleg from an exaggerated plot.
+                With no Max DLS set, the scale runs to the plan&apos;s own maximum and nothing is flagged.
               </Para>
               <SubHeading>The 3D window</SubHeading>
               <Para>

@@ -38,6 +38,7 @@ import { compositeStations } from '../services/surveyUtils';
 import { listSurveys, listDesigns } from '../services/wpApi';
 import { listTops } from '@/lib/wellsRegistry';
 import PlanViewChart from '../charts/PlanViewChart';
+import { DEFAULT_EXAGGERATION } from '../services/sectionScale';
 import {
   SectionViewPanel, InclinationPanel, DlsPanel,
 } from '../charts/TrajectoryCharts';
@@ -73,6 +74,10 @@ const DesignTab = () => {
     const [publishOpen, setPublishOpen] = useState(false);
     const [showPpfg, setShowPpfg] = useState(false);
     const [showTargets, setShowTargets] = useState(true);
+    // Section scale (true scale by default; one setting shared by the
+    // Section view and the Plots grid) and DLS path colouring.
+    const [sectionEx, setSectionEx] = useState(DEFAULT_EXAGGERATION);
+    const [showDlsColor, setShowDlsColor] = useState(false);
     const [ppfg, setPpfg] = useState(null);          // {rows, summary} | 'loading' | 'none' | null
     const [scene3d, setScene3d] = useState(null);    // {composite, offsets, tops} lazy-loaded
     const loadedFor = useRef(null);
@@ -485,6 +490,19 @@ const DesignTab = () => {
             }));
     }, [chartTargets, vsAzimuthDeg]);
 
+    // DLS colour scale: the design's Max DLS is the reference (segments
+    // above it are flagged); with none set the ramp runs to the plan max.
+    const dlsScale = useMemo(() => {
+        if (!showDlsColor) return null;
+        const maxDls = parseFloat(constraints.maxDLS);
+        return {
+            key: mdUnit === 'ft' ? 'dls100ft' : 'dls30m',
+            unitLabel: `deg/${mdUnit === 'ft' ? '100ft' : '30m'}`,
+            maxDls: Number.isFinite(maxDls) && maxDls > 0 ? maxDls : null,
+            scaleMax: planSummary?.maxDLS ?? null,
+        };
+    }, [showDlsColor, constraints.maxDLS, mdUnit, planSummary]);
+
     const eouSectionOverlays = useMemo(() => (uncertainty?.band ? [
         { name: 'TVD −2σ', rows: uncertainty.band.up, color: '#0284c7', dash: '3 3' },
         { name: 'TVD +2σ', rows: uncertainty.band.down, color: '#0284c7', dash: '3 3' },
@@ -650,6 +668,14 @@ const DesignTab = () => {
                                     <Target className="w-3 h-3 mr-1" /> Targets
                                 </Button>
                             )}
+                            {(viewMode === 'section' || viewMode === 'plots') && (
+                                <Button size="sm" variant="ghost" onClick={() => setShowDlsColor((v) => !v)}
+                                    className={`h-7 px-2 text-xs ${showDlsColor ? 'bg-slate-700 text-lime-300' : 'text-slate-400'}`}
+                                    data-testid="toggle-dls-colour"
+                                    title="Colour the path by dogleg severity on the section and plan views; segments above the design's Max DLS are flagged in red">
+                                    DLS colour
+                                </Button>
+                            )}
                             {viewMode === 'section' && (
                                 <Button size="sm" variant="ghost" onClick={() => setShowPpfg((v) => !v)}
                                     className={`h-7 px-2 text-xs ${showPpfg ? 'bg-slate-700 text-sky-300' : 'text-slate-400'}`}
@@ -684,7 +710,7 @@ const DesignTab = () => {
                         {viewMode === 'section' && planRows && (
                             <div className="flex h-full w-full bg-white">
                                 <div className="min-w-0 flex-1">
-                                    <SectionViewPanel rows={planRows} unit={depthUnitLabel} vsAzimuthDeg={vsAzimuthDeg} overlays={eouSectionOverlays} targets={showTargets ? sectionTargets : []} />
+                                    <SectionViewPanel rows={planRows} unit={depthUnitLabel} vsAzimuthDeg={vsAzimuthDeg} overlays={eouSectionOverlays} targets={showTargets ? sectionTargets : []} exaggeration={sectionEx} onExaggerationChange={setSectionEx} dlsScale={dlsScale} />
                                 </div>
                                 {showPpfg && (
                                     <div className="w-[340px] shrink-0 border-l border-slate-200">
@@ -719,8 +745,8 @@ const DesignTab = () => {
 
                         {viewMode === 'plots' && planRows && (
                             <div className="grid grid-cols-2 grid-rows-2 gap-px bg-slate-800 h-full w-full">
-                                <PlanViewChart rows={planRows} targets={showTargets ? chartTargets : []} slots={chartSlots} leaseLines={chartLeaseLines} unit={depthUnitLabel} ellipses={uncertainty?.ellipses || []} />
-                                <SectionViewPanel rows={planRows} unit={depthUnitLabel} vsAzimuthDeg={vsAzimuthDeg} overlays={eouSectionOverlays} targets={showTargets ? sectionTargets : []} />
+                                <PlanViewChart rows={planRows} targets={showTargets ? chartTargets : []} slots={chartSlots} leaseLines={chartLeaseLines} unit={depthUnitLabel} ellipses={uncertainty?.ellipses || []} dlsScale={dlsScale} />
+                                <SectionViewPanel rows={planRows} unit={depthUnitLabel} vsAzimuthDeg={vsAzimuthDeg} overlays={eouSectionOverlays} targets={showTargets ? sectionTargets : []} exaggeration={sectionEx} onExaggerationChange={setSectionEx} dlsScale={dlsScale} />
                                 <InclinationPanel rows={planRows} unit={depthUnitLabel} />
                                 <DlsPanel rows={planRows} unit={depthUnitLabel} />
                             </div>

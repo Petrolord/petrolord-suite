@@ -497,3 +497,36 @@ the Save design toast now says, when the wellbore has no definitive design,
 that the draft is used downstream as the latest plan and that Set definitive
 (design menu in the tree) makes it the plan of record. Set definitive itself
 is unchanged.
+
+## Tester fix: section view true scale and DLS colour (2026-09-22)
+
+Tester case Darm PlanB: kickoff at 2,000 m, 3 deg/30 m to 6.6 deg, drawn as
+a sharp corner. The section view was a Recharts panel that fitted VS and TVD
+independently (about 10:1 on that well), so a gentle build read as a kink.
+
+- **Section view is now an SVG at true scale** (`charts/SectionViewChart.jsx`;
+  `SectionViewPanel` keeps its name and props and delegates, so the Design tab
+  Section view, the Plots grid, the Surveys compare view and the harness all
+  change together). Equal length per pixel on VS and TVD, square grid cells,
+  frame measured with ResizeObserver. Targets, EOU band, overlays with legend,
+  the PPFG side panel and a nearest-station hover readout are kept.
+- **Scale picker** in the section header: 1:1 true scale (default), VS 2x/5x/10x
+  (horizontal exaggeration, the readable choice for a deep near-vertical well)
+  and TVD 2x/5x/10x (vertical exaggeration). The factor is printed inside the
+  plot ("True scale (1:1)", "Vertical exaggeration 5x", "Horizontal exaggeration
+  10x (VS stretched)"). One setting is shared by the Section view and the Plots
+  grid; elsewhere the chart keeps its own.
+- **Plan view** was already equal aspect (verified); it now prints True scale
+  (1:1) in its corner.
+- **DLS colour** toggle (toolbar, next to Targets) colours the path on the
+  section and plan views: sequential green ramp from 0 to the design's Max DLS,
+  segments above Max DLS thicker and red, legend on each plot. No Max DLS set:
+  ramp runs to the plan maximum and nothing is flagged.
+- **Wall plot PDF** (`services/reportPack.js`): its section plot had the same
+  independent fit; it is now true scale by default (`drawSectionView` takes a
+  `ratio`), and both wall-plot views print their scale on the plot.
+- Pure math in `services/sectionScale.js` (equal-aspect frame fit with a ratio,
+  exaggeration labels, DLS binning and colour runs). Tests:
+  `__tests__/sectionScale.test.jsx` (tester geometry: the drawn hold slope equals
+  6.6 deg at true scale and the old fit drew it above 40 deg; VE ratio; DLS at
+  and above Max DLS; chart prints the factor), `reportPack.test.js` (+1 assertion).
