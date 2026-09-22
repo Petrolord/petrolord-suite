@@ -1,6 +1,38 @@
 # Seismolord — STATUS
 
-Last updated: 2026-09-06 (SL0 tester readiness: depth unit, launchers, help guide)
+Last updated: 2026-09-22 (tester feedback: navigation and slice player)
+
+## 2026-09-22: tester feedback, navigation and slice player (SLT-1)
+
+Owner-authorised tester feedback programme, three stacked PRs
+(navigation and player; slice toggles and wells; stability).
+
+- **Home link**: the ribbon corner now starts with the shared
+  `ModuleHomeLink` (Home icon + "Geoscience", testId `sl-home`), the
+  same element and position as the other Geoscience studios. The
+  explorer's small back arrow stays as a second way out.
+- **Slice player** (Home, Line group, `SlicePlayerControls.jsx`, state
+  in `hooks/useSlicePlayer.js`, pure math in `lib/sliceNav.js`):
+  - Step size per orientation (every Nth inline, crossline or sample).
+    Arrow keys and Shift+wheel in the Section window, the new arrow
+    keys and Shift+wheel in the 3D window, and the step buttons all
+    move by it. Neighbour prefetch warms +/- one step.
+  - Go to: an IL or XL number, or a time in ms on a time slice,
+    converted with (value - min) / step or ms * 1000 / dt_us, rounded
+    and clamped; a bad entry is flagged in place.
+  - Play/Pause at 0.5 to 8 slices per second: a setTimeout chain that
+    only schedules the next step once the current slice is on screen
+    (never setInterval, so a slow load slows the player instead of
+    stacking requests); stops at the end of the survey and on a load
+    error; any user move (slider, arrows, wheel, go to, map click, 3D
+    drag, orientation or volume change) pauses it.
+  - Step size and speed persist in `seismolord.player.v1`, one of the
+    session snapshot keys, so named sessions carry them.
+- 3D window: focusable viewport (`cube-viewport`), arrow keys step the
+  plane under the cursor or the Section window's orientation.
+- Tests: `slicePlayer.test.jsx` (conversion, clamping, player loop with
+  fake timers, controls), `cubeView.keys.test.jsx` (CubeView with a
+  recording renderer stand-in, `__tests__/cubeView.harness.js`).
 
 ## 2026-09-06: SL0, Petrel tester readiness (units, launchers, help)
 
