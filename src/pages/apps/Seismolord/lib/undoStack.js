@@ -4,10 +4,13 @@
 // command that throws stays on its stack for retry, and the error
 // surfaces to the caller (ViewerPanel toasts it).
 //
-// The horizon EDITOR keeps its own in-session cell-level undo (working
-// grid, 40 ops); the keyboard router prefers it while an edit session
-// has pending ops. This stack covers everything else: fault stick
-// drafts, saves, deletes-with-restore, traverse edits.
+// The horizon EDITOR keeps its own in-session cell-level undo AND redo
+// (lib/horizonEditHistory: working grid, 40 ops, one op per stroke); the
+// keyboard router prefers it in both directions while the session has
+// ops. This stack covers everything else: fault stick drafts, saves,
+// deletes-with-restore, traverse edits, horizon Save / Track 3D / Grow
+// (lib/horizonUndoCommands), display settings and renames, termination
+// markers.
 
 export class UndoStack {
   /**
