@@ -86,6 +86,10 @@ export const defaultInputs = () => ({
   blowdownIn: {
     volumeFt3: '500', p0Psig: '1000', tF: '100', pEndPsig: '100',
     mw: '19', k: '1.3', z: '0.9', orificeDIn: '1', cd: '0.85',
+    // W3: the flare back pressure the choked floor is read against; 14.7 is
+    // the engine's own default, so a study saved before this field existed
+    // computes exactly what it did.
+    pBackPsia: '14.7',
   },
 });
 
@@ -298,7 +302,7 @@ export const ReliefStudioProvider = ({ children }) => {
       return blowdown({
         volumeFt3: num(b.volumeFt3), p0Psia: num(b.p0Psig) + 14.7, t0R: num(b.tF) + 459.67,
         pEndPsia: num(b.pEndPsig) + 14.7, mw: num(b.mw), k: num(b.k, 1.4), z: num(b.z, 0.9),
-        orificeDIn: num(b.orificeDIn), cd: num(b.cd, 0.85),
+        orificeDIn: num(b.orificeDIn), cd: num(b.cd, 0.85), pBackPsia: num(b.pBackPsia, 14.7),
       });
     } catch (e) {
       console.error(e);

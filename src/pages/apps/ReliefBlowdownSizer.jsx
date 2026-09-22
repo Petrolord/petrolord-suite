@@ -12,6 +12,7 @@ import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import StudioHelp from '@/components/studio/StudioHelp';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import { ReliefStudioProvider, useRelief } from '@/contexts/ReliefStudioContext';
+import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
 import PsvInputsPanel from '@/components/reliefstudio/PsvInputsPanel';
 import PsvResultsPanel from '@/components/reliefstudio/PsvResultsPanel';
 import {
@@ -125,6 +126,8 @@ const StudioContent = () => {
         }
         headerActions={
           <>
+            <FullPrecisionToggle app="relief-flare-studio" />
+            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
             <StudioAutoSave
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
@@ -151,7 +154,9 @@ const StudioContent = () => {
 
 const ReliefBlowdownSizer = () => (
   <ReliefStudioProvider>
-    <StudioContent />
+    <FullPrecisionProvider>
+      <StudioContent />
+    </FullPrecisionProvider>
   </ReliefStudioProvider>
 );
 
