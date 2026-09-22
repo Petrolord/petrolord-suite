@@ -1,10 +1,12 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
+import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, ComposedChart, Area, PieChart, Pie, Cell } from 'recharts';
 import { DollarSign, TrendingUp, TrendingDown, Activity, AlertCircle, PieChart as PieIcon, CalendarClock, BarChart2 } from 'lucide-react';
 import {
   AfeInputError, calculateMetrics, generateSCurveData, itemForecast,
 } from '@/utils/costControlCalculations';
+import { formatFull, FULL_PRECISION_DECIMALS } from '@/lib/fullPrecision';
 
 // EC5-0 (owner decision 2026-09-14). The engine reads the clock only as the
 // default of its asOf argument; the dashboard passes today explicitly, as a
@@ -25,7 +27,7 @@ const hasWindow = (afe) => Boolean(afe?.start_date && afe?.end_date)
 // the start day) reads "Not started" with no verdict and no colour.
 // EC5-3 (engines #185): SPI is also null with no budget at all, and the
 // engine says which case it is in `spiStatus`; that reads N/A with the reason.
-export const spiTile = (afe, metrics) => {
+export const spiTile = (afe, metrics, full = false) => {
   if (!hasWindow(afe)) {
     return { value: 'Unavailable', subtext: 'Add start and end dates to measure schedule', colorClass: NEUTRAL_TILE };
   }
@@ -36,7 +38,7 @@ export const spiTile = (afe, metrics) => {
     return { value: 'Not started', subtext: 'No planned value before the start date', colorClass: NEUTRAL_TILE };
   }
   return {
-    value: metrics.spi.toFixed(2),
+    value: full ? formatFull(metrics.spi, FULL_PRECISION_DECIMALS) : metrics.spi.toFixed(2),
     subtext: metrics.spi >= 1 ? 'Ahead of Schedule' : 'Behind Schedule',
     colorClass: metrics.spi >= 1 ? 'text-green-400 bg-green-400' : 'text-red-400 bg-red-400',
   };
@@ -45,7 +47,7 @@ export const spiTile = (afe, metrics) => {
 // The CPI tile (EC5 CPI item, engines #185). CPI is null when nothing has
 // been spent, with `cpiStatus` 'no-spend'; it used to read 1.00 "Under
 // Budget" whatever had been earned.
-export const cpiTile = (metrics) => {
+export const cpiTile = (metrics, full = false) => {
   if (metrics.cpi == null || !Number.isFinite(metrics.cpi)) {
     return {
       value: 'N/A',
@@ -54,7 +56,7 @@ export const cpiTile = (metrics) => {
     };
   }
   return {
-    value: metrics.cpi.toFixed(2),
+    value: full ? formatFull(metrics.cpi, FULL_PRECISION_DECIMALS) : metrics.cpi.toFixed(2),
     subtext: metrics.cpi >= 1 ? 'Under Budget' : 'Over Budget',
     colorClass: metrics.cpi >= 1 ? 'text-green-400 bg-green-400' : 'text-red-400 bg-red-400',
   };
@@ -108,11 +110,21 @@ const KPICard = ({ title, value, subtext, icon: Icon, colorClass, trend }) => (
   </Card>
 );
 
+// W3 (NextGen graded-field follow-on, §1): the dashboard used to measure SPI
+// only as of today. A stated as-of date (default today, so nothing changes
+// until someone types one) lets a report, or a course case, be read at the
+// date it names. A blank or unreadable date falls back to today.
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+export const resolveDashboardAsOf = (typed, today = todayIsoDate()) => (
+  typeof typed === 'string' && ISO_DATE.test(typed) && !Number.isNaN(Date.parse(typed)) ? typed : today);
+
 const AFEDashboard = ({ afe, costItems, invoices }) => {
+  const { full } = useFullPrecision();
+  const [asOfInput, setAsOfInput] = useState(todayIsoDate());
   const currencyFormatter = (value) => 
     new Intl.NumberFormat('en-US', { style: 'currency', currency: afe?.currency || 'USD', notation: 'compact' }).format(value);
 
-  const asOf = todayIsoDate();
+  const asOf = resolveDashboardAsOf(asOfInput);
   const { metrics, sCurveData, inputError } = useMemo(() => {
     try {
       return {
@@ -162,8 +174,8 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
     );
   }
 
-  const spi = spiTile(afe, metrics);
-  const cpi = cpiTile(metrics);
+  const spi = spiTile(afe, metrics, full);
+  const cpi = cpiTile(metrics, full);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -183,6 +195,19 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
           </span>
         </div>
       ) : null}
+
+      <div className="flex items-center gap-2 text-xs text-slate-400">
+        <label htmlFor="afe-as-of" className="font-medium">As of</label>
+        <input
+          id="afe-as-of"
+          type="date"
+          data-testid="afe-as-of"
+          value={asOfInput}
+          onChange={(e) => setAsOfInput(e.target.value)}
+          className="h-8 rounded border border-slate-700 bg-slate-900 px-2 text-slate-200"
+        />
+        <span>Planned value, SPI and the S-curve are measured at this date.</span>
+      </div>
 
       {/* Row 1: Top KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
