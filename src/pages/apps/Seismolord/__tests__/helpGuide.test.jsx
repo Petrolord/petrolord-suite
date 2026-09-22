@@ -24,6 +24,18 @@ describe('SeismolordHelpGuide', () => {
     expect(text).toMatch(/negative below the datum/);
   });
 
+  test('names the real Make surface buttons and the import formats', () => {
+    const { container } = renderGuide();
+    const text = container.textContent;
+    expect(text).toMatch(/Make surface/);
+    expect(text).toMatch(/Grid in Seismolord/);
+    expect(text).toMatch(/Publish to the registry/);
+    expect(text).toMatch(/Save as surface/);
+    for (const f of ['Charisma 3D interpretation lines', 'IESX', 'EarthVision', 'ZMAP+', 'CPS-3', 'column mapping']) {
+      expect(text).toContain(f);
+    }
+  });
+
   test('copy carries no em dashes (owner rule)', () => {
     const { container } = renderGuide();
     expect(container.textContent.includes('—')).toBe(false);

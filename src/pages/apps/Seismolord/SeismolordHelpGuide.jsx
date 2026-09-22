@@ -62,7 +62,7 @@ export default function SeismolordHelpGuide() {
         <Step n={2} title="Look around">Select the volume in Home; step inlines with the slider or the wheel; switch to crosslines and time slices; adjust gain, AGC and the colormap in the Display group.</Step>
         <Step n={3} title="Pick a horizon">Interpretation: New horizon, then click seeds on a section and Track along the line or through the volume; Undo and Redo cover every pick.</Step>
         <Step n={4} title="Tie a well">Wells: import a well or use one from the registry, load its sonic and density, build the synthetic and drag the tie; the T-D relation is saved with the well.</Step>
-        <Step n={5} title="Map and publish">Surfaces: grid the horizon, look at it in the Map window in time or depth, then Publish it to the registry or export it as a file.</Step>
+        <Step n={5} title="Make a surface">Right-click the horizon in the explorer and choose Make surface: Grid in Seismolord shows the surface in the Map window, Publish to the registry saves it for Mapping &amp; Surface Studio. Export writes it as a file.</Step>
       </GuideSection>
 
       <GuideSection id="volumes">
@@ -100,6 +100,21 @@ export default function SeismolordHelpGuide() {
           can be shown, compared or restored. Picks live on the volume's lattice in two-way time and are yours until
           you share the horizon with the organization.
         </Para>
+        <Para>
+          Every picking action can be undone with Ctrl+Z and redone with Ctrl+Shift+Z or Ctrl+Y (the Home tab has
+          the same buttons). In a horizon edit session one whole paint or erase stroke is one step. Saving the
+          session, Track volume and Grow target are undoable too: undoing a Save or a Grow writes the previous picks
+          back into the same horizon, and undoing a Track volume removes the horizon it created.
+        </Para>
+        <Para>
+          Import horizons with the upload icon on the Horizons section (or Export, Import). Any file name or extension
+          is accepted: the content decides the format. Supported: Charisma 3D interpretation lines (every INLINE and
+          XLINE marker form, with or without a horizon-name column), IESX, EarthVision scattered data, CPS-3 points,
+          CPS-3 and ZMAP+ grids, il xl x y z, x y z, and any other table through the column mapping step. A file that
+          holds several named horizons becomes one horizon per name; tick the ones to import. Lines that cannot be
+          read are listed with their line and column, and the rest of the file imports. Imported picks are two-way
+          time.
+        </Para>
       </GuideSection>
 
       <GuideSection id="faults">
@@ -108,6 +123,31 @@ export default function SeismolordHelpGuide() {
           Faults are sets of sticks picked on sections; sticks on neighbouring lines are joined into a surface you
           can show in the Map and 3D windows. Fault polygons drawn in Mapping &amp; Surface Studio are listed under
           Culture and can be shown on the map for comparison.
+        </Para>
+        <Para>
+          The interpretation toolbox (the wrench button at the top right, or Toolbox in the Interpretation tab)
+          docks every picking tool beside the viewports. For horizons it has the target, Manual picking, Seed, the
+          eraser with its brush size, and seeded tracking (Track 2D, Track 3D, Grow) with the event, the search
+          window and the correlation threshold. For faults, choose the active fault first: New fault starts a named
+          fault, and choosing an existing fault loads its sticks so new sticks belong to it. The stick tools are
+          Extend (a click adds a point at the nearer end of the selected stick), Select stick, Shorten (click a
+          point: it and the part of the stick beyond it are removed), Move node (drag a point), Delete node and
+          Delete stick; Trim top and Trim bottom shorten the selected stick by one point, and Delete fault removes
+          the active fault. Save writes the sticks to the active fault. Alt+click deletes the nearest point in any
+          stick tool, and every step can be undone.
+        </Para>
+        <Para>
+          Right-click a horizon or a fault in the explorer and choose Settings to rename it or set its colour, line
+          weight and opacity. The settings apply to sections, the 3D window and the map at once and are saved with
+          the interpretation, so they come back on the next visit. A new fault keeps the colour of every existing
+          one, and each settings change or rename can be undone with Ctrl+Z.
+        </Para>
+        <Para>
+          Import fault sticks with the upload icon on the Faults section. Supported: Charisma fault sticks (split or
+          joined INLINE markers, names with spaces), IESX fault sticks, x y z stick number, and any table through the
+          column mapping (X, Y, time, stick, fault name; without a stick column a blank line ends each stick). Each
+          named fault saves as its own fault with its stick order kept; unreadable lines are listed by line and
+          column.
         </Para>
       </GuideSection>
 
@@ -131,8 +171,15 @@ export default function SeismolordHelpGuide() {
         <Para>
           The Map window draws a horizon as a structure map in two-way time or, with a velocity model, in depth; it
           extracts amplitude attributes along the horizon, contours and labels the map, and overlays wells, faults,
-          registry surfaces and culture. Surfaces gridded from horizons are first-class objects: publish them to the
-          registry for Mapping &amp; Surface Studio, Earth Modeling and ReservoirCalc Pro, or export them as files.
+          registry surfaces and culture. Surfaces gridded from horizons are first-class objects in the shared
+          registry that Mapping &amp; Surface Studio, Earth Modeling and ReservoirCalc Pro read.
+        </Para>
+        <Para>
+          To make one, right-click a horizon and choose Make surface (or Make surface in the Interpretation tab). Both
+          buttons grid the picks here with the fault-aware gridder and save one surface: Grid in Seismolord also shows
+          it in the Map window, and Publish to the registry leaves the view as it is and links to Mapping &amp; Surface
+          Studio. No file export or re-import is involved. The Export dialog offers the same through Save as surface,
+          with every gridding option, and Grid &amp; download writes the surface as a file.
         </Para>
         <Table headers={['Format', 'Notes']} rows={SURFACE_EXPORT_FORMATS.map((f) => [f.label, `.${f.ext}`])} />
         <Callout tone="info" title="Sign convention">

@@ -437,10 +437,17 @@ export class CubeRenderer {
     if (this.lineSets.size) {
       gl.uniform3f(this.lu.u_scale, sc[0], sc[1], sc[2]);
       for (const l of this.lineSets.values()) {
-        gl.uniform4f(this.lu.u_color, l.color[0], l.color[1], l.color[2],
-          l.color.length > 3 ? l.color[3] : 1);
+        const a = l.color.length > 3 ? l.color[3] : 1;
+        // translucent line sets (fault opacity setting) need blending;
+        // opaque ones keep the original blend-free path
+        if (a < 1) {
+          gl.enable(gl.BLEND);
+          gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        }
+        gl.uniform4f(this.lu.u_color, l.color[0], l.color[1], l.color[2], a);
         gl.bindVertexArray(l.vao);
         gl.drawArrays(gl.LINES, 0, l.count);
+        if (a < 1) gl.disable(gl.BLEND);
       }
     }
 

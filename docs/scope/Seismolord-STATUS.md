@@ -1,6 +1,155 @@
 # Seismolord — STATUS
 
-Last updated: 2026-09-06 (SL0 tester readiness: depth unit, launchers, help guide)
+Last updated: 2026-09-22 (tester group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
+
+## 2026-09-22: tester group 6, import readers and Make surface
+
+Owner's words: add fault import (Charisma, IESX, generic ASCII with
+column mapping); read Charisma 3D interpretation lines, IESX,
+EarthVision, ZMAP+, CPS-3 and generic XYZ with column mapping, showing
+which lines and columns fail; make a surface directly from a horizon
+with no file export in between.
+
+- **Engines** (Petrolord/petrolord-engines #236, vendored at the branch
+  head; re-pin to the merge commit): tolerant readers that record
+  rejects `{ line, reason, column, field, text }` and refuse a file only
+  when nothing reads. `horizonImport.js` (Charisma 3D lines in every
+  INLINE/XLINE marker form, optional horizon-name column, multi-horizon
+  split; IESX card image; EarthVision; CPS-3 points; CPS-3/ZMAP+/Irap
+  grids sampled onto the lattice; il/xl/x/y/z; xyz; generic mapping),
+  `faultImport.parseFaultSticks` (Charisma variants, IESX fault sticks,
+  x y z stick, generic mapping with blank-line sticks), `importText.js`,
+  `importSniff.suggestImportKind`. Fixtures and their README (layouts,
+  counts, provenance) in `packages/engines/test-data/seismolord/{picks,faults}`.
+- **Import dialog** (`ImportSurfaceDialog.jsx`, title "Import horizons,
+  faults or surfaces"): no extension filter; the content decides the
+  kind and format (both overridable); a column-mapping step
+  (`dialogs/import/ColumnMappingStep.jsx`, tabularFile preview, Excel
+  first sheet accepted); a reject report (`dialogs/import/RejectReport.jsx`,
+  first 25 with the total); a multi-horizon file lists its horizons with
+  tick boxes and creates one horizon per ticked name. Landing and saving
+  moved to `services/interpretationImport.js`. New upload icons on the
+  explorer's Horizons and Faults sections open the dialog on that kind.
+- **Make surface** (`dialogs/MakeSurfaceDialog.jsx`,
+  `services/makeSurface.js`): a horizon's right-click menu and the
+  Interpretation tab (Surface ops) open it with the horizon preselected.
+  Both buttons grid with `gridHorizonSurface` and save with
+  `saveHorizonAsSurface` (the Export dialog's provenance plus
+  `made_from: make_surface`): **Grid in Seismolord** also shows the
+  surface in the Map window; **Publish to the registry** links to Mapping
+  & Surface Studio. The Export dialog's Save as surface is unchanged.
+- Help guide: quick start step 5, horizon and fault import paragraphs and
+  the Map section now name the real buttons (it said "Publish it to the
+  registry", which matched no button); guarded in `helpGuide.test.jsx`.
+- Tests: engines `seismolord.importreaders.test.js` (47); Suite
+  `interpretationImport.test.jsx` (11: the Charisma horizon file imports
+  12 points and the Charisma fault-stick file 10 points in 2 faults
+  through the real dialog; reject report; multi-horizon; mapping step),
+  `makeSurface.test.jsx` (8).
+- Judgment calls: Charisma x y z are the first three numbers after the
+  crossline (extra numbers ignored, a trailing word is a horizon name);
+  all-zero inline/crossline rows (resqpy) are located by X/Y; IESX fault
+  layout follows the documented card-image columns (no Petrel-written
+  IESX fault file was available); scattered points (EarthVision, CPS-3
+  points, xyz) land on the nearest lattice cell, so a sparse file makes a
+  sparse horizon.
+
+## 2026-09-22: group 5c, docked interpretation toolbox and fault stick tools
+
+Owner: "Add a docked interpretation toolbox for horizon picking and
+fault picking ... Fault picking needs new stick, extend, shorten, move
+a node, delete a node, delete a stick and delete a fault. At the moment
+a fault can be lengthened but not shortened or erased." Required test:
+"a fault shortened and erased, then undone".
+
+- `components/workspace/InterpretationToolbox.jsx` in the WorkspaceShell
+  right dock, which now holds Toolbox and Copilot tabs (both stay
+  mounted; the wrench and bot buttons in the ribbon corner and the new
+  Interpretation > Toolbox button open them). It drives the same
+  ViewerPanel state and handlers as the ribbon, which keeps working.
+  Horizon block: target, Manual / Seed / Erase, Track 2D / 3D / Grow,
+  event, window, an ALWAYS visible correlation threshold (with a "Track
+  by correlation" shortcut when the event is not NCC), brush size,
+  session Save / Discard, and Undo / Redo. Fault block: Active fault
+  (New fault with a name field, or an existing fault, which loads its
+  sticks so new sticks belong to it), the six stick tools, New stick,
+  Trim top / bottom, Delete stick, Save, Discard, Delete fault,
+  Properties.
+- `lib/faultStickEdit.js`: pure stick operations (nearestNode,
+  nearestStick, extendStick at the NEARER end, moveNode, deleteNode,
+  deleteStick, shortenStick, trimStickAt, newStick, savableSticks),
+  measured in the displayed section (points more than a line away are
+  never hit). Extend fixes the zig-zag the audit found (picking above a
+  stick's top appended to its bottom).
+- `hooks/useFaultStickEditor.js`: tool, selected stick, section pick
+  handler; each change is one global undo command; a Move node drag is
+  one command from pointer down to up. SliceView streams the drag
+  (`faultMove` joins the paint modes) and draws the selected draft
+  stick highlighted (`overlays.draftSelected`).
+- The draft model is unchanged (Save writes a new fault or updates the
+  active one in place); switching the active fault asks only when the
+  draft differs from the stored sticks.
+- Tests: `__tests__/faultStickEdit.test.js` (pure ops + shortened,
+  erased, undone on the UndoStack) and
+  `__tests__/interpretationToolbox.test.jsx` (the real toolbox + hook +
+  UndoStack: shorten, trim, delete node, delete stick, delete fault,
+  then five undos back to the original; node drag = one undo step).
+
+## 2026-09-22: group 5b, undo and redo for every picking action
+
+Owner: "Undo and redo for every picking action." The audit found the
+horizon edit session had undo only (no redo; `redoAction` replayed
+FAULT commands while a session was open), one op per pointer move (a
+drag burned the 40-op cap), and four writes with no undo at all.
+
+- `lib/horizonEditHistory.js` (EditHistory): everything between two
+  `commitStroke` calls is ONE op (first old value of a cell wins); undo
+  keeps the replaced values so redo is exact; a new edit clears the redo
+  lane. ViewerPanel's session holds `{grid, base, history}`; the router
+  sends Ctrl+Z and Ctrl+Shift+Z / Ctrl+Y to the session first in both
+  directions, then the global stack. Ribbon Edit horizon gains Redo.
+- `lib/horizonUndoCommands.js`: session Save (new horizon: undo deletes
+  the row; edited horizon: undo writes the session's base picks back
+  into the SAME row), Track 3D (undo deletes the created row, redo
+  re-creates it and tracks the new id), Grow target (undo writes the
+  pre-grow picks and confidence layer back into the same row). A rewrite
+  undo refuses while an edit session is open on that horizon.
+- Termination markers (place, Alt+click remove, Clear) are undoable.
+- Display settings and renames were made undoable in 5a.
+- Known gap kept: undoing a horizon DELETE still re-creates the head
+  under a new id (archived versions and confidence are not restored).
+  Grow undo leaves the grown confidence layer when the horizon had none.
+- Tests: `__tests__/horizonEditHistory.test.js`.
+
+## 2026-09-22: group 5a, fault and horizon properties with stable colours
+
+Owner: "Fault and horizon properties: rename, colour, line thickness and
+opacity, editable from the object list and saved with the
+interpretation." Faults had no settings at all, and both object kinds
+took their fallback colour from their LIST INDEX while `listFaults` and
+`listHorizons` sort newest first, so adding a fault or a horizon
+recoloured every existing one.
+
+- `FaultSettingsDialog` (explorer fault menu, Settings…): name, colour,
+  line weight, opacity. Stored in `seismic_faults.params.display` via
+  `updateFaultMeta` (services/faultsService.js), the mirror of
+  `updateHorizonMeta`. No schema change (params exists since
+  20260819210000).
+- Horizon settings gain **Line opacity** (`params.display.lineOpacity`),
+  applied to section lines (canvas globalAlpha) and the 3D surface
+  (mesh opacity). The map fill opacity is unchanged.
+- Fault line weight and opacity drive the section sticks (SliceView
+  `drawSticks`) and the 3D sticks and ribbon (CubeView; CubeRenderer
+  now blends translucent line sets). WebGL line width is fixed at 1 px
+  on most platforms, so line weight is a section-only setting.
+- Stable colours: `stableColor(id, palette)` (FNV-1a of the row id) is
+  the fallback for horizons and faults (`horizonColorFor`,
+  `faultColorFor`), used by the explorer swatches and every viewport.
+  Existing horizons without a saved colour change colour once.
+- Shared `hooks/useDisplaySettings.js` for both kinds: live session
+  override, one debounced write per burst, and each burst and each
+  rename is one undo step on the global stack.
+- Tests: `__tests__/interpProperties.test.jsx`.
 
 ## 2026-09-06: SL0, Petrel tester readiness (units, launchers, help)
 

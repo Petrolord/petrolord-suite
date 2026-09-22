@@ -153,7 +153,7 @@ export default function SeismicExplorer({ tree, actions }) {
     faults, visibleFaultIds, faultBusyId,
     wells, visibleWellIds, wellBusyId, wellsError,
     savedTraverses, traverseSavedId,
-    slicePlanes, horizonColorById,
+    slicePlanes, horizonColorById, faultColorById,
     appPaths = {},
   } = tree;
 
@@ -428,7 +428,16 @@ export default function SeismicExplorer({ tree, actions }) {
           )}
         </Section>
 
-        <Section icon={Layers} title="Horizons" count={horizons.length || ''}>
+        <Section
+          icon={Layers}
+          title="Horizons"
+          count={horizons.length || ''}
+          actions={(
+            <IconButton title="Import horizons (Charisma, IESX, EarthVision, CPS-3, ZMAP+, XYZ or any table)…" onClick={() => actions.openSurfaceImport('picks')}>
+              <Upload className="w-3.5 h-3.5" />
+            </IconButton>
+          )}
+        >
           {horizons.map((h, idx) => (
             <Row
               key={h.id}
@@ -462,6 +471,12 @@ export default function SeismicExplorer({ tree, actions }) {
                   <ContextMenuItem onSelect={() => actions.toggleHorizon(h)}>
                     {visibleIds.has(h.id) ? 'Hide' : 'Show'}
                   </ContextMenuItem>
+                  {actions.makeSurface && (
+                    <ContextMenuItem onSelect={() => actions.makeSurface(h)}>
+                      <Mountain className="w-3.5 h-3.5 mr-1.5" />
+                      Make surface…
+                    </ContextMenuItem>
+                  )}
                   {(() => {
                     const chain = versionChainOf ? versionChainOf(h) : [];
                     if (!chain.length) return null;
@@ -527,7 +542,7 @@ export default function SeismicExplorer({ tree, actions }) {
           title="Surfaces"
           count={(surfaces || []).length || ''}
           actions={(
-            <IconButton title="Import surface, picks or faults…" onClick={actions.openSurfaceImport}>
+            <IconButton title="Import a surface grid…" onClick={() => actions.openSurfaceImport('surface')}>
               <Upload className="w-3.5 h-3.5" />
             </IconButton>
           )}
@@ -605,8 +620,8 @@ export default function SeismicExplorer({ tree, actions }) {
           {!(surfaces || []).length && (
             <Hint>
               {activeVolumeId
-                ? 'No surfaces yet. Grid a horizon in Export and choose "Save as '
-                  + 'surface", or import a surface file here.'
+                ? 'No surfaces yet. Right-click a horizon and choose Make surface, '
+                  + 'or import a surface file here.'
                 : 'Select a volume to see its surfaces.'}
             </Hint>
           )}
@@ -679,12 +694,21 @@ export default function SeismicExplorer({ tree, actions }) {
           )}
         </Section>
 
-        <Section icon={Slash} title="Faults" count={faults.length || ''}>
+        <Section
+          icon={Slash}
+          title="Faults"
+          count={faults.length || ''}
+          actions={(
+            <IconButton title="Import fault sticks (Charisma, IESX or any table)…" onClick={() => actions.openSurfaceImport('faults')}>
+              <Upload className="w-3.5 h-3.5" />
+            </IconButton>
+          )}
+        >
           {faults.map((f, idx) => (
             <Row
               key={f.id}
               icon={Slash}
-              color={faultColor(idx)}
+              color={faultColorById?.[f.id] || faultColor(idx)}
               label={f.name}
               visible={visibleFaultIds.has(f.id)}
               onToggleVisible={() => actions.toggleFault(f)}
@@ -694,6 +718,12 @@ export default function SeismicExplorer({ tree, actions }) {
               onClick={() => actions.toggleFault(f)}
               menu={(
                 <>
+                  {f.is_own !== false && actions.openFaultSettings && (
+                    <ContextMenuItem onSelect={() => actions.openFaultSettings(f)}>
+                      <Settings2 className="w-3.5 h-3.5 mr-1.5" />
+                      Settings…
+                    </ContextMenuItem>
+                  )}
                   <ContextMenuItem onSelect={() => actions.toggleFault(f)}>
                     {visibleFaultIds.has(f.id) ? 'Hide' : 'Show'}
                   </ContextMenuItem>
