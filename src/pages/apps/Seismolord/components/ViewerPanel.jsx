@@ -4,7 +4,7 @@ import { getDepthUnit as getAccountDepthUnit } from '@/lib/crs/settingsService';
 import { appPath as appRoutePath } from '@/components/wells/appLinks';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Loader2, Route, Box, ScanLine, Save, Map as MapIcon, X, Bot, Waves, Spline,
+  Loader2, Route, Box, ScanLine, Save, Map as MapIcon, X, Bot, Waves, Spline, Wrench,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -110,6 +110,9 @@ import StatusBar from './workspace/StatusBar';
 import RightDock from './workspace/RightDock';
 import { horizonColorFor, faultColorFor, surfaceColor } from './workspace/interpretationColors';
 import useDisplaySettings from '../hooks/useDisplaySettings';
+import useFaultStickEditor from '../hooks/useFaultStickEditor';
+import { savableSticks } from '../lib/faultStickEdit';
+import InterpretationToolbox from './workspace/InterpretationToolbox';
 import useWells from '../hooks/useWells';
 import useBackendStatus from '../hooks/useBackendStatus';
 
@@ -188,6 +191,13 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   // AI copilot right dock — the dock panel stays mounted while collapsed
   // so the chat survives open/close
   const [dockOpen, setDockOpen] = useState(false);
+  // group 5: the right dock hosts the interpretation toolbox or the
+  // copilot; both stay mounted, one is shown
+  const [dockPanel, setDockPanel] = useState('toolbox');
+  const openDockPanel = useCallback((panel) => {
+    setDockPanel(panel);
+    setDockOpen((open) => !(open && dockPanel === panel));
+  }, [dockPanel]);
 
   // cursor readout → status bar, entirely ref-driven (no re-renders):
   // the views call handleCursor per pointer move and StatusBar registers
@@ -401,6 +411,12 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     noun: 'Fault',
   });
   const horizonDisplay = horizonSettings.overrides;
+  // group 5 toolbox: stick tools + selected stick for the fault draft
+  const faultEditor = useFaultStickEditor({
+    draftSticks, setDraftSticks, undoStack, orientation,
+  });
+  const [newFaultName, setNewFaultName] = useState('');
+  const faultPick = faultEditor.pick;
   // per-render mirrors for undo commands (see undoStack above)
   draftSticksRef.current = draftSticks;
   interpRevRef.current = interpRev;
@@ -1417,42 +1433,11 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     }
 
     if (pickMode === 'fault') {
-      const prev = draftSticksRef.current;
-      // Alt+click deletes the nearest draft point (a few traces / samples
-      // of tolerance); a stick emptied by the deletion is dropped
-      if (altKey) {
-        let best = null;
-        prev.forEach((stick, si) => {
-          stick.forEach((p, pi) => {
-            const dLat = Math.abs(p.il - ilIdx) + Math.abs(p.xl - xlIdx);
-            const dS = Math.abs(p.s - sample);
-            const score = dLat * 4 + dS;
-            if (dLat <= 2 && dS <= 12 && (!best || score < best.score)) {
-              best = { si, pi, score };
-            }
-          });
-        });
-        if (!best) return;
-        const next = prev
-          .map((s, si) => (si === best.si ? s.filter((_, pi) => pi !== best.pi) : [...s]))
-          .filter((s, si) => s.length > 0 || si === prev.length - 1);
-        setDraftSticks(next);
-        undoStack.push({
-          label: 'delete fault stick point',
-          undo: () => setDraftSticks(prev),
-          redo: () => setDraftSticks(next),
-        });
-        return;
-      }
-      // fault points are raw picks on visible discontinuities — no snap
-      const next = prev.map((s) => [...s]);
-      if (next.length === 0) next.push([]);
-      next[next.length - 1].push({ il: ilIdx, xl: xlIdx, s: sample });
-      setDraftSticks(next);
-      undoStack.push({
-        label: 'fault stick point',
-        undo: () => setDraftSticks(prev),
-        redo: () => setDraftSticks(next),
+      // stick tools (extend / select / shorten / move / delete) live in
+      // hooks/useFaultStickEditor; each change is one undo command.
+      // Fault points are raw picks on visible discontinuities: no snap.
+      faultPick({
+        ilIdx, xlIdx, sample, altKey,
       });
       return;
     }
@@ -1499,25 +1484,25 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
       setError(err.message);
     }
   }, [pickMode, geom, volume, orientation, getBrick, toast, snapMode, snapWindow, applyOp,
-    eraseSize, undoStack, terminations, terminationKind]);
+    eraseSize, undoStack, terminations, terminationKind, faultPick]);
 
   // ---- fault stick editing ----------------------------------------------
-  const endStick = () => {
-    const prev = draftSticksRef.current;
-    if (!(prev.length && prev[prev.length - 1].length)) return;
-    const next = [...prev, []];
-    setDraftSticks(next);
-    undoStack.push({
-      label: 'end fault stick',
-      undo: () => setDraftSticks(prev),
-      redo: () => setDraftSticks(next),
-    });
+  const endStick = () => faultEditor.newStick();
+
+  /** The draft differs from the fault it was loaded from (or holds
+   *  points for a new fault): switching away would lose work. */
+  const draftDirty = () => {
+    const d = draftSticksRef.current;
+    if (!editingFault) return d.some((st) => st.length);
+    const stored = editingFault.sticks.map((st) => st.points);
+    return JSON.stringify(d) !== JSON.stringify(stored);
   };
 
   const discardDraft = () => {
     const prev = draftSticksRef.current;
     if (!prev.length) return;
     setDraftSticks([]);
+    faultEditor.select(null);
     if (editingFault) {
       // abandoned edit session: the stored fault comes back into view
       setVisibleFaultIds((s) => new Set([...s, editingFault.id]));
@@ -1535,22 +1520,61 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
    *  updates the row in place. The stored copy hides while the draft
    *  stands in for it. */
   const startEditFaultSticks = (f) => {
-    const prev = draftSticksRef.current;
-    if (prev.length && prev.some((s) => s.length)
-      && !window.confirm('Replace the current fault draft with this fault\'s sticks?')) return;
+    if (editingFault?.id === f.id) return true;
+    if (draftDirty()
+      && !window.confirm('Replace the current fault draft with this fault\'s sticks?')) return false;
+    const prevEditing = editingFault;
     setDraftSticks(f.sticks.map((st) => st.points.map((p) => ({ ...p }))));
+    faultEditor.select(null);
     setEditingFault(f);
     setPickMode('fault');
-    setVisibleFaultIds((s) => { const n = new Set(s); n.delete(f.id); return n; });
+    setVisibleFaultIds((s) => {
+      const n = new Set(s);
+      n.delete(f.id);
+      // the fault we were editing shows its stored copy again
+      if (prevEditing) n.add(prevEditing.id);
+      return n;
+    });
     toast({
       title: 'Editing fault sticks',
-      description: `${f.name}: click to add points, Alt+click a point to delete it, then Save.`,
+      description: `${f.name}: use the toolbox stick tools (or click to extend the selected stick), then Save.`,
     });
+    return true;
   };
 
-  const saveDraftFault = async () => {
-    const sticks = draftSticks.filter((s) => s.length >= 2)
-      .map((points) => ({ points }));
+  /** Toolbox "Active fault": 'new' starts a fresh unnamed draft,
+   *  an id loads that fault's sticks (new sticks then belong to it). */
+  const setActiveFault = (id) => {
+    if (id === 'new') {
+      if (!editingFault) return;
+      if (draftDirty() && !window.confirm(`Leave the unsaved stick edits of "${editingFault.name}"?`)) return;
+      const f = editingFault;
+      setDraftSticks([]);
+      faultEditor.select(null);
+      setEditingFault(null);
+      setVisibleFaultIds((s) => new Set([...s, f.id]));
+      return;
+    }
+    const f = faults.find((x) => x.id === id);
+    if (f) startEditFaultSticks(f);
+  };
+
+  /** Toolbox "Delete fault": the active saved fault (undoable through
+   *  onDeleteFault), or the unsaved draft. */
+  const deleteActiveFault = async () => {
+    if (!editingFault) { discardDraft(); return; }
+    const f = editingFault;
+    if (await onDeleteFault(f)) {
+      setDraftSticks([]);
+      faultEditor.select(null);
+      setEditingFault(null);
+    }
+  };
+
+  /** @param {string} [presetName] toolbox name for a NEW fault (the
+   *  ribbon passes a click event and keeps the prompt) */
+  const saveDraftFault = async (presetName) => {
+    const sticks = savableSticks(draftSticks);
     if (!sticks.length) {
       toast({ title: 'Nothing to save', description: 'A fault stick needs at least 2 points.' });
       return;
@@ -1582,11 +1606,14 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
       }
       return;
     }
-    // eslint-disable-next-line no-alert
-    const name = window.prompt('Fault name:', `Fault ${faults.length + 1}`);
+    const name = typeof presetName === 'string' && presetName.trim()
+      ? presetName.trim()
+      // eslint-disable-next-line no-alert
+      : window.prompt('Fault name:', `Fault ${faults.length + 1}`);
     if (!name) return;
     try {
       const row = await saveFault({ volumeId: volume.id, name, sticks });
+      setNewFaultName('');
       const prevDraft = draftSticksRef.current;
       setDraftSticks([]);
       setFaults(await listFaults(volume.id));
@@ -1702,7 +1729,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
 
   const onDeleteFault = async (f) => {
     // eslint-disable-next-line no-alert
-    if (!window.confirm(`Delete fault "${f.name}"? (Undo restores it)`)) return;
+    if (!window.confirm(`Delete fault "${f.name}"? (Undo restores it)`)) return false;
     setFaultBusyId(f.id);
     try {
       await deleteFault(f);
@@ -1726,8 +1753,10 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
           setFaults(await listFaults(volume.id));
         },
       });
+      return true;
     } catch (e) {
       toast({ title: 'Delete failed', description: e.message, variant: 'destructive' });
+      return false;
     } finally {
       setFaultBusyId(null);
     }
@@ -2682,11 +2711,13 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
         };
       }),
     draftSticks,
+    // toolbox: the selected draft stick draws highlighted while picking
+    draftSelected: pickMode === 'fault' && faultEditor.selected >= 0 ? faultEditor.selected : null,
     seedPick,
     wells: wellSections,
     terminations,
   }), [resolvedHorizons, sectionSurfaces, faults, visibleFaultIds, draftSticks, seedPick,
-    wellSections, terminations, faultDisplayFor, faultColorById]);
+    wellSections, terminations, faultDisplayFor, faultColorById, pickMode, faultEditor.selected]);
 
   // ST5: per-trace flatten offsets for the displayed section (inline,
   // crossline or the traverse), from the chosen horizon's pick lattice,
@@ -3166,9 +3197,19 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
         </RouterLink>
         <button
           type="button"
+          title="Toggle the interpretation toolbox dock"
+          data-testid="sl-toolbox-toggle"
+          onClick={() => openDockPanel('toolbox')}
+          className={`p-1 rounded ${dockOpen && dockPanel === 'toolbox'
+            ? 'text-cyan-300 bg-cyan-500/10' : 'text-slate-400 hover:text-slate-200'}`}
+        >
+          <Wrench className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
           title="Toggle the interpretation copilot dock"
-          onClick={() => setDockOpen((o) => !o)}
-          className={`p-1 rounded ${dockOpen
+          onClick={() => openDockPanel('copilot')}
+          className={`p-1 rounded ${dockOpen && dockPanel === 'copilot'
             ? 'text-cyan-300 bg-cyan-500/10' : 'text-slate-400 hover:text-slate-200'}`}
         >
           <Bot className="w-4 h-4" />
@@ -3307,6 +3348,8 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
               openVelocity={() => setOpenDialog('velocity')}
               velocityModel={velocityModel}
               openAttribute={() => setOpenDialog('attribute')}
+              toolboxOpen={dockOpen && dockPanel === 'toolbox'}
+              toggleToolbox={() => openDockPanel('toolbox')}
             />
           ),
         },
@@ -3344,8 +3387,8 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
           label: 'AI',
           content: (
             <AiTab
-              copilotOpen={dockOpen}
-              toggleCopilot={() => setDockOpen((o) => !o)}
+              copilotOpen={dockOpen && dockPanel === 'copilot'}
+              toggleCopilot={() => openDockPanel('copilot')}
             />
           ),
         },
@@ -3362,10 +3405,91 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
         onDockOpenChange={setDockOpen}
         dock={(
           <RightDock
-            title="Interpretation copilot"
+            title={dockPanel === 'toolbox' ? 'Interpretation toolbox' : 'Interpretation copilot'}
+            icon={dockPanel === 'toolbox' ? Wrench : undefined}
             onClose={() => setDockOpen(false)}
           >
-            <AiPanel docked volume={volume} manifest={manifest} />
+            <div className="h-full min-h-0 flex flex-col">
+              <div className="shrink-0 flex border-b border-slate-800 text-xs" role="tablist">
+                {[['toolbox', 'Toolbox'], ['copilot', 'Copilot']].map(([k, label]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    role="tab"
+                    aria-selected={dockPanel === k}
+                    onClick={() => setDockPanel(k)}
+                    className={`flex-1 px-2 py-1 ${dockPanel === k
+                      ? 'text-cyan-300 border-b-2 border-cyan-500' : 'text-slate-400 hover:text-slate-200'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className={dockPanel === 'toolbox' ? 'flex-1 min-h-0' : 'hidden'}>
+                <InterpretationToolbox
+                  hasSection={Boolean(manifest) && !depthSection
+                    && (orientation === 'inline' || orientation === 'xline')}
+                  history={{
+                    undo: undoAction,
+                    redo: redoAction,
+                    canUndo: edit.undo > 0 || undoStack.canUndo,
+                    canRedo: edit.redo > 0 || undoStack.canRedo,
+                    undoLabel: edit.undo > 0 ? 'horizon edit step' : undoStack.peekUndo(),
+                    redoLabel: edit.redo > 0 ? 'horizon edit step' : undoStack.peekRedo(),
+                  }}
+                  horizon={{
+                    hasVolume: Boolean(manifest),
+                    pickMode,
+                    setPickMode,
+                    editTarget,
+                    changeEditTarget,
+                    horizons,
+                    toggleEditTool,
+                    snapMode,
+                    setSnapMode,
+                    snapWindow,
+                    setSnapWindow,
+                    corrThreshold,
+                    setCorrThreshold,
+                    seedPick,
+                    tracking,
+                    track2D,
+                    trackHorizon,
+                    growHorizon,
+                    cancelTracking,
+                    eraseSize,
+                    setEraseSize,
+                    edit,
+                    editBusy,
+                    saveEdits,
+                    discardEdits,
+                  }}
+                  fault={{
+                    faults,
+                    editingFault,
+                    setActiveFault,
+                    newFaultName,
+                    setNewFaultName,
+                    defaultFaultName: `Fault ${faults.length + 1}`,
+                    draftSticks,
+                    tool: faultEditor.tool,
+                    setTool: faultEditor.setTool,
+                    selected: faultEditor.selected,
+                    selectedPoints: faultEditor.selectedPoints,
+                    newStick: faultEditor.newStick,
+                    trim: faultEditor.trim,
+                    deleteSelected: faultEditor.deleteSelected,
+                    saveDraftFault: () => saveDraftFault(newFaultName.trim() || `Fault ${faults.length + 1}`),
+                    discardDraft,
+                    deleteActiveFault,
+                    openFaultSettings,
+                  }}
+                />
+              </div>
+              <div className={dockPanel === 'copilot' ? 'flex-1 min-h-0' : 'hidden'}>
+                <AiPanel docked volume={volume} manifest={manifest} />
+              </div>
+            </div>
           </RightDock>
         )}
         statusBar={(
@@ -3411,7 +3535,8 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
                   overlaySlice={!depthSection && overlaySlice
                     && overlaySlice.orientation === orientation ? overlaySlice : null}
                   overlayDisplay={overlayDisplay}
-                  pickMode={depthSection ? null : pickMode}
+                  pickMode={depthSection ? null
+                    : (pickMode === 'fault' && faultEditor.streams ? 'faultMove' : pickMode)}
                   ghost={!depthSection && pickMode === 'manual'
                     ? { mode: eventSnapMode, window: snapWindow } : null}
                   loading={loading}
@@ -3419,7 +3544,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
                   depthAxisInfo={depthSection
                     ? { z0: depthSection.axis.z0, dz: depthSection.axis.dz, unit: depthUnit } : null}
                   onPick={handlePick}
-                  onPickEnd={commitStroke}
+                  onPickEnd={pickMode === 'fault' ? faultEditor.dragEnd : commitStroke}
                   onStepSlice={stepSlice}
                   onCursor={handleCursor}
                   height="fill"
