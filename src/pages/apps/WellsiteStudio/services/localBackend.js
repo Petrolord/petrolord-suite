@@ -18,6 +18,7 @@ import { publishPlan } from './publish';
 import { mergeProfile } from '@/lib/wellsite/abbreviations';
 import { wellContext, offsetMinOf } from './wellContext';
 import { newId } from '@/lib/wellsite/ids';
+import { memberChangeError } from './members';
 
 export const WS_ENGINE_VERSION = 'wellsite-0.1.0';
 
@@ -129,6 +130,27 @@ export function makeLocalBackend({ transport, db = wellsiteDb(), autoSync = true
       return getWell(wellId);
     },
     async listMembers(wellId) { return db.members.where('well_id').equals(wellId).toArray(); },
+    /** The organisation's active people, to add as members (online only). */
+    async listOrgPeople(wellId) {
+      const w = await requireWell(wellId);
+      if (!transport.online()) throw new Error('Listing the organisation needs a connection.');
+      return transport.listOrgPeople(w.organization_id);
+    },
+    /** Add a member, or change a member's role or status (online only; the server checks the caller is an administrator). */
+    async setMember(wellId, { userId, role, status = 'active' }) {
+      await requireWell(wellId);
+      if (!transport.online()) throw new Error('Changing members needs a connection; membership is checked on the server.');
+      const members = await db.members.where('well_id').equals(wellId).toArray();
+      const refused = memberChangeError(members, { userId, role, status });
+      if (refused) throw new Error(refused);
+      const existing = members.find((m) => m.user_id === userId);
+      const saved = existing
+        ? await transport.updateMember(existing.id, { role, status })
+        : await transport.insertMember({ well_id: wellId, user_id: userId, role, status });
+      await db.members.put(saved);
+      notify();
+      return saved;
+    },
 
     // ---- records ----
     addRecord,

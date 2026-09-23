@@ -114,6 +114,15 @@ export default function WellsiteHelpGuide() {
           a setting per well, never a fixed title.
         </Para>
         <Para>
+          Members are kept on Config, under Members. An administrator of the well, or of the organisation, adds a person from the
+          organisation with a role, changes a role, or makes a member inactive. Nobody is deleted, so a member who leaves keeps their
+          name on what they recorded, and the well always keeps one active administrator. Changing members needs a connection.
+        </Para>
+        <Para>
+          Open in from Well Data Manager opens the live well of that registry well. When the registry well has no live well yet, New
+          well opens with it already chosen.
+        </Para>
+        <Para>
           The prognosis is loaded on Tops with Load from registry: the well's own tops, the offset wells' tops through their own
           surveys, and Well Design's hole sections and definitive trajectory when the well is linked. Each load is a new numbered
           version with its date, shown at the top of the Tops view. A prognosis top can also be added by hand; that is a new version too.

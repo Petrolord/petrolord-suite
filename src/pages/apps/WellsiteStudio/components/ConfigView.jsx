@@ -32,7 +32,7 @@ function rowsToSections(rows) {
 function bhaToRows(bha) { return (bha || []).map((b) => ({ label: b.label || '', length_ft: (b.lengthM / 0.3048).toFixed(0), od_in: (b.odM / IN).toFixed(3), id_in: (b.idM / IN).toFixed(3) })); }
 function rowsToBha(rows) { return rows.map((r) => ({ label: r.label || '', lengthM: num(r.length_ft) * 0.3048, odM: num(r.od_in) * IN, idM: num(r.id_in) * IN })); }
 
-export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus, canAdmin = true }) {
+export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus, canAdmin = true, membersSlot = null }) {
   const [sections, setSections] = useState(() => sectionsToRows(rigConfig?.hole_sections));
   const [bha, setBha] = useState(() => bhaToRows(rigConfig?.bha));
   const [dp, setDp] = useState(() => ({ od_in: rigConfig?.drillpipe ? (rigConfig.drillpipe.odM / IN).toFixed(3) : '5', id_in: rigConfig?.drillpipe ? (rigConfig.drillpipe.idM / IN).toFixed(3) : '4.276' }));
@@ -205,6 +205,7 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
         <Button size="sm" onClick={saveRig} data-testid="ws-config-save-rig">Record rig configuration</Button>
       </section>
 
+      {membersSlot}
       <section className="space-y-2">
         <h2 className="text-sm font-semibold text-slate-100">Well settings</h2>
         {!canAdmin && <div className="text-[11px] text-amber-400">Only a well administrator changes these.</div>}

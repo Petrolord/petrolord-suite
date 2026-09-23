@@ -10,6 +10,13 @@ import { buildPrognosis } from './prognosis';
 
 export const SEED_USER = { id: 'user-a', email: 'geologist@example.com', name: 'A. Geologist', organization_id: 'org-1', role: 'wellsite_geologist' };
 
+// The harness organisation: the seeded user and two colleagues to add as members.
+export const SEED_ORG_PEOPLE = [
+  { user_id: SEED_USER.id, name: SEED_USER.name, email: SEED_USER.email },
+  { user_id: 'user-office', name: 'O. Office', email: 'ops.geologist@example.com' },
+  { user_id: 'user-lead', name: 'L. Lead', email: 'geology.lead@example.com' },
+];
+
 export const SEED_REGISTRY_WELLS = [
   {
     id: 'geo-keta-2', user_id: SEED_USER.id, organization_id: 'org-1', name: 'KETA-2', uwi: null,

@@ -44,6 +44,7 @@ import { buildPrognosis, editedPrognosis } from '../services/prognosis';
 import { depthFromDisplay } from '../services/units';
 import { toCanonicalMd } from '@/lib/wellsite/depth';
 import WellSetup from './WellSetup';
+import MembersPanel from './MembersPanel';
 
 export const VIEWS = [
   { id: 'live', label: 'Live', icon: Activity },
@@ -62,7 +63,10 @@ export const VIEWS = [
 export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const [searchParams] = useSearchParams();
   const [wells, setWells] = useState(null);
-  const [selectedId, setSelectedId] = useState(() => searchParams.get('well') || null);
+  // ?well= is a live-well id, or a registry (geo_wells) id from Well Data Manager's Open in menu
+  const wellParam = useRef(searchParams.get('well') || null);
+  const [setupGeoId, setSetupGeoId] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
   const [view, setView] = useState('live');
   const [bitDepths, setBitDepths] = useState([]);
   const [pumpEvents, setPumpEvents] = useState([]);
@@ -125,7 +129,24 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   }, [backend, refreshWells, track]);
 
   const well = useMemo(() => (wells || []).find((w) => w.id === selectedId) || null, [wells, selectedId]);
-  useEffect(() => { if (!selectedId && wells && wells.length) setSelectedId(wells[0].id); }, [wells, selectedId]);
+  // Resolve ?well= on every wells update until it matches: the local list comes first and the server's
+  // list after it, so a live well that is not on this device yet is still found. No match means the
+  // registry well has no live well yet, so New well opens with it chosen.
+  useEffect(() => {
+    const param = wellParam.current;
+    if (!param || !wells) return;
+    const hit = wells.find((w) => w.id === param) || wells.find((w) => w.geo_well_id === param);
+    if (hit) {
+      wellParam.current = null;
+      setSelectedId(hit.id);
+      setSetupGeoId(null);
+      setView((v) => (v === 'setup' ? 'live' : v));
+    } else {
+      setSetupGeoId(param);
+      setView('setup');
+    }
+  }, [wells]);
+  useEffect(() => { if (!wellParam.current && !selectedId && wells && wells.length) setSelectedId(wells[0].id); }, [wells, selectedId]);
 
   const refreshWellData = useCallback(async () => {
     if (!well) { setBitDepths([]); setPumpEvents([]); setRigConfig(null); setDescriptions([]); setEventRecords([]); setSamples([]); setStages([]); setProgrammeRecords([]); setShows([]); setObservations([]); setPhotos([]); setTops([]); setPrognoses([]); setMembers([]); setNarratives([]); setReports([]); setSignoffs([]); return; }
@@ -374,7 +395,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
         {wells === null && <div className="text-xs text-slate-500 px-1">Loading</div>}
         {wells && wells.length === 0 && <div className="text-xs text-slate-500 px-1" data-testid="ws-no-wells">No live well yet. Use New well.</div>}
         {(wells || []).map((w) => (
-          <button key={w.id} type="button" data-testid={`ws-well-${w.name}`} onClick={() => { setSelectedId(w.id); if (view === 'setup') setView('live'); }}
+          <button key={w.id} type="button" data-testid={`ws-well-${w.name}`} onClick={() => { wellParam.current = null; setSetupGeoId(null); setSelectedId(w.id); if (view === 'setup') setView('live'); }}
             className={`w-full text-left px-2 py-1 text-xs rounded ${w.id === selectedId ? 'bg-cyan-500/10 text-cyan-200' : 'text-slate-300 hover:bg-slate-800'}`}>
             {w.name}
             <div className="text-[10px] text-slate-500">{w.header?.field || ''}{w.header?.rig ? `, ${w.header.rig}` : ''}</div>
@@ -389,7 +410,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
 
   let center;
   if (view === 'setup' || (!well && wells && wells.length === 0)) {
-    center = <WellSetup backend={backend} onStatus={setStatus} onCreated={async (w) => { await refreshWells(); setSelectedId(w.id); setView('live'); }} />;
+    center = <WellSetup backend={backend} initialGeoId={setupGeoId} onStatus={setStatus} onCreated={async (w) => { wellParam.current = null; setSetupGeoId(null); await refreshWells(); setSelectedId(w.id); setView('live'); }} />;
   } else if (!well) {
     center = <div className="p-4 text-xs text-slate-500" data-testid="ws-need-well">Choose a live well in the explorer.</div>;
   } else if (view === 'samples') {
@@ -413,7 +434,8 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   } else if (view === 'timeline') {
     center = <TimelineView events={events} onStart={startEvent} onEnd={endEvent} tourCfg={tourConfigOf(well)} offsetMin={offsetMin} unit={units.depth} nowMs={nowMs} currentUserName={user ? user.name || user.email : ''} />;
   } else if (view === 'config') {
-    center = <ConfigView backend={backend} well={well} rigConfig={rigConfig} canAdmin={isMember} onStatus={setStatus} onSaved={() => { refreshWells(); setTick((t) => t + 1); }} />;
+    center = <ConfigView backend={backend} well={well} rigConfig={rigConfig} canAdmin={isMember} onStatus={setStatus} onSaved={() => { refreshWells(); setTick((t) => t + 1); }}
+      membersSlot={<MembersPanel backend={backend} well={well} members={members} user={user} onStatus={setStatus} onChanged={() => setTick((t) => t + 1)} />} />;
   } else {
     center = <LiveWellView backend={backend} well={well} ctx={ctx} bitDepths={bitDepths} pumpEvents={pumpEvents} events={events} onStartEvent={startEvent} onEndEvent={endEvent} descriptions={descriptions} lag={lag} board={board} onStage={recordStage} defaults={defaultDepthEntry(well)} offsetMin={offsetMin} unit={units.depth} floater={floater} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
   }

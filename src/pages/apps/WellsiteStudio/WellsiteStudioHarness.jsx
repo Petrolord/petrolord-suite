@@ -15,7 +15,7 @@ import Dexie from 'dexie';
 import WellsiteWorkstation from './components/WellsiteWorkstation';
 import { makeLocalBackend } from './services/localBackend';
 import { makeFakeTransport } from './services/transports/fakeTransport';
-import { seedWellsite, seedCompetingTop, SEED_REGISTRY_WELLS, SEED_USER } from './services/seed';
+import { seedWellsite, seedCompetingTop, SEED_REGISTRY_WELLS, SEED_USER, SEED_ORG_PEOPLE } from './services/seed';
 import { seedReferenceWell } from './services/referenceWell';
 import { openWellsiteDb } from '@/lib/wellsite/db';
 import { DEV_APP_PATHS } from '@/components/wells/appLinks';
@@ -26,7 +26,7 @@ export default function WellsiteStudioHarness() {
   const [searchParams] = useSearchParams();
   const [ready, setReady] = useState(false);
   const backend = useMemo(() => {
-    const transport = makeFakeTransport({ user: SEED_USER, registryWells: SEED_REGISTRY_WELLS, online: true });
+    const transport = makeFakeTransport({ user: SEED_USER, registryWells: SEED_REGISTRY_WELLS, orgPeople: SEED_ORG_PEOPLE, online: true });
     return makeLocalBackend({ transport, db: openWellsiteDb(HARNESS_DB) });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
