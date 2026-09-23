@@ -90,7 +90,7 @@ const Solutions = () => {
     <>
       <Helmet>
         <title>Solutions - Petrolord</title>
-        <meta name="description" content="Nine discipline modules and more than 70 live engineering applications covering the full E&P workflow on one platform." />
+        <meta name="description" content="Ten discipline modules and more than 70 live engineering applications covering the full E&P workflow on one platform." />
       </Helmet>
       <div className="min-h-screen bg-gradient-to-b from-slate-900 to-green-950 text-slate-200">
         <Header />
@@ -106,7 +106,7 @@ const Solutions = () => {
               Solutions
             </div>
             <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 leading-tight">
-              Nine modules. One workflow.
+              Ten modules. One workflow.
             </h1>
             <p className="text-xl text-slate-300 font-light">
               More than 70 live applications covering the E&P workflow from seismic to sales, sharing one project database.

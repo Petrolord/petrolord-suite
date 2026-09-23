@@ -65,13 +65,12 @@ export const seatTierRate = (nthSeat) => {
 // (2,097), so it is priced at 1,999: 2.86x, inside the rule's tested band and
 // below a la carte. Migration 20260919230000; ProcessSafety-ROADMAP.md.
 //
-// Data & AI (DA0) is deliberately ABSENT, the way Process Safety was at PS0.
-// The module is registered for navigation and entitlements, but all four of
-// its apps are Coming Soon, and pricing it now would let a customer buy a
-// module with nothing in it. generate-quote refuses to quote a module it has
-// no price for, so leaving it out is safe. It joins this table, the server
-// fallback and pricing_config.module_pricing when its first app ships (D1,
-// DataAI-ROADMAP.md); the price is the owner's to set.
+// Data & AI joined at D1 (2026-09-23), when its first app, the Data Quality
+// Studio, shipped, as Process Safety joined at PS1. Its tiles carry the
+// Geoscience per-app price (899) that the DA0 seed copies. The 3.3x rule
+// gives 2,967, so the house price 2,999: 3.34x, inside the rule's tested band
+// and below the module's four planned apps a la carte (3,596). Migration
+// 20260923150000; DataAI-ROADMAP.md. The owner may change it.
 export const MODULE_PRICING = {
   geoscience: 2999,
   drilling: 3299,
@@ -81,7 +80,8 @@ export const MODULE_PRICING = {
   economics: 1999,
   'midstream-downstream': 1999,
   assurance: 1499,
-  'process-safety': 1999
+  'process-safety': 1999,
+  'data-ai': 2999
 };
 
 // Display metadata for the quote screens, so a module's name and blurb are
@@ -95,7 +95,8 @@ export const MODULE_META = {
   economics: { name: 'Economics & Project Management', description: 'Fiscal regimes, NPV, Monte Carlo, AFE and field development' },
   'midstream-downstream': { name: 'Midstream & Downstream', description: 'Refining, blending, terminals, fuel supply chain, energy and carbon' },
   assurance: { name: 'Assurance', description: 'Risk, compliance, competency and quality management' },
-  'process-safety': { name: 'Process Safety', description: 'Layers of protection analysis, SIL determination and SIF verification' }
+  'process-safety': { name: 'Process Safety', description: 'Layers of protection analysis, SIL determination and SIF verification' },
+  'data-ai': { name: 'Data & AI', description: 'Data quality checks, machine learning on well data, electrofacies and statistical forecasting' }
 };
 
 // Individual App Base Price (if purchased à la carte)

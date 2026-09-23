@@ -123,9 +123,13 @@ describe('pricing, which lands with the first app (PS1)', () => {
 });
 
 describe('marketing, which follows the catalog rather than leading it', () => {
-  it('counts nine modules now that the ninth has a working app', () => {
-    expect(read('pages/Home.jsx')).toMatch(/value: '9',\s*label: 'Discipline Modules'/);
-    expect(read('pages/Solutions.jsx')).toContain('Nine modules');
+  it('counts itself among the modules now that it has working apps', () => {
+    // Nine at PS1; ten since Data & AI D1 (2026-09-23), which
+    // dataAiRegistration.test.js pins. At least nine either way.
+    const m = read('pages/Home.jsx').match(/value: '(\d+)',\s*label: 'Discipline Modules'/);
+    expect(m).toBeTruthy();
+    expect(Number(m[1])).toBeGreaterThanOrEqual(9);
+    expect(read('pages/Solutions.jsx')).toMatch(/(Nine|Ten) modules/);
   });
 
   it('shows the module with the number of apps that actually work', () => {

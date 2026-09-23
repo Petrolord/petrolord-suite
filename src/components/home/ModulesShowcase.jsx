@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Layers, BarChart3, Anchor, Zap, Factory, Milestone, ShieldCheck, Container, ShieldHalf } from 'lucide-react';
+import { ArrowRight, Layers, BarChart3, Anchor, Zap, Factory, Milestone, ShieldCheck, Container, ShieldHalf, Filter } from 'lucide-react';
 
 // App pills and counts mirror the live master_apps catalog (Active tiles
 // only). When the catalog changes, update this list and the stats band in
@@ -16,6 +16,10 @@ import { ArrowRight, Layers, BarChart3, Anchor, Zap, Factory, Milestone, ShieldC
 // PS1 (2026-09-19): Process Safety joins as the ninth module on the same
 // rule, with a count of 1 for the LOPA & SIL Studio. PS2 adds the
 // Consequence Modelling Studio (count 2) and PS3 the QRA Studio (count 3).
+//
+// D1 (2026-09-23): Data & AI joins as the tenth module on the same rule, with
+// a count of 1 for the Data Quality Studio. The ML Workbench, Electrofacies
+// Studio and Production Forecasting ML Workbench join as D2 to D4 ship.
 const modules = [
   {
     name: 'Geoscience & Subsurface',
@@ -88,6 +92,14 @@ const modules = [
     count: 3,
     description: 'Layers of protection analysis and the SIL a safety function must reach; the consequences themselves, from releases, plumes, pool fires and blasts to the harm each does; and the quantitative risk they add up to, judged against ALARP.',
     apps: ['LOPA & SIL Studio', 'Consequence Modelling Studio', 'QRA Studio'],
+  },
+  {
+    name: 'Data & AI',
+    icon: Filter,
+    color: 'from-sky-400 to-indigo-500',
+    count: 1,
+    description: 'Statistics and machine learning on your own well and production data, starting with quality checks where every flag states the rule that raised it. The module is being built; one application is live today.',
+    apps: ['Data Quality Studio'],
   },
 ];
 
