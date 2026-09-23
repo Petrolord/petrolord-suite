@@ -35,6 +35,38 @@ const COLUMN_ALIASES = {
   rate: ['rate', 'volume'] // generic single-stream column, resolved last
 };
 
+/**
+ * Words of a header: lowercased, split on anything that is not a letter or
+ * digit and on camelCase ("OilRate" -> oil, rate; "injection_rate_bwpd" ->
+ * injection, rate, bwpd).
+ */
+const headerWords = (h) => String(h)
+  .replace(/([a-z])([A-Z])/g, '$1 $2')
+  .toLowerCase()
+  .split(/[^a-z0-9]+/)
+  .filter(Boolean);
+
+/**
+ * Whether a header carries an alias. An alias of four or more letters may
+ * sit anywhere in the header ('bopd' in 'oil_bopd'); a shorter one must be
+ * a whole word ('np' in 'Np (stb)', never inside 'injection_...'), and a
+ * two-word alias must appear as those two words in order.
+ */
+export const headerMatches = (header, alias) => {
+  const words = headerWords(header);
+  const parts = alias.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  if (parts.length > 1) {
+    for (let i = 0; i + parts.length <= words.length; i++) {
+      if (parts.every((p, k) => words[i + k] === p)) return true;
+    }
+    return false;
+  }
+  const a = parts[0];
+  if (!a) return false;
+  if (words.includes(a)) return true;
+  return a.length >= 4 && String(header).toLowerCase().includes(a);
+};
+
 export const detectColumns = (headers) => {
   const mapping = {
     date: null,
@@ -50,7 +82,7 @@ export const detectColumns = (headers) => {
   for (const [key, aliases] of Object.entries(COLUMN_ALIASES)) {
     for (const alias of aliases) {
       const match = headers.find(
-        h => !claimed.has(h) && h.toLowerCase().includes(alias)
+        h => !claimed.has(h) && headerMatches(h, alias)
       );
       if (match) {
         mapping[key] = match;
@@ -124,5 +156,14 @@ export const validateData = (data) => {
     }
   });
 
-  return { valid: validCount > 0, validCount, errors, warnings };
+  // One well per import: the rows land on the well selected in the app, so a
+  // file carrying several wells would be poured into one of them.
+  const wells = [...new Set(data.map((r) => r.well).filter((w) => w != null && w !== '' && w !== 'Unknown Well'))];
+  if (wells.length > 1) {
+    const shown = wells.slice(0, 4).join(', ') + (wells.length > 4 ? ` and ${wells.length - 4} more` : '');
+    errors.unshift(`This file holds ${wells.length} wells (${shown}). Import one well's rows at a time: split the file by well, or filter it first.`);
+    return { valid: false, validCount, errors, warnings, wells };
+  }
+
+  return { valid: validCount > 0, validCount, errors, warnings, wells };
 };

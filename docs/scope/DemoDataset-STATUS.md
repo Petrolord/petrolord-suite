@@ -97,11 +97,20 @@ New episodes: 11 Decline Curve Analysis, 12 Material Balance Studio, 13 VRR
 Monitor, 14 Waterflood Surveillance, 15 SCAL Studio, 16 Seismolord Tops to
 Horizons and the new attributes.
 
-App findings from the check (not fixed here):
-- Decline Curve Analysis matches header aliases by substring, so a column
-  named `injection_rate_bwpd` is read as cumulative oil (it contains `np`).
-- The Waterflood Surveillance tab has no header aliases and reports nothing
-  when none match: a file with other names imports as all zeros, silently.
+App findings from the check, **fixed 2026-09-23** (branch
+fix/import-header-matching):
+- Decline Curve Analysis matched header aliases by substring, so a column
+  named `injection_rate_bwpd` was read as cumulative oil (it contains `np`).
+  Short aliases now match whole words only, and a file holding several wells
+  is refused with the reason (the rows would all have landed on the selected
+  well).
+- The Waterflood Surveillance tab had no header aliases and reported nothing
+  when none matched, so a file with other names imported as all zeros. It now
+  maps daily-rate names (oil_rate_bopd, injection_rate_bwpd, Oil Rate (bbl/d),
+  ...) onto its schema, says what it mapped and ignored, and refuses a file
+  with no date, well or rate column (volume ledgers included). The kit's
+  monthly file now loads there (no Hall plot: it has no pressures), and the
+  gates follow.
 
 ## Decisions taken while building
 

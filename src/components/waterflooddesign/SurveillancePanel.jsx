@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Beaker, Upload, Trash2, Download } from 'lucide-react';
 import { useWaterfloodDesign } from '@/contexts/WaterfloodDesignContext';
-import { parseWaterfloodCSV, sampleWaterfloodRows, sampleWaterfloodCSV } from '@/utils/waterfloodCalculations';
+import { parseWaterfloodCSVDetailed, sampleWaterfloodRows, sampleWaterfloodCSV } from '@/utils/waterfloodCalculations';
 import { Field, SectionLabel } from './primitives';
 
 const FLUID_FIELDS = [
@@ -38,10 +38,12 @@ const SurveillancePanel = () => {
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
-        const rows = parseWaterfloodCSV(ev.target.result);
+        const { rows, mapped, unrecognised } = parseWaterfloodCSVDetailed(ev.target.result);
         if (!rows.length) throw new Error('No data rows found in the file.');
         setSurveillanceRows(rows);
-        addNotification(`Loaded ${rows.length.toLocaleString()} rows from ${file.name}`, 'success');
+        const read = mapped.length ? ` Read ${mapped.map(([h, c]) => `${h} as ${c}`).join(', ')}.` : '';
+        const skipped = unrecognised.length ? ` Ignored: ${unrecognised.join(', ')}.` : '';
+        addNotification(`Loaded ${rows.length.toLocaleString()} rows from ${file.name}.${read}${skipped}`, 'success');
       } catch (err) {
         addNotification(err.message || 'Could not parse the CSV', 'error');
       }

@@ -694,7 +694,7 @@ const crsLabel = `${FRAME.crs} (${FRAME.crs_name})`;
     'writing these files, so these headers are the honest ones.', '',
     '## What each file is for', '',
     '| File | Application |', '|---|---|',
-    '| `ekene-production-monthly.csv` | the whole field in one table, for reading and for spreadsheets; no app imports it as it stands |',
+    '| `ekene-production-monthly.csv` | the whole field in one table: the Waterflood Surveillance tab reads it (no wellhead pressure, so no Hall plot); Decline Curve Analysis takes one well per file, so use `decline/` there |',
     '| `decline/Ekene-N.csv` | Decline Curve Analysis, one well at a time |',
     '| `ekene-vrr-ledger.csv` | Voidage Replacement Monitor (monthly volumes) |',
     '| `ekene-waterflood-surveillance.csv` | Waterflood Design Studio, Surveillance tab (its own headers; daily rates, injector wellhead pressure) |',
@@ -828,8 +828,8 @@ const EPISODES = [
     + 'from 0.85 to 1.05 by June 2023 and holds, and the cumulative is 1.035.' },
   { n: 14, app: 'Waterflood Design Studio Surveillance', files: [
     ['08-production/ekene-waterflood-surveillance.csv', 'two injectors and four producers, daily rates, injector wellhead pressure'],
-  ], note: 'Surveillance tab, Import CSV. This file carries the tab\'s own column names; the monthly production file '
-    + 'does not, and the tab reads that one as zeros. Set the fluid fields to the field\'s first: Bo 1.21584, Bw 1.02, '
+  ], note: 'Surveillance tab, Import CSV. Use this file: it carries injector wellhead pressure, which the Hall plot '
+    + 'needs (the monthly production file also loads, but has no pressures). Set the fluid fields to the field\'s first: Bo 1.21584, Bw 1.02, '
     + 'Bg 0, Rs 400. The tab\'s defaults are a different oil and read an average VRR of 1.007; the field values give '
     + '1.035, the same answer as Episode 13. Ekene-2 and Ekene-4 are the injectors (both found the sand wet '
     + 'below 1560 m). Wellhead pressure on the injectors gives the Hall plot something to draw. Ekene-6 breaks through '

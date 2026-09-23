@@ -38,6 +38,15 @@ const WF = JSON.parse(fs.readFileSync(path.join(DYN, 'waterflood.json'), 'utf8')
 const FIELD_FVF = { Bo: WF.fvf.Bo, Bw: WF.fvf.Bw, Bg: WF.fvf.Bg, Rs: WF.fvf.Rs };
 
 describe('Episode 11: Decline Curve Analysis takes each producer file as it stands', () => {
+  test('the six-well monthly file is refused with the reason (one well per import)', async () => {
+    const { headers, rows } = await parseCSV(read('08-production/ekene-production-monthly.csv'));
+    const map = detectColumns(headers);
+    expect(map.cum).toBeNull();                     // injection_rate_bwpd is not cumulative oil
+    const v = validateData(mapColumns(rows, map));
+    expect(v.valid).toBe(false);
+    expect(v.errors[0]).toMatch(/holds 6 wells/);
+  });
+
   test.each([['Ekene-1', 72], ['Ekene-3', 70], ['Ekene-5', 67], ['Ekene-6', 64]])('%s: all three streams, %i months, no errors', async (well, n) => {
     const { headers, rows, errors } = await parseCSV(read(`08-production/decline/${well}.csv`));
     expect(errors).toHaveLength(0);
@@ -92,10 +101,15 @@ describe('Episode 14: Waterflood Design Studio Surveillance', () => {
     expect(Math.abs(d.kpis.vrr_avg - WF.expected.surveillance.cumulative_vrr_rows_as_days)).toBeGreaterThan(0.01);
   });
 
-  test('negative control: the monthly production file is not in the tab\'s format and reads as nothing', () => {
+  test('the monthly production file also loads (same six wells) but carries no pressures, so no Hall plot', () => {
     const r = analyzeWaterflood(parseWaterfloodCSV(read('08-production/ekene-production-monthly.csv')), field);
-    expect(r.wells.injectors).toHaveLength(0);
-    expect(r.wells.producers).toHaveLength(0);
+    expect(r.wells.injectors).toEqual(['Ekene-2', 'Ekene-4']);
+    expect(r.wells.producers).toEqual(['Ekene-1', 'Ekene-3', 'Ekene-5', 'Ekene-6']);
+    expect(r.hall_plots.every((h) => !h.slope_ratio)).toBe(true);
+  });
+
+  test('a monthly volume ledger is refused with the reason instead of loading as zeros', () => {
+    expect(() => parseWaterfloodCSV(read('08-production/ekene-vrr-ledger.csv'))).toThrow(/would load as zeros/);
   });
 });
 

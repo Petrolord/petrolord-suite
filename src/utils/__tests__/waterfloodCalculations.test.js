@@ -302,3 +302,43 @@ describe('P4 — Chan water-control diagnostics', () => {
     expect(chan.available).toBe(false);
   });
 });
+
+describe('surveillance import: header names (Ekene kit import check, 2026-09-23)', () => {
+  // eslint-disable-next-line global-require
+  const { parseWaterfloodCSVDetailed } = require('../waterfloodCalculations');
+
+  test('rate names such as oil_rate_bopd and injection_rate_bwpd map onto the schema', () => {
+    const csv = 'well,date,oil_rate_bopd,water_rate_bwpd,gas_rate_mscfd,injection_rate_bwpd\n'
+      + 'P1,2024-01-01,100,5,40,0\nI1,2024-01-01,0,0,0,300\nP1,2024-01-02,98,6,39,0\nI1,2024-01-02,0,0,0,310\n';
+    const { rows, mapped, unrecognised } = parseWaterfloodCSVDetailed(csv);
+    expect(mapped).toEqual([
+      ['oil_rate_bopd', 'oil_bbl'], ['water_rate_bwpd', 'water_bbl'],
+      ['gas_rate_mscfd', 'gas_mcf'], ['injection_rate_bwpd', 'inj_bbl'],
+    ]);
+    expect(unrecognised).toEqual([]);
+    const r = analyzeWaterflood(rows, CONFIG);
+    expect(r.wells.injectors).toEqual(['I1']);
+    expect(r.wells.producers).toEqual(['P1']);
+  });
+
+  test('units in brackets and spaces are fine: "Oil Rate (bbl/d)" reads as oil_bbl', () => {
+    const { mapped } = parseWaterfloodCSVDetailed('Date,Well Name,Oil Rate (bbl/d),Injection Rate (bbl/d)\n2024-01-01,P1,10,0\n');
+    expect(mapped).toEqual([['Well Name', 'well'], ['Oil Rate (bbl/d)', 'oil_bbl'], ['Injection Rate (bbl/d)', 'inj_bbl']]);
+  });
+
+  test('a monthly volume ledger is refused with the reason, where it used to load as zeros', () => {
+    const csv = 'month,oil_produced_stb,water_produced_stb,water_injected_bbl\n2023-01,4727,0,4789\n';
+    expect(() => parseWaterfloodCSVDetailed(csv)).toThrow(/no date or well column, so it would load as zeros/);
+  });
+
+  test('schema headers report no mapping; unknown extra columns are listed and dropped', () => {
+    const { rows, mapped, unrecognised } = parseWaterfloodCSVDetailed('date,well,oil_bbl,notes\n2024-01-01,P1,5,hello\n');
+    expect(mapped).toEqual([]);
+    expect(unrecognised).toEqual(['notes']);
+    expect(rows[0]).toEqual({ date: '2024-01-01', well: 'P1', oil_bbl: '5' });
+  });
+
+  test('an empty file still returns no rows without throwing', () => {
+    expect(parseWaterfloodCSV('')).toEqual([]);
+  });
+});
