@@ -169,6 +169,17 @@ export const indexLabel = (ds, i) => {
   return v === null || v === undefined ? `row ${i + 1}` : String(Number(v.toPrecision(8)));
 };
 
+/**
+ * Where a flag sits, for the flag table and the exports. The engine's
+ * reasons count entries from 0 ("entry 57"), so a flag with no index
+ * value to show is labelled the same way rather than as a 1-based row.
+ */
+export const flagAtLabel = (ds, i) => {
+  if (i === null || i === undefined) return '';
+  const label = indexLabel(ds, i);
+  return label === `row ${i + 1}` ? `entry ${i}` : label;
+};
+
 const cell = (key, i) => `${key}\u0000${i}`;
 
 const presentCount = (values) => values.reduce((a, v) => a + (v === null || v === undefined ? 0 : 1), 0);
@@ -220,14 +231,14 @@ export function runQcProfile(ds, profileIn) {
         dimension, method,
         channel: channel ? channel.name : (f.channel || null),
         index: f.index,
-        at: f.index === null || f.index === undefined ? (f.from !== undefined ? `${f.from} to ${f.to}` : '') : indexLabel(ds, f.index),
+        at: f.index === null || f.index === undefined ? (f.from !== undefined ? `${f.from} to ${f.to}` : '') : flagAtLabel(ds, f.index),
         rule: f.rule,
         reason: f.reason,
         // The engine's own figures for the flagged sample and, on index and
         // cumulative flags, the entry it was compared with (engines #249).
         value: typeof f.value === 'number' ? f.value : null,
         previous: typeof f.previous === 'number' ? f.previous : null,
-        previousAt: Number.isInteger(f.previousIndex) ? indexLabel(ds, f.previousIndex) : null,
+        previousAt: Number.isInteger(f.previousIndex) ? flagAtLabel(ds, f.previousIndex) : null,
       });
     });
     if (scoreChecked) scoreChecked.forEach((c) => tally[dimension].checked.add(c));

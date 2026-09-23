@@ -99,7 +99,7 @@ export const FlagTable = ({ run }) => {
       <div className="max-h-[28rem] overflow-auto rounded border border-slate-800">
         <table className="w-full text-xs">
           <thead className="sticky top-0 bg-slate-900 text-left text-slate-400">
-            <tr><th className="px-2 py-1">Dimension</th><th>Method</th><th>Channel</th><th>At</th><th>Rule</th><th>Value</th><th>Previous</th><th>Reason</th></tr>
+            <tr><th className="px-2 py-1">Dimension</th><th>Method</th><th>Channel</th><th title="Counted from 0, the numbering the reasons use (entry 57 is the 58th value)">Entry</th><th>At</th><th>Rule</th><th>Value</th><th>Previous</th><th>Reason</th></tr>
           </thead>
           <tbody className="text-slate-200">
             {shown.map((f, i) => {
@@ -109,6 +109,7 @@ export const FlagTable = ({ run }) => {
                   <td className="px-2 py-1">{f.dimension}</td>
                   <td>{f.method}</td>
                   <td>{f.channel}</td>
+                  <td className="font-mono" data-testid="flag-entry">{Number.isInteger(f.index) ? f.index : ''}</td>
                   <td className="font-mono">{f.at}</td>
                   <td className="font-mono text-sky-300">{f.rule}</td>
                   <td className="font-mono" data-testid="flag-value">{fig.value}</td>

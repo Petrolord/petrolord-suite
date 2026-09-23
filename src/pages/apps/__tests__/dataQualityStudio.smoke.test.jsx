@@ -133,6 +133,16 @@ describe('the page', () => {
       expect(reason).toHaveTextContent(displayReason(f.reason), { normalizeWhitespace: false });
       expect(reason).toHaveAttribute('title', f.reason);
       expect(within(row).getByTestId('flag-value').textContent).toBe(flagFigures(f).value);
+      // The Entry column counts from 0, the numbering the engine's reasons use.
+      expect(within(row).getByTestId('flag-entry').textContent).toBe(Number.isInteger(f.index) ? String(f.index) : '');
+    });
+    // A reason that quotes its own entry and the Entry cell on the same row agree.
+    const quoting = direct.flags
+      .map((f, i) => ({ f, i, m: /^samples (\d+) to|from entry (\d+) to/.exec(f.reason) }))
+      .filter((x) => x.m && x.i < rows.length && ['missing-run', 'frozen-run'].includes(x.f.rule));
+    expect(quoting.length).toBeGreaterThan(0);
+    quoting.forEach(({ i, m }) => {
+      expect(within(rows[i]).getByTestId('flag-entry').textContent).toBe(m[1] ?? m[2]);
     });
     const irregular = direct.flags.find((f) => f.rule === 'irregular-step');
     expect(irregular.previousAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
