@@ -64,6 +64,15 @@ export default function SeismolordHelpGuide() {
           (by hand, by seeded tracking, or automatically through Tops to horizons), surfaces (Make surface) and maps.
           Every automatic result is a proposal you review; nothing is saved until you accept it.
         </Para>
+        <SubHeading>Start here and the tour</SubHeading>
+        <Para>
+          Start here, at the top right beside Help, opens a panel in the right dock that lists what the upload made
+          for the open volume, what it already has (attribute volumes, horizons and how many came from well tops,
+          faults and how many were picked automatically, wells, surfaces, the velocity model) and the next steps.
+          Each step has a Go button, or says why it is not available yet, for example while a large survey is still
+          uploading its full-precision copy. The first visit in a browser opens Start here and a short tour of the
+          workspace; Take the tour at the bottom of Start here runs it again.
+        </Para>
       </GuideSection>
 
       <GuideSection id="quickstart">
@@ -255,6 +264,12 @@ export default function SeismolordHelpGuide() {
         <Step n={3} title="Faults">Tick the existing faults to use as barriers, or Pick faults over an area of interest (inline, crossline and sample ranges, up to 24 million samples at a time; the default is the wells' area). Each proposed fault shows its confidence, sticks and strike; Save the ticked faults keeps them as ordinary faults you can edit.</Step>
         <Step n={4} title="Track">Track the framework grows every accepted top into a horizon that never crosses its neighbours, stops at fault barriers and carries across a fault into blocks no well reaches. The table gives coverage, tuned and jumped cells, the leave-one-well-out error and the misties at the wells. Accept and save writes one horizon per top, named after it.</Step>
         <Step n={5} title="Prognosis">Choose a well, planned or drilled, to see where it meets each horizon in MD and TVDSS with a band from the framework's own error.</Step>
+        <SubHeading>Detect faults on its own</SubHeading>
+        <Para>
+          Interpretation, Detect faults (or Go on its Start here step) runs the same automatic fault picking without
+          the wells: the area of interest starts around the line on screen, Whole survey takes the largest area that
+          fits, and the proposals are saved the same way.
+        </Para>
         <Para>
           Automatic fault picking measures discontinuity (dip-steered semblance) itself, so you do not need to make a
           variance volume first. The proposals are strongest on clean data; in noisy data check them against a

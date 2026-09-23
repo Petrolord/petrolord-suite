@@ -112,6 +112,8 @@ export default function Ribbon({ tabs, corner, trailing }) {
           <button
             key={t.key}
             type="button"
+            data-tour={`ribbon-tab-${t.key}`}
+            data-testid={`sl-ribbon-tab-${t.key}`}
             onClick={() => setActive(t.key)}
             className={`px-3 py-1 text-[13px] rounded-t-md border-x border-t
               ${t.key === activeTab?.key

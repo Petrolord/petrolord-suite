@@ -4,7 +4,7 @@ import { getDepthUnit as getAccountDepthUnit } from '@/lib/crs/settingsService';
 import { appPath as appRoutePath } from '@/components/wells/appLinks';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Loader2, Route, Box, ScanLine, Save, Map as MapIcon, X, Bot, Waves, Spline, Wrench,
+  Loader2, Route, Box, ScanLine, Save, Map as MapIcon, X, Bot, Waves, Spline, Wrench, Compass,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -110,6 +110,11 @@ import ExportDialog from './workspace/dialogs/ExportDialog';
 import ImportSurfaceDialog from './workspace/dialogs/ImportSurfaceDialog';
 import MakeSurfaceDialog from './workspace/dialogs/MakeSurfaceDialog';
 import TopsToHorizonsDialog from './workspace/dialogs/TopsToHorizonsDialog';
+import DetectFaultsDialog from './workspace/dialogs/DetectFaultsDialog';
+import StartHerePanel from './workspace/StartHerePanel';
+import FirstRunTour from './workspace/FirstRunTour';
+import { buildStartHere } from '../lib/startHere';
+import { tourSeen } from '../lib/firstRunTour';
 import { startFrameworkJob } from '../services/frameworkRunner';
 import WellImportDialog from './workspace/dialogs/WellImportDialog';
 import VelocityModelDialog from './workspace/dialogs/VelocityModelDialog';
@@ -166,7 +171,8 @@ const cacheGrid = (map, id, grid) => {
 // (WorkspaceShell: ribbon strip / explorer tree / viewport windows /
 // status bar). Presentational pieces receive grouped props from here.
 /** @param {Object<string,string>} [p.appPaths] route overrides for the launchers (harness) */
-export default function ViewerPanel({ appPaths = {} } = {}) {
+/** @param {boolean} [p.autoTour] first visit opens Start here and the tour (harnesses opt in) */
+export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
   const { toast } = useToast();
   // Stream L: the active volume's SliceSource (slice worker proxy) and
   // the co-render overlay's; a local SEG-Y opened for viewing lives in
@@ -233,6 +239,17 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     setDockPanel(panel);
     setDockOpen((open) => !(open && dockPanel === panel));
   }, [dockPanel]);
+  // discoverability: the first visit in a browser opens Start here and
+  // runs the tour; both can be reopened (dock button, Take the tour)
+  const [tourOpen, setTourOpen] = useState(false);
+  const [attributeInitial, setAttributeInitial] = useState(null);
+  useEffect(() => {
+    if (!autoTour || tourSeen()) return;
+    setDockPanel('start');
+    setDockOpen(true);
+    setTourOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // cursor readout → status bar, entirely ref-driven (no re-renders):
   // the views call handleCursor per pointer move and StatusBar registers
@@ -3394,6 +3411,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
         <RouterLink
           to={`${appRoutePath('seismolord', appPaths)}/help`}
           data-testid="sl-help"
+          data-tour="help"
           title="Open the Seismolord help guide"
           className="flex items-center gap-1 px-1.5 py-1 text-xs rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800"
         >
@@ -3401,8 +3419,20 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
         </RouterLink>
         <button
           type="button"
+          title="Start here: what this volume has and what to do next"
+          data-testid="sl-start-toggle"
+          data-tour="start-here"
+          onClick={() => openDockPanel('start')}
+          className={`flex items-center gap-1 px-1.5 py-1 text-xs rounded ${dockOpen && dockPanel === 'start'
+            ? 'text-cyan-300 bg-cyan-500/10' : 'text-slate-400 hover:text-slate-200'}`}
+        >
+          <Compass className="w-4 h-4" /> Start here
+        </button>
+        <button
+          type="button"
           title="Toggle the interpretation toolbox dock"
           data-testid="sl-toolbox-toggle"
+          data-tour="toolbox"
           onClick={() => openDockPanel('toolbox')}
           className={`p-1 rounded ${dockOpen && dockPanel === 'toolbox'
             ? 'text-cyan-300 bg-cyan-500/10' : 'text-slate-400 hover:text-slate-200'}`}
@@ -3563,6 +3593,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
               toggleToolbox={() => openDockPanel('toolbox')}
               openMakeSurface={() => openMakeSurface(editTarget !== 'new' ? editTarget : null)}
               openTopsToHorizons={() => setOpenDialog('topsToHorizons')}
+              openDetectFaults={() => setOpenDialog('detectFaults')}
             />
           ),
         },
@@ -3689,34 +3720,65 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     );
   }
 
+  const startHere = buildStartHere({
+    volume,
+    manifest,
+    allVolumes,
+    horizons,
+    faults,
+    wells,
+    surfaces,
+    velocityModel,
+    registryWellCount: wellsApi.wells.length,
+  });
+  const startActions = {
+    import: () => setOpenDialog('import'),
+    variance: () => { setAttributeInitial('variance'); setOpenDialog('attribute'); },
+    attributes: () => setOpenDialog('attribute'),
+    detectFaults: () => setOpenDialog('detectFaults'),
+    showWells: () => wellsApi.setAllVisible(true),
+    topsToHorizons: () => setOpenDialog('topsToHorizons'),
+    velocity: () => setOpenDialog('velocity'),
+    makeSurface: () => openMakeSurface(),
+  };
+
   return (
     <>
       <WorkspaceShell
         ribbon={ribbon}
-        explorer={<SeismicExplorer tree={tree} actions={treeActions} />}
+        explorer={<div className="h-full min-h-0" data-tour="explorer"><SeismicExplorer tree={tree} actions={treeActions} /></div>}
         dockOpen={dockOpen}
         onDockOpenChange={setDockOpen}
         dock={(
           <RightDock
-            title={dockPanel === 'toolbox' ? 'Interpretation toolbox' : 'Interpretation copilot'}
-            icon={dockPanel === 'toolbox' ? Wrench : undefined}
+            title={{ start: 'Start here', toolbox: 'Interpretation toolbox' }[dockPanel] || 'Interpretation copilot'}
+            icon={{ start: Compass, toolbox: Wrench }[dockPanel]}
             onClose={() => setDockOpen(false)}
           >
             <div className="h-full min-h-0 flex flex-col">
               <div className="shrink-0 flex border-b border-slate-800 text-xs" role="tablist">
-                {[['toolbox', 'Toolbox'], ['copilot', 'Copilot']].map(([k, label]) => (
+                {[['start', 'Start here'], ['toolbox', 'Toolbox'], ['copilot', 'Copilot']].map(([k, label]) => (
                   <button
                     key={k}
                     type="button"
                     role="tab"
                     aria-selected={dockPanel === k}
                     onClick={() => setDockPanel(k)}
-                    className={`flex-1 px-2 py-1 ${dockPanel === k
+                    className={`flex-1 px-1 py-1 whitespace-nowrap ${dockPanel === k
                       ? 'text-cyan-300 border-b-2 border-cyan-500' : 'text-slate-400 hover:text-slate-200'}`}
                   >
                     {label}
                   </button>
                 ))}
+              </div>
+              <div className={dockPanel === 'start' ? 'flex-1 min-h-0' : 'hidden'}>
+                <StartHerePanel
+                  model={startHere}
+                  actions={startActions}
+                  volumeName={volume?.name || null}
+                  onTour={() => setTourOpen(true)}
+                  helpHref={`${appRoutePath('seismolord', appPaths)}/help`}
+                />
               </div>
               <div className={dockPanel === 'toolbox' ? 'flex-1 min-h-0' : 'hidden'}>
                 <InterpretationToolbox
@@ -4077,9 +4139,10 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
 
       <ComputeAttributeDialog
         open={openDialog === 'attribute'}
-        onOpenChange={(o) => setOpenDialog(o ? 'attribute' : null)}
+        onOpenChange={(o) => { setOpenDialog(o ? 'attribute' : null); if (!o) setAttributeInitial(null); }}
         volume={volume}
         manifest={manifest}
+        initialAttribute={attributeInitial}
         onComputed={() => setVolumesRefresh((k) => k + 1)}
       />
 
@@ -4141,6 +4204,20 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
         onHorizonsSaved={onFrameworkSaved}
         onFaultsSaved={onAutoFaultsSaved}
       />
+
+      <DetectFaultsDialog
+        open={openDialog === 'detectFaults'}
+        onOpenChange={(o) => setOpenDialog(o ? 'detectFaults' : null)}
+        volume={volume}
+        manifest={manifest}
+        geom={geom}
+        faults={faults}
+        center={{ il: indices.inline, xl: indices.xline, s: indices.time }}
+        runJob={runFrameworkJob}
+        onFaultsSaved={onAutoFaultsSaved}
+      />
+
+      <FirstRunTour open={tourOpen} onClose={() => setTourOpen(false)} />
 
       <MakeSurfaceDialog
         open={openDialog === 'makeSurface'}

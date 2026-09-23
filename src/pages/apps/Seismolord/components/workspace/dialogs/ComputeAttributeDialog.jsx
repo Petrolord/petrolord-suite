@@ -19,7 +19,7 @@ import {
 const selCls = 'mt-1 w-full rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-2 py-1 text-sm';
 
 export default function ComputeAttributeDialog({
-  open, onOpenChange, volume, manifest, onComputed,
+  open, onOpenChange, volume, manifest, onComputed, initialAttribute = null,
 }) {
   const { toast } = useToast();
   const [attr, setAttr] = useState('envelope');
@@ -36,6 +36,7 @@ export default function ComputeAttributeDialog({
     if (!open) return;
     setProgress(null);
     setName('');
+    if (initialAttribute && ALL_ATTRIBUTE_DEFS[initialAttribute]) setAttr(initialAttribute);
     cancelRef.current = { cancelled: false };
   }, [open]);
 

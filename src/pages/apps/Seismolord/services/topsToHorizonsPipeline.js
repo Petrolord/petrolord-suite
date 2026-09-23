@@ -441,3 +441,33 @@ export function defaultAoi(wellsTops, geom, { marginCells = 30, marginSamples = 
   }
   return a;
 }
+
+/**
+ * An area of interest centred on a lattice position (the line on screen):
+ * the full time range when the survey allows, the lateral box as large as
+ * AOI_MAX_SAMPLES leaves (square in cells), clamped to the survey. When the
+ * time range alone would leave less than 40 by 40 cells, the time window
+ * shrinks around `center.s` (default mid-survey) instead.
+ */
+export function aoiAround(center, geom, { minSide = 40 } = {}) {
+  const ci = Math.round(center?.il ?? (geom.nIl - 1) / 2);
+  const cx = Math.round(center?.xl ?? (geom.nXl - 1) / 2);
+  let ns = geom.ns;
+  let side = Math.floor(Math.sqrt(AOI_MAX_SAMPLES / ns));
+  if (side < minSide) {
+    side = minSide;
+    ns = Math.max(1, Math.floor(AOI_MAX_SAMPLES / (side * side)));
+  }
+  const span = (c, n, len) => {
+    const w = Math.min(len, n);
+    const lo = Math.max(0, Math.min(n - w, c - Math.floor(w / 2)));
+    return [lo, lo + w - 1];
+  };
+  const [il0, il1] = span(ci, geom.nIl, side);
+  const [xl0, xl1] = span(cx, geom.nXl, side);
+  const cs = Math.round(center?.s ?? (geom.ns - 1) / 2);
+  const [s0, s1] = span(cs, geom.ns, ns);
+  return {
+    il0, il1, xl0, xl1, s0, s1,
+  };
+}
