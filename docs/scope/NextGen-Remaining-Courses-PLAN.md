@@ -720,3 +720,102 @@ Owner steps, all owner run: the Process Safety migrations (PS0 seed and
 PS1 to PS3 tables and tiles, per MIGRATIONS.md), the Suite and HSE
 product uploads, then per course `apply_hN_<slug>.sh dryrun` and seed,
 and each go-live only after the NextGen upload serves its route.
+
+## 15. Data & AI, path_order 66 onward
+
+Section 12 left Data & AI unscheduled because nothing stood behind it.
+The owner asked for a scope on 2026-09-23 and accepted every
+recommendation below the same day. The academy label already exists
+(`data_ai: 'Data & AI'` in NextGen `src/lib/academyModules.js`, unused),
+and the NextGen landing page already advertises an "Oilfield Data & AI
+Studio" and a "Production Forecasting ML Workbench" as coming soon.
+
+### Starting position (D0 audit, 2026-09-23)
+
+Heads read: Suite main `359d56694`, engines main, NextGen main (#252),
+HSE main (#20).
+
+- **The Suite has no real machine learning.** Every ML or AI
+  classification feature is a mock, an orphan or both:
+  `src/services/ml/mlService.js` (predict returns `Math.random()`, no
+  importers); the `'ml'` method in `src/utils/anomalyDetectionCalculations.js`
+  (a simulated Isolation Forest on `Math.random()`, no importers);
+  `src/utils/wellCorrelationAI.js` (a moving average, no importers);
+  `src/config/llm-config.json` and `src/config/earthmodel-phase4-config.js`
+  (menus for things that do not exist); `@tensorflow/tfjs` in the stale
+  nested `src/package.json`, imported nowhere.
+- **One piece is worth salvaging.** `src/utils/logFaciesCalculations.js`
+  holds real k-means, hierarchical and SOM code, untested and orphaned
+  (its route redirects to Petrophysics Studio). It is the starting point
+  for the D3 engine, rebuilt behind an oracle, not vendored as is.
+- **False AI copy on live screens.** Analog Finder ("AI-powered", results
+  from templated fields and `Math.random()`, route still served without a
+  guard although the tile was archived in G0), Contour Map Digitizer
+  ("AI-powered digitization", there is no AI in it), the Geoscience Hub
+  facies line, the Core Annotator empty state, Resources, the Machine
+  Learning help article and Risk Analysis ("predictive analytics").
+- **Real language-model features:** the Seismolord copilot (no tests),
+  Report Autopilot and the petrophysics scan reader. The HSE forecast is
+  a language model's answer and, like the others, cannot be graded.
+- **What the academy already teaches** and this module must not repeat:
+  regression and fit quality (dca, welltest, scal, fluid, intervention,
+  esp), history matching (mbal, sim), Monte Carlo and P-labels
+  (uncertainty, dca, portfolio), kriging and map cross-validation
+  (earthmodel, sim, mapping), Poisson statistics and control charts
+  (safetystats), Bayes and value of information (decision), linear
+  programming (crude), lags and moving averages (surveillance,
+  waterflood).
+- **What nobody teaches and no engine computes:** clustering, PCA,
+  classification, model validation (train and test splits, k-fold), and
+  data-driven forecasting. Each needs a new engine with a golden and an
+  oracle before a lesson is written (section 13).
+
+### Roster
+
+| wave | course | teaches | engine | Suite app |
+|---|---|---|---|---|
+| D1 `dataqc` (66) | Oilfield Data Quality | completeness, validity and consistency scores; outliers by MAD, IQR and Mahalanobis distance; sensor and rate anomaly detection; unit and datum checks; duplicates | `engines/dataai/quality.js`, reusing petrophysics conditioning | Data Quality Studio |
+| D2 `mlcore` (67) | Machine Learning on Well Data | features and scaling; train and test split and k-fold that hold out whole wells; ordinary, ridge and logistic regression; RMSE, confusion matrix, F1, ROC AUC; overfitting and leakage; missing-log prediction | `engines/dataai/ml.js` | ML Workbench |
+| D3 `facies` (68) | Electrofacies | PCA; seeded k-means++ and hierarchical clustering; elbow and silhouette; kNN and decision-tree classification against core facies | `engines/dataai/cluster.js` | Electrofacies Studio (reads the wells registry) |
+| D4 `forecastml` (69) | Data-Driven Production Forecasting | exponential smoothing (Holt, damped); feature regression; rolling-origin backtests; MAPE and MASE; Arps as the baseline, taken from dca and not re-taught; bootstrap intervals on the canonical seeded generator | `engines/dataai/forecast.js` | Production Forecasting ML Workbench |
+| D5 `appliedai` (70) | Applied AI and Language Models | copilots, retrieval, prompts, hallucination, governance; graded only on the deterministic half: TF-IDF and BM25 retrieval, precision@k, MRR, nDCG on a fixed judged set, extraction accuracy on labels, calibration (Brier score, reliability) | `engines/dataai/evaluate.js` | AI Evaluation Studio |
+
+Course shape as HSE: three tiers, about 78 lessons and 396 questions,
+one capstone per tier. No capstone field is ever graded from language
+model output.
+
+Order: D1 and D2 first (D3 and D4 reuse D2's validation and metrics),
+then D3, D4, D5.
+
+### DECISIONS, 2026-09-23 (owner accepted every recommendation)
+
+1. **Roster: the five courses above**, path_order 66 to 70.
+2. **App home: a new Suite Data & AI module** holding Data Quality
+   Studio, ML Workbench, Electrofacies Studio, Production Forecasting ML
+   Workbench and AI Evaluation Studio. The module needs a catalogue
+   migration and a `pricing_config.module_pricing` row; the price is the
+   owner's to set when the first app ships.
+3. **D5 is engine-first.** The AI Evaluation Studio engine is
+   deterministic; a language model is an optional, metered helper on the
+   existing OpenAI key and is never graded.
+4. **Datasets: the Ekene synthetic field by default.** Public sets (Volve,
+   the Kansas facies contest data) only after their licences are checked
+   and recorded.
+5. **Analog Finder is not coming back.** It has no analog database to
+   stand on, real analog matching needs a licensed field database we do
+   not hold, and similarity ranking is taught in D3 as kNN on data we
+   own. D0 deletes its route (the old URL redirects to the Geoscience
+   hub) and its files.
+
+### Order, per course
+
+D0 first: remove the false AI copy, delete the mock and orphaned ML code,
+retire Analog Finder, and align the NextGen landing tile with this
+roster. Then per course, as HSE: engine (stdlib-only Python oracle,
+golden, negative control; for the learning engines also a pinned
+scikit-learn reference as a second witness, the way `lib/stats` is
+pinned to simple-statistics) -> app -> course, go-live HELD until the
+deployed site serves the route. Determinism is designed in, not patched:
+seeded initialisation on the canonical generator, a fixed PCA sign
+convention and a stated tie-break for tree splits, so each capstone has
+exactly one right answer.
