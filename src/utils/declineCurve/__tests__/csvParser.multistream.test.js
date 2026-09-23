@@ -112,3 +112,46 @@ describe('getStreamRate', () => {
     expect(getStreamRate({ rate: 1000 }, 'oil')).toBe(1000);
   });
 });
+
+describe('header matching: short aliases are whole words, and one well per file', () => {
+  // Found by the Ekene demo kit import check (2026-09-23): the cumulative
+  // alias 'np' matched inside 'injection_rate_bwpd', and a six-well file
+  // was loaded into the one selected well.
+  const { headerMatches } = require('../csvParser');
+
+  it('an injection column is not read as cumulative oil', () => {
+    const mapping = detectColumns(['well', 'date', 'oil_rate_bopd', 'water_rate_bwpd', 'gas_rate_mscfd', 'injection_rate_bwpd']);
+    expect(mapping.cum).toBeNull();
+    expect(mapping.oilRate).toBe('oil_rate_bopd');
+    expect(mapping.waterRate).toBe('water_rate_bwpd');
+    expect(mapping.gasRate).toBe('gas_rate_mscfd');
+  });
+
+  it('short aliases still match as words, long ones anywhere', () => {
+    expect(headerMatches('Np (stb)', 'np')).toBe(true);
+    expect(headerMatches('Cum_Oil', 'cum')).toBe(true);
+    expect(headerMatches('OilRate', 'oil')).toBe(true);
+    expect(headerMatches('injection_rate_bwpd', 'np')).toBe(false);
+    expect(headerMatches('capital', 'api')).toBe(false);
+    expect(headerMatches('API number', 'api')).toBe(true);
+    expect(headerMatches('oil_bopd_daily', 'bopd')).toBe(true);
+    expect(headerMatches('Oil Rate (bbl/d)', 'oil rate')).toBe(true);
+    expect(headerMatches('oil_rate', 'oil rate')).toBe(true);
+    expect(headerMatches('rate of oil', 'oil rate')).toBe(false);
+  });
+
+  it('a file with several wells is refused with the reason first', () => {
+    const rows = [
+      { well: 'Ekene-1', date: '2020-01-01', oilRate: 100, rate: 100 },
+      { well: 'Ekene-3', date: '2020-01-01', oilRate: 90, rate: 90 },
+    ];
+    const v = validateData(rows);
+    expect(v.valid).toBe(false);
+    expect(v.errors[0]).toMatch(/holds 2 wells \(Ekene-1, Ekene-3\)/);
+  });
+
+  it('one named well, or no well column, imports as before', () => {
+    expect(validateData([{ well: 'Ekene-1', date: '2020-01-01', rate: 1 }, { well: 'Ekene-1', date: '2020-02-01', rate: 1 }]).valid).toBe(true);
+    expect(validateData([{ well: 'Unknown Well', date: '2020-01-01', rate: 1 }]).valid).toBe(true);
+  });
+});
