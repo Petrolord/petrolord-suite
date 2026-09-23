@@ -6,7 +6,7 @@
 import React from 'react';
 import {
   Crosshair, Route, Spline, Ban, Loader2, Pencil, Eraser, Undo2, Redo2, Save,
-  Wand2, PaintBucket, Ruler, Slash, CheckCheck, Trash2, Waves, Sprout, MapPin, Wrench, Mountain } from 'lucide-react';
+  Wand2, PaintBucket, Ruler, Slash, CheckCheck, Trash2, Waves, Sprout, MapPin, Wrench, Mountain, Waypoints } from 'lucide-react';
 import { RibbonGroup, RibbonButton, RibbonSelect } from '../Ribbon';
 import { describeVelocity } from '../../../engine/velocityModel';
 
@@ -50,7 +50,7 @@ export default function InterpretationTab({
   eraseSize, setEraseSize, edit, editBusy, undoEdit, redoEdit = null, saveEdits, discardEdits,
   smoothEdits, smoothMethod, setSmoothMethod, smoothRadius, setSmoothRadius, fillHoles,
   draftSticks, endStick, saveDraftFault, discardDraft, editingFaultName = null,
-  openVelocity, velocityModel, openAttribute, openMakeSurface = null,
+  openVelocity, velocityModel, openAttribute, openMakeSurface = null, openTopsToHorizons = null,
   terminations = [], terminationKind = 'onlap', setTerminationKind = null, clearTerminations = null,
   toolboxOpen = false, toggleToolbox = null,
 }) {
@@ -94,6 +94,15 @@ export default function InterpretationTab({
           disabled={!manifest || !seedPick || tracking !== null}
           title="Autotrack the seed across the whole survey (worker)"
         />
+        {openTopsToHorizons && (
+          <RibbonButton
+            icon={Waypoints}
+            label="Tops to horizons"
+            onClick={openTopsToHorizons}
+            disabled={!manifest || tracking !== null}
+            title="Tie the wells, match every top to its seismic event, pick faults and track a named horizon framework (reviewed before anything is saved)"
+          />
+        )}
         <RibbonButton
           icon={Sprout}
           label="Grow target"

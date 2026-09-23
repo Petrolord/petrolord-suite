@@ -109,6 +109,8 @@ import ImportSegyDialog from './workspace/dialogs/ImportSegyDialog';
 import ExportDialog from './workspace/dialogs/ExportDialog';
 import ImportSurfaceDialog from './workspace/dialogs/ImportSurfaceDialog';
 import MakeSurfaceDialog from './workspace/dialogs/MakeSurfaceDialog';
+import TopsToHorizonsDialog from './workspace/dialogs/TopsToHorizonsDialog';
+import { startFrameworkJob } from '../services/frameworkRunner';
 import WellImportDialog from './workspace/dialogs/WellImportDialog';
 import VelocityModelDialog from './workspace/dialogs/VelocityModelDialog';
 import HorizonSettingsDialog from './workspace/dialogs/HorizonSettingsDialog';
@@ -145,6 +147,9 @@ const accessToken = getAccessToken;
 
 const newHorizonWorker = () =>
   new Worker(new URL('../workers/horizon.worker.js', import.meta.url), { type: 'module' });
+
+const newFrameworkWorker = () =>
+  new Worker(new URL('../workers/framework.worker.js', import.meta.url), { type: 'module' });
 
 /** Horizon grid cache bound (L4): grids are nIl x nXl float32 each — on a
  *  big survey with many horizons an unbounded map could hold hundreds of
@@ -2167,6 +2172,58 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     }
   };
 
+  /** Tops to Horizons jobs (workers/framework.worker.js): the tracker's
+   *  storage config and token, any job type; {promise, cancel}. */
+  const runFrameworkJob = (type, config, onProgress) => {
+    let job = null;
+    let stopped = false;
+    const promise = (async () => {
+      if (volume?.local) {
+        throw new Error('Tops to Horizons reads the uploaded bricks. Start the import to convert this survey.');
+      }
+      const token = await accessToken();
+      if (stopped) throw new Error('Cancelled');
+      job = startFrameworkJob({
+        createWorker: newFrameworkWorker,
+        id: ++jobIdRef.current,
+        type,
+        getToken: accessToken,
+        onProgress,
+        config: {
+          supabaseUrl: storageBase(),
+          token,
+          bucket: 'seismic',
+          storagePath: volume.storage_path,
+          dtype: manifest?.brick?.dtype,
+          v4: v4ReadInfo(manifest),
+          ...config,
+        },
+      });
+      return job.promise;
+    })();
+    return { promise, cancel: () => { stopped = true; job?.cancel(); } };
+  };
+
+  /** Accepted framework horizons: cached, shown, listed, each undoable. */
+  const onFrameworkSaved = async (saved) => {
+    const dtUs = manifest.geometry.dt_us;
+    for (const s of saved) {
+      cacheGrid(gridCacheRef.current, s.row.id, s.picks);
+    }
+    setVisibleIds((v) => new Set([...v, ...saved.map((s) => s.row.id)]));
+    await reloadHorizons(volume);
+    for (const s of saved) {
+      pushNewHorizonUndo({
+        label: `Tops to Horizons "${s.save.name}"`, row: s.row, picks: s.picks, vol: volume, dtUs, save: s.save, confidence: s.confidence,
+      });
+    }
+  };
+
+  const onAutoFaultsSaved = async (rows) => {
+    setFaults(await listFaults(volume.id));
+    setVisibleFaultIds((s) => new Set([...s, ...rows.map((r) => r.id)]));
+  };
+
   const trackHorizon = async () => {
     if (!seedPick || !geom || !volume || !manifest) return;
     try {
@@ -3505,6 +3562,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
               toolboxOpen={dockOpen && dockPanel === 'toolbox'}
               toggleToolbox={() => openDockPanel('toolbox')}
               openMakeSurface={() => openMakeSurface(editTarget !== 'new' ? editTarget : null)}
+              openTopsToHorizons={() => setOpenDialog('topsToHorizons')}
             />
           ),
         },
@@ -4065,6 +4123,23 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
           // imported faults show immediately (the fault-save behavior)
           setVisibleFaultIds((s) => new Set([...s, ...saved.map((f) => f.id)]));
         }}
+      />
+
+      <TopsToHorizonsDialog
+        open={openDialog === 'topsToHorizons'}
+        onOpenChange={(o) => setOpenDialog(o ? 'topsToHorizons' : null)}
+        volume={volume}
+        manifest={manifest}
+        geom={geom}
+        affine={affine}
+        wells={wells}
+        velocity={velocityForDisplay}
+        boundaries={velBoundaries}
+        horizons={horizons}
+        faults={faults}
+        runJob={runFrameworkJob}
+        onHorizonsSaved={onFrameworkSaved}
+        onFaultsSaved={onAutoFaultsSaved}
       />
 
       <MakeSurfaceDialog
