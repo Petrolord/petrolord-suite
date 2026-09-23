@@ -14,6 +14,7 @@
 import Papa from 'papaparse';
 
 import { computeCashFlow, irrResult } from '../../../../packages/engines/engines/economics/cashflow.ts';
+import { aggregateAnnualProduction } from '../../../../src/utils/breakeven/productionCsv.js';
 import { EKENE11 } from '../../d8spine.mjs';
 
 // ---------------------------------------------------------------------------
@@ -359,32 +360,12 @@ export const OUTCOMES = [
 // Probabilistic Breakeven Analyzer: its CSV aggregation, restated
 // ---------------------------------------------------------------------------
 /**
- * processProductionData from src/components/breakevenanalyzer/InputPanel.jsx,
- * restated operation for operation because it lives inside the React
- * component and cannot be imported. The gate checks the component source
- * still has the lines this depends on. It treats each row as a DAILY rate
- * held for one average month (x 30.44 days) and buckets by the local-time
- * calendar year of the parsed date.
+ * The breakeven analyzer's own CSV reader (src/utils/breakeven/productionCsv.js,
+ * which InputPanel.jsx calls since PR #600): each row is a daily rate held
+ * for an average month (x 30.44 days), bucketed by the year in the date text.
+ * Called directly, so the kit is checked against the app itself.
  */
-export function breakevenProcessProductionData(data) {
-  const annualProduction = {};
-  const dateKey = Object.keys(data[0]).find((k) => k.toLowerCase().includes('date'));
-  const oilRateKey = Object.keys(data[0]).find((k) => k.toLowerCase().includes('oil_rate'));
-  if (!dateKey || !oilRateKey) throw new Error("CSV must contain 'date' and 'oil_rate_bpd' (or similar) columns.");
-  data.forEach((row) => {
-    const date = new Date(row[dateKey]);
-    const year = date.getFullYear();
-    const oilRate = parseFloat(row[oilRateKey]);
-    if (!Number.isNaN(year) && !Number.isNaN(oilRate)) {
-      if (!annualProduction[year]) annualProduction[year] = 0;
-      annualProduction[year] += oilRate * 30.44;
-    }
-  });
-  return Object.entries(annualProduction).map(([year, production]) => ({
-    year: parseInt(year, 10),
-    oil_production_bbl: production,
-  }));
-}
+export const breakevenProcessProductionData = (data) => aggregateAnnualProduction(data);
 
 /** The analyzer's own Papa options (InputPanel.jsx onDrop). */
 export const parseLikeBreakeven = (text) =>
