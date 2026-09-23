@@ -52,10 +52,10 @@ const GeoscienceHub = () => {
             path="/dashboard/apps/geoscience/well-correlation-tool"
           />
           <AppCard 
-            title="Log Facies Analysis"
-            description="AI-powered facies classification and well log interpretation."
+            title="Petrophysics Studio"
+            description="Well log interpretation, crossplots and rule-based facies from log cutoffs."
             icon={Layers}
-            path="/dashboard/apps/geoscience/log-facies-analysis"
+            path="/dashboard/apps/geoscience/petrophysics-studio"
           />
           <AppCard 
             title="Petrophysics Estimator"

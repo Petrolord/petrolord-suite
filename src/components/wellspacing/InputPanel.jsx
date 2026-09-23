@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Calculator, MapPin, ToggleLeft, ToggleRight } from 'lucide-react';
 import { formatCoordinates, getExampleCoordinates } from '@/utils/coordinateUtils';
-import InteractiveMap from '@/components/analogfinder/InteractiveMap';
+import InteractiveMap from '@/components/wellspacing/InteractiveMap';
 
 const InputPanel = ({ 
   formData, 

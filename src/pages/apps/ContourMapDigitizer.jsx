@@ -40,7 +40,7 @@ const ContourMapDigitizer = () => {
     <>
       <Helmet>
         <title>Contour Map Digitizer - Petrolord</title>
-        <meta name="description" content="AI-powered digitization of contour maps, project management, and 3D horizon grid generation." />
+        <meta name="description" content="Digitize contour maps into gridded horizons and save them to the surface registry." />
       </Helmet>
       <div className="flex flex-col md:flex-row h-screen bg-gray-900 text-white font-sans">
         {/* Mobile & Desktop Responsive Sidebar */}
