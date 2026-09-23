@@ -241,8 +241,9 @@ const DataQualityStudioHelpGuide = () => (
     <GuideSection id="charts">
       <SectionHeading icon={BarChart3}>Control charts</SectionHeading>
       <Para>
-        A control chart needs a complete series; a gap is refused with the sample named, so choose a window without
-        one. The target and sigma belong to in-control history. The studio never estimates them from the series it
+        A control chart needs a complete series; a gap is refused with its entry named, so choose a window without
+        one. The window and the baseline are given as entries counted from 0, both ends included: from 0 to 11 is the
+        first twelve values. The target and sigma belong to in-control history. The studio never estimates them from the series it
         is watching, because a shift would then be absorbed into its own reference. Fill them from a baseline stretch
         you judge in control, or type them.
       </Para>
@@ -292,9 +293,10 @@ const DataQualityStudioHelpGuide = () => (
         is shown in full. The CSV and PDF exports keep the engine&apos;s full-precision figures.
       </Para>
       <Para>
-        Entries are counted from 0, the way the reasons count them: the Entry column, the CSV entry column and a reason
-        that says entry 57 all mean the 58th value. The At column gives the index value there (a depth or a date), or
-        the entry again when the data has no index.
+        Entries are counted from 0 everywhere in the studio, the way the reasons count them: the Entry column, the CSV
+        entry column, the chart window, the baseline and a reason that says entry 57 all mean the 58th value. The At
+        column and the chart axes give the index value there (a depth or a date), or the entry again when the data
+        has no index.
       </Para>
       <Table
         headers={['Rule', 'Meaning']}

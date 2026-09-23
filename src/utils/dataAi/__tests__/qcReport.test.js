@@ -3,7 +3,7 @@
  * reason, the scorecard and every parameter the run used.
  */
 import { buildReportCsv, flattenProfile, CSV_COLUMNS } from '@/utils/dataAi/qcReport';
-import { defaultProfile, runQcProfile, indexLabel, flagAtLabel } from '@/utils/dataAi/qcProfile';
+import { defaultProfile, runQcProfile, indexLabel } from '@/utils/dataAi/qcProfile';
 
 // RFC 4180 reader for the check, written here so the witness is
 // independent of the shared tabularFile reader.
@@ -114,9 +114,8 @@ describe('entry numbering on a dataset with no index', () => {
     expect(row[5]).toBe('3');
   });
 
-  it('keeps the chart axis labels unchanged', () => {
-    expect(indexLabel(noIndex, 3)).toBe('row 4');
-    expect(flagAtLabel(noIndex, 3)).toBe('entry 3');
-    expect(flagAtLabel(ds, 3)).toBe('4');
+  it('labels charts the same way: entry N with no index, the index value otherwise', () => {
+    expect(indexLabel(noIndex, 3)).toBe('entry 3');
+    expect(indexLabel(ds, 3)).toBe('4');
   });
 });

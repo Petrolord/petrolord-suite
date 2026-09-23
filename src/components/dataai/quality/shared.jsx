@@ -72,7 +72,7 @@ export const EngineError = ({ result, prefix }) => {
   return (
     <div role="alert" className="flex items-start gap-2 rounded border border-red-500/40 bg-red-950/40 p-2 text-xs text-red-200">
       <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-      <span>{prefix ? `${prefix}: ` : ''}{result.error}</span>
+      <span>{prefix ? `${prefix}: ` : ''}{result.error}{Number.isInteger(result.entry) ? ` (entry ${result.entry} of the channel)` : ''}</span>
     </div>
   );
 };

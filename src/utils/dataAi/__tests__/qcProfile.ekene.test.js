@@ -108,8 +108,8 @@ const profileFor = (ds) => {
   p.outliers.grubbs.enabled = true;
   p.mahalanobis = { enabled: true, keys: [key('RHOB'), key('NPHI')], alpha: '0.025' };
   p.charts.key = key('RHOB');
-  p.charts.from = '1';
-  p.charts.to = '99';
+  p.charts.from = '0';
+  p.charts.to = '98';
   p.charts.target = '2.3';
   p.charts.sigma = '0.05';
   return p;
@@ -291,7 +291,7 @@ describe('the Ekene daily production ledger as an uploaded CSV', () => {
     p.validity.rate = { enabled: true, rateKeys: [key('oil_stb'), key('water_stb')], hoursOnKey: key('hours_on') };
     p.consistency.waterCut = { wcKey: '', oilKey: key('oil_stb'), waterKey: key('water_stb'), tolerance: '0.000001' };
     const oil = ds.channels.find((x) => x.name === 'oil_stb').values;
-    const base = baselineFrom(oil, '1', '12');
+    const base = baselineFrom(oil, '0', '11');
     const ic = Q.individualsChart({ values: oil.slice(0, 12) });
     expect(base).toEqual({ target: ic.centre, sigma: ic.sigma, mrBar: ic.mrBar, n: 12 });
     p.charts = { ...p.charts, key: key('oil_stb'), target: String(base.target), sigma: String(base.sigma) };
@@ -363,9 +363,37 @@ describe('the Ekene daily production ledger as an uploaded CSV', () => {
     const p = defaultProfile();
     p.charts = { ...p.charts, key: gappy.channels[0].key, target: '100', sigma: '5' };
     const run = runQcProfile(gappy, p);
-    expect(run.charts.individuals).toEqual(Q.individualsChart({ values: gappy.channels[0].values }));
+    // the engine refusal verbatim, plus the channel entry it names
+    expect(run.charts.individuals).toEqual({ ...Q.individualsChart({ values: gappy.channels[0].values }), entry: 5 });
     expect(run.charts.individuals.error).toMatch(/^values\[5\] is missing: a control chart needs a complete series/);
     expect(run.flags.filter((f) => f.dimension === 'time series')).toEqual([]);
+    // inside a window starting at entry 2 the engine says values[3]; the channel entry is still 5
+    p.charts = { ...p.charts, from: '2', to: '20' };
+    const w = runQcProfile(gappy, p).charts.individuals;
+    expect(w.field).toBe('values[3]');
+    expect(w.entry).toBe(5);
+  });
+
+  it('reads the chart window and the baseline as entries counted from 0, both ends included', () => {
+    const ch = ds.channels.find((c) => c.name === 'oil_stb') || ds.channels[0];
+    const p = defaultProfile();
+    p.charts = { ...p.charts, key: ch.key, from: '20', to: '59', target: '100', sigma: '5' };
+    const run = runQcProfile(ds, p);
+    expect(run.charts.start).toBe(20);
+    expect(run.charts.values).toEqual(ch.values.slice(20, 60));
+    expect(run.charts.values[0]).toBe(ch.values[20]);
+    // a chart flag's index is the engine index inside the window plus the From entry
+    const ew = Q.ewmaChart({ values: ch.values.slice(20, 60), lambda: 0.2, target: 100, sigma: 5, L: 3, limits: 'asymptotic' });
+    const shown = run.flags.filter((f) => f.method === 'ewma');
+    expect(shown.map((f) => f.index)).toEqual(ew.flags.map((f) => f.index + 20));
+    expect(ew.flags.length).toBeGreaterThan(0);
+    // the baseline: from 3 to 14 is twelve values, entries 3 through 14
+    const b = baselineFrom(ch.values, '3', '14');
+    const ic = Q.individualsChart({ values: ch.values.slice(3, 15) });
+    expect(b).toEqual({ target: ic.centre, sigma: ic.sigma, mrBar: ic.mrBar, n: 12 });
+    expect(baselineFrom(ch.values, '0', String(ch.values.length - 1)).n).toBe(ch.values.length);
+    expect(baselineFrom(ch.values, '0', String(ch.values.length)).error).toMatch(/from 0 to /);
+    expect(baselineFrom(ch.values, '4', '4').error).toMatch(/two or more whole entries/);
   });
 
   it('waits for a target and sigma instead of estimating them from the data it monitors', () => {

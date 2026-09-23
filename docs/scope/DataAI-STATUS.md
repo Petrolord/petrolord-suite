@@ -178,11 +178,19 @@ Open: solveDense's absolute pivot test (engine FINDINGS open question 2).
   - Entry numbering: the flag table, CSV and PDF show an Entry column counted
     from 0, the numbering the engine's reasons use ("entry 57"); with no index
     the At and Previous labels read `entry N` (were a 1-based `row N`). The CSV
-    `sample` column (1-based) is now `entry`. Chart axes and the "from sample"
-    chart window stay 1-based. Gates: the smoke test checks every Entry cell
+    `sample` column (1-based) is now `entry`. Lead decision 2026-09-23: the
+    whole studio uses one numbering, so the chart axes and no-index x labels
+    (`entry N`), the chart window From/To and the baseline inputs are 0-based
+    and inclusive too, a chart gap refusal names its channel entry, and CUSUM
+    signals read "at entry N". A run saved on staging before this with a
+    chart window reads one entry later on re-run (the studio never shipped to
+    production). Gates: the smoke test checks every Entry cell
     against the engine index and against the number a missing-run or
     frozen-run reason quotes; `qcReport.test.js` pins the CSV column and a
-    no-index cumulative case.
+    no-index cumulative case; `qcProfile.ekene.test.js` pins the chart window
+    (From 20 is engine window index 0, chart flags = engine index + 20), the
+    baseline (3 to 14 = twelve values) and the gap refusal's entry; a 1-based
+    window or baseline plant turns it red.
   - `despikeHampel` null to 0: audited, NOT LIVE. Every caller passes typed
     arrays with NaN for missing (Petrophysics Studio curves are Float32Array
     from storage or LAS import) or goes through `quality.hampel`. Engine code

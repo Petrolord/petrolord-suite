@@ -65,7 +65,7 @@ const LimitEditor = ({ channel, limit, onChange }) => {
 };
 
 const Baseline = ({ values, onFill }) => {
-  const [from, setFrom] = useState('1');
+  const [from, setFrom] = useState('0');
   const [to, setTo] = useState('');
   const [msg, setMsg] = useState(null);
   const fill = () => {
@@ -76,12 +76,12 @@ const Baseline = ({ values, onFill }) => {
   };
   return (
     <div className="flex flex-wrap items-end gap-2 rounded border border-slate-800 p-2">
-      <TextInput label="Baseline from sample" value={from} onChange={setFrom} />
-      <TextInput label="to sample" value={to} onChange={setTo} placeholder={String(values.length)} />
+      <TextInput label="Baseline from entry" value={from} onChange={setFrom} />
+      <TextInput label="to entry" value={to} onChange={setTo} placeholder={String(Math.max(0, values.length - 1))} />
       <Button size="sm" variant="secondary" onClick={fill} data-testid="fill-baseline">Fill target and sigma from the baseline</Button>
       <span className="w-full text-[10px] text-slate-500">
-        Target is the baseline&apos;s centre line and sigma its MRbar / 1.128, from the individuals chart on those samples
-        (NIST 6.3.2.2). Choose samples you judge in control; the charts then watch the rest against them.
+        Target is the baseline&apos;s centre line and sigma its MRbar / 1.128, from the individuals chart on those entries
+        (NIST 6.3.2.2). Entries count from 0, as in the flag table. Choose entries you judge in control; the charts then watch the rest against them.
       </span>
       <EngineError result={msg} prefix="Baseline" />
     </div>
@@ -246,8 +246,8 @@ const ProfilePanel = () => {
       <Section title="Control charts on one series">
         <div className="flex flex-wrap items-end gap-3">
           <SelectField label="Channel" value={profile.charts.key} onChange={(v) => set(['charts', 'key'], v)} emptyLabel="None" options={opts} className="w-44" testId="chart-channel" />
-          <TextInput label="From sample" value={profile.charts.from} onChange={(v) => set(['charts', 'from'], v)} placeholder="1" />
-          <TextInput label="To sample" value={profile.charts.to} onChange={(v) => set(['charts', 'to'], v)} placeholder="last" />
+          <TextInput label="From entry" value={profile.charts.from} onChange={(v) => set(['charts', 'from'], v)} placeholder="0" />
+          <TextInput label="To entry" value={profile.charts.to} onChange={(v) => set(['charts', 'to'], v)} placeholder="last" />
         </div>
         {chartCh ? (
           <>

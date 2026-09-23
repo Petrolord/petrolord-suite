@@ -60,7 +60,7 @@ const SeriesChart = ({ dataset, run }) => {
       <Frame testId="series-chart">
         <ComposedChart data={data} margin={CHART_MARGINS.legend}>
           <CartesianGrid {...GRID_STYLE} />
-          <XAx title={dataset.index ? `${dataset.index.name}${dataset.index.unit ? ` (${dataset.index.unit})` : ''}` : 'Row'} />
+          <XAx title={dataset.index ? `${dataset.index.name}${dataset.index.unit ? ` (${dataset.index.unit})` : ''}` : 'Entry'} />
           <YAx title={`${ch.name}${ch.unit ? ` (${ch.unit})` : ''}`} />
           <Tooltip {...PINNED_TOOLTIP_PROPS} formatter={(v) => fmt(v)} />
           <Legend {...LEGEND_PROPS} />
@@ -83,7 +83,7 @@ const ControlCharts = ({ run }) => {
   const cu = c.cusum;
   return (
     <div className="space-y-3">
-      <p className="text-xs text-slate-300">{c.channel}, samples {c.start + 1} to {c.start + c.values.length}.</p>
+      <p className="text-xs text-slate-300" data-testid="chart-window">{c.channel}, entries {c.start} to {c.start + c.values.length - 1} (counted from 0).</p>
       {ind ? (ind.error ? <EngineError result={ind} prefix="Individuals chart" /> : (
         <>
           <p className="text-xs text-slate-400">
@@ -92,7 +92,7 @@ const ControlCharts = ({ run }) => {
           <Frame testId="individuals-chart">
             <ComposedChart data={c.values.map((v, j) => ({ x: x(j), v, out: v > ind.ucl || v < ind.lcl ? v : null }))} margin={CHART_MARGINS.legend}>
               <CartesianGrid {...GRID_STYLE} />
-              <XAx title="Sample" />
+              <XAx title={c.axis || 'Entry'} />
               <YAx title={`${c.channel}${unit}`} />
               <Tooltip {...PINNED_TOOLTIP_PROPS} formatter={(v) => fmt(v)} />
               <Legend {...LEGEND_PROPS} />
@@ -106,7 +106,7 @@ const ControlCharts = ({ run }) => {
           <Frame testId="mr-chart" height="h-56">
             <ComposedChart data={ind.movingRanges.map((v, j) => ({ x: x(j), mr: v }))} margin={CHART_MARGINS.legend}>
               <CartesianGrid {...GRID_STYLE} />
-              <XAx title="Sample" />
+              <XAx title={c.axis || 'Entry'} />
               <YAx title={`Moving range${unit}`} />
               <Tooltip {...PINNED_TOOLTIP_PROPS} formatter={(v) => fmt(v)} />
               <Legend {...LEGEND_PROPS} />
@@ -122,7 +122,7 @@ const ControlCharts = ({ run }) => {
           <Frame testId="ewma-chart">
             <ComposedChart data={ew.points.map((p, j) => ({ x: x(j), e: p.ewma, u: p.ucl, l: p.lcl }))} margin={CHART_MARGINS.legend}>
               <CartesianGrid {...GRID_STYLE} />
-              <XAx title="Sample" />
+              <XAx title={c.axis || 'Entry'} />
               <YAx title={`EWMA${unit}`} />
               <Tooltip {...PINNED_TOOLTIP_PROPS} formatter={(v) => fmt(v)} />
               <Legend {...LEGEND_PROPS} />
@@ -136,12 +136,12 @@ const ControlCharts = ({ run }) => {
       {cu ? (cu.error ? <EngineError result={cu} prefix="CUSUM chart" /> : (
         <>
           <p className="text-xs text-slate-400">
-            Tabular CUSUM, k = {fmt(cu.kData)} and h = {fmt(cu.hData)} in data units. First upward signal {cu.firstSignalHigh === null ? 'none' : `at sample ${c.start + cu.firstSignalHigh + 1}`}; first downward signal {cu.firstSignalLow === null ? 'none' : `at sample ${c.start + cu.firstSignalLow + 1}`}.
+            Tabular CUSUM, k = {fmt(cu.kData)} and h = {fmt(cu.hData)} in data units. First upward signal {cu.firstSignalHigh === null ? 'none' : `at entry ${c.start + cu.firstSignalHigh}`}; first downward signal {cu.firstSignalLow === null ? 'none' : `at entry ${c.start + cu.firstSignalLow}`}.
           </p>
           <Frame testId="cusum-chart">
             <ComposedChart data={cu.points.map((p, j) => ({ x: x(j), hi: p.sHigh, lo: p.sLow }))} margin={CHART_MARGINS.legend}>
               <CartesianGrid {...GRID_STYLE} />
-              <XAx title="Sample" />
+              <XAx title={c.axis || 'Entry'} />
               <YAx title={`CUSUM${unit}`} />
               <Tooltip {...PINNED_TOOLTIP_PROPS} formatter={(v) => fmt(v)} />
               <Legend {...LEGEND_PROPS} />
@@ -170,7 +170,7 @@ const MahalanobisChart = ({ dataset, run }) => {
       <Frame testId="mahalanobis-chart">
         <ComposedChart data={data} margin={CHART_MARGINS.legend}>
           <CartesianGrid {...GRID_STYLE} />
-          <XAx title={dataset.index ? dataset.index.name : 'Row'} />
+          <XAx title={dataset.index ? dataset.index.name : 'Entry'} />
           <YAx title="Squared distance d²" />
           <Tooltip {...PINNED_TOOLTIP_PROPS} formatter={(v) => fmt(v)} />
           <Legend {...LEGEND_PROPS} />
