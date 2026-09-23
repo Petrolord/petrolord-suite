@@ -22,7 +22,7 @@ import fs from 'fs';
 import path from 'path';
 import Papa from 'papaparse';
 
-import { computeCashFlow, computeBreakevenOilPrice, irrResult } from '../../../packages/engines/engines/economics/cashflow';
+import { computeCashFlow, computeBreakevenOilPrice, irrResult, ENGINE_VERSION } from '../../../packages/engines/engines/economics/cashflow';
 import { calculateEconomics, expandQuickInputs } from '../../../packages/engines/engines/economics/screening';
 import { generateBreakevenData, DEFAULT_SEED } from '../../../packages/engines/engines/economics/breakeven';
 import { rollback, evpi } from '../../../packages/engines/engines/economics/decisionTree';
@@ -177,7 +177,16 @@ describe('Episode 26: Petroleum Economics Studio takes the three uploads', () =>
     expect(kpis.abandonment_year).toBe(2036);
     expect(cashFlowData.filter((r) => r.sunk).map((r) => r.year)).toEqual([2020, 2021, 2022, 2023, 2024, 2025]);
     // the breakeven the edge function adds is null on this case (see the README)
-    expect(computeBreakevenOilPrice({ cfg, prodRows: f.prod, capexRows: f.capex, opexRows: f.opex })).toBeNull();
+    // null before EPE engine 3.11.0 (economic limit trimmed the capex years), a price after
+    const be = computeBreakevenOilPrice({ cfg, prodRows: f.prod, capexRows: f.capex, opexRows: f.opex });
+    const [vMaj, vMin] = ENGINE_VERSION.split('.').map(Number);
+    if (vMaj > 3 || (vMaj === 3 && vMin >= 11)) {
+      expect(be).toBeGreaterThan(0);
+      expect(Math.abs(computeCashFlow({ cfg: { ...cfg, oil_price_usd_bbl: be }, prodRows: f.prod, capexRows: f.capex, opexRows: f.opex }).kpis.npv))
+        .toBeLessThan(5000);
+    } else {
+      expect(be).toBeNull();
+    }
 
     const text = note(26);
     expect(text).toContain('NPV10 of USD 0.81 MM');

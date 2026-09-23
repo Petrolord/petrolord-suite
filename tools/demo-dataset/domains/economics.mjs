@@ -16,7 +16,7 @@ import * as path from 'path';
 import { EKENE11 } from '../d8spine.mjs';
 import { LOCKED } from '../spine.mjs';
 import {
-  computeBreakevenOilPrice,
+  computeBreakevenOilPrice, ENGINE_VERSION,
 } from '../../../packages/engines/engines/economics/cashflow.ts';
 import { calculateEconomics, expandQuickInputs } from '../../../packages/engines/engines/economics/screening.js';
 import { generateBreakevenData, DEFAULT_SEED } from '../../../packages/engines/engines/economics/breakeven.js';
@@ -133,12 +133,21 @@ export async function build(ctx) {
   const breakeven = computeBreakevenOilPrice({
     cfg, prodRows: parseLikeUploader(full.prod), capexRows: parseLikeUploader(full.capex), opexRows: parseLikeUploader(full.opex),
   });
-  // Known engine limitation (reported, not fixed here): with the economic
-  // limit on, the low end of computeBreakevenOilPrice's bracket (USD 0.5)
-  // trims every valued year, capital included, so the NPV there is exactly 0
-  // and the bisection declines to answer. The results screen then shows no
-  // breakeven line for this case. Asserted so a fix is noticed.
-  if (breakeven !== null) throw new Error(`ASSERT EPE breakeven is null on this case (got ${breakeven}); update the note`);
+  // Before EPE engine 3.11.0 the economic limit trimmed the capex years at
+  // the low end of computeBreakevenOilPrice's bracket, so the breakeven came
+  // back null on this case (fixed in engines #244). The kit follows whichever
+  // engine is vendored, and asserts the answer either way.
+  const [vMaj, vMin] = ENGINE_VERSION.split('.').map(Number);
+  const BREAKEVEN_WORKS = vMaj > 3 || (vMaj === 3 && vMin >= 11);
+  if (BREAKEVEN_WORKS) {
+    if (!(Number.isFinite(breakeven) && breakeven > 0)) throw new Error(`ASSERT EPE ${ENGINE_VERSION} breakeven is a price (got ${breakeven})`);
+    const atBe = runEpe({ ...cfg, oil_price_usd_bbl: breakeven }, full.prod, full.capex, full.opex).kpis.npv;
+    assertClose('EPE NPV at the breakeven price', atBe, 0, 5e-4 * Math.abs(K.npv) + 1000);
+  } else if (breakeven !== null) {
+    throw new Error(`ASSERT EPE ${ENGINE_VERSION} breakeven is null on this case (got ${breakeven}); update the note`);
+  }
+  const breakevenCell = BREAKEVEN_WORKS ? breakeven.toFixed(2) : '(not shown)';
+  const breakevenSource = BREAKEVEN_WORKS ? 'engine result on these files' : 'the engine returns none with the economic limit on; see README';
   const baseCase = caseTexts(mid.perWell, { withEk11: false });
   const epeBase = runEpe(buildCfg(baseCase.rows.abandonment_usd), baseCase.prod, null, baseCase.opex);
   const increment = K.npv - epeBase.kpis.npv;
@@ -194,7 +203,7 @@ export async function build(ctx) {
       ['result', 'NPV10 (field with Ekene-11)', K.npv.toFixed(0), 'USD', 'engine result on these files'],
       ['result', 'IRR', K.irr === null ? `none (${K.irr_status})` : K.irr.toFixed(2), '%', 'engine result on these files'],
       ['result', 'economic limit year', String(K.economic_limit_year), '', 'engine result on these files'],
-      ['result', 'breakeven oil price', '(not shown)', 'USD/bbl', 'the engine returns none with the economic limit on; see README'],
+      ['result', 'breakeven oil price', breakevenCell, 'USD/bbl', breakevenSource],
     ];
     write(`${DIR}/epe-case-inputs.csv`, sheet(['section', 'field', 'value', 'unit', 'source'], rows));
   }
@@ -389,7 +398,9 @@ export async function build(ctx) {
     `| Field NPV10 without Ekene-11 | ${money(epeBase.kpis.npv)} |`,
     `| Ekene-11 increment (EPE, full fiscal) | ${money(increment)}; its cash flow has two IRR roots, ${r2(wellIrr)} percent (the well's return) and ${r2(Math.min(...incrIrr.irr_roots))} percent (made by the decommissioning bill) |`,
     `| Field economic limit | ${K.economic_limit_year} with Ekene-11, ${epeBase.kpis.economic_limit_year} without |`,
-    '| EPE breakeven oil price | not reported on this case: with the economic limit on, the engine\'s bracket collapses (see Episode 26) |',
+    BREAKEVEN_WORKS
+      ? `| EPE breakeven oil price | USD ${r2(breakeven)} per bbl (flat price at which the field NPV10 is zero) |`
+      : '| EPE breakeven oil price | not reported on this case: with the economic limit on, the engine\'s bracket collapses (see Episode 26) |',
     `| Ekene-11, NPV Scenario Builder Quick Mode | USD ${r2(scr.npv)} MM, no IRR (every year cash positive) |`,
     `| Ekene-11 breakeven price, 10th / 50th / 90th percentile | USD ${r2(be.kpis.p10)} / ${r2(be.kpis.p50)} / ${r2(be.kpis.p90)} per bbl |`,
     `| Decision tree EMV, drill | USD ${r2(rb.emv)} MM (${OUTCOMES.map((o, i) => `${o.probability} x ${r2(pay(outcomeNpv[i]))}`).join(' + ')}) |`,
@@ -422,7 +433,10 @@ export async function build(ctx) {
   }
   const irrWords = `The IRR reads n/a with the reason "${irrScreen}" That is right: the field is already cash positive in 2026, `
     + 'goes negative in 2027 when Ekene-11 is paid for, and pays for its decommissioning at the end, so no one rate describes it. '
-    + 'Read the NPV. The breakeven oil price line stays empty on this case: with the economic limit on, the engine cannot bracket it. ';
+    + 'Read the NPV. '
+    + (BREAKEVEN_WORKS
+      ? `The breakeven oil price reads USD ${r2(breakeven)} per bbl: the flat price at which the field's NPV10 is zero. `
+      : 'The breakeven oil price line stays empty on this case: with the economic limit on, the engine cannot bracket it. ');
   const episodes = [
     { n: 26, app: 'Petroleum Economics Studio', files: [
       [`${DIR}/ekene-production-2p.csv`, 'production slot; choose 2P in the Scenario tag box before you upload'],
