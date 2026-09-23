@@ -210,7 +210,7 @@ const DataQualityStudioHelpGuide = () => (
       </Para>
       <SubHeading>Modified z-score (Iglewicz and Hoaglin, as NIST 1.3.5.17 prints it)</SubHeading>
       <Formula>M = 0.6745 (x - median) / MAD,   MAD = median |x - median|,   flag |M| &gt; 3.5</Formula>
-      <Para>When half or more of the values equal the median, MAD is 0 and the test is refused.</Para>
+      <Para>When more than half of the present values equal the median, MAD is 0 and the test is refused.</Para>
       <SubHeading>Tukey fences</SubHeading>
       <Formula>flag x &lt; Q1 - k IQR  or  x &gt; Q3 + k IQR,   k = 1.5</Formula>
       <Para>
