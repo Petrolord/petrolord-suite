@@ -1,9 +1,9 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 21c6f374dce5caf5c0e7fd292f44031ecfbe780b
+# commit 86eabf8384c220196e9d11ed1382325e1fe2173f
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
-b45735ce0a92fedac8004ff81b088c4e52a3c497 README.md
+7a77a06112a7408db73d6154004d2982ed1bc9c9 README.md
 6373485efb6baa9226953a76a3d6ebb740541d1c __tests__/aquifer.test.js
 168f6cedfc18af932ba587f2ff882b7571966986 __tests__/assurance.audit.test.js
 fc5248e0239b0841f542a3cba95ef72db34296d1 __tests__/assurance.compliance.test.js
@@ -169,6 +169,7 @@ a2b2db7aea12cc3c1b17551047687a2497ad7397 __tests__/seismolord.localsource.test.j
 b0bae05701a81bdc60ed1f72bb230c19b099b073 __tests__/seismolord.manifestgate.test.js
 636459112a6ddc831edc8c35f26b83215593641f __tests__/seismolord.pickexport.test.js
 bf7806d278a935fac4082f53a7fc2f2f5147e5fe __tests__/seismolord.stratal.test.js
+51aa556cb80559d8c909207774d954e2b6ffbdfc __tests__/seismolord.structure.test.js
 3778276afdb6625456cc8f5210d492f209661b29 __tests__/seismolord.tiewarp.test.js
 2df3fb281d94422aa89d6ad1d90a1ea494262237 __tests__/seismolord.topstoevents.test.js
 afed8248d99e1a36f732a2abadf0fe862e281f87 __tests__/seismolord.tracker2.test.js
@@ -421,7 +422,7 @@ ac0b97718527d41a06bbe1017703ea36f4a6481d engines/rockphysics/vsEstimate.js
 a3706390e5e5dbe06ae9a793e351e448351e5282 engines/rockphysics/wedge.js
 9003b707816fbf713afe083a7c101079d008b01a engines/scal/fractionalFlow.js
 5f8b42c2d10cae482bb575ff88b157afdecb729c engines/scal/scal.js
-d7f407f215be00012305db70dffe29a6a0227a69 engines/seismolord/attributes.js
+301020d396ef20e21787321da0dcebf7ed21570f engines/seismolord/attributes.js
 9d7dbcf0989ad39f0c213aba2b8f0ce77e6e98d1 engines/seismolord/autoTie.js
 de49eaf2fa7ac219ce9ff0f771135b2fcbd0b98f engines/seismolord/brickCache.js
 8eddc4f357121d21cdc7c727adcc1dfff79ca8c6 engines/seismolord/brickCodec.js
@@ -430,8 +431,8 @@ c3ca63fe26f9af3f1abab5533ad9cdd5f769d10c engines/seismolord/brickTranscode.js
 569a8c908b95e49689f4313fb4aa94dbdd70095b engines/seismolord/brickTranscodeV4.js
 51dfe9ea937eb0b46ad7f2b654cce4965666b453 engines/seismolord/crsHint.js
 06d057f53227b041e2928677700753705651a7c8 engines/seismolord/depthConvert.js
-a0c2cd7eea2ff60f1b32691753635dd20bae896a engines/seismolord/discontinuity.js
-47419f9252106fd914634d5d1a944cc26de24c77 engines/seismolord/discontinuityJobs.js
+68f9e215b9885ff1ce6e48148238dfed30c0d4c8 engines/seismolord/discontinuity.js
+640f8653af9ca53111d08b8f35c31b378ea6561e engines/seismolord/discontinuityJobs.js
 f292fff97619044ea545a1dd641f554e1e4374ea engines/seismolord/displayEnhance.js
 64fe172bc700bd011590b4f1fd2f27a88be1d895 engines/seismolord/faultBarriers.js
 879e0fe15007e83900f96a7b2a2efa90bef4f6a0 engines/seismolord/faultDetect.js
@@ -455,6 +456,7 @@ de3474443e760832527784db15aada29e62baeee engines/seismolord/reader.js
 64478c772e3a808d80dae4d781e5c77b1dc34571 engines/seismolord/segyDecode.js
 bc143f0d8bc52dfc593fab38f7c7ef6d80d81159 engines/seismolord/segyScan.js
 39b0ebeea7d3f288c368aa273cbbfe096cb10f51 engines/seismolord/sliceAssembly.js
+4476d1903c3fdc9201c6d6b9a86e5d0924ceece8 engines/seismolord/structureAttributes.js
 b25daf4269bfc3e92a7ece33e6f3e4510ab68cf3 engines/seismolord/surfaceOnLattice.js
 c14b23221d26358ca577cb49b44c1f5f21b41e46 engines/seismolord/surveyGeometry.js
 33822414afea9b704e5c4daf0ea5eeed201115b5 engines/seismolord/syntheticField.js
@@ -701,6 +703,8 @@ b0ed49b810132b17a0e1fa8a0c8dcf2f48bc9fdd test-data/seismolord/picks/earthvision_
 24afe52becfcd4b5faf6e1cee602c13a67eae0c4 test-data/seismolord/picks/iesx3d_opendtect_segment_excerpt.dat
 590d1afa1783b1740b965ef0fd8fc461aedebe1a test-data/seismolord/picks/iesx3d_petrel_two_horizons.txt
 0ef6b5ce06b2064a0ef077c25f1eefd1e7f22cd6 test-data/seismolord/picks/opendtect_multi_named_ilxl_excerpt.dat
+f213312d11270f77f03b152d7967bd49c07760f8 test-data/seismolord/structure/gen_structure.py
+fbd8bfb1f097f02e83efcc528074ae91339ee898 test-data/seismolord/structure/structure_golden.json
 5144b15883705461f9c29323038cc2e9dd131eb0 test-data/stats/simple_statistics_pins.json
 cb1026e6bcd8459e66c8609cb7423de1da470ff2 test-data/stratigraphy/README.md
 654badb06925ddd23f69f3f867016ab6f9553970 test-data/stratigraphy/wheeler-synthetic.json
