@@ -62,7 +62,10 @@ every flag carries its reason.
 `MODULE_META` in `src/data/pricingModels.js`, and the generate-quote
 fallback, which must match the shared table exactly
 (`modulePricing.test.js`). The price is the owner's to set (plan §15
-decision 2). The marketing surfaces (ModulesShowcase, Home and Solutions
+decision 2); D1 proposes 2,999 by the PS1 method (3.3x the 899 Geoscience
+per-app price the tiles copy, rounded to the house ending; 3.34x, inside
+the tested band and below the four apps a la carte), in migration
+20260923150000, owner-overridable without a deploy. The marketing surfaces (ModulesShowcase, Home and Solutions
 module counts) move from nine to ten modules at the same time, counting
 built apps only.
 
@@ -118,7 +121,7 @@ app's route serves.
 | Phase | Status | Landed |
 |---|---|---|
 | DA0 | **BUILT 2026-09-23** (branch feat/da0-data-ai-module) | Module registered end to end; seed written, NOT APPLIED (owner-run, deploy-gated); pricing and marketing held for D1 |
-| D1 | not started | |
+| D1 | **ENGINE MERGED** (engines #248, cc82bf3); **APP BUILT 2026-09-23** (branch feat/d1-data-quality-studio) | Engine vendored; Data Quality Studio at `/dashboard/apps/data-ai/data-quality-studio` + `/help`; `dai_qc_runs`, tile activation and pricing (2,999) written as HELD migrations 20260923130000 to 20260923150000, NOT APPLIED; marketing counts ten modules. NextGen course `dataqc` next |
 | D2 | not started | |
 | D3 | not started | |
 | D4 | not started | |

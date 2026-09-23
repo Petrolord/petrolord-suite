@@ -81,8 +81,102 @@ exactly as Process Safety was at PS0 (Suite PR #533, on the DS0 recipe
   every migration after its seed to `ps*`, which any later module breaks;
   it now pins only the range up to the last PS3 migration.
 
+## D1: Data Quality Studio (2026-09-23)
+
+Engine: `engines/dataai/quality.js`, petrolord-engines PR #248 (merge
+cc82bf3), with its stdlib oracle, NIST goldens, library pins, negative
+control and `tools/validation/dataai/FINDINGS-quality.md`. App: branch
+`feat/d1-data-quality-studio`, on the PS1 LOPA & SIL Studio pattern
+(Suite PR #536).
+
+- **Vendoring.** The nine canonical paths of 49d1e92..cc82bf3 copied file by
+  file; the import closure (lib/stats, petrophysics/conditioning,
+  hse/safetyStats, lib/linalg/solveDense) was already current. Manifest
+  regenerated from the canonical clone, VENDOR.json pinned at cc82bf3;
+  `check-vendored-engines.mjs --canonical` reports 944 paths byte for byte,
+  0 deviations. One-line shim `src/utils/dataAi/engine/quality.js`.
+- **Data sources, all existing.** Well log curves from the wells registry
+  (`src/lib/wellsRegistry.js`: listWells, listLogs, downloadCurve; the
+  stored depth curve is the index, float32 samples, NaN is missing);
+  one well's rows from the Production data spine
+  (`src/lib/productionSpine.js` getDailyProduction; oil, water, gas,
+  injection and hours_on by date); or a CSV/TSV/Excel file read in the
+  browser by `src/lib/tabularFile.js`, with index, identifier, row filter
+  and number columns mapped by the user. No new ingestion. The Ekene kit
+  reaches the first two through the Well Data Manager and Production
+  Surveillance imports and can be uploaded directly.
+- **The app.** `src/pages/apps/DataQualityStudio.jsx`, context
+  `src/contexts/DataQualityStudioContext.jsx`, panels under
+  `src/components/dataai/quality/`, logic in `src/utils/dataAi/`
+  (`qcDatasets.js` sources to one dataset shape, `qcProfile.js` the
+  profile and its run, `qcRun.js` the saved payload, `qcRunsService.js`
+  persistence, `qcReport.js` CSV and PDF, `qcSources.js` the loaders). A
+  QC profile holds every parameter as typed text; a blank is the engine
+  default. Defaults name their source on screen, and the Petrolord
+  choices (Hampel half window 5, frozen run 5, phase sum 0.5 percent of
+  the total, Mahalanobis alpha 0.025, EWMA lambda 0.2, CUSUM h 5) say
+  they are choices. Only definitional range limits are suggested (none
+  for neutron porosity, which can read below zero). EWMA and CUSUM need
+  an in-control target and sigma: typed, or filled from a baseline
+  stretch by the engine's individuals chart; never estimated from the
+  series being watched. Runs are made on request and the screen marks
+  results stale when a parameter changes.
+- **Scorecard.** The engine's `scorecard()` on dimension counts the app
+  makes over DISTINCT cells (a value two rules flag counts once).
+  Coverage holes, Mahalanobis rows and control chart signals are listed
+  and not scored; a dimension nothing checked is left out rather than
+  scored as perfect; no grade bands. The rule set is printed on screen,
+  in the help guide and in `SCORE_BASIS`.
+- **Flags and report.** Every engine flag with its rule and reason
+  verbatim; refused checks shown with the engine's own message. CSV report
+  (meta, parameter, score, flag and refused records under one header) and
+  a branded PDF (`src/lib/pdfBrand.js` + jspdf-autotable).
+- **Charts.** White chartTheme + ChartLogo: the channel with its flagged
+  points, individuals and moving range, EWMA with its limits, tabular
+  CUSUM, Mahalanobis d squared with the chi-square cutoff.
+- **Persistence.** `dai_qc_runs`, organization-scoped with RLS through
+  is_org_member / has_org_role like ps_lopa_studies. A run stores its
+  inputs (source reference, profile, and for an upload the checked columns
+  up to 60,000 numbers) and a summary of what it found (scorecard, flag
+  counts, an FNV-1a fingerprint of the values). On open the data is read
+  again and rerun, and a changed fingerprint is reported.
+- **Held migrations (NOT APPLIED, owner-run), in order:**
+  1. `20260923130000_d1_dai_qc_runs.sql` (not deploy-gated);
+  2. `20260923140000_d1_activate_data_quality_studio_tile.sql` (DEPLOY GATE:
+     after the DA0 seed, the table, and the prod upload serving the route);
+  3. `20260923150000_d1_data_ai_module_pricing.sql` (with the tile).
+  All three were applied twice on a local scratch Postgres 16 with stubbed
+  helpers, and RLS probes passed (own-org read, other-org insert refused,
+  unknown source refused, organization move refused, author kept on an
+  admin update, anon refused).
+- **Pricing (owner-overridable).** 2,999: 3.3 x 899 (the Geoscience per-app
+  price the DA0 tiles copy) = 2,967, rounded to the house ending; 3.34x,
+  inside the 2.8x to 4.0x band, below the four planned apps a la carte
+  (3,596). 2,499 would be 2.78x, outside the band. In pricingModels.js,
+  the generate-quote fallback (needs a function deploy to take effect as
+  the fallback) and the migration; `modulePricing.test.js` holds them
+  together.
+- **Marketing.** ModulesShowcase gains Data & AI with a count of 1 (Data
+  Quality Studio); Home and Solutions count ten modules.
+- **Tests.** `src/utils/dataAi/__tests__/qcProfile.ekene.test.js`: every
+  profile result compared whole with a direct engine call on the Ekene-3
+  LAS excerpt (through the Well Data Manager parser and importer) with
+  planted defects, and on the Ekene daily production ledger (upload and
+  spine paths agree); scorecard equal to the engine's on hand counts;
+  refusals verbatim. `qcRunsService.test.js` (mocked supabase),
+  `qcReport.test.js`, `src/pages/apps/__tests__/dataQualityStudio.smoke.test.jsx`
+  (mounted page: empty states, an uploaded ledger scored as the engine
+  scores it, stale marking, help guide sources, copy rule),
+  `dataAiRegistration.test.js` (route, table, tile, pricing, log). An
+  app-layer negative control planted six defects in `qcProfile.js`; four
+  went red at once, and the two that stayed green (cumulative checked
+  count, ignored weights) got gates that now go red.
+
+Open: the engine's FINDINGS open questions stand (despikeHampel turns null
+into 0 for other callers; solveDense's absolute pivot test). The shared
+tabular reader does not unquote CSV cells, so a quoted cell with a comma
+splits; the upload panel and help guide say so.
+
 ## Next
 
-D1 `dataqc` engine: `engines/dataai/quality.js` with a stdlib Python
-oracle, golden and negative control in petrolord-engines, then the Data
-Quality Studio app in this module and the module pricing.
+D1 `dataqc` NextGen course (slug `dataqc`, path_order 66) on the D1 engine and this app; then D2 `mlcore`.
