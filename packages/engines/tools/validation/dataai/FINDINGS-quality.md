@@ -1,12 +1,12 @@
 # FINDINGS: quality (oracle_quality.py, Data & AI D1)
 
-Golden: `test-data/dataai/goldens/quality_cases.json`, 402 cases (46 of
+Golden: `test-data/dataai/goldens/quality_cases.json`, 406 cases (48 of
 them refusals; 8 published NIST/SEMATECH anchors carrying 124 printed
 figures), written by `tools/validation/dataai/oracle_quality.py`.
-Second witness: `test-data/dataai/pins/quality_pins.json`, 342 pins
+Second witness: `test-data/dataai/pins/quality_pins.json`, 348 pins
 written by `tools/validation/dataai/pin_quality.py` (numpy 2.5.3, scipy
 1.18.1, statsmodels 0.15.0, pandas 3.0.6, from `/root/daienv`).
-Gate: `__tests__/dataai.quality.test.js` (903 tests) calls the engine on
+Gate: `__tests__/dataai.quality.test.js` (913 tests) calls the engine on
 every golden, every printed figure and every pin, plus property tests.
 Negative control: `tools/validation/dataai/negcontrol_quality.sh`.
 
@@ -139,8 +139,9 @@ better on quantiles, z, MAD, Mahalanobis and the individuals chart.
    foundation repair the population ceiling was wrong; see the section
    below.)
 4. **Modified z uses 0.6745 as printed**, not 1 / 1.4826 = 0.674490 (the
-   7e-5 difference is caught by the gate). MAD = 0 is refused (at least
-   half the values equal the median); no fallback is invented.
+   7e-5 difference is caught by the gate). MAD = 0 is refused (MORE than
+   half the present values equal the median; exactly half is not enough,
+   see the zero-MAD wording repair below); no fallback is invented.
 5. **Quantiles.** R6 (NIST default), R7 (Excel, R, numpy default) and R8,
    exactly as 7.2.6.2 states them, clamped to the extremes. Tukey fences
    default to R7 so a learner can reproduce them in a spreadsheet.
@@ -279,13 +280,63 @@ and `note`); new fields listed above. No flag decision changed: the fix
 touches reporting, not which points are flagged.
 
 The two carried open questions stay OPEN (not changed here): the
-petrophysics `despikeHampel` null to 0 conversion (open question 1) and
-the absolute pivot test in `lib/linalg/solveDense` (open question 2).
+petrophysics `despikeHampel` null to 0 conversion (open question 1,
+since audited as not live, see below) and the absolute pivot test in
+`lib/linalg/solveDense` (open question 2).
+
+## Zero-MAD wording repair (2026-09-23, fix/dataai-zero-mad-wording)
+
+Found by the D1 Professional key-truth audit. The modified z refusal
+said MAD = 0 when "at least half the present values equal the median".
+That is necessary but not sufficient: `modifiedZScores` on
+`[1, 5, 5, 9]` returns median 5 and MAD 2 (the deviations are
+4, 0, 0, 4, whose median is 2), with exactly half on the median and no
+refusal. The exact condition, for odd and even counts, is that MORE
+than half the present values equal the median (odd n: at least
+(n + 1) / 2; even n: at least n / 2 + 1). Proof sketch: the sorted
+absolute deviations are non-negative, so their median is 0 exactly when
+the middle one (odd n) or both middle ones (even n) are 0, which needs
+more than n / 2 zeros; a zero deviation is a value on the median.
+Checked exhaustively in the oracle's exact arithmetic for every series
+of length 1 to 7 over a 4-value alphabet (21,844 series, 0 mismatches),
+and on the engine at `[1, 5, 5, 9]` (MAD 2), `[1, 5, 5, 5, 9, 9]`
+(MAD 2), `[5, 5, 5, 6, 7]` and `[1, 5, 5, 5, 5, 9]` (both refused).
+
+- Engine message, old: `values have MAD = 0: at least half the present
+  values equal the median, so the modified z-score is undefined`.
+  New: `values have MAD = 0: more than half the present values equal the
+  median, so the modified z-score is undefined`. The refusal DECISION
+  was already right (it tests the computed MAD); only the text changed.
+  The same gloss in the `despikeHampel` comment
+  (`engines/petrophysics/conditioning.js`) is corrected; comment only.
+- Oracle: `o_modz` now decides the refusal from its own exact MAD,
+  asserts that decision equals the counting condition (more than half
+  on the median), and returns the refusal text, which the golden pins
+  (`expected.message`); the jest harness checks the engine prints it
+  exactly. Other refusals still pin field only.
+- New goldens: `modz-exactly-half-on-median-n4` `[1, 5, 5, 9]` (MAD 2,
+  scored), `modz-exactly-half-on-median-n6` `[1, 5, 5, 5, 9, 9]`
+  (MAD 2, scored), `modz-mad-zero-bare-majority-n5` `[5, 5, 5, 6, 7]`
+  (refused), `modz-mad-zero-n-over-2-plus-1-n6` `[1, 5, 5, 5, 5, 9]`
+  (refused); `modz-mad-zero` now carries the message. The two scored
+  cases gain 6 second-witness pins (numpy median, scipy and statsmodels
+  MAD = 2).
+- Negative control: two engine plants (the old wording; refusing at
+  "at least half" on the median) and three oracle plants (old wording;
+  refusing at "at least half"; the cross-check stated as "at least
+  half") in the tables below.
+
+Course impact: any lesson, bank item or help text that glosses zero MAD
+as "at least half equal the median" is wrong in the same way and must
+say "more than half".
 
 ## Negative control (re-run 2026-09-23 after the foundation repair)
 
 Baseline 903 passed. Every ENGINE plant went RED (41/41), then the files
-were restored and the suite returned to 903 passed. The five plants for
+were restored and the suite returned to 903 passed. Re-run after the
+zero-MAD wording repair (same day): baseline 913 passed, ENGINE plants
+43/43 RED, restored to 913 passed; the five zero-MAD rows are the last
+rows of each table. The five plants for
 the foundation repair and the three matching oracle plants are at the
 end of each table. The first run found
 two GREEN plants (phase-sum tolerance taken on the sum; Hampel on the
@@ -336,6 +387,8 @@ below is the re-run.
 | reason figures rounded to 6 decimal places | RED, 3 failed |
 | Hampel nSigma not echoed in the result | RED, 7 failed |
 | Hampel nSigma not echoed in the basis | RED, 7 failed |
+| zero-MAD refusal says at least half (the old wording) | RED, 3 failed |
+| zero-MAD refused at least half on the median | RED, 8 failed |
 
 | plant (oracle, golden regenerated) | result |
 |---|---|
@@ -346,6 +399,9 @@ below is the re-run.
 | oracle z ceiling closed form sample-only | STOP: the ceiling cross-check refused to write a golden |
 | oracle z ceiling from the sample variance for both SDs | STOP: the ceiling cross-check refused to write a golden |
 | oracle number layout switches to exponent form one decade late | STOP: the layout self-check refused to write a golden |
+| oracle zero-MAD refusal says at least half (the old wording) | RED, 3 failed |
+| oracle refuses at least half on the median | RED, 2 failed |
+| oracle cross-check states at least half | STOP: the zero-MAD counting cross-check refused to write a golden |
 
 ## What could not be verified
 
@@ -362,12 +418,50 @@ below is the re-run.
 
 ## Open questions for the lead
 
-1. **`despikeHampel` turns null into 0.** It starts from
-   `Float64Array.from(x)`, and `Float64Array.from([null])` is `[0]`, so a
-   caller that passes null for a missing sample gets a zero that then
-   enters windows as a real value. `quality.hampel` converts missing to
-   NaN first, so D1 is unaffected; the petrophysics callers were not
-   audited here and the function was not changed.
+1. **`despikeHampel` turns null into 0. AUDITED 2026-09-23: NOT LIVE,
+   engine unchanged.** It starts from `Float64Array.from(x)`, and
+   `Float64Array.from([null])` is `[0]`, so a caller that passes null for
+   a missing sample gets 0 at that position in the OUTPUT. (Correction to
+   the earlier wording here: the null does not enter any window. The
+   window reads the input `x`, where `Number.isFinite(null)` is false,
+   so neighbouring decisions are unaffected; only the returned array
+   carries the 0.) Direct call, windows 2 and 3 sigma:
+   `[50, 52, null, 51, 400, 53, null, 50, 52, 51, 50]` returns
+   `[50, 52, 0, 51, 53, 53, 0, 50, 52, 51, 50]`.
+
+   Every caller was audited (engines, Suite main 113d4caf6, NextGen main
+   and the `feat/d1-dataqc-course` branch):
+   - engines: `engines/dataai/quality.js` `hampel` maps missing to NaN
+     before the call and maps NaN back to null in `cleaned`. No other
+     engine imports `conditioning.js` (the facilities "conditioning"
+     hits are gas conditioning and matrix condition numbers).
+   - Suite: the only production caller is Petrophysics Studio
+     `components/ConditioningDialog.jsx` (Despike op), fed from
+     `wellData.curves`. Every curve there is a typed array: the registry
+     backend `downloadCurve` (`src/lib/wellsRegistry.js`) returns a
+     `Float32Array` of the stored float32 bytes, LAS import
+     (`welldata/lasImport.js` `prepareLogs`) writes nulls as NaN into a
+     `Float32Array`, and the harness in-memory backend maps null to NaN
+     into a `Float64Array`. A typed array cannot hold null. Repro through
+     that path: a LAS 2.0 file with `NULL. -999.25` at two GR samples,
+     `parseLas` then `prepareLogs` then `despikeHampel(gr.data, 2, 3)`
+     returns NaN at both null samples (and 53 for the 400 spike), the
+     same as the engine intends. The harness backend's curves were
+     checked: all `Float64Array`, 0 null entries. The Data Quality Studio
+     reaches it only through `quality.hampel`, covered above.
+   - NextGen: vendors `conditioning.js` but nothing imports it. The live
+     courses mention despiking only as prose (porepressure beginner m06
+     l01, seismolord beginner m02 l04 describes the separate 3-point
+     median in `seismolord/synthetics.js`, seismolord intermediate m05
+     l02, welltest intermediate m01 l01, plus bank questions in the
+     dc11, dc19 and rc7 migrations); none quotes a `despikeHampel`
+     output. The D1 `dataqc` branch quotes Hampel figures through
+     `quality.hampel`, which is unaffected.
+
+   Contract for any future caller: pass NaN for a missing sample (or go
+   through `quality.hampel`). If a caller ever needs to pass plain JS
+   arrays with null, fix the engine then (seed `out` with NaN for
+   non-finite inputs) with a golden and a negcontrol plant.
 2. **`solveDense` singular test is absolute** (pivot below 1e-14). For
    Mahalanobis on variables with very small variance (below about 1e-7
    in the caller's units) a well-conditioned covariance could be refused
