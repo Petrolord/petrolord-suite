@@ -9,7 +9,7 @@ const own = (table, key) => typeof key === 'string' && Object.prototype.hasOwnPr
 export const ATTRIBUTE_GROUPS = [
   { label: 'Amplitude and phase', keys: ['envelope', 'inst_phase', 'inst_freq', 'sweetness', 'rms', 'agc', 'rai'] },
   { label: 'Frequency', keys: ['spectral'] },
-  { label: 'Structure', keys: ['dip', 'azimuth', 'curvature_pos', 'curvature_neg'] },
+  { label: 'Structure', keys: ['dip', 'azimuth', 'azimuth_north', 'curvature_pos', 'curvature_neg'] },
   { label: 'Discontinuity and faults', keys: ['variance', 'fault_likelihood', 'edge', 'chaos'] },
 ];
 
@@ -33,6 +33,7 @@ export function groupAttributeDefs(defs) {
 const SUGGESTED_COLORMAP = {
   inst_phase: 'hsv_cycle',
   azimuth: 'hsv_cycle',
+  azimuth_north: 'hsv_cycle',
   curvature_pos: 'cool_warm',
   curvature_neg: 'cool_warm',
   variance: 'gray_wb',

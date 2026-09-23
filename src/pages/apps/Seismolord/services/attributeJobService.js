@@ -12,6 +12,8 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { buildDerivedManifest, brickRelPath, volumeDir, manifestPath } from '../engine/manifest';
 import { ATTRIBUTE_DEFS } from '../engine/attributes';
 import { DISCONTINUITY_DEFS } from '../engine/discontinuity';
+import { mapGradientTransform } from '../engine/structureAttributes';
+import { surveyAffine } from '../engine/surveyGeometry';
 import { SEISMIC_BUCKET, assertQuota } from './seismicStorage';
 import { deleteVolume } from './volumesService';
 import { newAttributeWorker } from './attributeWorkerFactory';
@@ -20,6 +22,23 @@ let nextJobId = 1;
 
 /** Every computable derived-volume attribute: per-trace + neighborhood. */
 export const ALL_ATTRIBUTE_DEFS = { ...ATTRIBUTE_DEFS, ...DISCONTINUITY_DEFS };
+
+/**
+ * Why an attribute cannot be computed on this parent, or null. Today only
+ * map-frame attributes (needsAffine: Dip azimuth, grid north) have a
+ * precondition: the survey's measured orientation.
+ */
+export function attributePrecheck(attributeName, parentManifest) {
+  const def = Object.prototype.hasOwnProperty.call(ALL_ATTRIBUTE_DEFS, attributeName)
+    ? ALL_ATTRIBUTE_DEFS[attributeName] : null;
+  if (!def?.needsAffine) return null;
+  try {
+    mapGradientTransform(surveyAffine(parentManifest?.geometry));
+    return null;
+  } catch (e) {
+    return e.message;
+  }
+}
 
 /** Brick-store footprint of a volume on the parent's lattice. */
 export function derivedStorageBytes(parentManifest) {
@@ -100,6 +119,8 @@ export async function computeAttributeVolume({
   const userId = user.id;
 
   assertFloat32Parent(parentManifest);
+  const why = attributePrecheck(attribute.name, parentManifest);
+  if (why) throw new Error(why);
   await assertQuota(derivedStorageBytes(parentManifest));
 
   const volumeId = crypto.randomUUID();

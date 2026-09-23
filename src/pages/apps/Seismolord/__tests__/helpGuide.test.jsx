@@ -45,7 +45,7 @@ describe('SeismolordHelpGuide', () => {
       'Start here', 'Take the tour', 'Detect faults', 'around the line on screen',
       'Fault likelihood', 'Start from', 'Sensitivity', 'reflector coherence',
       'Edge (Sobel)', 'Chaos', 'Dip azimuth (lattice)', 'Most positive and most negative curvature',
-      'Spectral decomposition', 'Relative acoustic impedance', 'suitable colormap']) {
+      'Spectral decomposition', 'Relative acoustic impedance', 'suitable colormap', 'Dip azimuth (grid north)']) {
       expect(text).toContain(f);
     }
   });

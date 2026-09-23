@@ -12,7 +12,7 @@ jest.mock('@/lib/customSupabaseClient', () => ({ supabase: { storage: { from: ()
 jest.mock('@/components/ui/use-toast', () => ({ useToast: () => ({ toast: () => {} }) }));
 
 /* eslint-disable import/first */
-import { ALL_ATTRIBUTE_DEFS, defaultDerivedName } from '../services/attributeJobService';
+import { ALL_ATTRIBUTE_DEFS, attributePrecheck, defaultDerivedName } from '../services/attributeJobService';
 import { ATTRIBUTE_GROUPS, groupAttributeDefs, suggestedColormap } from '../lib/attributeDisplay';
 import { SEISMIC_COLORMAPS } from '../viewer/SliceRenderer';
 import ComputeAttributeDialog, { paramValue } from '../components/workspace/dialogs/ComputeAttributeDialog';
@@ -20,7 +20,7 @@ import { makeDiscontinuityJob } from '../engine/discontinuityJobs';
 import { makeTraceCompute } from '../engine/attributes';
 /* eslint-enable import/first */
 
-const NEW_KEYS = ['edge', 'dip', 'azimuth', 'chaos', 'curvature_pos', 'curvature_neg', 'spectral', 'rai'];
+const NEW_KEYS = ['edge', 'dip', 'azimuth', 'azimuth_north', 'chaos', 'curvature_pos', 'curvature_neg', 'spectral', 'rai'];
 
 describe('dialog groups', () => {
   test('every registry attribute sits in a named group (nothing falls into Other), each once', () => {
@@ -122,5 +122,55 @@ describe('the new attributes through the worker\'s job builders', () => {
     const out = new Float32Array(geom.ns);
     compute(trace(0, 0), out);
     expect(out.every(Number.isFinite)).toBe(true);
+  });
+});
+
+describe('Dip azimuth (grid north): needs the measured survey orientation', () => {
+  const measured = {
+    geometry: {
+      il: { count: 12 }, xl: { count: 10 }, ns: 60, dt_us: 4000,
+      affine: { origin: { x: 0, y: 0 }, il_vec: { x: 0, y: 25 }, xl_vec: { x: 12.5, y: 0 } },
+    },
+  };
+  const legacy = {
+    geometry: {
+      il: { count: 12 }, xl: { count: 10 }, ns: 60, dt_us: 4000,
+      corners: { first: { x: 0, y: 0 }, last: { x: 112.5, y: 275 } },
+    },
+  };
+
+  test('precheck: measured orientation passes, legacy corners and none give the reason; other attributes never blocked', () => {
+    expect(attributePrecheck('azimuth_north', measured)).toBeNull();
+    expect(attributePrecheck('azimuth_north', legacy)).toMatch(/Re-import the SEG-Y/);
+    expect(attributePrecheck('azimuth_north', { geometry: {} })).toMatch(/survey orientation/);
+    expect(attributePrecheck('azimuth', legacy)).toBeNull();
+    expect(attributePrecheck('constructor', legacy)).toBeNull();
+    expect(suggestedColormap('azimuth_north')).toBe('hsv_cycle');
+  });
+
+  test('the dialog shows the reason and holds Compute for a legacy survey', () => {
+    const manifest = { ...legacy, brick: { count: 8, size: 8 } };
+    render(<ComputeAttributeDialog open onOpenChange={() => {}} volume={{ id: 'v', name: 'F3' }} manifest={manifest} />);
+    fireEvent.change(screen.getByDisplayValue('Envelope (reflection strength)'), { target: { value: 'azimuth_north' } });
+    expect(screen.getByTestId('sl-attr-blocked').textContent).toMatch(/Re-import/);
+    expect(screen.getByRole('button', { name: /Compute/ })).toBeDisabled();
+    fireEvent.change(screen.getByDisplayValue('Dip azimuth (grid north)'), { target: { value: 'azimuth' } });
+    expect(screen.queryByTestId('sl-attr-blocked')).toBeNull();
+  });
+
+  test('through the worker job builder with the survey affine: north for a plane dipping along +inline on an il-north grid', async () => {
+    const geom = { nIl: 12, nXl: 10, ns: 60 };
+    const getTrace = (il, xl) => (il < 0 || il >= geom.nIl || xl < 0 || xl >= geom.nXl ? null
+      : Float32Array.from({ length: geom.ns }, (_, s) => Math.cos((2 * Math.PI * (s - il)) / 12)));
+    // eslint-disable-next-line global-require
+    const { surveyAffine } = require('../engine/surveyGeometry');
+    const job = makeDiscontinuityJob('azimuth_north', {}, { dtUs: 4000, ...geom, affine: surveyAffine(measured.geometry) });
+    const col = await job.computeColumn({
+      getTrace, il0: 4, il1: 6, xl0: 3, xl1: 5, shouldCancel: () => false,
+    });
+    const v = col[4 * geom.ns + 30];
+    expect(Math.min(v, 360 - v)).toBeLessThan(1);
+    expect(() => makeDiscontinuityJob('azimuth_north', {}, { dtUs: 4000, ...geom, affine: surveyAffine(legacy.geometry) }))
+      .toThrow(/Re-import/);
   });
 });

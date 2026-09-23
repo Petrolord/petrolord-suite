@@ -1,6 +1,29 @@
 # Seismolord — STATUS
 
-Last updated: 2026-09-23 (new attributes: edge, chaos, dip, azimuth, curvature, spectral decomposition, RAI; fault picking upgrade: noisy data, Fault likelihood volume, volume inputs; Tops to Horizons: well tops to a named horizon framework, automatic fault picking; large surveys: the viewer reads the v4 display copy, coarse first; Stream C: v4 conversion to a local spool, two-stage resumable background upload; Stream L: slice worker, local-file view, budgeted cache; tester feedback: navigation, slice player, slice toggles, wells, stability; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
+Last updated: 2026-09-23 (Dip azimuth from grid north, fast spectral decomposition; new attributes: edge, chaos, dip, azimuth, curvature, spectral decomposition, RAI; fault picking upgrade: noisy data, Fault likelihood volume, volume inputs; Tops to Horizons: well tops to a named horizon framework, automatic fault picking; large surveys: the viewer reads the v4 display copy, coarse first; Stream C: v4 conversion to a local spool, two-stage resumable background upload; Stream L: slice worker, local-file view, budgeted cache; tester feedback: navigation, slice player, slice toggles, wells, stability; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
+
+## 2026-09-23: Dip azimuth from grid north, fast spectral decomposition
+
+Owner follow-ups after step 4 went live (756cb8ecf). Engines #243 (59b769a)
+vendored; no DDL.
+
+- Dip azimuth (grid north), attribute azimuth_north: the structure-tensor
+  time gradient mapped through the survey affine (G = J^-T g), degrees
+  clockwise from grid north. Rotation, unequal inline/crossline spacing
+  and skew are honoured; the naive lattice angle plus rotation was 63
+  degrees wrong on the gate survey (rotated 30 degrees, 25 x 12.5 m).
+  Known truth within 0.03 degrees. Needs the MEASURED affine: surveys with
+  only the legacy two-corner geometry are refused with a re-import reason,
+  shown in the dialog before anything is registered
+  (attributeJobService.attributePrecheck); volumeJob.worker passes
+  surveyAffine(manifest.geometry). Grid north, so true north differs by
+  the CRS meridian convergence (a possible follow-up).
+- Spectral decomposition: interior windows by three prefix sums (the Hann
+  taper is three exponentials), equal to the isofrequency kernel within
+  1e-9 of the peak, about 20x faster at a 400 ms window. The "known cost"
+  below is resolved.
+- Tests: attributeDisplay.test.jsx (precheck, dialog block, job builder
+  with the affine), helpGuide.
 
 ## 2026-09-23: new attributes (discoverability programme, step 4)
 
