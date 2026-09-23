@@ -58,14 +58,14 @@ describe('missing stays missing', () => {
 });
 
 describe('L/D band per vessel type', () => {
-  test('mirrors the band the engine documents', () => {
+  test('customary band per type, as the engine documents it (Arnold and Stewart)', () => {
     const engine = fs.readFileSync(
       path.resolve(__dirname, '../../../packages/engines/engines/facilities/separatorSizing.js'), 'utf8',
     );
-    expect(engine).toMatch(/3 to 5 for horizontal separators and 2 to 4\s*\n?\s*\*?\s*for vertical/);
-    expect(LD_BAND.vertical2).toEqual({ min: 2, max: 4 });
-    expect(LD_BAND.horizontal2).toEqual({ min: 3, max: 5 });
+    expect(engine).toMatch(/3 to 4 for a two-phase\s*\n?\s*\*?\s*horizontal separator, 3 to 5 for a three-phase one and 2 to 4 for a\s*\n?\s*\*?\s*vertical one/);
+    expect(LD_BAND.horizontal2).toEqual({ min: 3, max: 4 });
     expect(LD_BAND.horizontal3).toEqual({ min: 3, max: 5 });
+    expect(LD_BAND.vertical2).toEqual({ min: 2, max: 4 });
   });
 
   test('switching to vertical moves an untouched band to 2 to 4, and back again', () => {
@@ -113,5 +113,32 @@ describe('no first-row fallback', () => {
     const sel = selectVessel(sweep);
     expect(sel.error).toBeUndefined();
     expect(sel.diameterFt).toBe(3);
+  });
+});
+
+describe('two-phase and three-phase horizontal bands differ; oil density at temperature (2026-09-23)', () => {
+  // eslint-disable-next-line global-require
+  const { oilDensityAtTLbFt3, oilDensityLbFt3 } = require('@/utils/facilities/engine/separatorSizing');
+
+  test('two-phase to three-phase moves an untouched band from 3 to 4 to 3 to 5, and back', () => {
+    const v = defaultInputs().vessel;
+    expect([v.ldMin, v.ldMax]).toEqual(['3', '4']);
+    const three = applyVesselTypeChange(v, 'horizontal3');
+    expect([three.ldMin, three.ldMax]).toEqual(['3', '5']);
+    expect([applyVesselTypeChange(three, 'horizontal2').ldMin, applyVesselTypeChange(three, 'horizontal2').ldMax]).toEqual(['3', '4']);
+  });
+
+  test('the example case still selects a vessel inside the narrower two-phase band', () => {
+    const d = defaultInputs().vessel.diametersFt.split(',').map(Number);
+    expect(d).toContain(4.5);
+  });
+
+  test('the oil density the studio uses is the value at the separator temperature', () => {
+    const p = defaultInputs().process;
+    const hot = oilDensityAtTLbFt3({ apiGravity: Number(p.oilApi), tF: Number(p.tF) }).rhoLbFt3;
+    expect(hot).toBeLessThan(oilDensityLbFt3(Number(p.oilApi)));     // 100 degF is lighter than 60
+    const src = fs.readFileSync(path.resolve(__dirname, '../SeparatorStudioContext.jsx'), 'utf8');
+    expect(src).toContain('oilDensityAtTLbFt3({ apiGravity: num(p.oilApi), tF: num(p.tF) })');
+    expect(src).not.toMatch(/oilDensityLbFt3\(num\(p\.oilApi\)\)/);
   });
 });

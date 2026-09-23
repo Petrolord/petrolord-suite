@@ -143,3 +143,19 @@ effect here was measured rather than assumed.
   floating point for the comparison to have differed; the other five
   rows land on 0.12 exactly or just above it. Recorded here rather than
   silently carried, and raised upstream.
+
+## 2026-09-23: oil density at temperature; two-phase L/D band
+
+Found by the Ekene demo kit facilities build.
+- **Oil density** was the 60 degF value from API gravity at every
+  temperature. The studio now uses `oilDensityAtTLbFt3` (engines #246, API
+  MPMS 11.1 crude expansion): 35 API oil at the example's 100 degF is about
+  1.9 percent lighter. It feeds the gas-load liquid density and the
+  three-phase droplet settling; in the kit's case the vessel is unchanged and
+  the droplets settle faster (25 to 20 s, 49 to 40 s).
+- **L/D band** was 3 to 5 for both horizontal types. Two-phase horizontal is
+  now 3 to 4 and three-phase 3 to 5 (Arnold and Stewart); vertical stays 2 to
+  4. Changing the vessel type still moves only an untouched band. The example
+  case's candidates gain 4.5 and 5 ft, since with 4, 6, 8, 10 and 12 ft the
+  family jumped from L/D 4.65 to 1.38 and nothing sat in the narrower band.
+  Saved studies keep their own band and diameters.
