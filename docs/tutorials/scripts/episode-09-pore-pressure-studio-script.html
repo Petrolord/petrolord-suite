@@ -1,0 +1,818 @@
+<title>Pore Pressure Studio Episode Script</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+  :root{
+    --ground:#F4F6F8;--surface:#FFFFFF;--surface-2:#EDF1F5;
+    --ink:#15202C;--ink-soft:#5C6D80;--ink-faint:#8A99A8;
+    --rule:#DBE2EA;--rule-strong:#C3CEDA;
+    --accent:#0E7490;--accent-soft:#E0F0F4;
+    --warn:#A85B0B;--warn-soft:#FBEEDC;
+    --shadow:0 1px 2px rgba(21,32,44,.05), 0 12px 28px -18px rgba(21,32,44,.28);
+    --f-display:'Archivo','Helvetica Neue',Helvetica,Arial,sans-serif;
+    --f-read:'Source Serif 4',Georgia,'Times New Roman',serif;
+    --f-mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0B1119;--surface:#121A24;--surface-2:#18222E;
+      --ink:#E4EBF2;--ink-soft:#9AAABB;--ink-faint:#6E8093;
+      --rule:#24303D;--rule-strong:#33414F;
+      --accent:#3EC5DE;--accent-soft:#12303A;
+      --warn:#E8AC5A;--warn-soft:#2E2415;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 30px -20px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0B1119;--surface:#121A24;--surface-2:#18222E;
+    --ink:#E4EBF2;--ink-soft:#9AAABB;--ink-faint:#6E8093;
+    --rule:#24303D;--rule-strong:#33414F;
+    --accent:#3EC5DE;--accent-soft:#12303A;
+    --warn:#E8AC5A;--warn-soft:#2E2415;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 30px -20px rgba(0,0,0,.8);
+  }
+
+  *{box-sizing:border-box}
+  body{background:var(--ground);color:var(--ink);font-family:var(--f-read);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1120px;margin:0 auto;padding-inline:20px;padding-block:0 72px}
+
+  .masthead{padding-block:44px 26px;border-bottom:2px solid var(--ink)}
+  .eyebrow{font-family:var(--f-mono);font-size:11px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 14px}
+  h1{font-family:var(--f-display);font-weight:700;font-size:clamp(2rem,5.2vw,3.15rem);line-height:1.02;letter-spacing:-.022em;margin:0;text-wrap:balance}
+  .logline{font-size:clamp(1rem,1.6vw,1.15rem);color:var(--ink-soft);margin:14px 0 0;max-width:64ch}
+  .spec{display:flex;flex-wrap:wrap;gap:0;margin-top:26px;border:1px solid var(--rule-strong);border-radius:3px;background:var(--surface);overflow:hidden}
+  .spec > div{flex:1 1 150px;padding:11px 14px;border-right:1px solid var(--rule)}
+  .spec > div:last-child{border-right:0}
+  .spec dt{font-family:var(--f-mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 3px}
+  .spec dd{margin:0;font-family:var(--f-display);font-weight:600;font-size:15px;font-variant-numeric:tabular-nums;color:var(--ink)}
+
+  .controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:22px;padding:12px 14px;border:1px solid var(--rule);border-radius:3px;background:var(--surface-2)}
+  .switch{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-size:14px;font-weight:500;cursor:pointer}
+  .switch input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+  .switch small{font-family:var(--f-read);font-weight:400;color:var(--ink-soft);font-size:13px}
+  button.copy{font-family:var(--f-mono);font-size:11.5px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);background:transparent;border:1px solid var(--accent);border-radius:2px;padding:6px 11px;cursor:pointer;transition:background .14s ease}
+  button.copy:hover{background:var(--accent-soft)}
+  button.copy:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .controls .spacer{margin-left:auto}
+
+  .brief{margin-top:40px;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:36px}
+  @media (max-width:840px){.brief{grid-template-columns:1fr;gap:30px}}
+  h2.block{font-family:var(--f-display);font-weight:600;font-size:13px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-soft);margin:0 0 14px;padding-bottom:7px;border-bottom:1px solid var(--rule)}
+  ol.steps{margin:0;padding:0;list-style:none;counter-reset:s}
+  ol.steps li{counter-increment:s;position:relative;padding-left:34px;margin-bottom:14px;font-size:15px;color:var(--ink)}
+  ol.steps li::before{content:counter(s);position:absolute;left:0;top:1px;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-family:var(--f-mono);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center}
+  :root[data-theme="dark"] ol.steps li::before{color:#0B1119}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) ol.steps li::before{color:#0B1119}}
+  ol.steps b{font-family:var(--f-display);font-weight:600}
+
+  table.say{width:100%;border-collapse:collapse;font-size:14px}
+  table.say th{text-align:left;font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);font-weight:500;padding:0 12px 7px 0;border-bottom:1px solid var(--rule)}
+  table.say td{padding:6px 12px 6px 0;border-bottom:1px solid var(--rule);vertical-align:top}
+  table.say td:first-child{font-family:var(--f-display);font-weight:600;white-space:nowrap}
+  table.say td:last-child{font-family:var(--f-mono);font-size:13px;color:var(--accent);padding-right:0}
+  .note{margin-top:14px;padding:11px 13px;border-left:3px solid var(--warn);background:var(--warn-soft);font-size:13.5px;color:var(--ink);border-radius:0 2px 2px 0}
+  .note + .note{margin-top:10px}
+  .note b{font-family:var(--f-display);font-weight:600}
+  .note.cool{border-left-color:var(--accent);background:var(--accent-soft)}
+
+  .script{margin-top:52px}
+  .script > h2.block{margin-bottom:0;border-bottom:0}
+  section.sec{background:var(--surface);border:1px solid var(--rule);border-radius:3px;box-shadow:var(--shadow);margin-top:26px;overflow:hidden}
+  .sec-head{padding:16px 20px 0}
+  .sec-title-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px}
+  .sec-num{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.1em;color:#fff;background:var(--ink);padding:3px 7px;border-radius:2px}
+  :root[data-theme="dark"] .sec-num{background:var(--accent);color:#0B1119}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sec-num{background:var(--accent);color:#0B1119}}
+  .sec-title{font-family:var(--f-display);font-weight:600;font-size:clamp(1.15rem,2.2vw,1.42rem);letter-spacing:-.012em;margin:0;text-wrap:balance}
+  .sec-meta{margin-left:auto;font-family:var(--f-mono);font-size:11.5px;color:var(--ink-soft);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .sec-meta .tc{color:var(--accent);font-weight:600}
+  .sec-tools{display:flex;align-items:center;gap:10px;margin-top:10px}
+  .sec-cols,.beat{display:grid;grid-template-columns:minmax(0,33fr) minmax(0,67fr);gap:30px}
+  .sec-cols{padding:14px 20px 7px;font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+  .beats{padding:0 20px 18px}
+  .beat{padding:17px 0;border-top:1px solid var(--rule)}
+  .screen{font-family:var(--f-mono);font-size:12.6px;line-height:1.62;color:var(--ink-soft)}
+  .screen::before{content:'Screen';display:none;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:5px}
+  .screen p{margin:0 0 8px}
+  .screen p:last-child{margin-bottom:0}
+  .screen em{font-style:normal;color:var(--ink);font-weight:500}
+  .vo p{margin:0 0 13px;font-size:17px;line-height:1.68;max-width:64ch}
+  .vo p:last-child{margin-bottom:0}
+  .vo::before{content:'Voice over';display:none;font-family:var(--f-mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:5px}
+  @media (max-width:800px){
+    .sec-cols{display:none}
+    .beat{grid-template-columns:1fr;gap:12px}
+    .screen::before,.vo::before{display:block}
+  }
+  .beat--pause{grid-template-columns:1fr;text-align:center;border-top:1px dashed var(--rule-strong)}
+  .pause{font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--warn)}
+  .pause span{color:var(--ink-faint);letter-spacing:.04em;text-transform:none;font-size:12px}
+
+  .part-break{margin-top:34px;padding:16px 20px;border:1px dashed var(--rule-strong);border-radius:3px;background:var(--surface-2);display:flex;flex-wrap:wrap;align-items:baseline;gap:12px}
+  .part-break b{font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--warn)}
+  .part-break span{font-size:14px;color:var(--ink-soft)}
+
+  .chapters{margin-top:52px}
+  .chap-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  @media (max-width:840px){.chap-grid{grid-template-columns:1fr}}
+  .chap-body{background:var(--surface);border:1px solid var(--rule);border-radius:3px;padding:18px 20px;box-shadow:var(--shadow)}
+  .chap-body h3{font-family:var(--f-display);font-weight:600;font-size:14px;margin:0 0 12px;color:var(--ink)}
+  .chap-list{margin:0;font-family:var(--f-mono);font-size:13px;line-height:1.95}
+  .chap-list div{display:flex;gap:12px}
+  .chap-list b{color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;min-width:48px}
+  .chap-tools{display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:13px;border-top:1px solid var(--rule)}
+
+  footer{margin-top:52px;padding-top:20px;border-top:1px solid var(--rule);font-size:13.5px;color:var(--ink-soft)}
+  footer b{font-family:var(--f-display);font-weight:600;color:var(--ink)}
+  footer p{margin:0 0 12px}
+
+  body.vo-only .brief,
+  body.vo-only .chapters,
+  body.vo-only .spec,
+  body.vo-only .screen,
+  body.vo-only .sec-cols,
+  body.vo-only .sec-tools{display:none}
+  body.vo-only .beat{grid-template-columns:1fr}
+  body.vo-only .beat--pause{text-align:left}
+  body.vo-only .vo p{font-size:18px;max-width:66ch}
+  body.vo-only section.sec{box-shadow:none}
+
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+  @media print{
+    body{background:#fff;color:#000}
+    .controls,.chap-tools,.sec-tools{display:none}
+    section.sec{box-shadow:none;border-color:#999}
+    .beat{break-inside:avoid}
+    .wrap{max-width:none}
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Petrolord Suite · Tutorial series · Episode 9</p>
+    <h1>Pore Pressure Studio</h1>
+    <p class="logline">Voice over script and screen directions for the pressure prognosis walkthrough. Fit a compaction trend, run Eaton and Bowers, and publish the curves the drilling side reads.</p>
+
+    <dl class="spec">
+      <div><dt>Target runtime</dt><dd>21:29</dd></div>
+      <div><dt>Narration</dt><dd>~3,200 words</dd></div>
+      <div><dt>Sections</dt><dd>10</dd></div>
+      <div><dt>Beats</dt><dd>54 + 1 pause</dd></div>
+      <div><dt>Prerequisite</dt><dd>Episodes 1, 2</dd></div>
+      <div><dt>Version</dt><dd>Draft 1</dd></div>
+    </dl>
+  </header>
+
+  <div class="controls">
+    <label class="switch" for="vo-only">
+      <input type="checkbox" id="vo-only">
+      Narration only
+      <small>hides screen directions for a clean read</small>
+    </label>
+    <span class="spacer"></span>
+    <button class="copy" id="copy-all" data-label="Copy full narration">Copy full narration</button>
+  </div>
+
+  <div class="brief">
+    <div>
+      <h2 class="block">Before you record</h2>
+      <ol class="steps">
+        <li><b>A well with a sonic curve, and ideally two wells.</b> The sonic is required. Section 02 contrasts a well that has a density curve with one that does not, where the app substitutes Gardner densities and says so. Having both to hand makes that beat concrete instead of theoretical.</li>
+        <li><b>Know which interval is normally pressured and which is overpressured.</b> Section 05 deliberately puts a compaction trend pick in the wrong place to show the prognosis collapse. That is the most important teaching moment in the episode, and it only works if you can produce it on demand.</li>
+        <li><b>Bring real calibration data if you can.</b> Formation tests, leak-off tests, or mud weights that worked and mud weights that did not. Section 07 is far stronger with real dots on the chart than with invented ones.</li>
+        <li><b>Have a velocity model from Seismolord.</b> Section 08 runs a prognosis with no well at all from a velocity trend calibrated in Episode 6. Without one that section has nothing to show.</li>
+        <li><b>Render section by section, honour the pause.</b> The single pause is the compaction trend fitting and writing back into the dock.</li>
+      </ol>
+      <div class="note cool">
+        <b>The argument this episode is making.</b> Pore pressure is not measured. It is inferred from a trend you fit, through a method you choose, with an exponent you type. Section 01 states it. Section 05 shows the prognosis collapsing when a trend pick lands in overpressured rock. Section 06 warns against tuning the exponent until the answer looks right. Section 07 explains why the calibration points deliberately change nothing. Section 10 closes it. Those five carry the episode.
+      </div>
+      <div class="note">
+        <b>This is the drilling handoff.</b> Section 09 says the published curves are a contract the mechanical earth model reads. If the series continues into the Drilling module, this episode is the hinge, so give that beat its full weight.
+      </div>
+    </div>
+
+    <div>
+      <h2 class="block">Pronunciation</h2>
+      <table class="say">
+        <thead><tr><th>Term</th><th>Say it as</th></tr></thead>
+        <tbody>
+          <tr><td>psi</td><td>P. S. I.</td></tr>
+          <tr><td>ppg</td><td>pounds per gallon</td></tr>
+          <tr><td>sg</td><td>specific gravity</td></tr>
+          <tr><td>MPa</td><td>megapascals</td></tr>
+          <tr><td>CSV, LAS</td><td>C. S. V., L. A. S.</td></tr>
+          <tr><td>EMW, NCT, OBG</td><td>spoken in full</td></tr>
+          <tr><td>Eaton, Bowers, Gardner</td><td>as written</td></tr>
+        </tbody>
+      </table>
+      <div class="note">
+        <b>Every acronym is written out in the Voice over column.</b> This application is dense with them and a voice tool reading EMW or NCT aloud would be unlistenable. The Screen column keeps the short labels, which is what the controls actually show.
+      </div>
+      <div class="note">
+        <b>Say your own depths and numbers.</b> Where the script mentions an exponent of three, that is the published value and should be said as written. Depths, water depths and pressures are examples, so substitute what your own well produces and keep the spoken figure matching the screen.
+      </div>
+    </div>
+  </div>
+
+  <!-- KIT-DATA:START (generated by tools/demo-dataset/sync-episode-scripts.mjs; do not edit by hand) -->
+  <div class="brief kit-data">
+    <div>
+      <h2 class="block">Data for this episode</h2>
+      <p>Everything this episode loads comes from the Ekene demonstration dataset, kit <code>ekene-demo-v1</code>. Download <code>ekene-demo-v1-kit.zip</code> (and, for the seismic episodes, <code>ekene-demo-v1-seismic-full.zip</code>) from <a href="https://github.com/Petrolord/petrolord-suite/releases/tag/ekene-demo-v1">the release page</a> and start with <code>00-START-HERE.md</code>. This block is generated from <code>episodes/episode-09-pore-pressure-studio.md</code> in the kit, so the two always agree.</p>
+      <table class="say">
+        <thead><tr><th>File</th><th>What it is for</th></tr></thead>
+        <tbody>
+          <tr><td><code>01-wells/Ekene-1.las</code></td><td>sonic and density</td></tr>
+          <tr><td><code>01-wells/Ekene-9.las</code></td><td>sonic but NO density, so the Gardner substitution beat has a real well</td></tr>
+          <tr><td><code>05-pressure/ekene-mdt-pressures.csv</code></td><td>formation pressures</td></tr>
+          <tr><td><code>05-pressure/ekene-lot-fit.csv</code></td><td>leak-off and formation integrity tests at the shoes</td></tr>
+          <tr><td><code>05-pressure/ekene-mud-weights.csv</code></td><td>mud weights that worked, and one that did not</td></tr>
+          <tr><td><code>05-pressure/ekene-1-designed-prognosis.csv</code></td><td>the truth, to check yourself against off camera</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h2 class="block">Before the take</h2>
+      <div class="note">Mudline is 60 m MD. Water depth 35 m. The section is normally pressured to 1290 m and overpressured below it, so pick the compaction trend ABOVE 1290 m. Picking it below is the collapse the episode wants. Eaton at exponent 3 returns 12.02 ppg at the reservoir, which is the field's published initial pressure of 3200 psia at 1560 m. The mud weight row that failed is the 11.2 ppg attempt at 1418 m.</div>
+    </div>
+  </div>
+  <!-- KIT-DATA:END -->
+
+  <div class="script">
+    <h2 class="block">Script</h2>
+
+    <!-- 1 -->
+    <section class="sec" id="sec-1">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">01</span>
+          <h3 class="sec-title">Where geoscience becomes a drilling decision</h3>
+          <span class="sec-meta"><span class="tc">00:00</span> · 1:48 · 270 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-1" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Dashboard, Geoscience module. Hold on the <em>Pore Pressure Studio</em> tile, then open it.</p></div>
+          <div class="vo"><p>Every application in this series so far has produced something a geoscientist reads. This one produces a number somebody drills on.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>The workspace with a full prognosis showing. Zoom the ribbon readout with the pressure unit set to pounds per gallon.</p></div>
+          <div class="vo"><p>Pore Pressure Studio takes a well's sonic and density curves and turns them into a pressure prognosis. The weight of everything above you. The pressure of the water in the pores. And the pressure at which the rock breaks. It will hand you all three as an equivalent mud weight, which is the form a well plan actually uses.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Quick cuts, two seconds each: the compaction trend chart, the method parameters in the dock, the published curves listed in Well Data Manager.</p></div>
+          <div class="vo"><p>It is worth being honest at the start about what this is. Pore pressure is not measured. It is inferred, from a trend you fit yourself, through a method you choose, with an exponent you type. Every one of those is a decision, and this application puts all of them in front of you rather than behind a default.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Hold on the full workspace, then move toward the well list.</p></div>
+          <div class="vo"><p>In this video we will load a well, set the water column, fit a compaction trend, run both methods, and publish a prognosis the drilling side can read. Let us pick a well.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section class="sec" id="sec-2">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">02</span>
+          <h3 class="sec-title">Loading a well</h3>
+          <span class="sec-meta"><span class="tc">01:48</span> · 1:50 · 275 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-2" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Left explorer, registry wells. Click one with sonic and density. The prognosis draws.</p></div>
+          <div class="vo"><p>The wells on the left are the registry's, the same ones you have used all series. Click one and it loads.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Hold on the status bar confirming the curves it used.</p></div>
+          <div class="vo"><p>It needs two things. A depth curve and a sonic curve. Without a sonic there is nothing to compare against a compaction trend, so the well will not load at all. Import the L. A. S. file with a sonic in Well Data Manager first.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Select the second well, the one with no density. Zoom the status message naming the Gardner substitution.</p></div>
+          <div class="vo"><p>A density curve is optional but valuable, because that is what the overburden is integrated from. Without one, the app estimates density from velocity using Gardner's relation, and the status bar tells you that it did. That is a perfectly reasonable stand-in, and it is not the same thing as a measurement, so it says so rather than letting you assume.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Show the curve information, pointing at a sonic in microseconds per foot.</p></div>
+          <div class="vo"><p>Units on the way in are handled for you. A sonic in microseconds per foot or per metre, a density in grams per cubic centimetre or in kilograms per cubic metre, all converted as the well loads.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Right dock, point at the <em>Mudline at MD</em> field.</p></div>
+          <div class="vo"><p>One field matters more than it looks. The engine works in depth below the mudline, so it needs to know where the mudline sits on this well's measured depth. That is the mudline field in the dock, and we come back to why it matters in about two minutes.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section class="sec" id="sec-3">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">03</span>
+          <h3 class="sec-title">Units, and the datum that catches people</h3>
+          <span class="sec-meta"><span class="tc">03:38</span> · 2:24 · 360 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-3" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Ribbon, <em>Units</em>. Open the pressure selector showing all four choices.</p></div>
+          <div class="vo"><p>Before anything else, the units. Pressure can be read as megapascals, as pounds per square inch, or as an equivalent mud weight, in pounds per gallon or in specific gravity.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Switch from megapascals to pounds per gallon. Hold wide so the readout, both charts and the dock fields all convert together.</p></div>
+          <div class="vo"><p>Change it and everything moves together. The readout, both charts, the fields in the dock and your calibration points. Even the density fields follow, because the density you want beside a pressure in pounds per square inch is not the one you want beside megapascals.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Hover the tooltip stating that everything stored and computed is SI.</p></div>
+          <div class="vo"><p>And underneath, nothing changes. The engine, the saved project and the published curves are all in pascals and metres, always. The unit selectors are a lens, not a conversion of your work.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Hold on an equivalent mud weight value in the readout.</p></div>
+          <div class="vo"><p>Now the part that catches people. An equivalent mud weight is not a pressure. It is a pressure divided by a depth, so it depends entirely on which depth you divide by.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Set the mudline field to zero and Apply. Read a shallow depth. Then set it correctly, Apply, and read the same depth again.</p></div>
+          <div class="vo"><p>With the mudline field set, the datum is the rotary table, and the depth is the mudline measured depth plus the depth below it. Leave that field at zero and the datum becomes sea level instead, so every shallow sample carries the whole water column in its depth, and your equivalent mud weight near the top looks far too low.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Hover the readout's unit tooltip, then point at the chart axis label naming the datum.</p></div>
+          <div class="vo"><p>The app never leaves you guessing which one is in use. The readout's tooltip says it, the chart axis says it, and it is written into the header of the file you export. If a mud weight ever looks wrong, this is the first thing to check, and it is usually the answer.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section class="sec" id="sec-4">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">04</span>
+          <h3 class="sec-title">The water column, and two of the four curves</h3>
+          <span class="sec-meta"><span class="tc">06:02</span> · 2:00 · 300 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-4" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Dock, <em>Water column</em> group. Type the water depth, the seawater density and the pore fluid density.</p></div>
+          <div class="vo"><p>The Water column group at the top of the dock sets the environment. The water depth, the density of the seawater above the mudline, and the density of the fluid in the pores.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Apply</em>. The chart redraws.</p></div>
+          <div class="vo"><p>Type them and press Apply. Everything in this dock is a draft until you do.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Prognosis chart. Trace the overburden curve with the cursor from top to bottom.</p></div>
+          <div class="vo"><p>Those three numbers build two of the four curves on your chart. The overburden integrates the seawater column over the water depth, and then the bulk density of the rock all the way down the well. It is the weight of everything above.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Trace the hydrostatic curve.</p></div>
+          <div class="vo"><p>And the hydrostatic is your pore fluid density, times gravity, times the depth below the sea surface. That is what the pressure would be if the pore fluid were simply connected to the surface, which in a normally pressured section it effectively is.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at where the pore pressure curve sits on the hydrostatic, then at where it climbs away from it.</p></div>
+          <div class="vo"><p>Which makes the hydrostatic the line that matters most on this chart. Wherever your pore pressure sits on it, the section is normally pressured. Wherever it climbs away from it, you have overpressure, and how far it climbs is what the rest of this application exists to estimate.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section class="sec" id="sec-5">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">05</span>
+          <h3 class="sec-title">The normal compaction trend</h3>
+          <span class="sec-meta"><span class="tc">08:02</span> · 2:51 · 420 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-5" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Click the <em>NCT</em> view. The measured sonic and the trend draw.</p></div>
+          <div class="vo"><p>So, the estimate. Switch to the normal compaction trend view.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Hold on both curves. Trace the trend, then the measured transit time.</p></div>
+          <div class="vo"><p>Two curves. Your measured transit time against depth, and the trend a normally pressured shale would follow. That trend is the matrix transit time plus a mudline excess that decays exponentially as the rock compacts.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at a depth where the two agree, then at a depth where the measured curve is slower.</p></div>
+          <div class="vo"><p>Where those two agree, the rock has compacted normally. Where the measured curve is slower than the trend, the rock is undercompacted. It is holding fluid that should have been squeezed out, and that fluid is carrying part of the load. That gap is the entire basis of the pore pressure estimate.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Type a depth in a normally pressured shale, click <em>Add pick</em>. Repeat three more times at different depths.</p></div>
+          <div class="vo"><p>Which means the trend had better be right. Add picks at depths you believe are normally pressured, in shale. You type the depth and the app takes the transit time from the nearest sample, so you are picking a depth rather than eyeballing a value.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Fit NCT</em>.</p></div>
+          <div class="vo"><p>Then press Fit.</p></div>
+        </div>
+
+        <div class="beat beat--pause" data-pause="3">
+          <div class="pause">Pause 3 seconds. <span>The trend redraws and the values write into the dock. Cut to the dock to show them.</span></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Show the dock's mudline transit time and compaction constant, now populated. Point at the matrix value, unchanged.</p></div>
+          <div class="vo"><p>It solves the mudline transit time and the compaction constant exactly from your picks and writes them straight into the dock. The matrix transit time is left alone, because that is a property of the rock and not something your picks can tell you. And it needs at least two picks, at different depths, with transit times above the matrix value. Fewer than that and it refuses rather than fitting something meaningless.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Add a pick inside the overpressured section, refit, and hold on the trend moving and the pore pressure curve collapsing toward hydrostatic. Then remove it and refit.</p></div>
+          <div class="vo"><p>And here is the warning worth taking seriously. Put a pick in a section that is already overpressured, and you have fitted your normal trend to abnormal rock. The trend moves toward the data, the gap closes, and your prognosis quietly says everything is fine. This is the single biggest lever in the application, and it is a curve you drew.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <div class="part-break">
+      <b>Optional break: end of Part 1</b>
+      <span>The inputs and the trend are set, which is the half that requires care. Part 1 runs 10:53. Part 2 is the methods, the drilling window and the handoff, and opens on section 06 with a ten second recap.</span>
+    </div>
+
+    <!-- 6 -->
+    <section class="sec" id="sec-6">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">06</span>
+          <h3 class="sec-title">Eaton and Bowers</h3>
+          <span class="sec-meta"><span class="tc">10:53</span> · 2:52 · 430 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-6" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Dock, <em>Method</em> group. Show both buttons.</p></div>
+          <div class="vo"><p>With a trend in place, choose a method. There are two, and they think about the problem differently.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Select Eaton. The exponent field appears.</p></div>
+          <div class="vo"><p>Eaton is the classic. It takes the effective stress the overburden would produce, and scales it by the ratio of the normal transit time to the measured one, raised to an exponent.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Set the exponent to three and Apply. Then try one point five, then five, holding on the prognosis moving each time. Return to three.</p></div>
+          <div class="vo"><p>That exponent is the whole method in one number. Three is the published value for sonic, and it is where you should start. Change it and watch the prognosis move. If you find yourself tuning the exponent until the answer matches what you expected, stop, because you are no longer using a method. You are drawing a curve.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Select Bowers. The four fields appear. Point at the A and B fields.</p></div>
+          <div class="vo"><p>Bowers works from the other direction. It inverts the velocity to an effective stress through a loading curve, with two coefficients, A and B, published in feet per second and pounds per square inch, which is why those fields ask for those units regardless of what you are displaying.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Leave the U field empty and Apply. Then fill U and the maximum effective stress and Apply again.</p></div>
+          <div class="vo"><p>Leave the U field empty and you get the loading curve alone, which suits a section where the pressure came from rapid burial. Fill in U and the maximum effective stress, and the unloading curve applies wherever the velocity has reversed.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Cut to the NCT view showing a velocity reversal, then back to the prognosis at that depth.</p></div>
+          <div class="vo"><p>That matters, because a velocity reversal means something specific. The rock was buried, it compacted, and then the pressure came up afterwards, from fluid expansion or from being charged from below. Rock that has been unloaded does not give its velocity back, so a loading curve alone will underestimate the pressure there. Bowers with an unloading branch is how you handle it.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Switch between Eaton and Bowers twice, holding on the difference in the prognosis.</p></div>
+          <div class="vo"><p>Run both. If they agree, that is worth something. If they disagree badly, the disagreement is telling you which mechanism your section actually has, and that is more useful than either answer on its own.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section class="sec" id="sec-7">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">07</span>
+          <h3 class="sec-title">The drilling window, and the calibration points</h3>
+          <span class="sec-meta"><span class="tc">13:45</span> · 2:00 · 300 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-7" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Dock, the Poisson's ratio field. Then the prognosis chart, tracing the fracture curve.</p></div>
+          <div class="vo"><p>The fourth curve is the fracture pressure, and it comes from one number. Poisson's ratio.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Shade or point along the gap between the pore pressure and fracture pressure curves.</p></div>
+          <div class="vo"><p>It estimates the minimum horizontal stress as the pore pressure plus the effective overburden, scaled by the ratio of Poisson's ratio to one minus it. And the gap between the pore pressure and the fracture pressure is your drilling window. That gap is the reason this whole application exists, because it is what decides where casing has to go.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Dock, the calibration box. Type two or three lines of depth and pressure.</p></div>
+          <div class="vo"><p>Then the calibration box. Type a depth and a pressure on each line, in whatever units you are displaying. Formation tests, leak-off tests, mud weights that worked and mud weights that did not.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Apply</em>. The points appear as dots on the prognosis.</p></div>
+          <div class="vo"><p>They appear as dots on the prognosis. And they change nothing. The app does not fit to them, does not bend a curve toward them, and does not warn you when it misses them.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Hold on a calibration dot that the prognosis misses.</p></div>
+          <div class="vo"><p>That is deliberate, and it puts the judgment where it belongs. Your job is to look at those dots and decide whether the model is close enough. If it is not, go back and change the trend, or the exponent, or the method, for a reason you can state out loud. Not because a button moved the curve for you.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 8 -->
+    <section class="sec" id="sec-8">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">08</span>
+          <h3 class="sec-title">Reading it, and a prognosis with no well</h3>
+          <span class="sec-meta"><span class="tc">15:45</span> · 2:00 · 300 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-8" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p><em>Prognosis</em> view. Type a depth into the ribbon readout field. Zoom the four values.</p></div>
+          <div class="vo"><p>Back on the Prognosis view, type a depth into the ribbon and read all four numbers at once. Overburden, hydrostatic, pore pressure and fracture gradient, at that depth, in your chosen unit.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Switch the pressure unit to pounds per gallon and read the same depth again.</p></div>
+          <div class="vo"><p>Switch to equivalent mud weight and you have the numbers a well plan wants. What to hold, and what not to exceed.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Left explorer, scroll to <em>Seismic velocity trends</em>. Select one from Episode 6.</p></div>
+          <div class="vo"><p>One other input is worth knowing about. Below the wells sits a list of seismic velocity trends. Those are the velocity models you calibrated in Seismolord, back in the sixth episode.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>The prognosis draws from the trend. Zoom the trend-grade badge and hover its tooltip.</p></div>
+          <div class="vo"><p>Choose one and you get a prognosis with no well at all. That is genuinely useful before you have drilled anything. But look at the badge. It says trend-grade, and it means exactly what it says. A regional velocity trend constrains the regional pressure trend. It carries no local anomaly, because a smooth function of depth cannot contain one.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at the <em>Publish</em> button, unavailable while a trend is selected.</p></div>
+          <div class="vo"><p>And Publish is unavailable for a trend, because there is no well to write it to. Use it to frame the problem before you spud. Do not use it to plan a casing shoe.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 9 -->
+    <section class="sec" id="sec-9">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">09</span>
+          <h3 class="sec-title">Publish, export, save</h3>
+          <span class="sec-meta"><span class="tc">17:45</span> · 2:20 · 350 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-9" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Select the well again. Click <em>Publish</em>. Hold on the confirmation.</p></div>
+          <div class="vo"><p>When the prognosis is one you will stand behind, publish it.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Cut to Well Data Manager, Logs tab, showing the three new curves with their provenance.</p></div>
+          <div class="vo"><p>It writes three curves back to the well in the registry. Pore pressure, fracture pressure and overburden, in megapascals, with the method, the parameters and the input curves recorded in the provenance.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Change a parameter, Apply, publish again. Show the three curves replaced and other applications' curves untouched.</p></div>
+          <div class="vo"><p>Publish again from the same project and those three are replaced. Curves that other applications published are left alone. So iterating on your prognosis does not quietly accumulate five versions of pore pressure on the same well.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Hover the Publish tooltip. Hold so the wording is readable.</p></div>
+          <div class="vo"><p>And this is a contract, not just a convenience. Those three curves are what the mechanical earth model on the drilling side reads. When you publish, you are handing your interpretation to the people who will use it to choose a mud weight.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Prognosis CSV</em>. Open the file and hold on the mud weight columns and the datum line in the header.</p></div>
+          <div class="vo"><p>Prognosis C. S. V. downloads the whole profile in your chosen units, with equivalent mud weight columns in both pounds per gallon and specific gravity, and the datum written into the header. That is the table a well plan needs, in the form it needs it.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Save</em>. Hold on the confirmation.</p></div>
+          <div class="vo"><p>And Save keeps your parameters, your picks and your calibration points as a project, so the prognosis is reproducible rather than remembered.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section class="sec" id="sec-10">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">10</span>
+          <h3 class="sec-title">Wrap up</h3>
+          <span class="sec-meta"><span class="tc">20:05</span> · 1:24 · 210 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-10" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Pull back to the four-curve prognosis with the drilling window clearly visible.</p></div>
+          <div class="vo"><p>So that is Pore Pressure Studio. A compaction trend you fitted, a method you chose, a Poisson's ratio you typed, and four curves that between them define a drilling window.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Hold on the calibration dots sitting against the curves.</p></div>
+          <div class="vo"><p>One habit to leave you with, and it is a short one. Before you publish anything, put your calibration points in and look at them. Not to fit the model to them. To find out whether the model you have already built agrees with the pressures that were actually measured in this basin.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Slow zoom onto the gap between the pore pressure and fracture pressure curves.</p></div>
+          <div class="vo"><p>Because the next person to use these curves is not going to read your parameters. They are going to read a mud weight off them, and drill on it.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>End card with the series name.</p></div>
+          <div class="vo"><p>Thanks for watching.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+  </div>
+
+  <div class="chapters">
+    <h2 class="block">Chapter timestamps for the video description</h2>
+    <div class="chap-grid">
+      <div class="chap-body">
+        <h3>Single video, 21:29</h3>
+        <div class="chap-list" id="chap-single">
+          <div><b>0:00</b> Where geoscience becomes a drilling decision</div>
+          <div><b>1:48</b> Loading a well</div>
+          <div><b>3:38</b> Units, and the datum that catches people</div>
+          <div><b>6:02</b> The water column, and two of the four curves</div>
+          <div><b>8:02</b> The normal compaction trend</div>
+          <div><b>10:53</b> Eaton and Bowers</div>
+          <div><b>13:45</b> The drilling window, and the calibration points</div>
+          <div><b>15:45</b> Reading it, and a prognosis with no well</div>
+          <div><b>17:45</b> Publish, export, save</div>
+          <div><b>20:05</b> Wrap up</div>
+        </div>
+        <div class="chap-tools"><button class="copy" id="copy-single" data-label="Copy timestamps">Copy timestamps</button></div>
+      </div>
+
+      <div class="chap-body">
+        <h3>Two parts, 10:53 and 10:46</h3>
+        <div class="chap-list" id="chap-split">
+          <div><b>P1 0:00</b> Where geoscience becomes a drilling decision</div>
+          <div><b>P1 1:48</b> Loading a well</div>
+          <div><b>P1 3:38</b> Units, and the datum that catches people</div>
+          <div><b>P1 6:02</b> The water column, and two of the four curves</div>
+          <div><b>P1 8:02</b> The normal compaction trend</div>
+          <div><b>P2 0:00</b> Eaton and Bowers</div>
+          <div><b>P2 2:52</b> The drilling window, and the calibration points</div>
+          <div><b>P2 4:52</b> Reading it, and a prognosis with no well</div>
+          <div><b>P2 6:52</b> Publish, export, save</div>
+          <div><b>P2 9:12</b> Wrap up</div>
+        </div>
+        <div class="chap-tools"><button class="copy" id="copy-split" data-label="Copy timestamps">Copy timestamps</button></div>
+      </div>
+    </div>
+    <div class="note" style="margin-top:16px">
+      <b>Targets only.</b> Re-stamp every timestamp from the finished audio before publishing. Part 2 times fold in a ten second recap at the head, which is not in this script and should be improvised on the day.
+    </div>
+  </div>
+
+  <footer>
+    <p><b>Series position.</b> This is the hinge episode. Everything before it produced work for geoscientists, and this one produces a mud weight. If the series continues into the Drilling module, Well Design Studio and the casing programme both start from what gets published here, so section 09 is the beat that sets up the next act.</p>
+    <p><b>Tone note.</b> This episode is more cautionary than the others, deliberately. Four of its ten sections warn about something rather than teach a control. That is the right balance for a subject where being confidently wrong costs a well, and it should not be softened in the read. Deliver those beats plainly, without hedging and without drama.</p>
+    <p><b>Accuracy note.</b> Every field, unit choice, refusal and default in this script matches the shipping application at the time of writing. If a label changes, fix the script before the next take rather than talking around it on camera.</p>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  var body = document.body;
+  var KEY = 'pp-episode-script.vo-only';
+  var toggle = document.getElementById('vo-only');
+
+  try {
+    if (localStorage.getItem(KEY) === '1') { toggle.checked = true; body.classList.add('vo-only'); }
+  } catch (e) { /* storage unavailable: default view is correct */ }
+
+  toggle.addEventListener('change', function () {
+    body.classList.toggle('vo-only', toggle.checked);
+    try { localStorage.setItem(KEY, toggle.checked ? '1' : '0'); } catch (e) {}
+  });
+
+  function narrationOf(scope) {
+    var out = [];
+    scope.querySelectorAll('.beat').forEach(function (beat) {
+      if (beat.dataset.pause) { out.push('[PAUSE ' + beat.dataset.pause + 's]'); return; }
+      beat.querySelectorAll('.vo p').forEach(function (p) {
+        out.push(p.textContent.replace(/\s+/g, ' ').trim());
+      });
+    });
+    return out.join('\n\n');
+  }
+
+  function flash(btn) {
+    var label = btn.dataset.label;
+    btn.textContent = 'Copied';
+    setTimeout(function () { btn.textContent = label; }, 1600);
+  }
+
+  function fallbackCopy(text, btn) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); flash(btn); } catch (e) { btn.textContent = 'Select and copy manually'; }
+    document.body.removeChild(ta);
+  }
+
+  function copy(text, btn) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(function () { flash(btn); }, function () { fallbackCopy(text, btn); });
+      } else { fallbackCopy(text, btn); }
+    } catch (e) { fallbackCopy(text, btn); }
+  }
+
+  document.querySelectorAll('button.copy[data-copy]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var sec = document.getElementById(btn.dataset.copy);
+      if (sec) copy(narrationOf(sec), btn);
+    });
+  });
+
+  document.getElementById('copy-all').addEventListener('click', function () {
+    var btn = this;
+    var parts = [];
+    document.querySelectorAll('section.sec').forEach(function (sec) {
+      var title = sec.querySelector('.sec-title').textContent.trim();
+      var num = sec.querySelector('.sec-num').textContent.trim();
+      parts.push('=== ' + num + ' ' + title + ' ===\n\n' + narrationOf(sec));
+    });
+    copy(parts.join('\n\n\n'), btn);
+  });
+
+  function listCopier(btnId, listId) {
+    var btn = document.getElementById(btnId);
+    btn.addEventListener('click', function () {
+      var lines = [];
+      document.querySelectorAll('#' + listId + ' div').forEach(function (row) {
+        lines.push(row.textContent.replace(/\s+/g, ' ').trim());
+      });
+      copy(lines.join('\n'), btn);
+    });
+  }
+  listCopier('copy-single', 'chap-single');
+  listCopier('copy-split', 'chap-split');
+})();
+</script>
