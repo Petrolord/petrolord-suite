@@ -35,6 +35,8 @@ const AuthProviderContent = ({ children }) => {
     // PS0: the ninth module. Slug process-safety, never 'hse' (the external
     // HSE portal owns that id and the hse_free / hse_premium entitlements).
     'process-safety',
+    // DA0: the tenth module, Data & AI (slug data-ai, tables dai_*).
+    'data-ai',
   ], []);
 
   const allApps = useMemo(() => [
@@ -66,7 +68,11 @@ const AuthProviderContent = ({ children }) => {
     // Process Safety (PS0). Registered here so the module can be quoted and
     // licensed from the day its tiles exist; every one is Coming Soon until
     // the phase that ships its build (PS1-PS3).
-    'lopa-sil-studio', 'consequence-studio', 'qra-studio'
+    'lopa-sil-studio', 'consequence-studio', 'qra-studio',
+    // Data & AI (DA0). Registered here so the module can be quoted and
+    // licensed from the day its tiles exist; every one is Coming Soon until
+    // the wave that ships its build (D1-D4).
+    'data-quality-studio', 'ml-workbench', 'electrofacies-studio', 'forecasting-ml-workbench'
   ], []);
 
   const fetchUserOrgAndPermissions = useCallback(async (userId) => {

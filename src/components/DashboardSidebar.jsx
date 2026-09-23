@@ -15,6 +15,7 @@ import {
   Factory, 
   Container,
   Flame,
+  ScatterChart,
   ShieldCheck, 
   Settings, 
   Users, 
@@ -140,6 +141,7 @@ const DashboardSidebar = () => {
           <SidebarItem icon={ShieldCheck} label="Assurance" to="/dashboard/assurance" />
           <SidebarItem icon={Container} label="Midstream & Downstream" to="/dashboard/midstream-downstream" />
           <SidebarItem icon={Flame} label="Process Safety" to="/dashboard/process-safety" />
+          <SidebarItem icon={ScatterChart} label="Data & AI" to="/dashboard/data-ai" />
           
           <SidebarItem icon={HardHat} label="HSE Portal" to="/hse" />
 

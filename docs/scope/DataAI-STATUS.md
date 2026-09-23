@@ -46,7 +46,43 @@ describes ML features but nothing renders it.
 Verification: production build green; the wellspacing, digitizer and
 contour suites pass (8 suites, 64 tests).
 
+## DA0: the Data & AI module scaffold (2026-09-23)
+
+Branch `feat/da0-data-ai-module`. The Suite's tenth module, scaffolded
+exactly as Process Safety was at PS0 (Suite PR #533, on the DS0 recipe
+41f86e031). Roadmap: `docs/scope/DataAI-ROADMAP.md`.
+
+- **Collisions checked first.** Nothing in routes, modules, entitlements,
+  pricing, master_apps migrations or the Supabase functions used `data-ai`,
+  `dai_`, "Data & AI" or any of the four app slugs. `moduleSegment('Data &
+  AI')` is `data-ai`, so the display name and the slug route to the same
+  place. The only near miss is migration naming: an unrelated
+  `20260826100000_d0_drilling_honest_catalog.sql` uses `_d0_`, so wave
+  migrations are `_d1_` to `_d4_`.
+- **Registration:** `allModules` (`data-ai`) and `allApps`
+  (`data-quality-studio`, `ml-workbench`, `electrofacies-studio`,
+  `forecasting-ml-workbench`) in SupabaseAuthContext; dashboard card and
+  sidebar item (lucide `ScatterChart`, sky); `DataAiHub` at
+  `/dashboard/data-ai` on the ApplicationsGrid pattern, filter = display
+  name `Data & AI`; adminHelpers mapping (exact names only, since "data"
+  and "ai" occur inside other names) and module list; SuperAdminConsole
+  fallback; `MODULE_LABELS`. AI Evaluation Studio (D5) has no tile and no
+  slug in this run.
+- **Seed, HELD:** `20260923120000_da0_seed_data_ai_module.sql`, modules row
+  plus four Coming Soon tiles (is_built and is_functional false), both
+  `module` and `module_id` set, idempotent, %ROWTYPE copy of an Active
+  Geoscience row (tiles inherit its a la carte `master_apps.price`, as the
+  PS0 tiles inherited Facilities'). Logged in MIGRATIONS.md as NOT APPLIED.
+  **Owner step:** apply it with the prod upload that ships this build:
+  `supabase db query --linked -f supabase/migrations/20260923120000_da0_seed_data_ai_module.sql`.
+- **Held for D1:** module pricing (the owner sets the price) and the
+  marketing module counts (nine to ten).
+- **Test:** `src/__tests__/dataAiRegistration.test.js`. The PS0 test pinned
+  every migration after its seed to `ps*`, which any later module breaks;
+  it now pins only the range up to the last PS3 migration.
+
 ## Next
 
 D1 `dataqc` engine: `engines/dataai/quality.js` with a stdlib Python
-oracle, golden and negative control in petrolord-engines.
+oracle, golden and negative control in petrolord-engines, then the Data
+Quality Studio app in this module and the module pricing.

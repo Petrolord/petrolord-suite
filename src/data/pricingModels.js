@@ -64,6 +64,14 @@ export const seatTierRate = (nthSeat) => {
 // which would cost more than the module's three planned apps a la carte
 // (2,097), so it is priced at 1,999: 2.86x, inside the rule's tested band and
 // below a la carte. Migration 20260919230000; ProcessSafety-ROADMAP.md.
+//
+// Data & AI (DA0) is deliberately ABSENT, the way Process Safety was at PS0.
+// The module is registered for navigation and entitlements, but all four of
+// its apps are Coming Soon, and pricing it now would let a customer buy a
+// module with nothing in it. generate-quote refuses to quote a module it has
+// no price for, so leaving it out is safe. It joins this table, the server
+// fallback and pricing_config.module_pricing when its first app ships (D1,
+// DataAI-ROADMAP.md); the price is the owner's to set.
 export const MODULE_PRICING = {
   geoscience: 2999,
   drilling: 3299,
