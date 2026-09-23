@@ -69,7 +69,11 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
   const settingsKey = JSON.stringify(well.settings || {});
   const headerKey = JSON.stringify(well.header || {});
   useEffect(() => { setSettings(JSON.parse(settingsKey)); setHeader(JSON.parse(headerKey)); }, [settingsKey, headerKey]);
+  // same rule for the rig: a reload after saving hands over an equal payload and must not overwrite a
+  // value being typed; only a configuration with different content resets the editors
+  const rigKey = JSON.stringify(rigConfig || null);
   useEffect(() => {
+    const rigConfig = JSON.parse(rigKey);
     if (!rigConfig) return;
     setSections(sectionsToRows(rigConfig.hole_sections)); setBha(bhaToRows(rigConfig.bha));
     if (rigConfig.drillpipe) setDp(dpToState(rigConfig.drillpipe));
@@ -77,7 +81,7 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
     setRigType(rigConfig.rig_type || 'land');
     if (rigConfig.riser) setRiser(riserToState(rigConfig.riser));
     if (rigConfig.booster) setBooster(Object.fromEntries(Object.entries(rigConfig.booster).map(([k, v]) => [k, String(v)])));
-  }, [rigConfig]);
+  }, [rigKey]);
 
   const disp = useMemo(() => {
     try {
