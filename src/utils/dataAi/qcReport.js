@@ -2,6 +2,9 @@
 //
 // Layout only. Every score, flag, rule and reason is the engine's, taken
 // from runQcProfile; every parameter is the profile text the run used.
+// Reasons are written exactly as the engine printed them, every figure at
+// full round-trip precision (the screen shortens them; exports do not), and
+// a flag row's value column carries the engine's flagged value unrounded.
 import { SCORE_BASIS, dimensionLabel } from '@/utils/dataAi/qcProfile';
 
 const q = (v) => {
@@ -49,6 +52,7 @@ export function buildReportCsv({ runName, dataset, profile, run }) {
   (run?.flags || []).forEach((f) => row({
     record: 'flag', dimension: f.dimension, method: f.method, channel: f.channel, at: f.at,
     sample: f.index === null || f.index === undefined ? '' : f.index + 1, rule: f.rule, reason: f.reason,
+    value: f.value === null || f.value === undefined ? '' : String(f.value),
   }));
   (run?.results || []).filter((r) => r.result && r.result.error).forEach((r) => row({
     record: 'refused', dimension: r.dimension, method: r.method, channel: r.channel, reason: r.result.error,

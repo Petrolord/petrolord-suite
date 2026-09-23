@@ -165,7 +165,7 @@ const MahalanobisChart = ({ dataset, run }) => {
   return (
     <div className="space-y-2">
       <p className="text-xs text-slate-400">
-        {m.channels.join(' + ')}: {r.n} complete rows, {r.skippedRows.length} skipped for a missing value, cutoff {fmt(r.cutoff)} (chi-square {fmt(1 - r.alpha)} quantile on {r.p} degrees of freedom), {r.flags.length} rows beyond it.
+        {m.channels.join(' + ')}: {r.n} complete rows, {r.skippedRows.length} skipped for a missing value, cutoff {fmt(r.cutoff)} (chi-square {fmt(r.level)} quantile on {r.p} degrees of freedom), {r.flags.length} rows beyond it.
       </p>
       <Frame testId="mahalanobis-chart">
         <ComposedChart data={data} margin={CHART_MARGINS.legend}>
