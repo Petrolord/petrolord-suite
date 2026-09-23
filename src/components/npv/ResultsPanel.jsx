@@ -41,6 +41,10 @@ const ResultsPanel = ({ results, onRerunRisk, riskRunning = false }) => {
     'above-clamp': 'the IRR is above 1000 percent, beyond the range this engine searches',
     'multiple-roots': 'more than one rate zeroes this cash flow, so no single IRR describes it',
   };
+  // above the band is a return only when NPV is positive at the discount rate
+  const irrReasonFor = (m) => (m.irrStatus === 'above-clamp' && Number(m.npv) < 0
+    ? 'no IRR: the only rate that zeroes the NPV is above 1000 percent, and the project loses value at the discount rate'
+    : IRR_REASON[m.irrStatus]);
 
   // EC3-1 / EC3-2: payback is the first time the cumulative cash flow turns
   // non-negative. The engine now says what happened around that number, so
@@ -67,7 +71,7 @@ const ResultsPanel = ({ results, onRerunRisk, riskRunning = false }) => {
       const summaryData = [
           ['Metric', 'Value'],
           ['NPV @ 10%', metrics.npv],
-          ['IRR', metrics.irr === null ? (IRR_REASON[metrics.irrStatus] || 'not defined') : metrics.irr],
+          ['IRR', metrics.irr === null ? (irrReasonFor(metrics) || 'not defined') : metrics.irr],
           ['Payback', metrics.payback === null ? (paybackNote(metrics) || 'not defined') : metrics.payback],
           ['Payback note', paybackNote(metrics) || ''],
           ['Max Exposure', metrics.maxExposure],
@@ -108,7 +112,7 @@ const ResultsPanel = ({ results, onRerunRisk, riskRunning = false }) => {
           body: [
               ['Net Present Value (NPV)', compactCurrency(metrics.npv), '$'],
               ['Internal Rate of Return (IRR)',
-                metrics.irr === null ? (IRR_REASON[metrics.irrStatus] || 'not defined') : metrics.irr.toFixed(1),
+                metrics.irr === null ? (irrReasonFor(metrics) || 'not defined') : metrics.irr.toFixed(1),
                 metrics.irr === null ? '' : '%'],
               ['Payback Period',
                 metrics.payback === null ? (paybackNote(metrics) || 'not defined') : formatYears(metrics.payback),
@@ -181,8 +185,8 @@ const ResultsPanel = ({ results, onRerunRisk, riskRunning = false }) => {
                     <Card className="bg-slate-900 border-slate-800 p-4">
                         <p className="text-xs text-slate-500 uppercase font-semibold">Internal Rate of Return</p>
                         <p className={`text-2xl font-bold ${getKPICardColor('IRR', metrics.irr)}`}>{formatPct(metrics.irr)}</p>
-                        {metrics.irr === null && IRR_REASON[metrics.irrStatus] ? (
-                          <p className="text-[11px] text-slate-500 mt-1">{IRR_REASON[metrics.irrStatus]}</p>
+                        {metrics.irr === null && irrReasonFor(metrics) ? (
+                          <p className="text-[11px] text-slate-500 mt-1">{irrReasonFor(metrics)}</p>
                         ) : null}
                     </Card>
                     <Card className="bg-slate-900 border-slate-800 p-4">

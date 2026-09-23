@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { payloadEscalators, followsInflation, simpleEscalators } from '@/pages/apps/epe/epeEscalation';
 import { labelForConfigKey } from '@/pages/apps/epe/epeConfigLabels';
 
 // Wave E (audit 4.3): the pricing + economics subset an assumption set pins.
@@ -146,13 +147,14 @@ const EpeRunConsole = () => {
   // about are taken; DB nulls fall back to the field's default so a partial
   // legacy row cannot blank out required inputs.
   const applyConfigRow = useCallback((row) => {
-    setConfig(() => {
-      const next = { ...DEFAULT_CONFIG };
-      for (const key of Object.keys(DEFAULT_CONFIG)) {
-        if (row[key] !== null && row[key] !== undefined) next[key] = row[key];
-      }
-      return next;
-    });
+    const next = { ...DEFAULT_CONFIG };
+    for (const key of Object.keys(DEFAULT_CONFIG)) {
+      if (row[key] !== null && row[key] !== undefined) next[key] = row[key];
+    }
+    setConfig(next);
+    // a configuration saved with its own escalators opens per stream, so
+    // simple mode never overwrites them on the next run
+    setShowAdvancedEscalation(!followsInflation(next));
     setValidationErrors({});
   }, []);
 
@@ -249,6 +251,7 @@ const EpeRunConsole = () => {
         }
         return next;
       });
+      if (!followsInflation(payload, config)) setShowAdvancedEscalation(true);
       setValidationErrors({});
       toast({
         title: `Applied "${row.name}"`,
@@ -424,11 +427,9 @@ const EpeRunConsole = () => {
         psc_contractor_profit_share_pct: config.psc_contractor_profit_share_pct,
         psc_tax_rate_pct: config.psc_tax_rate_pct,
         // ---- B1 additions ----
-        oil_price_escalator_pct: config.oil_price_escalator_pct,
-        gas_price_escalator_pct: config.gas_price_escalator_pct,
-        condensate_price_escalator_pct: config.condensate_price_escalator_pct,
-        opex_escalator_pct: config.opex_escalator_pct,
-        capex_escalator_pct: config.capex_escalator_pct,
+        // simple mode sends what it says on screen: inflation for the four
+        // streams, capex nominal (epeEscalation)
+        ...payloadEscalators(config, showAdvancedEscalation),
         present_value_basis: config.present_value_basis,
         // ---- B2 PIA additions ----
         pia_terrain: config.pia_terrain,
@@ -1102,7 +1103,14 @@ const EpeRunConsole = () => {
               <h2 className="text-white text-lg font-semibold">Escalation & PV Basis</h2>
               <button
                 type="button"
-                onClick={() => setShowAdvancedEscalation((v) => !v)}
+                onClick={() => {
+                  // opening per-stream starts from the rates simple mode was
+                  // using, so the fields show what the last run would send
+                  if (!showAdvancedEscalation) {
+                    setConfig((prev) => ({ ...prev, ...simpleEscalators(prev.inflation_rate_pct) }));
+                  }
+                  setShowAdvancedEscalation((v) => !v);
+                }}
                 className="text-xs text-cyan-300 hover:text-cyan-200 underline"
               >
                 {showAdvancedEscalation ? 'Use simple inflation' : 'Customize per stream'}

@@ -33,7 +33,9 @@ export const irrText = (row) => {
   } else if (status === IRR_STATUSES.NO_ROOT) {
     reason = `no IRR: no rate from ${IRR_BAND_LOWER_PCT} to ${IRR_BAND_UPPER_PCT} percent brings NPV to zero`;
   } else if (status === IRR_STATUSES.ABOVE_CLAMP) {
-    reason = `IRR above ${IRR_BAND_UPPER_PCT} percent, beyond the band searched`;
+    reason = Number(row.npv) < 0
+      ? `no IRR: the only rate that zeroes NPV is above ${IRR_BAND_UPPER_PCT} percent, and the contractor loses value at the discount rate`
+      : `IRR above ${IRR_BAND_UPPER_PCT} percent, beyond the band searched`;
   } else if (status === IRR_STATUSES.MULTIPLE_ROOTS) {
     const roots = Array.isArray(row.irrRoots) ? row.irrRoots.filter(Number.isFinite).map(pct) : [];
     if (row.irrRootAboveBand) roots.push(`a rate above ${IRR_BAND_UPPER_PCT} percent`);

@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 59b769a4d97d421bb2d0fe48af55c7f2ae797f74
+# commit c3010e9590f70f72ee196f4485401aa5f0300a31
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 44371728287830202289219a9fda0cae460e5a55 README.md
@@ -305,7 +305,7 @@ b88650a1f6b15687650d68a6be4ab8538aa9be24 engines/earthmodeling/volumes.js
 3aa4cd1dd35ad60ede5d0f149a4004fed02a6e1b engines/earthmodeling/wellties.js
 52d840d950b16f55675bcc4862102e58760c2184 engines/economics/afe.js
 98e518c240a47e79ee0b35b7a669dcd71f647ace engines/economics/breakeven.js
-52c3068c267f7588d1f3c416ac6e17a15eaae650 engines/economics/cashflow.ts
+61533bb2c42e5ae3ed1320c729dce3bd65fa8542 engines/economics/cashflow.ts
 50ac7531ccf97001e32ef6e50476f32c88551f4c engines/economics/decisionTree.js
 ebf138f5d367fa684b0f70d650f6829f76c99abd engines/economics/fdp/conceptCalculations.js
 ccedb284993b83b7ddd63e33b21c7b5098b42cab engines/economics/fdp/costCalculations.js
@@ -614,7 +614,7 @@ a42a29457680908fb59e428236c5e47154141e9f test-data/earthmodel/adjust_cases.json
 f42c13a5d164ce99f8b027111b1a32455fb4b701 test-data/economics/fixtures/pia-worked-example.json
 66cbc1fb874b8efd4ac7f0f583f53395e1c579f8 test-data/economics/goldens/afe_cases.json
 219c479a3fc0fe1a3c4d3efabf75eaf6297caf24 test-data/economics/goldens/breakeven_cases.json
-0c09bafc261852577a735a1c983e35c243b2dbca test-data/economics/goldens/cashflow_cases.json
+50f9a54ec67a13ea28ba3ab5a7dbe145b79f3b3c test-data/economics/goldens/cashflow_cases.json
 01430c7961199cffb8d04619272118d9150811c4 test-data/economics/goldens/decision_cases.json
 b410a67f1b2af570f84f5811e4a9d210f625f4e2 test-data/economics/goldens/fdp_cases.json
 6696f491651e95538f1d0bf68af805101f446b01 test-data/economics/goldens/fiscal_cases.json
@@ -847,7 +847,7 @@ f2f0e5c7fd80e980507fd7e2f24d1c4cbfaeb40e tools/validation/economics/FINDINGS-cas
 4441a75e5c7b1b3b4f37f007a917b11e0aaf3097 tools/validation/economics/FINDINGS-fiscal.md
 bce4fbc2547a687342680f13c7a185529ddd68e3 tools/validation/economics/oracle_afe.py
 e6dd91ae193d79c110395aaa4b89fa74c1e5174e tools/validation/economics/oracle_breakeven.py
-6b877405ac4ed5f9216c764a57f9285676c27a10 tools/validation/economics/oracle_cashflow.py
+159f6ff0659c8b537381eca589ba2a3ab2526d62 tools/validation/economics/oracle_cashflow.py
 634be5a40a487e7e8087c6cd21e729040c35dc8a tools/validation/economics/oracle_decision.py
 93948299b4fa1024c1cd854f60ec0fed32c88f94 tools/validation/economics/oracle_fdp.py
 1f3d74ad53b96110074125206cd04ef506bf8bf8 tools/validation/economics/oracle_fiscal.py
