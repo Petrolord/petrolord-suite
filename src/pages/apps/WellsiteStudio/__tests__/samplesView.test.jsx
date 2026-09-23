@@ -64,7 +64,12 @@ test('the schedule reaches three samples ahead of the bit; catch and stages; the
   fireEvent.change(screen.getByTestId('ws-programme-authoriser'), { target: { value: 'Ops geologist' } });
   await act(async () => { fireEvent.click(screen.getByTestId('ws-programme-save')); });
   await waitFor(() => expect(screen.getByTestId('ws-programme-version')).toHaveTextContent('version 2, authorised by Ops geologist'));
-  await waitFor(() => expect(screen.getByTestId('ws-samples-summary')).toHaveTextContent(/4\d scheduled/));
+  // version 2 (5 ft) schedules from the bit depth when it was authorised (10,000 ft): 10005 and 10015 ft
+  // join the existing 10010 ft. Depths already drilled are not back-filled as overdue samples (Ekene kit
+  // finding 2026-09-23; before, 20 samples between 9805 and 9995 ft appeared at once, all overdue).
+  await waitFor(() => expect(screen.getByTestId('ws-samples-summary')).toHaveTextContent('25 scheduled'));
+  const v2 = (await backend.listSamples(wellId)).filter((s) => s.programme_version === 2).map((s) => Math.round(s.md_calc_m / 0.3048));
+  expect(v2.sort()).toEqual([10005, 10015]);
   // pumps off: lag time undefined, arrivals wait
   await act(async () => { fireEvent.click(screen.getByTestId('ws-lag-pump-off')); });
   await waitFor(() => expect(screen.getByTestId('ws-lag-spm')).toHaveTextContent('off'));

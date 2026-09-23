@@ -105,7 +105,7 @@ export function makeFakeTransport({ user, registryWells = [], online = true, pro
     async loadPrognosisSources(geoWellId, { offsetWellIds = [] } = {}) {
       const geoWell = registryWells.find((w) => w.id === geoWellId) || null;
       const src = prognosisSources ? prognosisSources(geoWellId) : {};
-      const offsets = registryWells.filter((w) => offsetWellIds.includes(w.id) || (!offsetWellIds.length && w.id !== geoWellId)).map((w) => ({ id: w.id, name: w.name, kb_m: w.kb_m, deviation: w.deviation, tops: w.tops || [] }));
+      const offsets = registryWells.filter((w) => offsetWellIds.includes(w.id) && w.id !== geoWellId).map((w) => ({ id: w.id, name: w.name, kb_m: w.kb_m, deviation: w.deviation, tops: w.tops || [] }));
       return { geoWell, tops: (geoWell && geoWell.tops) || [], offsetWells: offsets, holeSections: src.holeSections || [], casingPoints: src.casingPoints || [], plannedTrajectory: src.plannedTrajectory || null, pressureCurves: null, loadedFrom: 'fake-registry' };
     },
     _wells: wsWells,

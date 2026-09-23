@@ -5,7 +5,8 @@
 // backend writes the rows.
 
 import { displacementFromField } from '@/lib/wellsite/pumps';
-import { lagReadout, laggedDepthNow } from '@/lib/wellsite/lag';
+import { lagReadout, laggedDepthNow, bitHistoryWithHolds, bitDepthAt } from '@/lib/wellsite/lag';
+import { NON_DEEPENING_EVENTS } from '@/lib/wellsite/events';
 import { scheduledDepths, validateProgramme, applyProgrammeChange, highestStage, dueState, canAdvance, statusConfig, expectedArrivals as engineArrivals, SAMPLE_STAGES, DEFAULT_MANDATORY } from '@/lib/wellsite/sampleProgram';
 import { chainHeads } from '@/lib/wellsite/records';
 
@@ -35,14 +36,24 @@ export function lagContextOf(well, rigConfig) {
   return { geometry: rigConfig.hole_sections, bha: rigConfig.bha || [], drillpipe: rigConfig.drillpipe, stations: survey, riser, m3PerStroke, boosterM3PerStroke };
 }
 
-export const bitHistoryOf = (bitDepths) => bitDepths.map((r) => ({ utcMs: Date.parse(r.occurred_at), mdM: r.md_calc_m })).sort((a, b) => a.utcMs - b.utcMs);
+/**
+ * The bit depth history the lag engine reads. With the well's events, the bit is held still through
+ * connections, trips and circulating (engine bitHistoryWithHolds), so a stop without its own bit depth
+ * record no longer lets the lagged depth drift.
+ */
+export function bitHistoryOf(bitDepths, events = []) {
+  const history = bitDepths.map((r) => ({ utcMs: Date.parse(r.occurred_at), mdM: r.md_calc_m })).sort((a, b) => a.utcMs - b.utcMs);
+  const holds = (events || []).filter((e) => NON_DEEPENING_EVENTS.includes(e.type) && Number.isFinite(e.startUtcMs))
+    .map((e) => ({ startMs: e.startUtcMs, endMs: Number.isFinite(e.endUtcMs) ? e.endUtcMs : null }));
+  return bitHistoryWithHolds(history, holds);
+}
 export const pumpLogOf = (pumpEvents) => pumpEvents.map((r) => ({ utcMs: Date.parse(r.occurred_at), spm: Number(r.payload && r.payload.spm) || 0, boosterSpm: Number(r.payload && r.payload.boosterSpm) || 0 })).sort((a, b) => a.utcMs - b.utcMs);
 
 /** The status-bar lag readout, or a reason it is unavailable. */
-export function lagNow({ well, rigConfig, bitDepths, pumpEvents, nowUtcMs }) {
+export function lagNow({ well, rigConfig, bitDepths, pumpEvents, events = [], nowUtcMs }) {
   const lagCtx = lagContextOf(well, rigConfig);
   if (!lagCtx) return { available: false, note: 'Record the rig geometry and pump in Config to see the lag.' };
-  const history = bitHistoryOf(bitDepths);
+  const history = bitHistoryOf(bitDepths, events);
   if (!history.length) return { available: false, note: 'Record a bit depth to see the lag.' };
   const r = lagReadout({ nowUtcMs, bitMdM: history[history.length - 1].mdM, bitDepthHistory: history, pumpLog: pumpLogOf(pumpEvents), lagCtx });
   return { available: true, ...r, lagCtx };
@@ -65,14 +76,25 @@ export function programmeChange(prev, rows, { authorisedBy, atUtc, reason }) {
   };
 }
 
-/** Sample rows still to create so the schedule reaches `toMdM` (depths already present are kept). */
-export function samplesToSchedule(programme, existing, { toMdM }) {
+/**
+ * Where a programme version starts scheduling: the bit depth when it was authorised (the first recorded
+ * bit depth when it was authorised before any). Depths drilled before a programme existed were never
+ * going to be caught under it, so they are not scheduled as overdue samples.
+ */
+export function programmeStartMdM(programme, history) {
+  if (!programme || !history || !history.length) return 0;
+  const at = Date.parse(programme.authorisedAtUtc);
+  return Number.isFinite(at) ? bitDepthAt(history, at) : history[0].mdM;
+}
+
+/** Sample rows still to create between `fromMdM` and `toMdM` (depths already present are kept). */
+export function samplesToSchedule(programme, existing, { toMdM, fromMdM = 0 }) {
   if (!programme || !programme.rows || !programme.rows.length) return [];
   const have = new Set(existing.map((s) => Math.round(s.md_calc_m * 1000)));
   const maxNo = existing.reduce((m, s) => Math.max(m, s.sample_no || 0), 0);
   const out = [];
   let no = maxNo;
-  for (const d of scheduledDepths(programme, { fromMdM: 0, toMdM })) {
+  for (const d of scheduledDepths(programme, { fromMdM, toMdM })) {
     if (have.has(Math.round(d.mdM * 1000))) continue;
     no += 1;
     out.push({ sample_no: no, mdM: d.mdM, programmeVersion: d.programmeVersion, intervalM: programme.rows[d.rowIndex].intervalM });
@@ -92,12 +114,12 @@ export function scheduleHorizonM(programme, bitMdM) {
  * The sample board rows.
  * @param {Object} p { samples, stages, well, rigConfig, bitDepths, pumpEvents, nowUtcMs }
  */
-export function sampleBoard({ samples, stages, well, rigConfig, bitDepths, pumpEvents, nowUtcMs }) {
+export function sampleBoard({ samples, stages, well, rigConfig, bitDepths, pumpEvents, events = [], nowUtcMs }) {
   const tolerance = (well.settings && well.settings.overdue_tolerance_min) ?? 15;
   const cfg = statusConfig({ mandatory: (well.settings && well.settings.mandatory_sample_stages) || DEFAULT_MANDATORY });
   const stagesBySample = new Map();
   for (const st of stages) { if (!stagesBySample.has(st.sample_id)) stagesBySample.set(st.sample_id, []); stagesBySample.get(st.sample_id).push(st); }
-  const history = bitHistoryOf(bitDepths);
+  const history = bitHistoryOf(bitDepths, events);
   const bitMdM = history.length ? history[history.length - 1].mdM : null;
   const lagCtx = lagContextOf(well, rigConfig);
   const pumpLog = pumpLogOf(pumpEvents);

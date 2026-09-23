@@ -77,6 +77,31 @@ scoring, casing, coring and TD recommendations, sidewall-core selection,
 AI classification or narratives, lithology and composite log rendering,
 laboratory chain of custody.
 
+## Ekene kit findings fixed (2026-09-23)
+
+Found while building the Ekene kit's episode 37 (Suite PR #606):
+
+1. Config geometry: shown to 0.001 ft and 0.0001 in (was whole feet and
+   3 dp), and an unedited value saves back as the exact stored metres, so
+   re-saving no longer moves the geometry.
+2. Offset wells: Tops has an Offset wells chooser beside Load from registry
+   (starts from the last version's choice; the anchored well is not
+   offered). The harness fake now loads exactly the chosen offsets.
+3. Sample programme: a version schedules from the bit depth when it was
+   authorised (`programmeStartMdM`), so depths already drilled are not
+   back-filled as overdue samples.
+4. Lag readout: with the pumps off before the first cuttings reach surface,
+   the pumps-off note leads (engines #247).
+5. Bit history: the bit is held through connections, trips, circulation,
+   sweeps, casing and logging on the timeline (engines #247
+   `bitHistoryWithHolds`, `NON_DEEPENING_EVENTS`; `bitHistoryOf(bitDepths,
+   events)`), so a stop without its own bit record no longer drifts the
+   lagged depth.
+
+Gates: `__tests__/kitFindings.test.jsx` (6), samplesView updated to the
+new schedule rule, engines wellsite lag/events gates. Vendored at
+engines 49d1e92.
+
 ## Decisions taken in auto mode
 
 Recorded per phase below as they are taken, with the reason.
