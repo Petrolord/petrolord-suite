@@ -356,3 +356,15 @@ BOP on a floater and the save refuses sections above it); `pump_rate`
 payload gains `boosterSpm` (Live and the lag panel take it; status bar,
 cards and pump log show it); the lag panel shows the booster rate and
 the riser leg's strokes. Help guide and user manual updated.
+
+## Demonstration data: Ekene kit episode 37 (2026-09-23)
+
+The Ekene demonstration dataset now carries a Wellsite Studio day for the
+readiness-gate walk: `dist-demo/ekene-demo-v1/15-wellsite/` and
+`episodes/episode-37-wellsite-studio.md` (generator
+`tools/demo-dataset/domains/wellsite.mjs`, gate
+`tools/demo-dataset/__tests__/domain.wellsite.test.js`). Ekene-11 on the
+Ekene Alpha platform rig: setup sheet, a time-ordered shift log with the
+Lag panel readout after every entry, 19 samples with descriptions in the
+live vocabulary, three shows, observations, and the Ekene Sand called at
+the 1635.1 m drilling break.
