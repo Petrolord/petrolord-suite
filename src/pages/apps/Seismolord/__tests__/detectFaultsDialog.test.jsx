@@ -96,3 +96,50 @@ test('a local (not yet uploaded) survey is refused with the reason', () => {
   );
   expect(screen.getByText(/Start the import to convert this survey/)).toBeInTheDocument();
 });
+
+describe('fault picking upgrade: inputs, sensitivity, data quality', () => {
+  // eslint-disable-next-line global-require
+  const { describeQuality } = require('../components/workspace/AutoFaultPicker');
+
+  test('the quality line names the coherence, its reading and the thresholds used', () => {
+    expect(describeQuality({ coherence: 0.96, thresholdScale: 1 })).toBe('Reflector coherence 0.96 (clean); standard thresholds.');
+    expect(describeQuality({ coherence: 0.76, thresholdScale: 0.5 }))
+      .toBe('Reflector coherence 0.76 (noisy); thresholds at 50 percent of the standard.');
+    expect(describeQuality({ coherence: null, thresholdScale: 1 })).toMatch(/not measured \(volume input\)/);
+    expect(JSON.stringify([describeQuality({ coherence: 0.9, thresholdScale: 0.83 })]).includes('—')).toBe(false);
+  });
+
+  test('the chosen input volume and sensitivity reach the worker job; the quality is shown', async () => {
+    const configs = [];
+    const runJob = (type, config) => {
+      configs.push(config);
+      return {
+        promise: Promise.resolve({ faults: [], aoi: config.aoi, quality: { coherence: null, thresholdScale: 0.5, sensitivity: 'high' } }),
+        cancel: () => {},
+      };
+    };
+    render(
+      <DetectFaultsDialog
+        open
+        onOpenChange={() => {}}
+        volume={{ id: 'vol' }}
+        manifest={{ geometry: { dt_us: 4000 } }}
+        geom={{ nIl: 70, nXl: 60, ns: 420 }}
+        runJob={runJob}
+        faultInputs={[{
+          id: 'fl', name: 'F3 [Fault likelihood]', kind: 'likelihood', storagePath: 'u/fl',
+        }]}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText('Start from'), { target: { value: 'fl' } });
+    expect(screen.getByText(/Auto means Standard/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Sensitivity'), { target: { value: 'high' } });
+    fireEvent.click(screen.getByTestId('t2h-detect'));
+    await screen.findByTestId('sl-auto-faults-quality');
+    expect(configs[0].input).toEqual({
+      kind: 'likelihood', storagePath: 'u/fl', dtype: 'float32le', v4: null,
+    });
+    expect(configs[0].params).toEqual({ sensitivity: 'high' });
+    expect(screen.getByTestId('sl-auto-faults-quality').textContent).toMatch(/50 percent/);
+  });
+});

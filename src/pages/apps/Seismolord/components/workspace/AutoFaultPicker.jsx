@@ -18,6 +18,15 @@ const AOI_FIELDS = [
   ['il0', 'Inline from'], ['il1', 'to'], ['xl0', 'Crossline from'], ['xl1', 'to'], ['s0', 'Sample from'], ['s1', 'to'],
 ];
 
+/** One line on the data quality and the thresholds the picking used. */
+export function describeQuality(q) {
+  const scale = q.thresholdScale ?? 1;
+  const thr = scale < 1 ? `thresholds at ${Math.round(scale * 100)} percent of the standard` : 'standard thresholds';
+  if (q.coherence == null) return `Data quality not measured (volume input); ${thr}.`;
+  const kind = q.coherence >= 0.95 ? 'clean' : q.coherence >= 0.85 ? 'some noise' : 'noisy';
+  return `Reflector coherence ${q.coherence.toFixed(2)} (${kind}); ${thr}.`;
+}
+
 export const aoiSampleCount = (a) => (a
   ? (a.il1 - a.il0 + 1) * (a.xl1 - a.xl0 + 1) * (a.s1 - a.s0 + 1) : 0);
 
@@ -29,19 +38,24 @@ export const aoiSampleCount = (a) => (a
  * @param {Array<Object>} p.faults existing faults (their names are taken)
  * @param {Object|null} p.initialAoi starting area of interest
  * @param {Array<{key: string, label: string, aoi: Object}>} [p.presets] quick areas
+ * @param {Array<{id: string, name: string, kind: 'variance'|'likelihood', storagePath: string}>} [p.inputs]
+ *   same-lattice volumes the picking can start from instead of the seismic
  * @param {(kind: string, config: Object) => Promise<Object>} p.run worker job
  * @param {string|null} p.busy the caller's busy state (disables the buttons)
  * @param {(rows: Object[]) => void} [p.onSaved]
  * @param {(msg: string) => void} [p.onError]
  */
 export default function AutoFaultPicker({
-  geom, dtMs, volume, faults = [], initialAoi, presets = [], run, busy = null, onSaved, onError,
+  geom, dtMs, volume, faults = [], initialAoi, presets = [], inputs = [], run, busy = null, onSaved, onError,
 }) {
   const { toast } = useToast();
   const [aoi, setAoi] = useState(initialAoi || null);
   const [detected, setDetected] = useState(null);
   const [keep, setKeep] = useState(new Set());
   const [saving, setSaving] = useState(false);
+  const [inputId, setInputId] = useState('');
+  const [sensitivity, setSensitivity] = useState('auto');
+  const input = inputs.find((v) => v.id === inputId) || null;
 
   useEffect(() => {
     setAoi(initialAoi || null);
@@ -55,7 +69,13 @@ export default function AutoFaultPicker({
   const detect = async () => {
     try {
       const r = await run('faults', {
-        geom, dtMs, aoi: clampAoi(aoi, geom), params: {},
+        geom,
+        dtMs,
+        aoi: clampAoi(aoi, geom),
+        params: { sensitivity },
+        input: input ? {
+          kind: input.kind, storagePath: input.storagePath, dtype: input.dtype ?? 'float32le', v4: input.v4 ?? null,
+        } : null,
       });
       setDetected(r);
       setKeep(new Set(r.faults.map((f) => f.name)));
@@ -108,6 +128,44 @@ export default function AutoFaultPicker({
           ))}
         </div>
       )}
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <label className="text-slate-400">
+          Start from
+          <select
+            className="mt-1 w-full rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-1"
+            value={inputId}
+            onChange={(e) => { setInputId(e.target.value); setDetected(null); }}
+            disabled={disabled}
+            aria-label="Start from"
+          >
+            <option value="">The seismic (measures data quality)</option>
+            {inputs.map((v) => (
+              <option key={v.id} value={v.id}>
+                {`${v.name} (${v.kind === 'likelihood' ? 'fault likelihood, fastest' : 'variance'})`}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-slate-400">
+          Sensitivity
+          <select
+            className="mt-1 w-full rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-1"
+            value={sensitivity}
+            onChange={(e) => { setSensitivity(e.target.value); setDetected(null); }}
+            disabled={disabled}
+            aria-label="Sensitivity"
+          >
+            <option value="auto">Auto (from the data quality)</option>
+            <option value="standard">Standard (clean data)</option>
+            <option value="high">High (noisy data)</option>
+          </select>
+        </label>
+      </div>
+      {input && sensitivity === 'auto' && (
+        <p className="text-xs text-amber-300/90">
+          A volume input does not show the data quality, so Auto means Standard. Choose High for noisy data.
+        </p>
+      )}
       {aoi && (
         <div className="grid grid-cols-6 gap-2 text-xs">
           {AOI_FIELDS.map(([k, lab]) => (
@@ -133,6 +191,11 @@ export default function AutoFaultPicker({
           Pick faults
         </Button>
       </div>
+      {detected?.quality && (
+        <p className="text-xs text-slate-400" data-testid="sl-auto-faults-quality">
+          {describeQuality(detected.quality)}
+        </p>
+      )}
       {detected && (
         <div className="space-y-1">
           {detected.faults.map((f) => (

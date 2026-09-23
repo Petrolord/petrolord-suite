@@ -42,7 +42,8 @@ describe('SeismolordHelpGuide', () => {
     for (const f of ['Attribute volume', 'Variance (discontinuity)', 'Sweetness', 'Co-render', 'Tops to horizons',
       'Tie and match tops', 'Pick faults', 'Track the framework', 'Accept and save', 'Prognosis',
       'View it now', 'display copy', 'Large surveys', 'What Seismolord makes for you',
-      'Start here', 'Take the tour', 'Detect faults', 'around the line on screen']) {
+      'Start here', 'Take the tour', 'Detect faults', 'around the line on screen',
+      'Fault likelihood', 'Start from', 'Sensitivity', 'reflector coherence']) {
       expect(text).toContain(f);
     }
   });

@@ -1,6 +1,33 @@
 # Seismolord — STATUS
 
-Last updated: 2026-09-23 (Tops to Horizons: well tops to a named horizon framework, automatic fault picking; large surveys: the viewer reads the v4 display copy, coarse first; Stream C: v4 conversion to a local spool, two-stage resumable background upload; Stream L: slice worker, local-file view, budgeted cache; tester feedback: navigation, slice player, slice toggles, wells, stability; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
+Last updated: 2026-09-23 (fault picking upgrade: noisy data, Fault likelihood volume, volume inputs; Tops to Horizons: well tops to a named horizon framework, automatic fault picking; large surveys: the viewer reads the v4 display copy, coarse first; Stream C: v4 conversion to a local spool, two-stage resumable background upload; Stream L: slice worker, local-file view, budgeted cache; tester feedback: navigation, slice player, slice toggles, wells, stability; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
+
+## 2026-09-23: fault picking upgrade (discoverability programme, step 3)
+
+Engines #241 (21c6f37) vendored; Suite only otherwise, no DDL.
+
+- Noisy data: the picker measured nothing below about S/N 4 (white) or 6
+  (band-limited). The fault stayed separable but fell under the absolute
+  thresholds; amplitude-weighted variance (the plan's hypothesis) made it
+  worse and was rejected. detectFaults now measures the reflector
+  coherence and scales its thresholds (1 at 0.95, 0.5 at 0.80 and below);
+  Sensitivity (Auto / Standard / High) overrides it. Measured: the fault
+  on its plane down to S/N 2 white and 3 band-limited, nothing proposed
+  in unfaulted noisy fields.
+- Fault likelihood is a new attribute volume (computed a brick column at a
+  time with a halo, gated equal to the whole-volume result). Variance
+  gains Dip steering (ms).
+- AutoFaultPicker (Detect faults and Tops to horizons step 3): Start from
+  the seismic, a Variance or a Fault likelihood volume of the open volume
+  (read through its own brick cache in framework.worker); Sensitivity; a
+  line after each run with the coherence and the thresholds used. A volume
+  input cannot measure quality, so Auto means Standard there (said in the
+  dialog).
+- Speed: the dip-steering aligner lost the M alias when it moved into
+  discontinuity.js and detectFaults ran 18x slower under jest (engines CI
+  35 min); fixed in the same PR (6 s on the synthetic field).
+- Help guide and Start here copy updated. Tests: detectFaultsDialog
+  (quality line, input and sensitivity reach the worker job), helpGuide.
 
 ## 2026-09-23: Start here, first-run tour, Detect faults (discoverability programme, step 2)
 

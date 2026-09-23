@@ -167,7 +167,7 @@ export function buildStartHere({
     {
       key: 'more',
       title: 'More attributes',
-      detail: 'Envelope, instantaneous phase and frequency, sweetness, RMS and AGC.',
+      detail: 'Fault likelihood (compute it once, then Detect faults starts from it and runs fastest), envelope, instantaneous phase and frequency, sweetness, RMS and AGC.',
       status: attrWhy ? 'blocked' : 'todo',
       why: attrWhy ?? undefined,
       action: 'attributes',

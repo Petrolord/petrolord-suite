@@ -351,12 +351,18 @@ export async function runFrameworkTrack({
  * @param {{nIl, nXl, ns}} p.geom full survey
  * @param {number} p.dtMs
  * @param {{il0, il1, xl0, xl1, s0, s1}} p.aoi inclusive lattice bounds
- * @param {Object} [p.params] faultDetect parameters
- * @returns {Promise<{faults: Array, aoi: Object, samples: number}>}
- *   sticks in full-survey lattice coordinates
+ * @param {Object} [p.params] faultDetect parameters (sensitivity: auto |
+ *   standard | high)
+ * @param {(il, xl) => Promise<Float32Array>} [p.getInputTrace] a same-lattice
+ *   volume to start from instead of the seismic
+ * @param {'variance'|'likelihood'} [p.inputKind] what getInputTrace holds
+ * @returns {Promise<{faults: Array, aoi: Object, samples: number, quality: Object}>}
+ *   sticks in full-survey lattice coordinates; quality = {coherence,
+ *   thresholdScale, sensitivity} (coherence null for a volume input)
  */
 export async function runFaultDetect({
-  getTrace, geom, dtMs, aoi, params = {}, onProgress = () => {}, shouldCancel = () => false,
+  getTrace, geom, dtMs, aoi, params = {}, getInputTrace = null, inputKind = null,
+  onProgress = () => {}, shouldCancel = () => false,
 }) {
   const a = clampAoi(aoi, geom);
   const sub = { nIl: a.il1 - a.il0 + 1, nXl: a.xl1 - a.xl0 + 1, ns: a.s1 - a.s0 + 1 };
@@ -366,9 +372,17 @@ export async function runFaultDetect({
       + `automatic fault picking takes up to ${(AOI_MAX_SAMPLES / 1e6).toFixed(1)} million at a time. `
       + 'Narrow the inline, crossline or time range.');
   }
-  const subTrace = async (i, x) => (await getTrace(i + a.il0, x + a.xl0)).subarray(a.s0, a.s1 + 1);
+  const sub0 = (get) => async (i, x) => {
+    const tr = await get(i + a.il0, x + a.xl0);
+    return tr ? tr.subarray(a.s0, a.s1 + 1) : null;
+  };
+  if (getInputTrace && !['variance', 'likelihood'].includes(inputKind)) {
+    throw new Error(`Unknown fault-picking input "${inputKind}".`);
+  }
   const det = await detectFaults({
-    getTrace: subTrace,
+    getTrace: getInputTrace ? undefined : sub0(getTrace),
+    getVarianceTrace: getInputTrace && inputKind === 'variance' ? sub0(getInputTrace) : undefined,
+    getLikelihoodTrace: getInputTrace && inputKind === 'likelihood' ? sub0(getInputTrace) : undefined,
     geom: sub,
     dtMs,
     params,
@@ -383,7 +397,9 @@ export async function runFaultDetect({
       points: st.points.map((p) => ({ il: p.il + a.il0, xl: p.xl + a.xl0, s: p.s + a.s0 })),
     })),
   }));
-  return { faults, aoi: a, samples };
+  return {
+    faults, aoi: a, samples, quality: det.quality ?? null,
+  };
 }
 
 /** An area of interest clamped to the survey (inclusive bounds). */

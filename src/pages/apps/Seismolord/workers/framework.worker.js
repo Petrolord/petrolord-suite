@@ -6,7 +6,8 @@
 //
 // (main -> worker):
 //   {type: 'match'|'track'|'faults', id, config: {supabaseUrl, token, bucket,
-//     storagePath, dtype, v4, geom, ...job inputs}}
+//     storagePath, dtype, v4, geom, ...job inputs}}; 'faults' may carry
+//     input: {kind: 'variance'|'likelihood', storagePath, dtype, v4}
 //   {type: 'cancel', id}   {type: 'token', nonce, token}
 // (worker -> main):
 //   {type: 'progress', id, stage, done, total}
@@ -74,8 +75,23 @@ self.onmessage = async (e) => {
       for (const h of result.horizons) transfer.push(h.picks.buffer, h.confidence.buffer);
       self.postMessage({ type: 'done', id, result }, transfer);
     } else {
+      // an input volume (variance or fault likelihood on the same lattice)
+      // is read through its own cache with the same token
+      let getInputTrace = null;
+      const input = config.input;
+      if (input?.storagePath) {
+        const inCache = new BrickCache(withBrickTimeout(v4BrickFetcher(storageBrickFetcher({
+          supabaseUrl: config.supabaseUrl, getToken, bucket: config.bucket,
+        }), input.v4)), {
+          maxBytes: config.maxBytes || cacheBudgetBytes(reportedDeviceMemory(self)),
+          dtype: input.dtype,
+        });
+        getInputTrace = (il, xl) => assembleTrace(
+          (i, j, k) => inCache.get(brickKey(input.storagePath, i, j, k)), config.geom, il, xl,
+        );
+      }
       const result = await runFaultDetect({
-        ...config, getTrace, onProgress, shouldCancel,
+        ...config, getTrace, getInputTrace, inputKind: input?.kind ?? null, onProgress, shouldCancel,
       });
       self.postMessage({ type: 'done', id, result });
     }

@@ -3720,6 +3720,16 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     );
   }
 
+  // same-lattice volumes automatic fault picking can start from
+  const faultInputs = volume ? allVolumes
+    .filter((v) => v.parent_volume_id === volume.id && v.kind === 'attribute' && v.status === 'ready'
+      && ['variance', 'fault_likelihood'].includes(v.attribute_params?.name))
+    .map((v) => ({
+      id: v.id,
+      name: v.name,
+      kind: v.attribute_params.name === 'fault_likelihood' ? 'likelihood' : 'variance',
+      storagePath: v.storage_path,
+    })) : [];
   const startHere = buildStartHere({
     volume,
     manifest,
@@ -4189,6 +4199,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
       />
 
       <TopsToHorizonsDialog
+        faultInputs={faultInputs}
         open={openDialog === 'topsToHorizons'}
         onOpenChange={(o) => setOpenDialog(o ? 'topsToHorizons' : null)}
         volume={volume}
@@ -4206,6 +4217,7 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
       />
 
       <DetectFaultsDialog
+        faultInputs={faultInputs}
         open={openDialog === 'detectFaults'}
         onOpenChange={(o) => setOpenDialog(o ? 'detectFaults' : null)}
         volume={volume}

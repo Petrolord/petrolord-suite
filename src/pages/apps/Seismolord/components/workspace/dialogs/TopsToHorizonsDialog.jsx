@@ -81,7 +81,7 @@ function Thumb({ thumb, predSample, chosenSample }) {
 
 export default function TopsToHorizonsDialog({
   open, onOpenChange, volume, manifest, geom, affine, wells = [], velocity = null, boundaries = null,
-  horizons = [], faults = [], runJob, onHorizonsSaved, onFaultsSaved,
+  horizons = [], faults = [], runJob, onHorizonsSaved, onFaultsSaved, faultInputs = [],
 }) {
   const { toast } = useToast();
   const dtUs = manifest?.geometry?.dt_us;
@@ -466,6 +466,7 @@ export default function TopsToHorizonsDialog({
                     dtMs={dtMs}
                     volume={volume}
                     faults={faults}
+                    inputs={faultInputs}
                     initialAoi={aoi}
                     run={run}
                     busy={busy}
