@@ -1703,3 +1703,19 @@ Whole Suite: 490 suites, 7412 tests green.
 - The lift advisor's duty field is a LIQUID rate (item 19). The engine
   derives the oil each chain designs on from it and the water cut; the
   absolute open flow it is compared against is an OIL rate.
+
+## 2026-09-23: three defects found by the Ekene demo kit (fixed)
+
+- **List reads stopped at 1,000 rows, silently.** PostgREST caps a select at
+  the project's max-rows. `getDailyProduction`, `listFieldWellTests`,
+  `listWellTests`, `listDeferments`, `listAllocationFactors` and
+  `getFieldTotals` now read through `selectAllPages` (1,000-row ranges until
+  a short page, ordered by a unique key last so pages never overlap or skip).
+  A real daily ledger (four wells for a year is 1,460 rows) was being cut.
+- **Imported wells were all producers.** `inferWellTypes` types a NEW well
+  from the file (injects only: injector; produces: producer); existing wells
+  keep the user's type, and the import message names the injectors and warns
+  when an existing producer only injects in the file.
+- **Nodal cross-check flagged choke-held tests.** A test on the model's
+  unstable low-rate crossing is now `unstable-branch` ("Agrees, choke-held",
+  with the stable rate beside it) instead of `off`/`dead` (engines #245).

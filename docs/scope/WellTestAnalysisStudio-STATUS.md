@@ -435,3 +435,18 @@ chart, log-log plots have scatter symbols and decade ticks, legend band and
 axis height are the theme values); Playwright spec extended with a real
 geometry check (title below ticks, legend below title, log-log symbol and
 model-curve counts) across Data, Diagnostics, Match and Specialized.
+
+## 2026-09-23: skin needs the pressure at the instant of shut-in
+
+Found by the Ekene demo kit. With "Flowing pressure at shut-in" blank, a
+buildup's reference was the earliest gauge point, which is already into the
+buildup when the gauge starts after shut-in (the kit's Ekene-1 file starts at
+0.01 h, 12.6 psi up), so semilog and matched skin, the skin pressure drop and
+flow efficiency were biased. A straight-line back-extrapolation was tried and
+rejected: it still left 10.8 psi on that file. Now:
+- a gauge reading at t = 0 is taken as the pressure at shut-in (it used to be
+  dropped with the other non-positive times);
+- otherwise, blank means skin is **withheld** with the reason (how long after
+  shut-in the gauge starts and the reading there); permeability and p* are
+  still reported, since they come from the slope;
+- an entered value is used as before.

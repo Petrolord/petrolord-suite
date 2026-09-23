@@ -48,13 +48,16 @@ describe('buildTestConfig', () => {
 describe('prepareTestData', () => {
   const reservoir = buildReservoirInputs(DEFAULT_RESERVOIR).reservoir;
 
-  test('buildup takes pwf at shut-in from the earliest point when blank', () => {
+  test('buildup anchors on the earliest point when blank and withholds skin', () => {
     const config = buildTestConfig({ ...DEFAULT_TEST_CONFIG, pwfShutIn: '' }).config;
     const gaugeRows = Array.from({ length: 20 }, (_, i) => ({ t: 0.1 * (i + 1), p: 4000 + 20 * i }));
     const out = prepareTestData({ gaugeRows, reservoir, config });
     expect(out.pwfShutIn).toBe(4000);
     expect(out.points.length).toBeGreaterThan(10);
-    expect(out.warnings.some((w) => w.includes('earliest gauge point'))).toBe(true);
+    // the log-log baseline still anchors on the earliest point, but skin,
+    // which needs the pressure at the instant of shut-in, is withheld
+    expect(out.skinWithheld).toMatch(/Skin is withheld: enter the flowing pressure at shut-in/);
+    expect(out.warnings).toContain(out.skinWithheld);
     // dp is pressure rise above pwf at shut-in
     expect(out.points[out.points.length - 1].dp).toBeCloseTo(4380 - 4000, 6);
   });

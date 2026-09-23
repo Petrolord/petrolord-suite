@@ -15,6 +15,10 @@ import { mdhAnalysis, hornerAnalysis, cartesianPssAnalysis, sqrtTimeAnalysis, ra
 import { autoFitModel } from '@/utils/welltest/autoFit';
 import { buildGasPvtTable, makePseudoPressure, deliverabilityAnalysis, normalizedPseudoTime, GAS } from '@/utils/welltest/gas';
 import { UNIT_SYSTEMS } from '@/utils/welltest/units';
+
+// A gauge reading this close to shut-in (hours) is taken as the pressure at
+// the instant of shut-in.
+export const SHUT_IN_T_EPS_HR = 1e-4;
 import {
   prepareProductionRows, materialBalanceTime, rateNormalizedSeries,
   flowingMaterialBalanceOil, flowingMaterialBalanceGas, transientLinearAnalysis,
@@ -58,7 +62,7 @@ export const DEFAULT_DELIVERABILITY = {
 export const DEFAULT_TEST_CONFIG = {
   testType: 'buildup', // 'drawdown' | 'buildup' | 'injection' | 'falloff'
   tp: '36',
-  pwfShutIn: '', // empty: taken from the earliest gauge point
+  pwfShutIn: '', // empty: a gauge reading at t = 0 if the file has one, else skin is withheld
   smoothingL: '0.1',
   pointsPerDecade: '15',
   spikeTrimOn: true,
@@ -198,11 +202,14 @@ export function buildTestConfig(t) {
  */
 export function prepareTestData({ gaugeRows, reservoir, config }) {
   const empty = (warnings = []) => ({
-    points: [], pwfShutIn: NaN, removedSpikes: 0, warnings,
+    points: [], pwfShutIn: NaN, skinWithheld: null, removedSpikes: 0, warnings,
     paI: NaN, paShutIn: NaN, fromAnalysis: (v) => v, dpToGauge: (v) => v,
   });
-  const rows = (gaugeRows || [])
-    .map((r) => ({ t: num(r.t), p: num(r.p) }))
+  const all = (gaugeRows || []).map((r) => ({ t: num(r.t), p: num(r.p) }));
+  // a reading at the shut-in instant (t = 0) cannot go on a log axis, but it
+  // IS the pressure at shut-in, so it is kept for that
+  const atShutIn = all.find((r) => r.t === 0 && Number.isFinite(r.p)) || null;
+  const rows = all
     .filter((r) => r.t > 0 && Number.isFinite(r.p))
     .sort((a, b) => a.t - b.t);
   if (rows.length < 5 || !reservoir || !config) {
@@ -225,12 +232,22 @@ export function prepareTestData({ gaugeRows, reservoir, config }) {
 
   const warnings = [];
   let pwfShutIn = NaN;
+  let skinWithheld = null;
   let base; // analysis-space reference the test moves away from
   if (config.family === 'buildup') {
-    pwfShutIn = Number.isFinite(config.pwfShutIn) ? config.pwfShutIn : series[0].p;
+    pwfShutIn = Number.isFinite(config.pwfShutIn) ? config.pwfShutIn : (atShutIn ? atShutIn.p : series[0].p);
     base = A(pwfShutIn);
-    if (!Number.isFinite(config.pwfShutIn)) {
-      warnings.push(`${config.mirror ? 'Injection' : 'Flowing'} pressure at shut-in taken from the earliest gauge point (${series[0].p.toFixed(1)} psi). Enter it explicitly if the gauge missed the ${config.mirror ? 'injection' : 'flowing'} period.`);
+    // Skin is measured from the pressure at the instant of shut-in. When it
+    // is not entered and the gauge starts after shut-in, the earliest point
+    // has already built up, so skin (and the flow efficiency built on it)
+    // would come out biased; they are withheld with the reason. Permeability
+    // and p* come from the slope and do not depend on it.
+    const flowing = config.mirror ? 'injection' : 'flowing';
+    if (!Number.isFinite(config.pwfShutIn) && !atShutIn && series[0].t > SHUT_IN_T_EPS_HR) {
+      skinWithheld = `Skin is withheld: enter the ${flowing} pressure at shut-in. The gauge starts ${series[0].t.toPrecision(3)} h after shut-in, `
+        + `already into the ${config.mirror ? 'falloff' : 'buildup'}, so its first reading (${series[0].p.toFixed(1)} psi) would bias the skin. `
+        + 'Permeability and p* do not depend on it.';
+      warnings.push(skinWithheld);
     }
   } else {
     base = A(reservoir.pi);
@@ -258,6 +275,7 @@ export function prepareTestData({ gaugeRows, reservoir, config }) {
   return {
     points,
     pwfShutIn,
+    skinWithheld,
     removedSpikes,
     warnings,
     paI: A(reservoir.pi),
@@ -475,6 +493,8 @@ export const WellTestStudioProvider = ({ children }) => {
     if (!raw) return null;
     return {
       ...raw,
+      // skin needs the pressure at the instant of shut-in (prepared.skinWithheld)
+      skin: prepared.skinWithheld ? null : raw.skin,
       // analysis-space line anchors (for drawing the fitted line), plus the
       // gauge-psi conversions everything user-facing reports
       p1hrA: raw.p1hr,
@@ -576,7 +596,7 @@ export const WellTestStudioProvider = ({ children }) => {
     const r = reservoirSpec.reservoir;
     if (!r) return null;
     const k = matchParams?.k ?? semilogResult?.k;
-    const skin = matchParams?.skin ?? semilogResult?.skin;
+    const skin = prepared.skinWithheld ? null : (matchParams?.skin ?? semilogResult?.skin);
     if (!(k > 0)) return null;
     const lastTime = prepared.points.length ? prepared.points[prepared.points.length - 1].time : NaN;
     // analysis units (psi for oil, psi^2/cp for gas via the equivalent FVF)

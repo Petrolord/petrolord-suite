@@ -90,7 +90,7 @@ const ReportResults = () => {
               <Row label="Flow efficiency" value={fmt.pct(derivedKpis?.flowEfficiency)} />
               {fitResult && <Row label="Regression" value={`${fitResult.converged ? 'converged' : 'stopped early'}${fitStale ? ', stale' : ''}`} />}
               {fitResult && ci(fitResult.confidence95.k) && <Row label="k 95% CI" value={ci(fitResult.confidence95.k)} unit="md" />}
-              {fitResult && ci(fitResult.confidence95.skin) && <Row label="Skin 95% CI" value={ci(fitResult.confidence95.skin)} />}
+              {fitResult && !prepared?.skinWithheld && ci(fitResult.confidence95.skin) && <Row label="Skin 95% CI" value={ci(fitResult.confidence95.skin)} />}
             </tbody>
           </table>
         </div>

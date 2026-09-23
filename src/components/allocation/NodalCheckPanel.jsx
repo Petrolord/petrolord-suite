@@ -25,6 +25,8 @@ const STATUS = {
   dead: { label: 'Will not flow', className: 'text-red-400' },
   off: { label: 'Disagrees', className: 'text-amber-300' },
   ok: { label: 'Agrees', className: 'text-emerald-400' },
+  // agrees with the model on its unstable, choke-held crossing (engines #245)
+  'unstable-branch': { label: 'Agrees, choke-held', className: 'text-sky-300' },
   'no-thp': { label: 'No wellhead pressure', className: 'text-slate-500' },
   'no-model': { label: 'No well model', className: 'text-slate-500' },
 };
@@ -32,7 +34,7 @@ const STATUS = {
 const NodalCheckPanel = () => {
   const { nodalCheck, runNodalCrossCheck, isCrossChecking } = useAllocation();
   const results = nodalCheck?.results || [];
-  const checked = results.filter((r) => r.status === 'ok' || r.status === 'off' || r.status === 'dead');
+  const checked = results.filter((r) => ['ok', 'off', 'dead', 'unstable-branch'].includes(r.status));
   const disagreeing = results.filter((r) => r.status === 'off' || r.status === 'dead');
 
   return (
