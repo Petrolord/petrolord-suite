@@ -1,9 +1,9 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 49d1e9233e8918877ead884eea5548b148153a4a
+# commit cc82bf3c231d4d06859380080e1517952b9770b4
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
-44371728287830202289219a9fda0cae460e5a55 README.md
+f71478ba75b85bcaac0caa57f9de6c91473a3f65 README.md
 6373485efb6baa9226953a76a3d6ebb740541d1c __tests__/aquifer.test.js
 168f6cedfc18af932ba587f2ff882b7571966986 __tests__/assurance.audit.test.js
 fc5248e0239b0841f542a3cba95ef72db34296d1 __tests__/assurance.compliance.test.js
@@ -25,6 +25,7 @@ e348fa7f85789bc4078e7c84fe574aed3f441acc __tests__/crs.convergence.test.js
 43c27892b1c1a7fcf491030b9c6abe942e7b11b4 __tests__/crs.grid.test.js
 86016e9ef3a3667a2518d44bfb57e26d36b7e238 __tests__/crs.minna.test.js
 473bbdcdb10783d96b43b0633f5a0ce9ab993409 __tests__/crs.sanity.test.js
+1f920655b499ee6ae251c2f83d836abbdee04b66 __tests__/dataai.quality.test.js
 a512a82111f5524a5c9e28f212f9283acfb4ef1c __tests__/dates.test.js
 b64b309dd3866780f298496874ccd0532ebacb68 __tests__/dca.montecarlo.quadrature.test.js
 a8b76754129dfd02dea55452060b284a913c3aad __tests__/dca.montecarlo.seed.test.js
@@ -248,6 +249,7 @@ b9957871cd6f14a8a9826862da5be9d89eda6600 engines/basin/KerogenLibrary.js
 7b07bdac85e1c0bb9e7feae6319843f0fe53587b engines/basin/SimulationEngine.js
 517e371a65d09d7cd6a7f843c32a4d2e14246a4b engines/basin/ThermalPropertiesLibrary.js
 1ecc4966a918ae877e25b4835f6556f6e7812385 engines/basin/results.js
+5eaf73ebd26c3b3af42c67d77289c05a083fff37 engines/dataai/quality.js
 cbe49355ed6e9e543a5653bf51ece5bb62b1069c engines/dca/arps.js
 a047e6e91af7e8cb728d8e019d710b3af1a07a48 engines/dca/groupRollup.js
 09f0762d23095dc3f5573ea7689684102f566804 engines/dca/monteCarlo.js
@@ -572,6 +574,8 @@ fea7984e626d8c7b4e7671d7ca2d1c60aca1547d test-data/basin/goldens.json
 d48d79ef6eccb94be4afe8cc69d732abe9ce6f91 test-data/crs/README.md
 b8b641fd2a3bc4b12fed1d2b4ed091a9397e5a17 test-data/crs/generate_minna_goldens.py
 a68fddd7a0f4eaa38ce359a9a7a10240754229da test-data/crs/goldens/minna_epsg_goldens.json
+d8d692f2cbc50a97f19d4680178a118359793583 test-data/dataai/goldens/quality_cases.json
+dddf585d9592b4f55c1d3c2f410b1ba49ba2bf45 test-data/dataai/pins/quality_pins.json
 150c0b09188f47f9b58a7e9a8f2647602fd679de test-data/dates/date_fns_pins.json
 65c43161a4ecf65a3a803c7820d88006d62c5412 test-data/dca/dca-literature-fixtures.json
 c3a7c20436a58019eb392dfb760fe96659b37440 test-data/downstream/goldens/carbonabatement_cases.json
@@ -801,6 +805,10 @@ dfcca3075c05f76421d563ebcaeed47c57afce17 tools/validation/assurance/oracle_quali
 28bcb512c210d567b4beffe060fee967de59154d tools/validation/assurance/oracle_risk.py
 bb7e40c744f43eee571d0eb764fa6a0b10ce8c61 tools/validation/basin/genfixtures.py
 63170e1025eeeb9cfdf030377a347d22dc8afa17 tools/validation/basin/oracle.py
+3235f3d0b3a81e78841470293d5f8b1258298611 tools/validation/dataai/FINDINGS-quality.md
+8949b38169a84efae7494773d851789426be55dc tools/validation/dataai/negcontrol_quality.sh
+ce1b41a57fbb45f96e350e263ac900b11eb89b40 tools/validation/dataai/oracle_quality.py
+ef770f90a515a846ca68637ad7943d9ceb4b6f8e tools/validation/dataai/pin_quality.py
 f51305728f0ca5c8bd00e7e3bf9066599e0c9eb8 tools/validation/downstream/FINDINGS-carbon.md
 3e8d168b54f942f742f9256f044d77d4163a377f tools/validation/downstream/FINDINGS-crude.md
 49818544c71a5c4bb5033ae3d1abb14ecde7f989 tools/validation/downstream/FINDINGS-gasvalue.md
