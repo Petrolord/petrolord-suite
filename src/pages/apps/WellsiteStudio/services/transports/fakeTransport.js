@@ -4,7 +4,7 @@
 
 import { newId } from '@/lib/wellsite/ids';
 
-export function makeFakeTransport({ user, registryWells = [], online = true, prognosisSources = null } = {}) {
+export function makeFakeTransport({ user, registryWells = [], online = true, prognosisSources = null, orgPeople = null } = {}) {
   const wsWells = new Map();
   let isOnline = online;
   // the fake server: tables of rows keyed by id with a server sequence, blobs by path, auth listeners,
@@ -39,6 +39,26 @@ export function makeFakeTransport({ user, registryWells = [], online = true, pro
       return entry;
     },
     async pullWell(id) { check(); return wsWells.get(id) || null; },
+    // ---- membership: the fake server applies ws_can_admin (an active administrator of the well) ----
+    async listOrgPeople() { check(); return orgPeople || [{ user_id: u.id, name: u.name || u.email, email: u.email }]; },
+    async insertMember(row) {
+      check();
+      const entry = wsWells.get(row.well_id);
+      if (!entry || !entry.members.some((m) => m.user_id === u.id && m.status === 'active' && m.role === 'administrator')) throw Object.assign(new Error('Only a well administrator can add members.'), { code: '42501' });
+      if (entry.members.some((m) => m.user_id === row.user_id)) throw Object.assign(new Error('duplicate key value violates unique constraint "ws_well_members_well_id_user_id_key"'), { code: '23505' });
+      const now = new Date().toISOString();
+      const member = { id: newId(), added_by: u.id, created_at: now, updated_at: now, ...row };
+      entry.members.push(member);
+      return member;
+    },
+    async updateMember(id, patch) {
+      check();
+      const entry = [...wsWells.values()].find((e) => e.members.some((m) => m.id === id));
+      if (!entry || !entry.members.some((m) => m.user_id === u.id && m.status === 'active' && m.role === 'administrator')) throw Object.assign(new Error('Only a well administrator can change members.'), { code: '42501' });
+      const i = entry.members.findIndex((m) => m.id === id);
+      entry.members[i] = { ...entry.members[i], ...patch, updated_at: new Date().toISOString() };
+      return entry.members[i];
+    },
     // ---- sync (WS6) ----
     async insertRows(table, rows) {
       check();

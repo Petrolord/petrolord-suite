@@ -69,6 +69,23 @@ twelfth Geoscience tile. Slug `wellsite-studio`, route
   approver. No notebook, spreadsheet or document should be needed
   alongside.
 
+## Tester fixes (2026-09-23)
+
+The two defects found while writing the user manual (2026-09-07) are fixed:
+
+- Members: Config now has a Members section. An administrator of the well,
+  or of the organisation, adds a person from the organisation with a role,
+  changes a role, or makes a member inactive (never deleted). The well
+  always keeps one active administrator; changes need a connection. No
+  schema change: the ws_well_members RLS already allowed administrator
+  writes, only the screen was missing. Harness organisation has two
+  colleagues to add (O. Office, L. Lead).
+- Open in: Well Data Manager sends the registry (geo_wells) id. The
+  workstation now resolves `?well=` against the live-well id first and
+  the registry id second, and opens New well with the registry well
+  chosen when it has no live well yet.
+- Gates: `__tests__/membersOpenIn.test.jsx` (9 tests).
+
 ## Not in Release 1 (spec section 5), unchanged
 
 Live WITSML or ETP feeds, automatic event detection, automatic lag from

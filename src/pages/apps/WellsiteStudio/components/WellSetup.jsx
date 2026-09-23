@@ -7,9 +7,10 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 
-export default function WellSetup({ backend, onCreated, onStatus }) {
+export default function WellSetup({ backend, onCreated, onStatus, initialGeoId = null }) {
   const [registry, setRegistry] = useState(null);
-  const [geoId, setGeoId] = useState('');
+  const [geoId, setGeoId] = useState(initialGeoId || '');
+  useEffect(() => { if (initialGeoId) setGeoId(initialGeoId); }, [initialGeoId]);
   const [header, setHeader] = useState({ field: '', operator: '', rig: '', country: '', gl_elev_m: '', rt_offset_m: '0' });
   const [offset, setOffset] = useState('0');
   const [busy, setBusy] = useState(false);
@@ -43,6 +44,9 @@ export default function WellSetup({ backend, onCreated, onStatus }) {
       <h2 className="text-sm font-semibold text-slate-100">Start a live well</h2>
       <p className="text-xs text-slate-400">Pick the registry well (Well Data Manager). The record created here is shared with everyone you add as a member, and works offline once it has been opened on this device.</p>
       {!online && <div className="text-xs text-amber-400" data-testid="ws-setup-offline">A connection is needed to start a well.</div>}
+      {initialGeoId && registry && (registry.some((w) => w.id === initialGeoId)
+        ? <div className="text-xs text-cyan-300" data-testid="ws-setup-from-registry">{registry.find((w) => w.id === initialGeoId).name} has no live well yet. Check the header below and create it.</div>
+        : <div className="text-xs text-amber-400" data-testid="ws-setup-unknown-well">The well sent from Well Data Manager is not in the registry you can see. Choose a well below.</div>)}
       <label className="block text-xs text-slate-300">Registry well
         <select value={geoId} onChange={(e) => setGeoId(e.target.value)} data-testid="ws-setup-well" className={inp}>
           <option value="">{registry ? 'choose a well' : 'loading wells'}</option>

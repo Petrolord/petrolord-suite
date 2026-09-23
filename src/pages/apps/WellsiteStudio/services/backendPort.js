@@ -9,7 +9,7 @@ export const PORT = Object.freeze([
   'currentUser', 'online',
   // wells
   'listWells', 'getWell', 'refreshWells', 'listRegistryWells', 'createWell', 'updateWellSettings', 'updateWellHeader',
-  'listMembers',
+  'listMembers', 'listOrgPeople', 'setMember',
   // records (WS0 generic; later phases add typed helpers on top)
   'addRecord', 'addRecords', 'listRecords', 'latestRecord', 'getRecord', 'addVersion', 'correctObservation',
   // samples (WS3)

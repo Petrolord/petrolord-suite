@@ -47,6 +47,24 @@ export function makeSupabaseTransport() {
       if (!data || !data.length) throw new Error('Only a well administrator can change the well settings.');
       return data[0];
     },
+    // ---- membership: ws_well_members insert/update are admin-only under RLS; nothing is ever deleted ----
+    async listOrgPeople(organizationId) {
+      const { data, error } = await supabase.from('organization_members').select('user_id, full_name, email').eq('organization_id', organizationId).eq('status', 'active');
+      if (error) throw new Error(error.message);
+      return (data || []).filter((r) => r.user_id).map((r) => ({ user_id: r.user_id, name: r.full_name || r.email || r.user_id, email: r.email || null }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    },
+    async insertMember(row) {
+      const { data, error } = await supabase.from('ws_well_members').insert(row).select();
+      if (error) throw new Error(error.code === '42501' ? 'Only a well administrator can add members.' : error.message);
+      return data[0];
+    },
+    async updateMember(id, patch) {
+      const { data, error } = await supabase.from('ws_well_members').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', id).select();
+      if (error) throw new Error(error.message);
+      if (!data || !data.length) throw new Error('Only a well administrator can change members.');
+      return data[0];
+    },
     /** The registry sources of a prognosis: the well's own tops, offset wells' tops and surveys, Well Design geometry and trajectory. */
     async loadPrognosisSources(geoWellId, { offsetWellIds = [] } = {}) {
       const geoWell = await getRegistryWell(geoWellId);
