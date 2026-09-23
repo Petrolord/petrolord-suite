@@ -10,7 +10,8 @@ import { DEV_APP_PATHS } from '@/components/wells/appLinks';
 export default function SeismolordWorkspaceHarness() {
   return (
     <div className="h-screen w-full overflow-hidden bg-slate-950 text-white">
-      <ViewerPanel appPaths={DEV_APP_PATHS} />
+      {/* ?tour runs the first-run tour (e2e); plain visits skip it */}
+      <ViewerPanel appPaths={DEV_APP_PATHS} autoTour={new URLSearchParams(window.location.search).has('tour')} />
     </div>
   );
 }

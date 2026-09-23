@@ -2,6 +2,35 @@
 
 Last updated: 2026-09-23 (Tops to Horizons: well tops to a named horizon framework, automatic fault picking; large surveys: the viewer reads the v4 display copy, coarse first; Stream C: v4 conversion to a local spool, two-stage resumable background upload; Stream L: slice worker, local-file view, budgeted cache; tester feedback: navigation, slice player, slice toggles, wells, stability; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
 
+## 2026-09-23: Start here, first-run tour, Detect faults (discoverability programme, step 2)
+
+Owner question: how does a first-time user find the automatic features
+and know what the upload already made? Suite only, no DDL, no engines.
+
+- Start here (dock tab and a ribbon-corner button): lib/startHere.js
+  builds, for the open volume, what the upload made (full precision,
+  16-bit, display copy only, or the local file), an inventory (attribute
+  volumes, horizons and how many from well tops, faults and how many
+  automatic, wells with tops, surfaces, velocity model) and seven next
+  steps, each done / to do / blocked with the reason and a Go button
+  (variance opens the attribute dialog preselected).
+- First-run tour (lib/firstRunTour.js, FirstRunTour.jsx): six [data-tour]
+  anchors (explorer, Home and Interpretation tabs, which it clicks open,
+  Start here, toolbox, Help); a tall target gets the card beside it.
+  The first visit in a browser opens Start here and the tour
+  (seismolord.tour.v1.seen); Take the tour replays it. The workspace
+  harness opts in with ?tour so existing specs are unchanged.
+- Detect faults: automatic fault picking without the wells (Interpretation
+  ribbon, Start here). The picker left TopsToHorizonsDialog step 3 for
+  the shared AutoFaultPicker; aoiAround (pipeline) centres the area on
+  the line on screen, full time range, square in cells, under the 24 M
+  cap (the time window shrinks only when the traces are very long).
+- Tests: startHere.test.jsx (model, panel, tour helpers),
+  detectFaultsDialog.test.jsx (aoiAround; real picking on the synthetic
+  field; taken names), e2e/seismolord-start-here.spec.js (tour walk,
+  dismissal, replay, Start here, Detect faults button). Seismolord jest
+  77 suites / 800 tests; build green.
+
 ## 2026-09-23: help guide refresh (discoverability programme, step 1)
 
 The in-app help had fallen behind the 2026-09-22/23 work. Added two

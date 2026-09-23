@@ -19,7 +19,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Ban, CheckCheck, Layers, Loader2, Play, Save, Sparkles, Target, Waypoints,
+  Ban, CheckCheck, Layers, Loader2, Play, Target, Waypoints,
 } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -32,15 +32,15 @@ import { listUnits } from '@/lib/stratRegistry';
 import { orderedUnits } from '@/lib/stratigraphy/column';
 import { listLogs, downloadCurve, effectiveCheckshots } from '../../../services/wellsService';
 import { saveHorizon } from '../../../services/horizonsService';
-import { saveFault } from '../../../services/faultsService';
 import {
-  pipelineWells, loadTieLogs, fieldTopOrder, saveFramework, saveAutoFaults,
+  pipelineWells, loadTieLogs, fieldTopOrder, saveFramework,
 } from '../../../services/topsToHorizons';
 import {
-  applyChoices, defaultAoi, clampAoi, AOI_MAX_SAMPLES, LOWO_MAX_TRACES,
+  applyChoices, defaultAoi, LOWO_MAX_TRACES,
 } from '../../../services/topsToHorizonsPipeline';
 import { findEvents } from '../../../engine/topsToEvents';
 import { predictTops } from '../../../engine/framework';
+import AutoFaultPicker from '../AutoFaultPicker';
 import { makeTvdssToTwt, buildWellLatticePath } from '../../../engine/wellSection';
 
 const KIND_LABEL = {
@@ -94,8 +94,6 @@ export default function TopsToHorizonsDialog({
   const [cellOpen, setCellOpen] = useState(null);           // {top, well}
   const [useFaultIds, setUseFaultIds] = useState(new Set());
   const [aoi, setAoi] = useState(null);
-  const [detected, setDetected] = useState(null);
-  const [keepAuto, setKeepAuto] = useState(new Set());
   const [jump, setJump] = useState(true);
   const [lowo, setLowo] = useState(true);
   const [track, setTrack] = useState(null);
@@ -168,37 +166,6 @@ export default function TopsToHorizonsDialog({
     }
   };
 
-  const detect = async () => {
-    try {
-      const r = await run('faults', {
-        geom, dtMs, aoi: clampAoi(aoi, geom), params: {},
-      });
-      setDetected(r);
-      setKeepAuto(new Set(r.faults.map((f) => f.name)));
-      if (!r.faults.length) toast({ title: 'No faults found', description: 'No fault stood above the confidence floor in this area.' });
-    } catch (e) {
-      if (!/cancel/i.test(e.message)) setError(e.message);
-    }
-  };
-
-  const saveDetected = async () => {
-    setBusy('save');
-    try {
-      const keep = detected.faults.filter((f) => keepAuto.has(f.name));
-      const rows = await saveAutoFaults({
-        volumeId: volume.id, faults: keep, takenNames: new Set(faults.map((f) => f.name)), saveFault, aoi: detected.aoi,
-      });
-      onFaultsSaved?.(rows);
-      setUseFaultIds((s) => new Set([...s, ...rows.map((r) => r.id)]));
-      setDetected(null);
-      toast({ title: 'Faults saved', description: `${rows.length} automatic ${rows.length === 1 ? 'fault' : 'faults'}, used as barriers.` });
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setBusy(null);
-    }
-  };
-
   const trackFramework = async () => {
     try {
       const edited = applyChoices(match.match, { exclude: [...exclude], events });
@@ -263,7 +230,6 @@ export default function TopsToHorizonsDialog({
     return { rows, basis, sigmaMs };
   }, [progWell, track, wells, affine, geom, velocity, boundaries, dtUs, dtMs]);
 
-  const aoiSamples = aoi ? (aoi.il1 - aoi.il0 + 1) * (aoi.xl1 - aoi.xl0 + 1) * (aoi.s1 - aoi.s0 + 1) : 0;
   const tops = match?.match?.tops || [];
   const wellNames = match?.wells?.map((w) => w.name) || [];
   const tunedAt = (top, wName) => match?.match?.wells.find((w) => w.name === wName)?.tuned.some((g) => g.includes(top)) || false;
@@ -494,64 +460,22 @@ export default function TopsToHorizonsDialog({
                     ))}
                   </div>
                 </div>
-                <div className="border-t border-slate-800 pt-3 space-y-2">
-                  <Label className="text-slate-300 flex items-center">
-                    <Sparkles className="w-4 h-4 mr-1 text-cyan-400" />
-                    Pick faults automatically
-                  </Label>
-                  <p className="text-xs text-slate-400">
-                    A fault likelihood from dip-steered semblance, thinned to one cell and grouped into
-                    faults. It runs over an area of interest (lattice indices), up to
-                    {` ${(AOI_MAX_SAMPLES / 1e6).toFixed(0)} million samples at a time.`}
-                  </p>
-                  {aoi && (
-                    <div className="grid grid-cols-6 gap-2 text-xs">
-                      {[['il0', 'Inline from'], ['il1', 'to'], ['xl0', 'Crossline from'], ['xl1', 'to'], ['s0', 'Sample from'], ['s1', 'to']].map(([k, lab]) => (
-                        <div key={k}>
-                          <Label className="text-slate-400 text-xs">{lab}</Label>
-                          <Input
-                            type="number"
-                            value={aoi[k]}
-                            onChange={(e) => setAoi((a) => ({ ...a, [k]: Number(e.target.value) }))}
-                            className="h-7 text-xs"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="flex items-center gap-3">
-                    <span className={`text-xs ${aoiSamples > AOI_MAX_SAMPLES ? 'text-rose-300' : 'text-slate-400'}`}>
-                      {`${(aoiSamples / 1e6).toFixed(1)} million samples`}
-                    </span>
-                    <Button size="sm" onClick={detect} disabled={!!busy || aoiSamples > AOI_MAX_SAMPLES} data-testid="t2h-detect">
-                      <Sparkles className="w-4 h-4 mr-1" />
-                      Pick faults
-                    </Button>
-                  </div>
-                  {detected && (
-                    <div className="space-y-1">
-                      {detected.faults.map((f) => (
-                        <label key={f.name} className="text-xs text-slate-300 flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={keepAuto.has(f.name)}
-                            onChange={(e) => setKeepAuto((s) => {
-                              const n = new Set(s);
-                              if (e.target.checked) n.add(f.name); else n.delete(f.name);
-                              return n;
-                            })}
-                          />
-                          {`${f.name}: confidence ${fmt(f.confidence, 2)}, ${f.sticks.length} sticks, strike ${fmt(f.stats?.strikeDeg, 0)}°`}
-                        </label>
-                      ))}
-                      {detected.faults.length > 0 && (
-                        <Button size="sm" onClick={saveDetected} disabled={!!busy || !keepAuto.size}>
-                          <Save className="w-4 h-4 mr-1" />
-                          Save the ticked faults
-                        </Button>
-                      )}
-                    </div>
-                  )}
+                <div className="border-t border-slate-800 pt-3">
+                  <AutoFaultPicker
+                    geom={geom}
+                    dtMs={dtMs}
+                    volume={volume}
+                    faults={faults}
+                    initialAoi={aoi}
+                    run={run}
+                    busy={busy}
+                    onError={setError}
+                    onSaved={(rows) => {
+                      onFaultsSaved?.(rows);
+                      setUseFaultIds((s) => new Set([...s, ...rows.map((r) => r.id)]));
+                      toast({ title: 'Faults saved', description: `${rows.length} automatic ${rows.length === 1 ? 'fault' : 'faults'}, used as barriers.` });
+                    }}
+                  />
                 </div>
                 <div className="flex justify-end">
                   <Button size="sm" onClick={() => setStep('track')}>Next: track</Button>

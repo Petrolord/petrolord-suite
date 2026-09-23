@@ -41,7 +41,8 @@ describe('SeismolordHelpGuide', () => {
     const text = container.textContent;
     for (const f of ['Attribute volume', 'Variance (discontinuity)', 'Sweetness', 'Co-render', 'Tops to horizons',
       'Tie and match tops', 'Pick faults', 'Track the framework', 'Accept and save', 'Prognosis',
-      'View it now', 'display copy', 'Large surveys', 'What Seismolord makes for you']) {
+      'View it now', 'display copy', 'Large surveys', 'What Seismolord makes for you',
+      'Start here', 'Take the tour', 'Detect faults', 'around the line on screen']) {
       expect(text).toContain(f);
     }
   });
