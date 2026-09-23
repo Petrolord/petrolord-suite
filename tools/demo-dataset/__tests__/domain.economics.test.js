@@ -264,12 +264,10 @@ describe('Episode 27: NPV Scenario Builder, Quick Mode', () => {
 });
 
 describe('Episode 28: Probabilistic Breakeven Analyzer', () => {
-  test('the reader the gate restates is still the one in the component', () => {
+  test('the component reads uploads with the same function the kit is checked against', () => {
     const text = src('src/components/breakevenanalyzer/InputPanel.jsx');
-    expect(text).toContain("k.toLowerCase().includes('date')");
-    expect(text).toContain("k.toLowerCase().includes('oil_rate')");
-    expect(text).toContain('annualProduction[year] += oilRate * 30.44;');
-    expect(text).toContain('const year = date.getFullYear();');
+    expect(text).toContain("import { aggregateAnnualProduction } from '@/utils/breakeven/productionCsv';");
+    expect(text).toContain('aggregateAnnualProduction(data)');
   });
 
   const inputs = (overrides = {}) => {
