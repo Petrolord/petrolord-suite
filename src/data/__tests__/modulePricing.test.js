@@ -25,13 +25,17 @@ const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
 const SERVER = 'supabase/functions/generate-quote/index.ts';
 const MIGRATION = 'supabase/migrations/20260830060000_module_pricing_single_source.sql';
 // Later migrations that MERGE a module into the seeded object (value || ...).
-const ADDITIONS = ['supabase/migrations/20260919230000_ps1_process_safety_module_pricing.sql'];
+const ADDITIONS = [
+  'supabase/migrations/20260919230000_ps1_process_safety_module_pricing.sql',
+  'supabase/migrations/20260923150000_d1_data_ai_module_pricing.sql',
+];
 
 describe('the shared table', () => {
   it('prices every module it names, positively', () => {
     const entries = Object.entries(MODULE_PRICING);
-    // Nine since PS1 (2026-09-19): Process Safety joined with its first app.
-    expect(entries.length).toBe(9);
+    // Nine since PS1 (2026-09-19), ten since D1 (2026-09-23): Process Safety
+    // and Data & AI each joined with its first app.
+    expect(entries.length).toBe(10);
     entries.forEach(([id, price]) => {
       expect(typeof price).toBe('number');
       expect(price).toBeGreaterThan(0);
@@ -137,15 +141,17 @@ describe('the commercial rule holds', () => {
   // on master_apps.price as at 2026-08-30.
   // Process Safety (PS1): its tiles copy a Facilities row, so 699, and it has
   // three apps planned (LOPA & SIL, Consequence, QRA).
+  // Data & AI (D1): its tiles copy a Geoscience row, so 899, and it has four
+  // apps planned in this run (D1 to D4; AI Evaluation Studio is not seeded).
   const APP_PRICE = {
     geoscience: 899, drilling: 899, reservoir: 899, facilities: 699,
     production: 699, economics: 599, 'midstream-downstream': 599, assurance: 499,
-    'process-safety': 699,
+    'process-safety': 699, 'data-ai': 899,
   };
   const APP_COUNT = {
     geoscience: 10, drilling: 12, reservoir: 13, facilities: 13,
     production: 12, economics: 12, 'midstream-downstream': 10, assurance: 14,
-    'process-safety': 3,
+    'process-safety': 3, 'data-ai': 4,
   };
   // The 60-85 percent discount band describes a module of ten or more apps.
   // A three-app module cannot sit in it and inside the 2.8x-4.0x rule at

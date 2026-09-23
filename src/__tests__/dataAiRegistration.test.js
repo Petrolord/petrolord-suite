@@ -106,21 +106,33 @@ describe('admin surfaces', () => {
   });
 });
 
-describe('pricing, held until the first app ships', () => {
-  it('is not priced while every app is Coming Soon', () => {
-    // A purchasable module with nothing in it is what the honest-catalog rule
-    // exists to prevent. D1 prices it, as PS1 did for Process Safety.
-    expect(MODULE_PRICING[SLUG]).toBeUndefined();
-    expect(MODULE_META[SLUG]).toBeUndefined();
-    expect(read('../supabase/functions/generate-quote/index.ts')).not.toContain(SLUG);
+describe('pricing, which lands with the first app (D1)', () => {
+  const PRICING = '20260923150000_d1_data_ai_module_pricing.sql';
+
+  it('is priced in the shared table, the server fallback and the migration alike', () => {
+    // The Coming Soon-only module was unpriced at DA0. D1 ships the Data
+    // Quality Studio and prices the module, as PS1 did for Process Safety.
+    expect(MODULE_PRICING[SLUG]).toBe(2999);
+    expect(MODULE_META[SLUG].name).toBe(NAME);
+    expect(read('../supabase/functions/generate-quote/index.ts')).toMatch(/'data-ai': 2999/);
+    expect(read(`../supabase/migrations/${PRICING}`)).toContain('{"data-ai":2999}');
   });
 });
 
 describe('marketing, which follows the catalog rather than leading it', () => {
-  it('does not advertise the module before any app in it works', () => {
-    expect(read('components/home/ModulesShowcase.jsx')).not.toContain(NAME);
-    expect(read('pages/Home.jsx')).not.toContain(NAME);
-    expect(read('pages/Solutions.jsx')).not.toContain(NAME);
+  it('counts ten modules now that the tenth has a working app', () => {
+    expect(read('pages/Home.jsx')).toMatch(/value: '10',\s*label: 'Discipline Modules'/);
+    expect(read('pages/Solutions.jsx')).toContain('Ten modules');
+  });
+
+  it('shows the module with the number of apps that actually work', () => {
+    // One of four. The count is what is built, not what is planned.
+    const showcase = read('components/home/ModulesShowcase.jsx');
+    const block = showcase.slice(showcase.indexOf(`name: '${NAME}'`));
+    expect(block).toMatch(/count: 1,/);
+    expect(block).toContain('Data Quality Studio');
+    expect(block).not.toMatch(/ML Workbench|Electrofacies Studio/);
+    expect(block.slice(0, block.indexOf('],'))).not.toMatch(/AI-powered|[–—]/);
   });
 });
 
@@ -210,5 +222,65 @@ describe('the seed migration', () => {
     const row = log.split('\n').find((l) => l.includes(SEED));
     expect(row).toBeTruthy();
     expect(row).toMatch(/NOT APPLIED \(owner-run\) \| NOT APPLIED \(owner-run\) \|$/);
+  });
+});
+
+describe('D1: the Data Quality Studio', () => {
+  const migrations = path.resolve(ROOT, '../supabase/migrations');
+  const sqlOf = (f) => fs.readFileSync(path.join(migrations, f), 'utf8');
+  const log = () => fs.readFileSync(path.resolve(ROOT, '../MIGRATIONS.md'), 'utf8');
+  const TABLE = '20260923130000_d1_dai_qc_runs.sql';
+  const TILE = '20260923140000_d1_activate_data_quality_studio_tile.sql';
+  const PRICING = '20260923150000_d1_data_ai_module_pricing.sql';
+
+  it('is routed where appRoutePath sends the tile, behind its own entitlement, with its help guide', () => {
+    const app = read('App.jsx');
+    expect(app).toContain("import('@/pages/apps/DataQualityStudio')");
+    expect(app).toContain("import('@/pages/apps/DataQualityStudioHelpGuide')");
+    expect(app).toContain('<Route path="apps/data-ai/data-quality-studio" element={<ProtectedAppRoute appId="data-quality-studio"');
+    expect(app).toContain('<Route path="apps/data-ai/data-quality-studio/help" element={<ProtectedAppRoute appId="data-quality-studio"');
+    expect(appRoutePath({ module: NAME, slug: 'data-quality-studio' })).toBe('/dashboard/apps/data-ai/data-quality-studio');
+  });
+
+  it('keeps its runs in a dai_* table scoped by organization membership', () => {
+    const sql = sqlOf(TABLE);
+    expect(sql).toMatch(/create table if not exists public\.dai_qc_runs/);
+    expect(sql).toMatch(/enable row level security/);
+    expect(sql).toMatch(/public\.is_org_member\(organization_id\)/);
+    expect(sql).toMatch(/has_org_role\(organization_id, array\['owner', 'admin'\]\)/);
+    expect(sql).toMatch(/revoke all on table public\.dai_qc_runs from anon/);
+    expect(sql).not.toMatch(/using \(true\)/i);
+    // Shared tables need a second engineer; this migration only references them.
+    expect(sql).not.toMatch(/alter table (if exists )?public\.(organizations|organization_members|users|invitations)\b/i);
+  });
+
+  it('flips only its own tile Active, and only if the DA0 seed made it', () => {
+    const sql = sqlOf(TILE);
+    expect(sql).toMatch(/v_slug text := 'data-quality-studio'/);
+    expect(sql).toMatch(/and module = 'Data & AI'/);
+    expect(sql).toMatch(/set status = 'Active'/);
+    expect(sql).toMatch(/is_built = true/);
+    expect(sql).toMatch(/is_functional = true/);
+    expect(sql).toMatch(/Nothing done/);
+    expect(sql).toMatch(/DEPLOY GATE/);
+    expect(sql.slice(sql.indexOf('do $$'))).not.toMatch(/ml-workbench|electrofacies-studio|forecasting-ml-workbench/);
+    expect(sql).not.toMatch(/[–—]/);
+    expect(sql).not.toMatch(/AI-powered|artificial intelligence/i);
+  });
+
+  it('merges its price into the single source without touching another module', () => {
+    const sql = sqlOf(PRICING);
+    expect(sql).toMatch(/set value = value \|\| '\{"data-ai":2999\}'::jsonb/);
+    expect(sql).toMatch(/where key = 'module_pricing'/);
+  });
+
+  it('logs every D1 migration as not applied (owner-run), after the DA0 seed', () => {
+    const all = fs.readdirSync(migrations).filter((f) => f.endsWith('.sql')).sort();
+    [TABLE, TILE, PRICING].forEach((f) => {
+      expect(all.indexOf(f)).toBeGreaterThan(all.indexOf(SEED));
+      const row = log().split('\n').find((l) => l.includes(f));
+      expect(row).toBeTruthy();
+      expect(row).toMatch(/NOT APPLIED \(owner-run\) \| NOT APPLIED \(owner-run\) \|$/);
+    });
   });
 });
