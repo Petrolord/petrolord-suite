@@ -627,6 +627,16 @@ const crsLabel = `${FRAME.crs} (${FRAME.crs_name})`;
     ));
   }
 
+  // The Waterflood Design Studio Surveillance tab reads exactly these headers
+  // (the engine's WATERFLOOD_SCHEMA, no aliases) and treats the values as the
+  // daily rates they are; the _bbl suffix is the schema's, not a volume. The
+  // fixture rows go out verbatim, wellhead pressure included for the Hall plot.
+  write('08-production/ekene-waterflood-surveillance.csv', csv(
+    ['date', 'well', 'oil_bbl', 'water_bbl', 'gas_mcf', 'inj_bbl', 'whp_psi'],
+    flood.surveillance_rows.map((r) => [r.date, r.well, n(r.oil_bbl, 6), n(r.water_bbl, 6), n(r.gas_mcf, 6),
+      n(r.inj_bbl, 6), r.whp_psi == null ? '' : n(r.whp_psi, 3)]),
+  ));
+
   write('08-production/ekene-vrr-ledger.csv', csv(
     ['month', 'oil_produced_stb', 'water_produced_stb', 'gas_produced_mscf', 'water_injected_bbl', 'vrr_target'],
     flood.ledger_periods.map((p) => [p.label, n(p.Np, 4), n(p.Wp, 4), n(p.Gp, 4), n(p.Wi, 4), n(p.vrr_target, 3)]),
@@ -684,9 +694,10 @@ const crsLabel = `${FRAME.crs} (${FRAME.crs_name})`;
     'writing these files, so these headers are the honest ones.', '',
     '## What each file is for', '',
     '| File | Application |', '|---|---|',
-    '| `ekene-production-monthly.csv` | any app wanting the whole field |',
+    '| `ekene-production-monthly.csv` | the whole field in one table, for reading and for spreadsheets; no app imports it as it stands |',
     '| `decline/Ekene-N.csv` | Decline Curve Analysis, one well at a time |',
-    '| `ekene-vrr-ledger.csv` | Voidage Replacement Monitor, Waterflood Design Studio |',
+    '| `ekene-vrr-ledger.csv` | Voidage Replacement Monitor (monthly volumes) |',
+    '| `ekene-waterflood-surveillance.csv` | Waterflood Design Studio, Surveillance tab (its own headers; daily rates, injector wellhead pressure) |',
     '| `../09-reservoir/ekene-mbal-tank-history.csv` | Material Balance Studio |',
     '| `../09-reservoir/ekene-relative-permeability.csv` | SCAL Studio, simulation |',
     '| `../09-reservoir/capillary/` | SCAL Studio Leverett J collapse |', '',
@@ -793,7 +804,81 @@ const EPISODES = [
     ['the prognosis published from Episode 9', 'the mud window on the trajectory'],
   ], note: 'Four wellbores are already on the pad (Ekene-8, -9, -10, -12) at 2.5 m slot spacing, so anti-collision '
     + 'has something real to scan. Ekene-11 is the well being designed and it is the only one in this kit with no logs.' },
+  { n: 11, app: 'Decline Curve Analysis', files: [
+    ['08-production/decline/Ekene-1.csv, Ekene-3.csv, Ekene-5.csv, Ekene-6.csv', 'one file per producer, daily rates by month'],
+  ], note: 'Create a project, Add Well for each producer, then drop that well\'s file on it; nothing is taken until a well is selected. '
+    + 'Each producer was planted with one Arps family, so the four wells are the four answers: Ekene-1 exponential '
+    + '(qi 120 bopd, Di 0.0012 per day), Ekene-3 hyperbolic with b 0.5, Ekene-5 harmonic, Ekene-6 hyperbolic with b 0.35. '
+    + 'Fit the primary window only, first production to December 2022, and each fit is exact. Then fit the whole history: '
+    + 'the waterflood from January 2023 lifts the rates, and a naive fit reads b between 1.35 and 1.95, which is the beat about '
+    + 'choosing the window. On its primary decline Ekene-1 reaches the 10 bopd economic limit at 91,667 stb.' },
+  { n: 12, app: 'Material Balance Studio', files: [
+    ['09-reservoir/ekene-mbal-tank-history.csv', 'seven pressure surveys with cumulatives and Bo, Rs, Bw per row'],
+    ['09-reservoir/ekene-pvt-lab-table.csv', 'the lab table, to type into the PVT tab if you want to show it (six rows)'],
+  ], note: 'New case: oil, no gas cap, no aquifer, initial pressure 3200 psia (the first row must match it within 1 psia), '
+    + '180 degF, Swi 0.35, bubble point 2000 psia, 32 API, gas gravity 0.75 (and, where asked, 35,000 ppm, cf 4e-6 and cw 3e-6 per psi). '
+    + 'Drop the tank history on the Data tab and press Save to case. The history carries its own PVT per row, which '
+    + 'the engine uses first. Havlena-Odeh returns 12,139,208 stb at R squared 1: the same number ReservoirCalc Pro gave '
+    + 'from the map in Episode 5. A map and a pressure decline, agreeing.' },
+  { n: 13, app: 'Voidage Replacement Monitor', files: [
+    ['08-production/ekene-vrr-ledger.csv', 'thirty-six months of field volumes from the start of the flood'],
+  ], note: 'Import the ledger; with no well column everything goes under one well called FIELD, which is right here. '
+    + 'Before reading a number, set the formation volume factors to the field\'s: Bo 1.21584, Bw 1.02, Rs 400, Bg 0. '
+    + 'The defaults are a different oil and read 0.827 in the first month. With the field values the monthly VRR climbs '
+    + 'from 0.85 to 1.05 by June 2023 and holds, and the cumulative is 1.035.' },
+  { n: 14, app: 'Waterflood Design Studio Surveillance', files: [
+    ['08-production/ekene-waterflood-surveillance.csv', 'two injectors and four producers, daily rates, injector wellhead pressure'],
+  ], note: 'Surveillance tab, Import CSV. This file carries the tab\'s own column names; the monthly production file '
+    + 'does not, and the tab reads that one as zeros. Set the fluid fields to the field\'s first: Bo 1.21584, Bw 1.02, '
+    + 'Bg 0, Rs 400. The tab\'s defaults are a different oil and read an average VRR of 1.007; the field values give '
+    + '1.035, the same answer as Episode 13. Ekene-2 and Ekene-4 are the injectors (both found the sand wet '
+    + 'below 1560 m). Wellhead pressure on the injectors gives the Hall plot something to draw. Ekene-6 breaks through '
+    + 'first, in March 2024.' },
+  { n: 15, app: 'SCAL Studio', files: [
+    ['09-reservoir/ekene-relative-permeability.csv', 'the Corey set, tabulated (Sw, krw, kro)'],
+    ['09-reservoir/capillary/EK1-P.csv, EK3-P.csv, EK5-P.csv', 'three plugs on three fluid systems'],
+    ['09-reservoir/capillary/plug-properties.csv', 'permeability, porosity, interfacial tension and contact angle, to type in'],
+  ], note: 'Lab Data tab: Add sample, then kr CSV and Pc CSV. Type each plug\'s properties from plug-properties.csv. '
+    + 'EK1 is air-brine (72, 0 degrees) and EK3 mercury-air (480, 40 degrees), which match their presets. EK5 is oil-brine '
+    + 'at 48 dyn/cm and 30 degrees: the preset says 30 dyn/cm, and with that the curves do not collapse. With the right '
+    + 'values all three fall on one Leverett J curve, and it is the curve the logs\' water saturation came from in '
+    + 'Episode 2. The Corey fit returns Swc 0.35, Sor 0.25, nw 2.5 and no 2.0.' },
+  { n: 16, app: 'Seismolord Tops to Horizons', files: [
+    ['04-seismic/EKENE3D-full.sgy', 'imported already (Episode 6); every step below runs on it'],
+    ['01-wells/tops/*-tops.csv', 'the nine surfaces in every well, already in the registry from Episodes 1 and 3'],
+    ['01-wells/checkshots/*-checkshots.csv', 'the time-depth relation in every logged well'],
+  ], note: 'Show the wells with tops in the explorer, then Interpretation, Tops to horizons. Every well has checkshots, '
+    + 'so each one ties on its own relation. Top Ekene Sand is a PEAK (SEG normal polarity), and the auto tie '
+    + 'should agree. In the faults step, run Detect faults at the Oboro or Akata level: the growth fault has real '
+    + 'throw there and none at the Ekene Sand, so it is found below the reservoir and not in it, which is the '
+    + 'geology. Track the framework, Accept, and the horizons come out named after their tops. For the prognosis beat, '
+    + 'pick Ekene-11, the planned well with no logs. '
+    + 'Then Compute attribute volume on the same cube: Fault likelihood (the growth fault lights up below '
+    + '1790 m), Most positive curvature (the drape anticline crest reads positive), Dip azimuth (grid north) '
+    + '(the flanks point away from the crest), Chaos, and Relative acoustic impedance (the Ekene Sand, faster and '
+    + 'denser than the Ogbia Shale above it, becomes a block).' },
 ];
+
+// Every kit path a note names must exist: a note pointing at a missing file
+// fails the run, the same rule as every other assertion here.
+{
+  const missing = [];
+  for (const e of EPISODES) {
+    for (const [f] of e.files) {
+      if (!/^\d\d-/.test(f)) continue;           // prose: "the surface from Episode 4"
+      const dir = path.posix.dirname(f.split(',')[0].trim());
+      const names = f.split(',').map((x) => path.posix.basename(x.trim()));
+      for (const name of names) {
+        if (name.includes('*')) {
+          const re = new RegExp(`^${name.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')}$`);
+          const hit = fs.existsSync(path.join(OUT, dir)) && fs.readdirSync(path.join(OUT, dir)).some((x) => re.test(x));
+          if (!hit) missing.push(`episode ${e.n}: ${dir}/${name}`);
+        } else if (!fs.existsSync(path.join(OUT, dir, name))) missing.push(`episode ${e.n}: ${dir}/${name}`);
+      }
+    }
+  }
+  if (missing.length) throw new Error(`ASSERT episode notes name files the kit does not have:\n  ${missing.join('\n  ')}`);
+}
 
 for (const e of EPISODES) {
   const lines = [
@@ -862,8 +947,10 @@ write('00-START-HERE.md', [
   'Episode 1 builds the well. 2 interprets it. 3 correlates it. 4 maps it. 5 turns the map into a',
   'volume. 6 ties the seismic to it. 7 models it. 8 dates it. 9 turns it into a drilling decision.',
   '10 plans the next well from that decision. Keep Ekene-1 as the well throughout.', '',
-  'Folders 08 and 09 carry the same field on production, for the episodes after these ten:',
-  'decline, material balance, voidage replacement, SCAL and simulation.', '',
+  'Folders 08 and 09 carry the same field on production. 11 fits its declines. 12 recovers the',
+  'volume from 5 out of the pressure history. 13 and 14 watch the waterflood. 15 shows the',
+  'capillary curve behind the Sw from 2. 16 goes back to the seismic and builds the whole horizon',
+  'framework from the wells\' tops.', '',
   '## What agrees with what', '',
   '- Water saturation in the logs comes from the field\'s own capillary pressure curve, so the',
   '  crest drains to Sw 0.3506 exactly as the reservoir fixture says it does.',

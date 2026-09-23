@@ -4,7 +4,7 @@ Builds the field dataset the YouTube tutorial series records against.
 
 ```
 npx tsx tools/demo-dataset/generate.mjs      # -> dist-demo/ekene-demo-v1/
-npx jest tools/demo-dataset                  # the gates
+npx jest tools/demo-dataset                  # the gates (kitImports reads the generated kit)
 ```
 
 To package for the release (two assets: the kit stays small enough to

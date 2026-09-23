@@ -15,11 +15,12 @@ Generator: `tools/demo-dataset/`. Gates: `npx jest tools/demo-dataset`.
 | D5 Stratigraphy | **BUILT 2026-09-11** | generator §12 |
 | D6 Kit assembly and episode notes | **BUILT 2026-09-11** | generator §14, §15 |
 | D7 The rest of the Suite | **BUILT 2026-09-11** | generator §16, repackaging `ekene-dynamic` |
-| Release | **NOT DONE** | needs the owner to cut `ekene-demo-v1` on the Petrolord org |
+| D7b Episodes 11-16, the kit through the apps' importers | **BUILT 2026-09-23** | generator §14 + `__tests__/kitImports.test.js` |
+| Release | see Open | `ekene-demo-v1` on the Suite repo, owner-approved 2026-09-23 |
 
 ## What the kit is
 
-`dist-demo/ekene-demo-v1/`, 91 files, 58.6 MB (41.3 MB of that is the full
+`dist-demo/ekene-demo-v1/`, 98 files, 58.7 MB (41.3 MB of that is the full
 SEG-Y). Deterministic: reruns are byte-identical.
 
 | Folder | Contents |
@@ -33,7 +34,7 @@ SEG-Y). Deterministic: reruns are byte-identical.
 | `07-well-design` | Ekene Alpha site card, Ekene-11 targets |
 | `08-production` | 345 well-months, 36-month voidage ledger, per-well decline files |
 | `09-reservoir` | 7 pressure surveys, PVT lab table, Corey relative permeability, 3 capillary plugs |
-| `episodes` | one note per episode naming exactly which files to load |
+| `episodes` | 16 notes, one per episode, naming exactly what to load and what to set first |
 
 ## Gates (20, all green 2026-09-11)
 
@@ -58,6 +59,49 @@ SEG-Y). Deterministic: reruns are byte-identical.
 | surveillance rows | are daily rates; a month of them reproduces the ledger's Np |
 | material balance | returns 12139208 stb against a volumetric 12139208 stb, R squared 1 |
 | capillary plugs | carry the same J curve the log saturations came from |
+
+## 2026-09-23: episodes 11-16 and the import gate
+
+The kit was re-checked against today's main before anything changed: the 20
+gates still pass and a regeneration was byte-identical to the 2026-09-11 kit.
+
+Every production and reservoir file was then run through the parser its
+application actually uses (not a copy of the format):
+
+| File | Application | Verdict |
+|---|---|---|
+| `decline/Ekene-N.csv` | Decline Curve Analysis | as it stands, one well at a time (Add Well first) |
+| `ekene-mbal-tank-history.csv` | Material Balance Studio | as it stands, with a case at Pi 3200 psia; Save to case |
+| `ekene-vrr-ledger.csv` | VRR Monitor | as it stands; set Bo 1.21584, Bw 1.02, Rs 400, Bg 0 (defaults read 0.827, field 0.85) |
+| `ekene-relative-permeability.csv`, `capillary/*.csv` | SCAL Studio | as they stand; type the plug properties; EK5 needs 48 dyn/cm, not the 30 of its preset |
+| `ekene-production-monthly.csv` | none | no app takes it as it stands; now labelled a reference table |
+| `ekene-pvt-lab-table.csv` | Material Balance, Fluid Studio | neither imports a PVT table; typed by hand, and the tank history already carries PVT per row |
+
+The Waterflood Surveillance tab reads only its own schema headers, so neither
+existing production file loaded (both came through as zeros). **New file:
+`08-production/ekene-waterflood-surveillance.csv`**, the fixture rows verbatim
+in the tab's headers with injector wellhead pressure: 2 injectors, 4 producers,
+VRR 1.035 with the field FVFs (the tab defaults read 1.007), both Hall plots.
+
+New gates (`kitImports.test.js`, 12, reading the generated kit): the decline
+files, the VRR ledger (0.85, 1.05, cumulative 1.035; defaults 0.827), the
+surveillance file (wells, VRR, water cut, Hall plots; the monthly file reads as
+nothing), the Corey fit (Swc 0.35, Sor 0.25, nw 2.5, no 2.0) and the Leverett J
+collapse (EK5 at the preset's 30 dyn/cm is off by 48/30). Material Balance's
+importer sits inside its component, so its answer stays covered by the
+material balance gate. The generator also now fails if an episode note names
+a kit file that does not exist (negative control: a misspelt file fails the
+run). All 32 gates pass.
+
+New episodes: 11 Decline Curve Analysis, 12 Material Balance Studio, 13 VRR
+Monitor, 14 Waterflood Surveillance, 15 SCAL Studio, 16 Seismolord Tops to
+Horizons and the new attributes.
+
+App findings from the check (not fixed here):
+- Decline Curve Analysis matches header aliases by substring, so a column
+  named `injection_rate_bwpd` is read as cumulative oil (it contains `np`).
+- The Waterflood Surveillance tab has no header aliases and reports nothing
+  when none match: a file with other names imports as all zeros, silently.
 
 ## Decisions taken while building
 
@@ -103,8 +147,7 @@ release.
 
 ## Open
 
-- Cut the `ekene-demo-v1` release on the Petrolord org and attach both
-  assets.
+- Release `ekene-demo-v1`: owner-approved 2026-09-23; cut once this lands.
 - Add a "data for this episode" block to each of the ten scripts, from
   `dist-demo/ekene-demo-v1/episodes/`. The scripts are currently artifacts
   from the 2026-09-10 session, not files in this repo.
