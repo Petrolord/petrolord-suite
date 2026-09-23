@@ -22,10 +22,6 @@ const Resources = () => {
           description: 'How a major operator leveraged Petrolord\'s Integrated Asset Modeler to optimize their brownfield asset.',
         },
         {
-          title: 'AI-Powered Geosteering Reduces Drilling Time by 30%',
-          description: 'Discover how real-time AI guidance in Well Design Studio transformed drilling operations.',
-        },
-        {
           title: 'Portfolio Optimization Unlocks $200M in Capital Efficiency',
           description: 'A deep dive into using the Capital Portfolio Studio to maximize value across a diverse asset base.',
         },
@@ -39,10 +35,6 @@ const Resources = () => {
         {
           title: 'The Future of Energy: An Integrated Cloud Ecosystem',
           description: 'An in-depth look at the paradigm shift from siloed software to a unified digital operating system.',
-        },
-        {
-          title: 'Generative AI in Subsurface Characterization',
-          description: 'Exploring the impact of AI on seismic interpretation, reservoir modeling, and risk reduction.',
         },
         {
           title: 'Automating Field Development Planning (FDP)',
@@ -82,10 +74,6 @@ const Resources = () => {
           title: 'Top 5 Features in the Latest Petrolord Platform Update',
           description: 'A rundown of the newest tools and enhancements designed to supercharge your workflows.',
         },
-        {
-          title: 'Meet the Team: An Interview with our Lead AI Scientist',
-          description: 'A conversation about the future of artificial intelligence in the oil and gas industry.',
-        },
       ],
     },
     {
@@ -100,10 +88,6 @@ const Resources = () => {
         {
           title: 'Digital Transformation in Energy',
           description: 'Our vision for how digital solutions are revolutionizing the energy sector.',
-        },
-        {
-          title: 'AI & Machine Learning Capabilities',
-          description: 'Dive deep into the AI and ML technologies powering Petrolord\'s intelligent applications.',
         },
       ],
     },

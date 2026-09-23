@@ -164,7 +164,6 @@ const WellSpacingHelpGuide = lazy(() => import('@/pages/apps/WellSpacingHelpGuid
 const GeomechanicsHarness = lazy(() => import('@/pages/apps/GeomechanicsStudio/GeomechanicsHarness'));
 const WellDesignHelpGuide = lazy(() => import('@/pages/apps/well-planning/WellDesignHelpGuide'));
 const WellDataManager = lazy(() => import('@/pages/apps/WellDataManager/WellDataManager'));
-const AnalogFinder = lazy(() => import('@/pages/apps/AnalogFinder'));
 const WellTestAnalysisStudio = lazy(() => import('@/pages/apps/WellTestAnalysisStudio'));
 const NodalAnalysisStudio = lazy(() => import('@/pages/apps/NodalAnalysisStudio'));
 const ProductionSurveillanceStudio = lazy(() => import('@/pages/apps/ProductionSurveillanceStudio'));
@@ -537,7 +536,7 @@ function App() {
                                 <Route path="apps/geoscience/well-log-analyzer" element={<Navigate to="/dashboard/apps/geoscience/petrophysics-studio" replace />} />
                                 <Route path="apps/geoscience/automated-log-digitizer" element={<Navigate to="/dashboard/apps/geoscience/petrophysics-studio" replace />} />
                                 <Route path="apps/geoscience/contour-map-digitizer" element={<ContourMapDigitizer />} />
-                                <Route path="apps/geoscience/analog-finder" element={<AnalogFinder />} />
+                                <Route path="apps/geoscience/analog-finder" element={<Navigate to="/dashboard/geoscience" replace />} />
                                 {/* Legacy earth-model slugs redirect to the G8 successor
                                     (roadmap G0: routes stay as aliases where a successor exists). */}
                                 <Route path="apps/geoscience/earthmodel-studio" element={<Navigate to="/dashboard/apps/geoscience/earth-modeling" replace />} />
