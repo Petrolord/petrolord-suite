@@ -153,8 +153,10 @@ describe('the seed migration', () => {
     const all = fs.readdirSync(migrations).filter((f) => f.endsWith('.sql')).sort();
     const at = all.indexOf(SEED);
     expect(at).toBeGreaterThan(-1);
-    // Everything after the seed is Process Safety's own, which depends on it.
-    all.slice(at + 1).forEach((f) => expect(f).toMatch(/^\d{14}_ps\d+_/));
+    // Everything after the seed, up to the last PS3 migration, is Process
+    // Safety's own, which depends on it. Later modules (DA0 onward) sort after.
+    const LAST_PS = '20260921110000_ps3_activate_qra_tile.sql';
+    all.slice(at + 1).filter((f) => f <= LAST_PS).forEach((f) => expect(f).toMatch(/^\d{14}_ps\d+_/));
     expect(all.slice(at + 1)).toEqual(expect.arrayContaining([
       '20260919210000_ps1_lopa_studies.sql',
       '20260919220000_ps1_activate_lopa_sil_tile.sql',

@@ -139,5 +139,6 @@ export const MODULE_LABELS = {
   facilities: 'Facilities',
   'midstream-downstream': 'Midstream & Downstream',
   'process-safety': 'Process Safety',
+  'data-ai': 'Data & AI',
   assurance: 'Assurance',
 };

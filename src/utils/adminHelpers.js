@@ -52,6 +52,9 @@ export const normalizeModuleName = (name) => {
     // PS0: the ninth module. Its own id, never 'hse', which is the external
     // HSE portal and its hse_free / hse_premium entitlements.
     if (lowerName.includes('process safety') || lowerName.includes('process-safety')) return 'process-safety';
+    // DA0: the tenth module. Matched on its exact names only: "ai" or
+    // "data" alone appear inside many other names.
+    if (lowerName === 'data & ai' || lowerName === 'data and ai' || lowerName === 'data-ai') return 'data-ai';
     if (lowerName.includes('hse')) return 'hse';
     
     // Default fallback (returns original if no match, simplified)
@@ -70,7 +73,8 @@ export const getModuleList = () => {
     { id: 'facilities', name: 'Facilities Engineering', description: 'Surface facilities design and management', type: 'suite' },
     { id: 'economics', name: 'Economics & Planning', description: 'Asset valuation and portfolio management', type: 'suite' },
     { id: 'midstream-downstream', name: 'Midstream & Downstream', description: 'Refining, terminals, fuel supply chain and the carbon ledger beside them', type: 'suite' },
-    { id: 'process-safety', name: 'Process Safety', description: 'LOPA and SIL determination, consequence modelling and quantitative risk assessment', type: 'suite' }
+    { id: 'process-safety', name: 'Process Safety', description: 'LOPA and SIL determination, consequence modelling and quantitative risk assessment', type: 'suite' },
+    { id: 'data-ai', name: 'Data & AI', description: 'Data quality checks, machine learning on well data, electrofacies clustering and statistical production forecasting', type: 'suite' }
   ];
 };
 
