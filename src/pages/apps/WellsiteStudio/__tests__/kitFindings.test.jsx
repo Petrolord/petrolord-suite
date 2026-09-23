@@ -22,6 +22,9 @@ jest.mock('@/lib/customSupabaseClient', () => ({ supabase: {} }));
 jest.mock('@/lib/crs/settingsService', () => ({ getDepthUnit: async () => 'ft' }));
 jest.mock('@/components/workstation/WorkspaceShell', () => ({ __esModule: true, default: ({ ribbon, explorer, center, statusBar }) => <div>{ribbon}{explorer}{center}{statusBar}</div> }));
 
+// the Config round trip saves twice through the Dexie store; under a full jest batch it can pass 5 s
+jest.setTimeout(20000);
+
 const FT = 0.3048;
 const MIN = 60000;
 const T0 = Date.parse('2026-09-07T06:00:00Z');
