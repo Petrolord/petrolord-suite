@@ -3,10 +3,10 @@
  * reason, the scorecard and every parameter the run used.
  */
 import { buildReportCsv, flattenProfile, CSV_COLUMNS } from '@/utils/dataAi/qcReport';
-import { defaultProfile, runQcProfile } from '@/utils/dataAi/qcProfile';
+import { defaultProfile, runQcProfile, indexLabel } from '@/utils/dataAi/qcProfile';
 
-// RFC 4180 reader for the check. The shared tabularFile reader splits on
-// every delimiter and does not unquote, so it is not the witness here.
+// RFC 4180 reader for the check, written here so the witness is
+// independent of the shared tabularFile reader.
 function readCsv(text) {
   const rows = [];
   let row = [];
@@ -54,6 +54,18 @@ describe('the CSV report', () => {
     });
   });
 
+  it('writes each flag entry counted from 0, as the engine reasons count', () => {
+    const flags = table.rows.filter((r) => r[0] === 'flag');
+    const col = CSV_COLUMNS.indexOf('entry');
+    expect(col).toBe(5);
+    expect(CSV_COLUMNS).not.toContain('sample');
+    run.flags.forEach((f, i) => {
+      expect(flags[i][col]).toBe(Number.isInteger(f.index) ? String(f.index) : '');
+    });
+    // the density spike is the sixth value, entry 5
+    expect(flags.some((r) => r[col] === '5' && r[3] === 'RHOB')).toBe(true);
+  });
+
   it('writes each flag value at the engine precision, unrounded', () => {
     const flags = table.rows.filter((r) => r[0] === 'flag');
     run.flags.forEach((f, i) => {
@@ -73,5 +85,37 @@ describe('the CSV report', () => {
   it('quotes a label with commas and quotes so the file still parses', () => {
     const label = table.rows.find((r) => r[0] === 'meta' && r[6] === 'dataset');
     expect(label[8]).toBe('rhob, "quoted", test');
+  });
+});
+
+describe('entry numbering on a dataset with no index', () => {
+  // No index column: the flag's place is labelled as the engine counts it
+  // (entry 3), never as a 1-based row, so the table, the export and the
+  // reason text quote one number.
+  const noIndex = {
+    source: 'upload', label: 'cum', ref: {}, index: null,
+    channels: [{ key: 'cum', name: 'CUM', unit: 'stb', values: [100, 110, 120, 115, 130, 140], notes: [] }],
+    identifiers: null, notes: [],
+  };
+  const profile = defaultProfile();
+  profile.consistency.cumulative = { ...profile.consistency.cumulative, key: 'cum' };
+  const run = runQcProfile(noIndex, profile);
+
+  it('labels the flag and the entry it was compared with from 0', () => {
+    const f = run.flags.find((x) => x.rule === 'cumulative-decrease');
+    expect(f).toBeDefined();
+    expect(f.index).toBe(3);
+    expect(f.at).toBe('entry 3');
+    expect(f.previousAt).toBe('entry 2');
+    expect(f.reason).toMatch(/at entry 2 to/);
+    const csv = readCsv(buildReportCsv({ runName: 'n', dataset: noIndex, profile, run }));
+    const row = csv.rows.find((r) => r[0] === 'flag' && r[6] === 'cumulative-decrease');
+    expect(row[4]).toBe('entry 3');
+    expect(row[5]).toBe('3');
+  });
+
+  it('labels charts the same way: entry N with no index, the index value otherwise', () => {
+    expect(indexLabel(noIndex, 3)).toBe('entry 3');
+    expect(indexLabel(ds, 3)).toBe('4');
   });
 });

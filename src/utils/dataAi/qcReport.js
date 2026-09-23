@@ -23,7 +23,7 @@ export function flattenProfile(profile, prefix = '') {
   return out;
 }
 
-export const CSV_COLUMNS = ['record', 'dimension', 'method', 'channel', 'at', 'sample', 'rule', 'reason', 'value'];
+export const CSV_COLUMNS = ['record', 'dimension', 'method', 'channel', 'at', 'entry', 'rule', 'reason', 'value'];
 
 /**
  * One CSV, one row per record: meta, parameter, score and flag rows under a
@@ -51,7 +51,7 @@ export function buildReportCsv({ runName, dataset, profile, run }) {
   }
   (run?.flags || []).forEach((f) => row({
     record: 'flag', dimension: f.dimension, method: f.method, channel: f.channel, at: f.at,
-    sample: f.index === null || f.index === undefined ? '' : f.index + 1, rule: f.rule, reason: f.reason,
+    entry: Number.isInteger(f.index) ? f.index : '', rule: f.rule, reason: f.reason,
     value: f.value === null || f.value === undefined ? '' : String(f.value),
   }));
   (run?.results || []).filter((r) => r.result && r.result.error).forEach((r) => row({
@@ -105,10 +105,10 @@ export async function generateQcPdf({ runName, dataset, profile, run }) {
   const flags = run?.flags || [];
   autoTable(doc, {
     startY: y,
-    head: [['Dimension', 'Method', 'Channel', 'At', 'Rule', 'Reason']],
-    body: flags.slice(0, PDF_FLAG_LIMIT).map((f) => [f.dimension, f.method, f.channel || '', f.at || '', f.rule, f.reason]),
+    head: [['Dimension', 'Method', 'Channel', 'Entry', 'At', 'Rule', 'Reason']],
+    body: flags.slice(0, PDF_FLAG_LIMIT).map((f) => [f.dimension, f.method, f.channel || '', Number.isInteger(f.index) ? String(f.index) : '', f.at || '', f.rule, f.reason]),
     styles: { fontSize: 7, cellPadding: 1 },
-    columnStyles: { 5: { cellWidth: 70 } },
+    columnStyles: { 6: { cellWidth: 66 } },
     headStyles: { fillColor: [15, 23, 42] },
   });
   y = doc.lastAutoTable.finalY + 4;

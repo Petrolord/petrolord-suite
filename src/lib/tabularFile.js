@@ -43,24 +43,123 @@ const cleanLines = (text) => String(text || '').split(/\r\n|\r|\n/)
   .map((l) => l.trim())
   .filter((l) => l.length && !l.startsWith('#') && !l.startsWith('//'));
 
-/** Most frequent of comma, semicolon, tab on the first line; else whitespace. */
+/**
+ * Occurrences of ch on one line outside quoted fields, where a quote only
+ * opens a field at its start (so 9 5/8" in a header is data).
+ */
+const countOutsideQuotes = (line, ch) => {
+  let n = 0;
+  let quoted = false;
+  let atStart = true;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (quoted) {
+      if (c === '"' && line[i + 1] === '"') i += 1;
+      else if (c === '"') quoted = false;
+    } else if (c === ch) { n += 1; atStart = true; }
+    else if (atStart && c === '"') { quoted = true; atStart = false; }
+    else if (!(atStart && (c === ' ' || c === '\t'))) atStart = false;
+  }
+  return n;
+};
+
+/** Most frequent of comma, semicolon, tab on the first line (outside quotes); else whitespace. */
 export function detectDelimiter(text) {
   const lines = cleanLines(text);
   if (!lines.length) return 'whitespace';
   const counts = {
-    ',': (lines[0].match(/,/g) || []).length,
-    ';': (lines[0].match(/;/g) || []).length,
-    '\t': (lines[0].match(/\t/g) || []).length,
+    ',': countOutsideQuotes(lines[0], ','),
+    ';': countOutsideQuotes(lines[0], ';'),
+    '\t': countOutsideQuotes(lines[0], '\t'),
   };
   const best = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
   return best[1] > 0 ? best[0] : 'whitespace';
 }
 
-/** Split text into string cells on one delimiter (comment and blank lines dropped). */
+const isLineBreak = (c) => c === '\n' || c === '\r';
+const isBlank = (c) => c === ' ' || c === '\t';
+
+/**
+ * RFC 4180 records on one delimiter character. A field that opens with a
+ * double quote (after any spaces or tabs) runs to its closing quote: the
+ * delimiter and CR, LF or CRLF inside it are data, and a doubled quote is
+ * one quote. Unquoted cells are trimmed, quoted content is kept exactly.
+ * Line handling matches the plain reader: a physical line that is blank or
+ * starts with # or // (after trimming) is skipped, and spaces and tabs at
+ * the start and end of a record are trimmed away before it is split. A
+ * quote inside an unquoted cell (12" casing) is data; an unterminated
+ * quote takes the rest of the text as its content.
+ */
+function splitQuoted(text, d) {
+  const s = String(text || '');
+  const n = s.length;
+  const rows = [];
+  let i = 0;
+  const lineEnd = (k) => { while (k < n && !isLineBreak(s[k])) k++; return k; };
+  const skipBreak = (k) => (s[k] === '\r' && s[k + 1] === '\n' ? k + 2 : k + 1);
+  while (i < n) {
+    // record start: skip blank and comment physical lines
+    const end = lineEnd(i);
+    const line = s.slice(i, end).trim();
+    if (!line.length || line.startsWith('#') || line.startsWith('//')) { i = end < n ? skipBreak(end) : n; continue; }
+    while (i < n && isBlank(s[i])) i++;
+    const row = [];
+    let done = false;
+    while (!done) {
+      let j = i;
+      while (j < n && isBlank(s[j]) && s[j] !== d) j++;
+      let cellText;
+      if (s[j] === '"') {
+        // quoted field
+        let k = j + 1;
+        let body = '';
+        for (;;) {
+          if (k >= n) break;
+          if (s[k] === '"') {
+            if (s[k + 1] === '"') { body += '"'; k += 2; continue; }
+            k += 1;
+            break;
+          }
+          body += s[k];
+          k += 1;
+        }
+        // anything after the closing quote up to the delimiter is kept (lenient)
+        let tail = '';
+        while (k < n && s[k] !== d && !isLineBreak(s[k])) { tail += s[k]; k += 1; }
+        cellText = body + tail.trim();
+        i = k;
+      } else {
+        let k = i;
+        while (k < n && s[k] !== d && !isLineBreak(s[k])) k++;
+        cellText = s.slice(i, k).trim();
+        i = k;
+      }
+      row.push({ text: cellText, quoted: s[j] === '"' });
+      if (i < n && s[i] === d) { i += 1; continue; }
+      done = true;
+      if (i < n) i = skipBreak(i);
+    }
+    // a record's trailing spaces and tabs were trimmed by the plain reader,
+    // so trailing empty unquoted cells made only of them are dropped when
+    // the delimiter itself is blank (tab)
+    if (isBlank(d)) {
+      while (row.length > 1 && !row[row.length - 1].quoted && row[row.length - 1].text === '') row.pop();
+    }
+    rows.push(row.map((c) => c.text));
+  }
+  return rows;
+}
+
+/**
+ * Split text into string cells on one delimiter (comment and blank lines
+ * dropped). Comma, semicolon and tab follow RFC 4180 quoting (see
+ * splitQuoted); whitespace splits on runs of spaces and tabs and does not
+ * read quotes.
+ */
 export function splitDelimited(text, delimiter) {
   const d = delimiter === 'auto' || !delimiter ? detectDelimiter(text) : delimiter;
-  const split = (l) => (d === 'whitespace' ? l.split(/\s+/) : l.split(d).map((c) => c.trim()));
-  return { rows: cleanLines(text).map(split), delimiter: d };
+  if (d === 'whitespace') return { rows: cleanLines(text).map((l) => l.split(/\s+/)), delimiter: d };
+  return { rows: splitQuoted(text, d), delimiter: d };
 }
 
 const isNum = (c) => c === '' || Number.isFinite(Number(c));

@@ -159,14 +159,19 @@ export const SCORE_BASIS = [
   'A dimension nothing checked is left out of the scorecard rather than scored as perfect.',
 ];
 
-/** The label of sample i on the dataset's index (a depth, a date, or the row). */
+/**
+ * The label of entry i on the dataset's index (a depth or a date), or
+ * `entry i` when there is no index value. Entries count from 0 across the
+ * whole studio, the way the engine's reasons count them ("entry 57" is
+ * the 58th value).
+ */
 export const indexLabel = (ds, i) => {
   if (i === null || i === undefined) return '';
   const idx = ds.index;
-  if (!idx) return `row ${i + 1}`;
+  if (!idx) return `entry ${i}`;
   if (idx.labels && idx.labels[i] !== undefined) return idx.labels[i];
   const v = idx.values[i];
-  return v === null || v === undefined ? `row ${i + 1}` : String(Number(v.toPrecision(8)));
+  return v === null || v === undefined ? `entry ${i}` : String(Number(v.toPrecision(8)));
 };
 
 const cell = (key, i) => `${key}\u0000${i}`;
@@ -191,11 +196,12 @@ export const rangeArgs = (limit) => {
 export const DEFINITIONAL_CHANNELS = Object.keys(DEFINITIONAL_LIMITS);
 export const definitionalUnits = (channel) => Object.keys(DEFINITIONAL_LIMITS[channel] || {});
 
-const sliceWindow = (values, from, to) => {
+/** The chart window: entries from and to, counted from 0, inclusive; blank = first / last. */
+export const sliceWindow = (values, from, to) => {
   const a = num(from);
   const b = num(to);
-  const start = Number.isInteger(a) && a >= 1 ? a - 1 : 0;
-  const end = Number.isInteger(b) && b >= 1 ? Math.min(b, values.length) : values.length;
+  const start = Number.isInteger(a) && a >= 0 ? Math.min(a, values.length) : 0;
+  const end = Number.isInteger(b) && b >= 0 ? Math.min(b + 1, values.length) : values.length;
   return { start, values: values.slice(start, end) };
 };
 
@@ -390,7 +396,12 @@ export function runQcProfile(ds, profileIn) {
     const { start, values } = sliceWindow(chartCh.values, cc.from, cc.to);
     const target = num(cc.target);
     const sigma = num(cc.sigma);
-    const shift = (r) => (r && !r.error ? { ...r, flags: r.flags.map((f) => ({ ...f, index: f.index + start })) } : r);
+    const shift = (r) => {
+      if (r && !r.error) return { ...r, flags: r.flags.map((f) => ({ ...f, index: f.index + start })) };
+      // a gap refusal names values[i] inside the window; add the channel entry
+      const m = r && r.error ? /^values\[(\d+)\]$/.exec(r.field || '') : null;
+      return m ? { ...r, entry: start + Number(m[1]) } : r;
+    };
     const one = (method, r) => {
       const s = shift(r);
       push('time series', method, chartCh, s);
@@ -398,6 +409,7 @@ export function runQcProfile(ds, profileIn) {
     };
     charts = {
       channel: chartCh.name, unit: chartCh.unit, start, values,
+      axis: ds.index ? `${ds.index.name}${ds.index.unit ? ` (${ds.index.unit})` : ''}` : 'Entry',
       labels: values.map((_, j) => indexLabel(ds, start + j)),
       individuals: cc.individuals.enabled ? one('individuals', individualsChart({ values, centre: num(cc.individuals.centre), mrBar: num(cc.individuals.mrBar) })) : null,
       ewma: cc.ewma.enabled ? one('ewma', ewmaChart({ values, lambda: num(cc.ewma.lambda), target, sigma, L: num(cc.ewma.L), limits: cc.ewma.limits || undefined })) : null,
@@ -429,15 +441,16 @@ export function runQcProfile(ds, profileIn) {
 /**
  * In-control target and sigma from a baseline stretch of the chart channel,
  * by the engine's individuals chart on that stretch: target = its centre
- * line, sigma = MRbar / d2 (NIST 6.3.2.2). Samples are 1-based and inclusive.
+ * line, sigma = MRbar / d2 (NIST 6.3.2.2). Entries count from 0 and are
+ * inclusive, as everywhere in the studio.
  */
 export function baselineFrom(values, from, to) {
   const a = num(from);
   const b = num(to);
-  if (!Number.isInteger(a) || !Number.isInteger(b) || a < 1 || b > values.length || b - a + 1 < 2) {
-    return { error: `baseline must be two or more whole sample numbers from 1 to ${values.length}`, field: 'baseline' };
+  if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b > values.length - 1 || b - a + 1 < 2) {
+    return { error: `baseline must be two or more whole entries from 0 to ${values.length - 1}`, field: 'baseline' };
   }
-  const r = individualsChart({ values: values.slice(a - 1, b) });
+  const r = individualsChart({ values: values.slice(a, b + 1) });
   if (r.error) return r;
   return { target: r.centre, sigma: r.sigma, mrBar: r.mrBar, n: b - a + 1 };
 }
