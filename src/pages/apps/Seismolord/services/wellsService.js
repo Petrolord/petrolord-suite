@@ -24,7 +24,16 @@ import {
   updateWell,
 } from '@/lib/wellsRegistry';
 
-const legacyTops = (tops) => (tops || []).map((t) => ({ name: t.name, md: t.md_m }));
+// Stratigraphy's typed fields ride along as optional keys (Tops to
+// Horizons orders tops by the column and knows the unconformities);
+// the viewers read name and md only.
+const legacyTops = (tops) => (tops || []).map((t) => ({
+  name: t.name,
+  md: t.md_m,
+  ...(t.surface_type ? { surfaceType: t.surface_type } : {}),
+  ...(t.unit_id ? { unitId: t.unit_id } : {}),
+  ...(t.confidence ? { confidence: t.confidence } : {}),
+}));
 
 /**
  * @param {{name: string, uwi?: ?string, surfaceX: number, surfaceY: number,

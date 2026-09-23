@@ -36,6 +36,18 @@ export default function WellTiePanel({
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState(null);
 
+  // Tops to Horizons pairs itself: a horizon made from a top (params
+  // source 'well_tops', role 'mapped') is that top's default partner
+  const autoPairs = useMemo(() => {
+    const out = {};
+    for (const h of horizons || []) {
+      const p = h.params || {};
+      if (p.source === 'well_tops' && p.role === 'mapped' && p.top_name && !out[p.top_name]) out[p.top_name] = h.id;
+    }
+    return out;
+  }, [horizons]);
+  const pairOf = (n) => (Object.prototype.hasOwnProperty.call(pairs, n) ? pairs[n] : (autoPairs[n] || ''));
+
   const topNames = useMemo(() => {
     const names = new Set();
     for (const w of wells || []) for (const t of w.tops || []) names.add(t.name);
@@ -48,8 +60,8 @@ export default function WellTiePanel({
     setResult(null);
     try {
       const pairings = topNames
-        .filter((n) => pairs[n])
-        .map((topName) => ({ topName, horizonId: pairs[topName] }));
+        .filter((n) => pairOf(n))
+        .map((topName) => ({ topName, horizonId: pairOf(topName) }));
       if (!pairings.length) throw new Error('Pair at least one top with a horizon.');
       if (!affine) throw new Error('This volume has no usable coordinates.');
       const horizonGrids = new Map();
@@ -114,7 +126,7 @@ export default function WellTiePanel({
             {name} ↔
             <select
               className={inputCls}
-              value={pairs[name] || ''}
+              value={pairOf(name)}
               onChange={(e) => setPairs((p) => ({ ...p, [name]: e.target.value }))}
               data-testid={`welltie-pair-${name}`}
             >
