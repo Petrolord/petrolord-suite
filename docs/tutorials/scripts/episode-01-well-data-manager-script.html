@@ -1,0 +1,879 @@
+<title>Well Data Manager Pilot Script</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+  :root{
+    --ground:#F4F6F8;
+    --surface:#FFFFFF;
+    --surface-2:#EDF1F5;
+    --ink:#15202C;
+    --ink-soft:#5C6D80;
+    --ink-faint:#8A99A8;
+    --rule:#DBE2EA;
+    --rule-strong:#C3CEDA;
+    --accent:#0E7490;
+    --accent-soft:#E0F0F4;
+    --warn:#A85B0B;
+    --warn-soft:#FBEEDC;
+    --good:#0A7350;
+    --amber-dot:#D9931B;
+    --green-dot:#12A46F;
+    --shadow:0 1px 2px rgba(21,32,44,.05), 0 12px 28px -18px rgba(21,32,44,.28);
+
+    --f-display:'Archivo', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    --f-read:'Source Serif 4', Georgia, 'Times New Roman', serif;
+    --f-mono:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0B1119;
+      --surface:#121A24;
+      --surface-2:#18222E;
+      --ink:#E4EBF2;
+      --ink-soft:#9AAABB;
+      --ink-faint:#6E8093;
+      --rule:#24303D;
+      --rule-strong:#33414F;
+      --accent:#3EC5DE;
+      --accent-soft:#12303A;
+      --warn:#E8AC5A;
+      --warn-soft:#2E2415;
+      --good:#39BE90;
+      --amber-dot:#FBBF24;
+      --green-dot:#34D399;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 30px -20px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0B1119;
+    --surface:#121A24;
+    --surface-2:#18222E;
+    --ink:#E4EBF2;
+    --ink-soft:#9AAABB;
+    --ink-faint:#6E8093;
+    --rule:#24303D;
+    --rule-strong:#33414F;
+    --accent:#3EC5DE;
+    --accent-soft:#12303A;
+    --warn:#E8AC5A;
+    --warn-soft:#2E2415;
+    --good:#39BE90;
+    --amber-dot:#FBBF24;
+    --green-dot:#34D399;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 30px -20px rgba(0,0,0,.8);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--ground);
+    color:var(--ink);
+    font-family:var(--f-read);
+    font-size:16px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1120px;margin:0 auto;padding-inline:20px;padding-block:0 72px}
+
+  /* ---------- masthead ---------- */
+  .masthead{padding-block:44px 26px;border-bottom:2px solid var(--ink);}
+  .eyebrow{
+    font-family:var(--f-mono);font-size:11px;font-weight:500;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--accent);margin:0 0 14px;
+  }
+  h1{
+    font-family:var(--f-display);font-weight:700;
+    font-size:clamp(2rem,5.2vw,3.15rem);line-height:1.02;letter-spacing:-.022em;
+    margin:0;text-wrap:balance;
+  }
+  .logline{
+    font-size:clamp(1rem,1.6vw,1.15rem);color:var(--ink-soft);
+    margin:14px 0 0;max-width:62ch;
+  }
+  .spec{
+    display:flex;flex-wrap:wrap;gap:0;margin-top:26px;
+    border:1px solid var(--rule-strong);border-radius:3px;background:var(--surface);
+    overflow:hidden;
+  }
+  .spec > div{
+    flex:1 1 150px;padding:11px 14px;border-right:1px solid var(--rule);
+  }
+  .spec > div:last-child{border-right:0}
+  .spec dt{
+    font-family:var(--f-mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;
+    color:var(--ink-faint);margin:0 0 3px;
+  }
+  .spec dd{
+    margin:0;font-family:var(--f-display);font-weight:600;font-size:15px;
+    font-variant-numeric:tabular-nums;color:var(--ink);
+  }
+
+  /* ---------- control bar ---------- */
+  .controls{
+    display:flex;flex-wrap:wrap;align-items:center;gap:12px;
+    margin-top:22px;padding:12px 14px;border:1px solid var(--rule);
+    border-radius:3px;background:var(--surface-2);
+  }
+  .switch{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-size:14px;font-weight:500;cursor:pointer}
+  .switch input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+  .switch small{font-family:var(--f-read);font-weight:400;color:var(--ink-soft);font-size:13px}
+  button.copy{
+    font-family:var(--f-mono);font-size:11.5px;font-weight:500;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--accent);background:transparent;
+    border:1px solid var(--accent);border-radius:2px;padding:6px 11px;cursor:pointer;
+    transition:background .14s ease,color .14s ease;
+  }
+  button.copy:hover{background:var(--accent-soft)}
+  button.copy:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .controls .spacer{margin-left:auto}
+
+  /* ---------- briefing ---------- */
+  .brief{margin-top:40px;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:36px}
+  @media (max-width:840px){.brief{grid-template-columns:1fr;gap:30px}}
+  h2.block{
+    font-family:var(--f-display);font-weight:600;font-size:13px;letter-spacing:.13em;
+    text-transform:uppercase;color:var(--ink-soft);margin:0 0 14px;
+    padding-bottom:7px;border-bottom:1px solid var(--rule);
+  }
+  ol.steps{margin:0;padding:0;list-style:none;counter-reset:s}
+  ol.steps li{
+    counter-increment:s;position:relative;padding-left:34px;margin-bottom:14px;
+    font-size:15px;color:var(--ink);
+  }
+  ol.steps li::before{
+    content:counter(s);position:absolute;left:0;top:1px;
+    width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;
+    font-family:var(--f-mono);font-size:11px;font-weight:600;
+    display:flex;align-items:center;justify-content:center;
+  }
+  :root[data-theme="dark"] ol.steps li::before{color:#0B1119}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) ol.steps li::before{color:#0B1119}}
+  ol.steps b{font-family:var(--f-display);font-weight:600}
+
+  table.say{width:100%;border-collapse:collapse;font-size:14px}
+  table.say th{
+    text-align:left;font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--ink-faint);font-weight:500;
+    padding:0 12px 7px 0;border-bottom:1px solid var(--rule);
+  }
+  table.say td{padding:6px 12px 6px 0;border-bottom:1px solid var(--rule);vertical-align:top}
+  table.say td:first-child{font-family:var(--f-display);font-weight:600;white-space:nowrap}
+  table.say td:last-child{font-family:var(--f-mono);font-size:13px;color:var(--accent);padding-right:0}
+  .note{
+    margin-top:14px;padding:11px 13px;border-left:3px solid var(--warn);
+    background:var(--warn-soft);font-size:13.5px;color:var(--ink);border-radius:0 2px 2px 0;
+  }
+  .note b{font-family:var(--f-display);font-weight:600}
+
+  /* ---------- script ---------- */
+  .script{margin-top:52px}
+  .script > h2.block{margin-bottom:0;border-bottom:0}
+  section.sec{
+    background:var(--surface);border:1px solid var(--rule);border-radius:3px;
+    box-shadow:var(--shadow);margin-top:26px;overflow:hidden;
+  }
+  .sec-head{padding:16px 20px 0}
+  .sec-title-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px}
+  .sec-num{
+    font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.1em;
+    color:#fff;background:var(--ink);padding:3px 7px;border-radius:2px;
+  }
+  :root[data-theme="dark"] .sec-num{background:var(--accent);color:#0B1119}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sec-num{background:var(--accent);color:#0B1119}}
+  .sec-title{
+    font-family:var(--f-display);font-weight:600;font-size:clamp(1.15rem,2.2vw,1.42rem);
+    letter-spacing:-.012em;margin:0;text-wrap:balance;
+  }
+  .sec-meta{
+    margin-left:auto;font-family:var(--f-mono);font-size:11.5px;color:var(--ink-soft);
+    font-variant-numeric:tabular-nums;white-space:nowrap;
+  }
+  .sec-meta .tc{color:var(--accent);font-weight:600}
+  .sec-tools{display:flex;align-items:center;gap:10px;margin-top:10px}
+  .sec-cols,.beat{
+    display:grid;grid-template-columns:minmax(0,33fr) minmax(0,67fr);gap:30px;
+  }
+  .sec-cols{
+    padding:14px 20px 7px;
+    font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--ink-faint);
+  }
+  .beats{padding:0 20px 18px}
+  .beat{padding:17px 0;border-top:1px solid var(--rule)}
+  .screen{font-family:var(--f-mono);font-size:12.6px;line-height:1.62;color:var(--ink-soft)}
+  .screen::before{
+    content:'Screen';display:none;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ink-faint);margin-bottom:5px;
+  }
+  .screen p{margin:0 0 8px}
+  .screen p:last-child{margin-bottom:0}
+  .screen em{font-style:normal;color:var(--ink);font-weight:500}
+  .vo p{
+    margin:0 0 13px;font-size:17px;line-height:1.68;max-width:64ch;
+  }
+  .vo p:last-child{margin-bottom:0}
+  .vo::before{
+    content:'Voice over';display:none;font-family:var(--f-mono);font-size:9.5px;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:5px;
+  }
+  @media (max-width:800px){
+    .sec-cols{display:none}
+    .beat{grid-template-columns:1fr;gap:12px}
+    .screen::before,.vo::before{display:block}
+  }
+  .beat--pause{
+    grid-template-columns:1fr;text-align:center;
+    border-top:1px dashed var(--rule-strong);
+  }
+  .pause{
+    font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--warn);
+  }
+  .pause span{color:var(--ink-faint);letter-spacing:.04em;text-transform:none;font-size:12px}
+  .dot{
+    display:inline-block;width:8px;height:8px;border-radius:50%;
+    vertical-align:middle;margin:0 1px;
+  }
+  .dot.amber{background:var(--amber-dot)}
+  .dot.green{background:var(--green-dot)}
+
+  /* ---------- chapters ---------- */
+  .chapters{margin-top:52px}
+  .chap-body{
+    background:var(--surface);border:1px solid var(--rule);border-radius:3px;
+    padding:18px 20px;box-shadow:var(--shadow);
+  }
+  .chap-list{margin:0;font-family:var(--f-mono);font-size:13.5px;line-height:2}
+  .chap-list div{display:flex;gap:14px}
+  .chap-list b{color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;min-width:52px}
+  .chap-tools{display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:13px;border-top:1px solid var(--rule)}
+
+  footer{
+    margin-top:52px;padding-top:20px;border-top:1px solid var(--rule);
+    font-size:13.5px;color:var(--ink-soft);
+  }
+  footer b{font-family:var(--f-display);font-weight:600;color:var(--ink)}
+
+  /* ---------- narration-only mode ---------- */
+  body.vo-only .brief,
+  body.vo-only .chapters,
+  body.vo-only .spec,
+  body.vo-only .screen,
+  body.vo-only .sec-cols,
+  body.vo-only .sec-tools{display:none}
+  body.vo-only .beat{grid-template-columns:1fr}
+  body.vo-only .beat--pause{text-align:left}
+  body.vo-only .vo p{font-size:18px;max-width:66ch}
+  body.vo-only section.sec{box-shadow:none}
+
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+  @media print{
+    body{background:#fff;color:#000}
+    .controls,.chap-tools,.sec-tools{display:none}
+    section.sec{box-shadow:none;border-color:#999;break-inside:auto}
+    .beat{break-inside:avoid}
+    .wrap{max-width:none}
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Petrolord Suite · Tutorial series · Episode 1 pilot</p>
+    <h1>Well Data Manager</h1>
+    <p class="logline">Voice over script and screen directions for the pilot walkthrough. Build a well from nothing, load its logs, read every part of it, and open it in the rest of the Suite.</p>
+
+    <dl class="spec">
+      <div><dt>Target runtime</dt><dd>17:08</dd></div>
+      <div><dt>Narration</dt><dd>~2,500 words</dd></div>
+      <div><dt>Sections</dt><dd>9</dd></div>
+      <div><dt>Beats</dt><dd>49 + 4 pauses</dd></div>
+      <div><dt>Read rate</dt><dd>150 wpm</dd></div>
+      <div><dt>Version</dt><dd>Draft 1</dd></div>
+    </dl>
+  </header>
+
+  <div class="controls">
+    <label class="switch" for="vo-only">
+      <input type="checkbox" id="vo-only">
+      Narration only
+      <small>hides screen directions for a clean read</small>
+    </label>
+    <span class="spacer"></span>
+    <button class="copy" id="copy-all" data-label="Copy full narration">Copy full narration</button>
+  </div>
+
+  <div class="brief">
+    <div>
+      <h2 class="block">Before you record</h2>
+      <ol class="steps">
+        <li><b>Render the voice track section by section.</b> Copy each section with its own button, paste it into the voice tool, and render nine separate audio files. Keeping them separate means a rewrite costs you one section, not the whole video.</li>
+        <li><b>Honour the pause marks.</b> Where the script says <span class="pause">Pause</span>, either use your tool's silence or break control, or end the render there and add the gap in the edit. The screen actions at those points take real time.</li>
+        <li><b>Record the screen against the finished audio.</b> Play the voice track, follow the Screen column, and stay one beat ahead with the cursor so the click lands as the sentence lands.</li>
+      </ol>
+      <div class="note">
+        <b>On file names.</b> The narration never names a file, so any well with a deviation survey, a set of tops, a checkshot table and a log file will do; the series records against Ekene-1 from the demonstration kit (see Data for this episode). Keep the same well throughout, because every later section builds on it.
+      </div>
+    </div>
+
+    <div>
+      <h2 class="block">Pronunciation</h2>
+      <table class="say">
+        <thead><tr><th>Term</th><th>Say it as</th></tr></thead>
+        <tbody>
+          <tr><td>LAS</td><td>L. A. S.</td></tr>
+          <tr><td>UWI</td><td>U. W. I.</td></tr>
+          <tr><td>KB</td><td>K. B.</td></tr>
+          <tr><td>CRS</td><td>C. R. S.</td></tr>
+          <tr><td>SI</td><td>S. I.</td></tr>
+          <tr><td>TD</td><td>T. D.</td></tr>
+          <tr><td>MD, TVD, TVDSS</td><td>spoken in full</td></tr>
+          <tr><td>OWT, TWT</td><td>spoken in full</td></tr>
+        </tbody>
+      </table>
+      <div class="note">
+        <b>Why the spelling changes between columns.</b> The Voice over column already writes acronyms the way a voice tool should read them, as separated letters. The Screen column writes them the way they appear on screen. Paste from the Voice over column only. If your voice tool still runs the letters together, put full stops between them.
+      </div>
+    </div>
+  </div>
+
+  <!-- KIT-DATA:START (generated by tools/demo-dataset/sync-episode-scripts.mjs; do not edit by hand) -->
+  <div class="brief kit-data">
+    <div>
+      <h2 class="block">Data for this episode</h2>
+      <p>Everything this episode loads comes from the Ekene demonstration dataset, kit <code>ekene-demo-v1</code>. Download <code>ekene-demo-v1-kit.zip</code> (and, for the seismic episodes, <code>ekene-demo-v1-seismic-full.zip</code>) from <a href="https://github.com/Petrolord/petrolord-suite/releases/tag/ekene-demo-v1">the release page</a> and start with <code>00-START-HERE.md</code>. This block is generated from <code>episodes/episode-01-well-data-manager.md</code> in the kit, so the two always agree.</p>
+      <table class="say">
+        <thead><tr><th>File</th><th>What it is for</th></tr></thead>
+        <tbody>
+          <tr><td><code>01-wells/Ekene-1.las</code></td><td>the hero well's log file</td></tr>
+          <tr><td><code>01-wells/surveys/Ekene-1-survey.csv</code></td><td>paste into the Deviation tab (MD, inclination, azimuth; metres; grid north)</td></tr>
+          <tr><td><code>01-wells/tops/Ekene-1-tops.csv</code></td><td>paste into the Tops tab (name and MD)</td></tr>
+          <tr><td><code>01-wells/checkshots/Ekene-1-checkshots.csv</code></td><td>paste into the Checkshots tab; leave the selectors on the default measured depth and one way time, which is what this file is</td></tr>
+          <tr><td><code>01-wells/well-headers.csv</code></td><td>the header values to type: KB 25 m, water depth 35 m, surface easting and northing, CRS</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h2 class="block">Before the take</h2>
+      <div class="note">Build Ekene-1 by hand from the CSVs, then import its LAS into it. Every later episode uses this well.</div>
+    </div>
+  </div>
+  <!-- KIT-DATA:END -->
+
+  <div class="script">
+    <h2 class="block">Script</h2>
+
+    <!-- ============ 1 ============ -->
+    <section class="sec" id="sec-1">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">01</span>
+          <h3 class="sec-title">What the registry is for</h3>
+          <span class="sec-meta"><span class="tc">00:00</span> · 1:04 · 160 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-1" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Suite dashboard with the Geoscience module open. Slow drift across the module tiles, then hold on the <em>Well Data Manager</em> tile.</p></div>
+          <div class="vo"><p>Every subsurface study begins with the same three questions. Where is the well. How deep does it go. And what was measured in it. In Petrolord Suite, one application answers those questions for every other application. It is called Well Data Manager.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Open the app. Hold on the full workspace with several wells already loaded and the map showing.</p></div>
+          <div class="vo"><p>Think of it as the shelf your whole team takes wells from. You load a well once. Its header, its deviation survey, its logs, its formation tops, its checkshots. From that moment Petrophysics Studio, Well Correlation, Stratigraphy Studio, Mapping and Surface Studio and Seismolord all read that same well. There is no second copy to keep in step.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Quick two second cuts: the wells tree, a log track, the tops table, the <em>Open in</em> menu. Land back on the map.</p></div>
+          <div class="vo"><p>In this video we will build a well from nothing, load its logs, read every part of it, share it with a colleague, and open it in another application. By the end you will have a well the whole Suite can use.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 2 ============ -->
+    <section class="sec" id="sec-2">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">02</span>
+          <h3 class="sec-title">The workspace</h3>
+          <span class="sec-meta"><span class="tc">01:04</span> · 1:26 · 215 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-2" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Cursor traces the three regions in turn: left panel, centre, top ribbon.</p></div>
+          <div class="vo"><p>The workspace has three parts, and the layout stays put no matter what you are doing.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Highlight the left explorer. Type into <em>Search wells</em>, then clear it. Point at each of the four buttons in turn. Zoom one row so the badge and the depth are legible.</p></div>
+          <div class="vo"><p>On the left is the wells explorer. Every well you can see is listed here, with a search box above it and four buttons: Import L. A. S., Add well, Export package and Import package. Each well row carries a badge. A padlock means the well is private to you. A building means it is shared with your organization. Out at the right of the row is the well's total depth.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Centre map. Hover a private well <span class="dot amber"></span> then a shared well <span class="dot green"></span>. Click one to select it.</p></div>
+          <div class="vo"><p>In the middle is the map. Each well is a dot at its surface location, drawn in world metres with a grid you can read coordinates off. Amber dots are private. Green dots are shared. Click a dot to open that well.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Ribbon. Toggle <em>Map</em> and the well button. Open the <em>Open in</em> menu, then close it without choosing.</p></div>
+          <div class="vo"><p>Along the top is the ribbon. The Map and Well buttons swap the middle panel between the map and the detail of whichever well is selected. Open in, on the right, sends that well straight into another Geoscience application.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Zoom the status bar so all three parts are legible.</p></div>
+          <div class="vo"><p>And at the bottom, the status bar. It reports what just happened, how many wells you can see, and one standing reminder. S. I. internal, metres. Whatever units you type, the registry stores S. I. You will watch it convert as we go.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 3 ============ -->
+    <section class="sec" id="sec-3">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">03</span>
+          <h3 class="sec-title">Build a well by hand</h3>
+          <span class="sec-meta"><span class="tc">02:30</span> · 3:56 · 580 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-3" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Add well</em>. Dialog opens. Hold two seconds on the empty form.</p></div>
+          <div class="vo"><p>Let us build a well by hand. Click Add well. The dialog that opens is the same form the Suite uses everywhere a well is entered, so learning it once is enough.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Type the well name, then the UWI.</p></div>
+          <div class="vo"><p>Start with the header. Type the well name. It is the only field here you cannot skip, and it is how this well will appear in every other application, so use the name your team already says out loud. Add the unique well identifier if you have one.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Open the <em>KB, TD in</em> selector, show both options, choose the one your source document uses. Type the KB, then the TD.</p></div>
+          <div class="vo"><p>Now tell the Suite what units you are typing in. The selector marked K. B., T. D. in switches between metres and feet. Match it to the document in front of you, whatever units that document happens to use. Then enter the kelly bushing elevation above datum, and, if the well is vertical, its total depth.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p><em>Surface location</em> panel. Open the CRS picker, scroll it, choose the survey's system. Type X and Y. Open <em>Values are in</em> and show all three options.</p></div>
+          <div class="vo"><p>Next, the surface location. This panel does something that saves a great deal of pain later. It asks you to declare which coordinate reference system your numbers are in. Choose it from the picker, type the X and the Y, and say whether those values are metres, feet, or U. S. survey feet. When you save, the Suite converts them into your project's coordinate reference system. Nothing is assumed on your behalf.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Lat / Lon (WGS 84)</em>, show the two fields, then switch back to <em>Projected XY</em>.</p></div>
+          <div class="vo"><p>If all you have is a latitude and a longitude, switch to the Lat Lon tab and type them there instead.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click the <em>Deviation</em> tab. Paste the survey into the text box. The preview and column mapper appear. Point at the guessed mapping. Change one column deliberately, then set it back. Set <em>Survey MD in</em>.</p></div>
+          <div class="vo"><p>Below the header are three tabs: Deviation, Tops and Checkshots. Each one takes a block of pasted text, or a file through the Load file link. Start with Deviation and paste your survey. Measured depth, inclination and azimuth. A preview appears underneath, and the Suite guesses which column is which. Check that guess. If it has read your file wrongly, correct the mapping yourself, then set whether the survey depths are metres or feet.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Open <em>Azimuths referenced to</em>. Choose True north, then Magnetic north so the declination field appears, then settle on the correct one.</p></div>
+          <div class="vo"><p>Then look at the azimuth reference. Surveys are recorded against grid north, true north or magnetic north, and those are three different wells. Tell the Suite which one yours uses and it rotates true or magnetic onto grid north for you. Choose magnetic and it asks you for the declination.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Clear the deviation box for two seconds to show the empty state, then paste it back.</p></div>
+          <div class="vo"><p>Leave the Deviation tab empty and the well is treated as vertical. In that case the total depth you typed in the header is what defines it.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p><em>Tops</em> tab. Paste the tops. Show the mapping preview. Set <em>Tops MD in</em>.</p></div>
+          <div class="vo"><p>Tops next. Paste the top name and its measured depth, check the mapping the same way, and set the depth unit.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p><em>Checkshots</em> tab. Hold on the three selectors before pasting anything. Open each one so all the options are seen.</p></div>
+          <div class="vo"><p>And now checkshots, which deserve a moment of your full attention. A checkshot table can be quoted in measured depth, in true vertical depth, or in true vertical depth subsea. In metres or in feet. As one way time or as two way time. That is twelve ways to write the same table, and eleven ways to be wrong. So the Suite asks you plainly. The three selectors above the paste box set the depth reference, the depth unit and the time kind. They start on the convention a Petrel export uses. Measured depth and one way time.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Paste the checkshot table. Point at the columns you entered, then at the extra preview column headed <em>stored TVDSS m / TWT ms</em>.</p></div>
+          <div class="vo"><p>Paste your table and watch the preview. Beside the values you entered, the Suite shows the values it will actually store. True vertical depth subsea in metres, and two way time in milliseconds. It got there by walking your deviation survey and your kelly bushing. That is exactly why the survey goes in first.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Save well</em>.</p></div>
+          <div class="vo"><p>When the preview reads the way you expect, click Save well.</p></div>
+        </div>
+
+        <div class="beat beat--pause" data-pause="4">
+          <div class="pause">Pause 4 seconds. <span>The well appears in the explorer and its detail opens. Let it land.</span></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 4 ============ -->
+    <section class="sec" id="sec-4">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">04</span>
+          <h3 class="sec-title">Load the logs</h3>
+          <span class="sec-meta"><span class="tc">06:26</span> · 2:58 · 430 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-4" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Well still selected in the explorer. Click <em>Import LAS</em>.</p></div>
+          <div class="vo"><p>Our well now has a shape and a time to depth relationship. What it does not have is logs. With the well still selected, click Import L. A. S.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Choose a LAS file</em> and pick the log file.</p></div>
+          <div class="vo"><p>Choose your file. Well Data Manager reads L. A. S. version one point two, version two point zero and version three point zero, and it parses off the main thread, so a large file does not freeze the screen while it works.</p></div>
+        </div>
+
+        <div class="beat beat--pause" data-pause="3">
+          <div class="pause">Pause 3 seconds. <span>Parsing. Let the dialog fill in.</span></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at the summary line under the file name and track along it slowly, left to right.</p></div>
+          <div class="vo"><p>When it finishes, read the summary line first. It tells you the L. A. S. version, the depth unit the file used and what it was converted to, the depth range, the sample step, and how many curves arrived.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at the <em>Load into</em> row. Switch to <em>a new well</em> so the header fields appear, then switch back to the existing well.</p></div>
+          <div class="vo"><p>Above it is the most important control in this dialog. Load into. Because we had the well selected, the Suite has already aimed the import at it. The other choice is a brand new well. Picking the wrong one here is the classic way to end up with the same well twice, under two slightly different names. Read this line every single time.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Hover the note at the right of the <em>Load into</em> row so the depth grid text is readable.</p></div>
+          <div class="vo"><p>When you load into a well that already exists, the note on the right tells you the depth grid that well is on, and that the incoming curves will be resampled onto it. Your well keeps one depth vector, and every curve on it lines up with every other.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>The curve table. Untick one curve, then tick it again. Point at the depth row, which has a dash instead of a checkbox.</p></div>
+          <div class="vo"><p>Then the curve table, one row per curve. The Keep column decides what comes in. Notice that the depth curve has no checkbox at all, because it is the depth. It always imports.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Zoom the <em>Unit</em> column. Show a converted curve reading source to SI in green, and one carrying the amber <em>as-is</em> badge. Hover the badge for its tooltip.</p></div>
+          <div class="vo"><p>Now look at the Unit column, because this is where the Suite earns your trust. Where it recognised a unit and converted it, you see the original unit and the S. I. unit it became. Where it did not recognise the unit, the curve still imports, completely unchanged, and it is marked as-is. Nothing is quietly guessed. What you read in this column is what gets stored.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Type a new name into one <em>Save as</em> cell. Then type a name the well already has, so the <em>In well</em> cell turns into a dropdown. Open it and show both options.</p></div>
+          <div class="vo"><p>The Save as column lets you rename a mnemonic before it lands. And if the well already carries a curve by that name, the In well column becomes a choice. Keep both, and the new one takes a numbered suffix. Or replace the one that is already there.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Import</em>.</p></div>
+          <div class="vo"><p>When the table reads the way you want it, click Import.</p></div>
+        </div>
+
+        <div class="beat beat--pause" data-pause="3">
+          <div class="pause">Pause 3 seconds. <span>The status bar reports the import and the detail view opens.</span></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 5 ============ -->
+    <section class="sec" id="sec-5">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">05</span>
+          <h3 class="sec-title">Read the well</h3>
+          <span class="sec-meta"><span class="tc">09:24</span> · 3:20 · 500 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-5" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Detail view. Move the cursor across all seven tabs, left to right, without clicking.</p></div>
+          <div class="vo"><p>Let us read the well we just built. The detail view has seven tabs, and between them they hold everything the registry knows.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p><em>Header</em> tab. Pan down the fields slowly.</p></div>
+          <div class="vo"><p>Header is the well itself. The identifier, the surface coordinates with the coordinate system they are stored in, the kelly bushing, the total depth, a units note recording what you typed before conversion, and counts of deviation stations and checkshot pairs. The Edit button lets you correct any of it.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Edit</em>, change the KB by a metre or two, click <em>Save header</em>. Hold on the status bar long enough to read the message about the checkshots.</p></div>
+          <div class="vo"><p>One behaviour here is worth knowing about. Change the kelly bushing on a well that already has checkshots, and the Suite re-derives that checkshot table for the new elevation, then tells you in the status bar that it did. Your time to depth relationship stays in step with your datum.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p><em>Logs</em> tab. Pan across the table columns.</p></div>
+          <div class="vo"><p>Logs lists every curve on the well. Mnemonic, unit, the depth interval it covers, its step, its sample count, how many nulls it carries, and the file it came from. That null count is a quick quality check all by itself.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Tick the <em>Plot</em> box on two or three curves. The tracks draw underneath. Hold on them.</p></div>
+          <div class="vo"><p>Tick the Plot box on two or three curves and they draw underneath as depth tracks, depth running down the page, measured depth in metres on the left. This is a quick look. It is not an interpretation. It is here so you can confirm that the curve you just loaded is the curve you think it is, before it travels anywhere else.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p><em>Tops</em> tab. Pan across the columns, then hover the <em>Map this top</em> link at the end of a row.</p></div>
+          <div class="vo"><p>Tops holds the picks. The top name, its measured depth, the surface type, the stratigraphic unit, a confidence, an age, and the interpreter who made the pick. At the end of every row there is a link that takes that top into Mapping and Surface Studio and maps it across every well that carries it.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p><em>Deviation</em> tab. Show the station table.</p></div>
+          <div class="vo"><p>Deviation shows the survey stations you pasted. If a well has none, the tab says so in plain words and tells you the well is being treated as vertical.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p><em>Checkshots</em> tab. Read the <em>Entered as</em> line. Then change each of the three <em>View as</em> selectors in turn, and point at the two grey stored columns staying put.</p></div>
+          <div class="vo"><p>And Checkshots is where the care we took earlier pays off. The line at the top states the convention the table was entered in. Then the View as selectors let you read that same table however you like. Measured depth, true vertical depth or true vertical depth subsea. Metres or feet. One way or two way time. The two grey columns on the right never move, because they are what is actually stored. Change the view as often as you want. The stored table does not care.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>If the well has one, hover a row carrying a star or a dagger, then show the footnote line under the table. Skip this beat if no row is flagged.</p></div>
+          <div class="vo"><p>Two markers can appear beside a depth. A star means that depth is reached at more than one measured depth in this well, and the shallowest was taken. A dagger means the row sits below your last survey station, so it was extrapolated. The Suite tells you rather than hiding it.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 6 ============ -->
+    <section class="sec" id="sec-6">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">06</span>
+          <h3 class="sec-title">Intervals and core</h3>
+          <span class="sec-meta"><span class="tc">12:44</span> · 0:56 · 140 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-6" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p><em>Intervals</em> tab. Open the kind selector to show the list. Add a row and fill it, then use the paste door for a block.</p></div>
+          <div class="vo"><p>Two tabs carry the geology. Intervals holds interval logs. Lithology, core descriptions, facies, electrofacies, depositional environment and more. Choose the kind at the top, then build the table with a top depth, a base depth, a code and a label, or paste the whole thing in at once. The Suite checks the intervals before it saves, and refuses the entire save if two of them overlap or run backwards.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p><em>Core</em> tab. Upload an image with its top and base depth. Hold on the depth registered strip once it draws.</p></div>
+          <div class="vo"><p>Core holds core photographs. Upload an image with the top and base depth it spans, and the panel stacks your photographs into a depth registered strip, in proportion to the intervals they cover. It becomes the core column beside your logs.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 7 ============ -->
+    <section class="sec" id="sec-7">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">07</span>
+          <h3 class="sec-title">Share it, then open it anywhere</h3>
+          <span class="sec-meta"><span class="tc">13:40</span> · 1:34 · 230 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-7" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Zoom the private padlock badge on the well row.</p></div>
+          <div class="vo"><p>Every well you load is private until you decide otherwise. The padlock beside the name says so.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Right click the well, choose <em>Share with organization</em>. Badge turns green, the map dot turns green <span class="dot green"></span>, status bar message readable.</p></div>
+          <div class="vo"><p>To share it, right click the well in the explorer and choose Share with organization. The badge turns green, the dot on the map turns green, and everyone in your organization can now read that well and use it anywhere in the Suite. They cannot change it and they cannot delete it. It stays yours. The same menu takes the sharing back again.</p></div>
+        </div>
+
+        <div class="beat beat--pause" data-pause="2">
+          <div class="pause">Pause 2 seconds. <span>Let the colour change register.</span></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>With the well selected, open the <em>Open in</em> menu from the ribbon. Hold so the whole app list is readable.</p></div>
+          <div class="vo"><p>And now the payoff. With the well selected, click Open in.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Choose <em>Petrophysics Studio</em>. It opens with the well loaded. Cut back to Well Data Manager, open the menu again and choose <em>Well Correlation</em>. Cut back once more.</p></div>
+          <div class="vo"><p>Choose Petrophysics Studio, and the well opens there with its curves ready for analysis. Come back, choose Well Correlation, and it drops into a correlation panel. Stratigraphy Studio, Wellsite Studio, Mapping and Surface Studio, Rock Physics, Pore Pressure, Earth Modeling, Seismolord and ReservoirCalc Pro are all on the same short menu. Same well, same depths, same units, no second import. That is the whole reason the registry exists. Load once, use everywhere.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 8 ============ -->
+    <section class="sec" id="sec-8">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">08</span>
+          <h3 class="sec-title">Packages, and deleting safely</h3>
+          <span class="sec-meta"><span class="tc">15:14</span> · 1:02 · 155 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-8" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Export package</em>. Show the dialog with the well already selected. Cancel. Then open <em>Import package</em> and cancel that too.</p></div>
+          <div class="vo"><p>Two buttons in the explorer are worth knowing before we finish. Export package writes the wells you select, with their logs, their tops and everything attached to them, into a single portable Petrolord project file. Import package reads one back in as an independent copy. That is how you hand a study to a partner, or move work between environments.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Right click a well, choose <em>Delete well</em>. Hold on the warning long enough to read the counts. Then click <em>Cancel</em>, clearly and deliberately.</p></div>
+          <div class="vo"><p>And when a well genuinely has to go, right click and choose Delete well. Before anything happens, the Suite counts what the delete would take with it and tells you. This many logs, curve data included, and this many tops. If the well is shared, it warns you that your colleagues lose their access too. Read the count. Then decide.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 9 ============ -->
+    <section class="sec" id="sec-9">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">09</span>
+          <h3 class="sec-title">Wrap up</h3>
+          <span class="sec-meta"><span class="tc">16:16</span> · 0:52 · 130 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-9" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Pull back to the full workspace with the finished well selected and its logs plotted.</p></div>
+          <div class="vo"><p>That is Well Data Manager. One well, loaded once, described properly, and available to every application in the Suite.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Slow zoom onto the status bar reading <em>SI internal (m)</em>, then hold.</p></div>
+          <div class="vo"><p>A last word of advice. The care you spend in this application is repaid many times over everywhere else. Declare the coordinate reference system. Load the deviation survey before the checkshots. Read the unit column after every import. Do those three things and every study built on this well starts from solid ground.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>End card with the series name and the next episode title.</p></div>
+          <div class="vo"><p>In the next video we will take this well into Petrophysics Studio and turn those curves into an interpretation. Thanks for watching.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+  </div>
+
+  <div class="chapters">
+    <h2 class="block">Chapter timestamps for the video description</h2>
+    <div class="chap-body">
+      <div class="chap-list" id="chap-list">
+        <div><b>0:00</b> What the registry is for</div>
+        <div><b>1:04</b> The workspace</div>
+        <div><b>2:30</b> Build a well by hand</div>
+        <div><b>6:26</b> Load the logs</div>
+        <div><b>9:24</b> Read the well</div>
+        <div><b>12:44</b> Intervals and core</div>
+        <div><b>13:40</b> Share it, then open it anywhere</div>
+        <div><b>15:14</b> Packages, and deleting safely</div>
+        <div><b>16:16</b> Wrap up</div>
+      </div>
+      <div class="chap-tools">
+        <button class="copy" id="copy-chapters" data-label="Copy timestamps">Copy timestamps</button>
+        <span style="font-size:13px;color:var(--ink-soft)">Targets only. Re-stamp them from the finished audio before publishing.</span>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p><b>Trimming to fifteen minutes.</b> Sections 06 and 08 are the two that can go without breaking the thread. Cutting both lands the video near 14:20 and costs you the Intervals tab, the Core tab, and the package buttons, all of which can carry their own short video later.</p>
+    <p><b>Accuracy note.</b> Every control name in this script matches the shipping application at the time of writing. If a label changes, fix the script before the next take rather than talking around it on camera.</p>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  var body = document.body;
+  var KEY = 'wdm-pilot-script.vo-only';
+  var toggle = document.getElementById('vo-only');
+
+  try {
+    if (localStorage.getItem(KEY) === '1') { toggle.checked = true; body.classList.add('vo-only'); }
+  } catch (e) { /* storage unavailable: default view is correct */ }
+
+  toggle.addEventListener('change', function () {
+    body.classList.toggle('vo-only', toggle.checked);
+    try { localStorage.setItem(KEY, toggle.checked ? '1' : '0'); } catch (e) {}
+  });
+
+  function narrationOf(scope) {
+    var out = [];
+    scope.querySelectorAll('.beat').forEach(function (beat) {
+      if (beat.dataset.pause) { out.push('[PAUSE ' + beat.dataset.pause + 's]'); return; }
+      beat.querySelectorAll('.vo p').forEach(function (p) {
+        out.push(p.textContent.replace(/\s+/g, ' ').trim());
+      });
+    });
+    return out.join('\n\n');
+  }
+
+  function flash(btn) {
+    var label = btn.dataset.label;
+    btn.textContent = 'Copied';
+    setTimeout(function () { btn.textContent = label; }, 1600);
+  }
+
+  function fallbackCopy(text, btn) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); flash(btn); } catch (e) { btn.textContent = 'Select and copy manually'; }
+    document.body.removeChild(ta);
+  }
+
+  function copy(text, btn) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(function () { flash(btn); }, function () { fallbackCopy(text, btn); });
+      } else { fallbackCopy(text, btn); }
+    } catch (e) { fallbackCopy(text, btn); }
+  }
+
+  document.querySelectorAll('button.copy[data-copy]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var sec = document.getElementById(btn.dataset.copy);
+      if (sec) copy(narrationOf(sec), btn);
+    });
+  });
+
+  var all = document.getElementById('copy-all');
+  all.addEventListener('click', function () {
+    var parts = [];
+    document.querySelectorAll('section.sec').forEach(function (sec) {
+      var title = sec.querySelector('.sec-title').textContent.trim();
+      var num = sec.querySelector('.sec-num').textContent.trim();
+      parts.push('=== ' + num + ' ' + title + ' ===\n\n' + narrationOf(sec));
+    });
+    copy(parts.join('\n\n\n'), all);
+  });
+
+  var chaps = document.getElementById('copy-chapters');
+  chaps.addEventListener('click', function () {
+    var lines = [];
+    document.querySelectorAll('#chap-list div').forEach(function (row) {
+      lines.push(row.textContent.replace(/\s+/g, ' ').trim());
+    });
+    copy(lines.join('\n'), chaps);
+  });
+})();
+</script>

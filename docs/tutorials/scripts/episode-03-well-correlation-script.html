@@ -1,0 +1,859 @@
+<title>Well Correlation Episode Script</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+  :root{
+    --ground:#F4F6F8;
+    --surface:#FFFFFF;
+    --surface-2:#EDF1F5;
+    --ink:#15202C;
+    --ink-soft:#5C6D80;
+    --ink-faint:#8A99A8;
+    --rule:#DBE2EA;
+    --rule-strong:#C3CEDA;
+    --accent:#0E7490;
+    --accent-soft:#E0F0F4;
+    --warn:#A85B0B;
+    --warn-soft:#FBEEDC;
+    --amber-dot:#D9931B;
+    --green-dot:#12A46F;
+    --cyan-dot:#0E7490;
+    --shadow:0 1px 2px rgba(21,32,44,.05), 0 12px 28px -18px rgba(21,32,44,.28);
+
+    --f-display:'Archivo', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    --f-read:'Source Serif 4', Georgia, 'Times New Roman', serif;
+    --f-mono:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0B1119;
+      --surface:#121A24;
+      --surface-2:#18222E;
+      --ink:#E4EBF2;
+      --ink-soft:#9AAABB;
+      --ink-faint:#6E8093;
+      --rule:#24303D;
+      --rule-strong:#33414F;
+      --accent:#3EC5DE;
+      --accent-soft:#12303A;
+      --warn:#E8AC5A;
+      --warn-soft:#2E2415;
+      --amber-dot:#FBBF24;
+      --green-dot:#34D399;
+      --cyan-dot:#22D3EE;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 30px -20px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0B1119;
+    --surface:#121A24;
+    --surface-2:#18222E;
+    --ink:#E4EBF2;
+    --ink-soft:#9AAABB;
+    --ink-faint:#6E8093;
+    --rule:#24303D;
+    --rule-strong:#33414F;
+    --accent:#3EC5DE;
+    --accent-soft:#12303A;
+    --warn:#E8AC5A;
+    --warn-soft:#2E2415;
+    --amber-dot:#FBBF24;
+    --green-dot:#34D399;
+    --cyan-dot:#22D3EE;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 30px -20px rgba(0,0,0,.8);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--ground);color:var(--ink);
+    font-family:var(--f-read);font-size:16px;line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1120px;margin:0 auto;padding-inline:20px;padding-block:0 72px}
+
+  .masthead{padding-block:44px 26px;border-bottom:2px solid var(--ink)}
+  .eyebrow{
+    font-family:var(--f-mono);font-size:11px;font-weight:500;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--accent);margin:0 0 14px;
+  }
+  h1{
+    font-family:var(--f-display);font-weight:700;
+    font-size:clamp(2rem,5.2vw,3.15rem);line-height:1.02;letter-spacing:-.022em;
+    margin:0;text-wrap:balance;
+  }
+  .logline{font-size:clamp(1rem,1.6vw,1.15rem);color:var(--ink-soft);margin:14px 0 0;max-width:64ch}
+  .spec{
+    display:flex;flex-wrap:wrap;gap:0;margin-top:26px;
+    border:1px solid var(--rule-strong);border-radius:3px;background:var(--surface);overflow:hidden;
+  }
+  .spec > div{flex:1 1 150px;padding:11px 14px;border-right:1px solid var(--rule)}
+  .spec > div:last-child{border-right:0}
+  .spec dt{
+    font-family:var(--f-mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;
+    color:var(--ink-faint);margin:0 0 3px;
+  }
+  .spec dd{
+    margin:0;font-family:var(--f-display);font-weight:600;font-size:15px;
+    font-variant-numeric:tabular-nums;color:var(--ink);
+  }
+
+  .controls{
+    display:flex;flex-wrap:wrap;align-items:center;gap:12px;
+    margin-top:22px;padding:12px 14px;border:1px solid var(--rule);
+    border-radius:3px;background:var(--surface-2);
+  }
+  .switch{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-size:14px;font-weight:500;cursor:pointer}
+  .switch input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+  .switch small{font-family:var(--f-read);font-weight:400;color:var(--ink-soft);font-size:13px}
+  button.copy{
+    font-family:var(--f-mono);font-size:11.5px;font-weight:500;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--accent);background:transparent;
+    border:1px solid var(--accent);border-radius:2px;padding:6px 11px;cursor:pointer;
+    transition:background .14s ease;
+  }
+  button.copy:hover{background:var(--accent-soft)}
+  button.copy:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .controls .spacer{margin-left:auto}
+
+  .brief{margin-top:40px;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:36px}
+  @media (max-width:840px){.brief{grid-template-columns:1fr;gap:30px}}
+  h2.block{
+    font-family:var(--f-display);font-weight:600;font-size:13px;letter-spacing:.13em;
+    text-transform:uppercase;color:var(--ink-soft);margin:0 0 14px;
+    padding-bottom:7px;border-bottom:1px solid var(--rule);
+  }
+  ol.steps{margin:0;padding:0;list-style:none;counter-reset:s}
+  ol.steps li{counter-increment:s;position:relative;padding-left:34px;margin-bottom:14px;font-size:15px;color:var(--ink)}
+  ol.steps li::before{
+    content:counter(s);position:absolute;left:0;top:1px;width:22px;height:22px;border-radius:50%;
+    background:var(--accent);color:#fff;font-family:var(--f-mono);font-size:11px;font-weight:600;
+    display:flex;align-items:center;justify-content:center;
+  }
+  :root[data-theme="dark"] ol.steps li::before{color:#0B1119}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) ol.steps li::before{color:#0B1119}}
+  ol.steps b{font-family:var(--f-display);font-weight:600}
+
+  table.say{width:100%;border-collapse:collapse;font-size:14px}
+  table.say th{
+    text-align:left;font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--ink-faint);font-weight:500;padding:0 12px 7px 0;border-bottom:1px solid var(--rule);
+  }
+  table.say td{padding:6px 12px 6px 0;border-bottom:1px solid var(--rule);vertical-align:top}
+  table.say td:first-child{font-family:var(--f-display);font-weight:600;white-space:nowrap}
+  table.say td:last-child{font-family:var(--f-mono);font-size:13px;color:var(--accent);padding-right:0}
+  .note{
+    margin-top:14px;padding:11px 13px;border-left:3px solid var(--warn);
+    background:var(--warn-soft);font-size:13.5px;color:var(--ink);border-radius:0 2px 2px 0;
+  }
+  .note + .note{margin-top:10px}
+  .note b{font-family:var(--f-display);font-weight:600}
+  .note.cool{border-left-color:var(--accent);background:var(--accent-soft)}
+
+  .script{margin-top:52px}
+  .script > h2.block{margin-bottom:0;border-bottom:0}
+  section.sec{
+    background:var(--surface);border:1px solid var(--rule);border-radius:3px;
+    box-shadow:var(--shadow);margin-top:26px;overflow:hidden;
+  }
+  .sec-head{padding:16px 20px 0}
+  .sec-title-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px}
+  .sec-num{
+    font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.1em;
+    color:#fff;background:var(--ink);padding:3px 7px;border-radius:2px;
+  }
+  :root[data-theme="dark"] .sec-num{background:var(--accent);color:#0B1119}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sec-num{background:var(--accent);color:#0B1119}}
+  .sec-title{
+    font-family:var(--f-display);font-weight:600;font-size:clamp(1.15rem,2.2vw,1.42rem);
+    letter-spacing:-.012em;margin:0;text-wrap:balance;
+  }
+  .sec-meta{
+    margin-left:auto;font-family:var(--f-mono);font-size:11.5px;color:var(--ink-soft);
+    font-variant-numeric:tabular-nums;white-space:nowrap;
+  }
+  .sec-meta .tc{color:var(--accent);font-weight:600}
+  .sec-tools{display:flex;align-items:center;gap:10px;margin-top:10px}
+  .sec-cols,.beat{display:grid;grid-template-columns:minmax(0,33fr) minmax(0,67fr);gap:30px}
+  .sec-cols{
+    padding:14px 20px 7px;font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--ink-faint);
+  }
+  .beats{padding:0 20px 18px}
+  .beat{padding:17px 0;border-top:1px solid var(--rule)}
+  .screen{font-family:var(--f-mono);font-size:12.6px;line-height:1.62;color:var(--ink-soft)}
+  .screen::before{
+    content:'Screen';display:none;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ink-faint);margin-bottom:5px;
+  }
+  .screen p{margin:0 0 8px}
+  .screen p:last-child{margin-bottom:0}
+  .screen em{font-style:normal;color:var(--ink);font-weight:500}
+  .vo p{margin:0 0 13px;font-size:17px;line-height:1.68;max-width:64ch}
+  .vo p:last-child{margin-bottom:0}
+  .vo::before{
+    content:'Voice over';display:none;font-family:var(--f-mono);font-size:9.5px;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:5px;
+  }
+  @media (max-width:800px){
+    .sec-cols{display:none}
+    .beat{grid-template-columns:1fr;gap:12px}
+    .screen::before,.vo::before{display:block}
+  }
+  .beat--pause{grid-template-columns:1fr;text-align:center;border-top:1px dashed var(--rule-strong)}
+  .pause{
+    font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--warn);
+  }
+  .pause span{color:var(--ink-faint);letter-spacing:.04em;text-transform:none;font-size:12px}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;vertical-align:middle;margin:0 1px}
+  .dot.amber{background:var(--amber-dot)}
+  .dot.green{background:var(--green-dot)}
+  .dot.cyan{background:var(--cyan-dot)}
+
+  .chapters{margin-top:52px}
+  .chap-body{
+    background:var(--surface);border:1px solid var(--rule);border-radius:3px;
+    padding:18px 20px;box-shadow:var(--shadow);
+  }
+  .chap-list{margin:0;font-family:var(--f-mono);font-size:13.5px;line-height:2}
+  .chap-list div{display:flex;gap:14px}
+  .chap-list b{color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;min-width:52px}
+  .chap-tools{display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:13px;border-top:1px solid var(--rule)}
+
+  footer{margin-top:52px;padding-top:20px;border-top:1px solid var(--rule);font-size:13.5px;color:var(--ink-soft)}
+  footer b{font-family:var(--f-display);font-weight:600;color:var(--ink)}
+  footer p{margin:0 0 12px}
+
+  body.vo-only .brief,
+  body.vo-only .chapters,
+  body.vo-only .spec,
+  body.vo-only .screen,
+  body.vo-only .sec-cols,
+  body.vo-only .sec-tools{display:none}
+  body.vo-only .beat{grid-template-columns:1fr}
+  body.vo-only .beat--pause{text-align:left}
+  body.vo-only .vo p{font-size:18px;max-width:66ch}
+  body.vo-only section.sec{box-shadow:none}
+
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+  @media print{
+    body{background:#fff;color:#000}
+    .controls,.chap-tools,.sec-tools{display:none}
+    section.sec{box-shadow:none;border-color:#999}
+    .beat{break-inside:avoid}
+    .wrap{max-width:none}
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Petrolord Suite · Tutorial series · Episode 3</p>
+    <h1>Well Correlation</h1>
+    <p class="logline">Voice over script and screen directions for the cross-section walkthrough. Build a section from the map, pick tops once, and watch them appear everywhere else in the Suite.</p>
+
+    <dl class="spec">
+      <div><dt>Target runtime</dt><dd>18:32</dd></div>
+      <div><dt>Narration</dt><dd>~2,750 words</dd></div>
+      <div><dt>Sections</dt><dd>10</dd></div>
+      <div><dt>Beats</dt><dd>48 + 3 pauses</dd></div>
+      <div><dt>Prerequisite</dt><dd>Episodes 1, 2</dd></div>
+      <div><dt>Version</dt><dd>Draft 1</dd></div>
+    </dl>
+  </header>
+
+  <div class="controls">
+    <label class="switch" for="vo-only">
+      <input type="checkbox" id="vo-only">
+      Narration only
+      <small>hides screen directions for a clean read</small>
+    </label>
+    <span class="spacer"></span>
+    <button class="copy" id="copy-all" data-label="Copy full narration">Copy full narration</button>
+  </div>
+
+  <div class="brief">
+    <div>
+      <h2 class="block">Before you record</h2>
+      <ol class="steps">
+        <li><b>You need at least three wells with logs.</b> Four is better, because the section only starts to read like a section once there is something in the middle. Use the well from Episodes 1 and 2 as one of them so the series stays continuous.</li>
+        <li><b>Include one well shared by somebody else.</b> Section 08 shows that renaming and deleting act only on wells you own, and that the status reports the shared ones it left alone. Without a shared well in the section, that beat has nothing to point at. Ask a colleague to share one before the take.</li>
+        <li><b>Know your marker before you start.</b> Section 05 picks a top across every well by eye. Choose a marker with clear log character, and find it on each well ahead of the take, so the recording is a demonstration rather than a search.</li>
+      </ol>
+      <div class="note cool">
+        <b>The argument this episode is making.</b> A top picked here is a registry row, not a drawing on a picture. It is stated in section 01, proved in 05 when a drag writes the depth back, proved again in 08 when a rename crosses every well you own and stops at wells you do not, and paid off in 09 when one click turns the top into a structure map. Protect those four beats above all others.
+      </div>
+      <div class="note">
+        <b>If you need to reach sixteen minutes.</b> Cut section 07 on zone fills, and cut the propagate beats at the head of section 08. Both are conveniences. Neither carries the argument.
+      </div>
+    </div>
+
+    <div>
+      <h2 class="block">Pronunciation</h2>
+      <table class="say">
+        <thead><tr><th>Term</th><th>Say it as</th></tr></thead>
+        <tbody>
+          <tr><td>PNG</td><td>P. N. G.</td></tr>
+          <tr><td>MD, TVD, TVDSS</td><td>spoken in full</td></tr>
+          <tr><td>App names</td><td>spoken normally</td></tr>
+        </tbody>
+      </table>
+      <div class="note">
+        <b>Read from the Voice over column only.</b> Depth references are already written out as words there, because a voice tool reading TVDSS as letters in the middle of a sentence sounds like a fault. The Screen column keeps the short forms, which is what the recorder sees on screen.
+      </div>
+      <div class="note">
+        <b>Say the top name you actually pick.</b> The script says "the top" wherever a name would go. Substitute your real marker name on the day and keep it identical in every take, because the whole correlation depends on the names matching exactly.
+      </div>
+    </div>
+  </div>
+
+  <!-- KIT-DATA:START (generated by tools/demo-dataset/sync-episode-scripts.mjs; do not edit by hand) -->
+  <div class="brief kit-data">
+    <div>
+      <h2 class="block">Data for this episode</h2>
+      <p>Everything this episode loads comes from the Ekene demonstration dataset, kit <code>ekene-demo-v1</code>. Download <code>ekene-demo-v1-kit.zip</code> (and, for the seismic episodes, <code>ekene-demo-v1-seismic-full.zip</code>) from <a href="https://github.com/Petrolord/petrolord-suite/releases/tag/ekene-demo-v1">the release page</a> and start with <code>00-START-HERE.md</code>. This block is generated from <code>episodes/episode-03-well-correlation.md</code> in the kit, so the two always agree.</p>
+      <table class="say">
+        <thead><tr><th>File</th><th>What it is for</th></tr></thead>
+        <tbody>
+          <tr><td><code>01-wells/Ekene-5.las, Ekene-1.las, Ekene-6.las, Ekene-2.las</code></td><td>a west-to-east section across the field and across the fault</td></tr>
+          <tr><td><code>01-wells/tops/*-tops.csv</code></td><td>the same nine surfaces in every well</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h2 class="block">Before the take</h2>
+      <div class="note">Correlate on the Ogbia Shale: it is a maximum flooding surface, the strongest and most continuous gamma ray marker in the section, and it sits 250 m above the reservoir. The bed character inside every package is the same sequence in every well, at that well's own depths, so the section correlates the way a real one does. Share one well with a colleague before the take.</div>
+    </div>
+  </div>
+  <!-- KIT-DATA:END -->
+
+  <div class="script">
+    <h2 class="block">Script</h2>
+
+    <!-- ============ 1 ============ -->
+    <section class="sec" id="sec-1">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">01</span>
+          <h3 class="sec-title">Why a section, and why these tops</h3>
+          <span class="sec-meta"><span class="tc">00:00</span> · 1:14 · 185 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-1" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Dashboard, Geoscience module. Hold on the <em>Well Correlation</em> tile, then open it.</p></div>
+          <div class="vo"><p>A single well tells you what is under one point on the map. A cross section tells you what the rocks are doing between those points. Well Correlation is where you build one.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>A finished section, four wells, tops correlated and flattened. Hold for four seconds.</p></div>
+          <div class="vo"><p>It reads the same registry wells as everything else in the Suite, draws them as real log columns side by side, and lets you correlate your tops across them by eye. And here is the part that matters most. The tops you pick here are not drawings on a picture. They are registry rows. Pick one on this screen and it exists immediately in Petrophysics Studio, in Well Data Manager, in Mapping and Surface Studio, and in Seismolord.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Quick cuts, two seconds each: the section path drawing on the map, a top tag being dragged, the section flattening, Mapping and Surface Studio opening on a structure map.</p></div>
+          <div class="vo"><p>In this video we will build a section from the map, pick and correlate a set of tops, flatten on one of them, fill the zones, and send a top out to be mapped. One correlation, done once, that the whole team then works from.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 2 ============ -->
+    <section class="sec" id="sec-2">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">02</span>
+          <h3 class="sec-title">Build the section path</h3>
+          <span class="sec-meta"><span class="tc">01:14</span> · 1:50 · 275 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-2" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Open the app on an empty section. Hold on the centre message, then move to the explorer map.</p></div>
+          <div class="vo"><p>The app opens empty, and it tells you what to do about it. Everything starts on the left, on the map.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Zoom the map panel. Point at a private well <span class="dot amber"></span> then a shared well <span class="dot green"></span>.</p></div>
+          <div class="vo"><p>That map shows every well in the registry at its surface location. Amber dots are your private wells. Green dots are wells shared with your organization. You can correlate both.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click four wells in order. Each turns cyan <span class="dot cyan"></span> and numbers itself, and the path line draws between them.</p></div>
+          <div class="vo"><p>Click wells in the order you want to walk them. Each one you click joins the section, takes a number, and a line draws between them. That line is your section path. Click along a dip direction and you get a dip section. Click along strike and you get a strike section. The geometry is yours to choose, and the map is where you choose it.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>The ordered list below the map. Swap two wells with the up and down arrows. Remove one with the cross, then add it back from the <em>Available</em> list.</p></div>
+          <div class="vo"><p>Underneath, the same wells appear as an ordered list. The arrows move a well along the section. The cross removes it. And every registry well you have not used yet sits in the Available list below, with a plus beside it, in case you would rather add wells from a list than from a map.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Cut to the section drawing in the centre. Then point at the well and top counts on the status bar.</p></div>
+          <div class="vo"><p>As soon as there are two wells, the section draws. And the status bar keeps a running count of how many wells and how many distinct top names are in play.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 3 ============ -->
+    <section class="sec" id="sec-3">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">03</span>
+          <h3 class="sec-title">Reading the section</h3>
+          <span class="sec-meta"><span class="tc">03:04</span> · 1:52 · 280 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-3" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Move slowly down one well column: the name band, the track headers with their scales, then the curves.</p></div>
+          <div class="vo"><p>Each well is a full log column, not a thumbnail. The well name sits in a band at the top. Under it are the track headers with their scales, and then the curves themselves, drawn exactly as Petrophysics Studio would draw them, because both applications share the same painter.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Dock, <em>View</em>, the template selector. Switch to <em>Raw quicklook</em>, then <em>Lithology quicklook</em>, then back to <em>Standard triple combo</em>.</p></div>
+          <div class="vo"><p>What each column shows comes from a track template, and you choose it once for the whole section, in the dock under View. Standard triple combo gives you gamma ray, resistivity and the density neutron overlay. Raw quicklook draws every mnemonic the well carries. Lithology quicklook adds the gamma ray ramp and its cutoff.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Open the <em>Track layout</em> section at the foot of the dock. Show the editor for three seconds, then collapse it.</p></div>
+          <div class="vo"><p>And if none of the three is right, the track layout editor is at the bottom of the dock. It is the same editor you used in Petrophysics Studio, so anything you can build there you can build here.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Move the crosshair across the section and hold, so the readouts on every column can be read. Then wheel zoom and drag pan.</p></div>
+          <div class="vo"><p>Move your cursor and a crosshair runs across every well at once, with each column reporting its own values at that level. The wheel zooms and dragging pans, exactly as in the Studio.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at a correlation line joining the same top across two adjacent columns.</p></div>
+          <div class="vo"><p>And where two wells carry a top with the same name, a line is drawn between them, column centre to column centre. Those lines are your correlation. Everything else in this application exists to help you get them right.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 4 ============ -->
+    <section class="sec" id="sec-4">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">04</span>
+          <h3 class="sec-title">Depth reference, unit and spacing</h3>
+          <span class="sec-meta"><span class="tc">04:56</span> · 1:40 · 250 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-4" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Dock, <em>View</em> block. Point at the four controls in turn without changing them.</p></div>
+          <div class="vo"><p>Before you correlate anything, settle three questions in the View block. They change what you are looking at more than anything else here.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Switch <em>unit</em> from m to ft and back. Let the depth axis relabel.</p></div>
+          <div class="vo"><p>First, the unit. Metres or feet, for display. Storage stays in metres either way.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Switch <em>depth</em> from MD to TVD, then to TVDSS. Hold on each so the columns can be seen shifting.</p></div>
+          <div class="vo"><p>Second, the depth reference. Measured depth is what the logging tool recorded. True vertical depth removes the deviation. True vertical depth subsea removes the deviation and the kelly bushing, so every well is referenced to the same datum. On a section with deviated wells, or with wells whose rig floors sat at very different elevations, that third option is usually the honest one, because it is the only one where a flat line on the screen means a flat surface in the ground.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Switch <em>spacing</em> from <em>equal</em> to <em>by distance</em>. Hold so the changed gaps between columns are obvious.</p></div>
+          <div class="vo"><p>Third, spacing. Equal puts the columns at even intervals, which is easy to read. By distance spaces them by their real separation on the map, which is honest about the geometry. Use equal while you are picking, and switch to by distance before you show the picture to anybody.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 5 ============ -->
+    <section class="sec" id="sec-5">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">05</span>
+          <h3 class="sec-title">Pick and correlate the tops</h3>
+          <span class="sec-meta"><span class="tc">06:36</span> · 2:55 · 430 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-5" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Dock, <em>Tops</em> block, showing the empty state message.</p></div>
+          <div class="vo"><p>Now the work itself. Open the Tops block in the dock.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Pick top</em>. The button changes to <em>Picking… (Esc)</em>.</p></div>
+          <div class="vo"><p>Click Pick top and the cursor is armed. The button tells you it is armed, and it tells you that Escape gets you out again.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click on the first well column at the marker depth. The naming popover opens. Type the top name and confirm.</p></div>
+          <div class="vo"><p>Click on a well column at the depth you want, and a popover asks you to name the top. Name it carefully, because that name is the correlation. Every well carrying a top with exactly this name will be joined to this one by a line.</p></div>
+        </div>
+
+        <div class="beat beat--pause" data-pause="3">
+          <div class="pause">Pause 3 seconds. <span>The top lands and its tag appears on the column.</span></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Pick the same name on the second, third and fourth wells. Let each correlation line draw before moving on.</p></div>
+          <div class="vo"><p>Now pick that same name on the next well, and the next. Watch the line appear each time. This is the moment your section stops being three logs standing beside each other and becomes a correlation.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Grab a top by its name tag at the right edge of its column and drag it up or down. Release. Hold on the status bar message.</p></div>
+          <div class="vo"><p>If a pick is not quite right, you do not need to delete it and start again. Grab the top by its name tag at the right edge of its column and drag it. On release the depth updates, and the registry row moves with it. The status bar tells you exactly where it landed.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Dock, <em>Ghost curve</em>. Choose a source well, then a target well. The translucent curve appears over the target column.</p></div>
+          <div class="vo"><p>There is one more tool here worth knowing, and it is the one experienced correlators reach for first. The ghost curve. Choose a source well and a target well, and the source well's first track is drawn translucent on top of the target's, in the same track slot.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Drag the shift slider slowly until the ghost lines up on a distinctive piece of log character. Hold there.</p></div>
+          <div class="vo"><p>Then drag the slider to shift it up or down. Now you are not comparing two logs across a gap. You are sliding one log over the other until the character lines up, and reading the offset straight off the slider. It is the fastest honest way to judge whether two wiggles really are the same bed.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Optional, only if a section well can produce it: in TVD or TVDSS, drag a top on a well that reaches the same level twice. Hold on the status notice. Skip if it cannot be reproduced.</p></div>
+          <div class="vo"><p>One warning you may meet. If you are working in true vertical depth on a well that reaches the same level twice, the app will not guess which one you meant. It says so, and asks you to drag in measured depth instead.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 6 ============ -->
+    <section class="sec" id="sec-6">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">06</span>
+          <h3 class="sec-title">Flatten, and stretch</h3>
+          <span class="sec-meta"><span class="tc">09:31</span> · 2:48 · 410 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-6" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Dock, <em>Datum</em> block at the top, showing <em>Structural (true depth)</em>.</p></div>
+          <div class="vo"><p>You have a correlation. Now use it. The Datum block at the top of the dock decides how the section hangs.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Wide shot of the structural section. Hold.</p></div>
+          <div class="vo"><p>Structural is what you have been looking at. Every well at its true depth. This is the picture that tells you about structure. Where the section is high, and where it is low.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Choose <em>Flatten on top</em> and pick the marker. The whole section rearranges so that top becomes one horizontal line.</p></div>
+          <div class="vo"><p>Choose Flatten on top and pick one of your tops, and every well shifts until that top sits on a single horizontal line.</p></div>
+        </div>
+
+        <div class="beat beat--pause" data-pause="4">
+          <div class="pause">Pause 4 seconds. <span>Hold on the flattened section. This is the money shot of the episode.</span></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Stay wide. Move the cursor between two wells to compare thicknesses above the datum.</p></div>
+          <div class="vo"><p>The structure has gone out of the picture, deliberately, and what is left is the stratigraphy. Thickness changes. Character changes. What came in above, and what was already there below. This is the picture that tells you about deposition.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Change the datum depth value in the box beside the top selector. The flat line moves up and down the window.</p></div>
+          <div class="vo"><p>The depth box beside it simply decides where on the screen that flat line sits.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>If a section well lacks the datum top, point at it staying unshifted, and at the status naming it.</p></div>
+          <div class="vo"><p>A well that does not carry the datum top cannot be flattened on it, so it stays where it is, and the status names it rather than leaving you to notice.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Choose <em>Stretch between two tops</em>. Pick an upper and a lower top. The section rearranges again. Then toggle back to <em>Flatten on top</em> and forward again, to compare.</p></div>
+          <div class="vo"><p>The third mode goes further. Stretch between two tops hangs each well on two surfaces instead of one. The interval between them is stretched or squeezed until both picks land on common lines, and the rock above and below rides along with it. That is a strong assumption, so know what you are assuming. Flattening on one top says that top was flat when it formed. Stretching between two says the whole interval was laid down over the same span of time everywhere, and only its thickness varied. Where that is a fair thing to say, the stretched section is the clearest picture of facies you will get. Where it is not, it will show you patterns that were never there.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 7 ============ -->
+    <section class="sec" id="sec-7">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">07</span>
+          <h3 class="sec-title">Zone fills</h3>
+          <span class="sec-meta"><span class="tc">12:19</span> · 1:06 · 165 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-7" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Dock, <em>Zones</em> block. Open the selector so all three options are readable.</p></div>
+          <div class="vo"><p>A little colour makes a section far easier to read. The Zones block has three settings.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Choose <em>between shown tops</em> and hold as the bands appear. Then choose <em>one pair</em> and select two tops.</p></div>
+          <div class="vo"><p>No fill leaves you with tops only. Between shown tops puts a band between every consecutive pair of the tops you are showing, coloured by the upper one. One pair fills a single interval that you choose, which is what you want when one reservoir is the subject and everything else is context.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Back to <em>between shown tops</em>. Untick a top in the tops list and hold as the bands either side merge. Tick it again.</p></div>
+          <div class="vo"><p>And notice that the fills follow the tops you are showing. Untick a top in the list and the bands either side of it merge into one. So those show toggles are not just tidiness. They decide what the coloured picture is saying.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 8 ============ -->
+    <section class="sec" id="sec-8">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">08</span>
+          <h3 class="sec-title">Tops across the whole section</h3>
+          <span class="sec-meta"><span class="tc">13:25</span> · 2:20 · 350 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-8" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Dock, <em>Propagate top</em>. Type a name and a depth, click <em>Add</em>. Tags appear on every owned well at that same depth.</p></div>
+          <div class="vo"><p>Picking a top well by well is right when you can see it well by well. Sometimes you would rather start from a first guess. The Propagate block takes a name and a depth, and seeds that top on every well in the section you own, all at that same depth.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Drag each seeded tag in turn to where the marker actually sits. Show the correlation line straightening as you go.</p></div>
+          <div class="vo"><p>Which is almost certainly wrong on most of them, and that is the point. You now have a tag on every column to drag to where it belongs. It is much faster than picking from nothing, as long as you actually do the dragging.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Tops list. Click the pencil beside a top, type a new name, press Enter. Hold on the status bar count.</p></div>
+          <div class="vo"><p>In the tops list, the pencil renames a top. It renames it on every well in the section that you own, in one action, and the status tells you how many wells it touched.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click the bin beside a disposable top. It changes to <em>confirm delete</em>. Wait a beat, then click again.</p></div>
+          <div class="vo"><p>The bin deletes one, and it asks twice. The first click turns into a confirm, and only the second click does anything at all.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>With the shared well in the section, rename a top it also carries. Zoom the status message naming the shared wells left unchanged.</p></div>
+          <div class="vo"><p>Both of those act only on the wells you own. If your section includes a well somebody shared with you, their copy of that top stays exactly as it is, and the status says how many wells it left alone. You cannot quietly edit someone else's data from here.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Reload</em>. Hold on the confirmation in the status bar.</p></div>
+          <div class="vo"><p>And Reload pulls the tops fresh from the registry. Use it when a colleague has been picking in Petrophysics Studio or Well Data Manager while you have had this section open.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 9 ============ -->
+    <section class="sec" id="sec-9">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">09</span>
+          <h3 class="sec-title">Save, export, and where the tops go</h3>
+          <span class="sec-meta"><span class="tc">15:45</span> · 1:55 · 280 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-9" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Save section</em> on the ribbon. Hold on the status confirmation.</p></div>
+          <div class="vo"><p>Two buttons on the ribbon finish the job. Save section stores this section as you have it. The wells and their order, the datum you chose, the template, the depth reference, the unit, the spacing, the zone fills, and which tops you are showing. Open it later and you are back exactly where you left off.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Set <em>spacing</em> to <em>by distance</em>, then click <em>PNG</em>. Show the downloaded file, then open it full screen.</p></div>
+          <div class="vo"><p>PNG downloads the section as an image, ready for a report or a presentation, at the size you have it on screen. Set your spacing to by distance before you press it.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Tops list. Click the small map icon beside the marker.</p></div>
+          <div class="vo"><p>And then there is the small map icon beside every top in the list.</p></div>
+        </div>
+
+        <div class="beat beat--pause" data-pause="3">
+          <div class="pause">Pause 3 seconds <span>Mapping and Surface Studio opens on the gridded surface.</span></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Hold on the structure map in Mapping and Surface Studio, then cut back to the section.</p></div>
+          <div class="vo"><p>Click it, and Mapping and Surface Studio opens with that top gridded as a structure map in true vertical depth subsea, across every well in your section that carries it. Your correlation becomes a surface, in one click, with no export in between.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Cut to Petrophysics Studio on one of the section wells, showing the tops present. Then Well Data Manager, Tops tab, same well.</p></div>
+          <div class="vo"><p>The same is true everywhere else. Open one of these wells in Petrophysics Studio and your tops are already there, ready to become zone boundaries. Open it in Well Data Manager and they are sitting in its tops tab. You picked them once.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 10 ============ -->
+    <section class="sec" id="sec-10">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">10</span>
+          <h3 class="sec-title">Wrap up</h3>
+          <span class="sec-meta"><span class="tc">17:40</span> · 0:52 · 130 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-10" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Pull back to the finished section: flattened, filled, tops correlated across every column.</p></div>
+          <div class="vo"><p>So that is Well Correlation. A section built from the map, tops picked once and shared everywhere, and a picture you can hang on structure or on stratigraphy depending on the question you are asking.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Toggle the datum between <em>Structural</em> and <em>Flatten on top</em> twice, slowly, and leave it flattened.</p></div>
+          <div class="vo"><p>If you remember one control from this video, make it the datum selector. Structural answers where. Flattened answers what happened. Most arguments about a correlation turn out to be two people looking at different modes of the same section.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>End card with the series name and the next episode title.</p></div>
+          <div class="vo"><p>In the next video we take one of these tops into Mapping and Surface Studio and turn it into a surface across the whole field. Thanks for watching.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+  </div>
+
+  <div class="chapters">
+    <h2 class="block">Chapter timestamps for the video description</h2>
+    <div class="chap-body">
+      <div class="chap-list" id="chap-list">
+        <div><b>0:00</b> Why a section, and why these tops</div>
+        <div><b>1:14</b> Build the section path</div>
+        <div><b>3:04</b> Reading the section</div>
+        <div><b>4:56</b> Depth reference, unit and spacing</div>
+        <div><b>6:36</b> Pick and correlate the tops</div>
+        <div><b>9:31</b> Flatten, and stretch</div>
+        <div><b>12:19</b> Zone fills</div>
+        <div><b>13:25</b> Tops across the whole section</div>
+        <div><b>15:45</b> Save, export, and where the tops go</div>
+        <div><b>17:40</b> Wrap up</div>
+      </div>
+      <div class="chap-tools">
+        <button class="copy" id="copy-chapters" data-label="Copy timestamps">Copy timestamps</button>
+        <span style="font-size:13px;color:var(--ink-soft)">Targets only. Re-stamp them from the finished audio before publishing.</span>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p><b>Series position.</b> Episode 1 loaded the wells. Episode 2 interpreted one of them. This episode is where the series pays off, because it is the first time the viewer sees work done in one application appear in another without being moved. Play that up on the day if a take gives you the chance.</p>
+    <p><b>Accuracy note.</b> Every control name, dropdown option and status message in this script matches the shipping application at the time of writing. If a label changes, fix the script before the next take rather than talking around it on camera.</p>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  var body = document.body;
+  var KEY = 'corr-episode-script.vo-only';
+  var toggle = document.getElementById('vo-only');
+
+  try {
+    if (localStorage.getItem(KEY) === '1') { toggle.checked = true; body.classList.add('vo-only'); }
+  } catch (e) { /* storage unavailable: default view is correct */ }
+
+  toggle.addEventListener('change', function () {
+    body.classList.toggle('vo-only', toggle.checked);
+    try { localStorage.setItem(KEY, toggle.checked ? '1' : '0'); } catch (e) {}
+  });
+
+  function narrationOf(scope) {
+    var out = [];
+    scope.querySelectorAll('.beat').forEach(function (beat) {
+      if (beat.dataset.pause) { out.push('[PAUSE ' + beat.dataset.pause + 's]'); return; }
+      beat.querySelectorAll('.vo p').forEach(function (p) {
+        out.push(p.textContent.replace(/\s+/g, ' ').trim());
+      });
+    });
+    return out.join('\n\n');
+  }
+
+  function flash(btn) {
+    var label = btn.dataset.label;
+    btn.textContent = 'Copied';
+    setTimeout(function () { btn.textContent = label; }, 1600);
+  }
+
+  function fallbackCopy(text, btn) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); flash(btn); } catch (e) { btn.textContent = 'Select and copy manually'; }
+    document.body.removeChild(ta);
+  }
+
+  function copy(text, btn) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(function () { flash(btn); }, function () { fallbackCopy(text, btn); });
+      } else { fallbackCopy(text, btn); }
+    } catch (e) { fallbackCopy(text, btn); }
+  }
+
+  document.querySelectorAll('button.copy[data-copy]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var sec = document.getElementById(btn.dataset.copy);
+      if (sec) copy(narrationOf(sec), btn);
+    });
+  });
+
+  document.getElementById('copy-all').addEventListener('click', function () {
+    var btn = this;
+    var parts = [];
+    document.querySelectorAll('section.sec').forEach(function (sec) {
+      var title = sec.querySelector('.sec-title').textContent.trim();
+      var num = sec.querySelector('.sec-num').textContent.trim();
+      parts.push('=== ' + num + ' ' + title + ' ===\n\n' + narrationOf(sec));
+    });
+    copy(parts.join('\n\n\n'), btn);
+  });
+
+  var chaps = document.getElementById('copy-chapters');
+  chaps.addEventListener('click', function () {
+    var lines = [];
+    document.querySelectorAll('#chap-list div').forEach(function (row) {
+      lines.push(row.textContent.replace(/\s+/g, ' ').trim());
+    });
+    copy(lines.join('\n'), chaps);
+  });
+})();
+</script>

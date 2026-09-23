@@ -1,0 +1,1053 @@
+<title>Petrophysics Studio Episode Script</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+  :root{
+    --ground:#F4F6F8;
+    --surface:#FFFFFF;
+    --surface-2:#EDF1F5;
+    --ink:#15202C;
+    --ink-soft:#5C6D80;
+    --ink-faint:#8A99A8;
+    --rule:#DBE2EA;
+    --rule-strong:#C3CEDA;
+    --accent:#0E7490;
+    --accent-soft:#E0F0F4;
+    --warn:#A85B0B;
+    --warn-soft:#FBEEDC;
+    --good:#0A7350;
+    --amber-dot:#D9931B;
+    --green-dot:#12A46F;
+    --shadow:0 1px 2px rgba(21,32,44,.05), 0 12px 28px -18px rgba(21,32,44,.28);
+
+    --f-display:'Archivo', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    --f-read:'Source Serif 4', Georgia, 'Times New Roman', serif;
+    --f-mono:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0B1119;
+      --surface:#121A24;
+      --surface-2:#18222E;
+      --ink:#E4EBF2;
+      --ink-soft:#9AAABB;
+      --ink-faint:#6E8093;
+      --rule:#24303D;
+      --rule-strong:#33414F;
+      --accent:#3EC5DE;
+      --accent-soft:#12303A;
+      --warn:#E8AC5A;
+      --warn-soft:#2E2415;
+      --good:#39BE90;
+      --amber-dot:#FBBF24;
+      --green-dot:#34D399;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 30px -20px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0B1119;
+    --surface:#121A24;
+    --surface-2:#18222E;
+    --ink:#E4EBF2;
+    --ink-soft:#9AAABB;
+    --ink-faint:#6E8093;
+    --rule:#24303D;
+    --rule-strong:#33414F;
+    --accent:#3EC5DE;
+    --accent-soft:#12303A;
+    --warn:#E8AC5A;
+    --warn-soft:#2E2415;
+    --good:#39BE90;
+    --amber-dot:#FBBF24;
+    --green-dot:#34D399;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 30px -20px rgba(0,0,0,.8);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--ground);
+    color:var(--ink);
+    font-family:var(--f-read);
+    font-size:16px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1120px;margin:0 auto;padding-inline:20px;padding-block:0 72px}
+
+  /* ---------- masthead ---------- */
+  .masthead{padding-block:44px 26px;border-bottom:2px solid var(--ink);}
+  .eyebrow{
+    font-family:var(--f-mono);font-size:11px;font-weight:500;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--accent);margin:0 0 14px;
+  }
+  h1{
+    font-family:var(--f-display);font-weight:700;
+    font-size:clamp(2rem,5.2vw,3.15rem);line-height:1.02;letter-spacing:-.022em;
+    margin:0;text-wrap:balance;
+  }
+  .logline{
+    font-size:clamp(1rem,1.6vw,1.15rem);color:var(--ink-soft);
+    margin:14px 0 0;max-width:64ch;
+  }
+  .spec{
+    display:flex;flex-wrap:wrap;gap:0;margin-top:26px;
+    border:1px solid var(--rule-strong);border-radius:3px;background:var(--surface);
+    overflow:hidden;
+  }
+  .spec > div{flex:1 1 150px;padding:11px 14px;border-right:1px solid var(--rule)}
+  .spec > div:last-child{border-right:0}
+  .spec dt{
+    font-family:var(--f-mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;
+    color:var(--ink-faint);margin:0 0 3px;
+  }
+  .spec dd{
+    margin:0;font-family:var(--f-display);font-weight:600;font-size:15px;
+    font-variant-numeric:tabular-nums;color:var(--ink);
+  }
+
+  /* ---------- control bar ---------- */
+  .controls{
+    display:flex;flex-wrap:wrap;align-items:center;gap:12px;
+    margin-top:22px;padding:12px 14px;border:1px solid var(--rule);
+    border-radius:3px;background:var(--surface-2);
+  }
+  .switch{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-size:14px;font-weight:500;cursor:pointer}
+  .switch input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+  .switch small{font-family:var(--f-read);font-weight:400;color:var(--ink-soft);font-size:13px}
+  button.copy{
+    font-family:var(--f-mono);font-size:11.5px;font-weight:500;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--accent);background:transparent;
+    border:1px solid var(--accent);border-radius:2px;padding:6px 11px;cursor:pointer;
+    transition:background .14s ease;
+  }
+  button.copy:hover{background:var(--accent-soft)}
+  button.copy:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .controls .spacer{margin-left:auto}
+
+  /* ---------- briefing ---------- */
+  .brief{margin-top:40px;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:36px}
+  @media (max-width:840px){.brief{grid-template-columns:1fr;gap:30px}}
+  h2.block{
+    font-family:var(--f-display);font-weight:600;font-size:13px;letter-spacing:.13em;
+    text-transform:uppercase;color:var(--ink-soft);margin:0 0 14px;
+    padding-bottom:7px;border-bottom:1px solid var(--rule);
+  }
+  ol.steps{margin:0;padding:0;list-style:none;counter-reset:s}
+  ol.steps li{
+    counter-increment:s;position:relative;padding-left:34px;margin-bottom:14px;
+    font-size:15px;color:var(--ink);
+  }
+  ol.steps li::before{
+    content:counter(s);position:absolute;left:0;top:1px;
+    width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;
+    font-family:var(--f-mono);font-size:11px;font-weight:600;
+    display:flex;align-items:center;justify-content:center;
+  }
+  :root[data-theme="dark"] ol.steps li::before{color:#0B1119}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) ol.steps li::before{color:#0B1119}}
+  ol.steps b{font-family:var(--f-display);font-weight:600}
+
+  table.say{width:100%;border-collapse:collapse;font-size:14px}
+  table.say th{
+    text-align:left;font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--ink-faint);font-weight:500;
+    padding:0 12px 7px 0;border-bottom:1px solid var(--rule);
+  }
+  table.say td{padding:6px 12px 6px 0;border-bottom:1px solid var(--rule);vertical-align:top}
+  table.say td:first-child{font-family:var(--f-display);font-weight:600;white-space:nowrap}
+  table.say td:last-child{font-family:var(--f-mono);font-size:13px;color:var(--accent);padding-right:0}
+  .note{
+    margin-top:14px;padding:11px 13px;border-left:3px solid var(--warn);
+    background:var(--warn-soft);font-size:13.5px;color:var(--ink);border-radius:0 2px 2px 0;
+  }
+  .note + .note{margin-top:10px}
+  .note b{font-family:var(--f-display);font-weight:600}
+  .note.cool{border-left-color:var(--accent);background:var(--accent-soft)}
+
+  /* ---------- script ---------- */
+  .script{margin-top:52px}
+  .script > h2.block{margin-bottom:0;border-bottom:0}
+  section.sec{
+    background:var(--surface);border:1px solid var(--rule);border-radius:3px;
+    box-shadow:var(--shadow);margin-top:26px;overflow:hidden;
+  }
+  .sec-head{padding:16px 20px 0}
+  .sec-title-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px}
+  .sec-num{
+    font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.1em;
+    color:#fff;background:var(--ink);padding:3px 7px;border-radius:2px;
+  }
+  :root[data-theme="dark"] .sec-num{background:var(--accent);color:#0B1119}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sec-num{background:var(--accent);color:#0B1119}}
+  .sec-title{
+    font-family:var(--f-display);font-weight:600;font-size:clamp(1.15rem,2.2vw,1.42rem);
+    letter-spacing:-.012em;margin:0;text-wrap:balance;
+  }
+  .sec-meta{
+    margin-left:auto;font-family:var(--f-mono);font-size:11.5px;color:var(--ink-soft);
+    font-variant-numeric:tabular-nums;white-space:nowrap;
+  }
+  .sec-meta .tc{color:var(--accent);font-weight:600}
+  .sec-tools{display:flex;align-items:center;gap:10px;margin-top:10px}
+  .sec-cols,.beat{display:grid;grid-template-columns:minmax(0,33fr) minmax(0,67fr);gap:30px}
+  .sec-cols{
+    padding:14px 20px 7px;
+    font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--ink-faint);
+  }
+  .beats{padding:0 20px 18px}
+  .beat{padding:17px 0;border-top:1px solid var(--rule)}
+  .screen{font-family:var(--f-mono);font-size:12.6px;line-height:1.62;color:var(--ink-soft)}
+  .screen::before{
+    content:'Screen';display:none;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ink-faint);margin-bottom:5px;
+  }
+  .screen p{margin:0 0 8px}
+  .screen p:last-child{margin-bottom:0}
+  .screen em{font-style:normal;color:var(--ink);font-weight:500}
+  .vo p{margin:0 0 13px;font-size:17px;line-height:1.68;max-width:64ch}
+  .vo p:last-child{margin-bottom:0}
+  .vo::before{
+    content:'Voice over';display:none;font-family:var(--f-mono);font-size:9.5px;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:5px;
+  }
+  @media (max-width:800px){
+    .sec-cols{display:none}
+    .beat{grid-template-columns:1fr;gap:12px}
+    .screen::before,.vo::before{display:block}
+  }
+  .beat--pause{grid-template-columns:1fr;text-align:center;border-top:1px dashed var(--rule-strong)}
+  .pause{
+    font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--warn);
+  }
+  .pause span{color:var(--ink-faint);letter-spacing:.04em;text-transform:none;font-size:12px}
+
+  /* part break */
+  .part-break{
+    margin-top:34px;padding:16px 20px;border:1px dashed var(--rule-strong);
+    border-radius:3px;background:var(--surface-2);
+    display:flex;flex-wrap:wrap;align-items:baseline;gap:12px;
+  }
+  .part-break b{
+    font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--warn);
+  }
+  .part-break span{font-size:14px;color:var(--ink-soft)}
+
+  /* ---------- chapters ---------- */
+  .chapters{margin-top:52px}
+  .chap-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  @media (max-width:840px){.chap-grid{grid-template-columns:1fr}}
+  .chap-body{
+    background:var(--surface);border:1px solid var(--rule);border-radius:3px;
+    padding:18px 20px;box-shadow:var(--shadow);
+  }
+  .chap-body h3{
+    font-family:var(--f-display);font-weight:600;font-size:14px;margin:0 0 12px;
+    color:var(--ink);
+  }
+  .chap-list{margin:0;font-family:var(--f-mono);font-size:13px;line-height:1.95}
+  .chap-list div{display:flex;gap:12px}
+  .chap-list b{color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;min-width:48px}
+  .chap-tools{display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:13px;border-top:1px solid var(--rule)}
+
+  footer{margin-top:52px;padding-top:20px;border-top:1px solid var(--rule);font-size:13.5px;color:var(--ink-soft)}
+  footer b{font-family:var(--f-display);font-weight:600;color:var(--ink)}
+  footer p{margin:0 0 12px}
+
+  body.vo-only .brief,
+  body.vo-only .chapters,
+  body.vo-only .spec,
+  body.vo-only .screen,
+  body.vo-only .sec-cols,
+  body.vo-only .sec-tools{display:none}
+  body.vo-only .beat{grid-template-columns:1fr}
+  body.vo-only .beat--pause{text-align:left}
+  body.vo-only .vo p{font-size:18px;max-width:66ch}
+  body.vo-only section.sec{box-shadow:none}
+
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+  @media print{
+    body{background:#fff;color:#000}
+    .controls,.chap-tools,.sec-tools{display:none}
+    section.sec{box-shadow:none;border-color:#999}
+    .beat{break-inside:avoid}
+    .wrap{max-width:none}
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Petrolord Suite · Tutorial series · Episode 2</p>
+    <h1>Petrophysics Studio</h1>
+    <p class="logline">Voice over script and screen directions for the interpretation walkthrough. One well, from raw curves to published net pay, with every decision on screen.</p>
+
+    <dl class="spec">
+      <div><dt>Target runtime</dt><dd>23:50</dd></div>
+      <div><dt>Narration</dt><dd>~3,500 words</dd></div>
+      <div><dt>Sections</dt><dd>14</dd></div>
+      <div><dt>Beats</dt><dd>54 + 4 pauses</dd></div>
+      <div><dt>Prerequisite</dt><dd>Episode 1</dd></div>
+      <div><dt>Version</dt><dd>Draft 1</dd></div>
+    </dl>
+  </header>
+
+  <div class="controls">
+    <label class="switch" for="vo-only">
+      <input type="checkbox" id="vo-only">
+      Narration only
+      <small>hides screen directions for a clean read</small>
+    </label>
+    <span class="spacer"></span>
+    <button class="copy" id="copy-all" data-label="Copy full narration">Copy full narration</button>
+  </div>
+
+  <div class="brief">
+    <div>
+      <h2 class="block">Before you record</h2>
+      <ol class="steps">
+        <li><b>Use the well from Episode 1.</b> This episode opens on a registry well that already has curves, tops and a survey. Continuing with the same well makes the series feel like one piece of work rather than nine disconnected demos.</li>
+        <li><b>Prepare a well with a real water leg.</b> Section 06 fits a water line on a Pickett plot. Pick a well where you know a water bearing interval, and have its top and base depth written down before the take.</li>
+        <li><b>Render section by section, honour the pauses.</b> Same as Episode 1. Copy each section into the voice tool separately, and put real silence where the script marks a pause, because those are the moments the application is recomputing.</li>
+      </ol>
+      <div class="note cool">
+        <b>This runs long, and that is a choice.</b> Twenty four minutes is a lot to ask of one sitting. The script has a marked break after section 07, where the well has its first computed result. Cut there and you get two episodes of roughly twelve minutes each, both of which end somewhere satisfying. The chapter list below is given for both options.
+      </div>
+      <div class="note">
+        <b>What this episode leaves out.</b> The digitizer, the curve calculator, rule facies, low and high cases, the probabilistic run, the mineral model, batch runs, Field view and Depth shift are named in section 13 and shown for two seconds each. Every one of them needs its own video. Do not be tempted to explain them here.
+      </div>
+    </div>
+
+    <div>
+      <h2 class="block">Pronunciation</h2>
+      <table class="say">
+        <thead><tr><th>Term</th><th>Say it as</th></tr></thead>
+        <tbody>
+          <tr><td>Rw</td><td>R. W.</td></tr>
+          <tr><td>SI</td><td>S. I.</td></tr>
+          <tr><td>SP</td><td>S. P.</td></tr>
+          <tr><td>LAS</td><td>L. A. S.</td></tr>
+          <tr><td>CSV</td><td>C. S. V.</td></tr>
+          <tr><td>PDF</td><td>P. D. F.</td></tr>
+          <tr><td>Vsh, NTG, PHIE</td><td>spoken in full</td></tr>
+          <tr><td>2.65, 2.71</td><td>written out as words</td></tr>
+        </tbody>
+      </table>
+      <div class="note">
+        <b>Read from the Voice over column only.</b> It already spells acronyms and numbers the way a voice tool should say them. The Screen column spells them the way they appear in the application, which is not the same thing. If your voice tool still runs letters together, keep the full stops.
+      </div>
+    </div>
+  </div>
+
+  <!-- KIT-DATA:START (generated by tools/demo-dataset/sync-episode-scripts.mjs; do not edit by hand) -->
+  <div class="brief kit-data">
+    <div>
+      <h2 class="block">Data for this episode</h2>
+      <p>Everything this episode loads comes from the Ekene demonstration dataset, kit <code>ekene-demo-v1</code>. Download <code>ekene-demo-v1-kit.zip</code> (and, for the seismic episodes, <code>ekene-demo-v1-seismic-full.zip</code>) from <a href="https://github.com/Petrolord/petrolord-suite/releases/tag/ekene-demo-v1">the release page</a> and start with <code>00-START-HERE.md</code>. This block is generated from <code>episodes/episode-02-petrophysics-studio.md</code> in the kit, so the two always agree.</p>
+      <table class="say">
+        <thead><tr><th>File</th><th>What it is for</th></tr></thead>
+        <tbody>
+          <tr><td><code>01-wells/Ekene-1.las</code></td><td>already in the registry from Episode 1</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h2 class="block">Before the take</h2>
+      <div class="note">The water leg is 1560.0 to 1580.0 m MD. Type those into the Pickett water-zone fields. The fit returns m near 2 and a*Rw near the true Rw of the 35,000 ppm brine at formation temperature. Linear is the honest Vsh model here and it is also the exact one: GR is linear in clay fraction in this data. Matrix 2.65 for the density porosity. Zones: build them from the tops with Fill between tops.</div>
+    </div>
+  </div>
+  <!-- KIT-DATA:END -->
+
+  <div class="script">
+    <h2 class="block">Script</h2>
+
+    <!-- ============ 1 ============ -->
+    <section class="sec" id="sec-1">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">01</span>
+          <h3 class="sec-title">What the Studio is for</h3>
+          <span class="sec-meta"><span class="tc">00:00</span> · 1:12 · 180 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-1" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Suite dashboard, Geoscience module. Hold on the <em>Petrophysics Studio</em> tile, then open it.</p></div>
+          <div class="vo"><p>A well log is a measurement. An interpretation is a decision. Petrophysics Studio is where you turn one into the other, and where every decision you make is written down.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>The workspace opens on a well with the standard tracks drawn. Hold for three seconds without moving.</p></div>
+          <div class="vo"><p>It reads wells straight from the shared registry, so there is nothing to import. You set the parameters, it computes shale volume, porosity, water saturation, permeability and net pay, and it shows you every number it used to get there. There are no hidden constants anywhere in this application. If the pipeline used a value, you can see it and you can change it.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Quick cuts, about two seconds each: the histogram with its clean and clay lines, the Pickett plot, a zone card showing net and NTG, the <em>Publish</em> button.</p></div>
+          <div class="vo"><p>In this video we will take one well from raw curves to a published interpretation. Shale volume from the gamma ray. Porosity from the density. Water resistivity from the water leg. Then zones, net pay, and a set of curves the rest of the Suite can read. Let us open a well.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 2 ============ -->
+    <section class="sec" id="sec-2">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">02</span>
+          <h3 class="sec-title">Pick a well, read the inventory</h3>
+          <span class="sec-meta"><span class="tc">01:12</span> · 1:50 · 275 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-2" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Left explorer, headed <em>Registry wells</em> with the count. Click a well. It expands.</p></div>
+          <div class="vo"><p>On the left is the registry. Every well you loaded in Well Data Manager is here, carrying the same private and shared badges. Click one, and the Studio loads its curves and expands an inventory underneath it.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Zoom the inventory. Point at each green tick and at any dash.</p></div>
+          <div class="vo"><p>This inventory is the first thing to read, every single time. The Studio looks through the well for the six curves its pipeline can use. Depth, gamma ray, bulk density, neutron porosity, sonic and deep resistivity. A green tick means it found one, and it names the curve it took. A dash means the well does not have it.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at the line beginning <em>Also in this well</em>.</p></div>
+          <div class="vo"><p>Underneath, the line beginning Also in this well lists the curves that no input claimed. Nothing was discarded. Those curves can still go on a track, and some of them can be bound to an input.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Open an input dropdown that offers two candidate curves. Choose one, then the other, then settle.</p></div>
+          <div class="vo"><p>Where a well carries more than one candidate for an input, the Studio does not choose for you. It gives you a dropdown and it waits. That matters most after you have conditioned a curve, because a conditioned curve never quietly replaces the raw one.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Status bar, right side: well name and sample count. Then point at the amber <em>missing</em> note if the well has one.</p></div>
+          <div class="vo"><p>The status bar confirms what loaded. The well name, the sample count, and, if anything the pipeline wanted is absent, a missing note in amber. An interpretation that quietly skips a step is far worse than one that refuses to run, so the Studio tells you.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Hover <em>Edit well data</em>, then <em>Open in Well Correlation</em>. Do not click either.</p></div>
+          <div class="vo"><p>And two links sit at the top of that inventory. Edit well data takes you back to Well Data Manager for this well's header, survey, checkshots and tops. Open in Well Correlation puts the well straight onto a cross section.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 3 ============ -->
+    <section class="sec" id="sec-3">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">03</span>
+          <h3 class="sec-title">The track view</h3>
+          <span class="sec-meta"><span class="tc">03:02</span> · 2:12 · 330 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-3" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Full track view. Move the cursor across the track headers, left to right, pausing on each.</p></div>
+          <div class="vo"><p>The middle of the screen is the track view, and it opens on a template called Standard triple combo. Gamma ray with clay shading. Deep resistivity on a logarithmic scale. Density and neutron overlaid with their crossover fills. Then the computed tracks. Porosity, shale volume, water saturation, a pay flag and a facies strip.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at the crossover fills on the density and neutron track. Find a gas crossover if the well has one.</p></div>
+          <div class="vo"><p>Those crossover colours are doing real work. Where the neutron and density curves cross one way, you are looking at a possible gas effect. Where they cross the other way, shale. The fill is not decoration. It is the reason those two curves share a track at all.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Wheel zoom in on an interval, drag to pan, then double click to return to the whole well. Move the crosshair slowly and hold so the header readouts are legible.</p></div>
+          <div class="vo"><p>Moving around is quick. The wheel zooms on the depth under your cursor. Dragging pans. A double click returns you to the whole well. And when you move the crosshair, every track reports its value at that depth up in its header.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Status bar, right of centre. Tick the TVD and TVDSS depth track boxes. Then click the depth unit button to switch to feet and back to metres.</p></div>
+          <div class="vo"><p>Down at the bottom right you control the depth axis. Measured depth is always there. Tick true vertical depth or true vertical depth subsea and the Studio derives them through this well's survey and kelly bushing, the same ones you entered in Well Data Manager. Beside them, one button swaps the display between metres and feet. That is display only. Storage stays in S. I. metres, and the button says so.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Open <em>Track layout</em> in the right dock. Add a track, flip a scale to log, open the fills editor. Switch the template to <em>Lithology quicklook</em>, then back to <em>Standard triple combo</em>.</p></div>
+          <div class="vo"><p>If the template is not what you want, open Track layout. You can add tracks, change a scale from linear to logarithmic, set ranges, restyle a curve, add fills, and put any curve in the well onto a track, including the ones no input claimed. Two other templates are ready to use as well. Raw quicklook, and Lithology quicklook.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 4 ============ -->
+    <section class="sec" id="sec-4">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">04</span>
+          <h3 class="sec-title">Shale volume from the histogram</h3>
+          <span class="sec-meta"><span class="tc">05:14</span> · 1:50 · 275 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-4" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Histograms</em> in the ribbon. The GR histogram appears with its two vertical lines.</p></div>
+          <div class="vo"><p>Now the first real decision. Shale volume from the gamma ray. Click Histograms.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Hold on the histogram. Point at the low mode, then the high mode, then at each of the two lines.</p></div>
+          <div class="vo"><p>The Studio bins the gamma ray for the whole well. In a clastic section you are usually looking at two populations. A clean sand mode on the left, and a shale mode on the right. The two vertical lines on the plot are your clean and clay values, and you can drag them.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Drag the clean line onto the sand mode and release. Drag the clay line onto the shale mode and release. Cut to the parameter dock so the two new values are visible.</p></div>
+          <div class="vo"><p>Drag the clean line onto the sand mode and let go. Drag the clay line onto the shale mode and let go. Each time you release, the Studio writes that value straight into the parameter set. You are picking your end members off the data itself rather than guessing at them.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Drag a line slowly and hold, so the passing cutoff readout can be seen changing.</p></div>
+          <div class="vo"><p>The readout tells you what fraction of the well passes the line you are holding, so you can feel how sensitive the answer is before you commit to it.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Right dock, the section headed <em>Vsh (GR)</em>. Open the <em>Model</em> dropdown so all five options are readable.</p></div>
+          <div class="vo"><p>Then choose the model. Over in the parameters dock, the shale volume section offers linear, two Larionov forms, Clavier and Steiber. Linear is the gamma ray index itself. The others bend it, and they bend it differently for tertiary rocks than for older, more consolidated ones. Pick the one your basin justifies. Linear is the honest choice when you have nothing to justify a curve.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 5 ============ -->
+    <section class="sec" id="sec-5">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">05</span>
+          <h3 class="sec-title">Porosity, matrix and fluid</h3>
+          <span class="sec-meta"><span class="tc">07:04</span> · 1:56 · 290 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-5" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Right dock, <em>Porosity</em> section. Open the <em>φt source</em> dropdown showing all four options.</p></div>
+          <div class="vo"><p>Porosity next. In the Porosity section, the first field decides where total porosity comes from. Density, sonic, a density and neutron combination, or the mineral model. Density is the usual starting point when you have a good bulk density curve.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Type into <em>ρ matrix (g/cc)</em>, then <em>ρ fluid (g/cc)</em>. Do not apply yet.</p></div>
+          <div class="vo"><p>Then set the matrix and fluid densities for the rock you actually expect. Two point six five for a clean sandstone matrix. Two point seven one for limestone. Around one for fresh mud filtrate. These two numbers move your porosity more than almost anything else on this panel, so they deserve a moment of thought rather than a shrug.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Crossplots</em>, then <em>Density–Neutron</em>. Hold on the three mineral lines. Change <em>Color by</em> to Depth, then to Zones.</p></div>
+          <div class="vo"><p>If you are unsure which matrix to use, the crossplot will tell you. Open Crossplots and choose Density Neutron. The sandstone, limestone and dolomite lines are drawn for you, and where your points sit against them is your answer. Colour the points by depth, by zone or by facies to see how that changes down the well.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Back to the dock. Point at the field labelled <em>φ shale (v/v)</em> and hold.</p></div>
+          <div class="vo"><p>One field here is easy to skip and expensive to skip. Phi shale. It is the apparent porosity your chosen tool reads in one hundred percent shale. The Studio uses it to turn total porosity into effective porosity, by taking out the part that belongs to clay bound water. Effective porosity is what feeds saturation, the cutoffs, permeability and bulk volume water. So if phi shale is wrong, everything downstream of it is quietly wrong too.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 6 ============ -->
+    <section class="sec" id="sec-6">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">06</span>
+          <h3 class="sec-title">Water resistivity from the water leg</h3>
+          <span class="sec-meta"><span class="tc">09:00</span> · 2:32 · 380 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-6" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p><em>Crossplots</em>, click <em>Pickett</em>.</p></div>
+          <div class="vo"><p>Water saturation needs a water resistivity, and the best place to get one is the well itself. Open Crossplots and choose Pickett.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Hold on the Pickett plot. Trace the water line trend with the cursor without clicking.</p></div>
+          <div class="vo"><p>A Pickett plot puts porosity against deep resistivity, both on logarithmic scales. In a clean water bearing interval the points fall along a straight line, and that line carries two of your Archie parameters in its geometry. The slope gives you the cementation exponent. The position gives you a times R. W.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Type the top and base of the known water leg into the two <em>Water zone (m MD)</em> boxes. Click <em>Fit water line</em>.</p></div>
+          <div class="vo"><p>So tell the Studio where your water leg is. Type the top and the base in metres measured depth, then click Fit water line. It takes only the samples inside that window and fits them by least squares.</p></div>
+        </div>
+
+        <div class="beat beat--pause" data-pause="3">
+          <div class="pause">Pause 3 seconds. <span>The fitted line draws and the result appears.</span></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Zoom the result readout so the exponent, the a·Rw product and the point count are all legible. Then click <em>Apply to parameters</em>.</p></div>
+          <div class="vo"><p>The result appears beside the button. The cementation exponent, the product of a and R. W., and how many points went into the fit. Read that point count. A line through nine samples is not a water line. When you are satisfied with it, click Apply to parameters, and both values go into the parameter set.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Right dock, <em>Sw</em> section. Point at the amber hint line under the Rw field.</p></div>
+          <div class="vo"><p>And look at what the dock does. Under the R. W. field there is now a line telling you the fit is where that number came from. Every route to R. W. is recorded this way. The Pickett fit. The Hingle plot. The S. P. route. A salinity conversion. Or you simply typing it in. Type over the value and the record clears, because it would no longer be true.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Open <em>Rw tools</em> from the ribbon. Show the three routes for four seconds, then close it.</p></div>
+          <div class="vo"><p>If you already know R. W. from a water sample, R. W. tools converts it to formation temperature for you. And if all you have is the spontaneous potential, the same dialog walks the whole chain from mud filtrate resistivity through to R. W.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p><em>Sw</em> section. Open the <em>Model</em> dropdown showing all six. Select <em>waxman-smits</em> and hold so the changed m and n labels are visible, then set it back.</p></div>
+          <div class="vo"><p>Then choose your saturation model. Archie for clean rock. Simandoux, Indonesia and modified Simandoux where the shale is conducting. Waxman Smits and dual water where you have the cation exchange data to support them. Choose Waxman Smits and watch the exponent labels change, because those exponents are measured on shaly rock and they are not Archie's.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 7 ============ -->
+    <section class="sec" id="sec-7">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">07</span>
+          <h3 class="sec-title">Apply, and why it waits</h3>
+          <span class="sec-meta"><span class="tc">11:32</span> · 0:58 · 145 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-7" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Type half a number into a field and stop. Point at <em>Apply parameters</em> becoming enabled while the tracks stay unchanged.</p></div>
+          <div class="vo"><p>Nothing you have typed has computed anything yet, and that is deliberate. Every edit in this dock is a draft. A half typed number never reaches the pipeline, so you never see a result computed from the moment your finger was still on the keyboard.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Finish the number, then click <em>Apply parameters</em>.</p></div>
+          <div class="vo"><p>Click Apply parameters, and everything recomputes at once.</p></div>
+        </div>
+
+        <div class="beat beat--pause" data-pause="3">
+          <div class="pause">Pause 3 seconds. <span>Tracks, zone cards and crossplots all redraw. Let the viewer watch it happen.</span></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Pan slowly across the recomputed tracks.</p></div>
+          <div class="vo"><p>The tracks, the zone summaries and the crossplots all move together, because they are all looking at the same result. Get into the habit of reading the tracks straight after every apply. It is your fastest check that the numbers you just entered mean what you thought they meant.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <div class="part-break">
+      <b>Optional break: end of Part 1</b>
+      <span>The well now has its first computed result, which is a natural place to stop. If you split the episode here, Part 1 runs 12:30 and Part 2 opens on section 08 with a ten second recap of where the well stands.</span>
+    </div>
+
+    <!-- ============ 8 ============ -->
+    <section class="sec" id="sec-8">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">08</span>
+          <h3 class="sec-title">Zones and net pay</h3>
+          <span class="sec-meta"><span class="tc">12:30</span> · 2:16 · 340 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-8" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Right dock, scroll to the zones panel. Hold on the empty state.</p></div>
+          <div class="vo"><p>An interpretation averaged over a whole well is rarely what anyone actually wants. What they want is numbers per zone. So open the zones panel.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Type a zone name into <em>New zone</em>, a top and a base, then click <em>Add</em>. The band appears across the tracks.</p></div>
+          <div class="vo"><p>You can enter a zone by hand. A name, a top and a base in metres measured depth, then Add. The zone appears as a band across the tracks straight away.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Choose two tops in the from and to selectors and click <em>Add</em>. Then click <em>Fill between tops</em> and let the whole set build.</p></div>
+          <div class="vo"><p>But if this well has formation tops, use them instead. Choose a top and the one below it and the Studio builds the zone from that pair. Or press Fill between tops and it builds the whole set in one go. Zones built from tops stay honest, because they came from your picks.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Zoom one zone card and track across every figure on it.</p></div>
+          <div class="vo"><p>Now read a zone card. Net. Gross. Net to gross. Then the net weighted averages of porosity, water saturation and shale volume. And where you have a permeability model running, the geometric mean of permeability. These figures are live. They are computed from the curves at the cutoffs you have set right now. They are not stored from some earlier run.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Dock, <em>Cutoffs</em> section. Change <em>φ ≥</em>, click <em>Apply parameters</em>, and hold a wide shot so the pay track and the zone card numbers both move.</p></div>
+          <div class="vo"><p>Which makes the cutoffs worth a demonstration. At the bottom of the parameter panel there are three of them. Minimum porosity, maximum shale volume, maximum water saturation. Change one, apply, and watch the pay flag on the tracks and the net in every zone card move together. That is your whole net pay definition. Three fields, in the open, where anyone reviewing your work can see them.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Drag a zone edge on the tracks. Hold at the end so the snap to the nearest sample is visible.</p></div>
+          <div class="vo"><p>You can also drag a zone edge directly on the tracks. It lands on the nearest logged sample rather than wherever your mouse happened to stop.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 9 ============ -->
+    <section class="sec" id="sec-9">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">09</span>
+          <h3 class="sec-title">Different parameters per zone</h3>
+          <span class="sec-meta"><span class="tc">14:46</span> · 1:32 · 230 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-9" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Top of the parameter panel. Open the <em>Scope</em> selector showing Global and every zone.</p></div>
+          <div class="vo"><p>Real wells rarely take one parameter set from top to bottom. A deeper sand may have a different matrix. Another interval may need a different clay line. So the panel has a Scope selector at the very top.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Choose a zone. The explanatory note appears. Change one or two fields and let the cyan dots appear beside their labels.</p></div>
+          <div class="vo"><p>Leave it on Global and you are editing the base set for the whole well. Choose a zone and you are editing that zone's overrides. Change only the fields that genuinely differ. Each one you change gets a dot beside its label, so you can see at a glance exactly what this zone does differently from the rest of the well.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at the button, now reading <em>Apply [zone] overrides</em>. Click it. Then set one field back to its global value and show the dot disappearing.</p></div>
+          <div class="vo"><p>The button at the bottom changes too. It now applies overrides for that zone alone. And if you set a field back to its global value, the override simply disappears, because there is nothing left to override.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Zone parameter table</em>. Hold on the full grid for four seconds.</p></div>
+          <div class="vo"><p>And when you have several zones with several overrides between them, open the zone parameter table. Every parameter, every zone, on one screen. It is the fastest way to catch a value you changed in the wrong scope.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 10 ============ -->
+    <section class="sec" id="sec-10">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">10</span>
+          <h3 class="sec-title">Conditioning a curve</h3>
+          <span class="sec-meta"><span class="tc">16:18</span> · 1:20 · 200 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-10" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Condition</em> in the ribbon.</p></div>
+          <div class="vo"><p>Sometimes a curve needs work before it can carry an interpretation. Click Condition.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Pick a curve, then open the <em>Operation</em> dropdown so all six operations are readable.</p></div>
+          <div class="vo"><p>Pick the curve, then the operation. Despike with a Hampel filter for isolated outliers. A mean or a median smooth. A block depth shift. Bad hole repair, driven by the caliper. Or apply a normalization you fitted over in the histogram view.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at the note in the dialog about the new curve. Save. Then go back to the explorer and pick the new conditioned curve in that input's dropdown.</p></div>
+          <div class="vo"><p>Now the part that matters. The Studio does not change your raw curve. It saves a new one, under the same name with a conditioning suffix, carrying a full record of the operation applied to it. And it does not start using it either. To put it into the pipeline you go back to the explorer and select it in that input's dropdown, deliberately, as a separate act. Your raw data stays exactly as it was logged, and anyone reading this interpretation later can see precisely what was done to it.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 11 ============ -->
+    <section class="sec" id="sec-11">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">11</span>
+          <h3 class="sec-title">Save the interpretation</h3>
+          <span class="sec-meta"><span class="tc">17:38</span> · 1:26 · 215 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-11" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Save</em> on the ribbon. Hold on the status bar confirmation.</p></div>
+          <div class="vo"><p>You have made a great many decisions in the last few minutes. Save them. The Save button on the ribbon stores this interpretation against the well.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Open the interpretation picker beside it. Show the list, and the save as, rename and delete actions.</p></div>
+          <div class="vo"><p>The picker beside it opens everything else. Open an interpretation you saved earlier, save the current one under a new name, rename one, or delete one.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Use save as to create a second interpretation under a different name. Hold on the list showing both.</p></div>
+          <div class="vo"><p>And save as is more useful than it first looks. An interpretation carries the whole state with it. Every parameter, every zone and its overrides, your track layouts, your facies and your crossplot settings. So a second interpretation under a second name is a genuine alternative case. An optimistic one and a conservative one, side by side, both of them reproducible.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Open the provenance view from the interpretation bar.</p></div>
+          <div class="vo"><p>The provenance entry records who worked on it and when, along with the version of the pipeline that produced the numbers.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 12 ============ -->
+    <section class="sec" id="sec-12">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">12</span>
+          <h3 class="sec-title">Publish and export</h3>
+          <span class="sec-meta"><span class="tc">19:04</span> · 1:56 · 290 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-12" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Publish</em>. Hold on the status bar.</p></div>
+          <div class="vo"><p>An interpretation that stays inside this application helps nobody else. Click Publish, and the Studio writes its computed curves back to the registry as real curves on the well. Shale volume. Total porosity. Effective porosity. Water saturation. Bulk volume water. Permeability. And the pay flag.</p></div>
+        </div>
+
+        <div class="beat beat--pause" data-pause="3">
+          <div class="pause">Pause 3 seconds. <span>Publishing. Then cut to Well Data Manager, Logs tab, showing the new curves on the well.</span></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>In Well Data Manager, point at the published curves in the logs table.</p></div>
+          <div class="vo"><p>They go in with full provenance, so anyone who opens that well later can see that they were computed, by whom, and with which parameters. From here, Well Correlation can hang your porosity on a cross section, and Mapping and Surface Studio can map your net pay.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Back in the Studio, select an org-shared well and hover the disabled <em>Publish</em> button for its tooltip.</p></div>
+          <div class="vo"><p>One rule to know here. You can publish to your own wells. A well that somebody else shared with you is read only, and the button will tell you so rather than failing halfway.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Export</em>. Hold on the six deliverables. Toggle <em>Depths in</em> between metres and feet.</p></div>
+          <div class="vo"><p>Then Export, for everything that has to leave the Suite. A curves file and a zone summary as C. S. V. A L. A. S. two point zero file for another package. The track plot as an image. A portable Petrolord project package. And a P. D. F. summary report with your parameters, your zones and your plots already in it. One selector at the top decides whether every depth column comes out in metres or in feet.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 13 ============ -->
+    <section class="sec" id="sec-13">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">13</span>
+          <h3 class="sec-title">What else is on the ribbon</h3>
+          <span class="sec-meta"><span class="tc">21:00</span> · 1:40 · 250 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-13" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Pan slowly across the ribbon buttons not yet used.</p></div>
+          <div class="vo"><p>That is the core loop, and it is most of what most interpretations need. The ribbon holds a good deal more, and each of these will get its own video.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Two second stops on each, in this order: <em>Digitize</em>, <em>Calc</em>, <em>Rules</em>, <em>Low/High</em>, <em>Probabilistic</em>, <em>Mineral model</em>, <em>Batch</em>, <em>Field</em>, <em>Depth shift</em>, <em>Split</em>. Open none of them.</p></div>
+          <div class="vo"><p>Digitize turns a scanned paper log into a real curve. Calc builds a new curve from an expression over the ones you already have. Rules classifies facies by cutoffs on any curve. Low High runs your parameters as three cases and puts bands on the tracks. Probabilistic goes further and gives you percentile curves and net pay cases for every zone. Mineral model solves density, neutron and photoelectric factor for three minerals and porosity together. Batch applies the current parameter set across many wells at once. Field puts several wells side by side under one parameter set. Depth shift stretches and squeezes a curve against a reference. And Split shows the tracks and a crossplot together, with the selection linked between them.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Help</em> on the right of the ribbon. Hold on the guide's contents list.</p></div>
+          <div class="vo"><p>And every one of them is documented inside the application. The Help link on the right of the ribbon opens a full guide with a section on each.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 14 ============ -->
+    <section class="sec" id="sec-14">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">14</span>
+          <h3 class="sec-title">Wrap up</h3>
+          <span class="sec-meta"><span class="tc">22:40</span> · 0:54 · 135 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-14" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Pull back to the finished interpretation: zones banded, pay flagged, curves published.</p></div>
+          <div class="vo"><p>So that is Petrophysics Studio. One well, from raw curves to published net pay, with every decision visible and every number traceable.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Slow pan down the parameter dock, top to bottom, through every section.</p></div>
+          <div class="vo"><p>If you take one habit away from this video, make it this one. Before you trust a result, scroll this panel from top to bottom and satisfy yourself that every value in it is a value you chose. The Studio will never hide a constant from you. It only asks that you look.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>End card with the series name and the next episode title.</p></div>
+          <div class="vo"><p>In the next video we will take these curves onto a cross section in Well Correlation. Thanks for watching.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+  </div>
+
+  <div class="chapters">
+    <h2 class="block">Chapter timestamps for the video description</h2>
+    <div class="chap-grid">
+      <div class="chap-body">
+        <h3>Single video, 23:50</h3>
+        <div class="chap-list" id="chap-single">
+          <div><b>0:00</b> What the Studio is for</div>
+          <div><b>1:12</b> Pick a well, read the inventory</div>
+          <div><b>3:02</b> The track view</div>
+          <div><b>5:14</b> Shale volume from the histogram</div>
+          <div><b>7:04</b> Porosity, matrix and fluid</div>
+          <div><b>9:00</b> Water resistivity from the water leg</div>
+          <div><b>11:32</b> Apply, and why it waits</div>
+          <div><b>12:30</b> Zones and net pay</div>
+          <div><b>14:46</b> Different parameters per zone</div>
+          <div><b>16:18</b> Conditioning a curve</div>
+          <div><b>17:38</b> Save the interpretation</div>
+          <div><b>19:04</b> Publish and export</div>
+          <div><b>21:00</b> What else is on the ribbon</div>
+          <div><b>22:40</b> Wrap up</div>
+        </div>
+        <div class="chap-tools">
+          <button class="copy" id="copy-single" data-label="Copy timestamps">Copy timestamps</button>
+        </div>
+      </div>
+
+      <div class="chap-body">
+        <h3>Two parts, 12:30 and 11:20</h3>
+        <div class="chap-list" id="chap-split">
+          <div><b>P1 0:00</b> What the Studio is for</div>
+          <div><b>P1 1:12</b> Pick a well, read the inventory</div>
+          <div><b>P1 3:02</b> The track view</div>
+          <div><b>P1 5:14</b> Shale volume from the histogram</div>
+          <div><b>P1 7:04</b> Porosity, matrix and fluid</div>
+          <div><b>P1 9:00</b> Water resistivity from the water leg</div>
+          <div><b>P1 11:32</b> Apply, and why it waits</div>
+          <div><b>P2 0:00</b> Zones and net pay</div>
+          <div><b>P2 2:16</b> Different parameters per zone</div>
+          <div><b>P2 3:48</b> Conditioning a curve</div>
+          <div><b>P2 5:08</b> Save the interpretation</div>
+          <div><b>P2 6:34</b> Publish and export</div>
+          <div><b>P2 8:30</b> What else is on the ribbon</div>
+          <div><b>P2 10:10</b> Wrap up</div>
+        </div>
+        <div class="chap-tools">
+          <button class="copy" id="copy-split" data-label="Copy timestamps">Copy timestamps</button>
+        </div>
+      </div>
+    </div>
+    <div class="note" style="margin-top:16px">
+      <b>Targets only.</b> Re-stamp every timestamp from the finished audio before publishing. Part 2 times assume a ten second recap added at the head, which is not in this script and should be improvised on the day.
+    </div>
+  </div>
+
+  <footer>
+    <p><b>The one thing worth protecting in this script.</b> The through line is that nothing in this application is hidden. It is stated in section 01, demonstrated in section 07 when apply waits for a finished number, demonstrated again in section 10 when conditioning refuses to touch the raw curve, and closed in section 14. If a section has to be cut for time, cut one that does not carry that argument.</p>
+    <p><b>Accuracy note.</b> Every control name, dropdown option and published curve in this script matches the shipping application at the time of writing. If a label changes, fix the script before the next take rather than talking around it on camera.</p>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  var body = document.body;
+  var KEY = 'petro-episode-script.vo-only';
+  var toggle = document.getElementById('vo-only');
+
+  try {
+    if (localStorage.getItem(KEY) === '1') { toggle.checked = true; body.classList.add('vo-only'); }
+  } catch (e) { /* storage unavailable: default view is correct */ }
+
+  toggle.addEventListener('change', function () {
+    body.classList.toggle('vo-only', toggle.checked);
+    try { localStorage.setItem(KEY, toggle.checked ? '1' : '0'); } catch (e) {}
+  });
+
+  function narrationOf(scope) {
+    var out = [];
+    scope.querySelectorAll('.beat').forEach(function (beat) {
+      if (beat.dataset.pause) { out.push('[PAUSE ' + beat.dataset.pause + 's]'); return; }
+      beat.querySelectorAll('.vo p').forEach(function (p) {
+        out.push(p.textContent.replace(/\s+/g, ' ').trim());
+      });
+    });
+    return out.join('\n\n');
+  }
+
+  function flash(btn) {
+    var label = btn.dataset.label;
+    btn.textContent = 'Copied';
+    setTimeout(function () { btn.textContent = label; }, 1600);
+  }
+
+  function fallbackCopy(text, btn) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); flash(btn); } catch (e) { btn.textContent = 'Select and copy manually'; }
+    document.body.removeChild(ta);
+  }
+
+  function copy(text, btn) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(function () { flash(btn); }, function () { fallbackCopy(text, btn); });
+      } else { fallbackCopy(text, btn); }
+    } catch (e) { fallbackCopy(text, btn); }
+  }
+
+  document.querySelectorAll('button.copy[data-copy]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var sec = document.getElementById(btn.dataset.copy);
+      if (sec) copy(narrationOf(sec), btn);
+    });
+  });
+
+  document.getElementById('copy-all').addEventListener('click', function () {
+    var btn = this;
+    var parts = [];
+    document.querySelectorAll('section.sec').forEach(function (sec) {
+      var title = sec.querySelector('.sec-title').textContent.trim();
+      var num = sec.querySelector('.sec-num').textContent.trim();
+      parts.push('=== ' + num + ' ' + title + ' ===\n\n' + narrationOf(sec));
+    });
+    copy(parts.join('\n\n\n'), btn);
+  });
+
+  function listCopier(btnId, listId) {
+    var btn = document.getElementById(btnId);
+    btn.addEventListener('click', function () {
+      var lines = [];
+      document.querySelectorAll('#' + listId + ' div').forEach(function (row) {
+        lines.push(row.textContent.replace(/\s+/g, ' ').trim());
+      });
+      copy(lines.join('\n'), btn);
+    });
+  }
+  listCopier('copy-single', 'chap-single');
+  listCopier('copy-split', 'chap-split');
+})();
+</script>

@@ -1,0 +1,859 @@
+<title>Stratigraphy Studio Episode Script</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+  :root{
+    --ground:#F4F6F8;--surface:#FFFFFF;--surface-2:#EDF1F5;
+    --ink:#15202C;--ink-soft:#5C6D80;--ink-faint:#8A99A8;
+    --rule:#DBE2EA;--rule-strong:#C3CEDA;
+    --accent:#0E7490;--accent-soft:#E0F0F4;
+    --warn:#A85B0B;--warn-soft:#FBEEDC;
+    --shadow:0 1px 2px rgba(21,32,44,.05), 0 12px 28px -18px rgba(21,32,44,.28);
+    --f-display:'Archivo','Helvetica Neue',Helvetica,Arial,sans-serif;
+    --f-read:'Source Serif 4',Georgia,'Times New Roman',serif;
+    --f-mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0B1119;--surface:#121A24;--surface-2:#18222E;
+      --ink:#E4EBF2;--ink-soft:#9AAABB;--ink-faint:#6E8093;
+      --rule:#24303D;--rule-strong:#33414F;
+      --accent:#3EC5DE;--accent-soft:#12303A;
+      --warn:#E8AC5A;--warn-soft:#2E2415;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 30px -20px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0B1119;--surface:#121A24;--surface-2:#18222E;
+    --ink:#E4EBF2;--ink-soft:#9AAABB;--ink-faint:#6E8093;
+    --rule:#24303D;--rule-strong:#33414F;
+    --accent:#3EC5DE;--accent-soft:#12303A;
+    --warn:#E8AC5A;--warn-soft:#2E2415;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 30px -20px rgba(0,0,0,.8);
+  }
+
+  *{box-sizing:border-box}
+  body{background:var(--ground);color:var(--ink);font-family:var(--f-read);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1120px;margin:0 auto;padding-inline:20px;padding-block:0 72px}
+
+  .masthead{padding-block:44px 26px;border-bottom:2px solid var(--ink)}
+  .eyebrow{font-family:var(--f-mono);font-size:11px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 14px}
+  h1{font-family:var(--f-display);font-weight:700;font-size:clamp(2rem,5.2vw,3.15rem);line-height:1.02;letter-spacing:-.022em;margin:0;text-wrap:balance}
+  .logline{font-size:clamp(1rem,1.6vw,1.15rem);color:var(--ink-soft);margin:14px 0 0;max-width:64ch}
+  .spec{display:flex;flex-wrap:wrap;gap:0;margin-top:26px;border:1px solid var(--rule-strong);border-radius:3px;background:var(--surface);overflow:hidden}
+  .spec > div{flex:1 1 150px;padding:11px 14px;border-right:1px solid var(--rule)}
+  .spec > div:last-child{border-right:0}
+  .spec dt{font-family:var(--f-mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 3px}
+  .spec dd{margin:0;font-family:var(--f-display);font-weight:600;font-size:15px;font-variant-numeric:tabular-nums;color:var(--ink)}
+
+  .controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:22px;padding:12px 14px;border:1px solid var(--rule);border-radius:3px;background:var(--surface-2)}
+  .switch{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-size:14px;font-weight:500;cursor:pointer}
+  .switch input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+  .switch small{font-family:var(--f-read);font-weight:400;color:var(--ink-soft);font-size:13px}
+  button.copy{font-family:var(--f-mono);font-size:11.5px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);background:transparent;border:1px solid var(--accent);border-radius:2px;padding:6px 11px;cursor:pointer;transition:background .14s ease}
+  button.copy:hover{background:var(--accent-soft)}
+  button.copy:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .controls .spacer{margin-left:auto}
+
+  .brief{margin-top:40px;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:36px}
+  @media (max-width:840px){.brief{grid-template-columns:1fr;gap:30px}}
+  h2.block{font-family:var(--f-display);font-weight:600;font-size:13px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-soft);margin:0 0 14px;padding-bottom:7px;border-bottom:1px solid var(--rule)}
+  ol.steps{margin:0;padding:0;list-style:none;counter-reset:s}
+  ol.steps li{counter-increment:s;position:relative;padding-left:34px;margin-bottom:14px;font-size:15px;color:var(--ink)}
+  ol.steps li::before{content:counter(s);position:absolute;left:0;top:1px;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-family:var(--f-mono);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center}
+  :root[data-theme="dark"] ol.steps li::before{color:#0B1119}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) ol.steps li::before{color:#0B1119}}
+  ol.steps b{font-family:var(--f-display);font-weight:600}
+
+  table.say{width:100%;border-collapse:collapse;font-size:14px}
+  table.say th{text-align:left;font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);font-weight:500;padding:0 12px 7px 0;border-bottom:1px solid var(--rule)}
+  table.say td{padding:6px 12px 6px 0;border-bottom:1px solid var(--rule);vertical-align:top}
+  table.say td:first-child{font-family:var(--f-display);font-weight:600;white-space:nowrap}
+  table.say td:last-child{font-family:var(--f-mono);font-size:13px;color:var(--accent);padding-right:0}
+  .note{margin-top:14px;padding:11px 13px;border-left:3px solid var(--warn);background:var(--warn-soft);font-size:13.5px;color:var(--ink);border-radius:0 2px 2px 0}
+  .note + .note{margin-top:10px}
+  .note b{font-family:var(--f-display);font-weight:600}
+  .note.cool{border-left-color:var(--accent);background:var(--accent-soft)}
+
+  .script{margin-top:52px}
+  .script > h2.block{margin-bottom:0;border-bottom:0}
+  section.sec{background:var(--surface);border:1px solid var(--rule);border-radius:3px;box-shadow:var(--shadow);margin-top:26px;overflow:hidden}
+  .sec-head{padding:16px 20px 0}
+  .sec-title-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px}
+  .sec-num{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.1em;color:#fff;background:var(--ink);padding:3px 7px;border-radius:2px}
+  :root[data-theme="dark"] .sec-num{background:var(--accent);color:#0B1119}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sec-num{background:var(--accent);color:#0B1119}}
+  .sec-title{font-family:var(--f-display);font-weight:600;font-size:clamp(1.15rem,2.2vw,1.42rem);letter-spacing:-.012em;margin:0;text-wrap:balance}
+  .sec-meta{margin-left:auto;font-family:var(--f-mono);font-size:11.5px;color:var(--ink-soft);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .sec-meta .tc{color:var(--accent);font-weight:600}
+  .sec-tools{display:flex;align-items:center;gap:10px;margin-top:10px}
+  .sec-cols,.beat{display:grid;grid-template-columns:minmax(0,33fr) minmax(0,67fr);gap:30px}
+  .sec-cols{padding:14px 20px 7px;font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+  .beats{padding:0 20px 18px}
+  .beat{padding:17px 0;border-top:1px solid var(--rule)}
+  .screen{font-family:var(--f-mono);font-size:12.6px;line-height:1.62;color:var(--ink-soft)}
+  .screen::before{content:'Screen';display:none;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:5px}
+  .screen p{margin:0 0 8px}
+  .screen p:last-child{margin-bottom:0}
+  .screen em{font-style:normal;color:var(--ink);font-weight:500}
+  .vo p{margin:0 0 13px;font-size:17px;line-height:1.68;max-width:64ch}
+  .vo p:last-child{margin-bottom:0}
+  .vo::before{content:'Voice over';display:none;font-family:var(--f-mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:5px}
+  @media (max-width:800px){
+    .sec-cols{display:none}
+    .beat{grid-template-columns:1fr;gap:12px}
+    .screen::before,.vo::before{display:block}
+  }
+  .beat--pause{grid-template-columns:1fr;text-align:center;border-top:1px dashed var(--rule-strong)}
+  .pause{font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--warn)}
+  .pause span{color:var(--ink-faint);letter-spacing:.04em;text-transform:none;font-size:12px}
+
+  .part-break{margin-top:34px;padding:16px 20px;border:1px dashed var(--rule-strong);border-radius:3px;background:var(--surface-2);display:flex;flex-wrap:wrap;align-items:baseline;gap:12px}
+  .part-break b{font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--warn)}
+  .part-break span{font-size:14px;color:var(--ink-soft)}
+
+  .chapters{margin-top:52px}
+  .chap-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  @media (max-width:840px){.chap-grid{grid-template-columns:1fr}}
+  .chap-body{background:var(--surface);border:1px solid var(--rule);border-radius:3px;padding:18px 20px;box-shadow:var(--shadow)}
+  .chap-body h3{font-family:var(--f-display);font-weight:600;font-size:14px;margin:0 0 12px;color:var(--ink)}
+  .chap-list{margin:0;font-family:var(--f-mono);font-size:13px;line-height:1.95}
+  .chap-list div{display:flex;gap:12px}
+  .chap-list b{color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;min-width:48px}
+  .chap-tools{display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:13px;border-top:1px solid var(--rule)}
+
+  footer{margin-top:52px;padding-top:20px;border-top:1px solid var(--rule);font-size:13.5px;color:var(--ink-soft)}
+  footer b{font-family:var(--f-display);font-weight:600;color:var(--ink)}
+  footer p{margin:0 0 12px}
+
+  body.vo-only .brief,
+  body.vo-only .chapters,
+  body.vo-only .spec,
+  body.vo-only .screen,
+  body.vo-only .sec-cols,
+  body.vo-only .sec-tools{display:none}
+  body.vo-only .beat{grid-template-columns:1fr}
+  body.vo-only .beat--pause{text-align:left}
+  body.vo-only .vo p{font-size:18px;max-width:66ch}
+  body.vo-only section.sec{box-shadow:none}
+
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+  @media print{
+    body{background:#fff;color:#000}
+    .controls,.chap-tools,.sec-tools{display:none}
+    section.sec{box-shadow:none;border-color:#999}
+    .beat{break-inside:avoid}
+    .wrap{max-width:none}
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Petrolord Suite · Tutorial series · Episode 8</p>
+    <h1>Stratigraphy Studio</h1>
+    <p class="logline">Voice over script and screen directions for the stratigraphic walkthrough. Build a column, type the surfaces, log the rock, read the section as systems tracts, and re-plot it all against time.</p>
+
+    <dl class="spec">
+      <div><dt>Target runtime</dt><dd>23:22</dd></div>
+      <div><dt>Narration</dt><dd>~3,500 words</dd></div>
+      <div><dt>Sections</dt><dd>10</dd></div>
+      <div><dt>Beats</dt><dd>63 + 2 pauses</dd></div>
+      <div><dt>Prerequisite</dt><dd>Episodes 1, 3</dd></div>
+      <div><dt>Version</dt><dd>Draft 1</dd></div>
+    </dl>
+  </header>
+
+  <div class="controls">
+    <label class="switch" for="vo-only">
+      <input type="checkbox" id="vo-only">
+      Narration only
+      <small>hides screen directions for a clean read</small>
+    </label>
+    <span class="spacer"></span>
+    <button class="copy" id="copy-all" data-label="Copy full narration">Copy full narration</button>
+  </div>
+
+  <div class="brief">
+    <div>
+      <h2 class="block">Before you record</h2>
+      <ol class="steps">
+        <li><b>Save a section in Well Correlation first.</b> The Section view opens whatever you last saved there. With nothing saved, sections 06 and 09 have nothing to show and section 07 has nothing to re-plot. This is the single most important preparation step in the episode.</li>
+        <li><b>Date at least four tops, and make one an unconformity with a hiatus end age.</b> The tract table in section 03, the Wheeler chart in section 07 and the age-depth plot in section 08 all need dated surfaces. The hiatus is what makes the best beat in section 07 work, so it has to exist.</li>
+        <li><b>One well needs a lithology log.</b> The net sand map in section 09 and the Basin handoff in section 08 both read it. A short one is fine.</li>
+        <li><b>Have two or three core photographs ready</b> with their depths, for section 05.</li>
+        <li><b>Decide your terminology before the take.</b> Set Terms to whichever school your audience was trained in and leave it there for the whole episode, switching only during section 04. Flipping it casually elsewhere will confuse anyone following along on their own screen.</li>
+      </ol>
+      <div class="note cool">
+        <b>The argument this episode is making.</b> Separate what you observed from what you call it. Section 03 treats each surface type as a specific claim about what happened. Section 04 shows the terminology switch relabelling every application at once while changing nothing stored. Section 07 shows the Wheeler chart turning a line into a measurable gap. The closing beat ties the two together. Those are the beats to protect.
+      </div>
+      <div class="note">
+        <b>Check the name before you render anything.</b> Catuneanu is a Romanian surname, roughly cuh-tuh-NYAH-noo, and it appears throughout. Say it once into your voice tool, listen, and fix the spelling in your paste before rendering the rest. Getting it wrong across a whole episode aimed at stratigraphers would undo a lot of goodwill.
+      </div>
+    </div>
+
+    <div>
+      <h2 class="block">Pronunciation</h2>
+      <table class="say">
+        <thead><tr><th>Term</th><th>Say it as</th></tr></thead>
+        <tbody>
+          <tr><td>Catuneanu</td><td>cuh-tuh-NYAH-noo</td></tr>
+          <tr><td>Ma</td><td>millions of years</td></tr>
+          <tr><td>ICS chart</td><td>the international timescale</td></tr>
+          <tr><td>LAS</td><td>L. A. S.</td></tr>
+          <tr><td>MFS, SU, MRS, BSFR</td><td>spoken in full</td></tr>
+          <tr><td>LST, TST, HST, FSST</td><td>spoken in full</td></tr>
+        </tbody>
+      </table>
+      <div class="note">
+        <b>Every surface and tract is written out as words.</b> This application is built on abbreviations and a voice tool reading them aloud would be unlistenable. The Voice over column says maximum flooding surface where the screen says MFS. That is deliberate, and it also happens to teach the terms to anyone who does not know them yet.
+      </div>
+      <div class="note">
+        <b>Substitute your own units and surfaces.</b> The script says "the top" and "a formation" wherever a name belongs. Use the real ones from your own column, and keep them consistent with the tops correlated back in Episode 3.
+      </div>
+    </div>
+  </div>
+
+  <!-- KIT-DATA:START (generated by tools/demo-dataset/sync-episode-scripts.mjs; do not edit by hand) -->
+  <div class="brief kit-data">
+    <div>
+      <h2 class="block">Data for this episode</h2>
+      <p>Everything this episode loads comes from the Ekene demonstration dataset, kit <code>ekene-demo-v1</code>. Download <code>ekene-demo-v1-kit.zip</code> (and, for the seismic episodes, <code>ekene-demo-v1-seismic-full.zip</code>) from <a href="https://github.com/Petrolord/petrolord-suite/releases/tag/ekene-demo-v1">the release page</a> and start with <code>00-START-HERE.md</code>. This block is generated from <code>episodes/episode-08-stratigraphy-studio.md</code> in the kit, so the two always agree.</p>
+      <table class="say">
+        <thead><tr><th>File</th><th>What it is for</th></tr></thead>
+        <tbody>
+          <tr><td><code>06-stratigraphy/ekene-stratigraphic-column.csv</code></td><td>nine dated surfaces</td></tr>
+          <tr><td><code>06-stratigraphy/ekene-biozones.csv</code></td><td>biozones and environments</td></tr>
+          <tr><td><code>01-wells/Ekene-10.las</code></td><td>carries the LITH lithology curve</td></tr>
+          <tr><td><code>06-stratigraphy/core-photographs/README.md</code></td><td>cored intervals to label your own photographs with</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h2 class="block">Before the take</h2>
+      <div class="note">The unconformity is the Oboro Unconformity at 1790 m in Ekene-1, with a hiatus from 16.4 to 20.5 Ma. That is the gap the Wheeler chart turns into something measurable. Save a section in Well Correlation first.</div>
+    </div>
+  </div>
+  <!-- KIT-DATA:END -->
+
+  <div class="script">
+    <h2 class="block">Script</h2>
+
+    <!-- 1 -->
+    <section class="sec" id="sec-1">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">01</span>
+          <h3 class="sec-title">Two schools, one dataset</h3>
+          <span class="sec-meta"><span class="tc">00:00</span> · 1:48 · 270 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-1" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Dashboard, Geoscience module. Hold on the <em>Stratigraphy Studio</em> tile, then open it.</p></div>
+          <div class="vo"><p>Sequence stratigraphy has a problem that has nothing to do with rocks. Two schools name the same surfaces differently, and have done for thirty years. Put an Exxon trained geologist and a Catuneanu trained one in a room with the same well, and they will agree about the geology and argue about the labels.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Ribbon, the <em>Terms</em> selector. Switch from Catuneanu to Exxon and back, letting the labels visibly change.</p></div>
+          <div class="vo"><p>Stratigraphy Studio takes a position on that, and it is a good one. It stores one vocabulary and displays whichever one you want. What goes into the database never changes. What you and your colleague read on the screen is each of your own choosing.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Pan along the view bar: Column, Tops, Intervals, Core, Section, Wheeler, Ages, Glossary.</p></div>
+          <div class="vo"><p>Beyond that, this is the specialist stratigrapher's home in the Suite. The stratigraphic column. Typed surfaces on the tops you have already picked. Lithology, core and facies logs. Core photographs. A Wheeler chart. An age-depth plot. And every one of those is a shared registry row, so what you write here appears in every other application straight away.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Quick cuts, two seconds each: a section with typed surfaces, the Wheeler chart, the age-depth plot.</p></div>
+          <div class="vo"><p>In this video we will build a column, type the tops, log the rock, read a section as systems tracts, and then re-plot the whole thing against time. Let us start with the column.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section class="sec" id="sec-2">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">02</span>
+          <h3 class="sec-title">The stratigraphic column</h3>
+          <span class="sec-meta"><span class="tc">01:48</span> · 2:16 · 340 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-2" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p><em>Column</em> view. Click <em>Add unit</em>, type a name, set a rank.</p></div>
+          <div class="vo"><p>The Column view holds your stratigraphic framework, independent of any well. Add unit creates one. Give it a name and a rank, from the largest divisions down to the smallest.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Set a parent for the unit. Add two more inside it. Hold on the tree forming.</p></div>
+          <div class="vo"><p>Then place it inside a parent, and the units build into a tree. A group holds formations, a formation holds members, and so on down.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>From stage</em>, choose a stage from the list. Both age fields fill.</p></div>
+          <div class="vo"><p>Each unit carries a top age and a base age, in millions of years. You can type them, or press From stage and pick a stage off the international timescale, and both ages fill themselves.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Set the order among siblings, then the colour.</p></div>
+          <div class="vo"><p>Units also carry an order among their siblings, youngest first, and a colour that will follow them everywhere else in the Suite.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Deliberately give a child an age range outside its parent's. Click <em>Save column</em>. Hold on the refusal naming the unit.</p></div>
+          <div class="vo"><p>Now watch what happens when the framework does not hold together. Put a child outside its parent's age range, or give a unit a base younger than its top, and Save column refuses the whole save and names the unit that is wrong. It will not write half a framework and leave you to find the other half later.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Correct the ages and save successfully.</p></div>
+          <div class="vo"><p>Fix it and save again.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Delete a unit that has children. Show the children remaining in the list with no parent.</p></div>
+          <div class="vo"><p>And deleting is deliberately unexciting. Remove a unit and its children keep their rows with no parent, and any top that named it simply loses the reference. Nothing cascades, and nothing disappears behind your back.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section class="sec" id="sec-3">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">03</span>
+          <h3 class="sec-title">Typing the tops</h3>
+          <span class="sec-meta"><span class="tc">04:04</span> · 3:00 · 450 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-3" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Pick a well in the left explorer. The <em>Tops</em> view opens with its tops listed.</p></div>
+          <div class="vo"><p>Pick a well on the left and open the Tops view. These are the same tops you picked in Well Correlation and in Petrophysics Studio. Stratigraphy Studio does not create new ones. It adds meaning to the ones you already have.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Open the surface type dropdown and hold so the whole list is readable.</p></div>
+          <div class="vo"><p>The surface type is the first column, and this is the heart of it. Every top starts life as a formation top, which carries no sequence meaning at all. Change it, and you are making a statement.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Set one top to maximum flooding surface. Then show subaerial unconformity, maximum regressive surface and basal surface of forced regression on other tops.</p></div>
+          <div class="vo"><p>A maximum flooding surface. A subaerial unconformity. A maximum regressive surface, marking the end of lowstand regression and the start of transgression. A basal surface of forced regression. A transgressive ravinement surface. Each one is a specific claim about what happened at that depth, and each one draws differently on every section in the Suite.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>For one top, set the unit it tops, the confidence and the age.</p></div>
+          <div class="vo"><p>Beside the type, say which unit this top is the top of, how confident you are, and the age if you know it.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>On the unconformity, show the second age field appearing. Hover its tooltip so the wording is readable.</p></div>
+          <div class="vo"><p>And when the surface is an unconformity, a second age field appears, asking when the hiatus ended. That is the age of the youngest rock below the gap. Two ages on one surface, because an unconformity is not an instant. It is a stretch of time where the record is missing, and the Wheeler chart later will need to know how long.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Scroll right to the tract column in the Tops table. Hold.</p></div>
+          <div class="vo"><p>Now look at the column on the right, because you did not fill this one in. The table reads every consecutive pair of typed surfaces and works out which systems tract they bound.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at a lowstand row, then a transgressive one, then a highstand.</p></div>
+          <div class="vo"><p>A subaerial unconformity or a correlative conformity below a maximum regressive surface bounds a lowstand. A maximum regressive surface below a maximum flooding surface bounds a transgressive tract. A maximum flooding surface below a basal surface of forced regression bounds a highstand. And that surface above a correlative conformity bounds the falling stage.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Find a row showing a question mark, and one naming no tract.</p></div>
+          <div class="vo"><p>Where a pair spans two tracts, it names none. Where an internal boundary has not been picked yet, it shows a question mark. So this table is also a list of jobs. Every question mark is a surface you have not found yet.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section class="sec" id="sec-4">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">04</span>
+          <h3 class="sec-title">Stored in one scheme, shown in another</h3>
+          <span class="sec-meta"><span class="tc">07:04</span> · 1:50 · 275 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-4" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Ribbon, hover the <em>Terms</em> selector so its tooltip is readable.</p></div>
+          <div class="vo"><p>Now back to that first problem. Look at the Terms selector in the ribbon.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Switch from Catuneanu to Exxon. Hold on the Tops table relabelling, then cut to Well Correlation showing its markers relabelled too.</p></div>
+          <div class="vo"><p>Switch it from Catuneanu to Exxon, and every list, every marker and every chart relabels itself. Your subaerial unconformity becomes a sequence boundary. Your maximum regressive surface becomes a transgressive surface. And not only in this view. Across every application in the Suite at once.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at a stored code somewhere it is visible, unchanged.</p></div>
+          <div class="vo"><p>And nothing that is stored has moved. The codes in the database are still the same codes. You changed a display setting, the way you would change a depth unit.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Find a surface with no Exxon equivalent, showing its Catuneanu name with the badge. Hover the badge.</p></div>
+          <div class="vo"><p>Where the two schools genuinely diverge, the app says so rather than inventing an equivalent. A regressive surface of marine erosion has no Exxon term, so it keeps its Catuneanu name and carries a badge that tells you why. The same is true of the falling stage systems tract.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Open the <em>Glossary</em> view. Scroll it slowly showing both schemes side by side.</p></div>
+          <div class="vo"><p>And the Glossary view lists every surface and every tract in both schemes together, with what each one means. When the argument starts, that page ends it faster than anything else in this application.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section class="sec" id="sec-5">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">05</span>
+          <h3 class="sec-title">Logging the rock</h3>
+          <span class="sec-meta"><span class="tc">08:54</span> · 2:52 · 430 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-5" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p><em>Intervals</em> view. Open the kind selector so all eight kinds are readable.</p></div>
+          <div class="vo"><p>The Intervals view logs everything that happens between two depths rather than at one. Lithology. Core descriptions. Facies. Electrofacies. Depositional environment. Log motifs. Systems tracts. And biozones. One table, one kind at a time.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Choose lithology. Add two rows with a top, a base, a code and a grain size.</p></div>
+          <div class="vo"><p>Start with lithology. Each row is a top depth, a base depth and a code from the vocabulary, with a grain size beside it.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Use <em>Replace from paste</em>. Paste a table using short codes. Hold as they resolve to full names.</p></div>
+          <div class="vo"><p>Or paste the whole thing. Replace from paste takes a table of top, base and code, in feet or metres, and resolves the usual abbreviations. Sandstone, shale, limestone and dolomite all arrive from their short forms. A code it does not recognise is kept exactly as you typed it, rather than guessed at or dropped.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Create two overlapping lithology rows and show the refusal. Then switch kind to facies and create one overlapping a lithology interval, accepted.</p></div>
+          <div class="vo"><p>Overlaps inside one kind are refused, because a metre of rock cannot be two lithologies. But a facies interval is allowed to overlap a lithology interval, because those are two different statements about the same rock.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Quick cuts: Well Data Manager's LAS import with its interval checkbox, then Petrophysics Studio's <em>Facies</em> publish button.</p></div>
+          <div class="vo"><p>Three other doors fill this table without you typing anything. A L. A. S. three point zero file with a core or lithology block imports its intervals when you load the well. The crossplot facies you published from Petrophysics Studio arrive here as facies intervals. And the systems tracts we are about to record from the section land here too.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p><em>Core</em> view. Upload a photograph with its top and base depth and a caption. Hold as the depth registered strip builds.</p></div>
+          <div class="vo"><p>The Core view is the same panel you saw in Well Data Manager back in the first episode. Add a photograph with the depths it spans and a caption, and the strip on the left stacks your photographs in proportion to those spans.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Attempt an oversized image to show the refusal, then select an organisation-shared well showing the panel read-only.</p></div>
+          <div class="vo"><p>Five megabytes per image and two hundred per well, refused before anything uploads rather than after. The photographs live in your private well storage, and a well somebody shared with you shows them read only.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <div class="part-break">
+      <b>Optional break: end of Part 1</b>
+      <span>Everything is now recorded: the column, the typed surfaces, the logs and the core. Part 1 runs 11:46 and is about getting the observations in. Part 2 is about reading them, which is the more interesting half. Part 2 opens on section 06 with a ten second recap.</span>
+    </div>
+
+    <!-- 6 -->
+    <section class="sec" id="sec-6">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">06</span>
+          <h3 class="sec-title">The section, read as tracts</h3>
+          <span class="sec-meta"><span class="tc">11:46</span> · 3:03 · 450 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-6" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p><em>Section</em> view. It opens on the section saved in Well Correlation. Hold.</p></div>
+          <div class="vo"><p>Open the Section view, and there is your cross section. The same wells, the same order, the same template and the same datum you saved in Well Correlation, drawn by the same painter.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Zoom two or three tops drawn with different line styles, with their abbreviations in the tags.</p></div>
+          <div class="vo"><p>The difference is that every top you typed now draws as its type. Different line styles for different surfaces, with the abbreviation in the tag. Build sections in Well Correlation. Interpret them here.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Turn on <em>Tracts</em>. Hold on the coloured fills, then find a hatched one.</p></div>
+          <div class="vo"><p>Turn on Tracts and the intervals between your typed surfaces fill with colour by systems tract. Lowstand, transgressive, highstand, falling stage. And notice that some of them are hatched. A hatched fill means that tract needs a boundary you have not picked yet, so the app shows you what it thinks while telling you it is not sure.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Record tracts</em>.</p></div>
+          <div class="vo"><p>Those fills are implied until you press Record tracts. That writes them as real systems tract intervals on every well in the section that you own.</p></div>
+        </div>
+
+        <div class="beat beat--pause" data-pause="3">
+          <div class="pause">Pause 3 seconds. <span>The tracts are written. Then cut to the Intervals view showing the new rows.</span></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p><em>Intervals</em> view, kind set to systems tract, showing the recorded rows. Then back to the section.</p></div>
+          <div class="vo"><p>Go back to the Intervals view afterwards and they are there, editable, exactly like anything else you logged by hand.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Turn on <em>Motifs</em>. Show the outlined motif intervals beside the first track.</p></div>
+          <div class="vo"><p>Motifs outlines your log motif intervals beside the first track, so a coarsening upward or a fining upward pattern reads at a glance.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Datum selector: choose <em>Stretch between two surfaces</em> and pick two of your typed surfaces. Hold on the rearranged section.</p></div>
+          <div class="vo"><p>The datum selector is the one from Well Correlation, with the important option in it. Stretch between two surfaces takes the rock between two of your picks and stretches it onto two common lines, while everything above and below shifts rigidly. That is a chronostratigraphic assumption, and it is exactly the right one when your two surfaces are the same age everywhere.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at a well carrying only one of the two surfaces, and at the note saying it shifted onto that line.</p></div>
+          <div class="vo"><p>A well that only carries one of the two surfaces shifts onto that single line, and says so, rather than pretending to a stretch it cannot make.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Set up a ghost curve between two wells and drag the shift. Then click <em>Save view</em>.</p></div>
+          <div class="vo"><p>The ghost curve is here too, the same tool you used in the correlation episode. And Save view keeps your datum and your ghost with the stratigraphy project.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section class="sec" id="sec-7">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">07</span>
+          <h3 class="sec-title">The Wheeler chart</h3>
+          <span class="sec-meta"><span class="tc">14:49</span> · 2:39 · 390 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-7" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Wheeler</em>.</p></div>
+          <div class="vo"><p>And now the view that makes this whole application worth the trouble. Wheeler.</p></div>
+        </div>
+
+        <div class="beat beat--pause" data-pause="3">
+          <div class="pause">Pause 3 seconds. <span>The chart draws. Hold wide so the whole thing is visible.</span></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Trace the time axis with the cursor, top to bottom.</p></div>
+          <div class="vo"><p>It re-plots that same section with geologic time running down the axis instead of depth. Every well becomes a column in time rather than in rock.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at a deposition cell spanning two ages, coloured by its tract. Then compare a thick interval and a thin one on the depth section.</p></div>
+          <div class="vo"><p>The rock between two dated surfaces becomes a cell spanning the ages of those two surfaces, coloured by the tract they imply. Thick rock deposited quickly makes a short cell. Thin rock deposited slowly makes a tall one. The chart is about time, so thickness stops mattering.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Zoom the hatched hiatus cell. Cut briefly to the same unconformity on the depth section, where it is one line.</p></div>
+          <div class="vo"><p>And this is the part a depth section can never show you. An unconformity with a hiatus end age becomes a hatched cell, and the height of that cell is how much time is missing. On a normal section an unconformity is a line. Here it is a gap you can measure, and it is often the tallest thing on the chart.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at the international stages drawn behind the columns.</p></div>
+          <div class="vo"><p>The international stages sit behind the columns for reference.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Find a well listed as not placed and zoom the stated reason.</p></div>
+          <div class="vo"><p>A well with fewer than two dated surfaces cannot be put on a time axis at all, so it is listed as not placed, with the reason. That list is your next job, not an error.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Deliberately date a deeper surface younger than a shallower one. Hold on the refusal naming the surface. Then correct it.</p></div>
+          <div class="vo"><p>And if you have dated a deeper surface as younger than a shallower one, the chart refuses and names the surface. Ages between dated surfaces are interpolated at a constant rate, and a constant rate cannot run backwards.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 8 -->
+    <section class="sec" id="sec-8">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">08</span>
+          <h3 class="sec-title">Ages, biozones and the Basin handoff</h3>
+          <span class="sec-meta"><span class="tc">17:28</span> · 2:32 · 380 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-8" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p><em>Ages</em> view with the well selected. The age-depth plot draws.</p></div>
+          <div class="vo"><p>The Ages view takes one well and plots age against depth.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point along the segments joining dated surfaces, with the rate written on each. Contrast a steep one and a shallow one.</p></div>
+          <div class="vo"><p>Your dated surfaces are joined by straight segments, each one a constant accumulation rate, and each rate is written on its segment. A steep segment is slow accumulation. A shallow one is fast.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at a hiatus bar, then at a stage label, then scroll to the table beneath.</p></div>
+          <div class="vo"><p>A bar at each dated unconformity shows the hiatus, and the international stage of each surface is labelled. The table underneath repeats all of it in numbers.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Cut to the Intervals view showing biozone rows with a scheme and ages. Back to Ages, click <em>Biozone datums</em>. Show the new typed tops.</p></div>
+          <div class="vo"><p>Two buttons turn this into work other people can use. If you logged biozones in the Intervals view, with a scheme and ages, Biozone datums turns every biozone range into two typed biozone tops carrying those ages and that scheme. Your palaeontology becomes dated surfaces, automatically.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Send to Basin</em>. Show the created model with its layers.</p></div>
+          <div class="vo"><p>And Send to Basin builds a model in Basin and Charge Modeling. One layer per top, ages taken from the bounding surfaces, the dominant lithology read from your lithology log, and every hiatus turned into an erosion event.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at an erosion amount waiting to be typed, and at an undated layer keeping placeholders. Then click <em>Open Basin</em>.</p></div>
+          <div class="vo"><p>It will ask you how much rock each erosion event removed, because that is a judgment nobody can make for you. And an undated layer keeps placeholders and says so, rather than inventing an age. Open Basin takes you there, with this well remembered as the model's tie.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 9 -->
+    <section class="sec" id="sec-9">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">09</span>
+          <h3 class="sec-title">Turning description into a map</h3>
+          <span class="sec-meta"><span class="tc">20:00</span> · 1:56 · 290 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-9" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Back in the <em>Section</em> view. Choose a tract, then click <em>Map net sand</em>.</p></div>
+          <div class="vo"><p>One more handoff, and it is the one that turns all of this description into a map.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Mapping and Surface Studio opens with the source already set to the stratigraphy option.</p></div>
+          <div class="vo"><p>Map net sand takes a tract's two bounding surfaces and opens Mapping and Surface Studio on the net sand between them, across every well in your section.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>In Mapping, show the form: the measure options, the upper and lower top selectors, the lithology checkboxes.</p></div>
+          <div class="vo"><p>In Mapping, that is the stratigraphy source we saw back in the fourth episode. Choose net sand, gross thickness or net to gross. Set the upper and the lower top. And tick which lithologies count as net, which is a decision you should make out loud rather than inherit from a default.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at the environment listed per well in the form, then click <em>Grid</em>.</p></div>
+          <div class="vo"><p>Every well carrying both tops and a lithology log becomes a control point, and the form lists the environment that dominates the interval in each one. Then it grids, kriges, clips and publishes like any other surface.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>After publishing, hover the surface row to show the provenance mentioning measured depth thickness.</p></div>
+          <div class="vo"><p>One honest limitation, stated in the provenance. Those thicknesses are measured depth thicknesses between the two picks. On a deviated well that is not the true vertical thickness, and the surface says so rather than letting you assume otherwise.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section class="sec" id="sec-10">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">10</span>
+          <h3 class="sec-title">Wrap up</h3>
+          <span class="sec-meta"><span class="tc">21:56</span> · 1:26 · 215 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-10" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Pull back: the typed section beside the Wheeler chart.</p></div>
+          <div class="vo"><p>So that is Stratigraphy Studio. A column, typed surfaces on the tops you already had, the rock logged between them, systems tracts on a section, and that same section re-plotted against time.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Toggle <em>Terms</em> once more, slowly, and leave it on your audience's scheme.</p></div>
+          <div class="vo"><p>Two things to leave you with. The first is the Terms switch. Use it before a meeting. Set it to whichever school the room was trained in, and the argument never starts, because nothing you stored depends on the answer.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Return to the Wheeler chart and hold on its tallest hatched cell.</p></div>
+          <div class="vo"><p>The second is the Wheeler chart. When you have one in front of you, look first at the tallest hatched cell on it. That is the largest amount of time missing from your record. It is usually more time than all the rock beside it took to accumulate, and it is almost always the thing worth explaining.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>End card with the series name.</p></div>
+          <div class="vo"><p>Thanks for watching.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+  </div>
+
+  <div class="chapters">
+    <h2 class="block">Chapter timestamps for the video description</h2>
+    <div class="chap-grid">
+      <div class="chap-body">
+        <h3>Single video, 23:22</h3>
+        <div class="chap-list" id="chap-single">
+          <div><b>0:00</b> Two schools, one dataset</div>
+          <div><b>1:48</b> The stratigraphic column</div>
+          <div><b>4:04</b> Typing the tops</div>
+          <div><b>7:04</b> Stored in one scheme, shown in another</div>
+          <div><b>8:54</b> Logging the rock</div>
+          <div><b>11:46</b> The section, read as tracts</div>
+          <div><b>14:49</b> The Wheeler chart</div>
+          <div><b>17:28</b> Ages, biozones and the Basin handoff</div>
+          <div><b>20:00</b> Turning description into a map</div>
+          <div><b>21:56</b> Wrap up</div>
+        </div>
+        <div class="chap-tools"><button class="copy" id="copy-single" data-label="Copy timestamps">Copy timestamps</button></div>
+      </div>
+
+      <div class="chap-body">
+        <h3>Two parts, 11:46 and 11:36</h3>
+        <div class="chap-list" id="chap-split">
+          <div><b>P1 0:00</b> Two schools, one dataset</div>
+          <div><b>P1 1:48</b> The stratigraphic column</div>
+          <div><b>P1 4:04</b> Typing the tops</div>
+          <div><b>P1 7:04</b> Stored in one scheme, shown in another</div>
+          <div><b>P1 8:54</b> Logging the rock</div>
+          <div><b>P2 0:00</b> The section, read as tracts</div>
+          <div><b>P2 3:03</b> The Wheeler chart</div>
+          <div><b>P2 5:42</b> Ages, biozones and the Basin handoff</div>
+          <div><b>P2 8:14</b> Turning description into a map</div>
+          <div><b>P2 10:10</b> Wrap up</div>
+        </div>
+        <div class="chap-tools"><button class="copy" id="copy-split" data-label="Copy timestamps">Copy timestamps</button></div>
+      </div>
+    </div>
+    <div class="note" style="margin-top:16px">
+      <b>Targets only.</b> Re-stamp every timestamp from the finished audio before publishing. Part 2 times fold in a ten second recap at the head, which is not in this script and should be improvised on the day.
+    </div>
+  </div>
+
+  <footer>
+    <p><b>Series position.</b> This episode closes the loop Episode 1 opened. The Intervals and Core tabs were shown in Well Data Manager and nothing since has used them. Here they carry a whole workflow, and section 05 says so explicitly. If you are ordering the playlist for a new viewer, this one belongs after Well Correlation and not before it.</p>
+    <p><b>Audience note.</b> This is the most specialist episode in the series and the only one aimed at a single discipline rather than at everybody. Pitch it that way in the description. A stratigrapher will watch all twenty three minutes; a reservoir engineer probably wants only sections 07 and 09.</p>
+    <p><b>Accuracy note.</b> Every view, control name, surface type and refusal message in this script matches the shipping application at the time of writing. If a label changes, fix the script before the next take rather than talking around it on camera.</p>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  var body = document.body;
+  var KEY = 'strat-episode-script.vo-only';
+  var toggle = document.getElementById('vo-only');
+
+  try {
+    if (localStorage.getItem(KEY) === '1') { toggle.checked = true; body.classList.add('vo-only'); }
+  } catch (e) { /* storage unavailable: default view is correct */ }
+
+  toggle.addEventListener('change', function () {
+    body.classList.toggle('vo-only', toggle.checked);
+    try { localStorage.setItem(KEY, toggle.checked ? '1' : '0'); } catch (e) {}
+  });
+
+  function narrationOf(scope) {
+    var out = [];
+    scope.querySelectorAll('.beat').forEach(function (beat) {
+      if (beat.dataset.pause) { out.push('[PAUSE ' + beat.dataset.pause + 's]'); return; }
+      beat.querySelectorAll('.vo p').forEach(function (p) {
+        out.push(p.textContent.replace(/\s+/g, ' ').trim());
+      });
+    });
+    return out.join('\n\n');
+  }
+
+  function flash(btn) {
+    var label = btn.dataset.label;
+    btn.textContent = 'Copied';
+    setTimeout(function () { btn.textContent = label; }, 1600);
+  }
+
+  function fallbackCopy(text, btn) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); flash(btn); } catch (e) { btn.textContent = 'Select and copy manually'; }
+    document.body.removeChild(ta);
+  }
+
+  function copy(text, btn) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(function () { flash(btn); }, function () { fallbackCopy(text, btn); });
+      } else { fallbackCopy(text, btn); }
+    } catch (e) { fallbackCopy(text, btn); }
+  }
+
+  document.querySelectorAll('button.copy[data-copy]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var sec = document.getElementById(btn.dataset.copy);
+      if (sec) copy(narrationOf(sec), btn);
+    });
+  });
+
+  document.getElementById('copy-all').addEventListener('click', function () {
+    var btn = this;
+    var parts = [];
+    document.querySelectorAll('section.sec').forEach(function (sec) {
+      var title = sec.querySelector('.sec-title').textContent.trim();
+      var num = sec.querySelector('.sec-num').textContent.trim();
+      parts.push('=== ' + num + ' ' + title + ' ===\n\n' + narrationOf(sec));
+    });
+    copy(parts.join('\n\n\n'), btn);
+  });
+
+  function listCopier(btnId, listId) {
+    var btn = document.getElementById(btnId);
+    btn.addEventListener('click', function () {
+      var lines = [];
+      document.querySelectorAll('#' + listId + ' div').forEach(function (row) {
+        lines.push(row.textContent.replace(/\s+/g, ' ').trim());
+      });
+      copy(lines.join('\n'), btn);
+    });
+  }
+  listCopier('copy-single', 'chap-single');
+  listCopier('copy-split', 'chap-split');
+})();
+</script>

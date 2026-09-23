@@ -1,0 +1,844 @@
+<title>Earth Modeling Episode Script</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+  :root{
+    --ground:#F4F6F8;--surface:#FFFFFF;--surface-2:#EDF1F5;
+    --ink:#15202C;--ink-soft:#5C6D80;--ink-faint:#8A99A8;
+    --rule:#DBE2EA;--rule-strong:#C3CEDA;
+    --accent:#0E7490;--accent-soft:#E0F0F4;
+    --warn:#A85B0B;--warn-soft:#FBEEDC;
+    --shadow:0 1px 2px rgba(21,32,44,.05), 0 12px 28px -18px rgba(21,32,44,.28);
+    --f-display:'Archivo','Helvetica Neue',Helvetica,Arial,sans-serif;
+    --f-read:'Source Serif 4',Georgia,'Times New Roman',serif;
+    --f-mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0B1119;--surface:#121A24;--surface-2:#18222E;
+      --ink:#E4EBF2;--ink-soft:#9AAABB;--ink-faint:#6E8093;
+      --rule:#24303D;--rule-strong:#33414F;
+      --accent:#3EC5DE;--accent-soft:#12303A;
+      --warn:#E8AC5A;--warn-soft:#2E2415;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 30px -20px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0B1119;--surface:#121A24;--surface-2:#18222E;
+    --ink:#E4EBF2;--ink-soft:#9AAABB;--ink-faint:#6E8093;
+    --rule:#24303D;--rule-strong:#33414F;
+    --accent:#3EC5DE;--accent-soft:#12303A;
+    --warn:#E8AC5A;--warn-soft:#2E2415;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 30px -20px rgba(0,0,0,.8);
+  }
+
+  *{box-sizing:border-box}
+  body{background:var(--ground);color:var(--ink);font-family:var(--f-read);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1120px;margin:0 auto;padding-inline:20px;padding-block:0 72px}
+
+  .masthead{padding-block:44px 26px;border-bottom:2px solid var(--ink)}
+  .eyebrow{font-family:var(--f-mono);font-size:11px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 14px}
+  h1{font-family:var(--f-display);font-weight:700;font-size:clamp(2rem,5.2vw,3.15rem);line-height:1.02;letter-spacing:-.022em;margin:0;text-wrap:balance}
+  .logline{font-size:clamp(1rem,1.6vw,1.15rem);color:var(--ink-soft);margin:14px 0 0;max-width:64ch}
+  .spec{display:flex;flex-wrap:wrap;gap:0;margin-top:26px;border:1px solid var(--rule-strong);border-radius:3px;background:var(--surface);overflow:hidden}
+  .spec > div{flex:1 1 150px;padding:11px 14px;border-right:1px solid var(--rule)}
+  .spec > div:last-child{border-right:0}
+  .spec dt{font-family:var(--f-mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 3px}
+  .spec dd{margin:0;font-family:var(--f-display);font-weight:600;font-size:15px;font-variant-numeric:tabular-nums;color:var(--ink)}
+
+  .controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:22px;padding:12px 14px;border:1px solid var(--rule);border-radius:3px;background:var(--surface-2)}
+  .switch{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-size:14px;font-weight:500;cursor:pointer}
+  .switch input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+  .switch small{font-family:var(--f-read);font-weight:400;color:var(--ink-soft);font-size:13px}
+  button.copy{font-family:var(--f-mono);font-size:11.5px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);background:transparent;border:1px solid var(--accent);border-radius:2px;padding:6px 11px;cursor:pointer;transition:background .14s ease}
+  button.copy:hover{background:var(--accent-soft)}
+  button.copy:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .controls .spacer{margin-left:auto}
+
+  .brief{margin-top:40px;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:36px}
+  @media (max-width:840px){.brief{grid-template-columns:1fr;gap:30px}}
+  h2.block{font-family:var(--f-display);font-weight:600;font-size:13px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-soft);margin:0 0 14px;padding-bottom:7px;border-bottom:1px solid var(--rule)}
+  ol.steps{margin:0;padding:0;list-style:none;counter-reset:s}
+  ol.steps li{counter-increment:s;position:relative;padding-left:34px;margin-bottom:14px;font-size:15px;color:var(--ink)}
+  ol.steps li::before{content:counter(s);position:absolute;left:0;top:1px;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-family:var(--f-mono);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center}
+  :root[data-theme="dark"] ol.steps li::before{color:#0B1119}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) ol.steps li::before{color:#0B1119}}
+  ol.steps b{font-family:var(--f-display);font-weight:600}
+
+  table.say{width:100%;border-collapse:collapse;font-size:14px}
+  table.say th{text-align:left;font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);font-weight:500;padding:0 12px 7px 0;border-bottom:1px solid var(--rule)}
+  table.say td{padding:6px 12px 6px 0;border-bottom:1px solid var(--rule);vertical-align:top}
+  table.say td:first-child{font-family:var(--f-display);font-weight:600;white-space:nowrap}
+  table.say td:last-child{font-family:var(--f-mono);font-size:13px;color:var(--accent);padding-right:0}
+  .note{margin-top:14px;padding:11px 13px;border-left:3px solid var(--warn);background:var(--warn-soft);font-size:13.5px;color:var(--ink);border-radius:0 2px 2px 0}
+  .note + .note{margin-top:10px}
+  .note b{font-family:var(--f-display);font-weight:600}
+  .note.cool{border-left-color:var(--accent);background:var(--accent-soft)}
+
+  .script{margin-top:52px}
+  .script > h2.block{margin-bottom:0;border-bottom:0}
+  section.sec{background:var(--surface);border:1px solid var(--rule);border-radius:3px;box-shadow:var(--shadow);margin-top:26px;overflow:hidden}
+  .sec-head{padding:16px 20px 0}
+  .sec-title-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px}
+  .sec-num{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.1em;color:#fff;background:var(--ink);padding:3px 7px;border-radius:2px}
+  :root[data-theme="dark"] .sec-num{background:var(--accent);color:#0B1119}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sec-num{background:var(--accent);color:#0B1119}}
+  .sec-title{font-family:var(--f-display);font-weight:600;font-size:clamp(1.15rem,2.2vw,1.42rem);letter-spacing:-.012em;margin:0;text-wrap:balance}
+  .sec-meta{margin-left:auto;font-family:var(--f-mono);font-size:11.5px;color:var(--ink-soft);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .sec-meta .tc{color:var(--accent);font-weight:600}
+  .sec-tools{display:flex;align-items:center;gap:10px;margin-top:10px}
+  .sec-cols,.beat{display:grid;grid-template-columns:minmax(0,33fr) minmax(0,67fr);gap:30px}
+  .sec-cols{padding:14px 20px 7px;font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+  .beats{padding:0 20px 18px}
+  .beat{padding:17px 0;border-top:1px solid var(--rule)}
+  .screen{font-family:var(--f-mono);font-size:12.6px;line-height:1.62;color:var(--ink-soft)}
+  .screen::before{content:'Screen';display:none;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:5px}
+  .screen p{margin:0 0 8px}
+  .screen p:last-child{margin-bottom:0}
+  .screen em{font-style:normal;color:var(--ink);font-weight:500}
+  .vo p{margin:0 0 13px;font-size:17px;line-height:1.68;max-width:64ch}
+  .vo p:last-child{margin-bottom:0}
+  .vo::before{content:'Voice over';display:none;font-family:var(--f-mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:5px}
+  @media (max-width:800px){
+    .sec-cols{display:none}
+    .beat{grid-template-columns:1fr;gap:12px}
+    .screen::before,.vo::before{display:block}
+  }
+  .beat--pause{grid-template-columns:1fr;text-align:center;border-top:1px dashed var(--rule-strong)}
+  .pause{font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--warn)}
+  .pause span{color:var(--ink-faint);letter-spacing:.04em;text-transform:none;font-size:12px}
+
+  .part-break{margin-top:34px;padding:16px 20px;border:1px dashed var(--rule-strong);border-radius:3px;background:var(--surface-2);display:flex;flex-wrap:wrap;align-items:baseline;gap:12px}
+  .part-break b{font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--warn)}
+  .part-break span{font-size:14px;color:var(--ink-soft)}
+
+  .chapters{margin-top:52px}
+  .chap-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  @media (max-width:840px){.chap-grid{grid-template-columns:1fr}}
+  .chap-body{background:var(--surface);border:1px solid var(--rule);border-radius:3px;padding:18px 20px;box-shadow:var(--shadow)}
+  .chap-body h3{font-family:var(--f-display);font-weight:600;font-size:14px;margin:0 0 12px;color:var(--ink)}
+  .chap-list{margin:0;font-family:var(--f-mono);font-size:13px;line-height:1.95}
+  .chap-list div{display:flex;gap:12px}
+  .chap-list b{color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;min-width:48px}
+  .chap-tools{display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:13px;border-top:1px solid var(--rule)}
+
+  footer{margin-top:52px;padding-top:20px;border-top:1px solid var(--rule);font-size:13.5px;color:var(--ink-soft)}
+  footer b{font-family:var(--f-display);font-weight:600;color:var(--ink)}
+  footer p{margin:0 0 12px}
+
+  body.vo-only .brief,
+  body.vo-only .chapters,
+  body.vo-only .spec,
+  body.vo-only .screen,
+  body.vo-only .sec-cols,
+  body.vo-only .sec-tools{display:none}
+  body.vo-only .beat{grid-template-columns:1fr}
+  body.vo-only .beat--pause{text-align:left}
+  body.vo-only .vo p{font-size:18px;max-width:66ch}
+  body.vo-only section.sec{box-shadow:none}
+
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+  @media print{
+    body{background:#fff;color:#000}
+    .controls,.chap-tools,.sec-tools{display:none}
+    section.sec{box-shadow:none;border-color:#999}
+    .beat{break-inside:avoid}
+    .wrap{max-width:none}
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Petrolord Suite · Tutorial series · Episode 7</p>
+    <h1>Earth Modeling</h1>
+    <p class="logline">Voice over script and screen directions for the framework walkthrough. Stack the surfaces the last three episodes produced, tie them to the wells, fill the zones, and read what the model had to make up.</p>
+
+    <dl class="spec">
+      <div><dt>Target runtime</dt><dd>22:19</dd></div>
+      <div><dt>Narration</dt><dd>~3,350 words</dd></div>
+      <div><dt>Sections</dt><dd>11</dd></div>
+      <div><dt>Beats</dt><dd>56 + 1 pause</dd></div>
+      <div><dt>Prerequisite</dt><dd>Episodes 2, 3, 4</dd></div>
+      <div><dt>Version</dt><dd>Draft 1</dd></div>
+    </dl>
+  </header>
+
+  <div class="controls">
+    <label class="switch" for="vo-only">
+      <input type="checkbox" id="vo-only">
+      Narration only
+      <small>hides screen directions for a clean read</small>
+    </label>
+    <span class="spacer"></span>
+    <button class="copy" id="copy-all" data-label="Copy full narration">Copy full narration</button>
+  </div>
+
+  <div class="brief">
+    <div>
+      <h2 class="block">Before you record</h2>
+      <ol class="steps">
+        <li><b>Two published surfaces at minimum, ideally three.</b> One from Mapping and one from Seismolord makes the point in section 02 that the model does not care which application produced them. Two is the engine minimum, because a model with one surface has no zone.</li>
+        <li><b>The zones and tops must already exist.</b> The ties in section 05 need well tops matching your surfaces, and the population in section 08 needs registry zones carrying per-well averages. Both come from the Petrophysics Studio work in Episode 2. Without them, half this episode has nothing to show.</li>
+        <li><b>Engineer the kriging fallback.</b> Section 08 is the best beat in the episode and it needs one fault block with four or more wells carrying a zone average, and another with fewer. Check your data produces both before the take, because the fallback report is the thing worth filming.</li>
+        <li><b>Have a fault polygon and a boundary polygon ready.</b> Both are drawn in Mapping and Surface Studio and both are listed here. Sections 02 and 07 use them.</li>
+        <li><b>Render section by section, honour the pause.</b> The single pause mark is the model building, which takes real time on a full stack.</li>
+      </ol>
+      <div class="note cool">
+        <b>The argument this episode is making.</b> A good model reports its own compromises. Section 05 shows amber residuals where the model disagrees with a well. Section 08 shows kriging falling back to a plane or a mean, with the reason written down. Section 10 puts the population provenance directly under the volume table. Section 11 sends the viewer to the QC view before they show anybody anything. Protect those four.
+      </div>
+      <div class="note">
+        <b>Second theme, worth keeping.</b> The model saves a recipe and not a grid, so every build recomputes from whatever the registry holds now. It is mentioned in section 04, paid off in section 10, and explained in section 11. It is what makes this model a living thing rather than a photograph.
+      </div>
+    </div>
+
+    <div>
+      <h2 class="block">Pronunciation</h2>
+      <table class="say">
+        <thead><tr><th>Term</th><th>Say it as</th></tr></thead>
+        <tbody>
+          <tr><td>QC</td><td>Q. C.</td></tr>
+          <tr><td>CSV, PNG</td><td>C. S. V., P. N. G.</td></tr>
+          <tr><td>API</td><td>A. P. I.</td></tr>
+          <tr><td>NTG</td><td>net to gross</td></tr>
+          <tr><td>Sw</td><td>water saturation</td></tr>
+          <tr><td>VE</td><td>vertical exaggeration</td></tr>
+          <tr><td>TVD, CRS</td><td>spoken in full</td></tr>
+        </tbody>
+      </table>
+      <div class="note">
+        <b>Read from the Voice over column only.</b> Property names are written out as words there because a voice tool reading NTG or Sw aloud in the middle of a sentence is unlistenable. The Screen column keeps the short labels, which is what the map layer list actually shows.
+      </div>
+      <div class="note">
+        <b>Numbers are examples.</b> Ten metres for an amber residual and four wells for kriging are real thresholds in the application and should be said as written. Everything else, substitute what your own model produces.
+      </div>
+    </div>
+  </div>
+
+  <!-- KIT-DATA:START (generated by tools/demo-dataset/sync-episode-scripts.mjs; do not edit by hand) -->
+  <div class="brief kit-data">
+    <div>
+      <h2 class="block">Data for this episode</h2>
+      <p>Everything this episode loads comes from the Ekene demonstration dataset, kit <code>ekene-demo-v1</code>. Download <code>ekene-demo-v1-kit.zip</code> (and, for the seismic episodes, <code>ekene-demo-v1-seismic-full.zip</code>) from <a href="https://github.com/Petrolord/petrolord-suite/releases/tag/ekene-demo-v1">the release page</a> and start with <code>00-START-HERE.md</code>. This block is generated from <code>episodes/episode-07-earth-modeling.md</code> in the kit, so the two always agree.</p>
+      <table class="say">
+        <thead><tr><th>File</th><th>What it is for</th></tr></thead>
+        <tbody>
+          <tr><td><code>the Ekene Sand surface from Episode 4 and the horizon surface from Episode 6</code></td><td>two surfaces from two applications</td></tr>
+          <tr><td><code>02-surfaces/OboroSand-top.zmap</code></td><td>a third surface for a second zone</td></tr>
+          <tr><td><code>03-culture/ekene-growth-fault.geojson</code></td><td>the fault polygon</td></tr>
+          <tr><td><code>03-culture/ek11-licence-boundary.geojson</code></td><td>the boundary</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h2 class="block">Before the take</h2>
+      <div class="note">The fault splits the wells four west (Ekene-1, -3, -5, -7) to three east (Ekene-2, -4, -6). At the Ekene Sand only Ekene-6 and Ekene-10 carry a pay zone in the eastern block, because Ekene-2 and Ekene-4 found the sand wet. So the western block krigs and the eastern one falls back, with the reason written down. That is the beat worth filming.</div>
+    </div>
+  </div>
+  <!-- KIT-DATA:END -->
+
+  <div class="script">
+    <h2 class="block">Script</h2>
+
+    <!-- 1 -->
+    <section class="sec" id="sec-1">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">01</span>
+          <h3 class="sec-title">Everything you have made, in one object</h3>
+          <span class="sec-meta"><span class="tc">00:00</span> · 1:40 · 250 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-1" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Dashboard, Geoscience module. Hold on the <em>Earth Modeling</em> tile, then open it.</p></div>
+          <div class="vo"><p>Seven videos in, this Suite has quite a lot of your work sitting in it. Surfaces from mapping and from seismic. Tops from your correlation. Zone averages from your log analysis. Fault polygons you drew on a map. All of it correct, and all of it separate.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>The workspace with a model already built, the map showing a property layer. Hold four seconds.</p></div>
+          <div class="vo"><p>Earth Modeling is where those pieces become one object. It stacks your surfaces into a layer cake, ties that cake to the wells, splits it along your faults, fills every zone with porosity, water saturation and net to gross, and reports the rock volume of each zone in each block.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Switch to the <em>QC &amp; volumes</em> view. Hold on the clamp report and the tie table.</p></div>
+          <div class="vo"><p>And it does one more thing that matters more than any of that. It tells you where it had to make something up. Every surface it had to clamp. Every well that disagrees with it. Every block where there were not enough wells to interpolate properly. That report is the difference between a model and a picture of one.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Quick cuts, two seconds each: the model stack in the explorer, a section, the 3D framework, a volumes table.</p></div>
+          <div class="vo"><p>In this video we will build a model from the surfaces the last three episodes produced, adjust it to the wells, populate it, and send its volumes onward. Let us stack some surfaces.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section class="sec" id="sec-2">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">02</span>
+          <h3 class="sec-title">Stack the surfaces</h3>
+          <span class="sec-meta"><span class="tc">01:40</span> · 1:40 · 250 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-2" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Explorer, <em>Registry surfaces</em> list. Point at one from Mapping, then one published from Seismolord.</p></div>
+          <div class="vo"><p>The explorer on the left lists every surface in the registry. The ones you gridded in Mapping and Surface Studio, and the ones you published out of Seismolord, side by side, with no distinction between them. To this model they are the same kind of thing.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Add to stack</em> on two or three surfaces. They appear under <em>Model stack (shallow to deep)</em>.</p></div>
+          <div class="vo"><p>Add two or more to the stack. Two is the minimum, because a model with one surface has no zone in it.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Use the up and down arrows to reorder the stack. Put one deliberately out of order, then fix it.</p></div>
+          <div class="vo"><p>Then order them, shallowest at the top. The arrows do that. Get this right, because the whole model is built on the assumption that the stack is in order, and it will tell you loudly when it is not.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Builder dock, <em>Model frame</em>. Type a cell size, then choose the boundary polygon.</p></div>
+          <div class="vo"><p>Over in the builder dock on the right, the frame. The model is built on the top surface's frame, at its cell size, unless you type a different one. And if you drew a boundary polygon in Mapping and Surface Studio, choose it here. Everything outside it will be empty on every surface, so your map, your section and your volumes all stop at the lease line rather than running off into somebody else's acreage.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section class="sec" id="sec-3">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">03</span>
+          <h3 class="sec-title">Name the tops and the zones</h3>
+          <span class="sec-meta"><span class="tc">03:20</span> · 1:50 · 275 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-3" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Builder dock, <em>Tie tops (per stacked surface)</em>. Open the first dropdown.</p></div>
+          <div class="vo"><p>Now the part that connects this model to everything you have already done. For each surface in the stack, say which well top it represents.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Hold on the dropdown showing the registry top names. Choose one per surface.</p></div>
+          <div class="vo"><p>Those are the tops you picked in Well Correlation and in Petrophysics Studio. Naming them here is what lets the model compare itself against the wells, which it will do in a moment, and it is what makes every residual you are about to see mean something.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p><em>Zones (between consecutive surfaces)</em>. Choose a registry zone for each interval.</p></div>
+          <div class="vo"><p>Underneath, the zones. Every interval between two consecutive surfaces is a zone, and each one maps to a registry zone name. That is where the porosity, the water saturation and the net to gross come from. The zone averages you computed per well back in the second episode are the control points this model will interpolate between.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Leave one surface on <em>no tie</em> and one zone unset. Point at both.</p></div>
+          <div class="vo"><p>You do not have to fill in everything. A surface with no tie is simply not adjusted, and a zone with no registry name gets no properties. But every one you can fill in makes the model better constrained, and it costs you one dropdown.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section class="sec" id="sec-4">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">04</span>
+          <h3 class="sec-title">Build, and read what it did</h3>
+          <span class="sec-meta"><span class="tc">05:10</span> · 2:15 · 330 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-4" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Ribbon, click <em>Build model</em>.</p></div>
+          <div class="vo"><p>Then Build model.</p></div>
+        </div>
+
+        <div class="beat beat--pause" data-pause="3">
+          <div class="pause">Pause 3 seconds. <span>The build runs and the map draws.</span></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Zoom the status bar so the whole build report is legible.</p></div>
+          <div class="vo"><p>It resamples every surface onto one frame, clamps them into order, ties them to your wells, populates every zone and sums the volumes, then tells you what it did in the status bar. Read that line.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Map layer selector. Step through zone top, zone base, thickness, porosity, Sw, NTG, fault blocks, holding on each.</p></div>
+          <div class="vo"><p>The map now shows any layer of any zone. The top and the base as depth. The thickness between them. The porosity, the water saturation and the net to gross you have just populated. And the fault blocks themselves.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Ribbon, toggle the depth unit from feet to metres and back. Let the map labels relabel.</p></div>
+          <div class="vo"><p>The depth unit button is the same setting you have been using across Geoscience, so the model speaks in whatever unit you have been reading maps in. Underneath, it computes in metres, positive down from the datum, and it says so.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Ribbon, change the volume units from metric to field.</p></div>
+          <div class="vo"><p>Volume units are a separate choice, because the units you want for a rock volume are rarely the units you want for a barrel. Metric gives you millions of cubic metres throughout. Field gives you acre feet for rock and net, and million barrels for pore and hydrocarbon pore volume.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Change the cell size slightly and press <em>Build model</em> again. Let it recompute.</p></div>
+          <div class="vo"><p>And every build recomputes everything from scratch. Nothing is cached, and nothing is stale. That sounds like a performance decision and it is really an honesty decision. We will come back to why at the end.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section class="sec" id="sec-5">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">05</span>
+          <h3 class="sec-title">Ties, residuals and adjustment</h3>
+          <span class="sec-meta"><span class="tc">07:25</span> · 2:40 · 400 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-5" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p><em>QC &amp; volumes</em> view. Scroll to the tie table and hold.</p></div>
+          <div class="vo"><p>Open QC and volumes, and find the tie table. This is the model's confession.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point along one row: the well, the surface, the residual.</p></div>
+          <div class="vo"><p>For every well and every tied surface, it takes the top's true vertical depth below datum, worked out through that well's deviation survey and its kelly bushing, and compares it against where the surface actually sits at that position. The difference is the residual. Positive means the pick is deeper than the surface.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Find and zoom an amber residual.</p></div>
+          <div class="vo"><p>Anything over ten metres turns amber. An amber residual is not automatically an error. It might be the surface, it might be the pick, or it might be a well nobody used when the surface was gridded. But it is always worth a look, and this table is where you find out before anybody else does.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Builder dock, <em>Well adjustment</em>. Turn it on and click <em>Build model</em>.</p></div>
+          <div class="vo"><p>Then, if you want the model to honour your picks exactly, turn on well adjustment and build again.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>QC panel, the adjustment card showing maximum residual before and after per surface, then the tie table's Before column.</p></div>
+          <div class="vo"><p>Each tied surface is now warped through its own residuals before the clamping happens. It is exact at the well, half the correction at half the radius, and nothing at all beyond the radius. Look at the adjustment card. It gives you the maximum residual before and after, per surface, and the tie table gains a Before column. You can see exactly how much you moved.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Type a small radius, build, hold on the map. Then a large one, build, hold again.</p></div>
+          <div class="vo"><p>The radius defaults to three times the median spacing between your ties, which is a reasonable guess. Type your own when you know better. A large radius pulls the whole surface toward one well. A small one leaves a dimple around it. Neither is wrong. Both are a decision, and this is where you make it.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <div class="part-break">
+      <b>Optional break: end of Part 1</b>
+      <span>The model is built and tied to the wells, which is a complete result to stop on. Part 1 runs 10:05. Part 2 opens on section 06 with a ten second recap of the built stack.</span>
+    </div>
+
+    <!-- 6 -->
+    <section class="sec" id="sec-6">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">06</span>
+          <h3 class="sec-title">Derived horizons</h3>
+          <span class="sec-meta"><span class="tc">10:05</span> · 1:38 · 245 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-6" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Builder dock, <em>Derived horizons</em>. Open the kind selector showing both options.</p></div>
+          <div class="vo"><p>Sometimes the surface you need was never mapped. Derived horizons make one from the surfaces you already have.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Choose the parallel kind. Pick a source surface, type a thickness. Then switch the thickness for an isochore surface from the registry.</p></div>
+          <div class="vo"><p>Parallel takes a source surface and offsets it by a thickness you type. A negative thickness places it above. Or, instead of a constant, point it at an isochore surface in the registry, and the offset varies across the field the way a real thickness does.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Choose the proportional kind. Pick a source and a base surface, set the fraction to 0.5.</p></div>
+          <div class="vo"><p>Proportional puts the new horizon a fraction of the way between two surfaces. A half is midway. That is how you split a thick zone into an upper and a lower unit that follow the shape of both bounding surfaces, rather than the shape of just one of them.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>The derived horizon appears in the model stack. Order it, tie it to a top, then remove it and add it back.</p></div>
+          <div class="vo"><p>Once it exists it joins the stack like any other surface. Order it, tie it to a top, build zones on it, publish layers from it. Remove it from the dock and it leaves the stack again.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section class="sec" id="sec-7">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">07</span>
+          <h3 class="sec-title">Fault blocks and the boundary</h3>
+          <span class="sec-meta"><span class="tc">11:43</span> · 1:38 · 245 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-7" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Explorer, <em>Fault polygons from Mapping</em>. Add one to the model.</p></div>
+          <div class="vo"><p>A layer cake with no faults in it is a layer cake that does not exist. The explorer lists the fault polygons you drew in Mapping and Surface Studio, and adding one splits the model.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Builder dock, fault drawing. Draw a polygon straight on the map, name it, save it.</p></div>
+          <div class="vo"><p>Or draw one here, straight on the map, if the fault only matters to this model.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Build model</em>, then switch the map layer to <em>Fault blocks</em>. Hold on the coloured blocks.</p></div>
+          <div class="vo"><p>Build again and switch the map to the fault blocks layer, and you can see what you have made. From here on, everything is per block. Each block gets its own property population, and the volume tables report each block separately as well as in total.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>QC view, the fault block census. Point at a block with many cells and few wells.</p></div>
+          <div class="vo"><p>The block census in QC tells you how many cells and how many wells landed in each block. Watch for a block with a lot of cells and very few wells. That is where your model is least constrained, and it is usually the one somebody wants a number from.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 8 -->
+    <section class="sec" id="sec-8">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">08</span>
+          <h3 class="sec-title">Filling the zones</h3>
+          <span class="sec-meta"><span class="tc">13:21</span> · 2:44 · 410 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-8" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Builder dock, <em>Population method</em>. Open the selector showing all four.</p></div>
+          <div class="vo"><p>Now fill the zones. The population method decides how the model gets from a handful of well averages to a value in every cell, and there are four ways to do it.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Choose the constant method, build, and hold on the flat property map.</p></div>
+          <div class="vo"><p>Constant gives every cell in a block the interval weighted mean of the wells in that block. It is flat, it is defensible, and when you have two wells it is honestly all you know.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Choose the trend method, build, and hold on the sloped map.</p></div>
+          <div class="vo"><p>Trend fits a least squares plane through the wells of the block. Use it when the property genuinely has a regional gradient and you have enough wells to see it.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Choose ordinary kriging. The variogram panel appears. Click the fit button, then build.</p></div>
+          <div class="vo"><p>Ordinary kriging is the one you want when the data supports it. It fits a variogram from the control points of each block, removes the trend first, and interpolates properly. The variogram panel is right beside it, with a fit button that reads the range and the sill off your own points.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Map layer, choose <em>Porosity kriging variance</em>. Point at a low area near wells, then a high area away from them.</p></div>
+          <div class="vo"><p>And like the kriging in Mapping and Surface Studio, it gives you a variance map. Switch the map layer to the porosity kriging variance. Low near the wells, high where the value is a guess. You can publish that variance as an attribute, which is a far better answer to how confident are you than any single number.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>QC view. Find the block that fell back and zoom the line stating the reason.</p></div>
+          <div class="vo"><p>But here is the beat that matters most in this whole application. Ordinary kriging needs four wells in a block. If a block has fewer, the model does not fail, and it does not silently pretend. It falls back to a plane. If it cannot do that, it falls back to the mean. And every single fallback is written into QC with the reason it happened.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Cut between the beautiful kriged map and the fallback line in QC.</p></div>
+          <div class="vo"><p>So when you are looking at a beautiful kriged porosity map, go and check that report. Some of those blocks may be a single number wearing a colour ramp, and you would rather know.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 9 -->
+    <section class="sec" id="sec-9">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">09</span>
+          <h3 class="sec-title">The section and the cube</h3>
+          <span class="sec-meta"><span class="tc">16:05</span> · 2:00 · 300 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-9" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p><em>Section</em> view. Choose two wells. The section draws.</p></div>
+          <div class="vo"><p>The section window cuts the framework. By default it runs between two wells you choose.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Draw line on map</em>, click vertices across the survey, press <em>Finish section line</em>. Then click <em>Well pair</em> to revert.</p></div>
+          <div class="vo"><p>Or click Draw line on map, click your vertices across the survey and press Finish section line, and it cuts along whatever path you want. Well pair takes you back.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Hold on the section with wells projected, their gamma ray columns and their top ticks.</p></div>
+          <div class="vo"><p>Wells within a couple of cells of the line are drawn where they project onto it, each with a gamma ray column beside it, sand filled below seventy five A. P. I. Their top ticks carry the tie residual, so you can see the model missing a pick, on the section, at the well, in the place where it matters.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at the offset label under a well that sits some distance off the line.</p></div>
+          <div class="vo"><p>And each well is labelled with how far it actually sits from the line. A well two hundred metres off your section is telling a slightly different story from the one your section is telling.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Change the vertical exaggeration selector. Point at the footer stating what was achieved. Then click the PNG button.</p></div>
+          <div class="vo"><p>Vertical exaggeration is a selector, and the footer prints the exaggeration you actually achieved rather than the one you asked for. The camera button downloads the section.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Switch to the 3D view and rotate the framework slowly.</p></div>
+          <div class="vo"><p>And the three dimensional view shows you the whole cake at once, which is the fastest way there is to spot a surface that has gone somewhere it should not.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section class="sec" id="sec-10">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">10</span>
+          <h3 class="sec-title">Volumes, publish, save</h3>
+          <span class="sec-meta"><span class="tc">18:05</span> · 2:48 · 420 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-10" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p><em>QC &amp; volumes</em>, scroll to a zone's volume table. Hold.</p></div>
+          <div class="vo"><p>Then the numbers. Every zone gets a volume table, per block and in total.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point along the four columns in turn.</p></div>
+          <div class="vo"><p>Bulk volume is thickness times cell area. Net multiplies by net to gross. Pore multiplies by porosity. And hydrocarbon pore volume multiplies by one minus the water saturation. Four columns, each one a single multiplication away from the last, so you can see exactly where the volume goes.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at the population provenance line under the table.</p></div>
+          <div class="vo"><p>Under each table sits the provenance. Which method populated that zone, in which block, and where it fell back. The number and the reason to believe it, in the same place.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Hover the <em>Open in ReservoirCalc Pro</em> button on the ribbon.</p></div>
+          <div class="vo"><p>One boundary worth knowing. This is rock volume. There are no fluid contacts here, no recovery factor and no uncertainty. Those live in ReservoirCalc Pro, and the button on the ribbon takes you there.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>With a layer shown on the map, click <em>Publish layer</em>. Then cut to Mapping and Surface Studio showing it in the list.</p></div>
+          <div class="vo"><p>Publish layer sends whatever the map is showing back into the registry. A zone top or base goes as a structure surface. A thickness goes as an isochore. A property or a variance goes as an attribute. All of them carry the model name, the zone and the methods in their provenance, so the surface knows where it came from.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Volumes CSV</em>. Open the downloaded file and hold on its header lines.</p></div>
+          <div class="vo"><p>Volumes C. S. V. downloads every zone's table in your chosen units, with the frame and the provenance written into the header of the file itself.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Builder dock, <em>Saved models</em>. Type a model name and save. Then load it back and let it rebuild.</p></div>
+          <div class="vo"><p>And Save model definition keeps the recipe. Not the grids. The recipe. Which surfaces, in what order, tied to which tops, with which zones, which population method and which radius. Load it later and it rebuilds every grid from scratch.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 11 -->
+    <section class="sec" id="sec-11">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">11</span>
+          <h3 class="sec-title">Wrap up</h3>
+          <span class="sec-meta"><span class="tc">20:53</span> · 1:26 · 215 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-11" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Pull back to the built model, the map beside the 3D framework.</p></div>
+          <div class="vo"><p>So that is Earth Modeling. Surfaces from two applications, tops from a third, zone averages from a fourth, faults from a fifth, assembled into one model that reports its own volumes.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Hold on the <em>Saved models</em> section of the dock.</p></div>
+          <div class="vo"><p>And that recipe is the reason every build recomputes everything. A saved grid is a photograph of what you believed on a Tuesday. A saved recipe rebuilds itself from whatever the registry holds now. Re-pick a top, re-grid a surface, add a well, press Build, and the model updates instead of going stale in a folder.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Switch to the QC view one last time. Pan across the clamp report, an amber residual, and a fallback line.</p></div>
+          <div class="vo"><p>One habit to leave you with. When a model looks good, go straight to the QC view before you show it to anybody. Read the clamped nodes. Read the amber residuals. Read the fallbacks. A model with nothing to confess is rare. One that hides what it has is worse.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>End card with the series name.</p></div>
+          <div class="vo"><p>Thanks for watching.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+  </div>
+
+  <div class="chapters">
+    <h2 class="block">Chapter timestamps for the video description</h2>
+    <div class="chap-grid">
+      <div class="chap-body">
+        <h3>Single video, 22:19</h3>
+        <div class="chap-list" id="chap-single">
+          <div><b>0:00</b> Everything you have made, in one object</div>
+          <div><b>1:40</b> Stack the surfaces</div>
+          <div><b>3:20</b> Name the tops and the zones</div>
+          <div><b>5:10</b> Build, and read what it did</div>
+          <div><b>7:25</b> Ties, residuals and adjustment</div>
+          <div><b>10:05</b> Derived horizons</div>
+          <div><b>11:43</b> Fault blocks and the boundary</div>
+          <div><b>13:21</b> Filling the zones</div>
+          <div><b>16:05</b> The section and the cube</div>
+          <div><b>18:05</b> Volumes, publish, save</div>
+          <div><b>20:53</b> Wrap up</div>
+        </div>
+        <div class="chap-tools"><button class="copy" id="copy-single" data-label="Copy timestamps">Copy timestamps</button></div>
+      </div>
+
+      <div class="chap-body">
+        <h3>Two parts, 10:05 and 12:24</h3>
+        <div class="chap-list" id="chap-split">
+          <div><b>P1 0:00</b> Everything you have made, in one object</div>
+          <div><b>P1 1:40</b> Stack the surfaces</div>
+          <div><b>P1 3:20</b> Name the tops and the zones</div>
+          <div><b>P1 5:10</b> Build, and read what it did</div>
+          <div><b>P1 7:25</b> Ties, residuals and adjustment</div>
+          <div><b>P2 0:00</b> Derived horizons</div>
+          <div><b>P2 1:38</b> Fault blocks and the boundary</div>
+          <div><b>P2 3:16</b> Filling the zones</div>
+          <div><b>P2 6:00</b> The section and the cube</div>
+          <div><b>P2 8:00</b> Volumes, publish, save</div>
+          <div><b>P2 10:48</b> Wrap up</div>
+        </div>
+        <div class="chap-tools"><button class="copy" id="copy-split" data-label="Copy timestamps">Copy timestamps</button></div>
+      </div>
+    </div>
+    <div class="note" style="margin-top:16px">
+      <b>Targets only.</b> Re-stamp every timestamp from the finished audio before publishing. Part 2 times fold in a ten second recap at the head, which is not in this script and should be improvised on the day.
+    </div>
+  </div>
+
+  <footer>
+    <p><b>Series position.</b> This is the widest episode in the series. Section 01 names five earlier applications by their output, and the model is assembled from all of them. If you are cutting a trailer for the whole playlist, the build in section 04 is the shot to use, because it is the only moment where everything the viewer has watched arrives on screen at once.</p>
+    <p><b>Where the series can go next.</b> Stratigraphy Studio is the last large Geoscience application untouched and it consumes the tops, intervals and core photographs from Episode 1. Pore Pressure Studio and Rock Physics Studio are the two remaining well-based applications. Prospect Risking, inside ReservoirCalc Pro's Tools panel, is still the shortest useful episode left.</p>
+    <p><b>Accuracy note.</b> Every dock section, control name, map layer and threshold in this script matches the shipping application at the time of writing. If a label changes, fix the script before the next take rather than talking around it on camera.</p>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  var body = document.body;
+  var KEY = 'em-episode-script.vo-only';
+  var toggle = document.getElementById('vo-only');
+
+  try {
+    if (localStorage.getItem(KEY) === '1') { toggle.checked = true; body.classList.add('vo-only'); }
+  } catch (e) { /* storage unavailable: default view is correct */ }
+
+  toggle.addEventListener('change', function () {
+    body.classList.toggle('vo-only', toggle.checked);
+    try { localStorage.setItem(KEY, toggle.checked ? '1' : '0'); } catch (e) {}
+  });
+
+  function narrationOf(scope) {
+    var out = [];
+    scope.querySelectorAll('.beat').forEach(function (beat) {
+      if (beat.dataset.pause) { out.push('[PAUSE ' + beat.dataset.pause + 's]'); return; }
+      beat.querySelectorAll('.vo p').forEach(function (p) {
+        out.push(p.textContent.replace(/\s+/g, ' ').trim());
+      });
+    });
+    return out.join('\n\n');
+  }
+
+  function flash(btn) {
+    var label = btn.dataset.label;
+    btn.textContent = 'Copied';
+    setTimeout(function () { btn.textContent = label; }, 1600);
+  }
+
+  function fallbackCopy(text, btn) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); flash(btn); } catch (e) { btn.textContent = 'Select and copy manually'; }
+    document.body.removeChild(ta);
+  }
+
+  function copy(text, btn) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(function () { flash(btn); }, function () { fallbackCopy(text, btn); });
+      } else { fallbackCopy(text, btn); }
+    } catch (e) { fallbackCopy(text, btn); }
+  }
+
+  document.querySelectorAll('button.copy[data-copy]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var sec = document.getElementById(btn.dataset.copy);
+      if (sec) copy(narrationOf(sec), btn);
+    });
+  });
+
+  document.getElementById('copy-all').addEventListener('click', function () {
+    var btn = this;
+    var parts = [];
+    document.querySelectorAll('section.sec').forEach(function (sec) {
+      var title = sec.querySelector('.sec-title').textContent.trim();
+      var num = sec.querySelector('.sec-num').textContent.trim();
+      parts.push('=== ' + num + ' ' + title + ' ===\n\n' + narrationOf(sec));
+    });
+    copy(parts.join('\n\n\n'), btn);
+  });
+
+  function listCopier(btnId, listId) {
+    var btn = document.getElementById(btnId);
+    btn.addEventListener('click', function () {
+      var lines = [];
+      document.querySelectorAll('#' + listId + ' div').forEach(function (row) {
+        lines.push(row.textContent.replace(/\s+/g, ' ').trim());
+      });
+      copy(lines.join('\n'), btn);
+    });
+  }
+  listCopier('copy-single', 'chap-single');
+  listCopier('copy-split', 'chap-split');
+})();
+</script>

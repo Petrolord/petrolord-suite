@@ -1,0 +1,837 @@
+<title>Mapping Studio Episode Script</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+  :root{
+    --ground:#F4F6F8;--surface:#FFFFFF;--surface-2:#EDF1F5;
+    --ink:#15202C;--ink-soft:#5C6D80;--ink-faint:#8A99A8;
+    --rule:#DBE2EA;--rule-strong:#C3CEDA;
+    --accent:#0E7490;--accent-soft:#E0F0F4;
+    --warn:#A85B0B;--warn-soft:#FBEEDC;
+    --shadow:0 1px 2px rgba(21,32,44,.05), 0 12px 28px -18px rgba(21,32,44,.28);
+    --f-display:'Archivo','Helvetica Neue',Helvetica,Arial,sans-serif;
+    --f-read:'Source Serif 4',Georgia,'Times New Roman',serif;
+    --f-mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0B1119;--surface:#121A24;--surface-2:#18222E;
+      --ink:#E4EBF2;--ink-soft:#9AAABB;--ink-faint:#6E8093;
+      --rule:#24303D;--rule-strong:#33414F;
+      --accent:#3EC5DE;--accent-soft:#12303A;
+      --warn:#E8AC5A;--warn-soft:#2E2415;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 30px -20px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0B1119;--surface:#121A24;--surface-2:#18222E;
+    --ink:#E4EBF2;--ink-soft:#9AAABB;--ink-faint:#6E8093;
+    --rule:#24303D;--rule-strong:#33414F;
+    --accent:#3EC5DE;--accent-soft:#12303A;
+    --warn:#E8AC5A;--warn-soft:#2E2415;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 30px -20px rgba(0,0,0,.8);
+  }
+
+  *{box-sizing:border-box}
+  body{background:var(--ground);color:var(--ink);font-family:var(--f-read);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1120px;margin:0 auto;padding-inline:20px;padding-block:0 72px}
+
+  .masthead{padding-block:44px 26px;border-bottom:2px solid var(--ink)}
+  .eyebrow{font-family:var(--f-mono);font-size:11px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 14px}
+  h1{font-family:var(--f-display);font-weight:700;font-size:clamp(2rem,5.2vw,3.15rem);line-height:1.02;letter-spacing:-.022em;margin:0;text-wrap:balance}
+  .logline{font-size:clamp(1rem,1.6vw,1.15rem);color:var(--ink-soft);margin:14px 0 0;max-width:64ch}
+  .spec{display:flex;flex-wrap:wrap;gap:0;margin-top:26px;border:1px solid var(--rule-strong);border-radius:3px;background:var(--surface);overflow:hidden}
+  .spec > div{flex:1 1 150px;padding:11px 14px;border-right:1px solid var(--rule)}
+  .spec > div:last-child{border-right:0}
+  .spec dt{font-family:var(--f-mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 3px}
+  .spec dd{margin:0;font-family:var(--f-display);font-weight:600;font-size:15px;font-variant-numeric:tabular-nums;color:var(--ink)}
+
+  .controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:22px;padding:12px 14px;border:1px solid var(--rule);border-radius:3px;background:var(--surface-2)}
+  .switch{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-size:14px;font-weight:500;cursor:pointer}
+  .switch input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+  .switch small{font-family:var(--f-read);font-weight:400;color:var(--ink-soft);font-size:13px}
+  button.copy{font-family:var(--f-mono);font-size:11.5px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);background:transparent;border:1px solid var(--accent);border-radius:2px;padding:6px 11px;cursor:pointer;transition:background .14s ease}
+  button.copy:hover{background:var(--accent-soft)}
+  button.copy:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .controls .spacer{margin-left:auto}
+
+  .brief{margin-top:40px;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:36px}
+  @media (max-width:840px){.brief{grid-template-columns:1fr;gap:30px}}
+  h2.block{font-family:var(--f-display);font-weight:600;font-size:13px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-soft);margin:0 0 14px;padding-bottom:7px;border-bottom:1px solid var(--rule)}
+  ol.steps{margin:0;padding:0;list-style:none;counter-reset:s}
+  ol.steps li{counter-increment:s;position:relative;padding-left:34px;margin-bottom:14px;font-size:15px;color:var(--ink)}
+  ol.steps li::before{content:counter(s);position:absolute;left:0;top:1px;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-family:var(--f-mono);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center}
+  :root[data-theme="dark"] ol.steps li::before{color:#0B1119}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) ol.steps li::before{color:#0B1119}}
+  ol.steps b{font-family:var(--f-display);font-weight:600}
+
+  table.say{width:100%;border-collapse:collapse;font-size:14px}
+  table.say th{text-align:left;font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);font-weight:500;padding:0 12px 7px 0;border-bottom:1px solid var(--rule)}
+  table.say td{padding:6px 12px 6px 0;border-bottom:1px solid var(--rule);vertical-align:top}
+  table.say td:first-child{font-family:var(--f-display);font-weight:600;white-space:nowrap}
+  table.say td:last-child{font-family:var(--f-mono);font-size:13px;color:var(--accent);padding-right:0}
+  .note{margin-top:14px;padding:11px 13px;border-left:3px solid var(--warn);background:var(--warn-soft);font-size:13.5px;color:var(--ink);border-radius:0 2px 2px 0}
+  .note + .note{margin-top:10px}
+  .note b{font-family:var(--f-display);font-weight:600}
+  .note.cool{border-left-color:var(--accent);background:var(--accent-soft)}
+
+  .script{margin-top:52px}
+  .script > h2.block{margin-bottom:0;border-bottom:0}
+  section.sec{background:var(--surface);border:1px solid var(--rule);border-radius:3px;box-shadow:var(--shadow);margin-top:26px;overflow:hidden}
+  .sec-head{padding:16px 20px 0}
+  .sec-title-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px}
+  .sec-num{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.1em;color:#fff;background:var(--ink);padding:3px 7px;border-radius:2px}
+  :root[data-theme="dark"] .sec-num{background:var(--accent);color:#0B1119}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sec-num{background:var(--accent);color:#0B1119}}
+  .sec-title{font-family:var(--f-display);font-weight:600;font-size:clamp(1.15rem,2.2vw,1.42rem);letter-spacing:-.012em;margin:0;text-wrap:balance}
+  .sec-meta{margin-left:auto;font-family:var(--f-mono);font-size:11.5px;color:var(--ink-soft);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .sec-meta .tc{color:var(--accent);font-weight:600}
+  .sec-tools{display:flex;align-items:center;gap:10px;margin-top:10px}
+  .sec-cols,.beat{display:grid;grid-template-columns:minmax(0,33fr) minmax(0,67fr);gap:30px}
+  .sec-cols{padding:14px 20px 7px;font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+  .beats{padding:0 20px 18px}
+  .beat{padding:17px 0;border-top:1px solid var(--rule)}
+  .screen{font-family:var(--f-mono);font-size:12.6px;line-height:1.62;color:var(--ink-soft)}
+  .screen::before{content:'Screen';display:none;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:5px}
+  .screen p{margin:0 0 8px}
+  .screen p:last-child{margin-bottom:0}
+  .screen em{font-style:normal;color:var(--ink);font-weight:500}
+  .vo p{margin:0 0 13px;font-size:17px;line-height:1.68;max-width:64ch}
+  .vo p:last-child{margin-bottom:0}
+  .vo::before{content:'Voice over';display:none;font-family:var(--f-mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:5px}
+  @media (max-width:800px){
+    .sec-cols{display:none}
+    .beat{grid-template-columns:1fr;gap:12px}
+    .screen::before,.vo::before{display:block}
+  }
+  .beat--pause{grid-template-columns:1fr;text-align:center;border-top:1px dashed var(--rule-strong)}
+  .pause{font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--warn)}
+  .pause span{color:var(--ink-faint);letter-spacing:.04em;text-transform:none;font-size:12px}
+
+  .part-break{margin-top:34px;padding:16px 20px;border:1px dashed var(--rule-strong);border-radius:3px;background:var(--surface-2);display:flex;flex-wrap:wrap;align-items:baseline;gap:12px}
+  .part-break b{font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--warn)}
+  .part-break span{font-size:14px;color:var(--ink-soft)}
+
+  .chapters{margin-top:52px}
+  .chap-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  @media (max-width:840px){.chap-grid{grid-template-columns:1fr}}
+  .chap-body{background:var(--surface);border:1px solid var(--rule);border-radius:3px;padding:18px 20px;box-shadow:var(--shadow)}
+  .chap-body h3{font-family:var(--f-display);font-weight:600;font-size:14px;margin:0 0 12px;color:var(--ink)}
+  .chap-list{margin:0;font-family:var(--f-mono);font-size:13px;line-height:1.95}
+  .chap-list div{display:flex;gap:12px}
+  .chap-list b{color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;min-width:48px}
+  .chap-tools{display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:13px;border-top:1px solid var(--rule)}
+
+  footer{margin-top:52px;padding-top:20px;border-top:1px solid var(--rule);font-size:13.5px;color:var(--ink-soft)}
+  footer b{font-family:var(--f-display);font-weight:600;color:var(--ink)}
+  footer p{margin:0 0 12px}
+
+  body.vo-only .brief,
+  body.vo-only .chapters,
+  body.vo-only .spec,
+  body.vo-only .screen,
+  body.vo-only .sec-cols,
+  body.vo-only .sec-tools{display:none}
+  body.vo-only .beat{grid-template-columns:1fr}
+  body.vo-only .beat--pause{text-align:left}
+  body.vo-only .vo p{font-size:18px;max-width:66ch}
+  body.vo-only section.sec{box-shadow:none}
+
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+  @media print{
+    body{background:#fff;color:#000}
+    .controls,.chap-tools,.sec-tools{display:none}
+    section.sec{box-shadow:none;border-color:#999}
+    .beat{break-inside:avoid}
+    .wrap{max-width:none}
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Petrolord Suite · Tutorial series · Episode 4</p>
+    <h1>Mapping &amp; Surface Studio</h1>
+    <p class="logline">Voice over script and screen directions for the gridding walkthrough. Turn your picks into a defensible surface, shape it, measure it, and hand it on.</p>
+
+    <dl class="spec">
+      <div><dt>Target runtime</dt><dd>22:26</dd></div>
+      <div><dt>Narration</dt><dd>~3,350 words</dd></div>
+      <div><dt>Sections</dt><dd>11</dd></div>
+      <div><dt>Beats</dt><dd>55 + 2 pauses</dd></div>
+      <div><dt>Prerequisite</dt><dd>Episodes 1, 3</dd></div>
+      <div><dt>Version</dt><dd>Draft 1</dd></div>
+    </dl>
+  </header>
+
+  <div class="controls">
+    <label class="switch" for="vo-only">
+      <input type="checkbox" id="vo-only">
+      Narration only
+      <small>hides screen directions for a clean read</small>
+    </label>
+    <span class="spacer"></span>
+    <button class="copy" id="copy-all" data-label="Copy full narration">Copy full narration</button>
+  </div>
+
+  <div class="brief">
+    <div>
+      <h2 class="block">Before you record</h2>
+      <ol class="steps">
+        <li><b>You need one top on six to eight wells, well spread.</b> Three is the minimum the engine accepts and it makes an ugly map. The kriging beats in section 06 need enough points for a variogram fit to mean anything, so this is the setup step that decides whether the episode looks convincing.</li>
+        <li><b>Grid and publish a second, deeper surface before the take.</b> Section 08 computes an isochore, which needs a top surface and a base surface already in the list. Doing that on camera would add four minutes of repetition.</li>
+        <li><b>Have a grid file ready to import.</b> Section 09 imports one. Any of the four formats will do. If you have a file that came from Petrel, use it, because the format detection is more impressive on somebody else's export than on your own.</li>
+        <li><b>Render section by section, honour the pauses.</b> Same as every episode. Copy each section into the voice tool separately, and put real silence where the script marks a pause, because those are the moments the engine is gridding.</li>
+      </ol>
+      <div class="note cool">
+        <b>The argument this episode is making.</b> A map is an interpretation, so it has to be reproducible. Stated in section 01, paid off in section 05 when publishing records the whole recipe, defended in section 07 when hand editing a contour leaves a listed guide point behind rather than an invisible smudge, and closed in section 11. Those are the beats to protect.
+      </div>
+      <div class="note">
+        <b>This one runs long too.</b> There is a marked break after section 05, where the viewer has made and published their first map. Cut there for two parts of roughly ten and thirteen minutes. Chapter lists are given for both.
+      </div>
+    </div>
+
+    <div>
+      <h2 class="block">Pronunciation</h2>
+      <table class="say">
+        <thead><tr><th>Term</th><th>Say it as</th></tr></thead>
+        <tbody>
+          <tr><td>GRV</td><td>G. R. V.</td></tr>
+          <tr><td>PNG</td><td>P. N. G.</td></tr>
+          <tr><td>CSV</td><td>C. S. V.</td></tr>
+          <tr><td>XYZ</td><td>X. Y. Z.</td></tr>
+          <tr><td>CPS-3</td><td>C. P. S. three</td></tr>
+          <tr><td>ZMAP+</td><td>Zed map plus</td></tr>
+          <tr><td>Irap</td><td>eye-rap</td></tr>
+          <tr><td>MD, TVD, TVDSS</td><td>spoken in full</td></tr>
+        </tbody>
+      </table>
+      <div class="note">
+        <b>Check the format names in your first render.</b> Voice tools mangle these more than most. Listen back to section 09 before rendering anything else, and adjust the spelling in your paste if a name comes out wrong. Everything else in the script is plain English.
+      </div>
+      <div class="note">
+        <b>Say your real top name.</b> The script says "the top" wherever a name belongs. Substitute the marker you actually grid, and keep it the same as the one you correlated in Episode 3 so the series stays continuous.
+      </div>
+    </div>
+  </div>
+
+  <!-- KIT-DATA:START (generated by tools/demo-dataset/sync-episode-scripts.mjs; do not edit by hand) -->
+  <div class="brief kit-data">
+    <div>
+      <h2 class="block">Data for this episode</h2>
+      <p>Everything this episode loads comes from the Ekene demonstration dataset, kit <code>ekene-demo-v1</code>. Download <code>ekene-demo-v1-kit.zip</code> (and, for the seismic episodes, <code>ekene-demo-v1-seismic-full.zip</code>) from <a href="https://github.com/Petrolord/petrolord-suite/releases/tag/ekene-demo-v1">the release page</a> and start with <code>00-START-HERE.md</code>. This block is generated from <code>episodes/episode-04-mapping-surface-studio.md</code> in the kit, so the two always agree.</p>
+      <table class="say">
+        <thead><tr><th>File</th><th>What it is for</th></tr></thead>
+        <tbody>
+          <tr><td><code>the six TOP_SAND picks already in the registry</code></td><td>grid these; six wells, well spread</td></tr>
+          <tr><td><code>02-surfaces/EkeneSand-base-6wells.zmap</code></td><td>the deeper surface for the isochore, if you would rather import than re-grid</td></tr>
+          <tr><td><code>02-surfaces/OboroSand-top.zmap</code></td><td>the grid file to import in section 09</td></tr>
+          <tr><td><code>03-culture/ek11-licence-boundary.geojson</code></td><td>the boundary polygon</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h2 class="block">Before the take</h2>
+      <div class="note">Grid the Ekene Sand from the SIX development wells at a 100 m cell: that is the map the whole series is built on and it reproduces the field's published volumetrics exactly. For the re-grid beat, add Ekene-7: it is an appraisal well the six-well map predicts at 1543.33 m and which actually found the sand at 1549.0 m, so the map visibly moves and you can say by how much.</div>
+    </div>
+  </div>
+  <!-- KIT-DATA:END -->
+
+  <div class="script">
+    <h2 class="block">Script</h2>
+
+    <!-- 1 -->
+    <section class="sec" id="sec-1">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">01</span>
+          <h3 class="sec-title">A map is an interpretation</h3>
+          <span class="sec-meta"><span class="tc">00:00</span> · 1:20 · 200 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-1" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Dashboard, Geoscience module. Hold on the <em>Mapping &amp; Surface Studio</em> tile, then open it.</p></div>
+          <div class="vo"><p>Three wells give you three numbers. A map claims to know the depth everywhere in between. That claim is an interpretation, and this application is built around treating it like one.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>A finished structure map: contoured, coloured, wells posted, legend and scale bar on. Hold for four seconds.</p></div>
+          <div class="vo"><p>It takes the tops you picked in Well Correlation, or the zone properties you computed in Petrophysics Studio, and grids them into a surface. Then it lets you argue with that surface. Change the engine. Split it across a fault. Clip it to a boundary. Push a contour where the seismic says it should go. And when you publish, it records every one of those decisions, so the map can be rebuilt exactly, by you or by anybody else.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Quick cuts, two seconds each: the grid form, a contour map drawing, a fault block being outlined, ReservoirCalc Pro listing the surface in its import.</p></div>
+          <div class="vo"><p>In this video we will grid a top into a structure map, shape it, measure a rock volume from it, and hand it on to the applications that need it. Let us make a map.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section class="sec" id="sec-2">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">02</span>
+          <h3 class="sec-title">Grid your first surface</h3>
+          <span class="sec-meta"><span class="tc">01:20</span> · 2:55 · 430 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-2" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Left explorer, the block headed <em>Grid a new surface</em>. Open the source dropdown so all three groups are readable.</p></div>
+          <div class="vo"><p>Everything starts at the top of the explorer, in the block headed Grid a new surface. The first dropdown asks what you are mapping, and it offers three kinds of thing.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at each group heading in the open dropdown in turn.</p></div>
+          <div class="vo"><p>Structure, which is a top across your wells. Attribute, which is a zone property such as average porosity or net to gross. Or stratigraphy, which measures between two tops to give you gross thickness, net sand thickness, or net to gross. Everything in that list is already in the registry. You are not importing anything to get started.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Choose the top. The depth reference dropdown appears below. Open it, then close it on TVDSS.</p></div>
+          <div class="vo"><p>Choose a top, and a second dropdown appears asking for the depth reference. This matters more than any other choice on the panel, so we will come back to it properly in a moment. For now leave it on true vertical depth subsea, which is the default and almost always the right answer.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Leave the method on the thin-plate spline. Type a cell size into the <em>cell m</em> box. Click <em>Grid</em>.</p></div>
+          <div class="vo"><p>Below that is the gridding method, which we will also come back to. Then the cell size in metres, and the Grid button. Cell size is a judgment. Too coarse and you lose the shape. Too fine and you are drawing detail your wells cannot support. Something around a tenth of your typical well spacing is a sensible place to start.</p></div>
+        </div>
+
+        <div class="beat beat--pause" data-pause="3">
+          <div class="pause">Pause 3 seconds. <span>Gridding runs and the map draws.</span></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Zoom the status bar so the whole grid report is legible. Track along it slowly.</p></div>
+          <div class="vo"><p>The map appears, and the status bar gives you a report. Read it properly, because it is the most useful sentence in this application.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at each clause of the report in turn.</p></div>
+          <div class="vo"><p>It names the surface and the depth reference it used, along with the display unit. It says how many wells contributed and how many nodes the grid has. If a well could not be placed, it names that well and says why. And if any top sits below the last station of its survey, so its position had to follow the final tangent of the borehole, it counts those too.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Hold on the map. Point at a well that carries the top, then at one in the explorer well list that does not.</p></div>
+          <div class="vo"><p>One thing the report deliberately does not complain about. A well that simply does not carry this top is not a problem. It is just a well without that pick, so it is not mentioned. What does get reported is a well that has the top and could not be placed, which is a real problem and worth your attention.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section class="sec" id="sec-3">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">03</span>
+          <h3 class="sec-title">Elevation, negative down</h3>
+          <span class="sec-meta"><span class="tc">04:15</span> · 2:00 · 300 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-3" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Zoom the contour labels so the minus signs are unmistakable.</p></div>
+          <div class="vo"><p>Now look at the numbers on those contours. They are negative. That is not a bug, and it is worth two minutes of your life to understand, because it is where most mapping mistakes begin.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at the status bar text reading <em>elevation, negative down</em>.</p></div>
+          <div class="vo"><p>Every depth surface in the Suite is stored as an elevation, measured from the datum, positive up and negative down. So a surface at minus two thousand one hundred is deeper than one at minus two thousand. The status bar states the convention at all times, so you never have to guess which way round you are.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Ribbon, click the <em>depth:</em> button to switch to metres. Let the contour labels and colour bar relabel. Switch back.</p></div>
+          <div class="vo"><p>The button on the ribbon sets the display unit. It changes what you see and what you type. The contour interval, the colour bar, the posted values, the guide values, the contact you type for a volume, and the unit of anything you export. Storage never changes. It is metres underneath, whatever you are looking at.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Back on the grid form, open the depth reference dropdown and hold so all three options are readable.</p></div>
+          <div class="vo"><p>And back on the grid form, the depth reference decides what is being gridded in the first place. True vertical depth subsea puts every well on the same datum, and that is what a structure map means. True vertical depth measures below each well's kelly bushing, so wells with different rig floor elevations stop agreeing with each other. Measured depth is the raw logged depth, which on a deviated well is not a map depth at all. It is there for comparing against a legacy map, and for nothing else.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section class="sec" id="sec-4">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">04</span>
+          <h3 class="sec-title">The map window</h3>
+          <span class="sec-meta"><span class="tc">06:15</span> · 2:04 · 310 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-4" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Wheel zoom in, drag to pan, double click to fit.</p></div>
+          <div class="vo"><p>The map window behaves the way you expect. Wheel to zoom, drag to pan, double click to fit the whole surface back into the window.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Move the cursor across the map and hold on a well, so the readout at the bottom right is legible.</p></div>
+          <div class="vo"><p>Hover anywhere and the readout at the bottom right gives you the X, the Y, and the value of the surface under your cursor, in the display unit. That is your fastest sanity check. Put the cursor on a well and see whether the surface agrees with the well.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Dock, <em>Display</em>. Type a contour interval, hold, then clear it back to blank.</p></div>
+          <div class="vo"><p>The Display block is where the picture gets set. Contour interval takes a number in your display unit, and leaving it blank picks an interval that gives you about ten levels, which is usually right.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Change the colour map, then tick <em>Reverse colours</em>.</p></div>
+          <div class="vo"><p>Colour map offers the structure ramp, where shallow is warm, plus any shared colour map, and a reverse toggle for when your audience expects the other convention.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Toggle each in turn, leaving a beat on each: <em>Contour labels</em>, <em>Well names</em>, <em>Posted values</em>, <em>Legend</em>, <em>Scale bar</em>, <em>North arrow</em>, <em>Axes</em>.</p></div>
+          <div class="vo"><p>Then a row of toggles for everything that makes a map a map. Contour labels. Well names. Posted values, which is the actual control value at each well. A legend, a scale bar, a north arrow, and the axes. Leave posted values on while you are working, because a map that does not honour its own control points is telling you something.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Ribbon, click <em>PNG</em>. Open the downloaded image full screen and hold.</p></div>
+          <div class="vo"><p>And P. N. G. on the ribbon gives you the map as a titled, captioned image at twice your screen resolution, ready to drop into a report.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section class="sec" id="sec-5">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">05</span>
+          <h3 class="sec-title">Publish, and what it records</h3>
+          <span class="sec-meta"><span class="tc">08:19</span> · 1:26 · 215 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-5" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Point at the status bar reading <em>unsaved preview</em>. Then click <em>Publish surface</em> on the ribbon.</p></div>
+          <div class="vo"><p>Until you publish, what you are looking at is a preview, and the status bar says so. Click Publish surface and it becomes a registry surface, with a name and a row in the list below.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Hover the new surface row so its tooltip describing the source appears. Hold long enough to read it.</p></div>
+          <div class="vo"><p>And here is why that matters more than a save button usually does. A published surface records how it was made. Its source, its depth reference, its cell size, the control points with their posted values, the wells that were skipped, any fault blocks and boundary you used, any guide points you placed, and your display settings.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Right-click the surface and hover <em>Re-grid</em> without clicking. Close the menu.</p></div>
+          <div class="vo"><p>Which means the map is reproducible. Anybody can see what went into it. And when a well gets a new pick six months from now, you can re-grid the surface from its own recorded recipe, rather than trying to remember what you did on a Thursday afternoon.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <div class="part-break">
+      <b>Optional break: end of Part 1</b>
+      <span>The viewer has made and published a map, which is a complete result. Split here and Part 1 runs 9:45. Part 2 opens on section 06 with a ten second recap of the surface as it stands.</span>
+    </div>
+
+    <!-- 6 -->
+    <section class="sec" id="sec-6">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">06</span>
+          <h3 class="sec-title">Spline or kriging</h3>
+          <span class="sec-meta"><span class="tc">09:45</span> · 2:44 · 410 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-6" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Grid form. Open the method dropdown so both options are readable.</p></div>
+          <div class="vo"><p>Back to the choice we skipped. The gridding method. There are two, and they answer different questions.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Grid with the spline. Turn on posted values, then hover a well so the readout and the posted value can be seen matching.</p></div>
+          <div class="vo"><p>The thin-plate spline is the default. It passes exactly through every control point. Put the cursor on a well and the surface reads the well's value, precisely. That is what you want when you trust your picks and you want the smoothest surface that honours all of them.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Switch the method to kriging. The variogram panel appears below it.</p></div>
+          <div class="vo"><p>Ordinary kriging asks a different question. Instead of insisting on the wells, it weights them by how far apart they are and by how quickly the surface stops correlating with distance. That relationship is the variogram, and the panel that just appeared is where you set it.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at the model selector, then the range, sill and nugget boxes in turn. Then click <em>Fit</em> and let the numbers populate.</p></div>
+          <div class="vo"><p>Choose a model. Spherical, exponential or gaussian. Then three numbers. The range, in metres, is the distance beyond which two wells no longer tell you anything about each other. The sill is the variance of the field. The nugget is the noise you believe sits in the measurements at zero distance. And if you would rather not guess, the Fit button reads the range and the sill straight off the experimental variogram of your own control points.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at <em>remove the trend first</em>, already ticked. Click <em>Grid</em>.</p></div>
+          <div class="vo"><p>The remove the trend first tick is worth understanding. It fits a plane through your wells, kriges what is left over, then puts the plane back. On a field with a consistent regional dip, that is the difference between a sensible map and a bullseye around every well.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Tick <em>show the variance map</em>. The display swaps. Hold on it, pointing at a well-controlled area then at an empty flank. Untick.</p></div>
+          <div class="vo"><p>And kriging gives you something the spline cannot. A variance map. Tick show the variance map and the display swaps to it. Low where your wells constrain the answer. High where the surface is a guess. Show that map to anyone who asks how confident you are about the flank of a structure. It is a far more honest answer than a contour.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section class="sec" id="sec-7">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">07</span>
+          <h3 class="sec-title">Shaping the map</h3>
+          <span class="sec-meta"><span class="tc">12:29</span> · 2:52 · 430 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-7" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Dock, <em>Polygons</em>. Click <em>Fault block</em>, click vertices around a block on the map, type a name, click <em>Save</em>.</p></div>
+          <div class="vo"><p>A spline through scattered wells does not know about faults. So you tell it. Click Fault block, click your way around the block on the map, give it a name, and save it.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Tick the <em>grid</em> box beside the new fault polygon. Click <em>Grid</em> again. Hold on the discontinuity across the fault trace.</p></div>
+          <div class="vo"><p>Then tick the grid box beside it and grid again. The surface is now built independently inside and outside that polygon, so it is allowed to be discontinuous across the fault, which is what faults actually do.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Boundary</em>, draw the field outline, save it, then select its <em>clip</em> radio button and re-grid.</p></div>
+          <div class="vo"><p>A Boundary polygon does the opposite job. Mark one as clip and gridding stops at its edge, so the map does not extrapolate confidently out into an area where you have no data at all.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Add a guide point</em>, click a position on the map, type a value, click <em>Add</em>, then re-grid.</p></div>
+          <div class="vo"><p>Guide points are for what you know that the wells do not. Click Add a guide point, click a position on the map, and type the value you believe belongs there. It grids alongside the wells as an extra control point. If seismic tells you the crest sits at a certain elevation and there is no well on it, that is exactly what a guide point is for.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click <em>Move a contour</em>. Press on a contour, drag it to a new position, release. The surface re-grids through it.</p></div>
+          <div class="vo"><p>And Move a contour is the same idea with a friendlier handle. Press on a contour, drag it to where you think it belongs, and release. The app turns that contour into guide points at its own value and re-grids the surface through them. It is hand editing, honestly labelled.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Scroll to the guide point list and show the points the contour drag created, each with its value. Hover <em>Clear all guide points</em>.</p></div>
+          <div class="vo"><p>And that last part matters more than it sounds. Hand editing that leaves no trace is how maps become impossible to defend. Here, every hand edit becomes a listed point with a value and a position that you can see, question and remove, and one button clears the lot if you change your mind.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 8 -->
+    <section class="sec" id="sec-8">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">08</span>
+          <h3 class="sec-title">Arithmetic, and a quick volume</h3>
+          <span class="sec-meta"><span class="tc">15:21</span> · 2:27 · 360 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-8" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Dock, <em>Surface arithmetic</em>. Open the operation dropdown so the whole list is readable.</p></div>
+          <div class="vo"><p>Two surfaces are more useful than one. The Surface arithmetic block combines them.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Choose <em>Isochore: top minus base</em>. Pick the shallower surface as A and the deeper one as B. Click <em>Compute isochore</em>.</p></div>
+          <div class="vo"><p>The one you will use most is the isochore. Choose your top surface and your base surface, and compute. Because both are elevations, subtracting them gives a thickness that is positive wherever the base is deeper, which is the right way round.</p></div>
+        </div>
+
+        <div class="beat beat--pause" data-pause="3">
+          <div class="pause">Pause 3 seconds. <span>The isochore computes and draws as a thickness map.</span></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Re-open the operation dropdown and point down the rest of the list. Then publish the isochore.</p></div>
+          <div class="vo"><p>The rest of the list is what you would expect. Add and subtract. Multiply, which is how an isochore times a net to gross map becomes a net thickness map. The shallower or the deeper of two surfaces, for truncations. Add or multiply by a constant. And clip to a boundary. Anything you compute here is a preview until you publish it, exactly like a gridded surface.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at the small note under the compute button about resampling.</p></div>
+          <div class="vo"><p>If the two surfaces sit on different grid frames, the second is resampled onto the first for you. You do not have to line them up yourself.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Dock, <em>Quick GRV</em>. Type a contact elevation as a negative number. Click <em>GRV</em>. Zoom the result line.</p></div>
+          <div class="vo"><p>Underneath is quick gross rock volume. Type a contact as an elevation, remembering that it is negative below datum, press G. R. V., and you get the rock volume of the displayed structure above that contact, along with its area.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at the note beneath it naming ReservoirCalc Pro.</p></div>
+          <div class="vo"><p>Treat that number as a read-out for a quick sanity check. It is deliberately not a volumetrics tool. Fluids, saturations and uncertainty belong in ReservoirCalc Pro, and the surface you just made is already available there.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 9 -->
+    <section class="sec" id="sec-9">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">09</span>
+          <h3 class="sec-title">Import, export, share, re-grid</h3>
+          <span class="sec-meta"><span class="tc">17:48</span> · 2:20 · 350 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-9" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Explorer header, click <em>Import</em>. Choose the prepared grid file. The dialog opens with the format already detected.</p></div>
+          <div class="vo"><p>Not every surface starts here. Import, in the explorer header, reads X. Y. Z. points, C. P. S. three, Zed map plus and Irap classic grids, and works out the format for you.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at <em>Values are</em>, then <em>Depth unit in the file</em>, then the sign convention control.</p></div>
+          <div class="vo"><p>It asks you three things. What the values are, whether depth, two way time, or an attribute. The depth unit of the file. And the sign convention, which it guesses from the data and lets you override. Whichever way the file was written, a depth grid is stored as an elevation once it is in.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Point at the CRS declaration in the dialog, then complete the import.</p></div>
+          <div class="vo"><p>You also declare the file's coordinate reference system. If it differs from your project's, and both are known, the grid is converted on the way in rather than landing in the wrong place.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Right-click a surface, hover the <em>Export</em> submenu showing the four formats, then hover the control points option.</p></div>
+          <div class="vo"><p>Going the other way, right click any surface and Export offers those same four formats, written in your display unit. There is also a control points file, which gives you the well values the map was built from, and that is very often what somebody actually wanted.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Click the private badge on your own surface row. It turns to the shared badge.</p></div>
+          <div class="vo"><p>Surfaces are private until you click the badge on the row. Shared surfaces are read only for everyone else in your organization, exactly like wells.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Right-click, choose <em>Re-grid</em>. The form fills from the surface and the row is marked. Point at <em>Publish</em> now reading <em>Replace surface</em>, then click it.</p></div>
+          <div class="vo"><p>And Re-grid, from that same menu, sets the whole form back to the way that surface was made, and turns Publish into Replace surface. The replacement keeps the original identity, so anything already pointing at this surface follows it to the new version instead of breaking.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section class="sec" id="sec-10">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">10</span>
+          <h3 class="sec-title">Where the surface goes next</h3>
+          <span class="sec-meta"><span class="tc">20:08</span> · 1:26 · 215 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-10" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Right-click the published surface. Hold so the whole menu is readable.</p></div>
+          <div class="vo"><p>A map that stays in the mapping application is just a picture. Right click your surface and it goes to work.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Choose <em>Open in ReservoirCalc Pro</em>. Show the surface already listed in its surface import. Come back.</p></div>
+          <div class="vo"><p>Open in ReservoirCalc Pro, and it is already listed in that application's surface import, ready for volumetrics with fluids and uncertainty attached.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Choose <em>Open in Earth Modeling</em>. Show it stacked in the framework. Come back. Then <em>Show in Seismolord</em>.</p></div>
+          <div class="vo"><p>Open in Earth Modeling and it stacks straight into a framework as a horizon. Show in Seismolord and it is listed among the surfaces there, ready to tie against seismic.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Cut to Well Correlation, click the small map icon beside a top in the tops list, and let it arrive here gridded.</p></div>
+          <div class="vo"><p>And it works in the other direction too. That small map icon beside a top in Well Correlation, or in Petrophysics Studio, brings you here with the surface already gridded. Pick a top on a section, click one icon, and you are looking at a structure map of it.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 11 -->
+    <section class="sec" id="sec-11">
+      <div class="sec-head">
+        <div class="sec-title-row">
+          <span class="sec-num">11</span>
+          <h3 class="sec-title">Wrap up</h3>
+          <span class="sec-meta"><span class="tc">21:34</span> · 0:52 · 130 w</span>
+        </div>
+        <div class="sec-tools"><button class="copy" data-copy="sec-11" data-label="Copy section">Copy section</button></div>
+      </div>
+      <div class="sec-cols"><div>Screen</div><div>Voice over</div></div>
+      <div class="beats">
+
+        <div class="beat">
+          <div class="screen"><p>Pull back to the finished map: contoured, coloured, posted, legend and scale bar on.</p></div>
+          <div class="vo"><p>So that is Mapping and Surface Studio. Your picks in, a defensible surface out, and every decision along the way written down with it.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>Turn <em>Posted values</em> on and hover two or three wells in turn, showing the surface agreeing with each control value.</p></div>
+          <div class="vo"><p>One habit to leave you with. Turn on posted values and look at your wells before you show the map to anybody. A contour that ignores its own control point is either a gridding choice you made deliberately, or a mistake you have not found yet. There is no third possibility.</p></div>
+        </div>
+
+        <div class="beat">
+          <div class="screen"><p>End card with the series name.</p></div>
+          <div class="vo"><p>Thanks for watching.</p></div>
+        </div>
+
+      </div>
+    </section>
+
+  </div>
+
+  <div class="chapters">
+    <h2 class="block">Chapter timestamps for the video description</h2>
+    <div class="chap-grid">
+      <div class="chap-body">
+        <h3>Single video, 22:26</h3>
+        <div class="chap-list" id="chap-single">
+          <div><b>0:00</b> A map is an interpretation</div>
+          <div><b>1:20</b> Grid your first surface</div>
+          <div><b>4:15</b> Elevation, negative down</div>
+          <div><b>6:15</b> The map window</div>
+          <div><b>8:19</b> Publish, and what it records</div>
+          <div><b>9:45</b> Spline or kriging</div>
+          <div><b>12:29</b> Shaping the map</div>
+          <div><b>15:21</b> Arithmetic, and a quick volume</div>
+          <div><b>17:48</b> Import, export, share, re-grid</div>
+          <div><b>20:08</b> Where the surface goes next</div>
+          <div><b>21:34</b> Wrap up</div>
+        </div>
+        <div class="chap-tools"><button class="copy" id="copy-single" data-label="Copy timestamps">Copy timestamps</button></div>
+      </div>
+
+      <div class="chap-body">
+        <h3>Two parts, 9:45 and 12:51</h3>
+        <div class="chap-list" id="chap-split">
+          <div><b>P1 0:00</b> A map is an interpretation</div>
+          <div><b>P1 1:20</b> Grid your first surface</div>
+          <div><b>P1 4:15</b> Elevation, negative down</div>
+          <div><b>P1 6:15</b> The map window</div>
+          <div><b>P1 8:19</b> Publish, and what it records</div>
+          <div><b>P2 0:00</b> Spline or kriging</div>
+          <div><b>P2 2:54</b> Shaping the map</div>
+          <div><b>P2 5:46</b> Arithmetic, and a quick volume</div>
+          <div><b>P2 8:13</b> Import, export, share, re-grid</div>
+          <div><b>P2 10:33</b> Where the surface goes next</div>
+          <div><b>P2 11:59</b> Wrap up</div>
+        </div>
+        <div class="chap-tools"><button class="copy" id="copy-split" data-label="Copy timestamps">Copy timestamps</button></div>
+      </div>
+    </div>
+    <div class="note" style="margin-top:16px">
+      <b>Targets only.</b> Re-stamp every timestamp from the finished audio before publishing. Part 2 times assume a ten second recap at the head, which is not in this script and should be improvised on the day.
+    </div>
+  </div>
+
+  <footer>
+    <p><b>Series position.</b> This is the fourth episode and the first one whose output another discipline consumes directly. Episode 1 loaded wells, Episode 2 interpreted one, Episode 3 correlated across several, and this one turns that correlation into a surface that reservoir engineering and modelling both read. Section 10 is where that lands, so give it room even if the rest gets trimmed.</p>
+    <p><b>Accuracy note.</b> Every control name, dropdown option and status message in this script matches the shipping application at the time of writing. If a label changes, fix the script before the next take rather than talking around it on camera.</p>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  var body = document.body;
+  var KEY = 'map-episode-script.vo-only';
+  var toggle = document.getElementById('vo-only');
+
+  try {
+    if (localStorage.getItem(KEY) === '1') { toggle.checked = true; body.classList.add('vo-only'); }
+  } catch (e) { /* storage unavailable: default view is correct */ }
+
+  toggle.addEventListener('change', function () {
+    body.classList.toggle('vo-only', toggle.checked);
+    try { localStorage.setItem(KEY, toggle.checked ? '1' : '0'); } catch (e) {}
+  });
+
+  function narrationOf(scope) {
+    var out = [];
+    scope.querySelectorAll('.beat').forEach(function (beat) {
+      if (beat.dataset.pause) { out.push('[PAUSE ' + beat.dataset.pause + 's]'); return; }
+      beat.querySelectorAll('.vo p').forEach(function (p) {
+        out.push(p.textContent.replace(/\s+/g, ' ').trim());
+      });
+    });
+    return out.join('\n\n');
+  }
+
+  function flash(btn) {
+    var label = btn.dataset.label;
+    btn.textContent = 'Copied';
+    setTimeout(function () { btn.textContent = label; }, 1600);
+  }
+
+  function fallbackCopy(text, btn) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); flash(btn); } catch (e) { btn.textContent = 'Select and copy manually'; }
+    document.body.removeChild(ta);
+  }
+
+  function copy(text, btn) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(function () { flash(btn); }, function () { fallbackCopy(text, btn); });
+      } else { fallbackCopy(text, btn); }
+    } catch (e) { fallbackCopy(text, btn); }
+  }
+
+  document.querySelectorAll('button.copy[data-copy]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var sec = document.getElementById(btn.dataset.copy);
+      if (sec) copy(narrationOf(sec), btn);
+    });
+  });
+
+  document.getElementById('copy-all').addEventListener('click', function () {
+    var btn = this;
+    var parts = [];
+    document.querySelectorAll('section.sec').forEach(function (sec) {
+      var title = sec.querySelector('.sec-title').textContent.trim();
+      var num = sec.querySelector('.sec-num').textContent.trim();
+      parts.push('=== ' + num + ' ' + title + ' ===\n\n' + narrationOf(sec));
+    });
+    copy(parts.join('\n\n\n'), btn);
+  });
+
+  function listCopier(btnId, listId) {
+    var btn = document.getElementById(btnId);
+    btn.addEventListener('click', function () {
+      var lines = [];
+      document.querySelectorAll('#' + listId + ' div').forEach(function (row) {
+        lines.push(row.textContent.replace(/\s+/g, ' ').trim());
+      });
+      copy(lines.join('\n'), btn);
+    });
+  }
+  listCopier('copy-single', 'chap-single');
+  listCopier('copy-split', 'chap-split');
+})();
+</script>
