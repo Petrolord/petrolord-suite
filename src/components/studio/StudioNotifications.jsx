@@ -14,6 +14,7 @@ const StudioNotifications = ({ notifications = [], onDismiss }) => {
           className={`pointer-events-auto min-w-[300px] p-3 rounded-lg shadow-lg border animate-in slide-in-from-right-full fade-in duration-300 flex items-start justify-between gap-3
             ${note.type === 'error' ? 'bg-red-950/90 border-red-800 text-red-200' :
               note.type === 'success' ? 'bg-emerald-950/90 border-emerald-800 text-emerald-200' :
+              note.type === 'warning' ? 'bg-amber-950/90 border-amber-800 text-amber-200' :
               'bg-slate-800/90 border-slate-700 text-slate-200'}`}
         >
           <div className="text-sm">

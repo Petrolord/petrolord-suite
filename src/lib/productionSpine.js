@@ -24,6 +24,23 @@ import { supabase } from '@/lib/customSupabaseClient';
 // Supabase rejects very large payloads; bulk writes go up in chunks.
 const CHUNK = 500;
 
+// PostgREST caps a select at 1,000 rows (the project's max-rows), silently.
+// Every list read that can grow past that goes through selectAllPages, which
+// asks for 1,000-row ranges until a short page comes back. The query builder
+// is rebuilt per page (a PostgREST builder runs once), and callers order by a
+// unique key last so pages neither overlap nor skip.
+export const PAGE_ROWS = 1000;
+export async function selectAllPages(makeQuery, what) {
+  const out = [];
+  for (let from = 0; ; from += PAGE_ROWS) {
+    const { data, error } = await makeQuery().range(from, from + PAGE_ROWS - 1);
+    if (error) throw new Error(`Could not load ${what}: ${error.message}`);
+    const page = data || [];
+    out.push(...page);
+    if (page.length < PAGE_ROWS) return out;
+  }
+}
+
 async function requireUser() {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) throw new Error('You must be signed in to use production data.');
@@ -161,7 +178,7 @@ export async function applyRegistryLinks(suggestions) {
  * exactly (the unique key is (field_id, name) — labels are preserved
  * as imported).
  */
-export async function ensurePoWells(fieldId, names) {
+export async function ensurePoWells(fieldId, names, typeByName = null) {
   const user = await requireUser();
   const wanted = [...new Set((names || []).map((n) => String(n).trim()).filter(Boolean))];
   const existing = await listPoWells(fieldId);
@@ -170,7 +187,14 @@ export async function ensurePoWells(fieldId, names) {
   const missing = wanted.filter((n) => !byName.has(n));
   for (const batch of chunked(missing)) {
     const { data, error } = await supabase.from('po_wells')
-      .insert(batch.map((name) => ({ user_id: user.id, field_id: fieldId, name })))
+      .insert(batch.map((name) => ({
+        user_id: user.id,
+        field_id: fieldId,
+        name,
+        // a NEW well takes the type its data shows (inferWellTypes); an
+        // existing well keeps whatever the user set
+        ...(typeByName?.get(name) ? { well_type: typeByName.get(name) } : {}),
+      })))
       .select();
     if (error) throw new Error(`Could not create wells: ${error.message}`);
     (data || []).forEach((w) => byName.set(w.name, w));
@@ -188,9 +212,35 @@ export async function ensurePoWells(fieldId, names) {
  * key touched twice in one statement); the count comes back so the UI
  * can say so. Returns {wells, upserted, duplicatesCollapsed}.
  */
+/**
+ * The type a ledger shows for each well: injector when it only injects
+ * (water or gas injected, nothing produced), producer when it produces.
+ * Wells that do neither are left out (the database default applies).
+ * @param {Array<{well, oil_stb, water_stb, gas_mscf, winj_stb, ginj_mscf}>} rows
+ * @returns {Map<string, 'injector'|'producer'>}
+ */
+export function inferWellTypes(rows) {
+  const seen = new Map();
+  for (const r of rows || []) {
+    const name = String(r.well ?? '').trim();
+    if (!name) continue;
+    const s = seen.get(name) || { prod: false, inj: false };
+    if ((Number(r.oil_stb) || 0) > 0 || (Number(r.water_stb) || 0) > 0 || (Number(r.gas_mscf) || 0) > 0) s.prod = true;
+    if ((Number(r.winj_stb) || 0) > 0 || (Number(r.ginj_mscf) || 0) > 0) s.inj = true;
+    seen.set(name, s);
+  }
+  const out = new Map();
+  for (const [name, s] of seen) {
+    if (s.inj && !s.prod) out.set(name, 'injector');
+    else if (s.prod) out.set(name, 'producer');
+  }
+  return out;
+}
+
 export async function importDailyProduction(fieldId, rows) {
   const user = await requireUser();
-  const wells = await ensurePoWells(fieldId, rows.map((r) => r.well));
+  const types = inferWellTypes(rows);
+  const wells = await ensurePoWells(fieldId, rows.map((r) => r.well), types);
   const byKey = new Map();
   rows.forEach((r) => byKey.set(`${r.well}\u0000${r.date}`, r));
   const duplicatesCollapsed = rows.length - byKey.size;
@@ -215,7 +265,13 @@ export async function importDailyProduction(fieldId, rows) {
     if (error) throw new Error(`Could not import production rows: ${error.message}`);
     upserted += (data || []).length;
   }
-  return { wells: wells.size, upserted, duplicatesCollapsed };
+  // wells this file shows injecting that are typed injector (new ones are
+  // typed on creation; the UI can say so, or flag an existing well whose
+  // type disagrees with its data)
+  const injectors = [...types].filter(([, t]) => t === 'injector').map(([n]) => n);
+  const typedInjectors = injectors.filter((n) => wells.get(n)?.well_type === 'injector');
+  const mistypedInjectors = injectors.filter((n) => wells.get(n)?.well_type !== 'injector');
+  return { wells: wells.size, upserted, duplicatesCollapsed, typedInjectors, mistypedInjectors };
 }
 
 /**
@@ -223,16 +279,18 @@ export async function importDailyProduction(fieldId, rows) {
  * @param {{wellId?: string, from?: string, to?: string}} [opts]
  */
 export async function getDailyProduction(fieldId, opts = {}) {
-  let q = supabase.from('po_daily_production')
-    .select('*, po_wells!inner(id, name, field_id, well_type, geo_well_id)')
-    .eq('po_wells.field_id', fieldId)
-    .order('prod_date', { ascending: true });
-  if (opts.wellId) q = q.eq('well_id', opts.wellId);
-  if (opts.from) q = q.gte('prod_date', opts.from);
-  if (opts.to) q = q.lte('prod_date', opts.to);
-  const { data, error } = await q;
-  if (error) throw new Error(`Could not load production data: ${error.message}`);
-  return (data || []).map(({ po_wells: w, ...row }) => ({ ...row, well: w }));
+  const data = await selectAllPages(() => {
+    let q = supabase.from('po_daily_production')
+      .select('*, po_wells!inner(id, name, field_id, well_type, geo_well_id)')
+      .eq('po_wells.field_id', fieldId)
+      .order('prod_date', { ascending: true })
+      .order('id', { ascending: true });
+    if (opts.wellId) q = q.eq('well_id', opts.wellId);
+    if (opts.from) q = q.gte('prod_date', opts.from);
+    if (opts.to) q = q.lte('prod_date', opts.to);
+    return q;
+  }, 'production data');
+  return data.map(({ po_wells: w, ...row }) => ({ ...row, well: w }));
 }
 
 // ---- well tests -----------------------------------------------------------
@@ -266,19 +324,19 @@ export async function importWellTests(fieldId, tests) {
 /** Every test in a field, well names attached, newest first — the P3
  *  QC view (listWellTests stays the per-well read). */
 export async function listFieldWellTests(fieldId) {
-  const { data, error } = await supabase.from('po_well_tests')
+  const data = await selectAllPages(() => supabase.from('po_well_tests')
     .select('*, po_wells!inner(id, name, field_id, well_type)')
     .eq('po_wells.field_id', fieldId)
-    .order('test_date', { ascending: false });
-  if (error) throw new Error(`Could not load well tests: ${error.message}`);
-  return (data || []).map(({ po_wells: w, ...row }) => ({ ...row, well: w }));
+    .order('test_date', { ascending: false })
+    .order('id', { ascending: true }), 'well tests');
+  return data.map(({ po_wells: w, ...row }) => ({ ...row, well: w }));
 }
 
 export async function listWellTests(wellId) {
-  const { data, error } = await supabase.from('po_well_tests')
-    .select('*').eq('well_id', wellId).order('test_date', { ascending: false });
-  if (error) throw new Error(`Could not load well tests: ${error.message}`);
-  return data || [];
+  return selectAllPages(() => supabase.from('po_well_tests')
+    .select('*').eq('well_id', wellId)
+    .order('test_date', { ascending: false })
+    .order('id', { ascending: true }), 'well tests');
 }
 
 /** QC verdict + edits from the P3 studio (owner-only via RLS). */
@@ -334,12 +392,12 @@ export async function saveDeferment(wellId, d) {
 
 /** A field's deferment events, newest first, well names attached. */
 export async function listDeferments(fieldId) {
-  const { data, error } = await supabase.from('po_deferments')
+  const data = await selectAllPages(() => supabase.from('po_deferments')
     .select('*, po_wells!inner(id, name, field_id)')
     .eq('po_wells.field_id', fieldId)
-    .order('start_date', { ascending: false });
-  if (error) throw new Error(`Could not load deferments: ${error.message}`);
-  return (data || []).map(({ po_wells: w, ...row }) => ({ ...row, well: w }));
+    .order('start_date', { ascending: false })
+    .order('id', { ascending: true }), 'deferments');
+  return data.map(({ po_wells: w, ...row }) => ({ ...row, well: w }));
 }
 
 export async function updateDeferment(defermentId, patch) {
@@ -384,12 +442,12 @@ export async function upsertAllocationFactor(wellId, periodMonth, factors) {
 }
 
 export async function listAllocationFactors(fieldId) {
-  const { data, error } = await supabase.from('po_allocation_factors')
+  const data = await selectAllPages(() => supabase.from('po_allocation_factors')
     .select('*, po_wells!inner(id, name, field_id)')
     .eq('po_wells.field_id', fieldId)
-    .order('period_month', { ascending: false });
-  if (error) throw new Error(`Could not load allocation factors: ${error.message}`);
-  return (data || []).map(({ po_wells: w, ...row }) => ({ ...row, well: w }));
+    .order('period_month', { ascending: false })
+    .order('id', { ascending: true }), 'allocation factors');
+  return data.map(({ po_wells: w, ...row }) => ({ ...row, well: w }));
 }
 
 
@@ -397,14 +455,15 @@ export async function listAllocationFactors(fieldId) {
 
 /** A field's metered totals, date-ascending (the allocation basis). */
 export async function getFieldTotals(fieldId, opts = {}) {
-  let q = supabase.from('po_field_totals')
-    .select('*').eq('field_id', fieldId)
-    .order('total_date', { ascending: true });
-  if (opts.from) q = q.gte('total_date', opts.from);
-  if (opts.to) q = q.lte('total_date', opts.to);
-  const { data, error } = await q;
-  if (error) throw new Error(`Could not load field totals: ${error.message}`);
-  return data || [];
+  return selectAllPages(() => {
+    let q = supabase.from('po_field_totals')
+      .select('*').eq('field_id', fieldId)
+      .order('total_date', { ascending: true })
+      .order('id', { ascending: true });
+    if (opts.from) q = q.gte('total_date', opts.from);
+    if (opts.to) q = q.lte('total_date', opts.to);
+    return q;
+  }, 'field totals');
 }
 
 /**

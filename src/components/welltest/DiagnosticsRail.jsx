@@ -46,7 +46,7 @@ const DiagnosticsRail = ({ activeTab }) => {
         <section>
           <SectionLabel>Working match</SectionLabel>
           <Row label="k (md)" value={fmt.sig3(matchParams?.k)} />
-          <Row label="Skin" value={fmt.f2(matchParams?.skin)} />
+          <Row label="Skin" value={prepared.skinWithheld ? 'withheld' : fmt.f2(matchParams?.skin)} />
           <Row label={`C (${uL('storage')})`} value={fmtU('storage', matchParams?.C, unitSystem, fmt.sig3)} />
           <Row label="CD" value={fmt.sig3(derivedKpis?.cd)} />
           <Row label="Fit" value={fitResult ? (fitStale ? 'Stale' : (fitResult.converged ? 'Converged' : 'Partial')) : 'Not run'} />
@@ -58,7 +58,7 @@ const DiagnosticsRail = ({ activeTab }) => {
           <SectionLabel>Straight line</SectionLabel>
           <Row label={`m (${uL(isGas ? 'pseudoSlope' : 'semilogSlope')})`} value={isGas ? fmt.sci(fromOilfield('pseudoSlope', semilogResult?.m, unitSystem)) : fmtU('semilogSlope', semilogResult?.m, unitSystem, fmt.f1)} />
           <Row label="k (md)" value={fmt.sig3(semilogResult?.k)} />
-          <Row label="Skin" value={fmt.f2(semilogResult?.skin)} />
+          <Row label="Skin" value={prepared.skinWithheld ? 'withheld' : fmt.f2(semilogResult?.skin)} />
           {isBuildup && <Row label={`p* (${uL('pressure')})`} value={fmtU('pressure', semilogResult?.pStar, unitSystem, fmt.f1)} />}
           <Row label="r²" value={fmt.f3(semilogResult?.r2)} />
         </section>

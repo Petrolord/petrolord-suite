@@ -285,7 +285,13 @@ export const ProductionSurveillanceProvider = ({ children }) => {
       const dupNote = res.duplicatesCollapsed
         ? ` (${res.duplicatesCollapsed} in-file duplicate${res.duplicatesCollapsed === 1 ? '' : 's'} collapsed, last row wins)`
         : '';
-      addNotification(`Imported ${res.upserted.toLocaleString()} ledger rows across ${res.wells} wells${dupNote}`, 'success');
+      const injNote = res.typedInjectors?.length
+        ? ` ${res.typedInjectors.join(', ')} ${res.typedInjectors.length === 1 ? 'is' : 'are'} typed as ${res.typedInjectors.length === 1 ? 'an injector' : 'injectors'}.`
+        : '';
+      addNotification(`Imported ${res.upserted.toLocaleString()} ledger rows across ${res.wells} wells${dupNote}.${injNote}`, 'success');
+      if (res.mistypedInjectors?.length) {
+        addNotification(`${res.mistypedInjectors.join(', ')} only ${res.mistypedInjectors.length === 1 ? 'injects' : 'inject'} in this file but ${res.mistypedInjectors.length === 1 ? 'is' : 'are'} set up as ${res.mistypedInjectors.length === 1 ? 'a producer' : 'producers'}. Change the well type if that is wrong.`, 'warning');
+      }
     } catch (e) {
       addNotification(e.message, 'error');
     } finally {
