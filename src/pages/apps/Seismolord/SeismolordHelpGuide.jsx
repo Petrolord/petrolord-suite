@@ -222,6 +222,7 @@ export default function SeismolordHelpGuide() {
           ['Chaos', '0 where reflectors are orderly and parallel, towards 1 where they are disordered: salt, gas chimneys, slumps and mass transport.'],
           ['Dip magnitude', 'Reflector dip in ms per trace from the local structure. Steep flanks and drag against faults stand out.'],
           ['Dip azimuth (lattice)', 'The down-dip direction in degrees, measured on the survey grid from increasing inline number towards increasing crossline number, so its zero follows the survey orientation. Opens with a cyclic colormap.'],
+          ['Dip azimuth (grid north)', 'The same down-dip direction on the map, in degrees clockwise from grid north (north of the projected coordinates; true north differs by the meridian convergence). It uses the survey orientation measured at import, so rotated surveys and unequal inline and crossline spacing read correctly. A survey imported before orientation was measured has to be re-imported first; the dialog says so.'],
           ['Most positive and most negative curvature', 'How the reflectors bend (ms per trace squared). Most positive picks out crests, ridges and the upthrown edge of faults; most negative the troughs and the downthrown edge. Anticlines read positive.'],
         ]} />
         <Para>

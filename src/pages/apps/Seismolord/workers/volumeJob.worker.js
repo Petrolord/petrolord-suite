@@ -25,6 +25,7 @@ import { geomFromManifest, brickKey } from '../engine/sliceAssembly';
 import { makeTraceCompute } from '../engine/attributes';
 import { DISCONTINUITY_DEFS } from '../engine/discontinuity';
 import { makeDiscontinuityJob } from '../engine/discontinuityJobs';
+import { surveyAffine } from '../engine/surveyGeometry';
 import { runVolumeJob, runNeighborhoodJob } from '../engine/volumeJob';
 import { createBrickChannel } from './brickAckChannel';
 
@@ -89,8 +90,9 @@ async function handleCompute({ id, config }) {
   let result;
   if (neighborhood) {
     // variance runs per trace; the fault likelihood a brick column at a time
+    // map-frame attributes (Dip azimuth, grid north) need the survey affine
     const job = makeDiscontinuityJob(name, params, {
-      dtUs, nIl: geom.nIl, nXl: geom.nXl, ns: geom.ns,
+      dtUs, nIl: geom.nIl, nXl: geom.nXl, ns: geom.ns, affine: surveyAffine(manifest.geometry),
     });
     result = await runNeighborhoodJob({ ...shared, ...job });
   } else {

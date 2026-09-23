@@ -15,7 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import {
-  ALL_ATTRIBUTE_DEFS, computeAttributeVolume, defaultDerivedName, derivedStorageBytes,
+  ALL_ATTRIBUTE_DEFS, attributePrecheck, computeAttributeVolume, defaultDerivedName, derivedStorageBytes,
 } from '../../../services/attributeJobService';
 import { groupAttributeDefs } from '../../../lib/attributeDisplay';
 
@@ -54,6 +54,7 @@ export default function ComputeAttributeDialog({
     key, paramValues[key] ?? p.default,
   ]));
   const placeholder = volume ? defaultDerivedName(volume.name, attr, params) : '';
+  const blocked = manifest ? attributePrecheck(attr, manifest) : null;
 
   let sizeText = null;
   try {
@@ -150,6 +151,10 @@ export default function ComputeAttributeDialog({
             </label>
           </div>
 
+          {blocked && (
+            <p className="text-xs text-amber-300/90" data-testid="sl-attr-blocked">{blocked}</p>
+          )}
+
           <p className="text-[11px] text-slate-500">
             Derived from “{volume?.name}” on the identical lattice
             {sizeText ? ` (~${sizeText} of brick storage, counted against your quota)` : ''}.
@@ -184,7 +189,7 @@ export default function ComputeAttributeDialog({
                 Cancel
               </Button>
             )}
-            <Button onClick={run} disabled={busy || !volume || !manifest}>
+            <Button onClick={run} disabled={busy || !volume || !manifest || Boolean(blocked)}>
               {busy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Activity className="w-4 h-4 mr-1" />}
               Compute
             </Button>
