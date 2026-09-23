@@ -16,6 +16,7 @@ Generator: `tools/demo-dataset/`. Gates: `npx jest tools/demo-dataset`.
 | D6 Kit assembly and episode notes | **BUILT 2026-09-11** | generator §14, §15 |
 | D7 The rest of the Suite | **BUILT 2026-09-11** | generator §16, repackaging `ekene-dynamic` |
 | D7b Episodes 11-16, the kit through the apps' importers | **BUILT 2026-09-23** | generator §14 + `__tests__/kitImports.test.js` |
+| D8 Drilling, Production, Economics, Facilities, Process Safety (episodes 17-36) | **BUILT 2026-09-23** | `domains/*.mjs`, `d8spine.mjs`, 5 domain gate suites |
 | Release | see Open | `ekene-demo-v1` on the Suite repo, owner-approved 2026-09-23 |
 
 ## What the kit is
@@ -111,6 +112,46 @@ fix/import-header-matching):
   with no date, well or rate column (volume ledgers included). The kit's
   monthly file now loads there (no Hall plot: it has no pressures), and the
   gates follow.
+
+## 2026-09-23: Wave D8, episodes 17 to 36
+
+Five domains, each a module under `tools/demo-dataset/domains/` loaded by the
+section 17 hook, with a gate suite that reads the generated kit back through
+the apps' own parsers, context providers or services and engines, with a
+negative control per headline. 116 gates pass; the kit is 155 files and
+regenerates byte-identically.
+
+| Episodes | Folder | What it holds (engine-checked headline) |
+|---|---|---|
+| 17-20 Drilling | `10-drilling` | Ekene-11 planned survey (Well Planning's own importers; T1 hit to 0.000 m), casing program and muds inside the window, Casing & Tubing (min design factor 1.16, full evacuation), Torque & Drag (pick-up 807.5 kN), Hydraulics (ECD 14.66 ppg vs 15.64 fracture), Well Control (kick tolerance 8.1 bbl), Well Cost & Time `.wct.json` (AFE 11,799,948 USD = d8spine 11.8M) |
+| 21-25 Production | `11-production-engineering` | Surveillance daily production and 144 well tests, Allocation field totals (meter factors 0.970/0.980/0.950), Ekene-1 buildup gauge file (Horner k 224.7 vs 225 md, skin 4.98 vs 5), Nodal and ESP sheets (66 stages) |
+| 26-29 Economics | `12-economics` | EPE production/capex/opex uploads (field NPV10 0.81 MM USD, Ekene-11 increment 1.66 MM), NPV Scenario Builder sheet, breakeven forecast, decision tree JSON (EVPI 0.258) |
+| 30-33 Facilities | `13-facilities` | design basis, separator (3.0 x 13.8 ft), 18 km export line, produced water (16.5 ppm), corrosion (0.057 mm/yr) |
+| 34-36 Process Safety | `14-process-safety` | scenario basis, consequence (0.640 kg/s, LFL 14.9 m), LOPA/SIL (SIL 1, PFDavg 1.13e-2), QRA fed by the consequence outputs (operator IRPA 2.53e-6) |
+
+**Kit data defects the drilling build found in the original sections, fixed:**
+Ekene-1's 13-3/8 in shoe (1250 m, LOT 12.29 ppg) could not carry the 12.6 ppg
+the history drilled the reservoir with, the failed 11.2 ppg at 1418 m was
+overbalanced, and the 9-5/8 in shoe at 1700 m left 0.02 ppg to TD. Shoes are
+now 1450 and 1800 m, the mud history is rebuilt and asserted against the
+designed pore and fracture profile. T1 now is 8 m below the Oboro top, as its
+note says. `csv()` now quotes fields (five kit CSVs had ragged rows).
+
+**App defects the domain builds found:**
+- Economics (all four fixed in PR #600 with engines #244): EPE simple
+  escalation sent 3 percent defaults; EPE breakeven null with the economic
+  limit on; above-band IRR worded as a return when NPV is negative; breakeven
+  analyzer years shifted west of UTC. After #600 lands, the economics domain's
+  `breakeven is null with the limit on` assertion must become a value.
+- Production (open): `getDailyProduction` (src/lib/productionSpine.js:225)
+  reads without paging, so a ledger over 1,000 rows is cut silently; wells
+  created on import default to producer, so injectors need retyping; the node
+  solve reports the highest stable crossing, so `crossCheckTestsAgainstNodal`
+  flags choke-held tests; Well Test uses the first gauge point when the
+  flowing pressure at shut-in is blank, biasing skin.
+- Facilities (open, no effect on the kit): the separator takes oil density at
+  60 degF with no temperature correction; the L/D band is the same for two-
+  and three-phase horizontal vessels.
 
 ## Decisions taken while building
 
