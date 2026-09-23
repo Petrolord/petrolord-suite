@@ -12,7 +12,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import XLSX from 'xlsx';
 
 import { topsToPoints, specForPoints } from '../../packages/engines/engines/mapping/surface.js';
@@ -54,8 +54,14 @@ const write = (rel, content) => {
   fs.writeFileSync(p, content);
   return p;
 };
+// RFC 4180: a field holding a comma, quote or line break is quoted and its
+// quotes doubled, so notes such as "no losses, no influx" stay one column.
+const csvField = (v) => {
+  const t = String(v ?? '');
+  return /[",\r\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+};
 const csv = (headers, rows) =>
-  `${[headers.join(','), ...rows.map((r) => r.join(','))].join('\n')}\n`;
+  `${[headers.map(csvField).join(','), ...rows.map((r) => r.map(csvField).join(','))].join('\n')}\n`;
 const n = (v, d = 3) => (v === null || v === undefined || !Number.isFinite(v) ? '' : v.toFixed(d));
 
 // --------------------------------------------------------------------------
@@ -443,12 +449,15 @@ const crsLabel = `${FRAME.crs} (${FRAME.crs_name})`;
   // Leak-off and formation integrity tests at the casing shoes, read off the
   // designed fracture gradient.
   const lotRows = [];
+  const shoeTests = [];
   for (const c of PRESSURE.casing) {
     if (c.shoe_md < 300 || c.shoe_md > b.rows[b.rows.length - 1].md) continue;
     const r = at(c.shoe_md);
-    const kind = c.shoe_md === 1250 ? 'LOT' : (c.shoe_md === 600 ? 'FIT' : 'LOT');
+    const kind = c.shoe_md === 600 ? 'FIT' : 'LOT';
     const emw = kind === 'FIT' ? r.fgEmw - 0.6 : r.fgEmw;
-    lotRows.push([`${c.size_in}"`, n(c.shoe_md, 1), n(r.tvd, 2), kind,
+    shoeTests.push({ md: c.shoe_md, emw });
+    const sizeLabel = { 30: '30 in', 20: '20 in', 13.375: '13-3/8 in', 9.625: '9-5/8 in', 7: '7 in' }[c.size_in] ?? `${c.size_in} in`;
+    lotRows.push([sizeLabel, n(c.shoe_md, 1), n(r.tvd, 2), kind,
       n(emw, 2), n(emw * 0.052 * r.tvd * FT_PER_M, 0),
       kind === 'FIT' ? 'pressured to this value and held; formation not broken down' : 'clear leak-off']);
   }
@@ -456,16 +465,34 @@ const crsLabel = `${FRAME.crs} (${FRAME.crs_name})`;
     ['casing', 'shoe_md_m', 'shoe_tvd_m', 'test', 'emw_ppg', 'pressure_psi', 'note'], lotRows,
   ));
 
-  // Mud weights actually used, and the one that did not work.
-  const mwRows = [];
-  for (const [from, to, mw, note] of [
+  // Mud weights actually used, and the one that did not work. Every held
+  // weight must stand at least TRIP ppg over the designed pore pressure
+  // everywhere in its interval and below the shoe test above it; the failed
+  // one must really be underbalanced where it took the influx. Asserted, so
+  // the history can never again describe a well that could not be drilled.
+  const TRIP = 0.25;
+  const ppAt = (md) => at(md).ppEmw;
+  const shoeAbove = (md) => shoeTests.filter((t) => t.md <= md).sort((a2, b2) => b2.md - a2.md)[0];
+  const HELD = [
     [60, 600, 8.8, 'seawater and gel sweeps'],
-    [600, 1250, 9.2, 'no losses, no influx'],
-    [1250, 1548, 11.9, 'raised through the Ogbia ramp on connection gas'],
-    [1548, 1700, 12.6, 'reservoir section; 0.6 ppg over the prognosis'],
-    [1700, 2250, 13.9, 'Akata; held'],
-  ]) mwRows.push([n(from, 0), n(to, 0), n(mw, 2), note, 'held']);
-  mwRows.push(['1250', '1420', '11.20', 'first attempt through the ramp', 'FAILED - 12 bbl influx at 1418 m, circulated out, raised to 11.9']);
+    [600, 1300, 9.2, 'no losses, no influx'],
+    [1300, 1450, 11.0, 'raised through the top of the Ogbia ramp on connection gas'],
+    [1450, 1800, 13.3, 'reservoir drilled 1.3 ppg over its pore pressure: the ramp below sets the weight'],
+    [1800, 2250, 14.9, 'Akata; held in a 0.28 ppg window under the shoe'],
+  ];
+  const FAILED = { from: 1300, to: 1420, mw: 9.8, at: 1418 };
+  const mwRows = [];
+  for (const [from, to, mw, note] of HELD) {
+    let ppMax = 0;
+    for (let md = from; md <= to; md += 5) ppMax = Math.max(ppMax, ppAt(md));
+    const shoe = shoeAbove(from);
+    if (!(mw >= ppMax + TRIP)) throw new Error(`ASSERT mud ${mw} ppg over ${from}-${to} m is under pore ${ppMax.toFixed(2)} + ${TRIP}`);
+    if (shoe && !(mw < shoe.emw)) throw new Error(`ASSERT mud ${mw} ppg over ${from}-${to} m is over the ${shoe.md} m shoe test ${shoe.emw.toFixed(2)}`);
+    mwRows.push([n(from, 0), n(to, 0), n(mw, 2), note, 'held']);
+  }
+  if (!(FAILED.mw < ppAt(FAILED.at))) throw new Error(`ASSERT the failed ${FAILED.mw} ppg was not underbalanced at ${FAILED.at} m`);
+  mwRows.push([String(FAILED.from), String(FAILED.to), n(FAILED.mw, 2), 'first attempt through the ramp at the old 600 to 1300 m weight plus 0.6',
+    `FAILED: influx at ${FAILED.at} m (pore ${ppAt(FAILED.at).toFixed(2)} ppg), circulated out, raised to 11.0`]);
   write('05-pressure/ekene-mud-weights.csv', csv(
     ['from_md_m', 'to_md_m', 'mud_weight_ppg', 'note', 'outcome'], mwRows,
   ));
@@ -539,7 +566,7 @@ const crsLabel = `${FRAME.crs} (${FRAME.crs_name})`;
   write('07-well-design/ekene-11-targets.csv', csv(
     ['target', 'easting_m', 'northing_m', 'tvd_m', 'tvdss_m', 'radius_m', 'shape', 'note'],
     [
-      ['T1 Oboro Sand', n(utmE(target.well.x), 2), n(utmN(target.well.y), 2), n(tvdT, 2), n(tvdT - FRAME.kb_m, 2), '50', 'circle', 'primary; 8 m below the Oboro Sand top, in the eastern fault block'],
+      ['T1 Oboro Sand', n(utmE(target.well.x), 2), n(utmN(target.well.y), 2), n(tvdT + 8, 2), n(tvdT + 8 - FRAME.kb_m, 2), '50', 'circle', 'primary; 8 m below the Oboro Sand top, in the eastern fault block'],
       ['T2 Oboro base', n(utmE(target.well.x + 180), 2), n(utmN(target.well.y + 120), 2), n(tvdT + 55, 2), n(tvdT + 55 - FRAME.kb_m, 2), '75', 'circle', 'secondary; landing point for the horizontal option'],
     ],
   ));
@@ -720,6 +747,34 @@ const crsLabel = `${FRAME.crs} (${FRAME.crs_name})`;
 }
 
 // ===========================================================================
+// 17. Further domains (Wave D8): one module per domain in ./domains/
+// ===========================================================================
+// Each tools/demo-dataset/domains/<name>.mjs exports
+//   build(ctx) -> { episodes: [{ n, app, files: [[path, why]], note }],
+//                   folders: [[folder, description]] }
+// and writes its files through ctx.write. Modules derive everything from the
+// same spine as sections 1-16 (import ./spine.mjs, ./geology.mjs and the
+// engines directly) and assert what they claim, like every section here.
+// They are loaded in file-name order, so no module edits this file.
+
+const DOMAIN_EPISODES = [];
+const DOMAIN_FOLDERS = [];
+{
+  const dir = path.join(__dirname, 'domains');
+  const mods = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith('.mjs')).sort() : [];
+  for (const f of mods) {
+    const mod = await import(pathToFileURL(path.join(dir, f)).href);
+    if (typeof mod.build !== 'function') throw new Error(`domains/${f} exports no build(ctx).`);
+    const res = await mod.build({
+      write, csv, n, say, assertClose, OUT, ROOT, crsLabel, built, FT_PER_M, logDate,
+    });
+    DOMAIN_EPISODES.push(...(res?.episodes ?? []));
+    DOMAIN_FOLDERS.push(...(res?.folders ?? []));
+    say(`  domain ${f.replace(/\.mjs$/, '')}: ${(res?.episodes ?? []).length} episodes`);
+  }
+}
+
+// ===========================================================================
 // 14. Episode notes — the one thing the scripts are missing
 // ===========================================================================
 
@@ -795,7 +850,7 @@ const EPISODES = [
   ], note: 'Mudline is 60 m MD. Water depth 35 m. The section is normally pressured to 1290 m and overpressured '
     + 'below it, so pick the compaction trend ABOVE 1290 m. Picking it below is the collapse the episode wants. '
     + 'Eaton at exponent 3 returns 12.02 ppg at the reservoir, which is the field\'s published initial pressure '
-    + 'of 3200 psia at 1560 m. The mud weight row that failed is the 11.2 ppg attempt at 1418 m.' },
+    + 'of 3200 psia at 1560 m. The mud weight row that failed is the 9.8 ppg attempt, which took an influx at 1418 m where the pore pressure is already 10.1 ppg.' },
   { n: 10, app: 'Well Design Studio', files: [
     ['07-well-design/ekene-alpha-site.csv', 'the site: wellhead, CRS, north reference, convergence, declination'],
     ['07-well-design/ekene-11-targets.csv', 'the targets'],
@@ -857,7 +912,16 @@ const EPISODES = [
     + '1790 m), Most positive curvature (the drape anticline crest reads positive), Dip azimuth (grid north) '
     + '(the flanks point away from the crest), Chaos, and Relative acoustic impedance (the Ekene Sand, faster and '
     + 'denser than the Ogbia Shale above it, becomes a block).' },
+  ...DOMAIN_EPISODES,
 ];
+{
+  const seen = new Set();
+  for (const e of EPISODES) {
+    if (seen.has(e.n)) throw new Error(`ASSERT two episodes are numbered ${e.n}.`);
+    seen.add(e.n);
+  }
+  EPISODES.sort((a, b) => a.n - b.n);
+}
 
 // Every kit path a note names must exist: a note pointing at a missing file
 // fails the run, the same rule as every other assertion here.
@@ -942,6 +1006,7 @@ write('00-START-HERE.md', [
   '| `07-well-design` | site card and targets |',
   '| `08-production` | six years of rates, the flood, the voidage ledger |',
   '| `09-reservoir` | pressure history, PVT, relative permeability, capillary curves |',
+  ...DOMAIN_FOLDERS.map(([f, d]) => `| \`${f}\` | ${d} |`),
   '| `episodes` | one note per episode naming exactly what to load |', '',
   '## The chain', '',
   'Episode 1 builds the well. 2 interprets it. 3 correlates it. 4 maps it. 5 turns the map into a',
@@ -950,7 +1015,8 @@ write('00-START-HERE.md', [
   'Folders 08 and 09 carry the same field on production. 11 fits its declines. 12 recovers the',
   'volume from 5 out of the pressure history. 13 and 14 watch the waterflood. 15 shows the',
   'capillary curve behind the Sw from 2. 16 goes back to the seismic and builds the whole horizon',
-  'framework from the wells\' tops.', '',
+  'framework from the wells\' tops. 17 to 36 carry the same field into drilling (Ekene-11),',
+  'production engineering, economics, facilities and process safety: folders 10 to 14.', '',
   '## What agrees with what', '',
   '- Water saturation in the logs comes from the field\'s own capillary pressure curve, so the',
   '  crest drains to Sw 0.3506 exactly as the reservoir fixture says it does.',

@@ -63,6 +63,17 @@ structural truth the logs and the seismic are generated from. They agree
 at the wells, which is what makes the tie tie, and differ slightly
 between them, which is what real seismic and well grids do.
 
+## Domains beyond the first sixteen episodes (Wave D8)
+
+`domains/<name>.mjs` modules are loaded automatically (generate.mjs section
+17): each exports `build(ctx)`, writes its kit folder through `ctx.write` and
+returns its episodes and folders. Helpers live in `domains/<name>/`. Values two
+domains must agree on (Ekene-11's cost and forecast, the facilities design
+basis) are in `d8spine.mjs`. Apps that only take typed inputs get an input
+sheet (`section,field,value,unit,source`, in the app's own labels); each
+domain's gate (`__tests__/domain.<name>.test.js`) feeds the sheet through the
+app's own mapping into its engine and checks the numbers the note quotes.
+
 ## Adding a domain
 
 `generate.mjs` is a sequence of numbered sections. Add one, write into

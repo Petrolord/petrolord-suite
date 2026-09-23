@@ -210,8 +210,10 @@ export const PRESSURE = {
   casing: [
     { size_in: 30,     shoe_md: 150 },
     { size_in: 20,     shoe_md: 600 },
-    { size_in: 13.375, shoe_md: 1250 },
-    { size_in: 9.625,  shoe_md: 1700 },
+    // shoes placed so every open-hole section is drillable on the designed
+    // pore and fracture profile (generate.mjs section 11 asserts it)
+    { size_in: 13.375, shoe_md: 1450 },
+    { size_in: 9.625,  shoe_md: 1800 },
     { size_in: 7,      shoe_md: 2250, liner: true },
   ],
 };
