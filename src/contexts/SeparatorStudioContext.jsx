@@ -12,7 +12,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import {
-  K_BASE, kValue, gasDensityLbFt3, oilDensityLbFt3,
+  K_BASE, kValue, gasDensityLbFt3, oilDensityAtTLbFt3,
   terminalVelocityFtS, gasActualFt3S,
   verticalTwoPhase, horizontalTwoPhase, horizontalThreePhase, ldSweep,
   vesselSlugCatcher, fingerSlugCatcher, SeparatorInputError,
@@ -33,14 +33,14 @@ export const friendlyError = (error) => {
 };
 
 /**
- * Customary L/D (slenderness) band per vessel type. Mirrors the engine's
- * documentation of ldSweep (packages/engines/engines/facilities/
- * separatorSizing.js: "Customary slenderness is 3 to 5 for horizontal
- * separators and 2 to 4 for vertical ones"). The engine exports no
- * constant for it; adopt one here if it ever does.
+ * Customary L/D (slenderness) band per vessel type (Arnold and Stewart,
+ * Surface Production Operations, Vol. 1): 3 to 4 for a two-phase
+ * horizontal separator, 3 to 5 for a three-phase one (its extra length
+ * buys the oil-water retention), 2 to 4 for a vertical one. The engine's
+ * ldSweep takes the band as input; it exports no constant for it.
  */
 export const LD_BAND = Object.freeze({
-  horizontal2: Object.freeze({ min: 3, max: 5 }),
+  horizontal2: Object.freeze({ min: 3, max: 4 }),
   horizontal3: Object.freeze({ min: 3, max: 5 }),
   vertical2: Object.freeze({ min: 2, max: 4 }),
 });
@@ -57,7 +57,8 @@ export const defaultInputs = () => ({
     type: 'horizontal2', // horizontal2 | vertical2 | horizontal3
     internalsId: 'horizontalMesh', kOverride: '',
     liquidLevelFrac: '0.5', allowanceFt: '6',
-    diametersFt: '4,6,8,10,12',
+    // half-foot steps near the answer: the two-phase band (3 to 4) is narrow
+    diametersFt: '4,4.5,5,6,8,10,12',
     ldMin: String(LD_BAND.horizontal2.min), ldMax: String(LD_BAND.horizontal2.max),
   },
   process: {
@@ -316,7 +317,9 @@ export const SeparatorStudioProvider = ({ children }) => {
     const pPsia = num(p.pPsig) + 14.7;
     const gas = gasDensityLbFt3({ pPsia, tF: num(p.tF), gasSg: num(p.gasSg) });
     if (gas.error) return gas;
-    const rhoOil = oilDensityLbFt3(num(p.oilApi));
+    // oil at the separator temperature (API MPMS 11.1 crude expansion,
+    // engines #246); the 60 degF density from API gravity overstated it
+    const rhoOil = oilDensityAtTLbFt3({ apiGravity: num(p.oilApi), tF: num(p.tF) }).rhoLbFt3;
     const qWater = num(p.qWaterBpd);
     // Water SG is only required when there is water to weigh.
     const rhoWater = qWater > 0 || v.type === 'horizontal3' ? num(p.waterSg) * 62.4 : NaN;

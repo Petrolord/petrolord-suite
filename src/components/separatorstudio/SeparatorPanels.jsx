@@ -124,7 +124,7 @@ const ConditionsCard = () => {
             hint="from the validated correlation, not assumed" />
           <Stat label="Gas density" value={show(fmt(conditions.rhoGas, 3), conditions.rhoGas)} unit="lb/ft3" />
           <Stat label="Liquid density" value={fmt(conditions.rhoLiquid, 2)} unit="lb/ft3"
-            hint="oil and water at their production split" />
+            hint="oil at the separator temperature and water, at their production split" />
           <Stat label="Actual gas rate" value={show(fmt(conditions.qGasActFt3S, 2), conditions.qGasActFt3S)} unit="ft3/s" />
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -202,7 +202,7 @@ const SweepTable = () => {
       </table>
       <p className="text-[11px] text-slate-600 mt-2">
         Band used: slenderness between {fmt(sweep.ldMin, 1)} and {fmt(sweep.ldMax, 1)}. The customary
-        band is 3 to 5 for horizontal separators and 2 to 4 for vertical ones.
+        band is 3 to 4 for a two-phase horizontal separator, 3 to 5 for a three-phase one and 2 to 4 for a vertical one.
         A vessel outside it still separates; it is just an awkward thing to build, ship and support.
       </p>
     </div>

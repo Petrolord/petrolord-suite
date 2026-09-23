@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 0dfd8ca3b8db3050d1a0ac523ee32673f9898ddc
+# commit c6cec7597cc6e5a30d73a197d0d401a9e3635d83
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 44371728287830202289219a9fda0cae460e5a55 README.md
@@ -339,7 +339,7 @@ e1e04dc97876c0256c01cb7e3e58b2fec840b64f engines/facilities/heatTransfer.js
 1e50dac95bcfab0c720ad36a218ec00bf2ca4409 engines/facilities/producedWater.js
 03ff4deb5c078d9f393fc9c599903e9bf8a9f94a engines/facilities/pumps.js
 6608ffba8625c848bcd2003cb7c73a976c3eae66 engines/facilities/relief.js
-aa440e185580026b7b797ea7874e985750dfd167 engines/facilities/separatorSizing.js
+0e5600f99b329a53ee283f67befc5b134839cc37 engines/facilities/separatorSizing.js
 82090082a2c744936f3e9a5d75952406fc77f9c9 engines/facilities/spacing.js
 9b81b94a3611c002b23850eeed0fb48297c9583e engines/facilities/storageTank.js
 293e896c941467a31844b73213669b0ab8dcc3ac engines/fluid/blackOil.ts

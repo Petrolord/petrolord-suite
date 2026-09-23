@@ -18,7 +18,7 @@
 import { LOCKED } from '../../spine.mjs';
 import { FD, SG_WATER_LB_FT3, LB_FT3_PER_KG_M3 } from './basis.mjs';
 import {
-  gasDensityLbFt3, oilDensityLbFt3, kValue, terminalVelocityFtS, gasActualFt3S, ldSweep, K_BASE,
+  gasDensityLbFt3, oilDensityLbFt3, oilDensityAtTLbFt3, kValue, terminalVelocityFtS, gasActualFt3S, ldSweep, K_BASE,
 } from '../../../../packages/engines/engines/facilities/separatorSizing.js';
 import {
   liquidLineDrop, liquidLineTraverse, requiredWallIn, maopPsig,
@@ -107,7 +107,8 @@ export function evaluateSeparator(inp) {
   const pPsia = num(p.pPsig) + 14.7;
   const gas = gasDensityLbFt3({ pPsia, tF: num(p.tF), gasSg: num(p.gasSg) });
   if (gas.error) return gas;
-  const rhoOil = oilDensityLbFt3(num(p.oilApi));
+  // the Separator Studio takes the oil at the separator temperature (engines #246)
+  const rhoOil = oilDensityAtTLbFt3({ apiGravity: num(p.oilApi), tF: num(p.tF) }).rhoLbFt3;
   const qWater = num(p.qWaterBpd);
   const rhoWater = qWater > 0 || v.type === 'horizontal3' ? num(p.waterSg) * 62.4 : NaN;
   const qOil = num(p.qOilBpd);

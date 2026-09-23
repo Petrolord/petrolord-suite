@@ -18,7 +18,7 @@ const helpContent = [
     icon: Wind,
     title: 'The K value and the gas load',
     content:
-      'Gas capacity comes from the Souders-Brown relation: the gas may not rise faster than a droplet falls. The K in it depends on the vessel orientation and the mist extractor, and it derates with pressure, which the studio applies from the published rule. Below a floor the derating stops meaning anything and the studio says so rather than quietly extrapolating. A vendor K always wins if you type one. The gas density behind all of this comes from the validated compressibility correlation at your conditions, not a fixed number.',
+      'Gas capacity comes from the Souders-Brown relation: the gas may not rise faster than a droplet falls. The K in it depends on the vessel orientation and the mist extractor, and it derates with pressure, which the studio applies from the published rule. Below a floor the derating stops meaning anything and the studio says so rather than quietly extrapolating. A vendor K always wins if you type one. The gas density behind all of this comes from the validated compressibility correlation at your conditions, not a fixed number. The oil density is taken at the separator temperature: its 60 degF value from the API gravity, corrected with the API crude-oil expansion (a 32 API oil is about 3.6 percent lighter at 140 degF). Water gravity is used as you enter it.',
   },
   {
     id: 'geometry',
@@ -46,7 +46,7 @@ const helpContent = [
     icon: Ruler,
     title: 'The L/D family',
     content:
-      'Rather than pin one slenderness, the studio sizes every candidate diameter you give it and shows the family with the L/D of each. Three to five is the customary band for horizontal separators and two to four for vertical ones, and the band fields switch to the vertical band when you change the vessel type (unless you have edited them). The selected vessel is the smallest candidate that both works and sits inside the band, where working means it carries the gas and, on a three-phase vessel, passes both droplet checks. Each row says which of those it fails. When nothing qualifies, the studio selects nothing and says whether no candidate works at all or whether the ones that work are all outside the band. A vessel outside the band still separates; it is just an awkward thing to build, ship and support, and seeing the whole family makes that a choice rather than an accident.',
+      'Rather than pin one slenderness, the studio sizes every candidate diameter you give it and shows the family with the L/D of each. The customary band is three to four for a two-phase horizontal separator, three to five for a three-phase one (the extra length buys the oil-water retention) and two to four for a vertical one, and the band fields switch to the band for the new type when you change the vessel type (unless you have edited them). The selected vessel is the smallest candidate that both works and sits inside the band, where working means it carries the gas and, on a three-phase vessel, passes both droplet checks. Each row says which of those it fails. When nothing qualifies, the studio selects nothing and says whether no candidate works at all or whether the ones that work are all outside the band. A vessel outside the band still separates; it is just an awkward thing to build, ship and support, and seeing the whole family makes that a choice rather than an accident.',
   },
   {
     id: 'inputs',
