@@ -202,7 +202,7 @@ export async function listWells() {
 export async function listWellsWithTops() {
   const [{ data, error }, { data: { user } }] = await Promise.all([
     supabase.from('geo_wells')
-      .select('*, geo_wells_tops(id, name, md_m, interpreter)')
+      .select('*, geo_wells_tops(id, name, md_m, interpreter, surface_type, unit_id, confidence)')
       .order('created_at', { ascending: false }),
     supabase.auth.getUser(),
   ]);
