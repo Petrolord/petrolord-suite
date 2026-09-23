@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import CollapsibleSection from './CollapsibleSection';
 import VariableCard from './VariableCard';
+import { aggregateAnnualProduction } from '@/utils/breakeven/productionCsv';
 import { Settings, SlidersHorizontal, BarChart2, Play, PlusCircle, UploadCloud, FileCheck2, Download } from 'lucide-react';
 
 // Economics E2: the inputs live on the page now, not in here, so a study can
@@ -41,34 +42,8 @@ const InputPanel = ({ onAnalyze, loading, inputs, setInputs }) => {
     }));
   };
 
-  const processProductionData = (data) => {
-    const annualProduction = {};
-    const dateKey = Object.keys(data[0]).find(k => k.toLowerCase().includes('date'));
-    const oilRateKey = Object.keys(data[0]).find(k => k.toLowerCase().includes('oil_rate'));
-
-    if (!dateKey || !oilRateKey) {
-      throw new Error("CSV must contain 'date' and 'oil_rate_bpd' (or similar) columns.");
-    }
-
-    data.forEach(row => {
-      const date = new Date(row[dateKey]);
-      const year = date.getFullYear();
-      const oilRate = parseFloat(row[oilRateKey]);
-
-      if (!isNaN(year) && !isNaN(oilRate)) {
-        if (!annualProduction[year]) {
-          annualProduction[year] = 0;
-        }
-        // Assuming monthly data, so multiply by avg days in month
-        annualProduction[year] += oilRate * 30.44; 
-      }
-    });
-
-    return Object.entries(annualProduction).map(([year, production]) => ({
-      year: parseInt(year),
-      oil_production_bbl: production,
-    }));
-  };
+  // monthly rows at a daily rate -> annual oil (utils/breakeven/productionCsv)
+  const processProductionData = (data) => aggregateAnnualProduction(data);
 
   const onDrop = useCallback((acceptedFiles) => {
     const file = acceptedFiles[0];

@@ -33,7 +33,11 @@ export const epeIrrReason = (kpis) => {
   case 'no-root':
     return 'No IRR: no rate from -99 to 1000 percent brings the net present value to zero.';
   case 'above-clamp':
-    return 'No IRR reported: the return is above 1000 percent, beyond the band the engine searches.';
+    // a root above the band is a return only when the project makes money at
+    // the discount rate; with a negative NPV it is an artefact of the profile
+    return Number(kpis.npv) < 0
+      ? 'No IRR reported: the only rate that brings the net present value to zero is above 1000 percent, and the project loses value at the discount rate, so that rate is not a return.'
+      : 'No IRR reported: the return is above 1000 percent, beyond the band the engine searches.';
   case 'multiple-roots': {
     const listed = kpis.irr_root_above_band
       ? [...roots, 'a rate above 1000 percent']

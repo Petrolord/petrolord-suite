@@ -198,7 +198,9 @@ export const irrReason = (metrics) => {
   case 'no-root':
     return 'no rate of return: no rate from -99 to 1000 percent brings the NPV to zero';
   case 'above-clamp':
-    return 'the rate of return is above 1000 percent, beyond the band searched';
+    return Number(metrics?.npv) < 0
+      ? 'no rate of return: the only rate that zeroes the NPV is above 1000 percent, and the plan loses value at the discount rate'
+      : 'the rate of return is above 1000 percent, beyond the band searched';
   default:
     return 'no rate of return reported';
   }
