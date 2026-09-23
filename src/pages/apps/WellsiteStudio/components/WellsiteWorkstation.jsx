@@ -25,7 +25,7 @@ import TimelineView from './TimelineView';
 import { eventsFromRecords, startEventParams } from '../services/events';
 import SamplesView from './SamplesView';
 import LagPanel from './LagPanel';
-import { lagNow, sampleBoard, currentProgramme, programmeChange, samplesToSchedule, scheduleHorizonM, PROGRAMME_SUBTYPE, isFloater } from '../services/samples';
+import { lagNow, sampleBoard, currentProgramme, programmeChange, samplesToSchedule, scheduleHorizonM, programmeStartMdM, bitHistoryOf, PROGRAMME_SUBTYPE, isFloater } from '../services/samples';
 import ShowsView from './ShowsView';
 import ObservationsView from './ObservationsView';
 import PhotosPanel from './PhotosPanel';
@@ -194,16 +194,17 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
 
   const ctx = useMemo(() => (well ? wellContext(well) : null), [well]);
   const nowForLag = Date.now() + tick * 0;
-  const lag = useMemo(() => (well ? lagNow({ well, rigConfig, bitDepths, pumpEvents, nowUtcMs: nowForLag }) : { available: false, note: '' }), [well, rigConfig, bitDepths, pumpEvents, nowForLag]);
+  const events = useMemo(() => eventsFromRecords(eventRecords), [eventRecords]);
+  const lag = useMemo(() => (well ? lagNow({ well, rigConfig, bitDepths, pumpEvents, events, nowUtcMs: nowForLag }) : { available: false, note: '' }), [well, rigConfig, bitDepths, pumpEvents, events, nowForLag]);
   const floater = isFloater(rigConfig);
   const programme = useMemo(() => currentProgramme(programmeRecords), [programmeRecords]);
-  const board = useMemo(() => (well ? sampleBoard({ samples, stages, well, rigConfig, bitDepths, pumpEvents, nowUtcMs: nowForLag }) : null), [well, samples, stages, rigConfig, bitDepths, pumpEvents, nowForLag]);
+  const board = useMemo(() => (well ? sampleBoard({ samples, stages, well, rigConfig, bitDepths, pumpEvents, events, nowUtcMs: nowForLag }) : null), [well, samples, stages, rigConfig, bitDepths, pumpEvents, events, nowForLag]);
   const scheduling = useRef(false);
   const scheduleAhead = useCallback(async () => {
     if (!well || !programme || scheduling.current) return 0;
     const latest = bitDepths[bitDepths.length - 1];
     if (!latest) return 0;
-    const todo = samplesToSchedule(programme, samples, { toMdM: scheduleHorizonM(programme, latest.md_calc_m) });
+    const todo = samplesToSchedule(programme, samples, { fromMdM: programmeStartMdM(programme, bitHistoryOf(bitDepths)), toMdM: scheduleHorizonM(programme, latest.md_calc_m) });
     if (!todo.length) return 0;
     scheduling.current = true;
     try {
@@ -236,7 +237,6 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
       setTick((t) => t + 1);
     } catch (e) { setStatus(e.message); }
   }, [backend, well]);
-  const events = useMemo(() => eventsFromRecords(eventRecords), [eventRecords]);
   const prognosis = useMemo(() => currentPrognosis(prognoses), [prognoses]);
   const latestBitMd = bitDepths.length ? bitDepths[bitDepths.length - 1].md_calc_m : null;
   const topsBoard = useMemo(() => (well && ctx ? formationBoard({ tops, prognosis, bitMdM: latestBitMd, ctx }) : { rows: [], next: null, conflicts: [] }), [well, ctx, tops, prognosis, latestBitMd]);
@@ -274,14 +274,16 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
       setTick((t) => t + 1);
     } catch (e) { setStatus(e.message); }
   }, [backend, units.depth]);
-  const loadPrognosis = useCallback(async () => {
+  const loadPrognosis = useCallback(async (offsetWellIds) => {
     try {
-      const sources = await backend.loadPrognosisSources(well.id, { offsetWellIds: (prognosis && prognosis.source && prognosis.source.offset_well_ids) || [] });
+      const ids = Array.isArray(offsetWellIds) ? offsetWellIds : ((prognosis && prognosis.source && prognosis.source.offset_well_ids) || []);
+      const sources = await backend.loadPrognosisSources(well.id, { offsetWellIds: ids });
       const row = await backend.addPrognosis(well.id, buildPrognosis({ wellId: well.id, version: 0, sources, offsetWells: sources.offsetWells, offsetMin: offsetMinOf(well) }));
       setStatus(`Prognosis version ${row.version} loaded: ${row.tops.length} top(s), ${row.offset_tops.length} offset top(s).`);
       setTick((t) => t + 1);
     } catch (e) { setStatus(e.message); }
   }, [backend, well, prognosis]);
+  const loadRegistryWells = useCallback(() => backend.listRegistryWells(), [backend]);
   const addPrognosisTop = useCallback(async ({ name, depth, uncertaintyDisplay }) => {
     if (!(name && name.trim())) throw new Error('A formation name is required.');
     const c = toCanonicalMd({ ...depth, kind: 'prognosis' }, ctx);
@@ -427,7 +429,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     center = <PhotosPanel backend={backend} well={well} photos={photos} samples={samples} sampleId={photoSampleId} onSampleChange={setPhotoSampleId} unit={units.depth} offsetMin={offsetMin} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
   } else if (view === 'tops') {
     center = <TopsView board={topsBoard} tops={tops} records={allObservationRecords} prognosis={prognosis} ctx={ctx} defaults={defaultDepthEntry(well)} unit={units.depth} offsetMin={offsetMin}
-      approver={approver} online={backend.online()} canAdmin={isAdmin} onInterpret={interpretTop} onCall={callTop} onResolve={resolveTop} onLoadPrognosis={loadPrognosis} onAddPrognosisTop={addPrognosisTop} onPublish={publishToRegistry} onStatus={setStatus} userName={user ? user.name || user.email : ''} />;
+      approver={approver} online={backend.online()} canAdmin={isAdmin} onInterpret={interpretTop} onCall={callTop} onResolve={resolveTop} onLoadPrognosis={loadPrognosis} geoWellId={well.geo_well_id} loadRegistryWells={loadRegistryWells} onAddPrognosisTop={addPrognosisTop} onPublish={publishToRegistry} onStatus={setStatus} userName={user ? user.name || user.email : ''} />;
   } else if (view === 'handover' || view === 'report') {
     center = <ReportScreen key={view} kind={view === 'handover' ? 'handover' : 'daily'} backend={backend} well={well} data={reportData} tourCfg={tourConfigOf(well)} nowMs={nowForLag} unit={units.depth} offsetMin={offsetMin}
       role={myRole} userName={user ? user.name || user.email : ''} reports={reports} signoffs={signoffs} onNarrativeSave={saveNarrative} onStatus={setStatus} onChanged={() => setTick((t) => t + 1)} />;

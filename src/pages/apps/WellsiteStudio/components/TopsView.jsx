@@ -4,7 +4,7 @@
 // (separate records), and conflicts for an approver. Withdrawn calls
 // never publish.
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import DepthEntry from './DepthEntry';
 import ConflictResolver from './ConflictResolver';
@@ -12,7 +12,7 @@ import { versionChain, CONFIDENCES, TOP_STATUSES, canTransition, interpretationP
 import { fmtDepth, depthToDisplay } from '../services/units';
 import { toRigLocal } from '@/lib/wellsite/time';
 
-export default function TopsView({ board, tops, records, prognosis, ctx, defaults, unit, offsetMin, approver, online, canAdmin, onInterpret, onCall, onResolve, onLoadPrognosis, onAddPrognosisTop, onPublish, onStatus, userName }) {
+export default function TopsView({ board, tops, records, prognosis, ctx, defaults, unit, offsetMin, approver, online, canAdmin, onInterpret, onCall, onResolve, onLoadPrognosis, onAddPrognosisTop, onPublish, onStatus, userName, geoWellId = null, loadRegistryWells = null }) {
   const [open, setOpen] = useState(null);
   const [form, setForm] = useState(null); // { kind:'interpret'|'call', key, name }
   const [name, setName] = useState('');
@@ -26,6 +26,19 @@ export default function TopsView({ board, tops, records, prognosis, ctx, default
   const [progDepth, setProgDepth] = useState({ value: NaN, unit: defaults.unit, reference: 'MD', datum: 'KB' });
   const [progUnc, setProgUnc] = useState('15');
   const [chainOf, setChainOf] = useState(null);
+  // offset wells for the next Load from registry (Ekene kit finding 2026-09-23: nothing chose them, so
+  // no prognosis ever carried offset tops); the last version's choice is the starting point
+  const [registryWells, setRegistryWells] = useState(null);
+  const [offsetIds, setOffsetIds] = useState(() => (prognosis && prognosis.source && prognosis.source.offset_well_ids) || []);
+  const lastOffsetKey = JSON.stringify((prognosis && prognosis.source && prognosis.source.offset_well_ids) || []);
+  useEffect(() => { setOffsetIds(JSON.parse(lastOffsetKey)); }, [lastOffsetKey]);
+  useEffect(() => {
+    let alive = true;
+    if (!canAdmin || !online || !loadRegistryWells) return undefined;
+    loadRegistryWells().then((w) => { if (alive) setRegistryWells((w || []).filter((x) => x.id !== geoWellId)); }).catch(() => { if (alive) setRegistryWells([]); });
+    return () => { alive = false; };
+  }, [canAdmin, online, loadRegistryWells, geoWellId]);
+  const toggleOffset = (id) => setOffsetIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   const local = (iso) => toRigLocal(Date.parse(iso), offsetMin).hhmm;
   const sel = 'bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-xs text-slate-100';
   const recentEvidence = useMemo(() => [...records].filter((r) => r.kind === 'observation').sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at)).slice(0, 12), [records]);
@@ -68,7 +81,19 @@ export default function TopsView({ board, tops, records, prognosis, ctx, default
         <span className="text-[11px] text-slate-400" data-testid="ws-prognosis-version">
           {prognosis ? `Prognosis version ${prognosis.version}, loaded ${toRigLocal(Date.parse(prognosis.loaded_at || prognosis.client_created_at), offsetMin).iso.replace('T', ' ')} rig time, ${(prognosis.tops || []).length} top(s), ${(prognosis.offset_tops || []).length} offset top(s)` : 'No prognosis loaded.'}
         </span>
-        {canAdmin && <Button size="sm" variant="outline" disabled={!online} onClick={onLoadPrognosis} data-testid="ws-prognosis-load" title={online ? 'Load the prognosis from the registry (a new version)' : 'Needs a connection'}>Load from registry</Button>}
+        {canAdmin && <Button size="sm" variant="outline" disabled={!online} onClick={() => onLoadPrognosis(offsetIds)} data-testid="ws-prognosis-load" title={online ? 'Load the prognosis from the registry (a new version)' : 'Needs a connection'}>Load from registry</Button>}
+        {canAdmin && online && registryWells && (
+          <details className="text-[11px] text-slate-300" data-testid="ws-prognosis-offsets">
+            <summary className="cursor-pointer text-slate-400" data-testid="ws-prognosis-offsets-summary">Offset wells ({offsetIds.length} chosen)</summary>
+            <div className="mt-1 flex flex-wrap gap-2 max-w-xl">
+              {registryWells.length === 0 && <span className="text-slate-500">No other registry well to use as an offset.</span>}
+              {registryWells.map((w) => (
+                <label key={w.id} className="flex items-center gap-1"><input type="checkbox" checked={offsetIds.includes(w.id)} onChange={() => toggleOffset(w.id)} data-testid={`ws-prognosis-offset-${w.name}`} />{w.name}</label>
+              ))}
+            </div>
+            <div className="text-slate-500 mt-1">The chosen wells' tops, through their own surveys, load with the next Load from registry.</div>
+          </details>
+        )}
         {board.conflicts.length > 0 && <span className="text-[11px] text-amber-300" data-testid="ws-tops-conflicts">{board.conflicts.length} conflict(s)</span>}
         {onPublish && <Button size="sm" variant="outline" disabled={!online} onClick={onPublish} data-testid="ws-top-publish" title={online ? 'Publish final calls and current descriptions to the shared well registry (registry owner only)' : 'Needs a connection'}>Publish to registry</Button>}
       </div>

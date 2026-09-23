@@ -16,30 +16,45 @@ import { RIG_TYPES, FLOATER_TYPES } from '../services/vocab';
 const IN = 0.0254;
 const num = (v) => (v === '' || v == null ? NaN : Number(v));
 
+// Geometry is stored in metres and shown in feet and inches. The display keeps enough decimals to
+// round-trip what was typed (3 in feet, 4 in inches, trailing zeros dropped), and a value whose text
+// was not edited goes back as the exact stored metres, so saving the config again never moves the
+// geometry (Ekene kit finding 2026-09-23: whole-foot display rounded it on every re-save).
+const FT = 0.3048;
+const shown = (m, f, dp) => (Number.isFinite(m) ? String(Number((m / f).toFixed(dp))) : '');
+const kept = (text, m, f, dp) => (Number.isFinite(m) && String(text).trim() === shown(m, f, dp) ? m : num(text) * f);
+const ftShown = (m) => shown(m, FT, 3);
+const inShown = (m) => shown(m, IN, 4);
+const ftKept = (text, m) => kept(text, m, FT, 3);
+const inKept = (text, m) => kept(text, m, IN, 4);
+
 function sectionsToRows(sections) {
-  return (sections || []).map((s) => ({
-    from_ft: (s.from_md_m / 0.3048).toFixed(0), to_ft: (s.to_md_m / 0.3048).toFixed(0),
-    cased: s.cased ? 'yes' : 'no', id_in: ((s.cased ? s.casing_id_m : s.hole_id_m) / IN).toFixed(3), description: s.description || '',
-  }));
+  return (sections || []).map((s) => {
+    const idM = s.cased ? s.casing_id_m : s.hole_id_m;
+    return { from_ft: ftShown(s.from_md_m), to_ft: ftShown(s.to_md_m), cased: s.cased ? 'yes' : 'no', id_in: inShown(idM), description: s.description || '', _m: { from: s.from_md_m, to: s.to_md_m, id: idM } };
+  });
 }
 function rowsToSections(rows) {
   return rows.map((r) => {
     const cased = r.cased === 'yes';
-    const idM = num(r.id_in) * IN;
-    return { from_md_m: num(r.from_ft) * 0.3048, to_md_m: num(r.to_ft) * 0.3048, cased, hole_id_m: cased ? null : idM, casing_id_m: cased ? idM : null, description: r.description || '' };
+    const o = r._m || {};
+    const idM = inKept(r.id_in, o.id);
+    return { from_md_m: ftKept(r.from_ft, o.from), to_md_m: ftKept(r.to_ft, o.to), cased, hole_id_m: cased ? null : idM, casing_id_m: cased ? idM : null, description: r.description || '' };
   });
 }
-function bhaToRows(bha) { return (bha || []).map((b) => ({ label: b.label || '', length_ft: (b.lengthM / 0.3048).toFixed(0), od_in: (b.odM / IN).toFixed(3), id_in: (b.idM / IN).toFixed(3) })); }
-function rowsToBha(rows) { return rows.map((r) => ({ label: r.label || '', lengthM: num(r.length_ft) * 0.3048, odM: num(r.od_in) * IN, idM: num(r.id_in) * IN })); }
+function bhaToRows(bha) { return (bha || []).map((b) => ({ label: b.label || '', length_ft: ftShown(b.lengthM), od_in: inShown(b.odM), id_in: inShown(b.idM), _m: { length: b.lengthM, od: b.odM, id: b.idM } })); }
+function rowsToBha(rows) { return rows.map((r) => { const o = r._m || {}; return { label: r.label || '', lengthM: ftKept(r.length_ft, o.length), odM: inKept(r.od_in, o.od), idM: inKept(r.id_in, o.id) }; }); }
+const dpToState = (d) => ({ od_in: inShown(d.odM), id_in: inShown(d.idM), _m: { od: d.odM, id: d.idM } });
+const riserToState = (r) => ({ bop_ft: r.to_md_m > 0 ? ftShown(r.to_md_m) : '', id_in: r.id_m > 0 ? inShown(r.id_m) : '19.5', _m: { bop: r.to_md_m, id: r.id_m } });
 
 export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus, canAdmin = true, membersSlot = null }) {
   const [sections, setSections] = useState(() => sectionsToRows(rigConfig?.hole_sections));
   const [bha, setBha] = useState(() => bhaToRows(rigConfig?.bha));
-  const [dp, setDp] = useState(() => ({ od_in: rigConfig?.drillpipe ? (rigConfig.drillpipe.odM / IN).toFixed(3) : '5', id_in: rigConfig?.drillpipe ? (rigConfig.drillpipe.idM / IN).toFixed(3) : '4.276' }));
+  const [dp, setDp] = useState(() => (rigConfig?.drillpipe ? dpToState(rigConfig.drillpipe) : { od_in: '5', id_in: '4.276' }));
   const [pump, setPump] = useState(() => ({ type: 'triplex', linerIn: '6', strokeIn: '12', rodIn: '0', efficiency: '0.97', ...(rigConfig?.pump ? Object.fromEntries(Object.entries(rigConfig.pump).map(([k, v]) => [k, String(v)])) : {}) }));
   // Floating rigs (tester note 2026-09-07): the marine riser above the BOP and the booster pump into its base.
   const [rigType, setRigType] = useState(() => rigConfig?.rig_type || 'land');
-  const [riser, setRiser] = useState(() => ({ bop_ft: rigConfig?.riser?.to_md_m > 0 ? (rigConfig.riser.to_md_m / 0.3048).toFixed(0) : '', id_in: rigConfig?.riser?.id_m > 0 ? (rigConfig.riser.id_m / IN).toFixed(3) : '19.5' }));
+  const [riser, setRiser] = useState(() => (rigConfig?.riser ? riserToState(rigConfig.riser) : { bop_ft: '', id_in: '19.5' }));
   const [booster, setBooster] = useState(() => ({ type: 'triplex', linerIn: '5', strokeIn: '12', rodIn: '0', efficiency: '0.97', ...(rigConfig?.booster ? Object.fromEntries(Object.entries(rigConfig.booster).map(([k, v]) => [k, String(v)])) : {}) }));
   const floater = FLOATER_TYPES.includes(rigType);
   const [settings, setSettings] = useState(() => ({ ...(well.settings || {}) }));
@@ -54,15 +69,19 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
   const settingsKey = JSON.stringify(well.settings || {});
   const headerKey = JSON.stringify(well.header || {});
   useEffect(() => { setSettings(JSON.parse(settingsKey)); setHeader(JSON.parse(headerKey)); }, [settingsKey, headerKey]);
+  // same rule for the rig: a reload after saving hands over an equal payload and must not overwrite a
+  // value being typed; only a configuration with different content resets the editors
+  const rigKey = JSON.stringify(rigConfig || null);
   useEffect(() => {
+    const rigConfig = JSON.parse(rigKey);
     if (!rigConfig) return;
     setSections(sectionsToRows(rigConfig.hole_sections)); setBha(bhaToRows(rigConfig.bha));
-    if (rigConfig.drillpipe) setDp({ od_in: (rigConfig.drillpipe.odM / IN).toFixed(3), id_in: (rigConfig.drillpipe.idM / IN).toFixed(3) });
+    if (rigConfig.drillpipe) setDp(dpToState(rigConfig.drillpipe));
     if (rigConfig.pump) setPump(Object.fromEntries(Object.entries(rigConfig.pump).map(([k, v]) => [k, String(v)])));
     setRigType(rigConfig.rig_type || 'land');
-    if (rigConfig.riser) setRiser({ bop_ft: rigConfig.riser.to_md_m > 0 ? (rigConfig.riser.to_md_m / 0.3048).toFixed(0) : '', id_in: rigConfig.riser.id_m > 0 ? (rigConfig.riser.id_m / IN).toFixed(3) : '19.5' });
+    if (rigConfig.riser) setRiser(riserToState(rigConfig.riser));
     if (rigConfig.booster) setBooster(Object.fromEntries(Object.entries(rigConfig.booster).map(([k, v]) => [k, String(v)])));
-  }, [rigConfig]);
+  }, [rigKey]);
 
   const disp = useMemo(() => {
     try {
@@ -80,7 +99,7 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
       const payload = {
         rig_type: rigType,
         hole_sections: rowsToSections(sections), bha: rowsToBha(bha),
-        drillpipe: { odM: num(dp.od_in) * IN, idM: num(dp.id_in) * IN, label: `${dp.od_in} in drillpipe` },
+        drillpipe: { odM: inKept(dp.od_in, dp._m && dp._m.od), idM: inKept(dp.id_in, dp._m && dp._m.id), label: `${dp.od_in} in drillpipe` },
         pump: { type: pump.type, linerIn: num(pump.linerIn), strokeIn: num(pump.strokeIn), rodIn: num(pump.rodIn) || 0, efficiency: num(pump.efficiency) },
         riser: null,
         booster: null,
@@ -88,8 +107,8 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
       for (const s of payload.hole_sections) if (!(s.to_md_m > s.from_md_m) || !((s.cased ? s.casing_id_m : s.hole_id_m) > 0)) throw new Error('Every hole section needs a base below its top and a positive inside diameter.');
       if (disp.error) throw new Error(disp.error);
       if (floater) {
-        const bopM = num(riser.bop_ft) * 0.3048;
-        const idM = num(riser.id_in) * IN;
+        const bopM = ftKept(riser.bop_ft, riser._m && riser._m.bop);
+        const idM = inKept(riser.id_in, riser._m && riser._m.id);
         if (!(bopM > 0) || !(idM > 0)) throw new Error('A floating rig needs the BOP depth below the rotary table and the riser inside diameter.');
         if (boosterDisp.error) throw new Error(boosterDisp.error);
         payload.riser = { to_md_m: bopM, id_m: idM };

@@ -125,7 +125,8 @@ export default function WellsiteHelpGuide() {
         <Para>
           The prognosis is loaded on Tops with Load from registry: the well's own tops, the offset wells' tops through their own
           surveys, and Well Design's hole sections and definitive trajectory when the well is linked. Each load is a new numbered
-          version with its date, shown at the top of the Tops view. A prognosis top can also be added by hand; that is a new version too.
+          version with its date, shown at the top of the Tops view. Choose the offset wells under Offset wells beside the button before
+          loading; the choice starts from the last version's. A prognosis top can also be added by hand; that is a new version too.
         </Para>
       </GuideSection>
 
@@ -168,6 +169,8 @@ export default function WellsiteHelpGuide() {
           Lag is counted in pump strokes: the annular volume from the bit to surface over the pump displacement. Time follows the pump
           log (rate changes, connections, shutdowns included), so the lag panel shows the lag strokes, the lag time at the current rate,
           the lagged sample depth now, and the bottoms-up time. With the pumps off the lag time is undefined and the panel says so.
+          Between two bit depths the bit is taken to drill steadily, except through connections, trips, circulation, sweeps, casing and
+          logging on the timeline, when it is held where it was, so start and end those events as they happen.
         </Para>
         <Para>
           On a drillship or a semi-submersible the returns travel up the marine riser above the BOP, and the booster pump adds mud at
@@ -178,7 +181,8 @@ export default function WellsiteHelpGuide() {
         </Para>
         <Para>
           The sampling programme (an interval per depth range) is an authorised decision; changing it needs the person who authorised
-          it and makes a new version. Samples are scheduled three intervals ahead of the bit, with their predicted arrival. A sample not
+          it and makes a new version. Samples are scheduled three intervals ahead of the bit, with their predicted arrival, starting from
+          the bit depth when that version was authorised (depths drilled before it are not scheduled). A sample not
           confirmed within the tolerance of its predicted arrival is highlighted as overdue for review; the app never says it was missed,
           because it cannot know.
         </Para>
