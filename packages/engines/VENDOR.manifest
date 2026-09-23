@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit c6cec7597cc6e5a30d73a197d0d401a9e3635d83
+# commit 49d1e9233e8918877ead884eea5548b148153a4a
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 44371728287830202289219a9fda0cae460e5a55 README.md
@@ -205,8 +205,8 @@ c78a318b502a4be6b60d100e705149221df5eeb0 __tests__/waterflood.vrr.test.js
 f12c533b0ed35d549a8bfca9a0f4396fc1e0281a __tests__/welldata.las3blocks.test.js
 7398d1b77dee50db33dc6b18eb51bde22e20ab9b __tests__/wellsite.depth.test.js
 00294b62d269973e37bd108dd437c10db58469c2 __tests__/wellsite.description.test.js
-bb83f4d21da29a030d51686d4317f7dfe9131356 __tests__/wellsite.events.test.js
-4cda71a893a76f99bffab36315125897d25072ef __tests__/wellsite.lag.test.js
+79beaa01ba5b4147e1b9da4b199f369066ad25b6 __tests__/wellsite.events.test.js
+8382fcddffd5a122a9c5938582b98c88b99ce5c4 __tests__/wellsite.lag.test.js
 5241fc370613b907ae6ee448ae66e2f2e2a9d916 __tests__/wellsite.pumps.test.js
 b8fede0736728d07204786dc53b744d724f29de2 __tests__/wellsite.reports.test.js
 44040e1cd9186f4438331369ec13b3aa3009c7d2 __tests__/wellsite.sampleprogram.test.js
@@ -504,8 +504,8 @@ b5c51c9ce94e7cbfabaa8643bb5d1b3e3db73b5d engines/waterflood/patternForecast.js
 e83147b4171a4d2364d39fd3bd396babae2b549a engines/wellsite/abbreviations.js
 105fe1f53d1f06ca3adc8853eee75c6be39ba41b engines/wellsite/depth.js
 47d78db9f287093e19cd9fd452ffb6a6a5bd7489 engines/wellsite/descriptionVocabulary.js
-619cd411bf4230c55e5ce76fcf49d33dbfccf382 engines/wellsite/events.js
-8ddb6f9ee1b2b78853cc851e4a0934444ea887c1 engines/wellsite/lag.js
+1bc4f2f6ab467e29f4937920e49772044aaae4e4 engines/wellsite/events.js
+0d833d7d41238466bd7cc1077c8921d624e71229 engines/wellsite/lag.js
 2cf0d29a5b448b97cc7b02e3c0c627dd0bc28b34 engines/wellsite/pumps.js
 d0dec03d39af6b23818c6cdf9e85d11999f343ec engines/wellsite/reports.js
 c138332947f647c0911d2b43fc73441e32527e0a engines/wellsite/sampleProgram.js
