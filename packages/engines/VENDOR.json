@@ -2,14 +2,14 @@
   "$comment": "Vendoring contract for packages/engines. Checked by tools/check-vendored-engines.mjs; see that file for the model. The check is against the PINNED commit below and its committed manifest, never against engines HEAD: a guard pointed at HEAD goes red the moment canonical moves and then blocks every unrelated Suite PR. Moving the pin is a deliberate, reviewed vendoring pass. The Suite vendors the WHOLE canonical tree, so the expected state of this file is the one it is in: an EMPTY knownDeviations list. Any deviation that is genuinely deliberate goes in that list with a reason, a group and a burnDownWhen, and every differing or extra path is pinned to the blob currently vendored, so a second drift on an already-known path still fails. burnDownWhen states the condition under which the row must be removed, because a bare reason goes stale on its own: in NextGen a row reading \"pull only with the recut in the same deploy window\" became false the moment the recut merged and nothing in the file said so. A ledger entry whose deviation has gone is also a failure, so the list can only shrink.",
   "canonical": {
     "repo": "git@github.com:Petrolord/petrolord-engines.git",
-    "commit": "c3010e9590f70f72ee196f4485401aa5f0300a31",
+    "commit": "8d2459badbd1cc692e673c56cb8b6130970e0194",
     "manifest": "VENDOR.manifest"
   },
   "vendoring": {
     "method": "file-by-file reconciliation against a canonical clone, verified by blob hash with this guard, hashed from the files on disk rather than from the git index",
     "$comment": "NOT a whole-tree `git subtree pull`. That silently DELETED 24 Suite-only downstream files on 2026-09-14. Vendor the paths the canonical range actually touched, then run the guard, which is what proves nothing else moved.",
     "lastVendored": "2026-09-23",
-    "lastVendoredRange": "59b769a4d97d421bb2d0fe48af55c7f2ae797f74..c3010e9590f70f72ee196f4485401aa5f0300a31 (engines PR #244, head c3010e9). 3 canonical paths changed: engines/economics/cashflow.ts, tools/validation/economics/oracle_cashflow.py, test-data/economics/goldens/cashflow_cases.json. BEHAVIOUR CHANGE: EPE engine 3.11.0, the economic limit never trims a year carrying capex, so computeBreakevenOilPrice answers with the limit on (it returned null); no existing golden case changes. The epe-cash-flow-engine edge functions bundle this file: redeploy to serve 3.11.0."
+    "lastVendoredRange": "c3010e9590f70f72ee196f4485401aa5f0300a31..8d2459badbd1cc692e673c56cb8b6130970e0194 (engines PR #245, head 8d2459b). 2 canonical paths: engines/production/allocation.js, __tests__/production.allocation.test.js. BEHAVIOUR CHANGE: crossCheckTestsAgainstNodal reports a test on the model's unstable (choke-held) crossing as 'unstable-branch' with nodalStbd and stableStbd, where it said 'off' or 'dead'."
   },
   "testing": {
     "$comment": "The Suite needs no equivalent of NextGen's tools/run-vendored-engine-tests.mjs. jest.config.js uses testMatch '**/__tests__/**/*.test.(js|jsx|ts)' with no testPathIgnorePatterns, so all 179 suites under packages/engines/__tests__ already run in `npm test` beside the Suite's own. There is no allow-list of known engine test failures because there are none: the vendored suites are green.",

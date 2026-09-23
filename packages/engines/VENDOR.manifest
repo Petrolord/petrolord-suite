@@ -1,6 +1,6 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit c3010e9590f70f72ee196f4485401aa5f0300a31
+# commit 8d2459badbd1cc692e673c56cb8b6130970e0194
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
 44371728287830202289219a9fda0cae460e5a55 README.md
@@ -129,7 +129,7 @@ c6193181e5bb7a0ef38a0340b1584daeac88fad8 __tests__/petrophysics.pipeline.test.js
 ecb340cafe599e28393b66dd623019d3f63847f2 __tests__/petrophysics.probabilistic.test.js
 6def044837c2d8a37e8640616fb60e791ce6fd18 __tests__/petrophysics.rw.test.js
 9c445e72524f9470274c685dc9b97aaa43fffae8 __tests__/petrophysics.scanTrace.test.js
-4c87df51de1f7d490399fa27b3cf47f0b8767a82 __tests__/production.allocation.test.js
+108df75a86fcf168f4aa6129c47b7e7e97da981f __tests__/production.allocation.test.js
 58a0f6c7a6095cefb8e4dc5731698777a39cc32a __tests__/production.choke.test.js
 bdbc4b27a88b0f748346328b3dc603f03d2bb294 __tests__/production.esp.test.js
 cce8796e5c05876582a7db25ccdec106e4d61bde __tests__/production.flowassurance.test.js
@@ -389,7 +389,7 @@ c6e1731182122b57ac37e8a4c1088f2bd5110710 engines/porepressure/nct.js
 8cb2b6b656d3f62682f40025653efff465f77614 engines/porepressure/pressures.js
 05883059a23c3a7dfa3971b8b52bf086dd4f3b6d engines/porepressure/profile.js
 4508783a93d74a3a18398008858ee22c6dced66b engines/porepressure/velocitySource.js
-13d58869b538452974b4a3ba34c6e2857df77531 engines/production/allocation.js
+e1c03fa1ad8c36cf754f9463df50d00c62551951 engines/production/allocation.js
 0925af553382ff09c11b12109deb97b8f9704e67 engines/production/chokePerformance.js
 04b96c99da089d946eab6af595eaa974d2f9a4c3 engines/production/data/espCatalog.js
 7b17be980a4b417c43a05170f56dbaf44e6f0289 engines/production/data/gasLiftValveCatalog.js
