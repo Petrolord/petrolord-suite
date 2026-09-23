@@ -40,10 +40,12 @@ export function assertFloat32Parent(parentManifest) {
 
 /** Default display name for a derived volume. */
 export function defaultDerivedName(parentName, attributeName, params = {}) {
-  const def = ALL_ATTRIBUTE_DEFS[attributeName];
+  const def = Object.prototype.hasOwnProperty.call(ALL_ATTRIBUTE_DEFS, attributeName)
+    ? ALL_ATTRIBUTE_DEFS[attributeName] : null;
   const label = def ? def.label.replace(/\s*\(.*\)$/, '') : attributeName;
+  const freq = params.freqHz ? ` ${params.freqHz} Hz` : '';
   const win = params.windowMs ? ` ${params.windowMs} ms` : '';
-  return `${parentName} [${label}${win}]`;
+  return `${parentName} [${label}${freq}${win}]`;
 }
 
 async function uploadObject(path, body, contentType, skipExisting) {

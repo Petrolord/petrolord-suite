@@ -43,7 +43,9 @@ describe('SeismolordHelpGuide', () => {
       'Tie and match tops', 'Pick faults', 'Track the framework', 'Accept and save', 'Prognosis',
       'View it now', 'display copy', 'Large surveys', 'What Seismolord makes for you',
       'Start here', 'Take the tour', 'Detect faults', 'around the line on screen',
-      'Fault likelihood', 'Start from', 'Sensitivity', 'reflector coherence']) {
+      'Fault likelihood', 'Start from', 'Sensitivity', 'reflector coherence',
+      'Edge (Sobel)', 'Chaos', 'Dip azimuth (lattice)', 'Most positive and most negative curvature',
+      'Spectral decomposition', 'Relative acoustic impedance', 'suitable colormap']) {
       expect(text).toContain(f);
     }
   });

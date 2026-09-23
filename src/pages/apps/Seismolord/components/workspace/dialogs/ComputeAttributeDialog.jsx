@@ -1,6 +1,8 @@
 // Compute attribute volume (W2.1/W2.2): derive a new volume from the
-// open volume's brick store — envelope, instantaneous phase/frequency,
-// sweetness, windowed RMS or AGC amplitude. The compute runs in a
+// open volume's brick store: the trace attributes (envelope, phase,
+// frequency, sweetness, RMS, AGC, spectral decomposition, relative
+// acoustic impedance) and the neighbourhood ones (variance, fault
+// likelihood, edge, dip, azimuth, chaos, curvature). The compute runs in a
 // worker reading the parent's bricks directly; output bricks upload
 // under the ingest backpressure and the result registers as a derived
 // volume (manifest v2) that lists beside its parent in the explorer.
@@ -15,6 +17,14 @@ import { useToast } from '@/components/ui/use-toast';
 import {
   ALL_ATTRIBUTE_DEFS, computeAttributeVolume, defaultDerivedName, derivedStorageBytes,
 } from '../../../services/attributeJobService';
+import { groupAttributeDefs } from '../../../lib/attributeDisplay';
+
+/** A typed parameter value: blank or unreadable falls back to the default;
+ *  0 is a real value where the parameter allows it (Edge's window). */
+export function paramValue(raw, p) {
+  const n = raw === '' ? NaN : Number(raw);
+  return Number.isFinite(n) ? n : p.default;
+}
 
 const selCls = 'mt-1 w-full rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-2 py-1 text-sm';
 
@@ -103,8 +113,12 @@ export default function ComputeAttributeDialog({
                 className={selCls}
                 disabled={busy}
               >
-                {Object.values(ALL_ATTRIBUTE_DEFS).map((d) => (
-                  <option key={d.key} value={d.key}>{d.label}</option>
+                {groupAttributeDefs(ALL_ATTRIBUTE_DEFS).map((g) => (
+                  <optgroup key={g.label} label={g.label}>
+                    {g.defs.map((d) => (
+                      <option key={d.key} value={d.key}>{d.label}</option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </label>
@@ -117,7 +131,7 @@ export default function ComputeAttributeDialog({
                   max={p.max}
                   value={params[key]}
                   onChange={(e) => setParamValues((v) => ({
-                    ...v, [key]: Number(e.target.value) || p.default,
+                    ...v, [key]: paramValue(e.target.value, p),
                   }))}
                   className={selCls}
                   disabled={busy}

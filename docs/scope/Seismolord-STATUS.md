@@ -1,6 +1,37 @@
 # Seismolord — STATUS
 
-Last updated: 2026-09-23 (fault picking upgrade: noisy data, Fault likelihood volume, volume inputs; Tops to Horizons: well tops to a named horizon framework, automatic fault picking; large surveys: the viewer reads the v4 display copy, coarse first; Stream C: v4 conversion to a local spool, two-stage resumable background upload; Stream L: slice worker, local-file view, budgeted cache; tester feedback: navigation, slice player, slice toggles, wells, stability; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
+Last updated: 2026-09-23 (new attributes: edge, chaos, dip, azimuth, curvature, spectral decomposition, RAI; fault picking upgrade: noisy data, Fault likelihood volume, volume inputs; Tops to Horizons: well tops to a named horizon framework, automatic fault picking; large surveys: the viewer reads the v4 display copy, coarse first; Stream C: v4 conversion to a local spool, two-stage resumable background upload; Stream L: slice worker, local-file view, budgeted cache; tester feedback: navigation, slice player, slice toggles, wells, stability; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
+
+## 2026-09-23: new attributes (discoverability programme, step 4)
+
+Engines #242 (86eabf8, stacked on #241) vendored. No DDL, no worker
+wiring: the Suite's attribute dialog and volume worker are registry-driven.
+
+- Structure and discontinuity, regional (a brick column at a time over a
+  halo, gated equal to the whole volume): Edge (Sobel), Chaos, Dip
+  magnitude (ms/trace), Dip azimuth (LATTICE frame: degrees from increasing
+  inline towards increasing crossline; geographic azimuth needs the survey
+  affine and is a follow-up), Most positive / Most negative curvature
+  (ms/trace squared, anticlines positive).
+- Per trace: Spectral decomposition (isofrequencyAt at every sample, freqHz
+  and window) and Relative acoustic impedance (integrated trace minus its
+  trend window).
+- Oracle: independent numpy golden (test-data/seismolord/structure) plus
+  known truth (planar dip under 0.11 percent, azimuth under 0.1 degree,
+  dome/syncline/saddle curvature within 1.2 percent of 2A dt).
+- Suite: lib/attributeDisplay.js groups the dialog (Amplitude and phase,
+  Frequency, Structure, Discontinuity and faults) and gives each attribute
+  volume a suggested colormap on a fresh open (cyclic for phase and
+  azimuth, diverging for curvature, white to black for discontinuity);
+  going back to a plain volume restores the previous one unless changed;
+  restores keep their saved colormap. The co-render overlay takes the
+  suggestion when chosen. A 0 parameter (Edge window) is no longer reset
+  to the default; derived names carry the frequency. Help guide and Start
+  here updated.
+- Known cost: Spectral runs one short FFT per sample (fine at the default
+  40 ms, slow with long windows on big surveys).
+- Tests: attributeDisplay.test.jsx (groups, colormaps, params, names,
+  every new attribute through the worker's job builders).
 
 ## 2026-09-23: fault picking upgrade (discoverability programme, step 3)
 

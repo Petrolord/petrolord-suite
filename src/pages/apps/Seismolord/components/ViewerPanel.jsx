@@ -63,6 +63,7 @@ import {
 } from '../engine/horizonAmplitude';
 import { flattenOffsets, datumForHorizon } from '../engine/flatten';
 import { buildWellSections, corridorCells } from '../lib/wellDisplay';
+import { suggestedColormap } from '../lib/attributeDisplay';
 import { makeTvdssToTwt } from '../engine/wellSection';
 import {
   depthAxisFor, depthStretchSlice, depthRowGrid, depthRowOfSample,
@@ -313,6 +314,11 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
   const sliceIndex = indices[orientation];
   const [vexag, setVexag] = useState(1);       // shared 2D/3D exaggeration
   const [colormap, setColormap] = useState(SEISMIC_COLORMAPS[0].key);
+  // selectVolume reads the live colormap without re-binding (suggested
+  // colormaps for attribute volumes, lib/attributeDisplay)
+  const colormapRef = useRef(colormap);
+  colormapRef.current = colormap;
+  const autoCmapRef = useRef(null);
   const [gain, setGain] = useState(1);
   const [clipRms, setClipRms] = useState(3);
   const [polarity, setPolarity] = useState(1);
@@ -1118,6 +1124,18 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
         setFlattenHorizonId(pr.flattenHorizonId && hz.some((h) => h.id === pr.flattenHorizonId) ? pr.flattenHorizonId : null);
         setTerminations(Array.isArray(pr.terminations) ? pr.terminations.filter((m) => Number.isFinite(m.il) && Number.isFinite(m.xl) && Number.isFinite(m.sample)) : []);
       } else {
+        // a fresh open (not a restore): an attribute volume opens with its
+        // suggested colormap; going back to a plain volume puts the
+        // previous one back unless the user changed it meanwhile
+        const cm = suggestedColormap(v.kind === 'attribute' ? v.attribute_params?.name : null);
+        const auto = autoCmapRef.current;
+        if (cm) {
+          autoCmapRef.current = { applied: cm, previous: auto ? auto.previous : colormapRef.current };
+          setColormap(cm);
+        } else if (auto) {
+          autoCmapRef.current = null;
+          if (colormapRef.current === auto.applied) setColormap(auto.previous);
+        }
         setOrientation('inline');
         setIndices({
           inline: Math.floor(m.geometry.il.count / 2),
@@ -1292,6 +1310,8 @@ export default function ViewerPanel({ appPaths = {}, autoTour = true } = {}) {
     if (!id) return;
     const row = volumes.find((x) => x.id === id);
     if (!row) return;
+    const overlayCm = suggestedColormap(row.kind === 'attribute' ? row.attribute_params?.name : null);
+    if (overlayCm) setOverlayColormap(overlayCm);
     try {
       const m = await getManifest(row);
       if (!sameLattice(manifest, m)) {

@@ -214,12 +214,21 @@ export default function SeismolordHelpGuide() {
           ['Sweetness', 'Envelope over the square root of frequency: clean sands in shale.'],
           ['RMS amplitude', 'Windowed energy (window length in ms).'],
           ['AGC amplitude', 'Balanced amplitudes for picking (window length in ms).'],
+          ['Relative acoustic impedance', 'The trace integrated, with its slow trend (Trend window, ms) removed: layers instead of interfaces, so sand bodies read as blocks.'],
+          ['Spectral decomposition', 'Amplitude at one frequency (Hz) in a moving window (ms), the whole volume. Thin beds tune at a frequency set by their thickness; compare a low, a middle and a high frequency.'],
           ['Variance (discontinuity)', 'Faults and channel edges light up; vertical window in ms and trace radius. Dip steering (ms) aligns the neighbouring traces first so dipping reflectors stay dark; use it for a volume that will feed Detect faults.'],
           ['Fault likelihood', 'The automatic fault picker\'s own measure, 0 to 1: dip-steered variance sharpened along each lineament. Detect faults can start from it and then runs fastest.'],
+          ['Edge (Sobel)', 'How fast amplitude changes sideways on each time slice (amplitude per trace), summed over a short vertical window: channel banks and fault edges as sharp lines.'],
+          ['Chaos', '0 where reflectors are orderly and parallel, towards 1 where they are disordered: salt, gas chimneys, slumps and mass transport.'],
+          ['Dip magnitude', 'Reflector dip in ms per trace from the local structure. Steep flanks and drag against faults stand out.'],
+          ['Dip azimuth (lattice)', 'The down-dip direction in degrees, measured on the survey grid from increasing inline number towards increasing crossline number, so its zero follows the survey orientation. Opens with a cyclic colormap.'],
+          ['Most positive and most negative curvature', 'How the reflectors bend (ms per trace squared). Most positive picks out crests, ridges and the upthrown edge of faults; most negative the troughs and the downthrown edge. Anticlines read positive.'],
         ]} />
         <Para>
           To see an attribute over the seismic, open the Co-render group in Home and choose the overlay volume, its
           colormap, the blend and the opacity. Multiply darkens the seismic by the overlay, which suits variance.
+          Attribute volumes open with a suitable colormap (cyclic for phase and azimuth, diverging for curvature,
+          white to black for variance, fault likelihood, edge and chaos); change it as usual.
           Attributes along a horizon, between two horizons and at one frequency (isofrequency) are made in the
           Export dialog's amplitude section and in the Map window.
         </Para>
