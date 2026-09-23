@@ -12,7 +12,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import XLSX from 'xlsx';
 
 import { topsToPoints, specForPoints } from '../../packages/engines/engines/mapping/surface.js';
@@ -720,6 +720,34 @@ const crsLabel = `${FRAME.crs} (${FRAME.crs_name})`;
 }
 
 // ===========================================================================
+// 17. Further domains (Wave D8): one module per domain in ./domains/
+// ===========================================================================
+// Each tools/demo-dataset/domains/<name>.mjs exports
+//   build(ctx) -> { episodes: [{ n, app, files: [[path, why]], note }],
+//                   folders: [[folder, description]] }
+// and writes its files through ctx.write. Modules derive everything from the
+// same spine as sections 1-16 (import ./spine.mjs, ./geology.mjs and the
+// engines directly) and assert what they claim, like every section here.
+// They are loaded in file-name order, so no module edits this file.
+
+const DOMAIN_EPISODES = [];
+const DOMAIN_FOLDERS = [];
+{
+  const dir = path.join(__dirname, 'domains');
+  const mods = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith('.mjs')).sort() : [];
+  for (const f of mods) {
+    const mod = await import(pathToFileURL(path.join(dir, f)).href);
+    if (typeof mod.build !== 'function') throw new Error(`domains/${f} exports no build(ctx).`);
+    const res = await mod.build({
+      write, csv, n, say, assertClose, OUT, ROOT, crsLabel, built, FT_PER_M, logDate,
+    });
+    DOMAIN_EPISODES.push(...(res?.episodes ?? []));
+    DOMAIN_FOLDERS.push(...(res?.folders ?? []));
+    say(`  domain ${f.replace(/\.mjs$/, '')}: ${(res?.episodes ?? []).length} episodes`);
+  }
+}
+
+// ===========================================================================
 // 14. Episode notes — the one thing the scripts are missing
 // ===========================================================================
 
@@ -857,7 +885,16 @@ const EPISODES = [
     + '1790 m), Most positive curvature (the drape anticline crest reads positive), Dip azimuth (grid north) '
     + '(the flanks point away from the crest), Chaos, and Relative acoustic impedance (the Ekene Sand, faster and '
     + 'denser than the Ogbia Shale above it, becomes a block).' },
+  ...DOMAIN_EPISODES,
 ];
+{
+  const seen = new Set();
+  for (const e of EPISODES) {
+    if (seen.has(e.n)) throw new Error(`ASSERT two episodes are numbered ${e.n}.`);
+    seen.add(e.n);
+  }
+  EPISODES.sort((a, b) => a.n - b.n);
+}
 
 // Every kit path a note names must exist: a note pointing at a missing file
 // fails the run, the same rule as every other assertion here.
@@ -942,6 +979,7 @@ write('00-START-HERE.md', [
   '| `07-well-design` | site card and targets |',
   '| `08-production` | six years of rates, the flood, the voidage ledger |',
   '| `09-reservoir` | pressure history, PVT, relative permeability, capillary curves |',
+  ...DOMAIN_FOLDERS.map(([f, d]) => `| \`${f}\` | ${d} |`),
   '| `episodes` | one note per episode naming exactly what to load |', '',
   '## The chain', '',
   'Episode 1 builds the well. 2 interprets it. 3 correlates it. 4 maps it. 5 turns the map into a',
