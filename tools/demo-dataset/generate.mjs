@@ -766,7 +766,7 @@ const DOMAIN_FOLDERS = [];
     const mod = await import(pathToFileURL(path.join(dir, f)).href);
     if (typeof mod.build !== 'function') throw new Error(`domains/${f} exports no build(ctx).`);
     const res = await mod.build({
-      write, csv, n, say, assertClose, OUT, ROOT, crsLabel, built, FT_PER_M, logDate,
+      write, csv, n, say, assertClose, OUT, ROOT, crsLabel, built, FT_PER_M, logDate, tuning: TUNING,
     });
     DOMAIN_EPISODES.push(...(res?.episodes ?? []));
     DOMAIN_FOLDERS.push(...(res?.folders ?? []));
@@ -1016,7 +1016,8 @@ write('00-START-HERE.md', [
   'volume from 5 out of the pressure history. 13 and 14 watch the waterflood. 15 shows the',
   'capillary curve behind the Sw from 2. 16 goes back to the seismic and builds the whole horizon',
   'framework from the wells\' tops. 17 to 36 carry the same field into drilling (Ekene-11),',
-  'production engineering, economics, facilities and process safety: folders 10 to 14.', '',
+  'production engineering, economics, facilities and process safety: folders 10 to 14. 37 drills',
+  'Ekene-11 through the Ekene Sand in Wellsite Studio: folder 15.', '',
   '## What agrees with what', '',
   '- Water saturation in the logs comes from the field\'s own capillary pressure curve, so the',
   '  crest drains to Sw 0.3506 exactly as the reservoir fixture says it does.',

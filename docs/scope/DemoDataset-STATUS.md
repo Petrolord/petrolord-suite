@@ -153,6 +153,39 @@ note says. `csv()` now quotes fields (five kit CSVs had ragged rows).
   60 degF with no temperature correction; the L/D band is the same for two-
   and three-phase horizontal vessels.
 
+## 2026-09-23: episode 37, Wellsite Studio
+
+`domains/wellsite.mjs` (design choices in `domains/wellsite/design.mjs`)
+adds folder `15-wellsite`: one report day on Ekene-11 from the Ekene Alpha
+platform rig, the first 12-1/4in bit through the last of the Ogbia Shale and
+the Ekene Sand top. Wellsite Studio has no import, so the folder is a setup
+sheet in the app's labels and units, a time-ordered shift log with the Lag
+panel readout after every entry, lag checks, samples, descriptions, shows,
+observations and tops. Rig geometry and mud come from `10-drilling`
+(13-3/8in shoe 1530 m, 12-1/4in hole, 13.3 ppg); lithology, oil saturation
+and shale density from the rock model at Ekene-11; the prognosis is
+`01-wells/tops/Ekene-11-tops.csv` and the call lands on it (1635.1 m MD,
+1553.6 m TVD). Headlines: pump 0.1194 bbl/stk (18.99 L/stk), lag 5467
+strokes (30 min at 180 spm) at the top, first sand and a good show in the
+1638 m sample, fair across the contact at 1642.0 m. The gate
+(`__tests__/domain.wellsite.test.js`, 51 tests) runs the sheets through the
+app's own services (lagNow, sampleBoard, samplesToSchedule, parseField,
+abbreviate, showSummary, formationBoard, buildRecord), with negative
+controls. The kit is 165 files; the rest regenerates byte-identically
+(only `00-START-HERE.md`, `MANIFEST.json` and `GENERATION-REPORT.txt` list
+the new folder and episode).
+
+**Wellsite findings (open, recorded in the episode note where a tester meets
+them; not fixed in the app here):** Config takes hole sections and the BHA in
+feet whatever the depth unit and shows them back rounded to the foot, so
+re-saving a configuration typed with decimals changes the geometry; Load from
+registry never loads offset wells (no control chooses them); the programme
+schedules every depth from its first row, drilled or not; the Lag panel's
+"cuttings not at surface yet" note hides the pumps-off note early in a record.
+The brief asked for a land rig; Ekene-11 is drilled from the Ekene Alpha
+platform in 35 m of water, so the kit uses the app's Platform rig (the same
+lag case: no riser, no booster).
+
 ## Decisions taken while building
 
 **Two surfaces, deliberately.** The gridding engine masks to the control
@@ -203,5 +236,5 @@ release.
   from the 2026-09-10 session, not files in this repo.
 - Core photographs: the kit ships cored intervals and plug properties, not
   images. A synthetic field has no core.
-- Not yet covered: drilling (beyond the well design site card), facilities,
-  midstream, HSE, wellsite. Those are a D8 when their episodes are written.
+- Not yet covered: midstream and HSE. Drilling, facilities and wellsite
+  now have their D8 episodes.
