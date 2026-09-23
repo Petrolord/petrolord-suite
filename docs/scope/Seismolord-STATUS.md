@@ -1,6 +1,21 @@
 # Seismolord — STATUS
 
-Last updated: 2026-09-22 (large surveys: the viewer reads the v4 display copy, coarse first; Stream C: v4 conversion to a local spool, two-stage resumable background upload; Stream L: slice worker, local-file view, budgeted cache; tester feedback: navigation, slice player, slice toggles, wells, stability; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
+Last updated: 2026-09-23 (Tops to Horizons: well tops to a named horizon framework, automatic fault picking; large surveys: the viewer reads the v4 display copy, coarse first; Stream C: v4 conversion to a local spool, two-stage resumable background upload; Stream L: slice worker, local-file view, budgeted cache; tester feedback: navigation, slice player, slice toggles, wells, stability; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
+
+## 2026-09-23: Tops to Horizons (well-driven horizon framework, automatic fault picking)
+
+Plan of record and every decision: docs/scope/Seismolord-TOPS-TO-HORIZONS-PLAN.md. Engines #239 and #240 (vendored e93a16d). Interpretation ribbon: **Tops to horizons**.
+
+What the interpreter gets:
+- **Tie and match:** every well with a sonic tied automatically (shift, phase and polarity searched together), one field convention with disagreeing wells named, every top matched to its seismic event with an explained score (time, polarity from the logs, amplitude, lateral coherence), stratigraphic order kept, one event kind per top across the field.
+- **Review board:** tops x wells with a trace thumbnail per cell (prediction dashed, choice solid), any event can be chosen, any top left out; tops thinner than tuning grouped (the strongest contrast mapped, the others conformable at their well offsets); pinch-outs flagged at the well.
+- **Automatic fault picking** over an area of interest (capped at 24 million samples), proposals kept or dropped before saving (`params.source = 'auto'`).
+- **Framework tracking:** horizons in reliability order, banded so they cannot cross, fault barriers cut at each horizon's own level, fault blocks no well reaches filled by a fault jump (throw from the character of the sequence, the fault's sense, other horizons' throw), thin beds as conformable horizons; confidence maps lower on tuned and jumped cells; misties and leave-one-well-out per horizon; Accept saves named horizons (each undoable).
+- **Prognosis** for any well, with a band from the leave-one-well-out error; the Well Tie panel pairs tops with their horizons automatically for velocity calibration.
+
+Verified: jest topsToHorizonsPipeline (7), topsToHorizonsService (6), topsToHorizonsDialog (end to end: tie, board, auto faults saved, framework tracked with them, 7 named horizons, prognosis), wellTieAutoPairs; engine gates 16 + 7 + 9 + 13 + 9 on exact truth with negative controls. `vite build` emits framework.worker.
+
+Open: fault picking in noisy data; real-field validation (owner staging walk); see the plan.
 
 ## 2026-09-22: large surveys, the viewer reads the v4 display copy
 
