@@ -288,6 +288,38 @@ describe('the Ekene daily production ledger as an uploaded CSV', () => {
     expect(run.charts.cusum.firstSignalLow).not.toBeNull();
   });
 
+  it('checks a cumulative built from the ledger, with a planted fall, and counts it against the values compared', () => {
+    const oil = ds.channels.find((x) => x.name === 'oil_stb').values;
+    let acc = 0;
+    const cum = oil.map((q) => { acc += q; return acc; });
+    cum[20] = cum[19] - 50; // a meter reset
+    const withCum = { ...ds, channels: [...ds.channels, { key: 'np', name: 'Np', unit: 'stb', values: cum, notes: [] }] };
+    const p = defaultProfile();
+    p.channels = ['np'];
+    p.completeness.enabled = false;
+    p.validity.index.enabled = false;
+    p.consistency.frozen.enabled = false;
+    p.uniqueness.enabled = false;
+    Object.keys(p.outliers).forEach((k) => { p.outliers[k].enabled = false; });
+    p.consistency.cumulative = { key: 'np', tolerance: '0' };
+    const run = runQcProfile(withCum, p);
+    const direct = Q.cumulativeCheck({ cumulative: cum, tolerance: 0 });
+    expect(run.results.find((e) => e.method === 'cumulative').result).toEqual(direct);
+    expect(direct.flags.map((f) => f.index)).toEqual([20]);
+    // Every present value but the first is compared with the one before it.
+    expect(run.scorecard).toEqual(Q.scorecard({ dimensions: [{ name: 'consistency', checked: cum.length - 1, failed: 1 }] }));
+  });
+
+  it('passes typed weights to the engine scorecard', () => {
+    const p = defaultProfile();
+    p.scorecard.weights = { completeness: '1', validity: '2', consistency: '3', uniqueness: '0', plausibility: '4' };
+    const equal = runQcProfile(ds, defaultProfile()).scorecard;
+    const run = runQcProfile(ds, p);
+    const dims = equal.dimensions.map(({ name, checked, failed }) => ({ name, checked, failed }));
+    expect(run.scorecard).toEqual(Q.scorecard({ dimensions: dims, weights: { completeness: 1, validity: 2, consistency: 3, uniqueness: 0, plausibility: 4 } }));
+    expect(run.scorecard.total).not.toBe(equal.total);
+  });
+
   it('flags the monthly steps as irregular at the default tolerance, and not once a tolerance is typed', () => {
     const p = defaultProfile();
     const idx = runQcProfile(ds, p).results.find((e) => e.method === 'index').result;
