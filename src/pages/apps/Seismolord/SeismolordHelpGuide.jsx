@@ -5,6 +5,7 @@
 import React from 'react';
 import {
   BookOpen, Zap, Database, Layers, Activity, GitBranch, CircleDot, Map as MapIcon, Box, Rows, Ruler, Link2, AlertTriangle, BookMarked,
+  Waves, Sparkles,
 } from 'lucide-react';
 import {
   HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Callout, Step, Table,
@@ -20,7 +21,9 @@ export const HELP_SECTIONS = [
   { id: 'viewing', icon: Layers, title: 'Sections, slices and display' },
   { id: 'horizons', icon: Activity, title: 'Horizon interpretation' },
   { id: 'faults', icon: GitBranch, title: 'Fault interpretation' },
+  { id: 'attributes', icon: Waves, title: 'Attribute volumes and co-rendering' },
   { id: 'wells', icon: CircleDot, title: 'Wells, synthetics and well ties' },
+  { id: 'automation', icon: Sparkles, title: 'Tops to Horizons and automatic faults' },
   { id: 'maps', icon: MapIcon, title: 'The Map window, surfaces and export' },
   { id: 'cube', icon: Box, title: 'The 3D window' },
   { id: 'lines', icon: Rows, title: '2D lines and misties' },
@@ -54,6 +57,13 @@ export default function SeismolordHelpGuide() {
           the explorer tree (Volumes, Horizons, Surfaces, Faults, Wells, Traverses, 2D lines) on the left, the viewer
           windows in the centre, the copilot dock on the right and the status bar with the cursor readout below.
         </Para>
+        <SubHeading>What Seismolord makes for you, and what you ask for</SubHeading>
+        <Para>
+          An import makes the volume itself and, for large surveys, an 8-bit display copy for fast viewing. Nothing
+          else is computed until you ask: attribute volumes (Interpretation, Attribute volume), horizons and faults
+          (by hand, by seeded tracking, or automatically through Tops to horizons), surfaces (Make surface) and maps.
+          Every automatic result is a proposal you review; nothing is saved until you accept it.
+        </Para>
       </GuideSection>
 
       <GuideSection id="quickstart">
@@ -62,7 +72,8 @@ export default function SeismolordHelpGuide() {
         <Step n={2} title="Look around">Select the volume in Home; step inlines with the slider or the wheel; switch to crosslines and time slices; adjust gain, AGC and the colormap in the Display group.</Step>
         <Step n={3} title="Pick a horizon">Interpretation: New horizon, then click seeds on a section and Track along the line or through the volume; Undo and Redo cover every pick.</Step>
         <Step n={4} title="Tie a well">Wells: import a well or use one from the registry, load its sonic and density, build the synthetic and drag the tie; the T-D relation is saved with the well.</Step>
-        <Step n={5} title="Make a surface">Right-click the horizon in the explorer and choose Make surface: Grid in Seismolord shows the surface in the Map window, Publish to the registry saves it for Mapping &amp; Surface Studio. Export writes it as a file.</Step>
+        <Step n={5} title="Let the wells build the framework">With wells that carry tops shown, Interpretation: Tops to horizons ties the wells, matches every top to its seismic event, can pick the faults for you, tracks one named horizon per top and saves them when you Accept.</Step>
+        <Step n={6} title="Make a surface">Right-click the horizon in the explorer and choose Make surface: Grid in Seismolord shows the surface in the Map window, Publish to the registry saves it for Mapping &amp; Surface Studio. Export writes it as a file.</Step>
       </GuideSection>
 
       <GuideSection id="volumes">
@@ -73,6 +84,17 @@ export default function SeismolordHelpGuide() {
           the coordinate scalar, and shows the measured geometry before anything is written. Decoding happens in a
           web worker and streams 64 by 64 by 64 float32 bricks to your private storage; the storage meter in the
           explorer shows what your account holds. Amplitudes are stored as they are; gain and AGC are display only.
+        </Para>
+        <SubHeading>Large surveys</SubHeading>
+        <Para>
+          Before anything is written, check the survey the scan reports (samples per trace, sample interval, format
+          code, trace count, inline and crossline ranges) against what you know of the data; stop if they disagree.
+          View it now in the import dialog shows inlines and crosslines straight from the file on your computer while
+          it converts. The conversion then uploads in two stages in the background, with progress in the status bar:
+          first a compact display copy, after which the volume opens (its explorer row says display copy, and cursor
+          readouts mark its amplitudes with a leading approximately sign), then the full-precision copy. Uploads can be
+          paused, resumed and carried on in a later session without the SEG-Y file. Attribute volumes wait for the
+          full-precision copy.
         </Para>
         <Callout tone="warn" title="Declare the CRS">
           The project CRS in the status bar and the volume's CRS decide where wells and surfaces land. A volume
@@ -168,6 +190,35 @@ export default function SeismolordHelpGuide() {
         </Para>
       </GuideSection>
 
+      <GuideSection id="attributes">
+        <SectionHeading icon={Waves}>Attribute volumes and co-rendering</SectionHeading>
+        <Para>
+          Interpretation, Attribute volume (or Compute attribute volume on a volume in the explorer) derives a new
+          volume from the open one on the identical lattice; the parent's stored amplitudes are never modified. The
+          attribute volume lists under its parent in the explorer, counts against your storage and can be cancelled
+          while it runs.
+        </Para>
+        <Table headers={['Attribute', 'Use']} rows={[
+          ['Envelope (reflection strength)', 'Bright spots and strong impedance contrasts, independent of phase.'],
+          ['Instantaneous phase', 'Event continuity through weak amplitudes; terminations and pinch-outs.'],
+          ['Instantaneous frequency', 'Thinning beds, absorption shadows below gas.'],
+          ['Sweetness', 'Envelope over the square root of frequency: clean sands in shale.'],
+          ['RMS amplitude', 'Windowed energy (window length in ms).'],
+          ['AGC amplitude', 'Balanced amplitudes for picking (window length in ms).'],
+          ['Variance (discontinuity)', 'Faults and channel edges light up; vertical window in ms and trace radius.'],
+        ]} />
+        <Para>
+          To see an attribute over the seismic, open the Co-render group in Home and choose the overlay volume, its
+          colormap, the blend and the opacity. Multiply darkens the seismic by the overlay, which suits variance.
+          Attributes along a horizon, between two horizons and at one frequency (isofrequency) are made in the
+          Export dialog's amplitude section and in the Map window.
+        </Para>
+        <Callout tone="info" title="Attributes need full precision">
+          A volume imported with 16-bit storage, or a large survey still uploading its full-precision copy, cannot
+          be used as a parent. Wait for the upload, or re-import without compression.
+        </Callout>
+      </GuideSection>
+
       <GuideSection id="wells">
         <SectionHeading icon={CircleDot}>Wells, synthetics and well ties</SectionHeading>
         <Para>
@@ -189,6 +240,33 @@ export default function SeismolordHelpGuide() {
         <Para>
           Right-click a well in the explorer for Show or Hide, Well data (Well Data Manager on its tops) and Open in,
           which lists the other Geoscience apps for that well.
+        </Para>
+      </GuideSection>
+
+      <GuideSection id="automation">
+        <SectionHeading icon={Sparkles}>Tops to Horizons and automatic faults</SectionHeading>
+        <Para>
+          Interpretation, Tops to horizons turns the field's well tops into a named, well-tied horizon framework.
+          Every visible well with tops takes part, so show the wells first. Each step explains its choices and
+          nothing is saved until you accept.
+        </Para>
+        <Step n={1} title="Wells">Tie and match tops ties every well with a sonic log automatically (the others use their checkshots, or the volume's velocity model with a wider uncertainty), agrees one polarity and phase for the field from the tied wells, and reports the tuning thickness.</Step>
+        <Step n={2} title="Review">A board of tops by wells: each cell is the event chosen for that top at that well, how far it sits from the predicted time and its score, with a trace thumbnail. Click a cell to choose another event, or leave a top out. Thin beds below tuning are shown riding on a neighbour.</Step>
+        <Step n={3} title="Faults">Tick the existing faults to use as barriers, or Pick faults over an area of interest (inline, crossline and sample ranges, up to 24 million samples at a time; the default is the wells' area). Each proposed fault shows its confidence, sticks and strike; Save the ticked faults keeps them as ordinary faults you can edit.</Step>
+        <Step n={4} title="Track">Track the framework grows every accepted top into a horizon that never crosses its neighbours, stops at fault barriers and carries across a fault into blocks no well reaches. The table gives coverage, tuned and jumped cells, the leave-one-well-out error and the misties at the wells. Accept and save writes one horizon per top, named after it.</Step>
+        <Step n={5} title="Prognosis">Choose a well, planned or drilled, to see where it meets each horizon in MD and TVDSS with a band from the framework's own error.</Step>
+        <Para>
+          Automatic fault picking measures discontinuity (dip-steered semblance) itself, so you do not need to make a
+          variance volume first. The proposals are strongest on clean data; in noisy data check them against a
+          variance co-render and pick by hand where they miss. Saved horizons carry a confidence map (tuned cells and
+          cells carried across a fault score lower) that the Map window can show. In Wells, Calibrate from wells (velocity
+          calibration), each top is paired automatically with the horizon made from it.
+        </Para>
+        <SubHeading>The copilot</SubHeading>
+        <Para>
+          The AI tab opens the interpretation copilot in the dock on the right. It can describe the volume, report
+          horizon statistics, run tracking and grid and export surfaces; it asks before it acts, and its tools run in
+          your browser.
         </Para>
       </GuideSection>
 
@@ -282,6 +360,12 @@ export default function SeismolordHelpGuide() {
           ['Time-depth relation', 'The checkshot or tie-derived pairs that convert a well between time and depth.'],
           ['Mistie', 'The time difference between the same horizon on two crossing 2D lines.'],
           ['Static', 'A bulk time shift applied to a 2D line to remove its mistie.'],
+          ['Attribute volume', 'A volume derived from another on the same lattice, such as envelope or variance.'],
+          ['Variance', 'A discontinuity measure: near 0 where neighbouring traces agree, high at faults and edges.'],
+          ['Display copy', 'The compact 8-bit copy of a large survey used for viewing while the full-precision copy uploads.'],
+          ['Area of interest', 'The inline, crossline and sample box automatic fault picking runs over.'],
+          ['Tuning thickness', 'The bed thickness below which top and base reflections merge into one event.'],
+          ['Leave-one-well-out', 'Tracking again without each well in turn to measure how well the framework predicts it.'],
         ]} />
       </GuideSection>
     </HelpGuideShell>

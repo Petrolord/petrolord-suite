@@ -2,6 +2,17 @@
 
 Last updated: 2026-09-23 (Tops to Horizons: well tops to a named horizon framework, automatic fault picking; large surveys: the viewer reads the v4 display copy, coarse first; Stream C: v4 conversion to a local spool, two-stage resumable background upload; Stream L: slice worker, local-file view, budgeted cache; tester feedback: navigation, slice player, slice toggles, wells, stability; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
 
+## 2026-09-23: help guide refresh (discoverability programme, step 1)
+
+The in-app help had fallen behind the 2026-09-22/23 work. Added two
+sections (Attribute volumes and co-rendering; Tops to Horizons and
+automatic faults, with the copilot), a Large surveys part in Volumes
+(header check, View it now, two-stage upload, display copy), "What
+Seismolord makes for you, and what you ask for" in the overview, a sixth
+quick-start step and six glossary terms. Every control named was checked
+against the live component copy. Guard: __tests__/helpGuide.test.jsx (16
+sections, new-feature phrases, no em dashes).
+
 ## 2026-09-23: Tops to Horizons (well-driven horizon framework, automatic fault picking)
 
 Plan of record and every decision: docs/scope/Seismolord-TOPS-TO-HORIZONS-PLAN.md. Engines #239 and #240 (vendored e93a16d). Interpretation ribbon: **Tops to horizons**.
