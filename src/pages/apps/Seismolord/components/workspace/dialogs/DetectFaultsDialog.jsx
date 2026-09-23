@@ -18,7 +18,7 @@ import { aoiAround, defaultAoi } from '../../../services/topsToHorizonsPipeline'
  * @param {(kind, config, onProgress) => {promise, cancel}} p.runJob
  */
 export default function DetectFaultsDialog({
-  open, onOpenChange, volume, manifest, geom, faults = [], center = null, runJob, onFaultsSaved,
+  open, onOpenChange, volume, manifest, geom, faults = [], center = null, runJob, onFaultsSaved, faultInputs = [],
 }) {
   const { toast } = useToast();
   const dtMs = manifest?.geometry?.dt_us ? manifest.geometry.dt_us / 1000 : null;
@@ -97,6 +97,7 @@ export default function DetectFaultsDialog({
               dtMs={dtMs}
               volume={volume}
               faults={faults}
+              inputs={faultInputs}
               initialAoi={initialAoi}
               presets={presets}
               run={run}

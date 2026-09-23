@@ -214,7 +214,8 @@ export default function SeismolordHelpGuide() {
           ['Sweetness', 'Envelope over the square root of frequency: clean sands in shale.'],
           ['RMS amplitude', 'Windowed energy (window length in ms).'],
           ['AGC amplitude', 'Balanced amplitudes for picking (window length in ms).'],
-          ['Variance (discontinuity)', 'Faults and channel edges light up; vertical window in ms and trace radius.'],
+          ['Variance (discontinuity)', 'Faults and channel edges light up; vertical window in ms and trace radius. Dip steering (ms) aligns the neighbouring traces first so dipping reflectors stay dark; use it for a volume that will feed Detect faults.'],
+          ['Fault likelihood', 'The automatic fault picker\'s own measure, 0 to 1: dip-steered variance sharpened along each lineament. Detect faults can start from it and then runs fastest.'],
         ]} />
         <Para>
           To see an attribute over the seismic, open the Co-render group in Home and choose the overlay volume, its
@@ -272,8 +273,12 @@ export default function SeismolordHelpGuide() {
         </Para>
         <Para>
           Automatic fault picking measures discontinuity (dip-steered semblance) itself, so you do not need to make a
-          variance volume first. The proposals are strongest on clean data; in noisy data check them against a
-          variance co-render and pick by hand where they miss. Saved horizons carry a confidence map (tuned cells and
+          variance volume first. Start from can instead take a Variance (best with dip steering) or a Fault
+          likelihood volume of the open volume; a Fault likelihood volume skips the heaviest step, so on a large survey compute it once for the
+          whole survey and pick area after area from it. Starting from the seismic also measures the data quality
+          (the reflector coherence, shown after each run): noisy data lowers the detection thresholds, down to half
+          the standard, so faults are still found. Sensitivity overrides it: Standard for clean data, High for noisy
+          data, and a volume input, which cannot measure the quality, uses Standard unless you choose High. Saved horizons carry a confidence map (tuned cells and
           cells carried across a fault score lower) that the Map window can show. In Wells, Calibrate from wells (velocity
           calibration), each top is paired automatically with the horizon made from it.
         </Para>

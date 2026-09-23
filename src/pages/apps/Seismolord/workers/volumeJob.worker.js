@@ -23,7 +23,8 @@ import { BrickCache, storageBrickFetcher } from '../engine/brickCache';
 import { v4BrickFetcher } from '../engine/brickCodecV4';
 import { geomFromManifest, brickKey } from '../engine/sliceAssembly';
 import { makeTraceCompute } from '../engine/attributes';
-import { DISCONTINUITY_DEFS, makeNeighborhoodCompute } from '../engine/discontinuity';
+import { DISCONTINUITY_DEFS } from '../engine/discontinuity';
+import { makeDiscontinuityJob } from '../engine/discontinuityJobs';
 import { runVolumeJob, runNeighborhoodJob } from '../engine/volumeJob';
 import { createBrickChannel } from './brickAckChannel';
 
@@ -87,8 +88,11 @@ async function handleCompute({ id, config }) {
 
   let result;
   if (neighborhood) {
-    const { radius, compute } = makeNeighborhoodCompute(name, params, { dtUs });
-    result = await runNeighborhoodJob({ ...shared, radius, compute });
+    // variance runs per trace; the fault likelihood a brick column at a time
+    const job = makeDiscontinuityJob(name, params, {
+      dtUs, nIl: geom.nIl, nXl: geom.nXl, ns: geom.ns,
+    });
+    result = await runNeighborhoodJob({ ...shared, ...job });
   } else {
     result = await runVolumeJob({
       ...shared,
