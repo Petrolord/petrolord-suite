@@ -74,8 +74,7 @@ const DataQualityStudioHelpGuide = () => (
       <Callout tone="info" title="What is not here">
         The generalised ESD test for several outliers and a robust (MCD) covariance for Mahalanobis are not built. Grubbs
         tests one outlier at a time, and a second outlier can mask the first. Units are never converted: a limit in
-        another unit is refused. Uploads go through the Suite&apos;s shared tabular reader, which splits on every
-        delimiter, so a quoted cell containing a comma is read as two cells.
+        another unit is refused.
       </Callout>
     </GuideSection>
 
@@ -291,6 +290,11 @@ const DataQualityStudioHelpGuide = () => (
         On screen, figures in a reason are rounded to at most 6 decimal places with trailing zeros trimmed, and whole
         numbers are shown as they are; a figure that would then read the same as a different figure it is compared with
         is shown in full. The CSV and PDF exports keep the engine&apos;s full-precision figures.
+      </Para>
+      <Para>
+        Entries are counted from 0, the way the reasons count them: the Entry column, the CSV entry column and a reason
+        that says entry 57 all mean the 58th value. The At column gives the index value there (a depth or a date), or
+        the entry again when the data has no index.
       </Para>
       <Table
         headers={['Rule', 'Meaning']}

@@ -172,10 +172,27 @@ control and `tools/validation/dataai/FINDINGS-quality.md`. App: branch
   went red at once, and the two that stayed green (cumulative checked
   count, ignored weights) got gates that now go red.
 
-Open: the engine's FINDINGS open questions stand (despikeHampel turns null
-into 0 for other callers; solveDense's absolute pivot test). The shared
-tabular reader does not unquote CSV cells, so a quoted cell with a comma
-splits; the upload panel and help guide say so.
+Open: solveDense's absolute pivot test (engine FINDINGS open question 2).
+
+- **D1 follow-ups (2026-09-23, branch `fix/d1-followups`).**
+  - Entry numbering: the flag table, CSV and PDF show an Entry column counted
+    from 0, the numbering the engine's reasons use ("entry 57"); with no index
+    the At and Previous labels read `entry N` (were a 1-based `row N`). The CSV
+    `sample` column (1-based) is now `entry`. Chart axes and the "from sample"
+    chart window stay 1-based. Gates: the smoke test checks every Entry cell
+    against the engine index and against the number a missing-run or
+    frozen-run reason quotes; `qcReport.test.js` pins the CSV column and a
+    no-index cumulative case.
+  - `despikeHampel` null to 0: audited, NOT LIVE. Every caller passes typed
+    arrays with NaN for missing (Petrophysics Studio curves are Float32Array
+    from storage or LAS import) or goes through `quality.hampel`. Engine code
+    unchanged; recorded in engines FINDINGS-quality.md (engines PR #250).
+  - `src/lib/tabularFile.js` reads comma, semicolon and tab files by RFC 4180:
+    quoted cells keep the delimiter, doubled quotes, CR/LF/CRLF, line breaks
+    inside quotes; delimiter detection counts outside quotes. Whitespace mode
+    is unchanged. Gated in `tabularFile.test.js` including agreement with
+    papaparse and SheetJS; every importer's suites stay green. The upload
+    panel and help guide caveat is removed.
 
 - **Engine re-vendored at a4e9592 (engines #249, 2026-09-23).** Population-SD
   z ceiling sqrt(n - 1); reasons print the shortest round-trip decimal; Hampel

@@ -257,7 +257,7 @@ const UploadSource = () => {
       </label>
       <Note>
         The file stays in your browser. A saved run keeps the columns it checked so it can be re-run. Quoted cells
-        that contain the delimiter are not supported by the shared reader.
+        may contain the delimiter, quotes written twice and line breaks.
       </Note>
       {sheets && sheets.length > 1 ? (
         <SelectField
