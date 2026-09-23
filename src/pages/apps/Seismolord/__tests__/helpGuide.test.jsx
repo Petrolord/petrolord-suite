@@ -13,7 +13,7 @@ describe('SeismolordHelpGuide', () => {
     renderGuide();
     expect(screen.getByRole('heading', { level: 1, name: /Seismolord Help Guide/ })).toBeInTheDocument();
     for (const { id } of HELP_SECTIONS) expect(document.getElementById(`section-${id}`)).not.toBeNull();
-    expect(HELP_SECTIONS.length).toBe(14);
+    expect(HELP_SECTIONS.length).toBe(16);
   });
 
   test('names the launchers, the depth unit and the sign convention', () => {
@@ -32,6 +32,16 @@ describe('SeismolordHelpGuide', () => {
     expect(text).toMatch(/Publish to the registry/);
     expect(text).toMatch(/Save as surface/);
     for (const f of ['Charisma 3D interpretation lines', 'IESX', 'EarthVision', 'ZMAP+', 'CPS-3', 'column mapping']) {
+      expect(text).toContain(f);
+    }
+  });
+
+  test('covers attribute volumes, Tops to Horizons, automatic faults and large surveys', () => {
+    const { container } = renderGuide();
+    const text = container.textContent;
+    for (const f of ['Attribute volume', 'Variance (discontinuity)', 'Sweetness', 'Co-render', 'Tops to horizons',
+      'Tie and match tops', 'Pick faults', 'Track the framework', 'Accept and save', 'Prognosis',
+      'View it now', 'display copy', 'Large surveys', 'What Seismolord makes for you']) {
       expect(text).toContain(f);
     }
   });
