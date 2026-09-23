@@ -2,13 +2,31 @@
 //
 // The scorecard is the engine's scorecard() on the dimension counts the
 // profile run made; the flag table lists every engine flag with its rule and
-// reason unchanged. Refused checks are listed with the engine's own reason.
+// reason. On screen a reason's long decimals are shortened for reading by
+// displayReason (qcDisplay.js); the exports keep the engine's text. Refused
+// checks are listed with the engine's own reason.
 import React, { useMemo, useState } from 'react';
 import { useDataQualityStudio } from '@/contexts/DataQualityStudioContext';
 import { SCORE_BASIS, dimensionLabel } from '@/utils/dataAi/qcProfile';
+import { displayNumber, displayReason } from '@/utils/dataAi/qcDisplay';
 import { EngineError, Note, Section, SelectField, fmt } from './shared';
 
 const PAGE = 200;
+
+/**
+ * The flagged sample's value and the entry it was compared with. On an index
+ * flag the value is the index itself, shown as its label (a date reads as a
+ * date); elsewhere it is the engine's number, shortened for reading.
+ */
+export const flagFigures = (f) => {
+  const isIndex = f.method === 'index';
+  const value = isIndex ? (f.value === null || f.value === undefined ? '' : f.at) : displayNumber(f.value);
+  let previous = '';
+  if (f.previous !== null && f.previous !== undefined) {
+    previous = isIndex ? String(f.previousAt ?? '') : `${displayNumber(f.previous)}${f.previousAt ? ` at ${f.previousAt}` : ''}`;
+  }
+  return { value: value ?? '', previous };
+};
 
 export const Scorecard = ({ run }) => {
   const sc = run.scorecard;
@@ -81,19 +99,24 @@ export const FlagTable = ({ run }) => {
       <div className="max-h-[28rem] overflow-auto rounded border border-slate-800">
         <table className="w-full text-xs">
           <thead className="sticky top-0 bg-slate-900 text-left text-slate-400">
-            <tr><th className="px-2 py-1">Dimension</th><th>Method</th><th>Channel</th><th>At</th><th>Rule</th><th>Reason</th></tr>
+            <tr><th className="px-2 py-1">Dimension</th><th>Method</th><th>Channel</th><th>At</th><th>Rule</th><th>Value</th><th>Previous</th><th>Reason</th></tr>
           </thead>
           <tbody className="text-slate-200">
-            {shown.map((f, i) => (
-              <tr key={`${f.method}-${f.channel}-${f.index}-${i}`} className="border-t border-slate-800 align-top">
-                <td className="px-2 py-1">{f.dimension}</td>
-                <td>{f.method}</td>
-                <td>{f.channel}</td>
-                <td className="font-mono">{f.at}</td>
-                <td className="font-mono text-sky-300">{f.rule}</td>
-                <td>{f.reason}</td>
-              </tr>
-            ))}
+            {shown.map((f, i) => {
+              const fig = flagFigures(f);
+              return (
+                <tr key={`${f.method}-${f.channel}-${f.index}-${i}`} className="border-t border-slate-800 align-top" data-testid="flag-row">
+                  <td className="px-2 py-1">{f.dimension}</td>
+                  <td>{f.method}</td>
+                  <td>{f.channel}</td>
+                  <td className="font-mono">{f.at}</td>
+                  <td className="font-mono text-sky-300">{f.rule}</td>
+                  <td className="font-mono" data-testid="flag-value">{fig.value}</td>
+                  <td className="font-mono" data-testid="flag-previous">{fig.previous}</td>
+                  <td data-testid="flag-reason" title={f.reason}>{displayReason(f.reason)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -106,6 +129,20 @@ export const FlagTable = ({ run }) => {
       ) : null}
     </div>
   );
+};
+
+/** The parameters a check ran with, where the engine echoes them. */
+export const checkParameters = (r) => {
+  const res = r.result || {};
+  if (r.method === 'hampel' && res.basis && res.basis.nSigma !== undefined) {
+    return `; n sigma ${displayNumber(res.basis.nSigma)}, half window ${displayNumber(res.basis.halfWindow)} samples, 1.4826 x MAD`;
+  }
+  if (r.method === 'z-score' && Number.isFinite(res.maxPossibleAbsZ)) {
+    // One sentence through displayReason, so the ceiling and the threshold
+    // never round to the same figure when they differ.
+    return displayReason(`; with ${res.n} values the largest possible |z| is ${res.maxPossibleAbsZ} (${res.basis.ceiling}), so the threshold ${res.threshold} ${res.thresholdReachable ? 'can' : 'cannot'} be reached`);
+  }
+  return '';
 };
 
 const CheckList = ({ run }) => {
@@ -128,6 +165,7 @@ const CheckList = ({ run }) => {
             <li key={i}>
               {r.dimension}: {r.method}{r.channel ? ` on ${r.channel}` : ''}, {(r.result.flags || []).length} flag{(r.result.flags || []).length === 1 ? '' : 's'}
               {r.result.basis?.rule ? `; rule ${r.result.basis.rule}` : ''}
+              {checkParameters(r)}
             </li>
           ))}
         </ul>

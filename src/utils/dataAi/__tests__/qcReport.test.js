@@ -54,6 +54,14 @@ describe('the CSV report', () => {
     });
   });
 
+  it('writes each flag value at the engine precision, unrounded', () => {
+    const flags = table.rows.filter((r) => r[0] === 'flag');
+    run.flags.forEach((f, i) => {
+      expect(flags[i][8]).toBe(f.value === null || f.value === undefined ? '' : String(f.value));
+    });
+    expect(flags.some((r) => r[8] !== '')).toBe(true);
+  });
+
   it('writes the scorecard and every parameter the run used', () => {
     const total = table.rows.find((r) => r[0] === 'score' && r[1] === 'total');
     expect(Number(total[8])).toBe(run.scorecard.total);

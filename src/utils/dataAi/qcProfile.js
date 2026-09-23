@@ -223,6 +223,11 @@ export function runQcProfile(ds, profileIn) {
         at: f.index === null || f.index === undefined ? (f.from !== undefined ? `${f.from} to ${f.to}` : '') : indexLabel(ds, f.index),
         rule: f.rule,
         reason: f.reason,
+        // The engine's own figures for the flagged sample and, on index and
+        // cumulative flags, the entry it was compared with (engines #249).
+        value: typeof f.value === 'number' ? f.value : null,
+        previous: typeof f.previous === 'number' ? f.previous : null,
+        previousAt: Number.isInteger(f.previousIndex) ? indexLabel(ds, f.previousIndex) : null,
       });
     });
     if (scoreChecked) scoreChecked.forEach((c) => tally[dimension].checked.add(c));

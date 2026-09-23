@@ -97,7 +97,7 @@ export const Section = ({ title, children, right, testId }) => (
   </section>
 );
 
-/** Six significant figures, as the engine writes numbers into its reasons. */
+/** Six significant figures, for chart axes, tooltips and chart captions. Reason text uses qcDisplay.js. */
 export const fmt = (x) => {
   if (x === null || x === undefined || Number.isNaN(x)) return '';
   if (x === Infinity) return 'infinity';

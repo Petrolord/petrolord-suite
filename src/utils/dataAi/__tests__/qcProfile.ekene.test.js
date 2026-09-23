@@ -152,6 +152,30 @@ describe('a QC profile on the planted Ekene-3 excerpt', () => {
     });
   });
 
+  it('echoes the Hampel parameters and the z ceiling the engine used', () => {
+    const h = run.results.filter((e) => e.method === 'hampel');
+    expect(h.length).toBe(3);
+    h.forEach((e) => {
+      expect(e.result.basis).toEqual(expect.objectContaining({ halfWindow: 5, nSigma: 3 }));
+      e.result.flags.forEach((f) => expect(f.deviation).toBe(Math.abs(f.value - f.median)));
+    });
+    run.results.filter((e) => e.method === 'z-score').forEach((e) => {
+      const n = e.result.n;
+      expect(e.result.maxPossibleAbsZ).toBe((n - 1) / Math.sqrt(n));
+    });
+    expect(run.mahalanobis.result.level).toBe(1 - 0.025);
+  });
+
+  it('carries the engine value of each flag into the flag list', () => {
+    const engineFlags = run.results.filter((e) => e.dimension !== 'uniqueness' && e.result && !e.result.error)
+      .flatMap((e) => (e.result.flags || []).map((f) => [e.method, e.channel, f]));
+    engineFlags.forEach(([method, channel, f]) => {
+      const mine = run.flags.find((x) => x.method === method && x.channel === channel && x.index === f.index && x.reason === f.reason);
+      expect(mine).toBeDefined();
+      expect(mine.value).toBe(typeof f.value === 'number' ? f.value : null);
+    });
+  });
+
   it('charts the chosen window with the engine, on the target and sigma typed', () => {
     const rhob = ds.channels.find((c) => c.name === 'RHOB').values.slice(0, 99);
     expect(run.charts.values).toEqual(rhob);
@@ -306,6 +330,10 @@ describe('the Ekene daily production ledger as an uploaded CSV', () => {
     const direct = Q.cumulativeCheck({ cumulative: cum, tolerance: 0 });
     expect(run.results.find((e) => e.method === 'cumulative').result).toEqual(direct);
     expect(direct.flags.map((f) => f.index)).toEqual([20]);
+    // engines #249: the flag names both figures it compared, and the app shows them.
+    expect(direct.flags[0]).toEqual(expect.objectContaining({ value: cum[20], previous: cum[19], previousIndex: 19 }));
+    const shown = run.flags.find((f) => f.rule === 'cumulative-decrease');
+    expect(shown).toEqual(expect.objectContaining({ value: cum[20], previous: cum[19], previousAt: withCum.index.labels[19] }));
     // Every present value but the first is compared with the one before it.
     expect(run.scorecard).toEqual(Q.scorecard({ dimensions: [{ name: 'consistency', checked: cum.length - 1, failed: 1 }] }));
   });

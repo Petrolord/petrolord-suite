@@ -33,6 +33,8 @@ import DataQualityStudioHelpGuide, { QC_GUIDE_SECTIONS } from '@/pages/apps/Data
 import { parseDelimitedText } from '@/lib/tabularFile';
 import { datasetFromTable, suggestLimit } from '@/utils/dataAi/qcDatasets';
 import { defaultProfile, runQcProfile } from '@/utils/dataAi/qcProfile';
+import { displayReason } from '@/utils/dataAi/qcDisplay';
+import { flagFigures } from '@/components/dataai/quality/ResultsPanel';
 
 const CSV = fs.readFileSync(path.join(__dirname, '../../../utils/dataAi/__tests__/fixtures/ekene-daily-production.csv'), 'utf8');
 
@@ -120,7 +122,21 @@ describe('the page', () => {
     expect(total).toHaveTextContent(direct.scorecard.total.toFixed(4));
     expect(screen.getByTestId('flag-count')).toHaveTextContent(`${direct.flags.length} of ${direct.flags.length} flags`);
     const table2 = screen.getByTestId('flag-table');
-    expect(within(table2).getAllByText(direct.flags[0].reason).length).toBeGreaterThan(0);
+    expect(within(table2).getAllByText(displayReason(direct.flags[0].reason)).length).toBeGreaterThan(0);
+    // Each row: the reason shortened for reading (the full text on hover), and
+    // the engine value by the same display rule.
+    const rows = within(table2).getAllByTestId('flag-row');
+    expect(rows.length).toBe(Math.min(200, direct.flags.length));
+    rows.forEach((row, i) => {
+      const f = direct.flags[i];
+      const reason = within(row).getByTestId('flag-reason');
+      expect(reason).toHaveTextContent(displayReason(f.reason), { normalizeWhitespace: false });
+      expect(reason).toHaveAttribute('title', f.reason);
+      expect(within(row).getByTestId('flag-value').textContent).toBe(flagFigures(f).value);
+    });
+    const irregular = direct.flags.find((f) => f.rule === 'irregular-step');
+    expect(irregular.previousAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(flagFigures(irregular)).toEqual({ value: irregular.at, previous: irregular.previousAt });
     expect(screen.getByTestId('export-csv')).not.toBeDisabled();
 
     // A changed parameter marks the results stale and blocks the export.

@@ -205,8 +205,9 @@ const DataQualityStudioHelpGuide = () => (
       <SubHeading>z-score (NIST/SEMATECH 1.3.5.17)</SubHeading>
       <Formula>z = (x - mean) / s,   s the sample standard deviation (n - 1)</Formula>
       <Para>
-        The largest |z| any point can reach is (n - 1) / sqrt(n). At n = 10 that is 2.85, so no point can pass |z| &gt; 3,
-        and the studio reports whether the threshold is reachable.
+        The largest |z| any point can reach is (n - 1) / sqrt(n) with the sample standard deviation and sqrt(n - 1) with
+        the population standard deviation. At n = 10 those are 2.85 and exactly 3, so no point can pass |z| &gt; 3 either
+        way; the list of checks that ran gives the ceiling for your data and whether the threshold can be reached.
       </Para>
       <SubHeading>Modified z-score (Iglewicz and Hoaglin, as NIST 1.3.5.17 prints it)</SubHeading>
       <Formula>M = 0.6745 (x - median) / MAD,   MAD = median |x - median|,   flag |M| &gt; 3.5</Formula>
@@ -286,6 +287,11 @@ const DataQualityStudioHelpGuide = () => (
 
     <GuideSection id="flags">
       <SectionHeading icon={Filter}>Every flag and what it means</SectionHeading>
+      <Para>
+        On screen, figures in a reason are rounded to at most 6 decimal places with trailing zeros trimmed, and whole
+        numbers are shown as they are; a figure that would then read the same as a different figure it is compared with
+        is shown in full. The CSV and PDF exports keep the engine&apos;s full-precision figures.
+      </Para>
       <Table
         headers={['Rule', 'Meaning']}
         rows={[
@@ -313,7 +319,7 @@ const DataQualityStudioHelpGuide = () => (
     <GuideSection id="validation">
       <SectionHeading icon={CheckCircle2}>How the engine was validated</SectionHeading>
       <Para>
-        The engine, <Code>engines/dataai/quality.js</Code> in the Petrolord engines, is checked against 387 cases written
+        The engine, <Code>engines/dataai/quality.js</Code> in the Petrolord engines, is checked against 402 cases written
         by an independent oracle in plain Python from the published equations, and against numpy, scipy and statsmodels
         as a second witness. Eight cases reproduce the NIST/SEMATECH e-Handbook of Statistical Methods worked examples:
       </Para>
@@ -332,7 +338,7 @@ const DataQualityStudioHelpGuide = () => (
         findings: G prints as 2.4687 where 2.468765 rounds to 2.4688; the EWMA lower limit rounds an intermediate value;
         two rows of the CUSUM table have a sign typo in a column the engine does not output; and the CUSUM h of 4.1959
         cannot be derived from the page&apos;s own design formula, so the engine takes k and h as inputs. A negative
-        control planted 36 defects in the engine and every one turned the gates red. The modified z-score, Hampel,
+        control planted 41 defects in the engine and every one turned the gates red. The modified z-score, Hampel,
         Mahalanobis, completeness, validity, consistency, uniqueness and scorecard cases are oracle-derived: no published
         worked example with printed numbers was found for them.
       </Para>

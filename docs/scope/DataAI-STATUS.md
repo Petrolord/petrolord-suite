@@ -177,6 +177,18 @@ into 0 for other callers; solveDense's absolute pivot test). The shared
 tabular reader does not unquote CSV cells, so a quoted cell with a comma
 splits; the upload panel and help guide say so.
 
+- **Engine re-vendored at a4e9592 (engines #249, 2026-09-23).** Population-SD
+  z ceiling sqrt(n - 1); reasons print the shortest round-trip decimal; Hampel
+  echoes halfWindow and nSigma; new value/previous fields. Exports and the
+  engine result keep the full-precision reason; on screen `displayReason`
+  (`src/utils/dataAi/qcDisplay.js`, tested with engine-produced reasons and a
+  two-plant negative control) rounds to at most 6 decimals, leaves integers
+  alone and shows a figure in full when rounding would tie it with a different
+  figure in the same reason. The flag table gains Value and Previous columns,
+  the CSV value column carries each flag's value unrounded, the checks list
+  gives the Hampel n sigma and window and the z ceiling for the data, and the
+  Mahalanobis caption reads the engine's level.
+
 ## Next
 
 D1 `dataqc` NextGen course (slug `dataqc`, path_order 66) on the D1 engine and this app; then D2 `mlcore`.
