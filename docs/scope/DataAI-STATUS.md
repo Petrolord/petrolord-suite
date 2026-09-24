@@ -214,6 +214,124 @@ Open: solveDense's absolute pivot test (engine FINDINGS open question 2).
   gives the Hampel n sigma and window and the z ceiling for the data, and the
   Mahalanobis caption reads the engine's level.
 
+## D2: ML Workbench (2026-09-24)
+
+Engine: `engines/dataai/ml.js`, petrolord-engines PR #252 (merge 966bb9e),
+with its stdlib oracle, NIST StRD anchors, library pins, negative control
+(41/41) and `tools/validation/dataai/FINDINGS-ml.md`. App: branch
+`feat/d2-ml-workbench`, on the D1 Data Quality Studio pattern (#612 to #615).
+
+- **Vendoring.** The 22 canonical paths of c7eba22..966bb9e copied file by
+  file (ml.js, its gate, goldens, pins, the eleven NIST `.dat` files, oracle,
+  pin script, negative control, synthetic wells, timing script, FINDINGS,
+  README). Import closure (`lib/stats/stats.js`, `lib/lp/simplex.js`)
+  already current. Manifest regenerated, VENDOR.json pinned at 966bb9e;
+  `check-vendored-engines.mjs --canonical` reports 965 paths byte for byte,
+  0 deviations; vendored gate 614/614. Shim `src/utils/dataAi/engine/ml.js`.
+- **The app.** `/dashboard/apps/data-ai/ml-workbench` (+ `/help`):
+  `src/pages/apps/MlWorkbench.jsx`, `src/contexts/MlWorkbenchContext.jsx`,
+  panels under `src/components/dataai/ml/` (DataPanel, SpecPanel,
+  ResultsPanel, DiagnosticsPanel, WriteBackPanel, charts), logic in
+  `src/utils/dataAi/` (`mlData.js` table and design, `mlWorkflows.js` every
+  engine call, `mlJobs.js` worker protocol, `mlStudy.js` saved payload,
+  `mlRunsService.js` persistence, `mlReport.js` CSV and PDF, `mlSources.js`
+  registry reads and writes, `mlWriteBack.js` predicted-curve builder).
+  - **Data:** several wells from the wells registry (curves joined sample by
+    sample; a curve on another depth grid is refused by name), or an upload
+    with a well column. Depth window and keep-every-nth thinning (entries
+    counted from 0 in each well). Rows missing the target or a feature, or
+    non-positive in a logged feature, are dropped and counted.
+  - **(a) Missing-log prediction:** OLS or ridge, group k-fold (default k 5,
+    seed 42) or group split; per-fold and pooled RMSE/MAE/R², coefficients
+    with SEs and t (OLS), crossplot of held-out rows, depth track of a
+    held-out well. Write-back: the model on every row predicts the target
+    in a chosen registry well from that well's own features and saves a NEW
+    curve through `wellsRegistry.saveLog`; mnemonic `<target>_ML` by default,
+    the target's own name and any existing name are refused; provenance
+    carries method, features and transforms, scaler and coefficients,
+    training wells and rows, validation scheme, seed, pooled scores and the
+    engine version and commit.
+  - **(b) Classification:** logistic regression for a label from a cutoff on
+    a curve (`>`, `>=`, `<`, `<=`) or a 0/1 column; confusion matrix,
+    per-class precision/recall/F1 with macro and weighted means, ROC with
+    AUC, log loss with clipped count, converged flag and updates per fold;
+    the engine's separation refusal shown verbatim, L2 > 0 fits and reports it.
+  - **(c) Leakage:** the engine's `leakageDemo`, random row against group
+    split side by side with the shared wells and the optimism. The verdict
+    sentence follows the engine's sign; the copy never says random splits
+    always flatter. On the Ekene fixtures (8 wells, 1450 to 1650 m, DT from
+    GR, RHOB, NPHI and log10 RT) the random split did flatter: test R² 0.937
+    against 0.710 (optimism 0.226), where the engine FINDINGS plain log data
+    went the other way.
+  - **(d)** Permutation importance on the held-out wells of one group split
+    (scaler and fit on its training wells) and the engine learning curve by
+    training wells; when the smallest sizes cannot be fitted (one well can
+    hold one class) the curve starts at the first size the engine fits and
+    shows the engine's refusal for each size left out.
+- **Performance.** Fits run in a module Web Worker (`mlWorkerFactory.js`,
+  `workers/ml.worker.js`, the PT10d Petrophysics pattern; jest maps the
+  factory to null and jobs run inline). Row caps: **150,000 rows per fit**
+  (engine timings: one OLS fit at 200k x 8 about 1 s, logistic about 2 s,
+  5 to 6 s separated; k folds multiply that) and **50,000 held-out rows for
+  permutation importance** (AUC re-sorts every re-scoring: 10 s at 200k x 8,
+  2.3 s at 50k). Above a cap the app refuses and names a thinning. Charts
+  plot at most 4,000 points (every nth row from row 0, stated). Features are
+  standardised by default, scaler fitted on each fold's training rows only
+  (engine `fitStandardScaler` + `applyScaler`, population SD), which keeps
+  the logistic stopping rule (coefficient units) meaningful.
+- **Display and exports.** White chartTheme + ChartLogo; on-screen figures
+  through `qcDisplay.displayNumber`; CSV keeps every number at full
+  precision (meta, fold, pooled, coefficient, scaler, confusion, roc and
+  one prediction row per held-out sample); branded PDF via `pdfBrand`.
+- **Persistence.** `dai_ml_runs`, organization-scoped with RLS like
+  dai_qc_runs, plus a `task` column. Payload = inputs (well ids and curves,
+  or the upload's columns up to 200,000 values) and the spec as typed;
+  summary = pooled and per-fold scores, rows, wells, an FNV-1a fingerprint
+  of the fitted X, y and groups, engine version. On open the wells are read
+  again; a changed fingerprint is reported.
+- **Held migrations (NOT APPLIED, owner-run), in order:**
+  1. `20260924120000_d2_dai_ml_runs.sql` (not deploy-gated);
+  2. `20260924130000_d2_activate_ml_workbench_tile.sql` (DEPLOY GATE: after
+     the DA0 seed, the table, and the prod upload serving the route).
+  Both applied twice on a local scratch Postgres 16 with stubbed auth and
+  org helpers; RLS probes passed (own-org read, other-org insert refused,
+  unknown source and task refused, organization move refused, other org
+  sees and deletes nothing, author kept on an admin update, a member cannot
+  delete another author's run, admin delete, anon refused); the tile gives
+  a notice before the row exists and leaves the other Data & AI tiles and a
+  same-slug row in another module untouched.
+- **Pricing.** No change: the `data-ai` module price (2,999, D1) already
+  covers the module's apps; `modulePricing.test.js` already counts four
+  planned apps.
+- **Marketing.** ModulesShowcase: Data & AI count 2 (Data Quality Studio,
+  ML Workbench); module count stays ten.
+- **Tests.** `mlWorkflows.ekene.test.js` (28): every fold scaler, fit,
+  metric, held-out prediction and pooled score compared whole with direct
+  engine calls on nine Ekene wells (fixtures `fixtures/ml/Ekene-N-ml.las`,
+  kit ekene-demo-kit-20260923-359d56694, every 4th sample of 1450 to
+  1650 m, through the Well Data Manager parser and importer), for OLS,
+  ridge, group split, logistic (with the separation refusal and the L2
+  fit), leakage, importance, learning curve, final fit, write-back log and
+  provenance, row cap and boundary rules. `mlJobs.test.js` (9, worker
+  protocol with a fake module worker), `mlRunsService.test.js` (11, mocked
+  supabase), `mlReport.test.js` (4), `mlWorkbench.smoke.test.jsx` (7:
+  mounted page driven through a mocked registry of the Ekene wells, engine
+  scores on screen, RHOB_ML written to Ekene-9, separation refusal, leakage
+  verdict, help guide conventions and copy rule), `dataAiRegistration.test.js`
+  (D2 block). App-layer negative control
+  `tools/validation/dataai/negcontrol_ml_workbench.sh`: 13/13 plants red
+  (scaler on all rows, unscaled test rows, 1-based held-out rows, inverted
+  standardise, importance on training wells, dropped learning-curve
+  refusals, flipped leakage verdict, 1-based thinning, ln for log10, strict
+  cutoff made inclusive, write-back not depth aligned, missing features
+  predicted, pooled over untested rows); two were green at first and got
+  boundary gates.
+
+Open for D2: the logistic stopping rule stays in coefficient units (engine
+FINDINGS open question 3); the app standardises by default so it holds, and
+turning standardisation off on features in tiny units can end with
+converged false. `maxCondition` is not exposed (default 1e8).
+
 ## Next
 
-D1 `dataqc` NextGen course (slug `dataqc`, path_order 66) on the D1 engine and this app; then D2 `mlcore`.
+D1 `dataqc` NextGen course (slug `dataqc`, path_order 66) on the D1 engine and app; D2 `mlcore` course (path_order 67) on the D2 engine and the ML Workbench.
