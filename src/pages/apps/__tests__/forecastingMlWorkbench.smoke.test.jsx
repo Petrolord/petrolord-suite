@@ -160,8 +160,9 @@ describe('the page', () => {
     const rows = within(t).getAllByRole('row');
     expect(rows[0]).toHaveTextContent('P90 (low)');
     expect(rows[0]).toHaveTextContent('P10 (high)');
-    expect(rows[1]).toHaveTextContent(displayNumber(r.P90[0]));
-    expect(rows[1]).toHaveTextContent(displayNumber(r.P10[0]));
+    const cells = within(rows[1]).getAllByRole('cell').map((c) => c.textContent);
+    expect(cells).toEqual([String(Y.length), displayNumber(r.forecast[0]), displayNumber(r.P90[0]), displayNumber(r.P50[0]), displayNumber(r.P10[0])]);
+    expect(r.P90[0]).toBeLessThan(r.P10[0]);
     expect(screen.getByTestId('intervals-section')).toHaveTextContent(r.definition);
     expect(screen.getByTestId('intervals-line')).toHaveTextContent('1,000 paths, seed 42');
     expect(screen.getByTestId('intervals-chart')).toBeInTheDocument();

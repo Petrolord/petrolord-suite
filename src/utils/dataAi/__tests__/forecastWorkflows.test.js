@@ -148,6 +148,18 @@ describe('the spec reaches the engine as its arguments', () => {
     expect(r.result.definition).toBe('P90 means a 90% probability the actual quantity meets or exceeds this value, per SPE PRMS.');
   });
 
+  it('holds the typed parameters of the interval method in the bootstrap too', () => {
+    const y = EKENE[2].rate;
+    const spec = {
+      ...defaultSpec(), h: '6', params: { ...defaultSpec().params, damped: { alpha: '', beta: '', phi: '0.9' } },
+    };
+    const r = runIntervals({ series: { name: 'P03', values: y }, parsed: parseSpec(spec) });
+    expect(r.result).toEqual(FC.forecastIntervals({
+      y, method: 'damped', phi: 0.9, h: 6, nSims: 1000, seed: 42, nonNegative: true,
+    }));
+    expect(r.result.params.phi).toBe(0.9);
+  });
+
   it('backtests with the typed origins, matching the oracle golden cmp-ekene1 and its MASE ranking', () => {
     const c = byId('cmp-ekene1');
     const spec = {
