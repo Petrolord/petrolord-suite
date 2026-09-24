@@ -19,8 +19,8 @@ import { ArrowRight, Layers, BarChart3, Anchor, Zap, Factory, Milestone, ShieldC
 //
 // D1 (2026-09-23): Data & AI joins as the tenth module on the same rule, with
 // a count of 1 for the Data Quality Studio. D2 (2026-09-24) adds the ML
-// Workbench (count 2); D3 (2026-09-24) the Electrofacies Studio (count 3); the
-// Production Forecasting ML Workbench joins as D4 ships.
+// Workbench (count 2); D3 (2026-09-24) the Electrofacies Studio (count 3); D4
+// (2026-09-24) the Production Forecasting ML Workbench (count 4).
 const modules = [
   {
     name: 'Geoscience & Subsurface',
@@ -98,9 +98,9 @@ const modules = [
     name: 'Data & AI',
     icon: Filter,
     color: 'from-sky-400 to-indigo-500',
-    count: 3,
-    description: 'Statistics and machine learning on your own well and production data: quality checks where every flag states the rule that raised it, regression and logistic classification scored on wells held out of training, and electrofacies by k-means, agglomerative clustering, kNN and CART compared with core facies. The module is being built; three applications are live today.',
-    apps: ['Data Quality Studio', 'ML Workbench', 'Electrofacies Studio'],
+    count: 4,
+    description: 'Statistics and machine learning on your own well and production data: quality checks where every flag states the rule that raised it, regression and logistic classification scored on wells held out of training, electrofacies by k-means, agglomerative clustering, kNN and CART compared with core facies, and production forecasts by exponential smoothing backtested against the Arps decline.',
+    apps: ['Data Quality Studio', 'ML Workbench', 'Electrofacies Studio', 'Production Forecasting ML Workbench'],
   },
 ];
 

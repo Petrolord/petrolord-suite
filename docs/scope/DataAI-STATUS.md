@@ -464,6 +464,148 @@ training rows (about 17 s worst case at the 100,000-row design cap).
   Both apps' ENGINE_COMMIT and ENGINE_VERSION move to ef4058f. The studio
   does not call cutTree, so its new id-reuse refusal needs no app change.
 
+## D4: Production Forecasting ML Workbench (2026-09-24)
+
+Engine: `engines/dataai/forecast.js`, petrolord-engines PR #255 (squash
+merge ec89b6b, tree identical to the reviewed head 26c11fe), with its stdlib
+oracle (130 goldens, 56 refusals, NIST/SEMATECH 6.4.3 anchors), statsmodels /
+scipy / scikit-learn pins (216, 8 documented skips), negative control
+(51/51) and `tools/validation/dataai/FINDINGS-forecast.md`. App: branch
+`feat/d4-forecasting-ml-workbench`, on the D3 Electrofacies Studio and D2 ML
+Workbench patterns (#617, #616).
+
+- **Vendoring.** The 11 canonical paths of ef4058f..ec89b6b copied file by
+  file (forecast.js, its gate, goldens, pins, oracle, pin script, negative
+  control, synthetic wells, timing script, FINDINGS, README). Import closure
+  (`lib/stats/stats.js`, `lib/conventions/percentile.js`,
+  `engines/dca/arps.js`) already vendored and unchanged in the range.
+  Manifest regenerated, VENDOR.json pinned at ec89b6b;
+  `check-vendored-engines.mjs --canonical` reports 984 paths byte for byte,
+  0 deviations; vendored gate 432/432. Shim
+  `src/utils/dataAi/engine/forecast.js`. The ML Workbench's and the
+  Electrofacies Studio's `ENGINE_COMMIT` move to the same pin (ml.js and
+  cluster.js are byte-identical since ef4058f).
+- **The app.** `/dashboard/apps/data-ai/forecasting-ml-workbench` (+ `/help`):
+  `src/pages/apps/ForecastingMlWorkbench.jsx`, `src/contexts/ForecastingContext.jsx`,
+  panels under `src/components/dataai/forecast/` (DataPanel, FitPanel,
+  BacktestPanel, FieldPanel, common, charts), logic in `src/utils/dataAi/`
+  (`forecastData.js` series table, `forecastSources.js` spine reads,
+  `forecastWorkflows.js` every engine call, `forecastJobs.js` worker
+  protocol, `forecastStudy.js` saved payload, `forecastRunsService.js`
+  persistence, `forecastReport.js` CSV).
+  - **Data:** an upload (CSV, TSV, TXT or Excel through `tabularFile.js`, RFC
+    4180) with an optional well column, an optional period column (labels
+    only) and a production column, rows in file order within each well; or
+    the Production data spine (`productionSpine.getDailyProduction`, paged
+    past 1,000 rows; producers only, injectors and observation wells left
+    out), as calendar-month totals (sum of the rows stored in the month) or
+    one step per stored row. Shut-in zeros stay 0. A missing value (a blank
+    cell, a month with no stored row) refuses the table with the rows named
+    unless the user reads missing values as 0 (shut in), counted in the
+    notes. No new shared table: the spine is read through its own service.
+  - **Fit and forecast:** simple exponential smoothing, Holt's linear trend
+    and the damped trend via `fitSmoothing`; a blank parameter is estimated,
+    a typed one held; the fit table shows parameters (held marked), SSE,
+    MSE, the first scored step and the optimiser record (converged, SSE
+    evaluations, parameters on a bound); engine warnings shown. The Arps
+    decline via `arpsForecast` (engines/dca/arps.js inside the engine):
+    model, qi and Di per step, b, values used and dropped.
+  - **Intervals:** `forecastIntervals` with method, nSims (1,000), seed (42),
+    horizon h and the negative-to-0 option; P90 (low, the 10th percentile),
+    P50, P10 (high) per the percentile convention, with the engine's
+    exceedance definition and the clipped count.
+  - **Backtest:** `compareWithArps` with first origin (blank: the length less
+    three horizons, at least 3), horizon, step, refit toggle, MASE lag m
+    (default 1, stated) and rank metric (MASE default and headline). MAPE is
+    shown as undefined with the engine's reason when an actual is 0; sMAPE
+    stated on 0 to 200. Origin view: chart and table of each method's
+    forecasts, actuals and errors from a chosen origin, with the parameters
+    at that origin.
+  - **Field comparison:** `compareWithArps` on every well with the same
+    settings, in the Web Worker with a count of wells done; per method the
+    wells ranked first and the mean ranking metric over the wells where it
+    is defined (with the count), and each well's metrics.
+  - **Charts:** white chartTheme + ChartLogo, one value axis each: history,
+    one-step fitted values (solid) and forecasts (dashed) per method and the
+    Arps decline, the P90 to P10 band with P50; the origin view; wells
+    ranked first. Method colours fixed per method, checked with the dataviz
+    palette validator (CVD adjacent Delta E 17.2, all checks pass).
+- **Lead decisions applied.** MASE headline and default ranking with m
+  exposed and stated; MAPE only with its null reason on a zero actual;
+  sMAPE scale stated; P90 = low with the exceedance definition shown; field
+  runs in a worker with progress (all jobs use the worker; single-well jobs
+  are fast either way); no new Monte Carlo or Arps (a registration test
+  keeps `Math.random`, `mulberry32(`, `fitArpsModel(` and
+  `calculateArpsHyperbolic(` out of the app layer). Engine refusals shown
+  verbatim; on-screen figures through `qcDisplay.displayNumber`; the CSV
+  keeps full engine values. Copy rule gated in the smoke test over the page,
+  help guide and every panel.
+- **Persistence.** `dai_forecast_runs`, organization-scoped with RLS like
+  dai_facies_runs, source 'upload' or 'spine'. Payload = inputs (the upload's
+  series up to 200,000 values, or the field, well ids, phase, step and
+  missing rule), the spec as typed with seed and paths, and the engine
+  commit; summary = fitted parameters with the optimiser record, Arps fit,
+  interval seed and paths, backtest ranking and metrics, field counts, an
+  FNV-1a fingerprint of the series, engine version and commit. On open the
+  series is read again; a changed fingerprint or engine commit is reported.
+- **CSV export:** one row per record with full-precision values: meta (run,
+  data, unit, step, engine and commit, the spec as JSON), data notes, engine
+  warnings, parameters (held or estimated), optimiser record, fitted value
+  and residual per step, forecasts, Arps fit, interval percentiles with the
+  definition and the bootstrap basis, backtest metrics, undefined-metric
+  reasons, every origin's forecasts and errors, field summary and per-well
+  metrics, engine refusals.
+- **Held migrations (NOT APPLIED, owner-run), in order:**
+  1. `20260924160000_d4_dai_forecast_runs.sql` (not deploy-gated);
+  2. `20260924170000_d4_tile_activation.sql` (DEPLOY GATE: after the DA0
+     seed, the table, and the prod upload serving the route).
+  Both applied twice on a local scratch Postgres 16 with stubbed auth and
+  org helpers; RLS probes passed (own-org insert and read, other org reads
+  0, other-org insert refused, 'wells' source, blank name and non-object
+  payload refused, 'spine' accepted, organization move refused, a member
+  cannot delete another author's run, other org deletes nothing, author kept
+  on an admin update, admin delete, anon refused); the tile gives a notice
+  before the row exists and leaves the other three Data & AI tiles and a
+  same-slug row in another module untouched.
+- **Pricing.** No change: the `data-ai` module price (2,999, D1) covers it.
+- **Marketing.** ModulesShowcase: Data & AI count 4 (all four apps of this
+  run); the "being built" sentence is dropped. Module count stays ten.
+- **Tests.** `forecastWorkflows.test.js` (18): the Ekene CSV reaches the
+  engine as the golden series; missing and unreadable values refused by row;
+  spine month sums, missing months, stored rows; spec to engine arguments
+  (NaN passed on for the engine to refuse); call-through equal to direct
+  engine calls and to the oracle goldens damped-ekene1-fit, NIST 6.4.3.1 at
+  alpha 0.1, an intervals case, cmp-ekene1 (MASE ranking) and
+  cmp-ekene2-rmse-refit-false (refit off, m 1 and 12); held parameters reach
+  the bootstrap; the default first origin; the field run equals per-well
+  calls with progress; the summary rule; warnings; the pin.
+  `forecastJobs.test.js` (9): worker protocol with a fake structured-clone
+  worker, progress per well, errors, ids, cancel, the one-line worker shell.
+  `forecastRunsService.test.js` (9): `dai_forecast_runs` service, payload
+  with seed and engine pin, snapshot round trip and cap, fingerprint, CSV
+  (full precision, MAPE reason on the shut-in, refusals and warnings as
+  rows). `forecastingMlWorkbench.smoke.test.jsx` (10): the mounted page on
+  the Ekene upload and a mocked spine; fit table, Arps line, refusal
+  verbatim, held phi, interval cells in order (P90 low left of P10 high) and
+  the definition, backtest ranking and MASE per row, the MAPE reason, the
+  origin view, the field summary, the spine producers and calendar months;
+  help guide conventions and the copy rule. `dataAiRegistration.test.js`
+  (D4 block, 7). App-layer negative control
+  `tools/validation/dataai/negcontrol_forecast_workbench.sh`: 17/17 plants
+  red (blank read as 0, held parameters dropped from the fit and from the
+  bootstrap, seed shifted, default first origin, m not passed, refit not
+  passed, ranked-first from the bottom, field mean over every well, progress
+  from 0, missing zero-filled silently, upload rows reversed, spine month
+  last row, spine months skipped, injectors offered, P90/P10 columns
+  swapped, CSV rounded); baseline and restored runs green.
+
+Open for D4: the spine stores daily volumes and a monthly import holds one
+row a month as imported; the app sums the stored rows per calendar month
+and says so, and a per-day rate convention (volume over days on, or over
+calendar days) would be an owner choice. The workbench backtests every
+parameter estimated; a backtest with typed parameters held (the engine's
+`backtest` takes them) is not offered yet.
+
 ## Next
 
-D1 `dataqc` NextGen course (slug `dataqc`, path_order 66) on the D1 engine and app; D2 `mlcore` course (path_order 67) on the D2 engine and the ML Workbench; D3 `facies` course (path_order 68) on the D3 engine and the Electrofacies Studio.
+D1 `dataqc` NextGen course (slug `dataqc`, path_order 66) on the D1 engine and app; D2 `mlcore` course (path_order 67) on the D2 engine and the ML Workbench; D3 `facies` course (path_order 68) on the D3 engine and the Electrofacies Studio; D4 `forecastml` course (path_order 69) on the D4 engine and the Production Forecasting ML Workbench.

@@ -126,12 +126,12 @@ describe('marketing, which follows the catalog rather than leading it', () => {
   });
 
   it('shows the module with the number of apps that actually work', () => {
-    // Three of four (D1, D2, D3). The count is what is built, not what is planned.
+    // All four of this run (D1 to D4). The count is what is built, not what is planned.
     const showcase = read('components/home/ModulesShowcase.jsx');
     const block = showcase.slice(showcase.indexOf(`name: '${NAME}'`));
-    expect(block).toMatch(/count: 3,/);
-    expect(block).toContain("apps: ['Data Quality Studio', 'ML Workbench', 'Electrofacies Studio']");
-    expect(block).not.toMatch(/Forecasting ML Workbench/);
+    expect(block).toMatch(/count: 4,/);
+    expect(block).toContain("apps: ['Data Quality Studio', 'ML Workbench', 'Electrofacies Studio', 'Production Forecasting ML Workbench']");
+    expect(block).not.toMatch(/AI Evaluation/);
     expect(block.slice(0, block.indexOf('],'))).not.toMatch(/AI-powered|[–—]/);
   });
 });
@@ -151,7 +151,7 @@ describe('the hub copy', () => {
   it('names none of its applications by hand in what it renders', () => {
     // The header comment may name them; the page itself lists only the catalog.
     const rendered = hub.slice(hub.indexOf('export const MODULE_FILTER'));
-    ['Data Quality Studio', 'ML Workbench', 'Electrofacies Studio'].forEach((a) => {
+    ['Data Quality Studio', 'ML Workbench', 'Electrofacies Studio', 'Forecasting ML Workbench'].forEach((a) => {
       expect(rendered).not.toContain(a);
     });
   });
@@ -424,6 +424,83 @@ describe('D3: the Electrofacies Studio', () => {
     const all = fs.readdirSync(migrations).filter((f) => f.endsWith('.sql')).sort();
     [TABLE, TILE].forEach((f) => {
       expect(all.indexOf(f)).toBeGreaterThan(all.indexOf('20260924130000_d2_activate_ml_workbench_tile.sql'));
+      const row = log().split('\n').find((l) => l.includes(f));
+      expect(row).toBeTruthy();
+      expect(row).toMatch(/NOT APPLIED \(owner-run\) \| NOT APPLIED \(owner-run\) \|$/);
+    });
+    expect(all.indexOf(TABLE)).toBeLessThan(all.indexOf(TILE));
+  });
+});
+
+describe('D4: the Production Forecasting ML Workbench', () => {
+  const migrations = path.resolve(ROOT, '../supabase/migrations');
+  const sqlOf = (f) => fs.readFileSync(path.join(migrations, f), 'utf8');
+  const log = () => fs.readFileSync(path.resolve(ROOT, '../MIGRATIONS.md'), 'utf8');
+  const TABLE = '20260924160000_d4_dai_forecast_runs.sql';
+  const TILE = '20260924170000_d4_tile_activation.sql';
+
+  it('is routed where appRoutePath sends the tile, behind its own entitlement, with its help guide', () => {
+    const app = read('App.jsx');
+    expect(app).toContain("import('@/pages/apps/ForecastingMlWorkbench')");
+    expect(app).toContain("import('@/pages/apps/ForecastingMlWorkbenchHelpGuide')");
+    expect(app).toContain('<Route path="apps/data-ai/forecasting-ml-workbench" element={<ProtectedAppRoute appId="forecasting-ml-workbench"');
+    expect(app).toContain('<Route path="apps/data-ai/forecasting-ml-workbench/help" element={<ProtectedAppRoute appId="forecasting-ml-workbench"');
+    expect(appRoutePath({ module: NAME, slug: 'forecasting-ml-workbench' })).toBe('/dashboard/apps/data-ai/forecasting-ml-workbench');
+  });
+
+  it('runs the engine vendored at the VENDOR.json pin, through a one-line shim', () => {
+    const vendor = JSON.parse(read('../packages/engines/VENDOR.json'));
+    const wf = read('utils/dataAi/forecastWorkflows.js');
+    expect(wf).toContain(`ENGINE_COMMIT = '${vendor.canonical.commit}'`);
+    expect(wf).toContain(`ENGINE_VERSION = 'petrolord-engines ${vendor.canonical.commit.slice(0, 7)} `);
+    const code = read('utils/dataAi/engine/forecast.js').split('\n').filter((l) => l && !l.startsWith('//'));
+    expect(code).toEqual(["export * from '../../../../packages/engines/engines/dataai/forecast.js';"]);
+  });
+
+  it('computes no Monte Carlo, NPV or Arps of its own: the bootstrap and the Arps fit are the engine\'s', () => {
+    ['utils/dataAi/forecastWorkflows.js', 'utils/dataAi/forecastJobs.js', 'utils/dataAi/forecastData.js', 'utils/dataAi/forecastReport.js'].forEach((f) => {
+      const src = read(f);
+      expect(src).not.toMatch(/Math\.random|mulberry32\(|fitArpsModel\(|calculateArpsHyperbolic\(/);
+    });
+  });
+
+  it('runs its jobs in a worker that jest maps to the inline fallback', () => {
+    expect(read('utils/dataAi/forecastWorkerFactory.js')).toContain("new URL('./workers/forecast.worker.js', import.meta.url)");
+    expect(fs.readFileSync(path.resolve(ROOT, '../jest.config.js'), 'utf8')).toContain("'forecastWorkerFactory(\\\\.js)?$': '<rootDir>/src/__mocks__/forecastWorkerFactoryMock.js'");
+  });
+
+  it('keeps its runs in a dai_* table scoped by organization membership', () => {
+    const sql = sqlOf(TABLE);
+    expect(sql).toMatch(/create table if not exists public\.dai_forecast_runs/);
+    expect(sql).toMatch(/enable row level security/);
+    expect(sql).toMatch(/public\.is_org_member\(organization_id\)/);
+    expect(sql).toMatch(/has_org_role\(organization_id, array\['owner', 'admin'\]\)/);
+    expect(sql).toMatch(/revoke all on table public\.dai_forecast_runs from anon/);
+    expect(sql).toMatch(/source in \('upload', 'spine'\)/);
+    expect(sql).not.toMatch(/using \(true\)/i);
+    expect(sql).not.toMatch(/alter table (if exists )?public\.(organizations|organization_members|users|invitations|po_[a-z_]+)\b/i);
+  });
+
+  it('flips only its own tile Active, only if the DA0 seed made it, and changes no price', () => {
+    const sql = sqlOf(TILE);
+    expect(sql).toMatch(/v_slug text := 'forecasting-ml-workbench'/);
+    expect(sql).toMatch(/and module = 'Data & AI'/);
+    expect(sql).toMatch(/set status = 'Active'/);
+    expect(sql).toMatch(/is_built = true/);
+    expect(sql).toMatch(/is_functional = true/);
+    expect(sql).toMatch(/Nothing done/);
+    expect(sql).toMatch(/DEPLOY GATE/);
+    expect(sql.slice(sql.indexOf('do $$'))).not.toMatch(/data-quality-studio|(?<!forecasting-)ml-workbench|electrofacies-studio/);
+    expect(sql).not.toMatch(/pricing_config/);
+    expect(sql).not.toMatch(/[\u2013\u2014]/);
+    expect(sql).not.toMatch(/AI-powered|artificial intelligence/i);
+    expect(MODULE_PRICING[SLUG]).toBe(2999);
+  });
+
+  it('logs both D4 migrations as not applied (owner-run), after the D3 ones', () => {
+    const all = fs.readdirSync(migrations).filter((f) => f.endsWith('.sql')).sort();
+    [TABLE, TILE].forEach((f) => {
+      expect(all.indexOf(f)).toBeGreaterThan(all.indexOf('20260924150000_d3_activate_electrofacies_studio_tile.sql'));
       const row = log().split('\n').find((l) => l.includes(f));
       expect(row).toBeTruthy();
       expect(row).toMatch(/NOT APPLIED \(owner-run\) \| NOT APPLIED \(owner-run\) \|$/);
