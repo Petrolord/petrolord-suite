@@ -18,8 +18,9 @@ import { ArrowRight, Layers, BarChart3, Anchor, Zap, Factory, Milestone, ShieldC
 // Consequence Modelling Studio (count 2) and PS3 the QRA Studio (count 3).
 //
 // D1 (2026-09-23): Data & AI joins as the tenth module on the same rule, with
-// a count of 1 for the Data Quality Studio. The ML Workbench, Electrofacies
-// Studio and Production Forecasting ML Workbench join as D2 to D4 ship.
+// a count of 1 for the Data Quality Studio. D2 (2026-09-24) adds the ML
+// Workbench (count 2); the Electrofacies Studio and Production Forecasting ML
+// Workbench join as D3 and D4 ship.
 const modules = [
   {
     name: 'Geoscience & Subsurface',
@@ -97,9 +98,9 @@ const modules = [
     name: 'Data & AI',
     icon: Filter,
     color: 'from-sky-400 to-indigo-500',
-    count: 1,
-    description: 'Statistics and machine learning on your own well and production data, starting with quality checks where every flag states the rule that raised it. The module is being built; one application is live today.',
-    apps: ['Data Quality Studio'],
+    count: 2,
+    description: 'Statistics and machine learning on your own well and production data: quality checks where every flag states the rule that raised it, and regression and logistic classification scored on wells held out of training. The module is being built; two applications are live today.',
+    apps: ['Data Quality Studio', 'ML Workbench'],
   },
 ];
 

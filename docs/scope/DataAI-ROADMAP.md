@@ -122,6 +122,6 @@ app's route serves.
 |---|---|---|
 | DA0 | **BUILT 2026-09-23** (branch feat/da0-data-ai-module) | Module registered end to end; seed written, NOT APPLIED (owner-run, deploy-gated); pricing and marketing held for D1 |
 | D1 | **ENGINE MERGED** (engines #248, cc82bf3); **APP BUILT 2026-09-23** (branch feat/d1-data-quality-studio) | Engine vendored; Data Quality Studio at `/dashboard/apps/data-ai/data-quality-studio` + `/help`; `dai_qc_runs`, tile activation and pricing (2,999) written as HELD migrations 20260923130000 to 20260923150000, NOT APPLIED; marketing counts ten modules. NextGen course `dataqc` next |
-| D2 | not started | |
+| D2 | **ENGINE MERGED** (engines #252, 966bb9e); **APP BUILT 2026-09-24** (branch feat/d2-ml-workbench) | Engine vendored; ML Workbench at `/dashboard/apps/data-ai/ml-workbench` + `/help` (OLS, ridge, logistic; group split and k-fold; leakage, importance, learning curve; curve write-back with provenance; fits in a Web Worker, caps 150,000 rows per fit and 50,000 held-out rows for importance); `dai_ml_runs` and the tile activation written as HELD migrations 20260924120000 and 20260924130000, NOT APPLIED; no pricing change; showcase counts two Data & AI apps. NextGen course `mlcore` next |
 | D3 | not started | |
 | D4 | not started | |

@@ -38,6 +38,8 @@ export default {
     'breakevenWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/breakevenWorkerFactoryMock.js',
     // Seismolord v4 import: the conversion worker factory (import.meta)
     'convertWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/convertWorkerFactoryMock.js',
+    // Data & AI D2: the ML Workbench worker factory (import.meta)
+    'mlWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/mlWorkerFactoryMock.js',
     // the PWA register hook is a Vite virtual module (WS6)
     '^virtual:pwa-register/react$': '<rootDir>/src/__mocks__/pwaRegisterMock.js',
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',

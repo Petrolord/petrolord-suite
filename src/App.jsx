@@ -83,6 +83,8 @@ const LopaSilStudio = lazy(() => import('@/pages/apps/LopaSilStudio'));
 const LopaSilStudioHelpGuide = lazy(() => import('@/pages/apps/LopaSilStudioHelpGuide'));
 const DataQualityStudio = lazy(() => import('@/pages/apps/DataQualityStudio'));
 const DataQualityStudioHelpGuide = lazy(() => import('@/pages/apps/DataQualityStudioHelpGuide'));
+const MlWorkbench = lazy(() => import('@/pages/apps/MlWorkbench'));
+const MlWorkbenchHelpGuide = lazy(() => import('@/pages/apps/MlWorkbenchHelpGuide'));
 const ConsequenceModellingStudio = lazy(() => import('@/pages/apps/ConsequenceModellingStudio'));
 const ConsequenceModellingStudioHelpGuide = lazy(() => import('@/pages/apps/ConsequenceModellingStudioHelpGuide'));
 const QraStudio = lazy(() => import('@/pages/apps/QraStudio'));
@@ -777,6 +779,8 @@ function App() {
                                 {/* Data & AI D1: Data Quality Studio (course D1 dataqc). */}
                                 <Route path="apps/data-ai/data-quality-studio" element={<ProtectedAppRoute appId="data-quality-studio" appName="Data Quality Studio"><DataQualityStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/data-ai/data-quality-studio/help" element={<ProtectedAppRoute appId="data-quality-studio" appName="Data Quality Studio"><DataQualityStudioHelpGuide /></ProtectedAppRoute>} />
+                                <Route path="apps/data-ai/ml-workbench" element={<ProtectedAppRoute appId="ml-workbench" appName="ML Workbench"><MlWorkbench /></ProtectedAppRoute>} />
+                                <Route path="apps/data-ai/ml-workbench/help" element={<ProtectedAppRoute appId="ml-workbench" appName="ML Workbench"><MlWorkbenchHelpGuide /></ProtectedAppRoute>} />
                                 {/* Process Safety PS2: Consequence Modelling Studio (course H4 consequence). */}
                                 <Route path="apps/process-safety/consequence-studio" element={<ProtectedAppRoute appId="consequence-studio" appName="Consequence Modelling Studio"><ConsequenceModellingStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/process-safety/consequence-studio/help" element={<ProtectedAppRoute appId="consequence-studio" appName="Consequence Modelling Studio"><ConsequenceModellingStudioHelpGuide /></ProtectedAppRoute>} />
