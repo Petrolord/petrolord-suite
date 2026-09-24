@@ -448,6 +448,22 @@ the engine's synthetic facies wells; an Ekene core facies interval set would
 let the course and the smoke test share data. kNN is capped at 10,000
 training rows (about 17 s worst case at the 100,000-row design cap).
 
+- **Engine re-vendored at ef4058f (engines #254, 2026-09-24).** Ten canonical
+  paths of 4dfbb29..ef4058f, file by file (cluster.js, ml.js, the cluster
+  gate, goldens, pins, oracle, pin script, negative control, FINDINGS,
+  README); guard 975 paths byte for byte, 0 deviations. ml.js scalers take
+  `rowNoun` (default 'training rows', so the ML Workbench's messages are
+  unchanged); a constant log refused by pca, k-means, silhouette, elbow or
+  agglomerative now reads "on the N rows passed", kNN keeps "training rows".
+  pca keeps both warnings, Jacobi non-convergence first, joined by '; '; the
+  PCA panel shows each on its own line (render test on the engine's
+  `pca-warning-both` golden, red when the split is removed). Help guide: the
+  repeated-eigenvalue rule in the engine's new words ("differ by at most
+  1e-10 times the largest eigenvalue"), the non-convergence warning, and the
+  validation figures (145 cases, 68 refusals, 169 pins, 52 planted defects).
+  Both apps' ENGINE_COMMIT and ENGINE_VERSION move to ef4058f. The studio
+  does not call cutTree, so its new id-reuse refusal needs no app change.
+
 ## Next
 
 D1 `dataqc` NextGen course (slug `dataqc`, path_order 66) on the D1 engine and app; D2 `mlcore` course (path_order 67) on the D2 engine and the ML Workbench; D3 `facies` course (path_order 68) on the D3 engine and the Electrofacies Studio.
