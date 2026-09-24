@@ -1,9 +1,9 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 4dfbb29f9dca5c52f42c34ef8e27974ec904fe34
+# commit ef4058f781582831efda842468198309c5225270
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
-a70adcd578716e82dde341d2b616c04b1ae6b68f README.md
+bc46a4b7fd89d3b6d8b125232a93da13f439cb32 README.md
 6373485efb6baa9226953a76a3d6ebb740541d1c __tests__/aquifer.test.js
 168f6cedfc18af932ba587f2ff882b7571966986 __tests__/assurance.audit.test.js
 fc5248e0239b0841f542a3cba95ef72db34296d1 __tests__/assurance.compliance.test.js
@@ -25,7 +25,7 @@ e348fa7f85789bc4078e7c84fe574aed3f441acc __tests__/crs.convergence.test.js
 43c27892b1c1a7fcf491030b9c6abe942e7b11b4 __tests__/crs.grid.test.js
 86016e9ef3a3667a2518d44bfb57e26d36b7e238 __tests__/crs.minna.test.js
 473bbdcdb10783d96b43b0633f5a0ce9ab993409 __tests__/crs.sanity.test.js
-9cd70eb7b673b5c11275f4039e709f10facc6470 __tests__/dataai.cluster.test.js
+a940599b813f74926567124db109bc73ee1fc5a0 __tests__/dataai.cluster.test.js
 22d3ebcb48fd10850e58b83673be9b605a16b377 __tests__/dataai.ml.test.js
 1333ff3085471f6b2ef5b1d97b030f3409ed4d29 __tests__/dataai.quality.test.js
 a512a82111f5524a5c9e28f212f9283acfb4ef1c __tests__/dates.test.js
@@ -251,8 +251,8 @@ b9957871cd6f14a8a9826862da5be9d89eda6600 engines/basin/KerogenLibrary.js
 7b07bdac85e1c0bb9e7feae6319843f0fe53587b engines/basin/SimulationEngine.js
 517e371a65d09d7cd6a7f843c32a4d2e14246a4b engines/basin/ThermalPropertiesLibrary.js
 1ecc4966a918ae877e25b4835f6556f6e7812385 engines/basin/results.js
-dcf392cfe450fb895fb11ba3bfbb5aacb2d514c6 engines/dataai/cluster.js
-ddb35e350374ab9e7e74e73ab55a17e41ce3940e engines/dataai/ml.js
+7a80ae1b87054cb30df4ba3950d1d77a85f689da engines/dataai/cluster.js
+c25630d2fa44b9655823f82c8bbadf112550af0a engines/dataai/ml.js
 503694f67acc3a05df3a981a0cd0aa217b9129e2 engines/dataai/quality.js
 cbe49355ed6e9e543a5653bf51ece5bb62b1069c engines/dca/arps.js
 a047e6e91af7e8cb728d8e019d710b3af1a07a48 engines/dca/groupRollup.js
@@ -578,7 +578,7 @@ fea7984e626d8c7b4e7671d7ca2d1c60aca1547d test-data/basin/goldens.json
 d48d79ef6eccb94be4afe8cc69d732abe9ce6f91 test-data/crs/README.md
 b8b641fd2a3bc4b12fed1d2b4ed091a9397e5a17 test-data/crs/generate_minna_goldens.py
 a68fddd7a0f4eaa38ce359a9a7a10240754229da test-data/crs/goldens/minna_epsg_goldens.json
-f2f6a033638ee9e6da016555de7370555500017e test-data/dataai/goldens/cluster_cases.json
+cfb3bdec6d49ac0424919060e6ee77a4f7904a0f test-data/dataai/goldens/cluster_cases.json
 aaf2ce47a7e3eda87b7b0489f04d1ccef84d0de4 test-data/dataai/goldens/ml_cases.json
 12780ec2778e27f7947b8fed56f3657adcee8bb5 test-data/dataai/goldens/quality_cases.json
 b7f746072794309a9a971949562a050e7366ceb1 test-data/dataai/iris/iris.csv
@@ -593,7 +593,7 @@ b88aefc9766b12c5ac4aa570b4aefa0e0d9e98db test-data/dataai/nist-strd/Wampler2.dat
 98baf4693ed24000e5d71164519aa0fe3fae82ea test-data/dataai/nist-strd/Wampler3.dat
 044768dee0c64dd9280a4537d8dd8ac2d604b14f test-data/dataai/nist-strd/Wampler4.dat
 b056a23bfc40704442527906a3caaadc4eae9502 test-data/dataai/nist-strd/Wampler5.dat
-de0024905efffd1e706936c836c85bc2afd04257 test-data/dataai/pins/cluster_pins.json
+897d1a25cdb2e4f13cb4dec28b9e490a7a57b315 test-data/dataai/pins/cluster_pins.json
 6795aff2db161f37bfafc70a390d714c39662874 test-data/dataai/pins/ml_pins.json
 11e118a9ab79d7de0a261e10f67b33cd1e1d80ba test-data/dataai/pins/quality_pins.json
 150c0b09188f47f9b58a7e9a8f2647602fd679de test-data/dates/date_fns_pins.json
@@ -825,16 +825,16 @@ dfcca3075c05f76421d563ebcaeed47c57afce17 tools/validation/assurance/oracle_quali
 28bcb512c210d567b4beffe060fee967de59154d tools/validation/assurance/oracle_risk.py
 bb7e40c744f43eee571d0eb764fa6a0b10ce8c61 tools/validation/basin/genfixtures.py
 63170e1025eeeb9cfdf030377a347d22dc8afa17 tools/validation/basin/oracle.py
-abd120fb528d56f11a987aa46d27ac53a374d00c tools/validation/dataai/FINDINGS-cluster.md
+05c6861c0d46b538fbfd3c808068857f5e1d49cc tools/validation/dataai/FINDINGS-cluster.md
 1aec1f3e8b46849608764101261e8aad79a632ab tools/validation/dataai/FINDINGS-ml.md
 293677d019247f7e1a01e9c1ecbc87658150802f tools/validation/dataai/FINDINGS-quality.md
-313b53aff189be87434a577fa6b086fde0936533 tools/validation/dataai/negcontrol_cluster.sh
+121f06c73000fd0060472870b3c17282ac2f64d9 tools/validation/dataai/negcontrol_cluster.sh
 4b0c8d189bddbb58d2a60a8826dd2b9cec1c54af tools/validation/dataai/negcontrol_ml.sh
 2c224f44b27a9ddec7bac66741744f97791f0b39 tools/validation/dataai/negcontrol_quality.sh
-fff1007d918ff54af892d25b61c8e6dc0b4c2e29 tools/validation/dataai/oracle_cluster.py
+120f9d9d6bb9a4aebe9d853202a9b9dd717d9f43 tools/validation/dataai/oracle_cluster.py
 8106290b475c0fd81103141ba1d519fbcccfc6ed tools/validation/dataai/oracle_ml.py
 7e52ff2cb0e021d3ee056b1b0960cff59350c0f1 tools/validation/dataai/oracle_quality.py
-90cab9c693d9fdd6e78d8e29245579d8865d3954 tools/validation/dataai/pin_cluster.py
+401f74600f765abab61b78c21144ccb6c831e6ad tools/validation/dataai/pin_cluster.py
 6e642cae1ed2de5f1f89f283ec273743bb055708 tools/validation/dataai/pin_ml.py
 1b07648eb99b766cd09be392dac1e257ebb03746 tools/validation/dataai/pin_quality.py
 e553ce37cb34b970de43166a93aa8a8bb6ff2cbd tools/validation/dataai/synthetic_wells.js
