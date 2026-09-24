@@ -319,19 +319,31 @@ export const engineModelSpec = (model) => (model.kind === 'ridge'
 /**
  * The engine's learning curve: one group split fixes the test wells, the
  * model trains on the first 1, 2, ... training wells of the split's order.
+ * When the engine cannot fit the smallest count (one well may hold only
+ * one class, for example), the curve starts at the next count, and the
+ * engine's refusal for the count left out is returned as `skipped`.
  */
 export function learning({ design, parsed }) {
   const { X, y, groups } = design;
   const { model, tools } = parsed;
   const s = ML.groupSplit({ groups, testFraction: tools.testFraction, seed: tools.seed });
   if (s.error) return { error: s.error };
-  const counts = s.trainGroups.map((_, i) => i + 1);
-  const r = ML.learningCurve({
-    X, y, groups, model: engineModelSpec(model), trainGroupCounts: counts, testFraction: tools.testFraction, seed: tools.seed, metric: tools.metric,
-  });
-  if (r.error) return { error: r.error };
-  const { testIndices, ...rest } = r;
-  return { ...rest, nTest: testIndices.length };
+  const nTrain = s.trainGroups.length;
+  const skipped = [];
+  for (let start = 1; start <= nTrain; start += 1) {
+    const counts = [];
+    for (let c = start; c <= nTrain; c += 1) counts.push(c);
+    const r = ML.learningCurve({
+      X, y, groups, model: engineModelSpec(model), trainGroupCounts: counts, testFraction: tools.testFraction, seed: tools.seed, metric: tools.metric,
+    });
+    if (!r.error) {
+      const { testIndices, ...rest } = r;
+      return { ...rest, nTest: testIndices.length, skipped };
+    }
+    if (!r.error.startsWith('trainGroupCounts[0] ')) return { error: r.error, skipped };
+    skipped.push({ nGroups: start, reason: r.error });
+  }
+  return { error: `No training size from 1 to ${nTrain} wells could be fitted; the last refusal: ${skipped[skipped.length - 1].reason}`, skipped };
 }
 
 /**
