@@ -50,7 +50,7 @@ const parsedWith = (fn) => { const s = specWith(); fn(s); return parseSpec(s); }
 
 describe('the engine pin', () => {
   it('names the commit VENDOR.json pins', () => {
-    // eslint-disable-next-line global-require
+     
     const vendor = require('../../../../packages/engines/VENDOR.json');
     expect(ENGINE_COMMIT).toBe(vendor.canonical.commit);
     expect(ENGINE_VERSION.startsWith(`petrolord-engines ${vendor.canonical.commit.slice(0, 7)} `)).toBe(true);
