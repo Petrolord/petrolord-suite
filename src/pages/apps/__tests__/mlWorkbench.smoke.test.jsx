@@ -61,13 +61,11 @@ jest.mock('@/contexts/SupabaseAuthContext', () => ({
   useAuth: () => ({ user: { id: 'u1' }, organization: { id: 'org-1' } }),
 }));
 
-/* eslint-disable import/first */
 import MlWorkbench from '@/pages/apps/MlWorkbench';
 import MlWorkbenchHelpGuide, { ML_GUIDE_SECTIONS } from '@/pages/apps/MlWorkbenchHelpGuide';
 import { tableFromBlocks, wellBlock, buildDesign } from '@/utils/dataAi/mlData';
 import { defaultSpec, parseSpec, evaluate } from '@/utils/dataAi/mlWorkflows';
 import { displayNumber } from '@/utils/dataAi/qcDisplay';
-/* eslint-enable import/first */
 
 const chain = () => {
   const q = {

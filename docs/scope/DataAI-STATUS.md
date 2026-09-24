@@ -313,7 +313,7 @@ with its stdlib oracle, NIST StRD anchors, library pins, negative control
   ridge, group split, logistic (with the separation refusal and the L2
   fit), leakage, importance, learning curve, final fit, write-back log and
   provenance, row cap and boundary rules. `mlJobs.test.js` (9, worker
-  protocol with a fake module worker), `mlRunsService.test.js` (11, mocked
+  protocol with a fake module worker), `mlRunsService.test.js` (12, mocked
   supabase), `mlReport.test.js` (4), `mlWorkbench.smoke.test.jsx` (7:
   mounted page driven through a mocked registry of the Ekene wells, engine
   scores on screen, RHOB_ML written to Ekene-9, separation refusal, leakage
