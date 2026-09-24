@@ -126,12 +126,12 @@ describe('marketing, which follows the catalog rather than leading it', () => {
   });
 
   it('shows the module with the number of apps that actually work', () => {
-    // Two of four (D1, D2). The count is what is built, not what is planned.
+    // Three of four (D1, D2, D3). The count is what is built, not what is planned.
     const showcase = read('components/home/ModulesShowcase.jsx');
     const block = showcase.slice(showcase.indexOf(`name: '${NAME}'`));
-    expect(block).toMatch(/count: 2,/);
-    expect(block).toContain("apps: ['Data Quality Studio', 'ML Workbench']");
-    expect(block).not.toMatch(/Electrofacies Studio|Forecasting ML Workbench/);
+    expect(block).toMatch(/count: 3,/);
+    expect(block).toContain("apps: ['Data Quality Studio', 'ML Workbench', 'Electrofacies Studio']");
+    expect(block).not.toMatch(/Forecasting ML Workbench/);
     expect(block.slice(0, block.indexOf('],'))).not.toMatch(/AI-powered|[–—]/);
   });
 });
@@ -348,6 +348,82 @@ describe('D2: the ML Workbench', () => {
     const all = fs.readdirSync(migrations).filter((f) => f.endsWith('.sql')).sort();
     [TABLE, TILE].forEach((f) => {
       expect(all.indexOf(f)).toBeGreaterThan(all.indexOf('20260923150000_d1_data_ai_module_pricing.sql'));
+      const row = log().split('\n').find((l) => l.includes(f));
+      expect(row).toBeTruthy();
+      expect(row).toMatch(/NOT APPLIED \(owner-run\) \| NOT APPLIED \(owner-run\) \|$/);
+    });
+    expect(all.indexOf(TABLE)).toBeLessThan(all.indexOf(TILE));
+  });
+});
+
+describe('D3: the Electrofacies Studio', () => {
+  const migrations = path.resolve(ROOT, '../supabase/migrations');
+  const sqlOf = (f) => fs.readFileSync(path.join(migrations, f), 'utf8');
+  const log = () => fs.readFileSync(path.resolve(ROOT, '../MIGRATIONS.md'), 'utf8');
+  const TABLE = '20260924140000_d3_dai_facies_runs.sql';
+  const TILE = '20260924150000_d3_activate_electrofacies_studio_tile.sql';
+
+  it('is routed where appRoutePath sends the tile, behind its own entitlement, with its help guide', () => {
+    const app = read('App.jsx');
+    expect(app).toContain("import('@/pages/apps/ElectrofaciesStudio')");
+    expect(app).toContain("import('@/pages/apps/ElectrofaciesStudioHelpGuide')");
+    expect(app).toContain('<Route path="apps/data-ai/electrofacies-studio" element={<ProtectedAppRoute appId="electrofacies-studio"');
+    expect(app).toContain('<Route path="apps/data-ai/electrofacies-studio/help" element={<ProtectedAppRoute appId="electrofacies-studio"');
+    expect(appRoutePath({ module: NAME, slug: 'electrofacies-studio' })).toBe('/dashboard/apps/data-ai/electrofacies-studio');
+  });
+
+  it('runs the engine vendored at the VENDOR.json pin, through one-line shims', () => {
+    const vendor = JSON.parse(read('../packages/engines/VENDOR.json'));
+    const wf = read('utils/dataAi/faciesWorkflows.js');
+    expect(wf).toContain(`ENGINE_COMMIT = '${vendor.canonical.commit}'`);
+    expect(wf).toContain(`ENGINE_VERSION = 'petrolord-engines ${vendor.canonical.commit.slice(0, 7)} `);
+    const code = (f) => read(f).split('\n').filter((l) => l && !l.startsWith('//'));
+    expect(code('utils/dataAi/engine/cluster.js')).toEqual(["export * from '../../../../packages/engines/engines/dataai/cluster.js';"]);
+    expect(code('utils/dataAi/engine/stats.js')).toEqual(["export { mulberry32 } from '../../../../packages/engines/lib/stats/stats.js';"]);
+  });
+
+  it('offers no self-organising map, which the engine does not have', () => {
+    ['utils/dataAi/faciesWorkflows.js', 'utils/dataAi/faciesJobs.js', 'pages/apps/ElectrofaciesStudio.jsx'].forEach((f) => {
+      expect(read(f)).not.toMatch(/\bsom\b|self-organi[sz]ing/i);
+    });
+  });
+
+  it('runs its jobs in a worker that jest maps to the inline fallback', () => {
+    expect(read('utils/dataAi/faciesWorkerFactory.js')).toContain("new URL('./workers/facies.worker.js', import.meta.url)");
+    expect(fs.readFileSync(path.resolve(ROOT, '../jest.config.js'), 'utf8')).toContain("'faciesWorkerFactory(\\\\.js)?$': '<rootDir>/src/__mocks__/faciesWorkerFactoryMock.js'");
+  });
+
+  it('keeps its runs in a dai_* table scoped by organization membership', () => {
+    const sql = sqlOf(TABLE);
+    expect(sql).toMatch(/create table if not exists public\.dai_facies_runs/);
+    expect(sql).toMatch(/enable row level security/);
+    expect(sql).toMatch(/public\.is_org_member\(organization_id\)/);
+    expect(sql).toMatch(/has_org_role\(organization_id, array\['owner', 'admin'\]\)/);
+    expect(sql).toMatch(/revoke all on table public\.dai_facies_runs from anon/);
+    expect(sql).not.toMatch(/using \(true\)/i);
+    expect(sql).not.toMatch(/alter table (if exists )?public\.(organizations|organization_members|users|invitations)\b/i);
+  });
+
+  it('flips only its own tile Active, only if the DA0 seed made it, and changes no price', () => {
+    const sql = sqlOf(TILE);
+    expect(sql).toMatch(/v_slug text := 'electrofacies-studio'/);
+    expect(sql).toMatch(/and module = 'Data & AI'/);
+    expect(sql).toMatch(/set status = 'Active'/);
+    expect(sql).toMatch(/is_built = true/);
+    expect(sql).toMatch(/is_functional = true/);
+    expect(sql).toMatch(/Nothing done/);
+    expect(sql).toMatch(/DEPLOY GATE/);
+    expect(sql.slice(sql.indexOf('do $$'))).not.toMatch(/data-quality-studio|ml-workbench|forecasting-ml-workbench/);
+    expect(sql).not.toMatch(/pricing_config/);
+    expect(sql).not.toMatch(/[\u2013\u2014]/);
+    expect(sql).not.toMatch(/AI-powered|artificial intelligence/i);
+    expect(MODULE_PRICING[SLUG]).toBe(2999);
+  });
+
+  it('logs both D3 migrations as not applied (owner-run), after the D2 ones', () => {
+    const all = fs.readdirSync(migrations).filter((f) => f.endsWith('.sql')).sort();
+    [TABLE, TILE].forEach((f) => {
+      expect(all.indexOf(f)).toBeGreaterThan(all.indexOf('20260924130000_d2_activate_ml_workbench_tile.sql'));
       const row = log().split('\n').find((l) => l.includes(f));
       expect(row).toBeTruthy();
       expect(row).toMatch(/NOT APPLIED \(owner-run\) \| NOT APPLIED \(owner-run\) \|$/);
