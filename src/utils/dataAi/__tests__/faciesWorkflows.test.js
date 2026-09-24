@@ -2,7 +2,7 @@
  * Electrofacies Studio workflows (Data & AI D3), gated against the engine.
  *
  * The engine itself is gated in packages/engines/__tests__/dataai.cluster.test.js
- * (stdlib oracle goldens, iris, scikit-learn / scipy pins, 40/40 negative
+ * (stdlib oracle goldens, iris, scikit-learn / scipy pins, 52/52 negative
  * control). These tests gate the APP layer: every number the studio shows
  * must equal a direct engine call made in the stated way on the same rows.
  * Nothing here restates a formula; each expectation is the engine's output.

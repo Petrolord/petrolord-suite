@@ -57,7 +57,13 @@ const PcaPanel = () => {
       {r && !r.error ? (
         <>
           <Section title="Explained variance" testId="pca-variance">
-            {r.warning ? <Note tone="warn">{r.warning}</Note> : null}
+            {r.warning ? (
+              <Note tone="warn" testId="pca-warning">
+                {/* The engine joins its warnings with '; ' (Jacobi non-convergence first, then repeated eigenvalues);
+                    each is shown verbatim on its own line. */}
+                {r.warning.split('; ').map((w) => <span key={w} className="block">{w}</span>)}
+              </Note>
+            ) : null}
             <ScreeChart pca={r} />
             <Grid
               testId="pca-eigen"

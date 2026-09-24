@@ -266,7 +266,7 @@ describe('the help guide', () => {
   it('states the conventions the engine uses', () => {
     [
       'population SD', 'sample SD (n - 1)', 'largest absolute value is made positive', 'floor(u n)', '1e-12', 'lowest cluster ids',
-      'top <= depth < base', 'one-to-one', 'majority', 'Hungarian', '0.92461872', '40 defects', 'EFAC_KM',
+      'top <= depth < base', 'one-to-one', 'majority', 'Hungarian', '0.92461872', '52 defects', 'EFAC_KM',
     ].forEach((t) => expect(src).toContain(t));
   });
 

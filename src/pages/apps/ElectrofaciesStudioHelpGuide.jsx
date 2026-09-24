@@ -170,8 +170,10 @@ const ElectrofaciesStudioHelpGuide = () => (
       <Formula>explained ratio = eigenvalue / sum of eigenvalues; loading = component x sqrt(eigenvalue)</Formula>
       <Para>
         Eigenvalues come from cyclic Jacobi rotations, sorted from largest. A component&apos;s sign is arbitrary, so the
-        engine fixes it: the loading with the largest absolute value is made positive. Eigenvalues equal to within 1e-10 of
-        the largest are flagged, since their directions are not unique.
+        engine fixes it: the loading with the largest absolute value is made positive. Two neighbouring eigenvalues that
+        differ by at most 1e-10 times the largest eigenvalue are flagged, since their directions are not unique. If the
+        50th sweep still rotates, the Jacobi method has not converged and that warning is shown first, above any
+        repeated-eigenvalue warning.
       </Para>
     </GuideSection>
 
@@ -296,11 +298,11 @@ const ElectrofaciesStudioHelpGuide = () => (
     <GuideSection id="validation">
       <SectionHeading icon={CheckCircle2}>How the engine was validated</SectionHeading>
       <Para>
-        The engine is checked against 126 cases written by an independent oracle in plain Python (54 of them refusals, each
+        The engine is checked against 145 cases written by an independent oracle in plain Python (68 of them refusals, each
         message pinned in full). The oracle takes a different road on every route: eigenvalues by bisection with Sylvester&apos;s
         law, merge heights from their definitions at every step, CART splits recounted in exact fractions, the adjusted Rand
         index by counting all row pairs, one-to-one matching by brute force. numpy, scipy and scikit-learn are a second
-        witness (158 pins, 18 documented convention differences). A negative control planted 40 defects in the engine and
+        witness (169 pins, 18 documented convention differences). A negative control planted 52 defects in the engine and
         every one turned the gates red.
       </Para>
       <Para>
