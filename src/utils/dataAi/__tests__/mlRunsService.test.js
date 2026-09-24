@@ -111,7 +111,7 @@ describe('the saved run payload', () => {
     });
     expect(payload.summary.folds.map((f) => f.score.r2)).toEqual(evaluation.folds.map((f) => f.test.r2));
     expect(payload.summary.fingerprint).toBe(fingerprint(design));
-    expect(payload.summary.engine).toMatch(/^petrolord-engines 4dfbb29/);
+    expect(payload.summary.engine).toMatch(/^petrolord-engines ef4058f/);
     expect(payload.summary.validation).toEqual({ scheme: 'kfold', k: 3, testFraction: null, seed: 5 });
     const back = studyFromPayload(JSON.parse(JSON.stringify(payload)));
     expect(back.spec).toEqual(spec);
