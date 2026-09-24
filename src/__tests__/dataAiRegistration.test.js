@@ -126,12 +126,12 @@ describe('marketing, which follows the catalog rather than leading it', () => {
   });
 
   it('shows the module with the number of apps that actually work', () => {
-    // One of four. The count is what is built, not what is planned.
+    // Two of four (D1, D2). The count is what is built, not what is planned.
     const showcase = read('components/home/ModulesShowcase.jsx');
     const block = showcase.slice(showcase.indexOf(`name: '${NAME}'`));
-    expect(block).toMatch(/count: 1,/);
-    expect(block).toContain('Data Quality Studio');
-    expect(block).not.toMatch(/ML Workbench|Electrofacies Studio/);
+    expect(block).toMatch(/count: 2,/);
+    expect(block).toContain("apps: ['Data Quality Studio', 'ML Workbench']");
+    expect(block).not.toMatch(/Electrofacies Studio|Forecasting ML Workbench/);
     expect(block.slice(0, block.indexOf('],'))).not.toMatch(/AI-powered|[–—]/);
   });
 });
@@ -282,5 +282,76 @@ describe('D1: the Data Quality Studio', () => {
       expect(row).toBeTruthy();
       expect(row).toMatch(/NOT APPLIED \(owner-run\) \| NOT APPLIED \(owner-run\) \|$/);
     });
+  });
+});
+
+describe('D2: the ML Workbench', () => {
+  const migrations = path.resolve(ROOT, '../supabase/migrations');
+  const sqlOf = (f) => fs.readFileSync(path.join(migrations, f), 'utf8');
+  const log = () => fs.readFileSync(path.resolve(ROOT, '../MIGRATIONS.md'), 'utf8');
+  const TABLE = '20260924120000_d2_dai_ml_runs.sql';
+  const TILE = '20260924130000_d2_activate_ml_workbench_tile.sql';
+
+  it('is routed where appRoutePath sends the tile, behind its own entitlement, with its help guide', () => {
+    const app = read('App.jsx');
+    expect(app).toContain("import('@/pages/apps/MlWorkbench')");
+    expect(app).toContain("import('@/pages/apps/MlWorkbenchHelpGuide')");
+    expect(app).toContain('<Route path="apps/data-ai/ml-workbench" element={<ProtectedAppRoute appId="ml-workbench"');
+    expect(app).toContain('<Route path="apps/data-ai/ml-workbench/help" element={<ProtectedAppRoute appId="ml-workbench"');
+    expect(appRoutePath({ module: NAME, slug: 'ml-workbench' })).toBe('/dashboard/apps/data-ai/ml-workbench');
+  });
+
+  it('runs the engine vendored at the VENDOR.json pin, through a one-line shim', () => {
+    const vendor = JSON.parse(read('../packages/engines/VENDOR.json'));
+    const wf = read('utils/dataAi/mlWorkflows.js');
+    expect(wf).toContain(`ENGINE_COMMIT = '${vendor.canonical.commit}'`);
+    expect(wf).toContain(`ENGINE_VERSION = 'petrolord-engines ${vendor.canonical.commit.slice(0, 7)} `);
+    const shim = read('utils/dataAi/engine/ml.js').split('\n').filter((l) => l && !l.startsWith('//'));
+    expect(shim).toEqual(["export * from '../../../../packages/engines/engines/dataai/ml.js';"]);
+  });
+
+  it('runs its fits in a worker that jest maps to the inline fallback', () => {
+    expect(read('utils/dataAi/mlWorkerFactory.js')).toContain("new URL('./workers/ml.worker.js', import.meta.url)");
+    expect(fs.readFileSync(path.resolve(ROOT, '../jest.config.js'), 'utf8')).toContain("'mlWorkerFactory(\\\\.js)?$': '<rootDir>/src/__mocks__/mlWorkerFactoryMock.js'");
+  });
+
+  it('keeps its runs in a dai_* table scoped by organization membership', () => {
+    const sql = sqlOf(TABLE);
+    expect(sql).toMatch(/create table if not exists public\.dai_ml_runs/);
+    expect(sql).toMatch(/enable row level security/);
+    expect(sql).toMatch(/public\.is_org_member\(organization_id\)/);
+    expect(sql).toMatch(/has_org_role\(organization_id, array\['owner', 'admin'\]\)/);
+    expect(sql).toMatch(/revoke all on table public\.dai_ml_runs from anon/);
+    expect(sql).toMatch(/task in \('regression', 'classification'\)/);
+    expect(sql).not.toMatch(/using \(true\)/i);
+    expect(sql).not.toMatch(/alter table (if exists )?public\.(organizations|organization_members|users|invitations)\b/i);
+  });
+
+  it('flips only its own tile Active, only if the DA0 seed made it, and changes no price', () => {
+    const sql = sqlOf(TILE);
+    expect(sql).toMatch(/v_slug text := 'ml-workbench'/);
+    expect(sql).toMatch(/and module = 'Data & AI'/);
+    expect(sql).toMatch(/set status = 'Active'/);
+    expect(sql).toMatch(/is_built = true/);
+    expect(sql).toMatch(/is_functional = true/);
+    expect(sql).toMatch(/Nothing done/);
+    expect(sql).toMatch(/DEPLOY GATE/);
+    expect(sql.slice(sql.indexOf('do $$'))).not.toMatch(/data-quality-studio|electrofacies-studio|forecasting-ml-workbench/);
+    expect(sql).not.toMatch(/pricing_config/);
+    expect(sql).not.toMatch(/[–—]/);
+    expect(sql).not.toMatch(/AI-powered|artificial intelligence/i);
+    // the module price already covers its apps; D2 changes no number
+    expect(MODULE_PRICING[SLUG]).toBe(2999);
+  });
+
+  it('logs both D2 migrations as not applied (owner-run), after the D1 ones', () => {
+    const all = fs.readdirSync(migrations).filter((f) => f.endsWith('.sql')).sort();
+    [TABLE, TILE].forEach((f) => {
+      expect(all.indexOf(f)).toBeGreaterThan(all.indexOf('20260923150000_d1_data_ai_module_pricing.sql'));
+      const row = log().split('\n').find((l) => l.includes(f));
+      expect(row).toBeTruthy();
+      expect(row).toMatch(/NOT APPLIED \(owner-run\) \| NOT APPLIED \(owner-run\) \|$/);
+    });
+    expect(all.indexOf(TABLE)).toBeLessThan(all.indexOf(TILE));
   });
 });
