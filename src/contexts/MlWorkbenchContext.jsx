@@ -194,8 +194,9 @@ export const MlWorkbenchProvider = ({ children, createWorker = createMlWorker })
     watch: { spec, ref: dataRef, evaluated: results.evaluate?.stamp }, noun: 'ML run',
   });
 
-  const dataChanged = !!(savedSummary?.fingerprint && design && !design.error && !reloading
-    && fingerprint(design) !== savedSummary.fingerprint);
+  // the fingerprint walks every fitted row, so it is computed once per design
+  const dataChanged = useMemo(() => !!(savedSummary?.fingerprint && design && !design.error && !reloading
+    && fingerprint(design) !== savedSummary.fingerprint), [savedSummary, design, reloading]);
 
   const value = {
     orgId,
