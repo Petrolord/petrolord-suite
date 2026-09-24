@@ -332,6 +332,122 @@ FINDINGS open question 3); the app standardises by default so it holds, and
 turning standardisation off on features in tiny units can end with
 converged false. `maxCondition` is not exposed (default 1e8).
 
+## D3: Electrofacies Studio (2026-09-24)
+
+Engine: `engines/dataai/cluster.js`, petrolord-engines PR #253 (merge
+4dfbb29), with its stdlib oracle (126 goldens, iris anchors), scikit-learn /
+scipy pins (158), negative control (40/40) and
+`tools/validation/dataai/FINDINGS-cluster.md`. App: branch
+`feat/d3-electrofacies-studio`, on the D2 ML Workbench pattern (#616).
+
+- **Vendoring.** The 12 canonical paths of 966bb9e..4dfbb29 copied file by
+  file (cluster.js, its gate, goldens, pins, iris.csv, oracle, pin script,
+  negative control, synthetic wells, timing script, FINDINGS, README).
+  Import closure (`lib/stats/stats.js`, `engines/dataai/ml.js`) unchanged
+  in the range. Manifest regenerated, VENDOR.json pinned at 4dfbb29;
+  `check-vendored-engines.mjs --canonical` reports 975 paths byte for byte,
+  0 deviations; vendored gate 316/316. Shims `src/utils/dataAi/engine/cluster.js`
+  and `engine/stats.js` (mulberry32 only). The ML Workbench's
+  `ENGINE_COMMIT` moves to the same pin (ml.js is byte-identical).
+- **The app.** `/dashboard/apps/data-ai/electrofacies-studio` (+ `/help`):
+  `src/pages/apps/ElectrofaciesStudio.jsx`, `src/contexts/ElectrofaciesContext.jsx`,
+  panels under `src/components/dataai/facies/` (DataPanel, SpecPanel,
+  PcaPanel, ClusterPanel, SupervisedPanel, TracksPanel, WriteBackPanel,
+  common, charts), logic in `src/utils/dataAi/` (`faciesData.js` table,
+  core facies and design, `faciesSources.js` registry reads,
+  `faciesWorkflows.js` every engine call, `faciesJobs.js` worker protocol,
+  `faciesStudy.js` saved payload, `faciesRunsService.js` persistence,
+  `faciesWriteBack.js` facies log builder, `faciesReport.js` CSV).
+  - **Data:** registry wells (curves joined sample by sample, as D2) with each
+    well's interval logs (`stratRegistry.listIntervals`), or an upload with a
+    well column and an optional core facies column. **Core facies** from a
+    facies code curve, registry interval logs of one kind (a sample takes the
+    interval with top <= depth < base), or the uploaded column (numbers when
+    every filled cell is one, else text). Rows without core are clustered and
+    classified but not compared or learned from. Depth window, keep every
+    nth (entries from 0), log10 per log. Scaling: the engine's standard
+    scaler by default, min-max or none.
+  - **PCA:** correlation (default) or covariance; scree with cumulative
+    ratio, eigen table, loadings, score crossplot coloured by core facies or
+    any labelling.
+  - **k-means:** seeded k-means++ (seed 42, nInit 10 by default), centres in
+    log units, silhouette (a seeded 10,000-row sample above 10,000 rows,
+    stated). **Elbow:** k 1 to 10 by default on a seeded sample of 10,000
+    rows above that (stated), one engine call per k for a progress count,
+    joined as the engine joins them (test: equal to the single engine call
+    whole). **Agglomerative:** Ward, complete or average; above 3,000 rows
+    the engine refusal is shown verbatim, or a seeded 3,000-row sample if
+    ticked (labels on the sampled rows only, stated); merge heights chart
+    and tied steps.
+  - **Matching:** one-to-one when the clusters on the cored rows are no more
+    than the facies, majority otherwise; the screen states which ran and why,
+    with the mapping, confusion matrix, per-class report and the adjusted
+    Rand index.
+  - **kNN and CART:** cored wells held out whole (engine group split, seed and
+    count, or wells chosen); held-out confusion, report and ARI; the final
+    model trains on every cored row and classifies every row. kNN classifies
+    in batches inside the engine's 1e8 pair limit (test: joined batches equal
+    one call); at most 10,000 training rows. CART reads logs unscaled; the
+    engine's printed tree (final and held-out) and feature importances.
+  - **Depth tracks:** per well, a log curve and one facies column per
+    labelling (core, k-means, agglomerative, kNN, CART), colours fixed per
+    labelling across wells, white chart surface with the ChartLogo.
+  - **Write-back:** one method's labels on one loaded registry well as a NEW
+    curve through `wellsRegistry.saveLog` (EFAC_KM, EFAC_AGG, EFAC_KNN,
+    EFAC_CART; existing names refused). Codes: cluster numbers, numeric facies
+    as themselves, text facies by sorted position; legend, method, parameters,
+    seed, scaling, logs, core source, scores against the core, rows, wells and
+    engine version and commit in the provenance. Uploads cannot be written
+    (no registry well) and say so.
+- **Lead decisions applied.** No SOM (not in the engine; a registration test
+  keeps it out). Elbow on a seeded sample capped at 10,000 rows, stated, with
+  progress. Every engine refusal shown verbatim (EngineError). On-screen
+  figures through `qcDisplay.displayNumber`; the CSV keeps full engine
+  values. Copy rule gated in the smoke test over the page, help guide and
+  every panel.
+- **Persistence.** `dai_facies_runs`, organization-scoped with RLS like
+  dai_ml_runs (no task column). Payload = inputs and the spec as typed with
+  every seed; summary = per method settings and scores against the core,
+  PCA explained ratios, rows, wells, an FNV-1a fingerprint of X, wells and
+  core facies, engine version. On open the wells are read again and a
+  changed fingerprint is reported.
+- **Held migrations (NOT APPLIED, owner-run), in order:**
+  1. `20260924140000_d3_dai_facies_runs.sql` (not deploy-gated);
+  2. `20260924150000_d3_activate_electrofacies_studio_tile.sql` (DEPLOY GATE:
+     after the DA0 seed, the table, and the prod upload serving the route).
+  Both applied twice on a local scratch Postgres 16 with stubbed auth and
+  org helpers; RLS probes passed (own-org read, other-org insert refused,
+  unknown source, blank name and non-object payload refused, organization
+  move refused, other org sees and deletes nothing, a member cannot delete
+  another author's run, author kept on an admin update, admin delete, anon
+  refused); the tile gives a notice before the row exists and leaves the
+  other Data & AI tiles and a same-slug row in another module untouched.
+- **Pricing.** No change: the `data-ai` module price (2,999, D1) covers it,
+  as D2.
+- **Marketing.** ModulesShowcase: Data & AI count 3 (adds Electrofacies
+  Studio); module count stays ten.
+- **Tests.** `faciesWorkflows.test.js` (28): the design, interval placement
+  and upload facies; the seeded sample equals the engine silhouette's rows;
+  PCA, k-means, silhouette (full and sampled), matching (both modes and the
+  boundary), elbow (joined table equals one engine call; sampled; range
+  refusal verbatim), agglomerative (refusal verbatim, seeded sample, 3,000
+  boundary), hold-out, kNN and CART (held-out and final) all compared whole
+  with direct engine calls on the engine's synthetic facies logs.
+  `faciesAppLayer.test.js` (17): worker protocol, `dai_facies_runs` service,
+  payload and summary, write-back alignment, codes and provenance, CSV.
+  `electrofaciesStudio.smoke.test.jsx` (8): mounted page on a mocked registry
+  of three synthetic wells (two cored by interval logs), k-means numbers and
+  matching mode on screen, depth tracks, EFAC_KM written to the uncored
+  well, CART tree and held-out scores, a refusal verbatim, PCA eigenvalues,
+  help guide conventions and the copy rule. `dataAiRegistration.test.js`
+  (D3 block, 7). App-layer negative control
+  `tools/validation/dataai/negcontrol_facies_studio.sh`: 14/14 plants red (seeded sample off by one, matching boundary, silhouette not sampled, elbow drop sign, elbow sample seed, agglomerative sample labels misplaced, hold-out swapped, last kNN batch dropped, final kNN unscaled, final CART on training wells only, interval base inclusive, 1-based thinning, write-back one sample deep, text facies coded from 1); baseline and restored runs green.
+
+Open for D3: the Ekene demonstration kit has no core facies, so the tests use
+the engine's synthetic facies wells; an Ekene core facies interval set would
+let the course and the smoke test share data. kNN is capped at 10,000
+training rows (about 17 s worst case at the 100,000-row design cap).
+
 ## Next
 
-D1 `dataqc` NextGen course (slug `dataqc`, path_order 66) on the D1 engine and app; D2 `mlcore` course (path_order 67) on the D2 engine and the ML Workbench.
+D1 `dataqc` NextGen course (slug `dataqc`, path_order 66) on the D1 engine and app; D2 `mlcore` course (path_order 67) on the D2 engine and the ML Workbench; D3 `facies` course (path_order 68) on the D3 engine and the Electrofacies Studio.
