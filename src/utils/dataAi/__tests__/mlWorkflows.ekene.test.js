@@ -145,6 +145,38 @@ describe('the Ekene wells read the way the registry stores them', () => {
   });
 });
 
+describe('the design rules at their boundaries', () => {
+  const tiny = {
+    source: 'upload', label: 't', ref: {}, wells: [], group: ['A', 'A', 'A', 'B', 'B', 'B'], depth: [1, 2, 3, 1, 2, 3], depthUnit: 'm',
+    columns: { C: [1, 2, 3, 2, 2, 5], F: [0.5, 0.1, 0.9, 0.3, 0.7, 0.2] }, units: {}, notes: [],
+  };
+  const lab = (op) => buildDesign(tiny, {
+    ...defaultSpec(), task: 'classification', features: [{ name: 'F', log: false }], label: { mode: 'cutoff', curve: 'C', op, cutoff: '2' },
+  }).y;
+
+  it('applies each cutoff comparison exactly, strict or inclusive as written', () => {
+    expect(lab('>')).toEqual([0, 0, 1, 0, 0, 1]);
+    expect(lab('>=')).toEqual([0, 1, 1, 1, 1, 1]);
+    expect(lab('<')).toEqual([1, 0, 0, 0, 0, 0]);
+    expect(lab('<=')).toEqual([1, 1, 0, 1, 1, 0]);
+  });
+
+  it('predicts only samples with every feature present (and positive where logged), aligned to depth', () => {
+    const b = ekeneBlock(9);
+    const curves = { ...b.curves, GR: b.curves.GR.slice(), RT: b.curves.RT.slice() };
+    curves.GR[3] = null;
+    curves.RT[10] = 0;
+    curves.RT[11] = -1;
+    const rows = predictionRows({ ...b, curves }, [{ name: 'GR', log: false }, { name: 'RT', log: true }]);
+    expect(rows.skipped).toBe(3);
+    expect(rows.at).toHaveLength(325);
+    expect(rows.at.slice(0, 5)).toEqual([0, 1, 2, 4, 5]);
+    expect(rows.X[3]).toEqual([curves.GR[4], Math.log10(curves.RT[4])]);
+    // without a log the zero and negative values are fine
+    expect(predictionRows({ ...b, curves }, [{ name: 'GR', log: false }, { name: 'RT', log: false }]).skipped).toBe(1);
+  });
+});
+
 describe('(a) missing-log prediction: group k-fold OLS equals the engine, fold by fold', () => {
   const design = buildDesign(table, DT_SPEC);
   const parsed = parseSpec(DT_SPEC);
