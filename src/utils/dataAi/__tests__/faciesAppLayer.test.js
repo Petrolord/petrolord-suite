@@ -33,7 +33,7 @@ import {
   serializeStudy, studyFromPayload, fingerprint, STUDY_SCHEMA,
 } from '@/utils/dataAi/faciesStudy';
 import {
-  wellLabels, faciesCodes, faciesProvenance, buildFaciesLog, suggestFaciesMnemonic, mnemonicProblem,
+  wellLabels, faciesCodes, faciesProvenance, buildFaciesLog, suggestFaciesMnemonic, mnemonicProblem, trainingRangeCheck, trainingRowsOf,
 } from '@/utils/dataAi/faciesWriteBack';
 import { buildFaciesCsv, CSV_COLUMNS } from '@/utils/dataAi/faciesReport';
 import { createFaciesWorker } from '@/utils/dataAi/faciesWorkerFactory';
@@ -286,6 +286,91 @@ describe('the facies log write-back', () => {
     expect(suggestFaciesMnemonic('cart', [])).toBe('EFAC_CART');
     expect(mnemonicProblem('GR', '', ['GR', 'RHOB'])).toMatch(/already has a curve named GR/);
     expect(mnemonicProblem('EFAC_KM', '', ['GR'])).toBeNull();
+  });
+});
+
+describe('the write-back training-range check', () => {
+  // A-1 and A-2 cored (every row), A-3 uncored and a copy of A-1 with planted
+  // values: GR 200 on entries 0 to 4 (above every training GR), RHOB 2.0 on
+  // entries 3 to 6 (below every training RHOB), GR exactly the training max on
+  // entry 10 and RHOB exactly the training min on entry 11 (inside: a bound is
+  // inside). So on A-3: GR 5 above, RHOB 4 below, 7 rows outside (0 to 6).
+  const base = makeTable();
+  const n = 30;
+  const GR = base.columns.GR.slice(); const RHOB = base.columns.RHOB.slice();
+  const facies = base.facies.slice();
+  for (let i = 0; i < 2 * n; i += 1) {
+    const f = ['sand', 'shale', 'lime'][Math.floor((i % n) / 10 + Math.floor(i / n)) % 3];
+    facies[i] = f;
+  }
+  // the training range, counted here from the raw columns of A-1 and A-2
+  const grMax = Math.max(...GR.slice(0, 2 * n));
+  const rhobMin = Math.min(...RHOB.slice(0, 2 * n));
+  for (let i = 0; i < n; i += 1) {
+    GR[2 * n + i] = GR[i]; RHOB[2 * n + i] = RHOB[i]; facies[2 * n + i] = null;
+  }
+  [0, 1, 2, 3, 4].forEach((i) => { GR[2 * n + i] = 200; });
+  [3, 4, 5, 6].forEach((i) => { RHOB[2 * n + i] = 2.0; });
+  GR[2 * n + 10] = grMax;
+  RHOB[2 * n + 11] = rhobMin;
+  const t = { ...base, columns: { GR, RHOB }, facies };
+  const sp = {
+    ...spec, depthMin: '', supervised: { ...spec.supervised, holdout: 'chosen', chosen: ['A-2'] },
+  };
+  const d = buildFaciesDesign(t, sp);
+  const pr = parseSpec(sp);
+
+  it('counts per log the labelled rows of the written well outside the min and max of the final model training rows', () => {
+    expect(d.labelled).toHaveLength(2 * n);
+    ['knn', 'cart'].forEach((method) => {
+      const r = runSupervised({ design: d, parsed: pr, method });
+      const c = trainingRangeCheck({
+        key: method, result: r, design: d, labels: r.labels, wellName: 'A-3',
+      });
+      expect(c.trainingRows).toBe(2 * n);
+      expect(c.rowsChecked).toBe(n);
+      expect(c.rowsOutside).toBe(7);
+      expect(c.features).toEqual([
+        { name: 'GR', min: Math.min(...GR.slice(0, 2 * n)), max: grMax, below: 0, above: 5, outside: 5 },
+        { name: 'RHOB', min: rhobMin, max: Math.max(...RHOB.slice(0, 2 * n)), below: 4, above: 0, outside: 4 },
+      ]);
+      // the training wells themselves are inside by construction
+      const own = trainingRangeCheck({
+        key: method, result: r, design: d, labels: r.labels, wellName: 'A-1',
+      });
+      expect(own.rowsOutside).toBe(0);
+    });
+  });
+
+  it('uses every design row for k-means, so nothing is outside', () => {
+    const km = runKmeans({ design: d, parsed: pr });
+    const c = trainingRangeCheck({
+      key: 'kmeans', result: km, design: d, labels: km.labels, wellName: 'A-3',
+    });
+    expect(c.trainingRows).toBe(3 * n);
+    expect(c.rowsOutside).toBe(0);
+    expect(trainingRowsOf('agglomerative', { rows: [0, 5] }, d).rows).toEqual([0, 5]);
+    expect(trainingRowsOf('agglomerative', { rows: null }, d).rows).toHaveLength(3 * n);
+  });
+
+  it('stores the counts in the write-back provenance', () => {
+    const r = runSupervised({ design: d, parsed: pr, method: 'knn' });
+    const c = trainingRangeCheck({
+      key: 'knn', result: r, design: d, labels: r.labels, wellName: 'A-3',
+    });
+    const p = faciesProvenance({
+      key: 'knn', result: r, parsed: pr, design: d, table: t, wellName: 'A-3', legend: [], rangeCheck: c,
+    });
+    expect(p.training_range).toEqual({
+      training_rows: 'every cored row (the final model is trained on them)',
+      training_row_count: 2 * n,
+      rows_checked: n,
+      rows_outside_any_log: 7,
+      per_log: [
+        { log: 'GR', training_min: c.features[0].min, training_max: grMax, rows_below: 0, rows_above: 5, rows_outside: 5 },
+        { log: 'RHOB', training_min: rhobMin, training_max: c.features[1].max, rows_below: 4, rows_above: 0, rows_outside: 4 },
+      ],
+    });
   });
 });
 

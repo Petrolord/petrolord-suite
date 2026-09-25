@@ -293,6 +293,14 @@ const ElectrofaciesStudioHelpGuide = () => (
         a label are null. The legend, the method and its parameters, the seed, the scaling, the logs, the core facies source,
         the scores against the core, the rows and wells used and the engine version travel with the curve as provenance.
       </Para>
+      <Para>
+        Before the write the studio checks the training range. For each log it takes the min and max over the rows the
+        method was fitted on (every row for k-means, the tree&apos;s rows for agglomerative clustering, every cored row for
+        kNN and CART) and counts the labelled rows of the chosen well below the min or above the max; a value equal to a
+        bound is inside. The counts per log and the number of rows with any log outside are shown, with a warning when that
+        number is above 0, since a method extrapolates on those rows. The write goes ahead either way and the counts are
+        stored in the provenance. For a log-scaled curve the check reads the log10 values the method read.
+      </Para>
     </GuideSection>
 
     <GuideSection id="validation">

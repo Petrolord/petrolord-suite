@@ -39,6 +39,9 @@ PLANTS=(
   "interval base inclusive|src/utils/dataAi/faciesData.js|if (r.top <= d && d < r.base) return r.code;|if (r.top <= d && d <= r.base) return r.code;"
   "thinning counted from 1 (1-based entries)|src/utils/dataAi/faciesData.js|if (entry % every !== 0) { counts.thinned += 1; continue; }|if ((entry + 1) % every !== 0) { counts.thinned += 1; continue; }"
   "write-back one sample deep (1-based entries)|src/utils/dataAi/faciesWriteBack.js|at.push(design.rows[j] - start);|at.push(design.rows[j] - start + 1);"
+  "training range over every row for kNN and CART|src/utils/dataAi/faciesWriteBack.js|return { rows: design.labelled, basis:|return { rows: design.X.map((_, j) => j), basis:"
+  "training range bound counted as outside|src/utils/dataAi/faciesWriteBack.js|if (x[f] < min[f]) { below[f] += 1; out = true; }|if (x[f] <= min[f]) { below[f] += 1; out = true; }"
+  "training-range counts left out of the provenance|src/utils/dataAi/faciesWriteBack.js|training_range: trainingRangeProvenance(rangeCheck),|training_range: null,"
   "text facies coded from 1|src/utils/dataAi/faciesWriteBack.js|return { code: (v) => pos.get(v), legend: present.map((v, i) => ({ code: i, label: String(v) })), kind: 'facies' };|return { code: (v) => pos.get(v) + 1, legend: present.map((v, i) => ({ code: i + 1, label: String(v) })), kind: 'facies' };"
 )
 
