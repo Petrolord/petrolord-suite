@@ -1,0 +1,137 @@
+-- Data & AI D5: AI Evaluation Studio persistence, dai_eval_runs (HELD).
+--
+-- The module's fifth run table, on the dai_* prefix (DataAI-ROADMAP.md), with
+-- the shape and rules of dai_forecast_runs (20260924160000, D4), which are
+-- dai_facies_runs' (D3), dai_ml_runs' (D2), dai_qc_runs' (D1) and
+-- ps_lopa_studies' (20260919210000, PS1).
+--
+-- An evaluation run belongs to the ORGANIZATION: an evaluation of a search or
+-- question-answering system is read by the people who decide whether to use
+-- it, so the run is scoped to the organization.
+--
+-- What a row holds: payload is the run's INPUTS (the dataset: the Ekene
+-- synthetic documents by name, or an uploaded corpus with its queries,
+-- judgments, systems, extraction labels and calibration rows, capped by the
+-- app; the spec as typed with the bootstrap seed; the petrolord-engines
+-- commit it ran on) and summary is the record of what the runs found when it
+-- was saved (retrieval metric means with the excluded queries, the system
+-- comparison with its interval, labels and seed, groundedness, extraction
+-- scores, the kappas, the calibration scores, a fingerprint of the dataset).
+-- Every result on screen is recomputed by the vendored engine
+-- (engines/dataai/evaluate.js) when a run is rerun; with the same dataset,
+-- spec, seed and engine the numbers are the same. Output of the optional
+-- language-model helper is never saved in a run. source is lifted out of the
+-- payload for the list view: 'ekene' or 'upload'.
+--
+-- Membership is organization_members, through the helper functions the live
+-- database already has (as dai_forecast_runs uses them):
+--   is_org_member(org_id)        an active membership of that organization
+--   has_org_role(org_id, roles)  an active membership with one of the roles
+--   is_super_admin()             the platform super admins
+--
+-- Rules:
+--   read, insert, update  any active member of the run's organization
+--   insert                created_by must be the caller (it defaults to them)
+--   delete                the author, or an owner or admin of the organization
+--   organization_id       cannot change after insert; created_by and
+--                         created_at are kept by the trigger whatever an
+--                         update sends
+--
+-- RLS from the start with explicit grants to `authenticated` and nothing to
+-- anon. schema_version and app_build are the PP0 state stamp columns
+-- (20260902120000) that src/lib/stateVersion.js writes. No shared table is
+-- touched.
+--
+-- Idempotent: safe to re-run. Not deploy-gated: the table can exist before
+-- the app ships. The app degrades to a "run the migration" message without it.
+--
+-- Owner-run: supabase db query --linked -f supabase/migrations/20260925190000_d5_dai_eval_runs.sql
+
+begin;
+
+create table if not exists public.dai_eval_runs (
+  id              uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  name            text not null,
+  source          text,
+  payload         jsonb not null,
+  summary         jsonb,
+  schema_version  integer,
+  app_build       text,
+  created_by      uuid default auth.uid() references auth.users(id) on delete set null,
+  updated_by      uuid default auth.uid() references auth.users(id) on delete set null,
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now(),
+  constraint dai_eval_runs_name_check check (length(btrim(name)) > 0),
+  constraint dai_eval_runs_source_check check (source is null or source in ('ekene', 'upload')),
+  constraint dai_eval_runs_payload_check check (jsonb_typeof(payload) = 'object'),
+  constraint dai_eval_runs_summary_check check (summary is null or jsonb_typeof(summary) = 'object')
+);
+
+comment on table public.dai_eval_runs is
+  'AI Evaluation Studio runs (Data & AI D5), one row per run, scoped to the organization. payload holds the inputs, the seed and the engine commit; summary is the record of what the runs found when saved. Results are recomputed by engines/dataai/evaluate.js on rerun. No language-model output is stored.';
+comment on column public.dai_eval_runs.payload is
+  'The run inputs as the app serializes them ({ name, schema, source, dataRef, snapshot, spec, engine }). spec carries every setting as typed with the bootstrap seed; engine is the petrolord-engines commit. snapshot (the uploaded dataset) is present only for an upload; the Ekene synthetic documents are referenced by dataRef.';
+comment on column public.dai_eval_runs.summary is
+  'What the runs found when saved: retrieval metric means and excluded queries, the comparison (means, A minus B, interval with labels, seed, replicates), groundedness, extraction scores, kappas, calibration scores, a fingerprint of the dataset, the engine version and commit, ranAt.';
+
+create index if not exists dai_eval_runs_org_updated_idx
+  on public.dai_eval_runs (organization_id, updated_at desc);
+
+create or replace function public.dai_eval_runs_guard()
+returns trigger
+language plpgsql
+set search_path to 'public'
+as $$
+begin
+  if new.organization_id is distinct from old.organization_id then
+    raise exception 'An evaluation run cannot move to another organization'
+      using errcode = '42501';
+  end if;
+  new.created_by := old.created_by;
+  new.created_at := old.created_at;
+  new.updated_by := coalesce(auth.uid(), new.updated_by);
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
+drop trigger if exists dai_eval_runs_guard on public.dai_eval_runs;
+create trigger dai_eval_runs_guard
+  before update on public.dai_eval_runs
+  for each row execute function public.dai_eval_runs_guard();
+
+revoke all on table public.dai_eval_runs from anon;
+grant select, insert, update, delete on table public.dai_eval_runs to authenticated;
+
+alter table public.dai_eval_runs enable row level security;
+
+drop policy if exists dai_eval_runs_select on public.dai_eval_runs;
+create policy dai_eval_runs_select on public.dai_eval_runs
+  for select to authenticated
+  using (public.is_org_member(organization_id) or public.is_super_admin());
+
+drop policy if exists dai_eval_runs_insert on public.dai_eval_runs;
+create policy dai_eval_runs_insert on public.dai_eval_runs
+  for insert to authenticated
+  with check (
+    (public.is_org_member(organization_id) and created_by = auth.uid())
+    or public.is_super_admin()
+  );
+
+drop policy if exists dai_eval_runs_update on public.dai_eval_runs;
+create policy dai_eval_runs_update on public.dai_eval_runs
+  for update to authenticated
+  using (public.is_org_member(organization_id) or public.is_super_admin())
+  with check (public.is_org_member(organization_id) or public.is_super_admin());
+
+drop policy if exists dai_eval_runs_delete on public.dai_eval_runs;
+create policy dai_eval_runs_delete on public.dai_eval_runs
+  for delete to authenticated
+  using (
+    created_by = auth.uid()
+    or public.has_org_role(organization_id, array['owner', 'admin'])
+    or public.is_super_admin()
+  );
+
+commit;
