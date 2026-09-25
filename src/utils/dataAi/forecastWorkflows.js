@@ -18,6 +18,17 @@
 //     same settings (each well's own default first origin when blank) and
 //     then counts, per method, the wells where it ranked first and the mean
 //     of the ranking metric over the wells where the metric is defined.
+//     Every parameter is estimated there (typed parameters belong to one
+//     well's fit).
+//   - The single-well backtest holds the typed parameters only when the user
+//     asks (holdTyped, default off). compareWithArps takes no parameters, so
+//     then each method with typed parameters is backtested by the engine's
+//     backtest() with them held, on the same origins and settings, and its
+//     row replaces that method's compareWithArps row; the rows are then
+//     ranked again by compareWithArps's stated rule (rankRows: lowest first,
+//     values within RANK_TIE_REL relative keep the listed order, null
+//     metrics unranked). Methods without typed parameters and the Arps row
+//     are compareWithArps's own.
 import * as FC from '@/utils/dataAi/engine/forecast';
 
 /** The engine build the workbench runs: petrolord-engines at the VENDOR.json pin. */
@@ -64,7 +75,7 @@ export const defaultSpec = () => ({
     method: 'damped', nSims: '1000', seed: String(DEFAULT_SEED), nonNegative: true,
   },
   backtest: {
-    firstOrigin: '', horizon: '6', step: '6', refit: true, m: '1', rankBy: 'mase',
+    firstOrigin: '', horizon: '6', step: '6', refit: true, m: '1', rankBy: 'mase', holdTyped: false,
   },
 });
 
@@ -103,6 +114,7 @@ export function parseSpec(spec) {
       refit: !!s.backtest.refit,
       m: parseNum(s.backtest.m),
       rankBy: s.backtest.rankBy,
+      holdTyped: !!s.backtest.holdTyped,
     },
   };
 }
@@ -162,12 +174,78 @@ const compareArgs = (y, parsed) => {
   };
 };
 
+/** The chosen methods that have at least one typed (held) parameter, with those parameters. */
+export function typedParams(parsed) {
+  const out = {};
+  parsed.methods.forEach((m) => {
+    const p = parsed.params[m] || {};
+    if (Object.keys(p).length) out[m] = { ...p };
+  });
+  return out;
+}
+
+/**
+ * The ranking compareWithArps states in its basis: lowest first; a value
+ * within RANK_TIE_REL (relative) of the lowest keeps the listed order; a
+ * method whose metric is null is unranked.
+ */
+export function rankRows(rows, rankBy) {
+  const left = rows.map((r, i) => ({ i, v: r[rankBy] })).filter((x) => x.v !== null && x.v !== undefined);
+  const ordered = [];
+  while (left.length) {
+    let bi = 0;
+    for (let k = 1; k < left.length; k += 1) {
+      const a = left[k].v; const b = left[bi].v;
+      if (a < b - Math.abs(b) * FC.DEFAULTS.RANK_TIE_REL) bi = k;
+    }
+    ordered.push(left[bi].i); left.splice(bi, 1);
+  }
+  const ranking = ordered.map((i) => rows[i].method);
+  return {
+    ranking,
+    best: ranking.length ? ranking[0] : null,
+    unranked: rows.filter((r) => r[rankBy] === null || r[rankBy] === undefined).map((r) => r.method),
+  };
+}
+
+/** A compareWithArps result with each method's typed parameters held, by the engine's backtest(). */
+function holdTypedInCompare(y, args, cmp, held) {
+  const rows = cmp.rows.map((r) => {
+    if (!held[r.method]) return r;
+    const bt = FC.backtest({
+      y, method: r.method, firstOrigin: args.firstOrigin, horizon: args.horizon, step: args.step, refit: args.refit, m: args.m, ...held[r.method],
+    });
+    if (bt.error) {
+      return {
+        method: r.method, error: bt.error, field: bt.field, mae: null, rmse: null, mape: null, smape: null, mase: null,
+      };
+    }
+    return {
+      method: r.method, origins: bt.origins, perOrigin: bt.perOrigin, ...bt.overall,
+    };
+  });
+  const rank = rankRows(rows, cmp.rankBy);
+  const text = Object.entries(held).map(([m, p]) => `${m} ${Object.entries(p).map(([k, v]) => `${k} ${v}`).join(', ')}`).join('; ');
+  return {
+    ...cmp,
+    rows,
+    ...rank,
+    basis: {
+      ...cmp.basis,
+      held: `typed parameters held at every origin by backtest(): ${text}; the other parameters ${args.refit ? 're-estimated at every origin' : 'estimated on the first window and held'}; rows ranked again by the rule above`,
+    },
+  };
+}
+
 /** Rolling-origin backtest of the chosen methods and the Arps baseline, ranked, by the engine. */
 export function runCompare({ series, parsed }) {
   const { args, defaulted } = compareArgs(series.values, parsed);
-  const result = FC.compareWithArps(args);
+  let result = FC.compareWithArps(args);
+  const typed = typedParams(parsed);
+  const held = parsed.backtest.holdTyped && Object.keys(typed).length ? typed : null;
+  if (held && !result.error) result = holdTypedInCompare(series.values, args, result, held);
   return {
-    well: series.name, n: series.values.length, firstOrigin: args.firstOrigin, defaulted, m: args.m, result,
+    well: series.name, n: series.values.length, firstOrigin: args.firstOrigin, defaulted, m: args.m, held, result,
   };
 }
 

@@ -613,9 +613,66 @@ point forecast.
 Open for D4: the spine stores daily volumes and a monthly import holds one
 row a month as imported; the app sums the stored rows per calendar month
 and says so, and a per-day rate convention (volume over days on, or over
-calendar days) would be an owner choice. The workbench backtests every
-parameter estimated; a backtest with typed parameters held (the engine's
-`backtest` takes them) is not offered yet.
+calendar days) would be an owner choice. (The held-parameter backtest that
+was open here is done: see App follow-ups below.)
+
+## App follow-ups (2026-09-25, branch `fix/data-ai-app-followups`)
+
+Closed, each its own commit; no engine change, no migration.
+
+- **Electrofacies Studio: training-range check on the write-back (done).**
+  Before a facies log is written, `faciesWriteBack.trainingRangeCheck`
+  takes, per input log, the min and max over the rows the method was fitted
+  on (every design row for k-means; the seeded sample or every row for
+  agglomerative; every cored row for kNN and CART, the final model) and
+  counts the labelled rows of the written well below the min or above the
+  max (a value equal to a bound is inside; log-scaled logs checked as the
+  log10 values the method read). The panel shows the counts per log and a
+  warning with the number of rows with any log outside; the write is not
+  blocked. The counts are stored in the provenance as `training_range`
+  (basis, training row count, rows checked, rows outside any log, per log
+  min, max, below, above). Tests: app layer on a planted well (GR above on 5
+  rows, RHOB below on 4, a value on each bound inside, 7 rows outside) for
+  kNN and CART with the training range counted from the raw columns, k-means
+  0 outside, provenance; smoke test on the mounted page (CART to the uncored
+  well, per-log counts and the warning against a count from the raw
+  registry curves, provenance saved).
+- **Electrofacies Studio: PCA warning in the CSV (done).** When pca returns
+  a warning (its warnings joined by '; '), the CSV writes it verbatim as one
+  meta row (method pca, name warning); none when there is no warning. Test
+  on the engine's `pca-warning-both` golden.
+- **Forecasting ML Workbench: backtest with typed parameters held (done).**
+  With a typed parameter in the fit spec, the Backtest tab shows "Hold the
+  typed parameters in the backtest" (default off, the old behaviour).
+  `compareWithArps` takes no parameters, so with the toggle on each method
+  with typed parameters is backtested by the engine's `backtest()` with them
+  held (same origins, horizon, step, refit and m); its row replaces that
+  method's compareWithArps row and the rows are ranked again by the rule
+  compareWithArps states (`rankRows`, gated to give back the engine's
+  ranking on all 7 non-refused comparison goldens). Other methods and the
+  Arps row stay compareWithArps's own. The result line names the held
+  parameters; the saved run keeps `backtest.holdTyped` in the spec (older
+  saves open with it off) and `heldTyped` in the summary; the CSV adds a
+  "backtest parameters held" meta row. The field comparison keeps
+  estimating every parameter (typed parameters belong to one well's fit);
+  its stale stamp ignores the toggle. Tests: oracle golden `bt-damped-fixed`
+  through runCompare (held damped row equals the oracle's metrics and
+  forecasts, other rows equal compareWithArps), a partial hold with refit
+  off and m 12, a refused held value in its row, off by default, nothing
+  typed; saved run and CSV; smoke test on the mounted page (toggle hidden
+  until a parameter is typed, off then on, table and ranking).
+- **Negative controls.** `negcontrol_facies_studio.sh` +4 plants
+  (training range over every row for kNN and CART, a bound counted
+  outside, training range left out of the provenance, PCA warning left out
+  of the CSV). `negcontrol_forecast_workbench.sh` +5 plants (held
+  parameters dropped from the backtest, toggle ignored, toggle on by
+  default, held rows not ranked again, held parameters left out of the
+  CSV). Results: facies 18/18 plants red, forecast 22/22 red, baselines green.
+- **Plan amended.** `NextGen-Remaining-Courses-PLAN.md` section 15: the D4
+  roster no longer lists feature regression (not built; D2 and the ML
+  Workbench cover regression on features), with a dated note.
+- **Help guides.** Electrofacies Studio (write-back training range, PCA
+  warning in the CSV) and Forecasting ML Workbench (the hold toggle, CSV).
 
 ## Next
 

@@ -113,6 +113,7 @@ export function buildForecastCsv({
     if (c.error) row({ well: cmp.well, record: 'refused', name: 'backtest', detail: c.error });
     else {
       row({ well: cmp.well, record: 'meta', name: 'backtest', detail: `${c.basis.origins}; ${c.refit ? 'refit at every origin' : 'parameters of the first window held'}; ranked by ${c.rankBy}; MASE lag m ${cmp.m}` });
+      if (cmp.held) row({ well: cmp.well, record: 'meta', name: 'backtest parameters held', value: JSON.stringify(cmp.held), detail: c.basis.held });
       row({ well: cmp.well, record: 'meta', name: 'ranking', value: c.ranking.join(' > '), detail: c.unranked.length ? `unranked: ${c.unranked.join(', ')}` : '' });
       c.rows.forEach((r) => {
         const base = { well: cmp.well, method: r.method };

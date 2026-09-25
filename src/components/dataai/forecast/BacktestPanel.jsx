@@ -6,7 +6,10 @@
 // the same metrics and ranks them. MASE is the headline and the default
 // ranking metric; its lag m is stated. MAPE is shown with the engine's
 // reason when it is undefined (an actual of 0, a shut-in step). sMAPE is on
-// the 0 to 200 scale.
+// the 0 to 200 scale. When the fit spec has typed parameters, a toggle holds
+// them in the single-well backtest (default off: every parameter estimated);
+// those methods are then backtested by the engine's backtest() with the
+// typed parameters held (forecastWorkflows.runCompare).
 import React, { useState } from 'react';
 import { useForecasting } from '@/contexts/ForecastingContext';
 import {
@@ -16,11 +19,18 @@ import {
   Grid, NeedSeries, RunButton, StaleNote, dn, metricCell,
 } from '@/components/dataai/forecast/common';
 import { OriginChart } from '@/components/dataai/forecast/charts';
-import { DEFAULT_FIRST_ORIGIN, METHOD_NAMES, RANK_METRICS } from '@/utils/dataAi/forecastWorkflows';
+import {
+  DEFAULT_FIRST_ORIGIN, METHOD_NAMES, RANK_METRICS, parseSpec, typedParams,
+} from '@/utils/dataAi/forecastWorkflows';
+
+const heldText = (held) => Object.entries(held).map(([m, p]) => `${METHOD_NAMES[m]} ${Object.entries(p).map(([k, v]) => `${k} ${v}`).join(', ')}`).join('; ');
 
 export const BacktestSpec = ({ fieldWide = false }) => {
   const { spec, updateSpec } = useForecasting();
   const b = spec.backtest;
+  const typed = fieldWide ? {} : typedParams(parseSpec(spec));
+  const hasTyped = Object.keys(typed).length > 0;
+  const holding = hasTyped && b.holdTyped;
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-end gap-3">
@@ -32,12 +42,17 @@ export const BacktestSpec = ({ fieldWide = false }) => {
           <SelectField label="Rank by" value={b.rankBy} onChange={(v) => updateSpec(['backtest', 'rankBy'], v)} testId={`${fieldWide ? 'field-' : ''}bt-rank`} options={RANK_METRICS} />
         </div>
         <Toggle label="Re-estimate parameters at every origin (refit)" checked={b.refit} onChange={(v) => updateSpec(['backtest', 'refit'], v)} testId={`${fieldWide ? 'field-' : ''}bt-refit`} />
+        {hasTyped ? (
+          <Toggle label="Hold the typed parameters in the backtest" checked={!!b.holdTyped} onChange={(v) => updateSpec(['backtest', 'holdTyped'], v)} testId="bt-hold-typed" />
+        ) : null}
       </div>
       <Note>
         Origin o trains on steps 0 to o - 1 and forecasts the next horizon steps; origins run from the first origin by the
-        step while a full horizon of actuals remains. A blank first origin is {DEFAULT_FIRST_ORIGIN}. Every parameter is
-        estimated here (refit on: at every origin; off: on the first window, then held). The Arps decline is refitted on
-        every window. MASE scales each error by the mean absolute lag-m naive error on that origin&apos;s training values
+        step while a full horizon of actuals remains. A blank first origin is {DEFAULT_FIRST_ORIGIN}.
+        {holding
+          ? ` The typed parameters (${heldText(typed)}) are held at every origin; the other parameters are estimated (refit on: at every origin; off: on the first window, then held).`
+          : ` Every parameter is estimated here (refit on: at every origin; off: on the first window, then held)${hasTyped ? '; switch on the hold toggle to keep the typed parameters fixed instead' : ''}${fieldWide ? '; the field comparison always estimates every parameter, since typed parameters belong to one well' : ''}.`}
+        {' '}The Arps decline is refitted on every window. MASE scales each error by the mean absolute lag-m naive error on that origin&apos;s training values
         (m = 1 is the previous step).
       </Note>
     </div>
@@ -80,6 +95,7 @@ const CompareResults = () => {
       <StaleNote job="compare" />
       <p className="text-xs text-slate-200" data-testid="compare-line">
         Origins {c.origins.join(', ')}{cmp.defaulted ? ' (default first origin)' : ''}; horizon {c.horizon}; {c.refit ? 'refit at every origin' : 'parameters of the first window held'}; MASE lag m = {cmp.m}.
+        {cmp.held ? <span data-testid="compare-held">{' '}Typed parameters held at every origin: {heldText(cmp.held)}.</span> : null}
         {' '}Ranking by {c.rankBy}: <span className="font-mono" data-testid="compare-ranking">{c.ranking.map((m) => METHOD_NAMES[m]).join(' > ')}</span>
         {c.unranked.length ? `; unranked (metric undefined): ${c.unranked.map((m) => METHOD_NAMES[m]).join(', ')}` : ''}.
       </p>

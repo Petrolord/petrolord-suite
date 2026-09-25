@@ -43,6 +43,11 @@ PLANTS=(
   "spine months skipped two at a time|src/utils/dataAi/forecastData.js|for (let k = first; k <= last; k = nextMonth(k)) {|for (let k = first; k <= last; k = nextMonth(nextMonth(k))) {"
   "injectors offered as producers|src/utils/dataAi/forecastSources.js|return wells.filter((w) => w.well_type !== 'injector' && w.well_type !== 'observation');|return wells;"
   "interval table shows P10 under P90 (labels swapped)|src/components/dataai/forecast/FitPanel.jsx|[pi.n + j, f, r.P90[j], r.P50[j], r.P10[j]]|[pi.n + j, f, r.P10[j], r.P50[j], r.P90[j]]"
+  "held parameters dropped from the backtest (toggle on)|src/utils/dataAi/forecastWorkflows.js|step: args.step, refit: args.refit, m: args.m, ...held[r.method],|step: args.step, refit: args.refit, m: args.m,"
+  "hold toggle ignored (typed parameters never held in the backtest)|src/utils/dataAi/forecastWorkflows.js|const held = parsed.backtest.holdTyped && Object.keys(typed).length ? typed : null;|const held = null;"
+  "hold toggle on by default|src/utils/dataAi/forecastWorkflows.js|rankBy: 'mase', holdTyped: false,|rankBy: 'mase', holdTyped: true,"
+  "held rows not ranked again (compareWithArps ranking kept)|src/utils/dataAi/forecastWorkflows.js|const rank = rankRows(rows, cmp.rankBy);|const rank = { ranking: cmp.ranking, best: cmp.best, unranked: cmp.unranked };"
+  "held parameters left out of the CSV|src/utils/dataAi/forecastReport.js|if (cmp.held) row(|if (false) row("
   "CSV rounds numbers to 6 decimals|src/utils/dataAi/forecastReport.js|const s = v === null \\|\\| v === undefined ? '' : String(v);|const s = v === null \\|\\| v === undefined ? '' : (typeof v === 'number' ? v.toFixed(6) : String(v));"
 )
 

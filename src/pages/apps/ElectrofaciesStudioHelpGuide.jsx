@@ -173,7 +173,8 @@ const ElectrofaciesStudioHelpGuide = () => (
         engine fixes it: the loading with the largest absolute value is made positive. Two neighbouring eigenvalues that
         differ by at most 1e-10 times the largest eigenvalue are flagged, since their directions are not unique. If the
         50th sweep still rotates, the Jacobi method has not converged and that warning is shown first, above any
-        repeated-eigenvalue warning.
+        repeated-eigenvalue warning. The CSV export carries the warning as one meta row (method pca, name warning), the two
+        warnings joined by a semicolon as the engine joins them.
       </Para>
     </GuideSection>
 
@@ -292,6 +293,14 @@ const ElectrofaciesStudioHelpGuide = () => (
         CART the facies itself when the core facies are numbers, else its position in the sorted facies list. Samples without
         a label are null. The legend, the method and its parameters, the seed, the scaling, the logs, the core facies source,
         the scores against the core, the rows and wells used and the engine version travel with the curve as provenance.
+      </Para>
+      <Para>
+        Before the write the studio checks the training range. For each log it takes the min and max over the rows the
+        method was fitted on (every row for k-means, the tree&apos;s rows for agglomerative clustering, every cored row for
+        kNN and CART) and counts the labelled rows of the chosen well below the min or above the max; a value equal to a
+        bound is inside. The counts per log and the number of rows with any log outside are shown, with a warning when that
+        number is above 0, since a method extrapolates on those rows. The write goes ahead either way and the counts are
+        stored in the provenance. For a log-scaled curve the check reads the log10 values the method read.
       </Para>
     </GuideSection>
 

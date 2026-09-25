@@ -227,6 +227,53 @@ describe('the page', () => {
     expect(screen.getByTestId('cart-accuracy')).toHaveTextContent(displayNumber(r.scores.report.accuracy));
   }, 60000);
 
+  it('counts the rows of the written well outside the training range before a CART write-back, and stores the counts', async () => {
+    mount();
+    await loadAndChoose();
+    openTab('kNN and CART');
+    fireEvent.click(screen.getByTestId('run-cart'));
+    await screen.findByTestId('cart-tree');
+    // the training range counted here from the raw registry curves: the final
+    // CART trains on every cored row, all 120 samples of Synth-1 and Synth-2
+    const names = ['GR', 'RHOB', 'NPHI', 'PEF'];
+    const curve = (w, m) => mockRegistry.data[mockRegistry.logs[`well-${w}`].find((l) => l.mnemonic === m).id].map((v) => Math.fround(v));
+    const expected = names.map((m) => {
+      const train = [...curve(1, m), ...curve(2, m)];
+      const lo = Math.min(...train); const hi = Math.max(...train);
+      const w3 = curve(3, m);
+      return { below: w3.filter((v) => v < lo).length, above: w3.filter((v) => v > hi).length };
+    });
+    const w3rows = names.map((m) => curve(3, m));
+    const outsideAny = w3rows[0].filter((_, i) => names.some((m, f) => {
+      const train = [...curve(1, m), ...curve(2, m)];
+      return w3rows[f][i] < Math.min(...train) || w3rows[f][i] > Math.max(...train);
+    })).length;
+    expect(outsideAny).toBeGreaterThan(0);
+
+    openTab('Write to a well');
+    fireEvent.change(await screen.findByTestId('writeback-method'), { target: { value: 'cart' } });
+    fireEvent.change(screen.getByTestId('writeback-well'), { target: { value: 'Synth-3' } });
+    fireEvent.click(screen.getByTestId('writeback-prepare'));
+    const grid = await screen.findByTestId('writeback-range');
+    const rows = within(grid).getAllByRole('row').slice(1);
+    expect(rows).toHaveLength(4);
+    rows.forEach((tr, f) => {
+      const cells = within(tr).getAllByRole('cell').map((c) => c.textContent);
+      expect(cells[0]).toBe(names[f]);
+      expect(cells.slice(3)).toEqual([String(expected[f].below), String(expected[f].above), String(expected[f].below + expected[f].above)]);
+    });
+    expect(screen.getByTestId('writeback-range-warning')).toHaveTextContent(`${outsideAny} of the 120 labelled rows of Synth-3`);
+    expect(screen.getByTestId('writeback-save')).not.toBeDisabled();
+    fireEvent.click(screen.getByTestId('writeback-save'));
+    await screen.findByTestId('writeback-saved');
+    const [, log] = mockSaveLog.mock.calls[0];
+    expect(log.mnemonic).toBe('EFAC_CART');
+    expect(log.provenance.training_range).toMatchObject({
+      training_row_count: 240, rows_checked: 120, rows_outside_any_log: outsideAny,
+    });
+    expect(log.provenance.training_range.per_log.map((x) => [x.log, x.rows_below, x.rows_above])).toEqual(names.map((m, f) => [m, expected[f].below, expected[f].above]));
+  }, 60000);
+
   it('shows an engine refusal verbatim', async () => {
     mount();
     await loadAndChoose();

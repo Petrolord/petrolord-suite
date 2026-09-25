@@ -3,19 +3,22 @@
 // The labels of one method on one of the loaded registry wells are saved as
 // a NEW curve through the registry's own write path, with the method, its
 // parameters, the seed, the legend and the engine version as provenance. A
-// stored curve is never replaced.
+// stored curve is never replaced. Before the write the panel shows, per log,
+// how many of the well's labelled rows lie outside the min and max of the
+// rows the method was fitted on; the counts go into the provenance and the
+// write is not blocked.
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useElectrofacies } from '@/contexts/ElectrofaciesContext';
 import { loadWellBlock, saveLog } from '@/utils/dataAi/faciesSources';
 import { labelsOf, methodText } from '@/utils/dataAi/faciesWorkflows';
 import {
-  buildFaciesLog, faciesCodes, faciesProvenance, mnemonicProblem, suggestFaciesMnemonic, wellLabels,
+  buildFaciesLog, faciesCodes, faciesProvenance, mnemonicProblem, suggestFaciesMnemonic, trainingRangeCheck, wellLabels,
 } from '@/utils/dataAi/faciesWriteBack';
 import {
   Note, Section, SelectField, TextInput,
 } from '@/components/dataai/quality/shared';
-import { Grid, NeedDesign } from './common';
+import { dn, Grid, NeedDesign } from './common';
 
 const NAMES = {
   kmeans: 'k-means clusters', agglomerative: 'agglomerative clusters', knn: 'kNN facies', cart: 'CART facies',
@@ -58,8 +61,11 @@ const WriteBackPanel = () => {
         design, table, labels, wellName: well.name,
       });
       const codes = faciesCodes(k, labels, r);
+      const range = trainingRangeCheck({
+        key: k, result: r, design, labels, wellName: well.name,
+      });
       setPreview({
-        well, block, mnemonics, at, values: values.map(codes.code), legend: codes.legend, kind: codes.kind,
+        well, block, mnemonics, at, values: values.map(codes.code), legend: codes.legend, kind: codes.kind, range,
       });
       setMnemonic(suggestFaciesMnemonic(k, mnemonics));
     } catch (e) {
@@ -83,7 +89,7 @@ const WriteBackPanel = () => {
         unit: '',
         description: `Electrofacies from Electrofacies Studio: ${methodText(k, r, parsed)}, on ${design.names.join(', ')}`,
         provenance: faciesProvenance({
-          key: k, result: r, parsed, design, table, wellName: preview.well.name, projectName: persistence.projectName, legend: preview.legend,
+          key: k, result: r, parsed, design, table, wellName: preview.well.name, projectName: persistence.projectName, legend: preview.legend, rangeCheck: preview.range,
         }),
       });
       const row = await saveLog(preview.well.id, log);
@@ -122,6 +128,23 @@ const WriteBackPanel = () => {
             headers={['Code', 'Meaning', ...(preview.kind === 'cluster' ? ['Matched core facies'] : [])]}
             rows={preview.legend.map((l) => [l.code, l.label, ...(preview.kind === 'cluster' ? [l.matchedFacies === null || l.matchedFacies === undefined ? 'not compared' : String(l.matchedFacies)] : [])])}
           />
+          <Grid
+            testId="writeback-range"
+            caption={`Training range: the min and max of each log over ${preview.range.basis}, ${preview.range.trainingRows.toLocaleString('en-US')} rows. A value equal to a bound is inside.`}
+            headers={['Log', 'Training min', 'Training max', 'Rows below', 'Rows above', 'Rows outside']}
+            rows={preview.range.features.map((f) => [f.name, dn(f.min), dn(f.max), f.below, f.above, f.outside])}
+          />
+          {preview.range.rowsOutside ? (
+            <Note tone="warn" testId="writeback-range-warning">
+              {preview.range.rowsOutside.toLocaleString('en-US')} of the {preview.range.rowsChecked.toLocaleString('en-US')} labelled
+              {preview.range.rowsChecked === 1 ? ' row' : ' rows'} of {preview.well.name} {preview.range.rowsOutside === 1 ? 'has' : 'have'} at least one log outside the training range.
+              The method extrapolates there, so read those labels with care. The counts are stored in the provenance.
+            </Note>
+          ) : (
+            <Note testId="writeback-range-ok">
+              Every labelled row of {preview.well.name} lies inside the training range of every log.
+            </Note>
+          )}
           <div className="flex flex-wrap items-end gap-3">
             <TextInput label="New curve mnemonic" value={mnemonic} onChange={setMnemonic} testId="writeback-mnemonic" width="w-40" />
             <Button size="sm" disabled={!!problem || busy || !preview.at.length} onClick={write} data-testid="writeback-save">
@@ -131,7 +154,7 @@ const WriteBackPanel = () => {
           {problem ? <Note tone="warn" testId="mnemonic-problem">{problem}</Note> : null}
           <Note>
             The curve is stored with its provenance: the method and its parameters, the seed, the scaling, the logs, the core
-            facies source and the scores against the core, the legend, the rows and wells used, and the engine version.
+            facies source and the scores against the core, the legend, the rows and wells used, the training-range counts, and the engine version.
           </Note>
           {saved ? <Note testId="writeback-saved">{saved.mnemonic} is stored on {saved.well}. Open it in the Well Data Manager or any app that reads the registry.</Note> : null}
         </Section>

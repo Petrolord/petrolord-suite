@@ -777,8 +777,15 @@ HSE main (#20).
 | D1 `dataqc` (66) | Oilfield Data Quality | completeness, validity and consistency scores; outliers by MAD, IQR and Mahalanobis distance; sensor and rate anomaly detection; unit and datum checks; duplicates | `engines/dataai/quality.js`, reusing petrophysics conditioning | Data Quality Studio |
 | D2 `mlcore` (67) | Machine Learning on Well Data | features and scaling; train and test split and k-fold that hold out whole wells; ordinary, ridge and logistic regression; RMSE, confusion matrix, F1, ROC AUC; overfitting and leakage; missing-log prediction | `engines/dataai/ml.js` | ML Workbench |
 | D3 `facies` (68) | Electrofacies | PCA; seeded k-means++ and hierarchical clustering; elbow and silhouette; kNN and decision-tree classification against core facies | `engines/dataai/cluster.js` | Electrofacies Studio (reads the wells registry) |
-| D4 `forecastml` (69) | Data-Driven Production Forecasting | exponential smoothing (Holt, damped); feature regression; rolling-origin backtests; MAPE and MASE; Arps as the baseline, taken from dca and not re-taught; bootstrap intervals on the canonical seeded generator | `engines/dataai/forecast.js` | Production Forecasting ML Workbench |
+| D4 `forecastml` (69) | Data-Driven Production Forecasting | exponential smoothing (simple, Holt, damped) with parameters fitted by SSE; rolling-origin backtests; MAPE, sMAPE and MASE; Arps as the baseline, taken from dca and not re-taught; bootstrap intervals on the canonical seeded generator | `engines/dataai/forecast.js` | Production Forecasting ML Workbench |
 | D5 `appliedai` (70) | Applied AI and Language Models | copilots, retrieval, prompts, hallucination, governance; graded only on the deterministic half: TF-IDF and BM25 retrieval, precision@k, MRR, nDCG on a fixed judged set, extraction accuracy on labels, calibration (Brier score, reliability) | `engines/dataai/evaluate.js` | AI Evaluation Studio |
+
+Roster amended 2026-09-25 to match what shipped: D4 as planned listed
+"feature regression". It was not built into `engines/dataai/forecast.js`
+or the Production Forecasting ML Workbench; regression on features
+(ordinary and ridge least squares, with whole-well splits) is covered by
+D2 and the ML Workbench, so D4 teaches the smoothing methods, the
+backtests, the metrics, the Arps baseline and the bootstrap intervals.
 
 Course shape as HSE: three tiers, about 78 lessons and 396 questions,
 one capstone per tier. No capstone field is ever graded from language

@@ -52,8 +52,12 @@ export function stampFor(job, table, spec) {
   const params = {
     fit: one,
     intervals: { w: spec.well, p: spec.params, h: spec.h, i: spec.intervals },
-    compare: { w: spec.well, m: spec.methods, a: spec.arpsModel, b: spec.backtest },
-    field: { m: spec.methods, a: spec.arpsModel, b: spec.backtest },
+    // the typed parameters reach the backtest only when they are held there
+    compare: {
+      w: spec.well, m: spec.methods, a: spec.arpsModel, b: spec.backtest, p: spec.backtest.holdTyped ? spec.params : null,
+    },
+    // the field comparison estimates every parameter, so the hold toggle is not part of it
+    field: { m: spec.methods, a: spec.arpsModel, b: { ...spec.backtest, holdTyped: undefined } },
   }[job];
   return JSON.stringify({ data, params });
 }

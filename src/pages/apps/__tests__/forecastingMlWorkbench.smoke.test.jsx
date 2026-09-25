@@ -192,6 +192,49 @@ describe('the page', () => {
     expect(screen.getByTestId('origin-chart')).toBeInTheDocument();
   }, 60000);
 
+  it('offers to hold the typed parameters in the backtest (off by default) and then backtests those methods with them held', async () => {
+    mount();
+    await upload();
+    openTab('Backtest');
+    expect(screen.queryByTestId('bt-hold-typed')).toBeNull();
+    openTab('Fit and forecast');
+    fireEvent.change(await screen.findByTestId('param-damped-phi'), { target: { value: '0.9' } });
+    openTab('Backtest');
+    const hold = await screen.findByTestId('bt-hold-typed');
+    expect(hold).not.toBeChecked();
+    fireEvent.change(screen.getByTestId('bt-first'), { target: { value: '18' } });
+    const args = {
+      y: Y, methods: ['ses', 'holt', 'damped'], firstOrigin: 18, horizon: 6, step: 6, refit: true, arpsModel: 'Auto-Select', rankBy: 'mase', m: 1,
+    };
+    const plain = FC.compareWithArps(args);
+    const names = { ses: 'simple exponential smoothing', holt: "Holt's linear trend", damped: 'damped trend', arps: 'Arps decline' };
+    // off: every parameter estimated, as before
+    fireEvent.click(screen.getByTestId('run-compare'));
+    await screen.findByTestId('compare-table');
+    expect(screen.queryByTestId('compare-held')).toBeNull();
+    let rows = within(screen.getByTestId('compare-table')).getAllByRole('row').slice(1);
+    plain.rows.forEach((r, i) => expect(rows[i]).toHaveTextContent(displayNumber(r.mase)));
+    // on: the damped row is the engine backtest with phi held
+    fireEvent.click(hold);
+    expect(screen.getByTestId('compare-spec')).toHaveTextContent('The typed parameters (damped trend phi 0.9) are held at every origin');
+    fireEvent.click(screen.getByTestId('run-compare'));
+    await screen.findByTestId('compare-held');
+    expect(screen.getByTestId('compare-held')).toHaveTextContent('Typed parameters held at every origin: damped trend phi 0.9.');
+    const bt = FC.backtest({
+      y: Y, method: 'damped', firstOrigin: 18, horizon: 6, step: 6, refit: true, m: 1, phi: 0.9,
+    });
+    expect(bt.overall.mase).not.toBe(plain.rows[2].mase);
+    rows = within(screen.getByTestId('compare-table')).getAllByRole('row').slice(1);
+    expect(rows[2]).toHaveTextContent(displayNumber(bt.overall.mase));
+    expect(rows[2]).toHaveTextContent(displayNumber(bt.overall.rmse));
+    [0, 1, 3].forEach((i) => expect(rows[i]).toHaveTextContent(displayNumber(plain.rows[i].mase)));
+    const held = plain.rows.map((r) => (r.method === 'damped' ? { method: 'damped', ...bt.overall } : r));
+    const ranking = held.filter((r) => r.mase !== null).slice().sort((x, y) => x.mase - y.mase).map((r) => names[r.method]);
+    expect(screen.getByTestId('compare-ranking')).toHaveTextContent(ranking.join(' > '));
+    expect(screen.getByTestId('origin-params')).toHaveTextContent('damped trend alpha');
+    expect(screen.getByTestId('origin-params')).toHaveTextContent('phi 0.9');
+  }, 60000);
+
   it('compares every well in the field with the per-well engine rankings', async () => {
     mount();
     await upload();
