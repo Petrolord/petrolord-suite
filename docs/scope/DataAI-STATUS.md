@@ -674,6 +674,158 @@ Closed, each its own commit; no engine change, no migration.
 - **Help guides.** Electrofacies Studio (write-back training range, PCA
   warning in the CSV) and Forecasting ML Workbench (the hold toggle, CSV).
 
+## D5: AI Evaluation Studio (2026-09-25)
+
+Engine: `engines/dataai/evaluate.js`, petrolord-engines PR #257 (squash
+merge 1906182, tree identical to the reviewed head 45c97c9), with its stdlib
+oracle (282 goldens, 107 refusals), scikit-learn / numpy pins (2,382, 20
+documented skips), negative control (68/68 engine plants red, 6/6 oracle
+plants caught) and `tools/validation/dataai/FINDINGS-evaluate.md`. Fixtures:
+`test-data/dataai/ekene-docs/` (60 passages, 24 queries with graded
+judgments and a second grader, two fixed systems, 30 extraction records,
+200 calibration rows; synthetic). App: branch `feat/d5-ai-evaluation-studio`,
+on the D4 Forecasting ML Workbench pattern (#619 to #621).
+
+- **Vendoring.** The 17 canonical paths of 1dfdd60..45c97c9 copied file by
+  file, all additions (evaluate.js, its gate, goldens, pins, oracle, pin
+  script, fixture writer, negative control, timing script, FINDINGS, the six
+  ekene-docs files, README). Import closure (`lib/stats/stats.js`,
+  `lib/conventions/percentile.js`, `engines/dataai/ml.js` logLoss) already
+  vendored and unchanged. Re-pinned to the squash merge 1906182 (identical
+  tree). `check-vendored-engines.mjs --canonical` reports 1,000 paths byte
+  for byte, 0 deviations; vendored gate 2,707/2,707. Shim
+  `src/utils/dataAi/engine/evaluate.js`. The ML Workbench's, Electrofacies
+  Studio's and Forecasting ML Workbench's `ENGINE_COMMIT` move to 1906182
+  (their engines are unchanged in the range).
+- **The app.** `/dashboard/apps/data-ai/ai-evaluation-studio` (+ `/help`):
+  `src/pages/apps/AiEvaluationStudio.jsx`, `src/contexts/EvaluationContext.jsx`,
+  panels under `src/components/dataai/evaluate/` (CorpusPanel,
+  RetrievalPanel, MetricsPanel, ComparePanel, AnswersPanel, ExtractionPanel,
+  AgreementCalibrationPanels, common, charts), logic in `src/utils/dataAi/`
+  (`evalData.js` dataset and uploads, `evalWorkflows.js` every engine call,
+  `evalJobs.js` worker protocol, `evalStudy.js` saved payload and stamps,
+  `evalRunsService.js` persistence, `evalReport.js` CSV, `evalAssist.js` the
+  helper client).
+  - **Data:** the Ekene synthetic documents by default, read from the
+    vendored fixture (the files the engine gate and the course read); or an
+    upload: one JSON file in the fixture shapes, or CSV (RFC 4180 through
+    `tabularFile.js`, first row names the columns) for passages (id, text,
+    title), queries (id, text, reference), judgments (query, passage, grade,
+    grade2) and calibration (probability, outcome). App caps 2,000 passages
+    and 200 queries (FINDINGS' proposal); unjudged queries are listed and
+    left out of the metrics.
+  - **Retrieval:** BM25 or TF-IDF over every query at k, k1, b (blank is the
+    engine default), stop list and sublinear toggles; one query explained
+    term by term (idf, tf, contribution or query x passage weights) with its
+    judged grades, the ties the engine reports and the tie at the cutoff.
+  - **Retrieval metrics:** P@k, R@k, hit, MRR, MAP and nDCG from the current
+    retrieval settings or a system's retrieved lists; the relevance
+    threshold is a visible box (default grade 1, the engine and trec_eval
+    default); gain linear or exponential; no-relevant rule exclude (listed
+    with the engine reason) or zero. On the Ekene set the current settings
+    (BM25, top 5) reproduce system A's lists and its oracle means exactly.
+  - **Compare systems:** the per-query values of one metric over the
+    included queries; each system's bootstrap mean and the paired (or
+    unpaired) bootstrap of A minus B from one seed (default 20260925, 2,000
+    replicates, 10,000 at most in the app); interval ends labelled as
+    parameter percentiles; the share at or below 0 described as a share of
+    replicates, not a p-value.
+  - **Answers and groundedness:** `checkAnswers` with each system's
+    retrieved lists, every claim with its reason, citation statuses, and
+    SQuAD exact match and token F1 of the short answers against the
+    references (A 20 of 24, B 13 of 24).
+  - **Extraction:** four outcomes per cell, per field and overall, micro and
+    macro accuracy (equal by construction, said on screen) and F1 on filled
+    cells; every non-correct cell with its reason.
+  - **Agreement:** unweighted, linear and quadratic kappa on the 183 judged
+    pairs, labels 0 to 3 (every whole grade from the lowest to the highest
+    seen), with the confusion counts.
+  - **Calibration:** reliability table with the edge rule and the last bin
+    closed, ECE, MCE, Brier with REL, RES, UNC, WBV, WBC and the closure, log
+    loss from ml.js with the clipped count; reliability and bin-count charts
+    on the white chartTheme with ChartLogo.
+  - **Worker, saving, export:** every job in a Web Worker
+    (`evalWorkerFactory.js`, jest-mapped to the inline fallback); runs saved
+    per organization in `dai_eval_runs` with the spec, seed, engine commit, a
+    dataset fingerprint and a summary; the Ekene set referenced, an upload
+    kept up to 1.5 million characters; stale results flagged by input
+    stamps; CSV at full precision with refusals, excluded queries, every
+    claim's reason, interval labels and bin edges.
+- **Optional language-model helper (owner decision: engine first, optional
+  metered model, never graded).** On the Answers tab: one query and the
+  passages the current retrieval settings return (at most 10) go to the new
+  edge function `supabase/functions/ai-eval-assist` (report-autopilot
+  pattern: auth, OPENAI_API_KEY, OPENAI_MODEL default gpt-4o-mini; system
+  prompt: answer only from the supplied passages, cite passage ids, JSON
+  reply). Metering is new in the Suite: the caller must be an active member
+  of the organization (`is_org_member` through their JWT); every call is
+  reserved and logged in `dai_llm_calls` through `dai_llm_reserve_call`
+  (service role, per-organization advisory lock) before the model runs;
+  DAILY_CAP 50 calls per organization per UTC day (a constant in
+  `logic.ts`, equal to the studio's `ASSIST_DAILY_CAP`, stated in the help
+  guide), 429 with the count at the cap; a provider failure is logged as
+  'error' and does not count. The answer is checked by `checkGroundedness`
+  against the passages given, shown under "Model output, not graded", and
+  never saved or exported. 503 (no key, no service role key, or the metering
+  migration missing) and a missing function show "not configured"; the
+  studio works fully without it. **Deploy held for the owner**
+  (`supabase functions deploy ai-eval-assist`, after 20260925200000).
+- **Migrations (HELD, files only, logged NOT APPLIED, owner-run):**
+  1. `20260925180000_d5_seed_ai_evaluation_studio_tile.sql`: the Coming Soon
+     tile on the DA0 insert branch (module and module_id, ScanSearch icon).
+  2. `20260925190000_d5_dai_eval_runs.sql`: the dai_forecast_runs shape,
+     source 'ekene' or 'upload'.
+  3. `20260925200000_d5_dai_llm_calls.sql`: the metering log and
+     `dai_llm_reserve_call`.
+  4. `20260925210000_d5_activate_ai_evaluation_studio_tile.sql` (DEPLOY
+     GATE: after 1 and 2 and the prod upload serving the route).
+  All applied twice on a local scratch Postgres 16 with stubbed auth, roles
+  and org helpers. Probes: seed and activation give notices before their
+  prerequisites, the tile lands Coming Soon with module and module_id and
+  a rerun after activation leaves it Active; activation leaves the D4 tile
+  and a same-slug row in another module untouched; dai_eval_runs RLS as
+  D4's (own-org insert and read, other org reads 0, other-org insert
+  refused, 'spine' source, blank name and array payload refused, org move
+  refused, member cannot delete another author's run, other org deletes
+  nothing, author kept on an admin update, admin delete, anon refused);
+  dai_llm_calls: reservations at cap 2 give 1, 2, then null; an 'error' row
+  frees its slot; earlier days do not count; organizations counted apart;
+  members read only their organization; member insert, update, delete and
+  execute of the reserve function refused; anon refused.
+- **Pricing.** No change: the `data-ai` module price (2,999) covers it. The
+  pricing-rule test's Data & AI app count moves to 5.
+- **Registration and marketing.** App.jsx routes, SupabaseAuthContext app
+  list, ModulesShowcase count 5 with the app named, hub copy and module
+  meta mention the evaluation of search and question-answering systems.
+- **Tests.** `evalWorkflows.test.js` (57): the Ekene dataset whole and equal
+  to the goldens' inputs; spec parsing; the workflows against the oracle
+  goldens: six retrieve runs, twelve explained rankings, five
+  evaluateRetrieval cases (and the retrieval settings reproducing system
+  A), the bootstrap and paired bootstrap cases (paired, unpaired, MAP with
+  another seed), answers A, B and B at 0.2 percent, 48 SQuAD matches,
+  extraction A and B, three kappas, three calibration bin counts; the
+  replicate cap and a missing seed; the helper context and check; uploads
+  (RFC 4180, refusals by row and column, caps, the fixture JSON scored the
+  same). `evalPersistence.test.js` (15): service, payload, snapshot and cap,
+  stamps, CSV, worker protocol, helper client. `aiEvaluationStudio.smoke.test.jsx`
+  (11): every tab on the mounted page against the goldens, the helper
+  configured, 503 and 429, the help guide conventions and copy rule.
+  `ai-eval-assist/__tests__/logic.test.ts` (14). `dataAiRegistration.test.js`
+  D5 block (11). App-layer negative control
+  `tools/validation/dataai/negcontrol_eval_studio.sh`: 30/30 plants red (blank read as 0, b dropped, stop list and sublinear not passed, threshold, gain and no-relevant rule dropped, citations as ranked lists, excluded queries kept, seed shifted, pairing ignored, B bootstrapped from A, replicate cap off by one, answers without retrieved lists, tolerance dropped, short answer and reference swapped, extraction always A, second grader replaced, bins not passed, more than ten helper passages, wrong CSV delimiter, passage cap off by one, unjudged queries scored, seed not in the stale stamp, CSV rounded, interval labels swapped, threshold box hidden, helper not labelled not graded, edge cap raised, membership check dropped); baseline and restored runs green.
+- **Registration test repair.** PR #622 recorded DA0 to D4 as APPLIED
+  2026-09-25 in MIGRATIONS.md, which turned the five "logged as not applied"
+  assertions red on main; they now accept a held row or a dated apply
+  record, and the D5 rows are asserted held.
+
+Open for D5: the owner applies the four migrations (the activation only
+after the upload serves the route) and deploys `ai-eval-assist` with
+OPENAI_API_KEY set; the daily cap (50) and the model (gpt-4o-mini) are
+owner choices. The claim grammar reads "the end of 2025" as the number
+2025 (a known limit, taught in the course), and the calibration edge rule
+differs from scikit-learn's calibration_curve at bin edges (stated in the
+help guide).
+
 ## Next
 
-D1 `dataqc` NextGen course (slug `dataqc`, path_order 66) on the D1 engine and app; D2 `mlcore` course (path_order 67) on the D2 engine and the ML Workbench; D3 `facies` course (path_order 68) on the D3 engine and the Electrofacies Studio; D4 `forecastml` course (path_order 69) on the D4 engine and the Production Forecasting ML Workbench.
+D1 `dataqc` NextGen course (slug `dataqc`, path_order 66) on the D1 engine and app; D2 `mlcore` course (path_order 67) on the D2 engine and the ML Workbench; D3 `facies` course (path_order 68) on the D3 engine and the Electrofacies Studio; D4 `forecastml` course (path_order 69) on the D4 engine and the Production Forecasting ML Workbench; D5 `appliedai` course (path_order 70, "Applied AI and Language Models") on the D5 engine and the AI Evaluation Studio, graded only on the deterministic half.
