@@ -235,6 +235,15 @@ const ForecastingMlWorkbenchHelpGuide = () => (
         each origin; with refit off, they are estimated on the first window and held. The Arps decline is refitted on every
         window. Every method is scored on the same origins with the same metrics.
       </Para>
+      <Para>
+        By default the backtest estimates every parameter, including any you typed on the fit tab. When you have typed a
+        parameter, a toggle <Code>Hold the typed parameters in the backtest</Code> appears (off by default). With it on, each
+        method with a typed parameter is backtested by the engine&apos;s backtest function with that parameter held at every
+        origin, on the same origins and settings; its other parameters follow the refit setting. The other methods and the
+        Arps decline are scored as before, and all rows are ranked again by the rule below. The result line names the held
+        parameters, and a saved run and the CSV carry them. The field comparison always estimates every parameter, since a
+        typed parameter belongs to one well&apos;s fit.
+      </Para>
       <Table
         headers={['Metric', 'Definition (e = actual - forecast)']}
         rows={[
@@ -278,7 +287,7 @@ const ForecastingMlWorkbenchHelpGuide = () => (
       <Para>
         The CSV export has one row per record: the run, data and engine; the spec; every fitted value and residual,
         parameter, optimiser record and forecast; the Arps fit; every interval percentile with the exceedance definition;
-        every backtest origin&apos;s forecasts and errors; the metrics; the reason a metric is undefined; engine refusals;
+        every backtest origin&apos;s forecasts and errors; the backtest&apos;s held parameters when the hold toggle was on; the metrics; the reason a metric is undefined; engine refusals;
         and engine warnings. Numbers are written at full precision.
       </Para>
     </GuideSection>

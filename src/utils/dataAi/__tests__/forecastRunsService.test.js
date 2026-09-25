@@ -145,6 +145,34 @@ describe('the CSV report', () => {
     ['EKENE-P01', 'EKENE-P02', 'EKENE-P03'].forEach((w) => expect(csv).toMatch(new RegExp(`^meta,${w},,,,,ranking,`, 'm')));
   });
 
+  it('carries the hold toggle and the held parameters in the saved run and the CSV, and leaves them out when off', () => {
+    const on = {
+      ...spec, params: { ...spec.params, damped: { alpha: '', beta: '', phi: '0.9' } }, backtest: { ...spec.backtest, holdTyped: true },
+    };
+    const cmp = runCompare({ series, parsed: parseSpec(on) });
+    expect(cmp.held).toEqual({ damped: { phi: 0.9 } });
+    const r = { compare: { result: cmp } };
+    const payload = serializeStudy({
+      name: 'E', source: 'upload', dataRef: {}, table, spec: on, results: r,
+    });
+    expect(payload.summary.compare.heldTyped).toEqual({ damped: { phi: 0.9 } });
+    expect(payload.summary.compare.metrics.damped.mase).toBe(cmp.result.rows.find((x) => x.method === 'damped').mase);
+    expect(studyFromPayload(JSON.parse(JSON.stringify(payload))).spec.backtest.holdTyped).toBe(true);
+    const c = buildForecastCsv({ runName: 'E', table, spec: on, results: r });
+    expect(c).toContain(`meta,EKENE-P01,,,,,backtest parameters held,"{""damped"":{""phi"":0.9}}",${cmp.result.basis.held}`);
+    expect(c).toContain('""holdTyped"":true');
+    // off: no held row, and an older save without the field opens with it off
+    expect(csv).not.toContain('backtest parameters held');
+    expect(serializeStudy({
+      name: 'E', source: 'upload', dataRef: {}, table, spec, results,
+    }).summary.compare.heldTyped).toBeNull();
+    const old = JSON.parse(JSON.stringify(serializeStudy({
+      name: 'E', source: 'upload', dataRef: {}, table, spec, results: {},
+    })));
+    delete old.spec.backtest.holdTyped;
+    expect(studyFromPayload(old).spec.backtest.holdTyped).toBe(false);
+  });
+
   it('writes engine refusals and warnings as rows', () => {
     const bad = parseSpec({ ...spec, params: { ...spec.params, holt: { alpha: '2', beta: '' } } });
     const r = { fit: { result: runFit({ series, parsed: bad }) } };

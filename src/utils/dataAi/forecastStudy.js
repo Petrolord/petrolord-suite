@@ -83,6 +83,7 @@ export function summarise({ table, results }) {
       refit: c.refit,
       rankBy: c.rankBy,
       m: cmp.m,
+      heldTyped: cmp.held || null,
       origins: c.origins,
       ranking: c.ranking,
       best: c.best,

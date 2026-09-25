@@ -16,6 +16,7 @@ import path from 'path';
 import * as FC from '@/utils/dataAi/engine/forecast';
 import {
   defaultSpec, parseSpec, parseNum, firstOriginFor, runFit, runIntervals, runCompare, runField, summariseField, collectWarnings, methodText, ENGINE_COMMIT,
+  rankRows, typedParams,
 } from '@/utils/dataAi/forecastWorkflows';
 import { forecastTableFromUpload, forecastTableFromSpine } from '@/utils/dataAi/forecastData';
 import { parseDelimitedText } from '@/lib/tabularFile';
@@ -208,6 +209,106 @@ describe('the spec reaches the engine as its arguments', () => {
     expect(r.result.error).toBe(FC.compareWithArps({
       y: [1, 2, 3, 4], methods: ['ses', 'holt', 'damped'], firstOrigin: 3, horizon: 6, step: 6, refit: true, arpsModel: 'Auto-Select', rankBy: 'mase', m: 1,
     }).error);
+  });
+});
+
+describe('the backtest with the typed parameters held', () => {
+  // bt-damped-fixed: the oracle's backtest of the damped trend with alpha,
+  // beta and phi held, first origin 40, horizon 6, step 4 on 60 values.
+  const c = byId('bt-damped-fixed');
+  const y = c.args.y;
+  const spec = {
+    ...defaultSpec(),
+    params: { ...defaultSpec().params, damped: { alpha: String(c.args.alpha), beta: String(c.args.beta), phi: String(c.args.phi) } },
+    backtest: {
+      ...defaultSpec().backtest, firstOrigin: String(c.args.firstOrigin), horizon: String(c.args.horizon), step: String(c.args.step), refit: c.args.refit,
+    },
+  };
+  const cmpArgs = {
+    y, methods: ['ses', 'holt', 'damped'], firstOrigin: c.args.firstOrigin, horizon: c.args.horizon, step: c.args.step, refit: c.args.refit, arpsModel: 'Auto-Select', rankBy: 'mase', m: 1,
+  };
+
+  it('is off by default: typed parameters stay out of the backtest, as before', () => {
+    expect(defaultSpec().backtest.holdTyped).toBe(false);
+    const r = runCompare({ series: { name: 'x', values: y }, parsed: parseSpec(spec) });
+    expect(r.held).toBeNull();
+    expect(r.result).toEqual(FC.compareWithArps(cmpArgs));
+  });
+
+  it('holds them when asked: the damped row is the engine backtest with them held, matching the oracle golden', () => {
+    const on = { ...spec, backtest: { ...spec.backtest, holdTyped: true } };
+    const r = runCompare({ series: { name: 'x', values: y }, parsed: parseSpec(on) });
+    expect(r.held).toEqual({ damped: { alpha: c.args.alpha, beta: c.args.beta, phi: c.args.phi } });
+    const bt = FC.backtest(c.args);
+    const row = r.result.rows.find((x) => x.method === 'damped');
+    expect(row).toEqual({
+      method: 'damped', origins: bt.origins, perOrigin: bt.perOrigin, ...bt.overall,
+    });
+    // the oracle's figures, independent of the JS
+    close(row.mase, c.expected.overall.mase, c.tol, 'mase', c.abs);
+    close(row.rmse, c.expected.overall.rmse, c.tol, 'rmse', c.abs);
+    expect(row.mape).toBeNull();
+    c.expected.perOrigin.forEach((o, i) => {
+      expect(row.perOrigin[i].params).toEqual(o.params);
+      close(row.perOrigin[i].forecast, o.forecast, c.tol, `forecast at ${o.origin}`, c.abs);
+    });
+    // every other row is compareWithArps's own
+    const plain = FC.compareWithArps(cmpArgs);
+    ['ses', 'holt', 'arps'].forEach((m) => expect(r.result.rows.find((x) => x.method === m)).toEqual(plain.rows.find((x) => x.method === m)));
+    // the estimated damped row differs, so the toggle changes the answer
+    expect(plain.rows.find((x) => x.method === 'damped').mase).not.toBe(row.mase);
+    expect(r.result.ranking).toEqual(rankRows(r.result.rows, 'mase').ranking);
+    expect(r.result.best).toBe(r.result.ranking[0]);
+    expect(r.result.basis.held).toBe(`typed parameters held at every origin by backtest(): damped alpha ${c.args.alpha}, beta ${c.args.beta}, phi ${c.args.phi}; the other parameters re-estimated at every origin; rows ranked again by the rule above`);
+  });
+
+  it('holds a partial set with refit off, passing both on to backtest()', () => {
+    const on = {
+      ...spec,
+      params: { ...defaultSpec().params, holt: { alpha: '', beta: '0.1' } },
+      backtest: { ...spec.backtest, refit: false, m: '12', holdTyped: true },
+    };
+    const r = runCompare({ series: { name: 'x', values: y }, parsed: parseSpec(on) });
+    expect(r.held).toEqual({ holt: { beta: 0.1 } });
+    const bt = FC.backtest({
+      y, method: 'holt', firstOrigin: c.args.firstOrigin, horizon: c.args.horizon, step: c.args.step, refit: false, m: 12, beta: 0.1,
+    });
+    expect(r.result.rows.find((x) => x.method === 'holt')).toEqual({
+      method: 'holt', origins: bt.origins, perOrigin: bt.perOrigin, ...bt.overall,
+    });
+    r.result.rows.find((x) => x.method === 'holt').perOrigin.forEach((o) => expect(o.params.beta).toBe(0.1));
+    expect(r.result.rows.find((x) => x.method === 'damped')).toEqual(FC.compareWithArps({ ...cmpArgs, refit: false, m: 12 }).rows.find((x) => x.method === 'damped'));
+  });
+
+  it('is compareWithArps unchanged when the toggle is on and nothing is typed', () => {
+    const on = { ...defaultSpec(), backtest: { ...spec.backtest, holdTyped: true } };
+    expect(typedParams(parseSpec(on))).toEqual({});
+    const r = runCompare({ series: { name: 'x', values: y }, parsed: parseSpec(on) });
+    expect(r.held).toBeNull();
+    expect(r.result).toEqual(FC.compareWithArps(cmpArgs));
+  });
+
+  it('shows a held parameter the engine refuses as the engine wrote it, in that method row', () => {
+    const on = {
+      ...spec, params: { ...defaultSpec().params, ses: { alpha: '1.5' } }, backtest: { ...spec.backtest, holdTyped: true },
+    };
+    const r = runCompare({ series: { name: 'x', values: y }, parsed: parseSpec(on) });
+    const row = r.result.rows.find((x) => x.method === 'ses');
+    expect(row.error).toBe(FC.backtest({
+      y, method: 'ses', firstOrigin: c.args.firstOrigin, horizon: c.args.horizon, step: c.args.step, alpha: 1.5,
+    }).error);
+    expect(r.result.unranked).toContain('ses');
+    expect(r.result.ranking).not.toContain('ses');
+  });
+
+  it('ranks by the rule compareWithArps states: rankRows gives back the engine ranking on every comparison golden', () => {
+    const cases = G.cases.filter((x) => x.fn === 'compareWithArps' && !x.expected.error);
+    expect(cases.length).toBeGreaterThanOrEqual(7);
+    cases.forEach((x) => {
+      const e = FC.compareWithArps(x.args);
+      expect(rankRows(e.rows, e.rankBy)).toEqual({ ranking: e.ranking, best: e.best, unranked: e.unranked });
+      expect(e.ranking).toEqual(x.expected.ranking);
+    });
   });
 });
 
