@@ -1,10 +1,11 @@
 // Data & AI module hub (DA0).
 //
-// The Suite's tenth module. It will hold four applications, one per NextGen
-// Data & AI course D1 to D4 (NextGen-Remaining-Courses-PLAN.md §15): Data
-// Quality Studio, ML Workbench, Electrofacies Studio and the Production
-// Forecasting ML Workbench. At DA0 none of them is written, and the catalog
-// seed lands all four as Coming Soon, so the grid below shows exactly that.
+// The Suite's tenth module. It holds five applications, one per NextGen
+// Data & AI course D1 to D5 (NextGen-Remaining-Courses-PLAN.md §15): Data
+// Quality Studio, ML Workbench, Electrofacies Studio, the Production
+// Forecasting ML Workbench and the AI Evaluation Studio. At DA0 none of them
+// was written, and the catalog seed landed the first four as Coming Soon; D5
+// seeds its own tile the same way.
 //
 // Like every other hub, this one holds no hand-written list of applications
 // (moduleHubs.test.js): the catalog is the only list, and each tile goes
@@ -32,8 +33,9 @@ const DataAiHub = () => {
           <p className="text-slate-400 mt-2">
             Statistics and machine learning on oilfield data: quality checks and outlier tests,
             regression and classification validated on held-out wells, electrofacies by clustering,
-            and production forecasts by exponential smoothing. Each application opens here once it
-            is built and checked against published reference results.
+            production forecasts by exponential smoothing, and the evaluation of search and
+            question-answering systems by ranking metrics and groundedness checks. Each application
+            opens here once it is built and checked against published reference results.
           </p>
         </div>
       </div>

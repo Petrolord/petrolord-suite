@@ -96,7 +96,7 @@ export const MODULE_META = {
   'midstream-downstream': { name: 'Midstream & Downstream', description: 'Refining, blending, terminals, fuel supply chain, energy and carbon' },
   assurance: { name: 'Assurance', description: 'Risk, compliance, competency and quality management' },
   'process-safety': { name: 'Process Safety', description: 'Layers of protection analysis, SIL determination and SIF verification' },
-  'data-ai': { name: 'Data & AI', description: 'Data quality checks, machine learning on well data, electrofacies and statistical forecasting' }
+  'data-ai': { name: 'Data & AI', description: 'Data quality checks, machine learning on well data, electrofacies, statistical forecasting and the evaluation of search and question-answering systems' }
 };
 
 // Individual App Base Price (if purchased à la carte)

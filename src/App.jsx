@@ -89,6 +89,8 @@ const ElectrofaciesStudio = lazy(() => import('@/pages/apps/ElectrofaciesStudio'
 const ElectrofaciesStudioHelpGuide = lazy(() => import('@/pages/apps/ElectrofaciesStudioHelpGuide'));
 const ForecastingMlWorkbench = lazy(() => import('@/pages/apps/ForecastingMlWorkbench'));
 const ForecastingMlWorkbenchHelpGuide = lazy(() => import('@/pages/apps/ForecastingMlWorkbenchHelpGuide'));
+const AiEvaluationStudio = lazy(() => import('@/pages/apps/AiEvaluationStudio'));
+const AiEvaluationStudioHelpGuide = lazy(() => import('@/pages/apps/AiEvaluationStudioHelpGuide'));
 const ConsequenceModellingStudio = lazy(() => import('@/pages/apps/ConsequenceModellingStudio'));
 const ConsequenceModellingStudioHelpGuide = lazy(() => import('@/pages/apps/ConsequenceModellingStudioHelpGuide'));
 const QraStudio = lazy(() => import('@/pages/apps/QraStudio'));
@@ -789,6 +791,8 @@ function App() {
                                 <Route path="apps/data-ai/electrofacies-studio/help" element={<ProtectedAppRoute appId="electrofacies-studio" appName="Electrofacies Studio"><ElectrofaciesStudioHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/data-ai/forecasting-ml-workbench" element={<ProtectedAppRoute appId="forecasting-ml-workbench" appName="Production Forecasting ML Workbench"><ForecastingMlWorkbench /></ProtectedAppRoute>} />
                                 <Route path="apps/data-ai/forecasting-ml-workbench/help" element={<ProtectedAppRoute appId="forecasting-ml-workbench" appName="Production Forecasting ML Workbench"><ForecastingMlWorkbenchHelpGuide /></ProtectedAppRoute>} />
+                                <Route path="apps/data-ai/ai-evaluation-studio" element={<ProtectedAppRoute appId="ai-evaluation-studio" appName="AI Evaluation Studio"><AiEvaluationStudio /></ProtectedAppRoute>} />
+                                <Route path="apps/data-ai/ai-evaluation-studio/help" element={<ProtectedAppRoute appId="ai-evaluation-studio" appName="AI Evaluation Studio"><AiEvaluationStudioHelpGuide /></ProtectedAppRoute>} />
                                 {/* Process Safety PS2: Consequence Modelling Studio (course H4 consequence). */}
                                 <Route path="apps/process-safety/consequence-studio" element={<ProtectedAppRoute appId="consequence-studio" appName="Consequence Modelling Studio"><ConsequenceModellingStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/process-safety/consequence-studio/help" element={<ProtectedAppRoute appId="consequence-studio" appName="Consequence Modelling Studio"><ConsequenceModellingStudioHelpGuide /></ProtectedAppRoute>} />
