@@ -599,6 +599,17 @@ Workbench patterns (#617, #616).
   last row, spine months skipped, injectors offered, P90/P10 columns
   swapped, CSV rounded); baseline and restored runs green.
 
+**Re-vendor at 1dfdd60 (engines #256, 2026-09-25).** Message wording only (the
+training window named once, singular forms, and the bootstrap basis now says
+residuals are drawn as fitted without centring); no number changed. The
+`ENGINE_COMMIT` of the ML Workbench, the Electrofacies Studio and the
+Forecasting ML Workbench moves to 1dfdd60 with the VENDOR.json pin (the
+`forecastWorkflows` pin test caught the first cut leaving them at ec89b6b).
+The help guide (the intervals callout and the bootstrap section) and the
+FitPanel note now say the residuals are not centred, so a biased fit shifts
+the band: on a declining well a flat method's paths can fall below its own
+point forecast.
+
 Open for D4: the spine stores daily volumes and a monthly import holds one
 row a month as imported; the app sums the stored rows per calendar month
 and says so, and a per-day rate convention (volume over days on, or over

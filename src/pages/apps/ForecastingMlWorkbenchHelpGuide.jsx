@@ -71,7 +71,7 @@ const ForecastingMlWorkbenchHelpGuide = () => (
       <Callout tone="warn" title="The intervals leave out parameter uncertainty">
         The bootstrap resamples the fit&apos;s one-step residuals independently with the parameters held fixed. It carries
         no uncertainty in the parameters and no autocorrelation of errors, so the band is narrower than the whole
-        uncertainty.
+        uncertainty. The residuals are used as fitted, without centring, so a biased fit shifts the band as well.
       </Callout>
       <Callout tone="info" title="Methods offered">
         Simple exponential smoothing, Holt&apos;s linear trend, the damped trend, and the Arps decline (exponential,
@@ -208,6 +208,11 @@ const ForecastingMlWorkbenchHelpGuide = () => (
         residual drawn with replacement from the scored one-step residuals (index floor(u m) for m residuals) to the
         one-step forecast, and the simulated value updates the state. The draws u come from one seeded mulberry32 stream,
         path by path and step by step, so a seed reproduces every path. At least 2 scored residuals are needed.
+      </Para>
+      <Para>
+        The residuals are drawn as fitted, without centring: their mean is not subtracted first. A method whose residuals
+        have a non-zero mean therefore drifts. On a declining well the residuals of a flat method (simple exponential
+        smoothing) are mostly negative, so its paths, and the P50 with them, can fall below its own point forecast.
       </Para>
       <Para>
         Per step, the 10th, 50th and 90th percentiles of the simulated values are taken with the lib/stats quantile rule
