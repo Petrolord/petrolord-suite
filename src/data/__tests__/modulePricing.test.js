@@ -141,8 +141,8 @@ describe('the commercial rule holds', () => {
   // on master_apps.price as at 2026-08-30.
   // Process Safety (PS1): its tiles copy a Facilities row, so 699, and it has
   // three apps planned (LOPA & SIL, Consequence, QRA).
-  // Data & AI (D1): its tiles copy a Geoscience row, so 899, and it has four
-  // apps planned in this run (D1 to D4; AI Evaluation Studio is not seeded).
+  // Data & AI (D1): its tiles copy a Geoscience row, so 899, and it has five
+  // apps (D1 to D4, and AI Evaluation Studio, D5, which seeds its own tile).
   const APP_PRICE = {
     geoscience: 899, drilling: 899, reservoir: 899, facilities: 699,
     production: 699, economics: 599, 'midstream-downstream': 599, assurance: 499,
@@ -151,7 +151,7 @@ describe('the commercial rule holds', () => {
   const APP_COUNT = {
     geoscience: 10, drilling: 12, reservoir: 13, facilities: 13,
     production: 12, economics: 12, 'midstream-downstream': 10, assurance: 14,
-    'process-safety': 3, 'data-ai': 4,
+    'process-safety': 3, 'data-ai': 5,
   };
   // The 60-85 percent discount band describes a module of ten or more apps.
   // A three-app module cannot sit in it and inside the 2.8x-4.0x rule at

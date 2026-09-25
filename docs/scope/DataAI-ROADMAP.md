@@ -2,8 +2,9 @@
 
 The Suite's tenth module. It hosts the applications behind the NextGen
 Data & AI courses (docs/scope/NextGen-Remaining-Courses-PLAN.md §15, owner
-decisions 2026-09-23). This run builds D1 to D4; D5 (AI Evaluation Studio,
-course `appliedai`) is scheduled after it and has no tile yet.
+decisions 2026-09-23). The first run built D1 to D4; D5 (AI Evaluation
+Studio, course `appliedai`) followed on the owner's 2026-09-25 instruction
+and seeds its own tile (DA0 did not).
 
 | Identifier | Value |
 |---|---|
@@ -12,7 +13,7 @@ course `appliedai`) is scheduled after it and has no tile yet.
 | Hub route | `/dashboard/data-ai` |
 | App routes | `/dashboard/apps/data-ai/<app-slug>` (`appRoutePath` slugifies `Data & AI` to `data-ai`) |
 | Future app tables | `dai_*` |
-| Wave migrations | `<timestamp>_d<N>_*`, N = 1 to 4 (sorted after the DA0 seed) |
+| Wave migrations | `<timestamp>_d<N>_*`, N = 1 to 5 (sorted after the DA0 seed) |
 | Academy module value (NextGen) | `data_ai` |
 
 `normalizeModuleName` matches this module on its exact names only
@@ -100,9 +101,25 @@ with the scaling stated; residual bootstrap intervals drawn through
 `lib/stats`; the Arps baseline imported from `engines/dca`, never
 re-implemented. statsmodels as the second witness.
 
+### D5: AI Evaluation Studio (`ai-evaluation-studio`), course `appliedai`
+
+Engine `engines/dataai/evaluate.js` (engines #257). Deterministic
+evaluation of search and question-answering systems: the stated tokeniser,
+BM25 (Lucene idf) and TF-IDF (scikit-learn defaults) with a 12-digit tie
+rule; precision, recall, hit, reciprocal rank, average precision and nDCG
+at k with the relevance threshold and the no-relevant-query rule stated;
+SQuAD answer match; extraction outcomes; claim-level groundedness; Cohen's
+kappa; calibration with the exact Murphy decomposition; seeded bootstrap
+and paired bootstrap through `lib/stats`. Fixtures: the synthetic Ekene
+documents (`test-data/dataai/ekene-docs/`), read by the engine gate, the
+Suite app and the course. No language model runs in the engine or is
+graded; the app adds an optional metered helper (edge function
+`ai-eval-assist`, metering table `dai_llm_calls`, 50 calls per organization
+per UTC day) whose answers are scored by the same deterministic checks.
+
 ## Order
 
-D1, D2, D3, D4, each end to end (engine, Suite app, NextGen course) before
+D1, D2, D3, D4, then D5, each end to end (engine, Suite app, NextGen course) before
 the next starts. D3 and D4 reuse D2's validation split and metrics.
 
 ## Tile activation rule
@@ -125,3 +142,4 @@ app's route serves.
 | D2 | **ENGINE MERGED** (engines #252, 966bb9e); **APP BUILT 2026-09-24** (branch feat/d2-ml-workbench) | Engine vendored; ML Workbench at `/dashboard/apps/data-ai/ml-workbench` + `/help` (OLS, ridge, logistic; group split and k-fold; leakage, importance, learning curve; curve write-back with provenance; fits in a Web Worker, caps 150,000 rows per fit and 50,000 held-out rows for importance); `dai_ml_runs` and the tile activation written as HELD migrations 20260924120000 and 20260924130000, NOT APPLIED; no pricing change; showcase counts two Data & AI apps. NextGen course `mlcore` next |
 | D3 | **ENGINE MERGED** (engines #253, 4dfbb29); **APP BUILT 2026-09-24** (branch feat/d3-electrofacies-studio) | Engine vendored; Electrofacies Studio at `/dashboard/apps/data-ai/electrofacies-studio` + `/help` (PCA; k-means, elbow on a seeded 10,000-row sample, silhouette; agglomerative with the 3,000-row refusal or a seeded sample; kNN and CART held out by whole cored wells; matching to core with the mode stated and ARI; depth tracks; facies log write-back with provenance; jobs in a Web Worker); `dai_facies_runs` and the tile activation written as HELD migrations 20260924140000 and 20260924150000, NOT APPLIED; no pricing change; showcase counts three Data & AI apps. NextGen course `facies` next |
 | D4 | **ENGINE MERGED** (engines #255, ec89b6b); **APP BUILT 2026-09-24** (branch feat/d4-forecasting-ml-workbench) | Engine vendored; Production Forecasting ML Workbench at `/dashboard/apps/data-ai/forecasting-ml-workbench` + `/help` (upload or Production data spine; simple exponential smoothing, Holt, damped trend fitted or held with the optimiser record; Arps decline baseline; seeded residual bootstrap P90/P50/P10; rolling-origin backtest ranked by MASE with m stated; field-wide comparison in a Web Worker with progress; runs saved with spec, seed and engine commit; full-precision CSV); `dai_forecast_runs` and the tile activation written as HELD migrations 20260924160000 and 20260924170000, NOT APPLIED; no pricing change; showcase counts four Data & AI apps. NextGen course `forecastml` next |
+| D5 | **ENGINE MERGED** (engines #257, 1906182); **APP BUILT 2026-09-25** (branch feat/d5-ai-evaluation-studio) | Engine and the Ekene documents fixture vendored; AI Evaluation Studio at `/dashboard/apps/data-ai/ai-evaluation-studio` + `/help` (corpus and queries, BM25 and TF-IDF retrieval with term contributions and ties, retrieval metrics with the threshold visible, seeded paired bootstrap A minus B, claim-level groundedness, extraction scoring, three kappas, calibration with the reliability chart; jobs in a Web Worker; runs saved with spec, seed and engine commit; full-precision CSV); optional metered language-model helper through the held edge function `ai-eval-assist`; tile seed, `dai_eval_runs`, `dai_llm_calls` and the tile activation written as HELD migrations 20260925180000 to 20260925210000, NOT APPLIED; edge deploy held; no pricing change; showcase counts five Data & AI apps. NextGen course `appliedai` next |

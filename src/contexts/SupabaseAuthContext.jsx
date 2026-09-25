@@ -71,8 +71,9 @@ const AuthProviderContent = ({ children }) => {
     'lopa-sil-studio', 'consequence-studio', 'qra-studio',
     // Data & AI (DA0). Registered here so the module can be quoted and
     // licensed from the day its tiles exist; every one is Coming Soon until
-    // the wave that ships its build (D1-D4).
-    'data-quality-studio', 'ml-workbench', 'electrofacies-studio', 'forecasting-ml-workbench'
+    // the wave that ships its build (D1-D4; D5 seeds its own tile).
+    'data-quality-studio', 'ml-workbench', 'electrofacies-studio', 'forecasting-ml-workbench',
+    'ai-evaluation-studio'
   ], []);
 
   const fetchUserOrgAndPermissions = useCallback(async (userId) => {
