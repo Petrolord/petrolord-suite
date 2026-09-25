@@ -4,7 +4,8 @@
 // confusion count and score is the engine's, taken from the results the
 // workflows returned. The CSV keeps every number at full round-trip
 // precision (String(x)); the screen rounds for reading, the export does not.
-// Engine refusals are written as the engine wrote them.
+// Engine refusals are written as the engine wrote them, and so is the PCA
+// warning (the engine joins its warnings with '; ') as one meta row.
 import { ENGINE_VERSION, methodText } from '@/utils/dataAi/faciesWorkflows';
 
 const q = (v) => {
@@ -66,6 +67,7 @@ export function buildFaciesCsv({
   if (pca?.error) row({ record: 'refused', method: 'pca', detail: pca.error });
   else if (pca) {
     row({ record: 'meta', method: 'pca', name: 'matrix', value: pca.matrix });
+    if (pca.warning) row({ record: 'meta', method: 'pca', name: 'warning', detail: pca.warning });
     pca.eigenvalues.forEach((v, k) => row({ record: 'pca', method: 'pca', name: `eigenvalue PC${k + 1}`, value: v }));
     pca.explainedVarianceRatio.forEach((v, k) => row({ record: 'pca', method: 'pca', name: `explained ratio PC${k + 1}`, value: v }));
     pca.loadings.forEach((l, k) => l.forEach((v, j) => row({ record: 'pca', method: 'pca', name: `loading PC${k + 1} ${pca.names[j]}`, value: v })));

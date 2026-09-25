@@ -173,7 +173,8 @@ const ElectrofaciesStudioHelpGuide = () => (
         engine fixes it: the loading with the largest absolute value is made positive. Two neighbouring eigenvalues that
         differ by at most 1e-10 times the largest eigenvalue are flagged, since their directions are not unique. If the
         50th sweep still rotates, the Jacobi method has not converged and that warning is shown first, above any
-        repeated-eigenvalue warning.
+        repeated-eigenvalue warning. The CSV export carries the warning as one meta row (method pca, name warning), the two
+        warnings joined by a semicolon as the engine joins them.
       </Para>
     </GuideSection>
 

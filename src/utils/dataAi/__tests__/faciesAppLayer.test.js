@@ -394,6 +394,24 @@ describe('the CSV report', () => {
     expect(csv).toContain('tree,cart,,,final tree,,"|--- ');
   });
 
+  it('carries the PCA warning as one meta row when the engine gives one, and none when it does not', () => {
+    const golden = require('../../../../packages/engines/test-data/dataai/goldens/cluster_cases.json');
+    const c = golden.cases.find((x) => x.id === 'pca-warning-both');
+    if (!c) throw new Error('golden case pca-warning-both missing from cluster_cases.json');
+    const pca = C.pca(c.input || c.args);
+    expect(pca.warning.split('; ')).toHaveLength(2);
+    const csv = buildFaciesCsv({
+      runName: 'r', table, design, parsed, results: { pca: { result: pca } },
+    });
+    const q = `"${pca.warning.replace(/"/g, '""')}"`;
+    const rows = csv.trim().split('\n').filter((l) => l.startsWith('meta,pca,,,warning,'));
+    expect(rows).toEqual([`meta,pca,,,warning,,${/[",\n\r]/.test(pca.warning) ? q : pca.warning}`]);
+    const plain = buildFaciesCsv({
+      runName: 'r', table, design, parsed, results: { pca: { result: runPca({ design, parsed }) } },
+    });
+    expect(plain).not.toContain('meta,pca,,,warning');
+  });
+
   it('writes a refusal as the engine wrote it', () => {
     const p = parseSpec({ ...spec, agglomerative: { linkage: 'single', k: '3', sample: false, seed: '1' } });
     const csv = buildFaciesCsv({

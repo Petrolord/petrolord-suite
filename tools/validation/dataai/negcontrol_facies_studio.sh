@@ -41,6 +41,7 @@ PLANTS=(
   "write-back one sample deep (1-based entries)|src/utils/dataAi/faciesWriteBack.js|at.push(design.rows[j] - start);|at.push(design.rows[j] - start + 1);"
   "training range over every row for kNN and CART|src/utils/dataAi/faciesWriteBack.js|return { rows: design.labelled, basis:|return { rows: design.X.map((_, j) => j), basis:"
   "training range bound counted as outside|src/utils/dataAi/faciesWriteBack.js|if (x[f] < min[f]) { below[f] += 1; out = true; }|if (x[f] <= min[f]) { below[f] += 1; out = true; }"
+  "PCA warning left out of the CSV|src/utils/dataAi/faciesReport.js|if (pca.warning) row(|if (false) row("
   "training-range counts left out of the provenance|src/utils/dataAi/faciesWriteBack.js|training_range: trainingRangeProvenance(rangeCheck),|training_range: null,"
   "text facies coded from 1|src/utils/dataAi/faciesWriteBack.js|return { code: (v) => pos.get(v), legend: present.map((v, i) => ({ code: i, label: String(v) })), kind: 'facies' };|return { code: (v) => pos.get(v) + 1, legend: present.map((v, i) => ({ code: i + 1, label: String(v) })), kind: 'facies' };"
 )
