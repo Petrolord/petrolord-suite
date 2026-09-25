@@ -108,7 +108,8 @@ const IntervalSpec = () => {
     <Section title="Bootstrap intervals" testId="intervals-section">
       <Note>
         Residual bootstrap: each simulated path adds a one-step residual of the fit, drawn with replacement, at every
-        step. The seed makes every path reproducible. P90 is the low case and P10 the high case: {r && !r.error ? r.definition : 'P90 means a 90% probability the actual quantity meets or exceeds this value, per SPE PRMS.'}
+        step. The residuals are used as fitted, without centring, so a fit whose residuals have a non-zero mean shifts
+        the whole band (on a declining well a flat method&apos;s paths can fall below its point forecast). The seed makes every path reproducible. P90 is the low case and P10 the high case: {r && !r.error ? r.definition : 'P90 means a 90% probability the actual quantity meets or exceeds this value, per SPE PRMS.'}
       </Note>
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-56">
