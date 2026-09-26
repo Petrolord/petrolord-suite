@@ -24,7 +24,7 @@ const helpContent = [
     icon: SlidersHorizontal,
     title: 'Step 2: Choose PVT correlations',
     content:
-      "Two choices drive the PVT: the Rs / Bo / Pb correlation and the oil-viscosity correlation. Standing (1947) and Beggs-Robinson (1975) are the audited defaults and suit most black oils; Vasquez-Beggs (1980) is also available for Rs/Bo. Glaso and Beal-Cook-Spillman are selectable but flagged: Glaso's Rs form here is non-standard and Beal-Cook-Spillman's saturated branch is simplified, so choosing them raises a warning in the results and you should verify against lab PVT. Gas Z-factor (Papay with Sutton pseudo-criticals), gas FVF and viscosity (Lee-Gonzalez-Eakin) and oil compressibility (Vasquez-Beggs) are always computed with standard correlations.",
+      "Two choices drive the PVT: the Rs / Bo / Pb correlation and the oil-viscosity correlation. Standing (1947) and Beggs-Robinson (1975) are the audited defaults and suit most black oils; Vasquez-Beggs (1980) and Glaso (1980, North Sea crudes) are also available for Rs/Bo. Each Rs/Bo/Pb correlation was fitted over a data range (Standing: GOR 20 to 1425 scf/STB, 100 to 258 F, 16.5 to 63.8 API, gas gravity 0.59 to 0.95); an input outside the chosen correlation's range raises a warning that the result is extrapolated. Beal-Cook-Spillman is selectable but flagged: its saturated branch is simplified, so choosing it raises a warning and you should verify against lab PVT. Gas Z-factor (Papay with Sutton pseudo-criticals), gas FVF and viscosity (Lee-Gonzalez-Eakin) and oil compressibility (Vasquez-Beggs) are always computed with standard correlations.",
   },
   {
     id: 'pvtcharts',

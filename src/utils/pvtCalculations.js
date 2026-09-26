@@ -1,3 +1,4 @@
+import { glasoRs as engineGlasoRs } from '../../packages/engines/engines/fluid/blackOil';
 export const pvtCalcs = {
     /**
      * Calculate bubble point pressure using Standing's correlation.
@@ -46,11 +47,12 @@ export const pvtCalcs = {
         return 1 + C1*Math.max(rs, 0) + C2*(temp-60)*(api/yh_28_96) + C3*Math.max(rs, 0)*(temp-60)*(api/yh_28_96);
     },
 
-    glaso_rs: (p, api, gasGravity, temp) => {
-        const f_val = Math.pow(Math.max(p, 0), 1.1856) * Math.pow(10, -0.00396 * temp) * Math.pow(Math.max(api, 0.1), 0.2855);
-        const bottom = Math.pow(10, 2.8869) * Math.pow(Math.max(gasGravity, 0.1), -1.0544);
-        return gasGravity * Math.pow( f_val / bottom, 1/0.89 );
-    },
+    // Glaso (1980) from the canonical engine (Wave 2 T1): the previous local
+    // form was a non-standard rearrangement that returned Rs of about 6
+    // scf/STB where Glaso's own Pb gives 650. The engine inverts Glaso's Pb
+    // correlation exactly; pb Infinity = no saturation clamp here (the caller
+    // passes Pb itself above the bubble point).
+    glaso_rs: (p, api, gasGravity, temp) => engineGlasoRs(Math.max(p, 1), Infinity, Math.max(gasGravity, 0.1), Math.max(api, 0.1), Math.max(temp, 1)),
 
     glaso_bo: (rs, api, gasGravity, temp) => {
         const yo = 141.5 / (Math.max(api, 0.1) + 131.5);

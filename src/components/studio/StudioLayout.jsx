@@ -28,6 +28,10 @@ const StudioLayout = ({
 }) => {
   const [leftOpen, setLeftOpen] = useState(defaultLeftOpen);
   const [rightOpen, setRightOpen] = useState(defaultRightOpen);
+  // no right rail passed (Fluid, SCAL, Material Balance): no empty 24rem
+  // column and no toggle for it (Wave 2 T1: the empty rail squeezed the
+  // results so KPI values ran out of their cards at 1366 px)
+  const hasRight = sidebarRight !== null && sidebarRight !== undefined && sidebarRight !== false;
 
   return (
     <div className={cn('flex h-screen w-full bg-slate-950 text-slate-100 overflow-hidden', className)}>
@@ -67,14 +71,16 @@ const StudioLayout = ({
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {headerActions}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setRightOpen(!rightOpen)}
-              className="text-slate-400 hover:text-white"
-            >
-              {rightOpen ? <PanelRightOpen size={20} /> : <PanelRightClose size={20} />}
-            </Button>
+            {hasRight && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setRightOpen(!rightOpen)}
+                className="text-slate-400 hover:text-white"
+              >
+                {rightOpen ? <PanelRightOpen size={20} /> : <PanelRightClose size={20} />}
+              </Button>
+            )}
           </div>
         </header>
 
@@ -92,6 +98,7 @@ const StudioLayout = ({
           </main>
 
           {/* Right Sidebar */}
+          {hasRight && (
           <div
             className={cn(
               'flex-shrink-0 border-l border-slate-800 bg-slate-900/50 transition-all duration-300 ease-in-out flex flex-col z-20',
@@ -104,6 +111,7 @@ const StudioLayout = ({
               </div>
             </ScrollArea>
           </div>
+          )}
         </div>
       </div>
     </div>

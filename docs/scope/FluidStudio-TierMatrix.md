@@ -52,7 +52,8 @@ Phase 1 audit (see FluidSystemsStudio-STATUS.md). Summary equivalents:
 | Quantity | Effective tier | Notes |
 |---|---|---|
 | Standing / Vasquez-Beggs Rs, Bo, Pb; Beggs-Robinson mu | published_method | audited defaults, used inside their stated envelopes |
-| Glaso Rs, Beal-Cook-Spillman mu | screening | selectable but flagged with warnings (audit findings) |
+| Glaso Rs | validated | published Glaso (1980) form since Wave 2 T1; Rs(Pb) consistency gate and a hand-derived case |
+| Beal-Cook-Spillman mu | screening | selectable but flagged with a warning (simplified saturated branch) |
 | Gas Z (Papay/Sutton), Lee-Gonzalez-Eakin gas mu/FVF, oil co | published_method | standard correlations |
 | Black-oil separator GOR partition | screening | staged-liberation approximation, telescopes to Rsb by construction; the EOS separator card is the rigorous counterpart |
 | Hydrate envelope (Motiee), ASI blend screen, wax-content WAT | screening | stated validity bands on the cards |

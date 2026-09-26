@@ -945,6 +945,7 @@ function App() {
                                   <Route path="/dev/well-cost" element={<WellCostTimeHarness />} />
                                   <Route path="/dev/dca" element={<DeclineCurveAnalysis />} />
                                   <Route path="/dev/fiscal-regime-designer" element={<FiscalRegimeDesigner />} />
+                                  <Route path="/dev/fluid-systems-studio" element={<FluidSystemsStudio />} />
                                   <Route path="/dev/epe/*" element={<EpeHarness />} />
                                   <Route path="/dev/decision-studio" element={<DecisionStudioHarness />} />
                                   <Route path="/dev/well-test-analysis-studio" element={<WellTestAnalysisStudio />} />

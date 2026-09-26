@@ -37,7 +37,7 @@ const baseFluid = () => {
 // pvtCalculations audit flagged it as a non-standard rearrangement, so Phase 1
 // gates it behind a warning rather than trusting its Pb consistency (see the
 // dedicated "gated correlations" test below).
-const TRUSTED_CORRELATIONS = ['standing', 'vasquez_beggs'];
+const TRUSTED_CORRELATIONS = ['standing', 'vasquez_beggs', 'glaso'];
 
 describe('num()', () => {
   it('coerces blanks/invalid to fallback', () => {
@@ -65,15 +65,25 @@ describe('1. Bubble-point solve consistency', () => {
     });
   });
 
-  it('gates the suspect glaso correlation with a warning (does not silently trust it)', () => {
+  it('Glaso Rs is the published form: consistent with Glaso Pb (hand-derived, Wave 2 T1)', () => {
+    // Glaso Pb for Rs 650, gg 0.75, API 32, T 200 F: Pb* = (650/0.75)^0.816 T^0.172 / API^0.989 = 20.16,
+    // log Pb = 1.7669 + 1.7447 log Pb* - 0.30218 (log Pb*)^2 -> 3379 psia; Rs at 3379 psia returns 650.4
+    const f = normalizeFluid({ ...baseInputs, correlations: { ...baseInputs.correlations, pb_rs_bo: 'glaso' } });
+    expect(rsAt(3379, { ...f, pb: 99999 })).toBeCloseTo(650.4, 0);
+    const res = analyzeFluidSystem({ ...baseInputs, correlations: { ...baseInputs.correlations, pb_rs_bo: 'glaso' } });
+    expect(res.pvt.kpis.pb).toBeGreaterThan(3300);
+    expect(res.pvt.kpis.pb).toBeLessThan(3460);
+    expect(res.meta.warnings.some((w) => /non-standard/i.test(w))).toBe(false);
+  });
+
+  it('warns when inputs leave the correlation data range (Wave 2 T1)', () => {
     const res = analyzeFluidSystem({
       ...baseInputs,
-      correlations: { ...baseInputs.correlations, pb_rs_bo: 'glaso' },
+      streamA: { ...baseInputs.streamA, blackOil: { ...baseInputs.streamA.blackOil, gor: 2000 } },
     });
-    // Still produces a finite, non-throwing result...
-    expect(res.pvt.kpis.pb).toBeGreaterThan(14.7);
-    // ...but the user is warned it is non-standard.
-    expect(res.meta.warnings.some((w) => /Glaso/i.test(w))).toBe(true);
+    expect(res.meta.warnings.some((w) => /Standing: solution GOR 2000 scf\/STB is outside its data range/.test(w))).toBe(true);
+    const ok = analyzeFluidSystem(baseInputs);
+    expect(ok.meta.warnings.some((w) => /outside its data range/.test(w))).toBe(false);
   });
 
   it('does not throw / NaN for out-of-range inputs', () => {

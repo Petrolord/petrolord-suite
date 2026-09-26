@@ -345,3 +345,11 @@ tools/validation/fluidstudio/README.md and literature-fixtures.json.
 The documented untuned-EOS biases they pin (heavy-oil/dew Psat, STO
 API from the generalized volume shift) are the EOS-tuning initiative's
 first targets.
+
+## 2026-09-26: Senior test T1 (Wave 2 #18)
+
+Report: docs/testing/FluidSystemsStudio-T1.md. Glaso Rs now comes from the
+canonical engine (the local form was about 100 times low); inputs outside a
+correlation's published data range raise a warning; the shared StudioLayout
+drops an absent right rail (also SCAL and Material Balance); KPI cards and
+pressure axes read cleanly at 1366 px; `/dev/fluid-systems-studio` harness.

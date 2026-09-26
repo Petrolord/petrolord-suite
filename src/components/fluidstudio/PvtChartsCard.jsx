@@ -11,17 +11,30 @@ import {
 // Line colors tuned to read on the white Petrolord chart surface.
 const LINE = { bo: '#059669', rs: '#2563eb', muo: '#7c3aed', z: '#0891b2', pb: '#dc2626' };
 
+// round pressure ticks from zero (Wave 2 T1: the axis read 15, 1,515, 3,015, 4,998)
+const pressureTicks = (data) => {
+  const hi = Math.max(...data.map((d) => d.pressure));
+  const raw = hi / 5;
+  const mag = 10 ** Math.floor(Math.log10(raw || 1));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((st) => st >= raw) || 10 * mag;
+  const ticks = [];
+  for (let t = 0; t <= hi + step * 0.999; t += step) ticks.push(t);
+  return ticks;
+};
+
 const PvtChart = ({ title, data, dataKey, color, yLabel, yDomain, pb, tickFmt }) => (
   <Card className="bg-slate-900 border-slate-800">
     <CardHeader className="pb-2"><CardTitle className="text-base text-white">{title}</CardTitle></CardHeader>
     <CardContent className="p-0">
       <ChartFrame height={264}>
-        <LineChart data={data} margin={{ top: 8, right: 20, bottom: 4, left: -4 }}>
+        <LineChart data={data} margin={{ top: 12, right: 20, bottom: 4, left: -4 }}>
           <CartesianGrid {...GRID_STYLE} />
           <XAxis
             dataKey="pressure"
             type="number"
-            domain={['dataMin', 'dataMax']}
+            domain={[0, pressureTicks(data).slice(-1)[0]]}
+            ticks={pressureTicks(data)}
+            allowDataOverflow={false}
             stroke={CHART_COLORS.axisLine}
             tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
             tickFormatter={(v) => Math.round(v).toLocaleString()}
@@ -38,7 +51,7 @@ const PvtChart = ({ title, data, dataKey, color, yLabel, yDomain, pb, tickFmt })
           <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: CHART_COLORS.tooltipText }} itemStyle={{ color: CHART_COLORS.tooltipText }} labelFormatter={(v) => `${Math.round(v).toLocaleString()} psia`} />
           <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
           {pb != null && (
-            <ReferenceLine x={Number(pb.toFixed(0))} stroke={LINE.pb} strokeDasharray="4 4" label={{ value: 'Pb', fill: LINE.pb, fontSize: 11, position: 'top' }} />
+            <ReferenceLine x={Number(pb.toFixed(0))} stroke={LINE.pb} strokeDasharray="4 4" label={{ value: 'Pb', fill: LINE.pb, fontSize: 11, position: 'insideTopRight' }} />
           )}
           <Line type="monotone" dataKey={dataKey} name={title} stroke={color} strokeWidth={2} dot={false} connectNulls />
         </LineChart>
