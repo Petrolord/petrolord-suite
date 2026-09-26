@@ -21,7 +21,9 @@ import {
 import {
   Basis, Grid, NeedData, RunButton, StaleNote, SystemPicker, dn, metricCell,
 } from '@/components/dataai/evaluate/common';
-import { askAssist, ASSIST_MESSAGES } from '@/utils/dataAi/evalAssist';
+import {
+  askAssist, ASSIST_MESSAGES, ASSIST_DAILY_CAP, ASSIST_USER_DAILY_CAP,
+} from '@/utils/dataAi/evalAssist';
 import { ASSIST_MAX_PASSAGES } from '@/utils/dataAi/evalWorkflows';
 
 const STATUS = { ok: 'cited and retrieved', notRetrieved: 'cited, not retrieved', unknown: 'not a passage of the corpus' };
@@ -34,7 +36,7 @@ const ClaimsTable = ({ claims, testId }) => (
   />
 );
 
-export const HELPER_DAILY_CAP_TEXT = 'Each organization has a daily cap on helper calls, stated in the help guide.';
+export const HELPER_DAILY_CAP_TEXT = `Each organization can make ${ASSIST_DAILY_CAP} helper calls per UTC day and each person ${ASSIST_USER_DAILY_CAP} of them; a call the model provider fails does not count.`;
 
 const Helper = () => {
   const {
@@ -90,7 +92,9 @@ const Helper = () => {
           <p className="text-[11px] text-slate-400">
             Cited: {state.reply.citations.join(', ') || 'nothing'}. Passages given: {state.ctx.retrieved.join(', ')}
             {state.ctx.trimmed ? ` (the top ${ASSIST_MAX_PASSAGES} of the retrieval)` : ''}. Model {state.reply.model || 'not stated'}
-            {state.reply.dailyCap ? `; ${state.reply.callsToday} of ${state.reply.dailyCap} calls today for your organization` : ''}.
+            {state.reply.reasoningEffort ? ` (reasoning effort ${state.reply.reasoningEffort})` : ''}
+            {state.reply.dailyCap ? `; ${state.reply.callsToday} of ${state.reply.dailyCap} calls today for your organization` : ''}
+            {state.reply.userDailyCap ? `, ${state.reply.userCallsToday} of your ${state.reply.userDailyCap}` : ''}.
           </p>
           {state.check.error ? <EngineError result={state.check} /> : (
             <>
