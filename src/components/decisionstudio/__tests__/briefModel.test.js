@@ -160,3 +160,12 @@ describe('fmtMMUsd', () => {
     expect(fmtMMUsd(null)).toBe('N/A');
   });
 });
+
+describe('money format (Decision Studio T1)', () => {
+  it('leads with the sign and keeps two decimals under $10M', () => {
+    expect(fmtMMUsd(-420000)).toBe('-$0.42M');
+    expect(fmtMMUsd(1352381)).toBe('$1.35M');
+    expect(fmtMMUsd(130e6)).toBe('$130.0M');
+    expect(fmtMMUsd(-2.5e9)).toBe('-$2.50B');
+  });
+});

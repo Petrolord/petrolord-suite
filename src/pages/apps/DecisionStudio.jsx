@@ -64,9 +64,11 @@ const SectionCard = ({ icon: Icon, title, children }) => (
   </div>
 );
 
-const DecisionStudioInner = () => {
+// userOverride: the /dev harness only (no auth session there)
+const DecisionStudioInner = ({ userOverride = null }) => {
   const { full } = useFullPrecision();
-  const { user } = useAuth();
+  const { user: authUser } = useAuth();
+  const user = userOverride || authUser;
   const { toast } = useToast();
   const [mcRuns, setMcRuns] = useState([]);
   const [treeProjects, setTreeProjects] = useState([]);
@@ -113,6 +115,19 @@ const DecisionStudioInner = () => {
     () => mcRuns.filter((r) => compareIds.has(r.id)),
     [mcRuns, compareIds],
   );
+
+  // round NPV ticks for the S-curves (T1: they read -5.1M, -1.6M, 1.9M)
+  const scurveTicks = useMemo(() => {
+    const xs = compareRows.flatMap((r) => (r.results?.npv?.cdf || []).map((p) => p.x)).filter(Number.isFinite);
+    if (xs.length < 2) return undefined;
+    const lo = Math.min(...xs); const hi = Math.max(...xs);
+    const raw = (hi - lo) / 6;
+    const mag = 10 ** Math.floor(Math.log10(raw));
+    const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((st) => st >= raw) || 10 * mag;
+    const out = [];
+    for (let t = Math.ceil(lo / step) * step; t <= hi + 1e-9; t += step) out.push(Math.round(t / step) * step);
+    return out;
+  }, [compareRows]);
 
   const toggleCompare = (id) => setCompareIds((prev) => {
     const next = new Set(prev);
@@ -293,6 +308,7 @@ const DecisionStudioInner = () => {
                         dataKey="x"
                         type="number"
                         domain={['dataMin', 'dataMax']}
+                        ticks={scurveTicks}
                         tickFormatter={fmtMMUsd}
                         tick={{ fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText }}
                         stroke={CHART_COLORS.axisLine}
@@ -309,7 +325,8 @@ const DecisionStudioInner = () => {
                         labelFormatter={(v) => `NPV ${fmtMMUsd(v)}`}
                       />
                       <RLegend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText, paddingTop: 8 }} />
-                      <ReferenceLine x={0} stroke="#dc2626" strokeDasharray="4 4" />
+                      <ReferenceLine x={0} stroke="#dc2626" strokeDasharray="4 4"
+                        label={{ value: 'NPV = 0', position: 'insideTopRight', fontSize: 10, fill: '#b91c1c' }} />
                       {compareRows.map((r, i) => (
                         (r.results?.npv?.cdf || []).length > 1 && (
                           <Line
@@ -375,9 +392,9 @@ const DecisionStudioInner = () => {
 // W3 (D3): with Full precision on, the exported brief prints the decision
 // analysis money (Optimal EMV, Next best alternative, Decision advantage) in
 // $MM at 4 decimals.
-const DecisionStudio = () => (
+const DecisionStudio = ({ userOverride = null }) => (
   <FullPrecisionProvider>
-    <DecisionStudioInner />
+    <DecisionStudioInner userOverride={userOverride} />
   </FullPrecisionProvider>
 );
 

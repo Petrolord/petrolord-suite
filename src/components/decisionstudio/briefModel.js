@@ -14,11 +14,19 @@ import { formatFull, MONEY_MM_DECIMALS } from '@/lib/fullPrecision';
 const shortId = (id) => (id ? String(id).slice(0, 8) : 'n/a');
 const stamp = (iso) => (iso ? new Date(iso).toLocaleString() : 'n/a');
 
+// Decision Studio T1: the sign leads ("-$0.4M", was "$-0.4M"), and cases
+// under $10M carry two decimals so two runs at $1.35M and $1.42M no longer
+// both read "$1.4M".
+const moneyM = (m) => {
+  const sign = m < 0 ? '-' : '';
+  const a = Math.abs(m);
+  if (a >= 1000) return `${sign}$${(a / 1000).toFixed(2)}B`;
+  return `${sign}$${a.toFixed(a < 10 ? 2 : 1)}M`;
+};
+
 export const fmtMMUsd = (usd) => {
   if (usd == null || !Number.isFinite(Number(usd))) return 'N/A';
-  const m = Number(usd) / 1e6;
-  if (Math.abs(m) >= 1000) return `$${(m / 1000).toFixed(2)}B`;
-  return `$${m.toFixed(1)}M`;
+  return moneyM(Number(usd) / 1e6);
 };
 
 // EC4-7: a saved run with no P(NPV > 0) printed "NaN%". A missing or
@@ -32,8 +40,7 @@ export const fmtMM = (mm, full = false) => {
   if (mm == null || !Number.isFinite(Number(mm))) return 'N/A';
   // W3 (D3): with Full precision on, $MM at 4 decimals with no grouping.
   if (full) return `$${formatFull(Number(mm), MONEY_MM_DECIMALS)}M`;
-  if (Math.abs(mm) >= 1000) return `$${(mm / 1000).toFixed(2)}B`;
-  return `$${Number(mm).toFixed(1)}M`;
+  return moneyM(Number(mm));
 };
 
 // Economics section from an epe_mc_runs row.
