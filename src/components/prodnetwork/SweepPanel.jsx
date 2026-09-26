@@ -71,6 +71,7 @@ const SweepPanel = () => {
                 <XAxis
                 height={XAXIS_LABEL_HEIGHT}
                   type="number" dataKey="deliveryPsia" domain={['dataMin', 'dataMax']}
+                  allowDecimals={false} tickFormatter={(v) => Math.round(Number(v)).toLocaleString()}
                   stroke={CHART_COLORS.axisLine}
                   tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                   label={{
@@ -95,7 +96,7 @@ const SweepPanel = () => {
                 {sweep.basePsia && (
                   <ReferenceLine
                     x={sweep.basePsia} stroke="#0891b2" strokeDasharray="4 3"
-                    label={{ value: 'Today', fill: '#0891b2', fontSize: 10, position: 'top' }}
+                    label={{ value: 'Today', fill: '#0891b2', fontSize: 10, position: 'insideTopRight' }}
                   />
                 )}
                 <Line
@@ -116,7 +117,17 @@ const SweepPanel = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {sweep.points.filter((p) => p.ok).map((p) => {
+                  {sweep.points.map((p) => {
+                    if (!p.ok) {
+                      return (
+                        <tr key={p.deliveryPsia} className="border-b border-slate-800/60 last:border-0" data-testid="net-sweep-failed">
+                          <td className="py-1.5 pr-3 text-slate-300 tabular-nums">{fmt(p.deliveryPsia)} psia</td>
+                          <td colSpan={3} className="py-1.5 pl-3 text-right text-xs text-amber-400">
+                            no solution: {p.reason}
+                          </td>
+                        </tr>
+                      );
+                    }
                     const s = sweep.slope.find((x) => x.deliveryPsia === p.deliveryPsia);
                     return (
                       <tr key={p.deliveryPsia} className="border-b border-slate-800/60 last:border-0">
