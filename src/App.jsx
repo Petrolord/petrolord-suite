@@ -942,6 +942,7 @@ function App() {
                                   <Route path="/dev/well-integrity" element={<WellIntegrityPAHarness />} />
                                   <Route path="/dev/well-cost" element={<WellCostTimeHarness />} />
                                   <Route path="/dev/dca" element={<DeclineCurveAnalysis />} />
+                                  <Route path="/dev/fiscal-regime-designer" element={<FiscalRegimeDesigner />} />
                                   <Route path="/dev/well-test-analysis-studio" element={<WellTestAnalysisStudio />} />
                                   <Route path="/dev/nodal-analysis-studio" element={<NodalAnalysisStudio />} />
                                   <Route path="/dev/material-balance-studio" element={<ReservoirBalance />} />
