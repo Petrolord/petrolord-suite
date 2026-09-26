@@ -116,7 +116,7 @@ export default function CdSchematic({ caseDraft, res, depthUnit, wellboreName, h
     <div className="relative flex w-full flex-col overflow-hidden rounded-md bg-white" data-testid="cd-schematic">
       <div className="flex items-center justify-between px-3 pt-2">
         <span className="text-[11px] font-semibold text-slate-700">
-          Completion schematic — {caseDraft.name}{wellboreName ? ` (${wellboreName})` : ''} (MD {unit}, diameters to scale)
+          Completion schematic: {caseDraft.name}{wellboreName ? ` (${wellboreName})` : ''} (MD {unit}, diameters to scale)
         </span>
         <Button size="sm" variant="ghost" className="h-6 text-[11px] text-slate-500 hover:text-slate-800" onClick={exportPng} data-testid="cd-schematic-png">
           <Download className="mr-1 h-3 w-3" /> PNG

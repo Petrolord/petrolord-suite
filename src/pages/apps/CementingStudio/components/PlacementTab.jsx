@@ -122,7 +122,7 @@ export default function PlacementTab({
         {(runs || []).map((r) => (
           <div key={r.id} className="flex items-center justify-between border-t border-slate-800 py-1.5 text-xs text-slate-300 first:border-t-0">
             <span>
-              {new Date(r.created_at).toLocaleString()} — TOC {r.summary?.achievedTocMd != null ? depthOut(r.summary.achievedTocMd, depthUnit).toFixed(0) : '--'} {depthLabel(depthUnit)},
+              {new Date(r.created_at).toLocaleString()}: TOC {r.summary?.achievedTocMd != null ? depthOut(r.summary.achievedTocMd, depthUnit).toFixed(0) : '--'} {depthLabel(depthUnit)},
               max ECD {r.summary?.maxEcdPrevShoeKgM3 != null ? emwOut(r.summary.maxEcdPrevShoeKgM3, depthUnit).toFixed(2) : '--'} {emwLabel(depthUnit)}
             </span>
             <Button size="icon" variant="ghost" className="h-6 w-6 text-slate-500 hover:text-red-400" onClick={() => onDeleteRun(r.id)}>

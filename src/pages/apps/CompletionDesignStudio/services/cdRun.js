@@ -177,7 +177,7 @@ export function resolveProgram(casingProgram) {
     sections: (s.sections || []).map((sec) => {
       const row = findCatalogRow('casing', sec.odIn, sec.weightLbFt);
       if (!row) {
-        throw new Error(`No API 5CT catalog row for ${sec.odIn}" ${sec.weightLbFt}# — pick from the catalog.`);
+        throw new Error(`No API 5CT catalog row for ${sec.odIn}" ${sec.weightLbFt}#. Pick one from the catalog.`);
       }
       return { topMdM: sec.topMdM, bottomMdM: sec.bottomMdM, odM: row.odM, idM: row.idM };
     }),

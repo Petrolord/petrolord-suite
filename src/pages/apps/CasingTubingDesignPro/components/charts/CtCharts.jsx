@@ -37,7 +37,7 @@ export function LoadProfileChart({ caseResult, depthUnit = 'm' }) {
     dp: (piPa[i] - poPa[i]) / 1e6,
   }));
   return (
-    <Frame title={`Load profile — ${caseResult.name} (MPa vs TVD)`} testId="ct-load-profile-chart">
+    <Frame title={`Load profile: ${caseResult.name} (MPa vs TVD)`} testId="ct-load-profile-chart">
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data} margin={CHART_MARGINS.compact} layout="vertical">
           <CartesianGrid {...GRID_STYLE} />

@@ -38,7 +38,7 @@ const CASING_KINDS = [
   {
     kind: 'fullEvacuationCollapse',
     label: 'Full Evacuation (Collapse)',
-    blurb: 'Empty string, full mud column outside — the classic worst-case collapse.',
+    blurb: 'Empty string, full mud column outside: the classic worst-case collapse.',
     params: [],
   },
   {
@@ -98,7 +98,7 @@ const TUBING_KINDS = [
   {
     kind: 'stimulation',
     label: 'Stimulation',
-    blurb: 'High treating pressure, strong cooling — the seal-stroke test.',
+    blurb: 'High treating pressure, strong cooling: the seal-stroke test.',
     params: [
       { key: 'surfacePressurePa', label: 'Treating pressure', suffix: 'Pa', step: 1e6 },
       { key: 'internalKgM3', label: 'Treating fluid density', suffix: 'kg/m³', step: 10 },
@@ -276,7 +276,7 @@ const LoadCasesTab = () => {
                 <div className="p-4 border border-slate-800 bg-slate-900/30 rounded-md space-y-4">
                   <p className="text-xs text-slate-400">{meta.blurb}</p>
                   {meta.params.length === 0 ? (
-                    <p className="text-[10px] text-slate-500">This scenario has no extra parameters — it uses the case environment (mud, backup water) directly.</p>
+                    <p className="text-[10px] text-slate-500">This scenario has no extra parameters. It uses the case environment (mud, backup water) directly.</p>
                   ) : (
                     <div className="grid grid-cols-2 gap-4">
                       {meta.params.map((p) => (

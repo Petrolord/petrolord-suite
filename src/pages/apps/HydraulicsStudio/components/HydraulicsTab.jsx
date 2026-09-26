@@ -144,7 +144,7 @@ export default function HydraulicsTab({
         {(runs || []).map((r) => (
           <div key={r.id} className="flex items-center justify-between border-t border-slate-800 py-1.5 text-xs text-slate-300 first:border-t-0">
             <span>
-              {new Date(r.created_at).toLocaleString()} — pump {pressureOut(r.summary?.pumpPressurePa || 0, depthUnit).toFixed(0)} {pressureLabel(depthUnit)},
+              {new Date(r.created_at).toLocaleString()}: pump {pressureOut(r.summary?.pumpPressurePa || 0, depthUnit).toFixed(0)} {pressureLabel(depthUnit)},
               ECD {emwOut(r.summary?.ecdAtTdKgM3 || 0, depthUnit).toFixed(3)} {emwLabel(depthUnit)}
             </span>
             <Button size="icon" variant="ghost" className="h-6 w-6 text-slate-500 hover:text-red-400" onClick={() => onDeleteRun(r.id)}>

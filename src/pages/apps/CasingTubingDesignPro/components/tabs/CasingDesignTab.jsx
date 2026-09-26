@@ -101,7 +101,7 @@ const CasingDesignTab = () => {
             <div>
               <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center">
                 <Activity className="w-4 h-4 mr-2 text-lime-400" />
-                Results — {caseResult ? caseResult.name : 'select a load case'}
+                Results: {caseResult ? caseResult.name : 'select a load case'}
               </h3>
               <DesignResultsTable caseResult={caseResult} depthUnit={depthUnit} />
             </div>

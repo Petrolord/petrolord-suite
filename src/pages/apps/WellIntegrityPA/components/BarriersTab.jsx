@@ -110,8 +110,8 @@ export default function BarriersTab({ caseDraft, onCaseChange, res }) {
       <Card title="Barrier elements" testId="wi-elements-card">
         <div className="flex flex-col gap-1">
           {b.elements.map((e) => (
-            <div key={e.id} className="flex items-center gap-1.5">
-              <Input className="h-7 flex-1 text-xs" value={e.name}
+            <div key={e.id} className="flex flex-wrap items-center gap-1.5 border-b border-slate-800/60 pb-1">
+              <Input className="h-7 w-full text-xs" value={e.name} data-testid="wi-el-name"
                 onChange={(ev) => setEl(e.id, { name: ev.target.value })} />
               <select className={select} value={e.kind} onChange={(ev) => setEl(e.id, { kind: ev.target.value })}>
                 {ELEMENT_KINDS.map((k) => <option key={k.kind} value={k.kind}>{k.label}</option>)}

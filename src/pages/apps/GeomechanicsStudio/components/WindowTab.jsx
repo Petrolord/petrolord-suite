@@ -74,7 +74,7 @@ export default function WindowTab({
         {(runs || []).map((r) => (
           <div key={r.id} className="flex items-center justify-between border-t border-slate-800 py-1.5 text-xs text-slate-300 first:border-t-0">
             <span>
-              {new Date(r.created_at).toLocaleString()} — tightest {r.summary?.tightestWidthKgM3 != null ? emwOut(r.summary.tightestWidthKgM3, depthUnit).toFixed(2) : '--'} {emwLabel(depthUnit)},
+              {new Date(r.created_at).toLocaleString()}: tightest {r.summary?.tightestWidthKgM3 != null ? emwOut(r.summary.tightestWidthKgM3, depthUnit).toFixed(2) : '--'} {emwLabel(depthUnit)},
               quality {r.summary?.qualityScore ?? '--'}
             </span>
             <Button size="icon" variant="ghost" className="h-6 w-6 text-slate-500 hover:text-red-400" onClick={() => onDeleteRun(r.id)}>

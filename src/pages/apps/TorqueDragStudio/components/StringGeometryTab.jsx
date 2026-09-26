@@ -85,7 +85,7 @@ function StringBuilder({ caseDraft, onChange, depthUnit, tdM }) {
 
   return (
     <Section
-      title={`Drillstring (bottom up) — total ${depthOut(totalM, depthUnit).toFixed(0)} ${depthUnit} of TD ${depthOut(tdM || 0, depthUnit).toFixed(0)} ${depthUnit}`}
+      title={`Drillstring (bottom up): total ${depthOut(totalM, depthUnit).toFixed(0)} ${depthUnit} of TD ${depthOut(tdM || 0, depthUnit).toFixed(0)} ${depthUnit}`}
       actions={(
         <>
           <Button size="sm" variant="outline" className="h-7 text-xs" onClick={fillToTd} data-testid="td-fill-to-td">

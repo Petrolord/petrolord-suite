@@ -242,7 +242,7 @@ export default function TDWorkstation({ backend }) {
       <span>{TD_ENGINE_VERSION}</span>
       <span data-testid="td-status-wellbore">{wellbore ? `${wellbore.name} (${depthUnit})` : 'no wellbore'}</span>
       <span data-testid="td-status-geometry" data-source={geometrySourceOf(geometryRow)} title={geometryRow?.label || ''}>{geometryStatusText(geometryRow)}</span>
-      <span>{caseDraft ? `${caseDraft.name} — string ${totalStringLengthM(caseDraft.string).toFixed(0)} m` : 'no case'}</span>
+      <span>{caseDraft ? `${caseDraft.name}: string ${totalStringLengthM(caseDraft.string).toFixed(0)} m` : 'no case'}</span>
       <span className="ml-auto">Soft-string (Johancsik); validated vs oracle goldens</span>
     </div>
   );

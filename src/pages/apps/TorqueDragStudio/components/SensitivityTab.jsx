@@ -55,7 +55,7 @@ export default function SensitivityTab({ stations, caseDraft, geometryRow, depth
       {rows && (
         <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
           <div className="mb-2 text-[10px] uppercase tracking-wide text-slate-500">
-            {showTorque ? `Surface torque (${torqueLabel(depthUnit)})` : `Hookload (${forceLabel(depthUnit)})`} — rows: FF cased, columns: FF open
+            {showTorque ? `Surface torque (${torqueLabel(depthUnit)})` : `Hookload (${forceLabel(depthUnit)})`}. Rows: FF cased, columns: FF open
           </div>
           <table className="text-xs text-slate-300" data-testid="td-sweep-table">
             <thead>

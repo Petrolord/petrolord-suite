@@ -347,7 +347,7 @@ export const CasingTubingDesignProvider = ({ backend, children }) => {
   // PPFG hint: sample the published mud window at the deepest casing shoe.
   const syncPpfgFromPublished = useCallback(() => {
     if (!mudWindow || !mudWindow.length || !caseDoc) {
-      toast({ title: 'No published PPFG', description: 'This wellbore has no bridged pp-1.0.0 curves — enter EMWs manually.', variant: 'destructive' });
+      toast({ title: 'No published PPFG', description: 'This wellbore has no bridged pp-1.0.0 curves. Enter EMWs manually.', variant: 'destructive' });
       return;
     }
     const last = mudWindow[mudWindow.length - 1];
