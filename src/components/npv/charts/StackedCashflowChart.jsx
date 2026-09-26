@@ -27,7 +27,7 @@ const StackedCashflowChart = ({ data, height = 300 }) => {
           yAxisId="right" orientation="right" stroke={CHART_COLORS.axisLine} tick={tick}
           tickFormatter={(v) => `$${mm(v)}MM`}
         />
-        <Tooltip {...TOOLTIP_STYLE} formatter={(v, name) => [`$${mm(v)}MM`, name]} />
+        <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, name) => [`$${mm(v)}MM`, name]} />
         <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
         <ReferenceLine yAxisId="left" y={0} stroke={CHART_COLORS.axisLine} />
 

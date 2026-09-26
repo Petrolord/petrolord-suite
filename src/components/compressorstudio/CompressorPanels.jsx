@@ -243,7 +243,7 @@ export const SweepChart = () => {
                 label={{ value: 'Brake power (bhp)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
               <YAxis yAxisId="st" orientation="right" allowDecimals={false} stroke={CHART_COLORS.axisLine} tick={tick}
                 label={{ value: 'Stages', angle: 90, position: 'insideRight', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
-              <Tooltip {...TOOLTIP_STYLE} formatter={(v, n) => [fmt(v, 1), n]}
+              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [fmt(v, 1), n]}
                 labelFormatter={(p) => `${fmt(p)} psig`} />
               <Legend verticalAlign="top" />
               <Bar yAxisId="st" dataKey="stages" name="Stages" fill="#94a3b8" />

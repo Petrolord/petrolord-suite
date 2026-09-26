@@ -169,7 +169,7 @@ export const CurveChart = () => {
               label={{ value: 'Flow (gpm)', position: 'insideBottom', offset: -8, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <YAxis stroke={CHART_COLORS.axisLine} tick={tick}
               label={{ value: 'Head (ft)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
-            <Tooltip {...TOOLTIP_STYLE} formatter={(v, n) => [fmt(v, 1), n]}
+            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [fmt(v, 1), n]}
               labelFormatter={(q) => `${fmt(q)} gpm`} />
             <Legend verticalAlign="top" />
             <Line dataKey="pump" name="Pump head (ft)" stroke="#059669" strokeWidth={2} dot={false} connectNulls />

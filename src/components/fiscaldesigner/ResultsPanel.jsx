@@ -201,7 +201,7 @@ const ResultsPanel = ({ results }) => {
                   <CartesianGrid {...GRID_STYLE} vertical={false} />
                   <XAxis dataKey="label" stroke={CHART_COLORS.axisLine} tick={tickStyle} label={axisLabel('Year', 'insideBottom', -10)} />
                   <YAxis stroke={CHART_COLORS.axisLine} tick={tickStyle} tickFormatter={(v) => `$${mm(v)}`} />
-                  <Tooltip {...TOOLTIP_STYLE} formatter={(v, name) => [`$${mm(v)}MM`, name]} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, name) => [`$${mm(v)}MM`, name]} />
                   <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
                   <ReferenceLine y={0} stroke={CHART_COLORS.axisLine} />
                   {barsFor(contractorRows)}
@@ -214,7 +214,7 @@ const ResultsPanel = ({ results }) => {
                   <CartesianGrid {...GRID_STYLE} vertical={false} />
                   <XAxis dataKey="label" stroke={CHART_COLORS.axisLine} tick={tickStyle} label={axisLabel('Year', 'insideBottom', -10)} />
                   <YAxis stroke={CHART_COLORS.axisLine} tick={tickStyle} tickFormatter={(v) => `$${mm(v)}`} />
-                  <Tooltip {...TOOLTIP_STYLE} formatter={(v, name) => [`$${mm(v)}MM`, name]} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, name) => [`$${mm(v)}MM`, name]} />
                   <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
                   {barsFor(governmentRows)}
                 </BarChart>
@@ -230,7 +230,7 @@ const ResultsPanel = ({ results }) => {
                 <CartesianGrid {...GRID_STYLE} />
                 <XAxis dataKey="label" stroke={CHART_COLORS.axisLine} tick={tickStyle} label={axisLabel('Year', 'insideBottom', -10)} />
                 <YAxis stroke={CHART_COLORS.axisLine} tick={tickStyle} tickFormatter={(v) => `$${mm(v)}`} />
-                <Tooltip {...TOOLTIP_STYLE} formatter={(v, name) => [`$${mm(v)}MM`, name]} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, name) => [`$${mm(v)}MM`, name]} />
                 <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
                 {/* Payback is where a line crosses this axis. */}
                 <ReferenceLine y={0} stroke={CHART_COLORS.axisLine} strokeDasharray="4 3" label={{ value: 'payback', fill: CHART_COLORS.axisText, fontSize: 10, position: 'insideTopLeft' }} />
@@ -251,7 +251,7 @@ const ResultsPanel = ({ results }) => {
                   <CartesianGrid {...GRID_STYLE} />
                   <XAxis dataKey="label" stroke={CHART_COLORS.axisLine} tick={tickStyle} label={axisLabel('Capex multiplier', 'insideBottom', -10)} />
                   <YAxis stroke={CHART_COLORS.axisLine} tick={tickStyle} tickFormatter={(v) => `$${mm(v)}`} />
-                  <Tooltip {...TOOLTIP_STYLE} formatter={(v, name) => [`$${mm(v)}MM`, name]} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, name) => [`$${mm(v)}MM`, name]} />
                   <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
                   <ReferenceLine y={0} stroke={CHART_COLORS.axisLine} strokeDasharray="4 3" />
                   {linesFor()}

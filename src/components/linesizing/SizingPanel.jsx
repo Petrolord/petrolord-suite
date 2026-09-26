@@ -106,7 +106,7 @@ const SweepChart = () => {
           label={{ value: 'dP (psi)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
         <YAxis yAxisId="v" orientation="right" stroke={CHART_COLORS.axisLine} tick={tick}
           label={{ value: 'velocity (ft/s)', angle: 90, position: 'insideRight', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
-        <Tooltip {...TOOLTIP_STYLE} formatter={(v, n) => [fmt(v, 2), n]} />
+        <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [fmt(v, 2), n]} />
         <Legend verticalAlign="top" />
         <Bar yAxisId="dp" dataKey="dp" name="Pressure drop (psi)">
           {data.map((d) => (

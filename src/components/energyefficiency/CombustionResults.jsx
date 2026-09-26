@@ -92,7 +92,7 @@ const CombustionResults = () => {
                 <XAxis dataKey="label" stroke={CHART_COLORS.axisLine} tick={tickStyle()} interval={0} angle={-15} textAnchor="end" height={60} />
                 <YAxis stroke={CHART_COLORS.axisLine} tick={tickStyle()}
                   label={{ value: '% of fuel', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
-                <Tooltip {...TOOLTIP_STYLE} formatter={(v) => `${fmt(v, 2)}%`} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => `${fmt(v, 2)}%`} />
                 <Bar dataKey="percent" name="Loss">
                   {drawnLosses.map((l) => (
                     <BarCell key={l.label} fill={l.color} />

@@ -61,7 +61,7 @@ const ConversionResults = () => {
           <CartesianGrid {...GRID_STYLE} />
           <XAxis dataKey="name" stroke={CHART_COLORS.axisLine} tick={tick} />
           <YAxis stroke={CHART_COLORS.axisLine} tick={tick} />
-          <Tooltip {...TOOLTIP_STYLE} formatter={(v) => fmt(v, 0)} />
+          <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => fmt(v, 0)} />
           <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
           <Bar dataKey="fuel" name="Fuel" stackId="a" fill="#0891b2" />
           <Bar dataKey="maintenance" name="Extra maintenance" stackId="a" fill="#f59e0b" />

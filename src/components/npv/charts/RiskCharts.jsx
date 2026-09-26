@@ -29,7 +29,7 @@ export const HistogramChart = ({ data, lowCase, bestCase, highCase, height = 300
       />
       <YAxis stroke={CHART_COLORS.axisLine} tick={tick} />
       <Tooltip
-        {...TOOLTIP_STYLE}
+        contentStyle={TOOLTIP_STYLE}
         formatter={(v) => [v, 'iterations']}
         labelFormatter={(v) => `around $${mm(v)}MM`}
       />
@@ -55,7 +55,7 @@ export const SCurveChart = ({ data, height = 300 }) => (
       />
       <YAxis stroke={CHART_COLORS.axisLine} tick={tick} unit="%" />
       <Tooltip
-        {...TOOLTIP_STYLE}
+        contentStyle={TOOLTIP_STYLE}
         formatter={(v) => [`${Number(v).toFixed(1)} %`, 'chance of coming in below']}
         labelFormatter={(v) => `$${mm(v)}MM`}
       />

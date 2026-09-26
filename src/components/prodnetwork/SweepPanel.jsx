@@ -86,7 +86,7 @@ const SweepPanel = () => {
                   }}
                 />
                 <Tooltip
-                  {...TOOLTIP_STYLE}
+                  contentStyle={TOOLTIP_STYLE}
                   formatter={(v) => [`${fmt(v)} stb/d`, 'Field']}
                   labelFormatter={(v) => `${fmt(v)} psia`}
                 />

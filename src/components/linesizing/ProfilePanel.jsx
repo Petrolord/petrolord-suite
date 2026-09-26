@@ -71,7 +71,7 @@ const GradientChart = () => {
           label={{ value: 'Pressure (psia)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
         <YAxis yAxisId="z" orientation="right" stroke={CHART_COLORS.axisLine} tick={tick}
           label={{ value: 'Elevation (ft)', angle: 90, position: 'insideRight', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
-        <Tooltip {...TOOLTIP_STYLE} formatter={(v, n) => [fmt(v, 1), n]} labelFormatter={(x) => `${fmt(x)} ft`} />
+        <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [fmt(v, 1), n]} labelFormatter={(x) => `${fmt(x)} ft`} />
         <Legend verticalAlign="top" />
         <Area yAxisId="z" dataKey="z" name="Elevation (ft)" fill="#e2e8f0" stroke="#94a3b8" />
         <Line yAxisId="p" dataKey="p" name="Pressure (psia)" stroke="#059669" strokeWidth={2} dot />

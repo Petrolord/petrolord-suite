@@ -129,7 +129,7 @@ export const FlowResults = () => {
                   label={{ value: 'Pipe Reynolds number', position: 'insideBottom', offset: -8, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
                 <YAxis stroke={CHART_COLORS.axisLine} tick={tick} domain={['auto', 'auto']}
                   label={{ value: 'Discharge coefficient', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
-                <Tooltip {...TOOLTIP_STYLE} formatter={(v) => [fmt(v, 5), 'Cd']}
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [fmt(v, 5), 'Cd']}
                   labelFormatter={(v) => `Re ${Number(v).toExponential(1)}` } />
                 <Legend verticalAlign="top" />
                 <Line dataKey="cd" name="Cd at this beta" stroke="#059669" strokeWidth={2} dot={false} />
@@ -196,7 +196,7 @@ export const UncertaintyResults = () => {
                 label={{ value: 'Share of variance (%)', position: 'insideBottom', offset: -4, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
               <YAxis type="category" dataKey="name" width={115} stroke={CHART_COLORS.axisLine}
                 tick={{ ...tick, fontSize: 10 }} />
-              <Tooltip {...TOOLTIP_STYLE} formatter={(v) => [`${fmt(v, 1)} %`, 'share of variance']} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [`${fmt(v, 1)} %`, 'share of variance']} />
               <Bar dataKey="share" name="Share of variance (%)" fill="#0ea5e9" />
             </ComposedChart>
           </ChartFrame>

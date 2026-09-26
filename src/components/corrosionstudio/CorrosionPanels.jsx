@@ -235,7 +235,7 @@ export const SweepChart = () => {
                 label={{ value: 'Velocity (ft/s)', position: 'insideBottom', offset: -8, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
               <YAxis stroke={CHART_COLORS.axisLine} tick={tick}
                 label={{ value: 'Rate (mm/yr)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
-              <Tooltip {...TOOLTIP_STYLE} formatter={(v, n) => [fmt(v, 3), n]} labelFormatter={(v) => `${fmt(v, 1)} ft/s`} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [fmt(v, 3), n]} labelFormatter={(v) => `${fmt(v, 1)} ft/s`} />
               <Legend verticalAlign="top" />
               {strip !== null && (
                 <ReferenceLine x={strip} stroke="#dc2626" strokeDasharray="4 3"

@@ -41,7 +41,7 @@ const PortfolioComparison = ({ isOpen, onClose, comparisonData }) => {
                       <XAxis dataKey="name" stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
                       <YAxis yAxisId="left" orientation="left" stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} tickFormatter={(val) => formatCurrency(val, '')} />
                       <YAxis yAxisId="right" orientation="right" stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} tickFormatter={(val) => formatCurrency(val, '')} />
-                      <Tooltip {...TOOLTIP_STYLE} formatter={(value, name) => [formatCurrency(value), name]} />
+                      <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value, name) => [formatCurrency(value), name]} />
                       <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
                       <Bar yAxisId="left" dataKey="EMV" fill="#059669" name="Risked EMV" />
                       <Bar yAxisId="right" dataKey="CAPEX" fill="#d97706" name="Total CAPEX" />

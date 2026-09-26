@@ -50,7 +50,7 @@ const SpiderChart = ({ sensitivityData, height = 320 }) => {
           />
           <YAxis stroke={CHART_COLORS.axisLine} tick={tick} tickFormatter={(v) => `$${mm(v)}MM`} />
           <Tooltip
-            {...TOOLTIP_STYLE}
+            contentStyle={TOOLTIP_STYLE}
             formatter={(v, name) => [`$${mm(v)}MM`, name]}
             labelFormatter={(v) => `${v > 0 ? '+' : ''}${v}% change`}
           />

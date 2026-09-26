@@ -155,7 +155,7 @@ const LpgResults = () => {
                 <XAxis dataKey="label" stroke={CHART_COLORS.axisLine} tick={tick} interval={0} angle={-15} textAnchor="end" height={60} />
                 <YAxis stroke={CHART_COLORS.axisLine} tick={tick}
                   label={{ value: 'days', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
-                <Tooltip {...TOOLTIP_STYLE} formatter={(v) => `${fmt(v, 1)} days`} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => `${fmt(v, 1)} days`} />
                 <Bar dataKey="days" name="Days">
                   {cylinderFleet.stages.map((s, i) => (
                     <BarCell key={s.label} fill={STAGE_COLORS[i % STAGE_COLORS.length]} />
