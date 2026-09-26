@@ -32,7 +32,22 @@ const TracksPanel = () => {
       const l = labelsOf(results[k]?.result);
       if (l && l.length === design.X.length) out.push({ key: k, labels: l, stale: isStale(k) });
     });
-    return out.map((t) => ({ ...t, classes: classesOf(t.labels) }));
+    // EFACIES-T1-002: a cluster number carries no colour of its own. When
+    // the clustering was matched to the core, each cluster takes the colour
+    // of its matched facies, so a column that agrees with the core looks it.
+    const coreClasses = design.facies ? classesOf(design.facies) : null;
+    return out.map((t) => {
+      const classes = classesOf(t.labels);
+      const mapping = results[t.key]?.result?.compare?.match?.mapping;
+      if (!coreClasses || !Array.isArray(mapping) || !mapping.length) return { ...t, classes };
+      const toFacies = new Map(mapping.map((m) => [m.cluster, m.facies]));
+      const colourIndex = new Map(classes.map((c) => {
+        const f = toFacies.get(c) ?? toFacies.get(String(c)) ?? toFacies.get(Number(c));
+        const i = coreClasses.indexOf(f);
+        return [c, i >= 0 ? i : coreClasses.length + classes.indexOf(c)];
+      }));
+      return { ...t, classes, colourIndex, matchedTo: toFacies };
+    });
   }, [ok, design, results, isStale]);
 
   if (!ok) return <NeedDesign />;
@@ -42,7 +57,7 @@ const TracksPanel = () => {
   const depth = idx.map((j, i) => (hasDepth ? design.depth[j] : i));
   const values = idx.map((j) => table.columns[curveName][design.rows[j]]);
   const tracks = labellings.map((t) => ({
-    key: t.key, name: TRACK_NAMES[t.key], labels: idx.map((j) => t.labels[j]), classes: t.classes,
+    key: t.key, name: TRACK_NAMES[t.key], labels: idx.map((j) => t.labels[j]), classes: t.classes, colourIndex: t.colourIndex,
   }));
 
   return (
@@ -63,7 +78,12 @@ const TracksPanel = () => {
         />
         <div className="space-y-1">
           {labellings.map((t) => (
-            <ClassLegend key={t.key} name={TRACK_NAMES[t.key]} classes={t.classes} describe={(c) => (t.key === 'kmeans' || t.key === 'agglomerative' ? `cluster ${c}` : String(c))} />
+            <ClassLegend key={t.key} name={TRACK_NAMES[t.key]} classes={t.classes} colourIndex={t.colourIndex}
+              describe={(c) => {
+                if (t.key !== 'kmeans' && t.key !== 'agglomerative') return String(c);
+                const f = t.matchedTo && (t.matchedTo.get(c) ?? t.matchedTo.get(String(c)) ?? t.matchedTo.get(Number(c)));
+                return f !== undefined ? `cluster ${c} (${f})` : `cluster ${c}`;
+              }} />
           ))}
         </div>
         <Note>

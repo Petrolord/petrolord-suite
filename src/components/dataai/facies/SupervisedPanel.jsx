@@ -14,6 +14,10 @@ import {
   ConfusionTable, dn, Grid, NeedDesign, ReportTable, RunButton, StaleNote,
 } from './common';
 
+// EFACIES-T1-004: split thresholds are midpoints and print with binary
+// float noise (95.92500000000001); shown to 10 significant figures.
+const cleanTree = (text) => String(text || '').replace(/-?\d+\.\d{7,}/g, (m) => String(Number(Number(m).toPrecision(10))));
+
 const HoldOut = () => {
   const { spec, updateSpec, design } = useElectrofacies();
   const sup = spec.supervised;
@@ -141,7 +145,7 @@ const CartSection = () => {
               <p className="text-xs text-slate-200">
                 Final tree on every cored row: {r.finalTree.nLeaves} leaves, depth {r.finalTree.depth}, training accuracy {dn(r.finalTree.trainingAccuracy)} (measured on the rows it was grown on).
               </p>
-              <pre className="max-h-96 overflow-auto rounded border border-slate-800 bg-slate-950 p-2 font-mono text-[11px] leading-snug text-slate-200" data-testid="cart-tree">{r.finalTree.printed}</pre>
+              <pre className="max-h-96 overflow-auto rounded border border-slate-800 bg-slate-950 p-2 font-mono text-[11px] leading-snug text-slate-200" data-testid="cart-tree">{cleanTree(r.finalTree.printed)}</pre>
               <Grid
                 testId="cart-importance"
                 caption="Feature importance: each log's share of the total Gini decrease (engine featureImportances)."
@@ -152,7 +156,7 @@ const CartSection = () => {
           ) : null}
           <details className="text-xs text-slate-300">
             <summary className="cursor-pointer text-slate-400">The tree grown on the training wells only (the one scored above)</summary>
-            <pre className="mt-1 max-h-72 overflow-auto rounded border border-slate-800 bg-slate-950 p-2 font-mono text-[11px] leading-snug" data-testid="cart-blind-tree">{r.blindTree.printed}</pre>
+            <pre className="mt-1 max-h-72 overflow-auto rounded border border-slate-800 bg-slate-950 p-2 font-mono text-[11px] leading-snug" data-testid="cart-blind-tree">{cleanTree(r.blindTree.printed)}</pre>
           </details>
         </div>
       ) : null}
