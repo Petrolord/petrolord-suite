@@ -2,7 +2,10 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle } from 'lucide-react';
 import { irrReason } from '@/utils/fdp/planEconomics';
-import { BarChart, LineChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart } from 'recharts';
+import { fmtMM } from '@/utils/fdp/formatting';
+import { BarChart, LineChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ComposedChart } from 'recharts';
+import ChartFrame from '@/components/charts/ChartFrame';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS } from '@/utils/chartTheme';
 
 /**
  * The plan's screening economics.
@@ -36,7 +39,7 @@ const EconomicsAnalysis = ({ economics }) => {
         );
     }
 
-    const { metrics, basis, cashflow, inputs, abandonment } = economics;
+    const { metrics, basis, cashflow, inputs, abandonment, reservesCheck } = economics;
     const { npv, irr, payback } = metrics;
     const reason = irrReason(metrics);
     const abex = abandonment || { abandonmentSource: 'none', abandonmentMM: 0 };
@@ -48,7 +51,7 @@ const EconomicsAnalysis = ({ economics }) => {
                     <div className="p-4 text-center">
                         <div className="text-xs text-slate-400 uppercase mb-1">NPV @ {basis.discountRate}%</div>
                         <div className={`text-3xl font-bold ${npv >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            ${npv.toFixed(1)}M
+                            {fmtMM(npv)}
                         </div>
                     </div>
                 </Card>
@@ -81,6 +84,12 @@ const EconomicsAnalysis = ({ economics }) => {
                 screening economics engine.
             </p>
 
+            {(reservesCheck?.warnings || []).filter((w) => w.code === 'profile-exceeds-p50').map((w) => (
+                <div key={w.code} className="rounded-md border border-amber-600/40 bg-amber-900/20 p-3 text-xs text-amber-200" data-testid="econ-reserves-warning">
+                    {w.message}
+                </div>
+            ))}
+
             <p className="text-xs text-slate-400" data-testid="abandonment-basis">
                 {abex.abandonmentSource === 'none'
                     ? 'No end-of-life cost is in this case. '
@@ -93,22 +102,18 @@ const EconomicsAnalysis = ({ economics }) => {
                     <CardTitle className="text-white text-sm">Cash Flow Profile</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
+                    <ChartFrame height={300}>
                             <ComposedChart data={cashflow}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                                <XAxis dataKey="year" stroke="#94a3b8" />
-                                <YAxis stroke="#94a3b8" />
-                                <Tooltip
-                                    contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc' }}
-                                    labelStyle={{ color: '#94a3b8' }}
-                                />
-                                <Legend />
+                                <CartesianGrid {...GRID_STYLE} />
+                                <XAxis dataKey="year" stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+                                <YAxis stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} tickFormatter={(v) => Number(v).toFixed(0)}
+                                    label={{ value: '$MM', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }} />
+                                <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={(y) => `Year ${y}`} formatter={(v) => `$${Number(v).toFixed(1)}MM`} />
+                                <Legend {...LEGEND_PROPS} />
                                 <Bar dataKey="netCashFlow" name="Net Cash Flow" fill="#3b82f6" barSize={20} />
                                 <Line type="monotone" dataKey="cumulativeCashFlow" name="Cumulative CF" stroke="#10b981" strokeWidth={2} dot={false} />
                             </ComposedChart>
-                        </ResponsiveContainer>
-                    </div>
+                        </ChartFrame>
                 </CardContent>
             </Card>
         </div>

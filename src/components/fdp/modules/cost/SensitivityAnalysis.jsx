@@ -1,7 +1,9 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
+import ChartFrame from '@/components/charts/ChartFrame';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 
 /**
  * NPV sensitivity for the plan in front of the user.
@@ -45,20 +47,21 @@ const SensitivityAnalysis = ({ economics }) => {
                 <CardTitle className="text-white text-sm">NPV Sensitivity (Tornado Chart)</CardTitle>
             </CardHeader>
             <CardContent>
-                <div className="h-[300px] w-full flex items-center justify-center">
-                    <ResponsiveContainer width="100%" height="100%">
+                <ChartFrame height={300}>
                         <BarChart
                             layout="vertical"
                             data={tornadoData}
-                            margin={{ top: 20, right: 30, left: 100, bottom: 5 }}
+                            margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
                             stackOffset="sign"
                         >
-                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
-                            <XAxis type="number" stroke="#94a3b8" />
-                            <YAxis dataKey="name" type="category" stroke="#94a3b8" width={120} />
+                            <CartesianGrid {...GRID_STYLE} horizontal={false} />
+                            <XAxis type="number" stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} tickFormatter={(v) => Number(v).toFixed(0)}
+                                label={{ value: 'Change in NPV ($MM)', position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }} />
+                            <YAxis dataKey="name" type="category" stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} width={120} />
                             <Tooltip
                                 cursor={{ fill: 'transparent' }}
-                                contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc' }}
+                                contentStyle={TOOLTIP_STYLE}
+                                formatter={(v) => `$${Number(v).toFixed(1)}MM`}
                             />
                             <Bar dataKey="min" fill="#ef4444" name="Downside Impact" stackId="a">
                                 {tornadoData.map((entry, index) => (
@@ -71,8 +74,7 @@ const SensitivityAnalysis = ({ economics }) => {
                                 ))}
                             </Bar>
                         </BarChart>
-                    </ResponsiveContainer>
-                </div>
+                    </ChartFrame>
                 <p className="text-xs text-slate-500 text-center mt-4">
                     Change in NPV ($MM) against this plan's base case (${base.toFixed(1)}MM), each
                     driver swept plus and minus 30 percent.

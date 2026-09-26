@@ -1,6 +1,5 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { differenceInDays, parseISO, addDays, format } from 'date-fns';
 
 const GanttChart = ({ activities }) => {
@@ -29,7 +28,7 @@ const GanttChart = ({ activities }) => {
     return (
         <Card className="bg-slate-900 border-slate-800 overflow-hidden">
             <CardContent className="p-0">
-                <ScrollArea className="w-full h-[500px]">
+                <div className="w-full h-[500px] overflow-auto">
                     <div className="relative" style={{ width: `${chartWidth + 300}px` }}>
                         {/* Header */}
                         <div className="flex h-10 bg-slate-800 border-b border-slate-700 sticky top-0 z-10">
@@ -91,8 +90,7 @@ const GanttChart = ({ activities }) => {
                             })}
                         </div>
                     </div>
-                    <ScrollBar orientation="horizontal" />
-                </ScrollArea>
+                </div>
             </CardContent>
         </Card>
     );

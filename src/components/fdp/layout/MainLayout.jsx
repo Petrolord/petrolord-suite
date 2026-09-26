@@ -8,9 +8,9 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import StudioNotifications from '@/components/studio/StudioNotifications';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Activity, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { formatCurrency } from '@/utils/fdp/formatting';
 import { computePlanEconomics, planEconomicsPayload } from '@/utils/fdp/planEconomics';
 import { planReservesP50 } from '@/utils/fdp/fdpCalculations';
+import { fmtMM } from '@/utils/fdp/formatting';
 
 /**
  * What the plan is still missing, worked out from the plan (Economics E3).
@@ -32,6 +32,11 @@ export const openItems = (state) => {
     if (!(planReservesP50(state) > 0 || planReservesP50(state, 'Gas') > 0)) {
         items.push('Enter P50 reserves on the Subsurface tab.');
     }
+    // FDP-T1-003: the screening NPV needs a concept and a scenario, so the
+    // list names them too (it used to go quiet while the NPV still said
+    // "missing a development concept, an economic scenario")
+    if (!state.concepts?.list?.length) items.push('Define a development concept on the Concepts tab.');
+    if (!state.scenarios?.list?.length) items.push('Add an economic scenario on the Scenarios tab.');
     if (!state.wells?.list?.length) items.push('Add at least one well on the Wells tab.');
     if (!state.facilities?.list?.length) items.push('Add a facility on the Facilities tab.');
     if (!state.costs?.items?.length) items.push('Add cost items on the Economics tab.');
@@ -65,7 +70,7 @@ const RightPanel = () => {
                                 <div className="text-xs text-slate-400">NPV</div>
                                 {economics.available ? (
                                     <div className={`text-lg font-bold ${economics.metrics.npv >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                        {formatCurrency(economics.metrics.npv, 'USD', true)}
+                                        {fmtMM(economics.metrics.npv)}
                                     </div>
                                 ) : (
                                     <div className="text-sm font-medium text-slate-400">Not yet</div>
@@ -154,12 +159,15 @@ const MainLayout = ({ children }) => {
                 </aside>
 
                 {/* Main Content Area */}
-                <main className="flex-1 flex flex-col overflow-hidden relative bg-slate-950">
-                    <ScrollArea className="flex-1">
+                {/* FDP-T1-002: a plain scroller. Radix ScrollArea sizes its
+                    viewport to the widest child, so a wide Gantt pushed the
+                    whole column under the Plan status rail. */}
+                <main className="flex-1 min-w-0 flex flex-col overflow-hidden relative bg-slate-950">
+                    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
                         <div className="p-6 min-h-full">
                             {children}
                         </div>
-                    </ScrollArea>
+                    </div>
                 </main>
 
                 {/* Right Panel */}
