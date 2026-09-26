@@ -84,6 +84,19 @@ export function EcdChart({ hyd, mudWindow, depthUnit, staticDensityKgM3 }) {
       : null,
   }));
   const merged = [...windowRows, ...data].sort((a, b) => a.tvd - b.tvd);
+  // a range Area does not bridge rows without a window (the ECD rows): it
+  // dropped to the axis there. Interpolate the window onto every row inside
+  // its depth range.
+  const win = windowRows.filter((r) => r.window);
+  if (win.length > 1) {
+    for (const r of merged) {
+      if (r.window || r.tvd < win[0].tvd || r.tvd > win[win.length - 1].tvd) continue;
+      const k = win.findIndex((w) => w.tvd >= r.tvd);
+      const hi = win[k]; const lo = win[Math.max(0, k - 1)];
+      const t = hi.tvd === lo.tvd ? 0 : (r.tvd - lo.tvd) / (hi.tvd - lo.tvd);
+      r.window = [lo.window[0] + t * (hi.window[0] - lo.window[0]), lo.window[1] + t * (hi.window[1] - lo.window[1])];
+    }
+  }
   return (
     <Frame title={`ECD vs TVD (${emwLabel(depthUnit)})`} testId="hyd-ecd-chart">
       <ResponsiveContainer width="100%" height="100%">
@@ -92,7 +105,7 @@ export function EcdChart({ hyd, mudWindow, depthUnit, staticDensityKgM3 }) {
           <XAxis type="number" domain={['auto', 'auto']} {...axisProps}
             tickFormatter={(v) => v.toFixed(2)}
             label={{ value: emwLabel(depthUnit), position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
-          <YAxis dataKey="tvd" type="number" reversed domain={['dataMin', 'dataMax']} {...axisProps}
+          <YAxis dataKey="tvd" type="number" domain={['dataMin', 'dataMax']} {...axisProps}
             tickFormatter={(v) => v.toFixed(0)}
             label={{ value: `TVD (${depthLabel(depthUnit)})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <Tooltip contentStyle={TOOLTIP_STYLE}

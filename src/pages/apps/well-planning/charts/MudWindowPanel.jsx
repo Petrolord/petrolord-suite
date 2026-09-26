@@ -58,7 +58,7 @@ const MudWindowPanel = ({ rows = [], summary = null, sourceLabel = '' }) => {
             <XAxis type="number" domain={['auto', 'auto']} {...axisProps}
               tickFormatter={(v) => v.toFixed(mode === 'emw' ? 2 : 0)}
               label={{ value: keys.unit, position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
-            <YAxis dataKey="tvd" type="number" reversed domain={['dataMin', 'dataMax']} {...axisProps}
+            <YAxis dataKey="tvd" type="number" domain={['dataMin', 'dataMax']} {...axisProps}
               tickFormatter={(v) => v.toFixed(0)}
               label={{ value: 'TVD (m)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
             <Tooltip contentStyle={TOOLTIP_STYLE}

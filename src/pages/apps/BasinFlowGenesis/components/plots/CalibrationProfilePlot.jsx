@@ -31,7 +31,6 @@ const CalibrationProfilePlot = ({ title, xLabel, modeled, measured, color, depth
                         <YAxis
                             type="number"
                             dataKey="depth"
-                            reversed
                             domain={['auto', 'auto']}
                             stroke={CHART_COLORS.axisLine}
                             tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}

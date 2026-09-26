@@ -89,7 +89,6 @@ const PressureDepthChart = () => {
             <YAxis
               type="number"
               dataKey="tvd"
-              reversed
               stroke={CHART_COLORS.axisLine}
               domain={[0, 'dataMax']}
               tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}

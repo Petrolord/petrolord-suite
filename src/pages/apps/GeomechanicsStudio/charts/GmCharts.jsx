@@ -41,7 +41,7 @@ export function StressProfileChart({ profile, depthUnit }) {
           <CartesianGrid {...GRID_STYLE} />
           <XAxis type="number" domain={[0, 'auto']} {...axisProps}
             label={{ value: 'MPa', position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
-          <YAxis dataKey="tvd" type="number" reversed domain={['dataMin', 'dataMax']} {...axisProps}
+          <YAxis dataKey="tvd" type="number" domain={['dataMin', 'dataMax']} {...axisProps}
             tickFormatter={(v) => v.toFixed(0)}
             label={{ value: `TVD (${depthLabel(depthUnit)})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <Tooltip contentStyle={TOOLTIP_STYLE}
@@ -72,7 +72,7 @@ export function UcsChart({ profile, depthUnit }) {
           <CartesianGrid {...GRID_STYLE} />
           <XAxis type="number" domain={[0, 'auto']} {...axisProps}
             label={{ value: 'MPa', position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
-          <YAxis dataKey="tvd" type="number" reversed domain={['dataMin', 'dataMax']} {...axisProps}
+          <YAxis dataKey="tvd" type="number" domain={['dataMin', 'dataMax']} {...axisProps}
             tickFormatter={(v) => v.toFixed(0)} />
           <Tooltip contentStyle={TOOLTIP_STYLE}
             formatter={(v) => (Number.isFinite(v) ? v.toFixed(1) : '--')}
@@ -105,7 +105,7 @@ export function MudWindowChart({ window: win, depthUnit }) {
           <XAxis type="number" domain={['auto', 'auto']} {...axisProps}
             tickFormatter={(v) => v.toFixed(2)}
             label={{ value: emwLabel(depthUnit), position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
-          <YAxis dataKey="md" type="number" reversed domain={['dataMin', 'dataMax']} {...axisProps}
+          <YAxis dataKey="md" type="number" domain={['dataMin', 'dataMax']} {...axisProps}
             tickFormatter={(v) => v.toFixed(0)}
             label={{ value: `MD (${depthLabel(depthUnit)})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <Tooltip contentStyle={TOOLTIP_STYLE}

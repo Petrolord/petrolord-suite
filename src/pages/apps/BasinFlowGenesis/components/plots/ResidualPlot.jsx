@@ -22,7 +22,7 @@ const ResidualPlot = ({ roStats, tempStats, depthLabel = 'Depth (m)', tempUnit =
                             <BarChart layout="vertical" data={roStats} margin={{ top: 5, right: 10, left: 10, bottom: 20 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
                                 <XAxis type="number" {...axisProps} label={{ value: 'Residual', position: 'bottom', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
-                                <YAxis type="number" dataKey="depth" reversed {...axisProps} label={{ value: depthLabel, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
+                                <YAxis type="number" dataKey="depth" {...axisProps} label={{ value: depthLabel, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
                                 <Tooltip contentStyle={{ backgroundColor: CHART_COLORS.tooltipBg, borderColor: CHART_COLORS.tooltipBorder, color: CHART_COLORS.tooltipText }} />
                                 <Bar dataKey="residual" fill="#db2777" name="Ro Residual" />
                             </BarChart>
@@ -37,7 +37,7 @@ const ResidualPlot = ({ roStats, tempStats, depthLabel = 'Depth (m)', tempUnit =
                             <BarChart layout="vertical" data={tempStats} margin={{ top: 5, right: 10, left: 10, bottom: 20 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
                                 <XAxis type="number" {...axisProps} label={{ value: 'Residual', position: 'bottom', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
-                                <YAxis type="number" dataKey="depth" reversed {...axisProps} />
+                                <YAxis type="number" dataKey="depth" {...axisProps} />
                                 <Tooltip contentStyle={{ backgroundColor: CHART_COLORS.tooltipBg, borderColor: CHART_COLORS.tooltipBorder, color: CHART_COLORS.tooltipText }} />
                                 <Bar dataKey="residual" fill="#d97706" name="Temp Residual" />
                             </BarChart>

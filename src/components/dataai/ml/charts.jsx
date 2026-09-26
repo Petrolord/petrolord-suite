@@ -72,7 +72,7 @@ export const DepthTrack = ({
     <ComposedChart layout="vertical" data={rows} margin={{ top: 8, right: 28, bottom: 12, left: 8 }}>
       <CartesianGrid {...GRID_STYLE} />
       <XAxis type="number" tick={tick} stroke={CHART_COLORS.axisLine} domain={['auto', 'auto']} tickFormatter={fmt} height={XAXIS_LABEL_HEIGHT} label={axisLabel(valueLabel, { position: 'insideBottom', offset: 0 })} />
-      <YAxis type="number" dataKey="depth" reversed tick={tick} stroke={CHART_COLORS.axisLine} width={70} domain={['dataMin', 'dataMax']} tickFormatter={fmt} label={axisLabel(depthLabel, { angle: -90, position: 'insideLeft' })} />
+      <YAxis type="number" dataKey="depth" tick={tick} stroke={CHART_COLORS.axisLine} width={70} domain={['dataMin', 'dataMax']} tickFormatter={fmt} label={axisLabel(depthLabel, { angle: -90, position: 'insideLeft' })} />
       <Tooltip {...PINNED_TOOLTIP_PROPS} formatter={(v) => fmt(v)} labelFormatter={(v) => `${fmt(v)} ${depthLabel}`} />
       <Legend {...LEGEND_PROPS} />
       <Line dataKey="actual" name={actualName} stroke={SERIES.actual} strokeWidth={1.5} dot={false} isAnimationActive={false} connectNulls={false} />

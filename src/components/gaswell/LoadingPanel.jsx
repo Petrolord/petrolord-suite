@@ -102,7 +102,6 @@ const LoadingPanel = () => {
               <YAxis
                 type="number"
                 dataKey="depthFt"
-                reversed
                 domain={[0, 'dataMax']}
                 stroke={CHART_COLORS.axisLine}
                 tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
