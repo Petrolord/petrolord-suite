@@ -14,7 +14,7 @@ import { Play, RefreshCw, TrendingDown, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS } from '@/utils/chartTheme';
 import { useProductionNetwork } from '@/contexts/ProductionNetworkContext';
 import { Stat, Row, fmt } from './fields';
 
@@ -129,7 +129,7 @@ const ResultsPanel = () => {
                 }}
               />
               <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [fmt(v), n]} />
-              <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize }} />
+              <Legend {...LEGEND_PROPS} />
               <Bar dataKey="inNetwork" stackId="a" name="Makes in the network" fill="#059669" isAnimationActive={false} />
               <Bar dataKey="lost" stackId="a" name="Lost to the other wells" fill="#d97706" isAnimationActive={false} />
             </BarChart>

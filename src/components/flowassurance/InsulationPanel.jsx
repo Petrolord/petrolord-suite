@@ -11,7 +11,7 @@ import { Play, RefreshCw, Thermometer } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useFlowAssurance } from '@/contexts/FlowAssuranceContext';
 import { Field, NumberInput, Stat, Row, fmt } from './fields';
 
@@ -144,11 +144,12 @@ const InsulationPanel = () => {
                 >
                   <CartesianGrid {...GRID_STYLE} />
                   <XAxis
+                height={XAXIS_LABEL_HEIGHT}
                     type="number" dataKey="u" domain={['dataMin', 'dataMax']}
                     stroke={CHART_COLORS.axisLine}
                     tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                     label={{
-                      value: 'Overall U (Btu/hr-ft2-F)', position: 'insideBottom', offset: -10,
+                      value: 'Overall U (Btu/hr-ft2-F)', position: 'insideBottom', offset: 0,
                       fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
                     }}
                   />
@@ -169,12 +170,12 @@ const InsulationPanel = () => {
                     }}
                   />
                   <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [fmt(v, 1), n]} />
-                  <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize }} />
+                  <Legend {...LEGEND_PROPS} />
                   <ReferenceLine yAxisId="s" y={0} stroke="#dc2626" strokeDasharray="4 3" />
                   {firstLeg && (
                     <ReferenceLine
                       yAxisId="t" x={firstLeg.u.uBtuHrFt2F} stroke="#0891b2" strokeDasharray="4 3"
-                      label={{ value: 'This line', fill: '#0891b2', fontSize: 10, position: 'top' }}
+                      label={{ value: 'This line', fill: '#0891b2', fontSize: 10, position: 'insideTopRight' }}
                     />
                   )}
                   <Line
