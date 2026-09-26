@@ -2,7 +2,7 @@
 // traverse at a chosen rate with holdup/regime diagnostics.
 import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { CHART_COLORS, CHART_TYPOGRAPHY, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useNodalStudio } from '@/contexts/NodalAnalysisStudioContext';
 import { CORRELATIONS } from '@/utils/nodal/correlations/index';
 import { ChartCard, Kpi, WarningBanner, LINE, fmtU, fmt } from './primitives';
@@ -17,7 +17,8 @@ const tooltipProps = {
   labelStyle: { color: CHART_COLORS.tooltipText },
   itemStyle: { color: CHART_COLORS.tooltipText },
 };
-const legendProps = { wrapperStyle: { fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText } };
+// Nodal T1: the shared legend band, so the legend never sits on the axis title
+const legendProps = LEGEND_PROPS;
 
 const VlpResults = () => {
   const { system, traverseProfile, isGasWell, unitSystem, completion, vlpSpec } = useNodalStudio();
@@ -63,14 +64,14 @@ const VlpResults = () => {
       </div>
 
       <ChartCard title="Tubing performance (outflow) curve" height={300}>
-        <LineChart data={vlpData} margin={{ top: 10, right: 20, bottom: 24, left: 12 }}>
+        <LineChart data={vlpData} margin={{ top: 10, right: 20, bottom: 8, left: 12 }}>
           <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" />
-          <XAxis
+          <XAxis height={XAXIS_LABEL_HEIGHT}
             dataKey="q"
             type="number"
             domain={[0, 'auto']}
             {...axisProps}
-            label={{ value: `Rate (${unitLabel(rateKind, unitSystem)})`, position: 'insideBottom', offset: -12, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
+            label={{ value: `Rate (${unitLabel(rateKind, unitSystem)})`, position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
           />
           <YAxis
             type="number"
@@ -86,14 +87,14 @@ const VlpResults = () => {
 
       {!isGasWell && profileData.length > 0 && (
         <ChartCard title="Pressure traverse at the viewed rate" height={330}>
-          <LineChart data={profileData} margin={{ top: 10, right: 20, bottom: 24, left: 12 }}>
+          <LineChart data={profileData} margin={{ top: 10, right: 20, bottom: 8, left: 12 }}>
             <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" />
-            <XAxis
+            <XAxis height={XAXIS_LABEL_HEIGHT}
               dataKey="p"
               type="number"
               domain={['auto', 'auto']}
               {...axisProps}
-              label={{ value: `Pressure (${unitLabel('pressure', unitSystem)})`, position: 'insideBottom', offset: -12, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
+              label={{ value: `Pressure (${unitLabel('pressure', unitSystem)})`, position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
             />
             <YAxis
               dataKey="tvd"

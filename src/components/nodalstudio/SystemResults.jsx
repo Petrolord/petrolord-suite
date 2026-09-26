@@ -2,7 +2,7 @@
 // crossing diagnostics.
 import React, { useMemo } from 'react';
 import { ComposedChart, Line, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { CHART_COLORS, CHART_TYPOGRAPHY, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useNodalStudio } from '@/contexts/NodalAnalysisStudioContext';
 import { ChartCard, Kpi, WarningBanner, LINE, fmtU, valueWithUnit, fmt, SectionLabel } from './primitives';
 import { unitLabel, fromOilfield } from '@/utils/nodal/units';
@@ -16,7 +16,8 @@ const tooltipProps = {
   labelStyle: { color: CHART_COLORS.tooltipText },
   itemStyle: { color: CHART_COLORS.tooltipText },
 };
-const legendProps = { wrapperStyle: { fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText } };
+// Nodal T1: the shared legend band, so the legend never sits on the axis title
+const legendProps = LEGEND_PROPS;
 
 const STATUS_COPY = {
   flowing: { text: 'The well flows at a stable operating point.', cls: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300' },
@@ -48,6 +49,23 @@ const SystemResults = () => {
     ];
   }, [system, unitSystem, rateKind]);
 
+  // NODAL-T1-001: explicit domains. With the operating point as a Scatter on
+  // its own data, Recharts sized both axes to that one point, so the plot
+  // stopped at the operating rate and cut the IPR off above its pwf. The x
+  // axis now runs to the end of the curve (AOF) and the y axis to just above
+  // the reservoir pressure; a VLP rising past that at low rates is clipped.
+  const domains = useMemo(() => {
+    if (!chartData.length) return { x: [0, 'auto'], y: [0, 'auto'] };
+    const nice = (v) => {
+      if (!(v > 0)) return 'auto';
+      const step = 10 ** Math.floor(Math.log10(v)) / 2;
+      return Math.ceil(v / step) * step;
+    };
+    const qMaxData = Math.max(...chartData.map((d) => d.q).filter(Number.isFinite));
+    const pTop = Math.max(...chartData.map((d) => d.ipr).filter(Number.isFinite), ...opData.map((d) => d.p));
+    return { x: [0, nice(qMaxData)], y: [0, nice(pTop * 1.1)] };
+  }, [chartData, opData]);
+
   const status = STATUS_COPY[system?.status] || STATUS_COPY.invalid;
   const inputErrors = [fluidSpec?.error, wellSpec?.error, inflowSpec?.error, vlpSpec?.error, system?.error].filter(Boolean);
   const iprWarnings = (isGasWell ? inflowSpec?.gasIpr?.warnings : inflowSpec?.ipr?.warnings) || [];
@@ -69,18 +87,20 @@ const SystemResults = () => {
       )}
 
       <ChartCard title="Nodal system plot" height={360}>
-        <ComposedChart data={chartData} margin={{ top: 10, right: 20, bottom: 24, left: 12 }}>
+        <ComposedChart data={chartData} margin={{ top: 10, right: 20, bottom: 8, left: 12 }}>
           <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" />
-          <XAxis
+          <XAxis height={XAXIS_LABEL_HEIGHT}
             dataKey="q"
             type="number"
-            domain={[0, 'auto']}
+            domain={domains.x}
+            allowDataOverflow
             {...axisProps}
-            label={{ value: `Rate (${unitLabel(rateKind, unitSystem)})`, position: 'insideBottom', offset: -12, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
+            label={{ value: `Rate (${unitLabel(rateKind, unitSystem)})`, position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
           />
           <YAxis
             type="number"
-            domain={[0, 'auto']}
+            domain={domains.y}
+            allowDataOverflow
             {...axisProps}
             label={{ value: `Node pressure (${unitLabel('pressure', unitSystem)})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
           />

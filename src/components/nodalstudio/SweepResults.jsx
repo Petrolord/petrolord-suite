@@ -1,7 +1,7 @@
 // Results views for the sensitivity and gas-lift tabs.
 import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceDot } from 'recharts';
-import { CHART_COLORS, CHART_TYPOGRAPHY, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useNodalStudio } from '@/contexts/NodalAnalysisStudioContext';
 import { ChartCard, Kpi, LINE, fmtU, fmt, SectionLabel } from './primitives';
 import { unitLabel, fromOilfield } from '@/utils/nodal/units';
@@ -15,7 +15,8 @@ const tooltipProps = {
   labelStyle: { color: CHART_COLORS.tooltipText },
   itemStyle: { color: CHART_COLORS.tooltipText },
 };
-const legendProps = { wrapperStyle: { fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText } };
+// Nodal T1: the shared legend band, so the legend never sits on the axis title
+const legendProps = LEGEND_PROPS;
 
 const PARAM_LABELS = {
   whp: 'Wellhead pressure (psia)',
@@ -49,14 +50,14 @@ export const SensitivityResults = () => {
   return (
     <div className="space-y-4">
       <ChartCard title={`Operating rate vs ${PARAM_LABELS[sensitivity.parameter] || sensitivity.parameter}`} height={340}>
-        <LineChart data={data} margin={{ top: 10, right: 20, bottom: 24, left: 12 }}>
+        <LineChart data={data} margin={{ top: 10, right: 20, bottom: 8, left: 12 }}>
           <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" />
-          <XAxis
+          <XAxis height={XAXIS_LABEL_HEIGHT}
             dataKey="value"
             type="number"
             domain={['auto', 'auto']}
             {...axisProps}
-            label={{ value: PARAM_LABELS[sensitivity.parameter] || sensitivity.parameter, position: 'insideBottom', offset: -12, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
+            label={{ value: PARAM_LABELS[sensitivity.parameter] || sensitivity.parameter, position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
           />
           <YAxis
             type="number"
@@ -117,7 +118,7 @@ export const GasLiftResults = () => {
         <Kpi title="Natural rate" value={fmtU('oilRate', gasLift.baseline.q, unitSystem, fmt.int)} unit={unitLabel('oilRate', unitSystem)} />
         <Kpi title="Best lifted rate" value={fmtU('oilRate', best.q, unitSystem, fmt.int)} unit={unitLabel('oilRate', unitSystem)} accent />
         <Kpi title="Injection at best" value={fmt.int(best.qgi)} unit="Mscf/d" />
-        {econ && <Kpi title="Economic point" value={`${fmt.int(econ.qgi)} Mscf/d`} unit={`${fmtU('oilRate', econ.q, unitSystem, fmt.int)} ${unitLabel('oilRate', unitSystem)}`} />}
+        {econ && <Kpi title="Economic point" value={fmt.int(econ.qgi)} unit="Mscf/d" sub={`giving ${fmtU('oilRate', econ.q, unitSystem, fmt.int)} ${unitLabel('oilRate', unitSystem)}`} />}
       </div>
 
       {gasLift.baseline.status === 'dead' && (
@@ -127,14 +128,14 @@ export const GasLiftResults = () => {
       )}
 
       <ChartCard title="Gas lift performance curve" height={340}>
-        <LineChart data={data} margin={{ top: 10, right: 20, bottom: 24, left: 12 }}>
+        <LineChart data={data} margin={{ top: 10, right: 20, bottom: 8, left: 12 }}>
           <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" />
-          <XAxis
+          <XAxis height={XAXIS_LABEL_HEIGHT}
             dataKey="qgi"
             type="number"
             domain={[0, 'auto']}
             {...axisProps}
-            label={{ value: 'Injection rate (Mscf/d)', position: 'insideBottom', offset: -12, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
+            label={{ value: 'Injection rate (Mscf/d)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
           />
           <YAxis
             type="number"
