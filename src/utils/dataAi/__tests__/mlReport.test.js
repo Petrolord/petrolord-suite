@@ -46,7 +46,7 @@ describe('regression CSV', () => {
     expect(rows.find((r) => r.name === 'data').value).toBe('wells, "quoted".csv');
     expect(rows.find((r) => r.name === 'model').value).toBe('ordinary least squares');
     expect(rows.find((r) => r.name === 'validation').value).toBe('group k-fold, k = 3, seed 11');
-    expect(rows.find((r) => r.name === 'engine').value).toMatch(/^petrolord-engines 05d8161/);
+    expect(rows.find((r) => r.name === 'engine').value).toMatch(/^petrolord-engines 3778451/);
   });
 
   it('writes fold, pooled and coefficient figures at full round-trip precision', () => {
