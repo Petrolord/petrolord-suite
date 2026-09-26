@@ -63,7 +63,7 @@ export default function WindowTab({
       )}
 
       {win && (
-        <div className="min-h-0 flex-1" style={{ minHeight: 440 }}>
+        <div className="min-h-0 flex-1 pb-5" style={{ minHeight: 440 }}>
           <MudWindowChart window={win} depthUnit={depthUnit} />
         </div>
       )}

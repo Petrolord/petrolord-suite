@@ -6,7 +6,7 @@ import {
   ResponsiveContainer, ComposedChart, Line, Area, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend,
 } from 'recharts';
-import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE, GRID_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE, GRID_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { emwOut, emwLabel, depthOut, depthLabel } from '../services/gmRun';
 
@@ -39,15 +39,15 @@ export function StressProfileChart({ profile, depthUnit }) {
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data} margin={CHART_MARGINS.compact} layout="vertical">
           <CartesianGrid {...GRID_STYLE} />
-          <XAxis type="number" domain={[0, 'auto']} {...axisProps}
-            label={{ value: 'MPa', position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
-          <YAxis dataKey="tvd" type="number" domain={['dataMin', 'dataMax']} {...axisProps}
+          <XAxis type="number" domain={[0, 'auto']} {...axisProps} height={XAXIS_LABEL_HEIGHT}
+            label={{ value: 'MPa', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
+          <YAxis dataKey="tvd" type="number" domain={[0, 'dataMax']} {...axisProps}
             tickFormatter={(v) => v.toFixed(0)}
             label={{ value: `TVD (${depthLabel(depthUnit)})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <Tooltip contentStyle={TOOLTIP_STYLE}
             formatter={(v) => (Number.isFinite(v) ? v.toFixed(1) : '--')}
             labelFormatter={(v) => `TVD ${Number(v).toFixed(0)} ${depthLabel(depthUnit)}`} />
-          <Legend wrapperStyle={{ fontSize: 10 }} />
+          <Legend {...LEGEND_PROPS} />
           <Line dataKey="pp" name="Pore pressure" stroke="#b91c1c" strokeWidth={2} dot={false} isAnimationActive={false} />
           <Line dataKey="shmin" name="Shmin" stroke="#0f766e" strokeWidth={2} dot={false} isAnimationActive={false} />
           <Line dataKey="shmax" name="SHmax" stroke="#7c3aed" strokeWidth={2} dot={false} isAnimationActive={false} />
@@ -70,9 +70,9 @@ export function UcsChart({ profile, depthUnit }) {
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data} margin={CHART_MARGINS.compact} layout="vertical">
           <CartesianGrid {...GRID_STYLE} />
-          <XAxis type="number" domain={[0, 'auto']} {...axisProps}
-            label={{ value: 'MPa', position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
-          <YAxis dataKey="tvd" type="number" domain={['dataMin', 'dataMax']} {...axisProps}
+          <XAxis type="number" domain={[0, 'auto']} {...axisProps} height={XAXIS_LABEL_HEIGHT}
+            label={{ value: 'MPa', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
+          <YAxis dataKey="tvd" type="number" domain={[0, 'dataMax']} {...axisProps}
             tickFormatter={(v) => v.toFixed(0)} />
           <Tooltip contentStyle={TOOLTIP_STYLE}
             formatter={(v) => (Number.isFinite(v) ? v.toFixed(1) : '--')}
@@ -97,15 +97,26 @@ export function MudWindowChart({ window: win, depthUnit }) {
       emwOut(r.fracInitEmwKgM3, depthUnit),
     ],
   }));
+  // GM-T1-001: shallow samples (low stress against a fixed tensile strength)
+  // put fracture initiation near 11 g/cc and stretched the axis to 12,
+  // squashing the drilling range. The axis is sized on the deeper 80 percent
+  // of the well; shallower values beyond it are clipped and said so.
+  const maxMd = data.length ? data[data.length - 1].md : 0;
+  const deep = data.filter((r) => r.md >= 0.2 * maxMd);
+  const deepMax = Math.max(...deep.flatMap((r) => [r.pp, r.collapse, r.frac]).filter(Number.isFinite), 0);
+  const step = deepMax > 4 ? 1 : 0.5;
+  const xMax = Math.max(step * 2, Math.ceil((deepMax * 1.1) / step) * step);
+  const clipped = data.some((r) => [r.pp, r.collapse, r.frac].some((v) => Number.isFinite(v) && v > xMax));
   return (
+    <>
     <Frame title={`Mud weight window along the well (${emwLabel(depthUnit)} vs MD)`} testId="gm-window-chart">
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data} margin={CHART_MARGINS.compact} layout="vertical">
           <CartesianGrid {...GRID_STYLE} />
-          <XAxis type="number" domain={['auto', 'auto']} {...axisProps}
+          <XAxis type="number" domain={[0, xMax]} allowDataOverflow {...axisProps} height={XAXIS_LABEL_HEIGHT}
             tickFormatter={(v) => v.toFixed(2)}
-            label={{ value: emwLabel(depthUnit), position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
-          <YAxis dataKey="md" type="number" domain={['dataMin', 'dataMax']} {...axisProps}
+            label={{ value: emwLabel(depthUnit), position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
+          <YAxis dataKey="md" type="number" domain={[0, 'dataMax']} {...axisProps}
             tickFormatter={(v) => v.toFixed(0)}
             label={{ value: `MD (${depthLabel(depthUnit)})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <Tooltip contentStyle={TOOLTIP_STYLE}
@@ -113,7 +124,7 @@ export function MudWindowChart({ window: win, depthUnit }) {
               ? v.map((x) => x?.toFixed(2)).join(' – ')
               : (Number.isFinite(v) ? v.toFixed(3) : '--'))}
             labelFormatter={(v) => `MD ${Number(v).toFixed(0)} ${depthLabel(depthUnit)}`} />
-          <Legend wrapperStyle={{ fontSize: 10 }} />
+          <Legend {...LEGEND_PROPS} />
           <Area dataKey="window" name="Safe window" fill="#86efac" fillOpacity={0.35}
             stroke="none" isAnimationActive={false} connectNulls />
           <Line dataKey="pp" name="Pore pressure" stroke="#b91c1c" strokeWidth={2} dot={false} isAnimationActive={false} />
@@ -122,5 +133,11 @@ export function MudWindowChart({ window: win, depthUnit }) {
         </ComposedChart>
       </ResponsiveContainer>
     </Frame>
+    {clipped ? (
+      <p className="mt-1 text-[10px] text-slate-500" data-testid="gm-window-clipped">
+        Near surface the fracture initiation (and collapse) values run beyond {xMax.toFixed(1)} {emwLabel(depthUnit)} and are clipped at the axis edge; the CSV carries every value.
+      </p>
+    ) : null}
+    </>
   );
 }
