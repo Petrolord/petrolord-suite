@@ -21,7 +21,7 @@ const StudioHeader = ({
   const navigate = useNavigate();
 
   return (
-    <div className="flex items-center gap-4 w-full">
+    <div className="flex items-center gap-2 2xl:gap-4 w-full">
       <Button
         variant="ghost"
         size="icon"
@@ -48,7 +48,7 @@ const StudioHeader = ({
       {tabs.length > 0 && (
         <>
           <div className="h-6 w-[1px] shrink-0 bg-slate-700 mx-2"></div>
-          <Tabs value={activeTab} onValueChange={onTabChange} className="h-8 min-w-0 shrink">
+          <Tabs value={activeTab} onValueChange={onTabChange} className="h-8 min-w-0 shrink-[0.001]">
             <TabsList className="h-8 max-w-full justify-start overflow-x-auto bg-slate-800/50 border border-slate-700 p-0.5">
               {tabs.map((t) => (
                 <TabsTrigger key={t.value} value={t.value} className="h-7 text-xs px-2 2xl:px-3 data-[state=active]:bg-slate-700">

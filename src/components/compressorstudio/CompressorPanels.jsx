@@ -6,7 +6,7 @@ import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useCompressor } from '@/contexts/CompressorStudioContext';
 import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
 import { fmt, Stat, ErrorNote, WarnNote, Field, NumberInput, TextInput } from './fields';
@@ -234,26 +234,28 @@ export const SweepChart = () => {
         <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Power against discharge pressure</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <ChartFrame height={300} exportFilename="compressor-power-sweep">
-            <ComposedChart data={data} margin={{ top: 8, right: 40, bottom: 24, left: 8 }}>
+            <ComposedChart data={data} margin={{ top: 8, right: 40, bottom: 8, left: 20 }}>
               <CartesianGrid {...GRID_STYLE} />
-              <XAxis type="number" dataKey="p" domain={['dataMin', 'dataMax']}
-                stroke={CHART_COLORS.axisLine} tick={tick}
-                label={{ value: 'Discharge pressure (psig)', position: 'insideBottom', offset: -8, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+              {/* A category axis: the sweep points are discrete, and on a
+                  number axis the stage bars ran over the power ticks. */}
+              <XAxis type="category" dataKey="p" height={XAXIS_LABEL_HEIGHT}
+                stroke={CHART_COLORS.axisLine} tick={tick} tickFormatter={(v) => fmt(v)}
+                label={{ value: 'Discharge pressure (psig)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
               <YAxis yAxisId="hp" stroke={CHART_COLORS.axisLine} tick={tick}
                 label={{ value: 'Brake power (bhp)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
-              <YAxis yAxisId="st" orientation="right" allowDecimals={false} stroke={CHART_COLORS.axisLine} tick={tick}
+              <YAxis yAxisId="st" orientation="right" allowDecimals={false} domain={[0, (max) => max + 1]} stroke={CHART_COLORS.axisLine} tick={tick}
                 label={{ value: 'Stages', angle: 90, position: 'insideRight', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
               <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [fmt(v, 1), n]}
                 labelFormatter={(p) => `${fmt(p)} psig`} />
-              <Legend verticalAlign="top" />
-              <Bar yAxisId="st" dataKey="stages" name="Stages" fill="#94a3b8" />
+              <Legend {...LEGEND_PROPS} />
+              <Bar yAxisId="st" dataKey="stages" name="Stages" fill="#94a3b8" fillOpacity={0.5} barSize={28} />
               <Line yAxisId="hp" dataKey="bhp" name="Brake power (bhp)" stroke="#059669" strokeWidth={2} dot />
             </ComposedChart>
           </ChartFrame>
           <p className="text-[12px] text-slate-500">
             Power climbs smoothly with discharge pressure, but the stage count climbs in steps, and
-            each step is a machine, a cooler and a foundation. The cheap discharge pressure is the
-            one just below a step, not the one just above it.
+            each step is a machine, a cooler and a foundation. The cheap discharge pressure sits just
+            below a step.
           </p>
         </CardContent>
       </Card>
