@@ -71,7 +71,7 @@ export function CdpChart({ sanding, depthUnit }) {
           <CartesianGrid {...GRID_STYLE} />
           <XAxis type="number" domain={['auto', 'auto']} {...axisProps}
             label={{ value: 'MPa', position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
-          <YAxis dataKey="md" type="number" reversed domain={['dataMin', 'dataMax']} {...axisProps}
+          <YAxis dataKey="md" type="number" domain={['dataMin', 'dataMax']} {...axisProps}
             tickFormatter={(v) => v.toFixed(0)}
             label={{ value: `MD (${depthLabel(depthUnit)})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <Tooltip contentStyle={TOOLTIP_STYLE}
