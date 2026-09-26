@@ -265,3 +265,22 @@ test('ST4: the section offers a Mapping launcher for each tract and the column m
   await expect(controls).toHaveAttribute('data-tract-links', /net=Top\+Marker%7CTop\+Dome&measure=net&wells=corr-w1%2Ccorr-w2%2Ccorr-w3/);
   await expect(page.getByTestId('strat-map-tract')).toBeVisible();
 });
+
+test('T1: a zone scheme dates biozones; the column chart draws; per-well views open on a well; the Wheeler has a legend', async ({ page }) => {
+  await page.goto('/dev/stratigraphy-studio');
+  await page.getByTestId('strat-view-column').click();
+  await expect(page.getByTestId('strat-column-save')).toBeInViewport();
+  await expect(page.getByTestId('strat-column-chart')).toBeVisible();
+  await expect(page.getByTestId('strat-column-box-Agbada')).toBeVisible();
+  await page.getByTestId('strat-view-intervals').click();
+  await expect(page.getByTestId('strat-need-well')).toHaveCount(0);
+  await expect(page.getByTestId('strat-zone-scheme')).toBeVisible();
+  await page.getByTestId('strat-zone-scheme-file').setInputFiles({
+    name: 'zones.csv', mimeType: 'text/csv',
+    buffer: Buffer.from('scheme,zone,top_ma,base_ma,source\nTEST,Z1,5,6,Test chart 2026\n'),
+  });
+  await expect(page.getByTestId('strat-status')).toContainText('Loaded 1 zone (TEST)');
+  await expect(page.getByTestId('strat-zone-scheme-summary')).toContainText('1 zones: TEST');
+  await page.getByTestId('strat-view-wheeler').click();
+  await expect(page.getByTestId('strat-wheeler-legend')).toContainText('hiatus');
+});

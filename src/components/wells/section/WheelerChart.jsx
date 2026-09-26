@@ -78,9 +78,20 @@ export default function WheelerChart({ wells, scheme = 'catuneanu', width = 720,
         {/* wells */}
         {chart.wells.map((w, i) => {
           const x0 = AXIS_W + i * colW + 6; const cw = colW - 12;
+          // Stratigraphy T1 (ST-T1-004): the part of the chart this well has no
+          // dated record for reads "undated", distinct from a hiatus
+          const wTop = Math.min(...w.cells.map((c) => c.from_ma));
+          const wBase = Math.max(...w.cells.map((c) => c.to_ma));
+          const gaps = [[chart.age_min_ma, wTop], [wBase, chart.age_max_ma]].filter(([a, b]) => b - a > 1e-9);
           return (
             <g key={w.id} data-testid={`${testIdPrefix}-well-${w.name}`}>
               <text x={x0 + cw / 2} y={HEAD_H - 8} fontSize="10" fontWeight="bold" fill="#e2e8f0" textAnchor="middle">{w.name}</text>
+              {gaps.map(([a, b]) => (
+                <g key={`undated-${a}`} data-testid={`${testIdPrefix}-undated-${w.name}`}>
+                  <rect x={x0} y={yOf(a)} width={cw} height={Math.max(1, yOf(b) - yOf(a))} fill="none" stroke="#475569" strokeDasharray="3 3" strokeWidth="0.8" />
+                  {yOf(b) - yOf(a) > 12 && <text x={x0 + cw / 2} y={(yOf(a) + yOf(b)) / 2 + 3} fontSize="9" fill="#64748b" textAnchor="middle">undated</text>}
+                </g>
+              ))}
               {w.cells.map((c, k) => {
                 const y0 = yOf(c.from_ma); const y1 = yOf(c.to_ma);
                 const fill = c.kind === 'hiatus' ? `url(#${testIdPrefix}-hatch)` : (c.tract ? TRACT_COLOUR[c.tract] : '#475569');
@@ -89,7 +100,7 @@ export default function WheelerChart({ wells, scheme = 'catuneanu', width = 720,
                     <rect x={x0} y={y0} width={cw} height={Math.max(1, y1 - y0)} fill={fill} opacity={c.kind === 'hiatus' ? 1 : (c.certain ? 0.85 : 0.5)} stroke="#0f172a" strokeWidth="0.5">
                       <title>{`${w.name}: ${c.label}, ${c.from_ma} to ${c.to_ma} Ma${c.kind === 'deposition' ? `, ${c.top_md_m} to ${c.base_md_m} m` : ''}`}</title>
                     </rect>
-                    {y1 - y0 > 12 && <text x={x0 + cw / 2} y={(y0 + y1) / 2 + 3} fontSize="9" fill={c.kind === 'hiatus' ? '#cbd5e1' : '#0f172a'} textAnchor="middle">{label(c)}</text>}
+                    {y1 - y0 > 12 && <text x={x0 + cw / 2} y={(y0 + y1) / 2 + 3} fontSize="9" fill={c.kind === 'hiatus' || !c.tract ? '#e2e8f0' : '#0f172a'} textAnchor="middle">{label(c)}</text>}
                   </g>
                 );
               })}
@@ -97,6 +108,23 @@ export default function WheelerChart({ wells, scheme = 'catuneanu', width = 720,
           );
         })}
       </svg>
+      {/* legend of the tracts on the chart (T1 ST-T1-004) */}
+      {(() => {
+        const tracts = [...new Set(chart.wells.flatMap((w) => w.cells.map((c) => c.tract).filter(Boolean)))];
+        return (
+          <div className="flex flex-wrap items-center gap-3 px-2 py-1 text-[11px] text-slate-300" data-testid={`${testIdPrefix}-legend`}>
+            {tracts.map((t) => (
+              <span key={t} className="flex items-center gap-1">
+                <span className="inline-block w-3 h-3 rounded-sm" style={{ background: TRACT_COLOUR[t] }} />
+                {displayLabel(t, scheme, { kind: 'tract' }).label}
+              </span>
+            ))}
+            <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm" style={{ background: '#475569' }} />interval with no tract</span>
+            <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm border border-slate-500" style={{ backgroundImage: 'repeating-linear-gradient(45deg,#94a3b8 0 1px,transparent 1px 4px)' }} />hiatus</span>
+            <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-sm border border-dashed border-slate-500" />undated</span>
+          </div>
+        );
+      })()}
       {chart.skipped.length > 0 && (
         <div className="text-[11px] text-amber-300 px-2" data-testid={`${testIdPrefix}-skipped`}>
           Not placed: {chart.skipped.map((s) => `${s.name} (${s.reason})`).join('; ')}

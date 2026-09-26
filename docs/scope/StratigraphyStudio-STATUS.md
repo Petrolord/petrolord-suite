@@ -464,3 +464,13 @@ in Well Correlation (same rows, typed marker) with the existing tops
 reload; the Exxon toggle relabels it "Maximum flooding surface (MFS)";
 FSST shows the fallback badge in the glossary. Migration applied and pentest run 2026-09-06; PR #412 merged. Remaining
 for the owner: walk the app on staging.
+
+## 2026-09-26: T1 senior test (Wave 1 #3)
+
+Report: docs/testing/StratigraphyStudio-T1.md. Zone scheme import and
+dating (`services/zoneSchemes.js`, `components/ZoneSchemePanel.jsx`,
+remembered per browser under `strat.zoneSchemes`; shared schemes need a
+table, after NAPE); graphic column (`components/ColumnChart.jsx`); column
+editor in a plain scrolling pane; per-well views open on the first well;
+Wheeler labels, legend and undated band (`src/components/wells/section/
+WheelerChart.jsx`). Timescale spot-checked against ICS 2023/09.
