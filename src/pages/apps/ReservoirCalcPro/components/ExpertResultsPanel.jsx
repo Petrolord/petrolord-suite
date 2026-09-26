@@ -56,7 +56,7 @@ const ExpertResultsPanel = () => {
                         <>
                              <Card className="bg-slate-900 border-slate-800 p-4 text-center relative overflow-hidden shadow-lg shadow-emerald-900/10">
                                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-600 to-blue-500"></div>
-                                <div className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mb-1">P50 (Probable) {titleStr}</div>
+                                <div className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mb-1">P50 (Best estimate) {titleStr}</div>
                                 <div className="text-3xl font-black text-white mb-1 tracking-tight">
                                     {(stats.p50 / denom).toFixed(2)}
                                 </div>
@@ -65,11 +65,11 @@ const ExpertResultsPanel = () => {
                             
                             <div className="grid grid-cols-2 gap-2">
                                 <Card className="bg-slate-900 border-slate-800 p-2 text-center">
-                                     <div className="text-[9px] text-slate-500 uppercase font-bold">P90 (Proven)</div>
+                                     <div className="text-[9px] text-slate-500 uppercase font-bold">P90 (Low estimate)</div>
                                      <div className="text-lg font-bold text-slate-200">{(stats.p90 / denom).toFixed(2)}</div>
                                 </Card>
                                 <Card className="bg-slate-900 border-slate-800 p-2 text-center">
-                                     <div className="text-[9px] text-slate-500 uppercase font-bold">P10 (Possible)</div>
+                                     <div className="text-[9px] text-slate-500 uppercase font-bold">P10 (High estimate)</div>
                                      <div className="text-lg font-bold text-slate-200">{(stats.p10 / denom).toFixed(2)}</div>
                                 </Card>
                             </div>

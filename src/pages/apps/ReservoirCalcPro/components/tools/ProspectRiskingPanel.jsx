@@ -7,11 +7,14 @@
 // Injected `backend` (rcp_prospects CRUD, or the in-memory harness
 // twin) so the whole flow is auth-free-driveable. `unrisked` seeds the
 // success-case volumes from RCP's latest run when present; otherwise
-// the analyst enters mean/percentiles manually.
+// the analyst enters mean/percentiles manually. Volumes carry their unit
+// (MMSTB, Bscf, MMsm³, Bsm³; services/prospectVolumes.js) into the saved
+// row, which Risked Reserves Valuation reads (RCP-T1-003).
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Trash2, Plus, Layers } from 'lucide-react';
 import { RISK_FACTORS, chanceOfSuccess, riskProspect, portfolioRollup } from '../../services/ProspectRiskEngine';
+import { VOLUME_UNITS } from '../../services/prospectVolumes';
 
 const inputCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
 const fmt = (v, d = 1) => (v === null || v === undefined || Number.isNaN(v) ? '—' : Number(v).toLocaleString(undefined, { maximumFractionDigits: d }));
@@ -19,22 +22,21 @@ const pct = (v) => (Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—');
 
 const DEFAULT_FACTORS = { trap: 0.6, reservoir: 0.7, charge: 0.8, seal: 0.7 };
 
-export default function ProspectRiskingPanel({ backend, unrisked }) {
+export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 'MMbbl', valuationHref = '/dashboard/apps/reservoir/risked-reserves-valuation' }) {
   const [name, setName] = useState('');
   const [factors, setFactors] = useState(DEFAULT_FACTORS);
   const [vol, setVol] = useState({ mean: '', p90: '', p50: '', p10: '' });
   const [prospects, setProspects] = useState([]);
   const [status, setStatus] = useState(null);
+  const [unit, setUnit] = useState(defaultUnit);
+  const [added, setAdded] = useState(false);
 
   // seed volumes from RCP's latest run when available
   useEffect(() => {
     if (unrisked && Number.isFinite(unrisked.mean)) {
-      setVol({
-        mean: String(Math.round(unrisked.mean)),
-        p90: unrisked.p90 != null ? String(Math.round(unrisked.p90)) : '',
-        p50: unrisked.p50 != null ? String(Math.round(unrisked.p50)) : '',
-        p10: unrisked.p10 != null ? String(Math.round(unrisked.p10)) : '',
-      });
+      const r = (v) => (v != null && Number.isFinite(v) ? String(Number(v.toPrecision(4))) : '');
+      setVol({ mean: r(unrisked.mean), p90: r(unrisked.p90), p50: r(unrisked.p50), p10: r(unrisked.p10) });
+      if (unrisked.unit) setUnit(unrisked.unit);
     }
   }, [unrisked]);
 
@@ -67,10 +69,11 @@ export default function ProspectRiskingPanel({ backend, unrisked }) {
       await backend.saveProspect({
         name: name.trim(),
         pgFactors: factors,
-        inputs: { mean: unriskedObj.mean, p90: unriskedObj.p90, p50: unriskedObj.p50, p10: unriskedObj.p10 },
+        inputs: { mean: unriskedObj.mean, p90: unriskedObj.p90, p50: unriskedObj.p50, p10: unriskedObj.p10, unit },
         risked: { pg: live.pg, risked_mean: live.riskedMean, success: live.successCase },
       });
       setStatus(`Added ${name.trim()} to the inventory.`);
+      setAdded(true);
       setName('');
       await refresh();
     } catch (e) { setStatus(e.message); }
@@ -111,8 +114,14 @@ export default function ProspectRiskingPanel({ backend, unrisked }) {
           {/* unrisked volume */}
           <div className="rounded border border-slate-800 p-2 space-y-1.5">
             <div className="text-[10px] uppercase tracking-wider text-slate-500">
-              Unrisked volume {unrisked ? '(from last run)' : '(enter)'}
+              Unrisked volume {unrisked ? '(from the last Monte Carlo run)' : '(enter, or run Monte Carlo first)'}
             </div>
+            <label className="flex items-center gap-2 text-xs">
+              <span className="w-14 text-slate-400">Unit</span>
+              <select className={`${inputCls} flex-1`} value={unit} data-testid="vol-unit" onChange={(e) => setUnit(e.target.value)}>
+                {Object.entries(VOLUME_UNITS).map(([k, u]) => <option key={k} value={k}>{u.label}</option>)}
+              </select>
+            </label>
             {['mean', 'p90', 'p50', 'p10'].map((k) => (
               <label key={k} className="flex items-center gap-2 text-xs">
                 <span className="w-14 text-slate-400 uppercase">{k}</span>
@@ -126,7 +135,7 @@ export default function ProspectRiskingPanel({ backend, unrisked }) {
         {/* live risked readout */}
         {live && (
           <div className="mt-2 rounded border border-amber-900/50 bg-amber-950/20 p-2 grid grid-cols-2 gap-x-6 gap-y-1 text-xs" data-testid="risked-readout">
-            <div className="flex justify-between"><span className="text-slate-400">Risked mean (EMV basis)</span><span className="font-semibold" data-testid="risked-mean">{fmt(live.riskedMean)}</span></div>
+            <div className="flex justify-between"><span className="text-slate-400">Risked mean (EMV basis)</span><span className="font-semibold"><span data-testid="risked-mean">{fmt(live.riskedMean)}</span> {VOLUME_UNITS[unit]?.label}</span></div>
             <div className="flex justify-between"><span className="text-slate-400">P(failure)</span><span>{pct(live.pFailure)}</span></div>
             <div className="col-span-2 text-[10px] text-slate-500 pt-1">Success case (volumes given discovery):</div>
             <div className="flex justify-between"><span className="text-slate-400">P90 / P50</span><span data-testid="success-p90p50">{fmt(live.successCase.p90)} / {fmt(live.successCase.p50)}</span></div>
@@ -144,6 +153,11 @@ export default function ProspectRiskingPanel({ backend, unrisked }) {
           </button>
         </div>
         {status && <p className="mt-1 text-[11px] text-slate-400" data-testid="prospect-status">{status}</p>}
+        {added && (
+          <a href={valuationHref} className="mt-1 inline-block text-[11px] text-lime-300 hover:underline" data-testid="prospect-value-link">
+            Value the inventory in Risked Reserves Valuation (commercial chance, EMV, break-even Pg)
+          </a>
+        )}
       </div>
 
       {/* inventory */}
@@ -158,6 +172,7 @@ export default function ProspectRiskingPanel({ backend, unrisked }) {
                 <th className="pr-2 pb-1 font-medium">Prospect</th>
                 <th className="pr-2 pb-1 font-medium">Pg</th>
                 <th className="pr-2 pb-1 font-medium">Unrisked mean</th>
+                <th className="pr-2 pb-1 font-medium">Unit</th>
                 <th className="pr-2 pb-1 font-medium">Risked mean</th>
                 <th aria-label="actions" />
               </tr>
@@ -170,6 +185,7 @@ export default function ProspectRiskingPanel({ backend, unrisked }) {
                     <td className="pr-2 py-0.5 text-slate-200">{p.name}</td>
                     <td className="pr-2 py-0.5">{pct(ppg)}</td>
                     <td className="pr-2 py-0.5">{fmt(p.inputs?.mean)}</td>
+                    <td className="pr-2 py-0.5 text-slate-500">{VOLUME_UNITS[p.inputs?.unit]?.label || 'not stated'}</td>
                     <td className="pr-2 py-0.5 text-amber-300">{fmt(p.risked?.risked_mean ?? ppg * (p.inputs?.mean || 0))}</td>
                     <td className="py-0.5 text-right">
                       <button type="button" title={`Delete ${p.name}`} data-testid={`prospect-delete-${p.name}`}
@@ -182,7 +198,7 @@ export default function ProspectRiskingPanel({ backend, unrisked }) {
               })}
             </tbody>
           </table>
-        ) : <p className="text-xs text-slate-600">No prospects yet — add one above.</p>}
+        ) : <p className="text-xs text-slate-600">No prospects yet. Add one above.</p>}
       </div>
 
       {/* portfolio roll-up */}

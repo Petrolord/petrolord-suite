@@ -64,9 +64,9 @@ const DistInput = ({ label, value, baseValue, onChange, consistencyMode }) => {
 
             {type === 'triangular' && (
                 <div className="flex gap-2">
-                    <Num labelText="P90 (Min)" value={value.p90} onChange={(v) => set({ p90: v })} />
-                    <Num labelText="P50 (Mode)" value={value.p50} onChange={(v) => set({ p50: v })} invalid={isDeviation} />
-                    <Num labelText="P10 (Max)" value={value.p10} onChange={(v) => set({ p10: v })} />
+                    <Num labelText="Min" value={value.p90} onChange={(v) => set({ p90: v })} />
+                    <Num labelText="Most likely" value={value.p50} onChange={(v) => set({ p50: v })} invalid={isDeviation} />
+                    <Num labelText="Max" value={value.p10} onChange={(v) => set({ p10: v })} />
                 </div>
             )}
             {(type === 'normal' || type === 'lognormal') && (

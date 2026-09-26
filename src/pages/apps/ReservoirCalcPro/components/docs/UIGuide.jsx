@@ -168,7 +168,7 @@ const UIGuide = () => (
     <H3>Probabilistic view</H3>
     <UL>
       <li>Heading <strong>SIMULATION RESULTS</strong> with a Monte Carlo Analysis subtitle.</li>
-      <li>A P50 card, then P90 (Proven) and P10 (Possible) cards side by side, then Mean and Range.</li>
+      <li>A P50 card, then P90 (Low estimate) and P10 (High estimate) cards side by side, then Mean and Range.</li>
       <li><strong>View Full Analysis</strong>, which opens the histogram, cumulative curve and tornado chart.</li>
       <li>Before a run it shows a prompt to configure distributions and run the simulation.</li>
     </UL>

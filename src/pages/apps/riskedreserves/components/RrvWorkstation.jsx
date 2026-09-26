@@ -112,7 +112,7 @@ export default function RrvWorkstation({ backend }) {
                   <tr key={p.id} className={`border-t border-slate-800/60 ${selected?.p.id === p.id ? 'bg-slate-900' : ''}`} onClick={() => setSelectedId(p.id)} data-testid={`rrv-row-${p.name}`}>
                     <td className="px-2 py-1 min-w-[140px]">
                       <input className={cell} value={p.name} onChange={(e) => patch(p.id, 'name', e.target.value)} data-testid={`rrv-name-${p.name}`} />
-                      <span className="text-[10px] text-slate-500">{p.source === 'rcp' ? 'from ReservoirCalc Pro' : 'typed here'}</span>
+                      <span className="text-[10px] text-slate-500">{p.source === 'rcp' ? `from ReservoirCalc Pro${p.volumeNote ? `, ${p.volumeNote}` : ''}` : 'typed here'}</span>
                     </td>
                     {FIELDS.map(([k]) => (
                       <td key={k} className="px-1 py-1 w-[72px]">

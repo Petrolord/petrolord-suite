@@ -137,9 +137,9 @@ export class ReportGenerator {
             textFitted(doc, `${value} ${unit}`, x + cardWidth / 2, yPos + 22, cardWidth - 6, 16);
             doc.setFont('helvetica', 'normal');
         };
-        drawCard(margin, 'P90 (PROVEN)', fmt(stats.p90), false);
-        drawCard(margin + cardWidth + 5, 'P50 (PROBABLE)', fmt(stats.p50), true);
-        drawCard(margin + (cardWidth * 2) + 10, 'P10 (POSSIBLE)', fmt(stats.p10), false);
+        drawCard(margin, 'P90 (LOW)', fmt(stats.p90), false);
+        drawCard(margin + cardWidth + 5, 'P50 (BEST)', fmt(stats.p50), true);
+        drawCard(margin + (cardWidth * 2) + 10, 'P10 (HIGH)', fmt(stats.p10), false);
 
         // Key statistics table
         yPos += 45;

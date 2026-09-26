@@ -128,6 +128,18 @@ const ExpertVisPanel = () => {
         onAddPoint: addDrawingPoint,
     };
 
+    // Contacts are workspace TVDSS elevations (ft field, m metric); the 3D
+    // scene is in the surface's own unit and sign, so convert (RCP-T1-011).
+    const contactToSurface = (c) => {
+        if (c === null || c === undefined || c === '' || !isFinite(parseFloat(c))) return c;
+        const FT_PER_M = 3.280839895;
+        const field = (unitSystem || 'field') === 'field';
+        const du = activeSurface?.depthUnit || (field ? 'ft' : 'm');
+        const f = du === 'm' ? (field ? FT_PER_M : 1) : (field ? 1 : 1 / FT_PER_M);
+        const elev = parseFloat(c) / f;
+        return (activeSurface?.zConvention || 'elevation') === 'elevation' ? elev : -elev;
+    };
+
     // Props for the 3D viewer. Contacts + depth convention are only meaningful for
     // the structure surface, so property-map layers render as a plain height field.
     const viewer3dProps = {
@@ -138,7 +150,7 @@ const ExpertVisPanel = () => {
         isSurface: isSurfaceLayer,
         zConvention: activeSurface?.zConvention || 'elevation',
         contacts: isSurfaceLayer
-            ? { owc: state.inputs.owc, goc: state.inputs.goc, fluidType: state.inputs.fluidType || 'oil' }
+            ? { owc: contactToSurface(state.inputs.owc), goc: contactToSurface(state.inputs.goc), fluidType: state.inputs.fluidType || 'oil' }
             : null,
         title: isSurfaceLayer ? `${activeLayer.name} (3D)` : activeLayer.name,
     };
@@ -308,12 +320,12 @@ const ExpertVisPanel = () => {
 
                             {viewMode === 'split' && (
                                 <div className="w-full h-full flex flex-col md:flex-row">
-                                    <div className="flex-1 h-1/2 md:h-full border-b md:border-b-0 md:border-r border-slate-800 relative">
-                                        <div className="absolute top-3 left-3 z-10 pointer-events-none bg-slate-950/50 backdrop-blur px-2 py-0.5 rounded text-[10px] text-blue-400 font-medium border border-slate-800">{activeLayer.name}{isSurfaceLayer ? ' (draw AOIs here)' : ''}</div>
+                                    <div className="flex-1 min-w-0 h-1/2 md:h-full border-b md:border-b-0 md:border-r border-slate-800 relative overflow-hidden">
+                                        <div className="absolute bottom-3 left-3 z-10 max-w-[40%] truncate pointer-events-none bg-slate-950/50 backdrop-blur px-2 py-0.5 rounded text-[10px] text-blue-400 font-medium border border-slate-800">{activeLayer.name}{isSurfaceLayer ? ' (draw AOIs here)' : ''}</div>
                                         <ContourMapViewer gridData={gridData} {...aoiProps} />
                                     </div>
-                                    <div className="flex-1 h-1/2 md:h-full relative">
-                                        <Surface3DViewer {...viewer3dProps} />
+                                    <div className="flex-1 min-w-0 h-1/2 md:h-full relative overflow-hidden">
+                                        <Surface3DViewer {...viewer3dProps} compact />
                                     </div>
                                 </div>
                             )}

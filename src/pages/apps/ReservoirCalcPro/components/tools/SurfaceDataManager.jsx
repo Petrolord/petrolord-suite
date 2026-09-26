@@ -99,8 +99,8 @@ const SurfaceDataManager = ({ preselectSurfaceId = null }) => {
 
                                 <div className="grid grid-cols-2 gap-2 mt-3">
                                     <div className="text-[10px] text-slate-400">
-                                        <div>Min Z: <span className="text-slate-200">{surface.minZ?.toFixed(1) || '-'}</span></div>
-                                        <div>Max Z: <span className="text-slate-200">{surface.maxZ?.toFixed(1) || '-'}</span></div>
+                                        <div>Min Z: <span className="text-slate-200">{surface.minZ?.toFixed(1) || '-'}{surface.depthUnit ? ` ${surface.depthUnit}` : ''}</span></div>
+                                        <div>Max Z: <span className="text-slate-200">{surface.maxZ?.toFixed(1) || '-'}{surface.depthUnit ? ` ${surface.depthUnit}` : ''}</span></div>
                                     </div>
                                     <div className="flex justify-end items-end gap-1">
                                          <Button 

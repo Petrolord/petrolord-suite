@@ -227,7 +227,7 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
                 <div className={`grid ${isCompact ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3'} gap-4`}>
                     {!isCompact && (
                          <Card className="p-4 bg-slate-900 border-slate-800 text-center shadow-md">
-                            <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">P90 (Proven)</p>
+                            <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">P90 (Low estimate)</p>
                             <div className="flex items-baseline justify-center gap-1">
                                 <span className="text-3xl font-bold text-white">{(stats.p90 / denom).toFixed(2)}</span>
                                 <span className="text-xs text-slate-500">{unitLabel}</span>
@@ -236,7 +236,7 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
                     )}
                     <Card className={`${isCompact ? 'p-3' : 'p-4'} bg-emerald-950/20 border-emerald-500/30 text-center shadow-lg relative overflow-hidden`}>
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-600 to-teal-400"></div>
-                        <p className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider mb-1">P50 (Probable)</p>
+                        <p className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider mb-1">P50 (Best estimate)</p>
                         <div className="flex items-baseline justify-center gap-1">
                             <span className={`${isCompact ? 'text-3xl' : 'text-4xl'} font-black text-white`}>{(stats.p50 / denom).toFixed(2)}</span>
                             <span className="text-xs text-emerald-400 font-bold">{unitLabel}</span>
@@ -250,7 +250,7 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
                     </Card>
                     {!isCompact && (
                         <Card className="p-4 bg-slate-900 border-slate-800 text-center shadow-md">
-                            <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">P10 (Possible)</p>
+                            <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">P10 (High estimate)</p>
                             <div className="flex items-baseline justify-center gap-1">
                                 <span className="text-3xl font-bold text-white">{(stats.p10 / denom).toFixed(2)}</span>
                                 <span className="text-sm text-slate-500">{unitLabel}</span>

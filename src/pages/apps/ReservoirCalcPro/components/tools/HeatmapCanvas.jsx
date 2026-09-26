@@ -40,15 +40,21 @@ const HeatmapCanvas = ({ gridData, colorscale = 'Viridis', overlay, onCanvasClic
         const spanX = maxX - minX || 1;
         const spanY = maxY - minY || 1;
 
+        // One scale for x and y so the map keeps its true shape; the grid is
+        // centred in the pane (RCP-T1-006: a stretched map drew a round dome
+        // as a tall ellipse in split view).
+        const k = Math.min(w / spanX, h / spanY);
+        const ox = (w - spanX * k) / 2;
+        const oy = (h - spanY * k) / 2;
         const toCanvas = (wx, wy) => ({
-            px: ((wx - minX) / spanX) * w,
-            py: h - ((wy - minY) / spanY) * h,
+            px: ox + (wx - minX) * k,
+            py: h - oy - (wy - minY) * k,
         });
         const toWorld = (px, py) => ({
-            x: minX + (px / w) * spanX,
-            y: minY + ((h - py) / h) * spanY,
+            x: minX + (px - ox) / k,
+            y: minY + (h - oy - py) / k,
         });
-        const dims = { w, h, minX, maxX, minY, maxY, toCanvas, toWorld };
+        const dims = { w, h, minX, maxX, minY, maxY, toCanvas, toWorld, scale: k, ox, oy };
         dimsRef.current = dims;
 
         const ctx = canvas.getContext('2d');
@@ -60,8 +66,8 @@ const HeatmapCanvas = ({ gridData, colorscale = 'Viridis', overlay, onCanvasClic
 
         // Colour-grade fill (skippable so callers can show a contour-only map).
         if (showFill) {
-            const cellW = w / nx;
-            const cellH = h / ny;
+            const cellW = (spanX * k) / nx;
+            const cellH = (spanY * k) / ny;
             for (let j = 0; j < ny; j++) {
                 const row = z[j];
                 if (!row) continue;
@@ -70,12 +76,12 @@ const HeatmapCanvas = ({ gridData, colorscale = 'Viridis', overlay, onCanvasClic
                     if (v === null || v === undefined || isNaN(v)) continue;
                     const t = (v - minZ) / spanZ;
                     ctx.fillStyle = interp(t);
-                    ctx.fillRect(
-                        i * cellW,
-                        h - (j + 1) * cellH,
-                        Math.ceil(cellW),
-                        Math.ceil(cellH),
-                    );
+                    // snap to whole pixels so neighbouring cells meet without seams
+                    const x0 = Math.floor(ox + i * cellW);
+                    const x1 = Math.ceil(ox + (i + 1) * cellW);
+                    const y0 = Math.floor(h - oy - (j + 1) * cellH);
+                    const y1 = Math.ceil(h - oy - j * cellH);
+                    ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
                 }
             }
         }

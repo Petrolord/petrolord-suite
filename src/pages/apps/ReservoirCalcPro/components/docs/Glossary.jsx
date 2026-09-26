@@ -9,8 +9,9 @@ const Glossary = () => (
     <Note tone="warn" title="The P convention used throughout">
       ReservoirCalc Pro follows the petroleum convention, in which the P number is the probability of
       exceeding the value. P90 is therefore the LOW case, P50 the mid case and P10 the HIGH case. This is the
-      reverse of the statistical percentile convention. The app labels them Proven, Probable and Possible in
-      the result cards and reports for exactly this reason.
+      reverse of the statistical percentile convention. The result cards and reports label them the low, best
+      and high estimate, the PRMS terms for in-place and prospective volumes. Proved, probable and possible
+      are reserves categories; they describe commercial, recoverable volumes and are not used here.
     </Note>
 
     <H2>Terms</H2>

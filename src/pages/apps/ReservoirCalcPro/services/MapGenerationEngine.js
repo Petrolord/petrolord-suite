@@ -24,9 +24,19 @@ export class MapGenerationEngine {
         const oilConst = isField ? 7758 : 1000000; // STB/acre-ft or STB/m3 (approx)
         const gasConst = isField ? 43560 : 1000000;
 
-        // Depth Inputs (Negative Downwards)
-        const vOwc = validNum(owc, -999999); // Default very deep
-        const vGoc = validNum(goc, -999999); // Default very deep if not present
+        // Surface depths are in the surface's own unit and sign convention;
+        // the gross thickness, the contacts and every map are in workspace
+        // units (ft field, m metric). Convert native surface elevations to
+        // workspace elevations once (RCP-T1-001).
+        const FT_PER_M = 3.280839895;
+        const depthUnit = topSurface.depthUnit || (isField ? 'ft' : 'm');
+        const zConvention = topSurface.zConvention || 'elevation';
+        const f = depthUnit === 'm' ? (isField ? FT_PER_M : 1) : (isField ? 1 : 1 / FT_PER_M);
+        const toWork = (z) => (zConvention === 'elevation' ? z : -z) * f;
+
+        // Contacts are already workspace TVDSS elevations (RCP-T1-011)
+        const vOwc = owc !== null && owc !== undefined && owc !== '' && !isNaN(owc) ? parseFloat(owc) : -1e12; // Default very deep
+        const vGoc = goc !== null && goc !== undefined && goc !== '' && !isNaN(goc) ? parseFloat(goc) : -1e12; // Default very deep if not present
         
         const vNtg = validNum(ntg, 1);
         const vPhi = validNum(porosity, 0);
@@ -78,11 +88,11 @@ export class MapGenerationEngine {
                 }
 
                 // B. Structure Calculation (Negative Z)
-                const topZ = topZMatrix[i][j]; // e.g. -7000
+                const topZ = toWork(topZMatrix[i][j]); // e.g. -7000
                 
                 let baseZ;
                 if (baseInterp) {
-                    baseZ = baseInterp.predict(cx, cy);
+                    baseZ = toWork(baseInterp.predict(cx, cy));
                 } else {
                     // Base is deeper, so subtact positive thickness
                     baseZ = topZ - constThick; // -7000 - 100 = -7100
@@ -107,7 +117,7 @@ export class MapGenerationEngine {
                     // Gas from Top down to GWC (input as OWC or GOC)
                     // Lower limit of gas is the shallowest of (BaseZ, Contact)
                     // Contact is vOwc (or vGoc if provided)
-                    const contact = validNum(goc, -999999) !== -999999 ? vGoc : vOwc;
+                    const contact = vGoc > -1e12 ? vGoc : vOwc;
                     const gasBaseZ = Math.max(baseZ, contact); // e.g. max(-7100, -7500) = -7100
                     gasThick = Math.max(0, topZ - gasBaseZ);
                 } 

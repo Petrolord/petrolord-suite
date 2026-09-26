@@ -6,6 +6,7 @@ import { PolygonClippingEngine } from '@/pages/apps/ReservoirCalcPro/services/Po
 import { FluidPropertyCalculator } from '@/pages/apps/ReservoirCalcPro/services/FluidPropertyLibrary';
 import { KrigingInterpolator } from '@/pages/apps/ReservoirCalcPro/services/KrigingInterpolator';
 import { SurfaceParser } from '@/pages/apps/ReservoirCalcPro/services/SurfaceParser';
+import { MapGenerationEngine } from '@/pages/apps/ReservoirCalcPro/services/MapGenerationEngine';
 
 const near = (a, b, relTol = 0.02) => Math.abs(a - b) <= relTol * Math.abs(b) + 1e-6;
 
@@ -265,6 +266,37 @@ describe('ContactVolumetricsEngine', () => {
     expect(near(r.stooip, (grvExpected * 0.2 * 0.7 * 7758) / 1.2, 0.02)).toBe(true);
     expect(r.volUnit).toBe('Ac-ft');
     expect(r.volumeUnit).toBe('STB');
+  });
+
+  it('RCP-T1-001: gross thickness is in workspace units whatever the surface depth unit', () => {
+    const FT = 3.280839895;
+    // a metre surface (1000 m x 1000 m, crest -2000 m) in a field workspace, 100 ft gross
+    const flatM = makeSurface(() => -2000);
+    const mOpts = { xyUnit: 'm', depthUnit: 'm', zConvention: 'elevation', resolution: 160 };
+    const r = ContactVolumetricsEngine.calculate({
+      topSurface: flatM, constantThickness: 100,
+      inputs: { ...petro, fluidType: 'oil' }, unitSystem: 'field', options: mOpts,
+    });
+    const areaAcres = (1e6 * FT * FT) / ACRE;
+    expect(near(r.grv, areaAcres * 100, 0.01)).toBe(true);
+    // RCP-T1-011: the OWC is a workspace (ft) elevation, 50 ft below the crest, and halves it
+    const half = ContactVolumetricsEngine.calculate({
+      topSurface: flatM, constantThickness: 100,
+      inputs: { ...petro, fluidType: 'oil', owc: -2000 * FT - 50 }, unitSystem: 'field', options: mOpts,
+    });
+    expect(near(half.grvOil, areaAcres * 50, 0.02)).toBe(true);
+    // the hypsometry used by Monte Carlo agrees
+    const h = ContactVolumetricsEngine.buildHypsometry({ topSurface: flatM, constantThickness: 100, unitSystem: 'field', options: mOpts });
+    expect(near(h.zoneVolumes('oil', -2000 * FT - 50).grvOil, areaAcres * 50, 0.03)).toBe(true);
+    // an OWC read as metres (the old defect) would sit 3.28 times deeper and cut nothing
+    expect(near(half.grvOil, r.grv, 0.02)).toBe(false);
+    // a feet surface in a metric workspace, 30 m gross
+    const flatFt = makeSurface(() => -7000);
+    const rm = ContactVolumetricsEngine.calculate({
+      topSurface: flatFt, constantThickness: 30,
+      inputs: { ...petro, fluidType: 'oil' }, unitSystem: 'metric', options: fieldOpts,
+    });
+    expect(near(rm.grv, (1e6 / (FT * FT)) * 30, 0.01)).toBe(true);
   });
 
   it('an OWC truncates the oil column cell-by-cell (contacts change the volume)', () => {
@@ -615,5 +647,34 @@ describe('ContactVolumetricsEngine.buildHypsometry + MonteCarlo structural mode'
     });
     expect(near(stats.stooip.mean, det.stooip, 0.02)).toBe(true);
     expect(near(stats.giip.mean, det.giip, 0.02)).toBe(true);
+  });
+});
+
+describe('MapGenerationEngine units (RCP-T1-001)', () => {
+  it('a metre surface in a field workspace maps structure and gross thickness in feet', () => {
+    const FT = 3.280839895;
+    const flatM = { ...makeSurface(() => -2000), depthUnit: 'm', zConvention: 'elevation' };
+    const maps = MapGenerationEngine.generateMaps(flatM, { thickness: 100, owc: -2000 * FT - 50, ntg: 1, porosity: 0.2, sw: 0.3, fvf: 1.2, fluidType: 'oil' }, ['structure', 'thickness', 'net_pay'], 'field');
+    const cell = (type) => maps.find((m) => m.type === type || m.id === type || m.name.toLowerCase().includes(type.replace('_', ' ')));
+    const mid = (m) => { const z = m.grid ? m.grid.z : m.data.z; return z[Math.floor(z.length / 2)][Math.floor(z[0].length / 2)]; };
+    expect(near(mid(cell('structure')), -2000 * FT, 0.001)).toBe(true);
+    expect(near(mid(cell('thickness')), 100, 0.001)).toBe(true);
+    expect(near(mid(cell('net_pay')), 50, 0.01)).toBe(true);
+  });
+});
+
+describe('ContactVolumetricsEngine.contactSweep (RCP-T1-E1)', () => {
+  it('volume grows with the OWC and matches calculate() at the entered contact', () => {
+    const dome = { ...makeSurface((x, y) => -2000 + 0.0002 * ((x - 500) ** 2 + (y - 500) ** 2)), depthUnit: 'm', zConvention: 'elevation', xyUnit: 'm' };
+    const inputs = { ntg: 0.8, porosity: 0.2, sw: 0.3, fvf: 1.2, fluidType: 'oil' };
+    const opts = { resolution: 120 };
+    const h = ContactVolumetricsEngine.buildHypsometry({ topSurface: dome, constantThickness: 150, unitSystem: 'field', options: opts });
+    const sw = ContactVolumetricsEngine.contactSweep(h, inputs, 40);
+    expect(sw.contactUnit).toBe('ft'); // workspace units, as contacts are entered
+    for (let i = 1; i < sw.points.length; i++) expect(sw.points[i].volume).toBeGreaterThanOrEqual(sw.points[i - 1].volume - 1e-6);
+    expect(sw.points[0].volume).toBeCloseTo(0, 6);
+    const pick = sw.points[20];
+    const direct = ContactVolumetricsEngine.calculate({ topSurface: dome, constantThickness: 150, inputs: { ...inputs, owc: pick.contact }, unitSystem: 'field', options: opts });
+    expect(near(pick.volume, direct.stooip, 0.01)).toBe(true);
   });
 });

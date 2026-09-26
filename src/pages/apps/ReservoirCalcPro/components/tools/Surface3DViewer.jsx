@@ -75,6 +75,7 @@ const Surface3DViewer = ({
     zConvention = 'elevation',
     contacts = null,
     title,
+    compact = false,
 }) => {
     const canvasRef = useRef(null);
     const cameraRef = useRef({ az: -0.6, el: 0.5, dist: 3.2 });
@@ -385,7 +386,7 @@ const Surface3DViewer = ({
             </div>
 
             {/* Colour legend */}
-            <div className="absolute top-3 right-3 z-10 bg-slate-950/60 backdrop-blur rounded border border-slate-800 p-2 w-28 pointer-events-none">
+            <div className={`absolute ${compact ? 'bottom-14 right-3' : 'top-3 right-3'} z-10 bg-slate-950/60 backdrop-blur rounded border border-slate-800 p-2 w-28 pointer-events-none`}>
                 <div className="text-[9px] text-slate-400 mb-1 uppercase tracking-wide">{isSurface ? 'Depth' : 'Value'} ({unitLabel})</div>
                 <div className="h-2 rounded" style={{ background: `linear-gradient(to right, ${cmapCss(scale)})` }} />
                 <div className="flex justify-between text-[9px] text-slate-400 mt-0.5 font-mono">
@@ -406,15 +407,17 @@ const Surface3DViewer = ({
                 <span className="text-[9px] font-mono text-slate-300 w-8">{ve.toFixed(1)}×</span>
                 <button
                     onClick={() => { cameraRef.current = { az: -0.6, el: 0.5, dist: 3.2 }; setVe(defaultVE); redrawRef.current(); }}
-                    className="text-slate-400 hover:text-white" title="Reset view"
+                    className="text-slate-400 hover:text-white" title="Reset view (drag to rotate, scroll to zoom, double-click to reset)"
                 >
                     <RotateCcw className="w-3.5 h-3.5" />
                 </button>
             </div>
 
-            <div className="absolute bottom-3 right-3 z-10 pointer-events-none text-[9px] text-slate-500 bg-slate-950/50 px-2 py-0.5 rounded">
-                drag to rotate • scroll to zoom • double-click to reset
-            </div>
+            {!compact && (
+                <div className="absolute bottom-3 right-3 z-10 pointer-events-none text-[9px] text-slate-500 bg-slate-950/50 px-2 py-0.5 rounded">
+                    drag to rotate • scroll to zoom • double-click to reset
+                </div>
+            )}
         </div>
     );
 };

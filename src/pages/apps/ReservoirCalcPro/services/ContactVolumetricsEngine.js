@@ -168,8 +168,11 @@ export class ContactVolumetricsEngine {
         }
         const vTotal = volume[N - 1];
 
-        // z in *user* convention/units → target depth-down.
-        const toTargetDepth = (userZ) => (meta.zConvention === 'elevation' ? -userZ : userZ) * meta.depthToTargetLen;
+        // Contacts are TVDSS elevations in workspace units (ft field, m metric;
+        // FluidContactManager stores them so), which are also the target
+        // units: depth-down is the negation, whatever the surface's own unit
+        // or sign (RCP-T1-011).
+        const toTargetDepth = (userZ) => -userZ;
 
         const rockToContact = (userZ) => {
             if (userZ === null || userZ === undefined || userZ === '' || isNaN(parseFloat(userZ))) return vTotal;
@@ -207,6 +210,36 @@ export class ContactVolumetricsEngine {
             volUnit: meta.volUnit,
             areaUnit: meta.areaUnit,
         };
+    }
+
+    /**
+     * Volume against the OWC (the gas-water contact for gas), from the crest to
+     * the deepest base, on a built hypsometry (RCP-T1-E1): the committee's
+     * "what if the contact is 50 m deeper" read off one curve. Contacts are
+     * TVDSS elevations in workspace units, as entered.
+     * @returns {{points: Array<{contact:number, grv:number, volume:number}>, volumeUnit:string, contactUnit:string}|null}
+     */
+    static contactSweep(hyps, inputs = {}, n = 60) {
+        if (!hyps || hyps.error) return null;
+        const { meta, zLo, zHi } = hyps;
+        const fluidType = inputs.fluidType || 'oil';
+        const gas = fluidType === 'gas';
+        const ntg = clampFrac(inputs.ntg, 1.0);
+        const phi = clampFrac(inputs.porosity, 0.2);
+        const soi = 1 - clampFrac(inputs.sw, 0.3);
+        const Bo = parseFloat(inputs.fvf) > 0 ? parseFloat(inputs.fvf) : 1.2;
+        const Bg = parseFloat(inputs.bg) > 0 ? parseFloat(inputs.bg) : 0.005;
+        const factor = meta.isField ? (gas ? 43560 / Bg : 7758 / Bo) : 1 / (gas ? Bg : Bo);
+        const toUser = (z) => -z; // workspace TVDSS elevation, as contacts are entered
+        const points = [];
+        for (let k = 0; k < n; k++) {
+            const zt = zLo + ((zHi - zLo) * k) / (n - 1);
+            const contact = toUser(zt);
+            const zv = gas ? hyps.zoneVolumes('gas', contact, null) : hyps.zoneVolumes(fluidType, contact, inputs.goc);
+            const grv = gas ? zv.grvGas : zv.grvOil;
+            points.push({ contact, grv, volume: grv * ntg * phi * soi * factor });
+        }
+        return { points, volumeUnit: meta.isField ? (gas ? 'scf' : 'STB') : 'sm³', contactUnit: meta.isField ? 'ft' : 'm' };
     }
 
     /**
@@ -281,7 +314,9 @@ export class ContactVolumetricsEngine {
                 if (hullMask && nearestDist(topInterp, cx, cy) > hullRadius) { maskedCount++; continue; }
 
                 const tdNative = toDepth(topInterp.predict(cx, cy));
-                const bdNative = baseInterp ? toDepth(baseInterp.predict(cx, cy)) : tdNative + constThick;
+                // constant gross thickness is in workspace units (ft field, m metric);
+                // the surface depths are native, so convert before adding (RCP-T1-001)
+                const bdNative = baseInterp ? toDepth(baseInterp.predict(cx, cy)) : tdNative + constThick / depthToTargetLen;
                 const td = Math.min(tdNative, bdNative) * depthToTargetLen; // shallow, target units
                 const bd = Math.max(tdNative, bdNative) * depthToTargetLen; // deep
                 if (bd - td <= 0) continue;
@@ -316,9 +351,12 @@ function clampFrac(v, dflt) {
     return Math.min(1, Math.max(0, n));
 }
 
-// Fluid-zone depth windows in target depth-down units, from user-convention contacts.
+// Fluid-zone depth windows in target depth-down units. Contacts are TVDSS
+// elevations in workspace units (the target units), so depth is the
+// negation; the surface's depth unit and sign play no part (RCP-T1-011).
+// eslint-disable-next-line no-unused-vars
 function fluidZoneWindows(fluidType, owc, goc, meta, warnings) {
-    const toTargetDepth = (z) => (meta.zConvention === 'elevation' ? -z : z) * meta.depthToTargetLen;
+    const toTargetDepth = (z) => -z;
     const owcD = isNum(owc) ? toTargetDepth(parseFloat(owc)) : Infinity;
     const gocD = isNum(goc) ? toTargetDepth(parseFloat(goc)) : null;
 
