@@ -19,7 +19,7 @@ const Kpi = ({ title, value }) => (
   <Card className="bg-slate-900 border-slate-800">
     <CardContent className="p-3">
       <div className="text-[10px] uppercase tracking-wide text-slate-500">{title}</div>
-      <div className="text-sm font-semibold mt-0.5 text-slate-200 break-all">{value}</div>
+      <div className="text-sm font-semibold mt-0.5 text-slate-200 break-words [overflow-wrap:anywhere]">{value}</div>
     </CardContent>
   </Card>
 );
@@ -53,7 +53,7 @@ const SimKpiPanel = () => {
       )}
       {activeCase && (
         <Kpi title="Deck" value={activeCase.deck_path
-          ? `${activeCase.deck_path.split('/').pop()} (${((activeCase.deck_bytes || 0) / 1024).toFixed(0)} KB)`
+          ? `${activeCase.deck_path.split('/').pop()} (${((activeCase.deck_bytes || 0) / 1024).toFixed(0)}\u00a0KB)`
           : 'not uploaded'} />
       )}
     </div>

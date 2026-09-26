@@ -34,7 +34,7 @@ const RunPanel = () => {
     return (
       <Card className="bg-slate-900 border-slate-800">
         <CardContent className="py-10 text-center text-sm text-slate-500">
-          Open a case first — runs belong to a case.
+          Open a case first: runs belong to a case.
         </CardContent>
       </Card>
     );
@@ -44,7 +44,7 @@ const RunPanel = () => {
     <div className="space-y-4">
       <Card className="bg-slate-900 border-slate-800">
         <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-base">Runs — {activeCase.name}</CardTitle>
+          <CardTitle className="text-base">Runs: {activeCase.name}</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" variant="ghost" className="h-7 text-xs text-slate-400"
               onClick={() => refreshRuns(activeCaseId)}>
@@ -61,7 +61,7 @@ const RunPanel = () => {
         <CardContent className="p-0">
           {runs.length === 0 ? (
             <div className="py-8 text-center text-sm text-slate-500">
-              No runs yet. Queue one — the worker polls every ~10 seconds.
+              No runs yet. Queue one; the worker polls about every 10 seconds.
             </div>
           ) : (
             <Table>

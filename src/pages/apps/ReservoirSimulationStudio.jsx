@@ -45,6 +45,7 @@ const SimStudioContent = () => {
       <section>
         <SectionLabel>Case</SectionLabel>
         <StudioProjectManager
+          label="Case"
           projects={cases.map((c) => ({ id: c.id, name: c.name }))}
           currentProjectId={activeCaseId}
           onCreate={createCase}

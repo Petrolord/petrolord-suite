@@ -395,3 +395,12 @@ MIGRATIONS.md now has no unapplied rows.
   `supabase db query --linked -f <file>` a "dry run". It executes the file;
   there is no dry-run flag. Pre-flight SELECTs against the guard conditions
   are the real check.
+
+## 2026-09-26: senior test T1 (docs/testing/ReservoirSimulationStudio-T1.md)
+
+- Harness `/dev/reservoir-simulation-studio`: in-memory Supabase with
+  storage and RPC fakes and a worker stand-in completing runs with real OPM
+  Flow 2026.04 summaries (src/dev/fixtures/sim-*.json, built offline with
+  the worker image and its build_summary).
+- Results auto-open the newest completed run; zero-based axis floors for
+  noise-level vectors; round day ticks; picker noun "Case"; copy cleaned.

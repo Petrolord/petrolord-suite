@@ -50,7 +50,7 @@ const TrajectoryEditor = ({ form, wellIdx, set }) => {
     <div className="col-span-4 md:col-span-9 rounded-md border border-slate-800 bg-slate-950/40 p-3 space-y-2">
       <div className="flex flex-wrap items-end gap-3">
         <div className="space-y-1 flex-1 min-w-[240px]">
-          <Label className="text-[11px] text-slate-400">Survey stations — MD INC AZI per line ({traj.mdUnit === 'm' ? 'metres' : 'feet'}, grid azimuths)</Label>
+          <Label className="text-[11px] text-slate-400">Survey stations: MD INC AZI per line ({traj.mdUnit === 'm' ? 'metres' : 'feet'}, grid azimuths)</Label>
           <textarea value={traj.text || ''} rows={4} spellCheck={false}
             onChange={(e) => patch({ text: e.target.value })}
             placeholder={'0 0 0\n8100 0 90\n8500 88 90\n10000 88 90'}
@@ -79,7 +79,7 @@ const TrajectoryEditor = ({ form, wellIdx, set }) => {
           <span>
             {check.connections.length} connections, head I{check.headIJ.i} J{check.headIJ.j},
             {' '}{check.inGridFt} ft in zone (TVD {check.tvdRange.min}–{check.tvdRange.max} ft)
-            {check.warnings.length > 0 && ` — ${check.warnings.join(' ')}`}
+            {check.warnings.length > 0 && `. ${check.warnings.join(' ')}`}
           </span>
         </p>
       ) : (
