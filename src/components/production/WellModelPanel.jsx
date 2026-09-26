@@ -61,7 +61,7 @@ const WellModelPanel = ({
     <div className="space-y-4">
       <Field label="Trajectory">
         <Select value={well.mode} onValueChange={(v) => setSection('well', 'mode', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9 bg-slate-800 border-slate-700 text-left [&>span]:truncate"><SelectValue /></SelectTrigger>
           <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
             <SelectItem value="vertical">Vertical</SelectItem>
             <SelectItem value="deviated">Deviated survey</SelectItem>
@@ -107,7 +107,7 @@ const WellModelPanel = ({
         <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Inflow</p>
         <Field label="IPR model">
           <Select value={inflow.model} onValueChange={(v) => setSection('inflow', 'model', v)}>
-            <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-9 bg-slate-800 border-slate-700 text-left [&>span]:truncate"><SelectValue /></SelectTrigger>
             <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
               <SelectItem value="composite">Composite (Vogel below bubble point)</SelectItem>
               <SelectItem value="pi">Straight-line productivity index</SelectItem>
@@ -121,7 +121,7 @@ const WellModelPanel = ({
         </div>
         <Field label="Calibration">
           <Select value={inflow.calMode} onValueChange={(v) => setSection('inflow', 'calMode', v)}>
-            <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-9 bg-slate-800 border-slate-700 text-left [&>span]:truncate"><SelectValue /></SelectTrigger>
             <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
               <SelectItem value="pi">Productivity index</SelectItem>
               {/* Absolute open flow calibrates a Vogel inflow and only a
@@ -169,7 +169,7 @@ const WellModelPanel = ({
               value={completion.correlation}
               onValueChange={(v) => setSection('completion', 'correlation', v)}
             >
-              <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 bg-slate-800 border-slate-700 text-left [&>span]:truncate"><SelectValue /></SelectTrigger>
               <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
                 <SelectItem value="beggsBrill">Beggs and Brill (Payne)</SelectItem>
                 <SelectItem value="hagedornBrown">Modified Hagedorn-Brown</SelectItem>

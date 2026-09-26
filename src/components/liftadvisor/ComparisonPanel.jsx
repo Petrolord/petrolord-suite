@@ -70,11 +70,14 @@ const MethodCard = ({ row, studioLink }) => {
             <p className="text-[11px] text-slate-500">
               <span className="text-slate-400">Designed with:</span> {d.equipment}
             </p>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+            {/* One column below 2xl: two columns ran values such as "the
+                available injection pressure" and "74.3 % of Goodman" into
+                the next cell at 1366 wide (AL-T1-002). */}
+            <div className="grid grid-cols-1 2xl:grid-cols-2 gap-x-4 gap-y-1" data-testid="al-figures">
               {d.figures.map((f) => (
-                <div key={f.label} className="flex items-baseline justify-between gap-2">
-                  <span className="text-[11px] text-slate-500">{f.label}</span>
-                  <span className="text-sm text-slate-200 tabular-nums whitespace-nowrap">{f.value}</span>
+                <div key={f.label} className="flex min-w-0 items-baseline justify-between gap-3">
+                  <span className="shrink-0 text-[11px] text-slate-500">{f.label}</span>
+                  <span className="min-w-0 text-right text-sm text-slate-200 tabular-nums">{f.value}</span>
                 </div>
               ))}
             </div>
@@ -159,7 +162,7 @@ const ComparisonPanel = () => {
             Every method, on this one well
             <span className="block text-xs font-normal text-slate-500 mt-0.5">
               Screening is a rules matrix and runs as you type. The design pass runs four validated
-              design chains -- a wave equation among them -- against the same shared well record, so
+              design chains, a wave equation among them, against the same shared well record, so
               it runs when you ask for it.
             </span>
           </CardTitle>
