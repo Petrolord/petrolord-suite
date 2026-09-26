@@ -93,8 +93,8 @@ const FactorsPanel = () => {
                     const changed = saved && Math.abs((saved.oil_factor ?? 1) - f.factors.oil) > 0.0005;
                     return (
                       <tr key={`${f.wellId}-${f.periodMonth}`} className="border-b border-slate-800/60">
-                        <td className="py-2 pr-3 text-slate-300">{f.periodMonth.slice(0, 7)}</td>
-                        <td className="py-2 pr-3 text-slate-200">{f.wellName}</td>
+                        <td className="py-2 pr-3 whitespace-nowrap text-slate-300">{f.periodMonth.slice(0, 7)}</td>
+                        <td className="py-2 pr-3 whitespace-nowrap text-slate-200">{f.wellName}</td>
                         <td className="py-2 pr-3 text-right text-emerald-400">{fmt(f.factors.oil)}</td>
                         <td className="py-2 pr-3 text-right text-sky-400">{fmt(f.factors.water)}</td>
                         <td className="py-2 pr-3 text-right text-amber-400">{fmt(f.factors.gas)}</td>

@@ -29,7 +29,13 @@ const SummaryPanel = () => {
   }
 
   const { totals } = allocation;
-  const periodFactor = totals.theoretical.oil > 0 ? totals.measured.oil / totals.theoretical.oil : null;
+  // Factor over the dates a well could carry (ALLOC-T1-001): the metered
+  // total also holds dates no well could take, while the theoretical only
+  // covers carried dates, so metered / theoretical read 1.027 on a field
+  // metering 95 percent of its wells. Allocated equals metered on carried
+  // dates, so allocated / theoretical is the like-for-like factor.
+  const periodFactor = totals.theoretical.oil > 0 ? totals.allocated.oil / totals.theoretical.oil : null;
+  const uncarriedOil = Math.max(0, totals.measured.oil - totals.allocated.oil);
   const inBand = periodFactor == null ? null
     : periodFactor >= activeSettings.factorWarnLow && periodFactor <= activeSettings.factorWarnHigh;
   const high = allocation.diagnostics.filter((d) => d.severity === 'high').length;
@@ -55,6 +61,13 @@ const SummaryPanel = () => {
         />
         <Tile label="Wells allocated" value={allocation.wells.length} />
       </div>
+
+      {uncarriedOil >= 0.5 && (
+        <p className="text-[11px] text-slate-400" data-testid="alloc-uncarried">
+          {fmt(uncarriedOil)} stb of metered oil fell on dates no well could carry (no valid test
+          yet, or no hours on), so it is in the metered total and outside the factor.
+        </p>
+      )}
 
       {inBand === false && (
         <p className="text-[11px] text-amber-400/90">

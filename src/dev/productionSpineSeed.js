@@ -6,7 +6,8 @@
 // HP-1 oil: q = 1,200 exp(-0.002 t) stb/d, water cut 20% + 0.1%/day,
 //   GOR 800 scf/stb. HP-2G gas: 5,000 exp(-0.0015 t) Mscf/d, CGR 10 stb/MMscf.
 // HP-3I injector: 2,000 stb/d. t = days from 2026-03-30 (180 days to
-// 2026-09-25). One 3-day HP-1 deferment (2026-06-10 to 12, zero rate),
+// 2026-09-25). Field totals at 95 % oil, 100 % water, 98 % gas of the
+// wells. One 3-day HP-1 deferment (2026-06-10 to 12, zero rate),
 // allocation factor 0.97 on oil every month, monthly valid tests at the
 // daily rate.
 import { toWellModelPayload, defaultWellInputs } from '@/utils/production/wellModel';
@@ -108,5 +109,18 @@ export function productionSeed() {
     { id: 'po-wm-hp1', user_id: U, well_id: WELL_IDS.oil, model_data: toWellModelPayload(oilInputs), notes: null, created_at: TS, updated_at: TS },
     { id: 'po-wm-hp2g', user_id: U, well_id: WELL_IDS.gas, model_data: toWellModelPayload(gasInputs), notes: null, created_at: TS, updated_at: TS },
   ];
-  return { po_fields, po_wells, po_daily_production, po_well_tests, po_deferments, po_allocation_factors, po_well_models, po_field_totals: [] };
+  // Measured field totals at the export point: 95 % of the wells' oil, all
+  // of their water, 98 % of their gas, so every allocation factor has a
+  // closed form against the tests.
+  const po_field_totals = [];
+  for (let i = 0; i < SEED_DAYS; i += 1) {
+    const rows = po_daily_production.filter((r) => r.prod_date === day(i) && r.well_id !== WELL_IDS.inj);
+    const sum = (k) => rows.reduce((a, r) => a + r[k], 0);
+    po_field_totals.push({
+      id: `po-ft-${i}`, user_id: U, field_id: FIELD, total_date: day(i),
+      oil_stb: r2(0.95 * sum('oil_stb')), water_stb: r2(sum('water_stb')), gas_mscf: r2(0.98 * sum('gas_mscf')),
+      source: 'seed', comment: null, created_at: TS, updated_at: TS,
+    });
+  }
+  return { po_fields, po_wells, po_daily_production, po_well_tests, po_deferments, po_allocation_factors, po_well_models, po_field_totals };
 }
