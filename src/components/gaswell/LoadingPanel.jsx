@@ -119,7 +119,7 @@ const LoadingPanel = () => {
                 labelFormatter={(v) => `${Math.round(Number(v)).toLocaleString()} ft`}
               />
               <Legend {...LEGEND_PROPS} />
-              <ReferenceLine y={c.depthFt} stroke={CHART_COLORS.axisLine} strokeDasharray="4 4" label={{ value: 'Controls', position: 'insideTopRight', fill: CHART_COLORS.axisText, fontSize: 10 }} />
+              <ReferenceLine y={c.depthFt} stroke={CHART_COLORS.axisLine} strokeDasharray="4 4" label={{ value: 'Controlling depth', position: 'insideTopLeft', fill: CHART_COLORS.axisText, fontSize: 10 }} />
               <Line dataKey="criticalMscfd" name="Critical rate" stroke={COLOR.critical} strokeWidth={2} dot isAnimationActive={false} />
               <Line dataKey="actualMscfd" name="Producing" stroke={COLOR.actual} strokeWidth={2} strokeDasharray="5 4" dot={false} isAnimationActive={false} />
             </LineChart>
