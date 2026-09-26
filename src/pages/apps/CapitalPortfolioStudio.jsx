@@ -360,7 +360,7 @@ const CapitalPortfolioStudioInner = () => {
                         {projectRefusals.map((msg) => <p key={msg} className="text-xs">{msg}</p>)}
                       </div>
                     )}
-                    <div className="max-h-64 overflow-y-auto pr-2">
+                    <div className="max-h-[28rem] overflow-y-auto pr-2">
                       <Table>
                         <TableHeader>
                           <TableRow className="border-b-white/20 hover:bg-transparent">
@@ -392,9 +392,22 @@ const CapitalPortfolioStudioInner = () => {
                               <TableCell className="text-right text-lime-300">
                                 {emv === null ? <span className="text-red-300" title={refusal || undefined}>n/a</span> : (full ? `${formatFull(emv, MONEY_MM_DECIMALS)} $MM` : formatCurrency(emv))}
                               </TableCell>
-                              <TableCell className="text-right">
-                                <Button variant="ghost" size="icon" onClick={() => handleOpenProjectDialog(p)} className="text-blue-400 hover:text-blue-300 h-7 w-7"><Edit className="w-4 h-4" /></Button>
-                                <Button variant="ghost" size="icon" onClick={() => handleDeleteProject(p.id)} className="text-red-500 hover:text-red-400 h-7 w-7"><Trash2 className="w-4 h-4" /></Button>
+                              <TableCell className="text-right whitespace-nowrap">
+                                <Button variant="ghost" size="icon" onClick={() => handleOpenProjectDialog(p)} className="text-blue-400 hover:text-blue-300 h-7 w-7" title="Edit project"><Edit className="w-4 h-4" /></Button>
+                                {/* CPS-T1-003: a project delete asks first, as a portfolio delete does */}
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-red-500 hover:text-red-400 h-7 w-7" title="Delete project"><Trash2 className="w-4 h-4" /></Button></AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete {p.name}?</AlertDialogTitle>
+                                      <AlertDialogDescription>The project is removed from every portfolio. This cannot be undone.</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleDeleteProject(p.id)}>Delete</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
                               </TableCell>
                             </TableRow>
                             );

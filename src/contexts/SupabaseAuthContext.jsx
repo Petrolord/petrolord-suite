@@ -5,6 +5,8 @@ import { readSnapshot, writeSnapshot, isTransientError } from '@/lib/entitlement
 import { ImpersonationProvider, useImpersonation } from '@/contexts/ImpersonationContext';
 
 const AuthContext = createContext(undefined);
+// Exported for dev-only harnesses that stand in a signed-in user (src/dev).
+export { AuthContext };
 
 // Internal Auth Provider Content that uses Impersonation
 const AuthProviderContent = ({ children }) => {
