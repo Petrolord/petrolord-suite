@@ -75,9 +75,9 @@ export default function ProgramTab({ caseDraft, onCaseChange, res, depthUnit, ge
         <Card title="Activity program (in execution order)" testId="wct-activities-card">
           <div className="flex flex-col gap-1">
             {acts.map((a, i) => (
-              <div key={a.id} className="flex items-center gap-1.5" data-testid={`wct-act-${a.id}`}>
+              <div key={a.id} className="flex flex-wrap items-center gap-1.5" data-testid={`wct-act-${a.id}`}>
                 <span className="w-12 text-[10px] uppercase text-slate-500">{a.kind}</span>
-                <Input className="h-7 flex-1 text-xs" value={a.label || ''}
+                <Input className="h-7 min-w-[150px] flex-1 text-xs" value={a.label || ''}
                   onChange={(e) => onCaseChange((d) => { d.program.activities[i].label = e.target.value; })} />
                 {KIND_FIELDS[a.kind].map((f) => (
                   <Input key={f.field} className="h-7 w-[70px] text-right text-xs" type="number"
