@@ -6,17 +6,8 @@ import DataManager from './DataManager';
 import TeamCollaboration from './TeamCollaboration';
 import ProspectRiskingPanel from './ProspectRiskingPanel';
 import { makeRegistryProspectsBackend } from '../../services/prospectsService';
+import { unriskedFromRun, runVolumeUnit } from '../../services/prospectVolumes';
 import { useReservoirCalc } from '../../contexts/ReservoirCalcContext';
-
-// Pull a {mean,p90,p50,p10} unrisked distribution out of RCP's Monte
-// Carlo result, whatever its wrapping (stooip/giip/oil/gas or flat).
-function pickUnrisked(pr) {
-    if (!pr) return null;
-    for (const cand of [pr.stooip, pr.giip, pr.oil, pr.gas, pr.result, pr]) {
-        if (cand && Number.isFinite(cand.mean) && Number.isFinite(cand.p50)) return cand;
-    }
-    return null;
-}
 
 // Prospect Risking wraps the shared panel with the real rcp_prospects
 // backend and the latest MC result (unrisked volume) from RCP context.
@@ -24,8 +15,9 @@ const ProspectRiskingTool = () => {
     const { backend: rcp } = useReservoirCalc();
     const backend = useMemo(() => rcp?.prospects || makeRegistryProspectsBackend(), [rcp]);
     const { state } = useReservoirCalc();
-    const unrisked = pickUnrisked(state?.probResults);
-    return <ProspectRiskingPanel backend={backend} unrisked={unrisked} />;
+    const fluidType = state?.inputs?.fluidType || 'oil';
+    const unrisked = useMemo(() => unriskedFromRun(state?.probResults, fluidType, state?.unitSystem), [state?.probResults, fluidType, state?.unitSystem]);
+    return <ProspectRiskingPanel backend={backend} unrisked={unrisked} defaultUnit={runVolumeUnit(fluidType, state?.unitSystem)} />;
 };
 
 const TABS = [

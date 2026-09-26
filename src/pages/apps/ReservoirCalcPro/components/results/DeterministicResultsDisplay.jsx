@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Layers, AlertTriangle, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { useReservoirCalc } from '../../contexts/ReservoirCalcContext';
 import DeterministicSummaryTable from './DeterministicSummaryTable';
+import ContactSweepChart from './ContactSweepChart';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -127,6 +128,8 @@ const DeterministicResultsDisplay = () => {
                     </div>
                 </Card>
             </div>
+
+            <ContactSweepChart />
 
             {/* Generated Maps Section */}
             {maps.length > 0 && (

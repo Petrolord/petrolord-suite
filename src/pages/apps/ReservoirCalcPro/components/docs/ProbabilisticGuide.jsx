@@ -63,7 +63,7 @@ const ProbabilisticGuide = () => (
     <Table
       headers={['Type', 'Entered as', 'Sampled by', 'Notes']}
       rows={[
-        ['Triangular', 'P90 (Min), P50 (Mode), P10 (Max)', 'Triangular inverse CDF', 'The three fields are the low, most likely and high values of the triangle. They are not fitted percentiles.'],
+        ['Triangular', 'Min, Most likely, Max', 'Triangular inverse CDF', 'The three fields are the low, most likely and high values of the triangle. They are not fitted percentiles.'],
         ['Normal', 'Mean, Std Dev', 'mean + stdDev x x', 'Unbounded unless you supply truncation limits.'],
         ['Lognormal', 'Mean, Std Dev', 'exp(mu + sigma x x)', 'Parameterised by the arithmetic mean and standard deviation of the variable itself, converted internally.'],
         ['Uniform', 'Min, Max', 'min + Phi(x) x (max - min)', 'Flat across the interval.'],

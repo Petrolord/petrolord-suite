@@ -56,6 +56,10 @@ const ToggleBtn = ({ active, onClick, title, children }) => (
     </button>
 );
 
+// colour-bar end labels: whole units for depths and other large values
+// (the old test read -1890 as small and printed -1500.61)
+const legendNum = (v) => (Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : Number(v.toPrecision(3)).toString());
+
 const ContourMapViewer = ({
     gridData,
     colorscale = 'Viridis',
@@ -106,11 +110,24 @@ const ContourMapViewer = ({
                 ctx.stroke();
                 ctx.restore();
 
-                // Label index contours only, once per level, on a segment near the
-                // middle of the canvas to reduce clutter.
+                // Label index contours once per level where the contour crosses a
+                // ray from the map centre toward the lower right, clear of the
+                // edges, so labels read along one diagonal (the scan-order middle
+                // segment stacked them at the left edge; RCP-T1-006).
                 if (showLabels && index && lvl.segments.length) {
-                    const seg = lvl.segments[Math.floor(lvl.segments.length / 2)];
-                    const mid = dims.toCanvas((seg[0].x + seg[1].x) / 2, (seg[0].y + seg[1].y) / 2);
+                    const cx = (dims.minX + dims.maxX) / 2;
+                    const cy = (dims.minY + dims.maxY) / 2;
+                    let best = null; let bestScore = Infinity;
+                    for (const sg of lvl.segments) {
+                        const mx = (sg[0].x + sg[1].x) / 2; const my = (sg[0].y + sg[1].y) / 2;
+                        const pc = dims.toCanvas(mx, my);
+                        if (pc.px < dims.ox + 18 || pc.px > dims.w - dims.ox - 18 || pc.py < Math.max(40, dims.oy + 10) || pc.py > dims.h - dims.oy - 10) continue;
+                        const ang = Math.atan2(my - cy, mx - cx);
+                        const score = Math.abs(Math.atan2(Math.sin(ang + Math.PI / 4), Math.cos(ang + Math.PI / 4)));
+                        if (score < bestScore) { bestScore = score; best = pc; }
+                    }
+                    if (!best) return;
+                    const mid = best;
                     const text = Math.round(lvl.level).toString();
                     ctx.save();
                     ctx.font = '600 9px ui-sans-serif, system-ui';
@@ -175,9 +192,9 @@ const ContourMapViewer = ({
     const fmtCoord = (v) => (Math.abs(v) >= 1000 ? v.toFixed(0) : v.toFixed(1));
 
     return (
-        <div className="w-full h-full relative bg-slate-950">
-            {/* Toolbar */}
-            <div className="absolute top-2 left-2 z-20 flex items-center gap-1 bg-slate-900/85 backdrop-blur border border-slate-700 rounded-md px-1 py-0.5 shadow-lg">
+        <div className="w-full h-full relative bg-slate-950 overflow-hidden">
+            {/* Toolbar (wraps in a narrow split pane instead of running into the 3D view) */}
+            <div className="absolute top-2 left-2 z-20 flex flex-wrap items-center gap-1 max-w-[calc(100%-1rem)] bg-slate-900/85 backdrop-blur border border-slate-700 rounded-md px-1 py-0.5 shadow-lg">
                 <ToggleBtn active={showFill} onClick={() => setShowFill((v) => !v)} title="Colour fill">
                     <Layers className="w-3 h-3" /> Fill
                 </ToggleBtn>
@@ -232,7 +249,7 @@ const ContourMapViewer = ({
                     <div><span className="text-slate-500">Y </span>{fmtCoord(hover.y)}</div>
                     <div className="text-blue-300">
                         <span className="text-slate-500">Z </span>
-                        {hover.value == null ? '—' : hover.value.toFixed(hover.value > 1000 ? 0 : 2)} {unit}
+                        {hover.value == null ? '—' : hover.value.toFixed(Math.abs(hover.value) >= 100 ? 1 : 3)} {unit}
                     </div>
                 </div>
             )}
@@ -240,12 +257,12 @@ const ContourMapViewer = ({
             {/* Colour legend */}
             <div className="absolute bottom-3 right-3 z-10 bg-slate-950/70 backdrop-blur px-2 py-1.5 rounded border border-slate-800 pointer-events-none">
                 <div className="flex items-center gap-1.5">
-                    <span className="text-[9px] text-slate-400 font-mono">{minZ.toFixed(minZ > 1000 ? 0 : 2)}</span>
+                    <span className="text-[9px] text-slate-400 font-mono">{legendNum(minZ)}</span>
                     <div
                         className="h-2 w-24 rounded"
                         style={{ background: `linear-gradient(to right, ${legendStops.join(',')})` }}
                     />
-                    <span className="text-[9px] text-slate-400 font-mono">{maxZ.toFixed(maxZ > 1000 ? 0 : 2)}</span>
+                    <span className="text-[9px] text-slate-400 font-mono">{legendNum(maxZ)}</span>
                 </div>
                 <div className="flex items-center justify-between mt-0.5">
                     {unit && <span className="text-[8px] text-slate-500">{unit}</span>}
@@ -257,7 +274,7 @@ const ContourMapViewer = ({
 
             {drawingActive && (
                 <div className="absolute top-12 left-1/2 -translate-x-1/2 z-10 bg-emerald-950/80 backdrop-blur px-3 py-1 rounded-full border border-emerald-700 text-[10px] text-emerald-300 pointer-events-none">
-                    Drawing — click to add points ({drawing.currentPoints.length})
+                    Drawing: click to add points ({drawing.currentPoints.length})
                 </div>
             )}
         </div>

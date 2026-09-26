@@ -5,6 +5,8 @@
 // are this app's own and are remembered per browser; the prospect rows
 // themselves stay in ReservoirCalc Pro. Pure mapping plus localStorage.
 
+import { toMMboe } from '@/pages/apps/ReservoirCalcPro/services/prospectVolumes';
+
 export const RRV_KEY = 'rrv.prospects.v1';
 
 export const DEFAULT_ECONOMICS = Object.freeze({ mefs: 10, unitValue: 8, devCost: 100, wellCost: 25 });
@@ -13,7 +15,16 @@ export const DEFAULT_ECONOMICS = Object.freeze({ mefs: 10, unitValue: 8, devCost
 export function fromRcpProspect(row) {
   const r = row.risked || {};
   const sc = { ...(row.inputs || {}), ...(r.success || r.success_case || r.successCase || {}) };
-  const num = (v) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : '');
+  // volumes arrive in the unit the row states (MMSTB, Bscf, MMsm3, Bsm3) and
+  // are valued as MMboe. Rows saved before units were stated carry either
+  // MMSTB or raw STB; anything above 100,000 is read as STB.
+  const unit = row.inputs?.unit;
+  const rawBig = !unit && [sc.mean, sc.p50, sc.p10].some((v) => Number(v) > 1e5);
+  const num = (v) => {
+    if (!(Number.isFinite(Number(v)) && v !== null && v !== '')) return '';
+    const x = rawBig ? Number(v) / 1e6 : toMMboe(Number(v), unit || 'MMbbl');
+    return Number(x.toPrecision(6));
+  };
   // Pg as risked in ReservoirCalc Pro; else the product of its factors
   const f = row.pg_factors || {};
   const fromFactors = ['trap', 'reservoir', 'charge', 'seal', 'other']
@@ -28,6 +39,7 @@ export function fromRcpProspect(row) {
     p90: num(sc.p90 ?? r.p90),
     p50: num(sc.p50 ?? r.p50),
     p10: num(sc.p10 ?? r.p10),
+    volumeNote: unit && unit !== 'MMbbl' ? `converted from ${unit} at 6 Mscf per boe` : (rawBig ? 'read as STB' : ''),
     ...DEFAULT_ECONOMICS,
   };
 }

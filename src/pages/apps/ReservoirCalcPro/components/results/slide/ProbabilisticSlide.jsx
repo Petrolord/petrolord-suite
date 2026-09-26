@@ -133,9 +133,9 @@ const ProbabilisticSlide = () => {
     }));
 
     const hero = [
-        { label: 'P90 · Proven', value: fmtDec(stats.p90 / denom, 2), unit, palette: SLATE, primary: false },
-        { label: 'P50 · Probable', value: fmtDec(stats.p50 / denom, 2), unit, palette, primary: true, sub: `Mean ${fmtDec(stats.mean / denom, 2)} ${unit}` },
-        { label: 'P10 · Possible', value: fmtDec(stats.p10 / denom, 2), unit, palette: SLATE, primary: false },
+        { label: 'P90 · Low estimate', value: fmtDec(stats.p90 / denom, 2), unit, palette: SLATE, primary: false },
+        { label: 'P50 · Best estimate', value: fmtDec(stats.p50 / denom, 2), unit, palette, primary: true, sub: `Mean ${fmtDec(stats.mean / denom, 2)} ${unit}` },
+        { label: 'P10 · High estimate', value: fmtDec(stats.p10 / denom, 2), unit, palette: SLATE, primary: false },
     ];
 
     const warnCount = probResults.diagnostics?.warnings?.length || 0;

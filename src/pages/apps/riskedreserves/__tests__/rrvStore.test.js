@@ -11,6 +11,12 @@ describe('Risked Reserves store', () => {
     expect(p.pg).toBeCloseTo(0.2, 12);
     expect(p.p90).toBe(10);
   });
+  test('stated units convert to MMboe; unstated raw STB is scaled (RCP-T1-003)', () => {
+    const gas = fromRcpProspect({ id: 'g', name: 'G', pg_factors: {}, inputs: { unit: 'Bcf', p90: 60, p50: 120, p10: 240 }, risked: { pg: 0.3 } });
+    expect(gas).toMatchObject({ p90: 10, p50: 20, p10: 40, volumeNote: expect.stringMatching(/Bcf/) });
+    const stb = fromRcpProspect({ id: 's', name: 'S', pg_factors: {}, inputs: { p90: 178.81e6, p50: 225.54e6, p10: 284.03e6 }, risked: { pg: 0.3 } });
+    expect(stb).toMatchObject({ p90: 178.81, p50: 225.54, p10: 284.03 });
+  });
   test('input problems name the rule', () => {
     expect(inputProblem(blankProspect(1))).toBeNull();
     expect(inputProblem({ ...blankProspect(1), p90: 60, p10: 10 })).toMatch(/P90 is the low case/);

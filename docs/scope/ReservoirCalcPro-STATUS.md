@@ -3,6 +3,19 @@
 App: `src/pages/apps/ReservoirCalcPro/` (Geoscience module). Contact-based
 volumetrics flagship; deterministic + Monte Carlo STOIIP/GIIP.
 
+## 2026-09-26: Senior test T1 (Wave 1 #5)
+
+Report: docs/testing/ReservoirCalcPro-T1.md. Two S1 unit defects on
+mixed-unit structural runs fixed: the hybrid gross thickness and the fluid
+contacts are workspace values (ft field, m metric) and are no longer
+converted as if in the surface's unit (`ContactVolumetricsEngine`,
+`MapGenerationEngine`, 3D contact planes). The Monte Carlo result reaches
+Prospect Risking in MMSTB / Bscf with the unit saved on the prospect
+(`services/prospectVolumes.js`), which Risked Reserves Valuation reads.
+Triangle inputs are Min / Most likely / Max; result cards read low, best and
+high estimate (PRMS). Split map view keeps true aspect. New: STOIIP against
+the contact in the Detailed results (`contactSweep`).
+
 ## 2026-08-02 — Per-parameter unit selection + convert-on-toggle
 
 The Field/Metric select used to hard-bind every input's unit, and toggling it
