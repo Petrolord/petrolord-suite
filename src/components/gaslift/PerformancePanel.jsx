@@ -170,11 +170,11 @@ const PerformancePanel = () => {
           <CardTitle className="text-base">
             Rate against injection depth
             <span className="block text-xs font-normal text-slate-500 mt-0.5">
-              What deeper injection is worth at {fmt(inputs.injection.targetQgiMscfd)} Mscf/d, before
+              What deeper injection is worth at {fmt(Number(inputs.injection.targetQgiMscfd))} Mscf/d, before
               asking whether the casing pressure can reach it.
             </span>
           </CardTitle>
-          <Button onClick={runDepthSweep} disabled={isRunning} variant="outline" className="h-9">
+          <Button onClick={runDepthSweep} disabled={isRunning} variant="outline" className="whitespace-nowrap h-9">
             <Play className="w-3.5 h-3.5 mr-1" /> Run sweep
           </Button>
         </CardHeader>

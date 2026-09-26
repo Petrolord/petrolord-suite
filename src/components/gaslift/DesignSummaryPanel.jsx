@@ -59,7 +59,7 @@ const DesignSummaryPanel = () => {
           : 'Where the injection line meets the flowing gradient.'}
       />
       <Row label="Operating pressure" value={`${fmt(design.pOperatingPsig)} psig`} />
-      <Row label="Target gas rate" value={`${fmt(inputs.injection.targetQgiMscfd)} Mscf/d`} />
+      <Row label="Target gas rate" value={`${fmt(Number(inputs.injection.targetQgiMscfd))} Mscf/d`} />
 
       <div className="pt-2">
         {warnings.length === 0 ? (
@@ -71,8 +71,18 @@ const DesignSummaryPanel = () => {
             <p className="text-[11px] font-semibold text-amber-300">
               {warnings.length} thing{warnings.length === 1 ? '' : 's'} to look at
             </p>
-            <p className="text-[11px] text-amber-200/70">{STOP_REASON[design.stopReason] || ''}</p>
+            {/* The count used to stand over the stop reason alone, so "2
+                things to look at" showed one line that was not a problem
+                (GL-T1-002). List the warnings; the stop reason follows. */}
+            <ul className="space-y-1" data-testid="gl-summary-warnings">
+              {warnings.map((w, i) => (
+                <li key={`${w.code}-${i}`} className="text-[11px] text-amber-200/90">{w.message}</li>
+              ))}
+            </ul>
           </div>
+        )}
+        {warnings.length > 0 && STOP_REASON[design.stopReason] && (
+          <p className="mt-1 text-[11px] text-slate-400">{STOP_REASON[design.stopReason]}</p>
         )}
       </div>
     </div>

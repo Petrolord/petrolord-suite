@@ -90,7 +90,7 @@ export const defaultInputs = () => {
     },
     design: {
       method: 'surfaceClose',
-      dpPerValvePsi: '25',
+      dpPerValvePsi: '50',
       dpTransferPsi: '50',
       killGradPsiPerFt: '0.45',
       unloadGradPsiPerFt: '0.10',
