@@ -58,7 +58,7 @@ export default function ChecksTab({
               <th className="px-1 py-1 text-right">To MD ({unit})</th>
               <th className="px-1 py-1 text-right">Drift (in)</th>
               <th className="px-1 py-1 text-left">Controlling</th>
-              <th className="px-1 py-1 text-right">Clearance (mm)</th>
+              <th className="px-1 py-1 text-right" title="Drift diameter minus component OD">Diametral clearance (mm)</th>
               <th className="px-1 py-1" />
             </tr>
           </thead>
