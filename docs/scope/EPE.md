@@ -2,7 +2,7 @@
 
 **Scope document maintained at:** `docs/scope/EPE.md`
 
-**Last meaningful update:** 2026-08-16 (rename + v3.3/v3.4 capability round)
+**Last meaningful update:** 2026-09-26 (EC7: engine 3.12.0 follows the gazetted PIA 2021 / NTA 2025 by default, legacy switch, re-frozen regression contract; sections 3.1, 3h, 5, 6 and 7)
 
 **Status:** Active — production-ready core, staging-only deployment
 
@@ -98,22 +98,60 @@ Sub-components live in `src/pages/apps/epe/` and `src/components/charts/` (share
 - Profit oil split with tax on contractor share
 - Validation status: matches conventional formulae, no published worked example used
 
-**PIA 2021:**
-- Full hydrocarbon tax (HCT), companies income tax (CIT), tertiary education tax (TET) cascade
-- Hydrocarbon development trust (HCDT) at 3% prior-year OPEX
-- NDDC levy (fixed or % of opex)
-- Production allowance with terrain-aware caps (per-bbl with $/bbl ceiling)
-- Cost price ratio (CPR) cap with carryforward
-- Royalties: production royalty (terrain-derived rate) + price royalty (price-tiered)
-- Capital allowance over configurable recovery years
-- **Validation status: ✓ byte-for-byte against PIA 2021 worked example** (all 17 line items within ±$10,000 tolerance; max deviation $3,162 from price-royalty rate rounding)
-
-**NTA 2025 framework (post-Jan 2026):**
-- Auto-detection: when `base_year >= 2026`, NTA framework applies
-- Per-config override: `force_pia` / `force_nta` / `auto`
-- TET 2.5% replaced by Development Levy 4% on assessable profit
-- Deep offshore HCT user-configurable interpretation (conservative 0% / aggressive 30% / custom)
-- Validation status: ✓ synthetic worked example (mathematical extension of PIA validation case). No NUPRC-published NTA worked example yet exists; ours is best-interpretation.
+**PIA 2021 / NTA 2025 (engine 3.12.0, EC7, 2026-09-26: the gazetted texts by default):**
+The PIA regime is computed from the Petroleum Industry Act 2021 (Official
+Gazette No. 142, 27 August 2021), the Nigeria Tax Act 2025 (Official Gazette
+No. 117, 26 June 2025, taken as effective 1 January 2026), the Petroleum
+Royalty Regulations 2022 (S.I. No. 73) and the Finance Act 2023. The audit
+and the repair are `packages/engines/tools/validation/economics/AUDIT-PIA-2021.md`
+and `FINDINGS-pia2021.md`.
+- Framework per year of assessment: under `auto` every year before 2026 is a
+  PIA year and every year from 2026 an NTA year (`force_pia` / `force_nta`
+  still override). A ledger that crosses 1 January 2026 reports
+  `kpis.fiscal_framework = 'pia_only_then_nta_2025'` and `kpis.nta_first_year`.
+- Production royalty on crude oil plus condensate as weighted tranches of the
+  year's daily rate (calendar days): onshore and shallow water 5% to 5,000
+  bopd, 7.5% to 10,000, then 15% onshore or 12.5% shallow water; deep
+  offshore 5% to 50,000 bopd and 7.5% above; frontier 7.5% (7th Sch para
+  10(2)-(4); Regulations r.13). `marginal_field` is refused as a terrain.
+- Gas and NGL royalty 5%, 2.5% on the in-country share
+  `pia_gas_in_country_share_pct` (para 10(6); r.16).
+- Royalty by price at each stream's own price on the Regulations benchmarks
+  (50 / 100 / 150 USD/bbl in 2021, +2% a year, rounded to cents); the Act's
+  2020 base with `pia_price_royalty_base: 'act_2020'`.
+- HCT at 30% (converted PML) or 15% (PPL, marginal field under s.94(1)); a
+  new-acreage PML onshore or in shallow water needs `pia_new_pml_hct_rate_pct`
+  15 or 30, and a deep offshore NTA year needs
+  `pia_deep_offshore_hct_interpretation` (no defaults; decision D5).
+- Production allowance: converted 2.50 USD/bbl; new leases 8 USD/bbl to the
+  cumulative cap and 4 USD/bbl after it (`..._per_bbl_new_after_cap`); none
+  for deep offshore or frontier in NTA years.
+- CPR on crude and condensate revenue, hydrocarbon tax only, decommissioning
+  contributions inside it; CIT deducts full opex and its own allowance.
+- NDDC 3% of the total annual budget (opex plus capex), deducted in the HCT
+  base; `pia_nddc_levy_base: 'opex'` keeps the earlier base.
+- Capital allowance 20/20/20/20/19 in PIA years and 20% in NTA years; a
+  recovery life other than 5 is refused. CITA two-thirds limit only in PIA
+  years; `pia_cit_company_gas_operations` exempts a gas company.
+- TET 3% from 2023 and 2.5% before when `pia_tet_rate_pct` is blank (FA23
+  s.26); the 4% development levy in NTA years; minimum ETR top-up in NTA
+  years only.
+- NTA decommissioning deduction only when `pia_decom_escrow_condition_met`
+  is true (NTA s.86); a missing boolean with an NTA-year contribution is refused.
+- Every conflict and assumption is printed in `kpis.pia_notes`.
+- **Legacy switch:** `pia_legacy_pre_audit: true` reproduces the pre-audit
+  engine (3.11.0) exactly. Migration 20260926150000 (HELD) stamps every PIA
+  config saved before 26 September 2026 with it, so saved runs reproduce
+  their stored results; the Run Console shows the stamp as the
+  "Legacy (pre-2026-09-26 engine)" toggle and the Results Viewer says "PIA
+  figures were corrected on 26 September 2026 to follow the Act and the
+  Royalty Regulations. This run uses the earlier engine."
+- **Validation status:** default path pinned by the independent text oracle
+  `oracle_pia2021.py` (19 cases, `pia2021_cases.json`; worked example inputs
+  NPV **141,236,909.83**); legacy switch pinned by the frozen worked example
+  (NPV **135,185,570.34**, every line item). The earlier claim of a
+  byte-for-byte match with a published PIA worked example was never
+  recorded against a citation and is withdrawn (AUDIT-PIA-2021.md section 4).
 
 ### 3.2 Engine features
 
@@ -348,6 +386,36 @@ Per `docs/scope/EPE-Industry-Audit.md` (2.5–2.10, 3.6). Migration
 
 ---
 
+## 3h. Engine v3.12 — EC7 PIA 2021 / NTA 2025 compliance (2026-09-26)
+
+Engines PR #262 (3778451), vendored file by file with the Suite pin at
+3778451. Owner decision D1: correct by default, with one documented legacy
+input. Suite surface:
+- **Run Console**: the compliance inputs with their provision in the help
+  text; the stated choices marked required (new-lease PML HCT, deep offshore
+  reading, NTA escrow); TET blank = statute; capex recovery fixed at 5;
+  `marginal_field` only as a legacy terrain; the legacy toggle on stamped
+  runs; configs the engine will refuse (marginal_field terrain, new-lease PML
+  without the HCT rate, recovery life other than 5, NTA sinking fund without
+  the escrow input, licence type other than PML or PPL, deep offshore NTA
+  year without a reading) show the engine's message with one-click fixes and
+  the legacy toggle, before the run and after a refused run
+  (`src/pages/apps/epe/epePiaCompliance.js`).
+- **Results Viewer**: framework badge for `pia_only_then_nta_2025` with
+  `nta_first_year`, the legacy notice, `pia_notes`, the royalty split and
+  rates in the year table and exports; a refused run shows the engine's
+  message with "Fix the inputs" and "Run as legacy" (also on Case Detail).
+- **Fiscal Regime Designer**: edits the template types `pia_2021`,
+  `pia_cumulative_production` and `costRecoveryBase`; TemplateSelector states
+  each template's terms.
+- **Sensitivity batch**: a null config field is unset (it swept a phantom 0%
+  TET around the statutory base).
+- **Owner order**: apply migration 20260926150000, redeploy
+  epe-cash-flow-engine, epe-cash-flow-engine-batch and epe-monte-carlo, then
+  upload the Suite.
+
+---
+
 ## 4. What is NOT YET BUILT — known gaps
 
 ### 4.1 Untested code paths (engine code exists but no validation case)
@@ -415,9 +483,10 @@ In rough priority order, with rough sizing estimates:
 
 ## 5. Validation status snapshot
 
-Updated 2026-08-14 (D1, docs/scope/Economics-ROADMAP.md). The engine now
-has a standing oracle harness (`tools/validation/epe-validation.ts`, run
-with `npx tsx`; 60 checks) plus a CI gate
+Updated 2026-09-26 (EC7; first written 2026-08-14 for D1,
+docs/scope/Economics-ROADMAP.md). The engine has a standing oracle harness
+(`tools/validation/epe-validation.ts`, run with `npx tsx`; 101 checks, Cases
+1a legacy and 1b default path) plus a CI gate
 (`supabase/functions/_shared/__tests__/epe-engine.test.ts`) that re-asserts
 the same numbers under jest. The worked-example inputs are frozen locally
 in `tools/validation/fixtures/epe-pia-worked-example.ts` so the regression
@@ -425,12 +494,13 @@ contract no longer depends on database access.
 
 | Component | Validation | Status |
 |---|---|---|
-| PIA 2021 math (worked example) | Byte-for-byte against published example, 17 line items; inputs frozen locally, NPV + every line item locked to ±$0.01 in harness and CI | ✓ Validated + regression-gated |
-| NTA 2025 framework | Synthetic example mathematically derived from PIA example; harness additionally proves force_nta differs from force_pia only by TET→Dev Levy on the same assessable base | ✓ Internally consistent, NOT NUPRC-validated |
+| PIA 2021 / NTA 2025, default path (engine 3.12.0) | Independent stdlib text oracle `oracle_pia2021.py` typed from the PIA, NTA, Royalty Regulations and Finance Act 2023 (19 cases, tranche edges, benchmark, HCT, allowance, capital allowance and TET tables; 603 engine tests, 30 of 30 negative-control plants red). Suite: worked example inputs NPV 141,236,909.83 and 27 line items within ±$0.01 in harness (Case 1b) and CI, cross-checked against the vendored golden; framework per year, allowance after the cap, deep offshore tranches, six refusals | ✓ Validated on the texts + regression-gated |
+| PIA legacy switch (`pia_legacy_pre_audit: true`) | The frozen worked example (inputs from shared-DB case 53828290, 2026-08-14): NPV 135,185,570.34 and every line item within ±$0.01 in harness (Case 1a) and CI. Pins the pre-audit engine that stamped saved runs use; it departs from the texts (AUDIT-PIA-2021.md) | ✓ Regression-gated (legacy reproduction only) |
+| NTA 2025 framework | Default path: per year of assessment, from the NTA text (oracle above). Legacy path: force_nta differs from force_pia only by TET→Dev Levy on the same assessable base (harness Case 4). The June 2025 gazette is used; the re-gazetted Certified True Copy was not read (stated in `pia_notes`) | ✓ Validated on the June 2025 gazette |
 | JV math | Hand-derived closed-form two-year case (royalty, tax, NCF, NPV, IRR 200%, payback) asserted in harness + CI | ✓ Analytically validated |
 | PSC math | Hand-derived two-year carryforward case (cost-oil cap binding, pool consumed in year 2) asserted in harness + CI | ✓ Analytically validated |
 | Sensitivity (tornado) | Direction and magnitude sane; specific numbers not validated | ⚠ Sanity-checked, not validated |
-| Production allowance cap math | Mid-year crossing case (99→101 MMbbl over the shallow-water cap): eligible-bbl split, allowance, and exhaustion asserted exactly | ✓ Validated (closes §4.1) |
+| Production allowance cap math | Mid-year crossing case (99→101 MMbbl over the shallow-water cap): default path 8 USD/bbl below and 4 USD/bbl after the cap (harness Case 8, CI); legacy path zero after the cap (Case 5) | ✓ Validated (closes §4.1) |
 | CPR cessation forfeiture | Single-year case with 8M unrecovered pool: final-row flag + KPI asserted | ✓ Validated (closes §4.1) |
 | Min ETR (NTA §57) | Project-level top-up gated by a jest case (`max(0, assessable x rate - taxes paid)`); the statutory company-level NGN turnover test is out of a project model's reach, so the top-up is reported on its own line | ⚠ Implemented as a stated approximation |
 | Monte Carlo layer (D2) | Harness Case 7 (degenerate = deterministic, seeded reproducibility, spread brackets base) + 13 jest tests incl. bit-identical anti-drift vs canonical `src/lib/monteCarlo.js` | ✓ Validated as a pure wrapper |
@@ -447,7 +517,7 @@ These choices shape the codebase. A future change that violates one of these sho
 
 1. **Shared engine library pattern.** `_shared/epe-engine.ts` is the single math source. Both single-run and batch endpoints import `computeCashFlow()`. Math changes propagate to both automatically.
 
-2. **Framework detection by date trigger with override.** `determineFiscalFramework(cfg)` checks `pia_under_nta_2025_override` (auto/force_pia/force_nta). Default 'auto' uses `base_year >= 2026 ? 'nta_2025' : 'pia_only'`. Both pre-NTA and post-NTA must be supported indefinitely (operators reviewing historical cases need pre-NTA accuracy).
+2. **Framework per year of assessment, with override.** On the default path `fiscalFrameworkForYear(cfg, year)` reads `pia_under_nta_2025_override` (auto/force_pia/force_nta); 'auto' makes every year before 2026 a PIA year and every year from 2026 an NTA year, and a crossing ledger reports `pia_only_then_nta_2025` with `nta_first_year`. The legacy path keeps one framework per run from the base year. Both frameworks must be supported indefinitely (operators reviewing historical cases need pre-NTA accuracy).
 
 3. **Either-or tax field structure.** Under PIA-only, `tet_tax > 0` and `dev_levy_tax = 0`. Under NTA, the reverse. UI rendering shows whichever is non-zero. This keeps the data model clean while supporting both frameworks.
 
@@ -457,7 +527,7 @@ These choices shape the codebase. A future change that violates one of these sho
 
 6. **Five-tab results structure with profile as default landing.** Cash Flow Profile is the "what is this project?" view. Bar chart is "drill into one metric." Detail is "raw numbers for QC." Order matters for executive presentation.
 
-7. **Pre-NTA regression must be byte-identical.** Any engine change must preserve the PIA worked example output to within $10,000 on all 17 line items. This is enforced by the validation harness.
+7. **Regression contract, re-frozen 2026-09-26 (EC7).** Default path: the worked example inputs without the legacy switch and with TET left to the statute give NPV 141,236,909.83 (±$0.01) and the oracle's line items (`tools/validation/fixtures/epe-pia-worked-example.ts` `PIA_WORKED_EXAMPLE_DEFAULT_*`, engines `pia2021_cases.json`). Legacy switch: the frozen fixture with `pia_legacy_pre_audit: true` gives NPV 135,185,570.34 (±$0.01) and every line item. Both are enforced by the harness and the CI gate; a change to either is an engines oracle change first.
 
 8. **Help guide as first-class artifact.** New users hit this before doing real work. Content quality matters. Living document, expected to be revised based on user feedback.
 
@@ -465,9 +535,11 @@ These choices shape the codebase. A future change that violates one of these sho
 
 ## 7. Engineering invariants (don't break these)
 
-- PIA-only mode (`base_year < 2026`, override = 'auto') must produce `total_dev_levy = 0` and `fiscal_framework = 'pia_only'` in KPIs
-- NTA mode must produce `total_tet = 0` and `fiscal_framework = 'nta_2025'` in KPIs
-- The PIA worked example NPV must remain at $135,185,570.34 (±$0.01)
+- A ledger whose years all precede 2026 (override = 'auto') must produce `total_dev_levy = 0` and `fiscal_framework = 'pia_only'` in KPIs
+- A ledger whose years are all 2026 or later (or override = 'force_nta') must produce `total_tet = 0` and `fiscal_framework = 'nta_2025'`; a ledger across 1 January 2026 must produce `fiscal_framework = 'pia_only_then_nta_2025'` and `nta_first_year`
+- The PIA worked example inputs must give NPV $141,236,909.83 (±$0.01) on the default path and $135,185,570.34 (±$0.01) with `pia_legacy_pre_audit: true`
+- A run with `pia_legacy_pre_audit: true` must reproduce the pre-audit (3.11.0) engine exactly and carries `kpis.pia_legacy_pre_audit = true`; a default-path PIA run carries `kpis.pia_notes`
+- Every PIA config saved before 2026-09-26 stays stamped legacy; new configs default to the compliant engine
 - Sensitivity results must include `ordinal` field for stable sort order in chart display
 - All chart components must include `<ChartLogo />` overlay and use `chartTheme.js` tokens
 - Engine must never persist results without `fiscal_framework` field in KPIs
@@ -478,7 +550,7 @@ These choices shape the codebase. A future change that violates one of these sho
 
 - After every B-numbered work item completes
 - After any production deployment
-- When a NUPRC NTA-era worked example is published
+- When a NUPRC NTA-era worked example is published, or the re-gazetted NTA Certified True Copy is read (EC7 open item)
 - When the PIA Amendment Bill 2025 progresses to law
 - When user feedback identifies a real-world fiscal scenario we don't handle
 
