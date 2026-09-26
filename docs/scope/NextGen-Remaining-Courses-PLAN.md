@@ -826,3 +826,22 @@ deployed site serves the route. Determinism is designed in, not patched:
 seeded initialisation on the canonical generator, a fixed PCA sign
 convention and a stated tie-break for tree splits, so each capstone has
 exactly one right answer.
+
+## 16. Catalogue regroup, 2026-09-26 (pointer)
+
+The owner's decisions of 2026-09-26 are recorded in
+NextGen-Catalog-Regroup-PLAN.md, which is the plan of record for them:
+
+- the `commercial_trading` module is relabelled Midstream & Downstream and
+  `economics` is relabelled Economics & Commercial (labels only, slugs
+  unchanged, no migration);
+- three course types (App, Engine and Practice), amending "one app = one
+  course" in NextGen-Academy-PLAN.md section 1;
+- an upstream commercial track of five engine courses under Economics &
+  Commercial;
+- a five-course Supply Chain & Logistics roster.
+
+The naming decision in section 12 (one Midstream & Downstream module with
+Supply Chain as a course title inside it) is superseded for Supply Chain:
+Supply Chain & Logistics stands as its own module. The new courses come
+after D5 in section 15, with path orders continuing after 70.
