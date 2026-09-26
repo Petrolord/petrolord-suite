@@ -16,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useChoke } from '@/contexts/ChokePerformanceContext';
 import { Field, fmt, Stat, Row } from './fields';
 
@@ -32,7 +32,9 @@ const CoefficientsPanel = () => {
   const span = useMemo(() => {
     if (!scatter.length) return [0, 1];
     const all = scatter.flatMap((p) => [p.measured, p.predicted]);
-    return [Math.min(...all) * 0.9, Math.max(...all) * 1.1];
+    // Round outward to 100 psi so the ticks read as pressures
+    // (they printed "1911.679972059474" off the raw 10 percent pad).
+    return [Math.max(0, Math.floor((Math.min(...all) * 0.9) / 100) * 100), Math.ceil((Math.max(...all) * 1.1) / 100) * 100];
   }, [scatter]);
 
   if (model?.phase === 'gas') {
@@ -160,10 +162,12 @@ const CoefficientsPanel = () => {
                       type="number"
                       dataKey="measured"
                       domain={span}
+                      allowDecimals={false}
+                      height={XAXIS_LABEL_HEIGHT}
                       stroke={CHART_COLORS.axisLine}
                       tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                       label={{
-                        value: 'Measured wellhead pressure (psia)', position: 'insideBottom', offset: -8,
+                        value: 'Measured wellhead pressure (psia)', position: 'insideBottom', offset: 0,
                         fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
                       }}
                     />
@@ -171,6 +175,7 @@ const CoefficientsPanel = () => {
                       type="number"
                       dataKey="predicted"
                       domain={span}
+                      allowDecimals={false}
                       stroke={CHART_COLORS.axisLine}
                       tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                       label={{
@@ -184,7 +189,7 @@ const CoefficientsPanel = () => {
                       itemStyle={{ color: CHART_COLORS.tooltipText }}
                       formatter={(v, name) => [`${Math.round(Number(v))} psia`, name]}
                     />
-                    <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
+                    <Legend {...LEGEND_PROPS} />
                     <ReferenceLine
                       segment={[{ x: span[0], y: span[0] }, { x: span[1], y: span[1] }]}
                       stroke={CHART_COLORS.axisLine}
@@ -201,8 +206,8 @@ const CoefficientsPanel = () => {
                     <tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
                       <th className="text-left font-semibold px-3 py-2">Test</th>
                       <th className="text-right font-semibold px-3 py-2">Bean</th>
-                      <th className="text-right font-semibold px-3 py-2">Liquid (stb/d)</th>
-                      <th className="text-right font-semibold px-3 py-2">GLR (scf/stb)</th>
+                      <th className="text-right font-semibold px-3 py-2">Liquid (bbl/d)</th>
+                      <th className="text-right font-semibold px-3 py-2">GLR (scf/bbl)</th>
                       <th className="text-right font-semibold px-3 py-2">Measured (psia)</th>
                       <th className="text-right font-semibold px-3 py-2">Fitted (psia)</th>
                       <th className="text-right font-semibold px-3 py-2">Error</th>
@@ -211,14 +216,14 @@ const CoefficientsPanel = () => {
                   <tbody>
                     {fitted.residuals.map((r) => (
                       <tr key={r.id || `${r.date}-${r.s64}`} className="border-b border-slate-800/60 last:border-0">
-                        <td className="px-3 py-2 text-slate-300">{r.date || '--'}</td>
+                        <td className="px-3 py-2 whitespace-nowrap text-slate-300">{r.date || '--'}</td>
                         <td className="px-3 py-2 text-right tabular-nums text-slate-300">{r.s64}/64</td>
                         <td className="px-3 py-2 text-right tabular-nums text-slate-300">{fmt(r.q)}</td>
                         <td className="px-3 py-2 text-right tabular-nums text-slate-300">{fmt(r.glr)}</td>
                         <td className="px-3 py-2 text-right tabular-nums text-slate-300">{fmt(r.pwh)}</td>
                         <td className="px-3 py-2 text-right tabular-nums text-slate-300">{fmt(r.predictedPwh)}</td>
                         <td className={`px-3 py-2 text-right tabular-nums ${Math.abs(r.errorPct) > 15 ? 'text-amber-300' : 'text-slate-300'}`}>
-                          {fmt(r.errorPct, 1)} %
+                          {fmt(Math.abs(r.errorPct) < 0.05 ? 0 : r.errorPct, 1)} %
                         </td>
                       </tr>
                     ))}

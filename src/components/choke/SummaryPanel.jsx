@@ -25,7 +25,11 @@ const SummaryPanel = () => {
   return (
     <div className="space-y-2">
       <Row label="Bean" value={`${result.s64}/64`} hint={`${result.beanIn.toFixed(3)} in`} />
-      <Row label="Rate" value={`${fmt(result.solved.q)} ${rateUnit}`} />
+      <Row
+        label={isGas ? 'Rate' : 'Oil rate'}
+        value={`${fmt(result.solved.q)} ${rateUnit}`}
+        hint={!isGas && Number.isFinite(result.solved.qLiquid) ? `${fmt(result.solved.qLiquid)} bbl/d liquid` : undefined}
+      />
       <Row
         label="Wellhead pressure"
         value={`${fmt(result.solved.pwh)} psia`}

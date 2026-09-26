@@ -26,27 +26,27 @@ const StudioHeader = ({
         variant="ghost"
         size="icon"
         onClick={() => navigate(backTo)}
-        className="text-slate-400 hover:text-white hover:bg-slate-800/50 mr-1"
+        className="shrink-0 text-slate-400 hover:text-white hover:bg-slate-800/50 mr-1"
         title={backTitle}
       >
         <ArrowLeft size={20} />
       </Button>
 
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2">
         {Icon && (
-          <div className={cn('bg-gradient-to-br p-1.5 rounded-md shadow-lg shadow-blue-900/20', iconGradientClass)}>
+          <div className={cn('shrink-0 bg-gradient-to-br p-1.5 rounded-md shadow-lg shadow-blue-900/20', iconGradientClass)}>
             <Icon size={18} className="text-white" />
           </div>
         )}
-        <h1 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 hidden sm:block">
+        <h1 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 hidden sm:block min-w-0 truncate" title={typeof title === 'string' ? title : undefined}>
           {title}
         </h1>
       </div>
 
       {tabs.length > 0 && (
         <>
-          <div className="h-6 w-[1px] bg-slate-700 mx-2"></div>
-          <Tabs value={activeTab} onValueChange={onTabChange} className="h-8">
+          <div className="h-6 w-[1px] shrink-0 bg-slate-700 mx-2"></div>
+          <Tabs value={activeTab} onValueChange={onTabChange} className="h-8 shrink-0">
             <TabsList className="h-8 bg-slate-800/50 border border-slate-700 p-0.5">
               {tabs.map((t) => (
                 <TabsTrigger key={t.value} value={t.value} className="h-7 text-xs px-3 data-[state=active]:bg-slate-700">

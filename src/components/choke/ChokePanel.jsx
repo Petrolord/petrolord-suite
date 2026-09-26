@@ -47,7 +47,7 @@ const ChokePanel = () => {
         <div className="border-t border-slate-800 pt-3 space-y-3">
           <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Produced fluid</p>
           <div className="grid grid-cols-2 gap-2">
-            <Field label="Gas-liquid ratio (scf/stb)"><NumberInput section="choke" name="glr" /></Field>
+            <Field label="Gas-liquid ratio (scf/bbl liquid)"><NumberInput section="choke" name="glr" /></Field>
             <Field label="Water cut (%)"><NumberInput section="choke" name="wctPct" /></Field>
           </div>
           <Field

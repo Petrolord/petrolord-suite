@@ -63,8 +63,26 @@ describe('the choke as a surface constraint on an oil well', () => {
     // residual was solved on something other than the physics.
     const s = solveChokedOil({ model: oilModel(), s64: 32, ...oilArgs });
     const { c, m, n } = CHOKE_COEFFS.gilbert;
-    const fromCorrelation = (c * Math.pow(600, m) * s.q) / Math.pow(32, n);
+    // Gilbert is written in gross LIQUID; the solved q is oil (CH-T1-001).
+    expect(s.qLiquid).toBeCloseTo(s.q / 0.8, 9);
+    const fromCorrelation = (c * Math.pow(600, m) * s.qLiquid) / Math.pow(32, n);
     expect(Math.abs(fromCorrelation - s.pwh) / s.pwh).toBeLessThan(1e-6);
+  });
+
+  it('the tubing sees the gas the gas-liquid ratio implies, per barrel of oil', () => {
+    // 600 scf per barrel of liquid at 20 percent water is 750 per barrel
+    // of oil. A dry well (no water) is unchanged by the basis.
+    const wet = solveChokedOil({ model: oilModel(), s64: 32, ...oilArgs });
+    const dry = solveChokedOil({ model: oilModel(), s64: 32, ...oilArgs, wct: 0 });
+    expect(dry.qLiquid).toBeCloseTo(dry.q, 9);
+    expect(wet.q).toBeLessThan(dry.q);
+  });
+
+  it('a bean that would put the wellhead below the line is refused', () => {
+    const s = solveChokedOil({ model: oilModel(), s64: 128, ...oilArgs });
+    expect(s.ok).toBe(false);
+    expect(s.belowLine).toBe(true);
+    expect(s.reason).toMatch(/at or below the 150 psia line/);
   });
 
   it('fitted coefficients override the published set', () => {
@@ -102,7 +120,7 @@ describe('the operating envelope, and where the correlation stops', () => {
     // stopped controlling the well, so drawing the curve on as if
     // nothing changed would be the wrong answer confidently.
     const env = operatingEnvelope({
-      model: oilModel(), beans: [16, 24, 32, 40, 48, 64], phase: 'oil', oil: oilArgs,
+      model: oilModel(), beans: [16, 24, 32, 40, 48, 64, 80], phase: 'oil', oil: oilArgs,
     });
     const limit = criticalBeanLimit(env);
     expect(limit).not.toBeNull();
