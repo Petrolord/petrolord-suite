@@ -105,7 +105,7 @@ const BreakevenPlots = ({ cdfData, histogramData, tornadoData, kpis }) => {
                 }}
               />
               <Tooltip
-                {...TOOLTIP_STYLE}
+                contentStyle={TOOLTIP_STYLE}
                 formatter={(v) => [`${(v * 100).toFixed(1)} %`, 'chance of breaking even below']}
                 labelFormatter={(v) => `$${money(v)}/bbl`}
               />
@@ -148,7 +148,7 @@ const BreakevenPlots = ({ cdfData, histogramData, tornadoData, kpis }) => {
                 }}
               />
               <Tooltip
-                {...TOOLTIP_STYLE}
+                contentStyle={TOOLTIP_STYLE}
                 formatter={(v) => [v, 'iterations']}
                 labelFormatter={(v) => `around $${money(v)}/bbl`}
               />
@@ -180,7 +180,7 @@ const BreakevenPlots = ({ cdfData, histogramData, tornadoData, kpis }) => {
                 stroke={CHART_COLORS.axisLine} tick={{ ...tick, fontSize: 11 }}
               />
               <Tooltip
-                {...TOOLTIP_STYLE}
+                contentStyle={TOOLTIP_STYLE}
                 formatter={(v, name) => [`${v > 0 ? '+' : ''}$${money(v)}/bbl`, name]}
               />
               <Legend verticalAlign="top" />

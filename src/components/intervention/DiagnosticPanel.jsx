@@ -173,7 +173,7 @@ const DiagnosticPanel = () => {
                     }}
                   />
                   <Tooltip
-                    {...TOOLTIP_STYLE}
+                    contentStyle={TOOLTIP_STYLE}
                     formatter={(v, n) => [fmt(v, 3), n]}
                     labelFormatter={(v) => `${fmt(v, 0)} days`}
                   />

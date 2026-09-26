@@ -72,7 +72,7 @@ const PlanResults = () => {
                 fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
               }}
             />
-            <Tooltip {...TOOLTIP_STYLE} formatter={(v) => [`${fmt(v)} bbl`, 'Volume']} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [`${fmt(v)} bbl`, 'Volume']} />
             <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
             <Bar dataKey="volume" name="Volume">
               {slate.map((p, i) => <Cell key={p.id} fill={COLORS[i % COLORS.length]} />)}

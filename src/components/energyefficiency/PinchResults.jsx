@@ -74,7 +74,7 @@ const PinchResults = () => {
               label={{ value: 'enthalpy (kW)', position: 'insideBottom', offset: -20, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <YAxis stroke={CHART_COLORS.axisLine} tick={tick}
               label={{ value: 'temperature (C)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
-            <Tooltip {...TOOLTIP_STYLE} formatter={(v) => `${fmt(v)} C`} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => `${fmt(v)} C`} />
             <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
             <Line type="monotone" dataKey="hotC" name="Hot composite" stroke="#dc2626" strokeWidth={2} dot={{ r: 2 }} connectNulls />
             <Line type="monotone" dataKey="coldC" name="Cold composite" stroke="#0891b2" strokeWidth={2} dot={{ r: 2 }} connectNulls />
@@ -95,7 +95,7 @@ const PinchResults = () => {
               label={{ value: 'net heat flow (kW)', position: 'insideBottom', offset: -20, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <YAxis dataKey="shiftedC" stroke={CHART_COLORS.axisLine} tick={tick}
               label={{ value: 'shifted temperature (C)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
-            <Tooltip {...TOOLTIP_STYLE} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} />
             <ReferenceLine x={0} stroke="#f59e0b" strokeDasharray="4 4" />
             <Line type="monotone" dataKey="shiftedC" name="Cascade" stroke="#7c3aed" strokeWidth={2} dot={{ r: 3 }} />
           </LineChart>

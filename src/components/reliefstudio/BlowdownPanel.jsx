@@ -77,7 +77,7 @@ const BlowdownPanel = () => {
               label={{ value: 'Pressure (psia)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <YAxis yAxisId="T" orientation="right" stroke={CHART_COLORS.axisLine} tick={tick}
               label={{ value: 'Temperature (F)', angle: 90, position: 'insideRight', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
-            <Tooltip {...TOOLTIP_STYLE} formatter={(v, n) => [fmt(v, 1), n]} labelFormatter={(t) => `${fmt(t, 1)} min`} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [fmt(v, 1), n]} labelFormatter={(t) => `${fmt(t, 1)} min`} />
             <Legend verticalAlign="top" />
             <ReferenceLine yAxisId="p" x={15} stroke="#d97706" strokeDasharray="4 3" />
             <Line yAxisId="p" dataKey="p" name="Pressure (psia)" stroke="#059669" strokeWidth={2} dot={false} />

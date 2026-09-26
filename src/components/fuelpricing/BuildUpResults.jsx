@@ -144,7 +144,7 @@ const BuildUpResults = () => {
             <XAxis dataKey="recipient" stroke={CHART_COLORS.axisLine} tick={tick} interval={0} angle={-15} textAnchor="end" height={60} />
             <YAxis stroke={CHART_COLORS.axisLine} tick={tick}
               label={{ value: 'per litre', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
-            <Tooltip {...TOOLTIP_STYLE} formatter={(v) => fmt(v)} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => fmt(v)} />
             <Bar dataKey="amountPerLitre" name="Per litre">
               {waterfall.groups.map((g, i) => (
                 <BarCell key={g.recipient} fill={GROUP_COLORS[i % GROUP_COLORS.length]} />
@@ -168,7 +168,7 @@ const BuildUpResults = () => {
             <XAxis dataKey="value" stroke={CHART_COLORS.axisLine} tick={tick}
               label={{ value: 'exchange rate', position: 'insideBottom', offset: -18, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <YAxis stroke={CHART_COLORS.axisLine} tick={tick} />
-            <Tooltip {...TOOLTIP_STYLE} formatter={(v) => fmt(v)} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => fmt(v)} />
             <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
             {sensitivity.capPerLitre !== null && (
               <ReferenceLine y={sensitivity.capPerLitre} stroke="#dc2626" strokeDasharray="4 4"

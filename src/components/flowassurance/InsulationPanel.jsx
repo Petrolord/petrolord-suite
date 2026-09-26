@@ -168,7 +168,7 @@ const InsulationPanel = () => {
                       fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
                     }}
                   />
-                  <Tooltip {...TOOLTIP_STYLE} formatter={(v, n) => [fmt(v, 1), n]} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [fmt(v, 1), n]} />
                   <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize }} />
                   <ReferenceLine yAxisId="s" y={0} stroke="#dc2626" strokeDasharray="4 3" />
                   {firstLeg && (

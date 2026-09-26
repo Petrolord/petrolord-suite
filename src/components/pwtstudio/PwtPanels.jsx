@@ -441,7 +441,7 @@ export const DistributionChart = () => {
               label={{ value: 'Droplet diameter (um)', position: 'insideBottom', offset: -8, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <YAxis stroke={CHART_COLORS.axisLine} tick={tick}
               label={{ value: 'Oil volume (%)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
-            <Tooltip {...TOOLTIP_STYLE} formatter={(v) => [`${fmt(v, 2)} %`, 'oil volume']}
+            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [`${fmt(v, 2)} %`, 'oil volume']}
               labelFormatter={(d) => `${fmt(d, 1)} um`} />
             <Legend verticalAlign="top" />
             <Bar dataKey="vol" name="Inlet oil volume (%)" fill="#0ea5e9" />

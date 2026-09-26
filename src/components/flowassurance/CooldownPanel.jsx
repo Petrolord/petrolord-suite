@@ -112,7 +112,7 @@ const CooldownPanel = () => {
                         }}
                       />
                       <Tooltip
-                        {...TOOLTIP_STYLE}
+                        contentStyle={TOOLTIP_STYLE}
                         formatter={(v) => [`${fmt(v, 1)} F`, 'Temperature']}
                         labelFormatter={(v) => `${fmt(v, 2)} hours`}
                       />

@@ -63,7 +63,7 @@ const TerminalResults = () => {
             <XAxis dataKey="label" stroke={CHART_COLORS.axisLine} tick={tick} />
             <YAxis stroke={CHART_COLORS.axisLine} tick={tick}
               label={{ value: 'm3', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
-            <Tooltip {...TOOLTIP_STYLE} formatter={(v, n) => [`${fmt(v)} m3`, n]} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [`${fmt(v)} m3`, n]} />
             <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
             <ReferenceLine y={0} stroke={CHART_COLORS.axisLine} />
             <Line type="monotone" dataKey="daily" name="Daily" stroke="#0891b2" strokeWidth={1.5} dot={{ r: 3 }} />

@@ -3,7 +3,7 @@ import React from 'react';
 import { AlertTriangle, CheckCircle2, FileWarning } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell as BarCell } from 'recharts';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useCarbonAbatement } from '@/contexts/CarbonAbatementContext';
 
 const fmt = (v, dp = 1) => (Number.isFinite(v)
@@ -66,13 +66,16 @@ const InventoryResults = () => {
           Factors are reserved for the things that really are empirical.
         </p>
         <ChartFrame height={280} exportFilename="emissions-by-source">
-          <BarChart data={chartRows} layout="vertical" margin={{ top: 12, right: 24, left: 120, bottom: 24 }}>
+          {/* CARBON-T1-001: the rows carry tCo2e but the Bar read tCO2e, so the
+              chart drew no bars and no value axis at all */}
+          <BarChart data={chartRows} layout="vertical" margin={{ top: 12, right: 24, left: 8, bottom: 8 }}>
             <CartesianGrid {...GRID_STYLE} />
-            <XAxis type="number" stroke={CHART_COLORS.axisLine} tick={tick}
-              label={{ value: 'tCO2e/yr', position: 'insideBottom', offset: -12, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
-            <YAxis type="category" dataKey="label" stroke={CHART_COLORS.axisLine} tick={tick} width={115} />
-            <Tooltip {...TOOLTIP_STYLE} formatter={(v) => `${fmt(v, 0)} t`} />
-            <Bar dataKey="tCO2e" name="tCO2e">
+            <XAxis type="number" dataKey="tCo2e" domain={[0, 'auto']} stroke={CHART_COLORS.axisLine} tick={tick}
+              tickFormatter={(v) => fmt(v, 0)} height={XAXIS_LABEL_HEIGHT}
+              label={{ value: 'tCO2e/yr', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+            <YAxis type="category" dataKey="label" stroke={CHART_COLORS.axisLine} tick={tick} width={150} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => `${fmt(v, 0)} t`} />
+            <Bar dataKey="tCo2e" name="tCO2e" isAnimationActive={false}>
               {chartRows.map((r) => (
                 <BarCell key={r.label} fill={r.label.includes('CH4') ? '#dc2626' : '#0891b2'} />
               ))}

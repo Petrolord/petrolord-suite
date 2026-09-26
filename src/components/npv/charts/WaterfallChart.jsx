@@ -51,7 +51,7 @@ const WaterfallChart = ({ metrics, height = 340 }) => {
         <YAxis stroke={CHART_COLORS.axisLine} tick={tick} tickFormatter={(v) => `$${mm(v)}MM`} />
         <Tooltip
           cursor={{ fill: 'rgba(0,0,0,0.04)' }}
-          {...TOOLTIP_STYLE}
+          contentStyle={TOOLTIP_STYLE}
           formatter={(v, name, props) => [
             `$${mm(props.payload.val)}MM`,
             props.payload.type === 'sub' ? 'Deduction' : 'Total',

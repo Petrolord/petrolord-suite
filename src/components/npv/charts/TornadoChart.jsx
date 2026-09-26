@@ -32,7 +32,7 @@ const TornadoChart = ({ data, height = 340 }) => {
         <YAxis dataKey="name" type="category" stroke={CHART_COLORS.axisLine} width={100} tick={{ ...tick, fontSize: 11 }} />
         <Tooltip
           cursor={{ fill: 'rgba(0,0,0,0.04)' }}
-          {...TOOLTIP_STYLE}
+          contentStyle={TOOLTIP_STYLE}
           formatter={(v, name) => [`${v > 0 ? '+' : ''}$${mm(v)}MM`, name]}
         />
         <ReferenceLine x={0} stroke={CHART_COLORS.axisLine} />

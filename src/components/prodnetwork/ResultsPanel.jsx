@@ -128,7 +128,7 @@ const ResultsPanel = () => {
                   fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
                 }}
               />
-              <Tooltip {...TOOLTIP_STYLE} formatter={(v, n) => [fmt(v), n]} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [fmt(v), n]} />
               <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize }} />
               <Bar dataKey="inNetwork" stackId="a" name="Makes in the network" fill="#059669" isAnimationActive={false} />
               <Bar dataKey="lost" stackId="a" name="Lost to the other wells" fill="#d97706" isAnimationActive={false} />

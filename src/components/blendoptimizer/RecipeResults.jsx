@@ -86,7 +86,7 @@ const RecipeResults = () => {
                 fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
               }}
             />
-            <Tooltip {...TOOLTIP_STYLE} formatter={(v) => [`${show(fmt(v, 1), v)} bbl`, 'Volume']} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [`${show(fmt(v, 1), v)} bbl`, 'Volume']} />
             <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
             <Bar dataKey="volume" name="Volume">
               {recipeRows.map((r, i) => <Cell key={r.id} fill={COLORS[i % COLORS.length]} />)}

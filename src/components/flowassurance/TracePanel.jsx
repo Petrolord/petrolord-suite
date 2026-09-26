@@ -153,7 +153,7 @@ const TracePanel = () => {
                 }}
               />
               <Tooltip
-                {...TOOLTIP_STYLE}
+                contentStyle={TOOLTIP_STYLE}
                 formatter={(v, n) => [fmt(v, 0), n]}
                 labelFormatter={(v) => `${fmt(v, 1)} F`}
               />
@@ -203,7 +203,7 @@ const TracePanel = () => {
                 }}
               />
               <Tooltip
-                {...TOOLTIP_STYLE}
+                contentStyle={TOOLTIP_STYLE}
                 formatter={(v, n) => [fmt(v, 1), n]}
                 labelFormatter={(v) => `${fmt(v)} ft`}
               />

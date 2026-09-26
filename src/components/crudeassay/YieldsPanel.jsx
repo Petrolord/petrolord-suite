@@ -45,7 +45,7 @@ const YieldsPanel = () => {
                 fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
               }}
             />
-            <Tooltip {...TOOLTIP_STYLE} formatter={(v) => [`${fmt(v, 1)} vol%`, 'Yield']} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [`${fmt(v, 1)} vol%`, 'Yield']} />
             <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
             <Bar dataKey="yieldPct" name="Yield">
               {chartRows.map((r, i) => <Cell key={r.name} fill={CUT_COLORS[i % CUT_COLORS.length]} />)}

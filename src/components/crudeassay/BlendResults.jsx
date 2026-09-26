@@ -111,7 +111,7 @@ const BlendResults = () => {
               }}
             />
             <Tooltip
-              {...TOOLTIP_STYLE}
+              contentStyle={TOOLTIP_STYLE}
               formatter={(v, name) => [`${fmt(v, 1)} %`, name]}
               labelFormatter={(v) => `${fmt(v, 0)} F`}
             />

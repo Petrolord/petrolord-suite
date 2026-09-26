@@ -2,11 +2,11 @@
 import React from 'react';
 import { AlertTriangle, TrendingDown } from 'lucide-react';
 import {
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ReferenceLine, Cell as BarCell,
+  ComposedChart, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ReferenceLine, ReferenceArea,
 } from 'recharts';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useCarbonAbatement } from '@/contexts/CarbonAbatementContext';
 
 const fmt = (v, dp = 1) => (Number.isFinite(v)
@@ -39,6 +39,27 @@ const AbatementResults = () => {
     if (curve.meetsTarget) return curve.additive ? 'met' : 'met, as an upper bound';
     return `${fmt(curve.residualToTargetTonnes, 0)} t short`;
   };
+
+  const maccAxis = (() => {
+    const steps = curve?.steps || [];
+    const xMax = steps.length ? steps[steps.length - 1].cumulativeEndTonnes : 1;
+    const costs = steps.map((st) => st.costPerTonne).filter(Number.isFinite);
+    const lo = Math.min(0, ...costs);
+    const hi = Math.max(0, ...costs);
+    const raw = ((hi - lo) || 1) * 1.1 / 5;
+    const mag = 10 ** Math.floor(Math.log10(raw));
+    const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((m) => m >= raw);
+    const yLo = Math.floor(lo / step) * step;
+    const yHi = Math.ceil(hi / step) * step + (hi > 0 && hi % step === 0 ? step : 0);
+    const yTicks = [];
+    for (let v = yLo; v <= yHi + step / 2; v += step) yTicks.push(Number(v.toFixed(6)));
+    return {
+      xMax: xMax || 1,
+      yDomain: [yLo, yHi],
+      yTicks,
+      rows: [{ x: 0, y: lo }, { x: xMax || 1, y: hi }],
+    };
+  })();
 
   return (
     <div className="space-y-5">
@@ -91,19 +112,25 @@ const AbatementResults = () => {
           cost per tonne of a capital measure.
         </p>
         <ChartFrame height={300} exportFilename="abatement-cost-curve">
-          <BarChart data={curve.steps} margin={{ top: 12, right: 24, left: 24, bottom: 40 }}>
+          {/* CARBON-T1-002: a MAC curve is drawn with each bar as wide as the
+              tonnes it abates, so the area is the annual cost. Equal-width
+              bars hid that the flare measure is most of the tonnes. */}
+          <ComposedChart data={maccAxis.rows} margin={{ top: 16, right: 24, left: 24, bottom: 8 }}>
             <CartesianGrid {...GRID_STYLE} />
-            <XAxis dataKey="label" stroke={CHART_COLORS.axisLine} tick={tick} interval={0} angle={-15} textAnchor="end" height={70} />
-            <YAxis stroke={CHART_COLORS.axisLine} tick={tick}
-              label={{ value: 'cost per tonne', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
-            <Tooltip {...TOOLTIP_STYLE} formatter={(v) => fmt(v, 1)} />
+            <XAxis dataKey="x" type="number" domain={[0, maccAxis.xMax]} stroke={CHART_COLORS.axisLine} tick={tick}
+              tickFormatter={(v) => fmt(v, 0)} height={XAXIS_LABEL_HEIGHT}
+              label={{ value: 'Cumulative abatement (tCO2e/yr)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+            <YAxis dataKey="y" type="number" domain={maccAxis.yDomain} ticks={maccAxis.yTicks} stroke={CHART_COLORS.axisLine} tick={tick}
+              label={{ value: 'Cost per tonne', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+            {curve.steps.map((st, i) => (
+              <ReferenceArea key={st.label} x1={st.cumulativeStartTonnes} x2={st.cumulativeEndTonnes}
+                y1={0} y2={st.costPerTonne} fill={st.paysForItself ? '#059669' : '#dc2626'} fillOpacity={0.85}
+                stroke="#fff" strokeWidth={1}
+                label={{ value: String(i + 1), position: st.costPerTonne < 0 ? 'insideBottom' : 'insideTop', fill: '#fff', fontSize: 11 }} />
+            ))}
             <ReferenceLine y={0} stroke={CHART_COLORS.axisLine} />
-            <Bar dataKey="costPerTonne" name="Cost per tonne">
-              {curve.steps.map((s) => (
-                <BarCell key={s.label} fill={s.paysForItself ? '#059669' : '#dc2626'} />
-              ))}
-            </Bar>
-          </BarChart>
+            <Line dataKey="y" stroke="none" dot={false} isAnimationActive={false} legendType="none" />
+          </ComposedChart>
         </ChartFrame>
         <div className="overflow-x-auto rounded border border-slate-800 mt-3">
           <table className="w-full text-xs">
@@ -119,7 +146,7 @@ const AbatementResults = () => {
             <tbody className="divide-y divide-slate-800">
               {curve.steps.map((s) => (
                 <tr key={s.label}>
-                  <td className="px-2 py-1 text-slate-200">{s.label}</td>
+                  <td className="px-2 py-1 text-slate-200">{curve.steps.indexOf(s) + 1}. {s.label}</td>
                   <td className="px-2 py-1 text-right text-slate-300">{fmt(s.tonnesAbatedPerYear, 0)}</td>
                   <td className="px-2 py-1 text-right text-slate-400">{fmt(s.cumulativeEndTonnes, 0)}</td>
                   <td className={`px-2 py-1 text-right ${s.paysForItself ? 'text-emerald-300' : 'text-white'}`}>
@@ -198,7 +225,7 @@ const AbatementResults = () => {
                 <XAxis dataKey="year" stroke={CHART_COLORS.axisLine} tick={tick} />
                 <YAxis stroke={CHART_COLORS.axisLine} tick={tick}
                   label={{ value: 'tCO2e/yr', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
-                <Tooltip {...TOOLTIP_STYLE} formatter={(v) => `${fmt(v, 0)} t`} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => `${fmt(v, 0)} t`} />
                 <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
                 <Line type="monotone" dataKey="emissionsTonnes" name="With identified measures" stroke="#0891b2" strokeWidth={2} dot={{ r: 3 }} />
                 <Line type="monotone" dataKey="targetTonnes" name="Target" stroke="#dc2626" strokeWidth={2} strokeDasharray="5 5" dot={false} />

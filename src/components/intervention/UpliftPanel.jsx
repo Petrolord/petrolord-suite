@@ -219,7 +219,7 @@ const UpliftPanel = () => {
                     fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
                   }}
                 />
-                <Tooltip {...TOOLTIP_STYLE} formatter={(v) => [`${fmt(v)} stb/d`, 'Uplift']} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [`${fmt(v)} stb/d`, 'Uplift']} />
                 <Line
                   type="monotone" dataKey="rateStbd" stroke="#059669" strokeWidth={2}
                   dot isAnimationActive={false}
