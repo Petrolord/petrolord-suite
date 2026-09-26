@@ -14,10 +14,15 @@ export const M3_PER_BBL = 0.158987294928;
 
 /** Volume unit sets: bulk and net rock volume, pore and hydrocarbon pore volume. */
 export const VOLUME_UNIT_SETS = Object.freeze({
-  metric: { key: 'metric', label: 'metric (10^6 m3)', rock: '10^6 m3', pore: '10^6 m3' },
-  field: { key: 'field', label: 'field (acre-ft, MMbbl)', rock: 'acre-ft', pore: 'MMbbl' },
+  metric: { key: 'metric', label: 'metric (10^6 m3)', rock: '10^6 m3', pore: '10^6 m3', oil: '10^6 sm3', gas: '10^6 sm3' },
+  field: { key: 'field', label: 'field (acre-ft, MMbbl)', rock: 'acre-ft', pore: 'MMbbl', oil: 'MMstb', gas: 'Bscf' },
 });
-export const VOLUME_COLUMNS = Object.freeze({ bulk_m3: 'rock', net_m3: 'rock', pore_m3: 'pore', hcpv_m3: 'pore' });
+export const VOLUME_COLUMNS = Object.freeze({
+  bulk_m3: 'rock', net_m3: 'rock', pore_m3: 'pore', hcpv_m3: 'pore',
+  // T1 (EM-T1-001): split HCPV and in-place volumes at surface conditions
+  oil_hcpv_m3: 'pore', gas_hcpv_m3: 'pore', stoiip_m3: 'oil', giip_m3: 'gas',
+});
+export const SCF_PER_SM3 = 35.3146667;
 
 /** Read a remembered display choice; `fallback` when absent or blocked. */
 export function readSetting(key, allowed, fallback) {
@@ -31,7 +36,11 @@ export function readSetting(key, allowed, fallback) {
 export function volumeValue(m3, column, units = 'metric') {
   if (!Number.isFinite(m3)) return null;
   const kind = VOLUME_COLUMNS[column] || 'rock';
-  if (units === 'field') return kind === 'rock' ? m3 / M3_PER_ACRE_FT : m3 / M3_PER_BBL / 1e6;
+  if (units === 'field') {
+    if (kind === 'rock') return m3 / M3_PER_ACRE_FT;
+    if (kind === 'gas') return (m3 * SCF_PER_SM3) / 1e9;
+    return m3 / M3_PER_BBL / 1e6; // pore MMbbl, oil MMstb
+  }
   return m3 / 1e6;
 }
 

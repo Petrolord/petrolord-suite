@@ -1,7 +1,9 @@
 import React, { useMemo } from 'react';
 import { Helmet } from 'react-helmet';
+import { Link, useSearchParams } from 'react-router-dom';
 import EarthWorkstation from './components/EarthWorkstation';
 import { makeRegistryBackend } from './services/registryBackend';
+import { makeInMemoryBackend } from './services/inMemoryBackend';
 
 // Earth Modeling (Geoscience G8): the consolidation workstation on the
 // shared registries — structural surfaces from Mapping & Surface
@@ -12,7 +14,11 @@ import { makeRegistryBackend } from './services/registryBackend';
 // ReservoirCalc Pro. Full-viewport workstation; EarthWorkstation owns
 // all state and this page only mounts it on the real backend.
 export default function EarthModeling() {
-  const backend = useMemo(() => makeRegistryBackend(), []);
+  // T1 (EM-T1-E3): ?sample=1 opens on the built-in sample surfaces and
+  // wells held in memory; nothing is read from or written to the registry
+  const [params] = useSearchParams();
+  const sample = params.get('sample') === '1';
+  const backend = useMemo(() => (sample ? makeInMemoryBackend() : makeRegistryBackend()), [sample]);
   return (
     <>
       <Helmet>
@@ -23,8 +29,16 @@ export default function EarthModeling() {
         />
       </Helmet>
 
-      <div className="h-screen w-full overflow-hidden">
-        <EarthWorkstation backend={backend} />
+      <div className="h-screen w-full overflow-hidden flex flex-col">
+        {sample && (
+          <div className="px-3 py-1 text-[11px] bg-amber-500/15 text-amber-200 border-b border-amber-700/40 flex items-center gap-2" data-testid="em-sample-banner">
+            Sample data: three surfaces and four wells held in this tab. Nothing is saved to your registry.
+            <Link to="?" className="ml-auto underline">Back to my data</Link>
+          </div>
+        )}
+        <div className="flex-1 min-h-0">
+          <EarthWorkstation backend={backend} sample={sample} />
+        </div>
       </div>
     </>
   );

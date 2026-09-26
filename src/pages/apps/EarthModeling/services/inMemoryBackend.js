@@ -89,6 +89,7 @@ export function makeInMemoryBackend() {
     },
     // EM0: a boundary polygon (geo_culture kind boundary) over the
     // western 60% of the frame, so clipping changes the census
+    isSample: true, // T1: the empty-state sample link hides itself on sample data
     async listBoundaries() {
       const { x0, y0, dx, dy, nx, ny } = MODEL_SPEC;
       const xw = x0 + 0.6 * (nx - 1) * dx;

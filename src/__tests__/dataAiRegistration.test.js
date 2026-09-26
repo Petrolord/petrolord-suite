@@ -666,12 +666,13 @@ describe('D5: the AI Evaluation Studio', () => {
     expect(sqlOf(LLM)).toMatch(/DAILY_CAP in\s+-- supabase\/functions\/ai-eval-assist\/logic\.ts, 50 by default/);
   });
 
-  it('logs the personal-cap migration as held, after the D5 ones, with the order migration then deploy', () => {
+  it('logs the personal-cap migration after the D5 ones, with the order migration then deploy, held or applied by the owner', () => {
     const all = fs.readdirSync(migrations).filter((f) => f.endsWith('.sql')).sort();
     expect(all.indexOf(USERCAP)).toBeGreaterThan(all.indexOf(TILE));
     const row = log().split('\n').find((l) => l.includes(USERCAP));
     expect(row).toBeTruthy();
-    expect(row).toMatch(HELD);
+    // held when written; the owner applied it on 2026-09-26 (production column)
+    expect(row).toMatch(/NOT APPLIED \(owner-run\) \| (NOT APPLIED \(owner-run\)|\*\*APPLIED 2026-09-26\*\*[^|]*) \|$/);
     expect(row).toMatch(/apply this migration FIRST, then redeploy/);
   });
 

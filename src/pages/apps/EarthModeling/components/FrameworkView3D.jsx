@@ -119,7 +119,9 @@ export default function FrameworkView3D({
     const proj = (p, scaled = true) => c.project(mvp, scaled ? [p[0] * sc[0], p[1] * sc[1], p[2] * sc[2]] : p, w, h);
     return {
       labels: scene.labels.map((l) => ({ ...l, screen: proj(l.pos) })).filter((l) => l.screen),
-      ticks: scene.axes.ticks.map((t) => ({ ...t, screen: proj(t.pos, false) })).filter((t) => t.screen),
+      // T1 (EM-T1-008): drop a tick that would land on one already kept
+      ticks: scene.axes.ticks.map((t) => ({ ...t, screen: proj(t.pos, false) })).filter((t) => t.screen)
+        .reduce((kept, t) => (kept.some((k) => Math.abs(k.screen.x - t.screen.x) < 30 && Math.abs(k.screen.y - t.screen.y) < 12) ? kept : [...kept, t]), []),
     };
   }, [scene, frame]); // eslint-disable-line react-hooks/exhaustive-deps
 

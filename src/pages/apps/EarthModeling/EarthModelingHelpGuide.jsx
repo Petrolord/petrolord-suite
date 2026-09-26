@@ -172,8 +172,21 @@ export default function EarthModelingHelpGuide() {
           QC &amp; volumes holds the clamp report, the fault-block census, the well adjustment card, the tie table and,
           per zone, the volume table (bulk, net, pore and hydrocarbon pore volume per block and in total, in the chosen
           units) with the population provenance under it. Bulk volume is thickness times cell area; net multiplies by
-          NTG, pore by porosity, hydrocarbon pore volume by one minus Sw. Fluids, contacts and recovery stay in
-          ReservoirCalc Pro.
+          NTG, pore by porosity, hydrocarbon pore volume by one minus Sw.
+        </Para>
+        <Para>
+          Fluid contacts and FVF (per zone, in the dock) cut each zone at the gas-oil and oil-water contacts, typed as
+          depths below datum. The table then splits the hydrocarbon pore volume into gas cap and oil leg and, with Bo
+          and Bg, gives STOIIP and GIIP at surface conditions (MMstb and Bscf in field units). With no OWC the whole
+          zone counts as hydrocarbon and the table says so in amber. When a property is kriged, a line under the
+          table gives the P90, P50 and P10 hydrocarbon volume from the kriging variance, every node moving together.
+          Recovery and full uncertainty stay in ReservoirCalc Pro.
+        </Para>
+        <Para>
+          The build status says what needs attention: well ties that miss by more than 10 m while adjustment is off,
+          any property that fell back to a simpler method (amber in the provenance lines), and clamped nodes, which
+          are marked with orange crosses on the zone top and base maps. The depth button in the ribbon shows depths as
+          positive TVDSS or as elevation and is shared with Mapping.
         </Para>
       </GuideSection>
 

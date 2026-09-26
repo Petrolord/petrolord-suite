@@ -17,7 +17,10 @@ const q = (v) => {
  */
 export function volumesCsv(built, { name = 'earth-model', volumeUnits = 'metric' } = {}) {
   if (!built?.zones?.length) throw new Error('Build the model first; there are no volumes to export.');
-  const cols = ['bulk_m3', 'net_m3', 'pore_m3', 'hcpv_m3'];
+  // T1: split and in-place columns join when any zone carries contacts or FVFs
+  const split = built.zones.some((z) => z.volumes?.total && 'oil_hcpv_m3' in z.volumes.total);
+  const inPlace = built.zones.some((z) => Number.isFinite(z.volumes?.total?.stoiip_m3) || Number.isFinite(z.volumes?.total?.giip_m3));
+  const cols = ['bulk_m3', 'net_m3', 'pore_m3', 'hcpv_m3', ...(split ? ['gas_hcpv_m3', 'oil_hcpv_m3'] : []), ...(inPlace ? ['stoiip_m3', 'giip_m3'] : [])];
   const head = ['zone', 'registry_zone', 'block', 'cells', ...cols.map((c) => `${c.replace('_m3', '')} (${volumeUnitLabel(c, volumeUnits)})`)];
   const lines = [
     `# ${name}: volumes per zone and fault block`,
@@ -30,7 +33,7 @@ export function volumesCsv(built, { name = 'earth-model', volumeUnits = 'metric'
     for (const k of keys) {
       const v = z.volumes[k];
       lines.push([z.name, z.registryZone || '', k === 'total' ? 'TOTAL' : `Block ${k}`, v.cells,
-        ...cols.map((c) => volumeValue(v[c], c, volumeUnits).toFixed(4))].map(q).join(','));
+        ...cols.map((c) => { const x = volumeValue(v[c], c, volumeUnits); return x === null ? '' : x.toFixed(4); })].map(q).join(','));
     }
   }
   lines.push('');

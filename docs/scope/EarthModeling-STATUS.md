@@ -126,3 +126,28 @@ volumes CSV, launchers into ReservoirCalc Pro (which now consumes
 `?surface=`) and Mapping, and the in-app help guide; EM6 added the 3D
 window on the shared viewer core (the G8.5 stretch, done). Wave log in
 the roadmap.
+
+## 2026-09-26: T1 senior test (Wave 1 #2) and fixes
+
+Report: docs/testing/EarthModeling-T1.md. Engines #263 (8082d73, vendored
+on top of main's EC7 pin 3778451):
+`zoneVolumesWithContacts` with oracle, radial anchor, 6 gates, negcontrol 7/7.
+
+- Fluid contacts and FVF per zone in the dock (GOC, OWC as depths below
+  datum in the display unit; Bo, Bg): HCPV split into gas cap and oil leg,
+  STOIIP and GIIP (MMstb, Bscf in field units), in the QC table and the CSV;
+  an amber line says when no OWC is given (`parseFluidsInput`,
+  `definition.fluidsInput`).
+- Build status names property fallbacks and ties beyond 10 m (adjustment
+  off), and says clamped nodes are marked; clamped nodes draw as orange
+  crosses on the zone top and base maps (`clampMasks`).
+- Map on the Mapping display plan (round interval and ticks), full height;
+  section pads for the last log column, surface names a third along, round
+  depth ticks; 3D tick labels de-overlapped; readable provenance.
+- Depth sign toggle shared with Mapping (`mapping.depthPositive`; unset keeps
+  positive TVDSS here).
+- P90/P50/P10 HCPV and STOIIP from the kriging variance when a property is
+  kriged (fully correlated). `?sample=1` sample mode.
+
+Known limits (after NAPE): vertical fault polygons only (EM-T1-010); Sw
+from a saturation-height function (E2).

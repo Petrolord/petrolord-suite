@@ -1,9 +1,9 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 3778451896e6f90951dbfba45331ca674f9da21b
+# commit 8082d73c75fca95b30d60a5cbb01f1ca58724223
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
-c1674cf6f6c9d31f3d0e5720790df8f323fbe6be README.md
+e577829e33b3e731fb1f9ca51c4aea9c9d8a9f06 README.md
 6373485efb6baa9226953a76a3d6ebb740541d1c __tests__/aquifer.test.js
 168f6cedfc18af932ba587f2ff882b7571966986 __tests__/assurance.audit.test.js
 fc5248e0239b0841f542a3cba95ef72db34296d1 __tests__/assurance.compliance.test.js
@@ -76,6 +76,7 @@ d4a68d2c12a1deec55c53e21d07d04d152cca692 __tests__/drilling.surveyprogram.test.j
 ffb106cd4a256678f2679f4ddf6850858c300e02 __tests__/drilling.wellcost.test.js
 5f614da4379b29899ee32989e734c6bf49475ec2 __tests__/drilling.wellintegrity.test.js
 4c2942059989c7f09cff7e01d6f470b185e79dd2 __tests__/earthmodel.adjust.test.js
+8e4a73a0e7c5a989b0b7f8b23472799c7b949a94 __tests__/earthmodel.contacts.test.js
 50b8da7fa643dc40876b187db625f3672f02b91b __tests__/earthmodel.derived.test.js
 09798e45f5ecea1c3d1541fcbb84c5c45144c577 __tests__/economics.afe.test.js
 d52802c5df510237ab47d40f67ee23bb7b6ed879 __tests__/economics.breakeven.test.js
@@ -314,7 +315,7 @@ b2bc46c90ddf2ebf5fb0f042eb5bb693c55191fe engines/drilling/wellIntegrity.js
 842f169c15b2d5de9f60734fa037127e4cb48861 engines/earthmodeling/derived.js
 32347520aa6771ebdf019f097ca60dd0fb662657 engines/earthmodeling/framework.js
 a3904c39ae34bf8b0fd2ba4c72554ff64eede52e engines/earthmodeling/properties.js
-b88650a1f6b15687650d68a6be4ab8538aa9be24 engines/earthmodeling/volumes.js
+f9e0dc5f955617d09289a6ae468144db0c2a9184 engines/earthmodeling/volumes.js
 3aa4cd1dd35ad60ede5d0f149a4004fed02a6e1b engines/earthmodeling/wellties.js
 52d840d950b16f55675bcc4862102e58760c2184 engines/economics/afe.js
 98e518c240a47e79ee0b35b7a669dcd71f647ace engines/economics/breakeven.js
@@ -655,6 +656,7 @@ aeec02daa63ac973d47542dae6eff5e016f9c983 test-data/drilling/goldens/wellintegrit
 7d1d75547e8434d0f0a4cfbf1237d32339a30a6d test-data/drilling/goldens/wmm2025_noaa_testvalues.json
 253fb2b3ca7320ff424a2bc416eec4ef1e5cf204 test-data/earthmodel/README.md
 a42a29457680908fb59e428236c5e47154141e9f test-data/earthmodel/adjust_cases.json
+e9687d6edb9b465f2b59b4aac182d306701b3c9c test-data/earthmodel/contacts_cases.json
 11122d8cc526ff6b7c156a55300841089eaa262c test-data/earthmodel/goldens.json
 9b842529948dfc599c351e69bb2baca4c32a34ae test-data/economics/fixtures/pia-worked-example.json
 66cbc1fb874b8efd4ac7f0f583f53395e1c579f8 test-data/economics/goldens/afe_cases.json
@@ -917,8 +919,10 @@ eae31f68e47225ffbdff1fb697c970f35406856e tools/validation/drilling/oracle_geomec
 23e5f1ec75f6204cc1ab87bc6e8d119ad2179158 tools/validation/drilling/oracle_wellintegrity.py
 24ce15ab7ead32f98c7ac3edcd34bb2010ff4326 tools/validation/drilling/requirements.txt
 d1bcb2f74ce1f8cbd5925bd33cefb0051b343866 tools/validation/earthmodel/genfixtures.py
+38b086e7c88632e61a160e58eca44219fc2b3d6a tools/validation/earthmodel/negcontrol_contacts.sh
 588477e646deb21a1b4afa67aefe0cfbcef35091 tools/validation/earthmodel/oracle.py
 98b2d5ae904eb7c916da1de44cdd2e691e7a909b tools/validation/earthmodel/oracle_adjust.py
+27e8f5a92335172182dcac7611cd13aa1b098a43 tools/validation/earthmodel/oracle_contacts.py
 969e1ee891d4fc69fc3fc01d36e4eabc43c22e11 tools/validation/earthmodel/rls-pentest.sql
 f25cdeb2110122b4b4d8ea7048813e6c23dae4ca tools/validation/economics/AUDIT-PIA-2021.md
 f2f0e5c7fd80e980507fd7e2f24d1c4cbfaeb40e tools/validation/economics/FINDINGS-cashflow.md

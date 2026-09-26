@@ -14,6 +14,7 @@ export default function MapView({
   spec, grid, wells = [], polygons = [], pendingVertices = [],
   drawing = false, onMapClick, contours = true, height = 480, label = '',
   zFormat = (v) => v.toFixed(2), overlays = [],
+  contourStep = null, contourFormat = null, colorbarLevels = null,
 }) {
   return (
     <MapViewport
@@ -30,6 +31,9 @@ export default function MapView({
       label={label}
       zFormat={zFormat}
       overlays={overlays}
+      contourStep={contourStep}
+      contourFormat={contourFormat}
+      colorbarLevels={colorbarLevels}
       hint={drawing ? 'click to add vertices' : ''}
     />
   );

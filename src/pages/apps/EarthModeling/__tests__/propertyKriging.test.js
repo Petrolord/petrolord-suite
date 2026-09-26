@@ -30,7 +30,7 @@ test('too few points in a block falls back through trend then constant and says 
   expect(provenance[0].note).toMatch(new RegExp(`needs ${MIN_OK_POINTS}`));
   const one = pts.slice(0, 1);
   expect(populateZonePropertyOk(spec, null, { 0: one }, one, {}).provenance[0].methodUsed).toBe('constant');
-  expect(describeProvenance(provenance)).toMatch(/block 0 trend\(3w\) FELL BACK: 3 control points/);
+  expect(describeProvenance(provenance)).toMatch(/block 0: trend \(plane\) from 3 wells, fell back \(3 control points/);
 });
 
 test('a typed variogram is honoured and validated', () => {
