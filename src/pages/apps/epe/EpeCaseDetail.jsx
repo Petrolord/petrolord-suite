@@ -26,6 +26,7 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
     // the SAME shared util the Hub itself renders from (canonical DCA engine
     // under the hood), so an imported profile matches the Hub bbl for bbl.
     import { compareCases } from '@/utils/forecastScenarioCalculations';
+    import { piaRefusal } from '@/pages/apps/epe/epePiaCompliance';
 
     // Wave A (audit finding 1.1): the engine sums every file in a slot, so
     // multiple files are only correct when they are complementary.
@@ -482,6 +483,14 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                                 <p className="text-xs text-slate-400">Run on: {new Date(run.created_at).toLocaleString()}</p>
                                 {status === 'failed' && run.error_message && (
                                   <p className="text-xs text-red-400/80 mt-1 truncate" title={run.error_message}>{run.error_message}</p>
+                                )}
+                                {/* EC7: a PIA configuration the corrected engine refuses */}
+                                {status === 'failed' && isOwner && run.run_config_id && piaRefusal(run.error_message) && (
+                                  <p className="text-xs mt-1 flex flex-wrap gap-x-3">
+                                    <span className="text-amber-300">{piaRefusal(run.error_message).title}.</span>
+                                    <Link className="text-cyan-300 underline" to={`/dashboard/apps/economics/epe/cases/${caseId}/run?fromConfig=${run.run_config_id}`}>Fix the inputs</Link>
+                                    <Link className="text-cyan-300 underline" to={`/dashboard/apps/economics/epe/cases/${caseId}/run?fromConfig=${run.run_config_id}&legacy=1`}>Run as legacy</Link>
+                                  </p>
                                 )}
                                 {/* Wave D: headline KPIs make the list a decision table */}
                                 {status === 'complete' && runKpis[run.id] && (

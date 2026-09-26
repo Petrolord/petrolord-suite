@@ -151,7 +151,14 @@ export async function build(ctx) {
   const baseCase = caseTexts(mid.perWell, { withEk11: false });
   const epeBase = runEpe(buildCfg(baseCase.rows.abandonment_usd), baseCase.prod, null, baseCase.opex);
   const increment = K.npv - epeBase.kpis.npv;
-  if (K.fiscal_framework !== 'nta_2025') throw new Error(`ASSERT framework ${K.fiscal_framework}, expected nta_2025`);
+  // Engines 3.12.0 (EC7): the framework is read per year of assessment, so the
+  // sunk history years 2020 to 2025 assess under the PIA 2021 and every valued
+  // year (2026 on) under the NTA 2025.
+  if (K.fiscal_framework !== 'pia_only_then_nta_2025' || K.nta_first_year !== 2026) {
+    throw new Error(`ASSERT framework ${K.fiscal_framework} from ${K.nta_first_year}, expected pia_only_then_nta_2025 from 2026`);
+  }
+  if (epe.cashFlowData.some((r) => !r.sunk && r.fiscal_framework !== 'nta_2025')) throw new Error('ASSERT every valued year is an NTA 2025 year');
+  if (K.pia_legacy_pre_audit === true) throw new Error('ASSERT the kit runs the compliant engine, not the legacy switch');
   if (!(increment > 0)) throw new Error(`ASSERT Ekene-11 adds value on the mid case (increment ${increment})`);
 
   // Negative controls: take Ekene-11's capital out and the NPV must rise by
@@ -363,6 +370,11 @@ export async function build(ctx) {
   // 7. README
   // ---------------------------------------------------------------------------
   const r2 = (x) => x.toFixed(2);
+  // The tree's payoffs are whole cents of a million, so its EMVs are exact to
+  // three decimals; quoting them at three keeps the stated difference equal to
+  // the difference of the stated values (2.557 - 2.482 = 0.075, where two
+  // decimals would print 2.56 - 2.48 = 0.07).
+  const r3 = (x) => x.toFixed(3);
   write(`${DIR}/README.md`, [
     '# Economics: the field, valued, and Ekene-11, decided', '',
     'Four applications, one set of numbers. Every volume comes from the field on production',
@@ -391,7 +403,7 @@ export async function build(ctx) {
     `| Variable opex | USD ${DESIGN.variable_opex_usd_per_bbl_liquid} per barrel of oil plus water |`,
     `| Ekene-11 capital | USD ${EKENE11.dc_cost_usd.toLocaleString('en-US')} drilling and completion (the Drilling episode's AFE) plus USD ${DESIGN.ekene11_tie_in_usd.toLocaleString('en-US')} hook-up, both 2027 |`,
     `| Decommissioning | USD ${DESIGN.field_abandonment_usd.toLocaleString('en-US')} for the field plus USD ${DESIGN.ekene11_abandonment_usd.toLocaleString('en-US')} for Ekene-11, post tax, in the last economic year |`,
-    '| Fiscal regime | PIA, shallow water, PML, converted lease, 35 m water depth; base year 2026 puts it under the NTA 2025 framework |', '',
+    '| Fiscal regime | PIA, shallow water, PML, converted lease, 35 m water depth; the engine (3.12.0) reads the framework per year, so the history years 2020 to 2025 assess under the PIA 2021 and every valued year from 2026 under the NTA 2025 |', '',
     '## What the engines return', '',
     '| | |', '|---|---|',
     `| Field NPV10 with Ekene-11 (EPE) | ${money(K.npv)} |`,
@@ -403,8 +415,8 @@ export async function build(ctx) {
       : '| EPE breakeven oil price | not reported on this case: with the economic limit on, the engine\'s bracket collapses (see Episode 26) |',
     `| Ekene-11, NPV Scenario Builder Quick Mode | USD ${r2(scr.npv)} MM, no IRR (every year cash positive) |`,
     `| Ekene-11 breakeven price, 10th / 50th / 90th percentile | USD ${r2(be.kpis.p10)} / ${r2(be.kpis.p50)} / ${r2(be.kpis.p90)} per bbl |`,
-    `| Decision tree EMV, drill | USD ${r2(rb.emv)} MM (${OUTCOMES.map((o, i) => `${o.probability} x ${r2(pay(outcomeNpv[i]))}`).join(' + ')}) |`,
-    `| EVPI on the initial rate | USD ${r2(V.evpi)} MM |`, '',
+    `| Decision tree EMV, drill | USD ${r3(rb.emv)} MM (${OUTCOMES.map((o, i) => `${o.probability} x ${r2(pay(outcomeNpv[i]))}`).join(' + ')}) |`,
+    `| EVPI on the initial rate | USD ${r3(V.evpi)} MM |`, '',
     '## Files', '',
     '| File | Application |', '|---|---|',
     '| `ekene-production-2p.csv` | Petroleum Economics Studio, production slot, tagged 2P (one column per well and stream) |',
@@ -450,7 +462,7 @@ export async function build(ctx) {
       + `Apply economic limit test ticked, abandonment cost ${abandonment.toLocaleString('en-US')} with the year blank. `
       + 'Then press Customize per stream and set all four escalators to 0: the inflation box does not change them, '
       + 'and left at 3 percent they escalate the price and the opex. '
-      + `The run returns an NPV10 of ${money(K.npv)} for the field with Ekene-11 under the NTA 2025 framework, `
+      + `The run returns an NPV10 of ${money(K.npv)} for the field with Ekene-11; the badge reads Computed under PIA 2021 to 2025 and NTA 2025 from 2026, and every valued year is an NTA year, `
       + `and an economic limit in ${K.economic_limit_year}. ${irrWords}`
       + `The same field without Ekene-11 is worth ${money(epeBase.kpis.npv)} and reaches its limit in ${epeBase.kpis.economic_limit_year}: `
       + 'its remaining oil does not pay for its decommissioning. '
@@ -490,9 +502,9 @@ export async function build(ctx) {
     ], note: `Import the decision tree. The three outcomes are Ekene-11's initial rate at 315, 450 and 585 bopd with chances `
       + `${OUTCOMES.map((o) => o.probability).join(', ')}, and each payoff is the EPE increment for that rate in $MM: `
       + `${OUTCOMES.map((o, i) => r2(pay(outcomeNpv[i]))).join(', ')}. `
-      + `The tree recommends Drill Ekene-11 with an EMV of USD ${r2(rb.emv)} MM. `
-      + `Then import the perfect-information tree: knowing the rate first is worth USD ${r2(rbP.emv)} MM, because you would skip the low case. `
-      + `The difference, USD ${r2(V.evpi)} MM, is the expected value of perfect information: the most any test or pilot that `
+      + `The tree recommends Drill Ekene-11 with an EMV of USD ${r3(rb.emv)} MM. `
+      + `Then import the perfect-information tree: knowing the rate first is worth USD ${r3(rbP.emv)} MM, because you would skip the low case. `
+      + `The difference, USD ${r3(V.evpi)} MM, is the expected value of perfect information: the most any test or pilot that `
       + 'tells you the rate before you drill could be worth.' },
   ];
 

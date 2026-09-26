@@ -12,6 +12,10 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { payloadEscalators, followsInflation, simpleEscalators } from '@/pages/apps/epe/epeEscalation';
 import { labelForConfigKey } from '@/pages/apps/epe/epeConfigLabels';
+import {
+  LEGACY_TOGGLE_LABEL, PIA_INPUT_HELP, piaPreflight, piaRefusal, piaCompliancePayload,
+  isLegacyPia, mayHaveNtaYear,
+} from '@/pages/apps/epe/epePiaCompliance';
 
 // Wave E (audit 4.3): the pricing + economics subset an assumption set pins.
 // Regime terms and case-specific dates (base/valuation year) stay out.
@@ -50,7 +54,8 @@ const DEFAULT_CONFIG = {
   pia_marginal_field_pre_2021: false,
   pia_hct_rate_override_pct: null,
   pia_cit_rate_pct: 30,
-  pia_tet_rate_pct: 2.5,
+  // EC7 (engines 3.12.0): blank = the statutory TET by year (3% from 2023)
+  pia_tet_rate_pct: null,
   pia_nddc_levy_pct_of_opex: 3,
   pia_nddc_levy_fixed_usd: null,
   pia_prior_year_opex_usd: null,
@@ -61,13 +66,26 @@ const DEFAULT_CONFIG = {
   pia_production_allowance_pct_of_price: 20,
   // ---- B2.5: NTA 2025 fiscal framework ----
   pia_under_nta_2025_override: 'auto',
-  pia_deep_offshore_hct_interpretation: 'conservative_zero',
+  // EC7 decision D5: a stated reading with no default (required for a deep
+  // offshore year under the NTA)
+  pia_deep_offshore_hct_interpretation: null,
   pia_deep_offshore_hct_custom_rate_pct: null,
   pia_development_levy_rate_pct: 4.0,
   pia_new_lease_prod_alw_cap_onshore_bbl: 50000000,
   pia_new_lease_prod_alw_cap_shallow_bbl: 100000000,
   pia_new_lease_prod_alw_cap_deep_bbl: 500000000,
   pia_prior_cumulative_oil_bbl: 0,
+  // ---- EC7 (engines 3.12.0): PIA 2021 / NTA 2025 compliance inputs ----
+  // Mirror migration 20260926150000 and epePiaCompliance.PIA_2021_INPUT_DEFAULTS.
+  pia_legacy_pre_audit: false,
+  pia_new_pml_hct_rate_pct: null,
+  pia_gas_in_country_share_pct: 0,
+  pia_price_royalty_base: 'regulations_2021',
+  pia_nddc_levy_base: 'total_budget',
+  pia_nddc_levy_pct: 3,
+  pia_production_allowance_per_bbl_new_after_cap: 4.00,
+  pia_cit_company_gas_operations: false,
+  pia_decom_escrow_condition_met: null,
   // ---- v3.4: field life ----
   apply_economic_limit: false,
   abandonment_cost_usd: null,
@@ -135,6 +153,8 @@ const EpeRunConsole = () => {
   const [saveAsScenario, setSaveAsScenario] = useState(false);
   const [scenarioName, setScenarioName] = useState('');
   const [validationErrors, setValidationErrors] = useState({});
+  // EC7: an engine refusal of the PIA inputs, kept on screen with its fixes
+  const [engineRefusal, setEngineRefusal] = useState(null);
   const [showAdvancedEscalation, setShowAdvancedEscalation] = useState(false);
   const [showPiaAdvancedRates, setShowPiaAdvancedRates] = useState(false);
   const [showPiaAdvancedLevies, setShowPiaAdvancedLevies] = useState(false);
@@ -156,6 +176,7 @@ const EpeRunConsole = () => {
     // simple mode never overwrites them on the next run
     setShowAdvancedEscalation(!followsInflation(next));
     setValidationErrors({});
+    setEngineRefusal(null);
   }, []);
 
   // Saved scenarios for this case, newest first; also honors ?fromConfig=<id>
@@ -177,6 +198,10 @@ const EpeRunConsole = () => {
         if (row) {
           applyConfigRow(row);
           setLoadedConfigId(row.id);
+          // EC7: "Run as legacy" from a refused run (Results Viewer, Case Detail)
+          if (searchParams.get('legacy') === '1') {
+            setConfig((p) => ({ ...p, pia_legacy_pre_audit: true }));
+          }
         }
       }
     };
@@ -377,6 +402,12 @@ const EpeRunConsole = () => {
       });
     }
 
+    // EC7: inputs the compliant engine will certainly refuse, found before the run
+    if (config.fiscal_regime === 'PIA') {
+      const { certain } = piaPreflight(config);
+      if (certain.length > 0) errors.pia_compliance = certain.map((r) => r.title).join('; ');
+    }
+
     if (saveAsScenario && !scenarioName.trim()) {
       errors.scenarioName = 'Provide a scenario name or uncheck the box';
     }
@@ -399,6 +430,7 @@ const EpeRunConsole = () => {
     }
 
     setIsRunning(true);
+    setEngineRefusal(null);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated.');
@@ -457,6 +489,11 @@ const EpeRunConsole = () => {
         pia_new_lease_prod_alw_cap_shallow_bbl: config.pia_new_lease_prod_alw_cap_shallow_bbl,
         pia_new_lease_prod_alw_cap_deep_bbl: config.pia_new_lease_prod_alw_cap_deep_bbl,
         pia_prior_cumulative_oil_bbl: config.pia_prior_cumulative_oil_bbl,
+        // ---- EC7 (engines 3.12.0): compliance inputs and the legacy switch.
+        // Overrides pia_tet_rate_pct, pia_nddc_levy_pct_of_opex and
+        // pia_deep_offshore_hct_interpretation above with the values each
+        // engine path reads (epePiaCompliance.piaCompliancePayload).
+        ...piaCompliancePayload(config),
         // ---- v3.6 Wave B: equity + price realism ----
         psc_working_interest_pct: config.psc_working_interest_pct === '' ? 100 : config.psc_working_interest_pct,
         pia_working_interest_pct: config.pia_working_interest_pct === '' ? 100 : config.pia_working_interest_pct,
@@ -554,8 +591,10 @@ const EpeRunConsole = () => {
             .update({ status: 'failed', error_message: detail })
             .eq('id', runRow.id).eq('status', 'running')
             .then(() => {}, () => {});
+          setEngineRefusal(piaRefusal(detail));
           throw new Error(`Engine failed: ${detail}`);
         }
+        setEngineRefusal(piaRefusal(engineData.error));
         throw new Error(`Engine error: ${engineData.error}`);
       }
 
@@ -1377,6 +1416,57 @@ const EpeRunConsole = () => {
               </div>
             ) : (
               <div className="space-y-6">
+                {/* EC7 (engines 3.12.0): the legacy switch and the refusals of
+                    the compliant engine, each with its one-click fixes. */}
+                {(() => {
+                  const legacy = isLegacyPia(config);
+                  const pre = piaPreflight(config);
+                  const issues = [...pre.certain];
+                  if (engineRefusal && !issues.some((r) => r.code === engineRefusal.code)) issues.unshift(engineRefusal);
+                  if (!legacy && issues.length === 0) return null;
+                  return (
+                    <div className={`rounded p-3 border ${legacy ? 'bg-slate-900/60 border-slate-500/40' : 'bg-red-950/40 border-red-500/40'}`} data-testid="pia-compliance-panel">
+                      {!legacy && issues.map((r) => (
+                        <div key={r.code} className="mb-3">
+                          <p className="text-red-200 text-sm font-semibold flex items-center gap-1">
+                            <AlertCircle className="w-4 h-4" /> {r.title}
+                          </p>
+                          {r.message && <p className="text-red-200/80 text-xs mt-1 font-mono break-words">{r.message}</p>}
+                          <p className="text-slate-300 text-xs mt-1">{r.explain}</p>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {r.fixes.map((f) => (
+                              <Button key={f.label} type="button" size="sm" variant="outline" className="text-xs"
+                                onClick={() => { setConfig((p) => ({ ...p, ...f.patch })); setEngineRefusal(null); }}>
+                                {f.label}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                      <div className="flex items-start gap-2">
+                        <Checkbox
+                          id="pia_legacy_pre_audit"
+                          checked={legacy}
+                          onCheckedChange={(v) => { setConfig((p) => ({ ...p, pia_legacy_pre_audit: v === true })); setEngineRefusal(null); }}
+                          className="border-slate-400 mt-0.5"
+                        />
+                        <div>
+                          <Label htmlFor="pia_legacy_pre_audit" className="text-white text-sm cursor-pointer">{LEGACY_TOGGLE_LABEL}</Label>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            {legacy
+                              ? 'This run uses the engine as it stood before PIA figures were corrected on 26 September 2026, so it reproduces results saved before that date. Clear the box to run it on the Act, the Nigeria Tax Act 2025 and the Royalty Regulations.'
+                              : 'Tick to reproduce a run saved before 26 September 2026 on the earlier engine. The fixes above run it on the Act.'}
+                          </p>
+                        </div>
+                      </div>
+                      {validationErrors.pia_compliance && (
+                        <p className="text-red-400 text-xs mt-2 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" /> Fix these inputs or run as legacy: {validationErrors.pia_compliance}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
                 {/* v3.6 Wave B: lessee equity share */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <NumField
@@ -1399,7 +1489,9 @@ const EpeRunConsole = () => {
                           ['shallow_water', 'Shallow Water'],
                           ['deep_offshore', 'Deep Offshore'],
                           ['frontier', 'Frontier'],
-                          ['marginal_field', 'Marginal Field'],
+                          // EC7: a marginal field is onshore or shallow water under
+                          // the Act; the old terrain stays for legacy runs only
+                          ...(isLegacyPia(config) || config.pia_terrain === 'marginal_field' ? [['marginal_field', 'Marginal Field (legacy)']] : []),
                         ].map(([key, label]) => (
                           <Button
                             key={key}
@@ -1467,10 +1559,80 @@ const EpeRunConsole = () => {
                       className="border-slate-400"
                     />
                     <Label htmlFor="pia_marginal_field_pre_2021" className="text-white text-xs cursor-pointer">
-                      Marginal field declared before Jan 1, 2021 (15% HCT rate)
+                      Marginal field declared before Jan 1, 2021 (15% HCT rate, PIA s.94(1))
                     </Label>
                   </div>
+                  <p className="text-xs text-slate-500 mt-1">{PIA_INPUT_HELP.pia_terrain}</p>
                 </div>
+
+                {/* ── EC7: inputs the Act leaves to a stated choice (required, no default) ── */}
+                {!isLegacyPia(config) && (() => {
+                  const shelf = config.pia_terrain === 'onshore' || config.pia_terrain === 'shallow_water';
+                  const needRate = shelf && config.pia_license_type === 'PML' && config.pia_lease_status === 'new'
+                    && config.pia_marginal_field_pre_2021 !== true;
+                  const needDeep = config.pia_terrain === 'deep_offshore' && mayHaveNtaYear(config);
+                  const needEscrow = config.abandonment_funding_mode === 'sinking_fund' && Number(config.abandonment_cost_usd) > 0
+                    && mayHaveNtaYear(config);
+                  if (!needRate && !needDeep && !needEscrow) return null;
+                  const req = <span className="text-red-400 ml-1" title="Required">* required</span>;
+                  const selectCls = 'w-full bg-slate-900/60 border border-white/20 rounded px-2 py-1.5 text-sm text-white';
+                  return (
+                    <div className="bg-amber-900/20 border border-amber-500/30 rounded p-3 space-y-3" data-testid="pia-required-inputs">
+                      <h3 className="text-white text-sm font-semibold">Stated choices the Act requires</h3>
+                      {needRate && (
+                        <div>
+                          <Label htmlFor="pia_new_pml_hct_rate_pct" className="text-white text-xs mb-1 block">New lease hydrocarbon tax rate{req}</Label>
+                          <select id="pia_new_pml_hct_rate_pct" className={selectCls}
+                            value={config.pia_new_pml_hct_rate_pct ?? ''}
+                            onChange={(e) => setConfig((p) => ({ ...p, pia_new_pml_hct_rate_pct: e.target.value === '' ? null : Number(e.target.value) }))}>
+                            <option value="">Choose 15% or 30%</option>
+                            <option value="15">15%</option>
+                            <option value="30">30%</option>
+                          </select>
+                          <p className="text-xs text-amber-200/80 mt-1">{PIA_INPUT_HELP.pia_new_pml_hct_rate_pct}</p>
+                        </div>
+                      )}
+                      {needDeep && (
+                        <div>
+                          <Label htmlFor="pia_deep_offshore_hct_interpretation" className="text-white text-xs mb-1 block">Deep offshore HCT reading (years from 2026){req}</Label>
+                          <select id="pia_deep_offshore_hct_interpretation" className={selectCls}
+                            value={config.pia_deep_offshore_hct_interpretation ?? ''}
+                            onChange={(e) => setConfig((p) => ({ ...p, pia_deep_offshore_hct_interpretation: e.target.value === '' ? null : e.target.value }))}>
+                            <option value="">Choose a reading</option>
+                            <option value="conservative_zero">Conservative: 0% (effectively exempt)</option>
+                            <option value="aggressive_pml_30">Aggressive: 30% (treat as PML)</option>
+                            <option value="custom">Custom rate</option>
+                          </select>
+                          {config.pia_deep_offshore_hct_interpretation === 'custom' && (
+                            <div className="mt-2">
+                              <NumField
+                                id="pia_deep_offshore_hct_custom_rate_pct"
+                                label="Custom HCT rate"
+                                suffix="%"
+                                value={config.pia_deep_offshore_hct_custom_rate_pct ?? ''}
+                                onChange={(v) => handleNumberChange('pia_deep_offshore_hct_custom_rate_pct', v === '' ? null : v)}
+                              />
+                            </div>
+                          )}
+                          <p className="text-xs text-amber-200/80 mt-1">{PIA_INPUT_HELP.pia_deep_offshore_hct_interpretation}</p>
+                        </div>
+                      )}
+                      {needEscrow && (
+                        <div>
+                          <Label htmlFor="pia_decom_escrow_condition_met" className="text-white text-xs mb-1 block">Decommissioning escrow condition (years from 2026){req}</Label>
+                          <select id="pia_decom_escrow_condition_met" className={selectCls}
+                            value={config.pia_decom_escrow_condition_met === true ? 'yes' : config.pia_decom_escrow_condition_met === false ? 'no' : ''}
+                            onChange={(e) => setConfig((p) => ({ ...p, pia_decom_escrow_condition_met: e.target.value === '' ? null : e.target.value === 'yes' }))}>
+                            <option value="">Choose</option>
+                            <option value="yes">Met: at least 30% of the fund in an accredited escrow</option>
+                            <option value="no">Not met: contributions are not deductible</option>
+                          </select>
+                          <p className="text-xs text-amber-200/80 mt-1">{PIA_INPUT_HELP.pia_decom_escrow_condition_met}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* ── Tax Rates (collapsible advanced) ── */}
                 <div>
@@ -1486,7 +1648,7 @@ const EpeRunConsole = () => {
                   </div>
                   {!showPiaAdvancedRates && (
                     <p className="text-xs text-slate-400">
-                      Auto-derived HCT (terrain/license), CIT <span className="font-mono text-cyan-300">30%</span>, TET <span className="font-mono text-cyan-300">{config.pia_tet_rate_pct}%</span>
+                      Auto-derived HCT (terrain/license), CIT <span className="font-mono text-cyan-300">{config.pia_cit_rate_pct}%</span>, TET <span className="font-mono text-cyan-300">{config.pia_tet_rate_pct === null || config.pia_tet_rate_pct === '' ? (isLegacyPia(config) ? '2.5%' : 'statutory (3% from 2023)') : `${config.pia_tet_rate_pct}%`}</span>
                     </p>
                   )}
                   {showPiaAdvancedRates && (
@@ -1509,14 +1671,28 @@ const EpeRunConsole = () => {
                         <NumField
                           id="pia_tet_rate_pct"
                           label="TET rate"
-                          suffix="%"
-                          value={config.pia_tet_rate_pct}
-                          onChange={(v) => handleNumberChange('pia_tet_rate_pct', v)}
+                          suffix="% (blank = statute)"
+                          value={config.pia_tet_rate_pct ?? ''}
+                          onChange={(v) => handleNumberChange('pia_tet_rate_pct', v === '' ? null : v)}
                         />
                       </div>
-                      <p className="text-xs text-slate-500 mt-2">
-                        TET default 2.5% per PIA transition. Later Finance Acts raised statutory rate to 3%.
-                      </p>
+                      <p className="text-xs text-slate-500 mt-2">{PIA_INPUT_HELP.pia_tet_rate_pct}</p>
+                      {!isLegacyPia(config) && (
+                        <div className="flex items-start gap-2 mt-3">
+                          <Checkbox
+                            id="pia_cit_company_gas_operations"
+                            checked={config.pia_cit_company_gas_operations === true}
+                            onCheckedChange={(v) => setConfig((p) => ({ ...p, pia_cit_company_gas_operations: v === true }))}
+                            className="border-slate-400 mt-0.5"
+                          />
+                          <div>
+                            <Label htmlFor="pia_cit_company_gas_operations" className="text-white text-xs cursor-pointer">
+                              Company in upstream or midstream gas operations
+                            </Label>
+                            <p className="text-xs text-slate-500">{PIA_INPUT_HELP.pia_cit_company_gas_operations}</p>
+                          </div>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
@@ -1535,19 +1711,62 @@ const EpeRunConsole = () => {
                   </div>
                   {!showPiaAdvancedLevies && (
                     <p className="text-xs text-slate-400">
-                      NDDC <span className="font-mono text-cyan-300">{config.pia_nddc_levy_pct_of_opex}%</span> of OPEX, CPR cap <span className="font-mono text-cyan-300">{config.pia_cpr_limit_pct}%</span>, Capex recovery <span className="font-mono text-cyan-300">{config.pia_capex_recovery_years}yr</span>, Prod. allowance <span className="font-mono text-cyan-300">${config.pia_lease_status === 'new' ? config.pia_production_allowance_per_bbl_new : config.pia_production_allowance_per_bbl_converted}/bbl</span>
+                      {isLegacyPia(config)
+                        ? <>NDDC <span className="font-mono text-cyan-300">{config.pia_nddc_levy_pct_of_opex}%</span> of OPEX</>
+                        : <>NDDC <span className="font-mono text-cyan-300">{config.pia_nddc_levy_pct ?? 3}%</span> of {config.pia_nddc_levy_base === 'opex' ? 'OPEX' : 'OPEX plus CAPEX'}, gas royalty in-country share <span className="font-mono text-cyan-300">{config.pia_gas_in_country_share_pct ?? 0}%</span>, price royalty base <span className="font-mono text-cyan-300">{config.pia_price_royalty_base === 'act_2020' ? 'Act (2020)' : 'Regulations (2021)'}</span></>}, CPR cap <span className="font-mono text-cyan-300">{config.pia_cpr_limit_pct}%</span>, Capex recovery <span className="font-mono text-cyan-300">{config.pia_capex_recovery_years}yr</span>, Prod. allowance <span className="font-mono text-cyan-300">${config.pia_lease_status === 'new' ? config.pia_production_allowance_per_bbl_new : config.pia_production_allowance_per_bbl_converted}/bbl</span>
                     </p>
                   )}
                   {showPiaAdvancedLevies && (
                     <>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <NumField
-                          id="pia_nddc_levy_pct_of_opex"
-                          label="NDDC levy"
-                          suffix="% of OPEX"
-                          value={config.pia_nddc_levy_pct_of_opex}
-                          onChange={(v) => handleNumberChange('pia_nddc_levy_pct_of_opex', v)}
-                        />
+                        {isLegacyPia(config) ? (
+                          <NumField
+                            id="pia_nddc_levy_pct_of_opex"
+                            label="NDDC levy"
+                            suffix="% of OPEX"
+                            value={config.pia_nddc_levy_pct_of_opex}
+                            onChange={(v) => handleNumberChange('pia_nddc_levy_pct_of_opex', v)}
+                          />
+                        ) : (
+                          <>
+                            <NumField
+                              id="pia_nddc_levy_pct"
+                              label="NDDC levy"
+                              suffix={`% of ${config.pia_nddc_levy_base === 'opex' ? 'OPEX' : 'OPEX plus CAPEX'}`}
+                              value={config.pia_nddc_levy_pct ?? ''}
+                              onChange={(v) => handleNumberChange('pia_nddc_levy_pct', v === '' ? null : v)}
+                            />
+                            <div>
+                              <Label htmlFor="pia_nddc_levy_base" className="text-white text-sm">NDDC levy base</Label>
+                              <select id="pia_nddc_levy_base"
+                                value={config.pia_nddc_levy_base || 'total_budget'}
+                                onChange={(e) => setConfig((p) => ({ ...p, pia_nddc_levy_base: e.target.value }))}
+                                className="w-full bg-gray-800 border border-slate-600 rounded px-2 py-2 text-sm text-white">
+                                <option value="total_budget">Total annual budget (OPEX plus CAPEX)</option>
+                                <option value="opex">OPEX only (earlier base)</option>
+                              </select>
+                              <p className="text-xs text-slate-500 mt-1">{PIA_INPUT_HELP.pia_nddc_levy_base}</p>
+                            </div>
+                            <NumField
+                              id="pia_gas_in_country_share_pct"
+                              label="Gas utilised in Nigeria"
+                              suffix="% of gas revenue (2.5% royalty)"
+                              value={config.pia_gas_in_country_share_pct ?? 0}
+                              onChange={(v) => handleNumberChange('pia_gas_in_country_share_pct', v)}
+                            />
+                            <div>
+                              <Label htmlFor="pia_price_royalty_base" className="text-white text-sm">Royalty by price: benchmark base</Label>
+                              <select id="pia_price_royalty_base"
+                                value={config.pia_price_royalty_base || 'regulations_2021'}
+                                onChange={(e) => setConfig((p) => ({ ...p, pia_price_royalty_base: e.target.value }))}
+                                className="w-full bg-gray-800 border border-slate-600 rounded px-2 py-2 text-sm text-white">
+                                <option value="regulations_2021">Royalty Regulations 2022 (2021 base)</option>
+                                <option value="act_2020">PIA Seventh Schedule para 11(1) (2020 base)</option>
+                              </select>
+                              <p className="text-xs text-slate-500 mt-1">{PIA_INPUT_HELP.pia_price_royalty_base}</p>
+                            </div>
+                          </>
+                        )}
                         <NumField
                           id="pia_nddc_levy_fixed_usd"
                           label="NDDC fixed amount"
@@ -1562,13 +1781,21 @@ const EpeRunConsole = () => {
                           value={config.pia_prior_year_opex_usd ?? ''}
                           onChange={(v) => handleNumberChange('pia_prior_year_opex_usd', v === '' ? null : v)}
                         />
-                        <NumField
-                          id="pia_capex_recovery_years"
-                          label="Capex recovery"
-                          suffix="years"
-                          value={config.pia_capex_recovery_years}
-                          onChange={(v) => handleNumberChange('pia_capex_recovery_years', v)}
-                        />
+                        {isLegacyPia(config) ? (
+                          <NumField
+                            id="pia_capex_recovery_years"
+                            label="Capex recovery"
+                            suffix="years"
+                            value={config.pia_capex_recovery_years}
+                            onChange={(v) => handleNumberChange('pia_capex_recovery_years', v)}
+                          />
+                        ) : (
+                          <div>
+                            <Label className="text-white text-sm">Capex recovery <span className="text-slate-400">(years)</span></Label>
+                            <p className="text-white text-sm font-mono mt-2">5</p>
+                            <p className="text-xs text-slate-500 mt-1">{PIA_INPUT_HELP.pia_capex_recovery_years}</p>
+                          </div>
+                        )}
                         <NumField
                           id="pia_cpr_limit_pct"
                           label="CPR cap"
@@ -1597,6 +1824,18 @@ const EpeRunConsole = () => {
                           value={config.pia_production_allowance_per_bbl_new}
                           onChange={(v) => handleNumberChange('pia_production_allowance_per_bbl_new', v)}
                         />
+                        {!isLegacyPia(config) && (
+                          <div>
+                            <NumField
+                              id="pia_production_allowance_per_bbl_new_after_cap"
+                              label="Allowance (new, after the cap)"
+                              suffix="USD/bbl"
+                              value={config.pia_production_allowance_per_bbl_new_after_cap}
+                              onChange={(v) => handleNumberChange('pia_production_allowance_per_bbl_new_after_cap', v)}
+                            />
+                            <p className="text-xs text-slate-500 mt-1">{PIA_INPUT_HELP.pia_production_allowance_per_bbl_new_after_cap}</p>
+                          </div>
+                        )}
 
                       {/* ─── B2.5: Nigeria Tax Act 2025 Framework ─── */}
                       <div className="col-span-2 mt-4 pt-4 border-t border-white/10">
@@ -1607,12 +1846,15 @@ const EpeRunConsole = () => {
                               const ovr = config.pia_under_nta_2025_override;
                               if (ovr === 'force_pia') return 'PIA-only (forced)';
                               if (ovr === 'force_nta') return 'NTA-2025 (forced)';
-                              return (config.base_year >= 2026) ? 'NTA-2025 (auto)' : 'PIA-only (auto)';
+                              if (isLegacyPia(config)) return (config.base_year >= 2026) ? 'NTA-2025 (auto)' : 'PIA-only (auto)';
+                              return 'Per year: PIA to 2025, NTA from 2026 (auto)';
                             })()}
                           </span>
                         </div>
                         <p className="text-xs text-lime-200/60 mb-2">
-                          NTA 2025 (in force since Jan 2026) introduces Development Levy 4% in place of TET 2.5%, and extends HCT to deep offshore. Auto-detection uses base_year ≥ 2026.
+                          {isLegacyPia(config)
+                            ? 'Legacy engine: one framework for the whole run, chosen from the base year (2026 or later reads as NTA 2025).'
+                            : 'The Nigeria Tax Act 2025 applies from 1 January 2026. Under Auto each year of assessment takes its own framework: PIA 2021 years pay TET, NTA years pay the 4% development levy (NTA s.59(1)) and take 20% capital allowances.'}
                         </p>
 
                         <div className="grid grid-cols-2 gap-3 mb-3">
@@ -1637,14 +1879,14 @@ const EpeRunConsole = () => {
                           />
                         </div>
 
-                        {config.pia_terrain === 'deep_offshore' && (
+                        {config.pia_terrain === 'deep_offshore' && isLegacyPia(config) && (
                           <div className="bg-amber-900/20 border border-amber-500/30 rounded p-2 mb-3">
                             <p className="text-amber-200 text-xs mb-2">
-                              ⚠ NTA Section 65(4) extends HCT to deep offshore but specifies no rate. Industry interpretation is unsettled (Olaniwun Ajayi, Fortrose, Oct 2025–Jan 2026).
+                              NTA s.65(1) brings deep offshore into HCT and s.72 states no deep offshore rate. Industry interpretation is unsettled (Olaniwun Ajayi, Fortrose, October 2025 to January 2026).
                             </p>
                             <Label className="text-white text-xs mb-1 block">Deep Offshore HCT Interpretation</Label>
                             <select
-                              value={config.pia_deep_offshore_hct_interpretation}
+                              value={config.pia_deep_offshore_hct_interpretation ?? 'conservative_zero'}
                               onChange={(e) => setConfig((p) => ({ ...p, pia_deep_offshore_hct_interpretation: e.target.value }))}
                               className="w-full bg-slate-900/60 border border-white/20 rounded px-2 py-1.5 text-sm text-white"
                             >
@@ -1721,7 +1963,7 @@ const EpeRunConsole = () => {
                           )}
                           <div className="bg-amber-900/20 border border-amber-500/30 rounded p-2">
                             <p className="text-amber-200 text-xs">
-                              Project-level approximation. The statutory test is company-level (MNE groups above EUR 750m turnover or NGN 50bn+ turnover) and this model tops up per year when PIA taxes fall short of the rate times CIT assessable profit. The top-up is reported as its own line in results so reviewers can strip it.
+                              Project-level approximation of NTA s.57. The statutory test is company-level (a member of a multinational group, or turnover of 20 billion naira or more) and this model tops up per year when the taxes fall short of the rate times CIT assessable profit. The top-up applies only to years under the NTA (a legacy run applies it every year) and is reported as its own line in results so reviewers can strip it.
                             </p>
                           </div>
                         </div>

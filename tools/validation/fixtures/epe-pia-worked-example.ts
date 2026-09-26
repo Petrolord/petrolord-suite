@@ -1,11 +1,22 @@
-// EPE PIA 2021 worked example — frozen validation fixture
-// ========================================================
+// EPE PIA 2021 worked example: frozen validation fixture
+// ======================================================
 //
-// Source of truth: the PIA validation case byte-validated against the
-// published worked example during the B2 sprint (docs/scope/EPE.md §5:
-// "Byte-for-byte against published example, 17 line items"). The inputs
-// here are a verbatim local copy of the shared-DB validation case so the
-// regression contract no longer depends on database access:
+// LEGACY-SWITCH GOLDEN since engines 3.12.0 (EC7, owner decision D1,
+// 2026-09-26). PIA_WORKED_EXAMPLE_CFG carries pia_legacy_pre_audit: true and
+// pins the pre-audit engine, which departs from the gazetted PIA 2021 and the
+// Petroleum Royalty Regulations 2022 (packages/engines/tools/validation/
+// economics/AUDIT-PIA-2021.md; its 182,500,000 production royalty is 12.5%
+// flat where Regulations r.13(2)(d) give 11.25% at 50,000 bopd). It mirrors
+// packages/engines/test-data/economics/fixtures/pia-worked-example.json.
+//
+// The DEFAULT-path reference is the same inputs without the switch and with
+// the TET rate left to the statute (PIA_WORKED_EXAMPLE_DEFAULT_CFG below),
+// pinned by the independent oracle oracle_pia2021.py in
+// packages/engines/test-data/economics/goldens/pia2021_cases.json (case
+// worked_example_inputs_default).
+//
+// Inputs: a verbatim local copy of the shared-DB validation case, so the
+// regression contract does not depend on database access:
 //   epe_run_configs.id  53828290-e35b-47b1-9779-5a71434d55e4
 //   epe_cases.id        c17087c1-6cc4-4c84-908b-491004f0ec2f
 // Snapshot taken 2026-08-14 (D1, docs/scope/Economics-ROADMAP.md).
@@ -14,8 +25,9 @@
 // 2025 (12 equal months), $300MM capex, $182.5MM opex, 10% discount,
 // 3% inflation, real PV basis, PIA-only framework (base_year 2025).
 //
-// REGRESSION CONTRACT (EPE.md §6.7 / §7): every engine change must keep
-// NPV at $135,185,570.34 (±$0.01) and the line items below within $0.01.
+// REGRESSION CONTRACT (EPE.md section 7, re-frozen 2026-09-26):
+//   default path  NPV 141,236,909.83 (within $0.01) and the default line items
+//   legacy switch NPV 135,185,570.34 (within $0.01) and the legacy line items
 
 export const PIA_WORKED_EXAMPLE_CFG = {
   oil_price_usd_bbl: 80,
@@ -25,6 +37,7 @@ export const PIA_WORKED_EXAMPLE_CFG = {
   inflation_rate_pct: 3,
   base_year: 2025,
   fiscal_regime: 'PIA',
+  pia_legacy_pre_audit: true,
   jv_working_interest_pct: 100,
   jv_royalty_pct: 10,
   jv_tax_rate_pct: 50,
@@ -82,8 +95,9 @@ export const PIA_WORKED_EXAMPLE_OPEX = [
   { date: '2025-01-01', month_index: 1, total_opex_usd: 182500000 },
 ];
 
-// Expected 2025 line items (USD). Derived from the byte-validated engine
-// run; the royalty/tax lines trace to the published PIA worked example.
+// Expected 2025 line items (USD) on the LEGACY switch. Derived from the
+// pre-audit engine run; no citation of a published worked example was ever
+// recorded (AUDIT-PIA-2021.md section 4).
 export const PIA_WORKED_EXAMPLE_EXPECTED = {
   npv: 135185570.34,
   line_items: {
@@ -108,5 +122,49 @@ export const PIA_WORKED_EXAMPLE_EXPECTED = {
     cpr_deferred_to_next: 0,
     depreciation: 60000000,
     net_cash_flow: 135185570.34003878,
+  },
+};
+
+// The default path: the same inputs without the legacy switch and without
+// pia_tet_rate_pct, so the statutory 3% applies (Finance Act 2023 s.26).
+const { pia_legacy_pre_audit: _legacy, pia_tet_rate_pct: _tet, ...DEFAULT_INPUTS } = PIA_WORKED_EXAMPLE_CFG;
+export const PIA_WORKED_EXAMPLE_DEFAULT_CFG = DEFAULT_INPUTS;
+
+// Expected 2025 line items (USD) on the default path, from oracle_pia2021.py
+// (pia2021_cases.json, worked_example_inputs_default; FINDINGS-pia2021.md
+// section 4). Shallow water at 50,000 bopd: 5% / 7.5% / 12.5% weighted to
+// 11.25% (Royalty Regulations r.13(2)(d)); royalty by price on the Regulations
+// benchmarks rounded to cents; NDDC in the HCT base; TET 3%; CIT deducts the
+// full royalty.
+export const PIA_WORKED_EXAMPLE_DEFAULT_EXPECTED = {
+  npv: 141236909.83,
+  line_items: {
+    gross_revenue: 1460000000,
+    production_royalty: 164250000,
+    liquids_production_royalty: 164250000,
+    gas_royalty: 0,
+    royalty_rate_liquids: 0.1125,
+    royalty_liquids_bopd: 50000,
+    price_royalty: 34908351.810790844,
+    royalty: 199158351.81079084,
+    hcdt: 5100000,
+    nddc: 15000000,
+    hct_assessable_profit: 1058241648.1892092,
+    production_allowance: 45625000,
+    hct_chargeable_profit: 952616648.1892092,
+    hct_rate: 0.3,
+    hct_tax: 285784994.45676273,
+    cit_assessable_profit: 1058241648.1892092,
+    cit_chargeable_profit: 998241648.1892092,
+    cit_tax: 299472494.45676273,
+    tet_rate_pct: 3,
+    tet_tax: 31747249.44567628,
+    dev_levy_tax: 0,
+    tax: 617004738.3592018,
+    cpr_cap: 949000000,
+    cpr_costs_claimed: 242500000,
+    cpr_deferred_to_next: 0,
+    depreciation: 60000000,
+    net_cash_flow: 141236909.83000743,
   },
 };
