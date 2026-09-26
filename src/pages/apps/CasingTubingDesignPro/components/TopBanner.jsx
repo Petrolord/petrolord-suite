@@ -16,6 +16,10 @@ const TopBanner = () => {
     selectedSite, selectedWellbore, selectedCase, results, toggleHelp,
   } = useCasingTubingDesign();
   const overall = results?.kpis?.overall;
+  // CT-T1-002: a FAIL beside a passing governing burst SF needs its reason
+  // (the failing checks lived only in the Warnings panel at the bottom)
+  const failing = overall === 'FAIL' ? (results?.warnings || []).filter((w) => w.severity === 'high') : [];
+  const failWhere = [...new Set(failing.map((w) => w.message.split(':')[0]))];
 
   return (
     <div className="bg-slate-900 border-b border-slate-800 px-6 py-3 shrink-0 shadow-sm z-20">
@@ -97,6 +101,12 @@ const TopBanner = () => {
                 >
                   {overall}
                 </span>
+                {failWhere.length > 0 && (
+                  <span className="block max-w-[260px] truncate text-[10px] text-red-300" data-testid="ct-fail-reason"
+                    title={failing.map((w) => w.message).join('\n')}>
+                    {failWhere.join(', ')} ({failing.length} check{failing.length === 1 ? '' : 's'}; see Warnings)
+                  </span>
+                )}
               </div>
             )}
             {results?.kpis?.minBurst && (

@@ -433,9 +433,17 @@ export function runAll({ caseDoc, stations }) {
   if (tubing) {
     for (const c of tubing.cases) {
       if (c.status === 'FAIL') {
+        // CT-T1-001: say WHY. The message listed buckling and packer SF only,
+        // so a seal-stroke failure read "FAIL (buckling none, packer SF 2.91)".
+        const reasons = [];
+        if (c.loads.packer.strokeOk === false) {
+          const moveM = Math.abs(c.loads.lengthChanges?.totalM ?? NaN);
+          reasons.push(`tubing movement ${Number.isFinite(moveM) ? `${moveM.toFixed(2)} m` : ''} exceeds the packer seal stroke`.replace('  ', ' '));
+        }
+        if (c.loads.packer.sf != null && c.loads.packer.sf < 1.0) reasons.push(`packer load above its rating (SF ${fmtSF(c.loads.packer.sf)})`);
         warnings.push({
           severity: 'high',
-          message: `${tubing.stringName}: FAIL under ${c.name}`
+          message: `${tubing.stringName}: FAIL under ${c.name}: ${reasons.join('; ') || 'see the tubing results'}`
             + ` (buckling ${c.loads.buckling.state}, packer SF ${fmtSF(c.loads.packer.sf)})`,
         });
       }

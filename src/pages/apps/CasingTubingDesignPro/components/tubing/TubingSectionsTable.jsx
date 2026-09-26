@@ -56,7 +56,7 @@ const TubingSectionsTable = ({ stringId }) => {
   return (
     <div className="space-y-2 mb-6">
       <h3 className="text-sm font-semibold text-slate-300 px-1">Tubing Sections</h3>
-      <div className="rounded-md border border-slate-800 bg-slate-900/50 overflow-hidden">
+      <div className="rounded-md border border-slate-800 bg-slate-900/50 overflow-x-auto">
         <Table>
           <TableHeader className="bg-slate-900">
             <TableRow className="border-slate-800 hover:bg-transparent">
@@ -80,7 +80,7 @@ const TubingSectionsTable = ({ stringId }) => {
                       type="number"
                       value={Math.round(depthDisp(sec.topMdM, depthUnit))}
                       onChange={(e) => patchSection(sec.id, { topMdM: depthStore(parseFloat(e.target.value) || 0, depthUnit) })}
-                      className="h-6 bg-slate-950 border-slate-800 text-[11px] font-mono text-right px-1"
+                      className="h-6 min-w-[64px] bg-slate-950 border-slate-800 text-[11px] font-mono text-right px-1"
                     />
                   </TableCell>
                   <TableCell className="py-1 text-right w-20">
@@ -88,7 +88,7 @@ const TubingSectionsTable = ({ stringId }) => {
                       type="number"
                       value={Math.round(depthDisp(sec.bottomMdM, depthUnit))}
                       onChange={(e) => patchSection(sec.id, { bottomMdM: depthStore(parseFloat(e.target.value) || 0, depthUnit) })}
-                      className="h-6 bg-slate-950 border-slate-800 text-[11px] font-mono text-right px-1"
+                      className="h-6 min-w-[64px] bg-slate-950 border-slate-800 text-[11px] font-mono text-right px-1"
                     />
                   </TableCell>
                   <TableCell className="py-1">

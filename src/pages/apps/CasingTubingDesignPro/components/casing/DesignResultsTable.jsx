@@ -1,3 +1,4 @@
+// CT-T1-003 (senior test T1): the table scrolls rather than clips at 1366 with both side panels open.
 import React from 'react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -25,7 +26,7 @@ const DesignResultsTable = ({ caseResult, depthUnit = 'm' }) => {
   };
 
   return (
-    <div className="rounded-md border border-slate-800 bg-slate-900/50 overflow-hidden">
+    <div className="rounded-md border border-slate-800 bg-slate-900/50 overflow-x-auto">
       <Table>
         <TableHeader className="bg-slate-900">
           <TableRow className="border-slate-800 hover:bg-transparent">
