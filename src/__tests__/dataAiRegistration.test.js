@@ -626,7 +626,7 @@ describe('D5: the AI Evaluation Studio', () => {
     expect(MODULE_PRICING[SLUG]).toBe(2999);
   });
 
-  it('logs all four D5 migrations as held (owner-run), in order, after the D4 ones', () => {
+  it('logs all four D5 migrations, in order, after the D4 ones, as held or as applied by the owner', () => {
     const all = fs.readdirSync(migrations).filter((f) => f.endsWith('.sql')).sort();
     const order = [SEED5, TABLE, LLM, TILE].map((f) => all.indexOf(f));
     expect(order.every((i) => i > all.indexOf('20260924170000_d4_tile_activation.sql'))).toBe(true);
@@ -634,7 +634,9 @@ describe('D5: the AI Evaluation Studio', () => {
     [SEED5, TABLE, LLM, TILE].forEach((f) => {
       const row = log().split('\n').find((l) => l.includes(f));
       expect(row).toBeTruthy();
-      expect(row).toMatch(HELD);
+      // the owner applied all four on 2026-09-26 (MIGRATIONS.md says so);
+      // before that the row read HELD
+      expect(HELD.test(row) || /\*\*APPLIED 2026-09-26\*\* by the owner/.test(row)).toBe(true);
     });
   });
 
