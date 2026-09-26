@@ -223,7 +223,12 @@ Deno.serve(async (req) => {
       const deckEntries = priceInfo ? priceDeck[priceInfo.stream] : [];
       const usesDeckScale = !!priceInfo && deckEntries.length > 0;
 
-      let baseValue = Number(baseCfg[sweep.variable]);
+      // A null field is UNSET, not zero (Number(null) is 0). Engines 3.12.0:
+      // pia_tet_rate_pct null means the statutory rate by year (3% from 2023,
+      // Finance Act 2023 s.26), so a TET sweep has no single base value and is
+      // skipped rather than swept around a phantom 0%.
+      const rawBase = baseCfg[sweep.variable];
+      let baseValue = rawBase === null || rawBase === undefined || rawBase === '' ? NaN : Number(rawBase);
       if (!Number.isFinite(baseValue) && usesDeckScale) baseValue = deckEntries[0].value;
       if (!Number.isFinite(baseValue) && sweep.default_value !== undefined) baseValue = sweep.default_value;
       if (baseValue === null || baseValue === undefined || isNaN(baseValue)) {

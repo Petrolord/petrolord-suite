@@ -25,6 +25,9 @@ import {
   GRID_STYLE, TOOLTIP_STYLE
 } from '@/utils/chartTheme';
 import { epeIrrReason } from '@/pages/apps/epe/epeIrrReason';
+import {
+  LEGACY_NOTICE, frameworkLabel, frameworkBadge, piaRefusal, piaRowColumnsPresent, piaCellValue,
+} from '@/pages/apps/epe/epePiaCompliance';
 
 const KpiCard = ({ icon: Icon, title, value, color }) => (
   <div className="bg-white/5 p-4 rounded-lg flex items-center space-x-4">
@@ -118,6 +121,14 @@ export const cashFlowColumns = (isPIA, sampleRows = []) => {
   if (anyRow('cit_allowance_carryforward')) cols.push({ key: 'cit_allowance_carryforward', label: 'CIT Allowance Carryforward (USD)' });
   if (anyRow('working_interest_pct')) cols.push({ key: 'working_interest_pct', label: 'Working Interest (%)' });
   if (anyRow('decom_fund_contribution')) cols.push({ key: 'decom_fund_contribution', label: 'Decom Fund Contribution (USD)' });
+  // Engines 3.12.0 (EC7): the default PIA path's royalty split, rates and
+  // per-year framework. Rates are exported in percent. Legacy and older runs
+  // carry none of them and keep their columns.
+  if (isPIA) {
+    for (const c of piaRowColumnsPresent(rows)) {
+      cols.push({ key: c.key, label: c.label, value: (row) => piaCellValue(c, row[c.key]) });
+    }
+  }
   cols.push(
     { key: 'abandonment_cost', label: 'Abandonment (USD)' },
     { key: 'net_cash_flow', label: 'Net Cash Flow (USD)' },
@@ -160,6 +171,8 @@ export const KPI_EXPORT_ROWS = [
   ['economic_limit_year', 'Economic Limit Year'],
   ['fiscal_regime', 'Fiscal Regime'],
   ['fiscal_framework', 'Fiscal Framework'],
+  ['nta_first_year', 'First NTA 2025 Year'],
+  ['pia_legacy_pre_audit', 'Legacy PIA Engine (pre-2026-09-26)'],
   ['pv_basis', 'PV Basis'],
   ['discount_rate_applied_pct', 'Discount Rate Applied (%)'],
 ];
@@ -895,6 +908,24 @@ const YearByYearTable = ({ results }) => {
       { label: 'Dev Levy',             get: (r) => r.dev_levy_tax || 0,          fmt: fmtCompact },
       { label: 'Production Allowance', get: (r) => r.production_allowance || 0,  fmt: fmtCompact },
     );
+    // Engines 3.12.0 (EC7): the default path's royalty split, rates and the
+    // framework of each year. Legacy and older runs carry none of them.
+    if (cf.some((r) => r.liquids_production_royalty !== undefined)) {
+      const pct = (v) => (v == null ? '—' : `${(Number(v) * 100).toFixed(3)}%`);
+      const royaltyAt = rows.findIndex((x) => x.label === 'Royalty') + 1;
+      rows.splice(royaltyAt, 0,
+        { label: '  Production royalty, crude and condensate', get: (r) => r.liquids_production_royalty || 0, fmt: fmtCompact },
+        { label: '  Gas and NGL royalty', get: (r) => r.gas_royalty || 0, fmt: fmtCompact },
+        { label: '  Royalty by price', get: (r) => r.price_royalty || 0, fmt: fmtCompact },
+        { label: '  Royalty daily rate (bopd)', get: (r) => r.royalty_liquids_bopd, fmt: (v) => (v == null ? '—' : Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })) },
+        { label: '  Production royalty rate', get: (r) => r.royalty_rate_liquids, fmt: pct },
+      );
+      rows.push(
+        { label: 'HCT rate', get: (r) => r.hct_rate, fmt: pct },
+        { label: 'TET rate', get: (r) => r.tet_rate_pct, fmt: (v) => (v == null ? '—' : `${Number(v)}%`) },
+        { label: 'Framework', get: (r) => r.fiscal_framework, fmt: (v) => (v === 'nta_2025' ? 'NTA 2025' : v === 'pia_only' ? 'PIA 2021' : '—') },
+      );
+    }
   } else {
     rows.push({ label: 'Tax', get: (r) => r.tax || 0, fmt: fmtCompact });
   }
@@ -1090,7 +1121,7 @@ const EpeResultsViewer = () => {
     };
     const lines = [
       cols.map((c) => esc(c.label)).join(','),
-      ...cf.map((row) => cols.map((c) => esc(row[c.key] ?? '')).join(',')),
+      ...cf.map((row) => cols.map((c) => esc((c.value ? c.value(row) : row[c.key]) ?? '')).join(',')),
     ];
     const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -1120,13 +1151,18 @@ const EpeResultsViewer = () => {
           .filter(([k]) => kpis[k] !== undefined && kpis[k] !== null)
           .map(([k, label]) => [label, kpis[k]]),
       ];
+      if (kpis.pia_legacy_pre_audit === true || runConfig?.pia_legacy_pre_audit === true) kpiAoa.push([], ['Note', LEGACY_NOTICE]);
+      if (Array.isArray(kpis.pia_notes) && kpis.pia_notes.length > 0) {
+        kpiAoa.push([], ['Engine notes (PIA 2021 / NTA 2025)', '']);
+        for (const n of kpis.pia_notes) kpiAoa.push(['', n]);
+      }
       const wsKpi = XLSX.utils.aoa_to_sheet(kpiAoa);
       wsKpi['!cols'] = [{ wch: 34 }, { wch: 22 }];
       XLSX.utils.book_append_sheet(wb, wsKpi, 'KPIs');
 
       const cfAoa = [
         cols.map((c) => c.label),
-        ...cf.map((row) => cols.map((c) => row[c.key] ?? '')),
+        ...cf.map((row) => cols.map((c) => (c.value ? c.value(row) : row[c.key]) ?? '')),
       ];
       const wsCf = XLSX.utils.aoa_to_sheet(cfAoa);
       wsCf['!cols'] = cols.map(() => ({ wch: 16 }));
@@ -1168,11 +1204,12 @@ const EpeResultsViewer = () => {
       }) + 6;
 
       // ---- Title block info line ----
-      const frameworkLabel = kpis.fiscal_framework === 'nta_2025' ? 'NTA 2025'
-        : kpis.fiscal_framework === 'pia_only' ? 'PIA 2021' : null;
+      const fwLabel = frameworkLabel(kpis);
+      const legacyRun = isPIA && (kpis.pia_legacy_pre_audit === true || runConfig?.pia_legacy_pre_audit === true);
       const infoBits = [
         `Regime: ${kpis.fiscal_regime || runConfig?.fiscal_regime || 'n/a'}`,
-        frameworkLabel ? `Framework: ${frameworkLabel}` : null,
+        fwLabel ? `Framework: ${fwLabel}` : null,
+        legacyRun ? 'Legacy PIA engine' : null,
         kpis.working_interest_pct != null ? `Working interest: ${Number(kpis.working_interest_pct).toFixed(0)}%` : null,
         `Generated: ${new Date().toISOString().slice(0, 10)}`,
         kpis.engine_version ? `Engine v${kpis.engine_version}` : null,
@@ -1182,6 +1219,13 @@ const EpeResultsViewer = () => {
       doc.setTextColor(71, 85, 105);
       doc.text(infoBits.join('   |   '), margin, y);
       y += 7;
+      if (legacyRun) {
+        doc.setTextColor(146, 64, 14);
+        const lines = doc.splitTextToSize(LEGACY_NOTICE, pageWidth - 2 * margin);
+        doc.text(lines, margin, y);
+        y += 4.5 * lines.length + 2;
+        doc.setTextColor(71, 85, 105);
+      }
 
       // ---- Key metrics: paired two-per-row so the one-pager stays one page ----
       const money = (v) => (v == null ? null : `$${fmtCompact(v)}`);
@@ -1458,14 +1502,35 @@ if (loading) {
             <div>
               <h1 className="text-4xl font-bold text-white">{runDetails?.run_name}</h1>
               <p className="text-lime-200 text-lg">Results for case: {runDetails?.epe_cases?.case_name}</p>
-              {results?.kpis?.fiscal_regime === 'PIA' && results?.kpis?.fiscal_framework && (
+              {results?.kpis?.fiscal_regime === 'PIA' && frameworkBadge(results.kpis) && (
                 <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded ${
                   results.kpis.fiscal_framework === 'nta_2025'
                     ? 'bg-amber-900/40 text-amber-200 border border-amber-500/30'
-                    : 'bg-cyan-900/40 text-cyan-200 border border-cyan-500/30'
+                    : results.kpis.fiscal_framework === 'pia_only_then_nta_2025'
+                      ? 'bg-violet-900/40 text-violet-200 border border-violet-500/30'
+                      : 'bg-cyan-900/40 text-cyan-200 border border-cyan-500/30'
                 }`}>
-                  {results.kpis.fiscal_framework === 'nta_2025' ? 'Computed under NTA 2025' : 'Computed under PIA 2021 (pre-NTA)'}
+                  {frameworkBadge(results.kpis)}
                 </span>
+              )}
+              {/* EC7 (engines 3.12.0): legacy PIA runs say so on the results */}
+              {results?.kpis?.fiscal_regime === 'PIA'
+                && (results.kpis.pia_legacy_pre_audit === true || runConfig?.pia_legacy_pre_audit === true) && (
+                <p className="mt-2 text-xs px-2 py-1 rounded bg-amber-950/60 text-amber-200 border border-amber-500/40 max-w-3xl" data-testid="pia-legacy-notice">
+                  {LEGACY_NOTICE}
+                </p>
+              )}
+              {Array.isArray(results?.kpis?.pia_notes) && results.kpis.pia_notes.length > 0 && (
+                <details className="mt-2 max-w-3xl" data-testid="pia-notes">
+                  <summary className="text-xs text-cyan-200 cursor-pointer">
+                    Engine notes on the PIA 2021 and NTA 2025 computation ({results.kpis.pia_notes.length})
+                  </summary>
+                  <ul className="mt-1 list-disc pl-5 space-y-1">
+                    {results.kpis.pia_notes.map((n) => (
+                      <li key={n} className="text-xs text-slate-300">{n}</li>
+                    ))}
+                  </ul>
+                </details>
               )}
             </div>
           </div>
@@ -1682,10 +1747,41 @@ if (loading) {
           </div>
         ) : (
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6">
-            <div className="text-center py-16">
-              <h3 className="text-xl font-semibold text-white">No Results Found</h3>
-              <p className="text-lime-300 mt-2">Could not load the results for this economic run.</p>
-            </div>
+            {(() => {
+              // EC7: a run the compliant PIA engine refused shows the engine's
+              // own message and the way to fix it or to run it as legacy.
+              const refusal = runDetails?.status === 'failed' ? piaRefusal(runDetails.error_message) : null;
+              if (!refusal) {
+                return (
+                  <div className="text-center py-16">
+                    <h3 className="text-xl font-semibold text-white">No Results Found</h3>
+                    <p className="text-lime-300 mt-2">
+                      {runDetails?.status === 'failed' && runDetails?.error_message
+                        ? runDetails.error_message
+                        : 'Could not load the results for this economic run.'}
+                    </p>
+                  </div>
+                );
+              }
+              const base = runDetails?.case_id && runDetails?.run_config_id
+                ? `/dashboard/apps/economics/epe/cases/${runDetails.case_id}/run?fromConfig=${runDetails.run_config_id}` : null;
+              return (
+                <div className="py-6 max-w-3xl" data-testid="pia-refusal">
+                  <h3 className="text-xl font-semibold text-white">{refusal.title}</h3>
+                  <p className="text-red-200/90 text-sm mt-2 font-mono break-words">{refusal.message}</p>
+                  <p className="text-slate-300 text-sm mt-2">{refusal.explain}</p>
+                  <p className="text-slate-400 text-xs mt-2">
+                    PIA figures were corrected on 26 September 2026 to follow the Act and the Royalty Regulations, and this configuration needs a stated input the earlier engine did not ask for.
+                  </p>
+                  {isOwnRun && base && (
+                    <div className="flex flex-wrap gap-2 mt-4">
+                      <Link to={base}><Button size="sm">Fix the inputs in the Run Console</Button></Link>
+                      <Link to={`${base}&legacy=1`}><Button size="sm" variant="outline">Run as legacy (pre-2026-09-26 engine)</Button></Link>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </motion.div>
         )}
       </div>
