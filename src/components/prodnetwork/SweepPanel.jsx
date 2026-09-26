@@ -12,7 +12,7 @@ import { Play, RefreshCw, Gauge } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useProductionNetwork } from '@/contexts/ProductionNetworkContext';
 import { Field, Num, fmt } from './fields';
 
@@ -69,11 +69,12 @@ const SweepPanel = () => {
               <ComposedChart data={data} margin={{ top: 8, right: 30, bottom: 14, left: 8 }}>
                 <CartesianGrid {...GRID_STYLE} />
                 <XAxis
+                height={XAXIS_LABEL_HEIGHT}
                   type="number" dataKey="deliveryPsia" domain={['dataMin', 'dataMax']}
                   stroke={CHART_COLORS.axisLine}
                   tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                   label={{
-                    value: 'Delivery pressure (psia)', position: 'insideBottom', offset: -10,
+                    value: 'Delivery pressure (psia)', position: 'insideBottom', offset: 0,
                     fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
                   }}
                 />
@@ -90,7 +91,7 @@ const SweepPanel = () => {
                   formatter={(v) => [`${fmt(v)} stb/d`, 'Field']}
                   labelFormatter={(v) => `${fmt(v)} psia`}
                 />
-                <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize }} />
+                <Legend {...LEGEND_PROPS} />
                 {sweep.basePsia && (
                   <ReferenceLine
                     x={sweep.basePsia} stroke="#0891b2" strokeDasharray="4 3"

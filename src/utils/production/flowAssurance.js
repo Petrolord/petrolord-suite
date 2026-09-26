@@ -410,7 +410,7 @@ export const scoreTrace = ({ trace, gasSg, watF }) => {
 /** Where the hydrate boundary is, and the caveats that come with it. */
 export const HYDRATE_BASIS_NOTE = 'The hydrate boundary is the Motiee (1991) gas-gravity screening the Fluid Studio uses. It is a screening correlation for sweet natural gas: it does not know about CO2, H2S or salt, and a design decision should be confirmed against a measured dissociation curve or a compositional flash.';
 
-export const SALINITY_NOTE = 'Produced-water salt inhibits hydrates too, and it is not in this boundary. Ignoring it is conservative -- it over-states the subcooling and so over-doses the inhibitor -- but on a high-salinity well it over-states it substantially.';
+export const SALINITY_NOTE = 'Produced-water salt inhibits hydrates too, and it is not in this boundary. Ignoring it is conservative (it over-states the subcooling and so over-doses the inhibitor), but on a high-salinity well it over-states it substantially.';
 
 // ---------------------------------------------------------------------------
 // The whole analysis

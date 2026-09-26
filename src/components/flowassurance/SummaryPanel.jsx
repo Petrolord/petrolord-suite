@@ -42,7 +42,7 @@ const SummaryPanel = () => {
         <Row
           label="Overall U"
           value={leg ? fmt(leg.u.uBtuHrFt2F, 3) : '--'}
-          hint={leg ? `NTU ${fmt(leg.ntu, 2)}` : undefined}
+          hint={leg ? `Btu/hr-ft2-F, NTU ${fmt(leg.ntu, 2)}` : undefined}
         />
         <Row
           label="Worst subcooling"
@@ -64,6 +64,7 @@ const SummaryPanel = () => {
           value={analysis?.cooldown?.ok && Number.isFinite(analysis.cooldown.hours)
             ? `${fmt(analysis.cooldown.hours, 1)} hr`
             : '--'}
+          hint={analysis?.cooldown ? undefined : 'cooldown is off; turn it on in the Thermal tab'}
         />
       </CardContent>
     </Card>

@@ -123,7 +123,7 @@ const CooldownPanel = () => {
                       {Number.isFinite(cd.hours) && (
                         <ReferenceLine
                           x={cd.hours} stroke="#7c3aed" strokeDasharray="4 3"
-                          label={{ value: 'No-touch', fill: '#7c3aed', fontSize: 10, position: 'top' }}
+                          label={{ value: 'No-touch', fill: '#7c3aed', fontSize: 10, position: 'insideTopRight' }}
                         />
                       )}
                       <Line

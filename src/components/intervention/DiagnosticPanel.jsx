@@ -14,7 +14,7 @@ import { Activity, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useIntervention } from '@/contexts/InterventionPlannerContext';
 import { Field, Stat, fmt } from './fields';
 
@@ -154,12 +154,13 @@ const DiagnosticPanel = () => {
                 <ComposedChart data={data} margin={{ top: 8, right: 34, bottom: 14, left: 8 }}>
                   <CartesianGrid {...GRID_STYLE} />
                   <XAxis
+                height={XAXIS_LABEL_HEIGHT}
                     type="number" dataKey="t" scale="log" domain={['dataMin', 'dataMax']}
                     stroke={CHART_COLORS.axisLine}
                     tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                     tickFormatter={(v) => fmt(v, 0)}
                     label={{
-                      value: 'Producing time (days)', position: 'insideBottom', offset: -10,
+                      value: 'Producing time (days)', position: 'insideBottom', offset: 0,
                       fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
                     }}
                   />
@@ -177,7 +178,7 @@ const DiagnosticPanel = () => {
                     formatter={(v, n) => [fmt(v, 3), n]}
                     labelFormatter={(v) => `${fmt(v, 0)} days`}
                   />
-                  <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize }} />
+                  <Legend {...LEGEND_PROPS} />
                   {diagnosis.lateFromT && (
                     <ReferenceLine
                       x={diagnosis.lateFromT} stroke="#64748b" strokeDasharray="4 3"

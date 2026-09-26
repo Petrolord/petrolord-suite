@@ -21,7 +21,7 @@ import { Route, Thermometer, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useFlowAssurance } from '@/contexts/FlowAssuranceContext';
 import { fmt } from './fields';
 
@@ -136,11 +136,14 @@ const TracePanel = () => {
             <ComposedChart data={phaseMerged} margin={{ top: 8, right: 30, bottom: 14, left: 8 }}>
               <CartesianGrid {...GRID_STYLE} />
               <XAxis
-                type="number" dataKey="tempF" domain={['dataMin - 5', 'dataMax + 5']}
+                height={XAXIS_LABEL_HEIGHT}
+                type="number" dataKey="tempF"
+                domain={[(lo) => Math.floor((lo - 5) / 10) * 10, (hi) => Math.ceil((hi + 5) / 10) * 10]}
+                allowDecimals={false}
                 stroke={CHART_COLORS.axisLine}
                 tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                 label={{
-                  value: 'Temperature (F)', position: 'insideBottom', offset: -10,
+                  value: 'Temperature (F)', position: 'insideBottom', offset: 0,
                   fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
                 }}
               />
@@ -157,7 +160,7 @@ const TracePanel = () => {
                 formatter={(v, n) => [fmt(v, 0), n]}
                 labelFormatter={(v) => `${fmt(v, 1)} F`}
               />
-              <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize }} />
+              <Legend {...LEGEND_PROPS} />
               <Line
                 type="monotone" dataKey="boundary" name="Hydrate boundary"
                 stroke={COLOR.hydrate} strokeWidth={2} strokeDasharray="6 3"
@@ -178,11 +181,12 @@ const TracePanel = () => {
             <ComposedChart data={profileData} margin={{ top: 8, right: 34, bottom: 14, left: 8 }}>
               <CartesianGrid {...GRID_STYLE} />
               <XAxis
+                height={XAXIS_LABEL_HEIGHT}
                 type="number" dataKey="sFt" domain={['dataMin', 'dataMax']}
                 stroke={CHART_COLORS.axisLine}
                 tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                 label={{
-                  value: 'Distance along the flow path (ft)', position: 'insideBottom', offset: -10,
+                  value: 'Distance along the flow path (ft)', position: 'insideBottom', offset: 0,
                   fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
                 }}
               />
@@ -207,7 +211,7 @@ const TracePanel = () => {
                 formatter={(v, n) => [fmt(v, 1), n]}
                 labelFormatter={(v) => `${fmt(v)} ft`}
               />
-              <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize }} />
+              <Legend {...LEGEND_PROPS} />
               {hydrate?.inHydrate && entry && (
                 <ReferenceArea
                   yAxisId="t" x1={entry.sFt} x2={hydrate.exit?.sFt ?? entry.sFt}
