@@ -180,3 +180,10 @@ Before the NextGen course MD4 (engines #227, vendored at f0aef14; findings in
 - Tests: page tests pin the unscreened leader, the LPG default under the
   ceiling and the variable opex box.
 
+
+## 2026-09-26: senior test T1 (docs/testing/FlareGasToValue-T1.md)
+
+- Figures hand-checked (footprint, abatement, CNG margin, 0.9 modular
+  capital scaling). Credit chart on a numeric axis with $M ticks; short
+  route labels (full accessible names); capital basis note; harness
+  `/dev/flare-gas-to-value`.

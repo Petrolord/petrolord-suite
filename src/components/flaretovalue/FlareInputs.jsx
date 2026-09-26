@@ -7,13 +7,17 @@ import {
 } from '@/contexts/FlareToValueContext';
 
 let cellSeq = 0;
-const Cell = ({ label, value, onChange, unit, placeholder, type = 'number' }) => {
+// FLARE-T1-002: inside a route's own card the visible label drops the route
+// name (it read "Compressed natural gas Minimum volume" on three lines);
+// `scope` keeps the full name as the input's accessible label.
+const Cell = ({ label, value, onChange, unit, placeholder, type = 'number', scope }) => {
   const id = React.useMemo(() => `fv-${(cellSeq += 1)}`, []);
   const text = `${label}${unit ? ` (${unit})` : ''}`;
   return (
     <div>
       <Label htmlFor={id} className="text-[10px] text-slate-400">{text}</Label>
       <Input id={id} type={type} step={type === 'number' ? 'any' : undefined}
+        aria-label={scope ? `${scope} ${text}` : undefined}
         value={value ?? ''} placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         className="h-7 bg-slate-950 border-slate-700 text-xs" />
@@ -67,17 +71,17 @@ const FlareInputs = () => {
             <p className="text-[11px] font-medium text-slate-200 mb-1.5">{r.label}</p>
             <div className="grid grid-cols-2 gap-2">
               {r.requirements.map((q) => (
-                <Cell key={q.key} label={`${r.label} ${q.label}`} unit={q.unit}
+                <Cell key={q.key} scope={r.label} label={q.label.charAt(0).toUpperCase() + q.label.slice(1)} unit={q.unit}
                   value={q.limit} placeholder="unset"
                   onChange={(v) => setRequirement(r.id, q.key, v)} />
               ))}
-              <Cell label={`${r.label} yield`} unit={`${r.productUnitLabel}/Mscf`} value={r.productUnitPerMscf} onChange={(v) => setRoute(r.id, { productUnitPerMscf: v })} />
-              <Cell label={`${r.label} recovery`} unit="fraction" value={r.recoveryFraction} onChange={(v) => setRoute(r.id, { recoveryFraction: v })} />
-              <Cell label={`${r.label} price`} unit={`per ${r.productUnitLabel}`} value={r.pricePerProductUnit} onChange={(v) => setRoute(r.id, { pricePerProductUnit: v })} />
-              <Cell label={`${r.label} reference capex`} value={r.referenceCapitalCost} onChange={(v) => setRoute(r.id, { referenceCapitalCost: v })} />
-              <Cell label={`${r.label} reference capacity`} unit="MMscfd" value={r.referenceCapacityMMscfd} onChange={(v) => setRoute(r.id, { referenceCapacityMMscfd: v })} />
-              <Cell label={`${r.label} fixed opex`} unit="/yr" value={r.fixedOpexPerYear} onChange={(v) => setRoute(r.id, { fixedOpexPerYear: v })} />
-              <Cell label={`${r.label} variable opex`} unit="/Mscf" value={r.variableOpexPerMscf} onChange={(v) => setRoute(r.id, { variableOpexPerMscf: v })} />
+              <Cell scope={r.label} label="Yield" unit={`${r.productUnitLabel}/Mscf`} value={r.productUnitPerMscf} onChange={(v) => setRoute(r.id, { productUnitPerMscf: v })} />
+              <Cell scope={r.label} label="Recovery" unit="fraction" value={r.recoveryFraction} onChange={(v) => setRoute(r.id, { recoveryFraction: v })} />
+              <Cell scope={r.label} label="Price" unit={`per ${r.productUnitLabel}`} value={r.pricePerProductUnit} onChange={(v) => setRoute(r.id, { pricePerProductUnit: v })} />
+              <Cell scope={r.label} label="Reference capex" value={r.referenceCapitalCost} onChange={(v) => setRoute(r.id, { referenceCapitalCost: v })} />
+              <Cell scope={r.label} label="Reference capacity" unit="MMscfd" value={r.referenceCapacityMMscfd} onChange={(v) => setRoute(r.id, { referenceCapacityMMscfd: v })} />
+              <Cell scope={r.label} label="Fixed opex" unit="/yr" value={r.fixedOpexPerYear} onChange={(v) => setRoute(r.id, { fixedOpexPerYear: v })} />
+              <Cell scope={r.label} label="Variable opex" unit="/Mscf" value={r.variableOpexPerMscf} onChange={(v) => setRoute(r.id, { variableOpexPerMscf: v })} />
             </div>
           </div>
         ))}

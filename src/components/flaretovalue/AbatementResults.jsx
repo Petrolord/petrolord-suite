@@ -107,10 +107,15 @@ const AbatementResults = () => {
             <ChartFrame height={260} exportFilename="credit-sensitivity">
               <LineChart data={creditCase.points} margin={{ top: 12, right: 24, left: 24, bottom: 28 }}>
                 <CartesianGrid {...GRID_STYLE} />
-                <XAxis dataKey="creditPrice" stroke={CHART_COLORS.axisLine} tick={tick}
-                  label={{ value: 'credit price per tonne', position: 'insideBottom', offset: -18, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
-                <YAxis stroke={CHART_COLORS.axisLine} tick={tick} />
-                <Tooltip {...TOOLTIP_STYLE} formatter={(v) => fmt(v, 0)} />
+                {/* FLARE-T1-001: a numeric price axis (5, 15, 30 and 60 were
+                    spaced evenly on a category axis) and margins in $M */}
+                <XAxis dataKey="creditPrice" type="number" domain={[0, 'dataMax']}
+                  ticks={creditCase.points.map((p) => p.creditPrice)} stroke={CHART_COLORS.axisLine} tick={tick}
+                  label={{ value: 'Credit price ($ per tCO2e)', position: 'insideBottom', offset: -18, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+                <YAxis stroke={CHART_COLORS.axisLine} tick={tick} domain={[0, 'auto']} width={56}
+                  tickFormatter={(v) => `${Number((v / 1e6).toFixed(1))}M`}
+                  label={{ value: 'Margin ($/yr)', angle: -90, position: 'insideLeft', offset: -12, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => fmt(v, 0)} labelFormatter={(v) => `$${v} per tCO2e`} />
                 <ReferenceLine y={creditCase.hurdleMarginPerYear} stroke="#dc2626" strokeDasharray="4 4"
                   label={{ value: 'hurdle', fill: '#dc2626', fontSize: 11 }} />
                 <Line type="monotone" dataKey="totalMarginPerYear" name="Margin with credits" stroke="#059669" strokeWidth={2} dot={{ r: 3 }} />
