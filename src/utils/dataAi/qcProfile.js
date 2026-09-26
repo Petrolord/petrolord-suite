@@ -91,7 +91,7 @@ export const defaultProfile = () => ({
     cumulative: { key: '', tolerance: DEFAULTS.cumulativeTolerance },
     waterCut: { wcKey: '', oilKey: '', waterKey: '', tolerance: DEFAULTS.waterCutTolerance },
     phaseSum: { partKeys: [], totalKey: '', relTolerance: DEFAULTS.phaseRelTolerance, absTolerance: DEFAULTS.phaseAbsTolerance },
-    frozen: { enabled: true, minRun: DEFAULTS.frozenMinRun, tolerance: DEFAULTS.frozenTolerance },
+    frozen: { enabled: true, minRun: DEFAULTS.frozenMinRun, tolerance: DEFAULTS.frozenTolerance, includeHoursOn: false },
   },
   uniqueness: { enabled: true, maxDistance: DEFAULTS.maxDistance, digitsMustMatch: true, stripLeadingZeros: true },
   outliers: {
@@ -333,7 +333,13 @@ export function runQcProfile(ds, profileIn) {
     });
   }
   if (cons.frozen.enabled) {
-    chans.forEach((ch) => {
+    // DQ-T1-001: a producing well on 24 hours a day for weeks is normal
+    // operation, not a stuck gauge. The hours-on channel (the one the rate
+    // rule reads, else a channel named hours on) is left out of the frozen
+    // search unless the profile asks for it; it flagged 118 of 120 days on a
+    // clean hours column and pulled Consistency to 0.65.
+    const hoursKey = frozenHoursKey(profile, chans);
+    chans.filter((ch) => cons.frozen.includeHoursOn || ch.key !== hoursKey).forEach((ch) => {
       const r = frozenRuns({ values: ch.values, minRun: num(cons.frozen.minRun), tolerance: num(cons.frozen.tolerance) });
       push('consistency', 'frozen', ch, r, {
         scoreChecked: presentCells(ch),
@@ -453,4 +459,12 @@ export function baselineFrom(values, from, to) {
   const r = individualsChart({ values: values.slice(a, b + 1) });
   if (r.error) return r;
   return { target: r.centre, sigma: r.sigma, mrBar: r.mrBar, n: b - a + 1 };
+}
+
+/** The channel the frozen-run search leaves out by default (DQ-T1-001). */
+export function frozenHoursKey(profile, chans) {
+  const set = profile?.validity?.rate?.hoursOnKey;
+  if (set && chans.some((c) => c.key === set)) return set;
+  const named = chans.find((c) => /^hours?[\s_-]*on$/i.test(String(c.name || '').trim()));
+  return named ? named.key : null;
 }

@@ -898,3 +898,11 @@ D1 `dataqc` NextGen course (slug `dataqc`, path_order 66) on the D1 engine and a
   CART 0.982). Loaded logs proposed for clustering; clusters coloured by
   their matched facies in the tracks; round depth ticks; CART thresholds
   without float noise; harness `/dev/electrofacies-studio`.
+
+## 2026-09-26: Data Quality senior test T1 (docs/testing/DataQualityStudio-T1.md)
+
+- Planted-defect table: every defect found. The hours-on channel is left
+  out of the frozen-run search by default (`consistency.frozen.includeHoursOn`,
+  `frozenHoursKey`); the Charts tab axes were wrapped components and never
+  drew (factories now, guard test `wrappedAxes.test.js`); harness
+  `/dev/data-quality-studio`.

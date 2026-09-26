@@ -284,6 +284,21 @@ describe('the Ekene daily production ledger as an uploaded CSV', () => {
     expect(spine.index.values).toEqual(ds.index.values);
   });
 
+  it('leaves the hours-on channel out of the frozen-run search unless asked (DQ-T1-001)', () => {
+    const key = (n) => ds.channels.find((x) => x.name === n).key;
+    const hoursKey = key('hours_on');
+    const frozenOn = (run) => run.results.filter((e) => e.method === 'frozen').map((e) => e.channel?.key ?? e.key ?? e.channelKey);
+    const p = defaultProfile();
+    const base = runQcProfile(ds, p);
+    expect(JSON.stringify(base.results.filter((e) => e.method === 'frozen'))).not.toContain('hours_on');
+    // negative control: asked for, the same channel is searched again
+    p.consistency.frozen.includeHoursOn = true;
+    const withHours = runQcProfile(ds, p);
+    expect(JSON.stringify(withHours.results.filter((e) => e.method === 'frozen'))).toContain('hours_on');
+    expect(frozenOn(withHours).length).toBe(frozenOn(base).length + 1);
+    expect(hoursKey).toBeTruthy();
+  });
+
   it('runs rate, water cut and the charts through the engine, the baseline included', () => {
     const p = defaultProfile();
     const key = (n) => ds.channels.find((x) => x.name === n).key;

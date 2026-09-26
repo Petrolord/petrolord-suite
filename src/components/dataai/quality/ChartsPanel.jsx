@@ -30,11 +30,14 @@ const Frame = ({ children, testId, height = 'h-72' }) => (
   </div>
 );
 
-const XAx = ({ title }) => (
+// DQ-T1-002: Recharts reads its axes from the chart's direct children by
+// element type, so an axis wrapped in a component of our own is never drawn.
+// These are element factories called in place ({xAx(...)}), not components.
+const xAx = (title) => (
   <XAxis dataKey="x" tick={tick} stroke={CHART_COLORS.axisLine} height={XAXIS_LABEL_HEIGHT} minTickGap={40}
     label={axisLabel(title, { position: 'insideBottom', offset: 0 })} />
 );
-const YAx = ({ title }) => (
+const yAx = (title) => (
   <YAxis tick={tick} stroke={CHART_COLORS.axisLine} width={70} tickFormatter={fmt} domain={['auto', 'auto']}
     label={axisLabel(title, { angle: -90, position: 'insideLeft' })} />
 );
@@ -60,8 +63,8 @@ const SeriesChart = ({ dataset, run }) => {
       <Frame testId="series-chart">
         <ComposedChart data={data} margin={CHART_MARGINS.legend}>
           <CartesianGrid {...GRID_STYLE} />
-          <XAx title={dataset.index ? `${dataset.index.name}${dataset.index.unit ? ` (${dataset.index.unit})` : ''}` : 'Entry'} />
-          <YAx title={`${ch.name}${ch.unit ? ` (${ch.unit})` : ''}`} />
+          {xAx(dataset.index ? `${dataset.index.name}${dataset.index.unit ? ` (${dataset.index.unit})` : ''}` : 'Entry')}
+          {yAx(`${ch.name}${ch.unit ? ` (${ch.unit})` : ''}`)}
           <Tooltip {...PINNED_TOOLTIP_PROPS} formatter={(v) => fmt(v)} />
           <Legend {...LEGEND_PROPS} />
           <Line type="linear" dataKey="v" name={ch.name} stroke={SERIES.data} strokeWidth={1.5} dot={false} connectNulls={false} isAnimationActive={false} />
@@ -92,8 +95,8 @@ const ControlCharts = ({ run }) => {
           <Frame testId="individuals-chart">
             <ComposedChart data={c.values.map((v, j) => ({ x: x(j), v, out: v > ind.ucl || v < ind.lcl ? v : null }))} margin={CHART_MARGINS.legend}>
               <CartesianGrid {...GRID_STYLE} />
-              <XAx title={c.axis || 'Entry'} />
-              <YAx title={`${c.channel}${unit}`} />
+              {xAx(c.axis || 'Entry')}
+              {yAx(`${c.channel}${unit}`)}
               <Tooltip {...PINNED_TOOLTIP_PROPS} formatter={(v) => fmt(v)} />
               <Legend {...LEGEND_PROPS} />
               <ReferenceLine y={ind.ucl} stroke={SERIES.limit} strokeDasharray="6 3" label={{ value: 'UCL', position: 'insideTopRight', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.annotationFontSize }} />
@@ -106,8 +109,8 @@ const ControlCharts = ({ run }) => {
           <Frame testId="mr-chart" height="h-56">
             <ComposedChart data={ind.movingRanges.map((v, j) => ({ x: x(j), mr: v }))} margin={CHART_MARGINS.legend}>
               <CartesianGrid {...GRID_STYLE} />
-              <XAx title={c.axis || 'Entry'} />
-              <YAx title={`Moving range${unit}`} />
+              {xAx(c.axis || 'Entry')}
+              {yAx(`Moving range${unit}`)}
               <Tooltip {...PINNED_TOOLTIP_PROPS} formatter={(v) => fmt(v)} />
               <Legend {...LEGEND_PROPS} />
               <ReferenceLine y={ind.mrUcl} stroke={SERIES.limit} strokeDasharray="6 3" label={{ value: `UCL ${fmt(ind.mrUcl)}`, position: 'insideTopRight', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.annotationFontSize }} />
@@ -122,8 +125,8 @@ const ControlCharts = ({ run }) => {
           <Frame testId="ewma-chart">
             <ComposedChart data={ew.points.map((p, j) => ({ x: x(j), e: p.ewma, u: p.ucl, l: p.lcl }))} margin={CHART_MARGINS.legend}>
               <CartesianGrid {...GRID_STYLE} />
-              <XAx title={c.axis || 'Entry'} />
-              <YAx title={`EWMA${unit}`} />
+              {xAx(c.axis || 'Entry')}
+              {yAx(`EWMA${unit}`)}
               <Tooltip {...PINNED_TOOLTIP_PROPS} formatter={(v) => fmt(v)} />
               <Legend {...LEGEND_PROPS} />
               <Line dataKey="e" name="EWMA" stroke={SERIES.data} strokeWidth={2} dot={false} isAnimationActive={false} />
@@ -141,8 +144,8 @@ const ControlCharts = ({ run }) => {
           <Frame testId="cusum-chart">
             <ComposedChart data={cu.points.map((p, j) => ({ x: x(j), hi: p.sHigh, lo: p.sLow }))} margin={CHART_MARGINS.legend}>
               <CartesianGrid {...GRID_STYLE} />
-              <XAx title={c.axis || 'Entry'} />
-              <YAx title={`CUSUM${unit}`} />
+              {xAx(c.axis || 'Entry')}
+              {yAx(`CUSUM${unit}`)}
               <Tooltip {...PINNED_TOOLTIP_PROPS} formatter={(v) => fmt(v)} />
               <Legend {...LEGEND_PROPS} />
               <ReferenceLine y={cu.hData} stroke={SERIES.limit} strokeDasharray="6 3" label={{ value: `h ${fmt(cu.hData)}`, position: 'insideTopRight', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.annotationFontSize }} />
@@ -170,8 +173,8 @@ const MahalanobisChart = ({ dataset, run }) => {
       <Frame testId="mahalanobis-chart">
         <ComposedChart data={data} margin={CHART_MARGINS.legend}>
           <CartesianGrid {...GRID_STYLE} />
-          <XAx title={dataset.index ? dataset.index.name : 'Entry'} />
-          <YAx title="Squared distance d²" />
+          {xAx(dataset.index ? dataset.index.name : 'Entry')}
+          {yAx('Squared distance d²')}
           <Tooltip {...PINNED_TOOLTIP_PROPS} formatter={(v) => fmt(v)} />
           <Legend {...LEGEND_PROPS} />
           <ReferenceLine y={r.cutoff} stroke={SERIES.limit} strokeDasharray="6 3" label={{ value: 'cutoff', position: 'insideTopRight', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.annotationFontSize }} />
