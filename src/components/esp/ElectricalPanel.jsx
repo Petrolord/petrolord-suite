@@ -63,7 +63,7 @@ const ElectricalPanel = () => {
               label="Input power"
               value={sized.motorLoad ? fmt(sized.motorLoad.inputKw, 1) : '--'}
               unit="kW"
-              hint={`at ${fmt(inputs.motor.motorEfficiencyPct)} percent motor efficiency`}
+              hint={`at ${fmt(Number(inputs.motor.motorEfficiencyPct))} percent motor efficiency`}
             />
           </div>
 
@@ -79,7 +79,7 @@ const ElectricalPanel = () => {
               label="Selected cable"
               value={chosen ? chosen.label : 'none'}
               accent={chosen ? 'text-emerald-400' : 'text-red-400'}
-              hint={`over ${fmt(inputs.motor.cableLengthFt)} ft at ${fmt(inputs.motor.cableTempF)} F`}
+              hint={`over ${fmt(Number(inputs.motor.cableLengthFt))} ft at ${fmt(Number(inputs.motor.cableTempF))} F`}
             />
             <Stat
               label="Voltage drop"

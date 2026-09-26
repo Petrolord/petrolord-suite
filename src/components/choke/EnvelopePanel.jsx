@@ -13,7 +13,7 @@ import { Play, RefreshCw, TrendingUp, Crosshair } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useChoke } from '@/contexts/ChokePerformanceContext';
 import { Field, NumberInput, fmt } from './fields';
 
@@ -99,13 +99,14 @@ const EnvelopePanel = () => {
                   <ComposedChart data={data} margin={{ top: 8, right: 34, bottom: 12, left: 8 }}>
                     <CartesianGrid {...GRID_STYLE} />
                     <XAxis
+                    height={XAXIS_LABEL_HEIGHT}
                       type="number"
                       dataKey="s64"
                       domain={['dataMin', 'dataMax']}
                       stroke={CHART_COLORS.axisLine}
                       tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                       label={{
-                        value: 'Bean size (64ths of an inch)', position: 'insideBottom', offset: -8,
+                        value: 'Bean size (64ths of an inch)', position: 'insideBottom', offset: 0,
                         fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
                       }}
                     />
@@ -138,7 +139,7 @@ const EnvelopePanel = () => {
                       ]}
                       labelFormatter={(v) => `${v}/64 bean`}
                     />
-                    <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
+                    <Legend {...LEGEND_PROPS} />
                     {envelope.limit && (
                       <ReferenceLine
                         yAxisId="rate"

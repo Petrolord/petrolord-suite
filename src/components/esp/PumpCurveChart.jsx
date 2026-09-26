@@ -9,7 +9,7 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useEsp } from '@/contexts/EspDesignContext';
 
 const COLOR = { head: '#2563eb', efficiency: '#059669', duty: '#dc2626' };
@@ -52,13 +52,14 @@ const PumpCurveChart = () => {
           <ComposedChart data={data} margin={{ top: 8, right: 28, bottom: 12, left: 8 }}>
             <CartesianGrid {...GRID_STYLE} />
             <XAxis
+                    height={XAXIS_LABEL_HEIGHT}
               type="number"
               dataKey="qBpd"
               domain={['dataMin', 'dataMax']}
               stroke={CHART_COLORS.axisLine}
               tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
               label={{
-                value: 'Rate through the pump (bbl/d, in situ)', position: 'insideBottom', offset: -8,
+                value: 'Rate through the pump (bbl/d, in situ)', position: 'insideBottom', offset: 0,
                 fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
               }}
             />
@@ -96,7 +97,7 @@ const PumpCurveChart = () => {
               ]}
               labelFormatter={(v) => `${Math.round(Number(v))} bbl/d`}
             />
-            <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
+            <Legend {...LEGEND_PROPS} />
             <Line
               yAxisId="head" dataKey="headFt" name="Head from the stack" stroke={COLOR.head}
               strokeWidth={2} dot={false} isAnimationActive={false}

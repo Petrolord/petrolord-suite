@@ -16,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useRodPump } from '@/contexts/RodPumpDesignContext';
 import { Field, NumberInput, fmt, Stat } from './fields';
 
@@ -148,13 +148,14 @@ const DiagnosticsPanel = () => {
               <LineChart margin={{ top: 8, right: 28, bottom: 12, left: 8 }}>
                 <CartesianGrid {...GRID_STYLE} />
                 <XAxis
+                    height={XAXIS_LABEL_HEIGHT}
                   type="number"
                   dataKey="positionIn"
                   domain={['dataMin', 'dataMax']}
                   stroke={CHART_COLORS.axisLine}
                   tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                   label={{
-                    value: 'Position (in)', position: 'insideBottom', offset: -8,
+                    value: 'Position (in)', position: 'insideBottom', offset: 0,
                     fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
                   }}
                 />
@@ -173,7 +174,7 @@ const DiagnosticsPanel = () => {
                   formatter={(value, name) => [`${Math.round(Number(value)).toLocaleString()} lb`, name]}
                   labelFormatter={(v) => `${Number(v).toFixed(1)} in`}
                 />
-                <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
+                <Legend {...LEGEND_PROPS} />
                 <Line
                   data={surface} dataKey="loadLb" name="Surface (measured)"
                   stroke={COLOR.surface} strokeWidth={1.8} dot={false} isAnimationActive={false}

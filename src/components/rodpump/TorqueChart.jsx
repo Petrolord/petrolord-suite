@@ -10,7 +10,7 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useRodPump } from '@/contexts/RodPumpDesignContext';
 import { fmt } from './fields';
 
@@ -52,6 +52,7 @@ const TorqueChart = () => {
           <LineChart data={data} margin={{ top: 8, right: 28, bottom: 12, left: 8 }}>
             <CartesianGrid {...GRID_STYLE} />
             <XAxis
+                    height={XAXIS_LABEL_HEIGHT}
               type="number"
               dataKey="deg"
               domain={[0, 360]}
@@ -59,7 +60,7 @@ const TorqueChart = () => {
               stroke={CHART_COLORS.axisLine}
               tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
               label={{
-                value: 'Crank angle (deg)', position: 'insideBottom', offset: -8,
+                value: 'Crank angle (deg)', position: 'insideBottom', offset: 0,
                 fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
               }}
             />
@@ -78,7 +79,7 @@ const TorqueChart = () => {
               formatter={(value, name) => [`${Math.round(Number(value)).toLocaleString()} in-lb`, name]}
               labelFormatter={(v) => `${Math.round(Number(v))} deg`}
             />
-            <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
+            <Legend {...LEGEND_PROPS} />
             <ReferenceLine y={0} stroke={CHART_COLORS.axisLine} />
             {rating && (
               <>

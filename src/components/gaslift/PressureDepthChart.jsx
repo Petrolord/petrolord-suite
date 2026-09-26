@@ -13,7 +13,7 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useGasLift } from '@/contexts/GasLiftDesignContext';
 import { psiaToPsig } from '@/utils/production/gasLift';
 
@@ -77,12 +77,13 @@ const PressureDepthChart = () => {
           <ComposedChart layout="vertical" data={data} margin={{ top: 8, right: 28, bottom: 12, left: 8 }}>
             <CartesianGrid {...GRID_STYLE} />
             <XAxis
+                    height={XAXIS_LABEL_HEIGHT}
               type="number"
               stroke={CHART_COLORS.axisLine}
               domain={[0, 'dataMax + 100']}
               tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
               label={{
-                value: 'Pressure (psig)', position: 'insideBottom', offset: -8,
+                value: 'Pressure (psig)', position: 'insideBottom', offset: 0,
                 fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
               }}
             />
@@ -104,7 +105,7 @@ const PressureDepthChart = () => {
               formatter={(value, name) => [`${Math.round(Number(value))} psig`, name]}
               labelFormatter={(v) => `${Math.round(Number(v))} ft TVD`}
             />
-            <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
+            <Legend {...LEGEND_PROPS} />
             <Line
               dataKey="injection" name="Injection gas" stroke={COLOR.injection}
               strokeWidth={2} dot={false} isAnimationActive={false}

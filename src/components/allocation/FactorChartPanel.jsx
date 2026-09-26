@@ -8,7 +8,7 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS } from '@/utils/chartTheme';
 import { decimate } from '@/utils/production/surveillance';
 import { useAllocation } from '@/contexts/ProductionAllocationContext';
 
@@ -59,7 +59,7 @@ const FactorChartPanel = () => {
               itemStyle={{ color: CHART_COLORS.tooltipText }}
               formatter={(value, name) => [Number(value).toFixed(3), name]}
             />
-            <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
+            <Legend {...LEGEND_PROPS} />
             <ReferenceArea
               y1={activeSettings.factorWarnLow} y2={activeSettings.factorWarnHigh}
               fill="#10b981" fillOpacity={0.07} stroke="#10b981" strokeOpacity={0.3}

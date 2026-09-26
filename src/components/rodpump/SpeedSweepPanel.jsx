@@ -14,7 +14,7 @@ import { Play, RefreshCw, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useRodPump } from '@/contexts/RodPumpDesignContext';
 import { Field, NumberInput, fmt } from './fields';
 
@@ -79,13 +79,14 @@ const SpeedSweepPanel = () => {
                 <ComposedChart data={data} margin={{ top: 8, right: 34, bottom: 12, left: 8 }}>
                   <CartesianGrid {...GRID_STYLE} />
                   <XAxis
+                    height={XAXIS_LABEL_HEIGHT}
                     type="number"
                     dataKey="spm"
                     domain={['dataMin', 'dataMax']}
                     stroke={CHART_COLORS.axisLine}
                     tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                     label={{
-                      value: 'Pumping speed (spm)', position: 'insideBottom', offset: -8,
+                      value: 'Pumping speed (spm)', position: 'insideBottom', offset: 0,
                       fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
                     }}
                   />
@@ -118,7 +119,7 @@ const SpeedSweepPanel = () => {
                     ]}
                     labelFormatter={(v) => `${Number(v).toFixed(1)} spm`}
                   />
-                  <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
+                  <Legend {...LEGEND_PROPS} />
                   <ReferenceLine yAxisId="pct" y={100} stroke={COLOR.loading} strokeDasharray="4 4" label={{ value: 'Goodman limit', position: 'insideTopRight', fill: COLOR.loading, fontSize: 10 }} />
                   <Line yAxisId="rate" dataKey="producedBpd" name="Production" stroke={COLOR.rate} strokeWidth={2.2} dot isAnimationActive={false} />
                   <Line yAxisId="pct" dataKey="loadingPct" name="Rod loading" stroke={COLOR.loading} strokeWidth={1.8} strokeDasharray="5 4" dot isAnimationActive={false} />

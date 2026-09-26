@@ -38,7 +38,7 @@ const StudioHeader = ({
             <Icon size={18} className="text-white" />
           </div>
         )}
-        <h1 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 hidden sm:block min-w-0 truncate" title={typeof title === 'string' ? title : undefined}>
+        <h1 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 hidden sm:block min-w-[6rem] truncate" title={typeof title === 'string' ? title : undefined}>
           {title}
         </h1>
       </div>
@@ -49,7 +49,7 @@ const StudioHeader = ({
           <Tabs value={activeTab} onValueChange={onTabChange} className="h-8 shrink-0">
             <TabsList className="h-8 bg-slate-800/50 border border-slate-700 p-0.5">
               {tabs.map((t) => (
-                <TabsTrigger key={t.value} value={t.value} className="h-7 text-xs px-3 data-[state=active]:bg-slate-700">
+                <TabsTrigger key={t.value} value={t.value} className="h-7 text-xs px-2 2xl:px-3 data-[state=active]:bg-slate-700">
                   {t.label}
                 </TabsTrigger>
               ))}
