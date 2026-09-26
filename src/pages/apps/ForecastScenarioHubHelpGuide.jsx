@@ -2,8 +2,10 @@
 //
 // The app shipped without help. The two things a user cannot infer from the
 // screen are that "Decline (%/yr)" is nominal rather than effective, and that
-// an economic limit of zero silently disables the cutoff so "Time to limit"
-// then reports the horizon. Both are documented prominently below.
+// an economic limit of zero disables the cutoff. Both are documented
+// prominently below. Senior test T1 (2026-09-26): EUR now runs to the
+// economic limit under a 50 year maximum life, and the horizon cumulative
+// is its own column.
 //
 // Copy rule: no em dashes, no "X, not Y" contrastives.
 
@@ -89,7 +91,7 @@ const ForecastScenarioHubHelpGuide = () => (
           ['Econ limit', 'bbl/d', 'Rate at which the forecast stops. Zero disables the cutoff.', '30'],
         ]}
       />
-      <Callout tone="danger" title="Decline is nominal, not effective">
+      <Callout tone="danger" title="Decline is the nominal rate">
         The engine converts your entry to a daily nominal decline by dividing by 365. It does
         not convert between nominal and effective. Entering 18 for an exponential case
         produces a first year drop of about 16.5 percent, because that is what a nominal 18
@@ -101,9 +103,9 @@ const ForecastScenarioHubHelpGuide = () => (
       <Para>
         Duplicate is the fastest way to build a sensitivity: copy the base case and change one
         parameter. Add case creates a case named after the current count, so deleting a case
-        and then adding one can produce two cases with the same name. That matters more than it
-        sounds, because the chart keys its series on the case name and two identical names
-        collapse into a single line. Rename immediately.
+        and then adding one can produce two cases with the same name. Each case keeps its own
+        line on the chart, but the legend and table will show the same label twice, so rename
+        to keep them apart.
       </Para>
       <Para>
         Six colours are available. A seventh case reuses the first colour.
@@ -111,7 +113,7 @@ const ForecastScenarioHubHelpGuide = () => (
       <Callout tone="warn" title="Clearing a box writes zero">
         Every numeric field falls back to zero when emptied. Clearing the economic limit does
         not mean no limit in the sense of leaving it unset, it means zero, which disables the
-        cutoff. Clearing qi or the horizon puts the case into an error state and the row is
+        cutoff, so EUR then runs to the 50 year maximum life. Clearing qi or the horizon puts the case into an error state and the row is
         replaced with a message telling you the values must be positive.
       </Callout>
     </GuideSection>
@@ -119,8 +121,9 @@ const ForecastScenarioHubHelpGuide = () => (
     <GuideSection id="engine">
       <SectionHeading icon={Calculator}>How the forecast is computed</SectionHeading>
       <Para>
-        The engine steps day by day from day one to the end of the horizon, using the standard
-        Arps forms with a 365 day year.
+        The engine steps day by day from day one, using the standard Arps forms with a 365 day
+        year. The horizon run gives the chart, the horizon cumulative, the annual profile and
+        the indicative NPV. For EUR the same decline is followed on past the horizon.
       </Para>
       <Formula>q(t) = qi · exp(-Di · t)  for b = 0</Formula>
       <Formula>q(t) = qi / (1 + Di · t)  for b = 1</Formula>
@@ -135,10 +138,13 @@ const ForecastScenarioHubHelpGuide = () => (
       </Para>
       <SubHeading>What EUR means here</SubHeading>
       <Para>
-        EUR is the cumulative over the window the forecast actually covered, which is the
-        economic limit or the horizon, whichever came first. It is not a true ultimate
-        recovery. Extending the horizon on a case that never reaches its limit will increase
-        its EUR, so compare cases only when their horizons match.
+        EUR is the cumulative from the forecast start to the economic limit, whatever the
+        horizon. When the limit lies beyond 50 years, or there is no limit, the forecast is
+        stopped at a 50 year maximum life, as reserves software does, and the table marks that
+        EUR with "50 yr max life". A slow hyperbolic decline can take a very long time to reach
+        a low limit (the shipped High case reaches 30 bbl/d after about 148 years), so a
+        capped EUR is a sign that the limit or the b factor deserves a second look. Changing
+        the horizon changes the horizon cumulative but not the EUR.
       </Para>
       <SubHeading>Time starts at day one</SubHeading>
       <Para>
@@ -153,27 +159,28 @@ const ForecastScenarioHubHelpGuide = () => (
       <SubHeading>The rate profile chart</SubHeading>
       <Para>
         One line per case. A line that ends before the right edge is a case that reached its
-        economic limit. The axis is labelled Month, and each point is a sample taken every 30
-        days rather than a calendar month sum, so a twenty year case runs to about month 244
-        rather than 240. Use it for shape and crossover, and read volumes from the table.
+        economic limit inside the horizon. The axis is years from the forecast start, with a
+        point every 30 days plus the last day of the horizon. Use it for shape and crossover,
+        and read volumes from the table.
       </Para>
       <SubHeading>The comparison table</SubHeading>
       <Table
         headers={['Column', 'What it is', 'What to watch']}
         rows={[
           ['Model', 'Exponential, Harmonic or Hyperbolic, derived from b.', 'A b above 1 still shows as Hyperbolic and is accepted without warning.'],
-          ['EUR (MMbbl)', 'Cumulative over the covered window.', 'Depends on the horizon when the limit is never reached.'],
-          ['Cum @5 yr (MMbbl)', 'Cumulative at five years.', 'For a horizon under five years this is the cumulative at the horizon, still labelled five years.'],
-          ['Time to limit (yr)', 'When the rate crossed the economic limit.', 'If the limit was never reached this reports the horizon, so the two cases look identical.'],
+          ['Cum @5 yr (MMbbl)', 'Cumulative at five years.', 'For a horizon under five years the cell reads the horizon and says so under the value.'],
+          ['Cum to horizon (MMbbl)', 'Cumulative over the horizon, or to the limit if it comes first.', 'This is the volume in the chart, the annual CSV and the NPV.'],
+          ['EUR (MMbbl)', 'Cumulative to the economic limit.', 'Marked "50 yr max life" when the limit is further out or disabled.'],
+          ['Time to limit (yr)', 'When the rate crosses the economic limit.', 'Marked "past horizon" when that is after the horizon; "> 50" when beyond the maximum life; "No limit" when the limit is zero.'],
           ['Indicative NPV ($MM)', 'Ranking number only. See the next section.', 'Never includes capex, so it is positive whenever price exceeds opex.'],
           ['Handoff', 'Annual CSV export for that case.', 'The year column is a sequence starting at 1, not a calendar year.'],
         ]}
       />
-      <Callout tone="warn" title="Time to limit is ambiguous by design">
-        The same value appears whether a case genuinely died at that time or simply ran out of
-        horizon. If a case reports a time to limit exactly equal to its horizon, check whether
-        its final rate is still above the limit before you treat that number as an economic
-        life.
+      <Callout tone="info" title="Horizon and economic life are separate">
+        The horizon is the window you want to plan and hand off. The economic life is when the
+        rate reaches the limit. A case whose time to limit reads "past horizon" is still
+        producing above the limit at the end of the horizon, and its EUR is larger than its
+        horizon cumulative by the tail you have not planned.
       </Callout>
     </GuideSection>
 
@@ -231,11 +238,10 @@ const ForecastScenarioHubHelpGuide = () => (
         not stored, they are recomputed from the inputs when you load, which is why a set
         loaded a month later gives the same answer.
       </Para>
-      <Callout tone="warn" title="Saving twice creates two sets">
-        Save always creates a new entry rather than updating an existing one. Saving under a
-        name you have used before leaves you with two sets sharing that name, distinguishable
-        only by their timestamps. Delete in the Load dialog removes a set immediately with no
-        confirmation step.
+      <Callout tone="info" title="Saving under the same name updates the set">
+        Saving under a name you have used before overwrites that set with what is on screen.
+        Use a new name to keep both. Delete in the Load dialog asks for a second click before
+        it removes a set.
       </Callout>
     </GuideSection>
 
@@ -245,12 +251,8 @@ const ForecastScenarioHubHelpGuide = () => (
       <Para>
         Only a negative b is rejected. Values above 1 give a decline that flattens without ever
         terminating, and the EUR grows quickly with b. If you are booking anything from a case
-        with b above 1, make sure the economic limit is doing real work, because the horizon
-        will otherwise be what sets your volume.
-      </Para>
-      <SubHeading>The chart axis says Month and means 30 day sample</SubHeading>
-      <Para>
-        Points are taken every 30 days. Twelve points is about 360 days rather than a year.
+        with b above 1, make sure the economic limit is doing real work, because the 50 year
+        maximum life will otherwise be what sets your EUR.
       </Para>
       <SubHeading>Cases cannot be seeded from a fit</SubHeading>
       <Para>

@@ -18,7 +18,7 @@ import ChartFrame from '@/components/charts/ChartFrame';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS,
 } from '@/utils/chartTheme';
-import { compareCases, sampleScenarioCases } from '@/utils/forecastScenarioCalculations';
+import { compareCases, sampleScenarioCases, EUR_MAX_YEARS, DAYS_PER_YEAR } from '@/utils/forecastScenarioCalculations';
 import { supabase } from '@/lib/customSupabaseClient';
 
 // R5 (Reservoir-ROADMAP.md): the reservoir-side forecast scenario
@@ -79,22 +79,31 @@ export default function ForecastScenarioHub() {
   const [projects, setProjects] = useState([]);
   const [loadOpen, setLoadOpen] = useState(false);
   const [saveName, setSaveName] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
   const { summaries } = useMemo(() => compareCases(cases, econ), [cases, econ]);
   const valid = summaries.filter((s) => !s.error);
 
-  // Merge monthly rate series into one chart dataset keyed by month index.
+  // Merge the monthly rate series into one dataset on a years axis, keyed
+  // by case id so two cases with the same name keep their own lines.
   const chartData = useMemo(() => {
-    const byMonth = new Map();
+    const byDay = new Map();
     valid.forEach((s) => {
       s.monthly.forEach((pt) => {
-        const row = byMonth.get(pt.monthIndex) || { month: pt.monthIndex };
-        row[s.name] = pt.rate;
-        byMonth.set(pt.monthIndex, row);
+        const row = byDay.get(pt.day) || { years: pt.day / DAYS_PER_YEAR };
+        row[s.id] = pt.rate;
+        byDay.set(pt.day, row);
       });
     });
-    return [...byMonth.values()].sort((a, b) => a.month - b.month);
+    return [...byDay.values()].sort((a, b) => a.years - b.years);
   }, [valid]);
+  const maxYears = Math.max(1, ...valid.map((s) => Math.ceil(s.monthly.length ? s.monthly[s.monthly.length - 1].day / DAYS_PER_YEAR : 1)));
+  const yearTicks = useMemo(() => {
+    const step = maxYears <= 10 ? 1 : maxYears <= 25 ? 2 : 5;
+    const out = [];
+    for (let y = 0; y <= maxYears; y += step) out.push(y);
+    return out;
+  }, [maxYears]);
 
   const refreshProjects = async () => {
     const { data, error } = await supabase.from(TABLE)
@@ -104,18 +113,19 @@ export default function ForecastScenarioHub() {
   useEffect(() => { refreshProjects(); }, []);
 
   const saveProject = async () => {
-    if (!saveName.trim()) return;
+    const name = saveName.trim();
+    if (!name) return;
     const { data: userData } = await supabase.auth.getUser();
-    const { error } = await supabase.from(TABLE).insert([{
-      user_id: userData?.user?.id,
-      project_name: saveName.trim(),
-      inputs_data: { cases, econ },
-      updated_at: new Date().toISOString(),
-    }]);
+    // Saving under an existing name updates that set instead of adding a twin (FSH-T1-004)
+    const existing = projects.find((p) => p.project_name === name);
+    const payload = { inputs_data: { cases, econ }, updated_at: new Date().toISOString() };
+    const { error } = existing
+      ? await supabase.from(TABLE).update(payload).eq('id', existing.id)
+      : await supabase.from(TABLE).insert([{ user_id: userData?.user?.id, project_name: name, ...payload }]);
     if (error) {
       toast({ title: 'Save failed', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Scenario set saved' });
+      toast({ title: existing ? 'Scenario set updated' : 'Scenario set saved', description: name });
       setSaveName('');
       refreshProjects();
     }
@@ -133,7 +143,10 @@ export default function ForecastScenarioHub() {
     toast({ title: 'Scenario set loaded' });
   };
 
+  // Delete asks for a second click on the same set (FSH-T1-004)
   const deleteProject = async (id) => {
+    if (confirmDelete !== id) { setConfirmDelete(id); return; }
+    setConfirmDelete(null);
     const { error } = await supabase.from(TABLE).delete().eq('id', id);
     if (!error) refreshProjects();
   };
@@ -244,15 +257,17 @@ export default function ForecastScenarioHub() {
                   <ChartFrame height={320}>
                     <LineChart data={chartData} margin={CHART_MARGINS.legend}>
                       <CartesianGrid {...GRID_STYLE} />
-                      <XAxis dataKey="month" tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} stroke={CHART_COLORS.axisLine}
-                        label={{ value: 'Month', position: 'insideBottom', offset: -2, style: { fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize } }} />
+                      <XAxis dataKey="years" type="number" domain={[0, maxYears]} ticks={yearTicks} allowDecimals={false}
+                        tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} stroke={CHART_COLORS.axisLine}
+                        label={{ value: 'Years from forecast start', position: 'insideBottom', offset: -2, style: { fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize } }} />
                       <YAxis tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} stroke={CHART_COLORS.axisLine}
                         label={{ value: 'Rate (bbl/d)', angle: -90, position: 'insideLeft', style: { fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize } }} />
-                      <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => (typeof v === 'number' ? v.toFixed(0) : v)} />
+                      <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => (typeof v === 'number' ? `${v.toFixed(0)} bbl/d` : v)}
+                        labelFormatter={(y) => `Year ${Number(y).toFixed(1)}`} />
                       <Legend {...LEGEND_PROPS} />
                       {valid.map((s, i) => (
-                        <Line key={s.id} type="monotone" dataKey={s.name} stroke={CASE_COLORS[i % CASE_COLORS.length]}
-                          dot={false} strokeWidth={2} isAnimationActive={false} connectNulls={false} />
+                        <Line key={s.id} type="monotone" dataKey={s.id} name={s.name} stroke={CASE_COLORS[summaries.indexOf(s) % CASE_COLORS.length]}
+                          dot={false} strokeWidth={2} isAnimationActive={false} connectNulls />
                       ))}
                     </LineChart>
                   </ChartFrame>
@@ -269,8 +284,9 @@ export default function ForecastScenarioHub() {
                       <tr className="text-left text-slate-500 border-b border-slate-800 text-xs">
                         <th className="py-2 pr-4">Case</th>
                         <th className="py-2 pr-4">Model</th>
-                        <th className="py-2 pr-4">EUR (MMbbl)</th>
                         <th className="py-2 pr-4">Cum @5 yr (MMbbl)</th>
+                        <th className="py-2 pr-4">Cum to horizon (MMbbl)</th>
+                        <th className="py-2 pr-4">EUR (MMbbl)</th>
                         <th className="py-2 pr-4">Time to limit (yr)</th>
                         <th className="py-2 pr-4">Indicative NPV ($MM)</th>
                         <th className="py-2">Handoff</th>
@@ -284,15 +300,25 @@ export default function ForecastScenarioHub() {
                             {s.name}
                           </td>
                           {s.error ? (
-                            <td colSpan={6} className="py-2 text-amber-400 text-xs">{s.error}</td>
+                            <td colSpan={7} className="py-2 text-amber-400 text-xs">{s.error}</td>
                           ) : (
                             <>
                               <td className="py-2 pr-4">{s.model}</td>
-                              <td className="py-2 pr-4 tabular-nums">{s.eurMMbbl.toFixed(2)}</td>
-                              <td className="py-2 pr-4 tabular-nums">{s.cum5MMbbl.toFixed(2)}</td>
-                              <td className="py-2 pr-4 tabular-nums">{s.timeToLimitYears.toFixed(1)}</td>
-                              <td className="py-2 pr-4 tabular-nums">{s.economics ? s.economics.npv.toFixed(1) : '—'}</td>
-                              <td className="py-2">
+                              <td className="py-2 pr-4 tabular-nums" data-testid={`fsh-cum5-${s.id}`}>
+                                {s.cum5MMbbl.toFixed(2)}
+                                {s.cum5Years < 5 && <span className="block text-[10px] text-slate-500">at {s.cum5Years} yr</span>}
+                              </td>
+                              <td className="py-2 pr-4 tabular-nums" data-testid={`fsh-cumh-${s.id}`}>{s.cumHorizonMMbbl.toFixed(2)}</td>
+                              <td className="py-2 pr-4 tabular-nums" data-testid={`fsh-eur-${s.id}`}>
+                                {s.eurMMbbl.toFixed(2)}
+                                {s.eurCapped && <span className="block text-[10px] text-amber-400/90 whitespace-nowrap">{EUR_MAX_YEARS} yr max life</span>}
+                              </td>
+                              <td className="py-2 pr-4 tabular-nums" data-testid={`fsh-ttl-${s.id}`}>
+                                {s.timeToLimitYears != null ? s.timeToLimitYears.toFixed(1) : s.hasLimit ? `> ${EUR_MAX_YEARS}` : 'No limit'}
+                                {s.timeToLimitYears != null && !s.limitInHorizon && <span className="block text-[10px] text-slate-500 whitespace-nowrap">past horizon</span>}
+                              </td>
+                              <td className="py-2 pr-4 tabular-nums">{s.economics ? s.economics.npv.toFixed(1) : '-'}</td>
+                              <td className="py-2 whitespace-nowrap">
                                 <Button variant="ghost" size="sm" className="h-7 px-2 text-slate-400 hover:text-white"
                                   onClick={() => exportAnnualCsv(s)} title="Export annual production profile (CSV)">
                                   <Download size={13} className="mr-1" /> Annual CSV
@@ -311,12 +337,17 @@ export default function ForecastScenarioHub() {
                   For fiscal terms, taxes and portfolio views, export the annual profile and use NPV Scenario
                   Builder in the Economics module.
                 </p>
+                <p className="text-[11px] text-slate-500 mt-1.5 flex gap-1.5">
+                  <Info size={13} className="shrink-0 mt-0.5" />
+                  Cum to horizon, the chart, the annual CSV and the indicative NPV cover the horizon. EUR follows the
+                  decline on to the economic limit, capped at a {EUR_MAX_YEARS} year maximum life.
+                </p>
               </CardContent>
             </Card>
           </div>
         </div>
 
-        <Dialog open={loadOpen} onOpenChange={setLoadOpen}>
+        <Dialog open={loadOpen} onOpenChange={(o) => { setLoadOpen(o); setConfirmDelete(null); }}>
           <DialogContent className="bg-slate-900 border-slate-700 text-slate-100">
             <DialogHeader><DialogTitle>Saved scenario sets</DialogTitle></DialogHeader>
             <div className="space-y-2 max-h-72 overflow-y-auto py-2">
@@ -328,9 +359,15 @@ export default function ForecastScenarioHub() {
                     {p.project_name}
                     <span className="block text-[10px] text-slate-500">{new Date(p.updated_at).toLocaleString()}</span>
                   </button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500 hover:text-red-400" onClick={() => deleteProject(p.id)}>
-                    <Trash2 size={13} />
-                  </Button>
+                  {confirmDelete === p.id ? (
+                    <Button variant="destructive" size="sm" className="h-7 px-2 text-xs" onClick={() => deleteProject(p.id)}>
+                      Delete?
+                    </Button>
+                  ) : (
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500 hover:text-red-400" title="Delete saved set" onClick={() => deleteProject(p.id)}>
+                      <Trash2 size={13} />
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>
