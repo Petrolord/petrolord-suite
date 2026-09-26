@@ -450,3 +450,13 @@ rejected: it still left 10.8 psi on that file. Now:
   shut-in the gauge starts and the reading there); permeability and p* are
   still reported, since they come from the slope;
 - an entered value is used as before.
+
+## 2026-09-26: senior test T1 (docs/testing/WellTestAnalysisStudio-T1.md)
+
+- Semilog (Horner/MDH) window defaults to the detected radial flow when
+  both bounds are empty (`autoSemilogWindow`, `semilogWindowSource`).
+- Derived values carry a source (`derivedKpis.source`: match or semilog);
+  an untouched default match is never reported (rail, Report, PDF).
+- `fmt.sig3` writes values from 1,000 up in full; sqrt(t) slope reported
+  only with linear flow or a set window (`sqrtMeaningful`).
+- Harness `/dev/well-test-analysis-studio` runs on the in-memory Supabase.

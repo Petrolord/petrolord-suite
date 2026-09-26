@@ -16,7 +16,7 @@ const ReportPanel = () => {
     notes, setNotes, projectName, wellName, reservoirInputs, testConfig,
     gaugeRows, rateRows, matchInputs, windows, addNotification,
     configSpec, reservoirSpec, prepared, model, matchParams, fitResult,
-    derivedKpis, semilogResult, sqrtResult, pssResult, multiRateResult,
+    derivedKpis, semilogResult, sqrtResult, pssResult, multiRateResult, sqrtMeaningful,
     deliverabilityResult, regimes, rtaResult, rtaRows, rtaWindows,
     deliverabilityInputs, unitSystem,
   } = useWellTestStudio();
@@ -38,8 +38,11 @@ const ReportPanel = () => {
       projectName, wellName,
       config: configSpec.config,
       reservoir: reservoirSpec.reservoir,
-      prepared, model, matchParams, fitResult, derivedKpis,
-      semilogResult, sqrtResult, pssResult, multiRateResult, deliverabilityResult,
+      prepared, model,
+      // the untouched default match is not an interpretation (WTA-T1-002)
+      matchParams: derivedKpis?.source === 'match' ? matchParams : null,
+      fitResult, derivedKpis,
+      semilogResult, sqrtResult: sqrtMeaningful ? sqrtResult : null, pssResult, multiRateResult, deliverabilityResult,
       rtaResult, regimes, notes, unitSystem,
     });
     addNotification(ok ? 'PDF report saved.' : 'PDF export failed', ok ? 'success' : 'error');

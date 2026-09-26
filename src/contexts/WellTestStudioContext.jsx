@@ -463,12 +463,35 @@ export const WellTestStudioProvider = ({ children }) => {
     }
   }, [matchParams, model, reservoirSpec, configSpec, prepared, pseudoTime]);
 
-  const windowedPoints = useCallback((minKey, maxKey) => {
-    const lo = num(windows[minKey]);
-    const hi = num(windows[maxKey]);
+  const windowedPoints = useCallback((minKey, maxKey, auto = null) => {
+    let lo = num(windows[minKey]);
+    let hi = num(windows[maxKey]);
+    if (auto && !Number.isFinite(lo) && !Number.isFinite(hi)) ({ min: lo, max: hi } = auto);
     return prepared.points.filter((p) =>
       (Number.isFinite(lo) ? p.time >= lo : true) && (Number.isFinite(hi) ? p.time <= hi : true));
   }, [windows, prepared]);
+
+  // WTA-T1-001: an empty semilog window used to fit every point, storage
+  // included (k 23 md on the sample against a truth of 85). With both bounds
+  // empty the line now sits on the detected radial-flow regime, mapped from
+  // the diagnostic abscissa (equivalent time for buildups) back to gauge
+  // time; the full range is the fallback only when no radial flow is found.
+  const autoSemilogWindow = useMemo(() => {
+    const radial = regimes.find((r) => r.regime === 'radial');
+    if (!radial) return null;
+    const ts = loglog
+      .filter((p) => p.x >= radial.xStart * (1 - 1e-9) && p.x <= radial.xEnd * (1 + 1e-9))
+      .map((p) => p.time);
+    if (ts.length < 4) return null;
+    return { min: Math.min(...ts), max: Math.max(...ts) };
+  }, [regimes, loglog]);
+  // The sqrt(t) line always fits something; it only means linear flow when a
+  // linear regime was detected or the user set its window (WTA-T1-004)
+  const sqrtMeaningful = regimes.some((r) => r.regime === 'linear')
+    || Number.isFinite(num(windows.sqrtMin)) || Number.isFinite(num(windows.sqrtMax));
+  const semilogWindowSource = (Number.isFinite(num(windows.semilogMin)) || Number.isFinite(num(windows.semilogMax)))
+    ? 'manual'
+    : (autoSemilogWindow ? 'radial' : 'full');
 
   // Straight-line analyses on the (windowed) radial data, in analysis space
   // (pa: m(p) for gas, mirrored for injection/falloff); p1hr and p* are
@@ -476,7 +499,7 @@ export const WellTestStudioProvider = ({ children }) => {
   const semilogResult = useMemo(() => {
     if (!reservoirSpec.reservoir || !configSpec.config) return null;
     const cfg = configSpec.config;
-    const pts = windowedPoints('semilogMin', 'semilogMax');
+    const pts = windowedPoints('semilogMin', 'semilogMax', autoSemilogWindow);
     if (pts.length < 4) return null;
     const raw = cfg.family === 'buildup'
       ? hornerAnalysis({
@@ -502,7 +525,7 @@ export const WellTestStudioProvider = ({ children }) => {
       p1hr: Number.isFinite(raw.p1hr) ? prepared.fromAnalysis(raw.p1hr) : raw.p1hr,
       pStar: Number.isFinite(raw.pStar) ? prepared.fromAnalysis(raw.pStar) : raw.pStar,
     };
-  }, [reservoirSpec, configSpec, prepared, windowedPoints]);
+  }, [reservoirSpec, configSpec, prepared, windowedPoints, autoSemilogWindow]);
 
   // Cartesian PSS pore volume stays a liquid drawdown analysis.
   const pssResult = useMemo(() => {
@@ -595,8 +618,15 @@ export const WellTestStudioProvider = ({ children }) => {
   const derivedKpis = useMemo(() => {
     const r = reservoirSpec.reservoir;
     if (!r) return null;
-    const k = matchParams?.k ?? semilogResult?.k;
-    const skin = prepared.skinWithheld ? null : (matchParams?.skin ?? semilogResult?.skin);
+    // WTA-T1-002: the untouched default match (k 50, skin 0) is a starting
+    // point for the sliders, not an interpretation, so until the match has
+    // been moved or fitted the derived values come from the semilog line
+    const matchTouched = !!fitResult || Object.keys(DEFAULT_MATCH).some((key) => String(matchInputs[key] ?? '') !== String(DEFAULT_MATCH[key]))
+      || Object.keys(matchInputs).some((key) => !(key in DEFAULT_MATCH));
+    const useMatch = matchTouched && matchParams;
+    const source = useMatch ? 'match' : (semilogResult?.k > 0 ? 'semilog' : null);
+    const k = useMatch ? matchParams.k : semilogResult?.k;
+    const skin = prepared.skinWithheld ? null : (useMatch ? matchParams.skin : semilogResult?.skin);
     if (!(k > 0)) return null;
     const lastTime = prepared.points.length ? prepared.points[prepared.points.length - 1].time : NaN;
     // analysis units (psi for oil, psi^2/cp for gas via the equivalent FVF)
@@ -613,17 +643,28 @@ export const WellTestStudioProvider = ({ children }) => {
       ? flowEfficiency({ pAvg: paAvg, pwf: prepared.paShutIn, dpSkin: dpSkinA })
       : NaN;
     return {
+      source,
       k, skin, kh: k * r.h,
       ri: Number.isFinite(lastTime)
         ? radiusOfInvestigation({ k, tHours: lastTime, phi: r.phi, mu: r.mu, ct: r.ct })
         : NaN,
       dpSkin,
       flowEfficiency: fe,
-      cd: matchParams?.C != null && Number.isFinite(matchParams.C)
+      cd: useMatch && matchParams?.C != null && Number.isFinite(matchParams.C)
         ? matchParams.C * toDimensionlessGroups({ ...r, k }).cdPerBblPsi
         : NaN,
     };
-  }, [reservoirSpec, matchParams, semilogResult, prepared]);
+  }, [reservoirSpec, matchParams, matchInputs, fitResult, semilogResult, prepared]);
+
+  // kh and CD of the working match itself, for the Match tab
+  const matchKpis = useMemo(() => {
+    const r = reservoirSpec.reservoir;
+    if (!r || !matchParams) return null;
+    return {
+      kh: matchParams.k * r.h,
+      cd: Number.isFinite(matchParams.C) ? matchParams.C * toDimensionlessGroups({ ...r, k: matchParams.k }).cdPerBblPsi : NaN,
+    };
+  }, [reservoirSpec, matchParams]);
 
   // ---- Auto-fit (on demand, transient result) ----
   const runAutoFit = useCallback(async () => {
@@ -869,6 +910,7 @@ export const WellTestStudioProvider = ({ children }) => {
     // derived
     reservoirSpec, configSpec, model,
     prepared, loglog, regimes, flowPeriods, pseudoTime, rtaResult,
+    autoSemilogWindow, semilogWindowSource, matchKpis, sqrtMeaningful,
     matchParams, modelSeries,
     semilogResult, pssResult, sqrtResult, derivedKpis,
     multiRateResult, deliverabilityResult,

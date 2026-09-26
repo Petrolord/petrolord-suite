@@ -23,7 +23,7 @@ const ci = (pair, digits = 3) =>
 const MatchResults = () => {
   const {
     loglog, modelSeries, prepared, matchParams, model,
-    reservoirSpec, configSpec, fitResult, fitStale, derivedKpis,
+    reservoirSpec, configSpec, fitResult, fitStale, matchKpis,
     unitSystem, pseudoTime,
   } = useWellTestStudio();
   const dpKind = reservoirSpec.reservoir?.fluid === 'gas' ? 'pseudoPressure' : 'pressure';
@@ -88,8 +88,8 @@ const MatchResults = () => {
         <Kpi title="Permeability k" value={fmt.sig3(matchParams?.k)} unit="md" accent />
         <Kpi title="Skin" value={prepared.skinWithheld ? 'withheld' : fmt.f2(matchParams?.skin)} />
         <Kpi title="Storage C" value={fmtU('storage', matchParams?.C, unitSystem, fmt.sig3)} unit={unitLabel('storage', unitSystem)} />
-        <Kpi title="kh" value={fmt.sig3(derivedKpis?.kh)} unit="md·ft" />
-        <Kpi title="CD" value={fmt.sig3(derivedKpis?.cd)} />
+        <Kpi title="kh" value={fmt.sig3(matchKpis?.kh)} unit="md·ft" />
+        <Kpi title="CD" value={fmt.sig3(matchKpis?.cd)} />
       </div>
 
       <ChartCard title="Log-log match" height={360}>

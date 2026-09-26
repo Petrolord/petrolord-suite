@@ -18,7 +18,13 @@ export const fmt = {
   f2: (v) => (v == null || !Number.isFinite(v) ? '—' : Number(v).toFixed(2)),
   f3: (v) => (v == null || !Number.isFinite(v) ? '—' : Number(v).toFixed(3)),
   int: (v) => (v == null || !Number.isFinite(v) ? '—' : Math.round(v).toLocaleString()),
-  sig3: (v) => (v == null || !Number.isFinite(v) ? '—' : Number(v).toPrecision(3)),
+  // three significant figures; from 1,000 up written out with separators
+  // rather than toPrecision's "2.25e+3" (WTA-T1-003)
+  sig3: (v) => {
+    if (v == null || !Number.isFinite(v)) return '—';
+    const r = Number(Number(v).toPrecision(3));
+    return Math.abs(r) >= 1000 && Math.abs(r) < 1e15 ? r.toLocaleString('en-US') : Number(v).toPrecision(3);
+  },
   sci: (v) => (v == null || !Number.isFinite(v) ? '—' : Number(v).toExponential(2)),
 };
 
