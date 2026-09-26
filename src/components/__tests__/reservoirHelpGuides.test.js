@@ -96,11 +96,11 @@ const COVERAGE = {
     /recorded and not used/i,
   ],
   'Risked Reserves Valuation': [
-    /low bound/i,
     /petroleum convention/i,
-    /steeper decline raises NPV/i,
-    /chance of a positive NPV/i,
-    /size and not direction/i,
+    /Import from ReservoirCalc Pro/i,
+    /minimum economic field size/i,
+    /break-even Pg/i,
+    /chance of at least one/i,
   ],
 };
 

@@ -123,6 +123,15 @@ def dsum(xs):
     return s
 
 
+def unit_text(x, one):
+    """a count with its unit in agreement: 1 week, 1.5 weeks."""
+    return f'{js_num(x)} {one if float(x) == 1 else one + "s"}'
+
+
+def wk(x):
+    return unit_text(x, 'week')
+
+
 def refuse(field, msg):
     return {'error': True, 'field': field, 'message': f'{field} {msg}'}
 
@@ -309,6 +318,9 @@ def technical(a):
                     return refuse(f'bids[{i}].mandatory[{j}]', 'must be { id: a non-empty string, met: true or false }')
         if not isinstance(b.get('scores'), dict):
             return refuse(f'bids[{i}].scores', 'must be an object with one score per criterion id')
+        e = id_keys(b['scores'], [c['id'] for c in crit], f'bids[{i}].scores', 'a criterion id', 'criterion ids')
+        if e:
+            return e
         for c in crit:
             s = b['scores'].get(c['id'])
             if not isnum(s) or s < 0 or s > c['maxScore']:
@@ -348,7 +360,7 @@ def npc(annual, residual, rate):
 def evaluated_costs(a):
     rule = a.get('omissionRule', 'average')   # the cited rule is the default
     if rule not in ('average', 'highest'):
-        return refuse('omissionRule', "must be 'average' (the default, World Bank SPD ITB 34.1: the average price quoted by the substantially responsive bidders) or 'highest' (the highest price quoted by them, an option not from the cited texts)")
+        return refuse('omissionRule', "must be 'average' (the default, World Bank SPD ITB 34.1: the average price quoted by the substantially responsive bidders) or 'highest' (the highest price quoted by them, an option the cited texts do not use)")
     tol = a.get('tolerance', 0.005)
     if not isnum(tol) or tol < 0:
         return refuse('tolerance', 'must be a finite number at or above 0')
@@ -414,13 +426,21 @@ def evaluated_costs(a):
                 return refuse(f'bids[{i}].annualCosts', f"must be an array of {plural(lc['years'], 'finite number')}, one per life-cycle year")
             if 'residualValue' in b and not isnum(b['residualValue']):
                 return refuse(f'bids[{i}].residualValue', 'must be a finite number when given')
+    omitted_ids = []
+    for b in bids:
+        for x in b.get('omitted', []):
+            if x not in omitted_ids:
+                omitted_ids.append(x)
+    e = id_keys(best, omitted_ids, 'bestEstimates', 'an item any bid omits', 'omitted item ids')
+    if e:
+        return e
     excluded, live = [], []
     for b in bids:
         if b.get('rejected'):
             excluded.append({'id': b['id'], 'stage': 'commercial', 'reason': b['rejected']})
         elif sch is not None and F(b['completionWeeks']) > F(sch['maxWeeks']):
             excluded.append({'id': b['id'], 'stage': 'commercial',
-                             'reason': f"offers completion in {js_num(b['completionWeeks'])} weeks, beyond the maximum {js_num(sch['maxWeeks'])}; the bid is nonresponsive"})
+                             'reason': f"offers completion in {wk(b['completionWeeks'])}, beyond the maximum {wk(sch['maxWeeks'])}; the bid is nonresponsive"})
         else:
             live.append(b)
 
@@ -450,7 +470,7 @@ def evaluated_costs(a):
             else:
                 ex = max(g[0] for g in got)
                 omissions.append({'item': item, 'exact': ex, 'amount': fl(ex), 'rule': 'highest',
-                                  'reason': f'item {item} omitted; the highest of the {plural(len(got), "price")} quoted by the other responsive bids, {js_num(max(g[1] for g in got))}, is added (the \'highest\' option, not from the cited texts)'})
+                                  'reason': f'item {item} omitted; the highest of the {plural(len(got), "price")} quoted by the other responsive bids, {js_num(max(g[1] for g in got))}, is added (the \'highest\' option, which the cited texts do not use)'})
         corrected = sum((correct_exact(l, tol) for l in b['lines']), F(0))
         quoted = sum((F(l['quotedAmount']) for l in b['lines']), F(0))
         disc = F(b.get('discount', 0))
@@ -463,10 +483,10 @@ def evaluated_costs(a):
             sadj = F(sch['ratePerWeek']) * late * net
             late_shown = max(0, b['completionWeeks'] - sch['minWeeks'])
             if late > 0:
-                sreason = (f"completion in {js_num(b['completionWeeks'])} weeks is {js_num(late_shown)} weeks beyond the minimum {js_num(sch['minWeeks'])}; "
+                sreason = (f"completion in {wk(b['completionWeeks'])} is {wk(late_shown)} beyond the minimum {wk(sch['minWeeks'])}; "
                            f"{js_num(sch['ratePerWeek'])} x {js_num(late_shown)} x {js_num(net_shown)} = {js_num(sch['ratePerWeek'] * late_shown * net_shown)} is added")
             else:
-                sreason = (f"completion in {js_num(b['completionWeeks'])} weeks is not beyond the minimum {js_num(sch['minWeeks'])}; "
+                sreason = (f"completion in {wk(b['completionWeeks'])} is not beyond the minimum {wk(sch['minWeeks'])}; "
                            'no adjustment and no credit for earlier completion')
         life = npc(b['annualCosts'], b.get('residualValue', 0), lc['discountRate']) if lc is not None else F(0)
         om_total = sum((o['exact'] for o in omissions), F(0))
@@ -610,6 +630,10 @@ def nigerian_content(a, descriptions):
     for i, b in enumerate(bids):
         if not isinstance(b.get('items'), dict):
             return refuse(f'bids[{i}].items', 'must be an object with one { measure, nigerian, total } per item id')
+        ids = [x['id'] for x in spec]
+        e = id_keys(b['items'], ids, f'bids[{i}].items', 'an item id', 'item ids') or id_keys(b.get('weights'), ids, f'bids[{i}].weights', 'an item id', 'item ids')
+        if e:
+            return e
         for s in spec:
             r = b['items'].get(s['id'])
             f = f"bids[{i}].items.{s['id']}"
@@ -693,27 +717,28 @@ def content_preference(a):
     else:
         s14['engaged'] = True
         hi = max(F(b['ncPct']) for b in group)
-        tops = [b for b in group if F(b['ncPct']) == hi]
+        hi_key = key12(float(hi))   # shared highest: equal to 12 significant digits (the stated tie rule)
+        tops = [b for b in group if key12(b['ncPct']) == hi_key]
         if len(tops) > 1:
             s14['reason'] = (f"{' and '.join(b['id'] for b in tops)} share the highest Nigerian content {js_num(tops[0]['ncPct'])}%, "
                              f"so no single bid leads; the lowest evaluated cost {low['id']} stands")
         else:
             top = tops[0]
             rest = [b for b in group if b is not top]
-            nxt = max(F(b['ncPct']) for b in rest)
-            second = [b for b in group if b is not top and F(b['ncPct']) == nxt][0]  # first in cost order
+            nxt = max(key12(b['ncPct']) for b in rest)
+            second = [b for b in group if b is not top and key12(b['ncPct']) == nxt][0]  # first in cost order
             s14['leader'], s14['runnerUp'] = top['id'], second['id']
             t, s = F(top['ncPct']), F(second['ncPct'])
             if basis == 'points':
                 lead = t - s
                 ok = lead >= 5
                 s14['lead'] = fl(lead)
-                lead_text = f"{js_num(top['ncPct'])}% against {js_num(second['ncPct'])}% ({second['id']}), a lead of {js_num(top['ncPct'] - second['ncPct'])} percentage points"
+                lead_text = f"{js_num(top['ncPct'])}% against {js_num(second['ncPct'])}% ({second['id']}), a lead of {unit_text(top['ncPct'] - second['ncPct'], 'percentage point')}"
             else:
                 ok = 100 * (t - s) >= 5 * s
                 if s == 0:
                     s14['lead'] = None
-                    lead_text = f"{js_num(top['ncPct'])}% against 0% ({second['id']}), more than 5% higher by any reading"
+                    lead_text = f"{js_num(top['ncPct'])}% against 0% ({second['id']}), a runner-up with no Nigerian content"
                 else:
                     s14['lead'] = fl(100 * (t - s) / s)
                     shown = (100 * (top['ncPct'] - second['ncPct'])) / second['ncPct']
@@ -909,13 +934,13 @@ def contract_types(a):
 
 def check_tri(d, field):
     if isnum(d):
-        return None if d >= 0 else refuse(field, 'must be at or above 0')
+        return None if d >= 0 else refuse(field, f'must be at or above 0; got {js_num(d)}')
     if not isinstance(d, dict) or not all(isnum(d.get(k)) for k in ('min', 'mode', 'max')):
-        return refuse(field, 'must be a number or { min, mode, max } (triangular)')
+        return refuse(field, 'must be a number or a triangular distribution { min, mode, max } of finite numbers')
     if d['min'] < 0:
-        return refuse(f'{field}.min', 'must be at or above 0')
+        return refuse(f'{field}.min', f"must be at or above 0; got {js_num(d['min'])}")
     if not d['min'] <= d['mode'] <= d['max']:
-        return refuse(field, 'must have min <= mode <= max')
+        return refuse(field, f"must have min <= mode <= max; got min {js_num(d['min'])}, mode {js_num(d['mode'])}, max {js_num(d['max'])}")
     return None
 
 
@@ -1023,6 +1048,14 @@ def evaluate_tender(a, descriptions):
     if 'nigerianContent' in a and award == 'combined':
         return refuse('nigerianContent', "applies s.14 at the commercial stage of a lowest-cost award; with award 'combined' state Nigerian content as a rated criterion with its weight instead")
     bids = a['bids']
+    all_omitted = []
+    for b in bids:
+        for x in (b.get('omitted') if isinstance(b.get('omitted'), list) else []):
+            if x not in all_omitted:
+                all_omitted.append(x)
+    e = id_keys(a.get('bestEstimates'), all_omitted, 'bestEstimates', 'an item any bid omits', 'omitted item ids')
+    if e:
+        return e
     tech = technical({'criteria': a['criteria'], 'passMark': a['passMark'],
                       'bids': [{k: v for k, v in b.items() if k in ('id', 'mandatory', 'scores')} for b in bids]})
     if tech.get('error'):
@@ -1034,9 +1067,12 @@ def evaluate_tender(a, descriptions):
                 'reason': 'no bid passed the technical envelope; no commercial envelope is opened'}
     ec_args = {'bids': [{k: v for k, v in b.items() if k not in ('scores', 'mandatory', 'ncPct', 'indigenous', 'capacity')} for b in opened],
                'omissionRule': a.get('omissionRule', 'average')}
-    for k in ('bestEstimates', 'schedule', 'lifeCycle'):
+    for k in ('schedule', 'lifeCycle'):
         if k in a:
             ec_args[k] = a[k]
+    if 'bestEstimates' in a:
+        open_omitted = {x for b in opened for x in b.get('omitted', [])}
+        ec_args['bestEstimates'] = {k: v for k, v in a['bestEstimates'].items() if k in open_omitted}
     com = evaluated_costs(ec_args)
     if com.get('error'):
         return com
@@ -1103,6 +1139,105 @@ DESCRIPTIONS = {
     'liner-float-hangers-running-equipment': 'Liner Float, Hangers and Running Equipment Services',
 }
 
+# ------------------------------------------------------------------ accepted keys
+# Each shape: (accepted keys in order, {key: child shape}). A child shape is a
+# shape tuple, ('list', shape), ('map', shape), 'TRI' (a number or a triangle)
+# or 'DURATION' (a triangle, or { program, nptFrac } when 'program' is a key).
+TRIANGLE = (['min', 'mode', 'max'], {})
+LINE_K = (['id', 'quantity', 'unitRate', 'quotedAmount', 'decimalMisplaced'], {})
+DEV_K = (['id', 'amount', 'reason'], {})
+ACT_K = (['id', 'kind', 'label', 'fromMdM', 'toMdM', 'ropMPerHr', 'mdM', 'tripSpeedMPerHr', 'runSpeedMPerHr', 'flatHr', 'durationHr'], {})
+ITEM_K = (['id', 'label', 'basis', 'rate', 'value', 'category', 'atActivityId'], {})
+CRIT_K = (['id', 'label', 'weight', 'maxScore'], {})
+MAND_K = (['id', 'met'], {})
+SCHED_K = (['minWeeks', 'maxWeeks', 'ratePerWeek'], {})
+LIFE_K = (['years', 'discountRate'], {})
+COM_KEYS = ['id', 'name', 'receivedAt', 'lines', 'discount', 'deviations', 'omitted', 'rejected', 'completionWeeks', 'annualCosts', 'residualValue']
+SHAPES = {
+    'weightingBand': (['risk', 'estimatedCostUsd', 'technicalWeight'], {}),
+    'correctArithmetic': (['lines', 'quotedTotal', 'tolerance'], {'lines': ('list', LINE_K)}),
+    'technicalEvaluation': (['criteria', 'bids', 'passMark'], {'criteria': ('list', CRIT_K), 'bids': ('list', (['id', 'name', 'mandatory', 'scores'], {'mandatory': ('list', MAND_K)}))}),
+    'evaluatedCosts': (['bids', 'omissionRule', 'bestEstimates', 'schedule', 'lifeCycle', 'tolerance'],
+                       {'bids': ('list', (COM_KEYS, {'lines': ('list', LINE_K), 'deviations': ('list', DEV_K)})), 'schedule': SCHED_K, 'lifeCycle': LIFE_K}),
+    'rankTender': (['bids', 'technicalWeight', 'priceMethod', 'technicalMethod'], {'bids': ('list', (['id', 'name', 'technicalPercent', 'evaluatedCost', 'receivedAt', 'rejected'], {}))}),
+    'nigerianContent': (['items', 'bids'], {'items': ('list', (['id', 'scheduleLine', 'targetPct', 'measure', 'source'], {})),
+                                           'bids': ('list', (['id', 'name', 'items', 'weights'], {'items': ('map', (['measure', 'nigerian', 'total'], {}))}))}),
+    'contentPreference': (['bids', 'ncLeadBasis'], {'bids': ('list', (['id', 'name', 'evaluatedCost', 'ncPct', 'receivedAt', 'indigenous', 'capacity'], {}))}),
+    'contractTypes': (['duration', 'dailyCost', 'fixedCost', 'lumpSum', 'dayRate', 'reimbursable', 'plan', 'iterations', 'seed'],
+                      {'duration': 'DURATION', 'dailyCost': 'TRI', 'lumpSum': (['price'], {}), 'dayRate': (['rate', 'mobilisationFee'], {}),
+                       'reimbursable': (['feeFraction', 'fixedFee'], {}), 'plan': (['days', 'dailyCost'], {})}),
+    'shouldCost': (['program', 'nptFrac', 'items', 'contingencyFrac', 'partners', 'bids', 'band'],
+                   {'program': ('list', ACT_K), 'items': ('list', ITEM_K), 'partners': ('list', (['name', 'working_interest'], {})),
+                    'bids': ('list', (['id', 'name', 'evaluatedCost'], {})), 'band': (['low', 'high'], {})}),
+    'abnormallyLow': (['bids', 'estimate'], {'bids': ('list', (['id', 'name', 'evaluatedCost'], {}))}),
+    'evaluateTender': (['criteria', 'passMark', 'bids', 'omissionRule', 'bestEstimates', 'schedule', 'lifeCycle', 'award', 'technicalWeight', 'priceMethod', 'technicalMethod', 'nigerianContent'],
+                       {'criteria': ('list', CRIT_K),
+                        'bids': ('list', (['id', 'name', 'receivedAt', 'mandatory', 'scores', 'lines', 'discount', 'deviations', 'omitted', 'rejected', 'completionWeeks', 'annualCosts', 'residualValue', 'ncPct', 'indigenous', 'capacity'],
+                                          {'mandatory': ('list', MAND_K), 'lines': ('list', LINE_K), 'deviations': ('list', DEV_K)})),
+                        'schedule': SCHED_K, 'lifeCycle': LIFE_K, 'nigerianContent': (['ncLeadBasis'], {})}),
+}
+PROGRAM_DURATION = (['program', 'nptFrac'], {'program': ('list', ACT_K), 'nptFrac': 'TRI'})
+
+
+def child(path, k):
+    return f'{path}.{k}' if path else k
+
+
+def check_keys(v, shape, path):
+    if shape == 'TRI':
+        return check_keys(v, TRIANGLE, path) if isinstance(v, dict) else None
+    if shape == 'DURATION':
+        if not isinstance(v, dict):
+            return None
+        return check_keys(v, PROGRAM_DURATION if 'program' in v else TRIANGLE, path)
+    if shape[0] == 'list':
+        if not isinstance(v, list):
+            return None
+        for i, x in enumerate(v):
+            e = check_keys(x, shape[1], f'{path}[{i}]')
+            if e:
+                return e
+        return None
+    if shape[0] == 'map':
+        if not isinstance(v, dict):
+            return None
+        for k, x in v.items():
+            e = check_keys(x, shape[1], f'{path}.{k}')
+            if e:
+                return e
+        return None
+    keys, kids = shape
+    if not isinstance(v, dict):
+        return None
+    for k in v:
+        if k not in keys:
+            where = f'of {path}' if path else 'at the top level'
+            return refuse(child(path, k), f"is not an accepted key; the accepted keys {where} are {', '.join(keys)}")
+    for k in keys:
+        if k in kids and k in v:
+            e = check_keys(v[k], kids[k], child(path, k))
+            if e:
+                return e
+    return None
+
+
+def id_keys(obj, ids, path, one, many):
+    if not isinstance(obj, dict):
+        return None
+    for k in obj:
+        if k not in ids:
+            accepted = f"are the {many} {', '.join(ids)}" if ids else f'are none: there are no {many}'
+            return refuse(f'{path}.{k}', f'is not {one}; the accepted keys of {path} {accepted}')
+    return None
+
+
+def guarded(name, fn):
+    def run(a):
+        e = check_keys(a, SHAPES[name], '')
+        return e or fn(a)
+    return run
+
+
 FNS = {
     'weightingBand': weighting_band,
     'correctArithmetic': correct_arithmetic,
@@ -1116,6 +1251,7 @@ FNS = {
     'abnormallyLow': abnormally_low,
     'evaluateTender': lambda a: evaluate_tender(a, DESCRIPTIONS),
 }
+FNS = {k: guarded(k, f) for k, f in FNS.items()}
 
 CASES = []
 
@@ -1336,6 +1472,13 @@ def build():
     case('s14-lead-4-points-relative-exactly-5pct', 'contentPreference', {'ncLeadBasis': 'relative', 'bids': [P('LOW', 1000000, 80), P('HI', 1005000, 84)]})
     case('s14-lead-4-points-read-as-points', 'contentPreference', {'ncLeadBasis': 'points', 'bids': [P('LOW', 1000000, 80), P('HI', 1005000, 84)]})
     case('s14-tied-highest-content', 'contentPreference', {'ncLeadBasis': 'points', 'bids': [P('LOW', 1000000, 50), P('M', 1004000, 70), P('N', 1008000, 70)]})
+    case('s14-shared-highest-at-12-digits', 'contentPreference', {'ncLeadBasis': 'points', 'bids': [P('LOW', 1000000, 50), P('M', 1004000, 65), P('N', 1008000, 65.00000000000001)]})
+    case('s14-lead-1-percentage-point', 'contentPreference', {'ncLeadBasis': 'points', 'bids': [P('LOW', 1000000, 80), P('HI', 1005000, 81)]})
+    case('ec-one-week-late', 'evaluatedCosts', {'omissionRule': 'average', 'schedule': {'minWeeks': 1, 'maxWeeks': 1, 'ratePerWeek': 0.01}, 'bids': [
+        {'id': 'ONE', 'receivedAt': R, 'lines': [L('a', 1, 1000)], 'completionWeeks': 1},
+        {'id': 'LATE', 'receivedAt': R, 'lines': [L('a', 1, 1000)], 'completionWeeks': 2}]})
+    case('ec-one-week-beyond-minimum', 'evaluatedCosts', {'omissionRule': 'average', 'schedule': {'minWeeks': 1, 'maxWeeks': 3, 'ratePerWeek': 0.01}, 'bids': [
+        {'id': 'P', 'receivedAt': R, 'lines': [L('a', 1, 1000)], 'completionWeeks': 2}]})
     case('s14-runner-up-zero-relative', 'contentPreference', {'ncLeadBasis': 'relative', 'bids': [P('LOW', 1000000, 0), P('HI', 1002000, 30)]})
     case('s14-lowest-also-leads', 'contentPreference', {'ncLeadBasis': 'points', 'bids': [P('LOW', 1000000, 90), P('M', 1003000, 70), P('N', 1009000, 72)]})
     case('s16-exactly-10pct', 'contentPreference', {'ncLeadBasis': 'points', 'bids': [P('LOW', 1000000, 40), P('IND', 1100000, 95, indigenous=True, capacity=True),
@@ -1407,6 +1550,38 @@ def build():
     case('alb-refuse-no-estimate-under-five', 'abnormallyLow', {'bids': [{'id': 'A', 'evaluatedCost': 1}]})
     case('alb-refuse-cost', 'abnormallyLow', {'bids': [{'id': 'A', 'evaluatedCost': 0}], 'estimate': 5})
 
+    # ---- unknown keys (every function, every level) and the triangle wording
+    case('band-refuse-unknown-key', 'weightingBand', {'risk': 'low', 'estimatedCostUsd': 1, 'technicalweight': 0.3})
+    case('arith-refuse-unknown-line-key', 'correctArithmetic', {'lines': [{'id': 'a', 'quantity': 1, 'unitRate': 1, 'quotedAmount': 1, 'unitprice': 1}]})
+    case('tech-refuse-unknown-criterion-key', 'technicalEvaluation', {'criteria': [{'id': 'a', 'weighting': 100, 'weight': 100, 'maxScore': 4}], 'passMark': 50, 'bids': [{'id': 'X', 'scores': {'a': 2}}]})
+    case('tech-refuse-unknown-score-id', 'technicalEvaluation', {'criteria': crit(ws), 'passMark': 70, 'bids': [{'id': 'X', 'scores': dict({c['id']: 3 for c in ws['criteria']}, methdology=4)}]})
+    case('tech-refuse-unknown-mandatory-key', 'technicalEvaluation', {'criteria': crit(ws), 'passMark': 70, 'bids': [{'id': 'X', 'mandatory': [{'id': 'bid-security', 'met': True, 'note': 'x'}], 'scores': {c['id']: 3 for c in ws['criteria']}}]})
+    case('ec-refuse-lifecycle-misspelt', 'evaluatedCosts', dict({k: v for k, v in ms_ec.items() if k != 'lifeCycle'}, lifecycle=ms['lifeCycle']))
+    case('ec-refuse-unknown-bid-key', 'evaluatedCosts', {'omissionRule': 'average', 'bids': [{'id': 'P', 'receivedAt': R, 'lines': [L('a', 1, 1)], 'completionweeks': 3}]})
+    case('ec-refuse-unknown-schedule-key', 'evaluatedCosts', {'omissionRule': 'average', 'schedule': {'minWeeks': 1, 'maxWeeks': 2, 'ratePerweek': 0.01}, 'bids': [{'id': 'P', 'receivedAt': R, 'lines': [L('a', 1, 1)], 'completionWeeks': 1}]})
+    case('ec-refuse-unknown-deviation-key', 'evaluatedCosts', {'omissionRule': 'average', 'bids': [{'id': 'P', 'receivedAt': R, 'lines': [L('a', 1, 1)], 'deviations': [{'id': 'd', 'amount': 1, 'reason': 'x', 'currency': 'USD'}]}]})
+    case('ec-refuse-best-estimate-not-omitted', 'evaluatedCosts', {'omissionRule': 'average', 'bestEstimates': {'b': 250, 'nitrogen': 1}, 'bids': [
+        {'id': 'P', 'receivedAt': R, 'lines': [L('a', 1, 1000)], 'omitted': ['b']}]})
+    case('ec-refuse-best-estimate-none-omitted', 'evaluatedCosts', {'omissionRule': 'average', 'bestEstimates': {'b': 250}, 'bids': [{'id': 'P', 'receivedAt': R, 'lines': [L('a', 1, 1000)]}]})
+    case('rank-refuse-unknown-bid-key', 'rankTender', {'technicalWeight': 0.5, 'priceMethod': 'linear', 'technicalMethod': 'relative', 'bids': [{'id': 'A', 'technicalPercent': 50, 'evaluatedCost': 1, 'receivedAt': R, 'price': 1}]})
+    case('nc-refuse-unknown-item-id-in-bid', 'nigerianContent', {'items': ws['nc']['items'], 'bids': [{'id': 'P', 'items': dict(ws['bids'][0]['nc'], catering={'measure': 'spend', 'nigerian': 1, 'total': 1})}]})
+    case('nc-refuse-unknown-weight-id', 'nigerianContent', {'items': ms['nc']['items'], 'bids': [{'id': 'P', 'items': ms['bids'][0]['nc'], 'weights': dict(ms['bids'][0]['ncWeights'], inspection=1)}]})
+    case('nc-refuse-unknown-content-key', 'nigerianContent', {'items': [{'id': 'ct', 'scheduleLine': 'coiled-tubing-services'}], 'bids': [{'id': 'P', 'items': {'ct': {'measure': 'man-hours', 'nigerian': 1, 'total': 2, 'foreign': 1}}}]})
+    case('nc-refuse-unknown-item-key', 'nigerianContent', {'items': [{'id': 'ct', 'scheduleline': 'coiled-tubing-services'}], 'bids': [{'id': 'P', 'items': {}}]})
+    case('pref-refuse-unknown-bid-key', 'contentPreference', {'ncLeadBasis': 'points', 'bids': [P('A', 1, 1, indigenious=True)]})
+    base_ct = {'duration': 10, 'dailyCost': 1000, 'lumpSum': {'price': 1}, 'dayRate': {'rate': 1, 'mobilisationFee': 0}, 'reimbursable': {'feeFraction': 0.1}, 'iterations': 10, 'seed': 1}
+    case('ct-refuse-unknown-key', 'contractTypes', dict(base_ct, seeds=2))
+    case('ct-refuse-unknown-triangle-key', 'contractTypes', dict(base_ct, dailyCost={'min': 1, 'mode': 2, 'max': 3, 'mean': 2}))
+    case('ct-refuse-unknown-activity-key', 'contractTypes', dict(base_ct, duration={'program': [{'id': 'f', 'kind': 'flat', 'durationHrs': 5}], 'nptFrac': 0.1}))
+    case('ct-refuse-unknown-program-duration-key', 'contractTypes', dict(base_ct, duration={'program': [{'id': 'f', 'kind': 'flat', 'durationHr': 5}], 'npt': 0.1}))
+    case('ct-refuse-nptfrac-min-above-mode', 'contractTypes', dict(base_ct, duration={'program': [{'id': 'f', 'kind': 'flat', 'durationHr': 5}], 'nptFrac': {'min': 0.3, 'mode': 0.2, 'max': 0.5}}))
+    case('ct-refuse-nptfrac-negative-min', 'contractTypes', dict(base_ct, duration={'program': [{'id': 'f', 'kind': 'flat', 'durationHr': 5}], 'nptFrac': {'min': -0.1, 'mode': 0.2, 'max': 0.5}}))
+    case('ct-refuse-nptfrac-shape', 'contractTypes', dict(base_ct, duration={'program': [{'id': 'f', 'kind': 'flat', 'durationHr': 5}], 'nptFrac': {'min': 0.1, 'mode': 0.2}}))
+    case('ct-refuse-daily-cost-negative', 'contractTypes', dict(base_ct, dailyCost=-5))
+    case('should-cost-refuse-unknown-item-key', 'shouldCost', {'program': [{'id': 'f', 'kind': 'flat', 'durationHr': 240}], 'items': [{'id': 's', 'basis': 'per-day', 'rates': 1, 'category': 'intangible'}], 'band': {'low': 0.8, 'high': 1.2}, 'bids': [{'id': 'X', 'evaluatedCost': 1}]})
+    case('should-cost-refuse-unknown-partner-key', 'shouldCost', {'program': [{'id': 'f', 'kind': 'flat', 'durationHr': 240}], 'items': items, 'partners': [{'name': 'P', 'workingInterest': 40}], 'band': {'low': 0.8, 'high': 1.2}, 'bids': [{'id': 'X', 'evaluatedCost': 1}]})
+    case('alb-refuse-unknown-key', 'abnormallyLow', {'bids': [{'id': 'A', 'evaluatedCost': 1}], 'costEstimate': 5})
+
     # ---- whole tenders
     def tender_args(t, **over):
         a = {'criteria': crit(t), 'passMark': t['passMark'], 'bids': [strip(b) for b in t['bids']], 'omissionRule': t['omissionRule'], 'schedule': t['schedule']}
@@ -1425,6 +1600,10 @@ def build():
     case('tender-nobody-passes', 'evaluateTender', tender_args(ws, award='lowest-cost', passMark=99))
     case('tender-refuse-award', 'evaluateTender', tender_args(ws))
     case('tender-refuse-content-with-combined', 'evaluateTender', tender_args(ms, award='combined', technicalWeight=0.5, priceMethod='linear', technicalMethod='relative', nigerianContent={'ncLeadBasis': 'points'}))
+    case('tender-refuse-lifecycle-misspelt', 'evaluateTender', dict({k: v for k, v in tender_args(ms, award='lowest-cost').items() if k != 'lifeCycle'}, lifecycle=ms['lifeCycle']))
+    case('tender-refuse-unknown-content-key', 'evaluateTender', tender_args(ms, award='lowest-cost', bids=ms_nc_bids, nigerianContent={'ncLeadBasis': 'points', 'margin': 1}))
+    case('tender-refuse-best-estimate-not-omitted', 'evaluateTender', tender_args(ws, award='lowest-cost', bestEstimates={'acid': 1}))
+    case('ws-tender-best-estimate-kept-when-priced', 'evaluateTender', tender_args(ws, award='lowest-cost', bestEstimates={'nitrogen': 36000}))
     case('tender-refuse-bad-criteria', 'evaluateTender', tender_args(ws, award='lowest-cost', criteria=[{'id': 'a', 'weight': 50, 'maxScore': 4}]))
 
 
