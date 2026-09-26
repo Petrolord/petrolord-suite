@@ -143,6 +143,7 @@ const StratigraphyStudioHarness = lazy(() => import('@/pages/apps/StratigraphySt
 const WellsiteStudioHarness = lazy(() => import('@/pages/apps/WellsiteStudio/WellsiteStudioHarness'));
 const MappingSurfaceStudioHarness = lazy(() => import('@/pages/apps/MappingSurfaceStudio/MappingSurfaceStudioHarness'));
 const ProspectRiskingHarness = lazy(() => import('@/pages/apps/ReservoirCalcPro/ProspectRiskingHarness'));
+const RiskedReservesHarness = lazy(() => import('@/pages/apps/riskedreserves/RiskedReservesHarness'));
 const ReservoirCalcProHarness = lazy(() => import('@/pages/apps/ReservoirCalcPro/ReservoirCalcProHarness'));
 const RockPhysicsStudioHarness = lazy(() => import('@/pages/apps/RockPhysicsStudio/RockPhysicsStudioHarness'));
 const MappingSurfaceStudio = lazy(() => import('@/pages/apps/MappingSurfaceStudio/MappingSurfaceStudio'));
@@ -922,6 +923,7 @@ function App() {
                                   <Route path="/dev/wellsite-studio" element={<WellsiteStudioHarness />} />
                                   <Route path="/dev/mapping-surface-studio" element={<MappingSurfaceStudioHarness />} />
                                   <Route path="/dev/prospect-risking" element={<ProspectRiskingHarness />} />
+                                  <Route path="/dev/risked-reserves" element={<RiskedReservesHarness />} />
                                   <Route path="/dev/reservoircalc-pro" element={<ReservoirCalcProHarness />} />
                                   <Route path="/dev/rock-physics-studio" element={<RockPhysicsStudioHarness />} />
                                   <Route path="/dev/earth-modeling" element={<EarthModelingHarness />} />

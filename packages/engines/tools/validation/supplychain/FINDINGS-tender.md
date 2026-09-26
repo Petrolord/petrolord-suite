@@ -1,15 +1,15 @@
 # FINDINGS: tender (oracle_tender.py, Supply Chain SC2, procurement, tendering and contracting)
 
-Golden: `test-data/supplychain/goldens/tender_cases.json`, 141 cases (57 of
+Golden: `test-data/supplychain/goldens/tender_cases.json`, 177 cases (88 of
 them refusals, every refusal message pinned in full), written by
 `tools/validation/supplychain/oracle_tender.py`. Gate:
-`__tests__/supplychain.tender.test.js` (175 tests) calls the engine on every
+`__tests__/supplychain.tender.test.js` (214 tests) calls the engine on every
 golden, checks the published worked examples against their printed figures,
 checks the planted fixture situations and runs property tests. Negative
-control: `negcontrol_tender.sh` (54/54 engine plants red, 7/7 oracle plants
+control: `negcontrol_tender.sh` (63/63 engine plants red, 8/8 oracle plants
 caught). Timing: `timing_tender.js` (table below). Fixtures:
 `test-data/supplychain/ekene-tender/`, written by `make_tender_fixtures.py`.
-Full engines suite on the branch: 225 suites, 16,851 tests passed.
+Full engines suite on the branch: 228 suites, 17,545 tests passed (on the unknown-keys branch).
 
 The oracle is STDLIB ONLY (python 3.12: `fractions`, `decimal`, `math`). It
 reads no JavaScript and takes a different road on every route (table in its
@@ -108,7 +108,7 @@ Wells and depths follow `test-data/ekene-dynamic/field.json`.
 
 1. Omission pricing: `omissionRule` defaults to 'average' (WB SPD ITB 34.1,
    cited). 'highest' stays available; its reason, basis and the refusal
-   message say it is not from the cited texts. The course teaches and grades
+   message say the cited texts do not use it. The course teaches and grades
    the cited rule only.
 2. Mean-deviation price scoring: DROPPED from the engine, oracle, goldens and
    tests (unsourced). `priceMethod` is 'lowest-ratio' or 'linear', both cited;
@@ -131,7 +131,7 @@ Wells and depths follow `test-data/ekene-dynamic/field.json`.
    substantially responsive Bidders", else the Employer's best estimate. No
    current text read uses the highest price. The engine has no default:
    `omissionRule` is 'average' (cited) or 'highest' (a stated alternative,
-   labelled as not from the cited texts). The materials fixture is built so
+   labelled as an option the cited texts do not use). The materials fixture is built so
    the rule decides the lowest evaluated cost (average: MS4; highest: MS2).
    Lead decision taken: default 'average'; 'highest' kept, labelled.
 2. **Which bids price an omission:** the other bids still substantially
@@ -348,6 +348,77 @@ RED   [ORACLE] oracle measure not checked -- 1 failed -- first: nc-refuse-measur
 RED   [ORACLE] oracle ALB sample standard deviation -- 2 failed -- first: wb-alb-annex-i-example-1-relative
 RED   [ORACLE] oracle s.14 group within 2% -- 1 failed -- first: s14-group-edge-just-out
 ```
+
+## Foundation findings repair (2026-09-26, branch fix/tender-foundation-findings)
+
+The SC2 course foundation found four wording and consistency defects; all
+repaired before lessons, with no award or graded value changing (all 141
+earlier goldens keep every non-message value; 16 change message text only).
+
+1. Counts agree with their units: weeks ("1 week", "2 weeks") in every
+   schedule reason, basis and exclusion, and percentage points in the s.14
+   lead. The gate scans every golden output for "1 weeks", "1 percentage
+   points", "1 bids", "1 prices", "1 iterations" and "1 years".
+2. The uncited omission option reads "the 'highest' option, which the cited
+   texts do not use" (it read as an "X, not Y" contrastive); the refusal says
+   "an option the cited texts do not use". The gate scans every output for
+   ", not " and for em and en dashes.
+3. The s.14 reason when the runner-up has no Nigerian content states the 5%
+   test once ("30% against 0% (LOW), a runner-up with no Nigerian content, at
+   least 5% higher, so ...").
+4. Shared highest content (and the runner-up) are decided on the engine's
+   12-significant-digit tie key, as every other ranking in tender.js: 65 and
+   65.00000000000001 share the highest content, so no single bid leads
+   (golden `s14-shared-highest-at-12-digits`).
+
+New goldens: `s14-shared-highest-at-12-digits`, `s14-lead-1-percentage-point`,
+`ec-one-week-late`, `ec-one-week-beyond-minimum`. New negative-control plants:
+exact-equality shared highest, week count without agreement, the zero
+runner-up reason repeating itself, the highest option worded as a
+contrastive; the two plants whose targets moved were re-aimed and re-run red.
+Negative control on this branch: 58/58 engine plants red, 7/7 oracle plants
+caught.
+
+## Unknown input keys and the triangle wording (2026-09-26, branch fix/tender-unknown-keys)
+
+Every public function now refuses an input key it does not read, at every
+level it reads, so a misspelt optional key is never dropped silently (before
+this, `lifecycle` in place of `lifeCycle` removed the life-cycle cost without
+a word). The accepted keys are published as `ACCEPTED_KEYS` (one shape per
+function); the walk checks an object's own keys in their order, then its
+children in the listed order. A key whose value is undefined counts as
+absent. The message names the key, its path and the accepted keys:
+
+- `lifecycle is not an accepted key; the accepted keys at the top level are bids, omissionRule, bestEstimates, schedule, lifeCycle, tolerance`
+- `duration.program[0].durationHrs is not an accepted key; the accepted keys of duration.program[0] are id, kind, label, ...`
+
+Levels covered: top-level options; bids (per function); bill lines;
+deviations; mandatory entries; criteria (id, label, weight, maxScore); the
+schedule and life-cycle objects; triangles { min, mode, max } for days,
+nptFrac and daily cost; the { program, nptFrac } duration; wellCost activities
+and cost items; partners { name, working_interest }; the band; lumpSum,
+dayRate, reimbursable and plan; content items and each bid's content data;
+`nigerianContent` in evaluateTender. Keys that are ids are checked against the
+ids: a bid's scores against the criterion ids, a bid's content items and
+weights against the item ids, and bestEstimates against the items some bid
+omits (in evaluateTender, against every bid; only the opened bids' omissions
+reach the commercial stage). Accepted for display on every bid: `name`; on
+criteria, activities and cost items: `label`.
+
+The triangle refusals now share one wording for duration days,
+duration.nptFrac and dailyCost, each with its exact condition and the figures:
+`must be at or above 0; got x`, `must be a number or a triangular
+distribution { min, mode, max } of finite numbers`, `.min must be at or above
+0; got x`, `must have min <= mode <= max; got min a, mode b, max c`.
+
+No award or value moves: all 145 earlier goldens keep every value, and only
+the two duration-triangle refusal messages change text. The Ekene fixtures
+pass whole (with their bid names). New goldens: 32 (31 refusals, among them
+an unknown-key case for every function and nested ones at each level, plus
+`ws-tender-best-estimate-kept-when-priced`). New negative-control plants:
+unknown keys ignored everywhere, ignored inside lists, id-keyed objects
+unchecked, a misspelt `lifecycle` accepted, the triangle refusal without its
+figures, and the oracle's key check off. All go red.
 
 ## Open questions for the lead
 

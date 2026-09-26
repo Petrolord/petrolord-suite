@@ -33,7 +33,7 @@ const GUIDES = [
     name: 'Risked Reserves Valuation',
     Component: RiskedReservesHelpGuide,
     heading: /Risked Reserves Valuation Help Guide/i,
-    sectionIds: ['overview', 'convention', 'quickstart', 'variables', 'settings', 'engine', 'results', 'sensitivity', 'pitfalls'],
+    sectionIds: ['overview', 'convention', 'quickstart', 'inputs', 'engine', 'results', 'portfolio', 'pitfalls'],
   },
   {
     name: 'Well Spacing Optimizer',

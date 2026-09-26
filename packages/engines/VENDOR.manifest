@@ -1,9 +1,9 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 8082d73c75fca95b30d60a5cbb01f1ca58724223
+# commit 3061acc000ede031cb15d7d113f0fccc47e7765d
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
-e577829e33b3e731fb1f9ca51c4aea9c9d8a9f06 README.md
+3d72d13d8ed4c75fec2678c84d6e792138450ccf README.md
 6373485efb6baa9226953a76a3d6ebb740541d1c __tests__/aquifer.test.js
 168f6cedfc18af932ba587f2ff882b7571966986 __tests__/assurance.audit.test.js
 fc5248e0239b0841f542a3cba95ef72db34296d1 __tests__/assurance.compliance.test.js
@@ -150,6 +150,7 @@ d47e9d66bd7f3cfc899a9e73a9b38eb1ae141261 __tests__/production.liftscreening.test
 ef3cd90f6bdb44da56c3b690cc5010d39511f80b __tests__/production.nodal.test.js
 6733918c9bab14c21ec3288c0a5d95881d45bba0 __tests__/production.rodpump.test.js
 e824ad72cffa3c53045542f5266b263a5917dec8 __tests__/production.surveillance.test.js
+f25ba6e6e30355f8364a1af93656dd305c027ab1 __tests__/prospect.valuation.test.js
 8234569920a263cea09a57f8f5a1583cf632b820 __tests__/prototypeChainLookups.test.js
 2bed146318dbe6aa31bf0fa3389bec13d69a4f9e __tests__/scal.fractionalflow.test.js
 01f8e6dc9f0d248800ddd0de85701581a46bdaa2 __tests__/scal.leverett.test.js
@@ -202,7 +203,7 @@ f10949f2708dc7b233fdc3cb3e09bf6cc9ff7842 __tests__/stratigraphy.stretch.test.js
 9ec2d6370d2c01f76bccbceef0dd83cf20f9f96c __tests__/stratigraphy.timescale.test.js
 d7ab63fcc9594647465ab7cc6b1437350f4dfeac __tests__/stratigraphy.vocabulary.test.js
 ba54dfab0b41ade99cb94fa4f754b029058674f9 __tests__/stratigraphy.wheeler.test.js
-fbbf063e0b3402223c3e15bdf2eb1d8a68e03fa6 __tests__/supplychain.tender.test.js
+39f0d254e3e8b55dc7078810f1094fa3c0c4c015 __tests__/supplychain.tender.test.js
 5e4a18db7a0cfb1e3534b1f6644cd30dc8576fdb __tests__/waterflood.ekene.test.js
 bdce3673af2e925999830c495979476f0d66ee14 __tests__/waterflood.layeredsweep.test.js
 1b2f3e5b9afca4b0fc39b272cfcac2290d6e48d8 __tests__/waterflood.patternforecast.test.js
@@ -430,6 +431,7 @@ b7a2a85022f3df59f44051d5202dcf9746502326 engines/production/pumpingUnit.js
 683bbbc4093857338cd88f9214581e985f133833 engines/production/rodPumpDesign.js
 20e0cb3c3630577d2c4996495cc4f352850b86bc engines/production/rodString.js
 ab361a2f4487c4ef585e6ffd3cce783fe4a2a9a9 engines/production/surveillance.js
+2468504187c6f984b84f318939d55929be3e667a engines/prospect/valuation.js
 dda8d721705bfd6f3ffddcdda092c828f5949fcf engines/rockphysics/avo.js
 e5ca8f9c22c3a798d61d0abf4ddb06a8750d55bd engines/rockphysics/fluids.js
 c1349c3ebf6cb89e262557cd39a0a6a48b0540d4 engines/rockphysics/gassmann.js
@@ -505,7 +507,7 @@ cb674dbe85ffe0ae20595c3d8a1c40d6c62083dc engines/stratigraphy/intervals.js
 69dddb3d38e19ef8efe2e945e08047c35a85ff62 engines/stratigraphy/timescale.js
 05015035c4695dfe45c3d45ba010224dfb5b41a9 engines/stratigraphy/vocabulary.js
 fd87b141e8a3fd267cd0b86aafe33e2ac5c8bb76 engines/stratigraphy/wheeler.js
-a6f8366fdc2e2ba948f7d2c2ddf95a629918cd53 engines/supplychain/tender.js
+3b60842bcd54971065e0f1cbefe50eca620d350b engines/supplychain/tender.js
 19ffdce33bcae1e01bf51a2b144c57fb5d626c20 engines/waterflood/layeredSweep.js
 b5c51c9ce94e7cbfabaa8643bb5d1b3e3db73b5d engines/waterflood/patternForecast.js
 245588959a57d90773d0e444482c8230db2b0b89 engines/waterflood/vrr.js
@@ -732,6 +734,7 @@ ca91e4aafd990c29b369bebe7c0b7b7f8bc12b9e test-data/production/goldens/lift_advis
 b4117882a7836b4ce018a4afc830a91ab4fa1007 test-data/production/goldens/nodal_cases.json
 50819360bd204f050b38c489db9fb9dd10ba6066 test-data/production/goldens/rodpump_cases.json
 e49131ca6ca53dc99ec608859868a449e7383765 test-data/production/goldens/surveillance_cases.json
+e81bc71967d6f64a5929130ed0f870ea4a741b23 test-data/prospect/goldens/valuation_cases.json
 4f1aa05d4021037c4645a6d0af5501eb2df9501f test-data/rockphysics/README.md
 a3643404fa98a6601a55a70b71f3149d27bfe66d test-data/rockphysics/goldens.json
 d32a3dc17b9c206dd9d95b796c7e737a8b674c85 test-data/seismolord/attributes/attributes_golden.json
@@ -763,7 +766,7 @@ cb1026e6bcd8459e66c8609cb7423de1da470ff2 test-data/stratigraphy/README.md
 7086125873dbf8c33d0d238f716d64cf34be7abb test-data/supplychain/ekene-tender/README.md
 4e1423dfa90d26b62a10fe34d819c908f2a27d87 test-data/supplychain/ekene-tender/materials.json
 30d7950d9cfc2cc7dec61f5e6d5b7e6c0859beed test-data/supplychain/ekene-tender/well-services.json
-2c706da58684d540501fa47273fa045daaffe0da test-data/supplychain/goldens/tender_cases.json
+ef21c444a97ef3275d287e6551555f8cb2ad7b39 test-data/supplychain/goldens/tender_cases.json
 74fb3580b36681c7a08b73e472100b2b2afd009d test-data/waterflood/vrr-ledger-fixture.json
 db5d7b565cac76e52780987c93384d89df52e956 test-data/wells/README.md
 96f49e20aeffabdb89c21c07379070ad1345d65a test-data/wells/goldens/basic_20.DEPT.f32
@@ -1018,12 +1021,14 @@ ef58410fe9addc47d2e49e1b6184a9da96e98185 tools/validation/production/oracle_inte
 9257bfc00710e765877d886cd413b7f4707c1754 tools/validation/production/oracle_nodal.py
 30679cb8cf88fbbf0221eef8a44658b4bd67d33c tools/validation/production/oracle_rodpump.py
 6dc1b03acfeaa3ec3949fd58c9f0e4e9b01c9918 tools/validation/production/oracle_surveillance.py
+0336c603b3e4e5b2437d8b675739a36d59012a30 tools/validation/prospect/negcontrol_valuation.sh
+942d467db9a3407c1f0f7aed17736b07cee4b530 tools/validation/prospect/oracle_valuation.py
 45c029453ad06334d030a18d86a076f913516c09 tools/validation/rockphysics/genfixtures.py
 820ed2ac94f2dad53e2449a2fc672cf0f6fe9787 tools/validation/rockphysics/oracle.py
-33aae92d8710192e5e22f95a49007a361a67d117 tools/validation/supplychain/FINDINGS-tender.md
+f2bbd34d355401a76efa811b63d9aa49baa592b8 tools/validation/supplychain/FINDINGS-tender.md
 ba12cdf70859b3409d884991253b76500b9ec0d9 tools/validation/supplychain/make_tender_fixtures.py
-db2d1c13c72f4ad91fd04a492ce0ab383f2de88b tools/validation/supplychain/negcontrol_tender.sh
-4c475e68d6155d1e805b66b04e3243ee69c1d67b tools/validation/supplychain/oracle_tender.py
+bcbea3cb0c61eb0a043b5edb25d9402960970631 tools/validation/supplychain/negcontrol_tender.sh
+efb85801dab12bdb361118f6694cb3971f331ab5 tools/validation/supplychain/oracle_tender.py
 264d0ed2ba101b2538aefdc0e9e7242f38c6968d tools/validation/supplychain/timing_tender.js
 d7f9a86a9043abda0ae740022fb3dae6ca99ba48 tools/validation/wells/genfixtures.py
 a67238b456738f8963e2e119744edbccb387434f tools/validation/wells/oracle.py
