@@ -199,3 +199,11 @@ government's profit oil are in the numerator. No computation changed.
   column first and larger with the shared definitions; every printed
   "government take" states its basis; no engine verdict names either old term;
   no Designer file restates a definition by hand.
+
+## 2026-09-26: Senior test T1 (Wave 1 #9)
+
+Report: docs/testing/FiscalRegimeDesigner-T1.md. The default regime is a
+named sample ("Sample PSC (R-factor split)"), no longer labelled as the
+PIA; production and price inputs carry headers and units (gas Mcf/d, the
+engine's unit, default 50,000); results fit a laptop; `/dev` harness.
+Engine untouched.

@@ -120,9 +120,16 @@ import React, { useState, useEffect } from 'react';
               
               <div className="pt-2">
                 <h4 className="text-md font-semibold text-white mb-2">Production Profiles</h4>
+                {/* headers with units (Fiscal T1-002): the placeholders vanished once a
+                    value was typed, and the gas rate is Mcf/d in the engine */}
+                <div className="grid grid-cols-3 gap-2 mb-1 text-[11px] text-slate-400">
+                  <span />
+                  <span>Initial rate</span>
+                  <span>Decline (%/yr)</span>
+                </div>
                 {['oil', 'gas', 'ngl'].map(type => (
                   <div key={type} className="grid grid-cols-3 gap-2 mb-2 items-center">
-                    <Label className="text-lime-300 capitalize">{type}</Label>
+                    <Label className="text-lime-300" data-testid={`fis-prod-label-${type}`}>{{ oil: 'Oil (bopd)', gas: 'Gas (Mcf/d)', ngl: 'NGL (bbl/d)' }[type]}</Label>
                     <Input placeholder="Initial Rate" type="number" value={projectInputs.production[type].initial} onChange={(e) => handleProjectInputChange(['production', type, 'initial'], Number(e.target.value))} className="bg-white/5 border-white/20"/>
                     <Input placeholder="Decline %" type="number" value={projectInputs.production[type].decline} onChange={(e) => handleProjectInputChange(['production', type, 'decline'], Number(e.target.value))} className="bg-white/5 border-white/20"/>
                   </div>
@@ -157,6 +164,9 @@ import React, { useState, useEffect } from 'react';
 
               <div className="pt-2">
                 <h4 className="text-md font-semibold text-white mb-2">Price Deck</h4>
+                <div className="grid grid-cols-4 gap-2 mb-1 text-[11px] text-slate-400" data-testid="fis-price-headers">
+                  <span>From year</span><span>Oil ($/bbl)</span><span>Gas ($/Mcf)</span><span>NGL ($/bbl)</span>
+                </div>
                 <div className="space-y-2">
                   {projectInputs.prices.map((pricePoint, index) => (
                     <div key={index} className="grid grid-cols-4 gap-2 items-center">

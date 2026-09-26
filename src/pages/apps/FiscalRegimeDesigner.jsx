@@ -25,13 +25,15 @@ const FiscalRegimeDesigner = () => {
   const [results, setResults] = useState(null);
   const [projectInputs, setProjectInputs] = useState({
     name: 'Deepwater Block XYZ Development',
-    production: { oil: { initial: 10000, decline: 10 }, gas: { initial: 50, decline: 8 }, ngl: { initial: 1500, decline: 12 } },
+    production: { oil: { initial: 10000, decline: 10 }, gas: { initial: 50000, decline: 8 }, ngl: { initial: 1500, decline: 12 } }, // gas in Mcf/d (50 MMscf/d)
     costs: { capex: { drilling: 300, facilities: 150, subsea: 50 }, opex: { fixed: 10, variable: 5 } },
     prices: [ { year: 1, oil: 70, gas: 3.5, ngl: 30 }, { year: 5, oil: 75, gas: 4.0, ngl: 35 }, { year: 10, oil: 80, gas: 4.5, ngl: 40 } ],
     discountRate: 10,
   });
   const [regimes, setRegimes] = useState([
-    { id: 1, name: 'Nigerian PIA (PSC)', royalty: { type: 'sliding_price', tiers: [{ threshold: 60, rate: 12.5 }, { threshold: 80, rate: 15 }] }, tax: { cit: 30, rrt: 20, minTax: 2 }, costRecoveryLimit: 70, profitSplit: { type: 'tiered_r_factor', tiers: [{ threshold: 1.0, split: 60 }, { threshold: 1.5, split: 50 }] } },
+    // a generic sample (Fiscal T1-001): these are not the PIA 2021 terms, which
+    // come from Load Template (PIA 2021 royalty and cumulative-production split)
+    { id: 1, name: 'Sample PSC (R-factor split)', royalty: { type: 'sliding_price', tiers: [{ threshold: 60, rate: 12.5 }, { threshold: 80, rate: 15 }] }, tax: { cit: 30, rrt: 20, minTax: 2 }, costRecoveryLimit: 70, profitSplit: { type: 'tiered_r_factor', tiers: [{ threshold: 1.0, split: 60 }, { threshold: 1.5, split: 50 }] } },
     { id: 2, name: 'Concessionary (Royalty/Tax)', royalty: { type: 'flat', rate: 12.5 }, tax: { cit: 50, rrt: 0, minTax: 0 }, costRecoveryLimit: 100, profitSplit: { type: 'flat', split: 100 } },
   ]);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
@@ -168,7 +170,7 @@ const FiscalRegimeDesigner = () => {
           <div className="lg:w-2/5 flex-shrink-0">
             <InputPanel onRunComparison={handleRunComparison} loading={loading} initialProjectInputs={projectInputs} initialRegimes={regimes} />
           </div>
-          <div className="lg:w-3/5 flex-grow">
+          <div className="flex-1 min-w-0">
             {loading ? (
               <div className="flex items-center justify-center h-full bg-white/5 rounded-xl border border-white/10 p-6">
                 <div className="text-center">
