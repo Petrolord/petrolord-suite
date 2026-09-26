@@ -53,7 +53,7 @@ const EnvelopePanel = () => {
             <Field label="Smallest (64ths)"><NumberInput section="envelope" name="minS64" /></Field>
             <Field label="Largest (64ths)"><NumberInput section="envelope" name="maxS64" /></Field>
             <Field label="Points"><NumberInput section="envelope" name="nPoints" /></Field>
-            <Button onClick={runEnvelope} disabled={isRunning} className="h-9">
+            <Button onClick={runEnvelope} disabled={isRunning} className="h-9 whitespace-nowrap md:col-span-2">
               <Play className="w-3.5 h-3.5 mr-1" /> Run envelope
             </Button>
           </div>
@@ -61,12 +61,12 @@ const EnvelopePanel = () => {
           {!isGas && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 items-end border-t border-slate-800 pt-3">
               <Field
-                label={`Target rate (${rateUnit})`}
+                label={`Target oil rate (${rateUnit})`}
                 hint="Solved against the nodal point, not by inverting the correlation at a guessed wellhead pressure."
               >
                 <NumberInput section="envelope" name="targetQ" />
               </Field>
-              <Button variant="outline" onClick={sizeForTarget} className="h-9">
+              <Button variant="outline" onClick={sizeForTarget} className="h-9 whitespace-nowrap">
                 <Crosshair className="w-3.5 h-3.5 mr-1" /> Size the bean
               </Button>
             </div>
@@ -145,7 +145,7 @@ const EnvelopePanel = () => {
                         x={envelope.limit.firstSubcriticalS64}
                         stroke={COLOR.limit}
                         strokeDasharray="4 4"
-                        label={{ value: 'critical limit', position: 'top', fill: COLOR.limit, fontSize: 10 }}
+                        label={{ value: 'critical limit', position: 'insideTopLeft', fill: COLOR.limit, fontSize: 10 }}
                       />
                     )}
                     {result && (

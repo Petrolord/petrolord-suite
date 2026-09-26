@@ -47,9 +47,10 @@ const OperatingPointPanel = () => {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Stat
-              label="Rate"
+              label={isGas ? 'Rate' : 'Oil rate'}
               value={fmt(solved.q)}
               unit={rateUnit}
+              hint={!isGas && Number.isFinite(solved.qLiquid) ? `${fmt(solved.qLiquid)} bbl/d liquid through the bean` : undefined}
               accent="text-emerald-400"
             />
             <Stat

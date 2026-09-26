@@ -69,9 +69,18 @@ export const solveChokedOil = ({
   const qMax = model.ipr.qmax ?? rateAtPwf(model.ipr, 0);
   if (!(qMax > 0)) return { ok: false, reason: 'The inflow has no absolute open flow to solve against.' };
 
+  // ONE RATE BASIS (Wave 4 senior test CH-T1-001). `q` is the OIL rate,
+  // which is what the inflow and the tubing read. The Gilbert family is
+  // written in gross LIQUID and gas-liquid ratio, so the bean sees
+  // q / (1 - wct), and the tubing is handed the GOR that GLR implies. On
+  // a 20 percent water well the bean used to see a fifth too little
+  // liquid and the tubing a fifth too little gas.
+  const wc = Math.min(Math.max(Number.isFinite(wct) ? wct : 0, 0), 0.999);
+  const liquidOf = (q) => q / (1 - wc);
+  const gor = glr / (1 - wc);
   const whpAt = (q) => (coeffs
-    ? (coeffs.c * Math.pow(glr, coeffs.m) * q) / Math.pow(s64, coeffs.n)
-    : chokeWhp({ q, glr, s64, correlation, pDownstream }).pwh);
+    ? (coeffs.c * Math.pow(glr, coeffs.m) * liquidOf(q)) / Math.pow(s64, coeffs.n)
+    : chokeWhp({ q: liquidOf(q), glr, s64, correlation, pDownstream }).pwh);
 
   const residual = (q) => {
     const pwh = whpAt(q);
@@ -80,7 +89,7 @@ export const solveChokedOil = ({
       ...model.vlp,
       whp: pwh,
       nodeMd: model.vlp.nodeMd,
-      rates: { qo: q, wct, gor: glr },
+      rates: { qo: q, wct: wc, gor },
     }).pEnd;
     return outflow - pwfAtRate(model.ipr, q);
   };
@@ -94,9 +103,20 @@ export const solveChokedOil = ({
       const q = solved.root;
       const pwh = whpAt(q);
       const ratio = pwh > 0 ? pDownstream / pwh : NaN;
+      // Flow runs from the wellhead to the line, so a wellhead pressure
+      // at or below the line pressure is no operating point at all: the
+      // bean has stopped restricting and the line is in charge (CH-T1-002).
+      if (pwh <= pDownstream) {
+        return {
+          ok: false,
+          belowLine: true,
+          reason: `A ${s64}/64 bean would put the wellhead at ${Math.round(pwh)} psia, at or below the ${Math.round(pDownstream)} psia line. The bean no longer restricts this well; the line pressure sets the rate.`,
+        };
+      }
       return {
         ok: true,
         q,
+        qLiquid: liquidOf(q),
         pwh,
         pwf: pwfAtRate(model.ipr, q),
         ratio,
@@ -239,7 +259,8 @@ export const wellheadErosion = ({
   const qwStbd = wc > 0 ? (q * wc) / (1 - wc) : 0;
   const qoRes = q * pvt.bo;
   const qwRes = qwStbd * pvt.bw;
-  const freeGasScfd = Math.max(0, q * (glr - pvt.rs));
+  // GLR is per barrel of LIQUID; the oil rate carries the solution gas.
+  const freeGasScfd = Math.max(0, (q + qwStbd) * glr - q * pvt.rs);
   const freeGasRes = freeGasScfd * pvt.bg;
   const liquidRes = qoRes + qwRes;
   const totalRes = liquidRes + freeGasRes;

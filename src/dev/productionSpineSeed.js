@@ -62,13 +62,23 @@ export function productionSeed() {
     });
   }
   const po_well_tests = [];
+  // HP-1 tests carry a bean and a tubing head pressure that sit exactly on
+  // Gilbert (Pwh = 10 GLR^0.546 q_liquid / S^1.89), so a coefficient fit
+  // should hand back 10, 0.546 and 1.89.
+  const beans = [20, 24, 28, 32, 36, 40];
+  let k = 0;
   for (let i = 15; i < SEED_DAYS; i += 30) {
     const qo = oilRate(i);
     const wc = waterCut(i);
+    const ql = qo / (1 - wc);
+    const glr = (qo * 800) / ql;
+    const s64 = beans[k % beans.length];
+    k += 1;
     po_well_tests.push({
       id: `po-wt-hp1-${i}`, user_id: U, well_id: WELL_IDS.oil, test_date: day(i), duration_hours: 12,
       oil_rate_stbd: r2(qo), water_rate_stbd: r2(qo * wc / (1 - wc)), gas_rate_mscfd: r2(qo * 0.8),
-      thp_psia: 250, is_valid: true, comment: null, created_at: TS, updated_at: TS,
+      thp_psia: r2((10 * glr ** 0.546 * ql) / s64 ** 1.89), choke_64ths: s64,
+      is_valid: true, comment: null, created_at: TS, updated_at: TS,
     });
     const qg = gasRate(i);
     po_well_tests.push({

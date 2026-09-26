@@ -26,10 +26,13 @@ export function createStore(seed = {}) {
 
 /** A PostgREST-shaped query builder over the store. */
 export function makeQuery(db, table, user = DEV_USER) {
-  const st = { filters: [], order: [], limit: null, op: 'select', payload: null, onConflict: null, joins: [] };
+  const st = { filters: [], order: [], limit: null, offset: 0, op: 'select', payload: null, onConflict: null, joins: [] };
   const rows = () => (db[table] || (db[table] = []));
-  const match = (r) => st.filters.every(([k, op, v]) => {
-    const x = r[k];
+  const match = (r, dotted = false) => st.filters.every(([k, op, v]) => {
+    // Dotted keys ('po_wells.field_id') filter on an embedded parent and
+    // are applied after the embed; plain keys before it.
+    if (k.includes('.') !== dotted) return true;
+    const x = dotted ? k.split('.').reduce((o, part) => (o == null ? o : o[part]), r) : r[k];
     if (op === 'eq') return x === v;
     if (op === 'neq') return x !== v;
     if (op === 'is') return (x ?? null) === v;
@@ -63,18 +66,30 @@ export function makeQuery(db, table, user = DEV_USER) {
       db[table] = rows().filter((r) => !match(r));
       return gone;
     }
-    let out = rows().filter(match);
+    let out = rows().filter((r) => match(r));
     for (const [k, asc] of [...st.order].reverse()) out = [...out].sort((a, b) => ((a[k] > b[k] ? 1 : a[k] < b[k] ? -1 : 0) * (asc ? 1 : -1)));
-    if (st.limit != null) out = out.slice(0, st.limit);
-    // embedded child tables, e.g. select('*, rb_results(*)'): children whose <parent>_id or run_id points here
-    for (const child of st.joins) {
-      out = out.map((r) => ({ ...r, [child]: (db[child] || []).filter((c) => Object.entries(c).some(([ck, cv]) => ck.endsWith('_id') && cv === r.id)) }));
+    // Embedded tables. A parent this row points at through one of its
+    // *_id columns (select('*, po_wells!inner(...)')) embeds as one
+    // object; otherwise children whose <parent>_id or run_id points here
+    // embed as a list (select('*, rb_results(*)')). `!inner` drops rows
+    // with no parent.
+    for (const { name, inner } of st.joins) {
+      const other = db[name] || [];
+      out = out.map((r) => {
+        const parent = other.find((c) => Object.entries(r).some(([k, v]) => k.endsWith('_id') && v != null && v === c.id));
+        if (parent) return { ...r, [name]: { ...parent } };
+        const kids = other.filter((c) => Object.entries(c).some(([ck, cv]) => ck.endsWith('_id') && cv === r.id));
+        return { ...r, [name]: inner ? null : kids };
+      });
+      if (inner) out = out.filter((r) => r[name] != null);
     }
+    out = out.filter((r) => match(r, true));
+    if (st.limit != null || st.offset) out = out.slice(st.offset, st.limit != null ? st.limit : undefined);
     return out.map((r) => ({ ...r }));
   };
   const q = {
     select(cols) {
-      if (typeof cols === 'string') for (const m of cols.matchAll(/(\w+)\s*\(/g)) st.joins.push(m[1]);
+      if (typeof cols === 'string') for (const m of cols.matchAll(/(\w+)(!inner)?\s*\(/g)) st.joins.push({ name: m[1], inner: !!m[2] });
       return q;
     },
     eq(k, v) { st.filters.push([k, 'eq', v]); return q; },
@@ -89,7 +104,7 @@ export function makeQuery(db, table, user = DEV_USER) {
     match(obj) { for (const [k, v] of Object.entries(obj)) st.filters.push([k, 'eq', v]); return q; },
     order(k, o = {}) { st.order.push([k, o.ascending !== false]); return q; },
     limit(n) { st.limit = n; return q; },
-    range(a, b) { st.limit = b + 1; return q; },
+    range(a, b) { st.offset = a; st.limit = b + 1; return q; },
     insert(p) { st.op = 'insert'; st.payload = p; return q; },
     upsert(p, o = {}) { st.op = 'upsert'; st.payload = p; st.onConflict = o.onConflict || null; return q; },
     update(p) { st.op = 'update'; st.payload = p; return q; },
