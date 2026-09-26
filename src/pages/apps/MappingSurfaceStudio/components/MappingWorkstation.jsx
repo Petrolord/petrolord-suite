@@ -24,7 +24,7 @@ import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import SurfacesExplorer from './SurfacesExplorer';
-import MapCanvas, { DEFAULT_MAP_DISPLAY, contourPlan } from './MapCanvas';
+import MapCanvas, { DEFAULT_MAP_DISPLAY, contourPlan, displaySign } from './MapCanvas';
 import { contourPaths } from '@/components/maps/mapPainter';
 import { contourEditPlan, translatePath } from '../services/contourEdit';
 import { MAP_COLORMAPS } from '@/components/maps/lut';
@@ -63,6 +63,11 @@ import { placeWellsForHost } from '@/lib/crs/guards';
 const selCls = 'w-full rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
 
 export const DEPTH_UNIT_KEY = 'mapping.depthUnit';
+// T1 (MAP-T1-013): show depth structures as positive depth below datum
+export const DEPTH_SIGN_KEY = 'mapping.depthPositive';
+const readDepthPositive = () => {
+  try { return localStorage.getItem(DEPTH_SIGN_KEY) === '1'; } catch { return false; }
+};
 const readDepthUnit = () => {
   try { return localStorage.getItem(DEPTH_UNIT_KEY) === 'm' ? 'm' : 'ft'; } catch { return 'ft'; }
 };
@@ -97,6 +102,7 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
   const [source, setSource] = useState({ type: 'top', key: '' });
   const [depthRef, setDepthRef] = useState('tvdss');
   const [depthUnit, setDepthUnit] = useState(readDepthUnit);
+  const [depthPositive, setDepthPositive] = useState(readDepthPositive);
   const [cellM, setCellM] = useState('150');
   // MS5 kriging: method and variogram fields (range in metres, sill in
   // metres squared for a structure map); fitted from the wells on demand
@@ -153,6 +159,9 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
   useEffect(() => {
     try { localStorage.setItem(DEPTH_UNIT_KEY, depthUnit); } catch { /* private mode */ }
   }, [depthUnit]);
+  useEffect(() => {
+    try { localStorage.setItem(DEPTH_SIGN_KEY, depthPositive ? '1' : '0'); } catch { /* private mode */ }
+  }, [depthPositive]);
   // MS5: the per-user setting (geoscience_settings.depth_unit) wins over
   // the browser default once it is known; a toggle writes it back and the
   // browser copy stays as the fallback when the column is not there yet
@@ -171,8 +180,9 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
 
   const fmtZ = useCallback((v, s = displaySurface) => {
     if (!Number.isFinite(v)) return '—';
-    return isLengthSurface(s) ? `${toDisplay(v, depthUnit).toFixed(1)} ${depthUnit}` : v.toFixed(3);
-  }, [depthUnit, displaySurface]);
+    return isLengthSurface(s) ? `${(displaySign(s, depthPositive) * toDisplay(v, depthUnit)).toFixed(1)} ${depthUnit}` : v.toFixed(3);
+  }, [depthUnit, displaySurface, depthPositive]);
+  const zConventionText = depthPositive ? 'depth positive down' : 'elevation, negative down';
 
   const refresh = useCallback(async () => {
     try { setSurfaces(await backend.listSurfaces()); }
@@ -615,8 +625,10 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
       const { contactM, readAsDepth } = interpretContact(fromDisplay(c, depthUnit), displayGrid);
       const spec = specOfSurface(displaySurface);
       const r = quickGrv({ spec, gridM: displayGrid, contactM, seedIndex });
-      const zfmt = (m) => `${+toDisplay(m, depthUnit).toFixed(1)} ${depthUnit}`;
-      const text = `${readAsDepth ? `Read ${c} as a depth below datum (elevation ${zfmt(contactM)}). ` : ''}${describeGrv(r, { contactLabel: zfmt(contactM), fmtZ: zfmt })}`;
+      const zfmt = (m) => (depthPositive
+        ? `${+(-toDisplay(m, depthUnit)).toFixed(1)} ${depthUnit} below datum`
+        : `${+toDisplay(m, depthUnit).toFixed(1)} ${depthUnit}`);
+      const text = `${readAsDepth && !depthPositive ? `Read ${c} as a depth below datum (elevation ${zfmt(contactM)}). ` : ''}${describeGrv(r, { contactLabel: zfmt(contactM), fmtZ: zfmt })}`;
       setGrvData(r);
       setGrvResult(text);
       setStatus(text);
@@ -756,8 +768,8 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
   const addGuide = () => {
     const v = Number(guideValue);
     if (!guideAt) { setStatus('Click the map first.'); return; }
-    if (!Number.isFinite(v)) { setStatus(`Type the guide value in ${depthUnit} (elevation, negative below datum).`); return; }
-    setGuidePoints((g) => [...g, { x: guideAt.x, y: guideAt.y, z: fromDisplay(v, depthUnit), label: `G${g.length + 1}` }]);
+    if (!Number.isFinite(v)) { setStatus(`Type the guide value in ${depthUnit} (${zConventionText}).`); return; }
+    setGuidePoints((g) => [...g, { x: guideAt.x, y: guideAt.y, z: fromDisplay(depthPositive ? -v : v, depthUnit), label: `G${g.length + 1}` }]);
     setGuideAt(null);
     setGuideValue('');
     setDrawMode(null);
@@ -826,10 +838,12 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
     if (!viewRef.current || !displaySurface) return;
     try {
       const crsTxt = displaySurface.crs ? ` · ${displaySurface.crs}` : '';
-      const unitTxt = isLengthSurface(displaySurface) ? `${depthUnit}, elevation negative down` : 'attribute';
+      const unitTxt = isLengthSurface(displaySurface) ? `${depthUnit}, ${displaySign(displaySurface, depthPositive) < 0 ? 'depth positive down' : 'elevation negative down'}` : 'attribute';
+      // T1 (MAP-T1-010): the export is the white report page, not the dark screen
       const blob = await viewRef.current.toPng({
         title: displaySurface.name,
         caption: `${displaySurface.kind || 'surface'} · ${unitTxt}${crsTxt} · ${new Date().toISOString().slice(0, 10)}`,
+        theme: 'print',
       });
       downloadBlob(blob, `${String(displaySurface.name).replace(/[^\w-]+/g, '_')}-map.png`);
       setStatus(`Exported ${displaySurface.name} as PNG.`);
@@ -847,6 +861,12 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
         title="Depth display unit (feet or metres). Surfaces are stored in metres."
         onClick={() => changeDepthUnit(depthUnit === 'ft' ? 'm' : 'ft')}>
         depth: {depthUnit}
+      </button>
+      <button type="button" data-testid="map-depth-sign"
+        className="px-2 py-0.5 text-[11px] rounded border border-slate-700 text-slate-300 hover:bg-slate-800"
+        title="Show structure maps as elevation (negative below datum) or as positive depth below datum. Storage is unchanged."
+        onClick={() => setDepthPositive((d) => !d)}>
+        {depthPositive ? 'depth +' : 'elevation'}
       </button>
       <button type="button" data-testid="map-export-png"
         className="flex items-center gap-1 px-2 py-0.5 text-[11px] rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
@@ -883,7 +903,7 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
         </button>
       )}
       <span className="ml-auto whitespace-nowrap">{surfaces.length} surfaces{preview ? ' · unsaved preview' : ''}</span>
-      <span className="whitespace-nowrap text-slate-600" data-testid="map-status-unit">depth: {depthUnit} · elevation, negative down</span>
+      <span className="whitespace-nowrap text-slate-600" data-testid="map-status-unit">depth: {depthUnit} · {zConventionText}</span>
     </div>
   );
 
@@ -927,7 +947,7 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
         onDrag={onDrag}
         onDragEnd={onDragEnd}
         overlays={editOverlays}
-        display={{ unit: depthUnit, isLength: isLengthSurface(displaySurface) }}
+        display={{ unit: depthUnit, isLength: isLengthSurface(displaySurface), depthPositive }}
         settings={mapSettings}
       />
     </div>
@@ -1081,7 +1101,7 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
               <div className="space-y-1 rounded border border-pink-700/40 p-1.5" data-testid="map-guide-form">
                 <div className="text-slate-300">{guideAt ? `At X ${guideAt.x.toFixed(0)}, Y ${guideAt.y.toFixed(0)}` : 'Click the map to place the point'}</div>
                 <div className="flex gap-1">
-                  <input className={`${selCls} flex-1`} data-testid="map-guide-value" placeholder={`value (${depthUnit}, elevation)`} value={guideValue} onChange={(e) => setGuideValue(e.target.value)} />
+                  <input className={`${selCls} flex-1`} data-testid="map-guide-value" placeholder={`value (${depthUnit}, ${depthPositive ? 'depth' : 'elevation'})`} value={guideValue} onChange={(e) => setGuideValue(e.target.value)} />
                   <button type="button" data-testid="map-guide-add" disabled={!guideAt} className="px-2 py-1 rounded border border-emerald-700/60 text-emerald-300 disabled:opacity-40" onClick={addGuide}>Add</button>
                   <button type="button" data-testid="map-guide-cancel" className="px-2 py-1 rounded border border-slate-700 text-slate-300" onClick={cancelDraw}>Cancel</button>
                 </div>

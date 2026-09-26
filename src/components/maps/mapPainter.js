@@ -21,6 +21,26 @@ import { contourLabelPositions, isMajorLevel } from './contourLabels';
 import { FIT_PAD } from './mapTransform';
 
 export const MAP_BG = '#0f172a';
+
+/**
+ * Scene palettes (Mapping T1 MAP-T1-010, 2026-09-26). 'screen' is the dark
+ * workstation look; 'print' is the white report page the Suite chart
+ * standard asks for (dark ink, white halos), used by the PNG export.
+ */
+export const MAP_THEMES = Object.freeze({
+  screen: {
+    bg: MAP_BG, ink: INK, inkDim: INK_DIM, label: '#94a3b8',
+    wellInk: '#e2e8f0', wellLabel: '#cbd5e1', halo: 'rgba(2, 6, 23, 0.8)',
+    contourInk: 'rgba(226, 232, 240, 0.95)', contourHalo: 'rgba(2, 6, 23, 0.85)',
+    markerHalo: 'rgba(2, 6, 23, 0.8)',
+  },
+  print: {
+    bg: '#ffffff', ink: '#0f172a', inkDim: '#475569', label: '#334155',
+    wellInk: '#0f172a', wellLabel: '#0f172a', halo: 'rgba(255, 255, 255, 0.9)',
+    contourInk: '#0f172a', contourHalo: 'rgba(255, 255, 255, 0.9)',
+    markerHalo: 'rgba(255, 255, 255, 0.9)',
+  },
+});
 const LABEL_FONT = '10px sans-serif';
 const MAX_CONTOUR_LEVELS = 400;
 
@@ -39,15 +59,70 @@ export function nodeExtent(spec) {
 }
 
 /** Offscreen bitmap of the grid through the LUT (row 0 = south). */
-export function rasterBitmap({ grid, spec, lut, zMin, zMax, makeCanvas = () => document.createElement('canvas') }) {
+export function rasterBitmap({ grid, spec, lut, zMin, zMax, upsample = 1, makeCanvas = () => document.createElement('canvas') }) {
   const { nx, ny } = spec;
-  const rgba = buildMapPixels(grid, ny, nx, lut, zMin, zMax === zMin ? zMin + 1 : zMax);
+  const k = Math.max(1, Math.floor(upsample));
   const c = makeCanvas();
-  c.width = nx;
-  c.height = ny;
-  c.getContext('2d').putImageData(new ImageData(rgba, nx, ny), 0, 0);
+  if (k === 1) {
+    const rgba = buildMapPixels(grid, ny, nx, lut, zMin, zMax === zMin ? zMin + 1 : zMax);
+    c.width = nx;
+    c.height = ny;
+    c.getContext('2d').putImageData(new ImageData(rgba, nx, ny), 0, 0);
+    return c;
+  }
+  const { rgba, w, h } = upsampledPixels(grid, spec, lut, zMin, zMax, k);
+  c.width = w;
+  c.height = h;
+  c.getContext('2d').putImageData(new ImageData(rgba, w, h), 0, 0);
   return c;
 }
+
+/**
+ * Mapping T1 (MAP-T1-011): a k-times finer bitmap whose pixels take the
+ * bilinear value of the four surrounding nodes when all four are live
+ * (a smooth interior instead of blocky cells), the nearest node's value
+ * when some are null, and no colour when the nearest node is null. The
+ * map edge is then crisp at the node mask instead of blurred by smoothing
+ * the colours of a one-pixel-per-node bitmap. Bitmap pixel (c, r) covers
+ * the node-space point ((c + 0.5) / k - 0.5, (r + 0.5) / k - 0.5), so the
+ * bitmap still spans the cell extent and paintRaster maps it unchanged.
+ */
+export function upsampledPixels(grid, spec, lut, zMin, zMax, k) {
+  const { nx, ny } = spec;
+  const w = nx * k;
+  const h = ny * k;
+  const rgba = new Uint8ClampedArray(w * h * 4);
+  const span = zMax > zMin ? zMax - zMin : 1;
+  const live = (v) => Number.isFinite(v) && Math.abs(v) < 1e29;
+  for (let r = 0; r < h; r++) {
+    const fy = (r + 0.5) / k - 0.5;
+    const r0 = Math.max(0, Math.min(ny - 1, Math.floor(fy)));
+    const r1 = Math.min(ny - 1, r0 + 1);
+    const v = Math.max(0, Math.min(1, fy - r0));
+    const rn = Math.max(0, Math.min(ny - 1, Math.round(fy)));
+    for (let c = 0; c < w; c++) {
+      const fx = (c + 0.5) / k - 0.5;
+      const c0 = Math.max(0, Math.min(nx - 1, Math.floor(fx)));
+      const c1 = Math.min(nx - 1, c0 + 1);
+      const u = Math.max(0, Math.min(1, fx - c0));
+      const cn = Math.max(0, Math.min(nx - 1, Math.round(fx)));
+      const zn = grid[rn * nx + cn];
+      if (!live(zn)) continue;
+      const a = grid[r0 * nx + c0]; const b = grid[r0 * nx + c1];
+      const d = grid[r1 * nx + c0]; const e = grid[r1 * nx + c1];
+      const z = live(a) && live(b) && live(d) && live(e)
+        ? (1 - u) * (1 - v) * a + u * (1 - v) * b + (1 - u) * v * d + u * v * e
+        : zn;
+      const li = Math.max(0, Math.min(255, Math.round(((z - zMin) / span) * 255))) * 4;
+      const o = (r * w + c) * 4;
+      rgba[o] = lut[li]; rgba[o + 1] = lut[li + 1]; rgba[o + 2] = lut[li + 2]; rgba[o + 3] = 255;
+    }
+  }
+  return { rgba, w, h };
+}
+
+/** Upsampling factor that brings the bitmap's long side near `targetPx` (1 to 8). */
+export const rasterUpsample = (spec, targetPx = 1024) => Math.max(1, Math.min(8, Math.floor(targetPx / Math.max(spec.nx, spec.ny))));
 
 /**
  * Blit the bitmap over the CELL extent (each pixel centred on its
@@ -114,7 +189,7 @@ const toScreenFlat = (pts, transform) => {
 
 /** Contours (major levels heavier) with optional labels on the majors. */
 export function paintContours(ctx, {
-  contours, transform, labels = true, majorEvery = 5, fmt = null,
+  contours, transform, labels = true, majorEvery = 5, fmt = null, labelEvery = null,
   minor = 'rgba(15, 23, 42, 0.55)', major = 'rgba(15, 23, 42, 0.9)',
   ink = 'rgba(226, 232, 240, 0.95)', halo = 'rgba(2, 6, 23, 0.85)',
 }) {
@@ -143,8 +218,11 @@ export function paintContours(ctx, {
     ctx.lineWidth = 3;
     ctx.strokeStyle = halo;
     ctx.fillStyle = ink;
+    // Mapping T1 (MAP-T1-011): a sparse map (12 levels or fewer) labels
+    // every level; a dense one labels the majors as before
+    const every = labelEvery ?? (levels.length <= 12 ? 1 : majorEvery);
     for (let k = 0; k < levels.length; k++) {
-      if (!isMajorLevel(levels[k], step, majorEvery)) continue;
+      if (!isMajorLevel(levels[k], step, every)) continue;
       const text = format(levels[k]);
       for (const pts of screenPaths[k]) {
         for (const pos of contourLabelPositions(pts)) {
@@ -189,9 +267,11 @@ export function paintWells(ctx, {
     if (!Number.isFinite(w.surface_x) || !Number.isFinite(w.surface_y)) continue;
     const s = transform.worldToScreen(w.surface_x, w.surface_y);
     const p = posted?.[w.name];
+    let bore = null;
     if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) {
       const b = transform.worldToScreen(p.x, p.y);
       if (Math.hypot(b.x - s.x, b.y - s.y) > 2) {
+        bore = b;
         ctx.strokeStyle = ink;
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 2]);
@@ -215,15 +295,22 @@ export function paintWells(ctx, {
     } else {
       ctx.beginPath(); ctx.arc(s.x, s.y, 3, 0, Math.PI * 2); ctx.fill();
     }
-    if (showNames || p) {
-      const text = `${showNames ? w.name : ''}${p && Number.isFinite(p.z) ? `${showNames ? '  ' : ''}${fmt(p.z)}` : ''}`;
-      if (text) {
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = halo;
-        ctx.strokeText(text, s.x + 5, s.y + 3);
-        ctx.fillStyle = label;
-        ctx.fillText(text, s.x + 5, s.y + 3);
-      }
+    // Mapping T1 (MAP-T1-012): a deviated well's posted value is written
+    // at the borehole point it was taken at, its name at the wellhead
+    const value = p && Number.isFinite(p.z) ? fmt(p.z) : '';
+    const put = (text, x, y) => {
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = halo;
+      ctx.strokeText(text, x, y);
+      ctx.fillStyle = label;
+      ctx.fillText(text, x, y);
+    };
+    if (bore) {
+      if (showNames) put(w.name, s.x + 5, s.y + 3);
+      if (value) put(value, bore.x + 5, bore.y + 3);
+    } else if (showNames || value) {
+      const text = `${showNames ? w.name : ''}${value ? `${showNames ? '  ' : ''}${value}` : ''}`;
+      if (text) put(text, s.x + 5, s.y + 3);
     }
   }
   ctx.restore();
@@ -336,6 +423,7 @@ export function paintCulture(ctx, { layers = [], transform }) {
 /** Vertical colour bar with nice ticks and the contour interval. */
 export function paintColorbar(ctx, {
   x, y, w = 10, h, lut, zMin, zMax, fmt = (v) => String(v), unit = '', step = null, ticks = 5, stepFmt = null,
+  ink = INK, inkDim = INK_DIM, levelsOf = null,
 }) {
   ctx.save();
   for (let i = 0; i < h; i++) {
@@ -343,15 +431,18 @@ export function paintColorbar(ctx, {
     ctx.fillStyle = `rgb(${lut[li]},${lut[li + 1]},${lut[li + 2]})`;
     ctx.fillRect(x, y + i, w, 1);
   }
-  ctx.strokeStyle = INK_DIM;
+  ctx.strokeStyle = inkDim;
   ctx.lineWidth = 1;
   ctx.strokeRect(x - 0.5, y - 0.5, w + 1, h + 1);
   ctx.font = FONT(1);
-  ctx.fillStyle = INK;
+  ctx.fillStyle = ink;
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
   const span = zMax - zMin;
-  const levels = span > 0 ? contourLevels(zMin, zMax, ticks).levels : [];
+  // levelsOf (Mapping T1 MAP-T1-011) returns round levels chosen in the
+  // DISPLAY unit, converted back to data units; the default picks them in
+  // data units (round metres shown in feet read as -4790.0, -4855.6)
+  const levels = span > 0 ? (levelsOf ? levelsOf(zMin, zMax, ticks) : contourLevels(zMin, zMax, ticks).levels) : [];
   const drawn = [];
   const put = (v, ty) => {
     if (drawn.some((d) => Math.abs(d - ty) < 9)) return;
@@ -359,7 +450,7 @@ export function paintColorbar(ctx, {
     ctx.beginPath(); ctx.moveTo(x - 3, ty); ctx.lineTo(x, ty); ctx.stroke();
     ctx.fillText(fmt(v), x - 5, ty);
   };
-  ctx.strokeStyle = INK;
+  ctx.strokeStyle = ink;
   put(zMax, y);
   put(zMin, y + h);
   for (const v of levels) {
@@ -369,23 +460,23 @@ export function paintColorbar(ctx, {
   if (step > 0) {
     ctx.textAlign = 'right';
     ctx.textBaseline = 'top';
-    ctx.fillStyle = INK_DIM;
+    ctx.fillStyle = inkDim;
     ctx.fillText(`CI ${(stepFmt || fmt)(step)}${unit ? ` ${unit}` : ''}`, x + w, y + h + 6);
   }
   ctx.restore();
 }
 
 /** Scale bar for an axis-aligned metre grid. */
-export function paintScaleBar(ctx, { x, y, transform, maxPx = 180 }) {
-  drawScaleBar(ctx, { x, y, metersPerPx: transform.metersPerPx, dpr: 1, maxPx });
+export function paintScaleBar(ctx, { x, y, transform, maxPx = 180, ink = INK }) {
+  drawScaleBar(ctx, { x, y, metersPerPx: transform.metersPerPx, dpr: 1, maxPx, ink });
 }
 
 /** North arrow for a grid whose y axis is grid north (screen up). */
-export function paintNorthArrow(ctx, { x, y }) {
+export function paintNorthArrow(ctx, { x, y, ink = INK }) {
   const R = 14;
   ctx.save();
-  ctx.strokeStyle = INK;
-  ctx.fillStyle = INK;
+  ctx.strokeStyle = ink;
+  ctx.fillStyle = ink;
   ctx.lineWidth = 1.5;
   ctx.font = FONT(1);
   ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2); ctx.stroke();
@@ -403,14 +494,14 @@ export function paintNorthArrow(ctx, { x, y }) {
 
 /** Easting ticks along the bottom pad and northing ticks along the left
  *  pad (rotated), the tick step a nice number near 90 px. */
-export function paintAxes(ctx, { transform, pad = FIT_PAD, targetPx = 90 }) {
+export function paintAxes(ctx, { transform, pad = FIT_PAD, targetPx = 90, ink = INK, inkDim = INK_DIM }) {
   const r = transform.visibleRect();
   const step = niceStepUp(targetPx * transform.metersPerPx);
   const { vw, vh } = transform;
   ctx.save();
   ctx.font = FONT(1);
-  ctx.strokeStyle = INK_DIM;
-  ctx.fillStyle = INK;
+  ctx.strokeStyle = inkDim;
+  ctx.fillStyle = ink;
   ctx.lineWidth = 1;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';

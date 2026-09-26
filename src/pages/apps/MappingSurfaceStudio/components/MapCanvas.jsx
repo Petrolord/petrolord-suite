@@ -28,20 +28,36 @@ export const DEFAULT_MAP_DISPLAY = Object.freeze({
  * (display unit) or an automatic nice step chosen IN THE DISPLAY UNIT,
  * so a feet session contours at 50 ft, not at 32.8 ft (10 m).
  */
-export function contourPlan({ grid, typed, unit = 'ft', isLength = true, target = 10 }) {
-  const toDisp = (v) => (isLength ? toDisplay(v, unit) : v);
-  const fromDisp = (v) => (isLength ? fromDisplay(v, unit) : v);
+export function contourPlan({ grid, typed, unit = 'ft', isLength = true, target = 10, sign = 1 }) {
+  const toDisp = (v) => (isLength ? sign * toDisplay(v, unit) : v);
+  const fromDisp = (v) => (isLength ? fromDisplay(sign * v, unit) : v);
   const t = Number(typed);
   let stepDisp;
   if (t > 0) stepDisp = t;
   else if (grid) {
     const { zMin, zMax } = gridRange(grid);
-    stepDisp = zMax > zMin ? contourLevels(toDisp(zMin), toDisp(zMax), target).step : 0;
+    const [a, b] = [toDisp(zMin), toDisp(zMax)].sort((p, q) => p - q);
+    stepDisp = b > a ? contourLevels(a, b, target).step : 0;
   } else stepDisp = 0;
   const stepM = stepDisp > 0 ? fromDisp(stepDisp) : null;
   const format = (v) => fmtTick(toDisp(v), stepDisp > 0 ? stepDisp : 1);
-  return { stepM, stepDisp, format };
+  return { stepM, stepDisp, format, toDisp, fromDisp };
 }
+
+/**
+ * Display sign of a surface (Mapping T1 MAP-T1-013): -1 shows a depth
+ * STRUCTURE as positive depth below datum (storage stays elevation); every
+ * other surface, and the default, keeps its stored sign.
+ */
+export const displaySign = (surface, depthPositive) => (
+  depthPositive && surface?.z_domain === 'depth' && surface?.kind !== 'isochore' ? -1 : 1
+);
+
+/** Round colour-bar levels chosen in the display unit, returned in data units. */
+export const colorbarLevelsFor = (toDisp, fromDisp) => (zMin, zMax, ticks) => {
+  const [a, b] = [toDisp(zMin), toDisp(zMax)].sort((p, q) => p - q);
+  return b > a ? contourLevels(a, b, ticks).levels.map(fromDisp) : [];
+};
 
 const MapCanvas = forwardRef(function MapCanvas({
   surface, grid, wells = [], cultureLayers = [], posted = null, markers = [],
@@ -55,13 +71,15 @@ const MapCanvas = forwardRef(function MapCanvas({
   } : null;
   const isLength = display.isLength;
   const isTime = surface?.z_domain === 'time';
+  const sign = isLength ? displaySign(surface, display.depthPositive) : 1;
   // lengths in the display unit, time in ms, attributes raw
-  const zFormat = (v) => (isLength ? toDisplay(v, display.unit).toFixed(1) : isTime ? v.toFixed(1) : v.toFixed(3));
+  const zFormat = (v) => (isLength ? (sign * toDisplay(v, display.unit)).toFixed(1) : isTime ? v.toFixed(1) : v.toFixed(3));
   const zUnit = isLength ? display.unit : isTime ? 'ms' : '';
   const plan = useMemo(
-    () => contourPlan({ grid, typed: settings.contourStep, unit: display.unit, isLength }),
-    [grid, settings.contourStep, display.unit, isLength],
+    () => contourPlan({ grid, typed: settings.contourStep, unit: display.unit, isLength, sign }),
+    [grid, settings.contourStep, display.unit, isLength, sign],
   );
+  const levelsOf = useMemo(() => colorbarLevelsFor(plan.toDisp, plan.fromDisp), [plan]);
   return (
     <MapViewport
       ref={ref}
@@ -91,6 +109,7 @@ const MapCanvas = forwardRef(function MapCanvas({
       showAxes={settings.axes}
       height="fill"
       zFormat={zFormat}
+      colorbarLevels={isLength || isTime ? levelsOf : null}
       zUnit={zUnit}
       label={surface?.name || ''}
     />

@@ -23,7 +23,7 @@ import { gridRange } from '@/lib/gridding/mapContours';
 import { MapTransform, FIT_PAD } from './mapTransform';
 import { lutOf } from './lut';
 import {
-  MAP_BG, nodeExtent, rasterBitmap, paintRaster, contourPaths, paintContours, paintWells,
+  MAP_THEMES, rasterUpsample, nodeExtent, rasterBitmap, paintRaster, contourPaths, paintContours, paintWells,
   paintPolygons, paintCulture, paintMarkers, paintColorbar, paintScaleBar, paintNorthArrow, paintAxes, sampleAtScreen,
 } from './mapPainter';
 import { mapPlotPng } from './mapPng';
@@ -62,6 +62,9 @@ const MapViewport = forwardRef(function MapViewport({
   // with world points. `overlays` are extra world polylines painted over
   // the contours ([{points: flat [x, y, ...], color, width, dash}]).
   onDragStart = null, onDrag = null, onDragEnd = null, overlays = [],
+  // Mapping T1: round colour-bar levels chosen by the caller in its
+  // display unit ((zMin, zMax, ticks) -> data-unit levels)
+  colorbarLevels = null,
 }, ref) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
@@ -76,7 +79,7 @@ const MapViewport = forwardRef(function MapViewport({
   const range = useMemo(() => (grid ? gridRange(grid) : null), [grid]);
   const bitmap = useMemo(() => {
     if (!grid || !spec || !range || typeof document === 'undefined') return null;
-    try { return rasterBitmap({ grid, spec, lut, zMin: range.zMin, zMax: range.zMax }); } catch { return null; }
+    try { return rasterBitmap({ grid, spec, lut, zMin: range.zMin, zMax: range.zMax, upsample: rasterUpsample(spec) }); } catch { return null; }
   }, [grid, spec, lut, range]);
   const contourData = useMemo(
     () => (contours && grid && spec ? contourPaths(grid, spec, { step: contourStep }) : null),
@@ -113,38 +116,40 @@ const MapViewport = forwardRef(function MapViewport({
   const fmtZ = useCallback((v) => `${zFormat(v)}${zUnit ? ` ${zUnit}` : ''}`, [zFormat, zUnit]);
 
   /** Paint the whole scene in CSS px onto a prepared context. */
-  const paintScene = useCallback((ctx, w, h) => {
+  const paintScene = useCallback((ctx, w, h, themeName = 'screen') => {
     const t = tRef.current;
-    ctx.fillStyle = MAP_BG;
+    const th = MAP_THEMES[themeName] || MAP_THEMES.screen;
+    ctx.fillStyle = th.bg;
     ctx.fillRect(0, 0, w, h);
     if (!spec || !grid || !range) return;
     if (bitmap) paintRaster(ctx, { bitmap, spec, transform: t });
-    if (contourData) paintContours(ctx, { contours: contourData, transform: t, labels: contourLabels, fmt: contourFormat || zFormat });
+    if (contourData) paintContours(ctx, { contours: contourData, transform: t, labels: contourLabels, fmt: contourFormat || zFormat, ink: th.contourInk, halo: th.contourHalo });
     if (overlays.length) paintOverlays(ctx, { overlays, transform: t });
     if (cultureLayers.length) paintCulture(ctx, { layers: cultureLayers, transform: t });
     paintPolygons(ctx, { polygons, pending: pendingVertices, transform: t });
-    paintWells(ctx, { wells, transform: t, showNames, posted, fmt: zFormat });
-    if (markers.length) paintMarkers(ctx, { markers, transform: t });
-    if (showAxes) paintAxes(ctx, { transform: t, pad: FIT_PAD });
+    paintWells(ctx, { wells, transform: t, showNames, posted, fmt: zFormat, ink: th.wellInk, label: th.wellLabel, halo: th.halo });
+    if (markers.length) paintMarkers(ctx, { markers, transform: t, halo: th.markerHalo });
+    if (showAxes) paintAxes(ctx, { transform: t, pad: FIT_PAD, ink: th.ink, inkDim: th.inkDim });
     if (showLegend) {
       const cbH = Math.max(40, h - 2 * FIT_PAD);
       paintColorbar(ctx, {
         x: w - 18, y: FIT_PAD, w: 10, h: cbH, lut, zMin: range.zMin, zMax: range.zMax,
         fmt: zFormat, unit: zUnit, step: contourData?.step || null, stepFmt: contourFormat || zFormat,
+        ink: th.ink, inkDim: th.inkDim, levelsOf: colorbarLevels,
       });
     }
-    if (showScaleBar) paintScaleBar(ctx, { x: 12, y: h - 12, transform: t, maxPx: Math.min(180, w / 3) });
-    if (showNorth) paintNorthArrow(ctx, { x: 26, y: 30 });
+    if (showScaleBar) paintScaleBar(ctx, { x: 12, y: h - 12, transform: t, maxPx: Math.min(180, w / 3), ink: th.ink });
+    if (showNorth) paintNorthArrow(ctx, { x: 26, y: 30, ink: th.ink });
     if (label) {
       ctx.save();
-      ctx.fillStyle = '#94a3b8';
+      ctx.fillStyle = th.label;
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       ctx.fillText(label, showNorth ? 48 : 8, 6);
       ctx.restore();
     }
-  }, [spec, grid, range, bitmap, contourData, contourLabels, zFormat, contourFormat, cultureLayers, polygons, pendingVertices, wells, showNames, posted, markers, showAxes, showLegend, lut, zUnit, showScaleBar, showNorth, label, overlays]);
+  }, [spec, grid, range, bitmap, contourData, contourLabels, zFormat, contourFormat, cultureLayers, polygons, pendingVertices, wells, showNames, posted, markers, showAxes, showLegend, lut, zUnit, showScaleBar, showNorth, label, overlays, colorbarLevels]);
 
   // paint the live canvas
   useLayoutEffect(() => {
@@ -173,8 +178,9 @@ const MapViewport = forwardRef(function MapViewport({
   useImperativeHandle(ref, () => ({
     transform: tRef.current,
     fit: () => { tRef.current.fit(); bump(); },
-    toPng: ({ title, caption = '', scale = 2 } = {}) => mapPlotPng({
-      paint: (ctx) => paintScene(ctx, size.w, size.h), width: size.w, height: size.h, title, caption, scale,
+    // theme 'print' (Mapping T1) paints the white report page
+    toPng: ({ title, caption = '', scale = 2, theme = 'screen' } = {}) => mapPlotPng({
+      paint: (ctx) => paintScene(ctx, size.w, size.h, theme), width: size.w, height: size.h, title, caption, scale,
     }),
   }), [paintScene, size.w, size.h, bump]);
 

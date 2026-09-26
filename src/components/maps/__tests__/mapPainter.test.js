@@ -78,10 +78,11 @@ test('contourPaths honours a fixed step in world coordinates and falls back to a
   expect(contourPaths(grid, spec).auto).toBe(true);
 });
 
-test('paintContours strokes majors heavier and labels only majors (halo then ink)', () => {
+test('paintContours strokes majors heavier; a dense map labels only majors, a sparse one every level (halo then ink)', () => {
   const ctx = makeCtx();
   const c = contourPaths(grid, spec, { step: 10 });
-  paintContours(ctx, { contours: c, transform: tr(), labels: true, fmt: (v) => `${v}` });
+  // labelEvery 5 is the dense-map rule (more than 12 levels): majors only
+  paintContours(ctx, { contours: c, transform: tr(), labels: true, fmt: (v) => `${v}`, labelEvery: 5 });
   const widths = new Set(of(ctx, 'stroke').map((s) => s[2]));
   expect(widths.has(1.6)).toBe(true);
   expect(widths.has(1)).toBe(true);
@@ -90,8 +91,14 @@ test('paintContours strokes majors heavier and labels only majors (halo then ink
   for (const l of labels) expect(Math.abs(Math.round(Number(l) / 10) % 5)).toBe(0);
   expect(of(ctx, 'strokeText').length).toBe(labels.length);
   const off = makeCtx();
-  paintContours(off, { contours: c, transform: tr(), labels: false });
+  paintContours(off, { contours: c, transform: tr(), labels: false, labelEvery: 5 });
   expect(texts(off)).toEqual([]);
+  // T1: by default 12 levels or fewer label every level, majors or not
+  expect(c.levels.length).toBeLessThanOrEqual(12);
+  const sc = makeCtx();
+  paintContours(sc, { contours: c, transform: tr(), labels: true, fmt: (v) => `${v}` });
+  expect(texts(sc).some((l) => Math.round(Number(l) / 10) % 5 !== 0)).toBe(true);
+  expect(texts(sc).length).toBeGreaterThan(labels.length);
 });
 
 test('paintWells posts the symbol, the name and the value, and marks a displaced borehole', () => {
@@ -103,7 +110,12 @@ test('paintWells posts the symbol, the name and the value, and marks a displaced
     { name: 'X-3', surface_x: null, surface_y: 1 },
   ];
   paintWells(ctx, { wells, transform: t, posted: { 'A-1': { z: -1490, x: 100, y: 100 }, 'D-2': { z: -1480, x: 300, y: 150 } }, fmt: (v) => `${v.toFixed(0)} m` });
-  expect(texts(ctx)).toEqual(['A-1  -1490 m', 'D-2  -1480 m']);
+  // T1 (MAP-T1-012): a displaced borehole takes its value, the wellhead its name
+  expect(texts(ctx)).toEqual(['A-1  -1490 m', 'D-2', '-1480 m']);
+  const at = (text) => of(ctx, 'fillText').find((c) => c[1] === text);
+  const bp = t.worldToScreen(300, 150);
+  expect(at('-1480 m')[2]).toBeCloseTo(bp.x + 5, 6);
+  expect(at('-1480 m')[3]).toBeCloseTo(bp.y + 3, 6);
   // A-1 at the wellhead: no borehole square; D-2 displaced: dashed line + square
   expect(of(ctx, 'setLineDash').filter((c) => c[1].length === 2)).toHaveLength(1);
   expect(of(ctx, 'fillRect')).toHaveLength(1);
