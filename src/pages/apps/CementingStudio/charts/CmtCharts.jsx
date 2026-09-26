@@ -6,7 +6,7 @@ import {
   ResponsiveContainer, ComposedChart, Line, Area, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, ReferenceLine,
 } from 'recharts';
-import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE, GRID_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE, GRID_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import ChartLogo from '@/components/charts/ChartLogo';
 import {
   pressureOut, pressureLabel, volumeOut, volumeLabel, emwOut, emwLabel,
@@ -40,16 +40,16 @@ export function PlacementChart({ placement, depthUnit }) {
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data} margin={CHART_MARGINS.compact}>
           <CartesianGrid {...GRID_STYLE} />
-          <XAxis dataKey="v" type="number" domain={[0, 'dataMax']} {...axisProps}
+          <XAxis dataKey="v" type="number" domain={[0, 'dataMax']} {...axisProps} height={XAXIS_LABEL_HEIGHT}
             tickFormatter={(x) => x.toFixed(0)}
-            label={{ value: `pumped (${volumeLabel(depthUnit)})`, position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
+            label={{ value: `pumped (${volumeLabel(depthUnit)})`, position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <YAxis type="number" domain={[0, 'auto']} {...axisProps}
             tickFormatter={(x) => x.toFixed(0)}
             label={{ value: pressureLabel(depthUnit), angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <Tooltip contentStyle={TOOLTIP_STYLE}
             formatter={(x, name) => [Number.isFinite(x) ? x.toFixed(0) : '--', name === 'freeFall' ? 'Free-fall deficit' : 'Pump pressure']}
             labelFormatter={(x) => `${Number(x).toFixed(1)} ${volumeLabel(depthUnit)}`} />
-          <Legend wrapperStyle={{ fontSize: 10 }} />
+          <Legend {...LEGEND_PROPS} />
           <Area dataKey="freeFall" name="Free-fall deficit" fill="#fca5a5" fillOpacity={0.5}
             stroke="none" isAnimationActive={false} connectNulls={false} />
           <Line dataKey="p" name="Pump pressure" stroke="#7c3aed" strokeWidth={2.5}
@@ -74,19 +74,21 @@ export function EcdChart({ placement, fracEmwKgM3, depthUnit }) {
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data} margin={CHART_MARGINS.compact}>
           <CartesianGrid {...GRID_STYLE} />
-          <XAxis dataKey="v" type="number" domain={[0, 'dataMax']} {...axisProps}
+          <XAxis dataKey="v" type="number" domain={[0, 'dataMax']} {...axisProps} height={XAXIS_LABEL_HEIGHT}
             tickFormatter={(x) => x.toFixed(0)}
-            label={{ value: `pumped (${volumeLabel(depthUnit)})`, position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
+            label={{ value: `pumped (${volumeLabel(depthUnit)})`, position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
+          {/* CMT-T1-002: the frac line extends the axis (it sat off the chart);
+              3 decimals so ticks 0.005 apart do not repeat */}
           <YAxis type="number" domain={['auto', 'auto']} {...axisProps}
-            tickFormatter={(x) => x.toFixed(2)}
+            tickFormatter={(x) => x.toFixed(3)} width={56}
             label={{ value: emwLabel(depthUnit), angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <Tooltip contentStyle={TOOLTIP_STYLE}
             formatter={(x) => (Number.isFinite(x) ? x.toFixed(3) : '--')}
             labelFormatter={(x) => `${Number(x).toFixed(1)} ${volumeLabel(depthUnit)}`} />
-          <Legend wrapperStyle={{ fontSize: 10 }} />
+          <Legend {...LEGEND_PROPS} />
           {fracEmwKgM3 != null && (
             <ReferenceLine y={emwOut(fracEmwKgM3, depthUnit)} stroke="#1d4ed8" strokeDasharray="4 3"
-              label={{ value: 'frac EMW', fontSize: 9, fill: '#1d4ed8' }} />
+              ifOverflow="extendDomain" label={{ value: 'frac EMW', fontSize: 9, fill: '#1d4ed8', position: 'insideTopRight' }} />
           )}
           <Line dataKey="ecd" name="ECD at previous shoe" stroke="#0f766e" strokeWidth={2.5}
             dot={false} isAnimationActive={false} />
@@ -107,9 +109,9 @@ export function StandoffChart({ profile, depthUnit }) {
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data} margin={CHART_MARGINS.compact} layout="vertical">
           <CartesianGrid {...GRID_STYLE} />
-          <XAxis type="number" domain={[0, 100]} {...axisProps}
-            label={{ value: 'standoff %', position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
-          <YAxis dataKey="md" type="number" domain={['dataMin', 'dataMax']} {...axisProps}
+          <XAxis type="number" domain={[0, 100]} {...axisProps} height={XAXIS_LABEL_HEIGHT}
+            label={{ value: 'standoff %', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
+          <YAxis dataKey="md" type="number" domain={[0, 'dataMax']} allowDecimals={false} {...axisProps}
             tickFormatter={(v) => v.toFixed(0)}
             label={{ value: `MD (${depthLabel(depthUnit)})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <Tooltip contentStyle={TOOLTIP_STYLE}
