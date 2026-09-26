@@ -78,6 +78,12 @@ trajectory.
   non-Newtonian frac-fluid friction, perforation friction/tortuosity,
   acid frac, diversion staging, refrac selection.
 
+## Senior test T1 (2026-09-26)
+
+Demo-ready. The frac design tab now reads the frac height against the
+interval's vertical thickness. The pump schedule chart has axis and label
+fixes. See `docs/testing/StimulationDesigner-T1.md`.
+
 ## Staging E2E checklist (owner)
 
 1. Open Drilling → Stimulation Designer on a wellbore with a definitive

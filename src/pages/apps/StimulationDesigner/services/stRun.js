@@ -124,20 +124,26 @@ const interpAtTvd = (grid, arr, tvd) => {
 /** Closure (SHMIN) + reservoir pressure (PP) at the treatment mid-point. */
 export function rockContext({ caseDoc, stations, curves }) {
   const midMdM = 0.5 * (caseDoc.interval.topMdM + caseDoc.interval.bottomMdM);
+  // Vertical thickness of the treated interval on the trajectory, so the
+  // frac height can be read against it (display context only).
+  const intervalTvdM = stations?.length
+    ? tvdAt(stations, caseDoc.interval.bottomMdM) - tvdAt(stations, caseDoc.interval.topMdM)
+    : null;
   const overrideClosure = caseDoc.params.closureOverridePa;
   const overridePRes = caseDoc.params.pResOverridePa;
   if (overrideClosure != null && overridePRes != null) {
     return {
-      midMdM, midTvdM: null, closurePa: overrideClosure, pResPa: overridePRes, source: 'manual',
+      midMdM, midTvdM: null, intervalTvdM, closurePa: overrideClosure, pResPa: overridePRes, source: 'manual',
     };
   }
   if (!stations?.length || !curves?.tvdM?.length) {
-    return { midMdM, midTvdM: null, closurePa: overrideClosure, pResPa: overridePRes, source: 'missing' };
+    return { midMdM, midTvdM: null, intervalTvdM, closurePa: overrideClosure, pResPa: overridePRes, source: 'missing' };
   }
   const midTvdM = tvdAt(stations, midMdM);
   return {
     midMdM,
     midTvdM,
+    intervalTvdM,
     closurePa: overrideClosure ?? interpAtTvd(curves.tvdM, curves.shminPa, midTvdM),
     pResPa: overridePRes ?? interpAtTvd(curves.tvdM, curves.ppPa, midTvdM),
     source: 'published',
@@ -169,7 +175,7 @@ export function runAll({ caseDoc, stations = null, curves = null }) {
   });
 
   const proppantRow = PROPPANT_CATALOG.find((row) => row.name === f.proppantName);
-  if (!proppantRow) throw new Error(`Unknown proppant "${f.proppantName}" — pick from the catalog.`);
+  if (!proppantRow) throw new Error(`Unknown proppant "${f.proppantName}". Pick one from the catalog.`);
   let pack = null;
   let productivity = null;
   if (rock.closurePa != null) {
@@ -232,9 +238,13 @@ function kpisOf({ rock, geometry, balance, schedule, pack, productivity, warning
 // constant-height slit) shape functions on the tip-to-well coordinate.
 export function widthProfileRows({ geometry, xfM, n = 40 }) {
   const rows = [];
-  for (let i = 0; i <= n; i += 1) {
-    const x = (i / n) * xfM;
-    const xi = x / xfM;
+  // Uniform samples plus a refined tip, where the PKN (1 - x/xf)^(1/4)
+  // shape falls steeply to zero.
+  const xis = [];
+  for (let i = 0; i < n; i += 1) xis.push(i / n);
+  for (const t of [0.985, 0.99, 0.995, 0.998, 0.9995, 1]) if (t > xis[xis.length - 1]) xis.push(t);
+  for (const xi of xis) {
+    const x = xi * xfM;
     const shape = geometry.model === 'pkn' ? (1 - xi) ** 0.25 : Math.sqrt(1 - xi * xi);
     rows.push({ xM: x, wMm: geometry.wMaxM * shape * 1000 });
   }
