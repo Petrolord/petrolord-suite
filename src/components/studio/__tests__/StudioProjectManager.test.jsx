@@ -44,7 +44,7 @@ describe('StudioProjectManager', () => {
     fireEvent.click(screen.getByTitle('Create new project'));
     const input = await screen.findByPlaceholderText('Project name');
     fireEvent.change(input, { target: { value: 'My Flood' } });
-    fireEvent.click(screen.getByRole('button', { name: /Create Project/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Create project/i }));
     await waitFor(() => expect(onCreate).toHaveBeenCalledWith('My Flood'));
   });
 
@@ -58,7 +58,7 @@ describe('StudioProjectManager', () => {
       />
     );
     fireEvent.click(screen.getByTitle('Create new project'));
-    fireEvent.click(await screen.findByRole('button', { name: /Create Project/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Create project/i }));
     await waitFor(() => expect(onCreate).not.toHaveBeenCalled());
   });
 

@@ -204,7 +204,7 @@ const DCAHelpContent = () => {
               Results are split across two tabs above the chart. <strong>Model Fit</strong> shows the history with the fitted curve and the forecast extension. <strong>Forecast Results</strong> is where the numbers live:
             </p>
             <ul className="text-xs space-y-2 list-disc pl-4">
-              <li><strong>EUR cards</strong> reporting remaining reserves, cumulative to date and estimated ultimate recovery. After a Monte Carlo run these show P10, P50 and P90 side by side.</li>
+              <li><strong>EUR cards</strong> reporting remaining reserves, cumulative to date and estimated ultimate recovery. Remaining reserves count only what the curve produces after the last history date, over the forecast horizon or to the economic limit; EUR adds the volume produced to date, integrated from the rate history. The well life is counted from the last history date and says whether it ends at the economic limit or at the horizon. After a Monte Carlo run the cards show P10, P50 and P90 EUR side by side, from first production to the same end date.</li>
               <li><strong>The forecast table</strong>, one row per period, carrying rate and running cumulative through to the economic limit or the duration cap.</li>
               <li><strong>Export CSV</strong> writes that table out for use elsewhere.</li>
               <li><strong>The EUR distribution histogram</strong>, shown once a probabilistic run has produced a spread of outcomes.</li>

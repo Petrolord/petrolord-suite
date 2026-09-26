@@ -120,6 +120,7 @@ const RiskedReservesValuation = lazy(() => import('@/pages/apps/RiskedReservesVa
 const EorScreeningTool = lazy(() => import('@/pages/apps/EorScreeningTool'));
 const ForecastScenarioHub = lazy(() => import('@/pages/apps/ForecastScenarioHub'));
 const DeclineCurveAnalysis = lazy(() => import('@/pages/apps/DeclineCurveAnalysis'));
+const DcaHarness = lazy(() => import('@/dev/DcaHarness'));
 const FluidSystemsStudio = lazy(() => import('@/pages/apps/FluidSystemsStudio'));
 const MbalHarness = lazy(() => import('@/pages/apps/reservoir-balance/harness/MbalHarness'));
 const ReservoirBalance = lazy(() => import('@/pages/apps/reservoir-balance/ReservoirBalance'));
@@ -944,7 +945,7 @@ function App() {
                                   <Route path="/dev/stimulation" element={<StimulationDesignerHarness />} />
                                   <Route path="/dev/well-integrity" element={<WellIntegrityPAHarness />} />
                                   <Route path="/dev/well-cost" element={<WellCostTimeHarness />} />
-                                  <Route path="/dev/dca" element={<DeclineCurveAnalysis />} />
+                                  <Route path="/dev/dca" element={<DcaHarness />} />
                                   <Route path="/dev/fiscal-regime-designer" element={<FiscalRegimeDesigner />} />
                                   <Route path="/dev/fluid-systems-studio" element={<FluidSystemsStudio />} />
                                   <Route path="/dev/epe/*" element={<EpeHarness />} />
