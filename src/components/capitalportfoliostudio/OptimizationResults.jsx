@@ -9,7 +9,7 @@ import { projectEmv } from '@/utils/portfolioOptimizer';
 import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
 import { formatFull, MONEY_MM_DECIMALS } from '@/lib/fullPrecision';
 import {
-  CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE,
+  CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT,
 } from '@/utils/chartTheme';
 
 const formatCurrency = (value, unit = 'MM') => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value || 0) + (unit ? ` ${unit}` : '');
@@ -50,6 +50,25 @@ const OptimizationResults = ({ result }) => {
     resolution, solveMethod, optimalityGap,
   } = result;
   const optimalPoint = [{ capex: totalCapex, emv: totalEmv }];
+  // CPS-T1-001: the frontier's last point is the funded set, and with
+  // domain [dataMin, dataMax] it sat on the plot edge and was clipped (the
+  // optimum never showed). The x axis runs to the capex limit and both axes
+  // carry headroom.
+  // round steps (1, 2, 2.5, 5 x 10^n) so the ticks land on round values
+  const niceAxis = (lo, hi) => {
+    const span = Math.max(hi - lo, 1) * 1.05;
+    const raw = span / 5;
+    const mag = 10 ** Math.floor(Math.log10(raw));
+    const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((m) => m >= raw);
+    const min = Math.floor(lo / step) * step;
+    const max = Math.ceil((lo + span) / step) * step;
+    const ticks = [];
+    for (let v = min; v <= max + step / 2; v += step) ticks.push(Number(v.toFixed(6)));
+    return { domain: [min, max], ticks };
+  };
+  const xAxis = niceAxis(0, Math.max(Number(result.capexLimit) || 0, ...(frontierData || []).map((d) => d.capex), totalCapex || 0));
+  const emvs = [...(frontierData || []).map((d) => d.emv), totalEmv || 0];
+  const yAxis = niceAxis(Math.min(0, ...emvs), Math.max(...emvs, 0));
   const methodLabel = riskMethodLabel(risk);
 
   return (
@@ -145,16 +164,17 @@ const OptimizationResults = ({ result }) => {
             <div>
               <h3 className="text-lg font-semibold mb-2 text-slate-200">Efficient Frontier (risked EMV vs capital)</h3>
               <ChartFrame height={300} exportFilename="portfolio-efficient-frontier">
-                <ScatterChart margin={{ top: 16, right: 20, bottom: 20, left: 30 }}>
+                <ScatterChart margin={{ top: 16, right: 20, bottom: 8, left: 30 }}>
                   <CartesianGrid {...GRID_STYLE} />
                   <XAxis
                     dataKey="capex" type="number" name="CAPEX"
-                    label={{ value: 'Total CAPEX ($MM)', position: 'insideBottom', offset: -10, fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
+                    height={XAXIS_LABEL_HEIGHT}
+                    label={{ value: 'Total CAPEX ($MM)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                     tick={AXIS_TICK} stroke={CHART_COLORS.axisLine}
-                    domain={['dataMin', 'dataMax']}
+                    domain={xAxis.domain} ticks={xAxis.ticks}
                   />
                   <YAxis
-                    dataKey="emv" type="number" name="Risked EMV"
+                    dataKey="emv" type="number" name="Risked EMV" domain={yAxis.domain} ticks={yAxis.ticks}
                     label={{ value: 'Risked EMV ($MM)', angle: -90, position: 'insideLeft', offset: -18, fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                     tick={AXIS_TICK} stroke={CHART_COLORS.axisLine}
                   />
@@ -163,9 +183,9 @@ const OptimizationResults = ({ result }) => {
                     cursor={{ strokeDasharray: '3 3' }}
                     formatter={(v, name) => [formatCurrency(v), name]}
                   />
-                  <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
-                  <Scatter name="Efficient frontier" data={frontierData} fill="#2563eb" shape="circle" />
-                  <Scatter name="Optimal portfolio" data={optimalPoint} fill="#059669" shape="star" />
+                  <Legend {...LEGEND_PROPS} />
+                  <Scatter name="Efficient frontier" data={frontierData} fill="#2563eb" shape="circle" isAnimationActive={false} />
+                  <Scatter name="Optimal portfolio" data={optimalPoint} fill="#059669" shape="star" isAnimationActive={false} />
                 </ScatterChart>
               </ChartFrame>
             </div>
