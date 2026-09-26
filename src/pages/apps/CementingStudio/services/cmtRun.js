@@ -127,7 +127,7 @@ export function runStandoff({ stations, caseRow, geometryRow }) {
 export function runChecklist({ stations, caseRow, geometryRow }) {
   const { placement, fluids, mudInHole, vols } = runPlacement({ stations, caseRow, geometryRow });
   const { profile } = runStandoff({ stations, caseRow, geometryRow });
-  return placementChecklist({
+  const list = placementChecklist({
     placement,
     standoff: profile,
     mudInHole,
@@ -135,4 +135,20 @@ export function runChecklist({ stations, caseRow, geometryRow }) {
     pumpRateM3s: caseRow.job?.pumpRateM3s,
     annulusRowsList: vols.annulusRows,
   });
+  // CMT-T1-001: the loss check every cement job is judged on. The engine
+  // reports the peak ECD at the previous shoe and the case carries the shoe
+  // fracture EMW; the checklist never compared them.
+  const frac = caseRow.job?.fracEmwKgM3;
+  const ecd = placement.maxEcdPrevShoeKgM3;
+  if (frac > 0 && Number.isFinite(ecd)) {
+    const ok = ecd <= frac;
+    const items = [...list.items, {
+      id: 'ecd-below-frac',
+      ok,
+      detail: `Peak ECD at the previous shoe ${(ecd / 1000).toFixed(3)} g/cc against the shoe fracture EMW ${(frac / 1000).toFixed(3)} g/cc`
+        + (ok ? ` (margin ${((frac - ecd) / 1000).toFixed(3)} g/cc).` : ': losses expected; reduce the pump rate or slurry densities.'),
+    }];
+    return { ...list, items, passed: items.filter((i) => i.ok).length, total: items.length };
+  }
+  return list;
 }
