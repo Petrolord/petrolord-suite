@@ -74,6 +74,7 @@ export default function WCWorkstation({ backend }) {
   const [tab, setTab] = useState('volumes');
   const [volumes, setVolumes] = useState(null);
   const [ks, setKs] = useState(null);
+  const [influxGeom, setInfluxGeom] = useState(null);
   const [kt, setKt] = useState(null);
   const [method, setMethod] = useState('waitAndWeight');
   const [runs, setRuns] = useState(null);
@@ -199,7 +200,9 @@ export default function WCWorkstation({ backend }) {
   const onRunKillSheet = guarded(() => {
     const v = runVolumes(args());
     setVolumes(v);
-    setKs(runKillSheet(args()).result);
+    const kill = runKillSheet(args());
+    setKs(kill.result);
+    setInfluxGeom(kill.influxAlongM != null ? { alongM: kill.influxAlongM, verticalM: kill.influxVerticalM } : null);
     setKt(runKickTolerance(args()));
   });
   const onRunKt = guarded(() => {
@@ -270,7 +273,7 @@ export default function WCWorkstation({ backend }) {
       <span>{WC_ENGINE_VERSION}</span>
       <span data-testid="wc-status-wellbore">{wellbore ? `${wellbore.name} (${depthUnit})` : 'no wellbore'}</span>
       <span data-testid="wc-status-geometry" data-source={geometrySourceOf(geometryRow)} title={geometryRow?.label || ''}>{geometryStatusText(geometryRow)}</span>
-      <span>{caseDraft ? `${caseDraft.name} — mud ${emwOut(caseDraft.mud?.densityKgM3 || 0, depthUnit).toFixed(2)} ${emwLabel(depthUnit)}` : 'no case'}</span>
+      <span>{caseDraft ? `${caseDraft.name} · mud ${emwOut(caseDraft.mud?.densityKgM3 || 0, depthUnit).toFixed(2)} ${emwLabel(depthUnit)}` : 'no case'}</span>
       <span className="ml-auto">Planning tool (surface BOP, single-bubble); validated vs oracle goldens</span>
     </div>
   );
@@ -294,7 +297,7 @@ export default function WCWorkstation({ backend }) {
       {tab === 'killsheet' && (
         <KillSheetTab
           caseDraft={caseDraft} onCaseChange={onCaseChange} depthUnit={depthUnit}
-          ks={ks} kt={kt} volumes={volumes} method={method} onMethodChange={setMethod}
+          ks={ks} kt={kt} volumes={volumes} method={method} onMethodChange={setMethod} influxGeom={influxGeom}
           onRun={onRunKillSheet} running={running} error={runError}
           onSaveRun={onSaveRun} savingRun={savingRun} runs={runs} onDeleteRun={onDeleteRun}
           wellboreName={wellbore?.name}

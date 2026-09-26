@@ -9,7 +9,7 @@ import { Play, Save, FileText, Download, Trash2 } from 'lucide-react';
 import { KillScheduleChart } from '../charts/WcCharts';
 import {
   pressureOut, pressureIn, pressureLabel, volumeOut, volumeIn, volumeLabel,
-  emwOut, emwLabel,
+  emwOut, emwLabel, depthOut, depthLabel,
 } from '../services/wcRun';
 import { exportKillSheetPdf, exportScheduleCsv } from '../services/wcExport';
 
@@ -41,7 +41,7 @@ function Kpi({ label, value, unit, testId, tone }) {
 }
 
 export default function KillSheetTab({
-  caseDraft, onCaseChange, depthUnit, ks, kt, volumes, method, onMethodChange,
+  caseDraft, onCaseChange, depthUnit, ks, kt, volumes, method, onMethodChange, influxGeom,
   onRun, running, error, onSaveRun, savingRun, runs, onDeleteRun, wellboreName,
 }) {
   const kick = caseDraft.kick || {};
@@ -103,6 +103,23 @@ export default function KillSheetTab({
         </div>
       )}
 
+      {/* WC-T1-001: the engine takes the influx length along the hole as its
+          vertical height; in a deviated bottom section say so, with the
+          vertical figures */}
+      {ks?.influx && influxGeom && influxGeom.verticalM < influxGeom.alongM * 0.97 && (() => {
+        const mud = caseDraft.mud?.densityKgM3;
+        const dp = (caseDraft.kick?.sicpPa ?? 0) - (caseDraft.kick?.sidppPa ?? 0);
+        const rhoV = mud - dp / (9.80665 * influxGeom.verticalM);
+        return (
+          <div className="rounded-md border border-amber-800 bg-amber-950/40 p-2 text-xs text-amber-300" data-testid="wc-influx-deviation">
+            The influx column is {depthOut(influxGeom.alongM, depthUnit).toFixed(0)} {depthLabel(depthUnit)} along the hole but
+            {' '}{depthOut(influxGeom.verticalM, depthUnit).toFixed(0)} {depthLabel(depthUnit)} vertically. The influx density above uses the
+            along-hole length; on the vertical height it is {emwOut(rhoV, depthUnit).toFixed(2)} {emwLabel(depthUnit)}. Read the influx type
+            with that in mind.
+          </div>
+        );
+      })()}
+
       {ks && ks.warnings.length > 0 && (
         <div className="rounded-md border border-amber-800 bg-amber-950/40 p-2 text-xs text-amber-300">
           {ks.warnings.map((w) => <div key={w}>• {w}</div>)}
@@ -143,7 +160,7 @@ export default function KillSheetTab({
         {(runs || []).map((r) => (
           <div key={r.id} className="flex items-center justify-between border-t border-slate-800 py-1.5 text-xs text-slate-300 first:border-t-0">
             <span>
-              {new Date(r.created_at).toLocaleString()} — KMW {emwOut(r.summary?.killMudDensityKgM3 || 0, depthUnit).toFixed(2)} {emwLabel(depthUnit)},
+              {new Date(r.created_at).toLocaleString()}: KMW {emwOut(r.summary?.killMudDensityKgM3 || 0, depthUnit).toFixed(2)} {emwLabel(depthUnit)},
               ICP {pressureOut(r.summary?.icpPa || 0, depthUnit).toFixed(0)} {pressureLabel(depthUnit)}
             </span>
             <Button size="icon" variant="ghost" className="h-6 w-6 text-slate-500 hover:text-red-400" onClick={() => onDeleteRun(r.id)}>

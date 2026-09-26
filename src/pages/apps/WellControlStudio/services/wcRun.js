@@ -78,7 +78,20 @@ export function runKillSheet({ stations, caseRow, geometryRow }) {
   const kick = caseRow.kick || {};
   if (!(kick.sidppPa >= 0)) throw new Error('Enter the SIDPP.');
   if (!(caseRow.pump?.outputM3PerStroke > 0)) throw new Error('Set the pump output per stroke.');
+  // WC-T1-001: the engine reads the influx length along the hole as its
+  // vertical height. Context only (the engine inputs and goldens are
+  // unchanged): the column's true vertical height, for the screen to state.
+  const pit = kick.pitGainM3 ?? 0;
+  let influxAlongM = null;
+  let influxVerticalM = null;
+  if (pit > 0 && b.capBitM2 > 0) {
+    influxAlongM = pit / b.capBitM2;
+    const top = Math.max(0, b.vols.bitMd - influxAlongM);
+    influxVerticalM = b.tvdBhM - tvdAt(stations, top);
+  }
   return {
+    influxAlongM,
+    influxVerticalM,
     result: killSheet({
       tvdBhM: b.tvdBhM,
       tvdShoeM: b.tvdShoeM,
