@@ -320,7 +320,7 @@ describe('(a) the predicted curve goes to a well as a new curve with its provena
     expect(p).toMatchObject({
       computed: true, engine: 'ml-workbench', method: 'ols', standardised: true, target: 'RHOB',
       features: ['GR', 'DT', 'log10(RT)'], training_wells: TRAIN.map((n) => `Ekene-${n}`), training_rows: 2624,
-      predicted_well: 'Ekene-9', engine_commit: '3061acc000ede031cb15d7d113f0fccc47e7765d',
+      predicted_well: 'Ekene-9', engine_commit: 'a37d31d17e938884eab21099b85fc080699a1d6d',
     });
     expect(p.validation.pooled_r2).toBe(evaluation.pooled.r2);
     expect(p.validation.scheme).toBe('group k-fold, k = 5');
