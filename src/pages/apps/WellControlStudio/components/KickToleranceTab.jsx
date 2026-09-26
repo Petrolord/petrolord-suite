@@ -79,7 +79,15 @@ export default function KickToleranceTab({
         </div>
       )}
       {kt && (
+        <>
         <div className="text-[10px] text-slate-500">{kt.result.assumptions}</div>
+        {/* WC-T1-002: the engine turns the allowed vertical influx height into
+            a volume with the capacity per metre along the hole */}
+        <div className="text-[10px] text-slate-500" data-testid="wc-kt-deviation">
+          The tolerated volume is the allowed vertical influx height times the annulus capacity per metre along the hole.
+          Where the bottom of the hole is deviated the same height holds more volume, so these volumes err on the safe side.
+        </div>
+        </>
       )}
     </div>
   );
