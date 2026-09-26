@@ -6,7 +6,7 @@ import {
   ResponsiveContainer, ComposedChart, Line, Area, Scatter, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, ReferenceLine,
 } from 'recharts';
-import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE, GRID_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE, GRID_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { stressAtRate, GAMMA_PER_RPM } from '../engine/rheology';
 import { emwOut, emwLabel, depthOut, depthLabel } from '../services/hydRun';
@@ -25,6 +25,9 @@ function Frame({ title, testId, children }) {
     </div>
   );
 }
+
+// HYD-T1-003: model names as the Mud tab writes them, not code keys
+const MODEL_NAMES = { bingham: 'Bingham', powerLaw: 'Power law', herschelBulkley: 'Herschel-Bulkley' };
 
 export function RheogramChart({ fann, fits, chosen }) {
   const points = [
@@ -45,17 +48,17 @@ export function RheogramChart({ fann, fits, chosen }) {
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data} margin={CHART_MARGINS.compact}>
           <CartesianGrid {...GRID_STYLE} />
-          <XAxis dataKey="gd" type="number" scale="log" domain={[5, 1100]} {...axisProps}
+          <XAxis dataKey="gd" type="number" scale="log" domain={[5, 1100]} {...axisProps} height={XAXIS_LABEL_HEIGHT}
             tickFormatter={(v) => v.toFixed(0)}
-            label={{ value: 'shear rate (1/s, log)', position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
+            label={{ value: 'shear rate (1/s, log)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <YAxis type="number" {...axisProps} tickFormatter={(v) => v.toFixed(0)}
             label={{ value: 'Pa', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => (Number.isFinite(v) ? v.toFixed(2) : '--')}
             labelFormatter={(v) => `${Number(v).toFixed(1)} 1/s`} />
-          <Legend wrapperStyle={{ fontSize: 10 }} />
+          <Legend {...LEGEND_PROPS} />
           {['bingham', 'powerLaw', 'herschelBulkley'].map((m) => (
             <Line key={m} dataKey={m}
-              name={m === chosen ? `${m} (used)` : m}
+              name={m === chosen ? `${MODEL_NAMES[m]} (used)` : MODEL_NAMES[m]}
               stroke={m === chosen ? '#b91c1c' : (m === 'bingham' ? '#94a3b8' : '#60a5fa')}
               strokeWidth={m === chosen ? 2.5 : 1.5}
               strokeDasharray={m === chosen ? undefined : '5 3'}
@@ -83,7 +86,13 @@ export function EcdChart({ hyd, mudWindow, depthUnit, staticDensityKgM3 }) {
       ? [emwOut(r.ppEmw * 1000, depthUnit), emwOut(r.fpEmw * 1000, depthUnit)]
       : null,
   }));
-  const merged = [...windowRows, ...data].sort((a, b) => a.tvd - b.tvd);
+  // HYD-T1-002: both lines began at the first element boundary (about 1,270 m
+  // TVD). At surface the annular friction is zero, so ECD equals the static
+  // mud weight there; the static line spans every depth.
+  const stat = emwOut(staticDensityKgM3, depthUnit);
+  const surface = data.length && data[0].tvd > 0 ? [{ tvd: 0, ecd: stat, stat }] : [];
+  const merged = [...surface, ...windowRows, ...data].sort((a, b) => a.tvd - b.tvd);
+  merged.forEach((r) => { r.stat = stat; });
   // a range Area does not bridge rows without a window (the ECD rows): it
   // dropped to the axis there. Interpolate the window onto every row inside
   // its depth range.
@@ -104,14 +113,16 @@ export function EcdChart({ hyd, mudWindow, depthUnit, staticDensityKgM3 }) {
           <CartesianGrid {...GRID_STYLE} />
           <XAxis type="number" domain={['auto', 'auto']} {...axisProps}
             tickFormatter={(v) => v.toFixed(2)}
-            label={{ value: emwLabel(depthUnit), position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
-          <YAxis dataKey="tvd" type="number" domain={['dataMin', 'dataMax']} {...axisProps}
+            height={XAXIS_LABEL_HEIGHT}
+            label={{ value: emwLabel(depthUnit), position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
+          {/* HYD-T1-002: TVD from surface (the axis started at the first window row, 400 m) */}
+          <YAxis dataKey="tvd" type="number" domain={[0, 'dataMax']} {...axisProps}
             tickFormatter={(v) => v.toFixed(0)}
             label={{ value: `TVD (${depthLabel(depthUnit)})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <Tooltip contentStyle={TOOLTIP_STYLE}
             formatter={(v) => (Array.isArray(v) ? v.map((x) => x?.toFixed(2)).join(' – ') : (Number.isFinite(v) ? v.toFixed(3) : '--'))}
             labelFormatter={(v) => `TVD ${Number(v).toFixed(0)} ${depthLabel(depthUnit)}`} />
-          <Legend wrapperStyle={{ fontSize: 10 }} />
+          <Legend {...LEGEND_PROPS} />
           {windowRows.length > 0 && (
             <Area dataKey="window" name="PP-FP window" fill="#86efac" fillOpacity={0.3}
               stroke="none" isAnimationActive={false} connectNulls />
@@ -146,22 +157,24 @@ export function SurgeSwabChart({ sweep, depthUnit, staticDensityKgM3, poreEmw, f
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data} margin={CHART_MARGINS.compact}>
           <CartesianGrid {...GRID_STYLE} />
-          <XAxis dataKey="v" type="number" {...axisProps}
-            label={{ value: 'trip speed (m/s)', position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
+          {/* HYD-T1-001: PP and FP extend the axis so the margins show (they
+              sat off the chart); legend in the shared band */}
+          <XAxis dataKey="v" type="number" {...axisProps} height={XAXIS_LABEL_HEIGHT}
+            label={{ value: 'trip speed (m/s)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <YAxis type="number" domain={['auto', 'auto']} {...axisProps} tickFormatter={(v) => v.toFixed(2)}
             label={{ value: emwLabel(depthUnit), angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => (Number.isFinite(v) ? v.toFixed(3) : '--')}
             labelFormatter={(v) => `${v} m/s`} />
-          <Legend wrapperStyle={{ fontSize: 10 }} />
+          <Legend {...LEGEND_PROPS} />
           <ReferenceLine y={emwOut(staticDensityKgM3, depthUnit)} stroke="#57534e" strokeDasharray="4 3"
             label={{ value: 'static', fontSize: 9, fill: '#57534e' }} />
           {poreEmw != null && (
             <ReferenceLine y={emwOut(poreEmw, depthUnit)} stroke="#b91c1c" strokeDasharray="4 3"
-              label={{ value: 'PP', fontSize: 9, fill: '#b91c1c' }} />
+              ifOverflow="extendDomain" label={{ value: 'PP', fontSize: 9, fill: '#b91c1c', position: 'insideBottomRight' }} />
           )}
           {fracEmw != null && (
             <ReferenceLine y={emwOut(fracEmw, depthUnit)} stroke="#1d4ed8" strokeDasharray="4 3"
-              label={{ value: 'FP', fontSize: 9, fill: '#1d4ed8' }} />
+              ifOverflow="extendDomain" label={{ value: 'FP', fontSize: 9, fill: '#1d4ed8', position: 'insideTopRight' }} />
           )}
           <Line dataKey="surge" name="Surge (run in)" stroke="#1d4ed8" strokeWidth={2} dot={false} isAnimationActive={false} />
           <Line dataKey="swab" name="Swab (pull out)" stroke="#b91c1c" strokeWidth={2} dot={false} isAnimationActive={false} />
