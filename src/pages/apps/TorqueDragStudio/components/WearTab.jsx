@@ -5,6 +5,8 @@ import React from 'react';
 import { WearChart } from '../charts/TdCharts';
 import { depthOut, depthLabel } from '../services/tdRun';
 
+export const COLLAPSE_NOTE = 'Collapse derating for the worn wall is not computed here: check the remaining wall against API 5C3 collapse in Casing & Tubing Studio.';
+
 export default function WearTab({ wear, depthUnit }) {
   if (!wear) {
     return (
@@ -38,7 +40,9 @@ export default function WearTab({ wear, depthUnit }) {
           </div>
         </div>
       </div>
-      <div className="text-[10px] text-slate-500">{wear.summary.collapseNote}</div>
+      {/* TD-T1-002: the engine's note points at "the D6 casing upgrade", which
+          has shipped as Casing & Tubing Studio */}
+      <div className="text-[10px] text-slate-500" data-testid="td-collapse-note">{COLLAPSE_NOTE}</div>
       <div className="min-h-0 flex-1" style={{ minHeight: 380 }}>
         <WearChart wear={wear} depthUnit={depthUnit} />
       </div>

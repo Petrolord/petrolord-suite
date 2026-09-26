@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Grid3X3 } from 'lucide-react';
 import { runSensitivity, forceOut, torqueOut, forceLabel, torqueLabel } from '../services/tdRun';
+import { OP_LABELS } from '../charts/TdCharts';
 import { OPERATIONS } from '../engine/torqueDrag';
 
 const SWEEP = [0.15, 0.2, 0.25, 0.3, 0.35, 0.4];
@@ -43,7 +44,7 @@ export default function SensitivityTab({ stations, caseDraft, geometryRow, depth
         <Select value={operation} onValueChange={setOperation}>
           <SelectTrigger className="h-8 w-48 bg-slate-950 border-slate-700 text-xs text-slate-200"><SelectValue /></SelectTrigger>
           <SelectContent>
-            {OPERATIONS.map((op) => <SelectItem key={op} value={op}>{op.replace(/_/g, ' ')}</SelectItem>)}
+            {OPERATIONS.map((op) => <SelectItem key={op} value={op}>{OP_LABELS[op] || op}</SelectItem>)}
           </SelectContent>
         </Select>
         <Button size="sm" className="h-8 bg-lime-500 text-slate-900 hover:bg-lime-600" onClick={sweep} disabled={busy} data-testid="td-sweep">

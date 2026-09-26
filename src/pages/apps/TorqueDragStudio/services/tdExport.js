@@ -80,7 +80,7 @@ export function buildRunPdf({ results, wear, caseName, wellboreName, depthUnit }
         ['Max wall loss (%)', wear.summary.maxWallLossPct.toFixed(1)],
         ['Min remaining wall (mm)', (wear.summary.minRemainingWallM * 1000).toFixed(2)],
         ['Worst interval (m MD)', `${wear.summary.worstFromMd.toFixed(0)} - ${wear.summary.worstToMd.toFixed(0)}`],
-        ['Collapse note', wear.summary.collapseNote],
+        ['Collapse note', 'Collapse derating for the worn wall is not computed here: check the remaining wall against API 5C3 collapse in Casing & Tubing Studio.'],
       ],
       styles: { fontSize: 8 },
     });

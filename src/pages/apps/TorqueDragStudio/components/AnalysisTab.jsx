@@ -4,7 +4,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Play, Save, Download, FileText, Trash2 } from 'lucide-react';
-import { BroomstickChart, TorqueChart, SideForceChart } from '../charts/TdCharts';
+import { BroomstickChart, TorqueChart, SideForceChart, OP_LABELS } from '../charts/TdCharts';
 import { forceOut, torqueOut, depthOut, forceLabel, torqueLabel, depthLabel } from '../services/tdRun';
 import { exportRunCsv, exportRunPdf } from '../services/tdExport';
 
@@ -26,10 +26,29 @@ export default function AnalysisTab({
   const results = run?.results || null;
   const tripOut = results?.trip_out;
   const rotating = results?.rotate_on_bottom || results?.rotate_off_bottom;
-  const anyBuckMd = results
-    ? Object.values(results).map((r) => r.summary.bucklingFirstMd).filter((v) => v != null).sort((a, b) => a - b)[0]
-    : null;
-  const warnings = results ? Object.values(results).flatMap((r) => r.summary.warnings) : [];
+  // TD-T1-001: each warning names its operation (two unnamed "buckled
+  // interval starts at ..." lines could not be told apart), the buckling
+  // onset says which operation buckles first, and a negative surface load is
+  // called what it is: the string would have to be pushed from surface.
+  const entries = results ? Object.entries(results) : [];
+  const firstBuck = entries
+    .filter(([, r]) => r.summary.bucklingFirstMd != null)
+    .sort((a, b) => a[1].summary.bucklingFirstMd - b[1].summary.bucklingFirstMd)[0] || null;
+  const anyBuckMd = firstBuck ? firstBuck[1].summary.bucklingFirstMd : null;
+  const opName = (op) => OP_LABELS[op] || op;
+  const lockups = entries
+    .filter(([, r]) => Number.isFinite(r.summary.hookloadN) && r.summary.hookloadN < 0)
+    .map(([op, r]) => {
+      const head = `${opName(op)}: the surface load is ${forceOut(r.summary.hookloadN, depthUnit).toFixed(1)} ${forceLabel(depthUnit)}. `
+        + 'The string would have to be pushed from surface';
+      return op === 'trip_in' || op === 'rotate_off_bottom'
+        ? `${head}, so the pipe will not run in under its own weight. Reduce friction, add weight in the vertical section, or rotate while running.`
+        : `${head}, so this operation cannot reach its planned weight on bit (lockup). Reduce friction or WOB, add weight in the vertical section, or rotate.`;
+    });
+  const warnings = [
+    ...lockups,
+    ...entries.flatMap(([op, r]) => (r.summary.warnings || []).map((w) => `${opName(op)}: ${w}`)),
+  ];
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3">
@@ -56,7 +75,7 @@ export default function AnalysisTab({
             value={tripOut ? forceOut(tripOut.summary.hookloadN, depthUnit).toFixed(1) : '--'} />
           <Kpi label="Surface torque" testId="td-torque" unit={torqueLabel(depthUnit)}
             value={rotating ? torqueOut(rotating.summary.surfaceTorqueNm, depthUnit).toFixed(2) : '--'} />
-          <Kpi label="Buckling onset" testId="td-buckmd" unit={anyBuckMd != null ? depthLabel(depthUnit) : ''}
+          <Kpi label={firstBuck ? `Buckling onset (${opName(firstBuck[0])})` : 'Buckling onset'} testId="td-buckmd" unit={anyBuckMd != null ? depthLabel(depthUnit) : ''}
             value={anyBuckMd != null ? depthOut(anyBuckMd, depthUnit).toFixed(0) : 'none'}
             warn={anyBuckMd != null} />
           <Kpi label="Max wall loss" testId="td-wear" unit="%"

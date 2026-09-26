@@ -16,7 +16,7 @@ const axisProps = {
   tick: { fill: CHART_COLORS.axisText, fontSize: 10 },
 };
 
-const OP_LABELS = {
+export const OP_LABELS = {
   trip_out: 'Pick up (trip out)',
   trip_in: 'Slack off (trip in)',
   rotate_off_bottom: 'Rotate off bottom',
@@ -67,7 +67,8 @@ export function BroomstickChart({ results, depthUnit }) {
           <CartesianGrid {...GRID_STYLE} />
           <XAxis type="number" domain={['auto', 'auto']} {...axisProps}
             label={{ value: forceLabel(depthUnit), position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
-          <YAxis dataKey="md" type="number" domain={['dataMin', 'dataMax']} {...axisProps}
+          {/* TD-T1-003: from surface with round ticks (it ran 15 to 1185) */}
+          <YAxis dataKey="md" type="number" domain={[0, 'auto']} allowDecimals={false} {...axisProps}
             tickFormatter={(v) => v.toFixed(0)}
             label={{ value: `MD (${depthLabel(depthUnit)})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <Tooltip contentStyle={TOOLTIP_STYLE}
@@ -97,7 +98,8 @@ export function TorqueChart({ results, depthUnit }) {
           <CartesianGrid {...GRID_STYLE} />
           <XAxis type="number" domain={['auto', 'auto']} {...axisProps}
             label={{ value: torqueLabel(depthUnit), position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
-          <YAxis dataKey="md" type="number" domain={['dataMin', 'dataMax']} {...axisProps}
+          {/* TD-T1-003: from surface with round ticks (it ran 15 to 1185) */}
+          <YAxis dataKey="md" type="number" domain={[0, 'auto']} allowDecimals={false} {...axisProps}
             tickFormatter={(v) => v.toFixed(0)}
             label={{ value: `MD (${depthLabel(depthUnit)})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <Tooltip contentStyle={TOOLTIP_STYLE}
@@ -131,7 +133,8 @@ export function SideForceChart({ results, depthUnit }) {
           <CartesianGrid {...GRID_STYLE} />
           <XAxis type="number" domain={[0, 'auto']} {...axisProps}
             label={{ value: 'kN/m', position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
-          <YAxis dataKey="md" type="number" domain={['dataMin', 'dataMax']} {...axisProps}
+          {/* TD-T1-003: from surface with round ticks (it ran 15 to 1185) */}
+          <YAxis dataKey="md" type="number" domain={[0, 'auto']} allowDecimals={false} {...axisProps}
             tickFormatter={(v) => v.toFixed(0)}
             label={{ value: `MD (${depthLabel(depthUnit)})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <Tooltip contentStyle={TOOLTIP_STYLE}
@@ -162,7 +165,8 @@ export function WearChart({ wear, depthUnit }) {
           <CartesianGrid {...GRID_STYLE} />
           <XAxis type="number" domain={[0, 'auto']} {...axisProps}
             label={{ value: 'wall loss %', position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
-          <YAxis dataKey="md" type="number" domain={['dataMin', 'dataMax']} {...axisProps}
+          {/* TD-T1-003: from surface with round ticks (it ran 15 to 1185) */}
+          <YAxis dataKey="md" type="number" domain={[0, 'auto']} allowDecimals={false} {...axisProps}
             tickFormatter={(v) => v.toFixed(0)}
             label={{ value: `MD (${depthLabel(depthUnit)})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <Tooltip contentStyle={TOOLTIP_STYLE}
