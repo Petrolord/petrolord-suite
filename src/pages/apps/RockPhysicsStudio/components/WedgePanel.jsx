@@ -9,6 +9,7 @@ import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Label, ReferenceLine,
 } from 'recharts';
 import ChartLogo from '@/components/charts/ChartLogo';
+import { DEFAULT_WEDGE, tuningDepthM } from '../services/defaults';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE,
 } from '@/utils/chartTheme';
@@ -135,7 +136,9 @@ function NumField({ id, label, value, onChange }) {
   );
 }
 
-export default function WedgePanel({ wedge, onWedgeChange }) {
+export default function WedgePanel({ wedge, onWedgeChange, units = null }) {
+  const zU = units?.depth || 'm';
+  const vpW = Number.isFinite(wedge.vpWedge) ? wedge.vpWedge : DEFAULT_WEDGE.vpWedge;
   const canvasRef = useRef(null);
   const patch = (p) => onWedgeChange({ ...wedge, ...p });
 
@@ -169,10 +172,16 @@ export default function WedgePanel({ wedge, onWedgeChange }) {
         <NumField id="freq" label="Ricker f (Hz)" value={wedge.freqHz} onChange={(v) => patch({ freqHz: v })} />
         <NumField id="dt" label="dt (ms)" value={wedge.dtMs} onChange={(v) => patch({ dtMs: v })} />
         <NumField id="max" label="max thickness (ms)" value={wedge.maxThicknessMs} onChange={(v) => patch({ maxThicknessMs: v })} />
+        <NumField id="vp" label="wedge Vp (m/s)" value={vpW} onChange={(v) => patch({ vpWedge: v })} />
         {result && !result.error && (
           <span className="ml-auto text-[13px] text-slate-200">
             tuning thickness{' '}
             <b data-testid="rp-wedge-tuning">{result.tuningMs}</b> ms
+            {Number.isFinite(tuningDepthM(result.tuningMs, vpW)) && (
+              <span className="text-slate-400" data-testid="rp-wedge-tuning-depth">
+                {' '}(about {(zU === 'ft' ? tuningDepthM(result.tuningMs, vpW) / 0.3048 : tuningDepthM(result.tuningMs, vpW)).toFixed(1)} {zU} at {vpW} m/s; thickness of maximum constructive interference)
+              </span>
+            )}
           </span>
         )}
       </div>
@@ -196,7 +205,7 @@ export default function WedgePanel({ wedge, onWedgeChange }) {
                   <Label value="Wedge thickness (ms)" position="insideBottom" offset={-5} style={{ fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }} />
                 </XAxis>
                 <YAxis tick={AXIS_TICK} axisLine={AXIS_LINE} tickLine={AXIS_LINE} tickFormatter={(v) => v.toFixed(2)}>
-                  <Label value="Peak |amplitude| at top" angle={-90} position="insideLeft" style={{ fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }} />
+                  <Label value="Peak amplitude" angle={-90} position="insideLeft" style={{ fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }} />
                 </YAxis>
                 <Tooltip
                   contentStyle={TOOLTIP_STYLE}

@@ -13,6 +13,11 @@ export const DEFAULT_AVO = {
 };
 
 // the oracle wedge golden's parameters (tuning thickness 16 ms)
+// vpWedge (m/s, T1-E2): interval velocity inside the wedge, to state the
+// tuning thickness in depth as well as time
 export const DEFAULT_WEDGE = {
-  rcTop: 0.1, rcBase: -0.1, freqHz: 25, dtMs: 1, maxThicknessMs: 60,
+  rcTop: 0.1, rcBase: -0.1, freqHz: 25, dtMs: 1, maxThicknessMs: 60, vpWedge: 2500,
 };
+
+/** Tuning thickness in metres from two-way time (ms) and interval velocity (m/s). */
+export const tuningDepthM = (tuningMs, vp) => (Number.isFinite(tuningMs) && vp > 0 ? (tuningMs / 1000) * vp / 2 : NaN);
