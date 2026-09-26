@@ -199,6 +199,8 @@ describe('the page', () => {
     expect(rt[9]).toHaveTextContent('[0.9, 1]');
     expect(rt[0]).toHaveTextContent('[0, 0.1)');
     expect(screen.getByTestId('murphy-table')).toHaveTextContent('Closure (Brier minus the sum)');
+    // WBC is the fifth term of Stephenson, Coelho and Jolliffe (2008) eq. 7, with the paper's factor 2 (engines #258).
+    expect(screen.getByTestId('murphy-table')).toHaveTextContent(`WBC, twice the pooled within-bin covariance${dn(g.murphy.withinBinCovariance)}`);
     expect(screen.getByTestId('reliability-chart')).toHaveClass('bg-white');
     expect(screen.getByTestId('export-csv')).not.toBeDisabled();
   }, 60000);

@@ -826,6 +826,30 @@ owner choices. The claim grammar reads "the end of 2025" as the number
 differs from scikit-learn's calibration_curve at bin edges (stated in the
 help guide).
 
+## D5 engine wording re-vendor (2026-09-26, branch `chore/revendor-evaluate-f50251d`)
+
+- **Vendoring.** The 7 canonical paths of 1906182..f50251d (engines PR #258)
+  copied file by file: evaluate.js, its gate, goldens, oracle, negative
+  control, FINDINGS-evaluate.md and README. Wording only, no number changed:
+  the nDCG-undefined note states its exact condition (the query has no
+  judged documents, or every judged grade is 0, singular for one judged
+  document), and the Murphy basis anchors WBC to Stephenson, Coelho and
+  Jolliffe (2008) eq. 7: the fifth term as the paper names it, so twice the
+  pooled within-bin covariance. VENDOR.json pin and manifest moved to
+  f50251d; `check-vendored-engines.mjs --canonical` reports 1,000 paths
+  byte for byte, 0 deviations.
+- **Engine pins.** `ENGINE_COMMIT` in the AI Evaluation Studio, ML
+  Workbench, Electrofacies Studio and Forecasting ML Workbench moves to
+  f50251d (only evaluate.js changed in the range).
+- **App copy.** The calibration table labels WBC "twice the pooled
+  within-bin covariance" and its caption cites eq. 7; the help guide says
+  why WBC carries the factor 2 and states when nDCG is undefined; the
+  metrics note says the Notes column names which case applies. The smoke
+  test pins the WBC row label and value (red when the old label returns).
+- **Gates.** D1 to D5 app suites and the five vendored dataai engine suites
+  green (27 suites, 5,416 tests before the added assertion); app-layer
+  negative control `negcontrol_eval_studio.sh` 30/30 plants red, baseline and restored runs green.
+
 ## Next
 
 D1 `dataqc` NextGen course (slug `dataqc`, path_order 66) on the D1 engine and app; D2 `mlcore` course (path_order 67) on the D2 engine and the ML Workbench; D3 `facies` course (path_order 68) on the D3 engine and the Electrofacies Studio; D4 `forecastml` course (path_order 69) on the D4 engine and the Production Forecasting ML Workbench; D5 `appliedai` course (path_order 70, "Applied AI and Language Models") on the D5 engine and the AI Evaluation Studio, graded only on the deterministic half.

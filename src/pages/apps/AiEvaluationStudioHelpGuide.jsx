@@ -172,7 +172,9 @@ const AiEvaluationStudioHelpGuide = () => (
       <Para>
         The nDCG gain is the grade (linear, the default) or 2^grade - 1 (exponential, which weights a grade 3 passage seven times
         a grade 1). The ideal DCG ranks EVERY judged grade of the query, retrieved or not, best first. The gain uses every grade,
-        so the relevance threshold does not change nDCG.
+        so the relevance threshold does not change nDCG. When the query has no judged passages, or every judged grade is 0, the
+        ideal DCG is 0 and nDCG is undefined: the results table shows &quot;undefined&quot; with a note naming which of the two
+        cases applies.
       </Para>
       <Callout tone="info" title="Queries with no relevant passage">
         When a query has no judged passage at the threshold, its recall and average precision are undefined. By default the query
@@ -292,7 +294,9 @@ const AiEvaluationStudioHelpGuide = () => (
       <Para>
         REL = sum n_k (mean p_k - observed_k)^2 / N, RES = sum n_k (observed_k - base rate)^2 / N, UNC = base rate (1 - base rate),
         WBV = sum (p - mean p_k)^2 / N and WBC = 2 sum (y - observed_k)(p - mean p_k) / N. With the two within-bin terms (Stephenson,
-        Coelho and Jolliffe 2008) the identity is exact; the studio shows the closure, Brier minus the sum, which is 0 up to rounding.
+        Coelho and Jolliffe 2008, eq. 7) the identity is exact; the studio shows the closure, Brier minus the sum, which is 0 up to
+        rounding. WBC is the fifth term of eq. 7 as the paper names it, so it carries the factor 2: it is twice the pooled
+        within-bin covariance of outcome and probability.
       </Para>
     </GuideSection>
 

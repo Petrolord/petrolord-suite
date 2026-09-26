@@ -109,14 +109,14 @@ export const CalibrationPanel = () => {
               />
               <Grid
                 testId="murphy-table"
-                caption="Brier = REL - RES + UNC + WBV - WBC (Stephenson, Coelho and Jolliffe 2008)"
+                caption="Brier = REL - RES + UNC + WBV - WBC (Stephenson, Coelho and Jolliffe 2008, eq. 7)"
                 headers={['Term', 'Value']}
                 rows={[
                   ['REL, reliability', c.murphy.reliability],
                   ['RES, resolution', c.murphy.resolution],
                   ['UNC, uncertainty', c.murphy.uncertainty],
                   ['WBV, within-bin variance', c.murphy.withinBinVariance],
-                  ['WBC, within-bin covariance', c.murphy.withinBinCovariance],
+                  ['WBC, twice the pooled within-bin covariance', c.murphy.withinBinCovariance],
                   ['Sum', c.murphy.sum],
                   ['Brier', c.brier],
                   ['Closure (Brier minus the sum)', c.murphy.closure],

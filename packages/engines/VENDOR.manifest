@@ -1,9 +1,9 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit 1906182f6c6cf7661342444b9cb74c5c2ea7008c
+# commit f50251d88d3a7d88e381b62cd77c59d5fb3fcb05
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
-ae048b8a1a6b1577cb45dd93aae7a6c0c40b9897 README.md
+18aa3e047abf7e3d5d4f1847edae245ad052ac16 README.md
 6373485efb6baa9226953a76a3d6ebb740541d1c __tests__/aquifer.test.js
 168f6cedfc18af932ba587f2ff882b7571966986 __tests__/assurance.audit.test.js
 fc5248e0239b0841f542a3cba95ef72db34296d1 __tests__/assurance.compliance.test.js
@@ -26,7 +26,7 @@ e348fa7f85789bc4078e7c84fe574aed3f441acc __tests__/crs.convergence.test.js
 86016e9ef3a3667a2518d44bfb57e26d36b7e238 __tests__/crs.minna.test.js
 473bbdcdb10783d96b43b0633f5a0ce9ab993409 __tests__/crs.sanity.test.js
 a940599b813f74926567124db109bc73ee1fc5a0 __tests__/dataai.cluster.test.js
-3ac4845041bc2c3f8c095a580ec17e3d2a69cd0b __tests__/dataai.evaluate.test.js
+33a08c75aec035908329e2cb9f23aa3e036020d2 __tests__/dataai.evaluate.test.js
 3024cbce1d0ccf5de7dcbec73692604cbaf7f2e2 __tests__/dataai.forecast.test.js
 22d3ebcb48fd10850e58b83673be9b605a16b377 __tests__/dataai.ml.test.js
 1333ff3085471f6b2ef5b1d97b030f3409ed4d29 __tests__/dataai.quality.test.js
@@ -254,7 +254,7 @@ b9957871cd6f14a8a9826862da5be9d89eda6600 engines/basin/KerogenLibrary.js
 517e371a65d09d7cd6a7f843c32a4d2e14246a4b engines/basin/ThermalPropertiesLibrary.js
 1ecc4966a918ae877e25b4835f6556f6e7812385 engines/basin/results.js
 7a80ae1b87054cb30df4ba3950d1d77a85f689da engines/dataai/cluster.js
-9e42e1ca89d5751cc7984438504e1bab24391eb0 engines/dataai/evaluate.js
+7080ec45f33a6d560b57dcc53751ec89c738e7fb engines/dataai/evaluate.js
 d770a90e36ee6131e82263695adf533a53373a2c engines/dataai/forecast.js
 c25630d2fa44b9655823f82c8bbadf112550af0a engines/dataai/ml.js
 503694f67acc3a05df3a981a0cd0aa217b9129e2 engines/dataai/quality.js
@@ -589,7 +589,7 @@ fc416c3380709828629e630274a9137e9b83296e test-data/dataai/ekene-docs/corpus.json
 b50bad35487f5e8696931f47348cc7206c1d9a40 test-data/dataai/ekene-docs/queries.json
 08bf90d62e74a6b1bbdf2f8de76f71fcf6af936c test-data/dataai/ekene-docs/systems.json
 cfb3bdec6d49ac0424919060e6ee77a4f7904a0f test-data/dataai/goldens/cluster_cases.json
-dfdab745d22278637ed8baaed7e325e9004efdd2 test-data/dataai/goldens/evaluate_cases.json
+dda4c2913c758f59d7779f70235ed27e75608a98 test-data/dataai/goldens/evaluate_cases.json
 13df7ca07441978da4b1c47e1c486d17f3124b7c test-data/dataai/goldens/forecast_cases.json
 aaf2ce47a7e3eda87b7b0489f04d1ccef84d0de4 test-data/dataai/goldens/ml_cases.json
 12780ec2778e27f7947b8fed56f3657adcee8bb5 test-data/dataai/goldens/quality_cases.json
@@ -840,18 +840,18 @@ dfcca3075c05f76421d563ebcaeed47c57afce17 tools/validation/assurance/oracle_quali
 bb7e40c744f43eee571d0eb764fa6a0b10ce8c61 tools/validation/basin/genfixtures.py
 63170e1025eeeb9cfdf030377a347d22dc8afa17 tools/validation/basin/oracle.py
 05c6861c0d46b538fbfd3c808068857f5e1d49cc tools/validation/dataai/FINDINGS-cluster.md
-eeb595c17da187f9b8c83c1bdbac5a8fa0f499e6 tools/validation/dataai/FINDINGS-evaluate.md
+a00e4fb8ac7c6587368ae861a016f9080f07b21a tools/validation/dataai/FINDINGS-evaluate.md
 8a134a2756480e2da8c014a22f55d968fc8ebc14 tools/validation/dataai/FINDINGS-forecast.md
 1aec1f3e8b46849608764101261e8aad79a632ab tools/validation/dataai/FINDINGS-ml.md
 293677d019247f7e1a01e9c1ecbc87658150802f tools/validation/dataai/FINDINGS-quality.md
 e9b560d2274dea095ae34daba0d707e6475bb189 tools/validation/dataai/make_evaluate_fixtures.py
 121f06c73000fd0060472870b3c17282ac2f64d9 tools/validation/dataai/negcontrol_cluster.sh
-da6f53d205b4da922865c79b8250326de9906194 tools/validation/dataai/negcontrol_evaluate.sh
+bf9e404c54b77807cf31e645ab790aaaf186f7dd tools/validation/dataai/negcontrol_evaluate.sh
 51f5a3f48d419eab4d07f2ffd49a42b0cbc6e379 tools/validation/dataai/negcontrol_forecast.sh
 4b0c8d189bddbb58d2a60a8826dd2b9cec1c54af tools/validation/dataai/negcontrol_ml.sh
 2c224f44b27a9ddec7bac66741744f97791f0b39 tools/validation/dataai/negcontrol_quality.sh
 120f9d9d6bb9a4aebe9d853202a9b9dd717d9f43 tools/validation/dataai/oracle_cluster.py
-d47ef35336dfddc0357e6f391a32517d91fb2311 tools/validation/dataai/oracle_evaluate.py
+ae28f267d0b23a79cc54d77275927d090823d135 tools/validation/dataai/oracle_evaluate.py
 d60a5710a9e7b889f234fb835cff8ae41add0837 tools/validation/dataai/oracle_forecast.py
 8106290b475c0fd81103141ba1d519fbcccfc6ed tools/validation/dataai/oracle_ml.py
 7e52ff2cb0e021d3ee056b1b0960cff59350c0f1 tools/validation/dataai/oracle_quality.py

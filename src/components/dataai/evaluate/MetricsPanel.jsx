@@ -64,7 +64,8 @@ const MetricsPanel = () => {
         <Note>
           Unjudged passages count as grade 0 and are counted separately. Precision@k divides by k even when fewer passages are
           ranked. Average precision divides by every relevant judged passage, so a relevant passage below the cutoff lowers it.
-          The ideal DCG ranks every judged grade of the query.
+          The ideal DCG ranks every judged grade of the query; when the query has no judged passages or every judged grade is 0,
+          nDCG is undefined and the Notes column names which case applies.
         </Note>
       </Section>
       {e ? (
