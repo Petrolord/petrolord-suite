@@ -61,13 +61,13 @@ describe('the page', () => {
   // carried forward turns the plant positive (+5.3 MM; the page read -12.2).
   it('values the default plant as the accounts do, with no royalty box', async () => {
     mount();
-    expect(await screen.findByText('$-97.4MM')).toBeInTheDocument();
+    expect(await screen.findByText('-$97.4MM')).toBeInTheDocument();
     expect(screen.queryByText(/^Royalty/)).toBeNull();
   });
 
   it('carries the construction-year tax loss forward on a profitable plant', async () => {
     mount();
-    await screen.findByText('$-97.4MM');
+    await screen.findByText('-$97.4MM');
     const crude = screen.getAllByRole('spinbutton').find((el) => el.value === '80');
     fireEvent.change(crude, { target: { value: '74' } });
     expect(await screen.findByText('$5.3MM')).toBeInTheDocument();
@@ -109,7 +109,7 @@ describe('the page', () => {
     expect(capacity).toBeTruthy();
     fireEvent.change(capacity, { target: { value: '30000' } });
     // A bigger plant costs more in total.
-    expect(await screen.findByText(/\$\d+\.\dMM/)).toBeInTheDocument();
+    expect((await screen.findAllByText(/\$\d+\.\dMM/)).length).toBeGreaterThan(0);
   });
 });
 

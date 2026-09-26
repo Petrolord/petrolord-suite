@@ -1,11 +1,12 @@
 // The scale comparison, the slate, the economics and the licensing tracker (DS4).
+import { productLabel, signedUsd } from './productLabel';
 import React from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine,
 } from 'recharts';
 import { CheckCircle2, Circle, AlertTriangle } from 'lucide-react';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useModularRefinery } from '@/contexts/ModularRefineryContext';
 
 const fmt = (v, dp = 0) => (Number.isFinite(v) ? v.toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp }) : 'n/a');
@@ -33,12 +34,12 @@ const ScaleResults = () => {
         </div>
         <div className="rounded border border-slate-800 bg-slate-900/60 p-3">
           <p className="text-[11px] uppercase tracking-wide text-slate-400">Gross margin</p>
-          <p className="text-xl font-bold text-lime-300 mt-1">${fmt(streams.grossMarginPerBbl, 2)}/bbl</p>
+          <p className="text-xl font-bold text-lime-300 mt-1">{signedUsd(streams.grossMarginPerBbl, 2, '/bbl')}</p>
         </div>
         <div className="rounded border border-slate-800 bg-slate-900/60 p-3">
           <p className="text-[11px] uppercase tracking-wide text-slate-400">NPV</p>
           <p className={`text-xl font-bold mt-1 ${(economics?.metrics?.npv ?? 0) >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
-            {economics ? `$${fmt(economics.metrics.npv, 1)}MM` : 'n/a'}
+            {economics ? signedUsd(economics.metrics.npv, 1, 'MM') : 'n/a'}
           </p>
         </div>
         <div className="rounded border border-slate-800 bg-slate-900/60 p-3">
@@ -66,29 +67,30 @@ const ScaleResults = () => {
           less to scale than the rule implies, and the big one gains far less.
         </p>
         <ChartFrame height={300} exportFilename="modular-scale-comparison">
-          <LineChart data={comparison} margin={{ top: 12, right: 24, left: 16, bottom: 28 }}>
+          <LineChart data={comparison} margin={{ top: 20, right: 24, left: 24, bottom: 8 }}>
             <CartesianGrid {...GRID_STYLE} />
             <XAxis
               dataKey="capacity" type="number" scale="log" domain={['dataMin', 'dataMax']}
               stroke={CHART_COLORS.axisLine} tick={tick}
               tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+              height={XAXIS_LABEL_HEIGHT}
               label={{
-                value: 'Capacity (bpd, log scale)', position: 'insideBottom', offset: -10,
+                value: 'Capacity (bpd, log scale)', position: 'insideBottom', offset: 0,
                 fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
               }}
             />
             <YAxis
               stroke={CHART_COLORS.axisLine} tick={tick}
-              tickFormatter={(v) => `$${fmt(v)}`}
+              tickFormatter={(v) => `$${fmt(v)}`} width={64}
               label={{
-                value: 'Capital per bpd ($)', angle: -90, position: 'insideLeft',
+                value: 'Capital per bpd ($)', angle: -90, position: 'insideLeft', offset: -14, dy: 40,
                 fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
               }}
             />
-            <Tooltip {...TOOLTIP_STYLE} formatter={(v, n) => [`$${fmt(v)}/bpd`, n]} labelFormatter={(v) => `${fmt(v)} bpd`} />
-            <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [`$${fmt(v)}/bpd`, n]} labelFormatter={(v) => `${fmt(v)} bpd`} />
+            <Legend {...LEGEND_PROPS} />
             <ReferenceLine x={Number(inputs.baseCapacity)} stroke={CHART_COLORS.axisLine} strokeDasharray="4 3"
-              label={{ value: 'reference', fill: CHART_COLORS.axisText, fontSize: 10, position: 'top' }} />
+              label={{ value: 'reference plant', fill: CHART_COLORS.axisText, fontSize: 10, position: 'insideTopRight' }} />
             <Line type="monotone" dataKey="modularPerBpd" name="Modular" stroke="#059669" strokeWidth={2} dot={{ r: 3 }} />
             <Line type="monotone" dataKey="stickBuiltPerBpd" name="Stick-built (six-tenths)" stroke="#dc2626" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 3 }} />
           </LineChart>
@@ -102,7 +104,7 @@ const ScaleResults = () => {
             <tbody>
               {slate.rows.map((r) => (
                 <tr key={r.id} className="border-b border-slate-800/60 last:border-0">
-                  <td className="py-1.5 text-slate-300">{r.id}</td>
+                  <td className="py-1.5 text-slate-300">{productLabel(r.id)}</td>
                   <td className="py-1.5 text-right font-mono text-slate-400">{(r.yieldFraction * 100).toFixed(1)}%</td>
                   <td className="py-1.5 text-right font-mono text-white">
                     {r.valuePerBblCrude === null ? 'not priced' : `$${r.valuePerBblCrude.toFixed(2)}`}
@@ -143,7 +145,7 @@ const ScaleResults = () => {
               {scenarioComparison.map((s) => (
                 <tr key={s.id} className={`border-b border-slate-800/60 last:border-0 ${s.id === inputs.scenarioId ? 'bg-slate-800/40' : ''}`}>
                   <td className="py-1.5 text-slate-300">{s.name}</td>
-                  <td className="py-1.5 text-right font-mono text-white">${s.grossMarginPerBbl.toFixed(2)}</td>
+                  <td className="py-1.5 text-right font-mono text-white">{signedUsd(s.grossMarginPerBbl, 2)}</td>
                   <td className="py-1.5 text-right font-mono text-slate-300">
                     {s.simplePaybackYears === null ? 'never' : `${s.simplePaybackYears.toFixed(1)} yr`}
                   </td>
