@@ -72,7 +72,7 @@ export const defaultInputs = () => {
     gasInflow: { ...w.gasInflow },
     completion: { ...w.completion },
     duty: {
-      designRateStbd: '120',
+      designRateStbd: '25',
       wctPct: '80',
       whp: '80',
       pumpTvdFt: '4800',

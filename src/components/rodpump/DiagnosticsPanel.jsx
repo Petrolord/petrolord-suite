@@ -68,7 +68,7 @@ const DiagnosticsPanel = () => {
                 <NumberInput section="diagnostics" name="spm" step="0.1" />
               </Field>
               <Button
-                size="sm" variant="outline" className="w-full h-8"
+                size="sm" variant="outline" className="w-full h-8 whitespace-nowrap"
                 onClick={useDesignCardForDiagnosis}
               >
                 <Download className="w-3 h-3 mr-1" /> Load the predicted card

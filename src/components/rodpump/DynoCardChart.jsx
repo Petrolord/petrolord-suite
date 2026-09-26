@@ -27,7 +27,8 @@ const CardPlot = ({ data, dataKey, name, color, exportFilename, reference, refer
                     height={XAXIS_LABEL_HEIGHT}
         type="number"
         dataKey="positionIn"
-        domain={['dataMin', 'dataMax']}
+        domain={[0, (max) => Math.ceil(max / 8) * 8]}
+        allowDecimals={false}
         stroke={CHART_COLORS.axisLine}
         tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
         label={{
@@ -75,16 +76,17 @@ const DynoCardChart = () => {
 
   // Close the loop so the card draws as a loop rather than a curve that
   // stops short of where it started.
-  const surface = useMemo(() => {
-    if (!design) return [];
-    const c = design.dynamics.surfaceCard;
-    return [...c, c[0]];
-  }, [design]);
-  const pump = useMemo(() => {
-    if (!design) return [];
-    const c = design.dynamics.pumpCard;
-    return [...c, c[0]];
-  }, [design]);
+  // The engine measures position downward from the top of the stroke
+  // (0 to -stroke). A dynamometer card reads from the bottom of the stroke
+  // up, 0 to the stroke length, so each card is re-based on its own
+  // lowest point (RP-T1-002: the axis read -63.99730591489059 to 0).
+  const rebase = (c) => {
+    const lo = Math.min(...c.map((p) => p.positionIn));
+    const out = c.map((p) => ({ ...p, positionIn: p.positionIn - lo }));
+    return [...out, out[0]];
+  };
+  const surface = useMemo(() => (design ? rebase(design.dynamics.surfaceCard) : []), [design]);
+  const pump = useMemo(() => (design ? rebase(design.dynamics.pumpCard) : []), [design]);
 
   if (!design) return null;
 

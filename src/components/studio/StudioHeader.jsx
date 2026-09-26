@@ -32,7 +32,9 @@ const StudioHeader = ({
         <ArrowLeft size={20} />
       </Button>
 
-      <div className="flex min-w-0 items-center gap-2">
+      {/* A floor under the title block (icon + 6rem of title) so a long tab
+          row can never draw over it; the tab row scrolls instead. */}
+      <div className="flex min-w-[8.5rem] items-center gap-2">
         {Icon && (
           <div className={cn('shrink-0 bg-gradient-to-br p-1.5 rounded-md shadow-lg shadow-blue-900/20', iconGradientClass)}>
             <Icon size={18} className="text-white" />
@@ -46,8 +48,8 @@ const StudioHeader = ({
       {tabs.length > 0 && (
         <>
           <div className="h-6 w-[1px] shrink-0 bg-slate-700 mx-2"></div>
-          <Tabs value={activeTab} onValueChange={onTabChange} className="h-8 shrink-0">
-            <TabsList className="h-8 bg-slate-800/50 border border-slate-700 p-0.5">
+          <Tabs value={activeTab} onValueChange={onTabChange} className="h-8 min-w-0 shrink">
+            <TabsList className="h-8 max-w-full justify-start overflow-x-auto bg-slate-800/50 border border-slate-700 p-0.5">
               {tabs.map((t) => (
                 <TabsTrigger key={t.value} value={t.value} className="h-7 text-xs px-2 2xl:px-3 data-[state=active]:bg-slate-700">
                   {t.label}
