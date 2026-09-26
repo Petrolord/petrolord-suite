@@ -31,8 +31,15 @@ const SAMPLE_WELLS = [
     deviation: buildHoldStations() },
 ];
 
-export function makeInMemoryBackend() {
-  const wells = SAMPLE_WELLS.map((w, i) => ({
+/**
+ * @param {{sidetrack?: boolean}} [opts] sidetrack: add "KETA-1 ST1" on
+ *   KETA-1's slot with its Top Dome 3 m deeper (T1 MAP-T1-003 e2e)
+ */
+export function makeInMemoryBackend({ sidetrack = false } = {}) {
+  const seeds = sidetrack
+    ? [...SAMPLE_WELLS, { ...SAMPLE_WELLS[0], name: `${SAMPLE_WELLS[0].name} ST1`, tops: { ...SAMPLE_WELLS[0].tops, 'Top Dome': SAMPLE_WELLS[0].tops['Top Dome'] + 3 } }]
+    : SAMPLE_WELLS;
+  const wells = seeds.map((w, i) => ({
     id: `map-w${i + 1}`,
     user_id: 'user-dev',
     organization_id: null,

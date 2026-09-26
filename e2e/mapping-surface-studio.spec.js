@@ -108,9 +108,24 @@ test('grid a top, render the map, publish, isochore, delete', async ({ page }) =
   await expect(page.getByTestId('map-status')).toContainText('private again');
   await expect(page.getByTestId('map-share-Regional Top (org shared)')).toHaveCount(0);
 
-  // delete an owned surface
+  // delete an owned surface (T1 MAP-T1-005): it asks first, "Keep it"
+  // cancels, Delete hides the row with an Undo, Undo brings it back
   await page.getByTestId('map-delete-Top Dome structure').click();
+  await expect(page.getByTestId('map-delete-confirm')).toContainText('Delete Top Dome structure?');
+  await expect(page.getByTestId('map-delete-confirm')).toContainText('Earth Modeling');
+  await page.getByTestId('map-delete-cancel').click();
+  await expect(page.getByTestId('map-surface-count')).toHaveText('5');
+  await page.getByTestId('map-delete-Top Dome structure').click();
+  await page.getByTestId('map-delete-go').click();
   await expect(page.getByTestId('map-surface-count')).toHaveText('4');
+  await page.getByTestId('map-delete-undo').click();
+  await expect(page.getByTestId('map-status')).toContainText('Kept Top Dome structure');
+  await expect(page.getByTestId('map-surface-count')).toHaveText('5');
+  await page.getByTestId('map-delete-Top Dome structure').click();
+  await page.getByTestId('map-delete-go').click();
+  await expect(page.getByTestId('map-surface-count')).toHaveText('4');
+  await expect(page.getByTestId('map-status')).toContainText('Deleted Top Dome structure', { timeout: 15000 });
+  await expect(page.getByTestId('map-delete-undo')).toHaveCount(0);
 
   // MS2: import a Petrel-style CPS-3 grid (the Seismolord golden: feet,
   // negative down), which draws at once in feet
@@ -392,4 +407,63 @@ test('ST4: the net deep link grids on arrival', async ({ page }) => {
   await page.goto('/dev/mapping-surface-studio?net=Top+Dome%7CBase+Sand&measure=gross');
   await expect(page.getByTestId('map-status')).toContainText('Opened on Top Dome to Base Sand from a link.');
   await expect(page.getByTestId('map-status')).toContainText('Gross thickness Top Dome to Base Sand');
+});
+
+test('T1: a sidetrack on the same slot merges instead of breaking the grid', async ({ page }) => {
+  await page.goto('/dev/mapping-surface-studio?harness=sidetrack');
+  await page.getByTestId('map-source').selectOption('top:Top Dome');
+  await page.getByTestId('map-grid-run').click();
+  await expect(page.getByTestId('map-status')).toContainText('Gridded');
+  await expect(page.getByTestId('map-status')).toContainText('KETA-1 + KETA-1 ST1 merged into one control point');
+});
+
+test('T1: quick GRV measures one closure, flags an open one, reads a positive depth, draws the curve, picks a closure', async ({ page }) => {
+  await page.goto('/dev/mapping-surface-studio');
+  await page.getByTestId('map-source').selectOption('top:Top Dome');
+  await page.getByTestId('map-grid-run').click();
+  await expect(page.getByTestId('map-status')).toContainText('Gridded');
+  const result = page.getByTestId('map-grv-result');
+  // below the whole map: open, a minimum, never a plain trap volume
+  await page.getByTestId('map-grv-contact').fill('-5100');
+  await page.getByTestId('map-grv-run').click();
+  await expect(result).toHaveAttribute('data-open', 'true');
+  await expect(result).toContainText('Not a trap volume');
+  await expect(result).toContainText('only a minimum');
+  // this well-bounded map peaks on its own edge: no closed structure, said plainly
+  await page.getByTestId('map-grv-contact').fill('-4760');
+  await page.getByTestId('map-grv-run').click();
+  await expect(result).toContainText('sits on the edge of the mapped area');
+  // a closed dome (the Seismolord golden, feet): a positive number is read
+  // as a depth, the closure is closed, and the curve is on the white chart standard
+  await page.getByTestId('map-import').click();
+  await page.getByTestId('map-import-file').setInputFiles('test-data/seismolord/surfaces/dome_surface_cps3.dat');
+  await page.getByTestId('map-import-unit').selectOption('ft');
+  await page.getByTestId('map-import-run').click();
+  await expect(page.getByTestId('map-status')).toContainText('Imported dome_surface_cps3');
+  await page.getByTestId('map-grv-contact').fill('6200');
+  await page.getByTestId('map-grv-run').click();
+  await expect(result).toContainText('Read 6200 as a depth below datum (elevation -6200 ft)');
+  await expect(result).toHaveAttribute('data-open', 'false');
+  await expect(result).toContainText('Closed on the map');
+  await expect(page.getByTestId('map-grv-curve')).toBeVisible();
+  await expect(page.getByTestId('map-grv-curve').locator('img[alt="Petrolord"]')).toHaveCount(1);
+  // pick mode: a click off every closure is refused plainly
+  await page.getByTestId('map-grv-pick').click();
+  await expect(page.getByTestId('map-status')).toContainText('Click inside the closure to measure.');
+  const canvas = page.getByTestId('map-canvas');
+  const box = await canvas.boundingBox();
+  await canvas.click({ position: { x: 4, y: box.height - 4 } });
+  await expect(page.getByTestId('map-status')).toContainText(/off the map|not inside a closure/);
+});
+
+test('T1: an MD map is published as an attribute, never as an elevation surface', async ({ page }) => {
+  await page.goto('/dev/mapping-surface-studio');
+  await page.getByTestId('map-source').selectOption('top:Top Dome');
+  await page.getByTestId('map-depth-ref').selectOption('md');
+  await page.getByTestId('map-grid-run').click();
+  await expect(page.getByTestId('map-status')).toContainText('Top Dome MD (measured depth, m)');
+  await page.getByTestId('map-publish').click();
+  await expect(page.getByTestId('map-status')).toContainText('Published Top Dome MD (measured depth, m)');
+  const row = page.locator('[data-testid="map-surface-row"][data-surface-name="Top Dome MD (measured depth, m)"]');
+  await expect(row).toContainText('attr');
 });
