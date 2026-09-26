@@ -15,7 +15,7 @@ import { fmt } from './fields';
 
 const COL_W = 210;
 const ROW_H = 92;
-const PAD = 46;
+const PAD = 64; // at least half a node (54) so the first column is not clipped
 
 const KIND_STYLE = {
   well: { fill: '#065f46', stroke: '#10b981', icon: Droplets },
@@ -163,7 +163,7 @@ const SchematicPanel = () => {
           Laid out by depth from the delivery point, because a gathering system flows one way and
           its arrangement is a fact about the topology rather than something worth dragging into
           place. Click a node to edit it.
-          {bottleneckId && ' The amber line is burning the most pressure per unit it carries.'}
+          {bottleneckId && ' The amber line is burning the most pressure per pound of fluid (oil, water and gas) it moves.'}
         </p>
       </CardContent>
     </Card>

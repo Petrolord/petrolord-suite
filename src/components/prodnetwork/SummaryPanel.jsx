@@ -38,7 +38,7 @@ const SummaryPanel = () => {
             <Row
               label="Bottleneck"
               value={result.diagnosis.bottleneck?.label || '--'}
-              hint="Most pressure per unit carried"
+              hint="Most pressure per pound of fluid moved"
             />
             <Row
               label="Newton iterations"

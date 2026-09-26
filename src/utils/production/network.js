@@ -403,7 +403,7 @@ const emptyStream = () => ({ qoStbd: 0, qwStbd: 0, qgMscfd: 0, massLbD: 0 });
  * returns { ok, errors, network, solution, wells, branches, diagnosis,
  *   conservation, passes, warnings }
  */
-export const runNetwork = ({ inputs, wellModels, samples = CURVE_SAMPLES }) => {
+export const runNetwork = ({ inputs, wellModels, samples = CURVE_SAMPLES, initialPressures = null }) => {
   const errors = [];
   const warnings = [];
 
@@ -466,7 +466,9 @@ export const runNetwork = ({ inputs, wellModels, samples = CURVE_SAMPLES }) => {
   }));
 
   const fluidModel = wellModels[wellNodes[0].id].fluidModel;
-  let solution = null;
+  // A warm start (the sweep's continuation) seeds the first pass; the
+  // outer loop then carries each pass's pressures forward as before.
+  let solution = initialPressures ? { pressures: initialPressures } : null;
   let streams = null;
   let actualStreams = null;
   let passes = 0;
@@ -727,13 +729,36 @@ export const deliverySweep = ({ inputs, wellModels, pressures, samples = 10 }) =
     ? pressures
     : linspace(Math.max(20, base * 0.4), base * 1.4, samples);
 
-  const points = [];
-  for (const p of list) {
+  // CONTINUATION (NET-T1-002). Solved cold, the Newton step stalled after
+  // one iteration at pressures between points that solve (217 psia
+  // between 171 and 263 on the default network). The sweep now solves
+  // the base pressure first and marches outward in each direction,
+  // seeding every solve with its neighbour's pressures, then retries
+  // cold only if the warm start fails.
+  const solveAt = (p, seed) => {
     const trial = {
       ...inputs,
       nodes: inputs.nodes.map((n) => (n.id === sinkId ? { ...n, pressurePsia: p } : n)),
     };
-    const r = runNetwork({ inputs: trial, wellModels, samples: Math.max(6, samples) });
+    const run = (init) => runNetwork({ inputs: trial, wellModels, samples: Math.max(6, samples), initialPressures: init });
+    const warm = seed ? run(seed) : null;
+    return warm?.ok ? warm : run(null);
+  };
+  const baseRun = solveAt(base, null);
+  const results = new Map();
+  const march = (ordered) => {
+    let seed = baseRun.ok ? baseRun.solution?.pressures : null;
+    for (const p of ordered) {
+      const r = solveAt(p, seed);
+      results.set(p, r);
+      if (r.ok) seed = r.solution?.pressures;
+    }
+  };
+  march(list.filter((p) => p >= base).sort((a, b) => a - b));
+  march(list.filter((p) => p < base).sort((a, b) => b - a));
+  const points = [];
+  for (const p of list) {
+    const r = results.get(p);
     points.push({
       deliveryPsia: p,
       ok: r.ok,
@@ -741,8 +766,31 @@ export const deliverySweep = ({ inputs, wellModels, pressures, samples = 10 }) =
       massLbD: r.ok ? r.totals.massLbD : NaN,
       wells: r.ok ? Object.fromEntries(r.wells.map((w) => [w.id, w.qoStbd])) : {},
       shutIn: r.ok ? r.wells.filter((w) => w.shutIn).map((w) => w.label) : [],
+      // Why a pressure has no solution, so the sweep can say so instead of
+      // quietly ending short of the range asked for (NET-T1-002).
+      reason: r.ok ? null : (r.errors?.[0] || r.error || 'The network has no solution at this pressure.'),
     });
   }
+  // Say why a pressure did not solve in terms an engineer can act on. The
+  // engine's residual text carries raw floats; round them. Where the
+  // neighbours on either side disagree about which wells are shut in,
+  // the failure sits on that switch, and naming the well is the useful
+  // part (NET-T1-003).
+  const tidy = (t) => String(t || '').replace(/ Treat the pressures below as a starting point, not as an answer\./, '').replace(/(\d+\.\d{3,})/g, (m) => {
+    const v = Number(m);
+    return Math.abs(v) >= 10 ? Math.round(v).toLocaleString() : v.toPrecision(2);
+  });
+  points.forEach((pt, i) => {
+    if (pt.ok) return;
+    const below = points.slice(0, i).reverse().find((x) => x.ok);
+    const above = points.slice(i + 1).find((x) => x.ok);
+    const switched = below && above
+      ? [...new Set([...below.shutIn, ...above.shutIn])].filter((w) => below.shutIn.includes(w) !== above.shutIn.includes(w))
+      : [];
+    pt.reason = switched.length
+      ? `${switched.join(', ')} ${switched.length === 1 ? 'is' : 'are'} on the edge of shutting in here (flowing at ${Math.round(Math.min(below.deliveryPsia, above.deliveryPsia))} psia, shut in at ${Math.round(Math.max(below.deliveryPsia, above.deliveryPsia))} psia), and the solve cannot settle on that switch. ${tidy(pt.reason)}`
+      : tidy(pt.reason);
+  });
   const usable = points.filter((p) => p.ok && Number.isFinite(p.qoStbd));
   // Rate gained per psi of separator pressure given up, read off the
   // curve rather than asserted. It is not a constant: the further the

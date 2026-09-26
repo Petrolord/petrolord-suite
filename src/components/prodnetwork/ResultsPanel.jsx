@@ -189,8 +189,9 @@ const ResultsPanel = () => {
             <p className="text-[11px] text-amber-300 flex items-start gap-1.5">
               <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
               <span>
-                {result.diagnosis.bottleneck.label} is burning the most pressure for what it
-                carries. That is not the same as the biggest drop, which is{' '}
+                {result.diagnosis.bottleneck.label} is burning the most pressure per pound of fluid
+                it moves (oil, water and gas together, so a wet or gassy well weighs more per
+                barrel of oil). That is not the same as the biggest drop, which is{' '}
                 {result.diagnosis.biggestDrop?.label}: a trunk carrying everything is supposed to
                 have the biggest drop, and changing it is rarely the cheapest thing to do.
               </span>
