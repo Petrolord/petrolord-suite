@@ -80,6 +80,12 @@ takes before sanding.
   calibration (input knob only), transient cleanup, gun shock/string
   dynamics, vendor-exact charge performance.
 
+## Senior test T1 (2026-09-26)
+
+Demo-ready. The underbalance card now caps the band at the sanding
+drawdown margin, and the PSD chart draws the Saucier band. There are also
+layout and label fixes. See `docs/testing/PerforationSandControl-T1.md`.
+
 ## Staging E2E checklist (owner)
 
 1. Open Drilling → Perforation & Sand Control; pick a wellbore with a

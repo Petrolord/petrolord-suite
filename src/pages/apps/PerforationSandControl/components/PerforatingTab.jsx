@@ -97,7 +97,7 @@ export default function PerforatingTab({
               ) : (
                 <div className="mt-2 grid grid-cols-3 gap-2">
                   <div>Bore <span className="float-right font-mono" data-testid="ps-clearance-bore">{(clr.boreM / IN).toFixed(3)}"</span></div>
-                  <div>Clearance <span className="float-right font-mono" data-testid="ps-clearance-mm">{(clr.clearanceM * 1000).toFixed(1)} mm</span></div>
+                  <div>Diametral clearance <span className="float-right font-mono" data-testid="ps-clearance-mm">{(clr.clearanceM * 1000).toFixed(1)} mm</span></div>
                   <div className="text-[10px] text-slate-500">controls: {clr.controlling}</div>
                 </div>
               )}
@@ -201,11 +201,19 @@ export default function PerforatingTab({
                 {perf.underbalance.minPsi} to {perf.underbalance.maxPsi} psi ({perf.underbalance.fluid})
               </div>
               <div className="mt-1 text-[10px] text-slate-500">{perf.underbalance.classLabel}. {perf.underbalance.provenance}</div>
-              {res?.sanding && res.sanding.governing && (
-                <div className="mt-1 text-[10px] text-amber-300">
-                  Check the Sanding tab: the drawdown margin at {Math.round(depthDisp(res.sanding.governing.mdM, depthUnit))} {unit} caps how much underbalance the rock takes.
-                </div>
-              )}
+              {res?.sanding && res.sanding.governing && (() => {
+                // PS-T1-001: put the number on it. The sanding drawdown margin
+                // caps the underbalance; say whether it cuts into this band.
+                const g = res.sanding.governing;
+                const marginPsi = g.cdpPa / 6894.757;
+                const at = `${Math.round(depthDisp(g.mdM, depthUnit))} ${unit}`;
+                const text = marginPsi <= 0
+                  ? `The rock is already past sanding onset at ${at} (drawdown margin ${(g.cdpPa / 1e6).toFixed(2)} MPa): plan sand control before any underbalance.`
+                  : marginPsi < perf.underbalance.maxPsi
+                    ? `The sanding drawdown margin at ${at} is ${(g.cdpPa / 1e6).toFixed(2)} MPa (${Math.round(marginPsi)} psi), inside this band: keep the underbalance below about ${Math.round(marginPsi)} psi.`
+                    : `The sanding drawdown margin at ${at} is ${(g.cdpPa / 1e6).toFixed(2)} MPa (${Math.round(marginPsi)} psi), above the top of this band.`;
+                return <div className="mt-1 text-[10px] text-amber-300" data-testid="ps-ub-sanding">{text}</div>;
+              })()}
             </div>
           )}
         </Card>
