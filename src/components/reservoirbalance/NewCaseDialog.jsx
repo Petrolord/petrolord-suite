@@ -23,7 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Droplet, Wind, Layers } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { createCase } from '@/pages/apps/reservoir-balance/lib/api';
+import { createCase, updateCase } from '@/pages/apps/reservoir-balance/lib/api';
 
 export const FLUID_SYSTEM_OPTIONS = [
   { value: 'oil', label: 'Oil reservoir', icon: Droplet, color: 'text-green-500' },
@@ -51,7 +51,10 @@ const EMPTY_FORM = {
   bubble_point_psia: '',
 };
 
-const NewCaseDialog = ({ open, onOpenChange, onCreated, prefill }) => {
+// editCase (Material Balance T1): the same form edits an existing case's
+// name and initial conditions; they had no editor once created (the
+// "Overview tab" the studio pointed to no longer exists).
+const NewCaseDialog = ({ open, onOpenChange, onCreated, prefill, editCase = null, onSaved }) => {
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -61,6 +64,17 @@ const NewCaseDialog = ({ open, onOpenChange, onCreated, prefill }) => {
   useEffect(() => {
     if (open && prefill) setForm((f) => ({ ...f, ...prefill }));
   }, [open, prefill]);
+  useEffect(() => {
+    if (open && editCase) {
+      const str = (v) => (v == null ? '' : String(v));
+      setForm({
+        name: editCase.name || '', field_name: editCase.field_name || '', reservoir_name: editCase.reservoir_name || '',
+        fluid_system: editCase.fluid_system || 'oil', initial_pressure_psia: str(editCase.initial_pressure_psia),
+        reservoir_temperature_f: str(editCase.reservoir_temperature_f), initial_water_saturation: str(editCase.initial_water_saturation),
+        bubble_point_psia: str(editCase.bubble_point_psia),
+      });
+    }
+  }, [open, editCase]);
 
   const update = (key) => (e) => {
     setForm((f) => ({ ...f, [key]: e?.target?.value ?? e }));
@@ -84,7 +98,7 @@ const NewCaseDialog = ({ open, onOpenChange, onCreated, prefill }) => {
       field_name: form.field_name.trim() || null,
       reservoir_name: form.reservoir_name.trim() || null,
       fluid_system: form.fluid_system,
-      has_aquifer: false, // default; user toggles in the Aquifer tab
+      ...(editCase ? {} : { has_aquifer: false }), // default; user toggles in the Aquifer tab
       has_gas_cap: form.fluid_system === 'oil_with_gas_cap',
       initial_pressure_psia: parseFloat(form.initial_pressure_psia),
       reservoir_temperature_f: parseFloat(form.reservoir_temperature_f),
@@ -93,6 +107,19 @@ const NewCaseDialog = ({ open, onOpenChange, onCreated, prefill }) => {
         ? parseFloat(form.bubble_point_psia)
         : null,
     };
+
+    if (editCase) {
+      const { data, error } = await updateCase(editCase.id, payload);
+      setSubmitting(false);
+      if (error) {
+        toast({ title: 'Failed to save the case', description: error.message, variant: 'destructive' });
+        return;
+      }
+      toast({ title: 'Case saved', description: 'Run the material balance again to use the new initial conditions.' });
+      onOpenChange(false);
+      onSaved?.(data);
+      return;
+    }
 
     const { data, error } = await createCase(payload);
     setSubmitting(false);
@@ -119,9 +146,11 @@ const NewCaseDialog = ({ open, onOpenChange, onCreated, prefill }) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>New Material Balance Case</DialogTitle>
+          <DialogTitle>{editCase ? 'Edit case' : 'New Material Balance Case'}</DialogTitle>
           <DialogDescription>
-            Define a new material balance study. You can edit any of these fields later inside the studio.
+            {editCase
+              ? 'Change the name and the initial conditions. Runs already made keep their results; run again to use the new values.'
+              : 'Define a new material balance study. You can edit any of these fields later from the case card (Edit case).'}
           </DialogDescription>
         </DialogHeader>
 
@@ -237,7 +266,7 @@ const NewCaseDialog = ({ open, onOpenChange, onCreated, prefill }) => {
           </Button>
           <Button onClick={handleSubmit} disabled={!isValid || submitting}>
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Create case
+            {editCase ? 'Save case' : 'Create case'}
           </Button>
         </DialogFooter>
       </DialogContent>

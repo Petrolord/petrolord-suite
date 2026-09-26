@@ -76,7 +76,7 @@ describe('FDP Accelerator after the slim rebuild', () => {
   it('carries the saved-plan rail, the autosave control and a real help guide', async () => {
     mount();
     expect(await screen.findByText('Saved plan')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Save/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Save/i })).toBeInTheDocument();
     expect(screen.getByTitle('Documentation')).toBeInTheDocument();
   });
 

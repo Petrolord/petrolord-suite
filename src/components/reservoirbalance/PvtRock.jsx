@@ -425,7 +425,7 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
     if (!reservoirTemp || isNaN(reservoirTemp)) {
       toast({
         title: 'Missing reservoir temperature',
-        description: 'Set the reservoir temperature on the case (Overview tab) before generating PVT preview.',
+        description: 'Set the reservoir temperature on the case (Edit case on the case card) before generating the PVT preview.',
         variant: 'destructive',
       });
       return;
@@ -665,7 +665,7 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
                     </div>
                   )}
                   <p className="text-[10px] text-slate-500 pt-1">
-                    Edit these on the Overview tab.
+                    Edit these with Edit case on the case card.
                   </p>
                 </div>
 
