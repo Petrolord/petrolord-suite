@@ -80,7 +80,8 @@ const PressureDepthChart = () => {
                     height={XAXIS_LABEL_HEIGHT}
               type="number"
               stroke={CHART_COLORS.axisLine}
-              domain={[0, 'dataMax + 100']}
+              domain={[0, (max) => Math.ceil((max + 100) / 250) * 250]}
+                allowDecimals={false}
               tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
               label={{
                 value: 'Pressure (psig)', position: 'insideBottom', offset: 0,

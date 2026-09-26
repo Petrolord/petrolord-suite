@@ -101,8 +101,8 @@ const InjectionPointPanel = () => {
           <CardTitle className="text-base">
             The construction
             <span className="block text-xs font-normal text-slate-500 mt-0.5">
-              Flowing gradient at {fmt(inputs.injection.designRateStbd)} stb/d fully lifted, against
-              the injection line at {fmt(inputs.injection.operatingPsig)} psig.
+              Flowing gradient at {fmt(Number(inputs.injection.designRateStbd))} stb/d fully lifted, against
+              the injection line at {fmt(Number(inputs.injection.operatingPsig))} psig.
             </span>
           </CardTitle>
         </CardHeader>
@@ -114,7 +114,8 @@ const InjectionPointPanel = () => {
                     height={XAXIS_LABEL_HEIGHT}
                 type="number"
                 stroke={CHART_COLORS.axisLine}
-                domain={[0, 'dataMax + 100']}
+                domain={[0, (max) => Math.ceil((max + 100) / 250) * 250]}
+                allowDecimals={false}
                 tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                 label={{
                   value: 'Pressure (psig)', position: 'insideBottom', offset: 0,
