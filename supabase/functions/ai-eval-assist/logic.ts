@@ -5,10 +5,17 @@
 // request rules, the prompt, the reply parser and the metering constants;
 // index.ts does auth, membership, metering and the model call.
 
-/** Helper calls per organization per UTC day. The help guide states it; src/utils/dataAi/evalAssist.js ASSIST_DAILY_CAP must equal it. */
-export const DAILY_CAP = 50;
+/** Helper calls per organization per UTC day (owner decision 2026-09-26). The help guide states it; src/utils/dataAi/evalAssist.js ASSIST_DAILY_CAP must equal it. */
+export const DAILY_CAP = 200;
+/** Helper calls per person per organization per UTC day (owner decision 2026-09-26); evalAssist.js ASSIST_USER_DAILY_CAP must equal it. */
+export const USER_DAILY_CAP = 40;
 export const FUNCTION_NAME = 'ai-eval-assist';
-export const DEFAULT_MODEL = 'gpt-4o-mini';
+/** OpenAI's efficient reasoning model (owner decision 2026-09-26); the OPENAI_MODEL secret overrides it. */
+export const DEFAULT_MODEL = 'gpt-6-luna';
+/** The reasoning efforts OpenAI accepts, and the one sent unless the OPENAI_REASONING_EFFORT secret names another. */
+export const REASONING_EFFORTS = ['none', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
+export type ReasoningEffort = typeof REASONING_EFFORTS[number];
+export const DEFAULT_REASONING_EFFORT: ReasoningEffort = 'low';
 export const MAX_PASSAGES = 10;
 export const MAX_PASSAGE_CHARS = 4000;
 export const MAX_QUERY_CHARS = 1000;
@@ -90,7 +97,107 @@ export function parseModelReply(content: unknown): { ok: true; answer: string; c
   return { ok: true, answer: o.answer.trim(), citations };
 }
 
-/** The refusal once an organization reaches its cap. */
-export function capMessage(cap: number = DAILY_CAP): string {
-  return `This organization has used its ${cap} helper calls for today (UTC). The cap resets at 00:00 UTC; everything else in the AI Evaluation Studio works without the helper.`;
+export type CapHit = 'organization' | 'user';
+export type CapCounts = { callsToday: number; userCallsToday: number; dailyCap?: number; userDailyCap?: number };
+
+/**
+ * The refusal once a cap is reached, naming the cap (the organization's or
+ * the person's own) and both counts. `hit` is the reserve function's
+ * cap_hit: 'organization' or 'user'.
+ */
+export function capMessage(hit: CapHit, { callsToday, userCallsToday, dailyCap = DAILY_CAP, userDailyCap = USER_DAILY_CAP }: CapCounts): string {
+  const tail = 'Both caps reset at 00:00 UTC; everything else in the AI Evaluation Studio works without the helper.';
+  if (hit === 'user') {
+    return `Personal cap reached: you have made ${userCallsToday} of your ${userDailyCap} helper calls for today (UTC), and your organization has made ${callsToday} of its ${dailyCap}. ${tail}`;
+  }
+  return `Organization cap reached: this organization has made ${callsToday} of its ${dailyCap} helper calls for today (UTC), and you have made ${userCallsToday} of your ${userDailyCap}. ${tail}`;
+}
+
+/**
+ * True for OpenAI reasoning models (the gpt-5 and gpt-6 families and the
+ * o-series such as o1, o3 and o4-mini). They take reasoning_effort and may
+ * refuse a temperature other than the default. gpt-4o and gpt-4.1 models,
+ * and the gpt-5 "chat" aliases (gpt-5-chat-latest), are treated as
+ * non-reasoning models.
+ */
+export function isReasoningModel(model: string): boolean {
+  const m = String(model ?? '').trim().toLowerCase();
+  if (/^gpt-[56](?![0-9])/.test(m)) return !/-chat(-|$)/.test(m);
+  return /^o\d/.test(m);
+}
+
+/**
+ * The OPENAI_REASONING_EFFORT secret read against the allowed list. Unset or
+ * blank gives the default; a value outside the list also gives the default,
+ * with a warning for the log naming the value and the list.
+ */
+export function resolveReasoningEffort(raw: string | undefined | null): { effort: ReasoningEffort; warning: string | null } {
+  const v = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+  if (!v) return { effort: DEFAULT_REASONING_EFFORT, warning: null };
+  if ((REASONING_EFFORTS as readonly string[]).includes(v)) return { effort: v as ReasoningEffort, warning: null };
+  return {
+    effort: DEFAULT_REASONING_EFFORT,
+    warning: `OPENAI_REASONING_EFFORT is "${raw}", which is not one of ${REASONING_EFFORTS.join(', ')}; using ${DEFAULT_REASONING_EFFORT}.`,
+  };
+}
+
+/** The structured-output schema of the reply; parseModelReply reads the same shape. */
+export const REPLY_SCHEMA = {
+  name: 'grounded_answer',
+  strict: true,
+  schema: {
+    type: 'object',
+    properties: {
+      answer: { type: 'string' },
+      citations: { type: 'array', items: { type: 'string' } },
+    },
+    required: ['answer', 'citations'],
+    additionalProperties: false,
+  },
+} as const;
+
+/**
+ * The Chat Completions request body. A reasoning model gets reasoning_effort
+ * and no temperature; any other model gets temperature 0 and no
+ * reasoning_effort. Both ask for the reply as structured output.
+ */
+export function buildChatRequest(model: string, query: string, passages: Passage[], effort: ReasoningEffort = DEFAULT_REASONING_EFFORT): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    model,
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: buildUserPrompt(query, passages) },
+    ],
+    response_format: { type: 'json_schema', json_schema: REPLY_SCHEMA },
+  };
+  if (isReasoningModel(model)) body.reasoning_effort = effort;
+  else body.temperature = 0;
+  return body;
+}
+
+/**
+ * A provider error read for the log and the call's error column. A 400 that
+ * mentions an unsupported or unknown parameter is called out by name, so a
+ * model that refuses temperature or reasoning_effort is easy to spot.
+ */
+export function describeProviderError(status: number, bodyText: string, model: string): { unsupportedParameter: boolean; log: string; error: string } {
+  let message = '';
+  let param: string | null = null;
+  try {
+    const j = JSON.parse(bodyText);
+    message = String(j?.error?.message ?? '');
+    param = typeof j?.error?.param === 'string' ? j.error.param : null;
+  } catch {
+    message = String(bodyText ?? '');
+  }
+  const unsupportedParameter = status === 400 && /unsupported|not supported|unrecognized|unknown parameter|does not support/i.test(message || bodyText);
+  if (unsupportedParameter) {
+    const which = param ?? (message.match(/'([a-z_]+)'/i)?.[1] ?? 'a parameter');
+    return {
+      unsupportedParameter,
+      log: `OpenAI refused ${which} for model ${model} (400 unsupported parameter): ${message.slice(0, 300)}. Check OPENAI_MODEL and OPENAI_REASONING_EFFORT.`,
+      error: `provider 400 unsupported parameter: ${which}`.slice(0, 300),
+    };
+  }
+  return { unsupportedParameter, log: `OpenAI error ${status} for model ${model}: ${(message || bodyText).slice(0, 500)}`, error: `provider ${status}` };
 }

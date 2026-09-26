@@ -37,7 +37,7 @@ jest.mock('@/contexts/SupabaseAuthContext', () => ({
 import AiEvaluationStudio from '@/pages/apps/AiEvaluationStudio';
 import AiEvaluationStudioHelpGuide, { EVAL_GUIDE_SECTIONS } from '@/pages/apps/AiEvaluationStudioHelpGuide';
 import { displayNumber } from '@/utils/dataAi/qcDisplay';
-import { ASSIST_DAILY_CAP } from '@/utils/dataAi/evalAssist';
+import { ASSIST_DAILY_CAP, ASSIST_USER_DAILY_CAP } from '@/utils/dataAi/evalAssist';
 
 const G = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../../../packages/engines/test-data/dataai/goldens/evaluate_cases.json'), 'utf8'));
 const golden = (id) => {
@@ -210,7 +210,7 @@ describe('the optional language-model helper', () => {
   it('scores a configured helper answer with the engine and labels it as model output, not graded', async () => {
     mockInvoke.mockResolvedValue({
       data: {
-        answer: 'Average reservoir pressure was 2,096 psia on 2023-01-01 and 9,999 psia later.', citations: ['EKD-018'], model: 'gpt-4o-mini', calls_today: 3, daily_cap: 50,
+        answer: 'Average reservoir pressure was 2,096 psia on 2023-01-01 and 9,999 psia later.', citations: ['EKD-018'], model: 'gpt-6-luna', reasoning_effort: 'low', calls_today: 3, daily_cap: 200, user_calls_today: 2, user_daily_cap: 40,
       },
       error: null,
     });
@@ -221,7 +221,8 @@ describe('the optional language-model helper', () => {
     expect(res).toHaveTextContent('Model output, not graded');
     expect(screen.getByTestId('assist-grounded')).toHaveTextContent('Deterministic check: 2 of 3 claims supported');
     expect(screen.getByTestId('assist-claims')).toHaveTextContent('the number 9,999 is not in the cited passage EKD-018; it appears in no passage of the corpus');
-    expect(res).toHaveTextContent('3 of 50 calls today for your organization');
+    expect(res).toHaveTextContent('Model gpt-6-luna (reasoning effort low); 3 of 200 calls today for your organization, 2 of your 40.');
+    expect(screen.getByTestId('assist-section')).toHaveTextContent(`Each organization can make ${ASSIST_DAILY_CAP} helper calls per UTC day and each person ${ASSIST_USER_DAILY_CAP} of them`);
     const [fn, { body }] = mockInvoke.mock.calls[0];
     expect(fn).toBe('ai-eval-assist');
     expect(body.organization_id).toBe('org-1');
@@ -235,9 +236,9 @@ describe('the optional language-model helper', () => {
     openTab('Answers and groundedness');
     fireEvent.click(await screen.findByTestId('assist-ask'));
     expect(await screen.findByTestId('assist-not-configured')).toHaveTextContent('The language-model helper is not configured on this server. Everything else in the studio works without it.');
-    mockInvoke.mockResolvedValueOnce({ data: null, error: httpError(429, { error: `This organization has used its ${ASSIST_DAILY_CAP} helper calls for today (UTC). The cap resets at 00:00 UTC.` }) });
+    mockInvoke.mockResolvedValueOnce({ data: null, error: httpError(429, { error: `Personal cap reached: you have made ${ASSIST_USER_DAILY_CAP} of your ${ASSIST_USER_DAILY_CAP} helper calls for today (UTC), and your organization has made 57 of its ${ASSIST_DAILY_CAP}.`, cap_hit: 'user' }) });
     fireEvent.click(screen.getByTestId('assist-ask'));
-    await waitFor(() => expect(screen.getByTestId('assist-failed')).toHaveTextContent(`used its ${ASSIST_DAILY_CAP} helper calls for today`));
+    await waitFor(() => expect(screen.getByTestId('assist-failed')).toHaveTextContent(`Personal cap reached: you have made ${ASSIST_USER_DAILY_CAP} of your ${ASSIST_USER_DAILY_CAP}`));
   }, 60000);
 });
 
@@ -252,7 +253,10 @@ describe('the help guide', () => {
     expect(text).toContain('A probability on an edge opens the bin above it');
     expect(text).toContain('17 of 200 rows sit in a different bin');
     expect(text).toContain('"The end of 2025" is read as the number 2025');
-    expect(text).toContain(`an organization can make ${ASSIST_DAILY_CAP} helper calls per UTC day`);
+    expect(text).toContain(`An organization can make ${ASSIST_DAILY_CAP} helper calls per UTC day, and each person can make ${ASSIST_USER_DAILY_CAP} of them`);
+    expect(text).toContain('The model is OpenAI\'s gpt-6-luna unless the server names another. It is a reasoning model');
+    expect(text).toContain('does not count against either cap');
+    expect(text).toContain('names the cap reached (the organization\'s or your own)');
     expect(text).not.toMatch(/[–—]/);
     expect(text).not.toMatch(/AI-powered/i);
   });
