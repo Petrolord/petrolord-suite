@@ -93,7 +93,7 @@ export async function downloadBlob(path) {
 export const TEMPLATES = [
   {
     slug: 'SPE1CASE1',
-    label: 'SPE1 — Odeh three-phase black oil (10x10x3)',
+    label: 'SPE1: Odeh three-phase black oil (10x10x3)',
     dir: '/sim-templates/spe1',
     files: ['SPE1CASE1.DATA'],
     main: 'SPE1CASE1.DATA',
@@ -101,7 +101,7 @@ export const TEMPLATES = [
   },
   {
     slug: 'SPE9',
-    label: 'SPE9 — Killough heterogeneous waterflood (24x25x15)',
+    label: 'SPE9: Killough heterogeneous waterflood (24x25x15)',
     dir: '/sim-templates/spe9',
     files: ['SPE9.DATA', 'PERMVALUES.DATA', 'TOPSVALUES.DATA'],
     main: 'SPE9.DATA',

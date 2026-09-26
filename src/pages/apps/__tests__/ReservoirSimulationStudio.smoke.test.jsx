@@ -77,8 +77,8 @@ describe('ReservoirSimulationStudio page', () => {
     // Most recent case auto-opens: its name shows in the select trigger.
     expect(await screen.findByText('SPE1 demo')).toBeInTheDocument();
     // Deck tab is default: template cards present.
-    expect(screen.getByText(/SPE1 — Odeh/i)).toBeInTheDocument();
-    expect(screen.getByText(/SPE9 — Killough/i)).toBeInTheDocument();
+    expect(screen.getByText(/SPE1: Odeh/i)).toBeInTheDocument();
+    expect(screen.getByText(/SPE9: Killough/i)).toBeInTheDocument();
   });
 
   it('shows the open case deck text and honest run history', async () => {
@@ -110,7 +110,7 @@ describe('ReservoirSimulationStudio page', () => {
     await screen.findByText('SPE1 demo');
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Builder' }));
     // Guided form renders with engine-backed defaults.
-    expect(await screen.findByText(/Grid — 300 cells/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Grid: 300 cells/i)).toBeInTheDocument();
     expect(screen.getByText(/correlations from Fluid Studio/i)).toBeInTheDocument();
     // Generate runs correlation PVT + Corey SCAL + composeDeck for real
     // (only the upload is mocked) and reports the solved bubble point.

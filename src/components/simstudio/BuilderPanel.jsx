@@ -65,7 +65,7 @@ const BuilderPanel = () => {
     const out = buildDeckFromForm({ ...form, grid: { ...form.grid, layers } });
     if (!out.ok) {
       setErrors(out.errors);
-      addNotification('Deck generation failed — fix the model inputs', 'error');
+      addNotification('Deck generation failed. Fix the model inputs listed below.', 'error');
       return;
     }
     const name = `${(form.title || 'MODEL').replace(/[^A-Za-z0-9]/g, '_').toUpperCase().slice(0, 24) || 'MODEL'}.DATA`;
@@ -77,7 +77,7 @@ const BuilderPanel = () => {
         form.history?.enabled && form.history?.periods && 'history phase',
       ].filter(Boolean);
       addNotification(
-        `Model generated (Pb ${out.pb.toFixed(0)} psia, ${cellCount.toLocaleString()} cells${extras.length ? `, ${extras.join(' + ')}` : ''}) — see the Deck tab, then Run`,
+        `Model generated (Pb ${out.pb.toFixed(0)} psia, ${cellCount.toLocaleString()} cells${extras.length ? `, ${extras.join(' + ')}` : ''}). Review it on the Deck tab, then run it from Runs.`,
         'success',
       );
     }
@@ -87,7 +87,7 @@ const BuilderPanel = () => {
     return (
       <Card className="bg-slate-900 border-slate-800">
         <CardContent className="py-10 text-center text-sm text-slate-500">
-          Create or open a case first — the generated deck attaches to it.
+          Create or open a case first: the generated deck attaches to it.
         </CardContent>
       </Card>
     );
@@ -103,7 +103,7 @@ const BuilderPanel = () => {
         </div>
       </Section>
 
-      <Section title={`Grid — ${cellCount.toLocaleString()} cells (limit 200,000)`}>
+      <Section title={`Grid: ${cellCount.toLocaleString()} cells (limit 200,000)`}>
         <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
           <Field label="NX" value={form.grid.nx} onChange={(v) => set('grid.nx', v)} />
           <Field label="NY" value={form.grid.ny} onChange={(v) => set('grid.ny', v)} />
@@ -115,7 +115,7 @@ const BuilderPanel = () => {
         <div className="mt-3 space-y-2">
           {layers.map((l, idx) => (
             <div key={idx} className="grid grid-cols-4 gap-3 items-end">
-              <Field label={`Layer ${idx + 1} — DZ (ft)`} value={l.dz} onChange={(v) => set(`grid.layers.${idx}.dz`, v)} />
+              <Field label={`Layer ${idx + 1} DZ (ft)`} value={l.dz} onChange={(v) => set(`grid.layers.${idx}.dz`, v)} />
               <Field label="Porosity (frac)" value={l.poro} onChange={(v) => set(`grid.layers.${idx}.poro`, v)} />
               <Field label="Perm kh (mD)" value={l.permx} onChange={(v) => set(`grid.layers.${idx}.permx`, v)} />
               <Field label="Perm kv (mD)" value={l.permz} onChange={(v) => set(`grid.layers.${idx}.permz`, v)} />
@@ -133,7 +133,7 @@ const BuilderPanel = () => {
 
       <Grid3DView form={{ ...form, grid: { ...form.grid, layers } }} />
 
-      <Section title="Fluid (black oil — correlations from Fluid Studio)">
+      <Section title="Fluid (black oil, correlations from Fluid Studio)">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <Field label="Oil API" value={form.fluid.api} onChange={(v) => set('fluid.api', v)} />
           <Field label="Gas SG (air=1)" value={form.fluid.gasSg} onChange={(v) => set('fluid.gasSg', v)} />
@@ -158,7 +158,7 @@ const BuilderPanel = () => {
       </Section>
 
       <Section
-        title="Relative permeability (Corey — SCAL Studio model)"
+        title="Relative permeability (Corey, SCAL Studio model)"
         aside={(
           <label className="flex items-center gap-2 text-[11px] text-slate-400">
             <input type="checkbox" checked={form.scal.pc.enabled}
@@ -231,7 +231,7 @@ const BuilderPanel = () => {
                 </div>
                 {w.trajectory?.enabled ? (
                   <div className="col-span-2 md:col-span-4 text-[11px] text-slate-500 pb-2">
-                    Completion from the survey below — cells are computed at generate time.
+                    Completion from the survey below; cells are computed at generate time.
                   </div>
                 ) : (
                   <>

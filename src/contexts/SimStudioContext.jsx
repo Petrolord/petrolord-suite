@@ -96,7 +96,7 @@ export const SimStudioProvider = ({ children }) => {
       if (!still) {
         const latest = rows[0];
         if (latest?.status === 'complete') addNotification('Simulation run complete', 'success');
-        else if (latest?.status === 'failed') addNotification('Simulation run failed — see the run log', 'error');
+        else if (latest?.status === 'failed') addNotification('Simulation run failed. See the run log on the Runs tab.', 'error');
       }
     }, POLL_MS);
     return () => clearInterval(pollRef.current);
@@ -201,7 +201,7 @@ export const SimStudioProvider = ({ children }) => {
     if (!activeCase) return;
     try {
       await sim.enqueueRun(activeCase.id);
-      addNotification('Run queued — the worker picks it up within ~10 s', 'success');
+      addNotification('Run queued. The worker picks it up within about 10 seconds.', 'success');
       refreshRuns(activeCase.id);
     } catch (e) {
       console.error(e);
@@ -214,7 +214,7 @@ export const SimStudioProvider = ({ children }) => {
     try {
       const outcome = await sim.cancelRun(runId);
       addNotification(outcome === 'cancelled' ? 'Run cancelled'
-        : outcome === 'cancel_requested' ? 'Cancel requested — stopping the simulator'
+        : outcome === 'cancel_requested' ? 'Cancel requested. Stopping the simulator.'
           : `Run already ${outcome}`, 'info');
       refreshRuns(activeCaseId);
     } catch (e) {

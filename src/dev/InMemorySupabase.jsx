@@ -102,15 +102,59 @@ export function makeQuery(db, table, user = DEV_USER) {
 }
 
 /**
- * Wrap an app: swaps supabase.from, auth.getUser / getSession and
- * functions.invoke for the in-memory versions while mounted.
- * @param {{db: object, user?: object, functions?: Record<string, (body:any, db:object)=>Promise<{data:any,error:any}>>}} props
+ * An in-memory storage client over db.__storage ({ 'bucket/path': Blob }),
+ * with the upload / download / remove / copy / list calls the Suite uses.
  */
-export default function InMemorySupabase({ db, user = DEV_USER, functions = NO_FUNCTIONS, children }) {
+export function makeStorage(db) {
+  const files = db.__storage || (db.__storage = {});
+  const toBlob = (f) => (f instanceof Blob ? f : new Blob([typeof f === 'string' ? f : JSON.stringify(f)], { type: 'text/plain' }));
+  return {
+    from(bucket) {
+      const key = (path) => `${bucket}/${path}`;
+      return {
+        async upload(path, file, opts = {}) {
+          if (files[key(path)] && !opts.upsert) return { data: null, error: { message: 'The resource already exists' } };
+          files[key(path)] = toBlob(file);
+          return { data: { path }, error: null };
+        },
+        async download(path) {
+          const f = files[key(path)];
+          return f ? { data: f, error: null } : { data: null, error: { message: 'Object not found' } };
+        },
+        async remove(paths) {
+          for (const p of paths) delete files[key(p)];
+          return { data: paths.map((name) => ({ name })), error: null };
+        },
+        async copy(from, to) {
+          if (!files[key(from)]) return { data: null, error: { message: 'Object not found' } };
+          files[key(to)] = files[key(from)];
+          return { data: { path: to }, error: null };
+        },
+        async list(prefix = '') {
+          const pre = key(prefix ? `${prefix.replace(/\/$/, '')}/` : '');
+          return {
+            data: Object.keys(files).filter((k) => k.startsWith(pre)).map((k) => ({ name: k.slice(pre.length), metadata: { size: files[k].size } })),
+            error: null,
+          };
+        },
+        getPublicUrl(path) { return { data: { publicUrl: `memory://${key(path)}` } }; },
+      };
+    },
+  };
+}
+
+/**
+ * Wrap an app: swaps supabase.from, auth.getUser / getSession, rpc,
+ * storage and functions.invoke for the in-memory versions while mounted.
+ * @param {{db: object, user?: object,
+ *   functions?: Record<string, (body:any, db:object)=>Promise<{data:any,error:any}>>,
+ *   rpc?: Record<string, (args:any, db:object)=>Promise<{data:any,error:any}>>}} props
+ */
+export default function InMemorySupabase({ db, user = DEV_USER, functions = NO_FUNCTIONS, rpc = NO_FUNCTIONS, children }) {
   const [ready, setReady] = useState(false);
   useEffect(() => {
     if (restoreTimer) { clearTimeout(restoreTimer); restoreTimer = null; }
-    if (!saved) saved = { from: supabase.from, getUser: supabase.auth.getUser, getSession: supabase.auth.getSession };
+    if (!saved) saved = { from: supabase.from, rpc: supabase.rpc, getUser: supabase.auth.getUser, getSession: supabase.auth.getSession };
     supabase.from = (t) => makeQuery(db, t, user);
     supabase.auth.getUser = async () => ({ data: { user }, error: null });
     supabase.auth.getSession = async () => ({ data: { session: { user, access_token: 'dev' } }, error: null });
@@ -122,6 +166,11 @@ export default function InMemorySupabase({ db, user = DEV_USER, functions = NO_F
         : { data: null, error: { message: `${name} is not available on the harness` } }),
     };
     Object.defineProperty(supabase, 'functions', { configurable: true, get: () => fake });
+    supabase.rpc = async (name, args = {}) => (rpc[name]
+      ? rpc[name](args, db)
+      : { data: null, error: { message: `${name} is not available on the harness` } });
+    const storage = makeStorage(db);
+    Object.defineProperty(supabase, 'storage', { configurable: true, get: () => storage });
     setReady(true);
     return () => {
       // Restore on the next tick: under StrictMode the effects are torn down
@@ -130,12 +179,14 @@ export default function InMemorySupabase({ db, user = DEV_USER, functions = NO_F
       restoreTimer = setTimeout(() => {
         restoreTimer = null;
         supabase.from = saved.from;
+        supabase.rpc = saved.rpc;
         supabase.auth.getUser = saved.getUser;
         supabase.auth.getSession = saved.getSession;
-        delete supabase.functions; // back to the prototype getter
+        delete supabase.functions; // back to the prototype getters
+        delete supabase.storage;
         saved = null;
       }, 0);
     };
-  }, [db, user, functions]);
+  }, [db, user, functions, rpc]);
   return ready ? children : null;
 }
