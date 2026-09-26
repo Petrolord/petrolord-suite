@@ -60,7 +60,7 @@ const ForecastPanel = () => {
           <Field label="From reservoir pressure (psia)"><NumberInput section="forecast" name="prFrom" /></Field>
           <Field label="Down to (psia)"><NumberInput section="forecast" name="prTo" /></Field>
           <Field label="Points"><NumberInput section="forecast" name="nPoints" /></Field>
-          <Button onClick={runForecast} disabled={isRunning} className="h-9">
+          <Button onClick={runForecast} disabled={isRunning} className="whitespace-nowrap h-9">
             <Play className="w-3.5 h-3.5 mr-1" /> Run forecast
           </Button>
         </div>
@@ -139,7 +139,7 @@ const ForecastPanel = () => {
                       x={forecast.crossingPrPsia}
                       stroke={COLOR.crossing}
                       strokeDasharray="4 4"
-                      label={{ value: 'Loads here', position: 'top', fill: COLOR.crossing, fontSize: 10 }}
+                      label={{ value: 'Loads here', position: 'insideTopRight', fill: COLOR.crossing, fontSize: 10 }}
                     />
                   )}
                   <Line dataKey="qMscfd" name="Deliverability" stroke={COLOR.rate} strokeWidth={2.2} dot isAnimationActive={false} />

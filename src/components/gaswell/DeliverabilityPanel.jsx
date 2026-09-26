@@ -75,7 +75,9 @@ const DeliverabilityPanel = () => {
                     height={XAXIS_LABEL_HEIGHT}
                 type="number"
                 dataKey="q"
-                domain={['dataMin', 'dataMax']}
+                domain={[0, (max) => Math.ceil(max / 250) * 250]}
+                allowDecimals={false}
+                tickFormatter={(v) => Math.round(Number(v)).toLocaleString()}
                 stroke={CHART_COLORS.axisLine}
                 tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                 label={{
@@ -87,7 +89,7 @@ const DeliverabilityPanel = () => {
                 stroke={CHART_COLORS.axisLine}
                 tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                 label={{
-                  value: 'Bottomhole pressure (psia)', angle: -90, position: 'insideLeft',
+                  value: 'Bottomhole (psia)', angle: -90, position: 'insideLeft',
                   fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
                 }}
               />
