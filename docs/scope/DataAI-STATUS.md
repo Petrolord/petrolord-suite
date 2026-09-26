@@ -3,6 +3,28 @@
 Plan of record: `docs/scope/NextGen-Remaining-Courses-PLAN.md` section 15
 (owner decisions 2026-09-23).
 
+## Deployment status (2026-09-26): all five waves live
+
+Every migration marked HELD or NOT APPLIED in the wave sections below has
+since been applied; MIGRATIONS.md is the record of each apply.
+
+| wave | Suite app (module `data-ai`) | NextGen course | live since |
+|---|---|---|---|
+| D1 | Data Quality Studio | `dataqc` | 2026-09-25 |
+| D2 | ML Workbench | `mlcore` | 2026-09-25 |
+| D3 | Electrofacies Studio | `facies` | 2026-09-25 |
+| D4 | Production Forecasting ML Workbench | `forecastml` | 2026-09-25 |
+| D5 | AI Evaluation Studio | `appliedai` | 2026-09-26 |
+
+- Module price: data-ai 2,999 per month (owner confirmed 2026-09-25); D5 made no pricing change.
+- D5 deploy: Suite 8a6c9d838 and NextGen 2cb31554f uploaded and verified; Suite
+  migrations 20260925180000 to 210000 applied with the `ai-eval-assist` edge
+  function deployed before the tile went Active; NextGen 20261104_d5_appliedai_*
+  applied after a clean production rolled-back dry run. Engines pinned at f50251d.
+- The optional language-model helper (`ai-eval-assist`) is metered at 50 calls
+  per organization per UTC day through `dai_llm_calls`. No graded figure in the
+  app or the course depends on its output.
+
 ## D0: honesty cleanup (2026-09-23)
 
 Removes what claimed machine learning or AI without any behind it, so the
