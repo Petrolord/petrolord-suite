@@ -2,19 +2,10 @@
 // module worker when the browser has one, so a large grid never freezes
 // the page, and synchronously otherwise (jest, very old browsers).
 
-import { gridSurface, gridSurfaceBlocked } from '@/lib/gridding/gridding';
-import { krigeSurface } from '@/lib/gridding/kriging';
-import { gridTensionSpline } from '@/lib/gridding/tensionSpline';
+import { runGriddingSync } from './gridSync';
 import { createMappingGridWorker } from './mappingGridWorkerFactory';
 
-/** @param {'tps'|'blocked'|'kriging'|'tension'} method */
-export function runGriddingSync(method, points, spec, opts = {}) {
-  if (method === 'kriging') return krigeSurface(points, spec, opts);
-  if (method === 'tension') return gridTensionSpline(points, spec, opts);
-  if (method === 'blocked') return gridSurfaceBlocked(points, spec, opts);
-  if (method === 'tps') return gridSurface(points, spec, opts);
-  throw new Error(`Unknown gridding method "${method}".`);
-}
+export { runGriddingSync };
 
 let worker = null;
 let seq = 0;
