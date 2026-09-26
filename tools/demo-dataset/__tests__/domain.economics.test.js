@@ -48,20 +48,24 @@ const note = (n) => {
 const upload = (text) => Papa.parse(text, { header: true, dynamicTyping: true, skipEmptyLines: true }).data;
 const sheetRows = (rel) => Papa.parse(read(rel), { header: true, skipEmptyLines: true }).data;
 
-// Measured on the generated kit (engine v3.10.0). Tolerances are float noise
-// on a USD figure; every number the notes quote is rounded far coarser.
+// Measured on the generated kit (engine v3.12.0, EC7: the PIA regime on the
+// gazetted PIA 2021 / NTA 2025 / Royalty Regulations 2022 by default; the
+// history years 2020 to 2025 now assess under the PIA and every valued year
+// under the NTA). Engine v3.10.0 gave NPV 813,119.32, base -847,329.78,
+// increment 1,660,449.10. Tolerances are float noise on a USD figure; every
+// number the notes quote is rounded far coarser.
 const GOLD = {
-  npv: 813119.3194244802,
-  npvBase: -847329.7769683539,
-  increment: 1660449.096392834,
-  fieldRoots: [-0.5978011582608294, 25.30122552436848],
-  wellRoots: [-14.26414006639124, 20.60540388996156],
-  screeningNpv: 4.051301542010337,
-  be: { p10: 75.5826897724885, p50: 84.59687980855904, p90: 97.02442079720501 },
-  beBase: 83.62815751079947,
-  emv: 1.696,
-  evWithPerfect: 1.954,
-  evpi: 0.258,
+  npv: 1980235.4787033359,
+  npvBase: -459223.89405244216,
+  increment: 2439459.372755778,
+  fieldRoots: [-3.679148205554213, 36.699646819532916, 906.4352298513096],
+  wellRoots: [-11.905323454520644, 24.913312111737174],
+  screeningNpv: 4.684610909136642,
+  be: { p10: 70.51575532778139, p50: 78.87782199404447, p90: 90.51874676457922 },
+  beBase: 78.00425824742712,
+  emv: 2.482,
+  evWithPerfect: 2.557,
+  evpi: 0.075,
 };
 
 // ---------------------------------------------------------------------------
@@ -168,13 +172,19 @@ describe('Episode 26: Petroleum Economics Studio takes the three uploads', () =>
       base_year: 2026, valuation_year: 2026, treat_prior_as_sunk: true, apply_economic_limit: true,
       abandonment_cost_usd: 6800000, abandonment_year: null, production_scenario: '2P' });
     const { kpis, cashFlowData } = run(cfg, f);
-    expect(kpis.fiscal_framework).toBe('nta_2025');
+    // engines 3.12.0 read the framework per year: PIA for the sunk history,
+    // NTA for every valued year, and the kit runs the compliant engine
+    expect(kpis.fiscal_framework).toBe('pia_only_then_nta_2025');
+    expect(kpis.nta_first_year).toBe(2026);
+    expect(cashFlowData.filter((r) => !r.sunk).every((r) => r.fiscal_framework === 'nta_2025')).toBe(true);
+    expect(kpis.pia_legacy_pre_audit).toBeUndefined();
     expect(Math.abs(kpis.npv - GOLD.npv)).toBeLessThan(0.01);
     expect(kpis.irr).toBeNull();
     expect(kpis.irr_status).toBe('multiple-roots');
+    expect(kpis.irr_roots).toHaveLength(GOLD.fieldRoots.length);
     kpis.irr_roots.forEach((r, i) => expect(Math.abs(r - GOLD.fieldRoots[i])).toBeLessThan(1e-6));
-    expect(kpis.economic_limit_year).toBe(2036);
-    expect(kpis.abandonment_year).toBe(2036);
+    expect(kpis.economic_limit_year).toBe(2037);
+    expect(kpis.abandonment_year).toBe(2037);
     expect(cashFlowData.filter((r) => r.sunk).map((r) => r.year)).toEqual([2020, 2021, 2022, 2023, 2024, 2025]);
     // the breakeven the edge function adds is null on this case (see the README)
     // null before EPE engine 3.11.0 (economic limit trimmed the capex years), a price after
@@ -189,9 +199,10 @@ describe('Episode 26: Petroleum Economics Studio takes the three uploads', () =>
     }
 
     const text = note(26);
-    expect(text).toContain('NPV10 of USD 0.81 MM');
+    expect(text).toContain('NPV10 of USD 1.98 MM');
+    expect(text).toContain('Computed under PIA 2021 to 2025 and NTA 2025 from 2026');
     expect(text).toContain(epeIrrReason(kpis));
-    expect(text).toContain('economic limit in 2036');
+    expect(text).toContain('economic limit in 2037');
   });
 
   test('Ekene-11 is worth the increment the note quotes, and returns its IRR', () => {
@@ -213,9 +224,9 @@ describe('Episode 26: Petroleum Economics Studio takes the three uploads', () =>
     expect(irr.irr_status).toBe('multiple-roots');
     irr.irr_roots.forEach((r, i) => expect(Math.abs(r - GOLD.wellRoots[i])).toBeLessThan(1e-6));
     const text = note(26);
-    expect(text).toContain('worth minus USD 0.85 MM');
-    expect(text).toContain('Ekene-11 is worth USD 1.66 MM');
-    expect(text).toContain('returns 20.61 percent');
+    expect(text).toContain('worth minus USD 0.46 MM');
+    expect(text).toContain('Ekene-11 is worth USD 2.44 MM');
+    expect(text).toContain('returns 24.91 percent');
   });
 
   test('negative controls: Ekene-11\'s capital and production move the NPV the right way, well past tolerance', () => {
@@ -256,7 +267,7 @@ describe('Episode 27: NPV Scenario Builder, Quick Mode', () => {
     expect(Math.abs(m.npv - GOLD.screeningNpv)).toBeLessThan(1e-9);
     expect(m.irr).toBeNull();
     expect(m.irrStatus).toBe('no-sign-change');
-    expect(note(27)).toContain('NPV USD 4.05 MM');
+    expect(note(27)).toContain('NPV USD 4.68 MM');
     // negative control: the decline is not decoration
     const steeper = calculateEconomics(expandQuickInputs({ ...quickFrom(), declineRate: quickFrom().declineRate + 10 })).metrics.npv;
     expect(m.npv - steeper).toBeGreaterThan(1);
@@ -306,8 +317,8 @@ describe('Episode 28: Probabilistic Breakeven Analyzer', () => {
     expect(Math.abs(r.kpis.p90 - GOLD.be.p90)).toBeLessThan(1e-6);
     expect(Math.abs(r.baseBreakeven - GOLD.beBase)).toBeLessThan(1e-6);
     const text = note(28);
-    expect(text).toContain('USD 75.58, 84.60 and 97.02 per bbl');
-    expect(text).toContain('break even at USD 83.63');
+    expect(text).toContain('USD 70.52, 78.88 and 90.52 per bbl');
+    expect(text).toContain('break even at USD 78.00');
   });
 
   test('negative control: the same forecast read as monthly volumes breaks even far lower', () => {
@@ -332,9 +343,9 @@ describe('Episode 29: Decision Tree Builder', () => {
     expect(t.tree.branches[0].label).toBe('Drill Ekene-11');
     expect(Math.abs(rollback(p.tree).emv - GOLD.evWithPerfect)).toBeLessThan(1e-9);
     const text = note(29);
-    expect(text).toContain('EMV of USD 1.70 MM');
-    expect(text).toContain('worth USD 1.95 MM');
-    expect(text).toContain('USD 0.26 MM');
+    expect(text).toContain('EMV of USD 2.482 MM');
+    expect(text).toContain('worth USD 2.557 MM');
+    expect(text).toContain('The difference, USD 0.075 MM');
   });
 
   test('evpi on the same payoffs equals the difference of the two trees', () => {

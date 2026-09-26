@@ -108,7 +108,7 @@ describe('Probabilistic Breakeven: the year comes from the date text', () => {
   });
 });
 
-describe('EPE breakeven with the economic limit on (vendored engine 3.11.0)', () => {
+describe('EPE breakeven with the economic limit on (engine 3.11.0 fix; JV path unchanged at 3.12.0)', () => {
   test('answers where it used to return null', () => {
     const cfg = {
       fiscal_regime: 'JV', base_year: 2030, oil_price_usd_bbl: 100, gas_price_usd_mscf: 0, condensate_price_usd_bbl: 0,
@@ -122,5 +122,18 @@ describe('EPE breakeven with the economic limit on (vendored engine 3.11.0)', ()
       opexRows: [2030, 2031, 2032].map((year) => ({ year, total_opex_usd: 3e6 })),
     });
     expect(be).toBeCloseTo(48.416, 2);
+  });
+});
+
+describe('EPE breakeven on the PIA regime follows the legacy switch (engines 3.12.0)', () => {
+  // eslint-disable-next-line global-require
+  const fx = require('../../../../../tools/validation/fixtures/epe-pia-worked-example.ts');
+  const rows = { prodRows: fx.PIA_WORKED_EXAMPLE_PROD, capexRows: fx.PIA_WORKED_EXAMPLE_CAPEX, opexRows: fx.PIA_WORKED_EXAMPLE_OPEX };
+  test('the default path and a legacy-stamped run answer different breakevens, each finite', () => {
+    const compliant = computeBreakevenOilPrice({ cfg: fx.PIA_WORKED_EXAMPLE_DEFAULT_CFG, ...rows });
+    const legacy = computeBreakevenOilPrice({ cfg: fx.PIA_WORKED_EXAMPLE_CFG, ...rows });
+    expect(Number.isFinite(compliant)).toBe(true);
+    expect(Number.isFinite(legacy)).toBe(true);
+    expect(Math.abs(compliant - legacy)).toBeGreaterThan(0.01);
   });
 });

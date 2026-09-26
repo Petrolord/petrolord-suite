@@ -454,7 +454,14 @@ and its consumers.
   NTA 2025 framework switch, allowances with volume caps, CPR
   forfeiture, tax-loss carryforward, economic limit, abandonment,
   decision KPIs, breakeven price; year-end discounting on a real or
-  nominal basis) and `montecarlo.ts` (the seeded Monte Carlo over it),
+  nominal basis; since engines 3.12.0 (EC7) the PIA / NTA path follows
+  the gazetted PIA 2021, NTA 2025, Petroleum Royalty Regulations 2022 and
+  Finance Act 2023 by default, gated by the text-derived oracle
+  `oracle_pia2021.py`, `__tests__/economics.pia2021.test.ts` and
+  `negcontrol_pia2021.sh`, with the single documented input
+  `pia_legacy_pre_audit: true` reproducing every pre-audit result, see
+  `tools/validation/economics/AUDIT-PIA-2021.md` and
+  `tools/validation/economics/FINDINGS-pia2021.md`) and `montecarlo.ts` (the seeded Monte Carlo over it),
   both TypeScript like `engines/mbal` because they are DEPLOYED AS
   SUPABASE EDGE FUNCTIONS and bundle through the Suite's shims;
   `screening.js` (the client screening economics: exponential decline,
@@ -755,6 +762,32 @@ and its consumers.
   boundary table and the negative control in
   `tools/validation/dataai/FINDINGS-evaluate.md` and
   `negcontrol_evaluate.sh`.
+- `engines/supplychain/tender.js` (Supply Chain SC2, 2026-09-26): tender
+  evaluation and contracting. Two-envelope evaluation (mandatory checks,
+  weighted technical score, pass mark at or above; only passing bids have
+  their price opened), arithmetic correction (World Bank SPD ITB 35.1: the
+  unit rate prevails), lowest evaluated cost (discounts, priced deviations,
+  omissions at the average price of the other responsive bids per SPD ITB
+  34.1 (the default; a highest-price option is labelled as not from the cited
+  texts), schedule adjustment, life-cycle
+  cost through the canonical `economics/cashflow.ts` npv), the combined score
+  B = Clow/C x X x 100 + T/Thigh x (1 - X) x 100 with lowest-ratio and linear
+  price methods, the World Bank Rated Criteria weighting
+  matrix, abnormally low bid identification (World Bank ALB Guidance,
+  absolute below five bids, relative from five), Nigerian content against the
+  Schedule of the Nigerian Oil and Gas Industry Content Development Act 2010
+  with its s.14 (1% / 5%, the readings stated in every reason, the lead
+  reading a required input) and s.16 (10
+  percent) rules, lump sum against day rate against reimbursable under
+  duration uncertainty (lib/stats mulberry32 and triInvCDF, days from
+  `drilling/wellCost.js`), and a should-cost estimate built by
+  `drilling/wellCost.js` and `economics/afe.js`. Gate:
+  `supplychain.tender.test.js` replays
+  `test-data/supplychain/goldens/tender_cases.json` (written by
+  `tools/validation/supplychain/oracle_tender.py`, stdlib, with the World
+  Bank, Kiiver and Kodym 2015 and Chen 2008 worked examples); synthetic Ekene
+  tenders in `test-data/supplychain/ekene-tender/`; negative control
+  `negcontrol_tender.sh`; timing `timing_tender.js`.
 - `lib/stats/` — the canonical Monte Carlo sampling primitives and
   descriptive statistics (the Suite's src/lib/monteCarlo.js with
   simple-statistics 7.8.8 vendored bit-identically: Kahan sum,

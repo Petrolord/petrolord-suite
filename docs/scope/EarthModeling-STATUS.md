@@ -129,8 +129,8 @@ the roadmap.
 
 ## 2026-09-26: T1 senior test (Wave 1 #2) and fixes
 
-Report: docs/testing/EarthModeling-T1.md. Engines #263 (8082d73 on main;
-vendored at 02b790e = 05d8161 + that commit, see VENDOR.json for why):
+Report: docs/testing/EarthModeling-T1.md. Engines #263 (8082d73, vendored
+on top of main's EC7 pin 3778451):
 `zoneVolumesWithContacts` with oracle, radial anchor, 6 gates, negcontrol 7/7.
 
 - Fluid contacts and FVF per zone in the dock (GOC, OWC as depths below
