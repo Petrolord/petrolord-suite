@@ -316,7 +316,9 @@ export const LiftAdvisorProvider = ({ children }) => {
     setInputs((prev) => {
       const next = { ...prev };
       const duty = { ...prev.duty };
-      if (oil > 0) { duty.targetRateStbd = String(oil); applied.push('target rate'); }
+      // The target field is LIQUID (item 19), so the test's oil plus water
+      // goes in; the oil alone understated it by the water (AL-T1-003).
+      if (liquid > 0) { duty.targetRateStbd = String(Math.round(liquid * 10) / 10); applied.push('target rate (liquid)'); }
       if (liquid > 0) { duty.wctPct = ((water / liquid) * 100).toFixed(1); applied.push('water cut'); }
       if (num(t.thp_psia, 0) > 0) { duty.whp = String(t.thp_psia); applied.push('wellhead pressure'); }
       next.duty = duty;

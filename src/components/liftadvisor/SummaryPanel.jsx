@@ -33,8 +33,8 @@ const SummaryPanel = () => {
     <div className="space-y-2">
       <Row
         label="Target"
-        value={`${fmt(Number(inputs.duty.targetRateStbd))} stb/d`}
-        hint={`at ${fmt(Number(inputs.duty.wctPct))} percent water`}
+        value={`${fmt(Number(inputs.duty.targetRateStbd))} bbl/d`}
+        hint={`liquid at ${fmt(Number(inputs.duty.wctPct))} percent water, ${fmt(Number(inputs.duty.targetRateStbd) * (1 - Number(inputs.duty.wctPct) / 100))} stb/d of oil`}
       />
       <Row
         label="Absolute open flow"
