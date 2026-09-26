@@ -121,3 +121,9 @@ else derived from the latest Casing & Tubing case, else an empty row whose
 Geometry tab shows the note (amber when derived, red when none) and Save
 case persists derived sections. Details and the tester's live data in
 docs/scope/HydraulicsStudio-STATUS.md (same date).
+
+## 2026-09-26: senior test T1 (docs/testing/TorqueDragStudio-T1.md)
+
+- Lockup (negative surface load) stated per operation; warnings and the
+  buckling KPI name their operation; collapse note points to Casing &
+  Tubing Studio; wear axis from surface; operation names in the sweep.

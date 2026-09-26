@@ -274,8 +274,8 @@ const TorqueDragHelpGuide = () => {
                 The wear factor depends on mud, casing grade and tool joint hardbanding.
                 Field values commonly range from 0.5 to 5 mm3 per kN-m. Treat the default as
                 a screening value and calibrate when wear logs exist. Collapse derating is
-                deliberately not shown; it needs the full API 5C3 regime logic that ships
-                with the casing design upgrade.
+                deliberately not shown here; check the remaining wall against the API 5C3
+                collapse regimes in Casing & Tubing Studio.
               </Callout>
             </Section>
 
