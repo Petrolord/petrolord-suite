@@ -16,7 +16,7 @@ import {
 import { EVAL_ROUTE } from '@/utils/dataAi/evalStudy';
 import { APP_CAPS } from '@/utils/dataAi/evalData';
 import { ENGINE_DEFAULTS as D, DEFAULT_SEED, ASSIST_MAX_PASSAGES } from '@/utils/dataAi/evalWorkflows';
-import { ASSIST_DAILY_CAP, ASSIST_DEFAULT_MODEL } from '@/utils/dataAi/evalAssist';
+import { ASSIST_DAILY_CAP, ASSIST_DEFAULT_MODEL, ASSIST_USER_DAILY_CAP } from '@/utils/dataAi/evalAssist';
 
 const n = (x) => x.toLocaleString('en-US');
 
@@ -304,15 +304,22 @@ const AiEvaluationStudioHelpGuide = () => (
       <SectionHeading icon={Bot}>The optional language-model helper</SectionHeading>
       <Para>
         On the Answers tab, the helper sends one query and the passages the current retrieval settings return for it (at most
-        {` ${ASSIST_MAX_PASSAGES}`}) to a hosted language model ({ASSIST_DEFAULT_MODEL} unless the server names another), told to answer only
-        from those passages and to cite passage ids. Its answer is then checked by the same deterministic groundedness check as the
-        fixture answers, against the passages it was given. It is labelled as model output and is not graded, saved or exported.
+        {` ${ASSIST_MAX_PASSAGES}`}) to a hosted language model, told to answer only from those passages and to cite passage ids. Its
+        answer is then checked by the same deterministic groundedness check as the fixture answers, against the passages it was given.
+        It is labelled as model output and is not graded, saved or exported.
       </Para>
       <Para>
-        Calls are metered per organization. You must be a member of the organization selected; every call is logged with the model and
-        the tokens used, and an organization can make {ASSIST_DAILY_CAP} helper calls per UTC day. After that the helper refuses with a
-        message until 00:00 UTC. A call the model provider fails is logged and does not count. When the helper is not configured on the
-        server, the button says so; everything else in the studio works without it.
+        The model is OpenAI&apos;s {ASSIST_DEFAULT_MODEL} unless the server names another. It is a reasoning model, so it is asked for a
+        low reasoning effort and runs at the provider&apos;s default temperature; an older model such as gpt-4o-mini, if the server names
+        one, runs at temperature 0. The answer line shows the model and the effort used.
+      </Para>
+      <Para>
+        Calls are metered per organization. You must be a member of the organization selected; every call is logged with the model, the
+        reasoning effort and the tokens used. An organization can make {ASSIST_DAILY_CAP} helper calls per UTC day, and each person can
+        make {ASSIST_USER_DAILY_CAP} of them, so one person cannot use up the organization&apos;s calls. The day runs from 00:00 UTC to
+        00:00 UTC. At either cap the helper refuses with a message that names the cap reached (the organization&apos;s or your own) and
+        both counts, until 00:00 UTC. A call the model provider fails is logged and does not count against either cap. When the helper
+        is not configured on the server, the button says so; everything else in the studio works without it.
       </Para>
     </GuideSection>
 

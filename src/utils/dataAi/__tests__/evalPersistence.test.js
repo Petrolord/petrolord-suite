@@ -219,11 +219,16 @@ describe('the helper client', () => {
   });
 
   it('sends the organization, the query and the passages, and returns the answer with its citations', async () => {
-    const invoke = jest.fn().mockResolvedValue({ data: { answer: 'x', citations: ['A', '', 3], model: 'm', calls_today: 1, daily_cap: 50 }, error: null });
+    const invoke = jest.fn().mockResolvedValue({
+      data: {
+        answer: 'x', citations: ['A', '', 3], model: 'm', reasoning_effort: 'low', calls_today: 1, daily_cap: 200, user_calls_today: 1, user_daily_cap: 40,
+      },
+      error: null,
+    });
     const r = await askAssist({ functions: { invoke } }, { organizationId: 'o', query: 'q', passages: [{ id: 'A', text: 't', extra: 1 }] });
     expect(invoke).toHaveBeenCalledWith('ai-eval-assist', { body: { organization_id: 'o', query: 'q', passages: [{ id: 'A', text: 't' }] } });
     expect(r).toEqual({
-      answer: 'x', citations: ['A'], model: 'm', usage: null, callsToday: 1, dailyCap: 50,
+      answer: 'x', citations: ['A'], model: 'm', reasoningEffort: 'low', usage: null, callsToday: 1, dailyCap: 200, userCallsToday: 1, userDailyCap: 40,
     });
   });
 
@@ -232,11 +237,13 @@ describe('the helper client', () => {
     await expect(askAssist({ functions: { invoke } }, { organizationId: null, query: 'q', passages: [{ id: 'a', text: 't' }] })).rejects.toMatchObject({ kind: 'not-member' });
     await expect(askAssist({ functions: { invoke } }, { organizationId: 'o', query: 'q', passages: [] })).rejects.toMatchObject({ kind: 'bad-request' });
     expect(invoke).not.toHaveBeenCalled();
-    invoke.mockResolvedValue({ data: null, error: { context: { status: 429, json: async () => ({ error: 'cap reached', calls_today: 50, daily_cap: 50 }) } } });
+    invoke.mockResolvedValue({ data: null, error: { context: { status: 429, json: async () => ({
+      error: 'Personal cap reached', cap_hit: 'user', calls_today: 57, daily_cap: 200, user_calls_today: 40, user_daily_cap: 40,
+    }) } } });
     const e = await askAssist({ functions: { invoke } }, { organizationId: 'o', query: 'q', passages: [{ id: 'a', text: 't' }] }).catch((x) => x);
     expect(e).toBeInstanceOf(AssistError);
     expect(e).toMatchObject({
-      kind: 'cap', message: 'cap reached', callsToday: 50, dailyCap: 50,
+      kind: 'cap', message: 'Personal cap reached', capHit: 'user', callsToday: 57, dailyCap: 200, userCallsToday: 40, userDailyCap: 40,
     });
     invoke.mockResolvedValue({ data: null, error: { context: { status: 503, json: async () => { throw new Error('not json'); } } } });
     await expect(askAssist({ functions: { invoke } }, { organizationId: 'o', query: 'q', passages: [{ id: 'a', text: 't' }] })).rejects.toMatchObject({ kind: 'not-configured', message: ASSIST_MESSAGES['not-configured'] });

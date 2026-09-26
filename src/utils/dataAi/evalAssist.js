@@ -6,7 +6,8 @@
 // (at most ten) go to the ai-eval-assist edge function, which asks a hosted
 // language model to answer only from those passages and cite passage ids,
 // logs the call against the organization and refuses once the organization
-// reaches its daily cap. The answer comes back here and is then scored by the
+// or the person reaches a daily cap (owner decision 2026-09-26: 200 calls per
+// organization and 40 per person per UTC day; failed calls do not count). The answer comes back here and is then scored by the
 // same deterministic groundedness check as any fixture answer
 // (evalWorkflows.assistCheck). It is model output: it is never a graded
 // figure, never saved as a result and never written to the report.
@@ -17,9 +18,11 @@
 export const ASSIST_FUNCTION = 'ai-eval-assist';
 
 /** Calls per organization per UTC day; the edge function's DAILY_CAP (a test keeps the two equal). */
-export const ASSIST_DAILY_CAP = 50;
+export const ASSIST_DAILY_CAP = 200;
+/** Calls per person per organization per UTC day; the edge function's USER_DAILY_CAP (a test keeps the two equal). */
+export const ASSIST_USER_DAILY_CAP = 40;
 /** The model the function uses unless the OPENAI_MODEL secret names another. */
-export const ASSIST_DEFAULT_MODEL = 'gpt-4o-mini';
+export const ASSIST_DEFAULT_MODEL = 'gpt-6-luna';
 
 export class AssistError extends Error {
   constructor(kind, message, extra = {}) {
@@ -34,7 +37,7 @@ export const ASSIST_MESSAGES = {
   auth: 'Sign in again to use the language-model helper.',
   'not-member': 'The helper is metered per organization, and you are not a member of the organization selected.',
   'not-configured': 'The language-model helper is not configured on this server. Everything else in the studio works without it.',
-  cap: 'Your organization has used its language-model helper calls for today. The cap resets at 00:00 UTC.',
+  cap: 'A daily cap on language-model helper calls is reached (your organization\'s or your own). The caps reset at 00:00 UTC.',
   upstream: 'The language model did not return a usable answer. Try again, or evaluate without the helper.',
   'bad-request': 'The helper refused the request.',
   failed: 'The language-model helper is unavailable right now. Everything else in the studio works without it.',
@@ -59,14 +62,19 @@ async function errorFromInvoke(error) {
   } catch (_e) { /* body was not JSON */ }
   const kind = kindForStatus(status);
   return new AssistError(kind, body?.error || ASSIST_MESSAGES[kind] || error?.message || 'The helper failed.', {
-    status, callsToday: body?.calls_today ?? null, dailyCap: body?.daily_cap ?? null,
+    status,
+    callsToday: body?.calls_today ?? null,
+    dailyCap: body?.daily_cap ?? null,
+    userCallsToday: body?.user_calls_today ?? null,
+    userDailyCap: body?.user_daily_cap ?? null,
+    capHit: body?.cap_hit ?? null,
   });
 }
 
 /**
  * @param {{functions:{invoke:Function}}} client the supabase client
  * @param {{organizationId:string, query:string, passages:Array<{id:string,text:string}>}} req
- * @returns {Promise<{answer:string, citations:string[], model:string|null, usage:Object|null, callsToday:number|null, dailyCap:number|null}>}
+ * @returns {Promise<{answer:string, citations:string[], model:string|null, reasoningEffort:string|null, usage:Object|null, callsToday:number|null, dailyCap:number|null, userCallsToday:number|null, userDailyCap:number|null}>}
  */
 export async function askAssist(client, { organizationId, query, passages }) {
   if (!organizationId) throw new AssistError('not-member', 'The helper is metered per organization. Join or select an organization to use it.');
@@ -82,8 +90,11 @@ export async function askAssist(client, { organizationId, query, passages }) {
     answer: data.answer,
     citations: Array.isArray(data.citations) ? data.citations.filter((c) => typeof c === 'string' && c.length > 0) : [],
     model: data.model || null,
+    reasoningEffort: data.reasoning_effort || null,
     usage: data.usage || null,
     callsToday: data.calls_today ?? null,
     dailyCap: data.daily_cap ?? null,
+    userCallsToday: data.user_calls_today ?? null,
+    userDailyCap: data.user_daily_cap ?? null,
   };
 }

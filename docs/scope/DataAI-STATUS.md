@@ -21,9 +21,25 @@ since been applied; MIGRATIONS.md is the record of each apply.
   migrations 20260925180000 to 210000 applied with the `ai-eval-assist` edge
   function deployed before the tile went Active; NextGen 20261104_d5_appliedai_*
   applied after a clean production rolled-back dry run. Engines pinned at f50251d.
-- The optional language-model helper (`ai-eval-assist`) is metered at 50 calls
-  per organization per UTC day through `dai_llm_calls`. No graded figure in the
-  app or the course depends on its output.
+- The optional language-model helper (`ai-eval-assist`) is metered through
+  `dai_llm_calls`. No graded figure in the app or the course depends on its
+  output. Live today: 50 calls per organization per UTC day, gpt-4o-mini.
+- **Pending apply (owner decision 2026-09-26, branch feat/eval-assist-luna-caps):**
+  default model `gpt-6-luna` (a reasoning model: sent `reasoning_effort` low,
+  overridable by the optional secret `OPENAI_REASONING_EFFORT` from none, low,
+  medium, high, xhigh, max; no temperature; gpt-4o and gpt-4.1 models keep
+  temperature 0; `OPENAI_MODEL` still overrides the model, so switching back
+  needs no deploy); structured output (json_schema) for the reply; caps 200
+  calls per organization and 40 per person per organization per UTC day,
+  failed calls not counted, 429 naming the cap reached with both counts;
+  model and reasoning effort recorded per call. Owner order:
+  1. apply `20260926120000_d5_dai_llm_user_cap.sql` (new 6-argument
+     `dai_llm_reserve_call` overload, the 5-argument one kept; nullable
+     `dai_llm_calls.reasoning_effort`);
+  2. then `supabase functions deploy ai-eval-assist`;
+  3. then upload a Suite build from main carrying the studio and help-guide
+     copy (the UI reads the caps from the function's reply, so steps 1 and 2
+     alone already enforce the new caps).
 
 ## D0: honesty cleanup (2026-09-23)
 
