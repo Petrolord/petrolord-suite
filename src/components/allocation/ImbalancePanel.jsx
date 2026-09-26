@@ -72,10 +72,11 @@ const ImbalancePanel = () => {
         <CardTitle className="text-base flex items-center gap-2">
           <Scale className="w-4 h-4 text-sky-400" /> Meter against ledger
           <span className="block text-xs font-normal text-slate-500 mt-0.5">
-            {fmt(summary.measured)} {phaseDef.unit} metered against {fmt(summary.booked)} booked:
-            {' '}{summary.imbalance >= 0 ? 'a shortfall of ' : 'an excess of '}
+            {fmt(summary.measured)} {phaseDef.unit} metered against {fmt(summary.booked)} booked by the wells:
+            {' '}{summary.imbalance >= 0 ? 'the meter reads ' : 'the wells book '}
             {fmt(Math.abs(summary.imbalance))} {phaseDef.unit}
-            {summary.pct == null ? '' : ` (${fmt(Math.abs(summary.pct), 1)}%)`}.
+            {summary.pct == null ? '' : ` (${fmt(Math.abs(summary.pct), 1)}%)`}
+            {summary.imbalance >= 0 ? ' more than the wells book.' : ' more than the meter reads.'}
           </span>
         </CardTitle>
         <div className="space-y-1">
