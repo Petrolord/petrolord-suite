@@ -42,12 +42,12 @@ export const INK = 'rgba(203, 213, 225, 0.92)';      // slate-300
 export const INK_DIM = 'rgba(148, 163, 184, 0.55)';  // slate-400
 
 /** Scale bar with end caps + centred distance label above it. */
-export function drawScaleBar(ctx, { x, y, metersPerPx, dpr, maxPx }) {
+export function drawScaleBar(ctx, { x, y, metersPerPx, dpr, maxPx, ink = INK }) {
   const spec = scaleBarSpec(metersPerPx, maxPx || 180 * dpr);
   if (!spec) return;
   ctx.save();
-  ctx.strokeStyle = INK;
-  ctx.fillStyle = INK;
+  ctx.strokeStyle = ink;
+  ctx.fillStyle = ink;
   ctx.lineWidth = 1.5 * dpr;
   ctx.font = FONT(dpr);
   ctx.textAlign = 'center';

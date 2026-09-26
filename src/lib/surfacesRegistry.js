@@ -140,6 +140,17 @@ export async function replaceSurfaceGrid(surface, s) {
   }
   const { spec } = s;
   if (s.grid.length !== spec.nx * spec.ny) throw new Error('Grid length does not match nx*ny.');
+  // Mapping T1 (MAP-T1-017): keep the grid being replaced, so the re-grid
+  // can be restored; the archive path is recorded on the newest history
+  // entry. A failed copy (an old object missing) does not block the re-grid.
+  let provenance = s.provenance;
+  const archivePath = `${surface.storage_path}.prev-${Date.now()}.f32`;
+  const { error: cpError } = await supabase.storage.from(BUCKET).copy(surface.storage_path, archivePath);
+  if (!cpError && Array.isArray(provenance?.history) && provenance.history.length) {
+    const history = provenance.history.slice();
+    history[history.length - 1] = { ...history[history.length - 1], archive_path: archivePath };
+    provenance = { ...provenance, history };
+  }
   const { error: upError } = await supabase.storage.from(BUCKET)
     .upload(surface.storage_path, new Blob([s.grid.buffer], { type: 'application/octet-stream' }), {
       contentType: 'application/octet-stream', upsert: true,
@@ -159,8 +170,17 @@ export async function replaceSurfaceGrid(surface, s) {
     crs: s.crs === undefined ? surface.crs : s.crs,
     xy_unit: s.xyUnit === undefined ? surface.xy_unit : s.xyUnit,
     crs_provenance: s.crsProvenance === undefined ? surface.crs_provenance : s.crsProvenance,
-    provenance: s.provenance || surface.provenance || {},
+    provenance: provenance || surface.provenance || {},
   });
+}
+
+/** An archived (pre-re-grid) grid object by its storage path (Mapping T1). */
+export async function downloadArchivedGrid(path, { nx, ny }) {
+  const { data, error } = await supabase.storage.from(BUCKET).download(path);
+  if (error) throw new Error(`Could not download the previous grid: ${error.message}`);
+  const buf = await data.arrayBuffer();
+  if (buf.byteLength !== nx * ny * 4) throw new Error('The previous grid does not match its recorded frame.');
+  return new Float32Array(buf);
 }
 
 /** Owner-only metadata update (RLS re-checks; org readers get no row

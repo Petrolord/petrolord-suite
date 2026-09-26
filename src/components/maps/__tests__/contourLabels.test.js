@@ -15,8 +15,10 @@ test('angles are folded upright', () => {
   expect(Math.abs(up[0].angle)).toBeCloseTo(Math.PI / 2, 9);
 });
 
-test('a polyline shorter than firstPx gets no label; spacing options apply', () => {
-  expect(contourLabelPositions([0, 0, 50, 0])).toEqual([]);
+test('a line under minPx gets no label, a short one one label at its middle (T1); spacing options apply', () => {
+  expect(contourLabelPositions([0, 0, 30, 0])).toEqual([]);
+  expect(contourLabelPositions([0, 0, 50, 0]).map((p) => p.x)).toEqual([25]);
+  expect(contourLabelPositions([0, 0, 170, 0]).map((p) => p.x)).toEqual([85]);
   expect(contourLabelPositions([0, 0, 100, 0], { firstPx: 20, spacingPx: 30 }).map((p) => p.x)).toEqual([20, 50, 80]);
 });
 

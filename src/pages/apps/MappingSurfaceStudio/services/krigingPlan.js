@@ -9,6 +9,20 @@ export { VARIOGRAM_MODELS };
 export const GRID_METHODS = Object.freeze([
   { key: 'tps', label: 'Thin-plate spline (exact through the wells)' },
   { key: 'kriging', label: 'Ordinary kriging (variogram, variance map)' },
+  // T1 (MAP-T1-008): tension stops overshoot between close wells and
+  // runaway beyond them; smoothing stops forcing the map through noise
+  { key: 'tension', label: 'Spline in tension (tension, smoothing)' },
+]);
+
+export const TENSION_LEVELS = Object.freeze([
+  { value: 0.25, label: 'Low tension' },
+  { value: 0.5, label: 'Medium tension' },
+  { value: 0.75, label: 'High tension' },
+]);
+export const SMOOTHING_LEVELS = Object.freeze([
+  { value: 0, label: 'Honour every well' },
+  { value: 0.001, label: 'Light smoothing' },
+  { value: 0.01, label: 'Strong smoothing' },
 ]);
 
 /** Median nearest-neighbour distance of the points (a lag that fills the bins). */

@@ -293,3 +293,39 @@ hand-editing (drag a contour, re-grid through it), a per-user depth unit
 (migration 20260906120000, applied), ordinary kriging with variogram
 fitting and a variance map, and rotated grid frames end to end (engines
 #138). No tester date; one prod zip after the three Suite PRs merge.
+
+## 2026-09-26: T1 senior test (Wave 1 #1) and fixes
+
+Report: docs/testing/MappingSurfaceStudio-T1.md (18 findings, 5 enhancements;
+014 withdrawn, 008 reframed, 015 narrowed). Engines #259 (05d8161):
+closure.js, tensionSpline.js, mergeCloseControls + mask none, wellTie.js,
+three stdlib oracles, 43 gates, negcontrol 30/30. Suite PRs #629
+(correctness) and the presentation + parity + depth PR.
+
+- GRV of ONE closure (highest or picked), open closures labelled minimums,
+  spill and fill-spill merges, other closures listed, area-depth and
+  GRV-versus-contact chart, spill marked, P90/P50/P10 from kriging variance,
+  prospect card PNG (services/quickGrv.js, ClosureCurveChart, prospectCard.js).
+- Sidetracks merge within half a cell; singular solves explained.
+- Contacts typed positive are read as depths; MD maps publish as attributes.
+- Delete asks and waits 10 s with Undo; re-grid keeps the replaced grid
+  (`<path>.prev-<ts>.f32`, history.archive_path) with Restore; ribbon Undo
+  for previews.
+- Print theme PNG (white page, logo in the title band), colour-bar ticks
+  round in the display unit, labels on sparse and short contours,
+  upsampled raster with the mask edge at the live-weight 0.5 level, values
+  posted at the borehole, depth-positive display toggle
+  (`mapping.depthPositive`), contours from another surface.
+- Spline in tension with smoothing; map beyond the wells by a distance with
+  the hull drawn; inside mode reaches 1.5 cells past the hull.
+- Time to depth by average velocity from the wells, or a linear model
+  corrected to a top; residual table after grids and conversions.
+- Well symbols by `geo_wells.status` with a legend; status select in Well
+  Data Manager's Header. Migration `20260926140000_geo_wells_status.sql`
+  HELD (owner-run); the app reads the column when present.
+- Gridding runs in a module worker (services/gridRunner.js, jest maps the
+  factory to a null mock).
+- `?sample=1` opens the studio on in-memory sample data (nothing saved).
+
+Known limits: kriging maps inside the wells only; tension and kriging grid
+without fault blocks; the GRV range treats nodes as fully correlated.

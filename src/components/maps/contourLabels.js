@@ -15,10 +15,16 @@ export function isMajorLevel(level, step, every = 5) {
  * (-pi/2, pi/2] so the text reads upright.
  * @returns {Array<{x:number, y:number, angle:number}>}
  */
-export function contourLabelPositions(pts, { firstPx = 90, spacingPx = 280 } = {}) {
+export function contourLabelPositions(pts, { firstPx = 90, spacingPx = 280, minPx = 40 } = {}) {
   const out = [];
+  // Mapping T1 (MAP-T1-011): a line shorter than two first-label runs
+  // still gets one label at its middle (above minPx), so short contours on
+  // a well-bounded map are not left anonymous
+  let total = 0;
+  for (let i = 2; i < pts.length; i += 2) total += Math.hypot(pts[i] - pts[i - 2], pts[i + 1] - pts[i - 1]);
+  if (total < minPx) return out;
   let acc = 0;
-  let next = firstPx;
+  let next = total < 2 * firstPx ? total / 2 : firstPx;
   for (let i = 2; i < pts.length; i += 2) {
     const ax = pts[i - 2];
     const ay = pts[i - 1];
