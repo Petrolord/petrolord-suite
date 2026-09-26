@@ -2,13 +2,13 @@ import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS } from '@/utils/chartTheme';
-import { alignSeriesByAge, seriesColor } from '../../services/resultsView';
+import { alignSeriesByAge, seriesColor, ageAxisProps, maxAgeOf } from '../../services/resultsView';
 
 /**
  * Shared per-layer-lines-vs-age plot on the suite white chartTheme.
  * `children` may add extras (e.g. maturity-window ReferenceAreas).
  */
-const LayerLinesPlot = ({ results, field, title, yLabel, yDomain, children, yConvert = null }) => {
+const LayerLinesPlot = ({ results, field, title, yLabel, yDomain, children, yConvert = null, footer = null }) => {
     const { data, meta } = results;
 
     const chartData = useMemo(() => {
@@ -25,8 +25,7 @@ const LayerLinesPlot = ({ results, field, title, yLabel, yDomain, children, yCon
                     <LineChart data={chartData} margin={CHART_MARGINS.standard}>
                         <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
                         <XAxis
-                            dataKey="age"
-                            reversed
+                            {...ageAxisProps(maxAgeOf(results))}
                             stroke={CHART_COLORS.axisLine}
                             tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                             label={{ value: 'Age (Ma)', position: 'bottom', fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
@@ -54,6 +53,7 @@ const LayerLinesPlot = ({ results, field, title, yLabel, yDomain, children, yCon
                     </LineChart>
                 </ResponsiveContainer>
             </div>
+            {footer}
             <ChartLogo />
         </div>
     );

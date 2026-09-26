@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS } from '@/utils/chartTheme';
-import { alignSeriesByAge, seriesColor } from '../../services/resultsView';
+import { alignSeriesByAge, seriesColor, ageAxisProps, maxAgeOf } from '../../services/resultsView';
 
 /**
  * Cumulative generated vs expelled hydrocarbon mass (kg HC per m²
@@ -32,7 +32,7 @@ const GenerationExpulsionPlot = ({ results }) => {
     if (sourceLayers.length === 0) {
         return (
             <div className="w-full h-full min-h-[400px] flex items-center justify-center bg-white rounded-lg border border-slate-300">
-                <p className="text-slate-500">No hydrocarbon generation — no source rock reached transformation.</p>
+                <p className="text-slate-500">No hydrocarbon generation: no source rock reached transformation.</p>
             </div>
         );
     }
@@ -45,8 +45,7 @@ const GenerationExpulsionPlot = ({ results }) => {
                     <LineChart data={chartData} margin={CHART_MARGINS.standard}>
                         <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
                         <XAxis
-                            dataKey="age"
-                            reversed
+                            {...ageAxisProps(maxAgeOf(results))}
                             stroke={CHART_COLORS.axisLine}
                             tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                             label={{ value: 'Age (Ma)', position: 'bottom', fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}

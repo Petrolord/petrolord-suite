@@ -139,11 +139,11 @@ export default function BasinFlowHelpGuide() {
         <SectionHeading icon={BarChart2}>Reading the results</SectionHeading>
         <Table headers={['View', 'Shows']} rows={[
           ['Summary', 'Present-day top, base, temperature and Ro per layer; the source layers that passed 10% transformation.'],
-          ['Burial', 'Every layer\'s top and base through time, decompacted, with erosion as a bulge before the event.'],
+          ['Burial', 'Every layer\'s top and base through time, decompacted, with erosion as a bulge before the event. Time runs from the oldest age on the left to the present on the right on every plot. Overlay the %Ro isolines at the window boundaries or the 60, 100 and 150 °C isotherms.'],
           ['Temperature', 'Layer temperature through time.'],
-          ['Maturity', 'Easy%Ro through time with the oil, wet gas and dry gas windows shaded.'],
-          ['Generation', 'Generated and expelled mass per square metre for the source layers.'],
-          ['Timing', 'The generation window and the peak rate age per source layer.'],
+          ['Maturity', 'Easy%Ro through time with the windows labelled: oil 0.55 to 1.3 %Ro, wet gas 1.3 to 2.0, dry gas above 2.0 (Tissot and Welte).'],
+          ['Expulsion', 'Generated and expelled mass per square metre for the source layers, and their transformation ratio.'],
+          ['Timing', 'The petroleum system events chart: deposition of the source, reservoir, seal and overburden rocks, the generation and expulsion windows, and the critical moment at the peak expulsion rate. Trap formation is not modelled in 1D.'],
         ]} />
       </GuideSection>
 
