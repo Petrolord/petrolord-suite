@@ -498,16 +498,23 @@ contract no longer depends on database access.
 | PIA legacy switch (`pia_legacy_pre_audit: true`) | The frozen worked example (inputs from shared-DB case 53828290, 2026-08-14): NPV 135,185,570.34 and every line item within ±$0.01 in harness (Case 1a) and CI. Pins the pre-audit engine that stamped saved runs use; it departs from the texts (AUDIT-PIA-2021.md) | ✓ Regression-gated (legacy reproduction only) |
 | NTA 2025 framework | Default path: per year of assessment, from the NTA text (oracle above). Legacy path: force_nta differs from force_pia only by TET→Dev Levy on the same assessable base (harness Case 4). The June 2025 gazette is used; the re-gazetted Certified True Copy was not read (stated in `pia_notes`) | ✓ Validated on the June 2025 gazette |
 | JV math | Hand-derived closed-form two-year case (royalty, tax, NCF, NPV, IRR 200%, payback) asserted in harness + CI | ✓ Analytically validated |
-| PSC math | Hand-derived two-year carryforward case (cost-oil cap binding, pool consumed in year 2) asserted in harness + CI | ✓ Analytically validated |
+| PSC math | Hand-derived two-year carryforward case asserted in harness + CI; traced to World Bank Note 8 (2007) and IMF FARI TNM/16/01 (2016) worked examples (engines #270) | ✓ Validated against published examples |
 | Sensitivity (tornado) | Direction and magnitude sane; specific numbers not validated | ⚠ Sanity-checked, not validated |
 | Production allowance cap math | Mid-year crossing case (99→101 MMbbl over the shallow-water cap): default path 8 USD/bbl below and 4 USD/bbl after the cap (harness Case 8, CI); legacy path zero after the cap (Case 5) | ✓ Validated (closes §4.1) |
 | CPR cessation forfeiture | Single-year case with 8M unrecovered pool: final-row flag + KPI asserted | ✓ Validated (closes §4.1) |
 | Min ETR (NTA §57) | Project-level top-up gated by a jest case (`max(0, assessable x rate - taxes paid)`); the statutory company-level NGN turnover test is out of a project model's reach, so the top-up is reported on its own line | ⚠ Implemented as a stated approximation |
 | Monte Carlo layer (D2) | Harness Case 7 (degenerate = deterministic, seeded reproducibility, spread brackets base) + 13 jest tests incl. bit-identical anti-drift vs canonical `src/lib/monteCarlo.js` | ✓ Validated as a pure wrapper |
 
-Literature byte-verification of JV/PSC against published worked examples
-(Mian; SPE) remains open pending owner-provided references; the analytic
-cases above are independently hand-derived, not literature-traced.
+PSC math is now traced to published worked examples (2026-09-26): cost pool,
+limit, carry-forward and profit oil split reproduce World Bank Petroleum
+Sector Briefing Note 8 (2007) exactly, and IMF FARI TNM/16/01 (2016) Figure 5
+exactly and Tables 12 and 13 at the printed precision, in petrolord-engines
+`__tests__/economics.jointVenture.test.js` (engines #270, 3ae56e7; details in
+`tools/validation/economics/FINDINGS-jointVenture.md`). Two stated readings
+are recorded there: the limit base (after royalty in `applyPSC`, gross passed
+through as the same amount) and income tax on the contractor's profit oil
+share. JV math (applyJV) remains analytically validated only: no public
+worked example was found.
 
 ---
 
