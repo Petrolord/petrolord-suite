@@ -125,7 +125,7 @@ const ScreeningResults = () => {
                   <td className="px-2 py-1 text-right text-slate-300">{r.capitalCost === null ? '-' : fmt(r.capitalCost, 0)}</td>
                   <td className="px-2 py-1 text-right text-slate-300">{r.grossMarginPerYear === null ? '-' : fmt(r.grossMarginPerYear, 0)}</td>
                   <td className="px-2 py-1 text-right text-white">{r.valuePerMscf === null ? '-' : fmt(r.valuePerMscf, 3)}</td>
-                  <td className="px-2 py-1 text-right text-emerald-300">
+                  <td className={`px-2 py-1 text-right ${r.netAbatementTonnesCo2ePerYear === null ? 'text-slate-500' : 'text-emerald-300'}`}>
                     {r.netAbatementTonnesCo2ePerYear === null ? 'not stated' : fmt(r.netAbatementTonnesCo2ePerYear, 0)}
                   </td>
                 </tr>
@@ -139,6 +139,12 @@ const ScreeningResults = () => {
             Value per Mscf is the gross margin and ignores the capital. Value the shortlist in the sanctioned economics engine.
           </p>
         )}
+        {/* FLARE-T1-003: say how the capital column was built */}
+        <p className="text-[11px] text-slate-500 mt-1" data-testid="fv-capex-basis">
+          Capital scales from each route's reference plant by (volume / reference capacity) to the power 0.9,
+          the modular rule (trains are replicated, so cost is close to linear); the six-tenths rule applies to
+          stick-built plants.
+        </p>
         {economics.filter((e) => e.error).map((e) => (
           <p key={e.error} className="text-[11px] text-amber-300 mt-1">{e.error}</p>
         ))}
