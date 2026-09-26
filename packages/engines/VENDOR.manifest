@@ -1,9 +1,9 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit f50251d88d3a7d88e381b62cd77c59d5fb3fcb05
+# commit 05d8161774218f7588877d7e10f79757e32421c8
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
-18aa3e047abf7e3d5d4f1847edae245ad052ac16 README.md
+a0d26eb0b23e12024617c7b791898aad9c75b24a README.md
 6373485efb6baa9226953a76a3d6ebb740541d1c __tests__/aquifer.test.js
 168f6cedfc18af932ba587f2ff882b7571966986 __tests__/assurance.audit.test.js
 fc5248e0239b0841f542a3cba95ef72db34296d1 __tests__/assurance.compliance.test.js
@@ -127,6 +127,7 @@ d3b4c56d74031a4ab9d2900ee6a2327dc83c45d3 __tests__/hse.exposure.test.js
 8060f28b96f2d488db64da2e0adcfdaf2c092c55 __tests__/mapping.cultureimport.test.js
 18ecef5c10e9fef95943227c3b9a1e936e9cde02 __tests__/mapping.kriging.test.js
 a46150ed760bc35823154ef53bc33dbcd725db96 __tests__/mapping.structurepoints.test.js
+b49f1bf2a40b079b94284e7867cf4567224898ad __tests__/mapping.t1.test.js
 66917aa10462c0197fc48e7c020bb24f62119186 __tests__/mbal.test.ts
 2c42cf594e3e98a5df4bbc5e1e4b5cb1c55f6380 __tests__/petrophysics.conditioning.test.js
 d04bc68244e5f2e9265ed57f5694167e47170c5e __tests__/petrophysics.mineral.test.js
@@ -371,6 +372,7 @@ f6010f0bd39e1c4ba656c2a699c3b4ab8f3839ed engines/hse/qra.js
 954d83338f799780b6a1665d215ad8db79462183 engines/hse/safetyStats.js
 6db14f3a4a16843ccb98908fe5da8275608a3df8 engines/mapping/cultureImport.js
 f3bfa281ed8307b01dd26edf8b53e5257f1d1334 engines/mapping/surface.js
+e422cef84447559827d7755a133f25e3ceba1772 engines/mapping/wellTie.js
 ef516365f4b51788d50a5d47a220329d3e545696 engines/mbal/lm.ts
 7843df9ca9b03e9155f629c4304465701fa50165 engines/mbal/mbalEngine.ts
 4321540b4db8db1dd76dc2c88551aeef47bd6452 engines/petrophysics/conditioning.js
@@ -548,13 +550,15 @@ a9f4aed1007adab6744e55b6a476843715dcf375 lib/crs/gridReproject.js
 9a256b5b4f89fa83866c70a6b9760dca50990393 lib/crs/transform.js
 15dba4d7ecb833fd1d9c2bf8b32942fbe4e5a382 lib/dates/dates.js
 8aa52bc3b2876860fde0803c26d963f6523d52cc lib/fft.js
-4d317a3100ffcca2822629f1ea07adfff3620fac lib/gridding/gridding.js
+9935981abb59d0999ea820820cedc09edd89db54 lib/gridding/closure.js
+2cf7a6f8630b86ed596a4b8b06e9692b1e524c17 lib/gridding/gridding.js
 b826a59d23b93344fc6a72f5ffaffc5d38ad9e82 lib/gridding/gridmath.js
 746238725c21ae5fd8f612214031c506db7ff6df lib/gridding/kriging.js
 ae6ab0759e28f7f6ee62af4a46224b567eda2bd6 lib/gridding/mapContours.js
 6781b836e8c152989ca9f84af0d8360acd0c8bcc lib/gridding/numeric.js
 732bc74ae164f70c092d5fe09a20f21b2e85ae43 lib/gridding/surfaceExport.js
 257ace2d4a1a25624830610689c5c2f6cd5219a6 lib/gridding/surfaceImport.js
+f6eb51264fb5e23468726d130c347f86e551de1d lib/gridding/tensionSpline.js
 33e4c427eb4e2398cbf1fc7f7c2faf09282027e6 lib/linalg/solveDense.js
 d0e10f21a7c6cc8d6f2167bd6244e5dd32c63d35 lib/lp/simplex.js
 92985b59a8f78fb16d3d132a13fcbadb1a7ec4ee lib/stats/stats.js
@@ -693,9 +697,12 @@ aa88804f9ded09fde56cdc6083f341f146e6b06a test-data/hse/goldens/safetyStats_cases
 436ceeb4fab1cc6e6ef4deea0486d92245b15646 test-data/mapping/culture/points.dbf
 2a5635930df2502672ef150ecd97ca490723b496 test-data/mapping/culture/points.shp
 ac7617d77273ab7ee4bc687dc5f6d5894256795d test-data/mapping/culture/pointz.shp
+eb3b33216b9468499d40a3c52d1190e0e59577c6 test-data/mapping/goldens/closure_cases.json
 8a9dd16c081bce3e5d4c4326d2c6c222c56bb42c test-data/mapping/goldens/kriging_cases.json
 71b9332bc488ed1436823bb2765bdcd7f5ce6fd4 test-data/mapping/goldens/rotation_cases.json
 0da096117c9d6df07610bdf80231f16f2e7bd52a test-data/mapping/goldens/structure_points_cases.json
+74f7626b1dfa7bb3cba364ada4224aed9e931411 test-data/mapping/goldens/tension_cases.json
+42956e1cd77681bd97500a6d8e0018cf5a714613 test-data/mapping/goldens/welltie_cases.json
 caf7299667578ed54135b47c085e57efb2fc0735 test-data/mbal/ahmed-ex-10-10-fetkovich.json
 9bc863c208605497df267698b9aa939f878c751f test-data/mbal/ahmed-ex-11-1-combination.json
 88693e02948353039687e3e8b302eb1e783af9f0 test-data/mbal/dake-9-2.ts
@@ -968,10 +975,15 @@ beffe81b17738b0c61704441c84983b1b97c5d66 tools/validation/hse/oracle_exposure.py
 1aadfdb0c661642eacb4217703cee42a44c5148c tools/validation/hse/oracle_lopa.py
 e48e9a2352626ae2788372b24ae5ee0203b24c7e tools/validation/hse/oracle_qra.py
 540a27c41be233e07910dc6adebf02224bc43cbf tools/validation/hse/oracle_safetystats.py
+5eabd016270386a2aaede036c9e331e68954f021 tools/validation/mapping/FINDINGS-t1.md
 7849160c1f2605320c3a383435ce551b06c2b352 tools/validation/mapping/culture/gen_shapefiles.py
+e0e4497dd6b630feb31b645900997c5cca655fd1 tools/validation/mapping/negcontrol_t1.sh
+e6d1c437ba57337728138b03fdd02a809acafd00 tools/validation/mapping/oracle_closure.py
 313d8772f44c72689f332f6b00db22c667bfce65 tools/validation/mapping/oracle_kriging.py
 ad24be471eb3fc2fdb4c55e4de86ed8ea706e391 tools/validation/mapping/oracle_rotation.py
 907efaa845736bfd460c6f20d3c5f10e4ede1fac tools/validation/mapping/oracle_structure_points.py
+933b1156d5bc4d7f99df9eae798cce1e22f56a54 tools/validation/mapping/oracle_tension.py
+f4623fab2722457babf3e4c8598b73840ccb2c69 tools/validation/mapping/oracle_welltie.py
 628eadeafbdefafe9f28e9c6b0f9dbeab43ffb3b tools/validation/petrophysics/genfixtures.py
 89df6409b7db821210daf8cc410d6599258a5720 tools/validation/petrophysics/oracle.py
 3504fc811f208d0d657c5935cf8b285d04eb7775 tools/validation/porepressure/genfixtures.py
