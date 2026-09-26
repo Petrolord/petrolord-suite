@@ -12,7 +12,8 @@ import { formatFull, MONEY_MM_DECIMALS } from '@/lib/fullPrecision';
 // the frame is drawn directly rather than through ChartFrame).
 
 const NODE_R = 9;
-const COL_W = 190;
+// VOI T1: wider columns so a branch label fits between parent and child
+const COL_W = 240;
 const ROW_H = 56;
 const PAD = { left: 16, right: 170, top: 24, bottom: 16 };
 
@@ -101,7 +102,12 @@ const TreeDiagram = ({ annotated, unit = '$MM' }) => {
                 strokeWidth={onPath ? 2 : 1.2}
                 strokeDasharray={onPath ? 'none' : '4 3'}
               />
-              <text x={midX} y={(y1 + y2) / 2 - 5} textAnchor="middle" fontSize={fs - 1} fill={onPath ? '#047857' : CHART_COLORS.axisText}>
+              {/* VOI-T1-001: the label sits on the child end of its branch,
+                  right aligned, above a rising branch and below a falling
+                  one, clear of the curve. At the branch midpoint it ran over
+                  the parent's EMV text ("Dry Hole (p=0.40)" across "EMV 160"). */}
+              <text x={x2 - 6} y={y2 > y1 ? y2 + fs + 2 : y2 - 6} textAnchor="end" fontSize={fs - 1} fill={onPath ? '#047857' : CHART_COLORS.axisText}
+                stroke="#fff" strokeWidth={3} paintOrder="stroke">
                 {e.branch.label}{pParts.length ? ` (${pParts.join(', ')})` : ''}
               </text>
             </g>
@@ -119,7 +125,8 @@ const TreeDiagram = ({ annotated, unit = '$MM' }) => {
           return (
             <g key={n.node.id ?? i}>
               <NodeGlyph type={n.node.type} x={x} y={y} onPath={onPath} />
-              <text x={x + NODE_R + 5} y={y + 3.5} fontSize={fs} fontWeight={onPath ? 600 : 400} fill={onPath ? '#065f46' : CHART_COLORS.axisText}>
+              <text x={x + NODE_R + 5} y={y + 3.5} fontSize={fs} fontWeight={onPath ? 600 : 400} fill={onPath ? '#065f46' : CHART_COLORS.axisText}
+                stroke="#fff" strokeWidth={3} paintOrder="stroke">
                 {label}
               </text>
             </g>

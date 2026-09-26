@@ -48,8 +48,8 @@ describe('VOI ResultsPanel when the value is withheld', () => {
     const { container } = render(<ResultsPanel results={results} />);
     expect(screen.getByTestId('voi-kpi-emvWithInfo')).toHaveTextContent(/^Withheld$/);
     expect(screen.getByTestId('voi-kpi-netVoi')).toHaveTextContent(/^Withheld$/);
-    expect(screen.getByTestId('voi-kpi-emvWithoutInfo')).toHaveTextContent(/^\$15\.00M$/);
-    expect(screen.getByTestId('voi-kpi-evpi')).toHaveTextContent(/^\$63\.00M$/);
+    expect(screen.getByTestId('voi-kpi-emvWithoutInfo')).toHaveTextContent(/^\$15\.00MM$/);
+    expect(screen.getByTestId('voi-kpi-evpi')).toHaveTextContent(/^\$63\.00MM$/);
     expect(container.textContent).not.toMatch(/null/i);
     expect(container.textContent).not.toMatch(/\$M/);
   });
@@ -99,8 +99,8 @@ describe('VOI ResultsPanel when nothing is withheld', () => {
     const results = generateVoiData(consistent);
     expect(results.withheld).toBe(false);
     render(<ResultsPanel results={results} />);
-    expect(screen.getByTestId('voi-kpi-emvWithInfo')).toHaveTextContent(/^\$38\.00M$/);
-    expect(screen.getByTestId('voi-kpi-netVoi')).toHaveTextContent(/^\$23\.00M$/);
+    expect(screen.getByTestId('voi-kpi-emvWithInfo')).toHaveTextContent(/^\$38\.00MM$/);
+    expect(screen.getByTestId('voi-kpi-netVoi')).toHaveTextContent(/^\$23\.00MM$/);
     expect(screen.queryByText('Withheld')).toBeNull();
   });
 });

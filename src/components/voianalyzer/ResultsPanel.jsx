@@ -59,7 +59,7 @@ const ResultsPanel = ({ results }) => {
               {kpis[key] == null ? (
                 <p className="text-3xl font-bold text-slate-400 mt-2" data-testid={`voi-kpi-${key}`}>{WITHHELD}</p>
               ) : (
-                <p className="text-3xl font-bold text-white mt-2" data-testid={`voi-kpi-${key}`}>${kpis[key]}<span className="text-lg text-lime-300">M</span></p>
+                <p className="text-3xl font-bold text-white mt-2" data-testid={`voi-kpi-${key}`}>${kpis[key]}<span className="text-lg text-lime-300">MM</span></p>
               )}
             </motion.div>
           ))}
