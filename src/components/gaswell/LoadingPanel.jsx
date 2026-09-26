@@ -13,7 +13,7 @@ import {
 import { Droplets, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useGasWell } from '@/contexts/GasWellPerformanceContext';
 import { fmt, Stat } from './fields';
 
@@ -91,11 +91,12 @@ const LoadingPanel = () => {
             <LineChart layout="vertical" data={data} margin={{ top: 8, right: 28, bottom: 12, left: 8 }}>
               <CartesianGrid {...GRID_STYLE} />
               <XAxis
+                    height={XAXIS_LABEL_HEIGHT}
                 type="number"
                 stroke={CHART_COLORS.axisLine}
                 tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                 label={{
-                  value: 'Gas rate (Mscf/d)', position: 'insideBottom', offset: -8,
+                  value: 'Gas rate (Mscf/d)', position: 'insideBottom', offset: 0,
                   fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
                 }}
               />
@@ -117,7 +118,7 @@ const LoadingPanel = () => {
                 formatter={(v, name) => [`${Math.round(Number(v)).toLocaleString()} Mscf/d`, name]}
                 labelFormatter={(v) => `${Math.round(Number(v)).toLocaleString()} ft`}
               />
-              <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
+              <Legend {...LEGEND_PROPS} />
               <ReferenceLine y={c.depthFt} stroke={CHART_COLORS.axisLine} strokeDasharray="4 4" label={{ value: 'Controls', position: 'insideTopRight', fill: CHART_COLORS.axisText, fontSize: 10 }} />
               <Line dataKey="criticalMscfd" name="Critical rate" stroke={COLOR.critical} strokeWidth={2} dot isAnimationActive={false} />
               <Line dataKey="actualMscfd" name="Producing" stroke={COLOR.actual} strokeWidth={2} strokeDasharray="5 4" dot={false} isAnimationActive={false} />

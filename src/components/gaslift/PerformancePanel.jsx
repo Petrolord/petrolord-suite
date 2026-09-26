@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useGasLift } from '@/contexts/GasLiftDesignContext';
 
 const fmt = (v, digits = 0) => (Number.isFinite(v)
@@ -121,10 +121,11 @@ const PerformancePanel = () => {
                 <LineChart data={curve} margin={{ top: 8, right: 24, bottom: 12, left: 8 }}>
                   <CartesianGrid {...GRID_STYLE} />
                   <XAxis
+                    height={XAXIS_LABEL_HEIGHT}
                     type="number" dataKey="qgi" stroke={CHART_COLORS.axisLine}
                     tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                     label={{
-                      value: 'Injection gas (Mscf/d)', position: 'insideBottom', offset: -8,
+                      value: 'Injection gas (Mscf/d)', position: 'insideBottom', offset: 0,
                       fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
                     }}
                   />
@@ -143,7 +144,7 @@ const PerformancePanel = () => {
                     formatter={(v) => [`${Math.round(Number(v))} stb/d`, 'Oil rate']}
                     labelFormatter={(v) => `${Math.round(Number(v))} Mscf/d injected`}
                   />
-                  <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
+                  <Legend {...LEGEND_PROPS} />
                   <Line dataKey="q" name="Oil rate" stroke="#059669" strokeWidth={2} dot isAnimationActive={false} />
                   {performance.econ && (
                     <ReferenceDot
@@ -187,10 +188,11 @@ const PerformancePanel = () => {
                 <LineChart data={sweep} margin={{ top: 8, right: 24, bottom: 12, left: 8 }}>
                   <CartesianGrid {...GRID_STYLE} />
                   <XAxis
+                    height={XAXIS_LABEL_HEIGHT}
                     type="number" dataKey="depth" stroke={CHART_COLORS.axisLine}
                     tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                     label={{
-                      value: 'Injection depth (ft measured)', position: 'insideBottom', offset: -8,
+                      value: 'Injection depth (ft measured)', position: 'insideBottom', offset: 0,
                       fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
                     }}
                   />

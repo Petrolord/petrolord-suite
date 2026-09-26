@@ -9,7 +9,7 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS } from '@/utils/chartTheme';
 import { movingAverage, decimate } from '@/utils/production/surveillance';
 import { useSurveillance } from '@/contexts/ProductionSurveillanceContext';
 
@@ -167,7 +167,7 @@ const TrendsChartPanel = () => {
                   })} ${spec?.unit || ''}`, name];
                 }}
               />
-              <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
+              <Legend {...LEGEND_PROPS} />
               {specs.map((s) => (
                 <Line
                   key={s.key}

@@ -16,7 +16,7 @@ import { Play, RefreshCw, CalendarClock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useGasWell } from '@/contexts/GasWellPerformanceContext';
 import { Field, NumberInput, fmt, Stat } from './fields';
 
@@ -105,6 +105,7 @@ const ForecastPanel = () => {
                 <ComposedChart data={data} margin={{ top: 8, right: 28, bottom: 12, left: 8 }}>
                   <CartesianGrid {...GRID_STYLE} />
                   <XAxis
+                    height={XAXIS_LABEL_HEIGHT}
                     type="number"
                     dataKey="prPsia"
                     reversed
@@ -113,7 +114,7 @@ const ForecastPanel = () => {
                     tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                     label={{
                       value: 'Reservoir pressure (psia), depleting to the right',
-                      position: 'insideBottom', offset: -8,
+                      position: 'insideBottom', offset: 0,
                       fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
                     }}
                   />
@@ -132,7 +133,7 @@ const ForecastPanel = () => {
                     formatter={(v, name) => [`${Math.round(Number(v)).toLocaleString()} Mscf/d`, name]}
                     labelFormatter={(v) => `${Math.round(Number(v)).toLocaleString()} psia reservoir`}
                   />
-                  <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
+                  <Legend {...LEGEND_PROPS} />
                   {forecast.crossingPrPsia && (
                     <ReferenceLine
                       x={forecast.crossingPrPsia}

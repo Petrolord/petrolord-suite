@@ -7,7 +7,7 @@ import {
 import { Gauge } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useGasWell } from '@/contexts/GasWellPerformanceContext';
 import { fmt, Stat } from './fields';
 
@@ -72,13 +72,14 @@ const DeliverabilityPanel = () => {
             <LineChart data={data} margin={{ top: 8, right: 28, bottom: 12, left: 8 }}>
               <CartesianGrid {...GRID_STYLE} />
               <XAxis
+                    height={XAXIS_LABEL_HEIGHT}
                 type="number"
                 dataKey="q"
                 domain={['dataMin', 'dataMax']}
                 stroke={CHART_COLORS.axisLine}
                 tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                 label={{
-                  value: 'Gas rate (Mscf/d)', position: 'insideBottom', offset: -8,
+                  value: 'Gas rate (Mscf/d)', position: 'insideBottom', offset: 0,
                   fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
                 }}
               />
@@ -97,7 +98,7 @@ const DeliverabilityPanel = () => {
                 formatter={(v, name) => [`${Math.round(Number(v)).toLocaleString()} psia`, name]}
                 labelFormatter={(v) => `${Math.round(Number(v)).toLocaleString()} Mscf/d`}
               />
-              <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
+              <Legend {...LEGEND_PROPS} />
               <Line dataKey="ipr" name="Inflow" stroke={COLOR.ipr} strokeWidth={2} dot={false} isAnimationActive={false} />
               <Line dataKey="vlp" name="Gas column" stroke={COLOR.vlp} strokeWidth={2} dot={false} isAnimationActive={false} />
               <ReferenceDot

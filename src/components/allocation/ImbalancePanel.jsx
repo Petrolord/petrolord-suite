@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS } from '@/utils/chartTheme';
 import { decimate } from '@/utils/production/surveillance';
 import { PHASES } from '@/utils/production/allocation';
 import { useAllocation } from '@/contexts/ProductionAllocationContext';
@@ -118,7 +118,7 @@ const ImbalancePanel = () => {
               itemStyle={{ color: CHART_COLORS.tooltipText }}
               formatter={(value, name) => [`${fmt(Number(value))} ${phaseDef.unit}`, name]}
             />
-            <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
+            <Legend {...LEGEND_PROPS} />
             <ReferenceLine yAxisId="right" y={0} stroke="#94a3b8" />
             <Bar yAxisId="right" dataKey="imbalance" name="Imbalance" fill="#f59e0b" fillOpacity={0.5} isAnimationActive={false} />
             <Line yAxisId="left" type="monotone" dataKey="measured" name="Metered" stroke="#0f172a" strokeWidth={1.8} dot={false} isAnimationActive={false} />

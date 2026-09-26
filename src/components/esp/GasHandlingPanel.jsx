@@ -51,8 +51,10 @@ const GasHandlingPanel = () => {
         <CardTitle className="text-base">
           Gas at the intake
           <span className="block text-xs font-normal text-slate-500 mt-0.5">
-            At {fmt(pipPsia)} psia and {fmt(tempF)} F the solution gas is {fmt(pvt.rs)} scf/stb, so
-            the rest of the produced {fmt(design.gorScfStb)} scf/stb is free.
+            At {fmt(pipPsia)} psia and {fmt(tempF)} F the oil holds {fmt(pvt.rs)} scf/stb in solution
+            {pvt.rs >= design.gorScfStb - 0.5
+              ? `, all of the produced ${fmt(design.gorScfStb)} scf/stb, so no gas is free at the intake.`
+              : ` of the produced ${fmt(design.gorScfStb)} scf/stb, so ${fmt(design.gorScfStb - pvt.rs)} scf/stb is free.`}
           </span>
         </CardTitle>
       </CardHeader>

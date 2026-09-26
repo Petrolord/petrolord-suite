@@ -9,7 +9,7 @@ import {
 import { TrendingDown, ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS } from '@/utils/chartTheme';
 import { FIT_STREAMS, annualEffectiveDecline } from '@/utils/production/surveillance';
 import { useSurveillance } from '@/contexts/ProductionSurveillanceContext';
 
@@ -125,7 +125,7 @@ const DeclinePanel = () => {
                   itemStyle={{ color: CHART_COLORS.tooltipText }}
                   formatter={(value, name) => [`${fmt(Number(value))} ${streamDef.unit}`, name]}
                 />
-                <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
+                <Legend {...LEGEND_PROPS} />
                 <Scatter dataKey="history" name="History" fill={HISTORY_COLOR} isAnimationActive={false} />
                 <Line
                   type="monotone" dataKey="forecast" name="Arps fit and forecast"
