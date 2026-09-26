@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Play } from 'lucide-react';
 import { useDataQualityStudio } from '@/contexts/DataQualityStudioContext';
 import {
-  DEFINITIONAL_CHANNELS, definitionalUnits, baselineFrom, dimensionLabel,
+  DEFINITIONAL_CHANNELS, definitionalUnits, baselineFrom, dimensionLabel, frozenHoursKey,
 } from '@/utils/dataAi/qcProfile';
 import { DIMENSIONS, DEFINITIONAL_LIMITS } from '@/utils/dataAi/engine/quality';
 import {
@@ -100,6 +100,8 @@ const ProfilePanel = () => {
   const chartCh = chans.find((c) => c.key === profile.charts.key);
   const o = profile.outliers;
   const cons = profile.consistency;
+  const frozenHoursKeyValue = frozenHoursKey(profile, chans);
+  const frozenHours = frozenHoursKeyValue ? chans.find((c) => c.key === frozenHoursKeyValue) : null;
 
   return (
     <div className="space-y-3" data-testid="profile-panel">
@@ -187,6 +189,16 @@ const ProfilePanel = () => {
           <Param name="frozenMinRun" label="Shortest run" unit="samples" value={cons.frozen.minRun} onChange={(v) => set(['consistency', 'frozen', 'minRun'], v)} />
           <Param name="frozenTolerance" label="Tolerance" value={cons.frozen.tolerance} onChange={(v) => set(['consistency', 'frozen', 'tolerance'], v)} />
         </div>
+        {frozenHours ? (
+          <div className="pl-5 space-y-1" data-testid="frozen-hours">
+            <Note>
+              {frozenHours.name} is {cons.frozen.includeHoursOn ? 'searched' : 'left out'}: a well on the same hours day after day
+              (24 on a producing well) is normal operation, not a stuck gauge.
+            </Note>
+            <Toggle label={`Search ${frozenHours.name} for frozen runs too`} checked={!!cons.frozen.includeHoursOn}
+              onChange={(v) => set(['consistency', 'frozen', 'includeHoursOn'], v)} testId="frozen-include-hours" />
+          </div>
+        ) : null}
       </Section>
 
       <Section title="Uniqueness" right={<Toggle label="On" checked={profile.uniqueness.enabled} onChange={(v) => set(['uniqueness', 'enabled'], v)} />}>

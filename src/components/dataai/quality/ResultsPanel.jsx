@@ -108,10 +108,10 @@ export const FlagTable = ({ run }) => {
                 <tr key={`${f.method}-${f.channel}-${f.index}-${i}`} className="border-t border-slate-800 align-top" data-testid="flag-row">
                   <td className="px-2 py-1">{f.dimension}</td>
                   <td>{f.method}</td>
-                  <td>{f.channel}</td>
+                  <td className="whitespace-nowrap pr-2">{f.channel}</td>
                   <td className="font-mono" data-testid="flag-entry">{Number.isInteger(f.index) ? f.index : ''}</td>
-                  <td className="font-mono">{f.at}</td>
-                  <td className="font-mono text-sky-300">{f.rule}</td>
+                  <td className="font-mono whitespace-nowrap pr-2">{f.at}</td>
+                  <td className="font-mono text-sky-300 whitespace-nowrap pr-2">{f.rule}</td>
                   <td className="font-mono" data-testid="flag-value">{fig.value}</td>
                   <td className="font-mono" data-testid="flag-previous">{fig.previous}</td>
                   <td data-testid="flag-reason" title={f.reason}>{displayReason(f.reason)}</td>
