@@ -63,3 +63,12 @@ shows what this app has written. RP2 adds the Well data and Open in
 launchers for the selected well, and the in-app help guide at
 `/dashboard/apps/geoscience/rock-physics-studio/help`. RP0 to RP2 are
 merged; the series is closed.
+
+## 2026-09-26: Senior test T1 (Wave 1 #7)
+
+Report: docs/testing/RockPhysicsStudio-T1.md. Velocity log plot reads
+depth downward; gas Vp shown; legends clear of the axis titles. New: fluid
+replacement AVO (the lower rock with fluid B beside the in situ interface:
+curve, A/B, class, crossplot point; `services/scenario.substitutedHalfspace`)
+and the tuning thickness in depth from a wedge Vp (`DEFAULT_WEDGE.vpWedge`).
+Engines untouched.

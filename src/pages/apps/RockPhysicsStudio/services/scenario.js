@@ -96,3 +96,26 @@ export function substituteInterval(model, indices, kmin, flA, flB, phiConst) {
   }
   return out;
 }
+
+/**
+ * A halfspace's mean Vp, Vs and rho after substituting its pore fluid A -> B
+ * over the depth window (from, to) (Rock Physics T1-E1: fluid replacement
+ * AVO, the in-situ interface against the same interface with the lower
+ * rock carrying fluid B). Uses the same per-sample Gassmann as the Fluids
+ * panel. Returns null for an empty window and {error} when the engine
+ * rejects every sample (fluid A is not what the rock holds).
+ */
+export function substitutedHalfspace(model, from, to, scenario, rock) {
+  const idx = [];
+  for (let i = 0; i < model.depth.length; i++) if (model.depth[i] > from && model.depth[i] < to) idx.push(i);
+  if (!idx.length) return null;
+  const flA = sideFluid(scenario.conditions, scenario.fluidA);
+  const flB = sideFluid(scenario.conditions, scenario.fluidB);
+  const sub = substituteInterval(model, idx, kminFromRock(rock), flA, flB, rock.phiConst);
+  if (!sub.done) return { error: `no sample in the window could be substituted (${sub.firstError || 'gaps'}); check that fluid A is the fluid actually in this rock` };
+  const mean = (arr) => {
+    const v = idx.map((i) => arr[i]).filter(Number.isFinite);
+    return v.reduce((s, x) => s + x, 0) / v.length;
+  };
+  return { vp: mean(sub.vp), vs: mean(sub.vs), rho: mean(sub.rho), labelA: flA.label, labelB: flB.label };
+}

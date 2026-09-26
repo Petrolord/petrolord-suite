@@ -150,6 +150,15 @@ export default function RockPhysicsStudioHelpGuide() {
           ['III', 'Negative intercept, negative gradient: the classic bright gas sand.'],
           ['IV', 'Negative intercept, positive gradient: a soft sand whose amplitude dims with offset.'],
         ]} />
+        <SubHeading>Fluid replacement</SubHeading>
+        <Para>
+          In From top mode the panel also runs the lower rock through the same Gassmann substitution as the Fluids
+          panel, with fluid B in place of fluid A as set in Scenario & rock, and draws that interface in amber beside
+          the in situ one: the curve, the intercept and gradient, the class and a second crossplot point. Set fluid A
+          to what the rock holds. On the harness gas sand, gas in situ and brine as fluid B shows the sand moving from
+          class III to class II: the answer to what the sand would look like if it were wet. When fluid A is not what
+          the rock holds, the substitution is unphysical and the panel says so.
+        </Para>
       </GuideSection>
 
       <GuideSection id="wedge">
@@ -159,7 +168,8 @@ export default function RockPhysicsStudioHelpGuide() {
           to the maximum, in two-way time. The panel draws the traces and the peak amplitude against thickness, and
           reports the tuning thickness, where the amplitude peaks. The defaults ({DEFAULT_WEDGE.freqHz} Hz Ricker,
           {DEFAULT_WEDGE.dtMs} ms sampling) tune at 16 ms; doubling the frequency halves the tuning thickness. The wedge
-          needs no well.
+          Vp states the tuning thickness in depth as well (half the two-way time times the velocity: 16 ms at
+          {' '}{DEFAULT_WEDGE.vpWedge} m/s is 20 m). The wedge needs no well.
         </Para>
       </GuideSection>
 

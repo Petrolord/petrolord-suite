@@ -17,6 +17,7 @@ import {
 } from '@/utils/chartTheme';
 import { zoeppritzRpp, akiRichards, shuey, avoClass } from '../engine/avo';
 import { meanAt } from '../services/prep';
+import { substitutedHalfspace } from '../services/scenario';
 import UnitInput from './UnitInput';
 import {
   DEFAULT_UNITS, velocityToDisplay, velocityFromDisplay, densityToDisplay, densityFromDisplay,
@@ -77,7 +78,7 @@ function HalfspaceInputs({ side, hs, onChange, units }) {
 
 const velHead = (which, unit) => velocityLabel(unit).replace('Velocity', which).replace('Slowness', which === 'Vp' ? 'DTp' : 'DTs');
 
-export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAULT_UNITS }) {
+export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAULT_UNITS, scenario = null, rock = null }) {
   const patch = (p) => onAvoChange({ ...avo, ...p });
   const vU = units.velocity;
   const dU = units.density;
@@ -97,6 +98,13 @@ export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAUL
     };
   }, [avo, model, top]);
 
+  // fluid replacement (T1-E1): the lower rock with fluid B in place of A,
+  // as set in Scenario & rock; top mode only (manual halfspaces have no logs)
+  const replaced = useMemo(() => {
+    if (avo.mode !== 'top' || !model || !top || !scenario || !rock) return null;
+    try { return substitutedHalfspace(model, top.md_m, top.md_m + avo.windowM, scenario, rock); } catch (e) { return { error: e.message }; }
+  }, [avo.mode, avo.windowM, model, top, scenario, rock]);
+
   const result = useMemo(() => {
     if (!halfspaces) return null;
     const { upper: u, lower: l } = halfspaces;
@@ -113,11 +121,18 @@ export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAUL
         try { ar = akiRichards(u.vp, u.vs, u.rho, l.vp, l.vs, l.rho, th); } catch { /* past critical */ }
         curve.push({ theta: th, zoeppritz: z.re, shuey2: sh, akiRichards: ar });
       }
-      return { a, b, c, cls, curve };
+      let alt = null;
+      if (replaced && !replaced.error && [replaced.vp, replaced.vs, replaced.rho].every(Number.isFinite)) {
+        const r = replaced;
+        const s0 = shuey(u.vp, u.vs, u.rho, r.vp, r.vs, r.rho, 0);
+        alt = { a: s0.a, b: s0.b, cls: avoClass(s0.a, s0.b), labelA: r.labelA, labelB: r.labelB, hs: r };
+        curve.forEach((pt) => { pt.zoeppritzB = zoeppritzRpp(u.vp, u.vs, u.rho, r.vp, r.vs, r.rho, pt.theta).re; });
+      }
+      return { a, b, c, cls, curve, alt };
     } catch (e) {
       return { error: e.message };
     }
-  }, [halfspaces, avo.maxTheta]);
+  }, [halfspaces, avo.maxTheta, replaced]);
 
   return (
     <div className="h-full min-h-0 overflow-y-auto p-3 space-y-3" data-testid="rp-avo-panel">
@@ -234,6 +249,16 @@ export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAUL
             </span>
           </div>
 
+          {result.alt && (
+            <div className="flex flex-wrap items-center gap-4 text-[12px] text-slate-300" data-testid="rp-avo-replaced">
+              <span className="text-slate-400">Lower rock with {result.alt.labelB} in place of {result.alt.labelA} (Scenario & rock):</span>
+              <span>A <b data-testid="rp-avo-a-b">{f4(result.alt.a)}</b></span>
+              <span>B <b data-testid="rp-avo-b-b">{f4(result.alt.b)}</b></span>
+              <span className="rounded px-1.5 py-0.5 border border-amber-600 text-amber-300" data-testid="rp-avo-class-b">Class {result.alt.cls}</span>
+            </div>
+          )}
+          {replaced?.error && <p className="text-[12px] text-amber-400">Fluid replacement: {replaced.error}</p>}
+
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
             <div className="bg-white rounded-lg p-3 relative" style={{ height: 360 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -246,11 +271,12 @@ export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAUL
                     <Label value="Rpp(θ)" angle={-90} position="insideLeft" style={{ fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }} />
                   </YAxis>
                   <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => f4(v)} labelFormatter={(v) => `θ = ${v}°`} />
-                  <Legend {...LEGEND_PROPS} wrapperStyle={{ fontSize: `${CHART_TYPOGRAPHY.legendFontSize}px`, color: CHART_COLORS.legendText }} />
+                  <Legend {...LEGEND_PROPS} verticalAlign="top" wrapperStyle={{ fontSize: `${CHART_TYPOGRAPHY.legendFontSize}px`, color: CHART_COLORS.legendText, paddingBottom: 4 }} />
                   <ReferenceLine y={0} stroke={CHART_COLORS.axisLine} />
-                  <Line type="monotone" dataKey="zoeppritz" stroke="#0f172a" strokeWidth={2} dot={false} name="Zoeppritz (exact)" />
-                  <Line type="monotone" dataKey="shuey2" stroke="#dc2626" strokeWidth={1.5} strokeDasharray="5 3" dot={false} name="Shuey 2-term" />
-                  <Line type="monotone" dataKey="akiRichards" stroke="#0284c7" strokeWidth={1.5} strokeDasharray="2 3" dot={false} name="Aki-Richards" />
+                  <Line type="monotone" dataKey="zoeppritz" isAnimationActive={false} stroke="#0f172a" strokeWidth={2} dot={false} name="Zoeppritz (exact)" />
+                  <Line type="monotone" dataKey="shuey2" isAnimationActive={false} stroke="#dc2626" strokeWidth={1.5} strokeDasharray="5 3" dot={false} name="Shuey 2-term" />
+                  <Line type="monotone" dataKey="akiRichards" isAnimationActive={false} stroke="#0284c7" strokeWidth={1.5} strokeDasharray="2 3" dot={false} name="Aki-Richards" />
+                  {result.alt && <Line type="monotone" dataKey="zoeppritzB" isAnimationActive={false} stroke="#d97706" strokeWidth={2} dot={false} name={`Zoeppritz, lower with ${result.alt.labelB}`} />}
                 </LineChart>
               </ResponsiveContainer>
               <ChartLogo />
@@ -274,7 +300,9 @@ export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAUL
                   <ReferenceLine x={0} stroke={CHART_COLORS.axisLine} />
                   <ReferenceLine y={0} stroke={CHART_COLORS.axisLine} />
                   <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => f4(v)} />
-                  <Scatter data={[{ a: result.a, b: result.b }]} fill="#0f172a" name="interface" />
+                  <Scatter isAnimationActive={false} data={[{ a: result.a, b: result.b }]} fill="#0f172a" name="in situ" />
+                  {result.alt && <Scatter isAnimationActive={false} data={[{ a: result.alt.a, b: result.alt.b }]} fill="#d97706" name={`lower with ${result.alt.labelB}`} />}
+                  {result.alt && <Legend verticalAlign="top" wrapperStyle={{ fontSize: `${CHART_TYPOGRAPHY.legendFontSize}px`, color: CHART_COLORS.legendText }} />}
                 </ScatterChart>
               </ResponsiveContainer>
               <ChartLogo />
