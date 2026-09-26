@@ -1,4 +1,5 @@
 // Configuration, scale, costs and prices (DS4).
+import { productLabel } from './productLabel';
 import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -96,7 +97,7 @@ const FeasibilityPanel = () => {
           {slate.rows.map((r) => (
             <Cell
               key={r.id}
-              label={`${r.id} (${(r.yieldFraction * 100).toFixed(1)}%)`}
+              label={`${productLabel(r.id)} (${(r.yieldFraction * 100).toFixed(1)}%)`}
               unit="$/bbl"
               value={inputs.prices[r.id] ?? ''}
               onChange={(v) => setPrice(r.id, v)}
@@ -105,7 +106,7 @@ const FeasibilityPanel = () => {
         </div>
         {slate.unpriced.length > 0 && (
           <p className="text-[11px] text-amber-300 mt-2">
-            No price for {slate.unpriced.join(', ')}. Those products contribute nothing to the value,
+            No price for {slate.unpriced.map(productLabel).join(', ')}. Those products contribute nothing to the value,
             so the project is understated until they are priced.
           </p>
         )}
