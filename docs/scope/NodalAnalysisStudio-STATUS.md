@@ -169,3 +169,9 @@ the last sample was dropped.
   a re-verified staging pass; it moves displayed BHP).
 - Switch `solveGasOperatingPoint` to `gasPwfAtRateExact` for the
   empirical families (worth about 0.6 Mscf/d in 11,000 on the gated well).
+
+## 2026-09-26: senior test T1 (docs/testing/NodalAnalysisStudio-T1.md)
+
+- System plot domains explicit (x to AOF, y above Pr); shared legend band
+  and axis-label height on all charts; economic point KPI sub-line;
+  harness `/dev/nodal-analysis-studio` on the in-memory Supabase.

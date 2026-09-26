@@ -63,11 +63,12 @@ export const valueWithUnit = (kind, v, system, digits = fmt.f2) => {
   return `${fmtU(kind, v, system, digits)}${label ? ` ${label}` : ''}`;
 };
 
-export const Kpi = ({ title, value, unit, accent }) => (
+export const Kpi = ({ title, value, unit, accent, sub }) => (
   <Card className={`bg-slate-900 border-slate-800 ${accent ? 'ring-1 ring-cyan-500/30' : ''}`}>
     <CardContent className="p-3">
       <div className="text-[11px] uppercase tracking-wide text-slate-500 leading-tight">{title}</div>
       <div className="text-xl font-bold mt-1">{value}{unit ? <span className="text-xs text-slate-500 ml-1">{unit}</span> : null}</div>
+      {sub ? <div className="text-[11px] text-slate-400 mt-0.5">{sub}</div> : null}
     </CardContent>
   </Card>
 );
