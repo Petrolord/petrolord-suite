@@ -33,9 +33,10 @@ import { mapLogs, buildProfileInput } from '../services/prep';
 import { computeProfile } from '../engine/profile';
 import { pseudoSonicFromLinearVelocity } from '../engine/velocitySource';
 import { preparePublishLogs } from '../services/publish';
+import { drillingWindow, WINDOW_FROM_BML_M } from '../services/drillingWindow';
 import {
   UNITS_KEY, PRESSURE_UNITS, DEPTH_UNITS, readUnits, depthFromDisplay, tidyDepth,
-  fmtPressure, emwReferenceDepthM, emwDatumLabel, isEmw, prognosisCsv,
+  fmtPressure, fmtDepth, emwReferenceDepthM, emwDatumLabel, isEmw, prognosisCsv,
 } from '../services/units';
 
 const storage = () => { try { return window.localStorage; } catch { return null; } };
@@ -193,6 +194,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   }, [input, params]);
 
   const result = profile?.result || null;
+  const windowInfo = useMemo(() => (result && input ? drillingWindow(result, input.zBmlM, params) : null), [result, input, params]);
   const computeError = input?.error || profile?.error || null;
 
   const readout = useMemo(() => {
@@ -310,11 +312,11 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   );
 
   const ribbon = (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
       <ModuleHomeLink module="geoscience" />
       <Gauge className="w-4 h-4 text-cyan-400" />
-      <span className="text-sm font-semibold text-slate-100">Pore Pressure Studio</span>
-      <span className="text-[11px] text-slate-500">Eaton / Bowers prognosis on the shared well registry</span>
+      <span className="text-sm font-semibold text-slate-100 whitespace-nowrap">Pore Pressure Studio</span>
+      <span className="hidden 2xl:inline text-[11px] text-slate-500">Eaton / Bowers prognosis on the shared well registry</span>
       <div className="ml-4 flex items-center gap-1">
         {viewButton('prognosis', 'Prognosis')}
         {viewButton('nct', 'NCT')}
@@ -472,8 +474,19 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       depthUnit={units.depth}
     />
   ) : (
-    <div className="h-full p-2">
-      <PrognosisChart profile={result} zBmlM={input.zBmlM} calibration={calibration} units={units} params={params} />
+    <div className="h-full p-2 flex flex-col gap-1">
+      {windowInfo?.narrowest && (
+        <div className="text-[11px] text-slate-300 px-1" data-testid="pp-drilling-window">
+          Narrowest drilling window <b>{windowInfo.narrowest.windowPpg.toFixed(2)} ppg</b>
+          {' '}(PP {windowInfo.narrowest.ppPpg.toFixed(2)}, FG {windowInfo.narrowest.fgPpg.toFixed(2)} ppg EMW)
+          {' '}at {fmtDepth(windowInfo.narrowest.zBmlM, units.depth)} {units.depth} below mudline (below the top {fmtDepth(WINDOW_FROM_BML_M, units.depth)} {units.depth}, the conductor section)
+          {windowInfo.maxPp && <> · highest PP {windowInfo.maxPp.ppPpg.toFixed(2)} ppg at {fmtDepth(windowInfo.maxPp.zBmlM, units.depth)} {units.depth}</>}
+          {windowInfo.narrowest.windowPpg < 0.5 && <span className="text-amber-300"> · under 0.5 ppg: plan a casing point or managed pressure</span>}
+        </div>
+      )}
+      <div className="flex-1 min-h-0">
+        <PrognosisChart profile={result} zBmlM={input.zBmlM} calibration={calibration} units={units} params={params} />
+      </div>
     </div>
   );
 
