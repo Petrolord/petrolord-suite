@@ -25,7 +25,7 @@ const helpContent = [
     icon: Landmark,
     title: 'Building a regime',
     content:
-      'A regime here is made of a royalty (flat or a sliding scale that steps with production rate), a cost recovery limit as a percentage of revenue after royalty, a profit split between contractor and government that can step with the R factor, and the tax terms: corporate income tax, an optional resource rent tax with a capital uplift, and an optional minimum tax on gross revenue. The uplift sizes a one-time cost pool for the resource rent tax, capex times one plus the uplift, drawn down against the tax base until it is used up, so at the default 20 percent the relief over the life of the project is at most 1.2 times capex. Start from a template and change the parts you care about. Every regime you define is compared on the same project, so differences you see are differences in the terms and nothing else.',
+      'A regime here is made of a royalty (flat or a sliding scale that steps with production rate), a cost recovery limit as a percentage of revenue after royalty, a profit split between contractor and government that can step with the R factor, and the tax terms: corporate income tax, an optional resource rent tax with a capital uplift, and an optional minimum tax on gross revenue. The uplift sizes a one-time cost pool for the resource rent tax, capex times one plus the uplift, drawn down against the tax base until it is used up, so at the default 20 percent the relief over the life of the project is at most 1.2 times capex. The Nigeria - PIA (2021) template uses the term types of the Act itself: a PIA 2021 royalty by terrain, daily rate and price (computed by the same helpers as Petroleum Economics Studio), a cost recovery limit of 70 percent of the gross crude oil and NGL value, and a minimum government profit oil share stepping with the cumulative production of the field (PIA Seventh Schedule para 14(4)). Each of the three can be edited like any other term, and the template list states the terms of every template. Start from a template and change the parts you care about. Every regime you define is compared on the same project, so differences you see are differences in the terms and nothing else.',
   },
   {
     id: 'costrecovery',
@@ -74,7 +74,7 @@ const helpContent = [
     icon: AlertTriangle,
     title: 'Assumptions and limits',
     content:
-      'This is a screening model on a 25 year life with a generated production profile, not a full fiscal engine. It does not carry the PIA 2021 and Nigeria Tax Act 2025 framework switch, terrain and price based royalty schedules, hydrocarbon tax alongside companies income tax, production allowances with cap tracking, or capital allowance carryforward. All of those live in Petroleum Economics Studio. Design terms here, then take the regime you settled on there to value the project properly.',
+      'This is a screening model on a 25 year life with a generated production profile, not a full fiscal engine. It does not carry the PIA 2021 and Nigeria Tax Act 2025 framework switch, hydrocarbon tax alongside companies income tax, production allowances with cap tracking, or capital allowance carryforward. All of those live in Petroleum Economics Studio. Design terms here, then take the regime you settled on there to value the project properly.',
   },
 ];
 

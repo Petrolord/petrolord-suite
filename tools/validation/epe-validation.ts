@@ -11,10 +11,21 @@
  *   cd /opt/petrolord-studio/workspaces/dev1/projects/petrolord-suite
  *   npx tsx tools/validation/epe-validation.ts
  *
+ * Engines 3.12.0 (EC7, 2026-09-26): the PIA regime follows the gazetted PIA
+ * 2021, NTA 2025, Royalty Regulations 2022 and Finance Act 2023 by default;
+ * pia_legacy_pre_audit: true reproduces the pre-audit engine. The fixture's
+ * PIA_WORKED_EXAMPLE_CFG carries that switch, so Cases 1a and 4 to 7 pin the
+ * LEGACY path that saved runs stamped legacy still use; Cases 1b and 8 pin
+ * the default path on the independent oracle (packages/engines/tools/
+ * validation/economics/oracle_pia2021.py).
+ *
  * Cases:
- *   1. PIA 2021 worked example (regression contract, EPE.md §6.7/§7):
- *      inputs frozen from the byte-validated shared-DB case; NPV must be
- *      $135,185,570.34 (±$0.01) and every line item within $0.01.
+ *   1a. PIA worked example, legacy switch (regression contract, EPE.md
+ *      §6.7/§7): NPV must be $135,185,570.34 (±$0.01) and every line item
+ *      within $0.01.
+ *   1b. PIA worked example, default path: the same inputs without the switch
+ *      and with TET left to the statute; NPV $141,236,909.83 (±$0.01) and
+ *      every oracle line item within $0.01.
  *   2. JV analytic case: two years with round numbers; royalty, tax,
  *      net cash flow, NPV, IRR, and payback all hand-derived in
  *      closed form in the comments below.
@@ -34,6 +45,9 @@
  *   7. Monte Carlo layer (D2): degenerate distributions reproduce the
  *      deterministic NPV exactly, seeded runs are reproducible, and a
  *      mode-at-base spread brackets the deterministic NPV.
+ *   8. Default path provisions: 4 USD/bbl production allowance after the
+ *      new-lease cap (PIA Sixth Schedule para 1(2)); a ledger across
+ *      1 January 2026 reports pia_only_then_nta_2025 with nta_first_year.
  *
  * Exit code 0 on full pass, 1 on any failure.
  */
@@ -46,6 +60,8 @@ import {
   PIA_WORKED_EXAMPLE_CAPEX,
   PIA_WORKED_EXAMPLE_OPEX,
   PIA_WORKED_EXAMPLE_EXPECTED,
+  PIA_WORKED_EXAMPLE_DEFAULT_CFG,
+  PIA_WORKED_EXAMPLE_DEFAULT_EXPECTED,
 } from './fixtures/epe-pia-worked-example.ts';
 
 let passCount = 0;
@@ -73,9 +89,9 @@ function check(label: string, actual: number | string | boolean | null | undefin
 }
 
 // ============================================================================
-// CASE 1 — PIA WORKED EXAMPLE REGRESSION
+// CASE 1a — PIA WORKED EXAMPLE REGRESSION, LEGACY SWITCH
 // ============================================================================
-console.log('\n=== Case 1: PIA 2021 worked example (regression contract) ===');
+console.log('\n=== Case 1a: PIA worked example, legacy switch (regression contract) ===');
 {
   const { cashFlowData, kpis } = computeCashFlow({
     cfg: PIA_WORKED_EXAMPLE_CFG,
@@ -88,6 +104,29 @@ console.log('\n=== Case 1: PIA 2021 worked example (regression contract) ===');
   check('total_dev_levy = 0 (PIA-only invariant)', kpis.total_dev_levy, 0, 1e-9);
   const row = cashFlowData[0];
   for (const [k, v] of Object.entries(PIA_WORKED_EXAMPLE_EXPECTED.line_items)) {
+    check(`2025 ${k}`, row[k], v as number, 0.01);
+  }
+}
+
+// ============================================================================
+// CASE 1b — PIA WORKED EXAMPLE REGRESSION, DEFAULT PATH (engines 3.12.0)
+// ============================================================================
+// Shallow water at 50,000 bopd: 5,000 x 5% + 5,000 x 7.5% + 40,000 x 12.5%
+// over 50,000 = 11.25% (Royalty Regulations r.13(2)(d)); TET 3% (Finance Act
+// 2023 s.26); NDDC in the HCT base; CIT deducts the full royalty.
+console.log('\n=== Case 1b: PIA worked example, default path (re-frozen 2026-09-26) ===');
+{
+  const { cashFlowData, kpis } = computeCashFlow({
+    cfg: PIA_WORKED_EXAMPLE_DEFAULT_CFG,
+    prodRows: PIA_WORKED_EXAMPLE_PROD,
+    capexRows: PIA_WORKED_EXAMPLE_CAPEX,
+    opexRows: PIA_WORKED_EXAMPLE_OPEX,
+  });
+  check('NPV = $141,236,909.83', kpis.npv, PIA_WORKED_EXAMPLE_DEFAULT_EXPECTED.npv, 0.01);
+  check('not legacy', kpis.pia_legacy_pre_audit === undefined, true);
+  check('pia_notes stated', Array.isArray(kpis.pia_notes) && kpis.pia_notes.length > 0, true);
+  const row = cashFlowData[0];
+  for (const [k, v] of Object.entries(PIA_WORKED_EXAMPLE_DEFAULT_EXPECTED.line_items)) {
     check(`2025 ${k}`, row[k], v as number, 0.01);
   }
 }
@@ -209,7 +248,7 @@ console.log('\n=== Case 3: PSC unrecovered-cost carryforward (hand-derived) ==='
 // Development Levy (4%), both on cit_assessable_profit. Therefore:
 //   dev_levy / tet = 4 / 2.5 = 1.6 exactly
 //   net cash flow (NTA) = net (PIA) + tet - dev_levy
-console.log('\n=== Case 4: NTA 2025 framework switch (TET vs Dev Levy) ===');
+console.log('\n=== Case 4: NTA 2025 framework switch (TET vs Dev Levy), legacy switch ===');
 {
   const runWith = (override: string) => computeCashFlow({
     cfg: { ...PIA_WORKED_EXAMPLE_CFG, pia_under_nta_2025_override: override },
@@ -237,7 +276,7 @@ console.log('\n=== Case 4: NTA 2025 framework switch (TET vs Dev Levy) ===');
 // 2025 production 2 MMbbl crosses the cap mid-year:
 //   eligible = 1 MMbbl, allowance = min(20% x $80, $8/bbl new) x 1M = $8M
 // 2026 production 1 MMbbl: capacity exhausted -> eligible 0, allowance 0.
-console.log('\n=== Case 5: production allowance cap mid-year crossing ===');
+console.log('\n=== Case 5: production allowance cap mid-year crossing, legacy switch ===');
 {
   const cfg = {
     ...PIA_WORKED_EXAMPLE_CFG,
@@ -325,6 +364,33 @@ console.log('\n=== Case 7: Monte Carlo layer over the engine ===');
     runA.npv.p90 < PIA_WORKED_EXAMPLE_EXPECTED.npv && PIA_WORKED_EXAMPLE_EXPECTED.npv < runA.npv.p10, true);
   check('P(NPV>0) within (0, 1]', runA.probNpvPositive > 0 && runA.probNpvPositive <= 1, true);
   check('tornado has the single varied input', runA.tornado.length === 1 && runA.tornado[0].parameter === 'oil_price', true);
+}
+
+// ============================================================================
+// CASE 8 — DEFAULT PATH PROVISIONS (engines 3.12.0)
+// ============================================================================
+// (a) New shallow-water PML at 99 MMbbl prior cumulative, 2,000,000 bbl in
+//     2025: 1,000,000 bbl below the 100 MMbbl cap at min(8, 20% x 80) = 8
+//     USD/bbl and 1,000,000 bbl after it at min(4, 16) = 4 USD/bbl (PIA Sixth
+//     Schedule para 1(2)) = 12,000,000. The legacy engine gave 8,000,000.
+// (b) A 2025-2026 ledger under 'auto' reads each year's framework: 2025 PIA,
+//     2026 NTA, so kpis.fiscal_framework = 'pia_only_then_nta_2025' and
+//     kpis.nta_first_year = 2026.
+console.log('\n=== Case 8: default path provisions (allowance after cap, framework per year) ===');
+{
+  const rows = {
+    prodRows: [{ year: 2025, well1_oil_bbl: 2_000_000 }, { year: 2026, well1_oil_bbl: 1_000_000 }],
+    capexRows: [{ year: 2025, amount_usd: 50_000_000 }],
+    opexRows: [{ year: 2025, total_opex_usd: 20_000_000 }, { year: 2026, total_opex_usd: 20_000_000 }],
+  };
+  const { cashFlowData, kpis } = computeCashFlow({
+    cfg: { ...PIA_WORKED_EXAMPLE_DEFAULT_CFG, pia_lease_status: 'new', pia_new_pml_hct_rate_pct: 30, pia_prior_cumulative_oil_bbl: 99_000_000 },
+    ...rows,
+  });
+  check('2025 allowance = 8M + 4M', cashFlowData[0].production_allowance, 12_000_000);
+  check('2026 allowance = 4 USD/bbl x 1M', cashFlowData[1].production_allowance, 4_000_000);
+  check('fiscal_framework = pia_only_then_nta_2025', kpis.fiscal_framework, 'pia_only_then_nta_2025');
+  check('nta_first_year = 2026', kpis.nta_first_year, 2026, 0);
 }
 
 // ============================================================================

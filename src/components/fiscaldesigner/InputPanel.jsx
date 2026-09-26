@@ -91,7 +91,9 @@ import React, { useState, useEffect } from 'react';
       const handleApplyTemplate = (template) => {
         setRegimes(regimes.map(regime => {
           if (regime.id === activeRegimeId) {
-            return { ...regime, name: template.name, ...JSON.parse(JSON.stringify(template.regime)) };
+            // costRecoveryBase is optional (EC7): a template without it must not
+            // inherit the previous template's base
+            return { ...regime, costRecoveryBase: undefined, name: template.name, ...JSON.parse(JSON.stringify(template.regime)) };
           }
           return regime;
         }));

@@ -5,10 +5,19 @@
 // CI fails on any engine regression. The two must stay in agreement; if you
 // change one, change the other. Plan of record: docs/scope/Economics-ROADMAP.md
 // phase D1. Regression contract: docs/scope/EPE.md §6.7/§7.
+//
+// Engines 3.12.0 (EC7, 2026-09-26): the PIA regime follows the gazetted PIA
+// 2021, NTA 2025, Royalty Regulations 2022 and Finance Act 2023 by default.
+// PIA_WORKED_EXAMPLE_CFG carries pia_legacy_pre_audit: true, so every PIA
+// block below that builds on it pins the LEGACY switch (the pre-audit engine,
+// which saved runs stamped legacy still use). The default path is pinned by
+// the 'default path' blocks at the end of this file.
 
 import { computeCashFlow, computeBreakevenOilPrice, irr, ENGINE_VERSION } from '../epe-engine.ts';
 import {
   PIA_WORKED_EXAMPLE_CFG,
+  PIA_WORKED_EXAMPLE_DEFAULT_CFG,
+  PIA_WORKED_EXAMPLE_DEFAULT_EXPECTED,
   PIA_WORKED_EXAMPLE_PROD,
   PIA_WORKED_EXAMPLE_CAPEX,
   PIA_WORKED_EXAMPLE_OPEX,
@@ -22,7 +31,7 @@ const runWorkedExample = (cfgOverrides = {}) => computeCashFlow({
   opexRows: PIA_WORKED_EXAMPLE_OPEX,
 });
 
-describe('EPE engine: PIA worked example regression contract', () => {
+describe('EPE engine: PIA worked example regression contract (legacy switch)', () => {
   const { cashFlowData, kpis } = runWorkedExample();
 
   it('reproduces NPV $135,185,570.34 within $0.01', () => {
@@ -39,6 +48,12 @@ describe('EPE engine: PIA worked example regression contract', () => {
   it('keeps PIA-only invariants (framework, zero dev levy)', () => {
     expect(kpis.fiscal_framework).toBe('pia_only');
     expect(kpis.total_dev_levy).toBe(0);
+  });
+
+  it('stamps the run as legacy and prints no compliance notes', () => {
+    expect(PIA_WORKED_EXAMPLE_CFG.pia_legacy_pre_audit).toBe(true);
+    expect(kpis.pia_legacy_pre_audit).toBe(true);
+    expect(kpis.pia_notes).toBeUndefined();
   });
 });
 
@@ -948,5 +963,162 @@ describe('EPE engine: CPR cessation forfeiture (EPE.md §4.1)', () => {
     expect(cashFlowData[0].cpr_deferred_to_next).toBeCloseTo(8_000_000, 2);
     expect(cashFlowData[0].cpr_forfeited_at_cessation).toBeCloseTo(8_000_000, 2);
     expect(kpis.cpr_forfeited_at_cessation).toBeCloseTo(8_000_000, 2);
+  });
+});
+
+// ============================================================================
+// Engines 3.12.0 default path (EC7): PIA 2021 / NTA 2025 compliance.
+// Numbers from the independent oracle (packages/engines/tools/validation/
+// economics/oracle_pia2021.py via pia2021_cases.json) or derived by hand from
+// the cited provision.
+// ============================================================================
+
+const runDefault = (cfgOverrides = {}, rows = {}) => computeCashFlow({
+  cfg: { ...PIA_WORKED_EXAMPLE_DEFAULT_CFG, ...cfgOverrides },
+  prodRows: PIA_WORKED_EXAMPLE_PROD,
+  capexRows: PIA_WORKED_EXAMPLE_CAPEX,
+  opexRows: PIA_WORKED_EXAMPLE_OPEX,
+  ...rows,
+});
+
+describe('EPE engine default path: worked example regression contract (re-frozen 2026-09-26)', () => {
+  const { cashFlowData, kpis } = runDefault();
+
+  it('gives NPV $141,236,909.83 within $0.01', () => {
+    expect(PIA_WORKED_EXAMPLE_DEFAULT_CFG).not.toHaveProperty('pia_legacy_pre_audit');
+    expect(PIA_WORKED_EXAMPLE_DEFAULT_CFG).not.toHaveProperty('pia_tet_rate_pct');
+    expect(kpis.npv).toBeCloseTo(PIA_WORKED_EXAMPLE_DEFAULT_EXPECTED.npv, 2);
+  });
+
+  it('holds every default-path line item within $0.01', () => {
+    const row = cashFlowData[0];
+    for (const [k, v] of Object.entries(PIA_WORKED_EXAMPLE_DEFAULT_EXPECTED.line_items)) {
+      expect([k, Math.abs(row[k] - (v as number)) <= 0.01]).toEqual([k, true]);
+    }
+  });
+
+  it('agrees with the vendored oracle golden', () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const golden = require('../../../../packages/engines/test-data/economics/goldens/pia2021_cases.json');
+    const c = golden.cases.find((x: any) => x.name === 'worked_example_inputs_default');
+    expect(Math.abs(c.expected.kpis.npv - kpis.npv)).toBeLessThanOrEqual(0.01);
+    for (const [k, v] of Object.entries(c.expected.rows[0])) {
+      if (typeof v === 'number') expect([k, Math.abs(cashFlowData[0][k] - v) <= 0.01]).toEqual([k, true]);
+    }
+  });
+
+  it('is not legacy and states its notes', () => {
+    expect(kpis.pia_legacy_pre_audit).toBeUndefined();
+    expect(Array.isArray(kpis.pia_notes)).toBe(true);
+    expect(kpis.pia_notes.length).toBeGreaterThan(0);
+    expect(kpis.fiscal_framework).toBe('pia_only');
+  });
+
+  it('weights the shallow water tranches to 11.25% at 50,000 bopd (Royalty Regulations r.13(2)(d))', () => {
+    expect(cashFlowData[0].royalty_liquids_bopd).toBeCloseTo(50_000, 6);
+    expect(cashFlowData[0].royalty_rate_liquids).toBeCloseTo((5000 * 0.05 + 5000 * 0.075 + 40000 * 0.125) / 50000, 12);
+  });
+
+  it('applies TET at 3% from 2023 (Finance Act 2023 s.26) unless a rate is supplied', () => {
+    expect(cashFlowData[0].tet_rate_pct).toBe(3);
+    const supplied = runDefault({ pia_tet_rate_pct: 2.5 });
+    expect(supplied.cashFlowData[0].tet_rate_pct).toBe(2.5);
+    expect(supplied.kpis.pia_notes.some((n: string) => n.startsWith('pia_tet_rate_pct 2.5 was used for 2025'))).toBe(true);
+  });
+});
+
+describe('EPE engine default path: framework per year of assessment (NTA from 2026)', () => {
+  it('a ledger crossing 1 January 2026 reports pia_only_then_nta_2025 and the first NTA year', () => {
+    const { cashFlowData, kpis } = runDefault({}, {
+      prodRows: [{ year: 2025, well1_oil_bbl: 3_000_000 }, { year: 2026, well1_oil_bbl: 3_000_000 }],
+      capexRows: [{ year: 2025, amount_usd: 50_000_000 }],
+      opexRows: [{ year: 2025, total_opex_usd: 20_000_000 }, { year: 2026, total_opex_usd: 20_000_000 }],
+    });
+    expect(cashFlowData.map((r: any) => r.fiscal_framework)).toEqual(['pia_only', 'nta_2025']);
+    expect(kpis.fiscal_framework).toBe('pia_only_then_nta_2025');
+    expect(kpis.nta_first_year).toBe(2026);
+    expect(cashFlowData[0].dev_levy_tax).toBe(0);
+    expect(cashFlowData[1].tet_tax).toBe(0);
+    expect(cashFlowData[1].dev_levy_tax).toBeGreaterThan(0);
+  });
+
+  it('forced frameworks swap TET 3% for the 4% development levy on the same base', () => {
+    const pia = runDefault({ pia_under_nta_2025_override: 'force_pia' });
+    const nta = runDefault({ pia_under_nta_2025_override: 'force_nta' });
+    expect(nta.kpis.fiscal_framework).toBe('nta_2025');
+    expect(nta.cashFlowData[0].dev_levy_tax)
+      .toBeCloseTo(nta.cashFlowData[0].cit_assessable_profit * 0.04, 2);
+    expect(pia.cashFlowData[0].tet_tax)
+      .toBeCloseTo(pia.cashFlowData[0].cit_assessable_profit * 0.03, 2);
+  });
+});
+
+describe('EPE engine default path: production allowance after the new-lease cap', () => {
+  const { cashFlowData } = runDefault({
+    pia_lease_status: 'new', pia_new_pml_hct_rate_pct: 30, pia_prior_cumulative_oil_bbl: 99_000_000,
+  }, {
+    prodRows: [{ year: 2025, well1_oil_bbl: 2_000_000 }, { year: 2026, well1_oil_bbl: 1_000_000 }],
+    capexRows: [{ year: 2025, amount_usd: 50_000_000 }],
+    opexRows: [{ year: 2025, total_opex_usd: 20_000_000 }, { year: 2026, total_opex_usd: 20_000_000 }],
+  });
+
+  it('splits the crossing year: 8 USD/bbl below the 100 MMbbl cap, 4 USD/bbl after (PIA Sixth Schedule para 1(2))', () => {
+    expect(cashFlowData[0].prod_alw_below_cap_bbl).toBeCloseTo(1_000_000, 6);
+    expect(cashFlowData[0].prod_alw_after_cap_bbl).toBeCloseTo(1_000_000, 6);
+    expect(cashFlowData[0].production_allowance).toBeCloseTo(8_000_000 + 4_000_000, 2);
+  });
+
+  it('keeps 4 USD/bbl on every later barrel (the legacy engine gave none)', () => {
+    expect(cashFlowData[1].prod_alw_after_cap_bbl).toBeCloseTo(1_000_000, 6);
+    expect(cashFlowData[1].production_allowance).toBeCloseTo(4_000_000, 2);
+  });
+});
+
+describe('EPE engine default path: deep offshore tranches and working interest', () => {
+  it('weights 5% to 50,000 bopd and 7.5% above at field level, then scales to the share', () => {
+    const cfg = { ...PIA_WORKED_EXAMPLE_DEFAULT_CFG, pia_terrain: 'deep_offshore' };
+    const rows = {
+      prodRows: [{ year: 2025, well1_oil_bbl: 21_900_000 }],   // 60,000 bopd
+      capexRows: [{ year: 2025, amount_usd: 100_000_000 }],
+      opexRows: [{ year: 2025, total_opex_usd: 100_000_000 }],
+    };
+    const full = computeCashFlow({ cfg, ...rows });
+    const wi50 = computeCashFlow({ cfg: { ...cfg, pia_working_interest_pct: 50 }, ...rows });
+    const rate = (50_000 * 0.05 + 10_000 * 0.075) / 60_000;
+    expect(full.cashFlowData[0].royalty_rate_liquids).toBeCloseTo(rate, 12);
+    expect(full.cashFlowData[0].production_royalty).toBeCloseTo(21_900_000 * 80 * rate, 2);
+    expect(wi50.cashFlowData[0].production_royalty).toBeCloseTo(full.cashFlowData[0].production_royalty * 0.5, 2);
+  });
+});
+
+describe('EPE engine default path: refusals of pre-audit inputs', () => {
+  const nta = (over: any) => () => runDefault({ base_year: 2027, ...over }, {
+    prodRows: [{ year: 2027, well1_oil_bbl: 3_000_000 }],
+    capexRows: [{ year: 2027, amount_usd: 50_000_000 }],
+    opexRows: [{ year: 2027, total_opex_usd: 20_000_000 }],
+  });
+  it('marginal_field is not a terrain', () => {
+    expect(nta({ pia_terrain: 'marginal_field' })).toThrow('pia_terrain "marginal_field" is not a terrain');
+    expect(nta({ pia_terrain: 'marginal_field', pia_legacy_pre_audit: true })).not.toThrow();
+  });
+  it('a new-acreage PML onshore or in shallow water needs the HCT rate stated', () => {
+    expect(nta({ pia_lease_status: 'new' })).toThrow('needs pia_new_pml_hct_rate_pct set to 15 or 30');
+    expect(nta({ pia_lease_status: 'new', pia_new_pml_hct_rate_pct: 15 })).not.toThrow();
+  });
+  it('the capital allowance life is five years', () => {
+    expect(nta({ pia_capex_recovery_years: 7 })).toThrow('pia_capex_recovery_years is 7');
+    expect(nta({ pia_capex_recovery_years: 7, pia_legacy_pre_audit: true })).not.toThrow();
+  });
+  it('an NTA-year sinking fund needs the escrow condition', () => {
+    const fund = { abandonment_cost_usd: 10_000_000, abandonment_year: 2027, abandonment_funding_mode: 'sinking_fund' };
+    expect(nta(fund)).toThrow('pia_decom_escrow_condition_met must be true or false');
+    expect(nta({ ...fund, pia_decom_escrow_condition_met: true })).not.toThrow();
+  });
+  it('a licence type other than PML or PPL', () => {
+    expect(nta({ pia_license_type: 'OML' })).toThrow('pia_license_type must be "PML" or "PPL"; got "OML"');
+  });
+  it('a deep offshore NTA year needs a stated interpretation', () => {
+    expect(nta({ pia_terrain: 'deep_offshore', pia_deep_offshore_hct_interpretation: null }))
+      .toThrow('needs pia_deep_offshore_hct_interpretation');
   });
 });

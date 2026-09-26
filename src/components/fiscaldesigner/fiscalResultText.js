@@ -57,7 +57,17 @@ export const irrText = (row) => {
 export const tierTableRefusal = (regime, section) => {
   const isRoyalty = section === 'royalty';
   const terms = isRoyalty ? regime?.royalty : regime?.profitSplit;
-  if (!terms || terms.type === 'flat' || !Array.isArray(terms.tiers)) return null;
+  if (!terms || terms.type === 'flat' || terms.type === 'pia_2021' || !Array.isArray(terms.tiers)) return null;
+  // Engines 3.12.0 (EC7): the PIA minimum profit oil by cumulative production
+  // has bands in ascending upToMMbbl with the last one open (null); the
+  // engine's own message, restated so it shows while the table is edited.
+  if (terms.type === 'pia_cumulative_production') {
+    const t = terms.tiers;
+    const ok = t.length > 0 && t[t.length - 1].upToMMbbl === null
+      && t.every((b, i) => i === 0 || b.upToMMbbl === null || (t[i - 1].upToMMbbl !== null && b.upToMMbbl > t[i - 1].upToMMbbl))
+      && t.slice(0, -1).every((b) => b.upToMMbbl !== null);
+    return ok ? null : `Fiscal regime "${regime?.name ?? regime?.id ?? '(unnamed)'}": a pia_cumulative_production table needs bands in ascending upToMMbbl with the last upToMMbbl null.`;
+  }
   try {
     orderedTierTable(regime, isRoyalty ? 'royalty' : 'profit split', terms.tiers);
     return null;

@@ -13,8 +13,12 @@ import {
   runEpeMonteCarlo,
 } from '../epe-mc.ts';
 import { computeCashFlow } from '../epe-engine.ts';
+// PIA_WORKED_EXAMPLE_CFG carries pia_legacy_pre_audit: true (engines 3.12.0,
+// EC7), so the runEpeMonteCarlo blocks below run the legacy switch and keep
+// the MC goldens' numbers; the last block runs the default (compliant) path.
 import {
   PIA_WORKED_EXAMPLE_CFG,
+  PIA_WORKED_EXAMPLE_DEFAULT_CFG,
   PIA_WORKED_EXAMPLE_PROD,
   PIA_WORKED_EXAMPLE_CAPEX,
   PIA_WORKED_EXAMPLE_OPEX,
@@ -289,5 +293,24 @@ describe('runEpeMonteCarlo', () => {
       const b = runEpeMonteCarlo({ ...baseArgs, mcConfig });
       expect(b.samples.map((r: any) => r.npv)).toEqual(a.samples.map((r: any) => r.npv));
     });
+  });
+});
+
+describe('runEpeMonteCarlo on the default PIA path (engines 3.12.0)', () => {
+  const args = {
+    cfg: PIA_WORKED_EXAMPLE_DEFAULT_CFG,
+    prodRows: PIA_WORKED_EXAMPLE_PROD,
+    capexRows: PIA_WORKED_EXAMPLE_CAPEX,
+    opexRows: PIA_WORKED_EXAMPLE_OPEX,
+  };
+  it('with no uncertain variables, every iteration is the re-frozen NPV 141,236,909.83', () => {
+    const res = runEpeMonteCarlo({ ...args, mcConfig: { iterations: 100, seed: 1, variables: {} } });
+    expect(res.base.npv).toBeCloseTo(141236909.83, 2);
+    expect(res.npv.p50).toBeCloseTo(141236909.83, 2);
+    expect(res.npv.stdDev).toBeCloseTo(0, 6);
+  });
+  it('a legacy-stamped config reproduces the pre-audit NPV 135,185,570.34', () => {
+    const res = runEpeMonteCarlo({ ...args, cfg: { ...args.cfg, pia_legacy_pre_audit: true, pia_tet_rate_pct: 2.5 }, mcConfig: { iterations: 100, seed: 1, variables: {} } });
+    expect(res.base.npv).toBeCloseTo(135185570.34, 2);
   });
 });

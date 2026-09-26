@@ -205,15 +205,15 @@ const EpeHelpGuide = () => {
                 turnover thresholds, which a project model cannot see, so the top-up is reported on
                 its own line and a reviewer can strip it. And the JV and PSC arithmetic is validated
                 against hand-derived closed-form cases rather than traced to a published worked
-                example, unlike the PIA 2021 math, which is checked byte for byte against its
-                published example.
+                example. The PIA 2021 and NTA 2025 math follows the gazetted texts and is checked
+                against an independent calculation typed from those texts.
               </Para>
               <Para>
                 Abandonment costs and end-of-life handling are covered: the Run Console has a Field Life section where you can set an abandonment cost (applied as a post-tax outflow in a chosen year, not tax-deducted and not depreciated) and an economic limit toggle that trims trailing years whose revenue no longer covers opex.
               </Para>
 
               <Callout tone="info" title="Not a black box">
-                Every fiscal calculation is documented in the engine code and validated against the published PIA 2021 worked example. NTA 2025 changes are implemented per the published statute and reflect the Olaniwun Ajayi and Fortrose interpretations of ambiguous provisions (e.g., deep offshore HCT).
+                Every fiscal calculation is documented in the engine code. Since 26 September 2026 the PIA regime follows the Petroleum Industry Act 2021, the Nigeria Tax Act 2025 (June 2025 gazette), the Petroleum Royalty Regulations 2022 and the Finance Act 2023, each rate cited where it is used, and is checked against an independent calculation typed from those texts. Where the texts leave a choice (the new-lease HCT rate, the deep offshore reading under the NTA, the NTA escrow condition) the Run Console asks you for it, and every assumption the engine makes is listed under Engine notes on the results.
               </Callout>
             </section>
 
@@ -375,7 +375,26 @@ const EpeHelpGuide = () => {
 
               <SubHeading>PIA 2021 configuration</SubHeading>
               <Para>
-                The PIA regime is the most complex. It splits taxation into Hydrocarbon Tax (HCT), Companies Income Tax (CIT), and either TET (pre-NTA) or Development Levy (NTA-era). It also handles HCDT, NDDC, production allowance, and CPR (Cost Price Ratio) limits.
+                The PIA regime is the most complex. It splits taxation into Hydrocarbon Tax (HCT), Companies Income Tax (CIT), and either TET (PIA years) or Development Levy (NTA years). It also handles HCDT, NDDC, production allowance, and CPR (Cost Price Ratio) limits. What the engine applies, and where each figure comes from:
+              </Para>
+              <ul className="list-disc list-inside space-y-1 text-slate-200 ml-2">
+                <li><strong>Production royalty in tranches:</strong> the year's crude oil plus condensate per calendar day is split into bands, each charged its own rate, and the result is one weighted rate (PIA Seventh Schedule para 10; Royalty Regulations 2022 r.13). Onshore and shallow water: 5% on the first 5,000 bopd, 7.5% on the next 5,000, then 15% onshore or 12.5% in shallow water above 10,000 bopd. At 50,000 bopd in shallow water that is 11.25%. Deep offshore: 5% up to 50,000 bopd and 7.5% above. Frontier: 7.5% flat. A marginal field is onshore or in shallow water; tick the marginal field box for one converted under PIA s.94(1).</li>
+                <li><strong>Gas and NGL royalty:</strong> 5% on every terrain, and 2.5% on gas produced and utilised in Nigeria (para 10(6); Regulations r.16). Enter the in-country share in Levies & Allowances.</li>
+                <li><strong>Royalty by price:</strong> charged on oil and on condensate, each at its own price, against benchmarks of 50, 100 and 150 USD/bbl for 2021 raised by 2% a year and rounded to cents (Regulations Schedule). The Act (para 11(1)) starts the same levels one year earlier; choose that base in Levies & Allowances if your counsel reads it so.</li>
+                <li><strong>NDDC levy:</strong> 3% of the company's total annual budget, read as the year's opex plus capex, and deductible in the HCT base. You can keep the earlier opex base.</li>
+                <li><strong>CPR scope:</strong> the cost price ratio caps costs at 65% of crude oil and condensate revenue and applies to the hydrocarbon tax only; CIT deducts the full opex and its own capital allowance. Decommissioning contributions sit inside the CPR.</li>
+                <li><strong>Production allowance:</strong> converted leases 2.50 USD/bbl; new leases 8 USD/bbl up to the cumulative cap and 4 USD/bbl after it (Sixth Schedule para 1(2)), each capped at 20% of the price. Under the NTA there is none for deep offshore or frontier.</li>
+                <li><strong>Capital allowance:</strong> five years, 20, 20, 20, 20 and 19% in PIA years and 20% a year in NTA years. Before 2026 the CIT allowance is limited to two thirds of assessable profit unless the company is in upstream or midstream gas operations (Finance Act 2023 s.9(b)).</li>
+                <li><strong>TET:</strong> 3% of assessable profit from 2023 (the Finance Act 2023 raised it from 2.5% with effect from 1 May 2023; the engine applies 3% to the whole of 2023) and 2.5% before. Leave the TET box blank to apply the statute. From 2026 the Development Levy of 4% replaces it.</li>
+                <li><strong>HCT rate:</strong> 30% for a converted PML, 15% for a PPL or a marginal field under s.94(1). For a PML granted out of new acreage onshore or in shallow water the Act (s.267, NTA s.72) does not say whether 15% or 30% applies, so the Run Console asks you to choose; it is marked required.</li>
+              </ul>
+
+              <SubHeading>Runs saved before 26 September 2026</SubHeading>
+              <Para>
+                On 26 September 2026 the PIA figures were corrected to follow the Act and the Royalty Regulations. Every PIA run saved before that date is marked with the <strong>Legacy (pre-2026-09-26 engine)</strong> toggle, so re-running it, sweeping it or simulating it reproduces the result you saved. Its results carry the line "PIA figures were corrected on 26 September 2026 to follow the Act and the Royalty Regulations. This run uses the earlier engine." Clear the toggle in the Run Console to recompute the run on the texts.
+              </Para>
+              <Para>
+                Some saved settings have no meaning under the texts, and the corrected engine refuses them with a message naming the provision: a Marginal Field terrain, a new-acreage PML without its HCT rate, a capex recovery period other than five years, a decommissioning sinking fund in a year from 2026 without the escrow answer, and a licence type other than PML or PPL. The Run Console and the failed run's page show the message, a button for each fix, and the option to run the configuration as legacy.
               </Para>
 
               <SubHeading>NTA 2025 framework</SubHeading>
@@ -383,16 +402,17 @@ const EpeHelpGuide = () => {
                 The Nigeria Tax Act 2025 (in force since January 2026) amends the PIA's fiscal provisions in three material ways:
               </Para>
               <ul className="list-disc list-inside space-y-1 text-slate-200 ml-2">
-                <li><strong>TET replaced by Development Levy:</strong> 2.5% TET → 4% Development Levy on assessable profit</li>
-                <li><strong>HCT extends to deep offshore:</strong> No longer exempt (per NTA §65(4)), but the rate is legally ambiguous; your tax counsel's interpretation determines what to apply</li>
-                <li><strong>Minimum 15% ETR:</strong> For large multinational groups, an effective tax rate floor applies</li>
+                <li><strong>TET replaced by Development Levy:</strong> 3% TET → 4% Development Levy on assessable profit (NTA s.59(1))</li>
+                <li><strong>HCT extends to deep offshore:</strong> NTA s.65(1) brings deep offshore operations into HCT and s.72 states no rate for them, so your tax counsel's reading determines what to apply</li>
+                <li><strong>Minimum 15% ETR:</strong> For large multinational groups, an effective tax rate floor applies (applied only to NTA years)</li>
+                <li><strong>Decommissioning fund:</strong> contributions are deductible only when at least 30% of the fund is held in an accredited Nigerian bank escrow (NTA s.86); the Run Console asks you whether that holds</li>
               </ul>
               <Para>
-                The Studio auto-detects which framework to apply based on the <Code>base_year</Code> of your case. For 2026 and later, it uses NTA rules. For 2025 and earlier, it uses pre-NTA PIA rules. You can override this with the "Framework Override" dropdown in the Run Console.
+                The framework is chosen for each year of assessment: every year up to 2025 is a PIA year and every year from 2026 an NTA year, so one run can carry both (the results badge then reads, for example, "Computed under PIA 2021 to 2025 and NTA 2025 from 2026"). You can force one framework for every year with the "Framework Override" dropdown in the Run Console. The engine uses the June 2025 gazette of the NTA; the Acts were ordered re-gazetted in December 2025 and the engine notes say so.
               </Para>
 
               <Callout tone="warn" title="Deep offshore HCT under NTA: a choice you have to make">
-                NTA Section 65(4) removes the deep offshore exemption from HCT but specifies no rate. Top-tier counsel (Olaniwun Ajayi, Fortrose) interpret this differently. The Studio offers three positions:
+                NTA s.65(1) brings deep offshore operations into HCT and s.72 specifies no rate for them. Top-tier counsel (Olaniwun Ajayi, Fortrose) interpret this differently. For a deep offshore field with any year from 2026 you must choose one of three positions; there is no default:
                 <ul className="list-disc list-inside mt-2 space-y-1">
                   <li><strong>Conservative (0%, effectively exempt):</strong> Until NUPRC issues clarification, treat as no HCT applies. Lowest tax forecast.</li>
                   <li><strong>Aggressive (30%, treat as PML):</strong> Most pessimistic. Highest tax forecast. Sometimes used for downside scenarios.</li>
@@ -413,7 +433,7 @@ const EpeHelpGuide = () => {
               <Table
                 headers={['Field', 'What it controls']}
                 rows={[
-                  [<Code key="1">base_year</Code>, 'The first year of your analysis. Also drives NTA auto-detection.'],
+                  [<Code key="1">base_year</Code>, 'The first year of your analysis. Under Auto each year takes its own framework: PIA up to 2025, NTA from 2026.'],
                   [<Code key="2">oil_price_usd_bbl</Code>, 'Flat-line oil price (use escalator separately if applicable)'],
                   [<Code key="3">discount_rate_pct</Code>, 'Annual discount rate as a nominal percentage'],
                   [<Code key="4">present_value_basis</Code>, '"real" or "nominal"; see below'],
@@ -479,7 +499,7 @@ const EpeHelpGuide = () => {
 
               <SubHeading>The fiscal framework badge</SubHeading>
               <Para>
-                For PIA-regime runs, a small badge appears under the case name showing either "Computed under PIA 2021 (pre-NTA)" (cyan) or "Computed under NTA 2025" (amber). Always confirm this matches your intent. Accidentally running the wrong framework can change NPV by tens of millions.
+                For PIA-regime runs, a small badge appears under the case name showing "Computed under PIA 2021 (pre-NTA)" (cyan), "Computed under NTA 2025" (amber), or, for a run whose years cross 1 January 2026, "Computed under PIA 2021 to 2025 and NTA 2025 from 2026" (violet). Always confirm this matches your intent. Accidentally running the wrong framework can change NPV by tens of millions. Below the badge, Engine notes lists every assumption the engine made (for example the royalty-by-price base year and the daily rate convention), and a legacy run shows its legacy line.
               </Para>
             </section>
 
@@ -583,7 +603,7 @@ const EpeHelpGuide = () => {
 
               <SubHeading>"What is auto-validated, and what isn't?"</SubHeading>
               <Para>
-                The PIA-only math is validated byte-for-byte against the published NUPRC worked example. The NTA-era math (Development Levy, deep offshore HCT) is "best interpretation": it follows the statute correctly but has not yet been validated against an NUPRC-published NTA worked example (none exists at time of writing). Treat NTA-era forecasts as defensible but expect minor adjustments when NUPRC issues clarifying guidance.
+                The PIA and NTA math is checked against an independent calculation typed from the gazetted texts (the PIA 2021, the NTA 2025 June gazette, the Royalty Regulations 2022 and the Finance Act 2023), provision by provision. No NUPRC-published NTA worked example exists at time of writing, and two NTA rates are left to your stated reading. Treat NTA-era forecasts as defensible and expect adjustments when NUPRC issues clarifying guidance or the re-gazetted Act is published.
               </Para>
 
               <Callout tone="success" title="Need more help?">
