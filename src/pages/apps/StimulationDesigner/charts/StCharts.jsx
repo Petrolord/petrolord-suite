@@ -6,7 +6,7 @@ import {
   ResponsiveContainer, ComposedChart, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, ReferenceLine,
 } from 'recharts';
-import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE, GRID_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE, GRID_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { widthProfileRows, scheduleChartRows } from '../services/stRun';
 
@@ -33,8 +33,8 @@ export function WidthProfileChart({ geometry, xfM }) {
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data} margin={CHART_MARGINS.compact}>
           <CartesianGrid {...GRID_STYLE} />
-          <XAxis dataKey="xM" type="number" domain={[0, 'dataMax']} {...axisProps}
-            label={{ value: 'distance from wellbore (m)', position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
+          <XAxis dataKey="xM" type="number" domain={[0, 'dataMax']} {...axisProps} height={XAXIS_LABEL_HEIGHT}
+            label={{ value: 'distance from wellbore (m)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <YAxis type="number" domain={[0, 'auto']} {...axisProps}
             label={{ value: 'width (mm)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <Tooltip contentStyle={TOOLTIP_STYLE}
@@ -56,19 +56,20 @@ export function ScheduleChart({ schedule, cEojKgM3 }) {
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data} margin={CHART_MARGINS.compact}>
           <CartesianGrid {...GRID_STYLE} />
-          <XAxis dataKey="tMin" type="number" domain={[0, 'dataMax']} {...axisProps}
-            label={{ value: 'time (min)', position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
-          <YAxis type="number" domain={[0, 'auto']} {...axisProps}
+          <XAxis dataKey="tMin" type="number" domain={[0, (max) => Math.ceil(max / 10) * 10]} {...axisProps}
+            height={XAXIS_LABEL_HEIGHT} tickFormatter={(v) => Number(v).toFixed(0)}
+            label={{ value: 'time (min)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
+          <YAxis type="number" domain={[0, (max) => Math.ceil((max * 1.1) / 100) * 100]} {...axisProps}
             label={{ value: 'kg/m3 slurry', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <Tooltip contentStyle={TOOLTIP_STYLE}
             formatter={(v) => (Number.isFinite(v) ? v.toFixed(0) : '--')}
             labelFormatter={(v) => `${Number(v).toFixed(1)} min`} />
-          <Legend wrapperStyle={{ fontSize: 10 }} />
+          <Legend {...LEGEND_PROPS} />
           <ReferenceLine x={schedule.tPadS / 60} stroke="#b45309" strokeDasharray="4 3"
-            label={{ value: 'pad', fontSize: 9, fill: '#b45309' }} />
+            label={{ value: 'end of pad', position: 'insideTopLeft', fontSize: 9, fill: '#b45309' }} />
           {cEojKgM3 != null && (
-            <ReferenceLine y={cEojKgM3} stroke="#0f766e" strokeDasharray="4 3"
-              label={{ value: 'EOJ', fontSize: 9, fill: '#0f766e' }} />
+            <ReferenceLine y={cEojKgM3} ifOverflow="extendDomain" stroke="#0f766e" strokeDasharray="4 3"
+              label={{ value: 'end-of-job concentration', position: 'insideBottomLeft', fontSize: 9, fill: '#0f766e' }} />
           )}
           <Line dataKey="cKgM3" name="Stage concentration" stroke="#7c3aed" strokeWidth={2}
             dot={false} isAnimationActive={false} />

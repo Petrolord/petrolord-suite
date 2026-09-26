@@ -85,6 +85,13 @@ export default function FracDesignTab({ caseDraft, onCaseChange, res, depthUnit 
               Plane strain E' <span className="float-right font-mono">{(res.ePrimePa / 1e9).toFixed(2)} GPa</span>
             </div>
           )}
+          {rock?.intervalTvdM > 0 && f.hfM < rock.intervalTvdM && (
+            <div className="mt-1 text-[10px] text-amber-300" data-testid="st-height-coverage">
+              The frac height of {Math.round(f.hfM)} m covers {Math.round((100 * f.hfM) / rock.intervalTvdM)}% of the
+              interval's {Math.round(rock.intervalTvdM)} m vertical thickness, so part of the perforated interval
+              is left unstimulated. Raise the height if the barriers allow it, or stage the treatment.
+            </div>
+          )}
         </Card>
 
         <Card title="2D model" testId="st-model-card">
