@@ -11,7 +11,7 @@ const helpContent = [
     icon: BookOpen,
     title: 'What this studio does that no other one can',
     content:
-      'Every single-well studio in this platform -- nodal, gas lift, ESP, rod pump, gas well, choke, flow assurance -- solves one well against a wellhead pressure that somebody typed in. That is the right thing to do when you are designing a completion. It is the wrong thing to do when you are asking what a field makes, because in a real gathering system nobody types the wellhead pressure in: the header pressure is whatever the trunk line needs to carry the total, and the total is the sum of what the wells make at that header pressure. So the wells set the pressure that holds the wells back. Open a new well into a header and every well already on it makes less. Quantifying that, per well, in barrels, is what this studio is for.',
+      'Every single-well studio in this platform (nodal, gas lift, ESP, rod pump, gas well, choke, flow assurance) solves one well against a wellhead pressure that somebody typed in. That is the right thing to do when you are designing a completion. It is the wrong thing to do when you are asking what a field makes, because in a real gathering system nobody types the wellhead pressure in: the header pressure is whatever the trunk line needs to carry the total, and the total is the sum of what the wells make at that header pressure. So the wells set the pressure that holds the wells back. Open a new well into a header and every well already on it makes less. Quantifying that, per well, in barrels, is what this studio is for.',
   },
   {
     id: 'solve',
@@ -32,7 +32,7 @@ const helpContent = [
     icon: AlertTriangle,
     title: 'The unstable branch, and why part of every well curve is thrown away',
     content:
-      'A tubing curve is not monotone. At low rate the liquid holds up, the column is heavy, and the wellhead pressure the well can hold is LOW. As rate rises the column lightens and that pressure rises with it, until friction takes over and it falls again. So the curve has a peak, and everything to the left of it is the classic unstable branch: a well sitting there does not hold a rate, it heads, or it loads up and dies. That branch is dropped rather than offered to the solver, because it is not an operating point. The peak is reported instead, as a rate below which the well is unstable -- and a well whose network operating point sits close to it is a well about to start heading, which no single-well study would have said because no single-well study knew what the header was going to do.',
+      'A tubing curve is not monotone. At low rate the liquid holds up, the column is heavy, and the wellhead pressure the well can hold is LOW. As rate rises the column lightens and that pressure rises with it, until friction takes over and it falls again. So the curve has a peak, and everything to the left of it is the classic unstable branch: a well sitting there does not hold a rate, it heads, or it loads up and dies. That branch is dropped rather than offered to the solver, because it is not an operating point. The peak is reported instead, as a rate below which the well is unstable; and a well whose network operating point sits close to it is a well about to start heading, which no single-well study would have said because no single-well study knew what the header was going to do.',
   },
   {
     id: 'mixing',
@@ -67,14 +67,14 @@ const helpContent = [
     icon: Link2,
     title: 'The shared well records',
     content:
-      'This is the studio the shared per-well record was built for. Every well studio in this module saves its well description -- trajectory, fluid, inflow, completion -- to the same record on the production spine. Point this studio at a field and it reads all of them at once and puts them on a header, so a field described well by well across six different studios becomes a network here without being retyped. What the wells are FLOWING today stays with the network rather than going into the shared record, because a water cut on the day is not a property of the well.',
+      'This is the studio the shared per-well record was built for. Every well studio in this module saves its well description (trajectory, fluid, inflow, completion) to the same record on the production spine. Point this studio at a field and it reads all of them at once and puts them on a header, so a field described well by well across six different studios becomes a network here without being retyped. What the wells are FLOWING today stays with the network rather than going into the shared record, because a water cut on the day is not a property of the well.',
   },
   {
     id: 'refusals',
     icon: AlertTriangle,
     title: 'What this studio refuses to do',
     content:
-      'A node with no route to the delivery point is a drawing mistake, and it is named rather than quietly ignored: solving around it would give a confident answer about a system that does not exist. A well that will not flow to surface at any rate its inflow allows is reported as such rather than given a curve. Compressors, pumps and separators are NOT modelled: the node types here are wells, junctions and a delivery point, because a compressor in a network solve needs a real machine curve and inventing one would be worse than leaving it out. Line temperatures are inputs here rather than solved -- solving them is what the Flow Assurance Studio does, one line at a time and in far more detail than a network solve needs, and taking a number from there and typing it here is the honest way round.',
+      'A node with no route to the delivery point is a drawing mistake, and it is named rather than quietly ignored: solving around it would give a confident answer about a system that does not exist. A well that will not flow to surface at any rate its inflow allows is reported as such rather than given a curve. Compressors, pumps and separators are NOT modelled: the node types here are wells, junctions and a delivery point, because a compressor in a network solve needs a real machine curve and inventing one would be worse than leaving it out. Line temperatures are inputs here rather than solved; solving them is what the Flow Assurance Studio does, one line at a time and in far more detail than a network solve needs, and taking a number from there and typing it here is the honest way round.',
   },
 ];
 

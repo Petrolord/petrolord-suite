@@ -200,7 +200,7 @@ const UpliftPanel = () => {
             <ChartFrame height={280} exportFilename="intervention-uplift-profile">
               <ComposedChart
                 data={plan.economics.profile}
-                margin={{ top: 8, right: 30, bottom: 14, left: 8 }}
+                margin={{ top: 8, right: 30, bottom: 14, left: 20 }}
               >
                 <CartesianGrid {...GRID_STYLE} />
                 <XAxis

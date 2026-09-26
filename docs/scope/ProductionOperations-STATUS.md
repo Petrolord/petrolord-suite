@@ -1719,3 +1719,15 @@ Whole Suite: 490 suites, 7412 tests green.
 - **Nodal cross-check flagged choke-held tests.** A test on the model's
   unstable low-rate crossing is now `unstable-branch` ("Agrees, choke-held",
   with the stable rate beside it) instead of `off`/`dead` (engines #245).
+
+## Senior test T1, Wave 4 (2026-09-26)
+
+All eleven Production studios were tested on the new `/dev/production/:app`
+harness and are Demo-ready. Three S1 defects were fixed:
+
+- AL rod ladder (engines #269);
+- rod pump liquid duty;
+- intervention history columns.
+
+See `docs/testing/Wave4-summary.md` and the per-app T1 reports.
+

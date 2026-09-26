@@ -91,8 +91,10 @@ export const MIN_POINTS_TO_TRIM_EDGES = 10;
  * Turn daily production rows into the ratio history a Chan reading
  * wants.
  *
- * `rows` are the spine's daily production: { prod_date, oil_rate_stbd,
- * water_rate_stbd, gas_rate_mscfd }. Days on which the well made no oil
+ * `rows` are the spine's daily production, either the ledger shape
+ * { prod_date, oil_stb, water_stb, gas_mscf, hours_on } (volumes for the
+ * day) or rate-named rows { prod_date, oil_rate_stbd, water_rate_stbd,
+ * gas_rate_mscfd }. Days on which the well made no oil
  * are DROPPED rather than given an infinite ratio -- a well that was
  * shut in that day has nothing to say about its water mechanism, and
  * carrying a divide-by-zero through as Infinity would poison the
@@ -105,12 +107,28 @@ export const MIN_POINTS_TO_TRIM_EDGES = 10;
  * returns { ok, series, dropped, error }
  */
 export const ratioHistory = ({ rows, ratio = 'wor' }) => {
+  // The spine's daily ledger (po_daily_production) carries VOLUMES for the
+  // day, oil_stb / water_stb / gas_mscf, with hours_on. Only the test
+  // table carries *_rate_* names, so reading those alone left every
+  // ledger row NaN and the diagnosis refused a 180-day history as "a
+  // handful of days" (WIP-T1-001). A day's volume over its hours on is
+  // the producing rate; a day with no hours carries no rate.
+  const rateOf = (r, rateKey, volKey, altKey) => {
+    if (r[rateKey] != null) return num(r[rateKey], NaN);
+    if (r[volKey] != null) {
+      const vol = num(r[volKey], NaN);
+      const hours = r.hours_on == null ? 24 : num(r.hours_on, NaN);
+      if (!(hours > 0)) return 0;
+      return (vol * 24) / hours;
+    }
+    return num(r[altKey], NaN);
+  };
   const clean = (rows || [])
     .map((r) => ({
       date: r.prod_date || r.date,
-      qo: num(r.oil_rate_stbd ?? r.qo, NaN),
-      qw: num(r.water_rate_stbd ?? r.qw, NaN),
-      qg: num(r.gas_rate_mscfd ?? r.qg, NaN),
+      qo: rateOf(r, 'oil_rate_stbd', 'oil_stb', 'qo'),
+      qw: rateOf(r, 'water_rate_stbd', 'water_stb', 'qw'),
+      qg: rateOf(r, 'gas_rate_mscfd', 'gas_mscf', 'qg'),
     }))
     .filter((r) => r.date && Number.isFinite(r.qo))
     .sort((a, b) => new Date(a.date) - new Date(b.date));

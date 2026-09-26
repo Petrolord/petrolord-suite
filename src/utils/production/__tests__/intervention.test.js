@@ -87,6 +87,28 @@ describe('the history', () => {
     expect(h.error).toMatch(/water rate/);
   });
 
+  it('reads the spine LEDGER shape (daily volumes and hours on), not just rate-named rows', () => {
+    // po_daily_production carries oil_stb / water_stb / gas_mscf for the
+    // day with hours_on. Reading only *_rate_* names left every ledger row
+    // NaN and refused a real history (WIP-T1-001).
+    const rated = history();
+    const ledger = rated.map((r, i) => ({
+      prod_date: r.prod_date,
+      oil_stb: i === 5 ? r.oil_rate_stbd / 2 : r.oil_rate_stbd,
+      water_stb: i === 5 ? r.water_rate_stbd / 2 : r.water_rate_stbd,
+      gas_mscf: r.gas_rate_mscfd,
+      hours_on: i === 5 ? 12 : 24,
+    }));
+    const a = ratioHistory({ rows: rated });
+    const b = ratioHistory({ rows: ledger });
+    expect(b.ok).toBe(true);
+    expect(b.series.length).toBe(a.series.length);
+    b.series.forEach((p, i) => {
+      expect(p.ratio).toBeCloseTo(a.series[i].ratio, 12);
+      expect(p.qo).toBeCloseTo(a.series[i].qo, 9);
+    });
+  });
+
   it('reads a gas-oil ratio history too', () => {
     const h = ratioHistory({ rows: history(), ratio: 'gor' });
     expect(h.ok).toBe(true);

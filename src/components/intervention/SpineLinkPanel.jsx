@@ -44,11 +44,13 @@ const SpineLinkPanel = () => {
             </SelectContent>
           </Select>
           <p className="text-[11px] text-slate-600">
-            {historyLoading
-              ? 'Loading the production history...'
-              : history.length
-                ? `${history.length} producing days on the spine.`
-                : 'No production history on the spine for this well. Import it in the Surveillance Studio; without it there is no diagnosis.'}
+            {!inputs.link.wellId
+              ? 'Pick a well to read its production history.'
+              : historyLoading
+                ? 'Loading the production history...'
+                : history.length
+                  ? `${history.length} days of production history on the spine.`
+                  : 'No production history on the spine for this well. Import it in the Surveillance Studio; without it there is no diagnosis.'}
           </p>
         </div>
       )}
