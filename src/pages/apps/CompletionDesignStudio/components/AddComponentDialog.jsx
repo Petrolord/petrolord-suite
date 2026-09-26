@@ -77,8 +77,8 @@ const AddComponentDialog = ({ open, onOpenChange, onAdd }) => {
                     className={`cursor-pointer border-t border-slate-800 ${rowKey === r.name ? 'bg-lime-500/10 text-lime-200' : 'text-slate-300 hover:bg-slate-800/60'}`}
                     onClick={() => setRowKey(r.name)} data-testid={`cd-add-row-${r.type}`}>
                     <td className="px-2 py-1">{r.name}{r.eccentric ? ' (eccentric)' : ''}</td>
-                    <td className="px-2 py-1 text-right font-mono">{r.odIn}</td>
-                    <td className="px-2 py-1 text-right font-mono">{r.idIn}</td>
+                    <td className="px-2 py-1 text-right font-mono">{Number.isFinite(r.odIn) ? String(Number(r.odIn.toFixed(3))) : ''}</td>
+                    <td className="px-2 py-1 text-right font-mono">{Number.isFinite(r.idIn) ? String(Number(r.idIn.toFixed(3))) : ''}</td>
                     <td className="px-2 py-1 text-right font-mono">{r.lengthM}</td>
                   </tr>
                 ))}

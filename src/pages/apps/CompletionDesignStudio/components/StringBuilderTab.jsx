@@ -13,6 +13,8 @@ import AddComponentDialog from './AddComponentDialog';
 import {
   bomFromCase, bomCsv, programFromCtCase, depthDisp, depthLabel,
 } from '../services/cdRun';
+
+const fmtIn = (v) => (Number.isFinite(v) ? String(Number(v.toFixed(3))) : '');
 import { CASING_CATALOG } from '../../CasingTubingDesignPro/engine/tubulars';
 
 const Section = ({ title, children, action }) => (
@@ -97,8 +99,9 @@ export default function StringBuilderTab({ caseDraft, onCaseChange, res, depthUn
                         className="ml-auto h-6 w-24 bg-slate-900 border-slate-700 text-right font-mono text-[11px]"
                         data-testid={`cd-comp-len-${i}`} />
                     </td>
-                    <td className="px-1 py-1 text-right font-mono">{c.odIn}</td>
-                    <td className="px-1 py-1 text-right font-mono">{c.idIn}</td>
+                    {/* CD-T1-001: stored inches carry float noise (2.9920000000000004) */}
+                    <td className="px-1 py-1 text-right font-mono">{fmtIn(c.odIn)}</td>
+                    <td className="px-1 py-1 text-right font-mono">{fmtIn(c.idIn)}</td>
                     <td className="px-1 py-1 text-right font-mono text-slate-400">{sr ? Math.round(depthDisp(sr.topMdM, depthUnit)) : '—'}</td>
                     <td className="px-1 py-1 text-right font-mono text-slate-400">{sr ? Math.round(depthDisp(sr.bottomMdM, depthUnit)) : '—'}</td>
                     <td className="px-1 py-1 text-right">
@@ -151,7 +154,7 @@ export default function StringBuilderTab({ caseDraft, onCaseChange, res, depthUn
                   <td className="px-1 py-1">{r.name}</td>
                   <td className="px-1 py-1 text-right font-mono">{r.quantity}</td>
                   <td className="px-1 py-1 text-right font-mono">{r.totalLengthM.toFixed(1)}</td>
-                  <td className="px-1 py-1 text-right font-mono">{r.odIn}</td>
+                  <td className="px-1 py-1 text-right font-mono">{fmtIn(r.odIn)}</td>
                   <td className="px-1 py-1 text-[10px] text-slate-500">{r.approx ? 'nominal (verify vendor sheet)' : 'as entered'}</td>
                 </tr>
               ))}

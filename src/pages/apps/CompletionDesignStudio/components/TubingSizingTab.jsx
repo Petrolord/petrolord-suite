@@ -24,6 +24,11 @@ const FIELDS = [
 ];
 
 const CORRELATIONS = ['beggsBrill', 'hagedornBrown', 'gray', 'fancherBrown', 'noSlip'];
+// CD-T1-003: names, not code keys, in the picker
+const CORRELATION_NAMES = {
+  beggsBrill: 'Beggs & Brill', hagedornBrown: 'Hagedorn & Brown', gray: 'Gray (wet gas)',
+  fancherBrown: 'Fancher & Brown', noSlip: 'No slip',
+};
 
 export default function TubingSizingTab({ caseDraft, onCaseChange, stations, res }) {
   const sizing = caseDraft.params?.sizing || {};
@@ -64,9 +69,9 @@ export default function TubingSizingTab({ caseDraft, onCaseChange, stations, res
             Correlation
             <Select value={sizing.correlation || 'beggsBrill'}
               onValueChange={(v) => onCaseChange((d) => { d.params.sizing.correlation = v; })}>
-              <SelectTrigger className="h-6 w-36 bg-slate-900 border-slate-700 text-[11px]"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-6 w-44 bg-slate-900 border-slate-700 text-[11px]"><SelectValue /></SelectTrigger>
               <SelectContent className="bg-slate-900 border-slate-700">
-                {CORRELATIONS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                {CORRELATIONS.map((c) => <SelectItem key={c} value={c}>{CORRELATION_NAMES[c] || c}</SelectItem>)}
               </SelectContent>
             </Select>
           </label>
