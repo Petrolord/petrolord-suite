@@ -751,3 +751,12 @@ against it. Retiring the column is therefore two steps, not one:
 Worth generalising: the mirror was described as redundant on the strength of how
 the writer was *written*, and the one row that predates the writer was the whole
 question. Check the rows.
+
+## 2026-09-26: Senior test T1 (Wave 2 #19)
+
+Report: docs/testing/MaterialBalanceStudio-T1.md. Edit case on the case
+card (initial conditions were not editable after creation); rails no longer
+clip; picker says "case"; Havlena-Odeh box shows the intercept. New
+`/dev/material-balance-studio` harness: in-memory rb_* tables seeded with
+Ahmed Example 11-3 and the canonical engine behind a calculate-mbal
+stand-in; first e2e.

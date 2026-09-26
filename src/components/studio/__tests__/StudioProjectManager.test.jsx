@@ -42,7 +42,7 @@ describe('StudioProjectManager', () => {
       />
     );
     fireEvent.click(screen.getByTitle('Create new project'));
-    const input = await screen.findByPlaceholderText('Project Name');
+    const input = await screen.findByPlaceholderText('Project name');
     fireEvent.change(input, { target: { value: 'My Flood' } });
     fireEvent.click(screen.getByRole('button', { name: /Create Project/i }));
     await waitFor(() => expect(onCreate).toHaveBeenCalledWith('My Flood'));
