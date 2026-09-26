@@ -523,6 +523,7 @@ describe('D5: the AI Evaluation Studio', () => {
   const TABLE = '20260925190000_d5_dai_eval_runs.sql';
   const LLM = '20260925200000_d5_dai_llm_calls.sql';
   const TILE = '20260925210000_d5_activate_ai_evaluation_studio_tile.sql';
+  const USERCAP = '20260926120000_d5_dai_llm_user_cap.sql';
 
   it('is routed where appRoutePath sends the tile, behind its own entitlement, with its help guide', () => {
     const app = read('App.jsx');
@@ -626,7 +627,7 @@ describe('D5: the AI Evaluation Studio', () => {
     expect(MODULE_PRICING[SLUG]).toBe(2999);
   });
 
-  it('logs all four D5 migrations as held (owner-run), in order, after the D4 ones', () => {
+  it('logs all four D5 migrations, in order, after the D4 ones, as held or as applied on 2026-09-26', () => {
     const all = fs.readdirSync(migrations).filter((f) => f.endsWith('.sql')).sort();
     const order = [SEED5, TABLE, LLM, TILE].map((f) => all.indexOf(f));
     expect(order.every((i) => i > all.indexOf('20260924170000_d4_tile_activation.sql'))).toBe(true);
@@ -634,8 +635,44 @@ describe('D5: the AI Evaluation Studio', () => {
     [SEED5, TABLE, LLM, TILE].forEach((f) => {
       const row = log().split('\n').find((l) => l.includes(f));
       expect(row).toBeTruthy();
-      expect(row).toMatch(HELD);
+      // held when written; the owner applied all four on 2026-09-26 (production column)
+      expect(row).toMatch(/NOT APPLIED \(owner-run\) \| (NOT APPLIED \(owner-run\)|\*\*APPLIED 2026-09-26\*\*[^|]*) \|$/);
     });
+  });
+
+  it('adds a personal cap as a new overload of the reserve function, keeping the deployed 5-argument one, service role only', () => {
+    const sql = sqlOf(USERCAP);
+    const code = sql.split('\n').filter((l) => !l.trim().startsWith('--')).join('\n');
+    expect(code).toMatch(/create or replace function public\.dai_llm_reserve_call\(\s*p_org uuid,\s*p_user uuid,\s*p_function text,\s*p_model text,\s*p_cap integer,\s*p_user_cap integer\s*\)/);
+    expect(code).not.toMatch(/p_user_cap integer default/i);
+    expect(code).not.toMatch(/drop function/i);
+    expect(code).toMatch(/returns table \(call_id uuid, calls_today integer, user_calls_today integer, cap_hit text\)/);
+    expect(code).toMatch(/pg_advisory_xact_lock\(hashtextextended\('dai_llm_calls:' \|\| p_org::text, 0\)\)/);
+    expect(code).toMatch(/status in \('reserved', 'ok'\)/);
+    expect(code).toMatch(/count\(\*\) filter \(where user_id = p_user\)/);
+    expect(code).toMatch(/'organization'::text/);
+    expect(code).toMatch(/'user'::text/);
+    expect(code).toMatch(/security definer/);
+    const sig = 'public\\.dai_llm_reserve_call\\(uuid, uuid, text, text, integer, integer\\)';
+    ['public', 'anon', 'authenticated'].forEach((r) => expect(code).toMatch(new RegExp(`revoke all on function ${sig} from ${r};`)));
+    expect(code).toMatch(new RegExp(`grant execute on function ${sig} to service_role;`));
+    expect(code).not.toMatch(/grant execute on function [^;]* to (anon|authenticated)/);
+    expect(code).toMatch(/add column if not exists reasoning_effort text/);
+    expect(code).toMatch(/reasoning_effort in \('none', 'low', 'medium', 'high', 'xhigh', 'max'\)/);
+    expect(sql).toMatch(/ORDER: apply this migration FIRST, then redeploy the edge function/);
+    expect(sql).not.toMatch(/[–—]/);
+    expect(code).not.toMatch(/alter table (if exists )?public\.(organizations|organization_members|users|invitations)\b/i);
+    // the applied metering migration is never edited
+    expect(sqlOf(LLM)).toMatch(/DAILY_CAP in\s+-- supabase\/functions\/ai-eval-assist\/logic\.ts, 50 by default/);
+  });
+
+  it('logs the personal-cap migration as held, after the D5 ones, with the order migration then deploy', () => {
+    const all = fs.readdirSync(migrations).filter((f) => f.endsWith('.sql')).sort();
+    expect(all.indexOf(USERCAP)).toBeGreaterThan(all.indexOf(TILE));
+    const row = log().split('\n').find((l) => l.includes(USERCAP));
+    expect(row).toBeTruthy();
+    expect(row).toMatch(HELD);
+    expect(row).toMatch(/apply this migration FIRST, then redeploy/);
   });
 
   it('keeps the helper optional, metered and ungraded, and the edge function undeployed by this change', () => {

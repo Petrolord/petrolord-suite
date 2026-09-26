@@ -58,7 +58,13 @@ PLANTS=(
   "interval labels swapped in the compare table|src/components/dataai/evaluate/ComparePanel.jsx|\${out.paired.labels.lower} to \${out.paired.labels.upper}|\${out.paired.labels.upper} to \${out.paired.labels.lower}"
   "relevance threshold hidden (no box)|src/components/dataai/evaluate/MetricsPanel.jsx|        testId=\"met-grade\"|        testId=\"met-grade-hidden\""
   "helper answer shown without the not-graded label|src/components/dataai/evaluate/AnswersPanel.jsx|>Model output, not graded</p>|>Model output</p>"
-  "edge function cap raised to 500|supabase/functions/ai-eval-assist/logic.ts|export const DAILY_CAP = 50;|export const DAILY_CAP = 500;"
+  "edge function cap raised to 2000|supabase/functions/ai-eval-assist/logic.ts|export const DAILY_CAP = 200;|export const DAILY_CAP = 2000;"
+  "edge function personal cap raised to 400|supabase/functions/ai-eval-assist/logic.ts|export const USER_DAILY_CAP = 40;|export const USER_DAILY_CAP = 400;"
+  "personal cap not sent to the reserve function|supabase/functions/ai-eval-assist/index.ts|p_cap: DAILY_CAP, p_user_cap: USER_DAILY_CAP,|p_cap: DAILY_CAP,"
+  "reasoning model sent temperature 0 as well|supabase/functions/ai-eval-assist/logic.ts|  else body.temperature = 0;|  body.temperature = 0;"
+  "gpt-4o-mini treated as a reasoning model|supabase/functions/ai-eval-assist/logic.ts|  return /^o\\d/.test(m);|  return /^o/.test(m) \|\| m.includes('4o');"
+  "an out-of-list reasoning effort passed through|supabase/functions/ai-eval-assist/logic.ts|  if ((REASONING_EFFORTS as readonly string[]).includes(v)) return|  if (true) return"
+  "cap message names the organization for a personal cap|supabase/functions/ai-eval-assist/logic.ts|  if (hit === 'user') {|  if (hit === 'nobody') {"
   "edge function keeps no membership check|supabase/functions/ai-eval-assist/index.ts|rpc('is_org_member', { org_id: organizationId })|rpc('is_org_member_skipped', { org_id: organizationId })"
 )
 

@@ -13,24 +13,39 @@
 // member of the organization named (is_org_member through their own JWT).
 // Every call is logged in dai_llm_calls with the organization, user, model
 // and tokens, reserved first through dai_llm_reserve_call (service role,
-// serialised per organization), which refuses once the organization's calls
-// since 00:00 UTC that did not fail reach DAILY_CAP. A call the provider
-// fails is marked 'error' and does not count.
+// serialised per organization), which refuses once, since 00:00 UTC and
+// among calls that did not fail, the organization's calls reach DAILY_CAP
+// (200) or this user's calls in the organization reach USER_DAILY_CAP (40)
+// (owner decision 2026-09-26). A call the provider fails is marked 'error'
+// and does not count.
+//
+// Model (owner decision 2026-09-26): DEFAULT_MODEL gpt-6-luna, a reasoning
+// model. For a reasoning model (isReasoningModel in logic.ts) the request
+// sends reasoning_effort (low unless OPENAI_REASONING_EFFORT names another)
+// and no temperature; for gpt-4o and gpt-4.1 models it sends temperature 0.
+// The reply is asked for as structured output (REPLY_SCHEMA). The model and
+// the effort are recorded on the call's row.
 //
 // Status codes: 200 answer; 400 bad request; 401 not signed in; 403 not a
-// member; 429 cap reached (with calls_today and daily_cap); 502 the model
-// failed; 503 not configured (no OPENAI_API_KEY, no service role key, or the
-// metering migration 20260925200000 not applied). The studio shows 503 as a
-// "not configured" state and works fully without this function.
+// member; 429 a cap reached (the message names the organization or personal
+// cap, with calls_today, daily_cap, user_calls_today, user_daily_cap and
+// cap_hit); 502 the model failed; 503 not configured (no OPENAI_API_KEY, no
+// service role key, or the metering migrations 20260925200000 and
+// 20260926120000 not applied). The studio shows 503 as a "not configured"
+// state and works fully without this function.
 //
 // Secrets: OPENAI_API_KEY (required), OPENAI_MODEL (optional, default
-// gpt-4o-mini), SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY.
-// Deploy is HELD for the owner: supabase functions deploy ai-eval-assist
+// gpt-6-luna), OPENAI_REASONING_EFFORT (optional: none, low, medium, high,
+// xhigh or max; default low; reasoning models only), SUPABASE_URL,
+// SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY.
+// Deploy is HELD for the owner, AFTER migration 20260926120000 is applied:
+// supabase functions deploy ai-eval-assist
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from './cors.ts';
 import {
-  DAILY_CAP, DEFAULT_MODEL, FUNCTION_NAME, SYSTEM_PROMPT, buildUserPrompt, capMessage, parseModelReply, validateRequest,
+  DAILY_CAP, DEFAULT_MODEL, FUNCTION_NAME, USER_DAILY_CAP,
+  buildChatRequest, capMessage, describeProviderError, isReasoningModel, parseModelReply, resolveReasoningEffort, validateRequest,
 } from './logic.ts';
 
 const jsonHeaders = { ...corsHeaders, 'Content-Type': 'application/json' };
@@ -64,44 +79,45 @@ Deno.serve(async (req) => {
   if (memberError) return json({ error: 'Membership could not be checked.' }, 500);
   if (member !== true) return json({ error: 'The helper is metered per organization, and you are not an active member of that organization.' }, 403);
 
-  const model = Deno.env.get('OPENAI_MODEL') ?? DEFAULT_MODEL;
+  const model = Deno.env.get('OPENAI_MODEL')?.trim() || DEFAULT_MODEL;
+  const reasoning = isReasoningModel(model);
+  const { effort, warning } = resolveReasoningEffort(Deno.env.get('OPENAI_REASONING_EFFORT'));
+  if (warning && reasoning) console.warn(warning);
+  const reasoningEffort = reasoning ? effort : null;
   const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
 
   // Reserve the call (and log it) before the model runs, so the cap holds under concurrency.
   const { data: reserved, error: reserveError } = await admin.rpc('dai_llm_reserve_call', {
-    p_org: organizationId, p_user: user.id, p_function: FUNCTION_NAME, p_model: model, p_cap: DAILY_CAP,
+    p_org: organizationId, p_user: user.id, p_function: FUNCTION_NAME, p_model: model, p_cap: DAILY_CAP, p_user_cap: USER_DAILY_CAP,
   });
   if (reserveError) {
     console.error('dai_llm_reserve_call failed', reserveError.message);
-    return json({ error: 'The language-model helper is not configured on this server (the metering table is missing: migration 20260925200000).' }, 503);
+    return json({ error: 'The language-model helper is not configured on this server (the metering is missing: migrations 20260925200000 and 20260926120000).' }, 503);
   }
   const row = Array.isArray(reserved) ? reserved[0] : reserved;
   const callsToday = Number(row?.calls_today ?? 0);
-  if (!row?.call_id) return json({ error: capMessage(DAILY_CAP), calls_today: callsToday, daily_cap: DAILY_CAP }, 429);
+  const userCallsToday = Number(row?.user_calls_today ?? 0);
+  const counts = { calls_today: callsToday, daily_cap: DAILY_CAP, user_calls_today: userCallsToday, user_daily_cap: USER_DAILY_CAP };
+  if (!row?.call_id) {
+    const hit = row?.cap_hit === 'user' ? 'user' : 'organization';
+    return json({ error: capMessage(hit, { callsToday, userCallsToday }), cap_hit: hit, ...counts }, 429);
+  }
   const callId = row.call_id as string;
 
   const finish = (patch: Record<string, unknown>) => admin.from('dai_llm_calls')
-    .update({ ...patch, completed_at: new Date().toISOString() })
+    .update({ ...patch, reasoning_effort: reasoningEffort, completed_at: new Date().toISOString() })
     .eq('id', callId);
 
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: buildUserPrompt(query, passages) },
-        ],
-        temperature: 0,
-        response_format: { type: 'json_object' },
-      }),
+      body: JSON.stringify(buildChatRequest(model, query, passages, effort)),
     });
     if (!res.ok) {
-      const detail = await res.text();
-      console.error('OpenAI error', res.status, detail.slice(0, 500));
-      await finish({ status: 'error', error: `provider ${res.status}` });
+      const provider = describeProviderError(res.status, await res.text(), model);
+      console.error(provider.log);
+      await finish({ status: 'error', error: provider.error });
       return json({ error: `The language model did not answer (provider status ${res.status}). This call does not count against the cap.` }, 502);
     }
     const completion = await res.json();
@@ -116,9 +132,9 @@ Deno.serve(async (req) => {
       answer: parsed.answer,
       citations: parsed.citations,
       model,
+      reasoning_effort: reasoningEffort,
       usage: usage ? { prompt_tokens: usage.prompt_tokens ?? null, completion_tokens: usage.completion_tokens ?? null } : null,
-      calls_today: callsToday,
-      daily_cap: DAILY_CAP,
+      ...counts,
       graded: false,
     });
   } catch (e) {
