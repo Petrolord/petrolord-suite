@@ -78,12 +78,12 @@ const ReservesTable = ({ reserves = [], onChange }) => {
                                         <Input 
                                             value={row.name} 
                                             onChange={(e) => updateRow(row.id, 'name', e.target.value)}
-                                            className="h-8 bg-transparent border-slate-700"
+                                            className="h-8 min-w-[150px] bg-transparent border-slate-700"
                                         />
                                     </TableCell>
                                     <TableCell>
                                         <Select value={row.fluid} onValueChange={(v) => updateRow(row.id, 'fluid', v)}>
-                                            <SelectTrigger className="h-8 bg-transparent border-slate-700">
+                                            <SelectTrigger className="h-8 min-w-[110px] bg-transparent border-slate-700">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -97,32 +97,32 @@ const ReservesTable = ({ reserves = [], onChange }) => {
                                         <Input 
                                             type="number"
                                             value={row.p90} 
-                                            onChange={(e) => updateRow(row.id, 'p90', parseFloat(e.target.value))}
-                                            className="h-8 bg-transparent border-slate-700 text-right"
+                                            onChange={(e) => updateRow(row.id, 'p90', e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                                            className="h-8 min-w-[88px] bg-transparent border-slate-700 text-right"
                                         />
                                     </TableCell>
                                     <TableCell>
                                         <Input 
                                             type="number"
                                             value={row.p50} 
-                                            onChange={(e) => updateRow(row.id, 'p50', parseFloat(e.target.value))}
-                                            className="h-8 bg-transparent border-slate-700 text-right font-medium text-blue-400"
+                                            onChange={(e) => updateRow(row.id, 'p50', e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                                            className="h-8 min-w-[88px] bg-transparent border-slate-700 text-right font-medium text-blue-400"
                                         />
                                     </TableCell>
                                     <TableCell>
                                         <Input 
                                             type="number"
                                             value={row.p10} 
-                                            onChange={(e) => updateRow(row.id, 'p10', parseFloat(e.target.value))}
-                                            className="h-8 bg-transparent border-slate-700 text-right"
+                                            onChange={(e) => updateRow(row.id, 'p10', e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                                            className="h-8 min-w-[88px] bg-transparent border-slate-700 text-right"
                                         />
                                     </TableCell>
                                     <TableCell>
                                         <Input 
                                             type="number"
                                             value={row.rf} 
-                                            onChange={(e) => updateRow(row.id, 'rf', parseFloat(e.target.value))}
-                                            className="h-8 bg-transparent border-slate-700 text-right"
+                                            onChange={(e) => updateRow(row.id, 'rf', e.target.value === '' ? 0 : parseFloat(e.target.value))}
+                                            className="h-8 min-w-[88px] bg-transparent border-slate-700 text-right"
                                             step="0.01"
                                             max="1"
                                         />

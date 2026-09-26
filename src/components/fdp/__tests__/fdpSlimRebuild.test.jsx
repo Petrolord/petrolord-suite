@@ -125,7 +125,10 @@ describe('openItems', () => {
   };
 
   it('lists every section of an empty plan', () => {
-    expect(openItems(empty)).toHaveLength(7);
+    // FDP-T1-003: concept and scenario included, as the screening NPV needs both
+    expect(openItems(empty)).toHaveLength(9);
+    expect(openItems(empty).some((i) => /Concepts tab/.test(i))).toBe(true);
+    expect(openItems(empty).some((i) => /Scenarios tab/.test(i))).toBe(true);
   });
 
   it('clears an item once that section has data', () => {
@@ -148,6 +151,8 @@ describe('openItems', () => {
       facilities: { list: [{}] },
       costs: { items: [{}] },
       schedule: { activities: [{}] },
+      concepts: { list: [{}] },
+      scenarios: { list: [{}] },
       risks: [{}],
     };
     expect(openItems(full)).toEqual([]);

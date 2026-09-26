@@ -25,6 +25,7 @@ import {
   runFdpCase, runFdpSensitivity, paybackYears, DEFAULT_FISCAL, planAbandonment,
 } from '@/utils/fdp/economics';
 import { conceptProfileKbpd } from '@/utils/fdp/scenarioCalculations';
+import { planReservesCheck } from '@/utils/fdp/fdpCalculations';
 import { calculateTotalCAPEX, calculateTotalOPEX } from '@/utils/fdp/costCalculations';
 
 /** The concept the plan is costed against: the selected one, else the first. */
@@ -129,10 +130,15 @@ export const computePlanEconomics = (state) => {
   };
 
   const result = runFdpCase(caseInputs);
+  // FDP-T1-004: the Economics tab states the plan's own reserves check
+  // (planReservesCheck, also on the Documents tab) beside the NPV, so a
+  // profile that books more oil than the P50 is flagged where the NPV is read
+  const reservesCheck = planReservesCheck(state);
   return {
     available: true,
     missing: [],
     inputs,
+    reservesCheck,
     basis: {
       conceptName: inputs.concept.name || 'the selected concept',
       scenarioName: inputs.scenario.name || 'the selected scenario',

@@ -2,7 +2,9 @@ import React from 'react';
 import { getRiskLevel, riskScore } from '@/data/fdp/RiskManagementModel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ShieldCheck, AlertOctagon, Activity, TrendingUp } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
+import ChartFrame from '@/components/charts/ChartFrame';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { aggregateRisksByLevel, calculateRiskExposure, calculatePortfolioHealth } from '@/utils/fdp/riskCalculations';
 
 const StatCard = ({ title, value, subtitle, icon: Icon, colorClass }) => (
@@ -76,14 +78,14 @@ const RiskManagementOverview = ({ risks }) => {
                         <CardTitle className="text-white text-sm">Risk Distribution by Severity</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="h-[300px] w-full">
-                            <ResponsiveContainer width="100%" height="100%">
+                        <ChartFrame height={300}>
                                 <BarChart data={chartData}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                                    <XAxis dataKey="name" stroke="#94a3b8" />
-                                    <YAxis stroke="#94a3b8" allowDecimals={false} />
+                                    <CartesianGrid {...GRID_STYLE} vertical={false} />
+                                    <XAxis dataKey="name" stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+                                    <YAxis stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} allowDecimals={false}
+                                        label={{ value: 'Risks', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }} />
                                     <Tooltip 
-                                        contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc' }}
+                                        contentStyle={TOOLTIP_STYLE}
                                         cursor={{fill: 'transparent'}}
                                     />
                                     <Bar dataKey="count" radius={[4, 4, 0, 0]} barSize={50}>
@@ -92,8 +94,7 @@ const RiskManagementOverview = ({ risks }) => {
                                         ))}
                                     </Bar>
                                 </BarChart>
-                            </ResponsiveContainer>
-                        </div>
+                            </ChartFrame>
                     </CardContent>
                 </Card>
 

@@ -162,3 +162,10 @@ real and stay.
 - The economics tab still runs on an illustrative production profile
   rather than the plan's own; the panel says so on screen. Wiring the
   plan's profile through is the natural next increment.
+
+## 2026-09-26: senior test T1 (docs/testing/FDPAccelerator-T1.md)
+
+- Rail NPV printed "$1K" for $1,421MM (fmtMM now); main column is a plain
+  scroller so the Gantt no longer slides under the rail; concept and
+  scenario on the Still to do list; the reserves check shown beside the
+  NPV; charts on the white standard; harness `/dev/fdp-accelerator`.
