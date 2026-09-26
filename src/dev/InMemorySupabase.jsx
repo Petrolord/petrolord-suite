@@ -12,6 +12,9 @@ import { supabase } from '@/lib/customSupabaseClient';
 export const DEV_USER = { id: 'dev-user', email: 'harness@petrolord.dev' };
 const NOW = () => new Date().toISOString();
 let seq = 0;
+let saved = null;        // the real client methods while a harness is mounted
+let restoreTimer = null;
+const NO_FUNCTIONS = {};
 export const newId = (p = 'row') => `${p}-${Date.now().toString(36)}-${(++seq).toString(36)}`;
 
 /** A store: { [table]: rows[] }, mutated in place by the query builder. */
@@ -103,10 +106,11 @@ export function makeQuery(db, table, user = DEV_USER) {
  * functions.invoke for the in-memory versions while mounted.
  * @param {{db: object, user?: object, functions?: Record<string, (body:any, db:object)=>Promise<{data:any,error:any}>>}} props
  */
-export default function InMemorySupabase({ db, user = DEV_USER, functions = {}, children }) {
+export default function InMemorySupabase({ db, user = DEV_USER, functions = NO_FUNCTIONS, children }) {
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    const saved = { from: supabase.from, getUser: supabase.auth.getUser, getSession: supabase.auth.getSession };
+    if (restoreTimer) { clearTimeout(restoreTimer); restoreTimer = null; }
+    if (!saved) saved = { from: supabase.from, getUser: supabase.auth.getUser, getSession: supabase.auth.getSession };
     supabase.from = (t) => makeQuery(db, t, user);
     supabase.auth.getUser = async () => ({ data: { user }, error: null });
     supabase.auth.getSession = async () => ({ data: { session: { user, access_token: 'dev' } }, error: null });
@@ -120,10 +124,17 @@ export default function InMemorySupabase({ db, user = DEV_USER, functions = {}, 
     Object.defineProperty(supabase, 'functions', { configurable: true, get: () => fake });
     setReady(true);
     return () => {
-      supabase.from = saved.from;
-      supabase.auth.getUser = saved.getUser;
-      supabase.auth.getSession = saved.getSession;
-      delete supabase.functions; // back to the prototype getter
+      // Restore on the next tick: under StrictMode the effects are torn down
+      // and re-run, and the children's effects re-run BEFORE this one, so an
+      // immediate restore would send their reads to the real database.
+      restoreTimer = setTimeout(() => {
+        restoreTimer = null;
+        supabase.from = saved.from;
+        supabase.auth.getUser = saved.getUser;
+        supabase.auth.getSession = saved.getSession;
+        delete supabase.functions; // back to the prototype getter
+        saved = null;
+      }, 0);
     };
   }, [db, user, functions]);
   return ready ? children : null;

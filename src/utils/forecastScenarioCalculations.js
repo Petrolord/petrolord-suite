@@ -29,11 +29,25 @@ const modelTypeFor = (b) => {
 };
 
 /**
+ * Maximum well life for EUR (years): the decline is followed past the
+ * horizon to the economic limit, but never beyond this, as reserves
+ * software caps forecasts at a maximum life (ARIES and PHDWin default 50).
+ */
+export const EUR_MAX_YEARS = 50;
+
+/**
  * Run one forecast case through the DCA engine.
  * @param {{id,name,qi,declineAnnualPct,b,years,economicLimit}} caseDef
  *   qi in bbl/d, declineAnnualPct nominal %/yr, horizon in years,
  *   economicLimit in bbl/d (0 disables the cutoff).
  * @param {string} startDateIso forecast start (defaults 2026-01-01)
+ *
+ * The horizon run gives the profile, the cumulative at the horizon and the
+ * annual handoff. EUR is the cumulative to the economic limit (FSH-T1-001),
+ * so when the limit is not reached inside the horizon the decline is
+ * followed on to the limit or to EUR_MAX_YEARS, whichever comes first.
+ * eurCapped marks an EUR stopped by the maximum life (always so without a
+ * limit); timeToLimit is then null.
  */
 export function runCase(caseDef, startDateIso = '2026-01-01T00:00:00Z') {
   const { qi, declineAnnualPct, b, years, economicLimit } = caseDef;
@@ -41,21 +55,35 @@ export function runCase(caseDef, startDateIso = '2026-01-01T00:00:00Z') {
     return { ...caseDef, error: 'qi, decline and horizon must be positive (b >= 0).' };
   }
   const Di = dailyDecline(declineAnnualPct);
-  const result = generateForecast(
-    { qi, Di, b, modelType: modelTypeFor(b) },
-    {
-      durationDays: Math.round(years * DAYS_PER_YEAR),
-      economicLimit: economicLimit > 0 ? economicLimit : null,
-      stopAtLimit: economicLimit > 0,
-    },
+  const params = { qi, Di, b, modelType: modelTypeFor(b) };
+  const hasLimit = economicLimit > 0;
+  const horizonDays = Math.round(years * DAYS_PER_YEAR);
+  const run = (days) => generateForecast(
+    params,
+    { durationDays: days, economicLimit: hasLimit ? economicLimit : null, stopAtLimit: hasLimit },
     startDateIso,
   );
+  const result = run(horizonDays);
+  const limitInHorizon = hasLimit && result.rates.length < horizonDays;
+  let eur = result.eur;
+  let timeToLimitDays = limitInHorizon ? result.timeToLimit : null;
+  if (!limitInHorizon) {
+    const maxDays = Math.max(horizonDays, EUR_MAX_YEARS * DAYS_PER_YEAR);
+    const long = maxDays > horizonDays ? run(maxDays) : result;
+    eur = long.eur;
+    if (hasLimit && long.rates.length < maxDays) timeToLimitDays = long.timeToLimit;
+  }
+  const last = result.rates[result.rates.length - 1];
   return {
     ...caseDef,
-    rates: result.rates,             // daily {date, rate, cumulative}
-    eur: result.eur,                 // bbl over the produced window
-    timeToLimitDays: result.timeToLimit,
-    timeToLimitYears: result.timeToLimit / DAYS_PER_YEAR,
+    rates: result.rates,             // daily {date, rate, cumulative} over the horizon
+    cumHorizon: result.eur,          // bbl produced inside the horizon
+    eur,                             // bbl to the economic limit or EUR_MAX_YEARS
+    eurCapped: timeToLimitDays == null,
+    limitInHorizon,
+    finalRate: last ? last.rate : 0,
+    timeToLimitDays,
+    timeToLimitYears: timeToLimitDays == null ? null : timeToLimitDays / DAYS_PER_YEAR,
   };
 }
 
@@ -74,6 +102,11 @@ export function monthlySeries(rates) {
   const out = [];
   for (let i = 0; i < rates.length; i += 30) {
     out.push({ day: i + 1, monthIndex: out.length + 1, rate: rates[i].rate, cumulative: rates[i].cumulative });
+  }
+  // keep the final day so the curve reaches the horizon or the limit
+  const last = rates.length - 1;
+  if (last >= 0 && last % 30 !== 0) {
+    out.push({ day: last + 1, monthIndex: out.length + 1, rate: rates[last].rate, cumulative: rates[last].cumulative });
   }
   return out;
 }
@@ -115,7 +148,13 @@ export function compareCases(caseDefs, econ, startDateIso) {
       name: c.name,
       model: modelTypeFor(c.b),
       eurMMbbl: c.eur / 1e6,
+      eurCapped: c.eurCapped,
+      cumHorizonMMbbl: c.cumHorizon / 1e6,
+      limitInHorizon: c.limitInHorizon,
+      hasLimit: c.economicLimit > 0,
+      finalRate: c.finalRate,
       timeToLimitYears: c.timeToLimitYears,
+      cum5Years: Math.min(5, c.years),
       cum5MMbbl: cumAtYear(c.rates, Math.min(5, c.years)) / 1e6,
       annual,
       economics,
