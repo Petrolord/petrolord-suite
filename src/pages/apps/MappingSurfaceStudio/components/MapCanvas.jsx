@@ -39,7 +39,8 @@ export function contourPlan({ grid, typed, unit = 'ft', isLength = true, target 
     const [a, b] = [toDisp(zMin), toDisp(zMax)].sort((p, q) => p - q);
     stepDisp = b > a ? contourLevels(a, b, target).step : 0;
   } else stepDisp = 0;
-  const stepM = stepDisp > 0 ? fromDisp(stepDisp) : null;
+  // a step is a magnitude: with the depth sign flipped fromDisp(step) is negative
+  const stepM = stepDisp > 0 ? Math.abs(fromDisp(stepDisp) - fromDisp(0)) : null;
   const format = (v) => fmtTick(toDisp(v), stepDisp > 0 ? stepDisp : 1);
   return { stepM, stepDisp, format, toDisp, fromDisp };
 }

@@ -49,3 +49,27 @@ test('the print theme is a white page with dark ink', () => {
   expect(MAP_THEMES.print.ink).toBe('#0f172a');
   expect(MAP_THEMES.screen.bg).toBe('#0f172a');
 });
+
+test('paintRaster scales per bitmap pixel, so an upsampled bitmap still spans the cell extent', async () => {
+  const { paintRaster } = await import('../mapPainter');
+  const { MapTransform } = await import('../mapTransform');
+  const t = new MapTransform();
+  const spec = { x0: 0, y0: 0, dx: 10, dy: 10, nx: 4, ny: 3 };
+  t.setWorld({ x0: 0, y0: 0, x1: 30, y1: 20 });
+  t.setViewport(400, 300);
+  const calls = [];
+  const ctx = { save() {}, restore() {}, set imageSmoothingEnabled(v) {}, transform: (...a) => calls.push(a), drawImage() {} };
+  paintRaster(ctx, { bitmap: { width: 4, height: 3 }, spec, transform: t });
+  paintRaster(ctx, { bitmap: { width: 32, height: 24 }, spec, transform: t });
+  expect(calls[1][0]).toBeCloseTo(calls[0][0] / 8, 9);
+  expect(calls[1][3]).toBeCloseTo(calls[0][3] / 8, 9);
+  expect(calls[1][4]).toBeCloseTo(calls[0][4], 9);
+});
+
+test('the contour step is a positive magnitude with the depth sign flipped', () => {
+  const grid = Float32Array.from([-1500, -1450, -1400, -1350]);
+  const up = contourPlan({ grid, unit: 'm', isLength: true, sign: 1 });
+  const down = contourPlan({ grid, unit: 'm', isLength: true, sign: -1 });
+  expect(down.stepM).toBeGreaterThan(0);
+  expect(down.stepM).toBeCloseTo(up.stepM, 9);
+});

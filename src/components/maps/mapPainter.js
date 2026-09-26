@@ -80,10 +80,10 @@ export function rasterBitmap({ grid, spec, lut, zMin, zMax, upsample = 1, makeCa
 /**
  * Mapping T1 (MAP-T1-011): a k-times finer bitmap whose pixels take the
  * bilinear value of the four surrounding nodes when all four are live
- * (a smooth interior instead of blocky cells), the nearest node's value
- * when some are null, and no colour when the nearest node is null. The
- * map edge is then crisp at the node mask instead of blurred by smoothing
- * the colours of a one-pixel-per-node bitmap. Bitmap pixel (c, r) covers
+ * (a smooth interior instead of blocky cells); near nulls, the weighted
+ * mean of the live corners, drawn only where they carry at least half the
+ * bilinear weight. The map edge is then crisp and follows the mask's 0.5
+ * level instead of a blurred cell staircase. Bitmap pixel (c, r) covers
  * the node-space point ((c + 0.5) / k - 0.5, (r + 0.5) / k - 0.5), so the
  * bitmap still spans the cell extent and paintRaster maps it unchanged.
  */
@@ -105,14 +105,17 @@ export function upsampledPixels(grid, spec, lut, zMin, zMax, k) {
       const c0 = Math.max(0, Math.min(nx - 1, Math.floor(fx)));
       const c1 = Math.min(nx - 1, c0 + 1);
       const u = Math.max(0, Math.min(1, fx - c0));
-      const cn = Math.max(0, Math.min(nx - 1, Math.round(fx)));
-      const zn = grid[rn * nx + cn];
-      if (!live(zn)) continue;
-      const a = grid[r0 * nx + c0]; const b = grid[r0 * nx + c1];
-      const d = grid[r1 * nx + c0]; const e = grid[r1 * nx + c1];
-      const z = live(a) && live(b) && live(d) && live(e)
-        ? (1 - u) * (1 - v) * a + u * (1 - v) * b + (1 - u) * v * d + u * v * e
-        : zn;
+      // bilinear over the LIVE corners only; the pixel is drawn when the
+      // live corners carry at least half the weight, which traces the
+      // mask's 0.5 level (a smooth diagonal edge, not a cell staircase)
+      let wl = 0; let zl = 0;
+      const add = (zz, ww) => { if (live(zz) && ww > 0) { wl += ww; zl += ww * zz; } };
+      add(grid[r0 * nx + c0], (1 - u) * (1 - v));
+      add(grid[r0 * nx + c1], u * (1 - v));
+      add(grid[r1 * nx + c0], (1 - u) * v);
+      add(grid[r1 * nx + c1], u * v);
+      if (wl < 0.5) continue;
+      const z = zl / wl;
       const li = Math.max(0, Math.min(255, Math.round(((z - zMin) / span) * 255))) * 4;
       const o = (r * w + c) * 4;
       rgba[o] = lut[li]; rgba[o + 1] = lut[li + 1]; rgba[o + 2] = lut[li + 2]; rgba[o + 3] = 255;
@@ -140,7 +143,10 @@ export function paintRaster(ctx, { bitmap, spec, transform, smoothing = true }) 
   const by = transform.worldToScreen(ey.x, ey.y);
   ctx.save();
   ctx.imageSmoothingEnabled = smoothing;
-  ctx.transform((bx.x - a.x) / spec.nx, (bx.y - a.y) / spec.nx, (by.x - a.x) / spec.ny, (by.y - a.y) / spec.ny, a.x, a.y);
+  // per BITMAP pixel: an upsampled bitmap (T1) has k pixels per cell
+  const bw = bitmap.width || spec.nx;
+  const bh = bitmap.height || spec.ny;
+  ctx.transform((bx.x - a.x) / bw, (bx.y - a.y) / bw, (by.x - a.x) / bh, (by.y - a.y) / bh, a.x, a.y);
   ctx.drawImage(bitmap, 0, 0);
   ctx.restore();
 }
@@ -305,6 +311,8 @@ export function paintWells(ctx, {
       ctx.fillStyle = label;
       ctx.fillText(text, x, y);
     };
+    // a borehole within a label's reach of the wellhead keeps one label
+    if (bore && Math.hypot(bore.x - s.x, bore.y - s.y) < 36) bore = null;
     if (bore) {
       if (showNames) put(w.name, s.x + 5, s.y + 3);
       if (value) put(value, bore.x + 5, bore.y + 3);
@@ -461,7 +469,8 @@ export function paintColorbar(ctx, {
     ctx.textAlign = 'right';
     ctx.textBaseline = 'top';
     ctx.fillStyle = inkDim;
-    ctx.fillText(`CI ${(stepFmt || fmt)(step)}${unit ? ` ${unit}` : ''}`, x + w, y + h + 6);
+    // an interval is a magnitude, whatever sign the labels use
+    ctx.fillText(`CI ${String((stepFmt || fmt)(step)).replace(/^-/, '')}${unit ? ` ${unit}` : ''}`, x + w, y + h + 6);
   }
   ctx.restore();
 }
