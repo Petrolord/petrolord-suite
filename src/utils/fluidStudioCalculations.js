@@ -59,10 +59,36 @@ const FA_WARNINGS = {
 // Correlations flagged as non-standard / suspect in the pvtCalculations audit.
 // They remain selectable but the engine surfaces a warning so results are honest.
 const SUSPECT_CORRELATIONS = {
-  glaso: 'Glaso Rs uses a non-standard rearrangement — verify against lab PVT before use.',
   beal_cook_spillman:
     'Beal-Cook-Spillman saturated viscosity is a simplified form — Beggs-Robinson is the audited default.',
 };
+
+// Published data ranges of the black-oil correlations: Standing (1947) as
+// tabulated by Ahmed (Reservoir Engineering Handbook); Vasquez-Beggs and
+// Glaso as in the engines blackOil correlationValidityWarnings. Outside them
+// the correlation extrapolates (Wave 2 T1: nothing said so).
+export const CORRELATION_RANGES = {
+  standing: { label: 'Standing', rs: [20, 1425], temp: [100, 258], api: [16.5, 63.8], gasGravity: [0.59, 0.95] },
+  vasquez_beggs: { label: 'Vasquez-Beggs', rs: [20, 2199], temp: [75, 294], api: [15.3, 59.5], gasGravity: [0.511, 1.351] },
+  glaso: { label: 'Glaso', rs: [90, 2637], temp: [80, 280], api: [22.3, 48.1], gasGravity: [0.65, 1.276] },
+};
+const RANGE_WORDS = { rs: ['solution GOR', 'scf/STB'], temp: ['temperature', 'F'], api: ['API gravity', 'API'], gasGravity: ['gas gravity', ''] };
+
+/** Warnings for inputs outside the chosen correlation's published data range. */
+export function correlationRangeWarnings(fluid) {
+  const r = CORRELATION_RANGES[fluid?.correlations?.pb_rs_bo];
+  if (!r) return [];
+  const vals = { rs: fluid.rsb, temp: fluid.temp, api: fluid.api, gasGravity: fluid.gasGravity };
+  const out = [];
+  for (const [k, [lo, hi]] of Object.entries({ rs: r.rs, temp: r.temp, api: r.api, gasGravity: r.gasGravity })) {
+    const v = Number(vals[k]);
+    if (Number.isFinite(v) && (v < lo || v > hi)) {
+      const [name, unit] = RANGE_WORDS[k];
+      out.push(`${r.label}: ${name} ${v}${unit ? ` ${unit}` : ''} is outside its data range (${lo} to ${hi}${unit ? ` ${unit}` : ''}); the result is extrapolated.`);
+    }
+  }
+  return out;
+}
 
 // ---------------------------------------------------------------------------
 // Input normalization
@@ -701,6 +727,7 @@ export const analyzeFluidSystem = (inputs) => {
   ];
   const suspect = SUSPECT_CORRELATIONS[fluid.correlations.pb_rs_bo];
   if (suspect) warnings.push(suspect);
+  warnings.push(...correlationRangeWarnings(fluid));
   const suspectVisc = SUSPECT_CORRELATIONS[fluid.correlations.viscosity];
   if (suspectVisc) warnings.push(suspectVisc);
   if (inputs?.streamA?.blackOil?.pb && !inputs?.blending?.enabled) {

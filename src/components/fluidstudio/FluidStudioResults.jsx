@@ -20,11 +20,11 @@ import PhaseEnvelopeCard from '@/components/fluidstudio/PhaseEnvelopeCard';
 const KPICard = ({ title, value, unit, icon: Icon }) => (
   <Card className="bg-slate-800/50 border-slate-700 text-white">
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      <CardTitle className="text-sm font-medium text-slate-300">{title}</CardTitle>
-      <Icon className="h-4 w-4 text-cyan-300" />
+      <CardTitle className="text-sm font-medium text-slate-300 min-w-0">{title}</CardTitle>
+      <Icon className="h-4 w-4 shrink-0 text-cyan-300" />
     </CardHeader>
     <CardContent>
-      <div className="text-2xl font-bold">{value}</div>
+      <div className="text-2xl font-bold tabular-nums whitespace-nowrap">{value}</div>
       <p className="text-xs text-slate-400">{unit}</p>
     </CardContent>
   </Card>
@@ -103,7 +103,9 @@ const FluidStudioResults = ({ results, eos, composition, sepStages, onUpdateTuni
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      {/* six across only where each card fits its value (Wave 2 T1: at 1366 px
+          the values ran out of the cards) */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
         <KPICard title="Bubble Point" value={fmt(kpis.pb)} unit="psia" icon={Droplets} />
         <KPICard title="Solution GOR" value={fmt(kpis.rsb)} unit="scf/STB" icon={Wind} />
         <KPICard title="Oil FVF @ Pb" value={fmt(kpis.bo_at_pb, 3)} unit="rb/STB" icon={Beaker} />

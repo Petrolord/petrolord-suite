@@ -130,7 +130,7 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
                   <SelectContent>
                     <SelectItem value="standing">Standing (default)</SelectItem>
                     <SelectItem value="vasquez_beggs">Vasquez-Beggs</SelectItem>
-                    <SelectItem value="glaso">Glaso (non-standard, verify)</SelectItem>
+                    <SelectItem value="glaso">Glaso</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
