@@ -102,3 +102,13 @@ account's unit, temperature C or F) across both modes, the Well data
 and Open in launchers for a registry-tied model, and the help guide at
 `/dashboard/apps/geoscience/basinflow-genesis/help` in place of the
 legacy help sheet. BF0 to BF3 are merged; the series is closed.
+
+## 2026-09-26: Senior test T1 (Wave 1 #6)
+
+Report: docs/testing/BasinFlowGenesis-T1.md. Results read the industry
+way: numeric geological time axis, oldest left, on every plot; maturity
+windows 0.55 / 1.3 / 2.0 %Ro labelled; a Magoon-style events chart
+(source, reservoir, seal, overburden, generation, expulsion, critical
+moment); %Ro isolines and isotherms on the burial history; transformation
+ratio in the Expulsion tab. View layer only (`services/resultsView.js`);
+engines untouched.

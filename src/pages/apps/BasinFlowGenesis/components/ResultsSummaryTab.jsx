@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle2, AlertTriangle, Droplet, Flame } from 'lucide-react';
-import { finalDepthProfile } from '../services/resultsView';
+import { finalDepthProfile, eventsChartRows } from '../services/resultsView';
 import { fmtDepth, fmtTemp, depthLabel, tempLabel, tempSymbol } from '../services/units';
 
 const ResultsSummaryTab = ({ results, units = { depth: 'm', temp: 'C' } }) => {
@@ -18,6 +18,7 @@ const ResultsSummaryTab = ({ results, units = { depth: 'm', temp: 'C' } }) => {
         return maxTR > 0.1;
     });
     
+    const { criticalMoment } = eventsChartRows(results);
     const maxTemp = Math.max(...data.temperature.flat().map(t => t.value));
     const maxMaturity = Math.max(...data.maturity.flat().map(t => t.value));
     // present-day state per layer, shallow to deep (BF0: the number a
@@ -43,7 +44,7 @@ const ResultsSummaryTab = ({ results, units = { depth: 'm', temp: 'C' } }) => {
                                 <h4 className="text-sm font-medium text-white">Hydrocarbon Generation</h4>
                                 <p className="text-xs text-slate-400 mt-1">
                                     {sourceLayers.length > 0 
-                                        ? `${sourceLayers.length} layer(s) reached generation window.` 
+                                        ? `${sourceLayers.length} source ${sourceLayers.length === 1 ? 'layer passed' : 'layers passed'} 10% transformation.` 
                                         : "No significant generation detected."}
                                 </p>
                             </div>
@@ -122,7 +123,7 @@ const ResultsSummaryTab = ({ results, units = { depth: 'm', temp: 'C' } }) => {
                         <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
                         <div className="text-xs text-slate-300">
                             {sourceLayers.length > 0
-                                ? `${sourceLayers.length} source layer(s) passed 10% transformation. Compare the present-day Ro column with measured vitrinite data in the Calibration tab, then fit the heat flow.`
+                                ? `Compare the present-day Ro column with measured vitrinite data in the Calibration tab, then fit the heat flow.${criticalMoment != null ? ` Expulsion peaked at ${criticalMoment} Ma (the critical moment on the Timing tab); traps must be in place by then.` : ''}`
                                 : 'No source layer passed 10% transformation. Check the source rock TOC, HI and kerogen, the heat-flow history and the burial depth before reading charge from this model.'}
                         </div>
                     </div>

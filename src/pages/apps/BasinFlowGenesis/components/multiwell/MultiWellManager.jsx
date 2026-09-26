@@ -19,6 +19,7 @@ import {
 import { Plus, Search, Trash2, MapPin, Edit2, Check, X, Calendar } from 'lucide-react';
 import { useMultiWell } from '@/pages/apps/BasinFlowGenesis/contexts/MultiWellContext';
 import { useBasinFlow } from '@/pages/apps/BasinFlowGenesis/contexts/BasinFlowContext';
+import { depthToDisplay } from '@/pages/apps/BasinFlowGenesis/services/units';
 import { useToast } from '@/components/ui/use-toast';
 
 const StatusBadge = ({ status }) => {
@@ -43,7 +44,15 @@ const StatusBadge = ({ status }) => {
 
 const MultiWellManager = () => {
     const { state: mwState, addWell, removeWell, setActiveWell, updateWell, saveWellData, getWellData } = useMultiWell();
-    const { state: bfState, dispatch: bfDispatch } = useBasinFlow();
+    const { state: bfState, dispatch: bfDispatch, units } = useBasinFlow();
+    // TD from the stated depth range, else the stratigraphy's total thickness (Basin T1-006: the seeded well read TD 0m)
+    const wellTd = (well) => {
+        const strat = well.stratigraphy?.length ? well.stratigraphy : (well.id === mwState.activeWellId ? bfState.stratigraphy || [] : []);
+        const m = Number(well.depthRange?.max) || strat.reduce((acc, l) => acc + (Number(l.thickness) || 0), 0);
+        if (!(m > 0)) return 'not set';
+        const u = units?.depth || 'm';
+        return `${Math.round(depthToDisplay(m, u)).toLocaleString()} ${u}`;
+    };
     const { toast } = useToast();
     
     const [searchTerm, setSearchTerm] = useState('');
@@ -255,7 +264,7 @@ const MultiWellManager = () => {
 
                             <div className="text-[10px] text-slate-600 flex gap-3 border-t border-slate-800/50 pt-2 mt-1">
                                 <span className="flex items-center"><MapPin className="w-2.5 h-2.5 mr-1" /> {well.location?.name || 'N/A'}</span>
-                                <span className="flex items-center">TD: {well.depthRange?.max || 0}m</span>
+                                <span className="flex items-center">TD: {wellTd(well)}</span>
                             </div>
                         </div>
                     ))}

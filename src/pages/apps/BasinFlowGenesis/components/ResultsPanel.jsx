@@ -1,13 +1,15 @@
-import React, { useState, useRef } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Download, FileText, LineChart, Layers, Flame, Droplet, Clock, Camera } from 'lucide-react';
 import BurialHistoryPlot from './plots/BurialHistoryPlot';
+import TransformationRatioPlot from './plots/TransformationRatioPlot';
 import TemperatureHistoryPlot from './plots/TemperatureHistoryPlot';
 import MaturityPlot from './plots/MaturityPlot';
 import GenerationExpulsionPlot from './plots/GenerationExpulsionPlot';
 import ChargeTimingPlot from './plots/ChargeTimingPlot';
+import { withLayerRoles } from '../services/resultsView';
 import ResultsSummaryTab from './ResultsSummaryTab';
 import { useBasinFlow } from '../contexts/BasinFlowContext';
 import { ExportEngine } from '../services/ExportEngine';
@@ -16,7 +18,8 @@ import jsPDF from 'jspdf';
 
 const ResultsPanel = () => {
     const { state, units } = useBasinFlow();
-    const { results } = state;
+    // layer roles (deposition ages, source flag) for the events chart and source-layer plots
+    const results = useMemo(() => withLayerRoles(state.results, state.stratigraphy || []), [state.results, state.stratigraphy]);
     const [activeTab, setActiveTab] = useState('burial');
     const printRef = useRef(null);
 
@@ -78,7 +81,12 @@ const ResultsPanel = () => {
                          <TabsContent value="burial" className="h-full m-0"><BurialHistoryPlot results={results} units={units} /></TabsContent>
                          <TabsContent value="temperature" className="h-full m-0"><TemperatureHistoryPlot results={results} units={units} /></TabsContent>
                          <TabsContent value="maturity" className="h-full m-0"><MaturityPlot results={results} /></TabsContent>
-                         <TabsContent value="generation" className="h-full m-0"><GenerationExpulsionPlot results={results} /></TabsContent>
+                         <TabsContent value="generation" className="h-full m-0">
+                             <div className="grid grid-rows-2 gap-4 h-full min-h-[820px]">
+                                 <GenerationExpulsionPlot results={results} />
+                                 <TransformationRatioPlot results={results} />
+                             </div>
+                         </TabsContent>
                          <TabsContent value="timing" className="h-full m-0"><ChargeTimingPlot results={results} /></TabsContent>
                      </div>
                 </div>
