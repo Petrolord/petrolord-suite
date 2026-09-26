@@ -143,6 +143,26 @@ export default function BuilderDock({
           </div>
         ))}
 
+        <div className={secCls}>Fluid contacts and FVF (per zone)</div>
+        {definition.zones.map((z, i) => {
+          const f = (definition.fluidsInput || [])[i] || {};
+          const setF = (k, v) => {
+            const next = [...(definition.fluidsInput || [])];
+            next[i] = { ...f, [k]: v, unit: k === 'goc' || k === 'owc' ? depthUnit : (f.unit || depthUnit) };
+            patch({ fluidsInput: next });
+          };
+          return (
+            <div key={`fl-${i}`} className="grid grid-cols-4 gap-1" data-testid={`em-fluids-${i}`}
+              title="Contacts as depth below datum (positive down) in the display unit; Bo in rm3/sm3 (rb/stb), Bg in rm3/sm3. Blank = not given; with no OWC the whole zone counts as hydrocarbon.">
+              <span className="col-span-4 text-[10px] text-slate-500">{z.name}</span>
+              <input className={inCls} value={f.goc ?? ''} placeholder={`GOC ${f.unit || depthUnit}`} data-testid={`em-goc-${i}`} onChange={(e) => setF('goc', e.target.value)} />
+              <input className={inCls} value={f.owc ?? ''} placeholder={`OWC ${f.unit || depthUnit}`} data-testid={`em-owc-${i}`} onChange={(e) => setF('owc', e.target.value)} />
+              <input className={inCls} value={f.bo ?? ''} placeholder="Bo" data-testid={`em-bo-${i}`} onChange={(e) => setF('bo', e.target.value)} />
+              <input className={inCls} value={f.bg ?? ''} placeholder="Bg" data-testid={`em-bg-${i}`} onChange={(e) => setF('bg', e.target.value)} />
+            </div>
+          );
+        })}
+
         <div className={secCls}>Population method</div>
         {['phi', 'sw', 'ntg'].map((prop) => (
           <div key={prop} className="flex items-center gap-1">

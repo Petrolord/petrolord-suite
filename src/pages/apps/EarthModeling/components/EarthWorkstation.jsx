@@ -19,7 +19,8 @@ import MapView from './MapView';
 import SectionView from './SectionView';
 import FrameworkView3D from './FrameworkView3D';
 import QcPanel from './QcPanel';
-import { buildModel, emptyDefinition } from '../services/modelBuild';
+import { buildModel, emptyDefinition, MISTIE_WARN_M } from '../services/modelBuild';
+import { contourPlan, colorbarLevelsFor } from '@/pages/apps/MappingSurfaceStudio/components/MapCanvas';
 import { DEPTH_UNIT_KEY, VOLUME_UNITS_KEY, VOLUME_UNIT_SETS, readSetting, fmtDepth } from '../services/units';
 import { allSurfaceRows, makeDerivedEntry, describeDerived } from '../services/derivedSurfaces';
 import { projectWells, VE_OPTIONS } from '../services/sectionPath';
@@ -53,7 +54,7 @@ const LAYERS = [
 ];
 
 /** @param {Object<string,string>} [p.appPaths] route overrides for the launchers (harness) */
-export default function EarthWorkstation({ backend, appPaths = {} }) {
+export default function EarthWorkstation({ sample = false, backend, appPaths = {} }) {
   const [wells, setWells] = useState(null);
   const [surfaces, setSurfaces] = useState([]);
   const [culturePolygons, setCulturePolygons] = useState([]);
@@ -80,6 +81,15 @@ export default function EarthWorkstation({ backend, appPaths = {} }) {
   const [lastPublished, setLastPublished] = useState(null); // EM5: the row the launchers point at
   const curvesCache = useWellCurvesCache(backend);
   const [status, setStatus] = useState('Ready.');
+  // T1 (EM-T1-009): the depth sign shared with Mapping (mapping.depthPositive);
+  // unset keeps Earth Modeling's positive TVDSS
+  const [depthPositive, setDepthPositive] = useState(() => {
+    try { const v = localStorage.getItem('mapping.depthPositive'); return v === null ? true : v === '1'; } catch { return true; }
+  });
+  const toggleDepthSign = () => setDepthPositive((d) => {
+    try { localStorage.setItem('mapping.depthPositive', d ? '0' : '1'); } catch { /* private mode */ }
+    return !d;
+  });
   const [dockOpen, setDockOpen] = useState(true);
   // EM0: display units. Depth follows the account's Geoscience depth
   // unit (the Mapping setting) once known, browser fallback, ft default;
@@ -201,7 +211,14 @@ export default function EarthWorkstation({ backend, appPaths = {} }) {
         const after = Math.max(0, ...rows.map((r) => r.after ?? 0));
         return rows.length ? `, ${rows.length} surface${rows.length === 1 ? '' : 's'} adjusted to the wells (max residual ${fmtDepth(before, depthUnit, 1)} to ${fmtDepth(after, depthUnit, 1)} ${depthUnit})` : ', no tied surface to adjust';
       })() : '';
-      setStatus(`Built ${definition.name}: ${result.spec.nx}×${result.spec.ny} frame at ${result.spec.dx} m, ${result.zones.length} zones, ${blocks} block${blocks > 1 ? 's' : ''}, ${clamps} clamped nodes${result.boundary ? `, clipped to ${result.boundary.name}` : ''}${adjText}.`);
+      // T1 (EM-T1-002, -003, -004): fallbacks, mis-ties and clamps said out loud
+      const fb = result.fallbacks || [];
+      const fbText = fb.length ? ` ${fb.length} propert${fb.length === 1 ? 'y' : 'ies'} fell back (${fb.slice(0, 3).map((f) => `${f.zone} ${f.prop} block ${f.block} to ${f.used}`).join('; ')}${fb.length > 3 ? '; …' : ''}).` : '';
+      const mt = result.misties || [];
+      const worst = mt.reduce((a, t) => Math.max(a, Math.abs(t.residualM)), 0);
+      const mtText = mt.length && !result.adjustment ? ` ${mt.length} well tie${mt.length === 1 ? '' : 's'} miss by more than ${fmtDepth(MISTIE_WARN_M, depthUnit, 0)} ${depthUnit} (worst ${fmtDepth(worst, depthUnit, 1)} ${depthUnit}): tick adjust surfaces to the well tops.` : '';
+      const clampText = clamps ? ` Clamped nodes are marked on the map.` : '';
+      setStatus(`Built ${definition.name}: ${result.spec.nx}×${result.spec.ny} frame at ${result.spec.dx} m, ${result.zones.length} zones, ${blocks} block${blocks > 1 ? 's' : ''}, ${clamps} clamped nodes${result.boundary ? `, clipped to ${result.boundary.name}` : ''}${adjText}.${clampText}${mtText}${fbText}`);
     } catch (e) {
       setStatus(e.message);
     } finally {
@@ -217,6 +234,32 @@ export default function EarthWorkstation({ backend, appPaths = {} }) {
     if (layer === 'thickness') return built.thickness[zoneIdx] || null;
     if (layer.endsWith('_var')) return built.zones[zoneIdx]?.variance?.[layer.slice(0, -4)] || null;
     return built.zones[zoneIdx]?.props?.[layer] || null;
+  }, [built, layer, zoneIdx]);
+
+  // T1 (EM-T1-005): contour interval and colour-bar ticks round in the
+  // display unit (the Mapping plan), depth layers in the shared sign
+  const isDepthLayer = ['top', 'base', 'thickness'].includes(layer);
+  const depthSign = isDepthLayer && layer !== 'thickness' && !depthPositive ? -1 : 1;
+  const mapPlan = useMemo(() => (mapGrid && isDepthLayer
+    ? contourPlan({ grid: mapGrid, typed: '', unit: depthUnit, isLength: true, sign: depthSign })
+    : null), [mapGrid, isDepthLayer, depthUnit, depthSign]);
+  const mapLevels = useMemo(() => (mapPlan ? colorbarLevelsFor(mapPlan.toDisp, mapPlan.fromDisp) : null), [mapPlan]);
+  // T1 (EM-T1-004): the nodes this layer's surface had clamped, as crosses
+  const clampOverlays = useMemo(() => {
+    if (!built || !['top', 'base'].includes(layer)) return [];
+    const mask = built.clampMasks?.[layer === 'top' ? zoneIdx : zoneIdx + 1];
+    if (!mask) return [];
+    const { spec } = built;
+    const h = 0.3 * Math.min(spec.dx, spec.dy);
+    const out = [];
+    for (let j = 0; j < mask.length && out.length < 4000; j++) {
+      if (!mask[j]) continue;
+      const r = Math.floor(j / spec.nx); const c = j - r * spec.nx;
+      const x = spec.x0 + c * spec.dx; const y = spec.y0 + r * spec.dy;
+      out.push({ points: [x - h, y - h, x + h, y + h], color: '#f97316', width: 1.2 });
+      out.push({ points: [x - h, y + h, x + h, y - h], color: '#f97316', width: 1.2 });
+    }
+    return out;
   }, [built, layer, zoneIdx]);
 
   const surfaceNames = definition.surfaceIds
@@ -381,6 +424,11 @@ export default function EarthWorkstation({ backend, appPaths = {} }) {
             </Link>
           </>
         )}
+        <button type="button" data-testid="em-depth-sign" onClick={toggleDepthSign}
+          title="Show depths as positive TVDSS or as elevation (negative below datum); shared with Mapping"
+          className="px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800">
+          {depthPositive ? 'depth +' : 'elevation'}
+        </button>
         <Link to={`${appPath(EARTH_MODELING_ID, appPaths)}/help`} data-testid="em-help" title="Open the Earth Modeling help guide"
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800">
           <HelpCircle className="w-3.5 h-3.5" /> Help
@@ -395,7 +443,7 @@ export default function EarthWorkstation({ backend, appPaths = {} }) {
       <span className="ml-auto whitespace-nowrap" data-testid="em-frame">
         {built ? `${built.spec.nx}×${built.spec.ny} @ ${built.spec.dx} m` : `${definition.surfaceIds.length} surfaces stacked`}
       </span>
-      <span className="whitespace-nowrap text-slate-600">TVDSS {depthUnit}, SI internal</span>
+      <span className="whitespace-nowrap text-slate-600">{depthPositive ? 'TVDSS' : 'elevation'} {depthUnit}, SI internal</span>
     </div>
   );
 
@@ -551,10 +599,15 @@ export default function EarthWorkstation({ backend, appPaths = {} }) {
     </div>
   ) : !built ? (
     <div className="h-full flex items-center justify-center text-slate-500 text-sm" data-testid="em-empty">
-      Stack ≥ 2 registry surfaces (explorer), then Build model.
+      <span className="flex flex-col items-center gap-2">
+        <span>Stack two or more registry surfaces (explorer), then Build model.</span>
+        {!sample && !backend.isSample && (
+          <Link to="?sample=1" data-testid="em-try-sample" className="text-cyan-400 hover:underline text-xs">New here? Try it on sample data (nothing is saved)</Link>
+        )}
+      </span>
     </div>
   ) : (
-    <div className="p-3">
+    <div className="h-full min-h-0 p-3 flex flex-col">
       {mapToolbar}
       <MapView
         spec={built.spec}
@@ -564,10 +617,14 @@ export default function EarthWorkstation({ backend, appPaths = {} }) {
         pendingVertices={pending}
         drawing={drawing || sectionDrawing}
         onMapClick={({ x, y }) => (sectionDrawing ? setSectionPending((p) => [...p, [x, y]]) : setPending((p) => [...p, [x, y]]))}
-        overlays={sectionOverlays}
+        overlays={[...sectionOverlays, ...clampOverlays]}
         contours={layer !== 'blocks'}
-        label={`${zoneName} · ${layerLabel}${['top', 'base', 'thickness'].includes(layer) ? ` (${depthUnit})` : ''}`}
-        zFormat={['top', 'base', 'thickness'].includes(layer) ? (v) => toDisplay(v, depthUnit).toFixed(1) : (v) => v.toFixed(3)}
+        label={`${zoneName} · ${layerLabel}${isDepthLayer ? ` (${depthUnit})` : ''}`}
+        zFormat={isDepthLayer ? (v) => (depthSign * toDisplay(v, depthUnit)).toFixed(1) : (v) => v.toFixed(3)}
+        contourStep={mapPlan?.stepM ?? null}
+        contourFormat={mapPlan?.format ?? null}
+        colorbarLevels={mapLevels}
+        height="fill"
       />
     </div>
   );

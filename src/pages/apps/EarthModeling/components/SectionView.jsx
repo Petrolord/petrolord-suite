@@ -15,7 +15,8 @@ import { paintTrackBody, PALETTES } from '@/components/wells/trackPainter';
 import { pathSamples, sectionScale } from '../services/sectionPath';
 
 const N_SAMPLES = 240;
-const PAD = { l: 56, r: 16, t: 26, b: 26 };
+// the right pad leaves room for the last well's log column (T1 EM-T1-006)
+const PAD = { l: 56, r: 60, t: 26, b: 26 };
 const ZONE_FILLS = ['rgba(34,197,94,0.22)', 'rgba(59,130,246,0.22)', 'rgba(234,179,8,0.22)', 'rgba(244,114,182,0.22)', 'rgba(168,85,247,0.22)'];
 const SURF_STROKES = ['#4ade80', '#60a5fa', '#facc15', '#f472b6', '#c084fc', '#f87171'];
 const TRACK_W = 44;
@@ -122,11 +123,13 @@ const SectionView = forwardRef(function SectionView({
       }
       ctx.stroke();
       const name = surfaceNames[s];
-      const first = prof.findIndex((v) => !isNull(v));
-      if (name && first >= 0) {
+      // named a third of the way along, clear of the well tie labels at the ends
+      const live = prof.map((v, k) => (isNull(v) ? -1 : k)).filter((k) => k >= 0);
+      const at = live.length ? live[Math.floor(live.length / 3)] : -1;
+      if (name && at >= 0) {
         ctx.fillStyle = SURF_STROKES[s % SURF_STROKES.length];
         ctx.font = '10px sans-serif'; ctx.textAlign = 'left';
-        ctx.fillText(name, xPx(path.s[first]) + 4, yPx(prof[first]) - 3);
+        ctx.fillText(name, xPx(path.s[at]) + 4, yPx(prof[at]) - 3);
       }
     });
     for (let s = 0; s + 1 < profiles.length; s++) {
@@ -172,10 +175,16 @@ const SectionView = forwardRef(function SectionView({
 
     // axes
     ctx.fillStyle = '#94a3b8'; ctx.font = '9px sans-serif'; ctx.textAlign = 'right';
+    // round ticks in the display unit (T1 EM-T1-006)
     const nTicks = Math.max(4, Math.min(12, Math.round(sc.plotH / 60)));
-    for (let i = 0; i <= nTicks; i++) {
-      const z = zMin + (i / nTicks) * (zMax - zMin);
-      ctx.fillText(toDisplay(z, depthUnit).toFixed(0), PAD.l - 6, yPx(z) + 3);
+    const dMin = toDisplay(zMin, depthUnit); const dMax = toDisplay(zMax, depthUnit);
+    const raw = (dMax - dMin) / nTicks;
+    const mag = 10 ** Math.floor(Math.log10(raw > 0 ? raw : 1));
+    const stepD = [1, 2, 5, 10].map((m) => m * mag).find((v) => v >= raw) || 10 * mag;
+    const perUnit = (zMax - zMin) / ((dMax - dMin) || 1);
+    for (let d = Math.ceil(dMin / stepD) * stepD; d <= dMax + 1e-9; d += stepD) {
+      const z = zMin + (d - dMin) * perUnit;
+      ctx.fillText(String(Math.round(d)), PAD.l - 6, yPx(z) + 3);
       ctx.strokeStyle = 'rgba(148,163,184,0.15)'; ctx.beginPath(); ctx.moveTo(PAD.l, yPx(z)); ctx.lineTo(cssW - PAD.r, yPx(z)); ctx.stroke();
     }
     ctx.textAlign = 'center';

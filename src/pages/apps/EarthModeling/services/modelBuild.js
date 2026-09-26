@@ -12,7 +12,7 @@ import { populateZonePropertyOk } from './propertyKriging';
 import { labelBlocks, blockCensus, pointInPolygon, validatePolygon } from '../engine/blocks';
 import { wellTies, zoneControlPoints } from '../engine/wellties';
 import { populateZoneProperty } from '../engine/properties';
-import { zoneVolumes } from '../engine/volumes';
+import { zoneVolumes, zoneVolumesWithContacts } from '../engine/volumes';
 import { normalizeTag, isTransformableTag, consensusTag } from '@/lib/crs/tags';
 import { surfaceZToDepthDown } from '@/lib/surfaceConvention';
 import { maskOutsidePolygon } from '@/lib/gridding/gridmath';
@@ -44,7 +44,74 @@ export const emptyDefinition = () => ({
   adjust: { enabled: false, radiusM: '' },
   // EM2: derived horizons (parallel-to, proportional) that can join the stack
   derived: [],
+  // T1 (EM-T1-001): per zone {goc, owc} in metres below datum (positive
+  // down) and {bo, bg} formation volume factors; null = not given
+  fluids: [],
 });
+
+/**
+ * The dock's typed fluids (text, contacts in the unit they were typed in)
+ * as engine fluids: contacts in metres positive down, FVFs as numbers.
+ * Throws a plain message on a value that is not a number or an FVF <= 0.
+ */
+export function parseFluidsInput(inputs = []) {
+  const FT = 0.3048;
+  return (inputs || []).map((f, i) => {
+    if (!f) return null;
+    const num = (v, what) => {
+      if (v === undefined || v === null || String(v).trim() === '') return null;
+      const x = Number(v);
+      if (!Number.isFinite(x)) throw new Error(`Zone ${i + 1}: ${what} must be a number.`);
+      return x;
+    };
+    const depth = (v, what) => { const x = num(v, what); return x === null ? null : (f.unit === 'ft' ? x * FT : x); };
+    const out = { goc: depth(f.goc, 'the GOC'), owc: depth(f.owc, 'the OWC'), bo: num(f.bo, 'Bo'), bg: num(f.bg, 'Bg') };
+    if (out.bo !== null && !(out.bo > 0)) throw new Error(`Zone ${i + 1}: Bo must be greater than zero.`);
+    if (out.bg !== null && !(out.bg > 0)) throw new Error(`Zone ${i + 1}: Bg must be greater than zero.`);
+    if (out.goc !== null && out.owc !== null && out.goc > out.owc) throw new Error(`Zone ${i + 1}: the GOC is deeper than the OWC.`);
+    return out;
+  });
+}
+
+/** A mis-tie beyond this (metres) is reported after a build (T1 EM-T1-003). */
+export const MISTIE_WARN_M = 10;
+
+/** True when a zone's fluids carry any contact or FVF. */
+export const hasFluids = (f) => !!f && ['goc', 'owc', 'bo', 'bg'].some((k) => Number.isFinite(f[k]));
+
+/**
+ * HCPV and in-place volumes at a low and a high property case (T1 E1): the
+ * kriged properties shifted by 1.2816 standard deviations, porosity and NTG
+ * down and Sw up for P90, the reverse for P10, every node moving together
+ * (a fully correlated property case). Null when no property was kriged.
+ */
+export function volumeRange(spec, zone, labels, fluids, top, base) {
+  const vars = zone.variance || {};
+  if (!['phi', 'sw', 'ntg'].some((k) => vars[k])) return null;
+  const K = 1.2815515655446004;
+  const shifted = (sgn) => {
+    const out = {};
+    for (const k of ['phi', 'sw', 'ntg']) {
+      const g = zone.props[k];
+      if (!g) continue;
+      const v = vars[k];
+      const dir = k === 'sw' ? -sgn : sgn;
+      out[k] = Float64Array.from(g, (x, i) => {
+        if (!v || !Number.isFinite(v[i]) || v[i] < 0 || Math.abs(x) >= 1e29) return x;
+        return Math.min(1, Math.max(0, x + dir * K * Math.sqrt(v[i])));
+      });
+    }
+    return out;
+  };
+  const vol = (props) => (hasFluids(fluids)
+    ? zoneVolumesWithContacts(spec, top, base, labels, props, fluids)
+    : zoneVolumes(spec, zone.thickness, labels, props)).total;
+  const low = vol(shifted(-1));
+  const high = vol(shifted(1));
+  const mid = zone.volumes.total;
+  const pick = (b) => ({ hcpv_m3: b.hcpv_m3, stoiip_m3: b.stoiip_m3 ?? null, giip_m3: b.giip_m3 ?? null });
+  return { p90: pick(low), p50: pick(mid), p10: pick(high) };
+}
 
 /**
  * The model frame from the top surface's frame and an optional cell
@@ -137,6 +204,12 @@ export async function buildModel(definition, wells, surfaces, backend) {
     adjustment = { radius, report: a.report, tiesBefore };
   }
   const { clamped, counts } = clampStack(resampled);
+  // T1 (EM-T1-004): which nodes each surface had clamped, for the map
+  const clampMasks = clamped.map((z, i) => {
+    const m = new Uint8Array(z.length);
+    for (let j = 0; j < z.length; j++) if (z[j] !== resampled[i][j]) m[j] = 1;
+    return m;
+  });
   const thickness = [];
   for (let i = 0; i + 1 < clamped.length; i++) thickness.push(zoneThickness(clamped[i], clamped[i + 1]));
   const framework = { grids: resampled, clamped, counts, thickness };
@@ -194,9 +267,25 @@ export async function buildModel(definition, wells, surfaces, backend) {
       if (out.variance) variance[prop] = out.variance;
       provenance[prop] = out.provenance;
     }
-    const volumes = zoneVolumes(spec, thickness, labels, props);
-    return { name: zdef.name, registryZone: zdef.registryZone, thickness, props, variance, provenance, volumes };
+    const fluids = (definition.fluidsInput ? parseFluidsInput(definition.fluidsInput) : (definition.fluids || []))[i] || null;
+    const top = framework.clamped[i];
+    const base = framework.clamped[i + 1];
+    const volumes = hasFluids(fluids)
+      ? zoneVolumesWithContacts(spec, top, base, labels, props, fluids)
+      : zoneVolumes(spec, thickness, labels, props);
+    const zone = { name: zdef.name, registryZone: zdef.registryZone, thickness, props, variance, provenance, volumes, fluids };
+    zone.range = volumeRange(spec, zone, labels, fluids, top, base);
+    return zone;
   });
 
-  return { spec, crs, ...framework, labels, census, ties, zones, boundary, adjustment };
+  // T1 (EM-T1-002, -003): what the build should say out loud
+  const fallbacks = [];
+  for (const z of zones) {
+    for (const [prop, rows] of Object.entries(z.provenance)) {
+      for (const r of rows) if (r.fellBack) fallbacks.push({ zone: z.name, prop, block: r.block, used: r.methodUsed, wells: r.wells });
+    }
+  }
+  const misties = ties.filter((t) => Number.isFinite(t.residualM) && Math.abs(t.residualM) > MISTIE_WARN_M);
+
+  return { spec, crs, ...framework, clampMasks, labels, census, ties, zones, boundary, adjustment, fallbacks, misties };
 }

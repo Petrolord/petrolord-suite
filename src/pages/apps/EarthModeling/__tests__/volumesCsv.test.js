@@ -18,7 +18,7 @@ test('metric CSV carries the frame, units, rows in block order with TOTAL last, 
   expect(lines[3]).toBe('zone,registry_zone,block,cells,bulk (10^6 m3),net (10^6 m3),pore (10^6 m3),hcpv (10^6 m3)');
   expect(lines[4]).toBe('Zone A,A,Block 0,30,1.2000,0.6000,0.1200,0.0900');
   expect(lines[6]).toBe('Zone A,A,TOTAL,50,2.0000,1.0000,0.2000,0.1500');
-  expect(text).toContain('# Zone A phi: block 0 okrige(4w) spherical r900 s0.0025 fitted');
+  expect(text).toContain('# Zone A phi: block 0: ordinary kriging from 4 wells, spherical variogram (range 900 m, sill 0.0025, fitted)');
 });
 
 test('field CSV converts rock and pore columns differently', () => {

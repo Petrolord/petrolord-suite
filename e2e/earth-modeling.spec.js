@@ -268,7 +268,7 @@ test('EM4: ordinary kriging with a fitted variogram populates porosity and offer
   await expect(page.getByTestId('em-map-variance-note')).toBeVisible();
   await expect(page.getByTestId('em-map-canvas')).toBeVisible();
   await page.getByTestId('em-view-qc').click();
-  await expect(page.getByTestId('em-prov-zone-1-phi')).toContainText('okrige(4w) gaussian');
+  await expect(page.getByTestId('em-prov-zone-1-phi')).toContainText('ordinary kriging from 4 wells, gaussian variogram');
   await expect(page.getByTestId('em-prov-zone-1-phi')).toContainText('fitted');
 });
 
@@ -319,4 +319,35 @@ test('EM6: the 3D window draws the framework, orbits, exaggerates, hides a surfa
   await page.getByTestId('em-3d-colorby').click();
   await expect(page.getByTestId('em-3d-colorby')).toHaveText('colour: surface');
   expect(errors).toEqual([]);
+});
+
+test('T1: contacts give gas and oil HCPV and STOIIP; the build names mis-ties and clamps; the depth sign toggles', async ({ page }) => {
+  await stackAndBuild(page);
+  await expect(page.getByTestId('em-status')).toContainText('Clamped nodes are marked on the map');
+  await expect(page.getByTestId('em-status')).toContainText(/well ties? miss by more than/);
+  await page.getByTestId('em-view-qc').click();
+  await expect(page.getByTestId('em-nocontact-zone-1')).toContainText('No OWC given');
+  // an OWC and Bo on zone 1 (feet, the account unit)
+  await page.getByTestId('em-owc-0').fill('5050');
+  await page.getByTestId('em-bo-0').fill('1.25');
+  await page.getByTestId('em-build').click();
+  await expect(page.getByTestId('em-status')).toContainText('Built');
+  await page.getByTestId('em-view-qc').click();
+  await expect(page.getByTestId('em-nocontact-zone-1')).toHaveCount(0);
+  await expect(page.getByTestId('em-vol-unit-stoiip')).toBeVisible();
+  await expect(page.getByTestId('em-vol-zone-1-total-stoiip')).not.toHaveText('—');
+  // a bad Bo is refused plainly
+  await page.getByTestId('em-bo-0').fill('0');
+  await page.getByTestId('em-build').click();
+  await expect(page.getByTestId('em-status')).toContainText('Bo must be greater than zero');
+  // readable provenance
+  await page.getByTestId('em-bo-0').fill('1.25');
+  await page.getByTestId('em-build').click();
+  await page.getByTestId('em-view-qc').click();
+  await expect(page.getByTestId('em-prov-zone-1-phi')).toContainText('from 4 wells');
+  // depth sign shared with Mapping
+  await expect(page.getByTestId('em-depth-sign')).toHaveText('depth +');
+  await page.getByTestId('em-depth-sign').click();
+  await expect(page.getByTestId('em-depth-sign')).toHaveText('elevation');
+  expect(await page.evaluate(() => localStorage.getItem('mapping.depthPositive'))).toBe('0');
 });

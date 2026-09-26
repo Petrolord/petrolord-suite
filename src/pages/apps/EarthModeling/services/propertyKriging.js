@@ -86,9 +86,17 @@ export function populateZonePropertyOk(spec, labels, pointsByBlock, allPoints, k
 }
 
 /** One line per block for the QC panel. */
+export const METHOD_WORDS = Object.freeze({
+  constant: 'constant (weighted mean)', trend: 'trend (plane)', krige: 'simple kriging', okrige: 'ordinary kriging', none: 'no value',
+});
+
+/** Plain words for a property's population provenance (T1 EM-T1-007). */
 export function describeProvenance(rows) {
   return rows.map((r) => {
-    const vg = r.variogram ? ` ${r.variogram.model} r${Math.round(r.variogram.range)} s${r.variogram.sill.toFixed(4)}${r.variogram.fitted ? ' fitted' : ''}` : '';
-    return `block ${r.block} ${r.methodUsed}(${r.wells}w)${vg}${r.fellBack ? ' FELL BACK' : ''}${r.note ? `: ${r.note}` : ''}`;
-  }).join(', ');
+    const vg = r.variogram
+      ? `, ${r.variogram.model} variogram (range ${Math.round(r.variogram.range)} m, sill ${r.variogram.sill.toFixed(4)}${r.variogram.fitted ? ', fitted' : ''})`
+      : '';
+    const well = `${r.wells} well${r.wells === 1 ? '' : 's'}`;
+    return `block ${r.block}: ${METHOD_WORDS[r.methodUsed] || r.methodUsed} from ${well}${vg}${r.fellBack ? ', fell back' : ''}${r.note ? ` (${r.note})` : ''}`;
+  }).join('; ');
 }

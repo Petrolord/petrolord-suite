@@ -7,6 +7,7 @@
 import React from 'react';
 import { fmtVolume, volumeUnitLabel, fmtDepth } from '../services/units';
 import { describeProvenance } from '../services/propertyKriging';
+import { hasFluids } from '../services/modelBuild';
 
 const th = 'px-2 py-1 text-left text-[10px] uppercase tracking-wider text-slate-500 font-medium';
 const td = 'px-2 py-1 text-xs text-slate-300 whitespace-nowrap';
@@ -117,11 +118,23 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
           <div className="px-2 py-1.5 text-xs font-semibold text-slate-200 border-b border-slate-800">
             {zone.name}: volumes and population provenance
           </div>
+          {!hasFluids(zone.fluids) && (
+            <div className="px-2 py-1 text-[11px] text-amber-300 border-b border-slate-800/60" data-testid={`em-nocontact-${zone.name.replace(/\s+/g, '-').toLowerCase()}`}>
+              No OWC given: the whole zone counts as hydrocarbon. Enter the contacts in the dock for a true HCPV.
+            </div>
+          )}
           <table className="w-full">
             <thead>
               <tr>
                 <th className={th}>Block</th><th className={th}>Cells</th><th className={th} data-testid="em-vol-unit-bulk">Bulk ({vu('bulk_m3')})</th>
                 <th className={th}>Net ({vu('net_m3')})</th><th className={th}>Pore ({vu('pore_m3')})</th><th className={th} data-testid="em-vol-unit-hcpv">HCPV ({vu('hcpv_m3')})</th>
+                {hasFluids(zone.fluids) && (
+                  <>
+                    <th className={th}>Gas HCPV ({vu('gas_hcpv_m3')})</th><th className={th}>Oil HCPV ({vu('oil_hcpv_m3')})</th>
+                    {zone.fluids?.bo != null && <th className={th} data-testid="em-vol-unit-stoiip">STOIIP ({vu('stoiip_m3')})</th>}
+                    {zone.fluids?.bg != null && <th className={th} data-testid="em-vol-unit-giip">GIIP ({vu('giip_m3')})</th>}
+                  </>
+                )}
               </tr>
             </thead>
             <tbody data-testid={`em-vol-${zone.name.replace(/\s+/g, '-').toLowerCase()}`}>
@@ -133,14 +146,29 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
                   <td className={td}>{fmtVolume(zone.volumes[k].net_m3, 'net_m3', volumeUnits)}</td>
                   <td className={td}>{fmtVolume(zone.volumes[k].pore_m3, 'pore_m3', volumeUnits)}</td>
                   <td className={td} data-testid={`em-vol-${zone.name.replace(/\s+/g, '-').toLowerCase()}-${k}-hcpv`}>{fmtVolume(zone.volumes[k].hcpv_m3, 'hcpv_m3', volumeUnits)}</td>
+                  {hasFluids(zone.fluids) && (
+                    <>
+                      <td className={td}>{fmtVolume(zone.volumes[k].gas_hcpv_m3, 'gas_hcpv_m3', volumeUnits)}</td>
+                      <td className={td}>{fmtVolume(zone.volumes[k].oil_hcpv_m3, 'oil_hcpv_m3', volumeUnits)}</td>
+                      {zone.fluids?.bo != null && <td className={td} data-testid={`em-vol-${zone.name.replace(/\s+/g, '-').toLowerCase()}-${k}-stoiip`}>{fmtVolume(zone.volumes[k].stoiip_m3, 'stoiip_m3', volumeUnits)}</td>}
+                      {zone.fluids?.bg != null && <td className={td} data-testid={`em-vol-${zone.name.replace(/\s+/g, '-').toLowerCase()}-${k}-giip`}>{fmtVolume(zone.volumes[k].giip_m3, 'giip_m3', volumeUnits)}</td>}
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
+          {zone.range && (
+            <div className="px-2 py-1 text-[11px] text-slate-300 border-t border-slate-800/60" data-testid={`em-range-${zone.name.replace(/\s+/g, '-').toLowerCase()}`}>
+              Property range from the kriging variance (fully correlated): HCPV P90 {fmtVolume(zone.range.p90.hcpv_m3, 'hcpv_m3', volumeUnits)},
+              P50 {fmtVolume(zone.range.p50.hcpv_m3, 'hcpv_m3', volumeUnits)}, P10 {fmtVolume(zone.range.p10.hcpv_m3, 'hcpv_m3', volumeUnits)} {vu('hcpv_m3')}
+              {zone.range.p50.stoiip_m3 != null && <>; STOIIP P90 {fmtVolume(zone.range.p90.stoiip_m3, 'stoiip_m3', volumeUnits)}, P50 {fmtVolume(zone.range.p50.stoiip_m3, 'stoiip_m3', volumeUnits)}, P10 {fmtVolume(zone.range.p10.stoiip_m3, 'stoiip_m3', volumeUnits)} {vu('stoiip_m3')}</>}
+            </div>
+          )}
           <div className="px-2 py-1.5 text-[11px] text-slate-500 border-t border-slate-800/60">
             {Object.entries(zone.provenance).map(([prop, rows]) => (
-              <span key={prop} className="mr-3" data-testid={`em-prov-${zone.name.replace(/\s+/g, '-').toLowerCase()}-${prop}`}>
-                {prop}: {describeProvenance(rows)}
+              <span key={prop} className={`block ${rows.some((r) => r.fellBack) ? 'text-amber-300' : ''}`} data-testid={`em-prov-${zone.name.replace(/\s+/g, '-').toLowerCase()}-${prop}`}>
+                <span className="text-slate-400">{prop}:</span> {describeProvenance(rows)}
               </span>
             ))}
           </div>
