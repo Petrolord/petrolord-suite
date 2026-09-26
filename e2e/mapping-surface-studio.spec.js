@@ -467,3 +467,46 @@ test('T1: an MD map is published as an attribute, never as an elevation surface'
   const row = page.locator('[data-testid="map-surface-row"][data-surface-name="Top Dome MD (measured depth, m)"]');
   await expect(row).toContainText('attr');
 });
+
+test('T1 batch B: spline in tension, a map past the wells with its hull drawn, residuals, kriging refuses to extrapolate', async ({ page }) => {
+  await page.goto('/dev/mapping-surface-studio');
+  await page.getByTestId('map-source').selectOption('top:Top Dome');
+  await page.getByTestId('map-grid-method').selectOption('tension');
+  await expect(page.getByTestId('map-tension')).toBeVisible();
+  await page.getByTestId('map-tension-level').selectOption('0.75');
+  await page.getByTestId('map-grid-run').click();
+  await expect(page.getByTestId('map-status')).toContainText('spline in tension 0.75');
+  // the residual table: a spline honours every well
+  await expect(page.getByTestId('map-residuals')).toContainText('Map against the wells');
+  await expect(page.getByTestId('map-residual-stats')).toContainText('5 wells');
+  // past the wells by 800 m: more live nodes, the hull drawn
+  await page.getByTestId('map-extent').selectOption('beyond');
+  await page.getByTestId('map-extent-distance').fill('800');
+  await page.getByTestId('map-grid-run').click();
+  await expect(page.getByTestId('map-status')).toContainText('mapped 800 m beyond the wells');
+  // kriging maps inside the wells only, and says so
+  await page.getByTestId('map-grid-method').selectOption('kriging');
+  await page.getByTestId('map-grid-run').click();
+  await expect(page.getByTestId('map-status')).toContainText('Kriging maps inside the wells in this version');
+});
+
+test('T1 batch B: depth conversion with average velocity from the wells, and a linear model corrected to the top', async ({ page }) => {
+  await page.goto('/dev/mapping-surface-studio');
+  await page.locator('[data-testid="map-surface-row"][data-surface-name="Dome TWT"]').click();
+  await expect(page.getByTestId('map-td-method')).toBeVisible();
+  await page.getByTestId('map-td-method').selectOption('wells');
+  await page.getByTestId('map-td-top').selectOption('Top Dome');
+  await page.getByTestId('map-td-run').click();
+  await expect(page.getByTestId('map-status')).toContainText(/Converted Dome TWT with average velocity from \d wells on Top Dome/);
+  await expect(page.getByTestId('map-residuals')).toContainText('Depth map against Top Dome');
+  await page.getByTestId('map-publish').click();
+  await expect(page.getByTestId('map-status')).toContainText('Published Dome TWT depth (well velocity)');
+  // a linear model, corrected to the top
+  await page.locator('[data-testid="map-surface-row"][data-surface-name="Dome TWT"]').click();
+  await page.getByTestId('map-td-method').selectOption('linear');
+  await page.getByTestId('map-td-model').selectOption({ index: 1 });
+  await page.getByTestId('map-td-top').selectOption('Top Dome');
+  await page.getByTestId('map-td-correct').check();
+  await page.getByTestId('map-td-run').click();
+  await expect(page.getByTestId('map-status')).toContainText('then corrected to Top Dome: RMS mis-tie');
+});

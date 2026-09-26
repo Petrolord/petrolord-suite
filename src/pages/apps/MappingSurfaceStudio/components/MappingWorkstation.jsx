@@ -36,6 +36,10 @@ import {
 } from '../services/surfaceExport';
 import { gridSurface, gridSurfaceBlocked, mergeCloseControls } from '@/lib/gridding/gridding';
 import { krigeSurface } from '@/lib/gridding/kriging';
+import { gridTensionSpline } from '@/lib/gridding/tensionSpline';
+import { extentMask } from '../services/extent';
+import { convertWithWellVelocity, correctToWells, wellDepthsForTop, mapResiduals, residualStats } from '../services/wellTieDepth';
+import ResidualTable from './ResidualTable';
 import { GRID_METHODS, fitVariogramFromPoints, krigingOptions, describeVariogram } from '../services/krigingPlan';
 import {
   polygonPayload, blocksForPoints, nodeBlocksFor, ringOf, isPolygonLayer, POLYGON_KINDS, POLYGON_KIND_LABEL, STRAT_POLYGON_KINDS,
@@ -109,6 +113,15 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
   const [gridMethod, setGridMethod] = useState('tps');
   const [variogram, setVariogram] = useState({ model: 'spherical', range: '', sill: '', nugget: '0', detrend: true });
   const [showVariance, setShowVariance] = useState(false);
+  // T1 batch B: spline in tension settings, how far the map reaches, the
+  // wells' hull drawn when the map goes past it, and the tie residuals
+  const [tensionOpts, setTensionOpts] = useState({ tension: 0.5, smoothing: 0 });
+  const [extent, setExtent] = useState({ mode: 'hull', distance: '1000' });
+  const [hullOverlay, setHullOverlay] = useState(null);
+  const [residuals, setResiduals] = useState(null); // {title, rows, stats}
+  const [tdMethod, setTdMethod] = useState('linear');
+  const [tdTop, setTdTop] = useState('');
+  const [tdCorrect, setTdCorrect] = useState(false);
   const [gridding, setGridding] = useState(false);
   const [isoPair, setIsoPair] = useState({ a: '', b: '' });
   const [status, setStatus] = useState('Ready.');
@@ -391,7 +404,14 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
       const merge = mergeCloseControls([...result.points, ...guides], cell / 2);
       const points = merge.points;
       if (points.length < 3) throw new Error('Need at least 3 control points: this source has too few wells.');
-      const spec = specForPoints(points, cell, 2);
+      // T1 (MAP-T1-007): the map may reach past the outermost wells
+      const beyond = extent.mode === 'beyond' ? Number(extent.distance) : 0;
+      if (extent.mode === 'beyond' && !(beyond > 0)) throw new Error('Type how far past the wells to map, in metres.');
+      const spec = specForPoints(points, cell, 2 + (beyond > 0 ? Math.ceil(beyond / cell) : 0));
+      // Even "inside the wells" a map reaches a cell and a half past their
+      // hull, so the outermost wells sit inside the map instead of on its
+      // ragged null edge (T1: they read no residual and looked unmapped)
+      const reachM = beyond > 0 ? beyond : 1.5 * cell;
       if (spec.nx * spec.ny > 4_000_000) throw new Error('Grid too large: increase the cell size.');
       // Fault-block polygons (MS3): the surface is gridded independently
       // inside and outside each polygon, so a throw shows as a step at
@@ -407,6 +427,7 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
         // MS5: ordinary kriging with the dock's variogram; fault blocks
         // stay a thin-plate spline feature in v1
         if (rings.length) throw new Error('Kriging grids without fault blocks in this version. Untick the fault polygons or grid with the thin-plate spline.');
+        if (beyond > 0) throw new Error('Kriging maps inside the wells in this version. Map beyond them with the thin-plate spline or the spline in tension.');
         let v = variogram;
         if (!(Number(v.range) > 0) || !(Number(v.sill) > 0)) {
           const fit = fitVariogramFromPoints(points, { model: v.model, nugget: Number(v.nugget || 0) });
@@ -415,11 +436,21 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
         }
         kriged = krigingOptions(v);
         g = krigeSurface(points, spec, { ...kriged, maxExtrapolation: 1e9 });
+      } else if (gridMethod === 'tension') {
+        if (rings.length) throw new Error('The spline in tension grids without fault blocks in this version. Untick the fault polygons or grid with the thin-plate spline.');
+        g = gridTensionSpline(points, spec, { tension: tensionOpts.tension, smoothing: tensionOpts.smoothing, mask: 'none' });
       } else if (rings.length) {
         g = gridSurfaceBlocked(blocksForPoints(points, rings), spec, { nodeBlocks: nodeBlocksFor(spec, rings), maxExtrapolation: 1e9 });
       } else {
-        g = gridSurface(points, spec, { maxExtrapolation: 1e9 });
+        g = gridSurface(points, spec, { maxExtrapolation: 1e9, mask: 'none' });
       }
+      let reach = null;
+      if (!kriged && !rings.length) {
+        const em = extentMask(g.z, spec, points, reachM);
+        g = { ...g, z: em.z };
+        if (beyond > 0) reach = em;
+      }
+      setHullOverlay(reach ? reach.ring : null);
       const boundary = boundaryRows.find((r) => r.id === clipBoundaryId) || null;
       let z = g.z;
       if (boundary) z = maskOutsidePolygon(z, spec, await ringFor(boundary));
@@ -436,7 +467,9 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
         spec, grid: g.z, name, kind, crs, zDomain, variance: g.variance || null,
         provenance: {
           source: src, engine: 'mapping-surface-studio', cell_m: cell,
-          method: kriged ? 'kriging' : (rings.length ? 'tps-blocked' : 'tps'),
+          method: kriged ? 'kriging' : gridMethod === 'tension' ? 'tension' : (rings.length ? 'tps-blocked' : 'tps'),
+          tension: gridMethod === 'tension' ? { ...tensionOpts, p: g.p ?? null } : null,
+          extent: beyond > 0 ? { beyond_m: beyond } : null,
           variogram: kriged ? { model: kriged.model, range_m: kriged.range, sill: kriged.sill, nugget: kriged.nugget, detrend: kriged.detrend, neighbourhood: g.neighbourhood } : null,
           control_points: points.length,
           points: points.map((p) => ({ well: p.well, x: p.x, y: p.y, z: p.z, md: p.md ?? null, extrapolated: !!p.extrapolated })),
@@ -450,6 +483,12 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
         },
       });
       setPosted(postedNow);
+      // E5: how well the map honours each well (the unmerged, un-guided picks)
+      if (kind === 'structure') {
+        const tieWells = result.points.map((p) => ({ well: p.well, x: p.x, y: p.y, depthM: -p.z }));
+        const rows = mapResiduals(tieWells, g.z, spec);
+        setResiduals({ title: 'Map against the wells', rows, stats: residualStats(rows) });
+      } else setResiduals(null);
       setDisplaySurface({ origin_x: spec.x0, origin_y: spec.y0, nx: spec.nx, ny: spec.ny, dx: spec.dx, dy: spec.dy, name, kind, z_domain: zDomain, crs });
       setDisplayGrid(g.z);
       setSelectedId(null);
@@ -459,10 +498,12 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
         faults.length ? `${faults.length} fault-block polygon${faults.length === 1 ? '' : 's'}` : null,
         g.skippedBlocks ? `${g.skippedBlocks} block${g.skippedBlocks === 1 ? '' : 's'} with fewer than 3 control points left empty` : null,
         boundary ? `clipped to ${boundary.name}` : null,
+        gridMethod === 'tension' && !kriged ? `spline in tension ${tensionOpts.tension}${tensionOpts.smoothing ? `, smoothing ${tensionOpts.smoothing}` : ''}` : null,
+        reach ? `mapped ${beyond} m beyond the wells (${reach.extrapolatedNodes} extrapolated nodes; the dashed line is the wells' hull)` : null,
         guides.length ? `${guides.length} guide point${guides.length === 1 ? '' : 's'}` : null,
         ...merge.merged.map((m) => `${m.wells.join(' + ')} merged into one control point${kind === 'structure' || kind === 'isochore' ? ` (${fmtZ(m.spreadZ, { kind: 'isochore', z_domain: 'depth' })} apart)` : ''}`),
       ].filter(Boolean);
-      setStatus(`${opts.prefix || ''}${describeGridResult({ name, result: { ...result, points }, spec, depthUnit, method: kriged ? 'kriging' : 'tps' })}${extras.length ? ` With ${extras.join(', ')}.` : ''}`);
+      setStatus(`${opts.prefix || ''}${describeGridResult({ name, result: { ...result, points }, spec, depthUnit, method: kriged ? 'kriging' : gridMethod === 'tension' ? 'tension' : 'tps' })}${extras.length ? ` With ${extras.join(', ')}.` : ''}`);
     } catch (e) {
       setStatus(/singular/.test(e.message)
         ? `${e.message} Check for wells in a straight line, or wells at one location with different values.`
@@ -475,6 +516,8 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
   const selectSurface = async (id) => {
     setSelectedId(id);
     setPreview(null);
+    setResiduals(null);
+    setHullOverlay(null);
     setReplaceId(null);
     const s = surfaces.find((x) => x.id === id);
     if (!s) return;
@@ -640,27 +683,63 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
   const runTimeDepth = async () => {
     const src = displaySurface;
     if (!src || src.z_domain !== 'time' || !displayGrid) { setStatus('Select a time (TWT) surface to convert.'); return; }
+    const spec = specOfSurface(src);
+    const tieWells = tdTop ? wellDepthsForTop(wells || [], tdTop).wells : [];
+    // T1 (MAP-T1-009): average velocity from the wells, the routine method
+    if (tdMethod === 'wells') {
+      if (!tdTop) { setStatus('Pick the top that this time horizon marks.'); return; }
+      try {
+        const r = convertWithWellVelocity({ twtMs: displayGrid, spec, wells: tieWells });
+        const name = `${src.name} depth (well velocity)`;
+        setPreview({
+          spec, grid: Float32Array.from(r.zM), name, kind: 'structure', zDomain: 'depth', zUnit: 'm', crs: src.crs || null,
+          provenance: {
+            engine: 'mapping-surface-studio', z_convention: 'elevation',
+            time_depth: { method: 'average_velocity_from_wells', top: tdTop, wells: r.ties.map((t) => ({ well: t.well, twt_ms: t.twtMs, vavg_mps: t.vavg })), source_surface: src.id, converted_at: new Date().toISOString() },
+          },
+        });
+        setDisplaySurface({ ...spec, origin_x: spec.x0, origin_y: spec.y0, name, kind: 'structure', z_domain: 'depth', z_unit: 'm', crs: src.crs || null });
+        setDisplayGrid(Float32Array.from(r.zM));
+        setSelectedId(null);
+        setPosted(Object.fromEntries(tieWells.map((w) => [w.well, { z: -w.depthM, x: w.x, y: w.y }])));
+        setResiduals({ title: `Depth map against ${tdTop}`, rows: r.residuals, stats: r.stats });
+        const vfmt = (v) => `${Math.round(v).toLocaleString()} m/s`;
+        setStatus(`Converted ${src.name} with average velocity from ${r.ties.length} wells on ${tdTop} (${vfmt(r.vRange[0])} to ${vfmt(r.vRange[1])})${r.skipped.length ? `; ${r.skipped.length} well${r.skipped.length === 1 ? '' : 's'} skipped (${r.skipped.map((k) => k.well).join(', ')})` : ''}: review, then Publish.`);
+      } catch (e) { setStatus(e.message); }
+      return;
+    }
     const entry = velocityModels.find((m) => m.id === tdModelId);
     if (!entry) { setStatus('Pick a velocity model.'); return; }
     const { model, reason } = usableModel(entry);
     if (!model) { setStatus(reason); return; }
     try {
-      const z = twtGridToElevation(displayGrid, model, { unit: tdUnit });
-      const spec = specOfSurface(src);
+      let zM = twtGridToElevation(displayGrid, model, { unit: 'm' });
+      let corr = null;
+      if (tdCorrect && tdTop) {
+        corr = correctToWells({ zM, spec, wells: tieWells });
+        zM = corr.zM;
+      }
+      const z = tdUnit === 'ft' ? Float32Array.from(zM, (v) => (Math.abs(v) >= 1e29 ? v : v / 0.3048)) : Float32Array.from(zM);
       const name = `${src.name} depth (${tdUnit})`;
       setPreview({
         spec, grid: z, name, kind: 'structure', zDomain: 'depth', zUnit: tdUnit, crs: src.crs || null,
         provenance: {
           engine: 'mapping-surface-studio', z_convention: 'elevation',
-          time_depth: { volume: { id: entry.id, name: entry.name }, model: { v0: model.v0, k: model.k }, unit: tdUnit, source_surface: src.id, converted_at: new Date().toISOString() },
+          time_depth: { volume: { id: entry.id, name: entry.name }, model: { v0: model.v0, k: model.k }, unit: tdUnit, source_surface: src.id, converted_at: new Date().toISOString(),
+            ...(corr ? { corrected_to: tdTop, radius_m: corr.radius, rms_before_m: corr.before.rms, rms_after_m: corr.after.rms } : {}) },
         },
       });
       setDisplaySurface({ ...spec, origin_x: spec.x0, origin_y: spec.y0, name, kind: 'structure', z_domain: 'depth', z_unit: tdUnit, crs: src.crs || null });
-      // the workstation holds metres; the preview grid is in tdUnit
-      setDisplayGrid(tdUnit === 'ft' ? Float32Array.from(z, (v) => (Math.abs(v) >= 1e29 ? v : v * 0.3048)) : z);
+      // the workstation holds metres
+      setDisplayGrid(Float32Array.from(zM));
       setSelectedId(null);
-      setPosted(null);
-      setStatus(`Converted ${src.name} to depth with ${describeVelocity(model)} (${tdUnit}, elevation): review, then Publish.`);
+      setPosted(tieWells.length ? Object.fromEntries(tieWells.map((w) => [w.well, { z: -w.depthM, x: w.x, y: w.y }])) : null);
+      if (tieWells.length) {
+        const rows = corr ? corr.residuals : mapResiduals(tieWells, zM, spec);
+        setResiduals({ title: `Depth map against ${tdTop}`, rows, stats: residualStats(rows) });
+      } else setResiduals(null);
+      const fmtM = (v) => (v == null ? 'n/a' : fmtZ(v, { kind: 'isochore', z_domain: 'depth' }));
+      setStatus(`Converted ${src.name} to depth with ${describeVelocity(model)} (${tdUnit}, elevation)${corr ? `, then corrected to ${tdTop}: RMS mis-tie ${fmtM(corr.before.rms)} before, ${fmtM(corr.after.rms)} after` : ''}: review, then Publish.`);
     } catch (e) { setStatus(e.message); }
   };
 
@@ -729,10 +808,11 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
       setStatus(`Showing ${preview.name}.`);
     }
   };
-  const editOverlays = contourDrag ? [
+  const hullLine = hullOverlay && hullOverlay.length > 2 ? [{ points: [...hullOverlay, hullOverlay[0]].flatMap((q) => [q.x, q.y]), color: 'rgba(148, 163, 184, 0.9)', width: 1.2, dash: [6, 4] }] : [];
+  const editOverlays = contourDrag ? [...hullLine,
     { points: contourDrag.path, color: 'rgba(244, 114, 182, 0.5)', width: 1.5, dash: [4, 3] },
     { points: translatePath(contourDrag.path, contourDrag.to.x - contourDrag.from.x, contourDrag.to.y - contourDrag.from.y), color: '#f472b6', width: 2.5 },
-  ] : [];
+  ] : hullLine;
   const onMapClick = ({ x, y }) => {
     if (drawMode === 'guide') { setGuideAt({ x, y }); return; }
     if (drawMode === 'grvpick') {
@@ -983,6 +1063,10 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
           gridMethod={gridMethod}
           onGridMethod={setGridMethod}
           variogram={variogram}
+          tensionOpts={tensionOpts}
+          onTensionOpts={setTensionOpts}
+          extent={extent}
+          onExtent={setExtent}
           onVariogram={setVariogram}
           onFitVariogram={fitVariogramFromWells}
           variance={preview?.variance ? { shown: showVariance, onToggle: toggleVariance } : null}
@@ -1189,20 +1273,39 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
             {displaySurface?.z_domain === 'time' && (
               <>
                 <div className="pt-2 border-t border-slate-800/60 text-[10px] uppercase tracking-wider text-slate-500 flex items-center gap-1"><Clock className="w-3 h-3" /> Time to depth</div>
-                <select className={selCls} value={tdModelId} data-testid="map-td-model" onChange={(e) => setTdModelId(e.target.value)}>
-                  <option value="">velocity model (Seismolord volume)…</option>
-                  {velocityModels.map((m) => <option key={m.id} value={m.id}>{m.name}{m.kind === 'layercake' ? ' (layer cake)' : ''}</option>)}
+                <select className={selCls} value={tdMethod} data-testid="map-td-method" onChange={(e) => setTdMethod(e.target.value)}>
+                  <option value="linear">Linear V(z) from a Seismolord velocity model</option>
+                  <option value="wells">Average velocity from the wells</option>
                 </select>
-                <div className="flex gap-1">
-                  <select className={`${selCls} flex-1`} value={tdUnit} data-testid="map-td-unit" onChange={(e) => setTdUnit(e.target.value)}>
-                    <option value="ft">depth in feet</option>
-                    <option value="m">depth in metres</option>
-                  </select>
-                  <button type="button" data-testid="map-td-run" disabled={!tdModelId} className="px-2 py-1 rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-40" onClick={runTimeDepth}>Convert</button>
-                </div>
-                <p className="text-[10px] text-slate-600">V(z) = v0 + k·z from the volume's velocity model; the result is elevation, negative below datum. Layer cakes convert in Seismolord.</p>
+                <select className={selCls} value={tdTop} data-testid="map-td-top" onChange={(e) => setTdTop(e.target.value)}
+                  title="The well top this time horizon marks">
+                  <option value="">{tdMethod === 'wells' ? 'top this horizon marks…' : 'tie to a top (optional)…'}</option>
+                  {topNames.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+                {tdMethod === 'linear' && (
+                  <>
+                    <select className={selCls} value={tdModelId} data-testid="map-td-model" onChange={(e) => setTdModelId(e.target.value)}>
+                      <option value="">velocity model (Seismolord volume)…</option>
+                      {velocityModels.map((m) => <option key={m.id} value={m.id}>{m.name}{m.kind === 'layercake' ? ' (layer cake)' : ''}</option>)}
+                    </select>
+                    <select className={selCls} value={tdUnit} data-testid="map-td-unit" onChange={(e) => setTdUnit(e.target.value)}>
+                      <option value="ft">depth in feet</option>
+                      <option value="m">depth in metres</option>
+                    </select>
+                    <label className="flex items-center gap-1.5 text-slate-300 text-[11px]" title="Spread the mis-ties at the wells over the map (Franke-Little field, radius three well spacings)">
+                      <input type="checkbox" data-testid="map-td-correct" checked={tdCorrect} disabled={!tdTop} onChange={(e) => setTdCorrect(e.target.checked)} /> correct the map to the top
+                    </label>
+                  </>
+                )}
+                <button type="button" data-testid="map-td-run" disabled={tdMethod === 'linear' ? !tdModelId : !tdTop}
+                  className="w-full px-2 py-1 rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-40" onClick={runTimeDepth}>Convert</button>
+                <p className="text-[10px] text-slate-600">{tdMethod === 'wells'
+                  ? 'Average velocity (depth over one-way time) at each well carrying the top, gridded over the horizon; the map honours every well.'
+                  : "V(z) = v0 + k·z from the volume's velocity model; the result is elevation, negative below datum. Layer cakes convert in Seismolord."}</p>
               </>
             )}
+
+            {residuals && <ResidualTable title={residuals.title} rows={residuals.rows} stats={residuals.stats} fmt={(m) => fmtZ(m, { kind: 'structure', z_domain: 'depth' })} fmtLen={(m) => fmtZ(m, { kind: 'isochore', z_domain: 'depth' })} />}
 
             <div className="pt-2 border-t border-slate-800/60">
               <div className="text-[10px] uppercase tracking-wider text-slate-500 flex items-center gap-1 mb-1">

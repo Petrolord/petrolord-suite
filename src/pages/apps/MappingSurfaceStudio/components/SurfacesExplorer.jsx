@@ -24,7 +24,8 @@ import {
 import { Link } from 'react-router-dom';
 import { normalizeTag, isTransformableTag } from '@/lib/crs/tags';
 import { EXPORT_FORMATS, describeSurface, isLengthSurface } from '../services/surfaceExport';
-import { GRID_METHODS, VARIOGRAM_MODELS } from '../services/krigingPlan';
+import { GRID_METHODS, VARIOGRAM_MODELS, TENSION_LEVELS, SMOOTHING_LEVELS } from '../services/krigingPlan';
+import { EXTENT_MODES } from '../services/extent';
 import { OpenInAppSubmenu } from '@/components/wells/OpenInAppMenu';
 import { appPath, earthModelingSurfaceHref, MAPPING_ID } from '@/components/wells/appLinks';
 
@@ -169,6 +170,7 @@ export default function SurfacesExplorer({
   topNames, zoneNames = [], zoneKeys, source, onSource,
   depthRef = 'tvdss', onDepthRef, cellM, onCellM, onGrid, gridding,
   gridMethod = 'tps', onGridMethod, variogram, onVariogram, onFitVariogram, variance = null,
+  tensionOpts = null, onTensionOpts, extent = null, onExtent,
   onImport, onExport, onPointsCsv, onRename, onRegrid, replaceId = null, appPaths = {}, wells = [],
   environmentRows = [],
 }) {
@@ -282,6 +284,33 @@ export default function SurfacesExplorer({
               <label className="flex items-center gap-1 text-[10px] text-slate-400" title="Show the kriging variance instead of the surface">
                 <input type="checkbox" data-testid="map-vg-variance" checked={variance.shown} onChange={(e) => variance.onToggle(e.target.checked)} /> show the variance map
               </label>
+            )}
+          </div>
+        )}
+        {gridMethod === 'tension' && tensionOpts && (
+          <div className="flex gap-1" data-testid="map-tension">
+            <select className={`${selCls} flex-1`} value={tensionOpts.tension} data-testid="map-tension-level"
+              title="Tension flattens the map away from the wells: no overshoot between close wells, no runaway beyond them"
+              onChange={(e) => onTensionOpts({ ...tensionOpts, tension: Number(e.target.value) })}>
+              {TENSION_LEVELS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+            <select className={`${selCls} flex-1`} value={tensionOpts.smoothing} data-testid="map-smoothing"
+              title="Smoothing lets the map miss noisy well values instead of bending through each one"
+              onChange={(e) => onTensionOpts({ ...tensionOpts, smoothing: Number(e.target.value) })}>
+              {SMOOTHING_LEVELS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+          </div>
+        )}
+        {extent && (
+          <div className="flex gap-1">
+            <select className={`${selCls} flex-1`} value={extent.mode} data-testid="map-extent"
+              title="Stop the map at the outermost wells, or extend it past them to see the flanks and the spill"
+              onChange={(e) => onExtent({ ...extent, mode: e.target.value })}>
+              {EXTENT_MODES.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+            </select>
+            {extent.mode === 'beyond' && (
+              <input className={`${selCls} w-20`} value={extent.distance} data-testid="map-extent-distance" placeholder="m"
+                title="Distance past the outermost wells, metres" onChange={(e) => onExtent({ ...extent, distance: e.target.value })} />
             )}
           </div>
         )}
