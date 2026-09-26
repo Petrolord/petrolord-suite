@@ -204,3 +204,33 @@ then passed. Recommend clearing the cache automatically at container start.
 | A, before NAPE | 001, 002, 003, 004, 005, 006, E1, 010, 011, 012, 013 | Removes every wrong-number risk and makes the map presentable |
 | B, before NAPE if time allows | 007, 008, 009 | Benchmark parity a Petrel user will look for (014 withdrawn) |
 | C, after NAPE | 015, 016, 017, 018, E2, E3, E4, E5 | Depth and polish |
+
+## Outcomes (2026-09-26)
+
+All batches (A, B, C) built and merged; owner chose all three.
+
+| Finding | Outcome |
+| --- | --- |
+| 001, 002, E1 | Fixed: one-closure GRV, open flag, spill, merges, others listed, curve |
+| 003 | Fixed: merge within half a cell, wells named |
+| 004 | Fixed: positive contact read as depth |
+| 005 | Fixed: confirm, 10 s undo |
+| 006 | Fixed: MD maps as attributes |
+| 007 | Fixed: map beyond the wells, hull drawn (kriging refuses, stated) |
+| 008 | Fixed as reframed: spline in tension with smoothing |
+| 009 | Fixed: average velocity from wells; linear model corrected to a top |
+| 010, 011, 012, 013 | Fixed: print theme, round ticks, labels, smooth raster and edge, borehole posting, depth-positive toggle |
+| 014 | Withdrawn (false positive) |
+| 015 | Fixed in app; `geo_wells.status` migration HELD for the owner |
+| 016 | Fixed: contours from another surface |
+| 017 | Fixed: preview undo, restore the previous grid |
+| 018 | Fixed: gridding in a worker |
+| E2 | Built: P90/P50/P10 GRV from kriging variance (fully correlated) |
+| E3 | Built: prospect card PNG |
+| E4 | Built: `?sample=1` sample-data mode |
+| E5 | Built: residual table |
+
+Found while fixing: a discrete minimum-curvature solver was prototyped and
+dropped (accurate only at 37 s to 2.5 min per grid); the tension kernel
+needed the opposite smoothing sign; K0 needed a cancellation-free series
+at low tension; hull-masked maps left edge wells off the map.

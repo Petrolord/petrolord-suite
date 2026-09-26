@@ -43,11 +43,11 @@ export function mapPlotPng({
 
     const logo = new Image();
     logo.onload = () => {
-      const h = Math.round(28 * scale);
+      // in the white title band, top right (Mapping T1 MAP-T1-010): over the
+      // map's bottom-right corner it covered the colour bar's CI label
+      const h = Math.round(Math.min(28, (caption ? 48 : 34) - 10) * scale);
       const w = Math.round(h * (logo.naturalWidth / (logo.naturalHeight || 1)));
-      ctx.globalAlpha = 0.7;
-      ctx.drawImage(logo, out.width - w - Math.round(8 * scale), out.height - h - Math.round(8 * scale), w, h);
-      ctx.globalAlpha = 1;
+      ctx.drawImage(logo, out.width - w - Math.round(10 * scale), Math.round((headerH - h) / 2), w, h);
       finish();
     };
     logo.onerror = finish;

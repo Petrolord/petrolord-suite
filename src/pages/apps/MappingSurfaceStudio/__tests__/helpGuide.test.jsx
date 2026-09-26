@@ -36,6 +36,12 @@ describe('MappingHelpGuide', () => {
     expect(text).toMatch(/fewer than three control points/i);
     expect(text).toMatch(/layer-cake model is refused/i);
     expect(text).toMatch(/keeps its id/i);
+    // T1 additions
+    expect(text).toMatch(/ONE closure/);
+    expect(text).toMatch(/only a minimum/);
+    expect(text).toMatch(/Spline in tension/);
+    expect(text).toMatch(/Average velocity from the wells/);
+    expect(text).toMatch(/Restore the previous grid/);
   });
 
   test('copy carries no em dashes (owner rule)', () => {

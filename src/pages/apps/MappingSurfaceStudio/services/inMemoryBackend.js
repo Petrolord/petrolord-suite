@@ -22,12 +22,12 @@ export function buildHoldStations({ kop = 500, rate = 4, hold = 40, td = 3000, a
 
 const KB = 30;
 const SAMPLE_WELLS = [
-  { name: 'KETA-1', x: 501000, y: 6700200, td: 1800, tops: { 'Top Dome': 1500, 'Base Sand': 1660 }, phi: 0.20, ntg: 0.72 },
-  { name: 'KETA-2', x: 502200, y: 6700600, td: 1750, tops: { 'Top Dome': 1560, 'Base Sand': 1705 }, phi: 0.25, ntg: 0.65,
+  { name: 'KETA-1', status: 'oil', x: 501000, y: 6700200, td: 1800, tops: { 'Top Dome': 1500, 'Base Sand': 1660 }, phi: 0.20, ntg: 0.72 },
+  { name: 'KETA-2', status: 'dry', x: 502200, y: 6700600, td: 1750, tops: { 'Top Dome': 1560, 'Base Sand': 1705 }, phi: 0.25, ntg: 0.65,
     deviation: [{ md: 0, inc: 0, azi: 0 }, { md: 1400, inc: 0, azi: 0 }, { md: 1750, inc: 30, azi: 90 }] },
-  { name: 'KETA-3', x: 503500, y: 6700400, td: 1800, tops: { 'Top Dome': 1470, 'Base Sand': 1612 }, phi: 0.30, ntg: 0.80 },
-  { name: 'KETA-4', x: 502000, y: 6699400, td: 1800, tops: { 'Top Dome': 1520, 'Base Sand': 1640 }, phi: 0.22, ntg: 0.70 },
-  { name: 'KETA-5', x: 501200, y: 6699800, td: 3000, tops: { 'Top Dome': 1700, 'Base Sand': 1900 }, phi: 0.18, ntg: 0.60,
+  { name: 'KETA-3', status: 'gas', x: 503500, y: 6700400, td: 1800, tops: { 'Top Dome': 1470, 'Base Sand': 1612 }, phi: 0.30, ntg: 0.80 },
+  { name: 'KETA-4', status: 'oil', x: 502000, y: 6699400, td: 1800, tops: { 'Top Dome': 1520, 'Base Sand': 1640 }, phi: 0.22, ntg: 0.70 },
+  { name: 'KETA-5', status: 'water', x: 501200, y: 6699800, td: 3000, tops: { 'Top Dome': 1700, 'Base Sand': 1900 }, phi: 0.18, ntg: 0.60,
     deviation: buildHoldStations() },
 ];
 
@@ -45,6 +45,7 @@ export function makeInMemoryBackend({ sidetrack = false } = {}) {
     organization_id: null,
     is_own: true,
     name: w.name,
+    status: w.status || null, // T1: map well symbols (geo_wells.status)
     surface_x: w.x,
     surface_y: w.y,
     kb_m: KB,
@@ -65,6 +66,7 @@ export function makeInMemoryBackend({ sidetrack = false } = {}) {
 
   const surfaces = [];
   const gridStore = new Map(); // surface id -> Float32Array
+  const archiveStore = new Map(); // T1: archive path -> replaced Float32Array
   const culture = [];
   const featureStore = new Map(); // culture id -> features
   let depthUnit = null;           // MS5: per-user setting, unset in the harness
@@ -145,6 +147,14 @@ export function makeInMemoryBackend({ sidetrack = false } = {}) {
     async replaceSurfaceGrid(surface, p) {
       const s = ownSurface(surface, 're-grid');
       if (p.grid.length !== p.spec.nx * p.spec.ny) throw new Error('Grid length does not match nx*ny.');
+      // T1: keep the replaced grid, path on the newest history entry
+      const archivePath = `${s.storage_path}.prev-${archiveStore.size + 1}.f32`;
+      archiveStore.set(archivePath, gridStore.get(s.id));
+      if (Array.isArray(p.provenance?.history) && p.provenance.history.length) {
+        const history = p.provenance.history.slice();
+        history[history.length - 1] = { ...history[history.length - 1], archive_path: archivePath };
+        p = { ...p, provenance: { ...p.provenance, history } }; // eslint-disable-line no-param-reassign
+      }
       gridStore.set(s.id, p.grid);
       Object.assign(s, {
         kind: p.kind || s.kind,
@@ -156,6 +166,11 @@ export function makeInMemoryBackend({ sidetrack = false } = {}) {
         updated_at: new Date(2026, 6, 13, 14, 0, seq).toISOString(),
       });
       return { ...s };
+    },
+    async downloadArchivedGrid(path) {
+      const g = archiveStore.get(path);
+      if (!g) throw new Error('Could not download the previous grid: not found.');
+      return g;
     },
     async deleteSurface(surface) {
       ownSurface(surface, 'delete');

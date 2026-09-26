@@ -42,7 +42,7 @@ test('krigingOptions validates the dock fields and describeVariogram words them'
   expect(o).toMatchObject({ model: 'exponential', range: 800, sill: 120.5, nugget: 0, detrend: true, neighbours: 24 });
   expect(() => krigingOptions({ model: 'spherical', range: '', sill: '1' })).toThrow(/range/);
   expect(describeVariogram({ model: 'spherical', range: 800, sill: 120.5, nugget: 10, detrend: true })).toBe('spherical variogram, range 800 m, sill 120.50, nugget 10.00, trend removed');
-  expect(GRID_METHODS.map((m) => m.key)).toEqual(['tps', 'kriging']);
+  expect(GRID_METHODS.map((m) => m.key)).toEqual(['tps', 'kriging', 'tension']);
 });
 
 test('kriging through the Suite shim grids the same mask as the spline and returns a variance grid', () => {

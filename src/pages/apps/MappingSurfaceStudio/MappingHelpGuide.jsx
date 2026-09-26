@@ -150,6 +150,23 @@ export default function MappingHelpGuide() {
           variance map (metres squared), low where the wells constrain it and high where it is guessed; show the
           variance map swaps it onto the map. Kriging grids without fault blocks in this version.
         </Para>
+        <SubHeading>Spline in tension and smoothing</SubHeading>
+        <Para>
+          The thin-plate spline is the minimum-curvature surface. Close wells with slightly different values make it
+          overshoot, and beyond the last well it keeps climbing or falling. Spline in tension adds tension (low,
+          medium or high): the surface flattens away from the wells, so a pilot hole and its sidetrack no longer
+          raise a false crest. Smoothing (light or strong) lets the map miss a noisy value by a little. A plane
+          through the wells is reproduced exactly at any tension. Wells closer than half a cell are merged into one
+          control point at their mean, and the status line names them.
+        </Para>
+        <SubHeading>How far the map reaches</SubHeading>
+        <Para>
+          Map inside the wells keeps the map a cell and a half past the outermost wells, so every well sits inside
+          it. Map beyond the wells by a distance extends it past them to show the flanks and the spill; the wells'
+          outline is drawn dashed so you can tell mapped area from extrapolated area. Kriging maps inside the wells
+          in this version. After every structure grid a table lists each well, the map value at the well and the
+          mis-tie, with the mean, RMS and worst mis-tie.
+        </Para>
 </GuideSection>
 
       <GuideSection id="mapwindow">
@@ -166,6 +183,13 @@ export default function MappingHelpGuide() {
         ]} />
         <Para>
           Display settings are saved with a surface when you publish it and restored when you select it.
+        </Para>
+              <SubHeading>Display options</SubHeading>
+        <Para>
+          The elevation button in the ribbon switches structure maps to positive depth below datum (storage is
+          unchanged). Contours from draws another surface's contours over this one's colours, for example structure
+          over net sand. Wells post the symbol of their status (oil, gas, water, dry, injector, planned), set in
+          Well Data Manager, with a key at the bottom left. PNG exports a white report page.
         </Para>
       </GuideSection>
 
@@ -261,12 +285,18 @@ export default function MappingHelpGuide() {
         </Para>
         <SubHeading>Quick GRV</SubHeading>
         <Para>
-          Type a contact as an elevation in the display unit and press GRV: the gross rock volume of the displayed
-          structure above that contact in acre-feet and cubic metres, with the area above it. It is a read-out on
-          the same routine ReservoirCalc Pro's surface handoff is tested against. ReservoirCalc Pro remains the
-          place for fluids, contacts by zone and uncertainty.
+          Type a contact in the display unit, as an elevation (negative below datum) or as a depth below datum
+          (a positive number above the map is read as a depth, and the read-out says so), and press GRV. The volume
+          belongs to ONE closure: the highest, or the one you click after Pick a closure on the map. The read-out
+          says whether that closure is closed on the map. When it runs off the mapped area the number is only a
+          minimum and is labelled as such. It names the spill point (marked on the map), any neighbouring
+          culmination the closure joins before it spills, and any other closure above the contact that it did not
+          count. The chart below shows area and GRV from the crest down to the spill. With a kriged surface on
+          screen the read-out adds a P90, P50 and P10 range from the kriging variance, treating every node as moving
+          together. Prospect card downloads one page with the map and these numbers. ReservoirCalc Pro remains the
+          place for fluids, contacts by zone and full uncertainty.
         </Para>
-        <Formula>GRV = sum over live nodes of max(0, z − contact) × dx × dy</Formula>
+        <Formula>GRV = sum over the closure's nodes of (z − contact) × dx × dy</Formula>
       </GuideSection>
 
       <GuideSection id="timedepth">
@@ -283,6 +313,14 @@ export default function MappingHelpGuide() {
           boundaries are horizon picks on the seismic lattice: convert that horizon to depth in Seismolord and
           publish it from there.
         </Para>
+        <SubHeading>Average velocity from the wells</SubHeading>
+        <Para>
+          Pick the top this horizon marks. At each well carrying it, the top's depth below datum and the horizon's
+          two-way time give an average velocity; the velocities are gridded over the horizon and depth follows node
+          by node, so the map honours every well. With a linear model instead, tick correct the map to the top to
+          spread the mis-ties at the wells over the map. Both paths show the residual table.
+        </Para>
+        <Formula>Vavg = Z / (TWT / 2), then Z = Vavg × TWT / 2 at every node</Formula>
       </GuideSection>
 
       <GuideSection id="sharing">
@@ -292,7 +330,10 @@ export default function MappingHelpGuide() {
           of your organization. Right-click a surface for Rename (type, Enter) and Re-grid in place: the form is
           set from the surface's recorded source, the row is marked re-gridding, and Publish becomes Replace
           surface. The replaced surface keeps its id, so Earth Modeling stacks and ReservoirCalc Pro imports keep
-          pointing at it; the previous frame is kept in its history.
+          pointing at it; the previous frame is kept in its history, and the grid it replaced is kept too:
+          right-click and Restore the previous grid to put it back. Delete asks first and waits ten seconds with an
+          Undo before the surface leaves the registry. Undo in the ribbon steps back through grid, arithmetic and
+          conversion previews.
         </Para>
       </GuideSection>
 
