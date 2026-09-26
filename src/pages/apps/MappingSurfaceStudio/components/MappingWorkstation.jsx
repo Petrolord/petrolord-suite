@@ -34,14 +34,19 @@ import SurfaceImportDialog from './SurfaceImportDialog';
 import {
   exportSurfaceText, controlPointsCsv, downloadText, specOfSurface, gridInUnit, isLengthSurface,
 } from '../services/surfaceExport';
-import { gridSurface, gridSurfaceBlocked } from '@/lib/gridding/gridding';
+import { gridSurface, gridSurfaceBlocked, mergeCloseControls } from '@/lib/gridding/gridding';
 import { krigeSurface } from '@/lib/gridding/kriging';
 import { GRID_METHODS, fitVariogramFromPoints, krigingOptions, describeVariogram } from '../services/krigingPlan';
 import {
   polygonPayload, blocksForPoints, nodeBlocksFor, ringOf, isPolygonLayer, POLYGON_KINDS, POLYGON_KIND_LABEL, STRAT_POLYGON_KINDS,
 } from '../services/polygonTools';
 import { runArithmetic, ARITH_OPS } from '../services/arithmetic';
-import { quickGrv, describeGrv } from '../services/quickGrv';
+import { quickGrv, describeGrv, interpretContact, nodeAt } from '../services/quickGrv';
+import ClosureCurveChart from './ClosureCurveChart';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { twtGridToElevation, usableModel, describeVelocity } from '../services/timeDepth';
 import {
   topsToControlPoints, zoneAttrToPoints, specForPoints, surfaceStats, maskOutsidePolygon,
@@ -131,6 +136,12 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
   const [arith, setArith] = useState({ op: 'thickness', k: '' });
   const [grvContact, setGrvContact] = useState('');
   const [grvResult, setGrvResult] = useState(null);
+  const [grvData, setGrvData] = useState(null);       // T1: the closure result behind the read-out
+  // T1 (MAP-T1-005): a delete asks first, then waits UNDO_MS before it
+  // reaches the registry, so a slip can be taken back
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null); // {surface, timer}
+  const pendingDeleteRef = useRef(null);
   const [velocityModels, setVelocityModels] = useState([]);
   const [tdModelId, setTdModelId] = useState('');
   const [tdUnit, setTdUnit] = useState('ft');
@@ -336,8 +347,17 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
       let kind;
       if (src.type === 'top') {
         result = topsToControlPoints(sourceWells, src.key, { depthRef, placement: 'borehole' });
-        name = `${src.key} structure`;
-        kind = 'structure';
+        // T1 (MAP-T1-006): an MD map is not a structure map. Its values
+        // are positive measured depths, so publishing it as an elevation
+        // surface made ReservoirCalc Pro and Earth Modeling read it upside
+        // down. It is an attribute (raw metres) and says so in its name.
+        if (depthRef === 'md') {
+          name = `${src.key} MD (measured depth, m)`;
+          kind = 'attribute';
+        } else {
+          name = `${src.key} structure`;
+          kind = 'structure';
+        }
       } else if (src.type === 'net') {
         // ST4: thickness between two tops from the lithology log (measured-depth thickness)
         const r = thicknessPoints(sourceWells, src.upper, src.lower, { intervalsByWell: intervalsByWell(sourceWells), measure: src.measure, codes: src.codes });
@@ -353,7 +373,13 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
       // guide points (MS3) grid with the wells, tagged so the CSV says so
       const guideList = opts.guides || guidePoints;
       const guides = kind === 'structure' ? guideList.map((gp) => ({ x: gp.x, y: gp.y, z: gp.z, well: gp.label, md: null, extrapolated: false, guide: true })) : [];
-      const points = [...result.points, ...guides];
+      // T1 (MAP-T1-003): wells closer than half a cell (a pilot hole and
+      // its sidetrack, a re-entry) become one control point at their mean;
+      // an exact interpolant through two nearly coincident values
+      // overshoots into a bullseye, and through two at the same place it
+      // cannot be solved at all
+      const merge = mergeCloseControls([...result.points, ...guides], cell / 2);
+      const points = merge.points;
       if (points.length < 3) throw new Error('Need at least 3 control points: this source has too few wells.');
       const spec = specForPoints(points, cell, 2);
       if (spec.nx * spec.ny > 4_000_000) throw new Error('Grid too large: increase the cell size.');
@@ -394,7 +420,7 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
       const contributing = (wells || []).filter((w) => points.some((p) => p.well === w.name));
       const crs = consensusTag(contributing.map((w) => w.crs));
       const zDomain = kind === 'attribute' ? 'attribute' : 'depth';   // an isochore is a length in the depth domain
-      const postedNow = Object.fromEntries(points.map((p) => [p.well, { z: p.z, x: p.x, y: p.y }]));
+      const postedNow = Object.fromEntries(points.flatMap((p) => (p.wells || [p.well]).map((w) => [w, { z: p.z, x: p.x, y: p.y }])));
       setShowVariance(false);
       setPreview({
         spec, grid: g.z, name, kind, crs, zDomain, variance: g.variance || null,
@@ -424,10 +450,13 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
         g.skippedBlocks ? `${g.skippedBlocks} block${g.skippedBlocks === 1 ? '' : 's'} with fewer than 3 control points left empty` : null,
         boundary ? `clipped to ${boundary.name}` : null,
         guides.length ? `${guides.length} guide point${guides.length === 1 ? '' : 's'}` : null,
+        ...merge.merged.map((m) => `${m.wells.join(' + ')} merged into one control point${kind === 'structure' || kind === 'isochore' ? ` (${fmtZ(m.spreadZ, { kind: 'isochore', z_domain: 'depth' })} apart)` : ''}`),
       ].filter(Boolean);
       setStatus(`${opts.prefix || ''}${describeGridResult({ name, result: { ...result, points }, spec, depthUnit, method: kriged ? 'kriging' : 'tps' })}${extras.length ? ` With ${extras.join(', ')}.` : ''}`);
     } catch (e) {
-      setStatus(e.message);
+      setStatus(/singular/.test(e.message)
+        ? `${e.message} Check for wells in a straight line, or wells at one location with different values.`
+        : e.message);
     } finally {
       setGridding(false);
     }
@@ -573,21 +602,28 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
     } catch (e) { setStatus(e.message); }
   };
 
-  const runGrv = () => {
+  const runGrv = (seedIndex = null) => {
     if (!displayGrid || !displaySurface || !isLengthSurface(displaySurface) || displaySurface.kind === 'isochore') {
       setStatus('Quick GRV needs a depth structure surface on the map.');
       return;
     }
     try {
       const c = Number(grvContact);
-      if (!Number.isFinite(c)) throw new Error(`Type the contact as an elevation in ${depthUnit} (negative below datum).`);
-      const contactM = fromDisplay(c, depthUnit);
-      const r = quickGrv({ spec: specOfSurface(displaySurface), gridM: displayGrid, contactM });
-      const text = describeGrv(r, { contactLabel: `${c} ${depthUnit}` });
+      if (grvContact === '' || !Number.isFinite(c)) throw new Error(`Type the contact in ${depthUnit}: an elevation (negative below datum) or a depth below datum.`);
+      // T1 (MAP-T1-004): a positive number above the whole map whose
+      // negative lies inside it is a depth below datum, read as such
+      const { contactM, readAsDepth } = interpretContact(fromDisplay(c, depthUnit), displayGrid);
+      const spec = specOfSurface(displaySurface);
+      const r = quickGrv({ spec, gridM: displayGrid, contactM, seedIndex });
+      const zfmt = (m) => `${+toDisplay(m, depthUnit).toFixed(1)} ${depthUnit}`;
+      const text = `${readAsDepth ? `Read ${c} as a depth below datum (elevation ${zfmt(contactM)}). ` : ''}${describeGrv(r, { contactLabel: zfmt(contactM), fmtZ: zfmt })}`;
+      setGrvData(r);
       setGrvResult(text);
       setStatus(text);
     } catch (e) { setStatus(e.message); }
   };
+  // a new map on screen invalidates the last read-out
+  useEffect(() => { setGrvData(null); setGrvResult(null); }, [displayGrid]);
 
   const runTimeDepth = async () => {
     const src = displaySurface;
@@ -687,6 +723,13 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
   ] : [];
   const onMapClick = ({ x, y }) => {
     if (drawMode === 'guide') { setGuideAt({ x, y }); return; }
+    if (drawMode === 'grvpick') {
+      setDrawMode(null);
+      const idx = displaySurface ? nodeAt(specOfSurface(displaySurface), x, y) : -1;
+      if (idx < 0) { setStatus('That point is off the map.'); return; }
+      runGrv(idx);
+      return;
+    }
     if (drawMode) setPending((p) => [...p, [x, y]]);
   };
   const savePolygon = async () => {
@@ -731,9 +774,37 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
     } catch (e) { setStatus(e.message); }
   };
 
-  const del = async (surface) => {
-    try { await backend.deleteSurface(surface); setStatus(`Deleted ${surface.name}.`); if (selectedId === surface.id) { setDisplayGrid(null); setDisplaySurface(null); setPosted(null); } await refresh(); }
+  // T1 (MAP-T1-005): delete asks first, hides the row at once, and only
+  // reaches the registry after UNDO_MS; a second delete flushes the first
+  const UNDO_MS = 10000;
+  const commitDelete = useCallback(async (pd) => {
+    clearTimeout(pd.timer);
+    pendingDeleteRef.current = null;
+    setPendingDelete(null);
+    try { await backend.deleteSurface(pd.surface); setStatus(`Deleted ${pd.surface.name}.`); }
     catch (e) { setStatus(e.message); }
+    await refresh();
+  }, [backend, refresh]);
+  const del = (surface) => setConfirmDelete(surface);
+  const confirmDel = () => {
+    const surface = confirmDelete;
+    setConfirmDelete(null);
+    if (!surface) return;
+    if (pendingDeleteRef.current) commitDelete(pendingDeleteRef.current);
+    if (selectedId === surface.id) { setDisplayGrid(null); setDisplaySurface(null); setPosted(null); setSelectedId(null); }
+    const pd = { surface };
+    pd.timer = setTimeout(() => commitDelete(pd), UNDO_MS);
+    pendingDeleteRef.current = pd;
+    setPendingDelete(pd);
+    setStatus(`Deleting ${surface.name} in ${UNDO_MS / 1000} s. Undo keeps it.`);
+  };
+  const undoDelete = () => {
+    const pd = pendingDeleteRef.current;
+    if (!pd) return;
+    clearTimeout(pd.timer);
+    pendingDeleteRef.current = null;
+    setPendingDelete(null);
+    setStatus(`Kept ${pd.surface.name}.`);
   };
 
   const toggleShare = async (surface) => {
@@ -805,6 +876,12 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
   const statusBar = (
     <div className="flex items-center gap-3 px-3 py-1 bg-slate-900 border-t border-slate-800 text-[11px] text-slate-400">
       <span data-testid="map-status" className="truncate">{status}</span>
+      {pendingDelete && (
+        <button type="button" data-testid="map-delete-undo" onClick={undoDelete}
+          className="px-2 py-0.5 rounded border border-amber-700/60 text-amber-300 hover:bg-amber-500/10 whitespace-nowrap">
+          Undo delete
+        </button>
+      )}
       <span className="ml-auto whitespace-nowrap">{surfaces.length} surfaces{preview ? ' · unsaved preview' : ''}</span>
       <span className="whitespace-nowrap text-slate-600" data-testid="map-status-unit">depth: {depthUnit} · elevation, negative down</span>
     </div>
@@ -841,6 +918,7 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
         markers={[
           ...guidePoints.map((gp) => ({ x: gp.x, y: gp.y, label: `${gp.label} ${fmtZ(gp.z)}` })),
           ...(guideAt ? [{ x: guideAt.x, y: guideAt.y, label: 'value?' }] : []),
+          ...(grvData?.kind === 'closure' ? [{ x: grvData.spill.x, y: grvData.spill.y, label: `spill ${fmtZ(grvData.spill.z, { kind: 'structure', z_domain: 'depth' })}` }] : []),
         ]}
         pendingVertices={pending}
         drawing={!!drawMode}
@@ -864,7 +942,7 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
       ribbon={ribbon}
       explorer={(
         <SurfacesExplorer
-          surfaces={surfaces}
+          surfaces={pendingDelete ? surfaces.filter((x) => x.id !== pendingDelete.surface.id) : surfaces}
           selectedId={selectedId}
           onSelect={selectSurface}
           onDelete={del}
@@ -1068,11 +1146,25 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
 
             <div className="pt-2 border-t border-slate-800/60 text-[10px] uppercase tracking-wider text-slate-500 flex items-center gap-1"><Calculator className="w-3 h-3" /> Quick GRV</div>
             <div className="flex gap-1">
-              <input className={`${selCls} flex-1`} data-testid="map-grv-contact" placeholder={`contact (${depthUnit}, elevation)`} value={grvContact} onChange={(e) => setGrvContact(e.target.value)} />
-              <button type="button" data-testid="map-grv-run" disabled={!displayGrid} className="px-2 py-1 rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-40" onClick={runGrv}>GRV</button>
+              <input className={`${selCls} flex-1`} data-testid="map-grv-contact" placeholder={`contact (${depthUnit})`} title={`Contact in ${depthUnit}: an elevation (negative below datum) or a depth below datum`}
+                value={grvContact} onChange={(e) => setGrvContact(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') runGrv(); }} />
+              <button type="button" data-testid="map-grv-run" disabled={!displayGrid} className="px-2 py-1 rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-40" onClick={() => runGrv()}>GRV</button>
             </div>
-            {grvResult && <p className="text-[11px] text-slate-300" data-testid="map-grv-result">{grvResult}</p>}
-            <p className="text-[10px] text-slate-600">Gross rock volume of the displayed structure above a contact, a read-out. ReservoirCalc Pro is the place for fluids and uncertainty.</p>
+            <button type="button" data-testid="map-grv-pick" disabled={!displayGrid || grvContact === ''}
+              title="Click a closure on the map to measure that one instead of the highest"
+              className="w-full px-2 py-0.5 text-[11px] rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+              onClick={() => { setDrawMode('grvpick'); setStatus('Click inside the closure to measure.'); }}>
+              {drawMode === 'grvpick' ? 'Click a closure on the map…' : 'Pick a closure on the map'}
+            </button>
+            {grvResult && (
+              <p className={`text-[11px] ${grvData?.open ? 'text-amber-300' : 'text-slate-300'}`} data-testid="map-grv-result"
+                data-open={grvData?.kind === 'closure' ? String(grvData.open) : undefined}>{grvResult}</p>
+            )}
+            {grvData?.kind === 'closure' && grvData.curve?.length > 0 && (
+              <ClosureCurveChart curve={grvData.curve} contactM={grvData.contactM} spillZ={grvData.spill.z}
+                toDisplay={(m) => toDisplay(m, depthUnit)} unit={depthUnit} />
+            )}
+            <p className="text-[10px] text-slate-600">Gross rock volume of one closure above a contact: the highest, or the one you pick. The curve shows area and GRV from the crest down to the spill. ReservoirCalc Pro is the place for fluids and uncertainty.</p>
 
             {displaySurface?.z_domain === 'time' && (
               <>
@@ -1139,6 +1231,21 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
         onOpenChange={setCultureImportOpen}
         onImported={() => setCultureTick((k) => k + 1)}
       />
+      <AlertDialog open={!!confirmDelete} onOpenChange={(o) => { if (!o) setConfirmDelete(null); }}>
+        <AlertDialogContent data-testid="map-delete-confirm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {confirmDelete?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The surface leaves the registry for everyone it is shared with. Earth Modeling models stacked on it and
+              ReservoirCalc Pro links to it will no longer find it. You can undo for {UNDO_MS / 1000} seconds.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="map-delete-cancel">Keep it</AlertDialogCancel>
+            <AlertDialogAction data-testid="map-delete-go" className="bg-red-600 hover:bg-red-700" onClick={confirmDel}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <SurfaceImportDialog
         open={importOpen}
         onOpenChange={setImportOpen}
