@@ -390,7 +390,7 @@ function validateRows(rows, caseData) {
     if (diff > 1) {
       errors.push({
         row: 0,
-        message: `Row 0 pressure (${r0.pressure_psia} psia) doesn't match the case initial pressure (${caseData.initial_pressure_psia} psia). Either update one or update the Overview tab.`,
+        message: `Row 0 pressure (${r0.pressure_psia} psia) doesn't match the case initial pressure (${caseData.initial_pressure_psia} psia). Change the data, or the case's initial pressure with Edit case on the case card.`,
       });
     }
   }

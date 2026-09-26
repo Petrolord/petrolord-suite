@@ -387,7 +387,7 @@ const HavlenaOdehPlot = ({ rows, result, isGas, caseName }) => {
               Havlena-Odeh: F vs Et
             </CardTitle>
             <CardDescription className="text-xs text-slate-500">
-              Reservoir voidage vs total expansion. For a depletion-drive case the line is straight through origin with slope = {isGas ? 'OGIP' : 'OOIP'}. With aquifer support the line curves and the intercept gives {isGas ? 'OGIP' : 'OOIP'}.
+              Reservoir voidage vs total expansion. For a depletion-drive case the points should lie on a straight line through the origin whose slope is {isGas ? 'OGIP' : 'OOIP'}; the fitted line carries a free intercept, shown in the box, and an intercept far from zero points to an unmodelled drive or data error. With aquifer support the points curve upward.
             </CardDescription>
           </div>
           <ExportButton
@@ -489,6 +489,11 @@ const HavlenaOdehPlot = ({ rows, result, isGas, caseName }) => {
             <div className="text-slate-700">
               slope = <span className="font-semibold">{slopeForLabel != null ? slopeForLabel.toExponential(3) : '—'}</span>
             </div>
+            {Number.isFinite(result?.regression_intercept) && (
+              <div className="text-slate-700" data-testid="rb-ho-intercept">
+                intercept = <span className="font-semibold">{result.regression_intercept.toExponential(2)} bbl</span>
+              </div>
+            )}
             {ooipMmstb != null && (
               <div className="text-slate-700">
                 OOIP = <span className="font-semibold">{ooipMmstb.toFixed(2)} MM STB</span>

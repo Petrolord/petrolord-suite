@@ -84,7 +84,7 @@ const DriveIndex = ({ label, value }) => (
 );
 
 // ─── Left-rail case summary ──────────────────────────────────────────────────
-const CaseSummary = () => {
+const CaseSummary = ({ onEdit }) => {
   const { caseData } = useMaterialBalanceStudio();
   if (!caseData) return null;
   const fluid = fluidSystemDisplay(caseData.fluid_system);
@@ -92,8 +92,12 @@ const CaseSummary = () => {
   return (
     <section className="rounded-lg border border-slate-800 bg-slate-900 p-3 space-y-2">
       <div className="flex items-center gap-2">
-        <FluidIcon className={`h-4 w-4 ${fluid.color}`} />
-        <span className="text-sm font-medium text-slate-200 truncate">{caseData.name}</span>
+        <FluidIcon className={`h-4 w-4 shrink-0 ${fluid.color}`} />
+        <span className="text-sm font-medium text-slate-200 truncate min-w-0 flex-1">{caseData.name}</span>
+        {onEdit && (
+          <button type="button" onClick={onEdit} data-testid="mbal-edit-case"
+            className="shrink-0 text-[11px] text-cyan-300 hover:underline">Edit case</button>
+        )}
       </div>
       <p className="text-[11px] text-slate-500">
         {caseData.field_name || 'No field'}
@@ -267,7 +271,7 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
     TABS.some((t) => t.value === requested) ? requested : 'data',
   );
   const {
-    cases, casesError,
+    cases, casesError, refreshCases,
     caseId, caseData, caseLoading, caseError, refreshCase,
     running, runVersion,
     handleCaseCreated, handleDeleteCase,
@@ -275,6 +279,7 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
   const { toast } = useToast();
 
   const [newCaseOpen, setNewCaseOpen] = useState(false);
+  const [editCaseOpen, setEditCaseOpen] = useState(false);
   const [newCasePrefill, setNewCasePrefill] = useState(null);
   // Aquifer tab segment (MB4): server model config vs client screening.
   const [aquiferSegment, setAquiferSegment] = useState('model');
@@ -316,7 +321,7 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
           <p className="text-[11px] text-red-400 mt-2">{casesError}</p>
         )}
       </section>
-      <CaseSummary />
+      <CaseSummary onEdit={() => setEditCaseOpen(true)} />
       {caseData && (
         <p className="text-[11px] text-slate-500 leading-relaxed">
           Edits on every tab save straight to the case database when you apply them. Results always come from a fresh engine run, never from stored numbers.
@@ -449,6 +454,12 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
         onOpenChange={setNewCaseOpen}
         onCreated={handleCaseCreated}
         prefill={newCasePrefill}
+      />
+      <NewCaseDialog
+        open={editCaseOpen}
+        onOpenChange={setEditCaseOpen}
+        editCase={caseData}
+        onSaved={() => { refreshCase(); refreshCases?.(); }}
       />
     </>
   );

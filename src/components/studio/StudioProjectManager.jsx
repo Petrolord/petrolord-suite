@@ -14,6 +14,8 @@ const StudioProjectManager = ({
   onOpen,
   onDelete,
   label = 'Project',
+  // what one item is called in the placeholder and titles ('case' in Material Balance)
+  noun = label.toLowerCase(),
   confirmDeleteMessage = 'Delete this project and its saved data? This cannot be undone.',
   // When creation needs more than a name (e.g. Material Balance Studio cases
   // require fluid system and initial conditions), pass onRequestCreate: the +
@@ -37,12 +39,12 @@ const StudioProjectManager = ({
       <label className="text-xs font-medium text-slate-400 uppercase">{label}</label>
       <div className="flex gap-2">
         <Select value={currentProjectId || ''} onValueChange={onOpen}>
-          <SelectTrigger className="flex-1 bg-slate-800 border-slate-700">
-            <SelectValue placeholder="Select Project" />
+          <SelectTrigger className="flex-1 min-w-0 bg-slate-800 border-slate-700 [&>span]:truncate">
+            <SelectValue placeholder={`Select ${noun}`} />
           </SelectTrigger>
           <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
             {projects.length === 0 ? (
-              <SelectItem value="none" disabled>No Projects</SelectItem>
+              <SelectItem value="none" disabled>{`No ${noun}s yet`}</SelectItem>
             ) : (
               projects.map((p) => (
                 <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
@@ -55,7 +57,7 @@ const StudioProjectManager = ({
           <Button
             variant="outline" size="icon"
             className="bg-slate-800 border-slate-700"
-            title="Create new project"
+            title={`Create new ${noun}`}
             onClick={onRequestCreate}
           >
             <Plus size={16} />
@@ -63,17 +65,17 @@ const StudioProjectManager = ({
         ) : (
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline" size="icon" className="bg-slate-800 border-slate-700" title="Create new project">
+            <Button variant="outline" size="icon" className="bg-slate-800 border-slate-700" title={`Create new ${noun}`}>
               <Plus size={16} />
             </Button>
           </DialogTrigger>
           <DialogContent className="bg-slate-900 border-slate-700 text-slate-100">
             <DialogHeader>
-              <DialogTitle>Create New Project</DialogTitle>
+              <DialogTitle>{`Create new ${noun}`}</DialogTitle>
             </DialogHeader>
             <div className="py-4">
               <Input
-                placeholder="Project Name"
+                placeholder={`${noun[0].toUpperCase()}${noun.slice(1)} name`}
                 value={newProjectName}
                 onChange={(e) => setNewProjectName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); }}
@@ -91,7 +93,7 @@ const StudioProjectManager = ({
           <Button
             variant="outline" size="icon"
             className="bg-slate-800 border-slate-700 text-slate-500 hover:text-red-400"
-            title="Delete current project"
+            title={`Delete current ${noun}`}
             onClick={() => {
               if (window.confirm(confirmDeleteMessage)) {
                 onDelete(currentProjectId);

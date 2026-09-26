@@ -121,6 +121,7 @@ const EorScreeningTool = lazy(() => import('@/pages/apps/EorScreeningTool'));
 const ForecastScenarioHub = lazy(() => import('@/pages/apps/ForecastScenarioHub'));
 const DeclineCurveAnalysis = lazy(() => import('@/pages/apps/DeclineCurveAnalysis'));
 const FluidSystemsStudio = lazy(() => import('@/pages/apps/FluidSystemsStudio'));
+const MbalHarness = lazy(() => import('@/pages/apps/reservoir-balance/harness/MbalHarness'));
 const ReservoirBalance = lazy(() => import('@/pages/apps/reservoir-balance/ReservoirBalance'));
 const ArtificialLiftAdvisor = lazy(() => import('@/pages/apps/ArtificialLiftAdvisor'));
 const PorePressureStudio = lazy(() => import('@/pages/apps/PorePressureStudio/PorePressureStudio'));
@@ -950,8 +951,8 @@ function App() {
                                   <Route path="/dev/decision-studio" element={<DecisionStudioHarness />} />
                                   <Route path="/dev/well-test-analysis-studio" element={<WellTestAnalysisStudio />} />
                                   <Route path="/dev/nodal-analysis-studio" element={<NodalAnalysisStudio />} />
-                                  <Route path="/dev/material-balance-studio" element={<ReservoirBalance />} />
-                                  <Route path="/dev/material-balance-studio/cases/:caseId" element={<ReservoirBalance />} />
+                                  <Route path="/dev/material-balance-studio" element={<MbalHarness />} />
+                                  <Route path="/dev/material-balance-studio/cases/:caseId" element={<MbalHarness />} />
                                 </>
                               )}
                               <Route path="*" element={<Navigate to="/" replace />} />

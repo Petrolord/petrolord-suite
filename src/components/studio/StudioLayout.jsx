@@ -5,7 +5,6 @@
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import StudioNotifications from './StudioNotifications';
 import StudioLoadingOverlay from './StudioLoadingOverlay';
@@ -47,11 +46,14 @@ const StudioLayout = ({
           leftOpen ? `${leftWidthClass} translate-x-0` : 'w-0 -translate-x-full opacity-0 border-none'
         )}
       >
-        <ScrollArea className="flex-1 h-full">
-          <div className="p-4 space-y-6">
+        {/* a plain scroller: Radix ScrollArea wraps content in a display:table
+            box that grows to its widest child, so long names pushed the rail's
+            values and buttons out of view instead of truncating (Wave 2 T1) */}
+        <div className="flex-1 h-full overflow-y-auto overflow-x-hidden">
+          <div className="p-4 space-y-6 min-w-0">
             {sidebarLeft}
           </div>
-        </ScrollArea>
+        </div>
       </div>
 
       {/* Main Content Wrapper */}
@@ -105,11 +107,11 @@ const StudioLayout = ({
               rightOpen ? `${rightWidthClass} translate-x-0` : 'w-0 translate-x-full opacity-0 border-none'
             )}
           >
-            <ScrollArea className="flex-1 h-full">
-              <div className="p-4 space-y-6">
+            <div className="flex-1 h-full overflow-y-auto overflow-x-hidden">
+              <div className="p-4 space-y-6 min-w-0">
                 {sidebarRight}
               </div>
-            </ScrollArea>
+            </div>
           </div>
           )}
         </div>
