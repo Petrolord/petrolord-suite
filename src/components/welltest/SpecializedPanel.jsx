@@ -1,7 +1,7 @@
 // Left rail for the Specialized (straight-line) tab: analysis window bounds
 // and, for gas wells, the deliverability test points. Empty bounds mean full
-// range; the Diagnostics tab's radial window is the guide for the semilog
-// line.
+// range, except the semilog line, which defaults to the detected radial
+// flow (WTA-T1-001).
 import React from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ import { SectionLabel, Field, UnitField, fmt } from './primitives';
 
 const SpecializedPanel = () => {
   const {
-    windows, setWindowField, configSpec, regimes, reservoirSpec,
+    windows, setWindowField, configSpec, regimes, reservoirSpec, autoSemilogWindow, semilogWindowSource,
     deliverabilityInputs, setDeliverabilityField, setDeliverabilityRows,
   } = useWellTestStudio();
   const { unitSystem } = useWellTestStudio();
@@ -35,14 +35,22 @@ const SpecializedPanel = () => {
           <Field label="From" suffix="hr" value={windows.semilogMin} onChange={(v) => setWindowField('semilogMin', v)} placeholder="auto" />
           <Field label="To" suffix="hr" value={windows.semilogMax} onChange={(v) => setWindowField('semilogMax', v)} placeholder="auto" />
         </div>
-        {radial ? (
-          <p className="text-[11px] text-slate-500 mt-2">
-            Detected radial flow spans {fmt.sig3(radial.xStart)} to {fmt.sig3(radial.xEnd)} hr (equivalent time). Set the
-            window inside it for a clean straight line.
+        {semilogWindowSource === 'radial' && (
+          <p className="text-[11px] text-slate-500 mt-2" data-testid="wts-semilog-auto">
+            Auto: the line is fitted over the detected radial flow, {fmt.sig3(autoSemilogWindow.min)} to {fmt.sig3(autoSemilogWindow.max)} hr
+            shut-in time ({fmt.sig3(radial.xStart)} to {fmt.sig3(radial.xEnd)} hr equivalent time). Type a bound to override.
           </p>
-        ) : (
+        )}
+        {semilogWindowSource === 'manual' && radial && (
           <p className="text-[11px] text-slate-500 mt-2">
-            No radial stabilization detected yet. Fit windows chosen inside storage-dominated data will bias k high.
+            Detected radial flow spans {fmt.sig3(radial.xStart)} to {fmt.sig3(radial.xEnd)} hr (equivalent time). Keep the
+            window inside it for a clean straight line; clear both bounds to use it.
+          </p>
+        )}
+        {!radial && (
+          <p className="text-[11px] text-amber-400/90 mt-2">
+            No radial stabilization detected yet{semilogWindowSource === 'full' ? ', so the line is fitted over all points' : ''}.
+            A line through storage-dominated data gives a k far from the truth; set the window on the flat derivative.
           </p>
         )}
       </section>
@@ -54,7 +62,7 @@ const SpecializedPanel = () => {
           <Field label="To" suffix="hr" value={windows.sqrtMax} onChange={(v) => setWindowField('sqrtMax', v)} placeholder="auto" />
         </div>
         <p className="text-[11px] text-slate-500 mt-2">
-          Linear-flow diagnostic. Fracture half-length interpretation arrives with the fracture models (WT3).
+          Linear-flow diagnostic. Set the window on a half-slope derivative; for fracture half-length, match a fracture model on the Match tab.
         </p>
       </section>
 

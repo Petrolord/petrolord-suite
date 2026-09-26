@@ -17,7 +17,7 @@ const legendProps = LEGEND_PROPS;
 const SpecializedResults = () => {
   const {
     prepared, configSpec, reservoirSpec, semilogResult, sqrtResult, pssResult,
-    multiRateResult, deliverabilityResult, deliverabilityInputs,
+    multiRateResult, deliverabilityResult, deliverabilityInputs, semilogWindowSource,
   } = useWellTestStudio();
   const { unitSystem } = useWellTestStudio();
   const isBuildup = configSpec.config?.family === 'buildup';
@@ -74,6 +74,9 @@ const SpecializedResults = () => {
   return (
     <div className="space-y-4 overflow-y-auto">
       {!semilogResult && <WarningBanner warnings={['The semilog line needs valid reservoir inputs and at least 4 points in the window.']} />}
+      {semilogResult && semilogWindowSource === 'full' && (
+        <WarningBanner warnings={['No radial flow was detected, so the semilog line runs through every point, storage included. Treat k and skin as unreliable until a window is set on the flat derivative.']} />
+      )}
 
       <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">
         <Kpi title="Slope m" value={isGas ? fmt.sci(fromOilfield(slopeKind, semilogResult?.m, unitSystem)) : fmtU(slopeKind, semilogResult?.m, unitSystem, fmt.f1)} unit={unitLabel(slopeKind, unitSystem)} />

@@ -120,9 +120,12 @@ const WTSHelpContent = () => (
     <H>4. Specialized</H>
     <P>
       The Horner plot (buildup) or MDH semilog plot (drawdown) gives the slope m, permeability, skin and extrapolated
-      p*. Set the fit window inside the radial stabilization seen on the Diagnostics tab; storage-affected early data
-      biases k high. The sqrt-time plot diagnoses linear flow, and for drawdowns a late-time Cartesian line during
-      pseudo-steady state yields the connected pore volume.
+      p*. With both window bounds empty the line is fitted over the radial flow detected on the Diagnostics tab, and
+      the rail says which hours it used; type a bound to set your own window. Keep a manual window inside the radial
+      stabilization: storage-affected early data steepens the line and pulls k well below the truth (on the sample
+      test a line through every point gives 23 md against 85). The sqrt-time plot diagnoses linear flow, and for drawdowns a late-time Cartesian line during
+      pseudo-steady state yields the connected pore volume. The report quotes the sqrt-time slope only when linear flow
+      was detected or you set its window.
     </P>
 
     <H>5. RTA (production data)</H>

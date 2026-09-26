@@ -19,7 +19,7 @@ const ci = (pair) =>
 const ReportResults = () => {
   const {
     wellName, projectName, configSpec, reservoirSpec, prepared,
-    matchParams, semilogResult, sqrtResult, pssResult, derivedKpis,
+    matchParams, semilogResult, sqrtResult, pssResult, derivedKpis, sqrtMeaningful,
     multiRateResult, deliverabilityResult, fitResult, fitStale, regimes, notes, model,
     unitSystem, rtaResult,
   } = useWellTestStudio();
@@ -67,10 +67,22 @@ const ReportResults = () => {
         <Kpi title="Δp across skin" value={fmtU('pressure', derivedKpis?.dpSkin, unitSystem, fmt.f1)} unit={uL('pressure')} />
         <Kpi title="Radius of investigation" value={fmtU('length', derivedKpis?.ri, unitSystem, fmt.int)} unit={uL('length')} />
       </div>
+      <p className="text-[11px] text-slate-500 -mt-2" data-testid="wts-report-source">
+        {derivedKpis?.source === 'match'
+          ? 'Headline values from the working model match.'
+          : derivedKpis?.source === 'semilog'
+            ? 'Headline values from the semilog straight line: the model match has not been adjusted or fitted yet.'
+            : 'No interpretation yet: fit a model or set a semilog window.'}
+      </p>
 
       <div className="grid md:grid-cols-2 gap-4">
         <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Model match</p>
+          {derivedKpis?.source !== 'match' ? (
+            <p className="text-xs text-slate-500 py-2" data-testid="wts-report-no-match">
+              Not matched yet. Adjust the sliders or run Auto-fit on the Match tab; the starting values are not reported.
+            </p>
+          ) : (
           <table className="w-full text-xs">
             <tbody>
               {(model?.parameters || []).map((meta) => {
@@ -93,6 +105,7 @@ const ReportResults = () => {
               {fitResult && !prepared?.skinWithheld && ci(fitResult.confidence95.skin) && <Row label="Skin 95% CI" value={ci(fitResult.confidence95.skin)} />}
             </tbody>
           </table>
+          )}
         </div>
 
         <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
@@ -104,7 +117,7 @@ const ReportResults = () => {
               <Row label="Semilog skin" value={fmt.f2(semilogResult?.skin)} />
               {isBuildup && <Row label="Extrapolated p*" value={fmtU('pressure', semilogResult?.pStar, unitSystem, fmt.f1)} unit={uL('pressure')} />}
               <Row label="Semilog fit r²" value={fmt.f3(semilogResult?.r2)} />
-              <Row label="sqrt(t) slope" value={fmt.f2(fromOilfield(isGas ? 'pseudoPressure' : 'pressure', sqrtResult?.slope, unitSystem))} unit={`${uL(isGas ? 'pseudoPressure' : 'pressure')}/hr^0.5`} />
+{sqrtMeaningful &&               <Row label="sqrt(t) slope" value={fmt.f2(fromOilfield(isGas ? 'pseudoPressure' : 'pressure', sqrtResult?.slope, unitSystem))} unit={`${uL(isGas ? 'pseudoPressure' : 'pressure')}/hr^0.5`} />}
               {!isBuildup && pssResult && <Row label="Connected pore volume" value={unitSystem === 'si' ? fmt.f3(fromOilfield('poreVolume', pssResult.poreVolumeMMbbl, unitSystem)) : fmt.f2(pssResult.poreVolumeMMbbl)} unit={unitSystem === 'si' ? 'MM m³' : 'MMbbl'} />}
               {multiRateResult && <Row label="Multi-rate k (Odeh-Jones)" value={fmt.sig3(multiRateResult.k)} unit="md" />}
               {multiRateResult && <Row label="Multi-rate skin" value={fmt.f2(multiRateResult.skin)} />}

@@ -66,6 +66,9 @@ const DiagnosticsRail = ({ activeTab }) => {
 
       <section>
         <SectionLabel>Derived</SectionLabel>
+        <p className="text-[10px] text-slate-500 -mt-1 mb-1" data-testid="wts-derived-source">
+          {derivedKpis?.source === 'match' ? 'From the working match' : derivedKpis?.source === 'semilog' ? 'From the semilog line (match not yet adjusted)' : 'Needs a semilog line or a match'}
+        </p>
         <Row label="kh (md·ft)" value={fmt.sig3(derivedKpis?.kh)} />
         <Row label={`Radius of inv. (${uL('length')})`} value={fmtU('length', derivedKpis?.ri, unitSystem, fmt.int)} />
         <Row label={`Δp skin (${uL('pressure')})`} value={fmtU('pressure', derivedKpis?.dpSkin, unitSystem, fmt.f1)} />
