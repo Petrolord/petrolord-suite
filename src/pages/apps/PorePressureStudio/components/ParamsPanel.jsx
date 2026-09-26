@@ -145,7 +145,7 @@ export default function ParamsPanel({ params, calibration, onApply, units = DEFA
         data-testid="pp-param-cal"
         rows={4}
         className="w-full px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-200 text-xs font-mono"
-        placeholder={pU === 'MPa' && zU === 'm' ? '3000, 34.5\n3600, 45.2' : `depth ${zU}, pressure ${pU}`}
+        placeholder={`one point per line, e.g.\n${pU === 'MPa' && zU === 'm' ? '3000, 34.5' : `depth ${zU}, pressure ${pU}`}`}
         value={d.calText}
         onChange={(e) => set('calText')(e.target.value)}
       />

@@ -1,13 +1,14 @@
 // Pressure-vs-depth prognosis chart (white chartTheme + ChartLogo —
 // the Suite chart standard). Depth increases downward; overburden,
-// hydrostatic, pore pressure and fracture pressure in MPa, with
+// hydrostatic, pore pressure and fracture pressure in the display unit, the
+// drilling window between PP and FG shaded, with
 // manual calibration points (RFT/MDT) as dots. Recharts vertical
 // layout: the numeric Y axis carries depth, each Line carries one
 // pressure series.
 
 import React, { useMemo } from 'react';
 import {
-  ComposedChart, Line, Scatter, XAxis, YAxis, CartesianGrid, Tooltip,
+  ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer,
 } from 'recharts';
 import ChartLogo from '@/components/charts/ChartLogo';
@@ -36,6 +37,8 @@ export default function PrognosisChart({ profile, zBmlM, calibration, units = DE
       pp: conv(profile.porePressurePa[i], z),
       fg: conv(profile.fracPressurePa[i], z),
     }));
+    // drilling window band between PP and FG (T1-E1)
+    rows.forEach((r) => { if (r.pp != null && r.fg != null) r.win = [r.pp, r.fg]; });
     for (const c of calibration || []) {
       if (Number.isFinite(c.z) && Number.isFinite(c.pMpa)) {
         rows.push({ z: depthToDisplay(c.z, zU), cal: conv(c.pMpa * 1e6, c.z) });
@@ -45,6 +48,7 @@ export default function PrognosisChart({ profile, zBmlM, calibration, units = DE
     return rows;
   }, [profile, zBmlM, calibration, pU, zU, params]);
   const digits = pressureDigits(pU);
+  const hasCal = data.some((r) => r.cal != null);
 
   if (!profile) return null;
 
@@ -64,10 +68,11 @@ export default function PrognosisChart({ profile, zBmlM, calibration, units = DE
               tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
               label={{ value: isEmw(pU) ? `${pressureLabel(pU)} below ${emwDatumLabel(params)}` : pressureLabel(pU), position: 'bottom', fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
             />
+            {/* a vertical-layout numeric Y axis already runs top-down; the old
+                `reversed` drew depth increasing upward (T1-001) */}
             <YAxis
               type="number"
               dataKey="z"
-              reversed
               domain={['auto', 'auto']}
               stroke={CHART_COLORS.axisLine}
               tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
@@ -79,6 +84,8 @@ export default function PrognosisChart({ profile, zBmlM, calibration, units = DE
               labelFormatter={(v) => `${Number.isFinite(v) ? v.toFixed(zU === 'ft' ? 0 : 1) : v} ${zU} bml`}
             />
             <Legend verticalAlign="top" wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
+            <Area dataKey="win" name="Drilling window (PP to FG)" stroke="none" fill="#22c55e" fillOpacity={0.12}
+              connectNulls isAnimationActive={false} legendType="rect" />
             {SERIES.map((s) => (
               <Line
                 key={s.key}
@@ -91,7 +98,10 @@ export default function PrognosisChart({ profile, zBmlM, calibration, units = DE
                 isAnimationActive={false}
               />
             ))}
-            <Scatter dataKey="cal" name="Calibration" fill="#e76f51" isAnimationActive={false} />
+            {/* a Scatter does not plot in a vertical-layout chart: a dot-only Line
+                does (T1-002); no legend entry without points */}
+            {hasCal && <Line dataKey="cal" name="Calibration" stroke="none" legendType="circle"
+              dot={{ r: 4, fill: '#e76f51', stroke: '#9a3412' }} activeDot={false} isAnimationActive={false} />}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
