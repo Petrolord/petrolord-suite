@@ -9,6 +9,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Layers, Loader2, PanelRight, BookOpen, ListTree, Tags, Rows as RowsIcon, Image, GitCompare, Hourglass, Clock, HelpCircle } from 'lucide-react';
 import IntervalsEditor from '@/components/wells/IntervalsEditor';
+import ZoneSchemePanel from './ZoneSchemePanel';
 import CoreImagesPanel from '@/components/wells/CoreImagesPanel';
 import SectionView from './SectionView';
 import AgesView from './AgesView';
@@ -81,6 +82,10 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
   }, [backend, refreshUnits, track]);
 
   const well = useMemo(() => (wells || []).find((w) => w.id === selectedId) || null, [wells, selectedId]);
+  // T1 (ST-T1-003): a per-well view opens on the first well instead of an empty pane
+  useEffect(() => {
+    if (!selectedId && (wells || []).length && ['ages', 'intervals', 'core', 'tops'].includes(view)) setSelectedId(wells[0].id);
+  }, [selectedId, wells, view]);
 
   const refreshTops = useCallback(async () => {
     if (!selectedId) { setTops([]); setIntervals([]); setCoreImages([]); return; }
@@ -214,9 +219,9 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
     : view === 'tops' ? <ScrollArea className="h-full min-h-0"><TopsTyping well={well} tops={tops} units={units} scheme={scheme} onSaveTop={saveTop} onStatus={setStatus} /></ScrollArea>
       : view === 'section' || view === 'wheeler' ? <SectionView backend={backend} mode={view} scheme={scheme} onStatus={setStatus} appPaths={appPaths} saved={project} onSaveProject={saveProject} />
       : view === 'ages' ? (well ? <ScrollArea className="h-full min-h-0"><AgesView well={well} tops={tops} intervals={intervals} backend={backend} onStatus={setStatus} onTopsChanged={refreshTops} appPaths={appPaths} /></ScrollArea> : needWell)
-      : view === 'intervals' ? (well ? <ScrollArea className="h-full min-h-0"><div className="p-3"><IntervalsEditor well={well} intervals={intervals} canEdit={!!well.is_own} onReplace={replaceIntervals} onStatus={setStatus} testIdPrefix="strat-intervals" /></div></ScrollArea> : needWell)
+      : view === 'intervals' ? (well ? <ScrollArea className="h-full min-h-0"><div className="p-3"><ZoneSchemePanel intervals={intervals} canEdit={!!well.is_own} onReplace={replaceIntervals} onStatus={setStatus} /><IntervalsEditor well={well} intervals={intervals} canEdit={!!well.is_own} onReplace={replaceIntervals} onStatus={setStatus} testIdPrefix="strat-intervals" /></div></ScrollArea> : needWell)
         : view === 'core' ? (well ? <ScrollArea className="h-full min-h-0"><div className="p-3"><CoreImagesPanel well={well} images={coreImages} canEdit={!!well.is_own} onStatus={setStatus} testIdPrefix="strat-core" {...coreOps} /></div></ScrollArea> : needWell)
-          : <ScrollArea className="h-full min-h-0"><ColumnEditor units={units} onSave={saveColumn} onStatus={setStatus} /></ScrollArea>;
+          : <div className="h-full min-h-0 overflow-auto"><ColumnEditor units={units} onSave={saveColumn} onStatus={setStatus} /></div>;
 
   const statusBar = (
     <div className="flex items-center gap-3 px-3 py-1 bg-slate-900 border-t border-slate-800 text-[11px] text-slate-400">

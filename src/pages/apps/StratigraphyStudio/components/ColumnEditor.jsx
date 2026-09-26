@@ -10,6 +10,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Plus, Trash2, Save, Loader2 } from 'lucide-react';
 import { RANKS, orderedUnits, validateColumn } from '@/lib/stratigraphy/column';
 import { unitsOfRank, ageBounds, TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
+import ColumnChart from './ColumnChart';
 
 const cellCls = 'bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-xs text-slate-100 w-full';
 const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40';
@@ -96,8 +97,8 @@ export default function ColumnEditor({ units, canEdit = true, onSave, onStatus }
   };
 
   return (
-    <div className="p-3 space-y-2 text-xs" data-testid="strat-column-editor">
-      <div className="flex items-center gap-2">
+    <div className="p-3 space-y-2 text-xs min-w-0" data-testid="strat-column-editor">
+      <div className="flex flex-wrap items-center gap-2">
         <span className="text-slate-300 font-medium">Stratigraphic column</span>
         <span className="text-slate-500">{units.length} unit{units.length === 1 ? '' : 's'} · ages in Ma, timescale {TIMESCALE_VERSION}</span>
         <div className="ml-auto flex items-center gap-1">
@@ -165,6 +166,7 @@ export default function ColumnEditor({ units, canEdit = true, onSave, onStatus }
         </div>
       )}
       <p className="text-slate-500">Removing a unit keeps its children and any tops that named it; they lose the reference. Sharing the column with your organization shares all of it, read-only.</p>
+      <ColumnChart units={rows} />
     </div>
   );
 }
