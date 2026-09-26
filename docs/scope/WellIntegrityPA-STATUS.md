@@ -81,6 +81,12 @@ program.
   cut-and-pull force estimates, barrier qualification test procedures,
   liner-lap and dual-string plug geometries.
 
+## Senior test T1 (2026-09-26)
+
+Demo-ready. Plug rule checks now cover only the zones a plug can isolate.
+Element names are readable, and a failing zone states its fix. See
+`docs/testing/WellIntegrityPA-T1.md`.
+
 ## Staging E2E checklist (owner)
 
 1. Open Drilling -> Well Integrity & P&A Studio on a wellbore with a

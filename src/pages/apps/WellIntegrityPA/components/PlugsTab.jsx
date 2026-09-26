@@ -152,10 +152,29 @@ export default function PlugsTab({ caseDraft, onCaseChange, res, depthUnit }) {
         {plug && !plug.isSurfacePlug && (
           <Card title="Rule checks per flow zone (D-010 conventions)" testId="wi-plug-rules">
             {(caseDraft.pa.zones || []).filter((z) => z.flowPotential).map((z) => {
-              const check = plugRuleCheck({ plug, sourceTopMdM: z.topMdM });
+              // Judge the plug only against zones it could isolate: a plug
+              // below the zone cannot, and one wholly above the source can
+              // only be the secondary barrier (the Program tab pairs them).
+              if (plug.topMdM > z.bottomMdM) {
+                return (
+                  <div key={z.name} className="mb-2" data-testid="wi-rule-na">
+                    <div className="text-xs font-semibold text-slate-300">{z.name}</div>
+                    <div className="text-xs text-slate-500">
+                      Not applicable: this plug sits below the zone, so it cannot isolate it.
+                    </div>
+                  </div>
+                );
+              }
+              const aboveSource = plug.bottomMdM < z.topMdM;
+              const check = aboveSource ? plugRuleCheck({ plug }) : plugRuleCheck({ plug, sourceTopMdM: z.topMdM });
               return (
                 <div key={z.name} className="mb-2">
                   <div className="text-xs font-semibold text-slate-300">{z.name}</div>
+                  {aboveSource && (
+                    <div className="text-xs text-slate-500" data-testid="wi-rule-secondary">
+                      Sits above the source, so it can only be the secondary barrier for this zone (see Program).
+                    </div>
+                  )}
                   {check.checks.map((c) => (
                     <div key={c.id} className="flex items-center gap-2 text-xs">
                       <span className={c.pass ? 'text-emerald-400' : 'text-red-400'}>{c.pass ? 'PASS' : 'FAIL'}</span>

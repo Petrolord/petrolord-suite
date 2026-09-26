@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Trash2, Plus, Save, ExternalLink } from 'lucide-react';
-import { depthDisp, depthStore, depthLabel } from '../services/wiRun';
+import { depthDisp, depthStore, depthLabel, D010_DEFAULT_RULES } from '../services/wiRun';
 
 const Card = ({ title, children, testId }) => (
   <div className="rounded border border-slate-800 bg-slate-900/40" data-testid={testId}>
@@ -86,6 +86,13 @@ export default function ProgramTab({
                 <div className="ml-6 text-slate-400">
                   Secondary (backs up from above): {z.secondaryQualifying.length ? z.secondaryQualifying.join(', ') : 'none'}
                 </div>
+                {!z.pass && (!z.primaryQualifying.length || !z.secondaryQualifying.length) && (
+                  <div className="ml-6 text-amber-300" data-testid={`wi-zone-fix-${i}`}>
+                    {!z.primaryQualifying.length
+                      ? `Add a plug whose base reaches the source top and which extends at least ${D010_DEFAULT_RULES.plugAboveSourceMinM} m above it.`
+                      : `Add a second plug above ${z.primaryQualifying.join(', ')}, at least ${D010_DEFAULT_RULES.plugMinLengthOnFoundationM} m on a verified foundation (${D010_DEFAULT_RULES.plugMinLengthM} m otherwise), to back it up.`}
+                  </div>
+                )}
               </div>
             ))}
             <div className="flex items-center gap-2 text-xs">

@@ -127,7 +127,7 @@ export function SideForceChart({ results, depthUnit }) {
     buckled: row.buckling !== 'none' ? row.sideForceNPerM / 1e3 : null,
   }));
   return (
-    <Frame title={`Side force vs MD (kN/m) — ${OP_LABELS[source.operation]}`} testId="td-sideforce">
+    <Frame title={`Side force vs MD (kN/m): ${OP_LABELS[source.operation]}`} testId="td-sideforce">
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data} margin={CHART_MARGINS.compact} layout="vertical">
           <CartesianGrid {...GRID_STYLE} />

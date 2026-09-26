@@ -258,7 +258,7 @@ export default function CmtWorkstation({ backend }) {
       <span>{CMT_ENGINE_VERSION}</span>
       <span data-testid="cmt-status-wellbore">{wellbore ? `${wellbore.name} (${depthUnit})` : 'no wellbore'}</span>
       <span data-testid="cmt-status-geometry" data-source={geometrySourceOf(geometryRow)} title={geometryRow?.label || ''}>{geometryStatusText(geometryRow)}</span>
-      <span>{caseDraft ? `${caseDraft.name} — mud ${emwOut(caseDraft.fluids?.mudInHole?.densityKgM3 || 0, depthUnit).toFixed(2)} ${emwLabel(depthUnit)}` : 'no job'}</span>
+      <span>{caseDraft ? `${caseDraft.name}: mud ${emwOut(caseDraft.fluids?.mudInHole?.densityKgM3 || 0, depthUnit).toFixed(2)} ${emwLabel(depthUnit)}` : 'no job'}</span>
       <span className="ml-auto">Plug-flow planning model; validated vs oracle goldens</span>
     </div>
   );

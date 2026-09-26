@@ -6,7 +6,7 @@ import {
   ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis,
   CartesianGrid, Tooltip, ReferenceLine,
 } from 'recharts';
-import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE, GRID_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE, GRID_STYLE, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { annulusChartRows } from '../services/wiRun';
 
@@ -31,20 +31,20 @@ export function AnnulusLimitsChart({ annulus }) {
   return (
     <Frame title={`Annulus ${annulus.name}: allowable surface pressure per limiting element`} testId="wi-annulus-chart">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} layout="vertical" margin={{ ...CHART_MARGINS.compact, left: 40 }}>
+        <BarChart data={data} layout="vertical" margin={{ ...CHART_MARGINS.compact, top: 20, left: 40 }}>
           <CartesianGrid {...GRID_STYLE} />
-          <XAxis type="number" domain={[0, 'auto']} {...axisProps}
-            label={{ value: 'allowable surface pressure (MPa)', position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
+          <XAxis type="number" domain={[0, 'auto']} {...axisProps} height={XAXIS_LABEL_HEIGHT}
+            label={{ value: 'allowable surface pressure (MPa)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <YAxis type="category" dataKey="name" width={150} {...axisProps} />
           <Tooltip contentStyle={TOOLTIP_STYLE}
             formatter={(v) => (Number.isFinite(v) ? `${v.toFixed(2)} MPa` : '--')} />
-          <ReferenceLine x={annulus.result.mawopPa / 1e6} stroke="#b45309" strokeDasharray="4 3"
-            label={{ value: 'MAWOP', fontSize: 9, fill: '#b45309' }} />
           <Bar dataKey="allowMPa" name="Allowable" isAnimationActive={false}>
             {data.map((row) => (
               <Cell key={row.name} fill={row.governing ? '#b45309' : '#0369a1'} />
             ))}
           </Bar>
+          <ReferenceLine x={annulus.result.mawopPa / 1e6} stroke="#b45309" strokeDasharray="4 3"
+            label={{ value: `MAWOP ${(annulus.result.mawopPa / 1e6).toFixed(2)} MPa (governing bar in amber)`, position: 'top', fontSize: 9, fill: '#b45309' }} />
         </BarChart>
       </ResponsiveContainer>
     </Frame>

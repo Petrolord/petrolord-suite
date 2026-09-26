@@ -105,7 +105,7 @@ const RightPanel = () => {
               <div>
                 <span className="text-xs text-amber-200 font-medium block">Controlling Load</span>
                 <span className="text-[10px] text-slate-400" data-testid="ct-controlling-load">
-                  {governing.caseName} ({governing.mode}) — {governing.stringName}
+                  {governing.caseName} ({governing.mode}), {governing.stringName}
                   {governing.tvdM != null && ` at ${Math.round(depthDisp(governing.tvdM, depthUnit))} ${unit} TVD`}
                 </span>
               </div>

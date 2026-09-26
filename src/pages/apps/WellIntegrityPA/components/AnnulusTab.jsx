@@ -74,8 +74,8 @@ export default function AnnulusTab({ caseDraft, onCaseChange, res, depthUnit }) 
           <Card title={`Limiting elements (depth MD, ${unit}; limits at depth)`} testId="wi-ann-elements-card">
             <div className="flex flex-col gap-1">
               {a.elements.map((e) => (
-                <div key={e.id} className="flex items-center gap-1.5">
-                  <Input className="h-7 flex-1 text-xs" value={e.name}
+                <div key={e.id} className="flex flex-wrap items-center gap-1.5 border-b border-slate-800/60 pb-1">
+                  <Input className="h-7 w-full text-xs" value={e.name} data-testid="wi-ann-el-name"
                     onChange={(ev) => setAnn((an) => { an.elements.find((x) => x.id === e.id).name = ev.target.value; })} />
                   <select className={select} value={e.role}
                     onChange={(ev) => setAnn((an) => { an.elements.find((x) => x.id === e.id).role = ev.target.value; })}>
@@ -97,7 +97,7 @@ export default function AnnulusTab({ caseDraft, onCaseChange, res, depthUnit }) 
                 </div>
               ))}
             </div>
-            <div className="mt-1 text-[10px] text-slate-500">name / role / limit MPa / depth MD / backup fluid kg/m3</div>
+            <div className="mt-1 text-[10px] text-slate-500">Each element: name, then role / limit (MPa) / depth MD / backup fluid (kg/m3).</div>
             <button type="button" data-testid="wi-add-ann-element"
               className="mt-2 flex items-center gap-1 rounded bg-slate-800 px-2 py-1 text-xs text-slate-300 hover:text-slate-100"
               onClick={() => setAnn((an) => {

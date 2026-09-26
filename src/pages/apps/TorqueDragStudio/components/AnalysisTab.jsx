@@ -102,7 +102,7 @@ export default function AnalysisTab({
         {(!runs || runs.length === 0) && <div className="text-xs text-slate-500">No saved runs yet.</div>}
         {(runs || []).map((r) => (
           <div key={r.id} className="flex items-center justify-between border-t border-slate-800 py-1.5 text-xs text-slate-300 first:border-t-0">
-            <span>{new Date(r.created_at).toLocaleString()} — {Object.keys(r.summary || {}).length ? Object.entries(r.summary).map(([op, s]) => `${op}: ${forceOut(s.hookloadN, depthUnit).toFixed(0)} ${forceLabel(depthUnit)}`).join('  ') : r.engine_version}</span>
+            <span>{new Date(r.created_at).toLocaleString()}: {Object.keys(r.summary || {}).length ? Object.entries(r.summary).map(([op, s]) => `${op}: ${forceOut(s.hookloadN, depthUnit).toFixed(0)} ${forceLabel(depthUnit)}`).join('  ') : r.engine_version}</span>
             <Button size="icon" variant="ghost" className="h-6 w-6 text-slate-500 hover:text-red-400" onClick={() => onDeleteRun(r.id)}>
               <Trash2 className="h-3 w-3" />
             </Button>

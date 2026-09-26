@@ -217,7 +217,7 @@ export function buildGoldenCaseDoc(golden) {
 export function resolveSection(sec) {
   const row = findCatalogRow(sec.kind || 'casing', sec.odIn, sec.weightLbFt);
   if (!row) {
-    throw new Error(`No API 5CT catalog row for ${sec.odIn}" ${sec.weightLbFt}# — pick from the catalog.`);
+    throw new Error(`No API 5CT catalog row for ${sec.odIn}" ${sec.weightLbFt}#. Pick one from the catalog.`);
   }
   const yieldPa = casingGradeYieldPa(sec.grade);
   if (!yieldPa) throw new Error(`Unknown grade '${sec.grade}'.`);
