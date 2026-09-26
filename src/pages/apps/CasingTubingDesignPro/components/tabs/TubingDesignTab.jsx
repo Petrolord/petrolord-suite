@@ -13,6 +13,16 @@ import TubingVisualizer from '../tubing/TubingVisualizer';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 
+const PackerPanelBlock = () => (
+  <>
+    <PackerConfigPanel />
+    <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-[10px] text-slate-500 space-y-1">
+      <p className="text-slate-400 font-bold text-xs">How the deltas are built</p>
+      <p>The landed condition is packer fluid balanced inside and out. Each operating case rebuilds the internal column (surface pressure + fluid gradient at the packer TVD) and takes the change from that baseline.</p>
+    </div>
+  </>
+);
+
 const TubingDesignTab = () => {
   const { caseDoc, results, depthUnit } = useCasingTubingDesign();
 
@@ -85,6 +95,9 @@ const TubingDesignTab = () => {
           )}
 
           <div className="flex-1 overflow-y-auto pt-0 px-4 pb-0 custom-scrollbar">
+            <div className="2xl:hidden pt-4 grid gap-4 lg:grid-cols-2" data-testid="ct-packer-inline">
+              <PackerPanelBlock />
+            </div>
             {viewMode === 'forces' && (
               <div className="grid grid-cols-12 gap-4 h-full pt-4 pb-4">
                 <div className="col-span-4 h-full border border-slate-800 rounded-lg overflow-hidden bg-white">
@@ -159,14 +172,12 @@ const TubingDesignTab = () => {
           </div>
         </div>
 
-        {/* Right: packer config */}
-        <div className="w-[300px] border-l border-slate-800 bg-slate-950/50 flex flex-col overflow-y-auto custom-scrollbar py-0">
+        {/* Right: packer config. CT-T1-004: inside the page's own two side
+            panels this third column left the results about 160 px at 1366;
+            below 2xl the packer panel moves into the centre flow instead. */}
+        <div className="hidden 2xl:flex w-[300px] border-l border-slate-800 bg-slate-950/50 flex-col overflow-y-auto custom-scrollbar py-0">
           <div className="p-4 space-y-4">
-            <PackerConfigPanel />
-            <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-[10px] text-slate-500 space-y-1">
-              <p className="text-slate-400 font-bold text-xs">How the deltas are built</p>
-              <p>The landed condition is packer fluid balanced inside and out. Each operating case rebuilds the internal column (surface pressure + fluid gradient at the packer TVD) and takes the change from that baseline.</p>
-            </div>
+            <PackerPanelBlock />
           </div>
         </div>
       </div>
