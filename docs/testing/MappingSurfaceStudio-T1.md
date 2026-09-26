@@ -108,11 +108,17 @@ MS0 note promised a distance control; it was not built.
 *Fix:* grid extent control (to a boundary polygon, a rectangle, or a
 distance beyond the wells), with extrapolated areas visibly marked.
 
-**MAP-T1-008 No minimum-curvature (convergent) gridding.**
-Minimum curvature is the default in Petrel, Surfer and Kingdom. The Studio
-offers only an exact thin-plate spline, which overshoots between close
-wells (MAP-T1-003) and extrapolates steeply, and ordinary kriging.
-*Fix:* add minimum curvature with tension, and an optional smoothing pass.
+**MAP-T1-008 No tension or smoothing in the gridding (corrected).**
+*Correction during the fix:* the thin-plate spline the Studio grids with is
+itself the continuous minimum-curvature surface (Sandwell 1987 shows
+Briggs' minimum-curvature grid discretises the biharmonic spline), so the
+original wording "no minimum-curvature gridding" was wrong. What Petrel,
+Surfer and Kingdom users actually reach for, and what was missing, is
+TENSION (to stop overshoot between close wells, MAP-T1-003, and runaway
+extrapolation) and SMOOTHING (to stop forcing the surface through noisy
+values).
+*Fix:* a Green's-function spline in tension with smoothing (Wessel &
+Bercovici 1998).
 
 **MAP-T1-009 Depth conversion lacks the well-based method.**
 Time-to-depth accepts only a linear V0 + kZ model from a Seismolord
@@ -141,12 +147,18 @@ intersection, so the reader attributes the value to the wrong place.
 geoscientists read structure maps as positive ft TVDSS. A display toggle
 (storage unchanged) would remove a common misreading.
 
-**MAP-T1-014 Culture cannot be imported in Mapping.** Licence (OML, PML)
-boundaries and coastlines can only be drawn by clicking. Seismolord already
-imports shapefile and GeoJSON culture.
+**MAP-T1-014 WITHDRAWN (false positive).** Culture import (GeoJSON and
+shapefile) is present in the production app. The UI walk ran on the `/dev`
+harness, whose in-memory backend switches the import off. Lesson recorded
+for the protocol: confirm every "missing feature" finding against the
+production backend, not only the harness.
 
-**MAP-T1-015 Every well has the same symbol.** No oil, gas, dry or planned
-symbology.
+**MAP-T1-015 Well symbology is partial (narrowed).** The painter already
+draws planned wells as rings and dry or plugged wells as crosses, but
+`geo_wells` has no status column to drive it, so every well shows as a
+plain dot, and there is no oil, gas or injector symbol and no symbol
+legend. (The harness wells carry no status, which is why the walk saw one
+symbol.)
 
 **MAP-T1-016 No contours-over-attribute display.** Structure contours of one
 surface over the colours of another (amplitude, net sand) is the standard
@@ -190,5 +202,5 @@ then passed. Recommend clearing the cache automatically at container start.
 | Batch | Findings | Rationale |
 | --- | --- | --- |
 | A, before NAPE | 001, 002, 003, 004, 005, 006, E1, 010, 011, 012, 013 | Removes every wrong-number risk and makes the map presentable |
-| B, before NAPE if time allows | 007, 008, 009, 014 | Benchmark parity a Petrel user will look for |
+| B, before NAPE if time allows | 007, 008, 009 | Benchmark parity a Petrel user will look for (014 withdrawn) |
 | C, after NAPE | 015, 016, 017, 018, E2, E3, E4, E5 | Depth and polish |
