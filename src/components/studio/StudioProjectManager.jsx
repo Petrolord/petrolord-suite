@@ -83,7 +83,7 @@ const StudioProjectManager = ({
               />
             </div>
             <DialogFooter>
-              <Button onClick={handleCreate}>Create Project</Button>
+              <Button onClick={handleCreate}>{`Create ${noun}`}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

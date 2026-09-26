@@ -253,3 +253,11 @@ feature and fix commits shipped through 2026-08-26. Corrected:
   filters, group rollup, and the Integration panel handoff to NPV &
   Economics and FDP Accelerator.
 - 12 em dashes removed (owner copy rule).
+
+## 2026-09-26: Senior test T1 (Wave 2 #20)
+
+Report: docs/testing/DeclineCurveAnalysis-T1.md. Remaining reserves now
+start at the last history date (they included the produced volume, about
+3 times too high on the test well); EUR and produced to date shown; life
+from the last data, limit or horizon; linear date axis; `/dev/dca` runs on
+the in-memory Supabase double (`src/dev/InMemorySupabase.jsx`).

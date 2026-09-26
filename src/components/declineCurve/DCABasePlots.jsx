@@ -97,7 +97,12 @@ const DCABasePlots = () => {
       });
     }
 
-    return merged.sort((a, b) => new Date(a.date) - new Date(b.date));
+    // numeric time for a linear date axis (T1: a category axis gave a month of
+    // history the same width as a day of forecast)
+    return merged
+      .map((r) => ({ ...r, ts: new Date(r.date).getTime() }))
+      .filter((r) => Number.isFinite(r.ts))
+      .sort((a, b) => a.ts - b.ts);
   }, [currentData, forecastResults, streamState, selectedStream, logScale]);
   
   // Get Y-axis label based on stream
@@ -111,6 +116,7 @@ const DCABasePlots = () => {
   
   // Get stream palette
   const palette = getStreamPalette(selectedStream);
+  const hasProbBand = chartData.some((d) => d.p10 != null && d.p90 != null);
   
   return (
     <div id="dca-main-plot" className="h-full flex flex-col bg-white rounded-lg border border-slate-200 overflow-hidden shadow-inner">
@@ -145,12 +151,14 @@ const DCABasePlots = () => {
                 <ComposedChart data={chartData} margin={CHART_MARGINS.standard}>
                   <CartesianGrid {...GRID_STYLE} />
                   <XAxis 
-                    dataKey="date" 
-                    type="category"
+                    dataKey="ts" 
+                    type="number"
+                    scale="time"
+                    domain={['dataMin', 'dataMax']}
+                    tickFormatter={(v) => new Date(v).toISOString().slice(0, 7)}
                     tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
                     axisLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
                     tickLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
-                    interval="preserveStartEnd"
                     minTickGap={60}
                   >
                     <Label 
@@ -176,6 +184,7 @@ const DCABasePlots = () => {
                   </YAxis>
                   <Tooltip 
                     contentStyle={TOOLTIP_STYLE}
+                    labelFormatter={(v) => new Date(v).toISOString().slice(0, 10)}
                     labelStyle={{ color: CHART_COLORS.tooltipText }}
                     itemStyle={{ color: CHART_COLORS.tooltipText }}
                     formatter={(value, name) => {
@@ -229,7 +238,9 @@ const DCABasePlots = () => {
                     isAnimationActive={false}
                   />
                   
-                  {/* P10–P90 Envelope Band (filled area) */}
+                  {/* P10–P90 Envelope Band (filled area): probabilistic runs only, so a
+                      deterministic forecast's legend does not list bands it lacks */}
+                  {hasProbBand && (<>
                   <Area
                     type="monotone"
                     dataKey={(d) => (d.p10 != null && d.p90 != null) ? [d.p90, d.p10] : null}
@@ -269,6 +280,7 @@ const DCABasePlots = () => {
                     connectNulls={false}
                     isAnimationActive={false}
                   />
+                  </>)}
 
                   {/* Forecast Data as Line (P50 / deterministic central) */}
                   <Line 
@@ -278,7 +290,7 @@ const DCABasePlots = () => {
                     strokeWidth={2}
                     strokeDasharray="6 4"
                     dot={false}
-                    name="Forecast (P50)"
+                    name={hasProbBand ? 'Forecast (P50)' : 'Forecast'}
                     connectNulls={false}
                     isAnimationActive={false}
                   />

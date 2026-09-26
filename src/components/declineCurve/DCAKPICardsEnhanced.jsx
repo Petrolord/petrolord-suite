@@ -24,8 +24,14 @@ const DCAKPICardsEnhanced = () => {
   const { qi, Di, b, modelType, R2, RMSE } = fitResults;
   
   // Use forecast results if available, otherwise N/A
-  const eur = forecastResults ? forecastResults.eur : 0;
+  // remaining = after the last history date (T1: the whole curve from first
+  // production was shown as remaining); '-' until a forecast is run
+  const eur = forecastResults ? forecastResults.eur : null;
   const timeLeft = forecastResults ? (forecastResults.timeToLimit / 365).toFixed(1) : '-';
+  const lifeNote = !forecastResults ? 'Run a forecast'
+    : forecastResults.limitBeforeToday ? 'Already below the economic limit'
+      : forecastResults.limitReached ? 'After the last data, to the economic limit'
+        : 'Forecast horizon; limit not reached';
   const probabilistic = forecastResults?.probabilistic;
   const isProbabilistic = !!probabilistic && probabilistic.iterations > 0;
 
@@ -62,27 +68,27 @@ const DCAKPICardsEnhanced = () => {
       />
       <MetricCard 
         label="Fit Quality (R²)" 
-        value={formatNum(R2)} 
+        value={typeof R2 === 'number' ? R2.toFixed(4) : '-'} 
         color="text-blue-400"
       />
       {isProbabilistic ? (
         <>
           <MetricCard
-            label="P10 Reserves"
+            label="P10 EUR"
             value={formatNum(probabilistic.p10)}
             unit={volumeUnit}
             color="text-emerald-400"
             subtext="Optimistic (10% chance ≥)"
           />
           <MetricCard
-            label="P50 Reserves"
+            label="P50 EUR"
             value={formatNum(probabilistic.p50)}
             unit={volumeUnit}
             color="text-sky-400"
             subtext={`Median (${probabilistic.iterations} sims)`}
           />
           <MetricCard
-            label="P90 Reserves"
+            label="P90 EUR"
             value={formatNum(probabilistic.p90)}
             unit={volumeUnit}
             color="text-amber-400"
@@ -92,10 +98,12 @@ const DCAKPICardsEnhanced = () => {
       ) : (
         <MetricCard
           label="Rem. Reserves"
-          value={formatNum(eur)}
+          value={eur == null ? '-' : formatNum(Math.round(eur))}
           unit={volumeUnit}
           color="text-emerald-400"
-          subtext="Forecasted Volume"
+          subtext={forecastResults && Number.isFinite(forecastResults.eurTotal)
+            ? `EUR ${Math.round(forecastResults.eurTotal).toLocaleString()} incl. ${Math.round(forecastResults.produced).toLocaleString()} produced`
+            : 'Run a forecast'}
         />
       )}
       <MetricCard 
@@ -103,7 +111,7 @@ const DCAKPICardsEnhanced = () => {
         value={timeLeft} 
         unit="years"
         color="text-yellow-400"
-        subtext="Until Econ Limit"
+        subtext={lifeNote}
       />
       <MetricCard 
         label="Fit Error (RMSE)" 

@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { fitArpsModel, getFitQuality, generateForecast } from '@/utils/declineCurve/dcaEngine';
+import { fitArpsModel, getFitQuality } from '@/utils/declineCurve/dcaEngine';
 import { getStreamRate } from '@/utils/declineCurve/csvParser';
+import { forecastFromHistory } from '@/utils/declineCurve/forecastFromHistory';
 import { runMonteCarloSimulation } from '@/utils/dcaMonteCarlo';
 import { normalizeByTime, normalizeByRate, normalizeByTimeAndRate, applyTypeCurve } from '@/utils/declineCurve/typeCurveEngine';
 import {
@@ -448,10 +449,9 @@ export const DeclineCurveProvider = ({ children }) => {
       const config = streamState[selectedStream].forecastConfig;
 
       // Always run the deterministic forecast — gives us the central curve
-      const deterministic = generateForecast(
-        fit, config,
-        fit.t0 || new Date().toISOString()
-      );
+      // from the last history date (T1: the engine curve runs from the fit's
+      // t0, and its whole sum was labelled remaining reserves)
+      const deterministic = forecastFromHistory(fit, config, currentData, selectedStream);
 
       let combined = deterministic;
 
@@ -463,8 +463,12 @@ export const DeclineCurveProvider = ({ children }) => {
         // the deterministic forecast above uses. Without it the engine fell
         // back to Date.now() per point, so the P10/P50/P90 sample curves sat on
         // a different time axis to the curve they are meant to bracket.
+        // the same span as the deterministic curve: history plus the horizon, so
+        // the P10/P50/P90 are EURs from first production over the same end date
+        const histDays = Math.max(0, Math.round((new Date(deterministic.historyEndDate) - new Date(fit.t0 || Date.now())) / 86400000));
         const mcConfig = {
           ...config,
+          forecastDurationDays: histDays + (config.forecastDurationDays || config.durationDays || 3650),
           startDate: fit.t0 || new Date().toISOString(),
           economicLimitUncertainty: Number.isFinite(config.economicLimitUncertainty)
             ? config.economicLimitUncertainty
@@ -509,7 +513,7 @@ export const DeclineCurveProvider = ({ children }) => {
     } finally {
       setIsForecasting(false);
     }
-  }, [selectedStream, streamState, isForecasting]);
+  }, [selectedStream, streamState, isForecasting, currentData]);
 
   // ===== Type Curve Actions =====
   const createTypeCurve = useCallback(async ({ name, wellIds, normalizationMethod, modelType }) => {

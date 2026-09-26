@@ -91,18 +91,27 @@ const DCAForecastResults = () => {
           </Card>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-2 shrink-0 mb-2">
+        <div className="grid grid-cols-3 gap-2 shrink-0 mb-2" data-testid="dca-forecast-summary">
           <div className="bg-slate-800 p-2 rounded border border-slate-700">
             <div className="text-[10px] text-slate-400 uppercase">Rem. Reserves</div>
-            <div className="text-sm font-bold text-emerald-400">
+            <div className="text-sm font-bold text-emerald-400" data-testid="dca-remaining">
               {typeof safeEur === 'number' ? safeEur.toLocaleString(undefined, {maximumFractionDigits:0}) : '0'}
             </div>
+            <div className="text-[9px] text-slate-500">after the last data, {results.historyEndDate ? new Date(results.historyEndDate).toLocaleDateString() : ''}</div>
           </div>
           <div className="bg-slate-800 p-2 rounded border border-slate-700">
-            <div className="text-[10px] text-slate-400 uppercase">Time to Limit</div>
-            <div className="text-sm font-bold text-blue-400">
+            <div className="text-[10px] text-slate-400 uppercase">EUR</div>
+            <div className="text-sm font-bold text-sky-400" data-testid="dca-eur-total">
+              {Number.isFinite(results.eurTotal) ? results.eurTotal.toLocaleString(undefined, {maximumFractionDigits:0}) : '-'}
+            </div>
+            <div className="text-[9px] text-slate-500">{Number.isFinite(results.produced) ? `${Math.round(results.produced).toLocaleString()} produced + remaining` : ''}</div>
+          </div>
+          <div className="bg-slate-800 p-2 rounded border border-slate-700">
+            <div className="text-[10px] text-slate-400 uppercase">{results.limitReached ? 'Time to Limit' : 'Forecast span'}</div>
+            <div className="text-sm font-bold text-blue-400" data-testid="dca-time-to-limit">
               {typeof safeTimeToLimit === 'number' ? (safeTimeToLimit/365).toFixed(1) : '0.0'} yrs
             </div>
+            <div className="text-[9px] text-slate-500">{results.limitReached ? 'to the economic limit' : 'limit not reached in the horizon'}</div>
           </div>
         </div>
       )}
