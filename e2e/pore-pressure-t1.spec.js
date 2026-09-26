@@ -29,3 +29,9 @@ test('T1-E1/003: drilling window reported; ribbon keeps Save on screen', async (
   expect(save.x + save.width).toBeLessThanOrEqual(1366);
   await page.screenshot({ path: 'test-results/pp-t1.png' });
 });
+
+test('T1-001: the NCT plot also reads depth downward', async ({ page }) => {
+  await page.getByTestId('pp-view-nct').click();
+  const y = async (t) => (await page.locator('.recharts-yAxis .recharts-cartesian-axis-tick-value', { hasText: new RegExp(`^${t}$`) }).first().boundingBox()).y;
+  expect(await y('1000')).toBeLessThan(await y('3000'));
+});
