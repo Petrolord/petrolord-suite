@@ -263,6 +263,7 @@ const EpeCaseDetail = lazy(() => import('@/pages/apps/epe/EpeCaseDetail'));
 const EpeRunConsole = lazy(() => import('@/pages/apps/epe/EpeRunConsole'));
 const EpeResultsViewer = lazy(() => import('@/pages/apps/epe/EpeResultsViewer'));
 const EpeRunComparison = lazy(() => import('@/pages/apps/epe/EpeRunComparison'));
+const EpeHarness = lazy(() => import('@/pages/apps/epe/harness/EpeHarness'));
 
 const MobileLayout = lazy(() => import('@/layouts/MobileLayout'));
 const MobileDashboard = lazy(() => import('@/pages/mobile/MobileDashboard'));
@@ -943,6 +944,7 @@ function App() {
                                   <Route path="/dev/well-cost" element={<WellCostTimeHarness />} />
                                   <Route path="/dev/dca" element={<DeclineCurveAnalysis />} />
                                   <Route path="/dev/fiscal-regime-designer" element={<FiscalRegimeDesigner />} />
+                                  <Route path="/dev/epe/*" element={<EpeHarness />} />
                                   <Route path="/dev/well-test-analysis-studio" element={<WellTestAnalysisStudio />} />
                                   <Route path="/dev/nodal-analysis-studio" element={<NodalAnalysisStudio />} />
                                   <Route path="/dev/material-balance-studio" element={<ReservoirBalance />} />
