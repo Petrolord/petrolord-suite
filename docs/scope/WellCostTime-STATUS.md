@@ -108,3 +108,8 @@ CLAUDE.md single-implementation rule).
 5. Report: export the AFE PDF; save a run; open the AFE Cost Control
    Manager and Economics Studio cross-links.
 6. Save, duplicate, reload round-trip on the case.
+
+## 2026-09-26: senior test T1 (docs/testing/WellCostTime-T1.md)
+
+- Numbers hand-checked, no defects in the engine output; AFE and program
+  rows keep a minimum name width and wrap at 1366.

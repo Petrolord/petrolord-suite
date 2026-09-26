@@ -48,8 +48,11 @@ export default function CostTab({ caseDraft, onCaseChange, res }) {
         <Card title="AFE items" testId="wct-items-card">
           <div className="flex flex-col gap-1">
             {items.map((it, i) => (
-              <div key={it.id} className="flex items-center gap-1.5" data-testid={`wct-item-${it.id}`}>
-                <Input className="h-7 flex-1 text-xs" value={it.label || ''}
+              // WCT-T1-001: lump rows carry a linked-activity picker too; at
+              // 1366 the name box shrank to nothing ("Wellhead" unreadable),
+              // so the name keeps a minimum width and the row wraps instead
+              <div key={it.id} className="flex flex-wrap items-center gap-1.5" data-testid={`wct-item-${it.id}`}>
+                <Input className="h-7 min-w-[120px] flex-1 text-xs" value={it.label || ''}
                   onChange={(e) => onCaseChange((d) => { d.costs.items[i].label = e.target.value; })} />
                 <select className="h-7 rounded border border-slate-700 bg-slate-900 px-1 text-[10px]" value={it.category}
                   onChange={(e) => onCaseChange((d) => { d.costs.items[i].category = e.target.value; })}>
