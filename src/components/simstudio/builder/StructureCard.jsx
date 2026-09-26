@@ -97,7 +97,7 @@ const StructureCard = ({ form, set, addNotification }) => {
               <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)}
                 className="w-full h-8 rounded-md bg-slate-800 border border-slate-700 px-2 text-xs"
                 data-testid="structure-surface-select">
-                <option value="">{surfaces === null ? 'Loading…' : surfaces.length ? 'Pick a surface…' : 'No depth surfaces yet — map one in Mapping & Surface Studio'}</option>
+                <option value="">{surfaces === null ? 'Loading…' : surfaces.length ? 'Pick a surface…' : 'No depth surfaces yet. Map one in Mapping & Surface Studio'}</option>
                 {(surfaces || []).map((s) => (
                   <option key={s.id} value={s.id}>{s.name} ({s.nx}×{s.ny}{s.is_own ? '' : ' · shared'})</option>
                 ))}

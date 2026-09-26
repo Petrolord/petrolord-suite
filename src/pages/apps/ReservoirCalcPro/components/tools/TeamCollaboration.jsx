@@ -65,7 +65,7 @@ const TeamCollaboration = () => {
                 <CardHeader className="pb-2"><CardTitle className="text-white text-sm flex items-center gap-2"><FolderOpen className="w-4 h-4 text-amber-400" /> Your projects ({projects.length})</CardTitle></CardHeader>
                 <CardContent className="p-0">
                     {projects.length === 0 ? (
-                        <div className="p-4 text-center text-xs text-slate-500 italic">No saved projects yet — save one to share it.</div>
+                        <div className="p-4 text-center text-xs text-slate-500 italic">No saved projects yet. Save one to share it.</div>
                     ) : projects.map((p) => (
                         <div key={p.id} className="flex items-center gap-2 px-4 py-2 border-t border-slate-800 text-xs">
                             <div className="flex-1 min-w-0">
@@ -82,7 +82,7 @@ const TeamCollaboration = () => {
 
             <div className="flex items-start gap-2 text-[11px] text-slate-400 bg-slate-900/40 border border-slate-800 rounded-lg px-3 py-2">
                 <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-slate-500" />
-                <span>Live multi-user editing and in-app sharing aren&apos;t enabled yet — they require a project-sharing service. Until then, exporting/importing project files is the supported way to collaborate, and it transfers the complete model.</span>
+                <span>Live multi-user editing and in-app sharing aren&apos;t enabled yet: they require a project-sharing service. Until then, exporting/importing project files is the supported way to collaborate, and it transfers the complete model.</span>
             </div>
         </div>
     );

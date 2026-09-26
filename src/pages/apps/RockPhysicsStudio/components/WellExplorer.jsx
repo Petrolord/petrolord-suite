@@ -69,7 +69,7 @@ export default function WellExplorer({
         })}
         {!wells.length && (
           <p className="px-3 py-2 text-xs text-slate-600 leading-snug">
-            No wells in the registry yet — import them in Well Data Manager first.
+            No wells in the registry yet. Import them in Well Data Manager first.
           </p>
         )}
       </ScrollArea>

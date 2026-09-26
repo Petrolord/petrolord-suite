@@ -8,6 +8,19 @@ import { fmtDepth } from '../services/units';
 import { toRigLocal } from '@/lib/wellsite/time';
 import { observationLabel } from '../services/observations';
 
+// The engine's sentence is in metres (SI); the panel restates it in the
+// display unit, as every row beneath it is (Wave 1B: "52 m MD above ... 20 m
+// uncertainty window" sat over a panel in feet).
+export function approachText(p, next, unit) {
+  const d = (m) => fmtDepth(m, unit);
+  const f = next.name;
+  if (!Number.isFinite(p.prognosisMdM)) return p.text;
+  if (!Number.isFinite(p.bitMdM)) return `No bit depth recorded; ${f} is prognosed at ${d(p.prognosisMdM)} MD.`;
+  if (p.passed) return `Bit is ${d(p.bitMdM - p.window.toMdM)} MD below the ${d(p.uncertaintyM)} uncertainty window of ${f}${next.call ? '' : ' and no top has been called'}.`;
+  if (p.inWindow) return `Bit is ${d(p.distanceMdM)} MD from the prognosed ${f}, inside the ${d(p.uncertaintyM)} uncertainty window.`;
+  return `Bit is ${d(p.distanceMdM)} MD above the prognosed ${f}, ${d(p.distanceMdM - p.uncertaintyM)} above its ${d(p.uncertaintyM)} uncertainty window.`;
+}
+
 export default function ApproachPanel({ next, evidence = [], unit, offsetMin, onOpenTops }) {
   if (!next) return <div className="p-3 text-xs text-slate-500" data-testid="ws-approach-none">No prognosed top ahead of the bit.</div>;
   const p = next.panel;
@@ -16,7 +29,7 @@ export default function ApproachPanel({ next, evidence = [], unit, offsetMin, on
     <div className="p-3 space-y-2 text-xs" data-testid="ws-approach" data-formation={next.key} data-in-window={p.inWindow ? '1' : '0'}>
       <div className="text-[10px] uppercase tracking-wide text-slate-500">Approaching</div>
       <div className="text-sm text-slate-100">{next.name}</div>
-      <div className="text-slate-300" data-testid="ws-approach-text">{p.text.replace(/(\d+\.\d{2})\d+/g, '$1')}</div>
+      <div className="text-slate-300" data-testid="ws-approach-text">{approachText(p, next, unit)}</div>
       <table className="w-full"><tbody>
         <Row label="Prognosis" value={fmtDepth(p.prognosisMdM, unit)} testId="ws-approach-prognosis" />
         <Row label="Uncertainty" value={`${fmtDepth(p.window ? p.window.fromMdM : NaN, unit)} to ${fmtDepth(p.window ? p.window.toMdM : NaN, unit)}`} />

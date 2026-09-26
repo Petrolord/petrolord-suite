@@ -18,7 +18,7 @@ export const friendlyError = (error) => {
     const missingTable = error?.code === '42P01'
         || new RegExp(`relation[^\\n]*${TABLE}[^\\n]*does not exist`, 'i').test(msg);
     if (missingTable) {
-        return "Saving isn't set up yet — run the create_saved_quickvol_projects migration.";
+        return "Saving isn't set up yet. Run the create_saved_quickvol_projects migration.";
     }
     // Legacy-column trap: the pre-existing table has NOT NULL columns the app
     // doesn't populate unless the relax migration has been applied.

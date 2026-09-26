@@ -30,19 +30,19 @@ function Row({ well, selected, busy, appPaths, onSelect, onShareToggle, onDelete
       onKeyDown={(e) => { if (e.key === 'Enter') onSelect(well.id); }}
     >
       <CircleDot className="w-3.5 h-3.5 shrink-0 text-amber-400" />
-      <span className="truncate">{well.name}</span>
+      <span className="truncate min-w-0">{well.name}</span>
       <span
         data-testid="wdm-well-badge"
         title={shared
           ? `Shared with the organization${well.is_own ? '' : ' (read-only for you)'}`
-          : 'Private — only you can see this well'}
-        className={`ml-1 inline-flex items-center gap-0.5 rounded px-1 text-[10px]
+          : 'Private: only you can see this well'}
+        className={`ml-1 shrink-0 inline-flex items-center gap-0.5 rounded px-1 text-[10px]
           ${shared ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-700/60 text-slate-400'}`}
       >
         {shared ? <Building2 className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
         {shared ? 'org' : 'private'}
       </span>
-      <span className="ml-auto pl-2 text-[11px] text-slate-500 whitespace-nowrap">
+      <span className="ml-auto shrink-0 pl-2 text-[11px] text-slate-500 whitespace-nowrap">
         {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin inline" />
           : (well.td_md_m ? `TD ${Math.round(well.td_md_m)} m` : '')}
       </span>
@@ -161,7 +161,7 @@ export default function WellsTree({
           <p className="px-3 py-2 text-xs text-slate-600 leading-snug">
             {total
               ? 'No well matches the search.'
-              : 'No wells yet — import a LAS file or add a well manually. Org members\' shared wells appear here too.'}
+              : 'No wells yet. Import a LAS file or add a well manually. Org members\' shared wells appear here too.'}
           </p>
         )}
       </ScrollArea>
