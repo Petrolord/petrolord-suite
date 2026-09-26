@@ -4,9 +4,11 @@ Scope document: `docs/scope/EPE.md`. Programme table: `docs/scope/Economics-ROAD
 
 ## EC7: PIA 2021 / NTA 2025 compliance (2026-09-26)
 
-**State: BUILT, PR open** (branch `fix/epe-pia-2021-compliance`). Engine: engines
-PR #262 merged as 3778451 (engines 3.12.0), vendored with the Suite pin at 3778451.
-Migration `20260926150000_epe_pia_2021_inputs.sql`: **HELD, NOT APPLIED**.
+**State: MERGED** (Suite #632, 2026-09-26). Engine: engines PR #262 merged as
+3778451 (engines 3.12.0); the Suite now vendors 3061acc, which carries it.
+Migration `20260926150000_epe_pia_2021_inputs.sql`: **APPLIED** (owner). The
+three EPE edge functions redeploy and the build upload go with the single
+Wave 1 production zip.
 
 Owner decision D1: the PIA regime follows the gazetted PIA 2021, NTA 2025
 (June 2025 gazette), Petroleum Royalty Regulations 2022 and Finance Act 2023
@@ -48,6 +50,16 @@ computes on the pre-audit engine.
 - The re-gazetted NTA Certified True Copy was not read (engine D3); figures follow the June 2025 gazette.
 - The Finance Act 2021 TET rate (2.5% before 2023) and the NDDC Act base rest on secondary sources.
 - Not computed (course concept only): associated vs non-associated gas split, fiscal-price top-up (s.268 / NTA s.73), exploration and appraisal expensing, acquisition allowance, PSC terms inside the cash flow engine, NTA s.85 gas credit, statutory company-level minimum ETR test.
-- The Fiscal Regime Designer page seeds a default regime named "Nigerian PIA (PSC)" with invented terms (12.5 / 15% royalty, RRT 20); it is not the re-based template. Rename or re-seed it in a follow-up.
+- ~~The Fiscal Regime Designer default regime named "Nigerian PIA (PSC)"~~ renamed "Sample PSC (R-factor split)" in Wave 1 T1 (#641).
 - The owner's Ekene kit zip needs a rebuild after merge (economics numbers moved).
 - NextGen: the `cashflow` and `fiscal` course re-cuts listed in FINDINGS-pia2021.md section 7 (separate NextGen PR, decision D2).
+
+## 2026-09-26: Senior test T1 (Wave 1 #10)
+
+Report: docs/testing/PetroleumEconomicsStudio-T1.md. Results Viewer:
+headline figures to three significant figures (the demo field read "$2M"),
+the framework named in chart titles (a PIA-then-NTA run was titled "PIA
+2021"), the cumulative line on the flows' axis, sunk history shaded, the
+waterfall opens on the first valued year, and the PDF report carries every
+chart whichever tab is open. New dev harness `/dev/epe/runs/r1` on the
+Ekene demo run computed by the engines cash flow. Engine untouched.

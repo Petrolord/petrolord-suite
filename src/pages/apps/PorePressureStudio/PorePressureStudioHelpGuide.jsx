@@ -61,7 +61,7 @@ export default function PorePressureStudioHelpGuide() {
         <Step n={1} title="Pick a well">Click a registry well on the left. It needs a depth and a sonic curve; a density curve improves the overburden, otherwise Gardner densities stand in and the status bar says so.</Step>
         <Step n={2} title="Set the water column">In the dock type the water depth, the seawater and pore fluid densities and, for an equivalent mud weight referenced to the rotary table, the mudline MD. Press Apply.</Step>
         <Step n={3} title="Fit the trend">In NCT add shale picks at depths in the normally pressured section and press Fit NCT: the mudline transit time and the compaction constant are written into the dock.</Step>
-        <Step n={4} title="Read the prognosis">Back in Prognosis, type a depth in the ribbon and read OBG, hydrostatic, PP and FG in the chosen unit; the chart shows the whole profile with your calibration points.</Step>
+        <Step n={4} title="Read the prognosis">Back in Prognosis, type a depth in the ribbon and read OBG, hydrostatic, PP and FG in the chosen unit; the chart shows the whole profile with your calibration points and the drilling window between PP and FG shaded. Above the chart, the narrowest window in ppg EMW and its depth, below the top 300 m (the conductor section, where PP and FG meet the seawater gradient by construction); under 0.5 ppg is flagged as a casing point or managed pressure case.</Step>
         <Step n={5} title="Deliver">Prognosis CSV downloads the table in your units with EMW columns; Publish writes PP, FP and OBG to the well; Save keeps the parameters and picks.</Step>
       </GuideSection>
 

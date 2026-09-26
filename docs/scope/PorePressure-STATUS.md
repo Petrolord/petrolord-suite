@@ -90,3 +90,11 @@ display units for the Drilling handoff" follow-on above. PP1 adds the
 Well data and Open in launchers for the selected well and the in-app
 help guide at `/dashboard/apps/geoscience/pore-pressure-studio/help`.
 PP0 and PP1 are merged; the series is closed.
+
+## 2026-09-26: Senior test T1 (Wave 1 #8)
+
+Report: docs/testing/PorePressureStudio-T1.md. The prognosis reads depth
+downward (it was upside down), calibration points are drawn, the ribbon
+fits a laptop. New: the drilling window between PP and FG shaded and the
+narrowest window in ppg EMW reported below the conductor section
+(`services/drillingWindow.js`). Engines untouched.

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -9,7 +9,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import {
   ComposedChart, Bar, Area, Line, XAxis, YAxis,
   CartesianGrid, Tooltip as RTooltip, Legend as RLegend, ReferenceLine,
-  ReferenceDot, Cell, LabelList, Label
+  ReferenceDot, ReferenceArea, Cell, LabelList, Label
 } from 'recharts';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -215,10 +215,16 @@ const CashFlowProfile = ({ results }) => {
     }
   });
 
+  // EPE T1-003: the cumulative line shares the flows' axis (same magnitude);
+  // on a second axis its zero sat at the bottom while the flows' zero sat
+  // mid-height, so it read as negative where it was not.
+  // EPE T1-004: history before the valuation year is sunk and not valued
+  const sunkYears = cf.filter((r) => r.sunk).map((r) => r.year);
+
   return (
     <div id="epe-pdf-capture-profile" style={{ width: '100%', background: CHART_COLORS.background, borderRadius: 8, padding: 12 }}>
       <h3 style={{ fontSize: 14, fontWeight: 600, color: CHART_COLORS.axisLabel, margin: '0 0 8px 4px' }}>
-        Cash Flow Profile {isPIA ? '(PIA 2021)' : ''}
+        Cash Flow Profile {isPIA ? `(${frameworkLabel(results?.kpis) || 'PIA 2021'})` : ''}
       </h3>
       <ChartFrame height={410} exportFilename="pe-studio-cash-flow-profile">
         <ComposedChart data={data} margin={CHART_MARGINS.withLegend} stackOffset="sign">
@@ -234,13 +240,10 @@ const CashFlowProfile = ({ results }) => {
             stroke={CHART_COLORS.axisLine}
             tickFormatter={fmtCompact}
           />
-          <YAxis
-            yAxisId="right"
-            orientation="right"
-            tick={{ fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText }}
-            stroke={CHART_COLORS.axisLine}
-            tickFormatter={fmtCompact}
-          />
+          {sunkYears.length > 0 && (
+            <ReferenceArea yAxisId="left" x1={sunkYears[0]} x2={sunkYears[sunkYears.length - 1]} fill="#94a3b8" fillOpacity={0.15}
+              label={{ value: 'History: sunk, not valued', position: 'insideTop', fontSize: 10, fill: '#475569' }} />
+          )}
           <RTooltip
             contentStyle={TOOLTIP_STYLE}
             formatter={(value) => fmtCompact(value)}
@@ -269,8 +272,8 @@ const CashFlowProfile = ({ results }) => {
             <Area yAxisId="left" type="monotone" dataKey="tax" name="Tax" stackId="outflow" stroke="#be123c" fill="#be123c" fillOpacity={0.5} />
           )}
 
-          {/* Cumulative CF as a line on the right axis */}
-          <Line yAxisId="right" type="monotone" dataKey="cumulative" name="Cumulative CF" stroke="#0f172a" strokeWidth={2.5} dot={false} />
+          {/* Cumulative CF as a line on the same axis */}
+          <Line yAxisId="left" type="monotone" dataKey="cumulative" name="Cumulative CF" stroke="#0f172a" strokeWidth={2.5} dot={false} />
         </ComposedChart>
       </ChartFrame>
     </div>
@@ -342,8 +345,10 @@ const CashFlowWaterfall = ({ results }) => {
   const cf = results?.cash_flow_data || [];
   const isPIA = results?.kpis?.fiscal_regime === 'PIA';
 
-  // Default year: first year with positive revenue (production has started)
-  const defaultYearIdx = Math.max(0, cf.findIndex(r => (r.gross_revenue ?? r.revenue ?? 0) > 0));
+  // Default year: first VALUED year with positive revenue (EPE T1-005: sunk
+  // history years came first and the waterfall opened on 2020)
+  const firstValued = cf.findIndex(r => !r.sunk && (r.gross_revenue ?? r.revenue ?? 0) > 0);
+  const defaultYearIdx = Math.max(0, firstValued >= 0 ? firstValued : cf.findIndex(r => (r.gross_revenue ?? r.revenue ?? 0) > 0));
   const [selectedIdx, setSelectedIdx] = useState(defaultYearIdx);
 
   if (cf.length === 0) {
@@ -436,7 +441,7 @@ const CashFlowWaterfall = ({ results }) => {
     <div id="epe-pdf-capture-waterfall" style={{ position: 'relative', width: '100%', background: CHART_COLORS.background, borderRadius: 8, padding: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
         <h3 style={{ fontSize: 14, fontWeight: 600, color: CHART_COLORS.axisLabel, margin: 0 }}>
-          Cash Flow Waterfall: {isAllYears ? 'All Years (full life)' : `Year ${row.year}`} {isPIA ? '(PIA 2021)' : ''}
+          Cash Flow Waterfall: {isAllYears ? 'All Years (full life)' : `Year ${row.year}`} {isPIA ? `(${row.fiscal_framework === 'nta_2025' ? 'NTA 2025' : row.fiscal_framework === 'pia_only' ? 'PIA 2021' : (frameworkLabel(results?.kpis) || 'PIA 2021')})` : ''}
         </h3>
         <label style={{ fontSize: 12, color: CHART_COLORS.axisText, display: 'flex', alignItems: 'center', gap: 8 }}>
           Year:
@@ -986,7 +991,7 @@ const YearByYearTable = ({ results }) => {
   return (
     <div style={{ background: CHART_COLORS.background, borderRadius: 8, padding: 12, overflowX: 'auto' }}>
       <h3 style={{ fontSize: 14, fontWeight: 600, color: CHART_COLORS.axisLabel, margin: '0 0 12px 4px' }}>
-        Year-by-Year Detail {isPIA ? '(PIA 2021)' : ''}
+        Year-by-Year Detail {isPIA ? `(${frameworkLabel(results?.kpis) || 'PIA 2021'})` : ''}
       </h3>
       <table style={{ borderCollapse: 'collapse', minWidth: '100%', fontFamily: CHART_TYPOGRAPHY.fontFamily }}>
         <thead>
@@ -1046,6 +1051,8 @@ const EpeResultsViewer = () => {
   const [runConfig, setRunConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('profile');  // 'profile' default per L1b/Q2
+  const activeTabRef = useRef('profile');
+  useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
   // Annual chart legend toggles (default view matches the original: only Net
   // Cash Flow visible; the legend now actually toggles the other three).
   const [hiddenSeries, setHiddenSeries] = useState({ netCashFlow: false, revenue: true, capex: true, opex: true });
@@ -1322,7 +1329,7 @@ const EpeResultsViewer = () => {
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(15, 23, 42);
-      doc.text(`Annual cash flow${isPIA ? ' (PIA 2021)' : ''}`, margin, margin + 2);
+      doc.text(`Annual cash flow${isPIA ? ` (${frameworkLabel(kpis) || 'PIA 2021'})` : ''}`, margin, margin + 2);
       const sum = (get) => cf.reduce((s, r) => s + (get(r) || 0), 0);
       let head; let body; let foot;
       if (isPIA) {
@@ -1380,15 +1387,20 @@ const EpeResultsViewer = () => {
         margin: { left: margin, right: margin },
       });
 
-      // ---- Chart pages: capture the branded panels currently on screen ----
-      const captureIds = [
-        'epe-pdf-capture-profile',
-        'epe-pdf-capture-waterfall',
-        'epe-pdf-capture-annual',
-        'epe-pdf-capture-npvprofile',
+      // ---- Chart pages (EPE T1-006): open each chart tab in turn and capture
+      // it once drawn, so the report carries every chart whichever tab was
+      // open (it used to capture only the open tab); restore the tab after.
+      const captureTabs = [
+        ['profile', 'epe-pdf-capture-profile'],
+        ['waterfall', 'epe-pdf-capture-waterfall'],
+        ['annual', 'epe-pdf-capture-annual'],
+        [null, 'epe-pdf-capture-npvprofile'],
       ];
+      const openTab = activeTab;
+      const settle = () => new Promise((r) => setTimeout(r, 1800)); // recharts draw animation
       let chartsEmbedded = 0;
-      for (const id of captureIds) {
+      for (const [tab, id] of captureTabs) {
+        if (tab && tab !== activeTabRef.current) { setActiveTab(tab); activeTabRef.current = tab; await settle(); }
         const el = document.getElementById(id);
         if (!el) continue;
         try {
@@ -1405,13 +1417,14 @@ const EpeResultsViewer = () => {
           console.warn(`PDF chart capture skipped for ${id}:`, capErr);
         }
       }
+      if (openTab !== activeTabRef.current) { setActiveTab(openTab); activeTabRef.current = openTab; }
       if (chartsEmbedded === 0) {
         doc.setPage(doc.internal.getNumberOfPages());
         const ph = doc.internal.pageSize.getHeight();
         doc.setFontSize(7.5);
         doc.setTextColor(120);
         doc.text(
-          'Charts are captured from the open tab. Open the Cash Flow Profile or Waterfall tab before exporting, or use each chart\'s PNG download button.',
+          'The charts could not be captured in this browser; use each chart\'s PNG download button.',
           margin, ph - 14);
       }
 
@@ -1433,7 +1446,8 @@ const EpeResultsViewer = () => {
 
   const formatCurrency = (value) => {
     if (typeof value !== 'number') return 'N/A';
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact' }).format(value);
+    // three significant figures (EPE T1-002): a USD 1.98 MM field read "$2M"
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumSignificantDigits: 3 }).format(value);
   };
 
   // Recharts-shaped chart data: array of {year, netCashFlow, revenue, capex, opex}

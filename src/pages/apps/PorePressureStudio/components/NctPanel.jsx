@@ -111,10 +111,10 @@ export default function NctPanel({ input, profile, params, picks, onPicksChange,
               tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
               label={{ value: `Transit time (${sU})`, position: 'bottom', fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
             />
+            {/* vertical layout already runs the numeric Y axis top-down (T1-001) */}
             <YAxis
               type="number"
               dataKey="z"
-              reversed
               domain={['auto', 'auto']}
               stroke={CHART_COLORS.axisLine}
               tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
