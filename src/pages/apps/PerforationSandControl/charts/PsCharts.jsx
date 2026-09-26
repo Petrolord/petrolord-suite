@@ -6,7 +6,7 @@ import {
   ResponsiveContainer, ComposedChart, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, ReferenceArea,
 } from 'recharts';
-import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE, GRID_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE, GRID_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { psdChartRows, cdpChartRows, depthDisp, depthLabel } from '../services/psRun';
 
@@ -36,19 +36,19 @@ export function PsdChart({ points, gravel }) {
         <ComposedChart data={data} margin={CHART_MARGINS.compact}>
           <CartesianGrid {...GRID_STYLE} />
           <XAxis dataKey="sizeUm" type="number" scale="log" reversed
-            domain={['dataMax', 'dataMin']} {...axisProps}
+            domain={['dataMin', 'dataMax']} {...axisProps} height={XAXIS_LABEL_HEIGHT}
             tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}mm` : v.toFixed(0))}
-            label={{ value: 'grain size (um)', position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
+            label={{ value: 'grain size (um)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <YAxis type="number" domain={[0, 100]} {...axisProps}
             label={{ value: '% retained', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <Tooltip contentStyle={TOOLTIP_STYLE}
             formatter={(v) => (Number.isFinite(v) ? v.toFixed(1) : '--')}
             labelFormatter={(v) => `${Number(v).toFixed(0)} um`} />
-          <Legend wrapperStyle={{ fontSize: 10 }} />
+          <Legend {...LEGEND_PROPS} />
           {gravel && !gravel.noMatch && (
-            <ReferenceArea x1={gravel.bandMaxM * 1e6} x2={gravel.bandMinM * 1e6}
+            <ReferenceArea ifOverflow="extendDomain" x1={gravel.bandMaxM * 1e6} x2={gravel.bandMinM * 1e6}
               fill="#65a30d" fillOpacity={0.12}
-              label={{ value: 'Saucier gravel band', fontSize: 9, fill: '#4d7c0f' }} />
+              label={{ value: `Saucier gravel band ${Math.round(gravel.bandMinM * 1e6)} to ${Math.round(gravel.bandMaxM * 1e6)} um`, position: 'insideTopLeft', fontSize: 9, fill: '#4d7c0f' }} />
           )}
           <Line dataKey="cumRetainedPct" name="Formation sand" stroke="#0369a1"
             strokeWidth={2} dot={{ r: 2 }} isAnimationActive={false} />
@@ -69,15 +69,15 @@ export function CdpChart({ sanding, depthUnit }) {
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data} margin={CHART_MARGINS.compact} layout="vertical">
           <CartesianGrid {...GRID_STYLE} />
-          <XAxis type="number" domain={['auto', 'auto']} {...axisProps}
-            label={{ value: 'MPa', position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
+          <XAxis type="number" domain={[0, 'auto']} {...axisProps} height={XAXIS_LABEL_HEIGHT}
+            label={{ value: 'MPa', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <YAxis dataKey="md" type="number" domain={['dataMin', 'dataMax']} {...axisProps}
             tickFormatter={(v) => v.toFixed(0)}
             label={{ value: `MD (${depthLabel(depthUnit)})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
           <Tooltip contentStyle={TOOLTIP_STYLE}
             formatter={(v) => (Number.isFinite(v) ? v.toFixed(2) : '--')}
             labelFormatter={(v) => `MD ${Number(v).toFixed(0)} ${depthLabel(depthUnit)}`} />
-          <Legend wrapperStyle={{ fontSize: 10 }} />
+          <Legend {...LEGEND_PROPS} />
           <Line dataKey="ppMPa" name="Reservoir pressure" stroke="#b91c1c" strokeWidth={2} dot={false} isAnimationActive={false} />
           <Line dataKey="pwfCritMPa" name="Critical pwf (onset)" stroke="#7c3aed" strokeWidth={2} dot={false} isAnimationActive={false} />
           <Line dataKey="cdpMPa" name="Drawdown margin" stroke="#0f766e" strokeWidth={2}

@@ -35,9 +35,9 @@ export default function SandingTab({
       <div className="flex flex-col gap-3">
         <Card title="Model (screening grade; calibrate the strength boost to TWC tests)" testId="ps-sanding-model">
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-300">
-            <label className="flex items-center justify-between gap-2">
-              <span>Cavity geometry</span>
-              <select className="rounded border border-slate-700 bg-slate-900 px-1 py-0.5 text-xs"
+            <label className="col-span-2 flex items-center justify-between gap-2">
+              <span className="shrink-0">Cavity geometry</span>
+              <select className="min-w-0 max-w-full rounded border border-slate-700 bg-slate-900 px-1 py-0.5 text-xs"
                 value={s.geometry} data-testid="ps-geometry"
                 onChange={(e) => onCaseChange((d) => { d.params.sanding.geometry = e.target.value; })}>
                 <option value="perf-tunnel">perf tunnel (cased and perforated)</option>
