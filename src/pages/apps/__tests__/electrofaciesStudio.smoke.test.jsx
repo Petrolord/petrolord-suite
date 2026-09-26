@@ -149,6 +149,10 @@ async function loadAndChoose() {
   await screen.findByTestId('curve-list');
   fireEvent.click(screen.getByTestId('load-wells'));
   await screen.findByTestId('table-summary');
+  // EFACIES-T1-001: the loaded logs arrive proposed for clustering
+  ['GR', 'RHOB', 'NPHI', 'PEF'].forEach((c) => expect(screen.getByTestId(`feature-${c}`)).toBeChecked());
+  // untick and re-tick in this order so the design order is the test's own
+  ['GR', 'RHOB', 'NPHI', 'PEF'].forEach((c) => fireEvent.click(screen.getByTestId(`feature-${c}`)));
   ['GR', 'RHOB', 'NPHI', 'PEF'].forEach((c) => fireEvent.click(screen.getByTestId(`feature-${c}`)));
   fireEvent.change(screen.getByTestId('facies-source'), { target: { value: 'intervals' } });
   fireEvent.change(screen.getByTestId('facies-kind'), { target: { value: 'facies' } });
@@ -221,7 +225,8 @@ describe('the page', () => {
     const tree = await screen.findByTestId('cart-tree');
     const design = buildFaciesDesign(expectedTable(), SPEC);
     const r = runSupervised({ design, parsed: parseSpec(SPEC), method: 'cart' });
-    expect(tree.textContent).toBe(r.finalTree.printed);
+    // EFACIES-T1-004: thresholds shown to 10 significant figures
+    expect(tree.textContent).toBe(r.finalTree.printed.replace(/-?\d+\.\d{7,}/g, (m) => String(Number(Number(m).toPrecision(10)))));
     expect(screen.getByTestId('split-line')).toHaveTextContent(`scored on ${r.split.nTest} cored rows of ${r.split.testGroups.join(', ')} (engine group split, seed 42)`);
     expect(r.split.testGroups).not.toContain('Synth-3');
     expect(screen.getByTestId('cart-accuracy')).toHaveTextContent(displayNumber(r.scores.report.accuracy));

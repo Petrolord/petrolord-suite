@@ -49,9 +49,16 @@ export function specForTable(table, previous) {
   if (facies.source === 'intervals' && !table?.intervals) facies.source = 'none';
   if (table?.facies && facies.source === 'none') facies.source = 'column';
   const wells = new Set((table?.wells || []).map((w) => w.name));
+  // EFACIES-T1-001: a table loaded with its logs chosen used to arrive with
+  // nothing ticked to cluster on ("Choose at least one log"). With no prior
+  // choice surviving, every loaded log is proposed, resistivity on log10.
+  const kept = (s.features || []).filter((f) => names.has(f.name));
+  const proposed = kept.length ? kept : [...names]
+    .filter((n) => !(facies.source === 'curve' && n === facies.curve))
+    .map((n) => ({ name: n, log: /^(RT|RD|RS|RES|ILD|ILM|LLD|LLS|RDEP|RMED|AT\d+|AF\d+)/i.test(n) }));
   return {
     ...s,
-    features: (s.features || []).filter((f) => names.has(f.name)),
+    features: proposed,
     facies,
     supervised: { ...s.supervised, chosen: (s.supervised?.chosen || []).filter((w) => wells.has(w)) },
   };

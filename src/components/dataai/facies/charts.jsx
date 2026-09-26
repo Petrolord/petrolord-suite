@@ -170,8 +170,15 @@ export const FaciesTracks = ({
     if (v === null || !Number.isFinite(v)) return;
     path.push(`${path.length ? 'L' : 'M'}${cxs(v).toFixed(2)},${y(depth[j]).toFixed(2)}`);
   });
+  // EFACIES-T1-003: round depth ticks (1049.9 and 1099.8 before)
   const ticks = [];
-  for (let t = 0; t <= 5; t += 1) ticks.push(dMin + ((dMax - dMin) * t) / 5);
+  {
+    const raw = (dMax - dMin) / 5 || 1;
+    const mag = 10 ** Math.floor(Math.log10(raw));
+    const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((m) => m >= raw);
+    for (let t = Math.ceil(dMin / step) * step; t <= dMax + 1e-9; t += step) ticks.push(Number(t.toFixed(6)));
+    if (!ticks.length) ticks.push(dMin, dMax);
+  }
   return (
     <div className="relative overflow-x-auto rounded-lg bg-white p-2" data-testid={testId}>
       <svg width={W} height={H} role="img" aria-label="Facies depth tracks" style={{ fontFamily: 'inherit' }}>
@@ -198,7 +205,7 @@ export const FaciesTracks = ({
             if (v !== null && v !== undefined) {
               const y0 = y(edge(j, -1));
               const y1 = y(edge(e, 1));
-              rects.push(<rect key={j} x={x} y={Math.min(y0, y1)} width={70} height={Math.max(0.5, Math.abs(y1 - y0))} fill={colourOf(pos.get(v))} />);
+              rects.push(<rect key={j} x={x} y={Math.min(y0, y1)} width={70} height={Math.max(0.5, Math.abs(y1 - y0))} fill={colourOf(tr.colourIndex?.get(v) ?? pos.get(v))} />);
             }
             j = e + 1;
           }
@@ -217,12 +224,12 @@ export const FaciesTracks = ({
 };
 
 /** Colour chips for the classes of one labelling. */
-export const ClassLegend = ({ name, classes, describe = (c) => String(c) }) => (
+export const ClassLegend = ({ name, classes, describe = (c) => String(c), colourIndex }) => (
   <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-300">
     <span className="text-slate-400">{name}:</span>
     {classes.map((c, i) => (
       <span key={String(c)} className="inline-flex items-center gap-1">
-        <span className="inline-block h-3 w-3 rounded-sm" style={{ backgroundColor: colourOf(i) }} />
+        <span className="inline-block h-3 w-3 rounded-sm" style={{ backgroundColor: colourOf(colourIndex?.get(c) ?? i) }} />
         {describe(c)}
       </span>
     ))}

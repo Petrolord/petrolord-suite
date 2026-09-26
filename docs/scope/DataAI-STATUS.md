@@ -891,3 +891,10 @@ help guide).
 ## Next
 
 D1 `dataqc` NextGen course (slug `dataqc`, path_order 66) on the D1 engine and app; D2 `mlcore` course (path_order 67) on the D2 engine and the ML Workbench; D3 `facies` course (path_order 68) on the D3 engine and the Electrofacies Studio; D4 `forecastml` course (path_order 69) on the D4 engine and the Production Forecasting ML Workbench; D5 `appliedai` course (path_order 70, "Applied AI and Language Models") on the D5 engine and the AI Evaluation Studio, graded only on the deterministic half.
+
+## 2026-09-26: Electrofacies senior test T1 (docs/testing/ElectrofaciesStudio-T1.md)
+
+- Engine answers verified on syntheticFacies (k-means ARI 0.989, kNN 1,
+  CART 0.982). Loaded logs proposed for clustering; clusters coloured by
+  their matched facies in the tracks; round depth ticks; CART thresholds
+  without float noise; harness `/dev/electrofacies-studio`.
