@@ -369,7 +369,7 @@ export default function SeismicExplorer({ tree, actions }) {
             );
           })()}
           {!volumes.length && (
-            <Hint>No volumes yet — import a SEG-Y file to get started.</Hint>
+            <Hint>No volumes yet. Import a SEG-Y file to get started.</Hint>
           )}
         </Section>
 
@@ -427,7 +427,7 @@ export default function SeismicExplorer({ tree, actions }) {
           ))}
           {!(lines2d || []).length && (
             <Hint>
-              No 2D lines yet — import a 2D SEG-Y in the 2D Lines window.
+              No 2D lines yet. Import a 2D SEG-Y in the 2D Lines window.
               Crooked lines are fine: navigation comes from the trace headers.
             </Hint>
           )}
@@ -536,7 +536,7 @@ export default function SeismicExplorer({ tree, actions }) {
           {!horizons.length && (
             <Hint>
               {activeVolumeId
-                ? 'No horizons yet — pick a seed on the section, then Track 3D.'
+                ? 'No horizons yet. Pick a seed on the section, then Track 3D.'
                 : 'Select a volume to see its horizons.'}
             </Hint>
           )}
@@ -800,7 +800,7 @@ export default function SeismicExplorer({ tree, actions }) {
           {!faults.length && (
             <Hint>
               {activeVolumeId
-                ? 'No faults yet — pick fault points on a section, then Save fault.'
+                ? 'No faults yet. Pick fault points on a section, then Save fault.'
                 : 'Select a volume to see its faults.'}
             </Hint>
           )}
@@ -859,7 +859,7 @@ export default function SeismicExplorer({ tree, actions }) {
           {wellsError && <Hint>{wellsError}</Hint>}
           {!wells.length && !wellsError && (
             <Hint>
-              No wells yet — import one with a pasted deviation survey, or just
+              No wells yet. Import one with a pasted deviation survey, or just
               name + surface X/Y + TD for a vertical well.
             </Hint>
           )}

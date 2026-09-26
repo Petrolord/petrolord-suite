@@ -532,7 +532,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
             <div className="space-y-3">
               {!logs.length && (
                 <p className="text-xs text-slate-500">
-                  No logs on this well yet — use Import LAS to add curves.
+                  No logs on this well yet. Use Import LAS to add curves.
                 </p>
               )}
               {logs.length > 0 && (

@@ -79,8 +79,12 @@ export default function SectionExplorer({
       }
       ctx.fillStyle = '#94a3b8';
       ctx.font = '10px sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText(w.name, px + 8, py + 3);
+      // flip the label to the left of the point when it would run off the
+      // canvas (Wave 1B: the easternmost well read "KET")
+      const tw = ctx.measureText(w.name).width;
+      const right = px + 8 + tw <= cssW - 2;
+      ctx.textAlign = right ? 'left' : 'right';
+      ctx.fillText(w.name, right ? px + 8 : px - 8, py + 3);
     }
   }, [wells, order, extent, height]);
 

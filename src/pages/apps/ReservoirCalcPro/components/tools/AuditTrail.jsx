@@ -58,7 +58,7 @@ const AuditTrail = () => {
                             {logs.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={4} className="text-center text-slate-500 py-10">
-                                        No activity yet — run a calculation, import a surface, or save the project.
+                                        No activity yet. Run a calculation, import a surface, or save the project.
                                     </TableCell>
                                 </TableRow>
                             ) : (

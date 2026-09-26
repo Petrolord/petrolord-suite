@@ -356,7 +356,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
       <ModuleHomeLink module="geoscience" testId="ws-home" />
       <HardHat className="w-4 h-4 text-cyan-400" />
       <span className="text-sm font-semibold text-slate-100">Wellsite Studio</span>
-      <span className="text-[11px] text-slate-500">the geological record of a live well</span>
+      <span className="hidden 2xl:inline text-[11px] text-slate-500">the geological record of a live well</span>
       <div className="flex items-center gap-1 ml-4">
         {VIEWS.map((v) => (
           <button key={v.id} type="button" data-testid={`ws-nav-${v.id}`} disabled={!well && v.id !== 'live'}
