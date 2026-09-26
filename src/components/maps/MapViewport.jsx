@@ -23,7 +23,7 @@ import { gridRange } from '@/lib/gridding/mapContours';
 import { MapTransform, FIT_PAD } from './mapTransform';
 import { lutOf } from './lut';
 import {
-  MAP_THEMES, rasterUpsample, nodeExtent, rasterBitmap, paintRaster, contourPaths, paintContours, paintWells,
+  MAP_THEMES, rasterUpsample, paintWellLegend, nodeExtent, rasterBitmap, paintRaster, contourPaths, paintContours, paintWells,
   paintPolygons, paintCulture, paintMarkers, paintColorbar, paintScaleBar, paintNorthArrow, paintAxes, sampleAtScreen,
 } from './mapPainter';
 import { mapPlotPng } from './mapPng';
@@ -65,6 +65,9 @@ const MapViewport = forwardRef(function MapViewport({
   // Mapping T1: round colour-bar levels chosen by the caller in its
   // display unit ((zMin, zMax, ticks) -> data-unit levels)
   colorbarLevels = null,
+  // Mapping T1 (MAP-T1-016): contour a DIFFERENT grid (on the same spec)
+  // over this grid's colours, e.g. structure contours over an amplitude
+  contourGrid = null,
 }, ref) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
@@ -82,8 +85,8 @@ const MapViewport = forwardRef(function MapViewport({
     try { return rasterBitmap({ grid, spec, lut, zMin: range.zMin, zMax: range.zMax, upsample: rasterUpsample(spec) }); } catch { return null; }
   }, [grid, spec, lut, range]);
   const contourData = useMemo(
-    () => (contours && grid && spec ? contourPaths(grid, spec, { step: contourStep }) : null),
-    [contours, grid, spec, contourStep],
+    () => (contours && grid && spec ? contourPaths(contourGrid || grid, spec, { step: contourStep }) : null),
+    [contours, grid, contourGrid, spec, contourStep],
   );
 
   const bump = useCallback(() => {
@@ -138,6 +141,7 @@ const MapViewport = forwardRef(function MapViewport({
         ink: th.ink, inkDim: th.inkDim, levelsOf: colorbarLevels,
       });
     }
+    if (showLegend) paintWellLegend(ctx, { wells, x: 8, bottom: h - 34, ink: th.ink, bg: themeName === 'print' ? 'rgba(255, 255, 255, 0.85)' : 'rgba(2, 6, 23, 0.6)' });
     if (showScaleBar) paintScaleBar(ctx, { x: 12, y: h - 12, transform: t, maxPx: Math.min(180, w / 3), ink: th.ink });
     if (showNorth) paintNorthArrow(ctx, { x: 26, y: 30, ink: th.ink });
     if (label) {

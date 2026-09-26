@@ -58,10 +58,17 @@ const conventionOf = (well) => {
  *  here (PT1); the workstation reloads its list
  *  @param {string} [p.initialTab] tab to open with (deep link)
  *  @param {Object} [p.appPaths] route overrides for the "Open in" launcher */
+/** Registry well statuses (geo_wells.status CHECK) and their labels. */
+export const WELL_STATUS_LABELS = Object.freeze({
+  planned: 'Planned', drilling: 'Drilling', oil: 'Oil', gas: 'Gas', oil_gas: 'Oil and gas', water: 'Water',
+  dry: 'Dry', injector_water: 'Water injector', injector_gas: 'Gas injector', suspended: 'Suspended', abandoned: 'Abandoned',
+});
+
 export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, onWellChanged, initialTab = null, appPaths = {} }) {
   const [tab, setTab] = useState(() => TABS.find((t) => t.toLowerCase() === String(initialTab || '').toLowerCase()) || 'Header');
   // PT1 edit modes: one tab edits at a time; `editor` holds the draft
   const [editor, setEditor] = useState(null); // {tab, rows|fields, conv, mode:'grid'|'paste', pasted, error, busy}
+  const [statusValue, setStatusValue] = useState(null); // T1: well status picked here (null = as loaded)
   const [csView, setCsView] = useState(null); // display convention for the checkshot tab (null = as entered)
   const canEdit = !!well.is_own && typeof backend.updateWellData === 'function';
   const [tops, setTops] = useState(null);       // null = loading
@@ -110,7 +117,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
   }, [refreshChildren, refreshNonce]);
 
   // PT1: leave any edit mode when the well changes
-  useEffect(() => { setEditor(null); setCsView(null); }, [well.id]);
+  useEffect(() => { setEditor(null); setCsView(null); setStatusValue(null); }, [well.id]);
 
   // PT8: the frame the surface coordinates are already in. Editing them
   // never transforms anything, so the label states the frame plainly.
@@ -481,6 +488,28 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                   />
                 </div>
               )}
+            </Field>
+            <Field label="Status">
+              {/* Mapping T1 (MAP-T1-015): drives the map well symbols */}
+              <select className="rounded bg-slate-950 border border-slate-700 text-slate-200 px-1 py-0.5 text-xs"
+                data-testid="wdm-header-status" value={statusValue ?? well.status ?? ''} disabled={well.is_own === false}
+                title="Well status: maps post the matching well symbol"
+                onChange={async (e) => {
+                  const next = e.target.value || null;
+                  try {
+                    await backend.updateWell(well.id, { status: next });
+                    setStatusValue(next ?? '');
+                    onStatus(next ? `Status set to ${WELL_STATUS_LABELS[next]}.` : 'Status cleared.');
+                    onWellChanged?.();
+                  } catch (err) {
+                    onStatus(/status/.test(err.message) && /column|schema/.test(err.message)
+                      ? 'Well status needs the geo_wells status migration, which is waiting to be applied.'
+                      : err.message);
+                  }
+                }}>
+                <option value="">not recorded</option>
+                {Object.entries(WELL_STATUS_LABELS).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+              </select>
             </Field>
             <Field label="CRS note">{well.crs_note}</Field>
             <Field label="Units">{well.units_note}</Field>

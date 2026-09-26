@@ -65,6 +65,7 @@ const MapCanvas = forwardRef(function MapCanvas({
   pendingVertices = [], drawing = false, onMapClick,
   onDragStart = null, onDrag = null, onDragEnd = null, overlays = [],
   display = { unit: 'ft', isLength: true }, settings = DEFAULT_MAP_DISPLAY,
+  contourOverlay = null, // T1: {surface, grid} resampled onto this surface's frame
 }, ref) {
   const spec = surface ? {
     x0: surface.origin_x, y0: surface.origin_y, dx: surface.dx, dy: surface.dy, nx: surface.nx, ny: surface.ny,
@@ -79,6 +80,13 @@ const MapCanvas = forwardRef(function MapCanvas({
   const plan = useMemo(
     () => contourPlan({ grid, typed: settings.contourStep, unit: display.unit, isLength, sign }),
     [grid, settings.contourStep, display.unit, isLength, sign],
+  );
+  // contours of another surface: their own step, unit and sign
+  const ovLength = !!contourOverlay && contourOverlay.surface?.z_domain !== 'attribute' && contourOverlay.surface?.z_domain !== 'time';
+  const ovSign = ovLength ? displaySign(contourOverlay.surface, display.depthPositive) : 1;
+  const ovPlan = useMemo(
+    () => (contourOverlay ? contourPlan({ grid: contourOverlay.grid, typed: '', unit: display.unit, isLength: ovLength, sign: ovSign }) : null),
+    [contourOverlay, display.unit, ovLength, ovSign],
   );
   const levelsOf = useMemo(() => colorbarLevelsFor(plan.toDisp, plan.fromDisp), [plan]);
   return (
@@ -98,8 +106,9 @@ const MapCanvas = forwardRef(function MapCanvas({
       onDragEnd={onDragEnd}
       overlays={overlays}
       posted={settings.posted ? posted : null}
-      contourStep={plan.stepM}
-      contourFormat={plan.format}
+      contourStep={ovPlan ? ovPlan.stepM : plan.stepM}
+      contourFormat={ovPlan ? ovPlan.format : plan.format}
+      contourGrid={contourOverlay ? contourOverlay.grid : null}
       contourLabels={settings.labels}
       colormap={settings.colormap}
       reverse={settings.reverse}

@@ -7,7 +7,7 @@
 import { listWellsWithTops, listZones } from '@/lib/wellsRegistry';
 import { listIntervals } from '@/lib/stratRegistry';
 import {
-  listSurfaces, saveSurface, downloadSurfaceGrid, deleteSurface,
+  listSurfaces, saveSurface, downloadSurfaceGrid, deleteSurface, downloadArchivedGrid,
   shareSurface, unshareSurface, updateSurface, replaceSurfaceGrid,
 } from '@/lib/surfacesRegistry';
 import {
@@ -48,6 +48,7 @@ export function makeRegistryBackend() {
     listSurfaces,
     saveSurface,
     downloadSurfaceGrid,
+    downloadArchivedGrid,
     deleteSurface,
     // MS2: rename and re-grid in place (owner-only, RLS re-checks)
     updateSurface,

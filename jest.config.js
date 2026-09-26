@@ -46,6 +46,8 @@ export default {
     'forecastWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/forecastWorkerFactoryMock.js',
     // Data & AI D5: the AI Evaluation Studio worker factory (import.meta)
     'evalWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/evalWorkerFactoryMock.js',
+    // Mapping T1: the gridding worker factory (import.meta)
+    'mappingGridWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/mappingGridWorkerFactoryMock.js',
     // the PWA register hook is a Vite virtual module (WS6)
     '^virtual:pwa-register/react$': '<rootDir>/src/__mocks__/pwaRegisterMock.js',
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',

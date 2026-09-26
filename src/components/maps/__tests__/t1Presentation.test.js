@@ -73,3 +73,15 @@ test('the contour step is a positive magnitude with the depth sign flipped', () 
   expect(down.stepM).toBeGreaterThan(0);
   expect(down.stepM).toBeCloseTo(up.stepM, 9);
 });
+
+test('well symbols follow the registry status, and the legend lists only the kinds present', async () => {
+  const { defaultSymbol, paintWellLegend } = await import('../mapPainter');
+  expect(['oil', 'gas', 'oil_gas', 'water', 'injector_water', 'dry', 'planned', 'suspended', null].map((st) => defaultSymbol({ status: st })))
+    .toEqual(['oil', 'gas', 'oilgas', 'water', 'injector', 'cross', 'ring', 'suspended', 'circle']);
+  const texts = [];
+  const ctx = new Proxy({ measureText: () => ({ width: 40 }), fillText: (t) => texts.push(t) }, { get: (o, k) => (k in o ? o[k] : () => {}), set: () => true });
+  expect(paintWellLegend(ctx, { wells: [{ name: 'A' }], x: 0, bottom: 100 })).toBe(0);
+  const h = paintWellLegend(ctx, { wells: [{ status: 'oil' }, { status: 'gas' }, { status: 'oil' }], x: 0, bottom: 100 });
+  expect(h).toBe(36);
+  expect(texts).toEqual(['Oil', 'Gas']);
+});

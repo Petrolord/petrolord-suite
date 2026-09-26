@@ -34,12 +34,12 @@ import SurfaceImportDialog from './SurfaceImportDialog';
 import {
   exportSurfaceText, controlPointsCsv, downloadText, specOfSurface, gridInUnit, isLengthSurface,
 } from '../services/surfaceExport';
-import { gridSurface, gridSurfaceBlocked, mergeCloseControls } from '@/lib/gridding/gridding';
-import { krigeSurface } from '@/lib/gridding/kriging';
-import { gridTensionSpline } from '@/lib/gridding/tensionSpline';
+import { mergeCloseControls } from '@/lib/gridding/gridding';
+import { runGridding } from '../services/gridRunner';
 import { extentMask } from '../services/extent';
 import { convertWithWellVelocity, correctToWells, wellDepthsForTop, mapResiduals, residualStats } from '../services/wellTieDepth';
 import ResidualTable from './ResidualTable';
+import { prospectCardPng } from '../services/prospectCard';
 import { GRID_METHODS, fitVariogramFromPoints, krigingOptions, describeVariogram } from '../services/krigingPlan';
 import {
   polygonPayload, blocksForPoints, nodeBlocksFor, ringOf, isPolygonLayer, POLYGON_KINDS, POLYGON_KIND_LABEL, STRAT_POLYGON_KINDS,
@@ -55,6 +55,7 @@ import { twtGridToElevation, usableModel, describeVelocity } from '../services/t
 import {
   topsToControlPoints, zoneAttrToPoints, specForPoints, surfaceStats, maskOutsidePolygon,
 } from '../engine/surface';
+import { resampleTo } from '@/lib/gridding/gridmath';
 import { describeGridResult } from '../services/gridStatus';
 import { parseWellsParam, parseNetParam, appPath, MAPPING_ID } from '@/components/wells/appLinks';
 import { thicknessPoints, environmentPoints } from '@/lib/stratigraphy/stratMaps';
@@ -84,7 +85,7 @@ export { isLengthSurface };
 const loadGridM = async (backend, surface) => gridInUnit(surface, await backend.downloadSurfaceGrid(surface), 'm');
 
 /** @param {Object} [p.appPaths] route overrides for the launchers (harness) */
-export default function MappingWorkstation({ backend, appPaths = {} }) {
+export default function MappingWorkstation({ backend, appPaths = {}, sample = false }) {
   const [wells, setWells] = useState(null);
   // deep links (MS4): ?surface= selects, ?top=&wells= grids on arrival,
   // ?wells= alone posts only those wells; read once, consumed after load
@@ -122,6 +123,9 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
   const [tdMethod, setTdMethod] = useState('linear');
   const [tdTop, setTdTop] = useState('');
   const [tdCorrect, setTdCorrect] = useState(false);
+  // T1 (MAP-T1-016): contours of another surface over this one's colours
+  const [contourFromId, setContourFromId] = useState('');
+  const [contourOverlay, setContourOverlay] = useState(null);
   const [gridding, setGridding] = useState(false);
   const [isoPair, setIsoPair] = useState({ a: '', b: '' });
   const [status, setStatus] = useState('Ready.');
@@ -435,14 +439,14 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
           setVariogram(v);
         }
         kriged = krigingOptions(v);
-        g = krigeSurface(points, spec, { ...kriged, maxExtrapolation: 1e9 });
+        g = await runGridding('kriging', points, spec, { ...kriged, maxExtrapolation: 1e9 });
       } else if (gridMethod === 'tension') {
         if (rings.length) throw new Error('The spline in tension grids without fault blocks in this version. Untick the fault polygons or grid with the thin-plate spline.');
-        g = gridTensionSpline(points, spec, { tension: tensionOpts.tension, smoothing: tensionOpts.smoothing, mask: 'none' });
+        g = await runGridding('tension', points, spec, { tension: tensionOpts.tension, smoothing: tensionOpts.smoothing, mask: 'none' });
       } else if (rings.length) {
-        g = gridSurfaceBlocked(blocksForPoints(points, rings), spec, { nodeBlocks: nodeBlocksFor(spec, rings), maxExtrapolation: 1e9 });
+        g = await runGridding('blocked', blocksForPoints(points, rings), spec, { nodeBlocks: nodeBlocksFor(spec, rings), maxExtrapolation: 1e9 });
       } else {
-        g = gridSurface(points, spec, { maxExtrapolation: 1e9, mask: 'none' });
+        g = await runGridding('tps', points, spec, { maxExtrapolation: 1e9, mask: 'none' });
       }
       let reach = null;
       if (!kriged && !rings.length) {
@@ -463,6 +467,7 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
       const zDomain = kind === 'attribute' ? 'attribute' : 'depth';   // an isochore is a length in the depth domain
       const postedNow = Object.fromEntries(points.flatMap((p) => (p.wells || [p.well]).map((w) => [w, { z: p.z, x: p.x, y: p.y }])));
       setShowVariance(false);
+      snapshot();
       setPreview({
         spec, grid: g.z, name, kind, crs, zDomain, variance: g.variance || null,
         provenance: {
@@ -554,7 +559,7 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
         const prev = target.provenance || {};
         const history = [...(Array.isArray(prev.history) ? prev.history : []), {
           replaced_at: new Date().toISOString(),
-          previous: { nx: target.nx, ny: target.ny, dx: target.dx, dy: target.dy, cell_m: prev.cell_m ?? null, depth_ref: prev.depth_ref ?? null, control_points: prev.control_points ?? null },
+          previous: { nx: target.nx, ny: target.ny, dx: target.dx, dy: target.dy, origin_x: target.origin_x, origin_y: target.origin_y, rotation_deg: target.rotation_deg || 0, z_unit: target.z_unit ?? null, z_domain: target.z_domain, kind: target.kind, cell_m: prev.cell_m ?? null, depth_ref: prev.depth_ref ?? null, control_points: prev.control_points ?? null },
         }];
         const saved = await backend.replaceSurfaceGrid(target, { ...payload, name: target.name, provenance: { ...payload.provenance, history } });
         setStatus(`Replaced ${saved.name} in place (${payload.spec.nx}×${payload.spec.ny}).`);
@@ -587,6 +592,61 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
     setReplaceId(surface.id);
     setSelectedId(surface.id);
     setStatus(`Re-gridding ${surface.name}: adjust the source, reference or cell size, Grid, then Publish to replace it in place.`);
+  };
+
+  /** T1 (MAP-T1-017): put back the grid a re-grid replaced. */
+  const restorePrevious = async (surface) => {
+    const history = surface.provenance?.history || [];
+    const last = history[history.length - 1];
+    if (!last?.archive_path || !backend.downloadArchivedGrid) { setStatus('This surface has no kept previous grid to restore.'); return; }
+    try {
+      const pv = last.previous || {};
+      const grid = await backend.downloadArchivedGrid(last.archive_path, { nx: pv.nx, ny: pv.ny });
+      const spec = { x0: pv.origin_x ?? surface.origin_x, y0: pv.origin_y ?? surface.origin_y, dx: pv.dx, dy: pv.dy, nx: pv.nx, ny: pv.ny, ...(pv.rotation_deg ? { rotation_deg: pv.rotation_deg } : {}) };
+      const provenance = { ...surface.provenance, history: history.slice(0, -1), restored_at: new Date().toISOString() };
+      await backend.replaceSurfaceGrid(surface, { spec, grid, kind: pv.kind, zDomain: pv.z_domain, zUnit: pv.z_unit, provenance });
+      setStatus(`Restored the previous grid of ${surface.name} (${pv.nx}×${pv.ny}).`);
+      await refresh();
+      setSelectedId(null);
+    } catch (e) { setStatus(e.message); }
+  };
+
+  // T1 (E3): the prospect card of the measured closure
+  const exportProspectCard = async () => {
+    if (!grvData || grvData.kind !== 'closure' || !viewRef.current) return;
+    try {
+      const zf = (m) => fmtZ(m, { kind: 'structure', z_domain: 'depth' });
+      const mm3 = (v) => `${(v / 1e6).toFixed(2)} million m³`;
+      const mapBlob = await viewRef.current.toPng({ title: displaySurface.name, caption: `${depthUnit}, ${zConventionText}`, theme: 'print' });
+      const rows = [
+        ['Crest', zf(grvData.crestZ)],
+        ['Spill', `${zf(grvData.spill.z)}${grvData.spill.limitedByEdge ? ' (map edge)' : ''}`],
+        ['Contact', zf(grvData.contactM)],
+        ['Closed area', `${grvData.areaKm2.toFixed(2)} km²`],
+        ['GRV', mm3(grvData.grvM3)],
+        ...(grvData.range ? [['GRV P90 / P50 / P10', `${(grvData.range.p90 / 1e6).toFixed(1)} / ${(grvData.range.p50 / 1e6).toFixed(1)} / ${(grvData.range.p10 / 1e6).toFixed(1)} million m³`]] : []),
+      ];
+      const note = grvData.open ? 'Not a trap volume: the closure runs off the mapped area, so the GRV is a minimum.' : '';
+      const blob = await prospectCardPng({ mapBlob, title: `${displaySurface.name}: prospect`, rows, note });
+      downloadBlob(blob, `${String(displaySurface.name).replace(/[^\w-]+/g, '_')}-prospect-card.png`);
+      setStatus(`Exported the prospect card of ${displaySurface.name}.`);
+    } catch (e) { setStatus(e.message); }
+  };
+
+  // T1 (MAP-T1-017): undo the last preview (grid, arithmetic, conversion)
+  const undoStack = useRef([]);
+  const [undoDepth, setUndoDepth] = useState(0);
+  const snapshot = () => {
+    undoStack.current = [...undoStack.current.slice(-9), { preview, displaySurface, displayGrid, posted, residuals, hullOverlay, selectedId }];
+    setUndoDepth(undoStack.current.length);
+  };
+  const undo = () => {
+    const last = undoStack.current.pop();
+    setUndoDepth(undoStack.current.length);
+    if (!last) return;
+    setPreview(last.preview); setDisplaySurface(last.displaySurface); setDisplayGrid(last.displayGrid);
+    setPosted(last.posted); setResiduals(last.residuals); setHullOverlay(last.hullOverlay); setSelectedId(last.selectedId);
+    setStatus(last.preview ? `Back to ${last.preview.name} (unsaved).` : last.displaySurface ? `Back to ${last.displaySurface.name}.` : 'Back to the empty map.');
   };
 
   const rename = async (surface, name) => {
@@ -642,6 +702,7 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
         boundary = { id: row.id, name: row.name, ring: await ringFor(row) };
       }
       const r = runArithmetic({ op: arith.op, a: { surface: a, grid: ga }, b: b ? { surface: b, grid: gb } : null, k: arith.k, boundary });
+      snapshot();
       setPreview({
         spec: r.spec, grid: r.grid, name: r.name, kind: r.kind, zDomain: r.zDomain,
         crs: consensusTag([a.crs, ...(b ? [b.crs] : [])]),
@@ -668,10 +729,25 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
       const { contactM, readAsDepth } = interpretContact(fromDisplay(c, depthUnit), displayGrid);
       const spec = specOfSurface(displaySurface);
       const r = quickGrv({ spec, gridM: displayGrid, contactM, seedIndex });
+      // T1 (E2): with a kriged surface on screen, the GRV range from the
+      // kriging standard deviation (z -/+ 1.2816 sigma: P90 low, P10 high).
+      // Every node moves together, a fully correlated structural case.
+      if (r.kind === 'closure' && preview?.variance && displayGrid === preview.grid) {
+        const k = 1.2815515655446004;
+        const shift = (sgn) => Float32Array.from(displayGrid, (v, i) => {
+          const s2 = preview.variance[i];
+          return Math.abs(v) >= 1e29 || !Number.isFinite(s2) || s2 < 0 ? v : v + sgn * k * Math.sqrt(s2);
+        });
+        const at = (grid) => {
+          try { return quickGrv({ spec, gridM: grid, contactM, seedIndex: r.closure.crest.index }).grvM3; } catch { return 0; }
+        };
+        r.range = { p90: at(shift(-1)), p50: r.grvM3, p10: at(shift(1)) };
+      }
       const zfmt = (m) => (depthPositive
         ? `${+(-toDisplay(m, depthUnit)).toFixed(1)} ${depthUnit} below datum`
         : `${+toDisplay(m, depthUnit).toFixed(1)} ${depthUnit}`);
-      const text = `${readAsDepth && !depthPositive ? `Read ${c} as a depth below datum (elevation ${zfmt(contactM)}). ` : ''}${describeGrv(r, { contactLabel: zfmt(contactM), fmtZ: zfmt })}`;
+      const rangeTxt = r.range ? ` Structural range from the kriging variance (fully correlated): P90 ${(r.range.p90 / 1e6).toFixed(2)}, P50 ${(r.range.p50 / 1e6).toFixed(2)}, P10 ${(r.range.p10 / 1e6).toFixed(2)} million m³.` : '';
+      const text = `${readAsDepth && !depthPositive ? `Read ${c} as a depth below datum (elevation ${zfmt(contactM)}). ` : ''}${describeGrv(r, { contactLabel: zfmt(contactM), fmtZ: zfmt })}${rangeTxt}`;
       setGrvData(r);
       setGrvResult(text);
       setStatus(text);
@@ -679,6 +755,20 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
   };
   // a new map on screen invalidates the last read-out
   useEffect(() => { setGrvData(null); setGrvResult(null); }, [displayGrid]);
+  // the contour overlay follows the displayed frame
+  useEffect(() => {
+    let live = true;
+    const src = surfaces.find((x) => x.id === contourFromId);
+    if (!src || !displaySurface || !displayGrid) { setContourOverlay(null); return undefined; }
+    (async () => {
+      try {
+        const g = await loadGridM(backend, src);
+        const onto = resampleTo(g, specOfSurface(src), specOfSurface(displaySurface));
+        if (live) setContourOverlay({ surface: src, grid: onto });
+      } catch (e) { if (live) { setContourOverlay(null); setStatus(e.message); } }
+    })();
+    return () => { live = false; };
+  }, [contourFromId, displaySurface, displayGrid, surfaces, backend]);
 
   const runTimeDepth = async () => {
     const src = displaySurface;
@@ -691,7 +781,8 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
       try {
         const r = convertWithWellVelocity({ twtMs: displayGrid, spec, wells: tieWells });
         const name = `${src.name} depth (well velocity)`;
-        setPreview({
+        snapshot();
+      setPreview({
           spec, grid: Float32Array.from(r.zM), name, kind: 'structure', zDomain: 'depth', zUnit: 'm', crs: src.crs || null,
           provenance: {
             engine: 'mapping-surface-studio', z_convention: 'elevation',
@@ -721,6 +812,7 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
       }
       const z = tdUnit === 'ft' ? Float32Array.from(zM, (v) => (Math.abs(v) >= 1e29 ? v : v / 0.3048)) : Float32Array.from(zM);
       const name = `${src.name} depth (${tdUnit})`;
+      snapshot();
       setPreview({
         spec, grid: z, name, kind: 'structure', zDomain: 'depth', zUnit: tdUnit, crs: src.crs || null,
         provenance: {
@@ -953,6 +1045,11 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
         disabled={!displayGrid} title="Download the map as a titled PNG" onClick={exportPng}>
         <ImageIcon className="w-3.5 h-3.5" /> PNG
       </button>
+      <button type="button" data-testid="map-undo" disabled={!undoDepth}
+        className="px-2 py-0.5 text-[11px] rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+        title="Undo the last grid, arithmetic or depth conversion preview" onClick={undo}>
+        Undo
+      </button>
       <Link to={`${appPath(MAPPING_ID)}/help`} data-testid="map-help" title="Open the Mapping & Surface Studio help guide"
         className="flex items-center gap-1 px-2 py-0.5 text-[11px] rounded border border-slate-700 text-cyan-300 hover:bg-slate-800">
         <HelpCircle className="w-3.5 h-3.5" /> Help
@@ -1003,8 +1100,13 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
   const center = !wells ? (
     <div className="h-full flex items-center justify-center text-slate-500 text-sm"><Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading registry…</div>
   ) : !displayGrid ? (
-    <div className="h-full flex items-center justify-center text-slate-500 text-sm" data-testid="map-empty">
-      Grid a top from the left, or select a surface.
+    <div className="h-full flex flex-col items-center justify-center gap-2 text-slate-500 text-sm" data-testid="map-empty">
+      <span>Grid a top from the left, or select a surface.</span>
+      {!sample && backend.canImportCulture && (
+        <Link to="?sample=1" data-testid="map-try-sample" className="text-cyan-400 hover:underline text-xs">
+          New here? Try it on sample data (nothing is saved)
+        </Link>
+      )}
     </div>
   ) : (
     <div className="h-full min-h-0 p-3 flex flex-col">
@@ -1028,6 +1130,7 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
         onDragEnd={onDragEnd}
         overlays={editOverlays}
         display={{ unit: depthUnit, isLength: isLengthSurface(displaySurface), depthPositive }}
+        contourOverlay={contourOverlay}
         settings={mapSettings}
       />
     </div>
@@ -1075,6 +1178,7 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
           onPointsCsv={pointsCsv}
           onRename={rename}
           onRegrid={regrid}
+          onRestore={restorePrevious}
           replaceId={replaceId}
           appPaths={appPaths}
           wells={displayWells || []}
@@ -1096,6 +1200,15 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
               <select className={`${selCls} flex-1 min-w-0`} data-testid="map-colormap" value={mapSettings.colormap}
                 onChange={(e) => setSetting('colormap', e.target.value)}>
                 {MAP_COLORMAPS.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
+              </select>
+            </label>
+            <label className="flex items-center gap-2 text-slate-300">
+              <span className="w-24 shrink-0">Contours from</span>
+              <select className={`${selCls} flex-1 min-w-0`} data-testid="map-contour-from" value={contourFromId}
+                title="Draw the contours of another surface over this one's colours (structure over amplitude or net sand)"
+                onChange={(e) => setContourFromId(e.target.value)}>
+                <option value="">this surface</option>
+                {surfaces.filter((x) => x.id !== displaySurface?.id).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
               </select>
             </label>
             <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-slate-300">
@@ -1263,6 +1376,12 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
             {grvResult && (
               <p className={`text-[11px] ${grvData?.open ? 'text-amber-300' : 'text-slate-300'}`} data-testid="map-grv-result"
                 data-open={grvData?.kind === 'closure' ? String(grvData.open) : undefined}>{grvResult}</p>
+            )}
+            {grvData?.kind === 'closure' && (
+              <button type="button" data-testid="map-prospect-card" onClick={exportProspectCard}
+                className="w-full px-2 py-0.5 text-[11px] rounded border border-emerald-700/60 text-emerald-300 hover:bg-emerald-500/10">
+                Prospect card (PNG)
+              </button>
             )}
             {grvData?.kind === 'closure' && grvData.curve?.length > 0 && (
               <ClosureCurveChart curve={grvData.curve} contactM={grvData.contactM} spillZ={grvData.spill.z}

@@ -40,7 +40,7 @@ export function domainBadge(s) {
 }
 
 function SurfaceRow({
-  s, selected, onSelect, onDelete, onToggleShare, sharingId, onExport, onPointsCsv, onRename, onRegrid, replacing, appPaths = {},
+  s, selected, onSelect, onDelete, onToggleShare, sharingId, onExport, onPointsCsv, onRename, onRegrid, onRestore, replacing, appPaths = {},
 }) {
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(s.name);
@@ -149,6 +149,11 @@ function SurfaceRow({
             <ContextMenuItem data-testid="map-row-regrid" disabled={!canRegrid} onSelect={() => onRegrid(s)}>
               <RefreshCw className="w-4 h-4 mr-2" /> Re-grid in place
             </ContextMenuItem>
+            {s.is_own && s.provenance?.history?.length > 0 && s.provenance.history[s.provenance.history.length - 1].archive_path && (
+              <ContextMenuItem data-testid="map-row-restore" onSelect={() => onRestore?.(s)}>
+                Restore the previous grid
+              </ContextMenuItem>
+            )}
             <ContextMenuSeparator />
             <ContextMenuItem onSelect={() => onToggleShare(s)}>
               <Share2 className="w-4 h-4 mr-2" /> {shared ? 'Stop sharing with organization' : 'Share with organization'}
@@ -171,7 +176,7 @@ export default function SurfacesExplorer({
   depthRef = 'tvdss', onDepthRef, cellM, onCellM, onGrid, gridding,
   gridMethod = 'tps', onGridMethod, variogram, onVariogram, onFitVariogram, variance = null,
   tensionOpts = null, onTensionOpts, extent = null, onExtent,
-  onImport, onExport, onPointsCsv, onRename, onRegrid, replaceId = null, appPaths = {}, wells = [],
+  onImport, onExport, onPointsCsv, onRename, onRegrid, onRestore, replaceId = null, appPaths = {}, wells = [],
   environmentRows = [],
 }) {
   return (
@@ -339,7 +344,7 @@ export default function SurfacesExplorer({
         {surfaces.map((s) => (
           <SurfaceRow key={s.id} s={s} selected={s.id === selectedId} onSelect={onSelect} onDelete={onDelete}
             onToggleShare={onToggleShare} sharingId={sharingId} onExport={onExport} onPointsCsv={onPointsCsv}
-            onRename={onRename} onRegrid={onRegrid} replacing={replaceId === s.id} appPaths={appPaths} />
+            onRename={onRename} onRegrid={onRegrid} onRestore={onRestore} replacing={replaceId === s.id} appPaths={appPaths} />
         ))}
         {!surfaces.length && <p className="px-3 py-2 text-xs text-slate-600 leading-snug">No surfaces yet: grid a top above, import a file, then publish.</p>}
         <div className="px-2.5 pt-2 pb-1 text-[11px] uppercase tracking-wider text-slate-500 border-t border-slate-800/60 mt-1">

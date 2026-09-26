@@ -245,13 +245,79 @@ export function paintContours(ctx, {
   ctx.restore();
 }
 
-/** Well symbol kinds: 'circle' (default), 'ring' (planned), 'cross' (dry, plugged). */
+/**
+ * Well symbol kinds from a registry status (Mapping T1 MAP-T1-015):
+ * 'circle' (unknown, drilling), 'ring' (planned), 'cross' (dry, plugged,
+ * abandoned), 'oil' (filled, green), 'gas' (circle with rays, red),
+ * 'oilgas' (filled with rays), 'water' (filled, blue), 'injector' (circle
+ * with an arrow), 'suspended' (circle with a bar).
+ */
 export const defaultSymbol = (w) => {
   const s = String(w?.status || '').toLowerCase();
   if (s === 'planned' || s === 'proposed') return 'ring';
   if (s === 'dry' || s === 'plugged' || s === 'abandoned') return 'cross';
+  if (s === 'oil') return 'oil';
+  if (s === 'gas') return 'gas';
+  if (s === 'oil_gas') return 'oilgas';
+  if (s === 'water') return 'water';
+  if (s === 'injector_water' || s === 'injector_gas') return 'injector';
+  if (s === 'suspended') return 'suspended';
   return 'circle';
 };
+
+export const WELL_SYMBOL_LABELS = Object.freeze({
+  circle: 'Well', ring: 'Planned', cross: 'Dry or abandoned', oil: 'Oil', gas: 'Gas', oilgas: 'Oil and gas',
+  water: 'Water', injector: 'Injector', suspended: 'Suspended',
+});
+
+/** Draw one well symbol of `kind` centred at (x, y). */
+export function drawWellSymbol(ctx, kind, x, y, ink) {
+  ctx.strokeStyle = ink;
+  ctx.fillStyle = ink;
+  ctx.lineWidth = 1.5;
+  const dot = (fill) => { ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = ink; ctx.lineWidth = 1; ctx.stroke(); };
+  const rays = () => {
+    ctx.strokeStyle = '#dc2626'; ctx.lineWidth = 1.2; ctx.beginPath();
+    for (let k = 0; k < 8; k++) { const a = (k * Math.PI) / 4; ctx.moveTo(x + 4.5 * Math.cos(a), y + 4.5 * Math.sin(a)); ctx.lineTo(x + 7 * Math.cos(a), y + 7 * Math.sin(a)); }
+    ctx.stroke();
+  };
+  if (kind === 'ring') { ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.stroke(); } else if (kind === 'cross') {
+    ctx.beginPath();
+    ctx.moveTo(x - 3.5, y - 3.5); ctx.lineTo(x + 3.5, y + 3.5);
+    ctx.moveTo(x - 3.5, y + 3.5); ctx.lineTo(x + 3.5, y - 3.5);
+    ctx.stroke();
+  } else if (kind === 'oil') dot('#16a34a');
+  else if (kind === 'water') dot('#2563eb');
+  else if (kind === 'gas') { ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.stroke(); rays(); } else if (kind === 'oilgas') { dot('#16a34a'); rays(); } else if (kind === 'injector') {
+    ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, y + 2); ctx.lineTo(x, y - 8); ctx.moveTo(x - 2.5, y - 5.5); ctx.lineTo(x, y - 8); ctx.lineTo(x + 2.5, y - 5.5); ctx.stroke();
+  } else if (kind === 'suspended') {
+    ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - 5.5, y); ctx.lineTo(x + 5.5, y); ctx.stroke();
+  } else { ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill(); }
+}
+
+/** A small key of the well symbols present (only when any well has a status). */
+export function paintWellLegend(ctx, { wells, x, y = null, bottom = null, ink = INK, bg = 'rgba(2, 6, 23, 0.6)', symbolOf = defaultSymbol }) {
+  const kinds = [...new Set((wells || []).filter((w) => w?.status).map(symbolOf))];
+  if (!kinds.length) return 0;
+  ctx.save();
+  ctx.font = FONT(1);
+  const h = 14 * kinds.length + 8;
+  if (y == null) y = (bottom ?? 0) - h; // eslint-disable-line no-param-reassign
+  const w = 16 + Math.max(...kinds.map((k) => ctx.measureText(WELL_SYMBOL_LABELS[k] || k).width)) + 8;
+  ctx.fillStyle = bg;
+  ctx.fillRect(x, y, w, h);
+  kinds.forEach((k, i) => {
+    drawWellSymbol(ctx, k, x + 9, y + 11 + i * 14, ink);
+    ctx.fillStyle = ink;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(WELL_SYMBOL_LABELS[k] || k, x + 18, y + 11 + i * 14);
+  });
+  ctx.restore();
+  return h;
+}
 
 /**
  * Posted wells: symbol at the wellhead, name and (optionally) the posted
@@ -287,20 +353,7 @@ export function paintWells(ctx, {
         ctx.fillRect(b.x - 2, b.y - 2, 4, 4);
       }
     }
-    const kind = symbolOf(w);
-    ctx.strokeStyle = ink;
-    ctx.fillStyle = ink;
-    ctx.lineWidth = 1.5;
-    if (kind === 'ring') {
-      ctx.beginPath(); ctx.arc(s.x, s.y, 3.5, 0, Math.PI * 2); ctx.stroke();
-    } else if (kind === 'cross') {
-      ctx.beginPath();
-      ctx.moveTo(s.x - 3.5, s.y - 3.5); ctx.lineTo(s.x + 3.5, s.y + 3.5);
-      ctx.moveTo(s.x - 3.5, s.y + 3.5); ctx.lineTo(s.x + 3.5, s.y - 3.5);
-      ctx.stroke();
-    } else {
-      ctx.beginPath(); ctx.arc(s.x, s.y, 3, 0, Math.PI * 2); ctx.fill();
-    }
+    drawWellSymbol(ctx, symbolOf(w), s.x, s.y, ink);
     // Mapping T1 (MAP-T1-012): a deviated well's posted value is written
     // at the borehole point it was taken at, its name at the wellhead
     const value = p && Number.isFinite(p.z) ? fmt(p.z) : '';

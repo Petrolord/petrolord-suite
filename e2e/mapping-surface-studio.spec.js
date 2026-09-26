@@ -510,3 +510,48 @@ test('T1 batch B: depth conversion with average velocity from the wells, and a l
   await page.getByTestId('map-td-run').click();
   await expect(page.getByTestId('map-status')).toContainText('then corrected to Top Dome: RMS mis-tie');
 });
+
+test('T1 batch C: undo a preview, restore a re-grid, contours from another surface, kriged GRV range, prospect card', async ({ page }) => {
+  await page.goto('/dev/mapping-surface-studio');
+  await expect(page.getByTestId('map-undo')).toBeDisabled();
+  await page.getByTestId('map-source').selectOption('top:Top Dome');
+  await page.getByTestId('map-grid-run').click();
+  await expect(page.getByTestId('map-status')).toContainText('Gridded');
+  await page.getByTestId('map-source').selectOption('top:Base Sand');
+  await page.getByTestId('map-grid-run').click();
+  await expect(page.getByTestId('map-zrange')).toContainText('Base Sand structure');
+  // undo returns to the Top Dome preview
+  await page.getByTestId('map-undo').click();
+  await expect(page.getByTestId('map-zrange')).toContainText('Top Dome structure');
+  await page.getByTestId('map-publish').click();
+  await expect(page.getByTestId('map-status')).toContainText('Published Top Dome structure');
+  // re-grid in place at 100 m, then restore the previous grid from the row menu
+  const row = page.locator('[data-testid="map-surface-row"][data-surface-name="Top Dome structure"]');
+  await row.click({ button: 'right' });
+  await page.getByTestId('map-row-regrid').click();
+  await page.getByTestId('map-cell').fill('100');
+  await page.getByTestId('map-grid-run').click();
+  await page.getByTestId('map-publish').click();
+  await expect(page.getByTestId('map-status')).toContainText('Replaced Top Dome structure in place');
+  await row.click({ button: 'right' });
+  await page.getByTestId('map-row-restore').click();
+  await expect(page.getByTestId('map-status')).toContainText('Restored the previous grid of Top Dome structure');
+  // contours of the regional top over Top Dome's colours
+  await row.click();
+  const canvas = page.getByTestId('map-canvas');
+  const own = await canvas.getAttribute('data-contour-step');
+  await page.getByTestId('map-contour-from').selectOption({ label: 'Regional Top (org shared)' });
+  await expect.poll(async () => canvas.getAttribute('data-contour-step')).not.toBe(own);
+  await page.getByTestId('map-contour-from').selectOption('');
+  // kriged: the GRV read-out carries the structural range, and a prospect card downloads
+  await page.getByTestId('map-source').selectOption('top:Top Dome');
+  await page.getByTestId('map-cell').fill('150');
+  await page.getByTestId('map-grid-method').selectOption('kriging');
+  await page.getByTestId('map-grid-run').click();
+  await expect(page.getByTestId('map-status')).toContainText('Kriged');
+  await page.getByTestId('map-grv-contact').fill('-5100');
+  await page.getByTestId('map-grv-run').click();
+  await expect(page.getByTestId('map-grv-result')).toContainText('Structural range from the kriging variance');
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('map-prospect-card').click()]);
+  expect(download.suggestedFilename()).toContain('prospect-card.png');
+});
