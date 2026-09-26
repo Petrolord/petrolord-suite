@@ -308,10 +308,10 @@ export default function RockWorkstation({ backend, appPaths = {} }) {
   );
 
   const center = view === 'wedge' ? (
-    <WedgePanel wedge={wedge} onWedgeChange={setWedge} />
+    <WedgePanel wedge={wedge} onWedgeChange={setWedge} units={units} />
   ) : view === 'avo' ? (
     (avo.mode === 'manual' || model) ? (
-      <AvoPanel model={model} tops={wellData?.tops || []} avo={avo} onAvoChange={setAvo} units={units} />
+      <AvoPanel model={model} tops={wellData?.tops || []} avo={avo} onAvoChange={setAvo} units={units} scenario={scenario} rock={rock} />
     ) : needsWell
   ) : (
     model ? (

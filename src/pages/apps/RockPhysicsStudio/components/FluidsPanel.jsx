@@ -40,7 +40,7 @@ function FluidRow({ id, label, fluid, error, units }) {
           <td className="py-1 pr-2 text-slate-400">{fluid.label}</td>
           <td className="py-1 pr-2 text-right" data-testid={`rp-fluid-${id}-rho`}>{fmtDensity(fluid.rho, units.density, 2)}</td>
           <td className="py-1 pr-2 text-right" data-testid={`rp-fluid-${id}-k`}>{gpa(fluid.k)}</td>
-          <td className="py-1 text-right">{fluid.vp ? fmtVelocity(fluid.vp, units.velocity, 2) : '—'}</td>
+          <td className="py-1 text-right">{fmtVelocity(fluid.vp || (fluid.k > 0 && fluid.rho > 0 ? Math.sqrt(fluid.k / fluid.rho) : NaN), units.velocity, 2)}</td>
         </>
       )}
     </tr>
@@ -219,10 +219,11 @@ export default function FluidsPanel({
                     style={{ fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
                   />
                 </XAxis>
+                {/* a vertical-layout numeric Y axis already runs top-down; the old
+                    `reversed` drew depth increasing upward (T1-001) */}
                 <YAxis
                   dataKey="depth"
                   type="number"
-                  reversed
                   domain={['dataMin', 'dataMax']}
                   tick={AXIS_TICK}
                   axisLine={AXIS_LINE}
@@ -238,7 +239,8 @@ export default function FluidsPanel({
                 <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => (Number.isFinite(v) ? v.toFixed(chartDigits) : '—')} labelFormatter={(v) => `${Number.isFinite(v) ? v.toFixed(1) : v} ${zU}`} />
                 <Legend
                   {...LEGEND_PROPS}
-                  wrapperStyle={{ fontSize: `${CHART_TYPOGRAPHY.legendFontSize}px`, color: CHART_COLORS.legendText }}
+                  verticalAlign="top"
+                  wrapperStyle={{ fontSize: `${CHART_TYPOGRAPHY.legendFontSize}px`, color: CHART_COLORS.legendText, paddingBottom: 4 }}
                 />
                 <Line type="monotone" dataKey="vpA" stroke="#0284c7" strokeWidth={1.5} dot={false} name="Vp in situ" />
                 <Line type="monotone" dataKey="vpB" stroke="#dc2626" strokeWidth={1.5} dot={false} name="Vp substituted" />
