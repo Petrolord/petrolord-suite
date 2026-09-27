@@ -27,9 +27,13 @@ const ds0Slugs = [...seedSource.matchAll(/\('([a-z0-9-]+)', '[^']+',/g)].map((m)
 
 /**
  * Tiles seeded into the module after DS0, one seed migration each, read from
- * the seed's own `v_slug`: Supply Chain SC3 (Materials & Spares Planner).
+ * the seed's own `v_slug`: Supply Chain SC3 (Materials & Spares Planner) and
+ * SC4 (Marine Logistics Planner).
  */
-const laterSeeds = ['20260928110000_sc3_seed_materials_spares_tile.sql'];
+const laterSeeds = [
+  '20260928110000_sc3_seed_materials_spares_tile.sql',
+  '20260929110000_sc4_seed_marine_logistics_tile.sql',
+];
 const laterSlugs = laterSeeds.map((f) => fs.readFileSync(path.join(root, 'supabase/migrations', f), 'utf8')
   .match(/v_slug text := '([a-z0-9-]+)'/)[1]);
 const seededSlugs = [...ds0Slugs, ...laterSlugs];
@@ -42,7 +46,7 @@ const routes = [...appSource.matchAll(
 describe('Midstream & Downstream routing', () => {
   it('finds the seeded tiles and the routed apps', () => {
     expect(ds0Slugs.length).toBe(10);
-    expect(laterSlugs).toEqual(['materials-spares-planner']);
+    expect(laterSlugs).toEqual(['materials-spares-planner', 'marine-logistics-planner']);
     expect(routes.length).toBeGreaterThan(0);
   });
 
