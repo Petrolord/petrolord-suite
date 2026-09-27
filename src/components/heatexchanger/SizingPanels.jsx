@@ -141,6 +141,12 @@ const RESISTANCE_ROWS = [
   ['insideFouling', 'Inside fouling'],
   ['insideFilm', 'Inside film'],
 ];
+// The engine names resistances by key ("outsideFilm"); show the row label
+// (HX-T1-001). Resistances print as decimals, the way fouling allowances
+// are quoted ("0.00100 hr ft2 F/Btu"), not "1.000e-3".
+const resistanceName = (key) => (RESISTANCE_ROWS.find(([k]) => k === key) || [key, key])[1];
+const fmtR = (v) => (Number.isFinite(v) ? Number(v).toPrecision(3) : '--');
+
 
 export const SizingResults = () => {
   const { thermal, coefficient, sizing } = useHeatExchanger();
@@ -193,9 +199,9 @@ export const SizingResults = () => {
                   <>
                     <Stat label="U clean" value={fmt(coefficient.uCleanBtuHrFt2F, 1)} unit="Btu/hr ft2 F" />
                     <Stat label="Fouling penalty" value={fmt(coefficient.foulingPenaltyPct, 1)} unit="%" />
-                    <Stat label="Controlling resistance" value={coefficient.controlling}
+                    <Stat label="Controlling resistance" value={resistanceName(coefficient.controlling)}
                       accent={coefficient.controllingClear ? 'text-slate-100' : 'text-amber-400'}
-                      hint={`${fmt(coefficient.controllingSharePct, 0)} % of the total, ahead of ${coefficient.runnerUp} by ${fmt(coefficient.controllingMarginPct, 1)} %`} />
+                      hint={`${fmt(coefficient.controllingSharePct, 0)} % of the total, ahead of ${resistanceName(coefficient.runnerUp).toLowerCase()} by ${fmt(coefficient.controllingMarginPct, 1)} %`} />
                   </>
                 )}
               </div>
@@ -209,11 +215,11 @@ export const SizingResults = () => {
                       key={key}
                       label={label}
                       hint={key === coefficient.controlling ? 'the largest of the five' : undefined}
-                      value={`${coefficient.resistances[key].toExponential(3)}  (${fmt(coefficient.resistanceSharePct[key], 1)} %)`}
+                      value={`${fmtR(coefficient.resistances[key])}  (${fmt(coefficient.resistanceSharePct[key], 1)} %)`}
                     />
                   ))}
                   <Row label="Total"
-                    value={`${coefficient.totalResistance.toExponential(3)}  hr ft2 F/Btu`} />
+                    value={`${fmtR(coefficient.totalResistance)}  hr ft2 F/Btu`} />
                 </div>
               )}
               {coefficient.controllingNote && <WarnNote>{coefficient.controllingNote}</WarnNote>}
