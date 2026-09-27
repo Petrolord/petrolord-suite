@@ -4,6 +4,7 @@ import { corsHeaders } from './cors.ts';
 import { bridgeVerifyConfigured, verifyBridgeCode } from '../_shared/nextgen-bridge.ts';
 import { validatePromoCode } from '../_shared/promo-codes.ts';
 import { billingPeriodOf } from '../_shared/billing-term.ts';
+import { ngnPerUsdFromConfig, usdToNgn, ngnToKobo } from '../_shared/paystack-ngn.ts';
 // Logo URLs
 const LORDSWAY_LOGO_URL = 'https://horizons-cdn.hostinger.com/43fa5c4b-d185-4d6d-9ff4-a1d78861fb87/b55e5cb03a1912f6a06152592ab58d1c.png';
 const PETROLORD_LOGO_URL = 'https://horizons-cdn.hostinger.com/43fa5c4b-d185-4d6d-9ff4-a1d78861fb87/b7bb1181c53d21d5cae68a1a79fddaa7.png';
@@ -399,11 +400,14 @@ Deno.serve(async (req)=>{
     const validityPeriod = new Date();
     validityPeriod.setDate(validityPeriod.getDate() + 14);
     // 3b. Initialize a real Paystack transaction so the quote has a working
-    // hosted-checkout link. NO currency conversion: the amount is sent in the
-    // minor unit of the Paystack account's default currency, so a $X bill is
-    // charged as X in that currency (e.g. $1000 -> ₦1000). We deliberately omit
-    // the `currency` field so Paystack uses the account default. reference is set
-    // to quoteId so the existing verify-by-quote-id flow keeps working.
+    // hosted-checkout link. The quote is priced in USD and Paystack charges
+    // naira, so convert at pricing_config.suite_ngn_per_usd and store the naira
+    // total and rate on the quote (pricing_breakdown); the finalisers check the
+    // amount paid against it. Until 2026-09-27 the USD figure was sent as-is,
+    // so a $1,247 quote was charged ₦1,247. reference is set to quoteId so the
+    // existing verify-by-quote-id flow keeps working.
+    const ngnPerUsd = ngnPerUsdFromConfig(configMap);
+    const ngnTotal = usdToNgn(totalAmount, ngnPerUsd);
     let paystackLink = null;
     let paystackReference = null;
     const PAYSTACK_SECRET_KEY = Deno.env.get('PAYSTACK_SECRET_KEY');
@@ -418,11 +422,14 @@ Deno.serve(async (req)=>{
           },
           body: JSON.stringify({
             email: user_email,
-            amount: Math.round(totalAmount * 100), // minor unit, no FX conversion
+            amount: ngnToKobo(ngnTotal), // kobo
+            currency: 'NGN',
             reference: quoteId,
             metadata: {
               quote_id: quoteId,
-              organization_id: orgId
+              organization_id: orgId,
+              usd_total: totalAmount,
+              ngn_per_usd: ngnPerUsd
             },
             // Only set callback_url when we know the calling app's origin; otherwise
             // Paystack falls back to the callback configured in its dashboard.
@@ -464,6 +471,8 @@ Deno.serve(async (req)=>{
       add_ons: add_ons,
       total_amount: totalAmount,
       currency: 'USD',
+      // What Paystack is asked to charge, locked for the life of the quote.
+      pricing_breakdown: { usd_total: totalAmount, ngn_total: ngnTotal, ngn_per_usd: ngnPerUsd },
       paystack_link: paystackLink,
       paystack_reference: paystackReference,
       validity_period: validityPeriod.toISOString(),
@@ -713,6 +722,8 @@ Deno.serve(async (req)=>{
       quote_id: quoteId,
       pdf_url: publicUrl,
       total_amount: totalAmount,
+      ngn_total: ngnTotal,
+      ngn_per_usd: ngnPerUsd,
       validated_apps: validatedApps,
       bridge: bridge ? {
         code: bridge.code,

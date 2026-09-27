@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "./cors.ts";
 import { addMonths, termMonths } from "../_shared/billing-term.ts";
+import { loadNgnPerUsd, usdToNgn, ngnToKobo } from "../_shared/paystack-ngn.ts";
 const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
 serve(async (req)=>{
   if (req.method === 'OPTIONS') {
@@ -55,12 +56,17 @@ serve(async (req)=>{
           // Fallback or detailed calculation logic
           throw new Error('Could not determine renewal amount from subscription details');
         }
+        // quote_details.total_amount is the USD price of the term. Paystack
+        // charges naira, so convert at today's rate (until 2026-09-27 the USD
+        // figure was charged as naira). A quote stored in naira is left as is.
+        const usdPriced = String(sub.quote_details?.currency || 'USD').toUpperCase() === 'USD';
+        const ngnAmount = usdPriced ? usdToNgn(Number(amount), await loadNgnPerUsd(supabase)) : Number(amount);
         // Create Payment Record (Pending)
         const { data: payment, error: paymentError } = await supabase.from('payments').insert({
           organization_id: sub.organization_id,
           subscription_id: sub.id,
-          amount: amount,
-          currency: sub.quote_details?.currency || 'NGN',
+          amount: ngnAmount,
+          currency: 'NGN',
           status: 'pending',
           payment_type: 'renewal',
           renewal_attempt_number: (sub.renewal_attempt_count || 0) + 1,
@@ -76,7 +82,8 @@ serve(async (req)=>{
           },
           body: JSON.stringify({
             email: paymentMethod.paystack_email,
-            amount: amount * 100,
+            amount: ngnToKobo(ngnAmount),
+            currency: 'NGN',
             authorization_code: paymentMethod.paystack_auth_code,
             reference: payment.paystack_reference,
             metadata: {
@@ -124,6 +131,7 @@ serve(async (req)=>{
             details: {
               amount,
               currency: sub.quote_details?.currency,
+              charged_ngn: ngnAmount,
               reference: payment.paystack_reference
             }
           });
@@ -134,7 +142,8 @@ serve(async (req)=>{
               type: 'success',
               recipient_email: sub.organizations.contact_email,
               context: {
-                amount,
+                amount: ngnAmount,
+                currency: 'NGN',
                 date: nextRenewal.toISOString().split('T')[0]
               }
             }
