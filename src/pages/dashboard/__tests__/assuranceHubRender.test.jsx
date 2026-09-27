@@ -6,7 +6,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { fixture } from '@/lib/__tests__/assuranceHubFixture';
+import { fixture, TODAY } from '@/lib/__tests__/assuranceHubFixture';
 
 const mockNavigate = jest.fn();
 let mockHub;
@@ -33,8 +33,17 @@ jest.mock('recharts', () => {
 // eslint-disable-next-line import/first
 import AssuranceHub from '../AssuranceHub';
 
+// The fixture's dates are relative to its TODAY (18 Sept 2026) and the page
+// reads the clock. Unpinned, the test broke seven days later, on 25 Sept,
+// when MOC-2026-002's expiry passed in real time and a second "running past
+// its expiry" row appeared (senior testing, 2026-09-27).
 beforeAll(() => {
   global.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'queueMicrotask', 'requestAnimationFrame', 'cancelAnimationFrame'] });
+  jest.setSystemTime(TODAY);
+});
+afterAll(() => {
+  jest.useRealTimers();
 });
 
 const KEYS = ['risk', 'regulatory', 'documents', 'peerReview', 'moc', 'quality', 'iso', 'lessons', 'audits'];
