@@ -22,16 +22,35 @@ export const service = createSavedProjectsService(TABLE, {
 const describeError = (e) => missingTableMessage(e, TABLE, 'ds5_terminal_persistence');
 
 /** A linear strapping table stands in until the user loads their own. */
-const sampleStrapping = (capacityM3, maxHeightMm) =>
+export const sampleStrapping = (capacityM3, maxHeightMm) =>
   Array.from({ length: 21 }, (_, i) => ({
     heightMm: Math.round((i / 20) * maxHeightMm),
     volumeM3: Math.round((i / 20) * capacityM3),
   }));
 
+/**
+ * A pasted strapping table, one "height_mm volume_m3" pair per line (comma,
+ * tab or space separated). Senior test T1: the table behind every stock
+ * figure could not be seen or replaced. Heights must rise.
+ * @returns {{ rows: {heightMm:number, volumeM3:number}[] } | { error: string }}
+ */
+export const parseStrapping = (text) => {
+  const rows = String(text || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+    .map((l) => l.split(/[\s,;]+/).map(Number));
+  if (rows.length < 2) return { error: 'A strapping table needs at least two rows.' };
+  if (rows.some((r) => r.length < 2 || !Number.isFinite(r[0]) || !Number.isFinite(r[1]))) {
+    return { error: 'Each row is a height in mm and a volume in m3.' };
+  }
+  for (let i = 1; i < rows.length; i += 1) {
+    if (rows[i][0] <= rows[i - 1][0]) return { error: 'Heights must rise from row to row.' };
+  }
+  return { rows: rows.map(([h, v]) => ({ heightMm: h, volumeM3: v })) };
+};
+
 export const defaultInputs = () => ({
   tanks: [
-    { id: uuidv4(), name: 'T-01 (PMS)', product: 'PMS', capacityM3: 5000, heelM3: 120, maxHeightMm: 12000, densityKgM3: 745, dipMm: 7200, waterMm: 60, temperatureC: 30, vcf: '', strapping: sampleStrapping(5000, 12000) },
-    { id: uuidv4(), name: 'T-02 (AGO)', product: 'AGO', capacityM3: 3000, heelM3: 80, maxHeightMm: 10000, densityKgM3: 840, dipMm: 4200, waterMm: 40, temperatureC: 30, vcf: '', strapping: sampleStrapping(3000, 10000) },
+    { id: uuidv4(), name: 'T-01 (PMS)', product: 'PMS', capacityM3: 5000, heelM3: 120, maxHeightMm: 12000, densityKgM3: 745, dipMm: 7200, waterMm: 60, temperatureC: 30, vcf: '', strapping: sampleStrapping(5000, 12000), strappingIsSample: true },
+    { id: uuidv4(), name: 'T-02 (AGO)', product: 'AGO', capacityM3: 3000, heelM3: 80, maxHeightMm: 10000, densityKgM3: 840, dipMm: 4200, waterMm: 40, temperatureC: 30, vcf: '', strapping: sampleStrapping(3000, 10000), strappingIsSample: true },
   ],
   // Published-table coefficients are not shipped; the user supplies their row
   // or a VCF read off their own tables.
@@ -87,7 +106,19 @@ export const TerminalDepotProvider = ({ children }) => {
   const [inputs, setInputs] = useState(defaultInputs);
 
   const setTank = useCallback((id, patch) => setInputs((p) => ({
-    ...p, tanks: p.tanks.map((t) => (t.id === id ? { ...t, ...patch } : t)),
+    ...p,
+    tanks: p.tanks.map((t) => {
+      if (t.id !== id) return t;
+      const next = { ...t, ...patch };
+      // The placeholder table follows capacity and height; a supplied one
+      // is the tank's own and is left alone.
+      if (next.strappingIsSample && ('capacityM3' in patch || 'maxHeightMm' in patch)) {
+        const cap = parseFloat(next.capacityM3);
+        const h = parseFloat(next.maxHeightMm);
+        if (cap > 0 && h > 0) next.strapping = sampleStrapping(cap, h);
+      }
+      return next;
+    }),
   })), []);
   const setSection = useCallback((key, patch) => setInputs((p) => ({
     ...p, [key]: { ...p[key], ...patch },

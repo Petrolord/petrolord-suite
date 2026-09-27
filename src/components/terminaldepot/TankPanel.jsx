@@ -2,7 +2,41 @@
 import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useTerminalDepot } from '@/contexts/TerminalDepotContext';
+import { useTerminalDepot, parseStrapping } from '@/contexts/TerminalDepotContext';
+
+// Senior test T1: the strapping table turned every dip into a volume but
+// could not be seen or replaced.
+const StrappingEditor = ({ tank, setTank }) => {
+  const asText = (rows) => (rows || []).map((r) => `${r.heightMm} ${r.volumeM3}`).join('\n');
+  const [text, setText] = React.useState(asText(tank.strapping));
+  const [error, setError] = React.useState('');
+  React.useEffect(() => { setText(asText(tank.strapping)); }, [tank.strapping]);
+  const apply = () => {
+    const parsed = parseStrapping(text);
+    if (parsed.error) { setError(parsed.error); return; }
+    setError('');
+    setTank(tank.id, { strapping: parsed.rows, strappingIsSample: false });
+  };
+  return (
+    <details className="mt-2">
+      <summary className="cursor-pointer text-[11px] text-slate-400 hover:text-slate-200">
+        Strapping table {tank.strappingIsSample ? '(linear placeholder)' : `(${(tank.strapping || []).length} rows supplied)`}
+      </summary>
+      {tank.strappingIsSample && (
+        <p className="text-[11px] text-amber-300 mt-1" data-testid="strapping-placeholder">
+          A straight line from capacity and height, standing in for this tank's table. Paste the
+          tank's own, one height (mm) and volume (m3) per line, for volumes you can stand behind.
+        </p>
+      )}
+      <textarea
+        aria-label={`Strapping table for ${tank.name}`}
+        value={text} onChange={(e) => setText(e.target.value)} onBlur={apply} rows={6}
+        className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2 font-mono text-[11px] text-slate-200"
+      />
+      {error && <p className="text-[11px] text-red-300">{error}</p>}
+    </details>
+  );
+};
 
 // Labels are associated with their inputs rather than merely sitting above
 // them, so a screen reader and a test can both find a field by its name.
@@ -56,7 +90,9 @@ const TankPanel = () => {
                 <Cell label="Capacity" unit="m3" value={t.capacityM3} onChange={(v) => setTank(t.id, { capacityM3: v })} />
                 <Cell label="Heel" unit="m3" value={t.heelM3} onChange={(v) => setTank(t.id, { heelM3: v })} />
                 <Cell label="VCF (typed)" value={t.vcf} onChange={(v) => setTank(t.id, { vcf: v })} />
+                <Cell label="Height" unit="mm" value={t.maxHeightMm} onChange={(v) => setTank(t.id, { maxHeightMm: v })} />
               </div>
+              <StrappingEditor tank={t} setTank={setTank} />
               {stock && (
                 <p className="text-[11px] text-slate-400 mt-2">
                   {stock.error
