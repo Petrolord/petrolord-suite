@@ -24,7 +24,9 @@ describe('the public app catalogue', () => {
     // Logistics Planner (SC4, 20260929120000). Update this
     // number together with the module lists when an app goes live.
     expect(suiteStats()).toEqual({ apps: 104, modules: 10, modulesWord: 'Ten' });
-    expect(NEXTGEN_LIVE_COURSES).toBeGreaterThan(0);
+    // Live academy_apps with status 'available' on 2026-09-27. Update this
+    // pin together with the constant when a NextGen course goes live.
+    expect(NEXTGEN_LIVE_COURSES).toBe(79);
   });
 
   it('follows the owner copy rule: no em or en dashes', () => {
