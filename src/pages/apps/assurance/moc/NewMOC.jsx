@@ -19,6 +19,7 @@ import {
 import { ErrorState, Loading, SchemaNotice } from './components/SharedComponents';
 import { useManagementOfChange } from './hooks/useManagementOfChange';
 import { validateMoc } from './utils/mocPayload';
+import { focusFirstError } from '../shared/focusFirstError';
 
 const EMPTY = {
   title: '',
@@ -91,7 +92,7 @@ export default function NewMOC() {
     setFailure(null);
     const stage = submitForScreening ? 'Screening' : 'Draft';
     const found = validateMoc({ ...form, stage });
-    if (Object.keys(found).length) { setErrors(found); return; }
+    if (Object.keys(found).length) { setErrors(found); focusFirstError(found); return; }
 
     setSaving(true);
     const result = await createMoc({ ...form, stage }, {
