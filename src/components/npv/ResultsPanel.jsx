@@ -19,6 +19,12 @@ import MonteCarloSettings from './MonteCarloSettings';
 import { useFullPrecision, FullPrecisionNote } from '@/components/fullprecision/FullPrecision';
 import { formatFull } from '@/lib/fullPrecision';
 
+// The engine's maxExposure is the lowest cumulative cash flow. Exposure is
+// how far below zero that goes, and zero when the cumulative never dips:
+// the absolute value showed a positive first-year cumulative ($17MM) as
+// exposure beside "the cumulative cash flow is never negative" (NPV-T1-001).
+export const exposureOf = (metrics) => Math.max(0, -(Number(metrics?.maxExposure) || 0));
+
 const ResultsPanel = ({ results, onRerunRisk, riskRunning = false }) => {
   const { metrics, cashflow, sensitivity, risk, scenarios } = results;
   // W3 (D3): with Full precision on, every money figure (held in million USD)
@@ -29,7 +35,7 @@ const ResultsPanel = ({ results, onRerunRisk, riskRunning = false }) => {
   const formatCurrency = (val) => (full ? formatFull(val, 4) : compactCurrency(val));
   // cashflow rows hold million USD; the product text scales them to USD first
   const cfMoney = (mm, sign = '') => (full ? formatFull(mm, 4) : `${sign}${compactCurrency(mm * 1e6)}`);
-  const mmUnit = full ? <span className="text-xs font-normal text-slate-500"> $MM</span> : null;
+  const mmUnit = <span className="text-xs font-normal text-slate-500"> $MM</span>;
   // EC6-1: the screening engine reports no internal rate of return when
   // there is none to report (every period the same sign, several roots, or a
   // rate above the band it searches), where it used to return the 1000
@@ -74,7 +80,7 @@ const ResultsPanel = ({ results, onRerunRisk, riskRunning = false }) => {
           ['IRR', metrics.irr === null ? (irrReasonFor(metrics) || 'not defined') : metrics.irr],
           ['Payback', metrics.payback === null ? (paybackNote(metrics) || 'not defined') : metrics.payback],
           ['Payback note', paybackNote(metrics) || ''],
-          ['Max Exposure', metrics.maxExposure],
+          ['Max Exposure ($MM)', exposureOf(metrics)],
           ['Total Revenue', metrics.totalRevenue],
           ['Total CAPEX', metrics.totalCapex]
       ];
@@ -200,7 +206,7 @@ const ResultsPanel = ({ results, onRerunRisk, riskRunning = false }) => {
                     </Card>
                     <Card className="bg-slate-900 border-slate-800 p-4">
                         <p className="text-xs text-slate-500 uppercase font-semibold">Max Exposure</p>
-                        <p className="text-2xl font-bold text-red-400">{formatCurrency(Math.abs(metrics.maxExposure))}{mmUnit}</p>
+                        <p className="text-2xl font-bold text-red-400">{formatCurrency(exposureOf(metrics))}{mmUnit}</p>
                     </Card>
                 </div>
                 <Card className="bg-slate-900 border-slate-800 flex-1 min-h-[400px]">
@@ -278,7 +284,7 @@ const ResultsPanel = ({ results, onRerunRisk, riskRunning = false }) => {
                                             { label: 'NPV ($MM)', key: 'npv', format: (v) => formatCurrency(v) },
                                             { label: 'IRR (%)', key: 'irr', format: (v) => formatPct(v) },
                                             { label: 'Payback (Yrs)', key: 'payback', format: (v) => formatYears(v) },
-                                            { label: 'Max Exposure ($MM)', key: 'maxExposure', format: (v) => formatCurrency(Math.abs(v)) }
+                                            { label: 'Max Exposure ($MM)', key: 'maxExposure', format: (v) => formatCurrency(Math.max(0, -v)) }
                                         ].map(m => (
                                             <TableRow key={m.key} className="border-b-slate-800">
                                                 <TableCell className="font-medium text-slate-300">{m.label}</TableCell>
@@ -369,7 +375,7 @@ const ResultsPanel = ({ results, onRerunRisk, riskRunning = false }) => {
                          <p className="text-xl font-bold text-blue-400" data-testid="npv-risk-emv">{risk ? formatCurrency(risk.emv) : '-'}{risk ? mmUnit : null}</p>
                     </Card>
                     <div className="col-span-3">
-                        <RiskCaseCards risk={risk} formatValue={formatCurrency} />
+                        <RiskCaseCards risk={risk} formatValue={formatCurrency} unit="$MM" />
                         <p className="text-[11px] text-slate-400 mt-1" data-testid="npv-risk-sampling">
                             Each iteration draws one factor for price, one for reserves and one for capex, within plus or minus 20 percent, and applies it to every year:
                             reserves moves oil and gas volume and the variable operating cost with it, price moves oil and gas prices, capex moves every capex entry.

@@ -27,7 +27,7 @@ export const riskCases = (risk, keyFor = RISK_KEY_FOR_OUTCOME) => CASES.map((c) 
 /** True when the cases read low to high, as the convention requires. */
 export const casesAscending = (cases) => cases.every((c, i) => i === 0 || c.value >= cases[i - 1].value);
 
-export const RiskCaseCards = ({ risk, formatValue = (v) => String(v) }) => (
+export const RiskCaseCards = ({ risk, formatValue = (v) => String(v), unit = null }) => (
   <div>
     <div className="grid grid-cols-3 gap-4">
       {riskCases(risk).map((c) => (
@@ -40,7 +40,10 @@ export const RiskCaseCards = ({ risk, formatValue = (v) => String(v) }) => (
           className="bg-slate-800/50 p-4 rounded border border-slate-700 text-center"
         >
           <p className="text-xs text-slate-500">{c.label}</p>
-          <p className="text-lg font-bold text-white">{risk ? formatValue(c.value) : '-'}</p>
+          <p className="text-lg font-bold text-white">
+            <span>{risk ? formatValue(c.value) : '-'}</span>
+            {risk && unit ? <span className="text-xs font-normal text-slate-500"> {unit}</span> : null}
+          </p>
         </div>
       ))}
     </div>

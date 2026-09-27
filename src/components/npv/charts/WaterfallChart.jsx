@@ -10,7 +10,9 @@ import {
 import ChartFrame from '@/components/charts/ChartFrame';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 
-const mm = (v) => (Number.isFinite(v) ? (v / 1e6).toFixed(1) : '-');
+// The engine's cash flow is already in $MM (screening.js divides by 1e6);
+// dividing again printed every tick as $0.0MM (NPV-T1-002).
+const mm = (v) => (Number.isFinite(v) ? Number(v).toFixed(1) : '-');
 
 const WaterfallChart = ({ metrics, height = 340 }) => {
   const tick = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
@@ -48,7 +50,7 @@ const WaterfallChart = ({ metrics, height = 340 }) => {
       <BarChart data={chartData} margin={{ top: 12, right: 24, left: 8, bottom: 24 }}>
         <CartesianGrid {...GRID_STYLE} vertical={false} />
         <XAxis dataKey="name" stroke={CHART_COLORS.axisLine} tick={{ ...tick, fontSize: 11 }} />
-        <YAxis stroke={CHART_COLORS.axisLine} tick={tick} tickFormatter={(v) => `$${mm(v)}MM`} />
+        <YAxis stroke={CHART_COLORS.axisLine} tick={tick} width={72} tickFormatter={(v) => `$${mm(v)}MM`} />
         <Tooltip
           cursor={{ fill: 'rgba(0,0,0,0.04)' }}
           contentStyle={TOOLTIP_STYLE}

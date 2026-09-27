@@ -19,7 +19,9 @@ import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/uti
 const SWING_PCT = 30;
 const POINTS = [-30, -15, 0, 15, 30];
 const COLORS = ['#dc2626', '#2563eb', '#059669', '#d97706', '#7c3aed'];
-const mm = (v) => (Number.isFinite(v) ? (v / 1e6).toFixed(1) : '-');
+// The engine's cash flow is already in $MM (screening.js divides by 1e6);
+// dividing again printed every tick as $0.0MM (NPV-T1-002).
+const mm = (v) => (Number.isFinite(v) ? Number(v).toFixed(1) : '-');
 
 const SpiderChart = ({ sensitivityData, height = 320 }) => {
   const tick = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
@@ -48,7 +50,7 @@ const SpiderChart = ({ sensitivityData, height = 320 }) => {
               fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
             }}
           />
-          <YAxis stroke={CHART_COLORS.axisLine} tick={tick} tickFormatter={(v) => `$${mm(v)}MM`} />
+          <YAxis stroke={CHART_COLORS.axisLine} tick={tick} width={72} tickFormatter={(v) => `$${mm(v)}MM`} />
           <Tooltip
             contentStyle={TOOLTIP_STYLE}
             formatter={(v, name) => [`$${mm(v)}MM`, name]}

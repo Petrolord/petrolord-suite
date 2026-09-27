@@ -33,7 +33,7 @@ const QuickInput = ({ data, onChange }) => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6">
             {/* Production */}
             <Card className="bg-slate-900 border-slate-800 p-4 space-y-4">
                 <h3 className="text-sm font-bold text-lime-400 flex items-center gap-2">
@@ -42,7 +42,7 @@ const QuickInput = ({ data, onChange }) => {
                 </h3>
                 <div>
                     <Label>Initial Rate (bopd)</Label>
-                    <Input type="number" value={data.initialRate} onChange={e => handleChange('initialRate', e.target.value)} className="bg-slate-800 border-slate-700" />
+                    <Input type="number" value={data.initialRate ?? ''} onChange={e => handleChange('initialRate', e.target.value)} className="bg-slate-800 border-slate-700" />
                 </div>
                 <div>
                     <div className="flex justify-between mb-1"><Label>Decline Rate (%/yr)</Label><span className="text-xs text-slate-400">{data.declineRate}%</span></div>
@@ -55,11 +55,11 @@ const QuickInput = ({ data, onChange }) => {
                 <h3 className="text-sm font-bold text-blue-400">Market Conditions</h3>
                 <div>
                     <Label>Oil Price ($/bbl)</Label>
-                    <Input type="number" value={data.oilPrice} onChange={e => handleChange('oilPrice', e.target.value)} className="bg-slate-800 border-slate-700" />
+                    <Input type="number" value={data.oilPrice ?? ''} onChange={e => handleChange('oilPrice', e.target.value)} className="bg-slate-800 border-slate-700" />
                 </div>
                 <div>
                     <Label>Discount Rate (%)</Label>
-                    <Input type="number" value={data.discountRate} onChange={e => handleChange('discountRate', e.target.value)} className="bg-slate-800 border-slate-700" />
+                    <Input type="number" value={data.discountRate ?? ''} onChange={e => handleChange('discountRate', e.target.value)} className="bg-slate-800 border-slate-700" />
                 </div>
             </Card>
 
@@ -69,16 +69,16 @@ const QuickInput = ({ data, onChange }) => {
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <Label>Total CAPEX ($MM)</Label>
-                        <Input type="number" value={data.capex} onChange={e => handleChange('capex', e.target.value)} className="bg-slate-800 border-slate-700" />
+                        <Input type="number" value={data.capex ?? ''} onChange={e => handleChange('capex', e.target.value)} className="bg-slate-800 border-slate-700" />
                     </div>
                     <div>
                         <Label>Fixed OPEX ($MM/yr)</Label>
-                        <Input type="number" value={data.fixedOpex} onChange={e => handleChange('fixedOpex', e.target.value)} className="bg-slate-800 border-slate-700" />
+                        <Input type="number" value={data.fixedOpex ?? ''} onChange={e => handleChange('fixedOpex', e.target.value)} className="bg-slate-800 border-slate-700" />
                     </div>
                 </div>
                 <div>
                     <Label>Variable OPEX ($/bbl)</Label>
-                    <Input type="number" value={data.opexPerBbl} onChange={e => handleChange('opexPerBbl', e.target.value)} className="bg-slate-800 border-slate-700" />
+                    <Input type="number" value={data.opexPerBbl ?? ''} onChange={e => handleChange('opexPerBbl', e.target.value)} className="bg-slate-800 border-slate-700" />
                 </div>
             </Card>
 
@@ -88,11 +88,11 @@ const QuickInput = ({ data, onChange }) => {
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <Label>Royalty (%)</Label>
-                        <Input type="number" value={data.royaltyRate} onChange={e => handleChange('royaltyRate', e.target.value)} className="bg-slate-800 border-slate-700" />
+                        <Input type="number" value={data.royaltyRate ?? ''} onChange={e => handleChange('royaltyRate', e.target.value)} className="bg-slate-800 border-slate-700" />
                     </div>
                     <div>
                         <Label>Corp. Tax (%)</Label>
-                        <Input type="number" value={data.taxRate} onChange={e => handleChange('taxRate', e.target.value)} className="bg-slate-800 border-slate-700" />
+                        <Input type="number" value={data.taxRate ?? ''} onChange={e => handleChange('taxRate', e.target.value)} className="bg-slate-800 border-slate-700" />
                     </div>
                 </div>
             </Card>
