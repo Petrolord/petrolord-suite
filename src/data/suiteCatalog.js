@@ -229,6 +229,7 @@ export const suiteStats = (modules = SUITE_MODULES) => {
 };
 
 // Live NextGen Academy courses (academy_apps with status 'available',
-// checked 2026-09-27). The academy homepage reads this live; here it is a
+// 79 checked 2026-09-27, after the 72 first recorded that day went stale).
+// The academy homepage reads this live; here it is a
 // static figure, so update it when a course goes live.
-export const NEXTGEN_LIVE_COURSES = 72;
+export const NEXTGEN_LIVE_COURSES = 79;
