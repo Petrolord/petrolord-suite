@@ -53,30 +53,30 @@ const RodStressPanel = () => {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-xs">
               <thead>
                 <tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
-                  <th className="text-left font-semibold px-4 py-2">Section</th>
-                  <th className="text-right font-semibold px-4 py-2">Top depth (ft)</th>
-                  <th className="text-right font-semibold px-4 py-2">Area (in2)</th>
-                  <th className="text-right font-semibold px-4 py-2">Max load (lb)</th>
-                  <th className="text-right font-semibold px-4 py-2">Max stress (psi)</th>
-                  <th className="text-right font-semibold px-4 py-2">Min stress (psi)</th>
-                  <th className="text-right font-semibold px-4 py-2">Allowable (psi)</th>
-                  <th className="text-right font-semibold px-4 py-2">Loading</th>
+                  <th className="text-left font-semibold px-2 py-2">Section</th>
+                  <th className="text-right font-semibold px-2 py-2">Top depth (ft)</th>
+                  <th className="text-right font-semibold px-2 py-2">Area (in2)</th>
+                  <th className="text-right font-semibold px-2 py-2">Max load (lb)</th>
+                  <th className="text-right font-semibold px-2 py-2">Max stress (psi)</th>
+                  <th className="text-right font-semibold px-2 py-2">Min stress (psi)</th>
+                  <th className="text-right font-semibold px-2 py-2">Allowable (psi)</th>
+                  <th className="text-right font-semibold px-2 py-2">Loading</th>
                 </tr>
               </thead>
               <tbody>
                 {design.stresses.map((s) => (
                   <tr key={s.label} className="border-b border-slate-800/60 last:border-0">
-                    <td className="px-4 py-2 text-slate-200">{s.label} in</td>
-                    <td className="px-4 py-2 text-right tabular-nums text-slate-300">{fmt(s.topDepthFt)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums text-slate-300">{fmt(s.areaIn2, 3)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums text-slate-300">{fmt(s.maxLoadLb)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums text-slate-300">{fmt(s.maxStressPsi)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums text-slate-300">{fmt(s.minStressPsi)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums text-slate-300">{fmt(s.allowablePsi)}</td>
-                    <td className={`px-4 py-2 text-right tabular-nums font-semibold ${loadingAccent(s.loadingPct)}`}>
+                    <td className="px-2 py-2 text-slate-200">{s.label} in</td>
+                    <td className="px-2 py-2 text-right tabular-nums text-slate-300">{fmt(s.topDepthFt)}</td>
+                    <td className="px-2 py-2 text-right tabular-nums text-slate-300">{fmt(s.areaIn2, 3)}</td>
+                    <td className="px-2 py-2 text-right tabular-nums text-slate-300">{fmt(s.maxLoadLb)}</td>
+                    <td className="px-2 py-2 text-right tabular-nums text-slate-300">{fmt(s.maxStressPsi)}</td>
+                    <td className="px-2 py-2 text-right tabular-nums text-slate-300">{fmt(s.minStressPsi)}</td>
+                    <td className="px-2 py-2 text-right tabular-nums text-slate-300">{fmt(s.allowablePsi)}</td>
+                    <td className={`px-2 py-2 text-right tabular-nums font-semibold ${loadingAccent(s.loadingPct)}`}>
                       {fmt(s.loadingPct, 1)} %
                     </td>
                   </tr>

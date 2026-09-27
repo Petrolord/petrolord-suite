@@ -29,7 +29,7 @@ const DesignSummaryPanel = () => {
       <Row
         label="Production"
         value={`${fmt(design.producedBpd, 1)} bbl/d`}
-        hint={`Target ${fmt(design.qoStbd)} stb/d oil at ${fmt(design.wct * 100, 0)} percent water`}
+        hint={`Target ${fmt(design.qoStbd)} stb/d oil at ${fmt(design.wct * 100, 0)} percent water, ${fmt(design.liquidTargetBpd)} bbl/d of liquid`}
       />
       <Row
         label="Plunger stroke"

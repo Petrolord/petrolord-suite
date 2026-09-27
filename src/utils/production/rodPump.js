@@ -329,6 +329,18 @@ export const runDesign = ({ form, model }) => {
       message: `There is only ${Math.round(intake.submergenceFt)} ft of fluid over the pump. A pump this close to being pumped off will pound; slow the unit down or set the pump deeper.`,
     });
   }
+  // The duty is an OIL rate with a water cut, and a pump lifts LIQUID. A
+  // design that lifts well short of the liquid that oil rate implies is a
+  // failing design however comfortable its rods are (RP-T1-001: 140.9
+  // bbl/d lifted against 600 bbl/d needed, with every limit green).
+  const liquidTargetBpd = wct < 1 ? qoStbd / (1 - wct) : NaN;
+  const liftedBpd = res.design.producedBpd;
+  if (Number.isFinite(liquidTargetBpd) && Number.isFinite(liftedBpd) && liftedBpd < 0.9 * liquidTargetBpd) {
+    warnings.push({
+      code: 'rateShortfall',
+      message: `The pump lifts ${liftedBpd.toFixed(1)} bbl/d of liquid, about ${(liftedBpd * (1 - wct)).toFixed(0)} stb/d of oil at ${(wct * 100).toFixed(0)} percent water, against the ${qoStbd.toFixed(0)} stb/d oil target (${liquidTargetBpd.toFixed(0)} bbl/d of liquid). A bigger plunger, a longer stroke or more strokes a minute would close it, within the rod and unit limits.`,
+    });
+  }
   if (gas.fillage < 0.7) {
     warnings.push({
       code: 'gasInterference',
@@ -345,6 +357,7 @@ export const runDesign = ({ form, model }) => {
       ...res.design,
       qoStbd,
       wct,
+      liquidTargetBpd,
       gorScfStb,
       spm,
       strokeIn,

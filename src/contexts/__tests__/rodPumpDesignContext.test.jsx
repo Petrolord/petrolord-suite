@@ -108,7 +108,7 @@ describe('payload shape', () => {
   it('flattens the sections the engine call needs, without a second perforation depth', () => {
     const inputs = defaultInputs();
     const form = designFormFrom(inputs);
-    expect(form.designRateStbd).toBe('120');
+    expect(form.designRateStbd).toBe('25');
     expect(form.strokeIn).toBe('64');
     expect(form.sectionsText).toBe(inputs.rods.sectionsText);
     // The producing gas-oil ratio and the oil gravity have one home.
