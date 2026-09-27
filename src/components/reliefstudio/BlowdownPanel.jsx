@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useRelief } from '@/contexts/ReliefStudioContext';
 import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
 import { formatFull } from '@/lib/fullPrecision';
@@ -71,14 +71,14 @@ const BlowdownPanel = () => {
         <ChartFrame height={300} exportFilename="blowdown-curve">
           <ComposedChart data={data} margin={{ top: 8, right: 40, bottom: 24, left: 8 }}>
             <CartesianGrid {...GRID_STYLE} />
-            <XAxis type="number" dataKey="t" domain={['dataMin', 'dataMax']} stroke={CHART_COLORS.axisLine} tick={tick}
-              label={{ value: 'Time (min)', position: 'insideBottom', offset: -8, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+            <XAxis height={XAXIS_LABEL_HEIGHT} type="number" dataKey="t" domain={['dataMin', 'dataMax']} stroke={CHART_COLORS.axisLine} tick={tick}
+              label={{ value: 'Time (min)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <YAxis yAxisId="p" stroke={CHART_COLORS.axisLine} tick={tick}
               label={{ value: 'Pressure (psia)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <YAxis yAxisId="T" orientation="right" stroke={CHART_COLORS.axisLine} tick={tick}
               label={{ value: 'Temperature (F)', angle: 90, position: 'insideRight', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [fmt(v, 1), n]} labelFormatter={(t) => `${fmt(t, 1)} min`} />
-            <Legend verticalAlign="top" />
+            <Legend {...LEGEND_PROPS} />
             <ReferenceLine yAxisId="p" x={15} stroke="#d97706" strokeDasharray="4 3" />
             <Line yAxisId="p" dataKey="p" name="Pressure (psia)" stroke="#059669" strokeWidth={2} dot={false} />
             <Line yAxisId="T" dataKey="T" name="Temperature (F)" stroke="#2563eb" strokeWidth={2} dot={false} />

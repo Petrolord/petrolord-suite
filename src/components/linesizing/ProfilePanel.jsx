@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useLineSizing } from '@/contexts/LineSizingContext';
 import { fmt, Stat, ErrorNote, Field, NumberInput } from './fields';
 
@@ -65,14 +65,14 @@ const GradientChart = () => {
     <ChartFrame height={320} exportFilename="hydraulic-gradient">
       <ComposedChart data={data} margin={{ top: 8, right: 40, bottom: 24, left: 8 }}>
         <CartesianGrid {...GRID_STYLE} />
-        <XAxis type="number" dataKey="x" domain={['dataMin', 'dataMax']} stroke={CHART_COLORS.axisLine} tick={tick}
-          label={{ value: 'Distance (ft)', position: 'insideBottom', offset: -8, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+        <XAxis height={XAXIS_LABEL_HEIGHT} type="number" dataKey="x" domain={['dataMin', 'dataMax']} stroke={CHART_COLORS.axisLine} tick={tick}
+          label={{ value: 'Distance (ft)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
         <YAxis yAxisId="p" stroke={CHART_COLORS.axisLine} tick={tick}
           label={{ value: 'Pressure (psia)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
         <YAxis yAxisId="z" orientation="right" stroke={CHART_COLORS.axisLine} tick={tick}
           label={{ value: 'Elevation (ft)', angle: 90, position: 'insideRight', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
         <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [fmt(v, 1), n]} labelFormatter={(x) => `${fmt(x)} ft`} />
-        <Legend verticalAlign="top" />
+        <Legend {...LEGEND_PROPS} />
         <Area yAxisId="z" dataKey="z" name="Elevation (ft)" fill="#e2e8f0" stroke="#94a3b8" />
         <Line yAxisId="p" dataKey="p" name="Pressure (psia)" stroke="#059669" strokeWidth={2} dot />
       </ComposedChart>

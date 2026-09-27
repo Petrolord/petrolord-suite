@@ -6,7 +6,7 @@ import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceDot,
 } from 'recharts';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { usePump } from '@/contexts/PumpStudioContext';
 import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
 import { formatFull } from '@/lib/fullPrecision';
@@ -165,13 +165,13 @@ export const CurveChart = () => {
         <ChartFrame height={320} exportFilename="pump-system-curves">
           <ComposedChart data={chart.rows} margin={{ top: 8, right: 30, bottom: 24, left: 8 }}>
             <CartesianGrid {...GRID_STYLE} />
-            <XAxis type="number" dataKey="q" domain={[0, 'dataMax']} stroke={CHART_COLORS.axisLine} tick={tick}
-              label={{ value: 'Flow (gpm)', position: 'insideBottom', offset: -8, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+            <XAxis height={XAXIS_LABEL_HEIGHT} type="number" dataKey="q" domain={[0, 'dataMax']} stroke={CHART_COLORS.axisLine} tick={tick}
+              label={{ value: 'Flow (gpm)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <YAxis stroke={CHART_COLORS.axisLine} tick={tick}
               label={{ value: 'Head (ft)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [fmt(v, 1), n]}
               labelFormatter={(q) => `${fmt(q)} gpm`} />
-            <Legend verticalAlign="top" />
+            <Legend {...LEGEND_PROPS} />
             <Line dataKey="pump" name="Pump head (ft)" stroke="#059669" strokeWidth={2} dot={false} connectNulls />
             <Line dataKey="system" name="System head (ft)" stroke="#2563eb" strokeWidth={2} dot={false} />
             {!duty.error && (

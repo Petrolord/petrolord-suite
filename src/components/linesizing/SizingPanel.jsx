@@ -7,7 +7,7 @@ import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell,
 } from 'recharts';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS } from '@/utils/chartTheme';
 import { useLineSizing } from '@/contexts/LineSizingContext';
 import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
 import { fmt, Stat, ErrorNote } from './fields';
@@ -107,7 +107,7 @@ const SweepChart = () => {
         <YAxis yAxisId="v" orientation="right" stroke={CHART_COLORS.axisLine} tick={tick}
           label={{ value: 'velocity (ft/s)', angle: 90, position: 'insideRight', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
         <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [fmt(v, 2), n]} />
-        <Legend verticalAlign="top" />
+        <Legend {...LEGEND_PROPS} />
         <Bar yAxisId="dp" dataKey="dp" name="Pressure drop (psi)">
           {data.map((d) => (
             <Cell key={d.name} fill={d.pass ? '#059669' : '#d97706'} />
