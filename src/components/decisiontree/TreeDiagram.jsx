@@ -15,7 +15,7 @@ const NODE_R = 9;
 // VOI T1: wider columns so a branch label fits between parent and child
 const COL_W = 240;
 const ROW_H = 56;
-const PAD = { left: 16, right: 170, top: 24, bottom: 16 };
+const PAD = { left: 16, right: 170, top: 24, bottom: 44 }; // bottom: a falling branch label under the last row, then the legend
 
 const fmtProduct = (v) => {
   if (!Number.isFinite(v)) return '';
@@ -125,7 +125,11 @@ const TreeDiagram = ({ annotated, unit = '$MM' }) => {
           return (
             <g key={n.node.id ?? i}>
               <NodeGlyph type={n.node.type} x={x} y={y} onPath={onPath} />
-              <text x={x + NODE_R + 5} y={y + 3.5} fontSize={fs} fontWeight={onPath ? 600 : 400} fill={onPath ? '#065f46' : CHART_COLORS.axisText}
+              {/* DT-T1-001: a node's label sits above and right of it for
+                  decision and chance nodes, where its outgoing branches (which
+                  leave the node's right edge) do not run through it.
+                  Terminal labels stay beside the triangle: nothing leaves it. */}
+              <text x={x + NODE_R + (isTerm ? 5 : 2)} y={isTerm ? y + 3.5 : y - NODE_R - 4} fontSize={fs} fontWeight={onPath ? 600 : 400} fill={onPath ? '#065f46' : CHART_COLORS.axisText}
                 stroke="#fff" strokeWidth={3} paintOrder="stroke">
                 {label}
               </text>
