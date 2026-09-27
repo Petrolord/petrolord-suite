@@ -2,6 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, FeatureGroup, useMap, ScaleControl, useMapEvents } from 'react-leaflet';
 import { EditControl } from 'react-leaflet-draw';
 import L from 'leaflet';
+// Leaflet positions its tiles and controls with its own stylesheet. Without
+// it the map drew as loose tiles scattered over the page when this studio
+// was the first map opened (FLM-T1-002).
+import 'leaflet/dist/leaflet.css';
+import 'leaflet-draw/dist/leaflet.draw.css';
 import 'leaflet-polylinedecorator';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/components/ui/use-toast';
@@ -63,6 +68,7 @@ const MapClickHandler = ({ activeTool, onMapClick }) => {
 const MapPanel = ({ activeTool, layers, setLayers, onPlaceItem, onSelectLayer, iconMap }) => {
   const featureGroupRef = useRef();
   const mapRef = useRef();
+  const [mapReady, setMapReady] = useState(false);
   const { toast } = useToast();
   
   const calculateDistance = (latlngs) => {
@@ -185,7 +191,7 @@ const MapPanel = ({ activeTool, layers, setLayers, onPlaceItem, onSelectLayer, i
       }
     });
 
-  }, [layers, onSelectLayer, iconMap]);
+  }, [layers, onSelectLayer, iconMap, mapReady]);
   
   const drawOptions = {
       polyline: activeTool?.type === 'pipeline',
@@ -196,11 +202,19 @@ const MapPanel = ({ activeTool, layers, setLayers, onPlaceItem, onSelectLayer, i
       circlemarker: false,
   };
 
+  // react-leaflet 4 dropped `whenCreated`; the map instance arrives on
+  // `ref`. With the old prop mapRef never filled, so the layer effect
+  // returned early and nothing placed was ever drawn (FLM-T1-003). The
+  // state mirror re-runs that effect once the map exists.
   return (
-    <MapContainer whenCreated={mapInstance => { mapRef.current = mapInstance }} center={[29.7604, -95.3698]} zoom={13} className="w-full h-full" style={{backgroundColor: '#f0f0f0'}}>
+    <MapContainer ref={(m) => { if (m && mapRef.current !== m) { mapRef.current = m; setMapReady(true); } }} center={[29.7604, -95.3698]} zoom={13} className="w-full h-full" style={{backgroundColor: '#f0f0f0'}}>
+      {/* CARTO's basemaps now answer every tile with "API KEY REQUIRED"
+          (FLM-T1-001), which left this map blank on every domain. The
+          OpenStreetMap standard tiles are what the Well Spacing map uses. */}
       <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        maxZoom={19}
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
       <FeatureGroup ref={featureGroupRef}>
         <EditControl
