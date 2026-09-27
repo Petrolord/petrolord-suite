@@ -28,10 +28,7 @@ export const ErrorState = ({ error, onRetry }) => (
         <h3 className="font-medium">The ISO register could not be loaded</h3>
         <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">{error}</p>
         <p className="text-sm text-[hsl(var(--muted-foreground))] mt-2">
-          Nothing is shown below. This app used to show thirty invented clauses,
-          fifteen invented audits and a compliance percentage to every
-          organization, whatever was in its register and whether or not the
-          database answered at all.
+          Nothing is shown below until the register loads. Try again in a moment.
         </p>
         {onRetry ? (
           <button type="button" onClick={onRetry}
@@ -153,9 +150,7 @@ export const SchemaNotice = () => (
     <p className="text-[hsl(var(--muted-foreground))] mt-1">
       Standards, clauses, internal audits, findings and corrective actions cannot
       be stored until migration 20260917600000 is applied. Ask your administrator
-      to apply it. Nothing is shown in the meantime: this app used to display
-      thirty invented clauses instead, and a different compliance percentage on
-      every reload.
+      to apply it. Nothing is shown in the meantime.
     </p>
   </div>
 );

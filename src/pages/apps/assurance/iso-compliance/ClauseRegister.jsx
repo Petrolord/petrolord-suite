@@ -383,7 +383,7 @@ export default function ClauseRegister() {
                 title={clauses.length ? 'Nothing matches those filters' : 'The clause register is empty'}
                 description={clauses.length
                   ? 'Clear the filters to see the rest of the register.'
-                  : 'Add the clauses of each standard this organization runs. This app used to show thirty invented ones instead, titled "Clause Title 1" to "Clause Title 30".'}
+                  : 'Add the clauses of each standard this organization runs.'}
               />
             ) : (
               <div className="overflow-x-auto">

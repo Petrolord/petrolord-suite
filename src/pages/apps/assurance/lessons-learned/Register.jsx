@@ -209,7 +209,7 @@ export default function Register() {
                 title={lessons.length ? 'Nothing matches those filters' : 'The register is empty'}
                 description={lessons.length
                   ? 'Clear the filters to see the rest of the register.'
-                  : 'Capture what happened, why it happened and what to do about it. This app used to show five invented lessons instead.'}
+                  : 'Capture what happened, why it happened and what to do about it.'}
                 action={lessons.length ? null : (
                   <Button onClick={() => navigate(`${BASE}/new`)}>Capture the first one</Button>
                 )}
