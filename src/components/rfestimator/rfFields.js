@@ -6,8 +6,8 @@
 export const METHODS = {
   oil: [
     { code: 'analog', label: 'Drive-mechanism analog' },
-    { code: 'api_solution_gas', label: 'API — solution-gas drive' },
-    { code: 'api_water_drive', label: 'API — water drive' },
+    { code: 'api_solution_gas', label: 'API (1967): solution-gas drive' },
+    { code: 'api_water_drive', label: 'API (1967): water drive' },
   ],
   gas: [
     { code: 'analog', label: 'Drive-mechanism analog' },
@@ -30,7 +30,7 @@ export const CORR_FIELDS = {
     ['pi', 'Initial pi', 'psia'], ['pa', 'Abandon pa', 'psia'],
   ],
   gas_pz: [
-    ['pi', 'Initial pi', 'psia'], ['zi', 'zi', '—'], ['pa', 'Abandon pa', 'psia'], ['za', 'za', '—'],
+    ['pi', 'Initial pi', 'psia'], ['zi', 'zi', ''], ['pa', 'Abandon pa', 'psia'], ['za', 'za', ''],
   ],
   gas_water_drive: [
     ['swi', 'Swi', 'frac'], ['sgr', 'Residual gas Sgr', 'frac'], ['sweep', 'Sweep efficiency', 'frac'],
@@ -46,10 +46,10 @@ export const VOL_FIELDS_GAS = [
   ['sw', 'Water sat Sw', 'frac'], ['ntg', 'Net-to-gross', 'frac'], ['bgi', 'Bgi', 'ft³/scf'],
 ];
 
-export const fmtPct = (v) => (v == null || !Number.isFinite(v) ? '—' : `${(v * 100).toFixed(1)}%`);
+export const fmtPct = (v) => (v == null || !Number.isFinite(v) ? '-' : `${(v * 100).toFixed(1)}%`);
 
 export const fmtRes = (v, phase) => {
-  if (v == null || !Number.isFinite(v)) return '—';
+  if (v == null || !Number.isFinite(v)) return '-';
   return phase === 'gas'
     ? `${(v / 1e9).toLocaleString('en-US', { maximumFractionDigits: 2 })} Bscf`
     : `${(v / 1e6).toLocaleString('en-US', { maximumFractionDigits: 2 })} MMSTB`;

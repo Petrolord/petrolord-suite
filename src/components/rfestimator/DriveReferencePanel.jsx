@@ -37,7 +37,7 @@ const DriveReferencePanel = () => {
         </table>
         <p className="text-xs text-slate-500 mt-3 flex items-start gap-1.5">
           <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-          Indicative screening ranges from industry literature — confirm against reservoir-specific data and simulation.
+          Indicative screening ranges from industry literature. Confirm against reservoir-specific data and simulation.
         </p>
       </CardContent>
     </Card>
