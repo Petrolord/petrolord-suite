@@ -4,7 +4,7 @@ import {
 } from '@/lib/riskScoring';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-export const RiskHeatmapMatrix = ({ risks = [], onCellClick }) => {
+export const RiskHeatmapMatrix = ({ risks = [], onCellClick, compact = false }) => {
   // Initialize 5x5 matrix
   const matrix = Array(5).fill(0).map(() => Array(5).fill(0).map(() => []));
   
@@ -46,7 +46,7 @@ export const RiskHeatmapMatrix = ({ risks = [], onCellClick }) => {
                               onClick={() => onCellClick && count > 0 && onCellClick(likelihood, impact, cellRisks)}
                               disabled={count === 0}
                               className={`
-                                w-12 h-12 md:w-16 md:h-16 rounded flex items-center justify-center text-lg font-bold transition-all
+                                ${compact ? 'w-12 h-12' : 'w-12 h-12 md:w-16 md:h-16'} rounded flex items-center justify-center text-lg font-bold transition-all
                                 ${getHeatmapCellClasses(likelihood, impact)}
                                 ${count === 0 ? 'opacity-40 cursor-not-allowed' : 'shadow-md ring-1 ring-white/20 text-slate-950 cursor-pointer hover:scale-105 z-10 relative'}
                               `}
@@ -79,7 +79,7 @@ export const RiskHeatmapMatrix = ({ risks = [], onCellClick }) => {
           <div className="flex mt-2 ml-5">
              <div className="flex gap-1">
                 {[1, 2, 3, 4, 5].map(l => (
-                    <div key={`x-${l}`} className="w-12 md:w-16 text-center text-xs text-slate-500">{l}</div>
+                    <div key={`x-${l}`} className={`${compact ? 'w-12' : 'w-12 md:w-16'} text-center text-xs text-slate-500`}>{l}</div>
                 ))}
              </div>
           </div>
