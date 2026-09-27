@@ -75,7 +75,10 @@ const AuthProviderContent = ({ children }) => {
     // licensed from the day its tiles exist; every one is Coming Soon until
     // the wave that ships its build (D1-D4; D5 seeds its own tile).
     'data-quality-studio', 'ml-workbench', 'electrofacies-studio', 'forecasting-ml-workbench',
-    'ai-evaluation-studio'
+    'ai-evaluation-studio',
+    // Supply Chain SC3 (Midstream & Downstream module). Its tile is seeded
+    // Coming Soon and goes Active with the deploy that ships the route.
+    'materials-spares-planner'
   ], []);
 
   const fetchUserOrgAndPermissions = useCallback(async (userId) => {

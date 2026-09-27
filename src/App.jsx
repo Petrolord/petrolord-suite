@@ -99,6 +99,7 @@ const ProductBlendingOptimizer = lazy(() => import('@/pages/apps/ProductBlending
 const RefineryPlanningStudio = lazy(() => import('@/pages/apps/RefineryPlanningStudio'));
 const ModularRefineryFeasibility = lazy(() => import('@/pages/apps/ModularRefineryFeasibility'));
 const TerminalDepotStudio = lazy(() => import('@/pages/apps/TerminalDepotStudio'));
+const MaterialsSparesPlanner = lazy(() => import('@/pages/apps/MaterialsSparesPlanner'));
 const FuelPricingStudio = lazy(() => import('@/pages/apps/FuelPricingStudio'));
 const LpgCngRolloutStudio = lazy(() => import('@/pages/apps/LpgCngRolloutStudio'));
 const EnergyEfficiencyStudio = lazy(() => import('@/pages/apps/EnergyEfficiencyStudio'));
@@ -831,6 +832,8 @@ function App() {
                                 <Route path="apps/midstream-downstream/refinery-planning-scheduling" element={<ProtectedAppRoute appId="refinery-planning-scheduling" appName="Refinery Planning & Scheduling Studio"><RefineryPlanningStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/midstream-downstream/modular-refinery-feasibility" element={<ProtectedAppRoute appId="modular-refinery-feasibility" appName="Modular Refinery Feasibility Studio"><ModularRefineryFeasibility /></ProtectedAppRoute>} />
                                 <Route path="apps/midstream-downstream/terminal-depot-studio" element={<ProtectedAppRoute appId="terminal-depot-studio" appName="Terminal & Depot Studio"><TerminalDepotStudio /></ProtectedAppRoute>} />
+                                {/* Supply Chain SC3: Materials & Spares Planner on the inventory engine (course materials). */}
+                                <Route path="apps/midstream-downstream/materials-spares-planner" element={<ProtectedAppRoute appId="materials-spares-planner" appName="Materials & Spares Planner"><MaterialsSparesPlanner /></ProtectedAppRoute>} />
                                 <Route path="apps/midstream-downstream/fuel-pricing-supply-chain" element={<ProtectedAppRoute appId="fuel-pricing-supply-chain" appName="Fuel Pricing & Supply Chain Studio"><FuelPricingStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/midstream-downstream/lpg-cng-rollout-studio" element={<ProtectedAppRoute appId="lpg-cng-rollout-studio" appName="LPG & CNG Rollout Studio"><LpgCngRolloutStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/midstream-downstream/energy-utilities-efficiency" element={<ProtectedAppRoute appId="energy-utilities-efficiency" appName="Energy & Utilities Efficiency Studio"><EnergyEfficiencyStudio /></ProtectedAppRoute>} />
