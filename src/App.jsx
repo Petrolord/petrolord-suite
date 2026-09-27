@@ -139,6 +139,7 @@ const ModularRefineryHarness = lazy(() => import('@/dev/ModularRefineryHarness')
 const CarbonHarness = lazy(() => import('@/dev/CarbonHarness'));
 const ElectrofaciesHarness = lazy(() => import('@/dev/ElectrofaciesHarness'));
 const DataQualityHarness = lazy(() => import('@/dev/DataQualityHarness'));
+const DesignSystemHarness = lazy(() => import('@/dev/DesignSystemHarness'));
 const FluidSystemsStudio = lazy(() => import('@/pages/apps/FluidSystemsStudio'));
 const MbalHarness = lazy(() => import('@/pages/apps/reservoir-balance/harness/MbalHarness'));
 const ReservoirBalance = lazy(() => import('@/pages/apps/reservoir-balance/ReservoirBalance'));
@@ -994,6 +995,7 @@ function App() {
                                   <Route path="/dev/carbon-footprint-abatement" element={<CarbonHarness />} />
                                   <Route path="/dev/electrofacies-studio" element={<ElectrofaciesHarness />} />
                                   <Route path="/dev/data-quality-studio" element={<DataQualityHarness />} />
+                                  <Route path="/dev/design-system" element={<DesignSystemHarness />} />
                                   <Route path="/dev/nodal-analysis-studio" element={<NodalHarness />} />
                                   <Route path="/dev/material-balance-studio" element={<MbalHarness />} />
                                   <Route path="/dev/material-balance-studio/cases/:caseId" element={<MbalHarness />} />

@@ -41,6 +41,7 @@ const ChartFrame = ({ height = 260, className = '', exportFilename = null, logoH
   const elementId = `chart-frame-${frameId}`;
   return (
     <div
+      data-canvas="chart"
       className={`relative bg-white rounded-b-lg ${className}`}
       style={{ paddingBottom: logoHeight + 20 }}
       id={exportFilename ? elementId : undefined}
