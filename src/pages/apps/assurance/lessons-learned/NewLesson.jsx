@@ -275,7 +275,7 @@ export default function NewLesson() {
                   personId={form.author_id} name={form.author_name}
                   onChange={({ id, name }) => setForm(
                     (f) => ({ ...f, author_id: id, author_name: name }))}
-                  emptyOption="Yourself, or type the name of somebody without a Suite account"
+                  emptyOption="Yourself (or type a name)"
                   namePlaceholder="Leave blank for yourself"
                   selectClassName={selectClass}
                 />
