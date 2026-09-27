@@ -14,8 +14,8 @@ import { buildDemoSamples, KR_CSV_TEMPLATE, PC_CSV_TEMPLATE } from './demoSample
 
 const PROP_FIELDS = [
   { k: 'depth_ft', label: 'Depth (ft)' },
-  { k: 'k_md', label: 'k — permeability (md)' },
-  { k: 'phi', label: 'φ — porosity (frac)' },
+  { k: 'k_md', label: 'k, permeability (md)' },
+  { k: 'phi', label: 'φ, porosity (frac)' },
   { k: 'sigma_dyncm', label: 'σ lab IFT (dyn/cm)' },
   { k: 'thetaDeg', label: 'θ lab contact angle (deg)' },
 ];

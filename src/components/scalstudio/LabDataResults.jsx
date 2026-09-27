@@ -10,8 +10,11 @@ import { Button } from '@/components/ui/button';
 import { ArrowRightCircle } from 'lucide-react';
 import ChartFrame from '@/components/charts/ChartFrame';
 import {
-  CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE,
+  CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT,
 } from '@/utils/chartTheme';
+
+// Senior test T1: one-decimal labels on auto ticks printed 0.25 as 0.3.
+const UNIT_TICKS = [0, 0.2, 0.4, 0.6, 0.8, 1];
 import { useScalStudio } from '@/contexts/ScalStudioContext';
 import { buildCoreyOilWater, normalizeKrTable } from '@/utils/scalCalculations';
 import { Kpi, LINE, fmt, SCENARIO_COLORS } from '@/components/waterflooddesign/primitives';
@@ -90,19 +93,19 @@ const LabDataResults = ({ selectedId }) => {
       {(selected.krRows?.length ?? 0) >= 3 && (
         <Card className="bg-slate-900 border-slate-800">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Lab kr with Corey fit — {selected.name}</CardTitle>
+            <CardTitle className="text-base">Lab kr with Corey fit: {selected.name}</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <ChartFrame height={300} exportFilename="scal-lab-kr-fit">
               <ComposedChart margin={{ top: 16, right: 16, bottom: 8, left: 8 }}>
                 <CartesianGrid {...GRID_STYLE} vertical={false} />
-                <XAxis
+                <XAxis height={XAXIS_LABEL_HEIGHT}
                   dataKey="Sw" type="number" domain={[0, 1]}
-                  tickFormatter={(v) => v.toFixed(1)} {...axisProps}
-                  label={{ value: 'Water saturation Sw', position: 'insideBottom', offset: -4, fill: CHART_COLORS.axisText, fontSize: 11 }}
+                  ticks={UNIT_TICKS} tickFormatter={(v) => v.toFixed(1)} {...axisProps}
+                  label={{ value: 'Water saturation Sw', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: 11 }}
                 />
                 <YAxis
-                  domain={[0, 1]} tickFormatter={(v) => v.toFixed(1)} {...axisProps}
+                  domain={[0, 1]} ticks={UNIT_TICKS} tickFormatter={(v) => v.toFixed(1)} {...axisProps}
                   label={{ value: 'kr', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: 11 }}
                 />
                 <Tooltip
@@ -110,7 +113,7 @@ const LabDataResults = ({ selectedId }) => {
                   labelStyle={{ color: CHART_COLORS.tooltipText }}
                   formatter={(v, name) => [Number(v).toFixed(4), name]}
                 />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Legend {...LEGEND_PROPS} />
                 <Scatter data={selected.krRows} dataKey="krw" name="krw (lab)" fill={LINE.water} />
                 <Scatter data={selected.krRows} dataKey="kro" name="kro (lab)" fill={LINE.oil} />
                 {fitCurveRows && (
@@ -134,13 +137,13 @@ const LabDataResults = ({ selectedId }) => {
             <ChartFrame height={280} exportFilename="scal-normalized-kr">
               <ComposedChart margin={{ top: 16, right: 16, bottom: 8, left: 8 }}>
                 <CartesianGrid {...GRID_STYLE} vertical={false} />
-                <XAxis
+                <XAxis height={XAXIS_LABEL_HEIGHT}
                   dataKey="Swn" type="number" domain={[0, 1]}
-                  tickFormatter={(v) => v.toFixed(1)} {...axisProps}
-                  label={{ value: 'Normalized saturation Sw*', position: 'insideBottom', offset: -4, fill: CHART_COLORS.axisText, fontSize: 11 }}
+                  ticks={UNIT_TICKS} tickFormatter={(v) => v.toFixed(1)} {...axisProps}
+                  label={{ value: 'Normalized saturation Sw*', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: 11 }}
                 />
                 <YAxis
-                  domain={[0, 1]} tickFormatter={(v) => v.toFixed(1)} {...axisProps}
+                  domain={[0, 1]} ticks={UNIT_TICKS} tickFormatter={(v) => v.toFixed(1)} {...axisProps}
                   label={{ value: 'Normalized kr', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: 11 }}
                 />
                 <Tooltip
@@ -148,7 +151,7 @@ const LabDataResults = ({ selectedId }) => {
                   labelStyle={{ color: CHART_COLORS.tooltipText }}
                   formatter={(v, name) => [Number(v).toFixed(4), name]}
                 />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Legend {...LEGEND_PROPS} />
                 {normalizedOverlay.map((o) => (
                   <React.Fragment key={o.id}>
                     <Line data={o.rows} dataKey="krwN" name={`${o.name} krwN`} stroke={o.color} strokeWidth={1.5} dot={false} />

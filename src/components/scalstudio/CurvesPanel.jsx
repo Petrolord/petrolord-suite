@@ -9,22 +9,22 @@ import { useScalStudio } from '@/contexts/ScalStudioContext';
 import { Field, SectionLabel } from '@/components/waterflooddesign/primitives';
 
 const OW_FIELDS = [
-  { k: 'Swc', label: 'Swc — connate water' },
-  { k: 'Sor', label: 'Sor — residual oil to water' },
+  { k: 'Swc', label: 'Swc, connate water' },
+  { k: 'Sor', label: 'Sor, residual oil to water' },
   { k: 'krwMax', label: 'krw @ Sor (endpoint)' },
   { k: 'kroMax', label: 'kro @ Swc (endpoint)' },
-  { k: 'nw', label: 'nw — water exponent' },
-  { k: 'no', label: 'no — oil exponent' },
+  { k: 'nw', label: 'nw, water exponent' },
+  { k: 'no', label: 'no, oil exponent' },
 ];
 
 const GO_FIELDS = [
-  { k: 'Swc', label: 'Swc — connate water' },
-  { k: 'Sgc', label: 'Sgc — critical gas' },
-  { k: 'Sorg', label: 'Sorg — residual oil to gas' },
+  { k: 'Swc', label: 'Swc, connate water' },
+  { k: 'Sgc', label: 'Sgc, critical gas' },
+  { k: 'Sorg', label: 'Sorg, residual oil to gas' },
   { k: 'krgMax', label: 'krg endpoint' },
   { k: 'krogMax', label: 'krog endpoint' },
-  { k: 'ng', label: 'ng — gas exponent' },
-  { k: 'nog', label: 'nog — oil exponent' },
+  { k: 'ng', label: 'ng, gas exponent' },
+  { k: 'nog', label: 'nog, oil exponent' },
 ];
 
 const CurvesPanel = () => {
@@ -72,8 +72,8 @@ const CurvesPanel = () => {
           </div>
           {curves.fwPreviewOn && (
             <>
-              <Field label="μw — water viscosity (cp)" value={curves.muW} onChange={(v) => setCurveField('muW', v)} />
-              <Field label="μo — oil viscosity (cp)" value={curves.muO} onChange={(v) => setCurveField('muO', v)} />
+              <Field label="μw, water viscosity (cp)" value={curves.muW} onChange={(v) => setCurveField('muW', v)} />
+              <Field label="μo, oil viscosity (cp)" value={curves.muO} onChange={(v) => setCurveField('muO', v)} />
               <p className="text-[11px] text-slate-500">
                 Curves only. Welge tangents, breakthrough and displacement design live in the Waterflood Design
                 Studio; send these curves there from the Export tab.

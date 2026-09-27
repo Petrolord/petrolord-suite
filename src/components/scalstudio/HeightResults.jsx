@@ -1,14 +1,18 @@
 // Height & Saturation tab, main area (SC5): the saturation-height profile
 // from the working J spec scaled to the reservoir rock.
 import React, { useMemo } from 'react';
+import { pcFromJ, heightFromPc } from '@/utils/scalCalculations';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ChartFrame from '@/components/charts/ChartFrame';
 import {
-  CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE,
+  CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT,
 } from '@/utils/chartTheme';
+
+// Senior test T1: one-decimal labels on auto ticks printed 0.25 as 0.3.
+const UNIT_TICKS = [0, 0.2, 0.4, 0.6, 0.8, 1];
 import { useScalStudio } from '@/contexts/ScalStudioContext';
 import { Kpi, LINE, fmt } from '@/components/waterflooddesign/primitives';
 
@@ -18,7 +22,7 @@ const axisProps = {
 };
 
 const HeightResults = () => {
-  const { height, heightProfile, jResolved } = useScalStudio();
+  const { height, heightProfile, jResolved, reservoir } = useScalStudio();
   const fwl = parseFloat(height.fwl_tvdss);
   const hasFwl = Number.isFinite(fwl);
 
@@ -31,14 +35,22 @@ const HeightResults = () => {
     const nearIrr = swirr != null
       ? heightProfile.find((r) => r.Sw <= swirr + 0.05)
       : null;
-    const half = heightProfile.find((r) => r.Sw <= 0.5);
+    // Senior test T1: this took the first grid row at or below Sw 0.5
+    // (about 0.488 on the 61-point grid), 2 % high. The engine evaluates
+    // Sw = 0.5 itself.
+    let halfH = null;
+    try {
+      const one = pcFromJ(jResolved.jSpec, reservoir.props, { n: 1, SwMin: 0.5, SwMax: 0.5 });
+      const pc = one.ok ? one.rows[0]?.Pc_psi : null;
+      if (Number.isFinite(pc)) halfH = heightFromPc(pc, { gammaW: parseFloat(height.gammaW), gammaHc: parseFloat(height.gammaHc) });
+    } catch { halfH = null; }
     return {
       topH: top.h_ft,
       topSw: top.Sw,
       transitionTopH: nearIrr?.h_ft ?? null,
-      halfSwH: half?.h_ft ?? null,
+      halfSwH: halfH,
     };
-  }, [heightProfile, jResolved]);
+  }, [heightProfile, jResolved, reservoir, height.gammaW, height.gammaHc]);
 
   if (!heightProfile?.length) {
     return (
@@ -61,7 +73,7 @@ const HeightResults = () => {
           value={kpis.transitionTopH != null ? fmt.f1(kpis.transitionTopH) : 'above chart'}
           unit={kpis.transitionTopH != null ? 'ft' : ''}
         />
-        <Kpi title="Height at Sw = 0.5" value={kpis.halfSwH != null ? fmt.f1(kpis.halfSwH) : '—'} unit={kpis.halfSwH != null ? 'ft' : ''} />
+        <Kpi title="Height at Sw = 0.5" value={kpis.halfSwH != null ? fmt.f1(kpis.halfSwH) : '-'} unit={kpis.halfSwH != null ? 'ft' : ''} />
       </div>
 
       <Card className="bg-slate-900 border-slate-800">
@@ -72,10 +84,10 @@ const HeightResults = () => {
           <ChartFrame height={340} exportFilename="scal-saturation-height">
             <LineChart data={heightProfile} margin={{ top: 16, right: 16, bottom: 8, left: 8 }}>
               <CartesianGrid {...GRID_STYLE} vertical={false} />
-              <XAxis
+              <XAxis height={XAXIS_LABEL_HEIGHT}
                 dataKey="Sw" type="number" domain={[0, 1]}
-                tickFormatter={(v) => v.toFixed(1)} {...axisProps}
-                label={{ value: 'Water saturation Sw', position: 'insideBottom', offset: -4, fill: CHART_COLORS.axisText, fontSize: 11 }}
+                ticks={UNIT_TICKS} tickFormatter={(v) => v.toFixed(1)} {...axisProps}
+                label={{ value: 'Water saturation Sw', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: 11 }}
               />
               <YAxis
                 type="number" domain={[0, 'auto']}
