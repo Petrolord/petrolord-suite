@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PlusCircle, Trash2 } from 'lucide-react';
-import { useRefineryPlanning } from '@/contexts/RefineryPlanningContext';
+import { useRefineryPlanning, materialName } from '@/contexts/RefineryPlanningContext';
 
 const fmt = (v, dp = 0) => (Number.isFinite(v) ? v.toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp }) : 'n/a');
 const money = (v) => (Number.isFinite(v) ? `${v < 0 ? '-' : ''}$${Math.abs(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : 'n/a');
@@ -39,7 +39,7 @@ const ActualsPanel = () => {
               </SelectTrigger>
               <SelectContent className="bg-slate-900 border-slate-700 text-slate-100">
                 {[...new Set(plannedByMaterial.map((p) => p.materialId))].map((m) => (
-                  <SelectItem key={m} value={m}>{m}</SelectItem>
+                  <SelectItem key={m} value={m}>{materialName(inputs, m)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -77,7 +77,7 @@ const ActualsPanel = () => {
             <tbody>
               {inputs.actuals.map((a) => (
                 <tr key={a.id} className="border-b border-slate-800/60 last:border-0">
-                  <td className="py-1.5 text-white">{a.materialId}</td>
+                  <td className="py-1.5 text-white">{materialName(inputs, a.materialId)}</td>
                   <td className="py-1.5 text-slate-400 text-xs">{a.type}</td>
                   <td className="py-1.5 text-right font-mono text-slate-300">{fmt(Number(a.quantity))}</td>
                   <td className="py-1.5 text-right font-mono text-slate-400">{a.cost === '' ? 'not costed' : money(Number(a.cost))}</td>
@@ -101,13 +101,17 @@ const ActualsPanel = () => {
         </div>
         <div className="rounded border border-slate-800 bg-slate-900/60 p-3">
           <p className="text-[11px] uppercase tracking-wide text-slate-400">Actual margin</p>
-          <p className="text-lg font-bold text-white mt-1">{money(reconciliation.actualMargin)}</p>
+          {/* Senior test T1: with nothing recorded this read $0 and the
+              variance the whole plan margin in red. */}
+          <p className="text-lg font-bold text-white mt-1">{inputs.actuals.length ? money(reconciliation.actualMargin) : 'nothing recorded'}</p>
         </div>
         <div className="rounded border border-slate-800 bg-slate-900/60 p-3">
           <p className="text-[11px] uppercase tracking-wide text-slate-400">Margin variance</p>
-          <p className={`text-lg font-bold mt-1 ${reconciliation.marginVariance >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
-            {money(reconciliation.marginVariance)}
-          </p>
+          {inputs.actuals.length ? (
+            <p className={`text-lg font-bold mt-1 ${reconciliation.marginVariance >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+              {money(reconciliation.marginVariance)}
+            </p>
+          ) : <p className="text-lg font-bold mt-1 text-slate-400">-</p>}
         </div>
       </div>
 
@@ -139,7 +143,7 @@ const ActualsPanel = () => {
               <tbody>
                 {reconciliation.lines.map((l) => (
                   <tr key={`${l.materialId}-${l.type}`} className="border-b border-slate-800/60">
-                    <td className="p-2 text-white">{l.materialId}</td>
+                    <td className="p-2 text-white">{materialName(inputs, l.materialId)}</td>
                     <td className="p-2 text-slate-400 text-xs">{l.type}</td>
                     <td className="p-2 text-right font-mono text-slate-400">{fmt(l.planQuantity)}</td>
                     <td className="p-2 text-right font-mono text-slate-300">{fmt(l.actualQuantity)}</td>
@@ -155,7 +159,7 @@ const ActualsPanel = () => {
             </table>
           </div>
         )}
-        {reconciliation.unmatched.length > 0 && (
+        {inputs.actuals.length > 0 && reconciliation.unmatched.length > 0 && (
           <p className="text-[11px] text-amber-300 mt-2">
             {reconciliation.unmatched.length} movement(s) appear in one ledger and not the other, so
             they are listed as unmatched rather than folded into a price effect. An unplanned cargo

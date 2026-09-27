@@ -1,7 +1,7 @@
 // The schedule the plan cascades into (DS3).
 import React from 'react';
 import { Info } from 'lucide-react';
-import { useRefineryPlanning } from '@/contexts/RefineryPlanningContext';
+import { useRefineryPlanning, materialName } from '@/contexts/RefineryPlanningContext';
 
 const fmt = (v) => (Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: 0 }) : 'n/a');
 
@@ -12,7 +12,7 @@ const TYPE_LABEL = {
 };
 
 const SchedulePanel = () => {
-  const { schedule } = useRefineryPlanning();
+  const { schedule, inputs } = useRefineryPlanning();
   const byDate = [...schedule.events].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
   return (
@@ -41,7 +41,7 @@ const SchedulePanel = () => {
                 <tr key={e.id} className="border-b border-slate-800/60">
                   <td className="p-2 font-mono text-slate-400 text-xs">{e.date}</td>
                   <td className="p-2 text-slate-300">{TYPE_LABEL[e.type] || e.type}</td>
-                  <td className="p-2 text-white">{e.materialId}</td>
+                  <td className="p-2 text-white">{materialName(inputs, e.materialId)}</td>
                   <td className="p-2 text-right font-mono text-white">{fmt(e.quantity)}</td>
                   <td className="p-2 text-right font-mono text-slate-400">{e.cost === null ? '-' : fmt(e.cost)}</td>
                 </tr>
