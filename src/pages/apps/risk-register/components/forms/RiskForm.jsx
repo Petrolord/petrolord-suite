@@ -61,7 +61,7 @@ export const RiskForm = ({ initialData = {}, onSubmit, onCancel, isSubmitting, h
               <div>
                 <Label className="text-slate-300">Category *</Label>
                 <Select value={formData.category} onValueChange={v => handleChange('category', v)} required>
-                  <SelectTrigger className="bg-slate-950 border-slate-800 text-white mt-1">
+                  <SelectTrigger aria-label="Category" className="bg-slate-950 border-slate-800 text-white mt-1">
                     <SelectValue placeholder="Select Category" />
                   </SelectTrigger>
                   <SelectContent className="bg-slate-900 border-slate-800">
@@ -85,7 +85,7 @@ export const RiskForm = ({ initialData = {}, onSubmit, onCancel, isSubmitting, h
             <div>
               <Label className="text-slate-300">Likelihood</Label>
               <Select value={formData.likelihood.toString()} onValueChange={v => handleChange('likelihood', Number(v))}>
-                <SelectTrigger className="bg-slate-950 border-slate-800 text-white mt-1">
+                <SelectTrigger aria-label="Likelihood" className="bg-slate-950 border-slate-800 text-white mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-900 border-slate-800">
@@ -96,7 +96,7 @@ export const RiskForm = ({ initialData = {}, onSubmit, onCancel, isSubmitting, h
             <div>
               <Label className="text-slate-300">Impact</Label>
               <Select value={formData.impact.toString()} onValueChange={v => handleChange('impact', Number(v))}>
-                <SelectTrigger className="bg-slate-950 border-slate-800 text-white mt-1">
+                <SelectTrigger aria-label="Impact" className="bg-slate-950 border-slate-800 text-white mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-900 border-slate-800">
@@ -140,7 +140,7 @@ export const RiskForm = ({ initialData = {}, onSubmit, onCancel, isSubmitting, h
                 value={formData.residual_likelihood ? String(formData.residual_likelihood) : 'none'}
                 onValueChange={v => handleChange('residual_likelihood', v === 'none' ? '' : Number(v))}
               >
-                <SelectTrigger className="bg-slate-950 border-slate-800 text-white mt-1">
+                <SelectTrigger aria-label="Residual likelihood" className="bg-slate-950 border-slate-800 text-white mt-1">
                   <SelectValue placeholder="Not assessed" />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-900 border-slate-800">
@@ -155,7 +155,7 @@ export const RiskForm = ({ initialData = {}, onSubmit, onCancel, isSubmitting, h
                 value={formData.residual_impact ? String(formData.residual_impact) : 'none'}
                 onValueChange={v => handleChange('residual_impact', v === 'none' ? '' : Number(v))}
               >
-                <SelectTrigger className="bg-slate-950 border-slate-800 text-white mt-1">
+                <SelectTrigger aria-label="Residual impact" className="bg-slate-950 border-slate-800 text-white mt-1">
                   <SelectValue placeholder="Not assessed" />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-900 border-slate-800">

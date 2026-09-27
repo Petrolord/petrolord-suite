@@ -99,6 +99,7 @@ const RiskRegisterDashboardPage = ({ onDrillDown }) => {
               </CardHeader>
               <CardContent className="flex-1 flex items-center justify-center py-6">
                   <RiskHeatmapMatrix 
+                      compact
                       risks={live}
                       onCellClick={(l, i) => onDrillDown(cellFilter(l, i, RISK_LIVE_STATUSES, LIVE_SCOPE))}
                   />

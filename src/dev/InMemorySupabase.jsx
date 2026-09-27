@@ -20,7 +20,7 @@ export const newId = (p = 'row') => `${p}-${Date.now().toString(36)}-${(++seq).t
 /** A store: { [table]: rows[] }, mutated in place by the query builder. */
 export function createStore(seed = {}) {
   const db = {};
-  for (const [t, rows] of Object.entries(seed)) db[t] = rows.map((r) => ({ ...r }));
+  for (const [t, rows] of Object.entries(seed)) db[t] = Array.isArray(rows) ? rows.map((r) => ({ ...r })) : rows;
   return db;
 }
 
@@ -42,9 +42,29 @@ export function makeQuery(db, table, user = DEV_USER) {
     if (op === 'gt') return x > v;
     if (op === 'lt') return x < v;
     if (op === 'ilike') return String(x ?? '').toLowerCase().includes(String(v).replace(/%/g, '').toLowerCase());
+    // .or('a.eq.1,b.eq.2'): any one clause (eq, neq, is.null, ilike) matching
+    if (op === 'or') {
+      return v.split(',').some((clause) => {
+        const [col, o, ...rest] = clause.split('.');
+        const val = rest.join('.');
+        const y = r[col];
+        if (o === 'eq') return String(y) === val;
+        if (o === 'neq') return String(y) !== val;
+        if (o === 'is') return val === 'null' ? y == null : String(y) === val;
+        if (o === 'ilike') return String(y ?? '').toLowerCase().includes(val.replace(/[%*]/g, '').toLowerCase());
+        return false;
+      });
+    }
     return true;
   });
-  const stamp = (r) => ({ id: r.id ?? newId(table), created_at: r.created_at ?? NOW(), updated_at: NOW(), user_id: r.user_id ?? user.id, ...r });
+  // Column defaults a harness declares (db.__defaults[table]) stand in for
+  // the schema's DEFAULTs, so an insert that relies on one reads back as the
+  // real database would return it.
+  const defaults = (db.__defaults && db.__defaults[table]) || {};
+  // Generated columns (db.__computed[table] = row => ({ col: value })) are
+  // recomputed on every insert and update, as a STORED generated column is.
+  const compute = (r) => (db.__computed && db.__computed[table] ? { ...r, ...db.__computed[table](r) } : r);
+  const stamp = (r) => compute({ ...defaults, id: r.id ?? newId(table), created_at: r.created_at ?? NOW(), updated_at: NOW(), user_id: r.user_id ?? user.id, ...r });
   const run = () => {
     if (st.op === 'insert' || st.op === 'upsert') {
       const list = (Array.isArray(st.payload) ? st.payload : [st.payload]).map(stamp);
@@ -58,7 +78,7 @@ export function makeQuery(db, table, user = DEV_USER) {
     }
     if (st.op === 'update') {
       const out = [];
-      db[table] = rows().map((r) => (match(r) ? (out.push({ ...r, ...st.payload, updated_at: NOW() }), out[out.length - 1]) : r));
+      db[table] = rows().map((r) => (match(r) ? (out.push(compute({ ...r, ...st.payload, updated_at: NOW() })), out[out.length - 1]) : r));
       return out;
     }
     if (st.op === 'delete') {
@@ -96,6 +116,7 @@ export function makeQuery(db, table, user = DEV_USER) {
     neq(k, v) { st.filters.push([k, 'neq', v]); return q; },
     is(k, v) { st.filters.push([k, 'is', v]); return q; },
     in(k, v) { st.filters.push([k, 'in', v]); return q; },
+    or(expr) { st.filters.push(['__or', 'or', expr]); return q; },
     gte(k, v) { st.filters.push([k, 'gte', v]); return q; },
     lte(k, v) { st.filters.push([k, 'lte', v]); return q; },
     gt(k, v) { st.filters.push([k, 'gt', v]); return q; },
