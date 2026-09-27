@@ -58,7 +58,7 @@ const PressureChartPanel = () => {
         <ChartFrame height={320} exportFilename="vrr-vs-pressure">
           <ComposedChart data={chartData} margin={{ top: 8, right: 8, bottom: 4, left: -8 }}>
             <CartesianGrid {...GRID_STYLE} />
-            <XAxis dataKey="label" stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+            <XAxis dataKey="label" padding={{ left: 12, right: 24 }} stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <YAxis
               yAxisId="vrr"
               stroke={CHART_COLORS.axisLine}

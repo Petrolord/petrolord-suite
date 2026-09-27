@@ -18,8 +18,9 @@ const FvfPanel = () => {
     <div className="space-y-3">
       {FIELDS.map(({ key, label }) => (
         <div key={key} className="space-y-1">
-          <Label className="text-xs text-slate-400">{label}</Label>
+          <Label htmlFor={`vrr-fvf-${key}`} className="text-xs text-slate-400">{label}</Label>
           <Input
+            id={`vrr-fvf-${key}`}
             value={inputs.fvf[key]}
             onChange={(e) => setFvfField(key, e.target.value)}
             className="h-9 bg-slate-800 border-slate-700"

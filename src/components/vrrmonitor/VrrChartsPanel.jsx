@@ -38,7 +38,7 @@ const VrrChartsPanel = () => {
           <ChartFrame height={300} exportFilename="vrr-trend">
             <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 4, left: -8 }}>
               <CartesianGrid {...GRID_STYLE} />
-              <XAxis dataKey="label" stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+              <XAxis dataKey="label" padding={{ left: 12, right: 24 }} stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
               <YAxis stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} domain={[0, 'auto']} />
               <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: CHART_COLORS.tooltipText }} itemStyle={{ color: CHART_COLORS.tooltipText }} />
               <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
@@ -52,7 +52,7 @@ const VrrChartsPanel = () => {
                 strokeDasharray="3 3"
                 ifOverflow="extendDomain"
               />
-              <ReferenceLine y={1} stroke={LINE.ref} strokeDasharray="5 5" label={{ value: 'VRR = 1', fill: LINE.ref, fontSize: 11, position: 'right' }} />
+              <ReferenceLine y={1} stroke={LINE.ref} strokeDasharray="5 5" label={{ value: 'VRR = 1', fill: LINE.ref, fontSize: 11, position: 'insideBottomLeft' }} />
               <Line type="monotone" dataKey="instantaneous" name="Instantaneous" stroke={LINE.inst} strokeWidth={2} dot={{ r: 3 }} connectNulls isAnimationActive={false} />
               <Line type="monotone" dataKey="rolling" name={`Rolling`} stroke={LINE.roll} strokeWidth={1.5} strokeDasharray="6 3" dot={false} connectNulls isAnimationActive={false} />
               <Line type="monotone" dataKey="cumulative" name="Cumulative" stroke={LINE.cum} strokeWidth={2} dot={{ r: 3 }} connectNulls isAnimationActive={false} />
