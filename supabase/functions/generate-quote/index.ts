@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1';
 import { corsHeaders } from './cors.ts';
 import { bridgeVerifyConfigured, verifyBridgeCode } from '../_shared/nextgen-bridge.ts';
+import { bridgeCoversApp } from '../_shared/bridge-scope.ts';
 import { validatePromoCode } from '../_shared/promo-codes.ts';
 import { billingPeriodOf } from '../_shared/billing-term.ts';
 import { ngnPerUsdFromConfig, usdToNgn, ngnToKobo } from '../_shared/paystack-ngn.ts';
@@ -191,8 +192,9 @@ Deno.serve(async (req)=>{
     // against the Academy BEFORE pricing so the module-scoped discount can
     // accumulate in the apps loop. Invalid codes fail the quote loudly
     // instead of silently charging full price. Scope: the certified module
-    // only (bridge.suite_module vs master_apps.module, case-insensitive —
-    // the Academy stores 'geoscience', master_apps stores 'Geoscience').
+    // only. bridge.suite_module is a Suite module slug ('geoscience',
+    // 'midstream-downstream', 'data-ai'), matched against the app's
+    // modules.slug via module_id (see _shared/bridge-scope.ts).
     let bridge = null;
     if (bridge_code && String(bridge_code).trim()) {
       if (!bridgeVerifyConfigured()) {
@@ -232,7 +234,9 @@ Deno.serve(async (req)=>{
     const selectedModuleSlugs = (modules || []).map((m)=> String(m).toLowerCase()).filter(Boolean);
     const selectedModuleIds = new Set();
     const moduleSlugById = {};
-    if (selectedModuleSlugs.length > 0) {
+    // A bridge code is matched on the module slug, so the slugs are loaded
+    // for a bridge quote as well as a module quote.
+    if (selectedModuleSlugs.length > 0 || bridge) {
       const { data: modRows } = await supabase.from('modules').select('id, slug, name');
       (modRows || []).forEach((r)=>{
         moduleSlugById[r.id] = r.slug;
@@ -287,7 +291,7 @@ Deno.serve(async (req)=>{
             description: `   ${appSeats} seat${appSeats === 1 ? '' : 's'} — ${app.app_name}`,
             amount: appSeatCost
           });
-          if (bridge && String(app.module || '').toLowerCase() === String(bridge.suite_module).toLowerCase()) {
+          if (bridge && bridgeCoversApp(bridge.suite_module, moduleSlugById[app.module_id], app.module)) {
             bridgeableCost += price + appSeatCost;
           }
           if (promo && promo.scope !== 'all' && String(app.module || '').toLowerCase() === String(promo.scope).toLowerCase()) {

@@ -206,6 +206,26 @@ by the seat and fee amounts.
 | Data & AI | Production Forecasting ML Workbench | 899 | **699** |
 | Data & AI | AI Evaluation Studio | 899 | **249** |
 
+## 2026-09-27: NextGen bridge codes match on the module slug (HELD)
+
+A NextGen Expert certificate issues a single-use code for one Suite module
+(`bridge.suite_module`). generate-quote matched a quoted app on its display
+name (`master_apps.module`, e.g. 'Midstream & Downstream') while the module
+branch and QuoteBuilder matched on `modules.slug`. Only single-word modules,
+whose display name lowercases to the slug, ever matched. The app loop now
+calls `bridgeCoversApp` (`supabase/functions/_shared/bridge-scope.ts`) with
+`moduleSlugById[app.module_id]`, and the module slugs load for any bridge
+quote. Apps without a module_id keep the old display-name match, so every
+code that worked still works (`_shared/__tests__/bridge-scope.test.ts`).
+
+The Academy half: NextGen migration `20261117_bridge_suite_module.sql` adds
+`academy_apps.suite_module` so courses in Academy modules that are not Suite
+slugs (supply_chain, data_ai, commercial_trading, energy_transition, hse)
+stamp the slug of the Suite module their app sits in.
+
+Deploy order: apply the NextGen migration, then
+`supabase functions deploy generate-quote`.
+
 ## 2026-08-30: module pricing single source
 
 Resolved 2026-08-30. Records what was wrong, what the numbers were then, and
