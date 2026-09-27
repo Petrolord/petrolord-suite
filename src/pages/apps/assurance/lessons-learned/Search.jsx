@@ -120,9 +120,15 @@ export default function Search() {
           <EmptyState
             icon={<BookOpen className="w-12 h-12" />}
             title={lessons.length ? 'Nothing matches' : 'The register is empty'}
-            description={lessons.length
-              ? 'Every word has to appear somewhere in the lesson. Try fewer words, or clear the filters.'
-              : 'Capture the first lesson and it will be searchable here.'}
+            // Senior test T1: with no words typed and only drafts in the
+            // register, this said "Try fewer words"; the filter was the reason.
+            description={!lessons.length
+              ? 'Capture the first lesson and it will be searchable here.'
+              : !query.trim() && visibleOnly && !category && !discipline && !source && !scope
+                ? `Only published lessons are shown, and ${lessons.length === 1 ? 'the one lesson in the register is not' : `none of the ${lessons.length} lessons in the register is`} published yet. Untick "Published lessons only" to search drafts too.`
+                : query.trim()
+                  ? 'Every word has to appear somewhere in the lesson. Try fewer words, or clear the filters.'
+                  : 'No lesson passes these filters. Clear one to see more.'}
             action={lessons.length ? null : (
               <Button onClick={() => navigate(`${BASE}/new`)}>Capture a lesson</Button>
             )}
