@@ -50,7 +50,7 @@ export const Row = ({ label, value, hint }) => (
 );
 
 export const ErrorNote = ({ children }) => (
-  <div className="rounded-md border border-amber-700/50 bg-amber-950/30 px-3 py-2 text-sm text-amber-300">
+  <div className="first-letter:uppercase rounded-md border border-amber-700/50 bg-amber-950/30 px-3 py-2 text-sm text-amber-300">
     {children}
   </div>
 );
