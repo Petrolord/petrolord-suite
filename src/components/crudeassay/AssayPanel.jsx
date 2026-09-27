@@ -1,21 +1,27 @@
 // Assay library and blend recipe (DS1).
-import React from 'react';
+import React, { useId } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Trash2 } from 'lucide-react';
 import { useCrudeAssay } from '@/contexts/CrudeAssayContext';
 
-const Field = ({ label, value, onChange, unit, step = 'any' }) => (
-  <div>
-    <Label className="text-[11px] text-slate-400">{label}{unit ? ` (${unit})` : ''}</Label>
-    <Input
-      type="number" step={step} value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="h-8 bg-slate-950 border-slate-700 text-sm"
-    />
-  </div>
-);
+// Senior test T1: the label was not tied to its input (screen readers read
+// an unnamed number box), and the spinner covered the value in the narrow
+// SARA fields.
+const Field = ({ label, value, onChange, unit, step = 'any' }) => {
+  const id = useId();
+  return (
+    <div>
+      <Label htmlFor={id} className="text-[11px] text-slate-400">{label}{unit ? ` (${unit})` : ''}</Label>
+      <Input
+        id={id} type="number" step={step} value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-8 bg-slate-950 border-slate-700 text-sm px-2 tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+      />
+    </div>
+  );
+};
 
 const CrudeCard = ({ crude }) => {
   const { setCrude, removeCrude, blend } = useCrudeAssay();
@@ -95,6 +101,14 @@ const CrudeCard = ({ crude }) => {
           <p className="text-[11px] text-slate-500">Volume percent distilled, and temperature in degrees F.</p>
         </div>
       </details>
+
+      {crude.placeholderCurve && (
+        <p className="text-[11px] text-amber-300" data-testid="crude-placeholder-note">
+          Starting figures are placeholders, and the distillation curve is a copy of the first
+          example crude, so its line sits on top of that one. Enter this crude's assay and TBP
+          curve, then give it a volume.
+        </p>
+      )}
 
       {fraction && (
         <p className="text-[11px] text-slate-400">

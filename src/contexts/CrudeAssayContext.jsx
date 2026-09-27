@@ -149,7 +149,10 @@ export const CrudeAssayProvider = ({ children }) => {
   const setCrude = useCallback((id, patch) => {
     setInputs((prev) => ({
       ...prev,
-      crudes: prev.crudes.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+      // A new crude's curve is a borrowed placeholder until someone edits it.
+      crudes: prev.crudes.map((c) => (c.id === id
+        ? { ...c, ...patch, ...(patch.curve ? { placeholderCurve: false } : {}) }
+        : c)),
     }));
   }, []);
 
@@ -163,6 +166,10 @@ export const CrudeAssayProvider = ({ children }) => {
         nickelPpm: 10, vanadiumPpm: 20, viscosityCSt: 15, volumeFraction: 0,
         sara: { saturates: '', aromatics: '', resins: '', asphaltenes: '' },
         curve: DEFAULT_CRUDES()[0].curve.map((p) => ({ ...p })),
+        // Senior test T1: the card now says its figures are placeholders and
+        // its curve is a copy, which otherwise draws exactly over the first
+        // crude's line and hides it.
+        placeholderCurve: true,
       }],
     }));
   }, []);

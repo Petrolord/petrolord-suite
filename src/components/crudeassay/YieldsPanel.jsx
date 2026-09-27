@@ -1,13 +1,13 @@
 // Cut yields and the netback valuation (DS1).
 import React from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
 } from 'recharts';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertTriangle } from 'lucide-react';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, niceTicks } from '@/utils/chartTheme';
 import { useCrudeAssay } from '@/contexts/CrudeAssayContext';
 
 const fmt = (v, dp = 2) => (Number.isFinite(v) ? v.toFixed(dp) : 'n/a');
@@ -24,6 +24,7 @@ const YieldsPanel = () => {
     // empty cut.
     yieldPct: c.yieldVolPercent,
   }));
+  const yAxis = niceTicks(0, Math.max(1, ...chartRows.map((r) => r.yieldPct).filter(Number.isFinite)), 5);
 
   return (
     <div className="space-y-5">
@@ -38,6 +39,7 @@ const YieldsPanel = () => {
               interval={0} angle={-20} textAnchor="end" height={60}
             />
             <YAxis
+              domain={yAxis.domain} ticks={yAxis.ticks}
               stroke={CHART_COLORS.axisLine}
               tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
               label={{
@@ -46,7 +48,6 @@ const YieldsPanel = () => {
               }}
             />
             <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [`${fmt(v, 1)} vol%`, 'Yield']} />
-            <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
             <Bar dataKey="yieldPct" name="Yield">
               {chartRows.map((r, i) => <Cell key={r.name} fill={CUT_COLORS[i % CUT_COLORS.length]} />)}
             </Bar>

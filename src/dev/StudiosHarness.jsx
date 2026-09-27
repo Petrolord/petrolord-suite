@@ -58,6 +58,13 @@ const SEEDS = {
     pm_deliverables: [],
   }),
   'report-autopilot': () => ({ saved_report_autopilot_projects: [] }),
+  'crude-assay': () => ({ saved_crude_assay_projects: [] }),
+  'energy-efficiency': () => ({ saved_energy_efficiency_projects: [] }),
+  'fuel-pricing': () => ({ saved_fuel_pricing_projects: [] }),
+  'lpg-cng': () => ({ saved_lpg_cng_projects: [] }),
+  blending: () => ({ saved_blend_optimizer_projects: [] }),
+  'refinery-planning': () => ({ saved_refinery_plan_projects: [] }),
+  'terminal-depot': () => ({ saved_terminal_projects: [] }),
   afe: () => ({
     projects: [{ id: 'proj-h1', user_id: U, name: 'Harness Well H-1', created_at: TS }],
     afes: [{

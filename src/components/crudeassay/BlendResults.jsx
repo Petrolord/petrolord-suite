@@ -5,7 +5,9 @@ import {
 } from 'recharts';
 import { AlertTriangle, CheckCircle2, HelpCircle } from 'lucide-react';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import {
+  CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT, niceTicks,
+} from '@/utils/chartTheme';
 import { useCrudeAssay } from '@/contexts/CrudeAssayContext';
 import { volumePercentAt } from '@/utils/downstream/engine/crudeAssay';
 
@@ -39,6 +41,8 @@ const BlendResults = () => {
     });
     return row;
   });
+  const temps = chartRows.map((r) => r.temperatureF).filter(Number.isFinite);
+  const tAxis = niceTicks(Math.min(...temps), Math.max(...temps));
   const basisOf = (key, fallback) => (p[key] === null && blend.bases?.[key]?.startsWith('not blended')
     ? blend.bases[key]
     : fallback);
@@ -96,15 +100,15 @@ const BlendResults = () => {
           <LineChart data={chartRows} margin={{ top: 12, right: 24, left: 8, bottom: 28 }}>
             <CartesianGrid {...GRID_STYLE} />
             <XAxis
-              dataKey="temperatureF" type="number" domain={['dataMin', 'dataMax']}
-              stroke={CHART_COLORS.axisLine} tick={tick}
+              dataKey="temperatureF" type="number" domain={tAxis.domain} ticks={tAxis.ticks}
+              stroke={CHART_COLORS.axisLine} tick={tick} height={XAXIS_LABEL_HEIGHT}
               label={{
-                value: 'Temperature (degrees F)', position: 'insideBottom', offset: -10,
+                value: 'Temperature (degrees F)', position: 'insideBottom', offset: 0,
                 fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
               }}
             />
             <YAxis
-              domain={[0, 100]} stroke={CHART_COLORS.axisLine} tick={tick}
+              domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} stroke={CHART_COLORS.axisLine} tick={tick}
               label={{
                 value: 'Volume distilled (%)', angle: -90, position: 'insideLeft',
                 fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
@@ -115,7 +119,7 @@ const BlendResults = () => {
               formatter={(v, name) => [`${fmt(v, 1)} %`, name]}
               labelFormatter={(v) => `${fmt(v, 0)} F`}
             />
-            <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
+            <Legend {...LEGEND_PROPS} />
             {inputs.cuts.filter((c) => c.toF !== null && c.toF !== undefined).map((c) => (
               <ReferenceLine key={c.id} x={c.toF} stroke={CHART_COLORS.axisLine} strokeDasharray="3 3" />
             ))}
