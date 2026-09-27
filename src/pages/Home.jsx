@@ -5,33 +5,28 @@ import { ArrowRight, Check, Menu, Search, X } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import BookDemoModal from '@/components/BookDemoModal';
 import { SUITE_MODULES, suiteStats, NEXTGEN_LIVE_COURSES } from '@/data/suiteCatalog';
-import { MODULE_PRICING, SEAT_TIERS } from '@/data/pricingModels';
 import './Home.css';
 
 // Public homepage, redesigned 2026-09-27 as a sibling of the NextGen Academy
 // homepage (same certificate brand pack: petrol-green ink, gold, ivory).
 // Every number on it is derived: app and module counts from
-// src/data/suiteCatalog.js, prices from src/data/pricingModels.js (the
-// client copy of pricing_config). Copy follows the owner style rule: no em
+// src/data/suiteCatalog.js. Prices are deliberately not shown (owner,
+// 2026-09-27): buyers sign up and see prices in the quote builder as they
+// choose apps. Copy follows the owner style rule: no em
 // dashes and no "X, not Y" constructions.
 
 const LOGO = '/petrolord-icon.png';
 const NEXTGEN_URL = 'https://nextgen.petrolord.com';
 const HSE_URL = 'https://hse.petrolord.com';
 
-// Per-app list prices on the live Active tiles (master_apps.price), checked
-// 2026-09-27. The quote reads the tile price itself; this is display only.
-const APP_PRICE_RANGE = [499, 899];
 
 const NAV = [
   ['#modules', 'Modules'],
   ['#platform', 'Why Petrolord'],
-  ['#pricing', 'Pricing'],
+  ['#buy', 'How to Buy'],
   ['#family', 'Academy & HSE'],
   ['#trust', 'Your Data'],
 ];
-
-const usd = (n) => `$${n.toLocaleString('en-US')}`;
 
 const PILLARS = [
   {
@@ -185,11 +180,7 @@ function ModuleCatalogue({ onOpen }) {
               <h3>{mod.name}</h3>
               <p className="tag">{mod.tagline}</p>
               <p>{mod.description}</p>
-              <div className="mod-price">
-                <span>Whole module</span>
-                <strong>{usd(MODULE_PRICING[mod.slug])}<small> a month</small></strong>
-                <span>includes every app listed here</span>
-              </div>
+              <p className="mod-note">One module licence covers every app listed here.</p>
               <button type="button" className="btn btn-ink" onClick={() => onOpen(mod)}>
                 Open {mod.short} <ArrowRight className="w-4 h-4" />
               </button>
@@ -225,11 +216,6 @@ function Home() {
   const [demoOpen, setDemoOpen] = useState(false);
   const stats = suiteStats();
 
-  const prices = Object.values(MODULE_PRICING);
-  const moduleFrom = Math.min(...prices);
-  const moduleTo = Math.max(...prices);
-  const seatHigh = SEAT_TIERS[0].price;
-  const seatLow = SEAT_TIERS[SEAT_TIERS.length - 1].price;
 
   const quote = () => navigate(user ? '/dashboard/get-quote' : '/signup');
   const openModule = (m) => navigate(user ? `/dashboard/${m.slug}` : '/signup');
@@ -299,7 +285,7 @@ function Home() {
                 )}
                 <button type="button" className="btn btn-ghost" onClick={() => setDemoOpen(true)}>Book a demo</button>
               </div>
-              <p className="fine">Pricing is published. <a href="#pricing">See what a module costs</a> before you talk to anyone.</p>
+              <p className="fine">Create a free account to build a quote for exactly the apps you need. <a href="#buy">How buying works</a></p>
             </div>
             <SuiteWindow />
           </div>
@@ -340,36 +326,33 @@ function Home() {
           </div>
         </section>
 
-        <section className="block price-sec" id="pricing">
+        <section className="block price-sec" id="buy">
           <div className="wrap">
             <div className="head">
-              <p className="eyebrow">Pricing</p>
-              <h2>Published prices. <em>An instant quote.</em></h2>
-              <p>Build a quote in a few minutes and see every line before you pay. There is no sales call standing between you and the number.</p>
+              <p className="eyebrow">How to buy</p>
+              <h2>Choose your apps. <em>Get your quote in minutes.</em></h2>
+              <p>Create a free account, pick the modules or single apps your team needs, and the quote builder prices them as you go.</p>
             </div>
             <div className="plans">
               <article className="plan feature">
-                <p className="eyebrow">Best value</p>
-                <h3>A whole module</h3>
-                <strong>from {usd(moduleFrom)}<small> a month</small></strong>
-                <p>Every app in the module is included, so a module costs about what three of its apps would on their own. Module prices run from {usd(moduleFrom)} to {usd(moduleTo)} a month.</p>
+                <p className="eyebrow">Step 1</p>
+                <h3>Create your account</h3>
+                <p>Sign up with your work email and set up your organisation. It takes a couple of minutes and costs nothing.</p>
               </article>
               <article className="plan">
-                <p className="eyebrow">A la carte</p>
-                <h3>Single apps</h3>
-                <strong>{usd(APP_PRICE_RANGE[0])} to {usd(APP_PRICE_RANGE[1])}<small> a month</small></strong>
-                <p>Pick only the studios you need. Each app is priced on its own, and you can move up to the full module later.</p>
+                <p className="eyebrow">Step 2</p>
+                <h3>Choose apps and seats</h3>
+                <p>License a whole module, which includes every one of its apps, or pick single studios. Add seats for the people who will use each app.</p>
               </article>
               <article className="plan">
-                <p className="eyebrow">Your team</p>
-                <h3>User seats</h3>
-                <strong>{usd(seatHigh)} down to {usd(seatLow)}<small> a seat</small></strong>
-                <p>Seats are priced monthly in volume bands, so each additional seat on an app costs less than the one before.</p>
+                <p className="eyebrow">Step 3</p>
+                <h3>Receive your quote and pay</h3>
+                <p>Your itemised quote is ready at once. Pay online by card or by bank transfer, and your team has access as soon as payment is confirmed.</p>
               </article>
             </div>
             <div className="plan-foot">
-              <p>Pay monthly, or save 10% on quarterly and 15% on annual billing. Quotes itemise modules, apps, seats and 7.5% VAT, and are paid through secure online checkout.</p>
-              <button type="button" className="btn btn-ink" onClick={quote}>Build your quote <ArrowRight className="w-4 h-4" /></button>
+              <p>Monthly, quarterly and annual billing are available, with savings for longer terms. Need a walkthrough first? Book a demo and we will show you the apps on your own data.</p>
+              <button type="button" className="btn btn-ink" onClick={quote}>{user ? 'Build your quote' : 'Create your account'} <ArrowRight className="w-4 h-4" /></button>
             </div>
           </div>
         </section>
@@ -431,7 +414,7 @@ function Home() {
           <div className="wrap">
             <p className="eyebrow">Start today</p>
             <h2>Put the whole asset team on <em>one suite.</em></h2>
-            <p>Build a quote in minutes, or ask us for a walkthrough on your own field data.</p>
+            <p>Create your account and build a quote in minutes, or ask us for a walkthrough on your own field data.</p>
             <div className="ctas">
               <button type="button" className="btn btn-gold" onClick={quote}>Get an instant quote</button>
               <button type="button" className="btn btn-ghost" onClick={() => setDemoOpen(true)}>Book a demo</button>

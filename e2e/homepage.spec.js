@@ -27,8 +27,9 @@ test.describe('public homepage', () => {
     await expect(page.getByText('No Applications Found')).toHaveCount(0);
     await expect(page.getByText('Requires License')).toHaveCount(0);
 
-    // Pricing, family and data-ownership sections
-    await expect(page.getByRole('heading', { name: /Published prices/ })).toBeVisible();
+    // How to buy (no prices on the public page), family and data-ownership sections
+    await expect(page.getByRole('heading', { name: /Get your quote in minutes/ })).toBeVisible();
+    await expect(page.locator('#buy')).not.toContainText('$');
     await expect(page.getByRole('link', { name: /Visit NextGen Academy/ })).toBeVisible();
     await expect(page.getByRole('link', { name: /Explore Petrolord HSE/ })).toBeVisible();
     await expect(page.getByRole('link', { name: /Data Retention & Offboarding policy/ })).toBeVisible();
