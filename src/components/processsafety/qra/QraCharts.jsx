@@ -26,8 +26,26 @@ export const QRA_COLORS = Object.freeze({
 
 const tickStyle = { fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText };
 const axisLabel = (value, extra = {}) => ({
-  value, fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize, ...extra,
+  value, fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.axisFontSize, style: { textAnchor: 'middle' }, ...extra,
 });
+
+// One tick per decade on log axes (QRA-T1-001: the F-N distance axis drew
+// two dozen overlapping labels, recharts repeated some of them, which is the
+// duplicate-key warning, and risk axes read "1.0e-4"). Frequencies print
+// as 1e-4; counts as 1, 10, 100, 1k.
+const decadeTicks = ([lo, hi]) => {
+  const out = [];
+  for (let e = Math.round(Math.log10(lo)); 10 ** e <= hi * 1.0001; e += 1) out.push(10 ** e);
+  return out;
+};
+const riskLabel = (v) => {
+  const e = Math.round(Math.log10(Number(v)));
+  return e >= 0 ? String(10 ** e) : `1e${e}`;
+};
+const countLabel = (v) => {
+  const n = Number(v);
+  return n >= 1000 ? `${n / 1000}k` : String(Number(n.toPrecision(3)));
+};
 
 const decadeDomain = (values) => {
   const v = values.filter((x) => Number.isFinite(x) && x > 0);
@@ -62,12 +80,12 @@ export const IrBandChart = ({
           <XAxis dataKey="label" type="category" tick={tickStyle} stroke={CHART_COLORS.axisLine} height={XAXIS_LABEL_HEIGHT} />
           <YAxis
             type="number" scale="log" domain={[d0, d1]} allowDataOverflow tick={tickStyle} stroke={CHART_COLORS.axisLine}
-            tickFormatter={(v) => formatSci(v, 2)} width={72}
+            ticks={decadeTicks([d0, d1])} tickFormatter={riskLabel} width={56}
             label={axisLabel('Individual risk (per year)', { angle: -90, position: 'insideLeft' })}
           />
           <ReferenceArea y1={up} y2={d1} fill={QRA_COLORS.unacceptable} fillOpacity={0.6} ifOverflow="hidden" label={{ value: 'UNACCEPTABLE', position: 'insideTopRight', fontSize: CHART_TYPOGRAPHY.annotationFontSize }} />
           <ReferenceArea y1={low} y2={up} fill={QRA_COLORS.tolerable} fillOpacity={0.6} ifOverflow="hidden" label={{ value: 'TOLERABLE (ALARP)', position: 'insideTopRight', fontSize: CHART_TYPOGRAPHY.annotationFontSize }} />
-          <ReferenceArea y1={d0} y2={low} fill={QRA_COLORS.broadly} fillOpacity={0.6} ifOverflow="hidden" label={{ value: 'BROADLY_ACCEPTABLE', position: 'insideBottomRight', fontSize: CHART_TYPOGRAPHY.annotationFontSize }} />
+          <ReferenceArea y1={d0} y2={low} fill={QRA_COLORS.broadly} fillOpacity={0.6} ifOverflow="hidden" label={{ value: 'BROADLY ACCEPTABLE', position: 'insideBottomRight', fontSize: CHART_TYPOGRAPHY.annotationFontSize }} />
           <Tooltip {...PINNED_TOOLTIP_PROPS} formatter={(v) => [`${formatSci(v)} per year`, 'Individual risk']} />
           <Legend {...LEGEND_PROPS} />
           <Scatter name="Individual risk" dataKey="ir" fill={QRA_COLORS.point} isAnimationActive={false} />
@@ -89,13 +107,13 @@ export const TransectChart = ({
         <LineChart data={data} margin={CHART_MARGINS.legend}>
           <CartesianGrid {...GRID_STYLE} />
           <XAxis
-            dataKey="x" type="number" domain={['dataMin', 'dataMax']} tick={tickStyle} stroke={CHART_COLORS.axisLine}
-            height={XAXIS_LABEL_HEIGHT} tickFormatter={(v) => formatSci(v, 3)}
+            dataKey="x" type="number" domain={[0, (hi) => Math.ceil(hi / 50) * 50]} tick={tickStyle} stroke={CHART_COLORS.axisLine}
+            height={XAXIS_LABEL_HEIGHT} allowDecimals={false}
             label={axisLabel('Distance along the transect (m)', { position: 'insideBottom', offset: 0 })}
           />
           <YAxis
             type="number" scale="log" domain={[d0, d1]} allowDataOverflow tick={tickStyle} stroke={CHART_COLORS.axisLine}
-            tickFormatter={(v) => formatSci(v, 2)} width={72}
+            ticks={decadeTicks([d0, d1])} tickFormatter={riskLabel} width={56}
             label={axisLabel('LSIR (per year)', { angle: -90, position: 'insideLeft' })}
           />
           <Tooltip
@@ -107,7 +125,7 @@ export const TransectChart = ({
           {levels.map((lv) => (
             <ReferenceLine
               key={lv} y={lv} stroke={QRA_COLORS.contour} strokeDasharray="4 4" ifOverflow="hidden"
-              label={{ value: formatSci(lv, 1), position: 'insideRight', fill: QRA_COLORS.contour, fontSize: CHART_TYPOGRAPHY.annotationFontSize }}
+              label={{ value: riskLabel(lv), position: 'insideRight', fill: QRA_COLORS.contour, fontSize: CHART_TYPOGRAPHY.annotationFontSize }}
             />
           ))}
           <Line
@@ -139,12 +157,12 @@ export const FnChart = ({
           <CartesianGrid {...GRID_STYLE} />
           <XAxis
             dataKey="n" type="number" scale="log" domain={xDomain} allowDataOverflow tick={tickStyle}
-            stroke={CHART_COLORS.axisLine} height={XAXIS_LABEL_HEIGHT} tickFormatter={(v) => formatSci(v, 2)}
+            stroke={CHART_COLORS.axisLine} height={XAXIS_LABEL_HEIGHT} ticks={decadeTicks(xDomain)} tickFormatter={countLabel}
             label={axisLabel('Number of fatalities N', { position: 'insideBottom', offset: 0 })}
           />
           <YAxis
             dataKey="f" type="number" scale="log" domain={yDomain} allowDataOverflow tick={tickStyle}
-            stroke={CHART_COLORS.axisLine} tickFormatter={(v) => formatSci(v, 2)} width={72}
+            stroke={CHART_COLORS.axisLine} ticks={decadeTicks(yDomain)} tickFormatter={riskLabel} width={56}
             label={axisLabel('F, N or more (per year)', { angle: -90, position: 'insideLeft' })}
           />
           <Tooltip

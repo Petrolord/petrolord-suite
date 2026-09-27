@@ -298,3 +298,10 @@ Staging E2E across the thirteen tiles is the remaining open item, and it
 is the same shape as the Drilling and Production launches: check the
 tile grid, hub filtering, and entitlement gating for a non-superadmin
 licensed org.
+
+## Senior test T1, Wave 5 (2026-09-27)
+
+All 13 Facilities studios and the 3 Process Safety studios were tested on
+the `/dev/facilities/:app` harness and are Demo-ready. See
+`docs/testing/Wave5-summary.md`.
+
