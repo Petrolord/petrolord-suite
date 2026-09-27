@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useVrrMonitor } from '@/contexts/VrrMonitorContext';
 
 const fmt = (v, d = 0) =>
-  v == null || !Number.isFinite(v) ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
+  v == null || !Number.isFinite(v) ? '-' : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
 
 const FLAG_STYLE = {
   under: 'text-amber-400 bg-amber-500/10 border-amber-500/30',

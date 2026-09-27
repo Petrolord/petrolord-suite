@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useVrrMonitor, emptyPeriod } from '@/contexts/VrrMonitorContext';
-import { classifyVRR } from '@/utils/vrrCalculations';
+import { statusAgainstBand } from './vrrBand';
 
 export const COLS = [
   { key: 'label', label: 'Period', unit: '' },
@@ -30,12 +30,12 @@ const PVT_COLS = [
 ];
 
 const fmt = (v, d = 0) =>
-  v == null || !Number.isFinite(v) ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
+  v == null || !Number.isFinite(v) ? '-' : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
 
 const PeriodGridPanel = () => {
   const {
     inputs, series, updatePeriodCell, addPeriod, removePeriod, setPeriods,
-    loadSample, clearAll, addNotification,
+    loadSample, clearAll, addNotification, targetBand,
   } = useVrrMonitor();
   const fileRef = useRef(null);
   const [showPvt, setShowPvt] = useState(false);
@@ -118,7 +118,8 @@ const PeriodGridPanel = () => {
           </TableHeader>
           <TableBody>
             {series.map((row, i) => {
-              const band = classifyVRR(row.instantaneousVRR);
+              // Coloured against the user's target band, as the flags are.
+              const band = statusAgainstBand(row.instantaneousVRR, targetBand);
               return (
                 <TableRow key={i} className="border-slate-800">
                   {cols.map((c) => (

@@ -11,7 +11,7 @@ import { useVrrMonitor } from '@/contexts/VrrMonitorContext';
 import { allocateInjection } from '@/utils/vrrCalculations';
 
 const fmt = (v, d = 0) =>
-  v == null || !Number.isFinite(v) ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
+  v == null || !Number.isFinite(v) ? '-' : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
 
 const AllocationMatrixEditor = () => {
   const { inputs, ledgerWells, allocationCheck, setAllocationCell, evenSplitInjector } = useVrrMonitor();
@@ -62,7 +62,7 @@ const AllocationMatrixEditor = () => {
                     </TableCell>
                   ))}
                   <TableCell className={`text-right font-mono ${over ? 'text-red-400' : partial ? 'text-amber-400' : sum > 0 ? 'text-emerald-400' : 'text-slate-600'}`}>
-                    {sum > 0 ? sum.toFixed(3) : '—'}
+                    {sum > 0 ? sum.toFixed(3) : '-'}
                   </TableCell>
                   <TableCell className="p-1 text-right">
                     <Button

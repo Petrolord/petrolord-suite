@@ -13,7 +13,7 @@ import { useVrrMonitor } from '@/contexts/VrrMonitorContext';
 const LINE = { inst: '#2563eb', cum: '#059669', ref: '#dc2626' };
 
 const fmt = (v, d = 2) =>
-  v == null || !Number.isFinite(v) ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
+  v == null || !Number.isFinite(v) ? '-' : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
 
 const FLAG_STYLE = {
   under: 'text-amber-400',
@@ -60,7 +60,7 @@ const PatternCard = ({ analysis, targetBand }) => {
         <ChartFrame height={220} exportFilename={`vrr-pattern-${pattern.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}>
           <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 4, left: -8 }}>
             <CartesianGrid {...GRID_STYLE} />
-            <XAxis dataKey="label" stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+            <XAxis dataKey="label" padding={{ left: 12, right: 24 }} stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <YAxis stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} domain={[0, 'auto']} />
             <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: CHART_COLORS.tooltipText }} itemStyle={{ color: CHART_COLORS.tooltipText }} />
             <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
@@ -142,8 +142,8 @@ const PatternResultsPanel = () => {
               {patternAnalyses.map((a) => (
                 <TableRow key={a.pattern.id} className="border-slate-800">
                   <TableCell className="text-slate-300">{a.pattern.name}</TableCell>
-                  <TableCell className="text-right font-mono text-slate-300">{a.withheld ? '—' : fmt(a.summary?.cumulativeVRR)}</TableCell>
-                  <TableCell className="text-right font-mono text-slate-400">{a.withheld ? '—' : fmt(a.summary?.latestInstantaneousVRR)}</TableCell>
+                  <TableCell className="text-right font-mono text-slate-300">{a.withheld ? '-' : fmt(a.summary?.cumulativeVRR)}</TableCell>
+                  <TableCell className="text-right font-mono text-slate-400">{a.withheld ? '-' : fmt(a.summary?.latestInstantaneousVRR)}</TableCell>
                   <TableCell className="text-right font-mono text-slate-500">{a.pattern.producers.length}</TableCell>
                   <TableCell className="text-xs text-slate-500">{a.withheld ? a.reason : a.summary?.status?.label}</TableCell>
                 </TableRow>
