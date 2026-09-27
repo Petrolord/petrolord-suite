@@ -27,9 +27,7 @@ export const ErrorState = ({ error, onRetry }) => (
         <h3 className="font-medium">The lessons register could not be loaded</h3>
         <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">{error}</p>
         <p className="text-sm text-[hsl(var(--muted-foreground))] mt-2">
-          Nothing is shown below. This app used to show five invented lessons and a
-          total of 156 to every organization, whatever was in its register and
-          whether or not the database answered at all.
+          Nothing is shown below until the register loads. Try again in a moment.
         </p>
         {onRetry ? (
           <button type="button" onClick={onRetry}
@@ -114,8 +112,7 @@ export const SchemaNotice = () => (
     <p className="text-[hsl(var(--muted-foreground))] mt-1">
       Lessons and the record of where they were applied cannot be stored until
       migration 20260917700000 is applied. Ask your administrator to apply it.
-      Nothing is shown in the meantime: this app used to display five invented
-      lessons instead.
+      Nothing is shown in the meantime.
     </p>
   </div>
 );

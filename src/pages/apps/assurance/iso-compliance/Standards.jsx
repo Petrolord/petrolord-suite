@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,7 +53,11 @@ export default function Standards() {
     loading, error, refresh, hasAs8Schema, createStandard, updateStandard, deleteStandard,
   } = useIsoCompliance();
 
-  const [form, setForm] = useState(null);
+  // Senior test T1: the dashboard's "Add a standard" landed here with the
+  // form closed and a second "Add the first one" to press. It passes
+  // { add: true } and the form opens.
+  const location = useLocation();
+  const [form, setForm] = useState(() => (location.state && location.state.add ? blank() : null));
   const [errors, setErrors] = useState({});
   const [failure, setFailure] = useState(null);
   const [saving, setSaving] = useState(false);

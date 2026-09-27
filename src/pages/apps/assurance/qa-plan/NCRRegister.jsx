@@ -441,7 +441,7 @@ export default function NCRRegister() {
           <EmptyState
             icon={<FileWarning className="w-12 h-12" />}
             title="No non-conformances raised"
-            description="This register is empty. That is a statement about this organization's records, not a placeholder: the app used to show two invented non-conformance reports here."
+            description="No non-conformance has been raised yet. Raise one when an inspection fails or a requirement is not met."
             action={<Button onClick={() => setRaising(true)}>Raise the first one</Button>}
           />
         ) : filtered.length === 0 ? (

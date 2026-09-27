@@ -25,9 +25,7 @@ export const ErrorState = ({ error, onRetry }) => (
         <h3 className="font-medium">The document library could not be loaded</h3>
         <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">{error}</p>
         <p className="text-sm text-[hsl(var(--muted-foreground))] mt-2">
-          Nothing is shown below. This app used to answer a failed query with
-          five invented documents, which is how an organization came to see a
-          library that was not its own.
+          Nothing is shown below until the register loads. Try again in a moment.
         </p>
         {onRetry ? (
           <button type="button" onClick={onRetry}

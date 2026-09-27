@@ -134,7 +134,7 @@ export default function LessonDetail() {
         <EmptyState
           icon={<BookOpen className="w-12 h-12" />}
           title="No such lesson"
-          description="This lesson is not in your organization's register. It may have been deleted, or the link may be wrong. This page used to show a different lesson instead of saying so."
+          description="This lesson is not in your organization's register. It may have been deleted, or the link may be wrong."
           action={<Button onClick={() => navigate(`${BASE}/register`)}>Back to the register</Button>}
         />
       </LessonsShell>

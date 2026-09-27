@@ -95,7 +95,7 @@ export default function Dashboard() {
           icon={<ShieldCheck className="w-12 h-12" />}
           title="No management system standards yet"
           description="Add the standards this organization runs, such as ISO 9001, 14001 or 45001. The clause register, internal audits and findings hang off them."
-          action={<Button onClick={() => navigate(`${BASE}/standards`)}>Add a standard</Button>}
+          action={<Button onClick={() => navigate(`${BASE}/standards`, { state: { add: true } })}>Add a standard</Button>}
         />
       </ISOShell>
     );
@@ -138,9 +138,7 @@ export default function Dashboard() {
             <CardTitle className="text-lg">Certification readiness</CardTitle>
             <p className="text-sm text-[hsl(var(--muted-foreground))] mt-1">
               Every line below is something a certification auditor would raise,
-              counted from this organization&apos;s own register. This page used to
-              show one number instead: &quot;Overall Compliance&quot;, the share of
-              clauses their own owners had marked compliant.
+              counted from this organization&apos;s own register.
             </p>
           </CardHeader>
           <CardContent className="p-0">

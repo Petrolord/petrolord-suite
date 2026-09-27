@@ -461,7 +461,7 @@ export default function FindingsRegister() {
                 title={findings.length ? 'Nothing matches those filters' : 'No findings raised'}
                 description={findings.length
                   ? 'Clear the filters to see the rest of the register.'
-                  : 'Findings raised by an internal audit, or outside one, are recorded here. This app used to show twenty invented ones, with due dates that changed on every reload.'}
+                  : 'Findings raised by an internal audit, or outside one, are recorded here.'}
                 action={findings.length ? null : (
                   <Button onClick={() => setRaising(true)}>Raise the first one</Button>
                 )}

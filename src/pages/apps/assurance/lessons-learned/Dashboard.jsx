@@ -74,7 +74,7 @@ export default function Dashboard() {
         <EmptyState
           icon={<BookOpen className="w-12 h-12" />}
           title="No lessons captured yet"
-          description="Capture what happened, why it happened and what to do about it. This app used to show five invented lessons and a total of 156 to every organization."
+          description="Capture what happened, why it happened and what to do about it."
           action={<Button onClick={() => navigate(`${BASE}/new`)}>Capture the first one</Button>}
         />
       </LessonsShell>
