@@ -7,7 +7,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
   BarChart, Bar, Cell,
 } from 'recharts';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, XAXIS_LABEL_HEIGHT, niceTicks } from '@/utils/chartTheme';
 import { useWaterfloodDesign } from '@/contexts/WaterfloodDesignContext';
 import { ChartCard, Kpi, LINE, WarningBanner, fmt } from './primitives';
 
@@ -57,13 +57,13 @@ const UncertaintyResults = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-2 xl:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-3">
         <Kpi title="Np P90 (low)" value={fmt.f1(np.p90 / 1000)} unit="Mstb" />
         <Kpi title="Np P50" value={fmt.f1(np.p50 / 1000)} unit="Mstb" accent />
         <Kpi title="Np P10 (high)" value={fmt.f1(np.p10 / 1000)} unit="Mstb" />
         <Kpi title="Np mean" value={fmt.f1(np.mean / 1000)} unit="Mstb" />
         <Kpi title="RF P50" value={fmt.pct(rf.p50)} />
-        <Kpi title="Breakthrough P50" value={fmt.f1(bt.p50)} unit="yr" />
+        <Kpi title="Breakthrough P50" value={fmt.f2(bt.p50)} unit="yr" />
       </div>
 
       <WarningBanner warnings={warnings} />
@@ -71,10 +71,10 @@ const UncertaintyResults = () => {
       {validCount > 0 && (
         <div className="grid xl:grid-cols-2 gap-4">
           <ChartCard title="Cumulative oil exceedance curve">
-            <LineChart data={exceedanceData} margin={{ top: 8, right: 16, bottom: 4, left: -8 }}>
+            <LineChart data={exceedanceData} margin={{ top: 16, right: 16, bottom: 4, left: 8 }}>
               <CartesianGrid {...GRID_STYLE} />
-              <XAxis dataKey="np" {...axisProps} type="number" domain={['dataMin', 'dataMax']} label={{ value: 'Np (Mstb)', fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideBottom', dy: 12 }} />
-              <YAxis {...axisProps} domain={[0, 100]} label={{ value: 'P(exceed) %', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', dy: 30 }} />
+              <XAxis height={XAXIS_LABEL_HEIGHT} dataKey="np" {...axisProps} type="number" {...(() => { const v = (exceedanceData || []).map((d) => d.np).filter(Number.isFinite); const t = v.length ? niceTicks(Math.min(...v), Math.max(...v), 5) : { domain: ['auto', 'auto'] }; return { domain: t.domain, ticks: t.ticks }; })()} label={{ value: 'Np (Mstb)', fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideBottom', offset: 0 }} />
+              <YAxis {...axisProps} domain={[0, 100]} label={{ value: 'P(exceed) %', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', style: { textAnchor: 'middle' } }} />
               <Tooltip {...tooltipProps} formatter={(v, name) => [name === 'exceed' ? `${v}%` : v, name === 'exceed' ? 'P(exceed)' : name]} labelFormatter={(v) => `Np ${v} Mstb`} />
               {Number.isFinite(np.p90) && <ReferenceLine x={Number((np.p90 / 1000).toFixed(1))} stroke={LINE.tangent} strokeDasharray="4 4" label={{ value: 'P90', fill: LINE.tangent, fontSize: 11, position: 'top' }} />}
               {Number.isFinite(np.p50) && <ReferenceLine x={Number((np.p50 / 1000).toFixed(1))} stroke={LINE.ref} strokeDasharray="4 4" label={{ value: 'P50', fill: LINE.ref, fontSize: 11, position: 'top' }} />}

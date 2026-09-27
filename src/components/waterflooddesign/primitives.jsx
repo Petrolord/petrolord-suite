@@ -10,11 +10,11 @@ export const fmt = {
     const n = typeof v === 'number' ? v : parseFloat(v);
     return Number.isFinite(n) ? n : NaN;
   },
-  pct: (v) => (v == null || !Number.isFinite(v) ? '—' : `${(v * 100).toFixed(1)}%`),
-  f1: (v) => (v == null || !Number.isFinite(v) ? '—' : Number(v).toFixed(1)),
-  f2: (v) => (v == null || !Number.isFinite(v) ? '—' : Number(v).toFixed(2)),
-  f3: (v) => (v == null || !Number.isFinite(v) ? '—' : Number(v).toFixed(3)),
-  int: (v) => (v == null || !Number.isFinite(v) ? '—' : Math.round(v).toLocaleString()),
+  pct: (v) => (v == null || !Number.isFinite(v) ? '-' : `${(v * 100).toFixed(1)}%`),
+  f1: (v) => (v == null || !Number.isFinite(v) ? '-' : Number(v).toFixed(1)),
+  f2: (v) => (v == null || !Number.isFinite(v) ? '-' : Number(v).toFixed(2)),
+  f3: (v) => (v == null || !Number.isFinite(v) ? '-' : Number(v).toFixed(3)),
+  int: (v) => (v == null || !Number.isFinite(v) ? '-' : Math.round(v).toLocaleString()),
 };
 
 // Chart line colors tuned for the white Petrolord chart background.

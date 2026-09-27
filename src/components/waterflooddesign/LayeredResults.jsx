@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, XAXIS_LABEL_HEIGHT, niceTicks } from '@/utils/chartTheme';
 import { useWaterfloodDesign } from '@/contexts/WaterfloodDesignContext';
 import { ChartCard, Kpi, LINE, WarningBanner, fmt } from './primitives';
 
@@ -57,20 +57,20 @@ const LayeredResults = () => {
 
       <div className="grid xl:grid-cols-2 gap-4">
         <ChartCard title="Dykstra-Parsons: vertical coverage vs WOR (reservoir)">
-          <LineChart data={dpData} margin={{ top: 8, right: 16, bottom: 4, left: -8 }}>
+          <LineChart data={dpData} margin={{ top: 16, right: 16, bottom: 4, left: 8 }}>
             <CartesianGrid {...GRID_STYLE} />
-            <XAxis dataKey="WOR" {...axisProps} type="number" domain={[0, 'dataMax']} label={{ value: 'WOR (rb/rb)', fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideBottom', dy: 12 }} />
-            <YAxis {...axisProps} domain={[0, 100]} label={{ value: 'Coverage (%)', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', dy: 30 }} />
+            <XAxis height={XAXIS_LABEL_HEIGHT} dataKey="WOR" {...axisProps} type="number" {...(() => { const t = niceTicks(0, Math.max(1, ...(dpData || []).map((d) => d.WOR).filter(Number.isFinite)), 5); return { domain: t.domain, ticks: t.ticks }; })()} label={{ value: 'WOR (rb/rb)', fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideBottom', offset: 0 }} />
+            <YAxis {...axisProps} domain={[0, 100]} label={{ value: 'Coverage (%)', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', style: { textAnchor: 'middle' } }} />
             <Tooltip {...tooltipProps} />
             <Line type="monotone" dataKey="coverage" name="Coverage" stroke={LINE.water} strokeWidth={2} dot />
           </LineChart>
         </ChartCard>
 
         <ChartCard title="Stiles: vertical coverage vs surface water cut">
-          <LineChart data={stilesData} margin={{ top: 8, right: 16, bottom: 4, left: -8 }}>
+          <LineChart data={stilesData} margin={{ top: 16, right: 16, bottom: 4, left: 8 }}>
             <CartesianGrid {...GRID_STYLE} />
-            <XAxis dataKey="waterCut" {...axisProps} type="number" domain={[0, 100]} label={{ value: 'Water cut (%)', fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideBottom', dy: 12 }} />
-            <YAxis {...axisProps} domain={[0, 100]} label={{ value: 'Coverage (%)', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', dy: 30 }} />
+            <XAxis height={XAXIS_LABEL_HEIGHT} dataKey="waterCut" {...axisProps} type="number" domain={[0, 100]} label={{ value: 'Water cut (%)', fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideBottom', offset: 0 }} />
+            <YAxis {...axisProps} domain={[0, 100]} label={{ value: 'Coverage (%)', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', style: { textAnchor: 'middle' } }} />
             <Tooltip {...tooltipProps} />
             <Line type="monotone" dataKey="coverage" name="Coverage" stroke={LINE.oil} strokeWidth={2} dot />
           </LineChart>
@@ -78,10 +78,10 @@ const LayeredResults = () => {
       </div>
 
       <ChartCard title="Layer permeability distribution (ordered fastest first)" height={200}>
-        <BarChart data={kDist} margin={{ top: 8, right: 16, bottom: 4, left: -8 }}>
+        <BarChart data={kDist} margin={{ top: 16, right: 16, bottom: 4, left: 8 }}>
           <CartesianGrid {...GRID_STYLE} />
           <XAxis dataKey="layer" {...axisProps} />
-          <YAxis {...axisProps} label={{ value: 'k (md)', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', dy: 15 }} />
+          <YAxis {...axisProps} label={{ value: 'k (md)', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', style: { textAnchor: 'middle' } }} />
           <Tooltip {...tooltipProps} />
           <Legend {...legendProps} />
           <Bar dataKey="k" name="k (md)" fill={LINE.alt} radius={[3, 3, 0, 0]} />

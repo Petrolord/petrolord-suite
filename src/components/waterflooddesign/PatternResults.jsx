@@ -7,8 +7,9 @@ import {
 } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
-import { useWaterfloodDesign } from '@/contexts/WaterfloodDesignContext';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, XAXIS_LABEL_HEIGHT, niceTicks } from '@/utils/chartTheme';
+import { useWaterfloodDesign, buildPatternInputs } from '@/contexts/WaterfloodDesignContext';
+import { exactBreakthroughDays } from '@/utils/waterfloodUncertainty';
 import { ChartCard, Kpi, LINE, WarningBanner, fmt } from './primitives';
 
 const axisProps = { stroke: CHART_COLORS.axisLine, tick: { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize } };
@@ -29,7 +30,7 @@ export function annualProfileFromSeries(series) {
 }
 
 const PatternResults = () => {
-  const { patternResult, projectName, addNotification } = useWaterfloodDesign();
+  const { patternResult, patternInputs, projectName, addNotification } = useWaterfloodDesign();
 
   const chartData = useMemo(() => {
     if (!patternResult) return [];
@@ -52,7 +53,11 @@ const PatternResults = () => {
   }
 
   const { summary, breakthrough } = patternResult;
-  const btYears = breakthrough ? breakthrough.t_days / 365.25 : null;
+  // Senior test T1: exact, not the first monthly step past WiBT.
+  const exactBtDays = exactBreakthroughDays(breakthrough, buildPatternInputs(patternInputs));
+  // Round year ticks (the axis ended on the data: 0, 3, 8.58).
+  const yrAxis = niceTicks(0, Math.max(1, ...(patternResult.series || []).map((p) => p.t_days / 365.25)), 6);
+  const btYears = breakthrough ? (exactBtDays ?? breakthrough.t_days) / 365.25 : null;
 
   const exportAnnualCsv = () => {
     const annual = annualProfileFromSeries(patternResult.series);
@@ -70,9 +75,9 @@ const PatternResults = () => {
 
   return (
     <div className="space-y-4 overflow-y-auto">
-      <div className="grid grid-cols-2 xl:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-3">
         <Kpi title="EA @ breakthrough" value={fmt.pct(summary.EAbt)} accent />
-        <Kpi title="Breakthrough" value={fmt.f1(btYears)} unit="yr" />
+        <Kpi title="Breakthrough" value={fmt.f2(btYears)} unit="yr" />
         <Kpi title="Np (end)" value={fmt.int(summary.Np_stb)} unit="stb" />
         <Kpi title="RF of flooded OOIP" value={fmt.pct(summary.recoveryFactorOfFloodedOOIP)} />
         <Kpi title="Final WOR" value={Number.isFinite(summary.finalWOR) ? fmt.f1(summary.finalWOR) : '∞'} />
@@ -83,10 +88,10 @@ const PatternResults = () => {
 
       <div className="grid xl:grid-cols-2 gap-4">
         <ChartCard title="Production rates">
-          <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 4, left: -8 }}>
+          <LineChart data={chartData} margin={{ top: 16, right: 16, bottom: 4, left: 8 }}>
             <CartesianGrid {...GRID_STYLE} />
-            <XAxis dataKey="years" {...axisProps} type="number" domain={[0, 'dataMax']} label={{ value: 'Years', fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideBottom', dy: 12 }} />
-            <YAxis {...axisProps} domain={[0, 'auto']} label={{ value: 'stb/d', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', dy: 15 }} />
+            <XAxis height={XAXIS_LABEL_HEIGHT} dataKey="years" {...axisProps} type="number" domain={yrAxis.domain} ticks={yrAxis.ticks} label={{ value: 'Years', fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideBottom', offset: 0 }} />
+            <YAxis {...axisProps} domain={[0, 'auto']} label={{ value: 'stb/d', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', style: { textAnchor: 'middle' } }} />
             <Tooltip {...tooltipProps} />
             <Legend {...legendProps} />
             {btYears != null && <ReferenceLine x={Number(btYears.toFixed(2))} stroke={LINE.ref} strokeDasharray="4 4" label={{ value: 'BT', fill: LINE.ref, fontSize: 11, position: 'top' }} />}
@@ -96,30 +101,30 @@ const PatternResults = () => {
         </ChartCard>
 
         <ChartCard title="Water-oil ratio">
-          <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 4, left: -8 }}>
+          <LineChart data={chartData} margin={{ top: 16, right: 16, bottom: 4, left: 8 }}>
             <CartesianGrid {...GRID_STYLE} />
-            <XAxis dataKey="years" {...axisProps} type="number" domain={[0, 'dataMax']} label={{ value: 'Years', fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideBottom', dy: 12 }} />
-            <YAxis {...axisProps} domain={[0, 'auto']} label={{ value: 'WOR', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', dy: 15 }} />
+            <XAxis height={XAXIS_LABEL_HEIGHT} dataKey="years" {...axisProps} type="number" domain={yrAxis.domain} ticks={yrAxis.ticks} label={{ value: 'Years', fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideBottom', offset: 0 }} />
+            <YAxis {...axisProps} domain={[0, 'auto']} label={{ value: 'WOR', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', style: { textAnchor: 'middle' } }} />
             <Tooltip {...tooltipProps} />
             <Line type="monotone" dataKey="WOR" name="WOR" stroke={LINE.fw} strokeWidth={2} dot={false} connectNulls />
           </LineChart>
         </ChartCard>
 
         <ChartCard title="Cumulative oil">
-          <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 4, left: -8 }}>
+          <LineChart data={chartData} margin={{ top: 16, right: 16, bottom: 4, left: 8 }}>
             <CartesianGrid {...GRID_STYLE} />
-            <XAxis dataKey="years" {...axisProps} type="number" domain={[0, 'dataMax']} label={{ value: 'Years', fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideBottom', dy: 12 }} />
-            <YAxis {...axisProps} domain={[0, 'auto']} label={{ value: 'Np (Mstb)', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', dy: 25 }} />
+            <XAxis height={XAXIS_LABEL_HEIGHT} dataKey="years" {...axisProps} type="number" domain={yrAxis.domain} ticks={yrAxis.ticks} label={{ value: 'Years', fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideBottom', offset: 0 }} />
+            <YAxis {...axisProps} domain={[0, 'auto']} label={{ value: 'Np (Mstb)', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', style: { textAnchor: 'middle' } }} />
             <Tooltip {...tooltipProps} />
             <Line type="monotone" dataKey="Np" name="Np (Mstb)" stroke={LINE.oil} strokeWidth={2} dot={false} />
           </LineChart>
         </ChartCard>
 
         <ChartCard title="Areal sweep efficiency growth">
-          <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 4, left: -8 }}>
+          <LineChart data={chartData} margin={{ top: 16, right: 16, bottom: 4, left: 8 }}>
             <CartesianGrid {...GRID_STYLE} />
-            <XAxis dataKey="years" {...axisProps} type="number" domain={[0, 'dataMax']} label={{ value: 'Years', fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideBottom', dy: 12 }} />
-            <YAxis {...axisProps} domain={[0, 100]} label={{ value: 'EA (%)', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', dy: 20 }} />
+            <XAxis height={XAXIS_LABEL_HEIGHT} dataKey="years" {...axisProps} type="number" domain={yrAxis.domain} ticks={yrAxis.ticks} label={{ value: 'Years', fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideBottom', offset: 0 }} />
+            <YAxis {...axisProps} domain={[0, 100]} label={{ value: 'EA (%)', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', style: { textAnchor: 'middle' } }} />
             <Tooltip {...tooltipProps} />
             <Line type="monotone" dataKey="EA" name="EA (%)" stroke={LINE.alt} strokeWidth={2} dot={false} />
           </LineChart>

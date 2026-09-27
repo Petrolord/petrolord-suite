@@ -61,6 +61,23 @@ const num = (v) => {
  *   params: { key: { enabled, type, min, mode, max, mean, stdDev } },
  * }
  */
+/**
+ * Exact pattern breakthrough time, days (senior test T1, 2026-09-27).
+ * forecastPattern steps monthly and flags breakthrough at the first step
+ * past WiBT, up to a month late (1.3 yr for an exact 1.17). With a constant
+ * injection rate the time is (WiBT + fill-up) / rate.
+ * @param {{WiBT_bbl:number, t_days:number}|null} breakthrough
+ * @param {{area_acres:number, h_ft:number, phi:number, EV?:number, Sgi?:number, iw_bpd:number}} pattern
+ */
+export function exactBreakthroughDays(breakthrough, pattern) {
+  if (!breakthrough) return null;
+  const iw = Number(pattern?.iw_bpd);
+  if (!Number.isFinite(breakthrough.WiBT_bbl) || !(iw > 0)) return breakthrough.t_days ?? null;
+  const fill = 7758 * Number(pattern.area_acres) * Number(pattern.h_ft) * Number(pattern.phi)
+    * (Number(pattern.EV) || 1) * (Number(pattern.Sgi) || 0);
+  return (breakthrough.WiBT_bbl + (Number.isFinite(fill) ? fill : 0)) / iw;
+}
+
 export function parseUncertaintyConfig(config) {
   const errors = [];
   const distributions = {};
@@ -199,7 +216,7 @@ function createRun({ displacementSpec, pattern, distributions, correlations = []
       npArr.push(summary.Np_stb);
       rfArr.push(summary.recoveryFactorOfFloodedOOIP ?? 0);
       ooipArr.push(summary.ooip_flooded_stb);
-      if (breakthrough) btArr.push(breakthrough.t_days / 365.25);
+      if (breakthrough) btArr.push(exactBreakthroughDays(breakthrough, pat) / 365.25);
       else btNever++;
     }
     return done / iters;

@@ -6,7 +6,7 @@ import { Info } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, Legend,
 } from 'recharts';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, XAXIS_LABEL_HEIGHT, niceTicks } from '@/utils/chartTheme';
 import { useWaterfloodDesign } from '@/contexts/WaterfloodDesignContext';
 import { ChartCard, Kpi, LINE, WarningBanner, fmt } from './primitives';
 
@@ -58,7 +58,7 @@ const DisplacementResults = () => {
 
   return (
     <div className="space-y-4 overflow-y-auto">
-      <div className="grid grid-cols-2 xl:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-3">
         <Kpi title="Mobility ratio M" value={fmt.f2(M)} accent />
         <Kpi title="Front Sw (Swf)" value={fmt.f3(bl?.Swf)} />
         <Kpi title="fw at front" value={fmt.f2(bl?.fwf)} />
@@ -83,7 +83,7 @@ const DisplacementResults = () => {
 
       <div className="grid xl:grid-cols-2 gap-4">
         <ChartCard title="Relative permeability">
-          <LineChart data={krData} margin={{ top: 8, right: 16, bottom: 4, left: -8 }}>
+          <LineChart data={krData} margin={{ top: 16, right: 16, bottom: 4, left: 8 }}>
             <CartesianGrid {...GRID_STYLE} />
             <XAxis dataKey="Sw" {...axisProps} type="number" domain={['dataMin', 'dataMax']} tickFormatter={(v) => v.toFixed(1)} />
             <YAxis {...axisProps} domain={[0, 'auto']} />
@@ -95,7 +95,7 @@ const DisplacementResults = () => {
         </ChartCard>
 
         <ChartCard title="Fractional flow fw with Welge tangent">
-          <LineChart data={fwData} margin={{ top: 8, right: 16, bottom: 4, left: -8 }}>
+          <LineChart data={fwData} margin={{ top: 16, right: 16, bottom: 4, left: 8 }}>
             <CartesianGrid {...GRID_STYLE} />
             <XAxis dataKey="Sw" {...axisProps} type="number" domain={['dataMin', 'dataMax']} tickFormatter={(v) => v.toFixed(1)} />
             <YAxis {...axisProps} domain={[0, 1]} />
@@ -109,10 +109,10 @@ const DisplacementResults = () => {
       </div>
 
       <ChartCard title="Oil recovery vs pore volumes injected">
-        <LineChart data={recData} margin={{ top: 8, right: 16, bottom: 4, left: -8 }}>
+        <LineChart data={recData} margin={{ top: 16, right: 16, bottom: 4, left: 8 }}>
           <CartesianGrid {...GRID_STYLE} />
-          <XAxis dataKey="Qi" {...axisProps} type="number" domain={[0, 'dataMax']} tickFormatter={(v) => v.toFixed(1)} label={{ value: 'PV injected', fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideBottom', dy: 12 }} />
-          <YAxis {...axisProps} domain={[0, 'auto']} label={{ value: 'ED (%)', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', dy: 20 }} />
+          <XAxis height={XAXIS_LABEL_HEIGHT} dataKey="Qi" {...axisProps} type="number" domain={[0, 'dataMax']} tickFormatter={(v) => v.toFixed(1)} label={{ value: 'PV injected', fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideBottom', offset: 0 }} />
+          <YAxis {...axisProps} domain={[0, 'auto']} label={{ value: 'ED (%)', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', style: { textAnchor: 'middle' } }} />
           <Tooltip {...tooltipProps} />
           {bl?.EDmax != null && <ReferenceLine y={Number((bl.EDmax * 100).toFixed(1))} stroke={LINE.ref} strokeDasharray="5 5" label={{ value: 'ED max', fill: LINE.ref, fontSize: 11, position: 'right' }} />}
           <Line type="monotone" dataKey="ED" name="Recovery ED" stroke={LINE.oil} strokeWidth={2} dot={false} />

@@ -14,24 +14,24 @@ import { sampleFractionalFlowData } from '@/utils/fractionalFlowCalculations';
 import { Field, SectionLabel } from './primitives';
 
 const COREY_FIELDS = [
-  { k: 'Swc', label: 'Swc — connate water' },
-  { k: 'Sor', label: 'Sor — residual oil' },
+  { k: 'Swc', label: 'Swc, connate water' },
+  { k: 'Sor', label: 'Sor, residual oil' },
   { k: 'krwMax', label: 'krw @ Sor (endpoint)' },
   { k: 'kroMax', label: 'kro @ Swc (endpoint)' },
-  { k: 'nw', label: 'nw — water exponent' },
-  { k: 'no', label: 'no — oil exponent' },
+  { k: 'nw', label: 'nw, water exponent' },
+  { k: 'no', label: 'no, oil exponent' },
 ];
 const FLUID_FIELDS = [
-  { k: 'muW', label: 'μw — water visc. (cp)' },
-  { k: 'muO', label: 'μo — oil visc. (cp)' },
+  { k: 'muW', label: 'μw, water visc. (cp)' },
+  { k: 'muO', label: 'μo, oil visc. (cp)' },
 ];
 const GRAVITY_FIELDS = [
-  { k: 'k_md', label: 'k — permeability (md)' },
-  { k: 'A_ft2', label: 'A — flow area (ft²)' },
-  { k: 'qt_rbd', label: 'qt — total rate (rb/d)' },
+  { k: 'k_md', label: 'k, permeability (md)' },
+  { k: 'A_ft2', label: 'A, flow area (ft²)' },
+  { k: 'qt_rbd', label: 'qt, total rate (rb/d)' },
   { k: 'dipDeg', label: 'Dip α (deg, updip +)' },
-  { k: 'gammaW', label: 'γw — water SG' },
-  { k: 'gammaO', label: 'γo — oil SG' },
+  { k: 'gammaW', label: 'γw, water SG' },
+  { k: 'gammaO', label: 'γo, oil SG' },
 ];
 
 const KrTableDialog = ({ onApply }) => {
