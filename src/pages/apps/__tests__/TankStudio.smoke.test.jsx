@@ -110,6 +110,6 @@ describe('StorageTankDesigner page', () => {
     expect(screen.getAllByText(/Latitude factor/i).length).toBeGreaterThan(0);
     // and the minimum plate thickness was a governing reason with no number
     expect(screen.getAllByText(/Minimum plate \(in\)/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/bands this by diameter/i)).toBeInTheDocument();
+    expect(screen.getByText(/sets it by diameter/i)).toBeInTheDocument();
   });
 });

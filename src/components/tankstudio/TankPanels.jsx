@@ -4,7 +4,7 @@ import React from 'react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTank } from '@/contexts/TankStudioContext';
-import { fmt, Stat, ErrorNote, WarnNote, Field, NumberInput } from './fields';
+import { fmt, Stat, ErrorNote, WarnNote, Field, NumberInput, plain } from './fields';
 
 export const TankInputs = () => {
   const { inputs, setSection, vapourSpaceHeightFt } = useTank();
@@ -27,7 +27,7 @@ export const TankInputs = () => {
       </div>
       <div className="grid grid-cols-2 gap-2">
         <Field label="Corrosion allowance (in)"><NumberInput section="tank" name="corrosionAllowanceIn" step="0.005" /></Field>
-        <Field label="Minimum plate (in)" hint="API 650 bands this by diameter. That band table is not carried here, so the value in force is the one you state.">
+        <Field label="Minimum plate (in)" hint="API 650 sets it by diameter: 3/16 in below 50 ft, 1/4 in to 120 ft, 5/16 in to 200 ft, 3/8 in above. The engine does not apply that table, so the value in force is the one you state; the default suits the default 120 ft tank.">
           <NumberInput section="tank" name="minimumThicknessIn" step="0.0625" />
         </Field>
       </div>
@@ -170,7 +170,7 @@ export const ShellResults = () => {
           <p className="text-[12px] text-slate-500">
             {shell.courses[0].minimumThicknessBasis}
           </p>
-          <p className="text-[12px] text-slate-500">{shell.courses[0].methodNote}</p>
+          <p className="text-[12px] text-slate-500 first-letter:uppercase">{plain(shell.courses[0].methodNote)}</p>
           {anyTestGoverned && (
             <WarnNote>
               The hydrostatic test governs at least one course. A light product does not stress the
@@ -202,10 +202,10 @@ export const VentingResults = () => {
                   accent={venting.governing.startsWith('vacuum') ? 'text-amber-400' : 'text-slate-100'} />
                 <Stat label="Thermal inbreathing" value={fmt(venting.thermal.inbreathingScfh, 0)} unit="scfh" />
               </div>
-              {venting.warning && <WarnNote>{venting.warning}</WarnNote>}
-              {venting.thermalWarning && <WarnNote>{venting.thermalWarning}</WarnNote>}
-              {venting.thermal.note && <p className="text-[12px] text-slate-500">{venting.thermal.note}</p>}
-              <p className="text-[12px] text-slate-500">{venting.thermal.basis}</p>
+              {venting.warning && <WarnNote>{plain(venting.warning)}</WarnNote>}
+              {venting.thermalWarning && <WarnNote>{plain(venting.thermalWarning)}</WarnNote>}
+              {venting.thermal.note && <p className="text-[12px] text-slate-500 first-letter:uppercase">{plain(venting.thermal.note)}</p>}
+              <p className="text-[12px] text-slate-500 first-letter:uppercase">{plain(venting.thermal.basis)}</p>
             </>
           )}
         </CardContent>
@@ -224,9 +224,9 @@ export const VentingResults = () => {
                 <Stat label="Required vent" value="withheld" accent="text-amber-400"
                   hint="see below" />
               </div>
-              {fire.ventWithheld && <WarnNote>{fire.ventWithheldReason}</WarnNote>}
-              {fire.warning && <WarnNote>{fire.warning}</WarnNote>}
-              {fire.note && <p className="text-[12px] text-slate-500">{fire.note}</p>}
+              {fire.ventWithheld && <WarnNote>{plain(fire.ventWithheldReason)}</WarnNote>}
+              {fire.warning && <WarnNote>{plain(fire.warning)}</WarnNote>}
+              {fire.note && <p className="text-[12px] text-slate-500 first-letter:uppercase">{plain(fire.note)}</p>}
             </>
           )}
         </CardContent>
@@ -262,9 +262,9 @@ export const LossResults = () => {
           <Stat label="Vapour density" value={fmt(losses.vapourDensityLbFt3, 5)} unit="lb/ft3" />
         </div>
         {losses.control.error && <ErrorNote>{losses.control.error}</ErrorNote>}
-        <p className="text-[12px] text-slate-500">{losses.note}</p>
-        <p className="text-[12px] text-slate-500">{losses.turnoverFactorNote}</p>
-        {losses.control.note && <p className="text-[12px] text-slate-500">{losses.control.note}</p>}
+        <p className="text-[12px] text-slate-500 first-letter:uppercase">{plain(losses.note)}</p>
+        <p className="text-[12px] text-slate-500 first-letter:uppercase">{plain(losses.turnoverFactorNote)}</p>
+        {losses.control.note && <p className="text-[12px] text-slate-500 first-letter:uppercase">{plain(losses.control.note)}</p>}
       </CardContent>
     </Card>
   );

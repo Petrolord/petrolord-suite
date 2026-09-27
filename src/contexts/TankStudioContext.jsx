@@ -44,7 +44,7 @@ export const defaultInputs = () => ({
     diameterFt: '120', heightFt: '40', courseHeightFt: '8',
     liquidLevelFt: '38', sg: '0.85',
     designStressPsi: '23200', testStressPsi: '24900',
-    corrosionAllowanceIn: '0.0625', minimumThicknessIn: '0.1875',
+    corrosionAllowanceIn: '0.0625', minimumThicknessIn: '0.3125',
   },
   venting: {
     fillBblPerHr: '500', drawBblPerHr: '800',

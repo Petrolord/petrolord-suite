@@ -68,7 +68,18 @@ export const ErrorNote = ({ children }) => (
 );
 
 export const WarnNote = ({ children }) => (
-  <div className="rounded-md border border-yellow-700/50 bg-yellow-950/20 px-3 py-2 text-[12px] text-yellow-300">
+  <div className="first-letter:uppercase rounded-md border border-yellow-700/50 bg-yellow-950/20 px-3 py-2 text-[12px] text-yellow-300">
     {children}
   </div>
 );
+
+/**
+ * Engine notes are written for the engine's own readers: they name input
+ * keys ("the stated workingTurnoverFactor") and speak of "this repository".
+ * Say the same things for the engineer (TK-T1-002).
+ */
+export const plain = (text) => String(text ?? '')
+  .replace(/\bworkingTurnoverFactor\b/g, 'turnover factor')
+  .replace(/\blatitudeFactor\b/g, 'latitude factor')
+  .replace(/cited to a document in this repository/g, 'cited to a document here')
+  .replace(/ in this repository/g, ' here');
