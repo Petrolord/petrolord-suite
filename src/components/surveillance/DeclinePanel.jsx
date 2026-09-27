@@ -164,8 +164,14 @@ const DeclinePanel = () => {
                 label="Forecast volume"
                 value={fmt(dcaResult.forecast?.eur)}
                 unit={dca.stream === 'gas' ? 'Mscf' : 'stb'}
+                hint={dcaResult.forecast?.startDate ? `from ${String(dcaResult.forecast.startDate).slice(0, 10)}, the last fitted date` : undefined}
               />
-              <Stat label="Days to limit" value={fmt(dcaResult.forecast?.timeToLimit)} unit="days" />
+              <Stat
+                label={Number(dca.economicLimit) > 0 ? 'Days to limit' : 'Forecast days'}
+                value={fmt(dcaResult.forecast?.timeToLimit)}
+                unit="days"
+                hint={Number(dca.economicLimit) > 0 ? undefined : 'no economic limit set'}
+              />
               <Stat label="Points fitted" value={fmt(dcaResult.fitSeries.length)} />
             </div>
             <p className="text-[11px] text-slate-500">

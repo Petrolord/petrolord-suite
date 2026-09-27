@@ -1,9 +1,9 @@
 # Canonical petrolord-engines tree at the commit pinned in VENDOR.json.
 # Generated, do not hand edit: node tools/check-vendored-engines.mjs --canonical <clone> verifies it.
-# commit a37d31d17e938884eab21099b85fc080699a1d6d
+# commit a844abe470c9ae980a2b2c31e04e12843df1f8ca
 90543bb0df00a32d5f1ee280daa9c933d95e13a5 .github/workflows/ci.yml
 be54c1217cc42ef224dfd2e265e42ebe8bb198ba .gitignore
-4909d9d84b693544d2cfc1a998e06cb96f23be8b README.md
+9aba1523b0c983db76bf34ea0a50d668f400c82b README.md
 6373485efb6baa9226953a76a3d6ebb740541d1c __tests__/aquifer.test.js
 168f6cedfc18af932ba587f2ff882b7571966986 __tests__/assurance.audit.test.js
 fc5248e0239b0841f542a3cba95ef72db34296d1 __tests__/assurance.compliance.test.js
@@ -85,6 +85,7 @@ b4ec0c70820eabf2c9623093d6493bad04b47552 __tests__/economics.cashflow.test.ts
 f5507c4e102e32d5975aec66f98e394d48f3e926 __tests__/economics.fdp.test.js
 abcbd2156e6237afe3d79c54a4fcf5da01f8553c __tests__/economics.fiscal.test.js
 8d86e3ed7b0b0ba79aa03ec4c2139a77903f8f26 __tests__/economics.gasContract.test.js
+530694a5f1a1a73f01877354ba7872500686e8d3 __tests__/economics.jointVenture.test.js
 aa9054fec5694ca34639324f30c4b5a0db2265e3 __tests__/economics.montecarlo.test.ts
 ad2f1028829ac155f69150627e7d2ee265a0d559 __tests__/economics.npvOnly.test.js
 24c3a8d9c4000761589aa1278af165abf9a2a06c __tests__/economics.pia2021.test.ts
@@ -150,7 +151,7 @@ d47e9d66bd7f3cfc899a9e73a9b38eb1ae141261 __tests__/production.liftscreening.test
 1b4695cfc468c7f168e758dc7c6921b269c82d90 __tests__/production.network.test.js
 ef3cd90f6bdb44da56c3b690cc5010d39511f80b __tests__/production.nodal.test.js
 6733918c9bab14c21ec3288c0a5d95881d45bba0 __tests__/production.rodpump.test.js
-e824ad72cffa3c53045542f5266b263a5917dec8 __tests__/production.surveillance.test.js
+34a78a4bbea21f6795eb8b457cabf8849575c14d __tests__/production.surveillance.test.js
 f25ba6e6e30355f8364a1af93656dd305c027ab1 __tests__/prospect.valuation.test.js
 8234569920a263cea09a57f8f5a1583cf632b820 __tests__/prototypeChainLookups.test.js
 2bed146318dbe6aa31bf0fa3389bec13d69a4f9e __tests__/scal.fractionalflow.test.js
@@ -341,6 +342,7 @@ d8ac24897bfbecaa51950d028eb196aee19c5e0f engines/economics/fdp/subsurfaceCalcula
 0f237c895ff2083de32e4ddaaa1c352979a9ff86 engines/economics/fiscalTemplates.js
 db7f8a3772c2503676436ba9ba3a5c5addb94fa7 engines/economics/gasContract.js
 88a2d3c11858d6c84df765411d8fee79bea06d10 engines/economics/irrContract.js
+364f766339c81af2a05a52f85f6ec19d759004b4 engines/economics/jointVenture.js
 860abcae5846c2edc72e44eaf64d43440e7516ac engines/economics/montecarlo.ts
 c0ae041b624e176dc31e533d443105dad7e65fb6 engines/economics/portfolio.js
 fb468263f54b6b3615c5a60acce5473bfffe72fb engines/economics/projectControls.js
@@ -432,7 +434,7 @@ b7a2a85022f3df59f44051d5202dcf9746502326 engines/production/pumpingUnit.js
 08e9476bcb3d35cc58ac5e87985815cd93135376 engines/production/rodDynamics.js
 683bbbc4093857338cd88f9214581e985f133833 engines/production/rodPumpDesign.js
 20e0cb3c3630577d2c4996495cc4f352850b86bc engines/production/rodString.js
-ab361a2f4487c4ef585e6ffd3cce783fe4a2a9a9 engines/production/surveillance.js
+02b493abc6f3f626d6f6ef49575e22cbc5f62f41 engines/production/surveillance.js
 2468504187c6f984b84f318939d55929be3e667a engines/prospect/valuation.js
 dda8d721705bfd6f3ffddcdda092c828f5949fcf engines/rockphysics/avo.js
 e5ca8f9c22c3a798d61d0abf4ddb06a8750d55bd engines/rockphysics/fluids.js
@@ -665,6 +667,8 @@ e9687d6edb9b465f2b59b4aac182d306701b3c9c test-data/earthmodel/contacts_cases.jso
 d2d39d35ea1dbbeecf6f49dbcbf88aea335f15d0 test-data/economics/ekene-gsa/README.md
 3953a6c83ba2b57ce9e3dcc7e63a695e981e3c0f test-data/economics/ekene-gsa/domestic-power.json
 9b93f137dc9d6789502f58b45f548a24d1e881d6 test-data/economics/ekene-gsa/export-feed.json
+6936922836d586313dc4e78a8d7ada92210c3414 test-data/economics/ekene-jv/README.md
+4cee0604322dd258a4dda8fa4cd30793fb3ed968 test-data/economics/ekene-jv/ekene-jv.json
 9b842529948dfc599c351e69bb2baca4c32a34ae test-data/economics/fixtures/pia-worked-example.json
 66cbc1fb874b8efd4ac7f0f583f53395e1c579f8 test-data/economics/goldens/afe_cases.json
 219c479a3fc0fe1a3c4d3efabf75eaf6297caf24 test-data/economics/goldens/breakeven_cases.json
@@ -673,6 +677,7 @@ d2d39d35ea1dbbeecf6f49dbcbf88aea335f15d0 test-data/economics/ekene-gsa/README.md
 b410a67f1b2af570f84f5811e4a9d210f625f4e2 test-data/economics/goldens/fdp_cases.json
 d7011dba87fd87775940ecdf4ed88751ca5794db test-data/economics/goldens/fiscal_cases.json
 5b164b5cadf5aac909b30f95001f721e2b131e9a test-data/economics/goldens/gascontract_cases.json
+69ac8a69041443b0988183bc9a0bd11584371d41 test-data/economics/goldens/jointventure_cases.json
 4f6b42ca1237663ff1a9b6192ea1ce7f36db55f6 test-data/economics/goldens/montecarlo_cases.json
 b405aea853195c97f2f04facc2df1de2bc25730f test-data/economics/goldens/pia2021_cases.json
 61bed14fd28572c0405340fef5a6a6f3ec349622 test-data/economics/goldens/portfolio_cases.json
@@ -939,9 +944,12 @@ f2f0e5c7fd80e980507fd7e2f24d1c4cbfaeb40e tools/validation/economics/FINDINGS-cas
 8347727e437d257b546b062531f5c46d84387739 tools/validation/economics/FINDINGS-fdp.md
 4441a75e5c7b1b3b4f37f007a917b11e0aaf3097 tools/validation/economics/FINDINGS-fiscal.md
 9f4728168ab53d5738492e26daf764a2afb6d306 tools/validation/economics/FINDINGS-gasContract.md
+480032d07f9bfe798b0311bf2edefb688d4b7e8d tools/validation/economics/FINDINGS-jointVenture.md
 543ce185fa3b00f28530c3d8095062a7cdbd138b tools/validation/economics/FINDINGS-pia2021.md
 6a14a241a373dba6b67cbeaec6c4e58e1bd6ce9f tools/validation/economics/make_gsa_fixtures.py
+fea723b6da1a5f228df63da479f2960aea33811c tools/validation/economics/make_jv_fixtures.py
 0685719e22533e1c86c5304b9f304e89b84f7c71 tools/validation/economics/negcontrol_gascontract.sh
+bc3afa57ceafa3a5fa2d3e5e577c3049df802732 tools/validation/economics/negcontrol_jointventure.sh
 fa099481249721aebfa50ad66c7d373d004c7144 tools/validation/economics/negcontrol_pia2021.sh
 bce4fbc2547a687342680f13c7a185529ddd68e3 tools/validation/economics/oracle_afe.py
 e6dd91ae193d79c110395aaa4b89fa74c1e5174e tools/validation/economics/oracle_breakeven.py
@@ -950,11 +958,13 @@ e6dd91ae193d79c110395aaa4b89fa74c1e5174e tools/validation/economics/oracle_break
 93948299b4fa1024c1cd854f60ec0fed32c88f94 tools/validation/economics/oracle_fdp.py
 3908b54327f741e248abd8a2018af53e55618932 tools/validation/economics/oracle_fiscal.py
 f5fb2cdd5c33ae33014395d7d48d008906a1e566 tools/validation/economics/oracle_gascontract.py
+22bd3bfab89fcecfce1999b6aa023e8352cfd739 tools/validation/economics/oracle_jointventure.py
 262c4780158319b39194583b737f206f46676082 tools/validation/economics/oracle_montecarlo.py
 3183e566e7776d26f0155679a58087e4f302f726 tools/validation/economics/oracle_pia2021.py
 f7dc721af5aea863b115770af2baf1c63d9da8e9 tools/validation/economics/oracle_portfolio.py
 09fd8ce53c96ede3620e75753ad1076e5a2ac6f7 tools/validation/economics/oracle_screening.py
 e5989a9f001045985aef8cd94b40842f6f0bf738 tools/validation/economics/timing_gascontract.js
+b571d8ac9da222553535cfc3d4eae94a2bd6fbfa tools/validation/economics/timing_jointventure.js
 f0d9afcb6f50815cb672540d7ae734db91441ef3 tools/validation/facilities/FINDINGS-corrosion.md
 711b8935c93f2cbf64a163e230c12a07bd8bd93e tools/validation/facilities/FINDINGS-gasprocessing.md
 025672143afaba601823608fd7c4a1273b1b7fec tools/validation/facilities/FINDINGS-heattransfer.md

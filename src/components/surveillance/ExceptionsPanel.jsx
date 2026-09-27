@@ -30,7 +30,15 @@ const ExceptionsPanel = ({ onOpenWell }) => {
       && (typeFilter === 'all' || e.type === typeFilter),
   );
 
-  if (!currentField) return null;
+  if (!currentField) {
+    return (
+      <Card className="bg-slate-900 border-slate-800">
+        <CardContent className="py-10 text-center text-slate-500 text-sm">
+          Select a field in the left rail to see which wells breach your thresholds.
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="bg-slate-900 border-slate-800">
