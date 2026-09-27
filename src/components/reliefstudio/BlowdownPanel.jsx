@@ -71,7 +71,7 @@ const BlowdownPanel = () => {
         <ChartFrame height={300} exportFilename="blowdown-curve">
           <ComposedChart data={data} margin={{ top: 8, right: 40, bottom: 24, left: 8 }}>
             <CartesianGrid {...GRID_STYLE} />
-            <XAxis height={XAXIS_LABEL_HEIGHT} type="number" dataKey="t" domain={['dataMin', 'dataMax']} stroke={CHART_COLORS.axisLine} tick={tick}
+            <XAxis height={XAXIS_LABEL_HEIGHT} type="number" dataKey="t" domain={[0, (max) => Math.ceil(max)]} allowDecimals={false} stroke={CHART_COLORS.axisLine} tick={tick}
               label={{ value: 'Time (min)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <YAxis yAxisId="p" stroke={CHART_COLORS.axisLine} tick={tick}
               label={{ value: 'Pressure (psia)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />

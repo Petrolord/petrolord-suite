@@ -56,7 +56,7 @@ export const ErrorNote = ({ children }) => (
 );
 
 export const WarnNote = ({ children }) => (
-  <div className="rounded-md border border-yellow-700/50 bg-yellow-950/20 px-3 py-2 text-[12px] text-yellow-300">
+  <div className="first-letter:uppercase rounded-md border border-yellow-700/50 bg-yellow-950/20 px-3 py-2 text-[12px] text-yellow-300">
     {children}
   </div>
 );
