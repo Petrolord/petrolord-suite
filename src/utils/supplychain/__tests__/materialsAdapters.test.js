@@ -19,7 +19,7 @@ import {
 
 const FIXTURE = path.resolve(__dirname, '../../../../packages/engines/test-data/supplychain/ekene-materials/register.json');
 const fixture = JSON.parse(fs.readFileSync(FIXTURE, 'utf8'));
-const strip = ({ item, note, ...rest }) => rest; // eslint-disable-line no-unused-vars
+const strip = ({ item, note, ...rest }) => rest;
 const demo = ekeneDemoInputs();
 
 describe('the Ekene demo', () => {

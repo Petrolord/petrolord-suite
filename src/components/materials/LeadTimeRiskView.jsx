@@ -106,8 +106,8 @@ const LeadTimeResults = () => {
                 {['mean', ...OUTCOME_ORDER, 'min', 'max'].map((k) => (
                   <tr key={k} className="border-t border-slate-800 text-slate-200" data-testid={`lt-row-${k}`}>
                     <td className="p-1">{OUTCOME_LABELS[k] ? pLabel(k) : k === 'mean' ? 'Mean' : k === 'min' ? 'Smallest draw' : 'Largest draw'}</td>
-                    <td className="p-1 text-right font-mono" data-testid={`lt-days-${k}`}>{fmtNum(r.leadTime[k], 4)}</td>
-                    <td className="p-1 text-right font-mono" data-testid={`lt-ltd-${k}`}>{fmtNum(r.leadTimeDemand[k], 4)}</td>
+                    <td className="p-1 text-right font-mono" data-testid={`lt-stat-days-${k}`}>{fmtNum(r.leadTime[k], 4)}</td>
+                    <td className="p-1 text-right font-mono" data-testid={`lt-stat-ltd-${k}`}>{fmtNum(r.leadTimeDemand[k], 4)}</td>
                   </tr>
                 ))}
               </tbody>
