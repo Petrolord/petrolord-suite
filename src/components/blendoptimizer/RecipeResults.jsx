@@ -1,7 +1,7 @@
 // The recipe, what it achieves, what it gives away, and what each spec costs (DS2).
 import React from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
 } from 'recharts';
 import { AlertTriangle, Info } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,13 @@ import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/uti
 import { useBlendOptimizer } from '@/contexts/BlendOptimizerContext';
 import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
 
-const fmt = (v, dp = 2) => (Number.isFinite(v) ? v.toFixed(dp) : 'n/a');
+// Senior test T1: thousands grouped ($86,123, not $86123) and a solver's
+// -1e-12 shown as 0.00, not -0.00.
+const fmt = (v, dp = 2) => {
+  if (!Number.isFinite(v)) return 'n/a';
+  const x = Math.abs(v) < 0.5 * 10 ** -dp ? 0 : v;
+  return x.toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp });
+};
 const COLORS = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#dc2626', '#0891b2'];
 
 const RecipeResults = () => {
@@ -87,7 +93,6 @@ const RecipeResults = () => {
               }}
             />
             <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [`${show(fmt(v, 1), v)} bbl`, 'Volume']} />
-            <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
             <Bar dataKey="volume" name="Volume">
               {recipeRows.map((r, i) => <Cell key={r.id} fill={COLORS[i % COLORS.length]} />)}
             </Bar>
