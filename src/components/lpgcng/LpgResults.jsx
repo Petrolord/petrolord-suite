@@ -3,7 +3,7 @@ import React from 'react';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell as BarCell } from 'recharts';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, niceTicks } from '@/utils/chartTheme';
 import { useLpgCng } from '@/contexts/LpgCngContext';
 
 const fmt = (v, dp = 2) => (Number.isFinite(v)
@@ -154,6 +154,7 @@ const LpgResults = () => {
                 <CartesianGrid {...GRID_STYLE} />
                 <XAxis dataKey="label" stroke={CHART_COLORS.axisLine} tick={tick} interval={0} angle={-15} textAnchor="end" height={60} />
                 <YAxis stroke={CHART_COLORS.axisLine} tick={tick}
+                  {...(() => { const t = niceTicks(0, Math.max(1, ...cylinderFleet.stages.map((st) => st.days)), 5); return { domain: t.domain, ticks: t.ticks }; })()}
                   label={{ value: 'days', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
                 <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => `${fmt(v, 1)} days`} />
                 <Bar dataKey="days" name="Days">

@@ -3,7 +3,10 @@ import React from 'react';
 import { AlertTriangle, Leaf } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS } from '@/utils/chartTheme';
+
+// Senior test T1: the axis printed 6000000 and 4500000.
+const compact = (v) => (Math.abs(v) >= 1e6 ? `${+(v / 1e6).toFixed(1)}M` : Math.abs(v) >= 1e3 ? `${+(v / 1e3).toFixed(0)}k` : `${v}`);
 import { useLpgCng } from '@/contexts/LpgCngContext';
 
 const fmt = (v, dp = 2) => (Number.isFinite(v)
@@ -60,9 +63,10 @@ const ConversionResults = () => {
         <BarChart data={chart} margin={{ top: 12, right: 24, left: 24, bottom: 28 }}>
           <CartesianGrid {...GRID_STYLE} />
           <XAxis dataKey="name" stroke={CHART_COLORS.axisLine} tick={tick} />
-          <YAxis stroke={CHART_COLORS.axisLine} tick={tick} />
+          <YAxis stroke={CHART_COLORS.axisLine} tick={tick} tickFormatter={compact} width={56}
+            label={{ value: 'cost a year', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
           <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => fmt(v, 0)} />
-          <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
+          <Legend {...LEGEND_PROPS} />
           <Bar dataKey="fuel" name="Fuel" stackId="a" fill="#0891b2" />
           <Bar dataKey="maintenance" name="Extra maintenance" stackId="a" fill="#f59e0b" />
         </BarChart>
