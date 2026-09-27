@@ -105,8 +105,8 @@ export default function Dashboard() {
           description="Plan the audits this organization will run this year, build the checklists they are run against, and the findings follow from the answers."
           action={(
             <div className="flex gap-2">
-              <Button onClick={() => navigate(`${BASE}/programmes`)}>Start a programme</Button>
-              <Button variant="outline" onClick={() => navigate(`${BASE}/checklists`)}>
+              <Button onClick={() => navigate(`${BASE}/programmes`, { state: { add: true } })}>Start a programme</Button>
+              <Button variant="outline" onClick={() => navigate(`${BASE}/checklists`, { state: { add: true } })}>
                 Build a checklist
               </Button>
             </div>

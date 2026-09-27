@@ -17,6 +17,7 @@ import {
   canChangeItemCriticality, canDeleteTemplateItem, validateTemplate, validateTemplateItem,
 } from './utils/auditPayload';
 import { useAuditManagement } from './hooks/useAuditManagement';
+import { useLocation } from 'react-router-dom';
 
 /**
  * AS10 — the checklists audits are run against.
@@ -57,7 +58,9 @@ export default function Checklists() {
     addTemplateItems, updateTemplateItem, deleteTemplateItem,
   } = useAuditManagement();
 
-  const [form, setForm] = useState(null);
+  // Senior test T1: "Build a checklist" on the dashboard opens the form.
+  const location = useLocation();
+  const [form, setForm] = useState(() => (location.state && location.state.add ? blankTemplate() : null));
   const [errors, setErrors] = useState({});
   const [addingTo, setAddingTo] = useState(null);
   const [item, setItem] = useState(blankItem());

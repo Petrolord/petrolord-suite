@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,7 +51,9 @@ export default function Programmes() {
     createProgramme, updateProgramme, advanceProgramme, deleteProgramme,
   } = useAuditManagement();
 
-  const [form, setForm] = useState(null);
+  // Senior test T1: "Start a programme" on the dashboard opens the form.
+  const location = useLocation();
+  const [form, setForm] = useState(() => (location.state && location.state.add ? blank() : null));
   const [errors, setErrors] = useState({});
   const [approving, setApproving] = useState(null);
   const [failure, setFailure] = useState(null);
