@@ -146,8 +146,8 @@ describe('individual risk', () => {
     mount();
     await openTab(/Individual risk/);
     expect(await screen.findByTestId('band-0')).toHaveTextContent(/^TOLERABLE$/);
-    expect(screen.getByTestId('band-1')).toHaveTextContent(/^BROADLY_ACCEPTABLE$/);
-    expect(screen.getByTestId('band-2')).toHaveTextContent(/^BROADLY_ACCEPTABLE$/);
+    expect(screen.getByTestId('band-1')).toHaveTextContent(/^BROADLY ACCEPTABLE$/);
+    expect(screen.getByTestId('band-2')).toHaveTextContent(/^BROADLY ACCEPTABLE$/);
     expect(screen.getByTestId('lsir-0')).toHaveTextContent('3.270e-5');
     expect(screen.getByTestId('contour-0')).toHaveTextContent('inside 1e-5');
     expect(screen.getByTestId('irpa-band')).toHaveTextContent(/^TOLERABLE$/);
@@ -216,18 +216,18 @@ describe('ALARP and cost-benefit', () => {
     expect(screen.getByTestId('max-cost')).toHaveTextContent(/^92,835$/);
     expect(screen.getByTestId('pv-cost')).toHaveTextContent(/^93,000$/);
     expect(screen.getByTestId('icaf')).toHaveTextContent(/^18,600,000$/);
-    expect(screen.getByTestId('cba-state')).toHaveTextContent(/^GROSSLY_DISPROPORTIONATE$/);
+    expect(screen.getByTestId('cba-state')).toHaveTextContent(/^GROSSLY DISPROPORTIONATE$/);
     expect(screen.getByTestId('verdict-irpa')).toHaveTextContent(/^TOLERABLE$/);
     expect(screen.getByTestId('verdict-fn')).toHaveTextContent(/^BELOW$/);
     expect(screen.getByTestId('alarp-reading')).toHaveTextContent(/At least one risk is TOLERABLE/);
-    expect(screen.getByTestId('band-legend')).toHaveTextContent(/UNACCEPTABLE[\s\S]*TOLERABLE[\s\S]*BROADLY_ACCEPTABLE/);
+    expect(screen.getByTestId('band-legend')).toHaveTextContent(/UNACCEPTABLE[\s\S]*TOLERABLE[\s\S]*BROADLY ACCEPTABLE/);
   });
 
   it('turns reasonably practicable when the measure costs less', async () => {
     mount();
     await openTab(/ALARP and cost-benefit/);
     type(await screen.findByTestId('capital-input'), '50000');
-    expect(screen.getByTestId('cba-state')).toHaveTextContent(/^NOT_GROSSLY_DISPROPORTIONATE$/);
+    expect(screen.getByTestId('cba-state')).toHaveTextContent(/^NOT GROSSLY DISPROPORTIONATE$/);
   });
 
   it('refuses a DF below 1 by name and shows no verdict', async () => {

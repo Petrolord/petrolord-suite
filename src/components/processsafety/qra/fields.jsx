@@ -30,7 +30,8 @@ export const StateBadge = ({ state, testId }) => (
     data-testid={testId}
     className={`inline-block rounded border px-2 py-0.5 font-mono text-xs ${TONE[state] || 'border-slate-600 text-slate-300'}`}
   >
-    {state}
+    {/* Engine states are enum keys; show them as words (QRA-T1-002). */}
+    {state == null ? state : String(state).replace(/_/g, ' ')}
   </span>
 );
 
