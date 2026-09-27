@@ -1,4 +1,16 @@
 import { useState, useEffect } from "react"
+import { toast as sonner } from "sonner"
+
+// Senior test T1 (2026-09-27): the Horizons re-import (f6ec2b9db,
+// 2026-04-21) replaced the Toaster that rendered this store with sonner's,
+// and nothing calls sonner, so every toast from the 215 files that use this
+// hook (saves, errors, validation) rendered nowhere. Each toast is now also
+// shown through sonner, the toaster App.jsx mounts. The store is kept so
+// useToast() callers and tests read what they always read.
+const showInSonner = (id, { title, description, variant, duration }) => {
+  const show = variant === "destructive" ? sonner.error : sonner
+  show(title ?? "", { id: `ut-${id}`, description, duration })
+}
 
 const TOAST_LIMIT = 1
 
@@ -37,18 +49,26 @@ const toastStore = {
 export const toast = ({ ...props }) => {
   const id = generateId()
 
-  const update = (props) =>
-    toastStore.setState((state) => ({
+  const update = (props) => {
+    const current = toastStore.getState().toasts.find((t) => t.id === id)
+    showInSonner(id, { ...current, ...props })
+    return toastStore.setState((state) => ({
       ...state,
       toasts: state.toasts.map((t) =>
         t.id === id ? { ...t, ...props } : t
       ),
     }))
+  }
 
-  const dismiss = () => toastStore.setState((state) => ({
-    ...state,
-    toasts: state.toasts.filter((t) => t.id !== id),
-  }))
+  const dismiss = () => {
+    sonner.dismiss(`ut-${id}`)
+    toastStore.setState((state) => ({
+      ...state,
+      toasts: state.toasts.filter((t) => t.id !== id),
+    }))
+  }
+
+  showInSonner(id, props)
 
   toastStore.setState((state) => ({
     ...state,

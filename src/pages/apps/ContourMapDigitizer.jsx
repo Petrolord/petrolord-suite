@@ -9,7 +9,6 @@ import useContourDigitizer from '@/hooks/useContourDigitizer';
 import InputPanel from '@/components/contourmap/InputPanel';
 import ResultsPanel from '@/components/contourmap/ResultsPanel';
 import EmptyState from '@/components/contourmap/EmptyState';
-import { Toaster } from '@/components/ui/toaster';
 
 const ContourMapDigitizer = () => {
   const { toast } = useToast();
@@ -116,7 +115,6 @@ const ContourMapDigitizer = () => {
           )}
         </main>
       </div>
-      <Toaster />
     </>
   );
 };
