@@ -27,6 +27,7 @@
  *      truncated the well before it reached its economic limit. It now
  *      divides by what is actually produced.
  */
+import { pvtCalcs } from './pvtCalculations';
 
 const REQUIRED_NUMERIC = [
   { key: 'reservoirArea', label: 'Reservoir area', min: 0 },
@@ -112,6 +113,17 @@ export const validateInputs = (formData) => {
 };
 
 const BBL_PER_ACRE_FT = 7758;
+
+// Senior test T1 (2026-09-27): OOIP per well was 7758 A h phi (1 - Sw) with
+// no formation volume factor, so every volume, NPV and cost per barrel was
+// in reservoir barrels priced as stock-tank barrels (about 28 % high on the
+// example). The form already asks for GOR, API, gas gravity and reservoir
+// temperature, which went unused; they give Standing's Bo through the
+// Suite's PVT module.
+export const standingBo = (p) => {
+  const bo = pvtCalcs.standing_bo(p.gor, p.api, p.gasGravity, p.temperatureF);
+  return Number.isFinite(bo) && bo > 0 ? bo : 1;
+};
 const DAYS_PER_YEAR = 365;
 
 /**
@@ -132,7 +144,7 @@ const evaluateSpacing = (spacing, p) => {
   const numberOfWells = Math.floor(p.reservoirArea / spacing);
   if (numberOfWells < 1) return null;
 
-  const oiipPerWell = spacing * p.avgNetPay * p.porosity * (1 - p.swi) * BBL_PER_ACRE_FT;
+  const oiipPerWell = (spacing * p.avgNetPay * p.porosity * (1 - p.swi) * BBL_PER_ACRE_FT) / (p.bo || 1);
   const eurPerWellBbl = oiipPerWell * p.recoveryFactor;
 
   // Areal coverage is the share of the field that whole wells actually drain.
@@ -218,7 +230,11 @@ export const calculateOptimalSpacing = async (formData) => {
     declineRate: parseFloat(formData.typicalWellDeclineRate) / 100,
     minEconomicRate: parseFloat(formData.minEconomicFlowRate),
     gor: parseFloat(formData.initialSolutionGOR),
+    api: parseFloat(formData.oilGravity),
+    gasGravity: parseFloat(formData.gasGravity),
+    temperatureF: parseFloat(formData.reservoirTemperature),
   };
+  p.bo = standingBo(p);
 
   const minSpacing = parseFloat(formData.minSpacing);
   const maxSpacing = parseFloat(formData.maxSpacing);
@@ -246,6 +262,7 @@ export const calculateOptimalSpacing = async (formData) => {
 
   return {
     spacingResults,
+    boUsed: p.bo,
     optimalSpacing: {
       ...optimalResult,
       totalWells: optimalResult.numberOfWells,

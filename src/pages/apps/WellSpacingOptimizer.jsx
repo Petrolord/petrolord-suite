@@ -57,6 +57,21 @@ const WellSpacingOptimizer = () => {
     }));
   };
 
+  // Senior test T1: two dozen required boxes opened blank with nothing to
+  // start from. The example is the placeholders the form already shows.
+  const handleLoadExample = () => {
+    setFormData((prev) => ({
+      ...prev,
+      fieldName: 'Example field', latitude: '29.7604', longitude: '-95.3698',
+      reservoirArea: '5000', avgNetPayThickness: '60', porosity: '15.2', initialWaterSaturation: '0.25',
+      reservoirTemperature: '180', reservoirPressure: '3500', recoveryFactor: '35', wellPatternType: '5-spot',
+      oilGravity: '35', gasGravity: '0.75', initialSolutionGOR: '500',
+      wellCost: '5000000', operatingExpense: '200000', minEconomicFlowRate: '10', typicalWellDeclineRate: '15',
+      oilPrice: '75', gasPrice: '3.5', discountRate: '10', projectDuration: '20', royaltiesTaxes: '25',
+      minSpacing: '20', maxSpacing: '160', spacingIncrement: '10',
+    }));
+  };
+
   const handleLocationSelect = (lat, lng) => {
     setFormData(prev => ({
       ...prev,
@@ -177,6 +192,7 @@ const WellSpacingOptimizer = () => {
             handleInputChange={handleInputChange}
             handleLocationSelect={handleLocationSelect}
             handleCalculate={handleCalculate}
+            handleLoadExample={handleLoadExample}
             loading={loading}
           />
 
