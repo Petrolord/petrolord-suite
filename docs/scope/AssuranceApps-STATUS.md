@@ -19,6 +19,12 @@ live pentest green). `documents` bucket + storage policies APPLIED via
 AS16 (20260918950000, #525): AS4 had written no storage policies. Still
 open: owner staging walks.
 
+**Design system:** the hub (`/dashboard/assurance`) is on the design system
+from pilot 1 (2026-09-27, `feat/ds-pilot-hubs`): light by default, dark by
+choice, tiers as status badges, chart on `data-canvas="chart"`, help drawer
+themed inside the hub. The nine apps themselves are not migrated and look
+as before.
+
 The launch was ONE owner-run script:
 `tools/validation/assurance/assurance-launch-apply.sh schema` (now 16
 migrations, AS14 and AS15 included), upload, then `... activate`.
