@@ -1,6 +1,6 @@
 
 import React, { Suspense, lazy, useEffect } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/SupabaseAuthContext';
 import { ReservoirProvider } from '@/contexts/ReservoirContext';
 import { HSEProvider } from '@/contexts/HSEContext';
@@ -10,6 +10,7 @@ import SuperAdminRoute from '@/components/SuperAdminRoute';
 import AuthGuard from '@/components/AuthGuard';
 import AppRoute from '@/components/AppRoute';
 import DashboardLayout from '@/layouts/DashboardLayout';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { Toaster } from '@/components/ui/sonner';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { AdminOrgProvider } from '@/contexts/AdminOrganizationContext';
@@ -777,16 +778,21 @@ function App() {
                                 <Route path="apps/economics/epe-suite" element={<Navigate to="/dashboard/apps/economics/epe/cases" replace />} />
                                 <Route path="apps/economic/epe-suite" element={<Navigate to="/dashboard/apps/economics/epe/cases" replace />} />
                                 
-                                <Route path="apps/economics/epe/cases" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeCaseList /></ProtectedAppRoute>} />
-                                <Route path="apps/economics/epe/help" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeHelpGuide /></ProtectedAppRoute>} />
-                                <Route path="apps/economics/epe/cases/:caseId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeCaseDetail /></ProtectedAppRoute>} />
-				<Route path="apps/economics/epe/cases/:caseId/run" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeRunConsole /></ProtectedAppRoute>} />
-                                <Route path="apps/economics/epe/cases/:caseId/compare" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeRunComparison /></ProtectedAppRoute>} />
-                                <Route path="apps/economics/epe/runs/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeResultsViewer /></ProtectedAppRoute>} />
-                                {/* run/:runId used to open the Run Console, which needs a caseId and
-                                    broke; a run link means "show me the run" — send it to results. */}
-                                <Route path="apps/economics/epe/run/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeResultsViewer /></ProtectedAppRoute>} />
-                                <Route path="apps/economics/epe/results/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeResultsViewer /></ProtectedAppRoute>} />
+                                {/* Design system pilot 3 (docs/scope/DesignSystem-example-EPE.md): one ThemedApp
+                                    around every EPE page, so the light or dark choice holds while the user moves
+                                    between the case list, console, results and comparison. */}
+                                <Route element={<ThemedApp className="min-h-screen"><Outlet /></ThemedApp>}>
+                                    <Route path="apps/economics/epe/cases" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeCaseList /></ProtectedAppRoute>} />
+                                    <Route path="apps/economics/epe/help" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeHelpGuide /></ProtectedAppRoute>} />
+                                    <Route path="apps/economics/epe/cases/:caseId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeCaseDetail /></ProtectedAppRoute>} />
+                                    <Route path="apps/economics/epe/cases/:caseId/run" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeRunConsole /></ProtectedAppRoute>} />
+                                    <Route path="apps/economics/epe/cases/:caseId/compare" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeRunComparison /></ProtectedAppRoute>} />
+                                    <Route path="apps/economics/epe/runs/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeResultsViewer /></ProtectedAppRoute>} />
+                                    {/* run/:runId used to open the Run Console, which needs a caseId and
+                                        broke; a run link means "show me the run" — send it to results. */}
+                                    <Route path="apps/economics/epe/run/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeResultsViewer /></ProtectedAppRoute>} />
+                                    <Route path="apps/economics/epe/results/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeResultsViewer /></ProtectedAppRoute>} />
+                                </Route>
                                 {/* compare without a caseId cannot query; land on the case list */}
                                 <Route path="apps/economics/epe/compare" element={<Navigate to="/dashboard/apps/economics/epe/cases" replace />} />
 
