@@ -34,8 +34,8 @@ const MethodPanel = () => {
         <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800">
           {corrFields.map(([k, lbl, unit]) => (
             <div key={k} className="space-y-1">
-              <Label className="text-xs text-slate-400">{`${lbl} (${unit})`}</Label>
-              <Input value={inputs.corr[k] ?? ''} onChange={(e) => setCorrField(k, e.target.value)}
+              <Label htmlFor={`rf-corr-${k}`} className="text-xs text-slate-400">{`${lbl}${unit ? ` (${unit})` : ''}`}</Label>
+              <Input id={`rf-corr-${k}`} value={inputs.corr[k] ?? ''} onChange={(e) => setCorrField(k, e.target.value)}
                 className="h-9 bg-slate-800 border-slate-700" />
             </div>
           ))}

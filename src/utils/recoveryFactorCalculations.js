@@ -79,14 +79,14 @@ export const DRIVE_MECHANISMS = [
   },
   {
     code: 'gas_volumetric',
-    label: 'Gas — volumetric depletion',
+    label: 'Gas: volumetric depletion',
     phase: 'gas',
     low: 0.70, typical: 0.80, high: 0.90,
     notes: 'Closed (no-aquifer) gas reservoir depleting on expansion; recovery set by abandonment pressure.',
   },
   {
     code: 'gas_water_drive',
-    label: 'Gas — water drive',
+    label: 'Gas: water drive',
     phase: 'gas',
     low: 0.35, typical: 0.55, high: 0.75,
     notes: 'Aquifer support traps gas behind the advancing water front, lowering recovery vs volumetric depletion.',
@@ -208,18 +208,18 @@ export function estimateRecovery(state) {
       break;
     case 'api_solution_gas':
       rf = apiSolutionGasDriveRF(correlationInputs);
-      warnings.push('API-1967 solution-gas-drive correlation is an empirical fit with wide scatter — validate against the analog band and simulation.');
+      warnings.push('API-1967 solution-gas-drive correlation is an empirical fit with wide scatter. Validate it against the analog band and simulation.');
       break;
     case 'api_water_drive':
       rf = apiWaterDriveRF(correlationInputs);
-      warnings.push('API-1967 water-drive correlation is an empirical fit with wide scatter — validate against the analog band and simulation.');
+      warnings.push('API-1967 water-drive correlation is an empirical fit with wide scatter. Validate it against the analog band and simulation.');
       break;
     case 'gas_pz':
       rf = gasPZDepletionRF(correlationInputs);
       break;
     case 'gas_water_drive':
       rf = gasWaterDriveRF(correlationInputs);
-      warnings.push('Trapped-gas recovery is sensitive to residual gas saturation and sweep efficiency — both are uncertain and field-specific.');
+      warnings.push('Trapped-gas recovery is sensitive to residual gas saturation and sweep efficiency; both are uncertain and field-specific.');
       break;
     default:
       rf = analog?.typical ?? null;

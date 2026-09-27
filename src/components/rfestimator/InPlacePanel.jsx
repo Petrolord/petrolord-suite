@@ -56,7 +56,7 @@ const InPlacePanel = () => {
         </div>
       )}
       <p className="text-[11px] text-slate-500 leading-relaxed">
-        OOIP = 7758·A·h·φ·(1−Sw)·NTG / Boi — the same relation the volumetrics apps use, so numbers carry across cleanly.
+        OOIP = 7758·A·h·φ·(1−Sw)·NTG / Boi. It is the same relation the volumetrics apps use, so numbers carry across cleanly.
       </p>
     </div>
   );
