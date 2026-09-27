@@ -52,7 +52,7 @@ export function FullPrecisionToggle({ app, className, tone = 'dark' }) {
       <Switch id={id} checked={full} onCheckedChange={(v) => setFull(Boolean(v))} aria-label="Full precision" />
       <label
         htmlFor={id}
-        className={cn('text-xs cursor-pointer select-none', tone === 'light' ? 'text-slate-700' : 'text-slate-300')}
+        className={cn('whitespace-nowrap text-[11px] 2xl:text-xs cursor-pointer select-none', tone === 'light' ? 'text-slate-700' : 'text-slate-300')}
         title="Prints the graded quantities at 6 decimals (money in $MM at 4 decimals), without digit grouping, so a value can be pasted as it is."
       >
         Full precision
