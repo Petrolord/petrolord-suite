@@ -60,7 +60,7 @@ const helpContent = [
     icon: Droplets,
     title: 'The dose',
     content:
-      'A mass balance on the aqueous phase and nothing more: to make the water a given weight percent inhibitor, the inhibitor mass has to be that fraction of the water mass. The lean inhibitor is rarely pure -- recovered MEG comes back at 80 to 90 percent -- and injecting as if it were is a standard way to under-dose, so the lean strength is an explicit input. Salinity is NOT in the boundary, and it inhibits too: ignoring it over-states the subcooling and so over-doses, which is the conservative direction, but on a high-salinity well it over-states it substantially.',
+      'A mass balance on the aqueous phase and nothing more: to make the water a given weight percent inhibitor, the inhibitor mass has to be that fraction of the water mass. The lean inhibitor is rarely pure (recovered MEG comes back at 80 to 90 percent) and injecting as if it were is a standard way to under-dose, so the lean strength is an explicit input. Salinity is NOT in the boundary, and it inhibits too: ignoring it over-states the subcooling and so over-doses, which is the conservative direction, but on a high-salinity well it over-states it substantially.',
   },
   {
     id: 'cooldown',
@@ -74,7 +74,7 @@ const helpContent = [
     icon: Link2,
     title: 'The production spine and the shared well',
     content:
-      'The well comes from the shared per-well record, so the trajectory, fluid, inflow and completion are the ones every other production studio is using; describe the well once and it is described everywhere. What the well was FLOWING on the day -- a rate, a water cut, a wellhead pressure -- stays with the study, because that is duty rather than the well.',
+      'The well comes from the shared per-well record, so the trajectory, fluid, inflow and completion are the ones every other production studio is using; describe the well once and it is described everywhere. What the well was FLOWING on the day (a rate, a water cut, a wellhead pressure) stays with the study, because that is duty rather than the well.',
   },
   {
     id: 'refusals',

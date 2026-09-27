@@ -45,7 +45,7 @@ const DiagnosticPanel = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 items-end">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 items-start">
           <Field label="Ratio to read">
             <Select
               value={inputs.diagnostic.ratio}
@@ -151,7 +151,7 @@ const DiagnosticPanel = () => {
 
             {data.length > 3 && (
               <ChartFrame height={380} exportFilename="intervention-chan-diagnostic">
-                <ComposedChart data={data} margin={{ top: 8, right: 34, bottom: 14, left: 8 }}>
+                <ComposedChart data={data} margin={{ top: 8, right: 34, bottom: 14, left: 20 }}>
                   <CartesianGrid {...GRID_STYLE} />
                   <XAxis
                 height={XAXIS_LABEL_HEIGHT}
