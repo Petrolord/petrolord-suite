@@ -5,7 +5,9 @@ import {
 } from 'recharts';
 import { AlertTriangle, CheckCircle2, Info } from 'lucide-react';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import {
+  CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT, niceTicks,
+} from '@/utils/chartTheme';
 import { useFuelPricing } from '@/contexts/FuelPricingContext';
 
 const fmt = (v, dp = 2) => (Number.isFinite(v)
@@ -16,6 +18,11 @@ const GROUP_COLORS = ['#0891b2', '#dc2626', '#f59e0b', '#7c3aed', '#059669', '#6
 
 const BuildUpResults = () => {
   const { landed, pump, waterfall, sensitivity, inputs } = useFuelPricing();
+  const fxVals = (sensitivity.points || []).map((p) => p.value).filter(Number.isFinite);
+  const pxVals = (sensitivity.points || []).map((p) => p.pricePerLitre).filter(Number.isFinite)
+    .concat(Number.isFinite(sensitivity.capPerLitre) ? [sensitivity.capPerLitre] : []);
+  const fxAxis = fxVals.length ? niceTicks(Math.min(...fxVals), Math.max(...fxVals), 8) : { domain: ['auto', 'auto'] };
+  const pxAxis = pxVals.length ? niceTicks(0, Math.max(...pxVals), 5) : { domain: ['auto', 'auto'] };
   const tick = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
 
   if (landed.error) {
@@ -42,7 +49,9 @@ const BuildUpResults = () => {
             : <Info className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />}
         <div>
           <p className="font-semibold text-white">
-            {`Pump price ${fmt(pump.pricePerLitre)} per litre`}
+            {/* Senior test T1: with rates missing this figure is a floor, and
+                the headline called it the pump price. */}
+            {`Pump price ${landed.complete && pump.complete ? '' : 'at least '}${fmt(pump.pricePerLitre)} per litre`}
             {capped && ` against a cap of ${fmt(pump.capPerLitre)}`}
           </p>
           <p className="text-sm text-slate-300 mt-1">
@@ -165,16 +174,19 @@ const BuildUpResults = () => {
         <ChartFrame height={260} exportFilename="fx-sensitivity">
           <LineChart data={sensitivity.points} margin={{ top: 12, right: 24, left: 16, bottom: 28 }}>
             <CartesianGrid {...GRID_STYLE} />
-            <XAxis dataKey="value" stroke={CHART_COLORS.axisLine} tick={tick}
-              label={{ value: 'exchange rate', position: 'insideBottom', offset: -18, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
-            <YAxis stroke={CHART_COLORS.axisLine} tick={tick} />
-            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => fmt(v)} />
-            <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
+            {/* Senior test T1: a category axis printed the sweep values raw
+                (1266.6666666667); the rate is a number axis on round ticks. */}
+            <XAxis dataKey="value" type="number" domain={fxAxis.domain} ticks={fxAxis.ticks} height={XAXIS_LABEL_HEIGHT}
+              stroke={CHART_COLORS.axisLine} tick={tick}
+              label={{ value: 'exchange rate (local per $)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+            <YAxis domain={pxAxis.domain} ticks={pxAxis.ticks} stroke={CHART_COLORS.axisLine} tick={tick} width={56} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => fmt(v)} labelFormatter={(v) => `${fmt(v, 0)} to the dollar`} />
+            <Legend {...LEGEND_PROPS} />
             {sensitivity.capPerLitre !== null && (
               <ReferenceLine y={sensitivity.capPerLitre} stroke="#dc2626" strokeDasharray="4 4"
                 label={{ value: 'cap', fill: '#dc2626', fontSize: 11 }} />
             )}
-            <Line type="monotone" dataKey="pricePerLitre" name="Pump price" stroke="#0891b2" strokeWidth={2} dot={{ r: 3 }} />
+            <Line type="linear" dataKey="pricePerLitre" name="Pump price" stroke="#0891b2" strokeWidth={2} dot={{ r: 3 }} />
           </LineChart>
         </ChartFrame>
         <p className="text-[11px] mt-1">
