@@ -22,8 +22,17 @@ const seedSource = fs.readFileSync(
   'utf8',
 );
 
-/** Slugs the seed creates tiles for. */
-const seededSlugs = [...seedSource.matchAll(/\('([a-z0-9-]+)', '[^']+',/g)].map((m) => m[1]);
+/** Slugs the DS0 seed creates tiles for. */
+const ds0Slugs = [...seedSource.matchAll(/\('([a-z0-9-]+)', '[^']+',/g)].map((m) => m[1]);
+
+/**
+ * Tiles seeded into the module after DS0, one seed migration each, read from
+ * the seed's own `v_slug`: Supply Chain SC3 (Materials & Spares Planner).
+ */
+const laterSeeds = ['20260928110000_sc3_seed_materials_spares_tile.sql'];
+const laterSlugs = laterSeeds.map((f) => fs.readFileSync(path.join(root, 'supabase/migrations', f), 'utf8')
+  .match(/v_slug text := '([a-z0-9-]+)'/)[1]);
+const seededSlugs = [...ds0Slugs, ...laterSlugs];
 
 /** Routes App.jsx serves under the module. */
 const routes = [...appSource.matchAll(
@@ -32,11 +41,12 @@ const routes = [...appSource.matchAll(
 
 describe('Midstream & Downstream routing', () => {
   it('finds the seeded tiles and the routed apps', () => {
-    expect(seededSlugs.length).toBe(10);
+    expect(ds0Slugs.length).toBe(10);
+    expect(laterSlugs).toEqual(['materials-spares-planner']);
     expect(routes.length).toBeGreaterThan(0);
   });
 
-  it('routes all ten apps the module set out to build', () => {
+  it('routes all ten DS apps and every tile seeded since', () => {
     // DS1-DS10 are all shipped, so every seeded tile now has a route. If a
     // future tile is seeded without one, the dashboard will show a card that
     // goes nowhere, and this is where that gets caught.

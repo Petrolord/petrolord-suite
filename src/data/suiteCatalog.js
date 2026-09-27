@@ -3,7 +3,9 @@
 //
 // It mirrors the live master_apps catalogue, counting only tiles a customer
 // can open (status 'Active', is_built and is_functional). Checked against the
-// database on 2026-09-27: 102 apps across 10 modules. When an app goes live
+// database on 2026-09-27: 102 apps across 10 modules, plus the Materials &
+// Spares Planner (SC3), counted here with the PR that ships it and live once
+// its held activation migration 20260928120000 is applied. When an app goes live
 // or is retired, change its module's list here in the same PR; the counts on
 // both pages are derived from these lists, never typed by hand.
 //
@@ -139,7 +141,7 @@ export const SUITE_MODULES = [
     short: 'Midstream',
     tagline: 'From crude assay to the fuel pump.',
     description:
-      'Crude assays and blending, refinery planning and scheduling, modular refinery feasibility, terminals and depots, fuel pricing and supply, LPG and CNG rollout, flare gas to value, energy efficiency, and a carbon ledger that runs beside the money one.',
+      'Crude assays and blending, refinery planning and scheduling, modular refinery feasibility, terminals and depots, fuel pricing and supply, materials and spares planning, LPG and CNG rollout, flare gas to value, energy efficiency, and a carbon ledger that runs beside the money one.',
     apps: [
       'Crude Assay & Blending Studio',
       'Product Blending Optimizer',
@@ -147,6 +149,7 @@ export const SUITE_MODULES = [
       'Modular Refinery Feasibility Studio',
       'Terminal & Depot Studio',
       'Fuel Pricing & Supply Chain Studio',
+      'Materials & Spares Planner',
       'LPG & CNG Rollout Studio',
       'Flare Gas to Value Studio',
       'Energy & Utilities Efficiency Studio',
