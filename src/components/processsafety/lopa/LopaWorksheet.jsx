@@ -14,6 +14,12 @@ import {
   BasisList, EngineError, Note, NumField, OutcomeBadge, Stat, TextField,
 } from './shared';
 
+// The engine's reason names the flag ("independent must be true to take
+// credit"); say it as the checkbox the user sees (LOPA-T1-002).
+const plainReason = (r) => String(r)
+  .replace('not flagged independent (independent must be true to take credit)', 'tick Independent once the layer is shown to be independent of the initiating event and of the other credited layers')
+  .replace('flagged not auditable', 'tick Auditable once the layer can be proof-tested and audited');
+
 const ProbabilityList = ({ title, listKey, hint }) => {
   const { active, addListRow, setListRow, removeListRow } = useLopaStudio();
   const rows = active[listKey] || [];
@@ -101,7 +107,7 @@ const IplTable = () => {
                   Auditable
                 </label>
                 {isCredited ? <span className="text-emerald-300">Credited</span> : null}
-                {reason ? <span className="text-amber-200" data-testid="not-credited-reason">Not credited: {reason}</span> : null}
+                {reason ? <span className="text-amber-200" data-testid="not-credited-reason">Not credited: {plainReason(reason)}</span> : null}
               </div>
             </div>
           );

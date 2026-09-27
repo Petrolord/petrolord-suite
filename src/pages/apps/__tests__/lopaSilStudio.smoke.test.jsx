@@ -92,7 +92,7 @@ describe('the LOPA worksheet', () => {
   it('shows a layer that is not credited with the engine reason', async () => {
     mount();
     const reason = await screen.findByTestId('not-credited-reason');
-    expect(reason).toHaveTextContent('not flagged independent (independent must be true to take credit)');
+    expect(reason).toHaveTextContent('tick Independent once the layer is shown to be independent');
   });
 
   it('moves to BEYOND_SIL3_REDESIGN when the TMEL is tightened far enough', async () => {
