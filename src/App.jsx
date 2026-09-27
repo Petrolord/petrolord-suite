@@ -131,6 +131,7 @@ const CapitalPortfolioHarness = lazy(() => import('@/dev/CapitalPortfolioHarness
 const FlareHarness = lazy(() => import('@/dev/FlareHarness'));
 const ProductionHarness = lazy(() => import('@/dev/ProductionHarness'));
 const FacilitiesHarness = lazy(() => import('@/dev/FacilitiesHarness'));
+const StudiosHarness = lazy(() => import('@/dev/StudiosHarness'));
 const ModularRefineryHarness = lazy(() => import('@/dev/ModularRefineryHarness'));
 const CarbonHarness = lazy(() => import('@/dev/CarbonHarness'));
 const ElectrofaciesHarness = lazy(() => import('@/dev/ElectrofaciesHarness'));
@@ -973,6 +974,7 @@ function App() {
                                   <Route path="/dev/flare-gas-to-value" element={<FlareHarness />} />
                                   <Route path="/dev/production/:app" element={<ProductionHarness />} />
                                   <Route path="/dev/facilities/:app" element={<FacilitiesHarness />} />
+                                  <Route path="/dev/studio/:app" element={<StudiosHarness />} />
                                   <Route path="/dev/modular-refinery-feasibility" element={<ModularRefineryHarness />} />
                                   <Route path="/dev/carbon-footprint-abatement" element={<CarbonHarness />} />
                                   <Route path="/dev/electrofacies-studio" element={<ElectrofaciesHarness />} />

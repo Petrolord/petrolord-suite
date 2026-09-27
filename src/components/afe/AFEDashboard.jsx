@@ -7,6 +7,17 @@ import {
   AfeInputError, calculateMetrics, generateSCurveData, itemForecast,
 } from '@/utils/costControlCalculations';
 import { formatFull, FULL_PRECISION_DECIMALS } from '@/lib/fullPrecision';
+import ChartLogo from '@/components/charts/ChartLogo';
+import { CHART_COLORS, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS } from '@/utils/chartTheme';
+
+// Axis money in $M above a million (AFE-T1-002: ticks read "$10000k").
+const moneyTick = (v) => {
+  const n = Number(v);
+  if (Math.abs(n) >= 1e6) return `$${Number((n / 1e6).toPrecision(3))}M`;
+  if (Math.abs(n) >= 1e3) return `$${Number((n / 1e3).toPrecision(3))}k`;
+  return `$${n}`;
+};
+const AXIS = { stroke: CHART_COLORS.axisLine, tick: { fill: CHART_COLORS.axisText, fontSize: 11 } };
 
 // EC5-0 (owner decision 2026-09-14). The engine reads the clock only as the
 // default of its asOf argument; the dashboard passes today explicitly, as a
@@ -267,16 +278,17 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
                 </CardTitle>
             </CardHeader>
             <CardContent className="h-[350px]">
+                <div className="relative h-full w-full rounded-md bg-white p-2">
                 <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={sCurveData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                        <XAxis dataKey="date" stroke="#94a3b8" style={{ fontSize: '12px' }} />
-                        <YAxis stroke="#94a3b8" tickFormatter={(val) => `$${val/1000}k`} style={{ fontSize: '12px' }} />
+                        <CartesianGrid {...GRID_STYLE} vertical={false} />
+                        <XAxis dataKey="date" {...AXIS} />
+                        <YAxis {...AXIS} tickFormatter={moneyTick} width={56} />
                         <Tooltip 
-                            contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#fff' }}
+                            contentStyle={TOOLTIP_STYLE}
                             formatter={(value) => currencyFormatter(value)}
                         />
-                        <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                        <Legend {...LEGEND_PROPS} />
                         <Area type="monotone" dataKey="Planned" stroke="#3b82f6" fill="url(#colorPlanned)" strokeWidth={2} />
                         <Line type="monotone" dataKey="Actual" stroke="#a855f7" strokeWidth={3} dot={{ r: 4 }} />
                         <Line type="monotone" dataKey="Forecast" stroke="#f59e0b" strokeDasharray="5 5" strokeWidth={2} />
@@ -288,6 +300,8 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
                         </defs>
                     </ComposedChart>
                 </ResponsiveContainer>
+                <ChartLogo />
+                </div>
             </CardContent>
         </Card>
 
@@ -297,6 +311,7 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
                 <CardTitle className="text-sm font-medium text-slate-200">Cost Distribution</CardTitle>
             </CardHeader>
             <CardContent className="h-[350px]">
+                <div className="relative h-full w-full rounded-md bg-white p-2">
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <Pie
@@ -313,10 +328,12 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                         </Pie>
-                        <Tooltip formatter={(value) => currencyFormatter(value)} contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155' }} />
-                        <Legend layout="vertical" verticalAlign="middle" align="right" />
+                        <Tooltip formatter={(value) => currencyFormatter(value)} contentStyle={TOOLTIP_STYLE} />
+                        <Legend {...LEGEND_PROPS} />
                     </PieChart>
                 </ResponsiveContainer>
+                <ChartLogo />
+                </div>
             </CardContent>
         </Card>
       </div>
@@ -329,20 +346,23 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
                 <CardTitle className="text-sm font-medium text-slate-200">Budget vs Actual by Category</CardTitle>
             </CardHeader>
             <CardContent className="h-[300px]">
+                <div className="relative h-full w-full rounded-md bg-white p-2">
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={categoryData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
-                        <XAxis type="number" stroke="#94a3b8" tickFormatter={(val) => `$${val/1000}k`} style={{ fontSize: '10px' }} />
-                        <YAxis dataKey="name" type="category" stroke="#94a3b8" width={100} style={{ fontSize: '11px' }} />
+                        <CartesianGrid {...GRID_STYLE} horizontal={false} />
+                        <XAxis type="number" {...AXIS} tickFormatter={moneyTick} />
+                        <YAxis dataKey="name" type="category" {...AXIS} width={90} />
                         <Tooltip 
-                            contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#fff' }} 
+                            contentStyle={TOOLTIP_STYLE} 
                             formatter={(value) => currencyFormatter(value)}
                         />
-                        <Legend />
+                        <Legend {...LEGEND_PROPS} />
                         <Bar dataKey="Budget" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={10} />
                         <Bar dataKey="Actual" fill="#a855f7" radius={[0, 4, 4, 0]} barSize={10} />
                     </BarChart>
                 </ResponsiveContainer>
+                <ChartLogo />
+                </div>
             </CardContent>
         </Card>
 

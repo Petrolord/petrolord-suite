@@ -91,7 +91,7 @@ const InvoicesTab = ({ afeId, invoices, costItems, onRefresh }) => {
             
             return (
               <TableRow key={inv.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
-                <TableCell className="text-slate-400">{inv.invoice_date}</TableCell>
+                <TableCell className="whitespace-nowrap text-slate-400">{inv.invoice_date}</TableCell>
                 <TableCell className="text-white font-medium">{inv.vendor}</TableCell>
                 <TableCell className="text-slate-300">{inv.invoice_number}</TableCell>
                 <TableCell className="text-slate-400 text-xs">
