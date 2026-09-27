@@ -44,8 +44,17 @@ export function specForTable(table, previous) {
   const s = previous ? { ...previous } : defaultSpec();
   const names = new Set(Object.keys(table?.columns || {}));
   const keep = (n) => (n && names.has(n) ? n : '');
+  // Senior test T1: the default of 5 folds was refused on a 4-well table
+  // ("k must be a whole number from 2 to 4"). Folds are capped at the
+  // number of wells the table holds; a user's own smaller k is kept.
+  const wells = Array.isArray(table?.wells) ? table.wells.length : 0;
+  const k = parseInt(s.validation?.k, 10);
+  const validation = wells >= 2 && Number.isFinite(k) && k > wells
+    ? { ...s.validation, k: String(wells) }
+    : s.validation;
   return {
     ...s,
+    validation,
     target: keep(s.target),
     features: (s.features || []).filter((f) => names.has(f.name)),
     label: { ...s.label, curve: keep(s.label?.curve), column: keep(s.label?.column) },

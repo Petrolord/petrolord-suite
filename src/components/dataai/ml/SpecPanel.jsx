@@ -122,7 +122,7 @@ const DesignSummary = () => {
 
 const SpecPanel = () => {
   const {
-    table, spec, updateSpec, design, parsed, runJob, busy, cancelJob,
+    table, spec, updateSpec, design, parsed, runJob, busy, cancelJob, results,
   } = useMlWorkbench();
   if (!table) return <Note testId="spec-no-data">Load wells or a table first (left panel).</Note>;
   const names = Object.keys(table.columns);
@@ -178,6 +178,11 @@ const SpecPanel = () => {
       </Section>
       <DesignSummary />
       {parsed.error ? <Note tone="warn" testId="spec-error">{parsed.error}</Note> : null}
+      {/* Senior test T1: a refused run only showed on the Validation results
+          tab, so the button looked dead from here. */}
+      {results?.evaluate?.result?.evaluation?.error
+        ? <Note tone="warn" testId="run-refused">{`Validation refused: ${results.evaluate.result.evaluation.error}`}</Note>
+        : null}
       <div className="flex items-center gap-2">
         <Button size="sm" disabled={!canRun} onClick={() => runJob('evaluate')} data-testid="run-evaluate">
           <Play className="mr-1 h-4 w-4" /> Fit and validate

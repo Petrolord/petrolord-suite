@@ -11,7 +11,7 @@ import {
 } from 'recharts';
 import ChartLogo from '@/components/charts/ChartLogo';
 import {
-  CHART_COLORS, CHART_MARGINS, CHART_TYPOGRAPHY, GRID_STYLE, LEGEND_PROPS, PINNED_TOOLTIP_PROPS, XAXIS_LABEL_HEIGHT,
+  CHART_COLORS, CHART_MARGINS, CHART_TYPOGRAPHY, GRID_STYLE, LEGEND_PROPS, PINNED_TOOLTIP_PROPS, XAXIS_LABEL_HEIGHT, niceTicks,
 } from '@/utils/chartTheme';
 import { fmt, Note } from '@/components/dataai/quality/shared';
 
@@ -65,6 +65,15 @@ export const CrossPlot = ({
 };
 
 /** Measured and predicted against depth for one well (depth down). */
+// Senior test T1: the depth axis ended on the data (1015, 1030, 1058); round
+// steps through the shared niceTicks, deepest at the bottom as before.
+const depthAxis = (rows) => {
+  const d = (rows || []).map((r) => r.depth).filter(Number.isFinite);
+  if (!d.length) return { domain: ['dataMin', 'dataMax'] };
+  const t = niceTicks(Math.min(...d), Math.max(...d), 6);
+  return { domain: t.domain, ticks: t.ticks };
+};
+
 export const DepthTrack = ({
   rows, valueLabel, depthLabel, actualName = 'Measured', predictedName = 'Predicted', testId = 'depth-track',
 }) => (
@@ -72,7 +81,7 @@ export const DepthTrack = ({
     <ComposedChart layout="vertical" data={rows} margin={{ top: 8, right: 28, bottom: 12, left: 8 }}>
       <CartesianGrid {...GRID_STYLE} />
       <XAxis type="number" tick={tick} stroke={CHART_COLORS.axisLine} domain={['auto', 'auto']} tickFormatter={fmt} height={XAXIS_LABEL_HEIGHT} label={axisLabel(valueLabel, { position: 'insideBottom', offset: 0 })} />
-      <YAxis type="number" dataKey="depth" tick={tick} stroke={CHART_COLORS.axisLine} width={70} domain={['dataMin', 'dataMax']} tickFormatter={fmt} label={axisLabel(depthLabel, { angle: -90, position: 'insideLeft' })} />
+      <YAxis type="number" dataKey="depth" tick={tick} stroke={CHART_COLORS.axisLine} width={70} {...depthAxis(rows)} tickFormatter={fmt} label={axisLabel(depthLabel, { angle: -90, position: 'insideLeft' })} />
       <Tooltip {...PINNED_TOOLTIP_PROPS} formatter={(v) => fmt(v)} labelFormatter={(v) => `${fmt(v)} ${depthLabel}`} />
       <Legend {...LEGEND_PROPS} />
       <Line dataKey="actual" name={actualName} stroke={SERIES.actual} strokeWidth={1.5} dot={false} isAnimationActive={false} connectNulls={false} />
