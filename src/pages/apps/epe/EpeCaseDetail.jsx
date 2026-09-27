@@ -7,7 +7,7 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
     import { Button } from '@/components/ui/button';
     import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-    import { ArrowLeft, Upload, FileText, BarChart, Play, Plus, Loader2, Trash2, FileSpreadsheet, FileJson, Contrast as Compare, Users, Lock, Unlock, BadgeCheck, GitBranch } from 'lucide-react';
+    import { Briefcase, Upload, FileText, BarChart, Play, Plus, Loader2, Trash2, FileSpreadsheet, FileJson, Contrast as Compare, Users, Lock, Unlock, BadgeCheck, GitBranch } from 'lucide-react';
     import { supabase } from '@/lib/customSupabaseClient';
     import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
 
@@ -27,12 +27,14 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
     // under the hood), so an imported profile matches the Hub bbl for bbl.
     import { compareCases } from '@/utils/forecastScenarioCalculations';
     import { piaRefusal } from '@/pages/apps/epe/epePiaCompliance';
+    import { AppHeader } from '@/components/ui/app-shell';
+    import { epePage, epeCallout, epeBadge, epeNum, epeSelect, epeNativeCheck } from './epeUi';
 
     // Wave A (audit finding 1.1): the engine sums every file in a slot, so
     // multiple files are only correct when they are complementary.
     const MultiFileWarning = ({ count, scenarios = false }) => (
-      <div className="flex items-start gap-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded text-amber-200 text-xs">
-        <span className="font-bold shrink-0">!</span>
+      <div className={`${epeCallout('warning')} flex items-start gap-2 p-2 text-xs`} role="note">
+        <span className="font-bold shrink-0" aria-hidden="true">!</span>
         <span>
           {count} files in this slot. The engine adds together the files a run actually uses. If one is a revision of another,
           delete the outdated file or the run will double-count.
@@ -43,7 +45,7 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
 
     // Wave F (3.6): reserves scenario chip for production file cards.
     const ScenarioChip = ({ label }) => (
-      <span className="inline-block text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-cyan-900/50 text-cyan-300 border border-cyan-800">
+      <span className={epeBadge('info')}>
         {label || 'Base'}
       </span>
     );
@@ -342,7 +344,7 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
       };
 
       if (loading) {
-        return <div className="flex justify-center items-center h-screen"><Loader2 className="w-16 h-16 animate-spin text-cyan-400" /></div>;
+        return <div className="flex justify-center items-center h-screen"><Loader2 className="w-16 h-16 animate-spin text-pl-primary-text" aria-label="Loading case" /></div>;
       }
 
       return (
@@ -350,18 +352,17 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
           <Helmet>
             <title>{caseDetails?.case_name || 'Case Detail'} - Petroleum Economics Studio</title>
           </Helmet>
-          <div className="p-4 sm:p-6 md:p-8">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-4">
-                <Link to="/dashboard/apps/economics/epe/cases">
-                  <Button variant="outline"><ArrowLeft className="w-4 h-4 mr-2" />Back to Cases</Button>
-                </Link>
-                <div>
-                  <h1 className="text-3xl font-bold text-white">{caseDetails?.case_name}</h1>
-                  <p className="text-slate-400">{caseDetails?.description}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
+          <AppHeader
+            eyebrow="Petroleum Economics Studio"
+            title={caseDetails?.case_name || 'Case'}
+            subtitle={caseDetails?.description || undefined}
+            icon={Briefcase}
+            backTo="/dashboard/apps/economics/epe/cases"
+            backLabel="Back to Cases"
+          />
+          <div className={epePage}>
+            <div className="mb-6 flex flex-wrap items-center justify-end gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {isOwner && (
                   <Button
                     variant="outline"
@@ -372,7 +373,7 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                       : caseDetails?.organization_id
                         ? 'Shared read-only with your organization. Click to make it private.'
                         : 'Make this case visible read-only to your organization.'}
-                    className={caseDetails?.organization_id ? 'border-sky-600 text-sky-300' : ''}
+                    className={caseDetails?.organization_id ? 'border-pl-info/40 bg-pl-info-bg text-pl-info-text hover:bg-pl-info-bg' : ''}
                   >
                     <Users className="w-4 h-4 mr-2" />
                     {caseDetails?.organization_id ? 'Shared with organization' : 'Share with organization'}
@@ -390,20 +391,20 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
             </div>
 
             {!isOwner && (
-              <div className="mb-6 flex items-center gap-2 p-3 bg-sky-900/20 border border-sky-800/50 rounded-lg text-sky-200 text-sm">
+              <div className={`${epeCallout('info')} mb-6 flex items-center gap-2`} role="note">
                 <Users className="w-4 h-4 shrink-0" />
                 Shared by a teammate. Read-only: you can view data, runs and results, and clone the case from the case list to work on your own copy.
               </div>
             )}
 
             <Tabs defaultValue="data" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:inline-grid">
                 <TabsTrigger value="data">Data Management</TabsTrigger>
                 <TabsTrigger value="runs">Run History</TabsTrigger>
               </TabsList>
               <TabsContent value="data">
-                <div className="grid md:grid-cols-3 gap-6 mt-6">
-                  <Card className="bg-slate-800/50 border-slate-700">
+                <div className="grid gap-6 mt-6 md:grid-cols-2 xl:grid-cols-3">
+                  <Card>
                     <CardHeader>
                       <CardTitle>Production Volumes</CardTitle>
                       <CardDescription>Upload production forecast files.</CardDescription>
@@ -428,7 +429,7 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                       )}
                     </CardContent>
                   </Card>
-                  <Card className="bg-slate-800/50 border-slate-700">
+                  <Card>
                     <CardHeader>
                       <CardTitle>CAPEX</CardTitle>
                       <CardDescription>Upload capital expenditure files.</CardDescription>
@@ -439,7 +440,7 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                       {isOwner && <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="capex" existingCount={capex.length} />}
                     </CardContent>
                   </Card>
-                  <Card className="bg-slate-800/50 border-slate-700">
+                  <Card>
                     <CardHeader>
                       <CardTitle>OPEX</CardTitle>
                       <CardDescription>Upload operational expenditure files.</CardDescription>
@@ -453,7 +454,7 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                 </div>
               </TabsContent>
               <TabsContent value="runs">
-                <Card className="bg-slate-800/50 border-slate-700 mt-6">
+                <Card className="mt-6">
                   <CardHeader>
                     <CardTitle>Run History</CardTitle>
                   </CardHeader>
@@ -463,53 +464,53 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                         {runs.map(run => {
                           const status = run.status || 'complete';
                           return (
-                            <li key={run.id} className="p-3 bg-slate-800 rounded-md flex justify-between items-center gap-4">
+                            <li key={run.id} className="p-3 rounded-md border border-pl-border bg-pl-surface flex flex-wrap justify-between items-center gap-4 hover:bg-pl-sunken transition-colors">
                               <div className="min-w-0">
-                                <p className="font-semibold text-cyan-400 flex items-center gap-2">
+                                <p className="font-semibold text-pl-text flex flex-wrap items-center gap-2">
                                   {run.run_name}
                                   {status === 'failed' && (
-                                    <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-red-900/50 text-red-400 border border-red-800">Failed</span>
+                                    <span className={epeBadge('danger')}>Failed</span>
                                   )}
                                   {status === 'running' && (
-                                    <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-900/50 text-amber-400 border border-amber-800">Running</span>
+                                    <span className={epeBadge('warning')}>Running</span>
                                   )}
                                   {run.locked && (
-                                    <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 border border-slate-600 inline-flex items-center gap-1"><Lock className="w-2.5 h-2.5" />Locked</span>
+                                    <span className={`${epeBadge('neutral')} inline-flex items-center gap-1`}><Lock className="w-3 h-3" aria-hidden="true" />Locked</span>
                                   )}
                                   {run.approved_at && (
-                                    <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-900/50 text-emerald-300 border border-emerald-800 inline-flex items-center gap-1" title={`Approved ${new Date(run.approved_at).toLocaleString()}`}><BadgeCheck className="w-2.5 h-2.5" />Approved</span>
+                                    <span className={`${epeBadge('success')} inline-flex items-center gap-1`} title={`Approved ${new Date(run.approved_at).toLocaleString()}`}><BadgeCheck className="w-3 h-3" aria-hidden="true" />Approved</span>
                                   )}
                                 </p>
-                                <p className="text-xs text-slate-400">Run on: {new Date(run.created_at).toLocaleString()}</p>
+                                <p className="text-xs text-pl-muted">Run on: {new Date(run.created_at).toLocaleString()}</p>
                                 {status === 'failed' && run.error_message && (
-                                  <p className="text-xs text-red-400/80 mt-1 truncate" title={run.error_message}>{run.error_message}</p>
+                                  <p className="text-xs text-pl-danger-text mt-1 truncate" title={run.error_message}>{run.error_message}</p>
                                 )}
                                 {/* EC7: a PIA configuration the corrected engine refuses */}
                                 {status === 'failed' && isOwner && run.run_config_id && piaRefusal(run.error_message) && (
                                   <p className="text-xs mt-1 flex flex-wrap gap-x-3">
-                                    <span className="text-amber-300">{piaRefusal(run.error_message).title}.</span>
-                                    <Link className="text-cyan-300 underline" to={`/dashboard/apps/economics/epe/cases/${caseId}/run?fromConfig=${run.run_config_id}`}>Fix the inputs</Link>
-                                    <Link className="text-cyan-300 underline" to={`/dashboard/apps/economics/epe/cases/${caseId}/run?fromConfig=${run.run_config_id}&legacy=1`}>Run as legacy</Link>
+                                    <span className="text-pl-warning-text">{piaRefusal(run.error_message).title}.</span>
+                                    <Link className="text-pl-primary-text underline" to={`/dashboard/apps/economics/epe/cases/${caseId}/run?fromConfig=${run.run_config_id}`}>Fix the inputs</Link>
+                                    <Link className="text-pl-primary-text underline" to={`/dashboard/apps/economics/epe/cases/${caseId}/run?fromConfig=${run.run_config_id}&legacy=1`}>Run as legacy</Link>
                                   </p>
                                 )}
                                 {/* Wave D: headline KPIs make the list a decision table */}
                                 {status === 'complete' && runKpis[run.id] && (
-                                  <p className="text-xs text-slate-300 mt-1 flex flex-wrap gap-x-4 gap-y-0.5">
-                                    <span>NPV <span className="font-mono text-lime-300">{fmtCompactUsd(runKpis[run.id].npv) ?? 'n/a'}</span></span>
-                                    <span>IRR <span className="font-mono text-lime-300">{typeof runKpis[run.id].irr === 'number' ? `${runKpis[run.id].irr.toFixed(1)}%` : 'n/a'}</span></span>
-                                    <span>Payback <span className="font-mono text-lime-300">{typeof runKpis[run.id].payback_years === 'number' ? `${runKpis[run.id].payback_years.toFixed(2)} yrs` : (runKpis[run.id].payback ?? 'n/a')}</span></span>
+                                  <p className="text-xs text-pl-muted mt-1 flex flex-wrap gap-x-4 gap-y-0.5">
+                                    <span>NPV <span className={`${epeNum} font-medium text-pl-text`}>{fmtCompactUsd(runKpis[run.id].npv) ?? 'n/a'}</span></span>
+                                    <span>IRR <span className={`${epeNum} font-medium text-pl-text`}>{typeof runKpis[run.id].irr === 'number' ? `${runKpis[run.id].irr.toFixed(1)}%` : 'n/a'}</span></span>
+                                    <span>Payback <span className={`${epeNum} font-medium text-pl-text`}>{typeof runKpis[run.id].payback_years === 'number' ? `${runKpis[run.id].payback_years.toFixed(2)} yrs` : (runKpis[run.id].payback ?? 'n/a')}</span></span>
                                     {runKpis[run.id].fiscal_regime && (
-                                      <span>Regime <span className="font-mono text-slate-400">{runKpis[run.id].fiscal_regime}</span></span>
+                                      <span>Regime <span className={`${epeNum} text-pl-text`}>{runKpis[run.id].fiscal_regime}</span></span>
                                     )}
                                     {runKpis[run.id].engine_version && (
-                                      <span className="text-slate-500" title="Engine version that produced this result">v{runKpis[run.id].engine_version}</span>
+                                      <span className="text-pl-muted" title="Engine version that produced this result">v{runKpis[run.id].engine_version}</span>
                                     )}
                                   </p>
                                 )}
                               </div>
                               {status === 'failed' ? (
                                 isOwner ? (
-                                  <Button variant="ghost" size="icon" className="hover:text-red-400 shrink-0" title="Delete failed run"
+                                  <Button variant="ghost" size="icon" className="hover:text-pl-danger-text shrink-0" title="Delete failed run"
                                     onClick={() => handleDeleteRun(run.id, run.run_name)}>
                                     <Trash2 className="w-4 h-4" />
                                   </Button>
@@ -517,7 +518,7 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                               ) : (
                                 <div className="flex items-center gap-1 shrink-0">
                                   <Link to={`/dashboard/apps/economics/epe/runs/${run.id}`}>
-                                    <Button variant="secondary">View Results</Button>
+                                    <Button variant="outline">View Results</Button>
                                   </Link>
                                   {isOwner && status === 'complete' && (
                                     <>
@@ -527,7 +528,7 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                                         {run.locked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
                                       </Button>
                                       <Button variant="ghost" size="icon"
-                                        className={run.approved_at ? 'text-emerald-400' : ''}
+                                        className={run.approved_at ? 'text-pl-success-text' : ''}
                                         title={run.approved_at ? 'Remove approval' : 'Approve this run'}
                                         onClick={() => handleToggleApprove(run)}>
                                         <BadgeCheck className="w-4 h-4" />
@@ -535,7 +536,7 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                                     </>
                                   )}
                                   {isOwner && (
-                                    <Button variant="ghost" size="icon" className="hover:text-red-400"
+                                    <Button variant="ghost" size="icon" className="hover:text-pl-danger-text"
                                       title={run.locked ? 'Unlock the run before deleting it' : 'Delete run'}
                                       disabled={run.locked}
                                       onClick={() => handleDeleteRun(run.id, run.run_name)}>
@@ -550,9 +551,9 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                       </ul>
                     ) : (
                       <div className="text-center py-12">
-                        <BarChart className="mx-auto h-12 w-12 text-slate-500" />
-                        <h3 className="mt-2 text-lg font-medium text-white">No runs yet</h3>
-                        <p className="mt-1 text-sm text-slate-400">Create a new run to see results here.</p>
+                        <BarChart className="mx-auto h-12 w-12 text-pl-muted" />
+                        <h3 className="mt-2 text-lg font-medium text-pl-text">No runs yet</h3>
+                        <p className="mt-1 text-sm text-pl-muted">Create a new run to see results here.</p>
                         <Link to={`/dashboard/apps/economics/epe/cases/${caseId}/run`} className="mt-4 inline-block">
                           <Button><Plus className="mr-2 h-4 w-4" />Start a New Run</Button>
                         </Link>
@@ -566,7 +567,7 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
 
           {/* Wave E (audit 4.13): Forecast Scenario Hub import */}
           <Dialog open={fshOpen} onOpenChange={setFshOpen}>
-            <DialogContent className="sm:max-w-[480px] bg-gray-900 text-white border-slate-700">
+            <DialogContent className="sm:max-w-[480px]">
               <DialogHeader>
                 <DialogTitle>Import from Forecast Scenario Hub</DialogTitle>
                 <DialogDescription>
@@ -575,11 +576,11 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
               </DialogHeader>
               <div className="space-y-4 py-2">
                 <div>
-                  <Label className="text-sm text-white">Scenario set</Label>
+                  <Label className="text-sm">Scenario set</Label>
                   <select
                     value={fshProjectId}
                     onChange={(e) => { setFshProjectId(e.target.value); setFshCaseIdx(''); }}
-                    className="w-full mt-1 bg-gray-800 border border-slate-600 rounded px-2 py-2 text-sm text-white"
+                    className={`${epeSelect} mt-1`}
                   >
                     <option value="">Choose a saved scenario set</option>
                     {fshProjects.map((pr) => (
@@ -589,16 +590,16 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                     ))}
                   </select>
                   {fshProjects.length === 0 && (
-                    <p className="text-xs text-slate-500 mt-1">No saved scenario sets found. Save one in Forecast Scenario Hub first.</p>
+                    <p className="text-xs text-pl-muted mt-1">No saved scenario sets found. Save one in Forecast Scenario Hub first.</p>
                   )}
                 </div>
                 {fshProjectId && (
                   <div>
-                    <Label className="text-sm text-white">Case</Label>
+                    <Label className="text-sm">Case</Label>
                     <select
                       value={fshCaseIdx}
                       onChange={(e) => setFshCaseIdx(e.target.value)}
-                      className="w-full mt-1 bg-gray-800 border border-slate-600 rounded px-2 py-2 text-sm text-white"
+                      className={`${epeSelect} mt-1`}
                     >
                       <option value="">Choose a case</option>
                       {(fshProjects.find((pr) => pr.id === fshProjectId)?.inputs_data?.cases || []).map((c, i) => (
@@ -610,21 +611,21 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                   </div>
                 )}
                 <div>
-                  <Label className="text-sm text-white">First production year</Label>
+                  <Label className="text-sm">First production year</Label>
                   <Input
                     type="number" step="1"
                     value={fshStartYear}
                     onChange={(e) => setFshStartYear(e.target.value)}
-                    className="mt-1 bg-gray-800 border-slate-600 text-white"
+                    className="mt-1"
                   />
                 </div>
                 {productionVolumes.length > 0 && (
-                  <label className="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
+                  <label className="flex items-start gap-2 text-xs text-pl-text cursor-pointer">
                     <input
                       type="checkbox"
                       checked={fshReplace}
                       onChange={(e) => setFshReplace(e.target.checked)}
-                      className="mt-0.5 accent-cyan-500"
+                      className={`mt-0.5 ${epeNativeCheck}`}
                     />
                     <span>
                       Replace the {productionVolumes.length} existing production file{productionVolumes.length > 1 ? 's' : ''} (recommended). The engine sums every file in the slot.

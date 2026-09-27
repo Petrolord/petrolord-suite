@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
-import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { PlayCircle, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
+import { PlayCircle, Loader2, AlertCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +12,11 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { payloadEscalators, followsInflation, simpleEscalators } from '@/pages/apps/epe/epeEscalation';
 import { labelForConfigKey } from '@/pages/apps/epe/epeConfigLabels';
+import { AppHeader } from '@/components/ui/app-shell';
+import {
+  epePage, epePanel, epeSelect, epeCellInput, epeCheckbox, epeNativeCheck, epePill,
+  epeCallout, epeBadge, epeTh, epeThNum, epeNum,
+} from './epeUi';
 import {
   LEGACY_TOGGLE_LABEL, PIA_INPUT_HELP, piaPreflight, piaRefusal, piaCompliancePayload,
   isLegacyPia, mayHaveNtaYear,
@@ -643,8 +648,8 @@ const EpeRunConsole = () => {
 
   const NumField = ({ id, label, suffix, value, onChange, step = 'any' }) => (
     <div>
-      <Label htmlFor={id} className="text-white text-sm">
-        {label} {suffix && <span className="text-slate-400">({suffix})</span>}
+      <Label htmlFor={id} className="text-pl-text text-sm">
+        {label} {suffix && <span className="text-pl-muted">({suffix})</span>}
       </Label>
       <Input
         id={id}
@@ -652,10 +657,10 @@ const EpeRunConsole = () => {
         step={step}
         value={value === '' ? '' : value}
         onChange={(e) => onChange(e.target.value)}
-        className={`bg-gray-800 border-slate-600 text-white ${validationErrors[id] ? 'border-red-500' : ''}`}
+        className={validationErrors[id] ? 'border-pl-danger' : undefined}
       />
       {validationErrors[id] && (
-        <p className="text-red-400 text-xs mt-1 flex items-center gap-1">
+        <p className="text-pl-danger-text text-xs mt-1 flex items-center gap-1">
           <AlertCircle className="w-3 h-3" />
           {validationErrors[id]}
         </p>
@@ -669,40 +674,25 @@ const EpeRunConsole = () => {
         <title>{`Run Console - Petroleum Economics Studio`}</title>
       </Helmet>
 
-      <div className="p-8 max-w-4xl mx-auto">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="mb-8"
-        >
-          <Link to={`/dashboard/apps/economics/epe/cases/${caseId}`} className="mb-4 inline-block">
-            <Button variant="outline">
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Case Details
-            </Button>
-          </Link>
-          <div className="flex items-center space-x-4">
-            <div className="bg-gradient-to-r from-orange-500 to-red-500 p-3 rounded-xl">
-              <PlayCircle className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-4xl font-bold text-white">Run Console</h1>
-              <p className="text-lime-200 text-lg">Configure economic parameters and run the analysis</p>
-            </div>
-          </div>
-        </motion.div>
-
+      <AppHeader
+        eyebrow="Petroleum Economics Studio"
+        title="Run Console"
+        subtitle="Configure economic parameters and run the analysis"
+        icon={PlayCircle}
+        backTo={`/dashboard/apps/economics/epe/cases/${caseId}`}
+        backLabel="Back to Case Details"
+      />
+      <div className={`${epePage} max-w-4xl`}>
         {/* Form card */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1 }}
-          className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6 space-y-8"
+          className={`${epePanel} space-y-8`}
         >
           {/* Wave E: shared-case read-only banner */}
           {isSharedReadOnly && (
-            <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded text-amber-200 text-sm">
+            <div className={`flex items-start gap-2 ${epeCallout('warning')}`}>
               <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
               <span>
                 This case is shared with you read-only. Clone it from the case list to run your own economics.
@@ -712,34 +702,34 @@ const EpeRunConsole = () => {
 
           {/* Run Name */}
           <div>
-            <Label htmlFor="runName" className="text-white text-sm">Run Name</Label>
+            <Label htmlFor="runName" className="text-pl-text text-sm">Run Name</Label>
             <Input
               id="runName"
               value={runName}
               onChange={(e) => setRunName(e.target.value)}
-              className={`bg-gray-800 border-slate-600 text-white ${validationErrors.runName ? 'border-red-500' : ''}`}
+              className={validationErrors.runName ? 'border-pl-danger' : undefined}
             />
             {validationErrors.runName && (
-              <p className="text-red-400 text-xs mt-1">{validationErrors.runName}</p>
+              <p className="text-pl-danger-text text-xs mt-1">{validationErrors.runName}</p>
             )}
           </div>
 
           {/* Wave F (3.6): reserves scenario the run should price */}
           {scenarioLabels.length > 0 && (
             <div>
-              <Label htmlFor="production_scenario" className="text-white text-sm">Reserves scenario</Label>
+              <Label htmlFor="production_scenario" className="text-pl-text text-sm">Reserves scenario</Label>
               <select
                 id="production_scenario"
                 value={config.production_scenario || ''}
                 onChange={(e) => setConfig((p) => ({ ...p, production_scenario: e.target.value }))}
-                className="w-full bg-gray-800 border border-slate-600 rounded px-2 py-2 text-sm text-white"
+                className={epeSelect}
               >
                 <option value="">Base (untagged files)</option>
                 {scenarioLabels.map((t) => (
                   <option key={t} value={t}>{t}</option>
                 ))}
               </select>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-pl-muted mt-1">
                 The run uses only the production files tagged with the chosen scenario.
               </p>
             </div>
@@ -749,7 +739,7 @@ const EpeRunConsole = () => {
               every prior run's config is now one click away) */}
           {savedConfigs.length > 0 && (
             <div>
-              <Label htmlFor="loadScenario" className="text-white text-sm">Start from saved scenario</Label>
+              <Label htmlFor="loadScenario" className="text-pl-text text-sm">Start from saved scenario</Label>
               <select
                 id="loadScenario"
                 value={loadedConfigId}
@@ -764,7 +754,7 @@ const EpeRunConsole = () => {
                   const row = savedConfigs.find((r) => r.id === id);
                   if (row) applyConfigRow(row);
                 }}
-                className="w-full bg-gray-800 border border-slate-600 rounded px-2 py-2 text-sm text-white"
+                className={epeSelect}
               >
                 <option value="">Defaults (start fresh)</option>
                 {savedConfigs.map((r) => (
@@ -773,7 +763,7 @@ const EpeRunConsole = () => {
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-pl-muted mt-1">
                 Loads that run's full configuration into the form. Edit anything, then run.
               </p>
             </div>
@@ -781,9 +771,9 @@ const EpeRunConsole = () => {
 
           {/* Wave E (audit 4.3): corporate assumption library */}
           <section>
-            <h2 className="text-white text-lg font-semibold mb-3 border-b border-white/20 pb-1">Assumption library</h2>
+            <h2 className="text-lg font-semibold text-pl-text mb-3 border-b border-pl-border pb-1">Assumption library</h2>
             {assumptionSets.length === 0 ? (
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-pl-muted">
                 No assumption sets yet. Save your corporate price deck once and reuse it on every case.
               </p>
             ) : (
@@ -792,7 +782,7 @@ const EpeRunConsole = () => {
                   <select
                     value={selectedSetId}
                     onChange={(e) => applyAssumptionSet(e.target.value)}
-                    className="flex-1 bg-gray-800 border border-slate-600 rounded px-2 py-2 text-sm text-white"
+                    className={`${epeSelect} flex-1`}
                   >
                     <option value="">Apply an assumption set...</option>
                     {assumptionSets.map((s) => (
@@ -806,12 +796,12 @@ const EpeRunConsole = () => {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {assumptionSets.filter((s) => user && s.user_id === user.id).map((s) => (
-                    <span key={s.id} className="inline-flex items-center gap-1 text-xs text-slate-300 bg-slate-800 border border-slate-700 rounded px-2 py-0.5">
+                    <span key={s.id} className="inline-flex items-center gap-1 text-xs text-pl-text bg-pl-sunken border border-pl-border rounded px-2 py-0.5">
                       {s.name}
                       <button
                         type="button"
                         onClick={() => deleteAssumptionSet(s)}
-                        className="text-slate-500 hover:text-red-400"
+                        className="text-pl-muted hover:text-pl-danger-text"
                         title={`Delete "${s.name}"`}
                       >
                         &times;
@@ -832,15 +822,15 @@ const EpeRunConsole = () => {
                     value={setName}
                     onChange={(e) => setSetName(e.target.value)}
                     placeholder="e.g. Corporate deck Q3 2026"
-                    className="bg-gray-800 border-slate-600 text-white w-64"
+                    className="w-full sm:w-64"
                   />
-                  <label className={`text-sm flex items-center gap-2 ${activeOrgId ? 'text-white cursor-pointer' : 'text-slate-500'}`}>
+                  <label className={`text-sm flex items-center gap-2 ${activeOrgId ? 'text-pl-text cursor-pointer' : 'text-pl-muted'}`}>
                     <input
                       type="checkbox"
                       checked={shareSetWithOrg}
                       disabled={!activeOrgId}
                       onChange={(e) => setShareSetWithOrg(e.target.checked)}
-                      className="accent-lime-400"
+                      className={epeNativeCheck}
                     />
                     Share with my organization
                   </label>
@@ -852,7 +842,7 @@ const EpeRunConsole = () => {
                   </Button>
                 </div>
               )}
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-pl-muted mt-1">
                 An assumption set pins pricing and economics (prices, differentials, deck, escalation, discounting). Regime terms and case dates stay with the case.
               </p>
             </div>
@@ -860,7 +850,7 @@ const EpeRunConsole = () => {
 
           {/* Pricing */}
           <section>
-            <h2 className="text-white text-lg font-semibold mb-3 border-b border-white/20 pb-1">Pricing</h2>
+            <h2 className="text-lg font-semibold text-pl-text mb-3 border-b border-pl-border pb-1">Pricing</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <NumField
                 id="oil_price_usd_bbl"
@@ -908,7 +898,7 @@ const EpeRunConsole = () => {
                 onChange={(v) => handleNumberChange('condensate_price_differential_usd_bbl', v)}
               />
             </div>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-pl-muted mt-1">
               Differentials adjust the realized price against the marker (negative for a discount). They apply to deck prices too.
             </p>
             {/* v3.9 Wave F: NGN mirror rate */}
@@ -921,34 +911,34 @@ const EpeRunConsole = () => {
                 onChange={(v) => handleNumberChange('fx_ngn_per_usd', v)}
               />
             </div>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-pl-muted mt-1">
               Flat rate. When set, the results carry NGN figures as mirrors of the USD economics; leave blank for USD only.
             </p>
             {/* v3.6 Wave B: yearly price deck */}
             <div className="mt-4">
               <div className="flex items-center justify-between">
-                <Label className="text-white text-sm">
-                  Yearly price deck <span className="text-slate-400">(optional)</span>
+                <Label className="text-pl-text text-sm">
+                  Yearly price deck <span className="text-pl-muted">(optional)</span>
                 </Label>
                 <Button type="button" variant="outline" size="sm" onClick={addDeckRow}>
                   Add year
                 </Button>
               </div>
               {(config.price_deck || []).length > 0 && (
-                <div className="mt-2 overflow-x-auto rounded border border-white/10">
-                  <table className="w-full text-xs">
-                    <thead className="bg-slate-800 text-slate-300">
+                <div className="mt-2 overflow-x-auto rounded border border-pl-border">
+                  <table className="w-full border-collapse text-xs">
+                    <thead>
                       <tr>
-                        <th className="px-2 py-1 text-left">Year</th>
-                        <th className="px-2 py-1 text-left">Oil USD/bbl</th>
-                        <th className="px-2 py-1 text-left">Gas USD/mscf</th>
-                        <th className="px-2 py-1 text-left">Cond. USD/bbl</th>
-                        <th className="px-2 py-1" />
+                        <th className={epeThNum}>Year</th>
+                        <th className={epeThNum}>Oil USD/bbl</th>
+                        <th className={epeThNum}>Gas USD/mscf</th>
+                        <th className={epeThNum}>Cond. USD/bbl</th>
+                        <th className={epeTh}><span className="sr-only">Remove</span></th>
                       </tr>
                     </thead>
                     <tbody>
                       {(config.price_deck || []).map((row, i) => (
-                        <tr key={i} className="border-t border-white/5">
+                        <tr key={i} className="border-t border-pl-border">
                           {['year', 'oil', 'gas', 'condensate'].map((key) => (
                             <td key={key} className="px-1 py-1">
                               <Input
@@ -956,12 +946,12 @@ const EpeRunConsole = () => {
                                 step={key === 'year' ? '1' : 'any'}
                                 value={row[key] ?? ''}
                                 onChange={(e) => setDeckCell(i, key, e.target.value)}
-                                className="bg-gray-800 border-slate-600 text-white h-7 text-xs"
+                                className={`${epeCellInput} h-7 text-right ${epeNum}`}
                               />
                             </td>
                           ))}
                           <td className="px-1 py-1 text-center">
-                            <button type="button" onClick={() => delDeckRow(i)} className="text-slate-400 hover:text-red-400 text-sm" title="Remove year">
+                            <button type="button" onClick={() => delDeckRow(i)} className="text-pl-muted hover:text-pl-danger-text text-sm" title="Remove year">
                               &times;
                             </button>
                           </td>
@@ -971,7 +961,7 @@ const EpeRunConsole = () => {
                   </table>
                 </div>
               )}
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-pl-muted mt-1">
                 A deck year overrides the flat price for the streams it fills. Prices hold flat between listed years; beyond the last year the deck escalates at the stream escalator. Blank cells keep the flat price for that stream.
               </p>
             </div>
@@ -979,7 +969,7 @@ const EpeRunConsole = () => {
 
           {/* Discounting */}
           <section>
-            <h2 className="text-white text-lg font-semibold mb-3 border-b border-white/20 pb-1">Discounting & Inflation</h2>
+            <h2 className="text-lg font-semibold text-pl-text mb-3 border-b border-pl-border pb-1">Discounting & Inflation</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <NumField
                 id="discount_rate_pct"
@@ -1004,12 +994,12 @@ const EpeRunConsole = () => {
               />
               {/* v3.6 Wave B */}
               <div>
-                <Label htmlFor="discounting_convention" className="text-white text-sm">Discounting convention</Label>
+                <Label htmlFor="discounting_convention" className="text-pl-text text-sm">Discounting convention</Label>
                 <select
                   id="discounting_convention"
                   value={config.discounting_convention || 'end_year'}
                   onChange={(e) => setConfig((p) => ({ ...p, discounting_convention: e.target.value }))}
-                  className="w-full bg-gray-800 border border-slate-600 rounded px-2 py-2 text-sm text-white"
+                  className={epeSelect}
                 >
                   <option value="end_year">End of year</option>
                   <option value="mid_year">Mid-year</option>
@@ -1023,12 +1013,12 @@ const EpeRunConsole = () => {
                 onChange={(v) => handleNumberChange('valuation_year', v)}
                 step="1"
               />
-              <label className="flex items-end gap-2 pb-2 text-sm text-white cursor-pointer" title="Years before the valuation year stay in the model (allowances and pools accrue) but are excluded from NPV, IRR and payback.">
+              <label className="flex items-end gap-2 pb-2 text-sm text-pl-text cursor-pointer" title="Years before the valuation year stay in the model (allowances and pools accrue) but are excluded from NPV, IRR and payback.">
                 <input
                   type="checkbox"
                   checked={config.treat_prior_as_sunk === true}
                   onChange={(e) => setConfig((p) => ({ ...p, treat_prior_as_sunk: e.target.checked }))}
-                  className="accent-lime-400 mb-1"
+                  className={`${epeNativeCheck} mb-1`}
                 />
                 Treat years before valuation as sunk
               </label>
@@ -1037,14 +1027,14 @@ const EpeRunConsole = () => {
                 capex recovery period) */}
             {config.fiscal_regime !== 'PIA' && (
               <div className="mt-4">
-                <Label className="text-white text-sm mb-1 block">Depreciation (JV and PSC)</Label>
+                <Label className="text-pl-text text-sm mb-1 block">Depreciation (JV and PSC)</Label>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <select
                       id="depreciation_method"
                       value={config.depreciation_method || 'straight_line'}
                       onChange={(e) => setConfig((p) => ({ ...p, depreciation_method: e.target.value }))}
-                      className="w-full bg-gray-800 border border-slate-600 rounded px-2 py-2 text-sm text-white"
+                      className={epeSelect}
                     >
                       <option value="straight_line">Straight line</option>
                       <option value="nigeria_ppt">Nigeria PPT schedule (20/20/20/20/19)</option>
@@ -1062,7 +1052,7 @@ const EpeRunConsole = () => {
                   )}
                 </div>
                 {config.depreciation_method === 'nigeria_ppt' && (
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-xs text-pl-muted mt-1">
                     Statutory PPT-era annual allowances. The 1 percent retention is held until disposal and is not claimed in the model.
                   </p>
                 )}
@@ -1072,19 +1062,19 @@ const EpeRunConsole = () => {
 
           {/* Field Life (v3.4) */}
           <section>
-            <h2 className="text-white text-lg font-semibold mb-3 border-b border-white/20 pb-1">Field Life</h2>
+            <h2 className="text-lg font-semibold text-pl-text mb-3 border-b border-pl-border pb-1">Field Life</h2>
             <div className="flex items-center gap-2 mb-3">
               <Checkbox
                 id="apply_economic_limit"
                 checked={config.apply_economic_limit === true}
                 onCheckedChange={(v) => setConfig((p) => ({ ...p, apply_economic_limit: v === true }))}
-                className="border-slate-400"
+                className={epeCheckbox}
               />
-              <Label htmlFor="apply_economic_limit" className="text-white text-sm cursor-pointer">
+              <Label htmlFor="apply_economic_limit" className="text-pl-text text-sm cursor-pointer">
                 Apply economic limit test
               </Label>
             </div>
-            <p className="text-xs text-slate-400 mb-4 -mt-2">
+            <p className="text-xs text-pl-muted mb-4 -mt-2">
               Trims trailing years whose revenue no longer covers operating costs, so taxes and
               royalties never accrue on an uneconomic tail. The last economic year is reported in the KPIs.
             </p>
@@ -1107,12 +1097,12 @@ const EpeRunConsole = () => {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               <div>
-                <Label htmlFor="abandonment_funding_mode" className="text-white text-sm">Abandonment funding</Label>
+                <Label htmlFor="abandonment_funding_mode" className="text-pl-text text-sm">Abandonment funding</Label>
                 <select
                   id="abandonment_funding_mode"
                   value={config.abandonment_funding_mode || 'lump_sum'}
                   onChange={(e) => setConfig((p) => ({ ...p, abandonment_funding_mode: e.target.value }))}
-                  className="w-full bg-gray-800 border border-slate-600 rounded px-2 py-2 text-sm text-white"
+                  className={epeSelect}
                 >
                   <option value="lump_sum">Post-tax lump sum</option>
                   <option value="sinking_fund">Sinking fund</option>
@@ -1129,7 +1119,7 @@ const EpeRunConsole = () => {
                 />
               )}
             </div>
-            <p className="text-xs text-slate-500 mt-2">
+            <p className="text-xs text-pl-muted mt-2">
               {config.abandonment_funding_mode === 'sinking_fund'
                 ? 'Equal annual contributions from the start year through the abandonment year. Contributions are tax-deductible and the fund pays the final spend, so there is no second cash hit at end of life.'
                 : 'Applied as a post-tax cash outflow in that year. It is not tax-deducted, not depreciated, and excluded from cost recovery.'}
@@ -1138,8 +1128,8 @@ const EpeRunConsole = () => {
 
           {/* Escalation & PV Basis */}
           <section>
-            <div className="flex items-center justify-between border-b border-white/20 pb-1 mb-3">
-              <h2 className="text-white text-lg font-semibold">Escalation & PV Basis</h2>
+            <div className="flex items-center justify-between border-b border-pl-border pb-1 mb-3">
+              <h2 className="text-pl-text text-lg font-semibold">Escalation & PV Basis</h2>
               <button
                 type="button"
                 onClick={() => {
@@ -1150,15 +1140,15 @@ const EpeRunConsole = () => {
                   }
                   setShowAdvancedEscalation((v) => !v);
                 }}
-                className="text-xs text-cyan-300 hover:text-cyan-200 underline"
+                className="rounded text-xs text-pl-primary-text underline underline-offset-2 hover:text-pl-primary-hover"
               >
                 {showAdvancedEscalation ? 'Use simple inflation' : 'Customize per stream'}
               </button>
             </div>
 
             {!showAdvancedEscalation && (
-              <p className="text-xs text-slate-400 mb-3">
-                Using <span className="font-mono text-cyan-300">{config.inflation_rate_pct}%</span> as
+              <p className="text-xs text-pl-muted mb-3">
+                Using <span className="font-pl-mono tabular-nums text-pl-text">{config.inflation_rate_pct}%</span> as
                 inflation/escalation for oil, gas, condensate, and opex. Capex assumed nominal
                 (no escalation). NPV reported in real (base-year) dollars.
               </p>
@@ -1166,7 +1156,7 @@ const EpeRunConsole = () => {
 
             {showAdvancedEscalation && (
               <>
-                <p className="text-xs text-slate-400 mb-3">
+                <p className="text-xs text-pl-muted mb-3">
                   Override each stream's annual escalation rate. Cash flows are computed in
                   nominal terms then deflated to the chosen basis for NPV.
                 </p>
@@ -1211,15 +1201,14 @@ const EpeRunConsole = () => {
             )}
 
             <div>
-              <Label className="text-white text-sm mb-1 block">Present Value basis</Label>
-              <div className="flex gap-2">
+              <Label className="text-pl-text text-sm mb-1 block">Present Value basis</Label>
+              <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
                   size="sm"
                   onClick={() => setConfig((p) => ({ ...p, present_value_basis: 'real' }))}
-                  className={config.present_value_basis === 'real'
-                    ? 'bg-gradient-to-r from-green-500 to-cyan-500 text-white'
-                    : 'bg-gray-700 text-slate-300 hover:bg-gray-600'}
+                  aria-pressed={config.present_value_basis === 'real'}
+                  className={`${epePill(config.present_value_basis === 'real')}`}
                 >
                   Real (base-year)
                 </Button>
@@ -1227,14 +1216,13 @@ const EpeRunConsole = () => {
                   type="button"
                   size="sm"
                   onClick={() => setConfig((p) => ({ ...p, present_value_basis: 'nominal' }))}
-                  className={config.present_value_basis === 'nominal'
-                    ? 'bg-gradient-to-r from-green-500 to-cyan-500 text-white'
-                    : 'bg-gray-700 text-slate-300 hover:bg-gray-600'}
+                  aria-pressed={config.present_value_basis === 'nominal'}
+                  className={`${epePill(config.present_value_basis === 'nominal')}`}
                 >
                   Nominal
                 </Button>
               </div>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-pl-muted mt-1">
                 {config.present_value_basis === 'real'
                   ? 'NPV in base-year dollars (deflated using inflation rate).'
                   : 'NPV in then-current dollars (no deflation applied).'}
@@ -1244,32 +1232,29 @@ const EpeRunConsole = () => {
 
           {/* Fiscal Regime */}
           <section>
-            <h2 className="text-white text-lg font-semibold mb-3 border-b border-white/20 pb-1">Fiscal Regime</h2>
-            <div className="flex gap-3 mb-4">
+            <h2 className="text-lg font-semibold text-pl-text mb-3 border-b border-pl-border pb-1">Fiscal Regime</h2>
+            <div className="flex flex-wrap gap-3 mb-4">
               <Button
                 type="button"
                 onClick={() => setRegime('JV')}
-                className={config.fiscal_regime === 'JV'
-                  ? 'bg-gradient-to-r from-green-500 to-cyan-500 text-white'
-                  : 'bg-gray-700 text-slate-300 hover:bg-gray-600'}
+                aria-pressed={config.fiscal_regime === 'JV'}
+                className={`${epePill(config.fiscal_regime === 'JV')}`}
               >
                 Joint Venture (JV)
               </Button>
               <Button
                 type="button"
                 onClick={() => setRegime('PSC')}
-                className={config.fiscal_regime === 'PSC'
-                  ? 'bg-gradient-to-r from-green-500 to-cyan-500 text-white'
-                  : 'bg-gray-700 text-slate-300 hover:bg-gray-600'}
+                aria-pressed={config.fiscal_regime === 'PSC'}
+                className={`${epePill(config.fiscal_regime === 'PSC')}`}
               >
                 Production Sharing (PSC)
               </Button>
               <Button
                 type="button"
                 onClick={() => setRegime('PIA')}
-                className={config.fiscal_regime === 'PIA'
-                  ? 'bg-gradient-to-r from-green-500 to-cyan-500 text-white'
-                  : 'bg-gray-700 text-slate-300 hover:bg-gray-600'}
+                aria-pressed={config.fiscal_regime === 'PIA'}
+                className={`${epePill(config.fiscal_regime === 'PIA')}`}
               >
                 PIA 2021 (Nigeria)
               </Button>
@@ -1345,12 +1330,12 @@ const EpeRunConsole = () => {
                 />
                 {/* v3.9 Wave F: profit split mode */}
                 <div>
-                  <Label htmlFor="psc_profit_split_mode" className="text-white text-sm">Profit split</Label>
+                  <Label htmlFor="psc_profit_split_mode" className="text-pl-text text-sm">Profit split</Label>
                   <select
                     id="psc_profit_split_mode"
                     value={config.psc_profit_split_mode || 'flat'}
                     onChange={(e) => setConfig((p) => ({ ...p, psc_profit_split_mode: e.target.value }))}
-                    className="w-full bg-gray-800 border border-slate-600 rounded px-2 py-2 text-sm text-white"
+                    className={epeSelect}
                   >
                     <option value="flat">Flat share</option>
                     <option value="tranches">Production tranches</option>
@@ -1359,24 +1344,24 @@ const EpeRunConsole = () => {
                 {config.psc_profit_split_mode === 'tranches' && (
                   <div className="md:col-span-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-white text-sm">Profit-oil tranches</Label>
+                      <Label className="text-pl-text text-sm">Profit-oil tranches</Label>
                       <Button type="button" variant="outline" size="sm" onClick={addTrancheRow}>
                         Add tranche
                       </Button>
                     </div>
                     {(config.psc_profit_tranches || []).length > 0 && (
-                      <div className="mt-2 overflow-x-auto rounded border border-white/10">
-                        <table className="w-full text-xs">
-                          <thead className="bg-slate-800 text-slate-300">
+                      <div className="mt-2 overflow-x-auto rounded border border-pl-border">
+                        <table className="w-full border-collapse text-xs">
+                          <thead>
                             <tr>
-                              <th className="px-2 py-1 text-left">From cumulative MMbbl</th>
-                              <th className="px-2 py-1 text-left">Contractor share %</th>
-                              <th className="px-2 py-1" />
+                              <th className={epeThNum}>From cumulative MMbbl</th>
+                              <th className={epeThNum}>Contractor share %</th>
+                              <th className={epeTh}><span className="sr-only">Remove</span></th>
                             </tr>
                           </thead>
                           <tbody>
                             {(config.psc_profit_tranches || []).map((row, i) => (
-                              <tr key={i} className="border-t border-white/5">
+                              <tr key={i} className="border-t border-pl-border">
                                 {['from_cum_mmbbl', 'contractor_share_pct'].map((key) => (
                                   <td key={key} className="px-1 py-1">
                                     <Input
@@ -1384,12 +1369,12 @@ const EpeRunConsole = () => {
                                       step="any"
                                       value={row[key] ?? ''}
                                       onChange={(e) => setTrancheCell(i, key, e.target.value)}
-                                      className="bg-gray-800 border-slate-600 text-white h-7 text-xs"
+                                      className={`${epeCellInput} h-7 text-right ${epeNum}`}
                                     />
                                   </td>
                                 ))}
                                 <td className="px-1 py-1 text-center">
-                                  <button type="button" onClick={() => delTrancheRow(i)} className="text-slate-400 hover:text-red-400 text-sm" title="Remove tranche">
+                                  <button type="button" onClick={() => delTrancheRow(i)} className="text-pl-muted hover:text-pl-danger-text text-sm" title="Remove tranche">
                                     &times;
                                   </button>
                                 </td>
@@ -1408,7 +1393,7 @@ const EpeRunConsole = () => {
                         onChange={(v) => handleNumberChange('psc_prior_cumulative_liquids_bbl', v)}
                       />
                     </div>
-                    <p className="text-xs text-amber-300/80 mt-2">
+                    <p className="text-xs text-pl-warning-text mt-2">
                       The tranche whose threshold is met at the start of a year applies for that whole year. Verify tranche breakpoints against your PSC. Presets vary by contract round.
                     </p>
                   </div>
@@ -1425,14 +1410,14 @@ const EpeRunConsole = () => {
                   if (engineRefusal && !issues.some((r) => r.code === engineRefusal.code)) issues.unshift(engineRefusal);
                   if (!legacy && issues.length === 0) return null;
                   return (
-                    <div className={`rounded p-3 border ${legacy ? 'bg-slate-900/60 border-slate-500/40' : 'bg-red-950/40 border-red-500/40'}`} data-testid="pia-compliance-panel">
+                    <div className={epeCallout(legacy ? 'neutral' : 'danger')} data-testid="pia-compliance-panel">
                       {!legacy && issues.map((r) => (
                         <div key={r.code} className="mb-3">
-                          <p className="text-red-200 text-sm font-semibold flex items-center gap-1">
+                          <p className="text-pl-danger-text text-sm font-semibold flex items-center gap-1">
                             <AlertCircle className="w-4 h-4" /> {r.title}
                           </p>
-                          {r.message && <p className="text-red-200/80 text-xs mt-1 font-mono break-words">{r.message}</p>}
-                          <p className="text-slate-300 text-xs mt-1">{r.explain}</p>
+                          {r.message && <p className="text-pl-danger-text text-xs mt-1 font-mono break-words">{r.message}</p>}
+                          <p className="text-xs mt-1">{r.explain}</p>
                           <div className="flex flex-wrap gap-2 mt-2">
                             {r.fixes.map((f) => (
                               <Button key={f.label} type="button" size="sm" variant="outline" className="text-xs"
@@ -1448,11 +1433,11 @@ const EpeRunConsole = () => {
                           id="pia_legacy_pre_audit"
                           checked={legacy}
                           onCheckedChange={(v) => { setConfig((p) => ({ ...p, pia_legacy_pre_audit: v === true })); setEngineRefusal(null); }}
-                          className="border-slate-400 mt-0.5"
+                          className={`${epeCheckbox} mt-0.5`}
                         />
                         <div>
-                          <Label htmlFor="pia_legacy_pre_audit" className="text-white text-sm cursor-pointer">{LEGACY_TOGGLE_LABEL}</Label>
-                          <p className="text-xs text-slate-400 mt-0.5">
+                          <Label htmlFor="pia_legacy_pre_audit" className="text-pl-text text-sm cursor-pointer">{LEGACY_TOGGLE_LABEL}</Label>
+                          <p className="text-xs text-pl-muted mt-0.5">
                             {legacy
                               ? 'This run uses the engine as it stood before PIA figures were corrected on 26 September 2026, so it reproduces results saved before that date. Clear the box to run it on the Act, the Nigeria Tax Act 2025 and the Royalty Regulations.'
                               : 'Tick to reproduce a run saved before 26 September 2026 on the earlier engine. The fixes above run it on the Act.'}
@@ -1460,7 +1445,7 @@ const EpeRunConsole = () => {
                         </div>
                       </div>
                       {validationErrors.pia_compliance && (
-                        <p className="text-red-400 text-xs mt-2 flex items-center gap-1">
+                        <p className="text-pl-danger-text text-xs mt-2 flex items-center gap-1">
                           <AlertCircle className="w-3 h-3" /> Fix these inputs or run as legacy: {validationErrors.pia_compliance}
                         </p>
                       )}
@@ -1479,10 +1464,10 @@ const EpeRunConsole = () => {
                 </div>
                 {/* ── PIA Asset Profile ── */}
                 <div>
-                  <h3 className="text-white text-sm font-semibold mb-2">Asset Profile</h3>
+                  <h3 className="text-pl-text text-sm font-semibold mb-2">Asset Profile</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                     <div>
-                      <Label className="text-white text-xs mb-1 block">Terrain</Label>
+                      <Label className="text-pl-text text-xs mb-1 block">Terrain</Label>
                       <div className="flex flex-wrap gap-1">
                         {[
                           ['onshore', 'Onshore'],
@@ -1498,9 +1483,8 @@ const EpeRunConsole = () => {
                             type="button"
                             size="sm"
                             onClick={() => setConfig((p) => ({ ...p, pia_terrain: key }))}
-                            className={config.pia_terrain === key
-                              ? 'bg-gradient-to-r from-green-500 to-cyan-500 text-white text-xs'
-                              : 'bg-gray-700 text-slate-300 hover:bg-gray-600 text-xs'}
+                            aria-pressed={config.pia_terrain === key}
+                            className={`${epePill(config.pia_terrain === key)} text-xs`}
                           >
                             {label}
                           </Button>
@@ -1508,7 +1492,7 @@ const EpeRunConsole = () => {
                       </div>
                     </div>
                     <div>
-                      <Label className="text-white text-xs mb-1 block">License Type</Label>
+                      <Label className="text-pl-text text-xs mb-1 block">License Type</Label>
                       <div className="flex gap-1">
                         {[['PML', 'PML'], ['PPL', 'PPL']].map(([key, label]) => (
                           <Button
@@ -1516,9 +1500,8 @@ const EpeRunConsole = () => {
                             type="button"
                             size="sm"
                             onClick={() => setConfig((p) => ({ ...p, pia_license_type: key }))}
-                            className={config.pia_license_type === key
-                              ? 'bg-gradient-to-r from-green-500 to-cyan-500 text-white text-xs'
-                              : 'bg-gray-700 text-slate-300 hover:bg-gray-600 text-xs'}
+                            aria-pressed={config.pia_license_type === key}
+                            className={`${epePill(config.pia_license_type === key)} text-xs`}
                           >
                             {label}
                           </Button>
@@ -1526,7 +1509,7 @@ const EpeRunConsole = () => {
                       </div>
                     </div>
                     <div>
-                      <Label className="text-white text-xs mb-1 block">Lease Status</Label>
+                      <Label className="text-pl-text text-xs mb-1 block">Lease Status</Label>
                       <div className="flex gap-1">
                         {[['converted', 'Converted'], ['new', 'New']].map(([key, label]) => (
                           <Button
@@ -1534,9 +1517,8 @@ const EpeRunConsole = () => {
                             type="button"
                             size="sm"
                             onClick={() => setConfig((p) => ({ ...p, pia_lease_status: key }))}
-                            className={config.pia_lease_status === key
-                              ? 'bg-gradient-to-r from-green-500 to-cyan-500 text-white text-xs'
-                              : 'bg-gray-700 text-slate-300 hover:bg-gray-600 text-xs'}
+                            aria-pressed={config.pia_lease_status === key}
+                            className={`${epePill(config.pia_lease_status === key)} text-xs`}
                           >
                             {label}
                           </Button>
@@ -1556,13 +1538,13 @@ const EpeRunConsole = () => {
                       id="pia_marginal_field_pre_2021"
                       checked={config.pia_marginal_field_pre_2021}
                       onCheckedChange={(v) => setConfig((p) => ({ ...p, pia_marginal_field_pre_2021: v }))}
-                      className="border-slate-400"
+                      className={epeCheckbox}
                     />
-                    <Label htmlFor="pia_marginal_field_pre_2021" className="text-white text-xs cursor-pointer">
+                    <Label htmlFor="pia_marginal_field_pre_2021" className="text-pl-text text-xs cursor-pointer">
                       Marginal field declared before Jan 1, 2021 (15% HCT rate, PIA s.94(1))
                     </Label>
                   </div>
-                  <p className="text-xs text-slate-500 mt-1">{PIA_INPUT_HELP.pia_terrain}</p>
+                  <p className="text-xs text-pl-muted mt-1">{PIA_INPUT_HELP.pia_terrain}</p>
                 </div>
 
                 {/* ── EC7: inputs the Act leaves to a stated choice (required, no default) ── */}
@@ -1574,14 +1556,14 @@ const EpeRunConsole = () => {
                   const needEscrow = config.abandonment_funding_mode === 'sinking_fund' && Number(config.abandonment_cost_usd) > 0
                     && mayHaveNtaYear(config);
                   if (!needRate && !needDeep && !needEscrow) return null;
-                  const req = <span className="text-red-400 ml-1" title="Required">* required</span>;
-                  const selectCls = 'w-full bg-slate-900/60 border border-white/20 rounded px-2 py-1.5 text-sm text-white';
+                  const req = <span className="text-pl-danger-text ml-1" title="Required">* required</span>;
+                  const selectCls = epeSelect;
                   return (
-                    <div className="bg-amber-900/20 border border-amber-500/30 rounded p-3 space-y-3" data-testid="pia-required-inputs">
-                      <h3 className="text-white text-sm font-semibold">Stated choices the Act requires</h3>
+                    <div className={`${epeCallout('warning')} space-y-3`} data-testid="pia-required-inputs">
+                      <h3 className="text-pl-text text-sm font-semibold">Stated choices the Act requires</h3>
                       {needRate && (
                         <div>
-                          <Label htmlFor="pia_new_pml_hct_rate_pct" className="text-white text-xs mb-1 block">New lease hydrocarbon tax rate{req}</Label>
+                          <Label htmlFor="pia_new_pml_hct_rate_pct" className="text-pl-text text-xs mb-1 block">New lease hydrocarbon tax rate{req}</Label>
                           <select id="pia_new_pml_hct_rate_pct" className={selectCls}
                             value={config.pia_new_pml_hct_rate_pct ?? ''}
                             onChange={(e) => setConfig((p) => ({ ...p, pia_new_pml_hct_rate_pct: e.target.value === '' ? null : Number(e.target.value) }))}>
@@ -1589,12 +1571,12 @@ const EpeRunConsole = () => {
                             <option value="15">15%</option>
                             <option value="30">30%</option>
                           </select>
-                          <p className="text-xs text-amber-200/80 mt-1">{PIA_INPUT_HELP.pia_new_pml_hct_rate_pct}</p>
+                          <p className="text-xs text-pl-warning-text mt-1">{PIA_INPUT_HELP.pia_new_pml_hct_rate_pct}</p>
                         </div>
                       )}
                       {needDeep && (
                         <div>
-                          <Label htmlFor="pia_deep_offshore_hct_interpretation" className="text-white text-xs mb-1 block">Deep offshore HCT reading (years from 2026){req}</Label>
+                          <Label htmlFor="pia_deep_offshore_hct_interpretation" className="text-pl-text text-xs mb-1 block">Deep offshore HCT reading (years from 2026){req}</Label>
                           <select id="pia_deep_offshore_hct_interpretation" className={selectCls}
                             value={config.pia_deep_offshore_hct_interpretation ?? ''}
                             onChange={(e) => setConfig((p) => ({ ...p, pia_deep_offshore_hct_interpretation: e.target.value === '' ? null : e.target.value }))}>
@@ -1614,12 +1596,12 @@ const EpeRunConsole = () => {
                               />
                             </div>
                           )}
-                          <p className="text-xs text-amber-200/80 mt-1">{PIA_INPUT_HELP.pia_deep_offshore_hct_interpretation}</p>
+                          <p className="text-xs text-pl-warning-text mt-1">{PIA_INPUT_HELP.pia_deep_offshore_hct_interpretation}</p>
                         </div>
                       )}
                       {needEscrow && (
                         <div>
-                          <Label htmlFor="pia_decom_escrow_condition_met" className="text-white text-xs mb-1 block">Decommissioning escrow condition (years from 2026){req}</Label>
+                          <Label htmlFor="pia_decom_escrow_condition_met" className="text-pl-text text-xs mb-1 block">Decommissioning escrow condition (years from 2026){req}</Label>
                           <select id="pia_decom_escrow_condition_met" className={selectCls}
                             value={config.pia_decom_escrow_condition_met === true ? 'yes' : config.pia_decom_escrow_condition_met === false ? 'no' : ''}
                             onChange={(e) => setConfig((p) => ({ ...p, pia_decom_escrow_condition_met: e.target.value === '' ? null : e.target.value === 'yes' }))}>
@@ -1627,7 +1609,7 @@ const EpeRunConsole = () => {
                             <option value="yes">Met: at least 30% of the fund in an accredited escrow</option>
                             <option value="no">Not met: contributions are not deductible</option>
                           </select>
-                          <p className="text-xs text-amber-200/80 mt-1">{PIA_INPUT_HELP.pia_decom_escrow_condition_met}</p>
+                          <p className="text-xs text-pl-warning-text mt-1">{PIA_INPUT_HELP.pia_decom_escrow_condition_met}</p>
                         </div>
                       )}
                     </div>
@@ -1637,18 +1619,18 @@ const EpeRunConsole = () => {
                 {/* ── Tax Rates (collapsible advanced) ── */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-white text-sm font-semibold">Tax Rates</h3>
+                    <h3 className="text-pl-text text-sm font-semibold">Tax Rates</h3>
                     <button
                       type="button"
                       onClick={() => setShowPiaAdvancedRates((v) => !v)}
-                      className="text-xs text-cyan-300 hover:text-cyan-200 underline"
+                      className="rounded text-xs text-pl-primary-text underline underline-offset-2 hover:text-pl-primary-hover"
                     >
                       {showPiaAdvancedRates ? 'Hide overrides' : 'Customize rates'}
                     </button>
                   </div>
                   {!showPiaAdvancedRates && (
-                    <p className="text-xs text-slate-400">
-                      Auto-derived HCT (terrain/license), CIT <span className="font-mono text-cyan-300">{config.pia_cit_rate_pct}%</span>, TET <span className="font-mono text-cyan-300">{config.pia_tet_rate_pct === null || config.pia_tet_rate_pct === '' ? (isLegacyPia(config) ? '2.5%' : 'statutory (3% from 2023)') : `${config.pia_tet_rate_pct}%`}</span>
+                    <p className="text-xs text-pl-muted">
+                      Auto-derived HCT (terrain/license), CIT <span className="font-pl-mono tabular-nums text-pl-text">{config.pia_cit_rate_pct}%</span>, TET <span className="font-pl-mono tabular-nums text-pl-text">{config.pia_tet_rate_pct === null || config.pia_tet_rate_pct === '' ? (isLegacyPia(config) ? '2.5%' : 'statutory (3% from 2023)') : `${config.pia_tet_rate_pct}%`}</span>
                     </p>
                   )}
                   {showPiaAdvancedRates && (
@@ -1676,20 +1658,20 @@ const EpeRunConsole = () => {
                           onChange={(v) => handleNumberChange('pia_tet_rate_pct', v === '' ? null : v)}
                         />
                       </div>
-                      <p className="text-xs text-slate-500 mt-2">{PIA_INPUT_HELP.pia_tet_rate_pct}</p>
+                      <p className="text-xs text-pl-muted mt-2">{PIA_INPUT_HELP.pia_tet_rate_pct}</p>
                       {!isLegacyPia(config) && (
                         <div className="flex items-start gap-2 mt-3">
                           <Checkbox
                             id="pia_cit_company_gas_operations"
                             checked={config.pia_cit_company_gas_operations === true}
                             onCheckedChange={(v) => setConfig((p) => ({ ...p, pia_cit_company_gas_operations: v === true }))}
-                            className="border-slate-400 mt-0.5"
+                            className={`${epeCheckbox} mt-0.5`}
                           />
                           <div>
-                            <Label htmlFor="pia_cit_company_gas_operations" className="text-white text-xs cursor-pointer">
+                            <Label htmlFor="pia_cit_company_gas_operations" className="text-pl-text text-xs cursor-pointer">
                               Company in upstream or midstream gas operations
                             </Label>
-                            <p className="text-xs text-slate-500">{PIA_INPUT_HELP.pia_cit_company_gas_operations}</p>
+                            <p className="text-xs text-pl-muted">{PIA_INPUT_HELP.pia_cit_company_gas_operations}</p>
                           </div>
                         </div>
                       )}
@@ -1700,20 +1682,20 @@ const EpeRunConsole = () => {
                 {/* ── Levies & Allowances (collapsible advanced) ── */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-white text-sm font-semibold">Levies & Allowances</h3>
+                    <h3 className="text-pl-text text-sm font-semibold">Levies & Allowances</h3>
                     <button
                       type="button"
                       onClick={() => setShowPiaAdvancedLevies((v) => !v)}
-                      className="text-xs text-cyan-300 hover:text-cyan-200 underline"
+                      className="rounded text-xs text-pl-primary-text underline underline-offset-2 hover:text-pl-primary-hover"
                     >
                       {showPiaAdvancedLevies ? 'Hide overrides' : 'Customize levies'}
                     </button>
                   </div>
                   {!showPiaAdvancedLevies && (
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-pl-muted">
                       {isLegacyPia(config)
-                        ? <>NDDC <span className="font-mono text-cyan-300">{config.pia_nddc_levy_pct_of_opex}%</span> of OPEX</>
-                        : <>NDDC <span className="font-mono text-cyan-300">{config.pia_nddc_levy_pct ?? 3}%</span> of {config.pia_nddc_levy_base === 'opex' ? 'OPEX' : 'OPEX plus CAPEX'}, gas royalty in-country share <span className="font-mono text-cyan-300">{config.pia_gas_in_country_share_pct ?? 0}%</span>, price royalty base <span className="font-mono text-cyan-300">{config.pia_price_royalty_base === 'act_2020' ? 'Act (2020)' : 'Regulations (2021)'}</span></>}, CPR cap <span className="font-mono text-cyan-300">{config.pia_cpr_limit_pct}%</span>, Capex recovery <span className="font-mono text-cyan-300">{config.pia_capex_recovery_years}yr</span>, Prod. allowance <span className="font-mono text-cyan-300">${config.pia_lease_status === 'new' ? config.pia_production_allowance_per_bbl_new : config.pia_production_allowance_per_bbl_converted}/bbl</span>
+                        ? <>NDDC <span className="font-pl-mono tabular-nums text-pl-text">{config.pia_nddc_levy_pct_of_opex}%</span> of OPEX</>
+                        : <>NDDC <span className="font-pl-mono tabular-nums text-pl-text">{config.pia_nddc_levy_pct ?? 3}%</span> of {config.pia_nddc_levy_base === 'opex' ? 'OPEX' : 'OPEX plus CAPEX'}, gas royalty in-country share <span className="font-pl-mono tabular-nums text-pl-text">{config.pia_gas_in_country_share_pct ?? 0}%</span>, price royalty base <span className="font-pl-mono tabular-nums text-pl-text">{config.pia_price_royalty_base === 'act_2020' ? 'Act (2020)' : 'Regulations (2021)'}</span></>}, CPR cap <span className="font-pl-mono tabular-nums text-pl-text">{config.pia_cpr_limit_pct}%</span>, Capex recovery <span className="font-pl-mono tabular-nums text-pl-text">{config.pia_capex_recovery_years}yr</span>, Prod. allowance <span className="font-pl-mono tabular-nums text-pl-text">${config.pia_lease_status === 'new' ? config.pia_production_allowance_per_bbl_new : config.pia_production_allowance_per_bbl_converted}/bbl</span>
                     </p>
                   )}
                   {showPiaAdvancedLevies && (
@@ -1737,15 +1719,15 @@ const EpeRunConsole = () => {
                               onChange={(v) => handleNumberChange('pia_nddc_levy_pct', v === '' ? null : v)}
                             />
                             <div>
-                              <Label htmlFor="pia_nddc_levy_base" className="text-white text-sm">NDDC levy base</Label>
+                              <Label htmlFor="pia_nddc_levy_base" className="text-pl-text text-sm">NDDC levy base</Label>
                               <select id="pia_nddc_levy_base"
                                 value={config.pia_nddc_levy_base || 'total_budget'}
                                 onChange={(e) => setConfig((p) => ({ ...p, pia_nddc_levy_base: e.target.value }))}
-                                className="w-full bg-gray-800 border border-slate-600 rounded px-2 py-2 text-sm text-white">
+                                className={epeSelect}>
                                 <option value="total_budget">Total annual budget (OPEX plus CAPEX)</option>
                                 <option value="opex">OPEX only (earlier base)</option>
                               </select>
-                              <p className="text-xs text-slate-500 mt-1">{PIA_INPUT_HELP.pia_nddc_levy_base}</p>
+                              <p className="text-xs text-pl-muted mt-1">{PIA_INPUT_HELP.pia_nddc_levy_base}</p>
                             </div>
                             <NumField
                               id="pia_gas_in_country_share_pct"
@@ -1755,15 +1737,15 @@ const EpeRunConsole = () => {
                               onChange={(v) => handleNumberChange('pia_gas_in_country_share_pct', v)}
                             />
                             <div>
-                              <Label htmlFor="pia_price_royalty_base" className="text-white text-sm">Royalty by price: benchmark base</Label>
+                              <Label htmlFor="pia_price_royalty_base" className="text-pl-text text-sm">Royalty by price: benchmark base</Label>
                               <select id="pia_price_royalty_base"
                                 value={config.pia_price_royalty_base || 'regulations_2021'}
                                 onChange={(e) => setConfig((p) => ({ ...p, pia_price_royalty_base: e.target.value }))}
-                                className="w-full bg-gray-800 border border-slate-600 rounded px-2 py-2 text-sm text-white">
+                                className={epeSelect}>
                                 <option value="regulations_2021">Royalty Regulations 2022 (2021 base)</option>
                                 <option value="act_2020">PIA Seventh Schedule para 11(1) (2020 base)</option>
                               </select>
-                              <p className="text-xs text-slate-500 mt-1">{PIA_INPUT_HELP.pia_price_royalty_base}</p>
+                              <p className="text-xs text-pl-muted mt-1">{PIA_INPUT_HELP.pia_price_royalty_base}</p>
                             </div>
                           </>
                         )}
@@ -1791,9 +1773,9 @@ const EpeRunConsole = () => {
                           />
                         ) : (
                           <div>
-                            <Label className="text-white text-sm">Capex recovery <span className="text-slate-400">(years)</span></Label>
-                            <p className="text-white text-sm font-mono mt-2">5</p>
-                            <p className="text-xs text-slate-500 mt-1">{PIA_INPUT_HELP.pia_capex_recovery_years}</p>
+                            <Label className="text-pl-text text-sm">Capex recovery <span className="text-pl-muted">(years)</span></Label>
+                            <p className="text-pl-text text-sm font-mono mt-2">5</p>
+                            <p className="text-xs text-pl-muted mt-1">{PIA_INPUT_HELP.pia_capex_recovery_years}</p>
                           </div>
                         )}
                         <NumField
@@ -1833,15 +1815,15 @@ const EpeRunConsole = () => {
                               value={config.pia_production_allowance_per_bbl_new_after_cap}
                               onChange={(v) => handleNumberChange('pia_production_allowance_per_bbl_new_after_cap', v)}
                             />
-                            <p className="text-xs text-slate-500 mt-1">{PIA_INPUT_HELP.pia_production_allowance_per_bbl_new_after_cap}</p>
+                            <p className="text-xs text-pl-muted mt-1">{PIA_INPUT_HELP.pia_production_allowance_per_bbl_new_after_cap}</p>
                           </div>
                         )}
 
                       {/* ─── B2.5: Nigeria Tax Act 2025 Framework ─── */}
-                      <div className="col-span-2 mt-4 pt-4 border-t border-white/10">
+                      <div className="md:col-span-2 mt-4 pt-4 border-t border-pl-border">
                         <div className="flex items-center justify-between mb-2">
-                          <Label className="text-white text-sm font-semibold">Nigeria Tax Act 2025 Framework</Label>
-                          <span className="text-xs px-2 py-0.5 rounded bg-cyan-900/50 text-cyan-200">
+                          <Label className="text-pl-text text-sm font-semibold">Nigeria Tax Act 2025 Framework</Label>
+                          <span className={epeBadge('info')}>
                             {(() => {
                               const ovr = config.pia_under_nta_2025_override;
                               if (ovr === 'force_pia') return 'PIA-only (forced)';
@@ -1851,19 +1833,19 @@ const EpeRunConsole = () => {
                             })()}
                           </span>
                         </div>
-                        <p className="text-xs text-lime-200/60 mb-2">
+                        <p className="text-xs text-pl-muted mb-2">
                           {isLegacyPia(config)
                             ? 'Legacy engine: one framework for the whole run, chosen from the base year (2026 or later reads as NTA 2025).'
                             : 'The Nigeria Tax Act 2025 applies from 1 January 2026. Under Auto each year of assessment takes its own framework: PIA 2021 years pay TET, NTA years pay the 4% development levy (NTA s.59(1)) and take 20% capital allowances.'}
                         </p>
 
-                        <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                           <div>
-                            <Label className="text-white text-xs mb-1 block">Framework Override</Label>
+                            <Label className="text-pl-text text-xs mb-1 block">Framework Override</Label>
                             <select
                               value={config.pia_under_nta_2025_override}
                               onChange={(e) => setConfig((p) => ({ ...p, pia_under_nta_2025_override: e.target.value }))}
-                              className="w-full bg-slate-900/60 border border-white/20 rounded px-2 py-1.5 text-sm text-white"
+                              className={epeSelect}
                             >
                               <option value="auto">Auto (date-based)</option>
                               <option value="force_pia">Force PIA-only (pre-NTA)</option>
@@ -1880,15 +1862,15 @@ const EpeRunConsole = () => {
                         </div>
 
                         {config.pia_terrain === 'deep_offshore' && isLegacyPia(config) && (
-                          <div className="bg-amber-900/20 border border-amber-500/30 rounded p-2 mb-3">
-                            <p className="text-amber-200 text-xs mb-2">
+                          <div className={`${epeCallout('warning')} mb-3 p-2`}>
+                            <p className="text-xs mb-2">
                               NTA s.65(1) brings deep offshore into HCT and s.72 states no deep offshore rate. Industry interpretation is unsettled (Olaniwun Ajayi, Fortrose, October 2025 to January 2026).
                             </p>
-                            <Label className="text-white text-xs mb-1 block">Deep Offshore HCT Interpretation</Label>
+                            <Label className="text-pl-text text-xs mb-1 block">Deep Offshore HCT Interpretation</Label>
                             <select
                               value={config.pia_deep_offshore_hct_interpretation ?? 'conservative_zero'}
                               onChange={(e) => setConfig((p) => ({ ...p, pia_deep_offshore_hct_interpretation: e.target.value }))}
-                              className="w-full bg-slate-900/60 border border-white/20 rounded px-2 py-1.5 text-sm text-white"
+                              className={epeSelect}
                             >
                               <option value="conservative_zero">Conservative: 0% (effectively exempt)</option>
                               <option value="aggressive_pml_30">Aggressive: 30% (treat as PML)</option>
@@ -1908,7 +1890,7 @@ const EpeRunConsole = () => {
                           </div>
                         )}
 
-                        <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                           {config.pia_lease_status === 'new' && (
                             <NumField
                               id="pia_new_lease_volume_cap_bbl"
@@ -1938,20 +1920,20 @@ const EpeRunConsole = () => {
 
                         {/* v3.9 Wave F: minimum ETR restored now that the engine
                             implements the top-up math. */}
-                        <div className="mt-2 pt-3 border-t border-white/10">
+                        <div className="mt-2 pt-3 border-t border-pl-border">
                           <div className="flex items-center gap-2 mb-2">
                             <Checkbox
                               id="pia_apply_minimum_etr"
                               checked={config.pia_apply_minimum_etr === true}
                               onCheckedChange={(v) => setConfig((p) => ({ ...p, pia_apply_minimum_etr: v === true }))}
-                              className="border-slate-400"
+                              className={epeCheckbox}
                             />
-                            <Label htmlFor="pia_apply_minimum_etr" className="text-white text-sm cursor-pointer">
+                            <Label htmlFor="pia_apply_minimum_etr" className="text-pl-text text-sm cursor-pointer">
                               Apply minimum effective tax rate (NTA s.57)
                             </Label>
                           </div>
                           {config.pia_apply_minimum_etr === true && (
-                            <div className="grid grid-cols-2 gap-3 mb-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
                               <NumField
                                 id="pia_minimum_etr_pct"
                                 label="Minimum ETR"
@@ -1961,8 +1943,8 @@ const EpeRunConsole = () => {
                               />
                             </div>
                           )}
-                          <div className="bg-amber-900/20 border border-amber-500/30 rounded p-2">
-                            <p className="text-amber-200 text-xs">
+                          <div className={`${epeCallout('warning')} p-2`}>
+                            <p className="text-xs">
                               Project-level approximation of NTA s.57. The statutory test is company-level (a member of a multinational group, or turnover of 20 billion naira or more) and this model tops up per year when the taxes fall short of the rate times CIT assessable profit. The top-up applies only to years under the NTA (a legacy run applies it every year) and is reported as its own line in results so reviewers can strip it.
                             </p>
                           </div>
@@ -1977,30 +1959,30 @@ const EpeRunConsole = () => {
           </section>
 
           {/* Save as scenario */}
-          <section className="pt-2 border-t border-white/20">
+          <section className="pt-2 border-t border-pl-border">
             <div className="flex items-center gap-2 mb-2">
               <Checkbox
                 id="saveAsScenario"
                 checked={saveAsScenario}
                 onCheckedChange={setSaveAsScenario}
-                className="border-slate-400"
+                className={epeCheckbox}
               />
-              <Label htmlFor="saveAsScenario" className="text-white text-sm cursor-pointer">
+              <Label htmlFor="saveAsScenario" className="text-pl-text text-sm cursor-pointer">
                 Save as reusable scenario
               </Label>
             </div>
             {saveAsScenario && (
               <div>
-                <Label htmlFor="scenarioName" className="text-white text-sm">Scenario name</Label>
+                <Label htmlFor="scenarioName" className="text-pl-text text-sm">Scenario name</Label>
                 <Input
                   id="scenarioName"
                   value={scenarioName}
                   onChange={(e) => setScenarioName(e.target.value)}
                   placeholder="e.g. Base Case JV $75 oil"
-                  className={`bg-gray-800 border-slate-600 text-white ${validationErrors.scenarioName ? 'border-red-500' : ''}`}
+                  className={validationErrors.scenarioName ? 'border-pl-danger' : undefined}
                 />
                 {validationErrors.scenarioName && (
-                  <p className="text-red-400 text-xs mt-1">{validationErrors.scenarioName}</p>
+                  <p className="text-pl-danger-text text-xs mt-1">{validationErrors.scenarioName}</p>
                 )}
               </div>
             )}
@@ -2010,14 +1992,14 @@ const EpeRunConsole = () => {
           <Button
             onClick={handleRun}
             disabled={isRunning || isSharedReadOnly}
-            className="w-full text-lg py-6 bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600"
+            className="w-full text-lg py-6"
           >
             {isRunning
               ? <><Loader2 className="mr-2 h-6 w-6 animate-spin" /> Running Analysis...</>
               : <><PlayCircle className="mr-2 h-6 w-6" /> Run Economic Analysis</>}
           </Button>
           {isSharedReadOnly && (
-            <p className="text-xs text-amber-300 text-center">
+            <p className="text-xs text-pl-warning-text text-center">
               Running is disabled on shared cases.
             </p>
           )}

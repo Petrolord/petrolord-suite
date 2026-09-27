@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, GitCompare, DollarSign, TrendingUp, Clock, Download } from 'lucide-react';
+import { GitCompare, DollarSign, TrendingUp, Clock, Download } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -16,6 +16,8 @@ import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS,
 } from '@/utils/chartTheme';
 import { CONFIG_SECTIONS, labelForConfigKey, unitForConfigKey, formatConfigValue } from './epeConfigLabels';
+import { AppHeader } from '@/components/ui/app-shell';
+import { epePage, epePanel, epeTile, epeH2, epeH3, epeNum, epeNumCell, epeCheckbox, epeCallout } from './epeUi';
 
 // Wave D (audit 4.6): comparison is capped so the table and chart stay
 // readable; six runs also matches the series palette below.
@@ -172,10 +174,10 @@ const EpeRunComparison = () => {
   // KPI row specs shared by the table and the CSV export. `num` extracts the
   // numeric value used for deltas; `get`+`fmt` produce the display value.
   const KPI_ROWS = [
-    { label: 'NPV', icon: <DollarSign className="w-4 h-4 mr-2 text-green-400" />, get: (k) => k?.npv, num: (k) => k?.npv, fmt: formatCurrency, delta: 'currency' },
-    { label: 'IRR', icon: <TrendingUp className="w-4 h-4 mr-2 text-blue-400" />, get: (k) => k?.irr, num: (k) => k?.irr, fmt: (v) => v != null ? `${v.toFixed(2)}%` : 'N/A', delta: 'pp' },
+    { label: 'NPV', icon: <DollarSign className="w-4 h-4 mr-2 text-pl-muted" aria-hidden="true" />, get: (k) => k?.npv, num: (k) => k?.npv, fmt: formatCurrency, delta: 'currency' },
+    { label: 'IRR', icon: <TrendingUp className="w-4 h-4 mr-2 text-pl-muted" aria-hidden="true" />, get: (k) => k?.irr, num: (k) => k?.irr, fmt: (v) => v != null ? `${v.toFixed(2)}%` : 'N/A', delta: 'pp' },
     {
-      label: 'Payback', icon: <Clock className="w-4 h-4 mr-2 text-orange-400" />,
+      label: 'Payback', icon: <Clock className="w-4 h-4 mr-2 text-pl-muted" aria-hidden="true" />,
       get: (k) => (typeof k?.payback_years === 'number' ? k.payback_years : (k?.payback ?? null)),
       num: (k) => (typeof k?.payback_years === 'number' ? k.payback_years : null),
       fmt: (v) => (typeof v === 'number' ? `${v.toFixed(2)} years` : (v ?? 'N/A')),
@@ -368,65 +370,59 @@ const EpeRunComparison = () => {
   return (
     <>
       <Helmet><title>Compare Runs - Petroleum Economics Studio</title></Helmet>
-      <div className="p-8">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <Link to={`/dashboard/apps/economics/epe/cases/${caseId}`}>
-              <Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Case Details</Button>
-            </Link>
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="bg-gradient-to-r from-blue-500 to-indigo-500 p-3 rounded-xl"><GitCompare className="w-8 h-8 text-white" /></div>
-            <div>
-              <h1 className="text-4xl font-bold text-white">Compare Economic Runs</h1>
-              <p className="text-lime-200 text-lg">Select runs to compare for Case ID: {caseId}</p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6 mb-8">
-          <h2 className="text-2xl font-bold text-white mb-1">Available Runs</h2>
-          <p className="text-sm text-slate-400 mb-4">Pick 2 to {MAX_COMPARE} runs. The first selected run is the comparison base.</p>
+      <AppHeader
+        eyebrow="Petroleum Economics Studio"
+        title="Compare Economic Runs"
+        subtitle={`Select runs to compare for Case ID: ${caseId}`}
+        icon={GitCompare}
+        backTo={`/dashboard/apps/economics/epe/cases/${caseId}`}
+        backLabel="Back to Case Details"
+      />
+      <div className={epePage}>
+        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className={`${epePanel} mb-8`}>
+          <h2 className={`${epeH2} mb-1`}>Available Runs</h2>
+          <p className="text-sm text-pl-muted mb-4">Pick 2 to {MAX_COMPARE} runs. The first selected run is the comparison base.</p>
           {loading ? (
-            <div className="text-center py-8 text-white">Loading runs...</div>
+            <div className="text-center py-8 text-pl-muted">Loading runs...</div>
           ) : availableRuns.length === 0 ? (
-            <div className="text-center py-8 text-slate-400">No runs available for this case.</div>
+            <div className="text-center py-8 text-pl-muted">No runs available for this case.</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {availableRuns.map(run => (
-                <div key={run.id} className="flex items-center space-x-2 bg-gray-800 p-3 rounded-md">
+                <div key={run.id} className="flex items-center space-x-2 rounded-md border border-pl-border bg-pl-surface p-3 hover:bg-pl-sunken transition-colors">
                   <Checkbox
                     id={run.id}
                     checked={selectedRunIds.includes(run.id)}
                     onCheckedChange={() => handleCheckboxChange(run.id)}
-                    className="border-slate-500 data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
+                    className={epeCheckbox}
                   />
-                  <label htmlFor={run.id} className="text-white cursor-pointer flex-grow">
-                    {run.run_name} <span className="text-xs text-slate-400">({new Date(run.created_at).toLocaleDateString()})</span>
+                  <label htmlFor={run.id} className="text-pl-text cursor-pointer flex-grow">
+                    {run.run_name} <span className="text-xs text-pl-muted">({new Date(run.created_at).toLocaleDateString()})</span>
                   </label>
                 </div>
               ))}
             </div>
           )}
-          <Button onClick={handleCompare} disabled={selectedRunIds.length < 2 || loadingComparison} className="mt-6 w-full bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600">
+          <Button onClick={handleCompare} disabled={selectedRunIds.length < 2 || loadingComparison} className="mt-6 w-full">
             {loadingComparison ? 'Comparing...' : 'Compare Selected Runs'}
           </Button>
         </motion.div>
 
         {comparisonResults.length > 0 && (
-          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }} className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-white">Comparison Results</h2>
+          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }} className={epePanel}>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <h2 className={epeH2}>Comparison Results</h2>
               <Button variant="outline" size="sm" onClick={downloadCsv}>
                 <Download className="w-4 h-4 mr-2" /> Download comparison (CSV)
               </Button>
             </div>
+            <div className="overflow-x-auto rounded-lg border border-pl-border">
             <Table>
               <TableHeader>
-                <TableRow className="border-slate-700">
-                  <TableHead className="text-white">Metric</TableHead>
+                <TableRow>
+                  <TableHead>Metric</TableHead>
                   {comparisonResults.map(run => (
-                    <TableHead key={run.id} className="text-white">{run.name}</TableHead>
+                    <TableHead key={run.id} className="text-right">{run.name}</TableHead>
                   ))}
                 </TableRow>
               </TableHeader>
@@ -440,10 +436,10 @@ const EpeRunComparison = () => {
                   ['Discount rate', (r) => r.config?.discount_rate_pct != null ? `${r.config.discount_rate_pct}%` : '—'],
                   ['Base year / PV basis', (r) => r.config ? `${r.config.base_year ?? '—'} / ${r.config.present_value_basis ?? '—'}` : '—'],
                 ].map(([label, get]) => (
-                  <TableRow key={label} className="border-slate-800">
-                    <TableCell className="text-slate-400 text-sm">{label}</TableCell>
+                  <TableRow key={label}>
+                    <TableCell className="text-pl-muted text-sm">{label}</TableCell>
                     {comparisonResults.map(run => (
-                      <TableCell key={run.id} className="text-slate-300 text-sm">{get(run)}</TableCell>
+                      <TableCell key={run.id} className={`${epeNumCell} text-pl-text text-sm`}>{get(run)}</TableCell>
                     ))}
                   </TableRow>
                 ))}
@@ -451,20 +447,20 @@ const EpeRunComparison = () => {
                 {KPI_ROWS.map(({ label, icon, get, num, fmt, delta }) => {
                   const baseNum = num(comparisonResults[0]?.kpis);
                   return (
-                    <TableRow key={label} className="border-slate-800">
-                      <TableCell className="font-medium text-white"><span className="flex items-center">{icon}{label}</span></TableCell>
+                    <TableRow key={label}>
+                      <TableCell className="font-medium text-pl-text"><span className="flex items-center">{icon}{label}</span></TableCell>
                       {comparisonResults.map((run, i) => {
                         if (run.kpis === null) {
-                          return <TableCell key={run.id} className="text-slate-500 italic">no results</TableCell>;
+                          return <TableCell key={run.id} className="text-right text-pl-muted italic">no results</TableCell>;
                         }
                         const v = get(run.kpis);
                         const n = num(run.kpis);
                         const d = i > 0 && typeof n === 'number' && typeof baseNum === 'number' ? n - baseNum : null;
                         return (
-                          <TableCell key={run.id} className="text-lime-300">
+                          <TableCell key={run.id} className={`${epeNumCell} font-semibold ${typeof n === 'number' && n < 0 ? 'text-pl-danger-text' : 'text-pl-text'}`}>
                             {fmt(v)}
                             {d !== null && (
-                              <span className={`block text-xs ${d >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                              <span className={`block text-xs font-normal ${d >= 0 ? 'text-pl-success-text' : 'text-pl-danger-text'}`}>
                                 {formatDelta(d, delta)} vs {comparisonResults[0].name}
                               </span>
                             )}
@@ -476,11 +472,12 @@ const EpeRunComparison = () => {
                 })}
               </TableBody>
             </Table>
+            </div>
 
             {/* Wave D: cumulative net cash flow overlay */}
             {overlay && (
               <div className="mt-8">
-                <h3 className="text-lg font-semibold text-white mb-2">Cumulative net cash flow</h3>
+                <h3 className={`${epeH3} mb-2`}>Cumulative net cash flow</h3>
                 <ChartFrame height={340} logoHeight={24} exportFilename="epe-comparison-cumulative-ncf">
                   <LineChart data={overlay.data} margin={CHART_MARGINS.legend}>
                     <CartesianGrid {...GRID_STYLE} />
@@ -502,7 +499,7 @@ const EpeRunComparison = () => {
                     ))}
                   </LineChart>
                 </ChartFrame>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-pl-muted mt-1">
                   Nominal cumulative net cash flow per run. Runs without stored yearly data are not plotted.
                 </p>
               </div>
@@ -511,16 +508,16 @@ const EpeRunComparison = () => {
             {/* Wave F (audit 2.7): incremental economics for a two-run compare */}
             {incremental && (
               <div className="mt-8">
-                <h3 className="text-lg font-semibold text-white mb-1">
+                <h3 className={`${epeH3} mb-1`}>
                   Incremental: {incremental.secondName} minus {incremental.baseName}
                 </h3>
-                <p className="text-xs text-slate-400 mb-3">
+                <p className="text-xs text-pl-muted mb-3">
                   The with-project view: what the second run adds over the base run, year by year.
                   Deltas discounted at the base run's applied rate
                   {typeof incremental.ratePct === 'number' ? ` (${incremental.ratePct.toFixed(2)}%)` : ''}; both runs should share a basis for a clean read.
                 </p>
                 {incremental.shareMismatch && (
-                  <p className="text-xs text-amber-300 mb-3" data-testid="engine-share-mismatch">
+                  <p className={`${epeCallout('warning')} text-xs mb-3`} data-testid="engine-share-mismatch">
                     These runs were produced by different engine versions ({incremental.baseName}: {incremental.baseEngine};
                     {' '}{incremental.secondName}: {incremental.secondEngine}). From engine v{SHARE_BASIS_VERSION} revenue,
                     volumes, opex, capex and depreciation are stored at the working-interest share, and before it they
@@ -530,26 +527,26 @@ const EpeRunComparison = () => {
                   </p>
                 )}
                 {incremental.basisMismatch && (
-                  <p className="text-xs text-amber-300 mb-3">
+                  <p className={`${epeCallout('warning')} text-xs mb-3`}>
                     The two runs use different PV bases or discount rates. Incremental NPV is still computed at the base run's rate, but align the configs before relying on it.
                   </p>
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <div className="bg-gray-800 p-4 rounded-md">
-                    <p className="text-xs text-slate-400">Incremental NPV</p>
-                    <p className={`text-xl font-bold ${incremental.npv >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  <div className={`${epeTile} p-4`}>
+                    <p className="text-xs text-pl-muted">Incremental NPV</p>
+                    <p className={`text-xl font-semibold ${epeNum} ${incremental.npv >= 0 ? 'text-pl-success-text' : 'text-pl-danger-text'}`}>
                       {incremental.npv != null ? formatCurrency(incremental.npv) : 'N/A'}
                     </p>
                   </div>
-                  <div className="bg-gray-800 p-4 rounded-md">
-                    <p className="text-xs text-slate-400">Incremental IRR</p>
-                    <p className="text-xl font-bold text-blue-300">
+                  <div className={`${epeTile} p-4`}>
+                    <p className="text-xs text-pl-muted">Incremental IRR</p>
+                    <p className={`text-xl font-semibold ${epeNum} text-pl-text`}>
                       {incremental.irr != null ? `${(incremental.irr * 100).toFixed(2)}%` : 'undefined'}
                     </p>
                   </div>
-                  <div className="bg-gray-800 p-4 rounded-md">
-                    <p className="text-xs text-slate-400">Incremental payback</p>
-                    <p className="text-xl font-bold text-orange-300">
+                  <div className={`${epeTile} p-4`}>
+                    <p className="text-xs text-pl-muted">Incremental payback</p>
+                    <p className={`text-xl font-semibold ${epeNum} text-pl-text`}>
                       {incremental.payback != null ? `${incremental.payback.toFixed(2)} years` : 'never'}
                     </p>
                   </div>
@@ -568,21 +565,21 @@ const EpeRunComparison = () => {
                     </Bar>
                   </BarChart>
                 </ChartFrame>
-                <div className="mt-3 overflow-x-auto">
+                <div className="mt-3 overflow-x-auto rounded-lg border border-pl-border">
                   <Table>
                     <TableHeader>
-                      <TableRow className="border-slate-700">
-                        <TableHead className="text-white">Year</TableHead>
-                        <TableHead className="text-white">Delta net cash flow</TableHead>
-                        <TableHead className="text-white">Cumulative delta</TableHead>
+                      <TableRow>
+                        <TableHead>Year</TableHead>
+                        <TableHead className="text-right">Delta net cash flow</TableHead>
+                        <TableHead className="text-right">Cumulative delta</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {incremental.rows.map((row) => (
-                        <TableRow key={row.year} className="border-slate-800">
-                          <TableCell className="text-slate-300 text-sm">{row.year}</TableCell>
-                          <TableCell className={`text-sm ${row.delta >= 0 ? 'text-green-400' : 'text-red-400'}`}>{formatCurrency(row.delta)}</TableCell>
-                          <TableCell className={`text-sm ${row.cumulative >= 0 ? 'text-green-400' : 'text-red-400'}`}>{formatCurrency(row.cumulative)}</TableCell>
+                        <TableRow key={row.year}>
+                          <TableCell className={`${epeNum} text-pl-text text-sm`}>{row.year}</TableCell>
+                          <TableCell className={`${epeNumCell} text-sm ${row.delta < 0 ? 'text-pl-danger-text' : 'text-pl-text'}`}>{formatCurrency(row.delta)}</TableCell>
+                          <TableCell className={`${epeNumCell} text-sm font-semibold ${row.cumulative < 0 ? 'text-pl-danger-text' : 'text-pl-success-text'}`}>{formatCurrency(row.cumulative)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

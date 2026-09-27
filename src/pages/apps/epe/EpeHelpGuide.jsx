@@ -1,9 +1,9 @@
 // src/pages/apps/epe/EpeHelpGuide.jsx
 //
 // Petroleum Economics Studio first-time user help guide. Sectioned
-// single-page React component with a sticky left-side navigation. Mirrors
-// the Suite's visual language (dark glass cards, slate/lime/cyan tokens,
-// gradient accents).
+// single-page React component with a sticky left-side navigation. On the
+// design system since pilot 3 (2026-09-27): theme roles from ./epeUi, light
+// by default with the user's dark choice.
 //
 // Created 2026-05-12 at end of B2.5. Refreshed 2026-08 for the
 // Petroleum Economics Studio rebrand, the shipped Monte Carlo tab,
@@ -11,11 +11,12 @@
 
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
+import { AppHeader } from '@/components/ui/app-shell';
+import { epePage, epeEyebrow } from './epeUi';
 import {
-  ArrowLeft, BookOpen, Zap, FolderOpen, Upload, Calculator, PlayCircle,
+  BookOpen, Zap, FolderOpen, Upload, Calculator, PlayCircle,
   LineChart, Activity, AlertTriangle, ChevronRight, Dices, BookMarked,
 } from 'lucide-react';
 
@@ -34,32 +35,32 @@ const sections = [
 ];
 
 const SectionHeading = ({ icon: Icon, children }) => (
-  <h2 className="flex items-center gap-3 text-3xl font-bold text-white mb-4 mt-0 pt-2">
-    <Icon className="w-7 h-7 text-cyan-300" /> {children}
+  <h2 className="flex items-center gap-3 text-2xl font-semibold text-pl-text mb-4 mt-0 pt-2 sm:text-3xl">
+    <Icon className="w-7 h-7 shrink-0 text-pl-primary-text" aria-hidden="true" /> {children}
   </h2>
 );
 
 const SubHeading = ({ children }) => (
-  <h3 className="text-xl font-semibold text-lime-200 mt-6 mb-2">{children}</h3>
+  <h3 className="text-lg font-semibold text-pl-text mt-6 mb-2">{children}</h3>
 );
 
 const Para = ({ children }) => (
-  <p className="text-slate-200 leading-relaxed mb-3">{children}</p>
+  <p className="text-pl-text leading-relaxed mb-3">{children}</p>
 );
 
 const Code = ({ children }) => (
-  <code className="px-1.5 py-0.5 rounded bg-slate-900/70 text-cyan-200 text-sm font-mono">{children}</code>
+  <code className="px-1.5 py-0.5 rounded border border-pl-border bg-pl-sunken text-pl-text text-sm font-pl-mono break-words">{children}</code>
 );
 
 const Callout = ({ tone = 'info', title, children }) => {
   const tones = {
-    info:    'bg-cyan-900/30 border-cyan-500/40 text-cyan-100',
-    warn:    'bg-amber-900/30 border-amber-500/40 text-amber-100',
-    danger:  'bg-red-900/30 border-red-500/40 text-red-100',
-    success: 'bg-green-900/30 border-green-500/40 text-green-100',
+    info:    'bg-pl-info-bg border-pl-info/40 text-pl-info-text',
+    warn:    'bg-pl-warning-bg border-pl-warning/40 text-pl-warning-text',
+    danger:  'bg-pl-danger-bg border-pl-danger/40 text-pl-danger-text',
+    success: 'bg-pl-success-bg border-pl-success/40 text-pl-success-text',
   };
   return (
-    <div className={`border-l-4 rounded p-4 my-4 ${tones[tone]}`}>
+    <div className={`border border-l-4 rounded p-4 my-4 ${tones[tone]}`} role="note">
       {title && <div className="font-semibold mb-1">{title}</div>}
       <div className="text-sm">{children}</div>
     </div>
@@ -68,26 +69,26 @@ const Callout = ({ tone = 'info', title, children }) => {
 
 const Step = ({ n, title, children }) => (
   <div className="flex gap-3 mb-4">
-    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-cyan-500 flex items-center justify-center text-white font-bold text-sm">
+    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-pl-primary flex items-center justify-center text-pl-primary-fg font-semibold text-sm">
       {n}
     </div>
     <div className="flex-1">
-      <div className="font-semibold text-white mb-1">{title}</div>
-      <div className="text-slate-200 text-sm leading-relaxed">{children}</div>
+      <div className="font-semibold text-pl-text mb-1">{title}</div>
+      <div className="text-pl-text text-sm leading-relaxed">{children}</div>
     </div>
   </div>
 );
 
 const Table = ({ headers, rows }) => (
-  <div className="my-3 overflow-x-auto">
-    <table className="min-w-full text-sm border border-white/10">
-      <thead className="bg-slate-800/60">
-        <tr>{headers.map(h => <th key={h} className="px-3 py-2 text-left text-cyan-200 font-semibold border-b border-white/10">{h}</th>)}</tr>
+  <div className="my-3 overflow-x-auto rounded-lg border border-pl-border">
+    <table className="min-w-full text-sm">
+      <thead className="bg-pl-sunken">
+        <tr>{headers.map(h => <th key={h} className="px-3 py-2 text-left text-xs uppercase tracking-wide text-pl-muted font-semibold border-b border-pl-border">{h}</th>)}</tr>
       </thead>
       <tbody>
         {rows.map((r, i) => (
-          <tr key={i} className={i % 2 ? 'bg-slate-800/20' : ''}>
-            {r.map((c, j) => <td key={j} className="px-3 py-2 text-slate-200 border-b border-white/5 align-top">{c}</td>)}
+          <tr key={i} className={i % 2 ? 'bg-pl-sunken/50' : 'bg-pl-surface'}>
+            {r.map((c, j) => <td key={j} className="px-3 py-2 text-pl-text border-b border-pl-border align-top">{c}</td>)}
           </tr>
         ))}
       </tbody>
@@ -111,31 +112,21 @@ const EpeHelpGuide = () => {
         <title>Petroleum Economics Studio Help Guide - Petrolord Suite</title>
         <meta name="description" content="Comprehensive guide to using Petroleum Economics Studio." />
       </Helmet>
-      <div className="p-8">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mb-6">
-          <div className="mb-4">
-            <Link to="/dashboard/apps/economics/epe/cases">
-              <Button variant="outline" className="text-white border-white/20 hover:bg-white/10">
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back to Cases
-              </Button>
-            </Link>
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="bg-gradient-to-r from-indigo-500 to-purple-500 p-3 rounded-xl">
-              <BookOpen className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-4xl font-bold text-white">Petroleum Economics Studio Help Guide</h1>
-              <p className="text-lime-200 text-lg">Everything you need to run your first analysis</p>
-            </div>
-          </div>
-        </motion.div>
+      <AppHeader
+        eyebrow="Petroleum Economics Studio"
+        title="Petroleum Economics Studio Help Guide"
+        subtitle="Everything you need to run your first analysis"
+        icon={BookOpen}
+        backTo="/dashboard/apps/economics/epe/cases"
+        backLabel="Back to Cases"
+      />
+      <div className={epePage}>
 
         <div className="grid grid-cols-12 gap-6">
           {/* Sticky left navigation */}
           <aside className="col-span-12 lg:col-span-3">
-            <div className="sticky top-6 bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-4">
-              <div className="text-xs uppercase tracking-wider text-lime-300/70 mb-2 px-2">Contents</div>
+            <div className="lg:sticky lg:top-20 rounded-xl border border-pl-border bg-pl-surface p-4 shadow-pl-sm">
+              <div className={`${epeEyebrow} mb-2 px-2`}>Contents</div>
               <nav className="space-y-1">
                 {sections.map(s => {
                   const Icon = s.icon;
@@ -144,13 +135,14 @@ const EpeHelpGuide = () => {
                     <button
                       key={s.id}
                       onClick={() => scrollTo(s.id)}
+                      aria-current={isActive ? 'true' : undefined}
                       className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm text-left transition-colors ${
                         isActive
-                          ? 'bg-gradient-to-r from-green-500/20 to-cyan-500/20 text-white border-l-2 border-cyan-400'
-                          : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                          ? 'bg-pl-sunken font-semibold text-pl-text border-l-2 border-pl-primary'
+                          : 'text-pl-muted hover:bg-pl-sunken hover:text-pl-text'
                       }`}
                     >
-                      <Icon className="w-4 h-4 flex-shrink-0" />
+                      <Icon className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
                       <span>{s.title}</span>
                     </button>
                   );
@@ -163,7 +155,7 @@ const EpeHelpGuide = () => {
           <main className="col-span-12 lg:col-span-9 space-y-10">
 
             {/* SECTION: OVERVIEW */}
-            <section id="section-overview" className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-6">
+            <section id="section-overview" className="rounded-xl border border-pl-border bg-pl-surface p-4 shadow-pl-sm sm:p-6 scroll-mt-20">
               <SectionHeading icon={BookOpen}>What is Petroleum Economics Studio?</SectionHeading>
               <Para>
                 Petroleum Economics Studio is a cash-flow modeling tool for upstream oil and gas projects in Nigeria. It computes NPV, IRR, payback, and full annual cash flows under the three fiscal regimes that govern Nigerian upstream operations: Joint Venture (JV), Production Sharing Contract (PSC), and the Petroleum Industry Act 2021 (PIA), with full Nigeria Tax Act 2025 awareness.
@@ -173,7 +165,7 @@ const EpeHelpGuide = () => {
               </Para>
 
               <SubHeading>What the Studio does</SubHeading>
-              <ul className="list-disc list-inside space-y-1 text-slate-200 ml-2">
+              <ul className="list-disc list-inside space-y-1 text-pl-text ml-2">
                 <li>Computes deterministic year-by-year cash flow from production, capex, and opex inputs</li>
                 <li>Applies the correct fiscal calculations for JV, PSC, or PIA regimes</li>
                 <li>Auto-switches between PIA-only and NTA 2025 frameworks based on the assessment year</li>
@@ -191,20 +183,20 @@ const EpeHelpGuide = () => {
                   decks in Wave B, and incremental economics in Wave F. Telling a
                   user a feature is missing when it is on the screen beside them
                   is the same failure as claiming one that is not there. */}
-              <ul className="list-disc list-inside space-y-1 text-slate-200 ml-2">
+              <ul className="list-disc list-inside space-y-1 text-pl-text ml-2">
                 <li>Generate the production forecast itself (use the Decline Curve Analysis module for that)</li>
                 <li>Model partner carry, promote, or back-in arrangements (planned)</li>
-                <li>Apply a domestic market obligation, or evaluate month by month rather than year by year (both planned)</li>
+                <li>Apply a domestic market obligation, or evaluate month by month (both planned; the Studio works year by year today)</li>
                 <li>Edit uploaded production and cost data in place; corrections are made by re-uploading</li>
                 <li>Provide legal or tax advice; outputs are best-interpretation forecasts that should be reviewed by your tax counsel</li>
               </ul>
               <Para>
-                Two capabilities carry a caveat rather than an absence. The minimum effective tax
+                Two capabilities are present with a caveat. The minimum effective tax
                 rate of NTA section 57 is applied when you switch it on in the Run Console, but as a
                 project-level approximation: the statutory test is company-level against NGN
                 turnover thresholds, which a project model cannot see, so the top-up is reported on
                 its own line and a reviewer can strip it. And the JV and PSC arithmetic is validated
-                against hand-derived closed-form cases rather than traced to a published worked
+                against hand-derived closed-form cases and is not yet traced to a published worked
                 example. The PIA 2021 and NTA 2025 math follows the gazetted texts and is checked
                 against an independent calculation typed from those texts.
               </Para>
@@ -218,7 +210,7 @@ const EpeHelpGuide = () => {
             </section>
 
             {/* SECTION: QUICKSTART */}
-            <section id="section-quickstart" className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-6">
+            <section id="section-quickstart" className="rounded-xl border border-pl-border bg-pl-surface p-4 shadow-pl-sm sm:p-6 scroll-mt-20">
               <SectionHeading icon={Zap}>Quick Start (5 minutes)</SectionHeading>
               <Para>
                 The fastest path from a fresh login to your first NPV number. Use this as a checklist; details for each step are in the sections below.
@@ -250,7 +242,7 @@ const EpeHelpGuide = () => {
             </section>
 
             {/* SECTION: CASES */}
-            <section id="section-cases" className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-6">
+            <section id="section-cases" className="rounded-xl border border-pl-border bg-pl-surface p-4 shadow-pl-sm sm:p-6 scroll-mt-20">
               <SectionHeading icon={FolderOpen}>Setting up a case</SectionHeading>
 
               <Para>
@@ -258,7 +250,7 @@ const EpeHelpGuide = () => {
               </Para>
 
               <SubHeading>When to create a new case</SubHeading>
-              <ul className="list-disc list-inside space-y-1 text-slate-200 ml-2">
+              <ul className="list-disc list-inside space-y-1 text-pl-text ml-2">
                 <li><strong>One case per asset / field / development plan.</strong> Different fields with different production profiles or fiscal terms warrant separate cases.</li>
                 <li><strong>Don't create cases for scenarios.</strong> Use multiple runs within one case for "low / base / high" scenarios. The case stays the same; only the run configuration varies.</li>
                 <li><strong>One case can have many runs.</strong> Run different fiscal regimes, different oil prices, different discount rates, and compare them.</li>
@@ -274,7 +266,7 @@ const EpeHelpGuide = () => {
             </section>
 
             {/* SECTION: DATA */}
-            <section id="section-data" className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-6">
+            <section id="section-data" className="rounded-xl border border-pl-border bg-pl-surface p-4 shadow-pl-sm sm:p-6 scroll-mt-20">
               <SectionHeading icon={Upload}>Uploading data</SectionHeading>
 
               <Para>
@@ -282,7 +274,7 @@ const EpeHelpGuide = () => {
               </Para>
 
               <Callout tone="info" title="Header matching is forgiving">
-                Headers are matched case-insensitively: each header is trimmed, lowercased, and spaces become underscores before matching. <Code>Well_A_Oil_BBL</Code>, <Code>well_a_oil_bbl</Code>, and <Code>Well A Oil BBL</Code> all resolve to the same column. If the engine cannot recognize the columns at all, it fails the run with a clear validation error naming the headers it saw, instead of returning a $0 result.
+                Headers are matched case-insensitively: each header is trimmed, lowercased, and spaces become underscores before matching. <Code>Well_A_Oil_BBL</Code>, <Code>well_a_oil_bbl</Code>, and <Code>Well A Oil BBL</Code> all resolve to the same column. If the engine cannot recognize the columns at all, it fails the run with a clear validation error naming the headers it saw, so you never get a silent $0 result.
               </Callout>
 
               <SubHeading>Production volumes CSV</SubHeading>
@@ -333,16 +325,16 @@ const EpeHelpGuide = () => {
               </Callout>
 
               <SubHeading>Common upload pitfalls</SubHeading>
-              <ul className="list-disc list-inside space-y-1 text-slate-200 ml-2">
+              <ul className="list-disc list-inside space-y-1 text-pl-text ml-2">
                 <li><strong>Excel quirks:</strong> Save as CSV (not Excel CSV), use UTF-8 encoding. Avoid commas in numeric fields and use periods for decimals.</li>
-                <li><strong>Date columns:</strong> If using a <Code>date</Code> column instead of <Code>year</Code>, format as <Code>YYYY-MM-DD</Code>.</li>
+                <li><strong>Date columns:</strong> If you use a <Code>date</Code> column in place of <Code>year</Code>, format it as <Code>YYYY-MM-DD</Code>.</li>
                 <li><strong>Empty rows:</strong> Don't leave blank rows in the middle of your CSV. They'll be skipped but can confuse year inference.</li>
                 <li><strong>Units:</strong> Oil in barrels (not stb), gas in Mscf (not BCF or m³), money in USD (not naira).</li>
               </ul>
             </section>
 
             {/* SECTION: FISCAL */}
-            <section id="section-fiscal" className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-6">
+            <section id="section-fiscal" className="rounded-xl border border-pl-border bg-pl-surface p-4 shadow-pl-sm sm:p-6 scroll-mt-20">
               <SectionHeading icon={Calculator}>Fiscal regime</SectionHeading>
               <Para>
                 Nigerian upstream operations are governed by one of three fiscal regimes. Choosing the correct one is critical. Applying JV math to a PSC project will produce wrong NPVs by tens of millions of dollars.
@@ -359,14 +351,14 @@ const EpeHelpGuide = () => {
               />
 
               <SubHeading>JV (Joint Venture) configuration</SubHeading>
-              <ul className="list-disc list-inside space-y-1 text-slate-200 ml-2">
+              <ul className="list-disc list-inside space-y-1 text-pl-text ml-2">
                 <li><strong>Working interest:</strong> Your share of the project (e.g., 40% for NNPC/Shell JV)</li>
                 <li><strong>Royalty rate:</strong> Typically 15% onshore, 7.5% deep offshore</li>
                 <li><strong>Tax rate:</strong> Petroleum Profits Tax at 85%, or 65.75% during pre-payout amortization</li>
               </ul>
 
               <SubHeading>PSC configuration</SubHeading>
-              <ul className="list-disc list-inside space-y-1 text-slate-200 ml-2">
+              <ul className="list-disc list-inside space-y-1 text-pl-text ml-2">
                 <li><strong>Royalty rate:</strong> Per the contract, often 0% under the original DIBPSCA terms</li>
                 <li><strong>Cost oil cap %:</strong> The annual cap on cost recovery (e.g., 80% of post-royalty revenue)</li>
                 <li><strong>Contractor profit share:</strong> Your share of profit oil after cost recovery</li>
@@ -377,7 +369,7 @@ const EpeHelpGuide = () => {
               <Para>
                 The PIA regime is the most complex. It splits taxation into Hydrocarbon Tax (HCT), Companies Income Tax (CIT), and either TET (PIA years) or Development Levy (NTA years). It also handles HCDT, NDDC, production allowance, and CPR (Cost Price Ratio) limits. What the engine applies, and where each figure comes from:
               </Para>
-              <ul className="list-disc list-inside space-y-1 text-slate-200 ml-2">
+              <ul className="list-disc list-inside space-y-1 text-pl-text ml-2">
                 <li><strong>Production royalty in tranches:</strong> the year's crude oil plus condensate per calendar day is split into bands, each charged its own rate, and the result is one weighted rate (PIA Seventh Schedule para 10; Royalty Regulations 2022 r.13). Onshore and shallow water: 5% on the first 5,000 bopd, 7.5% on the next 5,000, then 15% onshore or 12.5% in shallow water above 10,000 bopd. At 50,000 bopd in shallow water that is 11.25%. Deep offshore: 5% up to 50,000 bopd and 7.5% above. Frontier: 7.5% flat. A marginal field is onshore or in shallow water; tick the marginal field box for one converted under PIA s.94(1).</li>
                 <li><strong>Gas and NGL royalty:</strong> 5% on every terrain, and 2.5% on gas produced and utilised in Nigeria (para 10(6); Regulations r.16). Enter the in-country share in Levies & Allowances.</li>
                 <li><strong>Royalty by price:</strong> charged on oil and on condensate, each at its own price, against benchmarks of 50, 100 and 150 USD/bbl for 2021 raised by 2% a year and rounded to cents (Regulations Schedule). The Act (para 11(1)) starts the same levels one year earlier; choose that base in Levies & Allowances if your counsel reads it so.</li>
@@ -401,7 +393,7 @@ const EpeHelpGuide = () => {
               <Para>
                 The Nigeria Tax Act 2025 (in force since January 2026) amends the PIA's fiscal provisions in three material ways:
               </Para>
-              <ul className="list-disc list-inside space-y-1 text-slate-200 ml-2">
+              <ul className="list-disc list-inside space-y-1 text-pl-text ml-2">
                 <li><strong>TET replaced by Development Levy:</strong> 3% TET → 4% Development Levy on assessable profit (NTA s.59(1))</li>
                 <li><strong>HCT extends to deep offshore:</strong> NTA s.65(1) brings deep offshore operations into HCT and s.72 states no rate for them, so your tax counsel's reading determines what to apply</li>
                 <li><strong>Minimum 15% ETR:</strong> For large multinational groups, an effective tax rate floor applies (applied only to NTA years)</li>
@@ -422,7 +414,7 @@ const EpeHelpGuide = () => {
             </section>
 
             {/* SECTION: RUN */}
-            <section id="section-run" className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-6">
+            <section id="section-run" className="rounded-xl border border-pl-border bg-pl-surface p-4 shadow-pl-sm sm:p-6 scroll-mt-20">
               <SectionHeading icon={PlayCircle}>Running an analysis</SectionHeading>
 
               <Para>
@@ -464,7 +456,7 @@ const EpeHelpGuide = () => {
             </section>
 
             {/* SECTION: RESULTS */}
-            <section id="section-results" className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-6">
+            <section id="section-results" className="rounded-xl border border-pl-border bg-pl-surface p-4 shadow-pl-sm sm:p-6 scroll-mt-20">
               <SectionHeading icon={LineChart}>Reading results</SectionHeading>
 
               <Para>
@@ -492,7 +484,7 @@ const EpeHelpGuide = () => {
                   ['Cash Flow Profile',    'Stacked area chart of inflows and outflows with cumulative line. Best for executive presentations.'],
                   ['Waterfall',            'Single-year cascade from gross revenue to ATCF. Use to explain the math to non-economists.'],
                   ['Sensitivity (Tornado)','Shows which inputs move NPV the most. Use before committing to a fiscal scenario.'],
-                  ['Risk (Monte Carlo)',   'Runs the deterministic model many times with sampled inputs. Use to see the full NPV distribution and P(NPV>0) instead of a single number.'],
+                  ['Risk (Monte Carlo)',   'Runs the deterministic model many times with sampled inputs. Use it to see the full NPV distribution and P(NPV>0) beside the single deterministic number.'],
                   ['Year-by-Year Detail',  'Full numeric table. Use for QC, for sharing precise numbers, or when exporting to Excel.'],
                 ]}
               />
@@ -504,7 +496,7 @@ const EpeHelpGuide = () => {
             </section>
 
             {/* SECTION: SENSITIVITY */}
-            <section id="section-sensitivity" className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-6">
+            <section id="section-sensitivity" className="rounded-xl border border-pl-border bg-pl-surface p-4 shadow-pl-sm sm:p-6 scroll-mt-20">
               <SectionHeading icon={Activity}>Sensitivity (Tornado)</SectionHeading>
 
               <Para>
@@ -512,14 +504,14 @@ const EpeHelpGuide = () => {
               </Para>
 
               <SubHeading>How to read it</SubHeading>
-              <ul className="list-disc list-inside space-y-1 text-slate-200 ml-2">
+              <ul className="list-disc list-inside space-y-1 text-pl-text ml-2">
                 <li><strong>Red bar (left of zero):</strong> NPV at the lower value of that variable. If oil price falls 20%, red shows how much NPV drops.</li>
                 <li><strong>Green bar (right of zero):</strong> NPV at the higher value. If oil price rises 20%, green shows how much NPV gains.</li>
                 <li><strong>Bar length:</strong> Bigger = more sensitive. Focus your attention on the top 3–4 variables.</li>
               </ul>
 
               <SubHeading>What to do with the output</SubHeading>
-              <ul className="list-disc list-inside space-y-1 text-slate-200 ml-2">
+              <ul className="list-disc list-inside space-y-1 text-pl-text ml-2">
                 <li><strong>Oil Price almost always #1.</strong> If something else (e.g., capex) is bigger, scrutinize your inputs.</li>
                 <li><strong>If a tax variable is in the top 3,</strong> the fiscal regime materially affects your project and extra diligence on tax assumptions is warranted.</li>
                 <li><strong>Variables showing ±$0:</strong> Either your project doesn't use that input (e.g., gas price for a pure oil project) or the project is short enough that the variable doesn't bind (e.g., discount rate on a 1-year project).</li>
@@ -532,7 +524,7 @@ const EpeHelpGuide = () => {
             </section>
 
             {/* SECTION: MONTE CARLO */}
-            <section id="section-montecarlo" className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-6">
+            <section id="section-montecarlo" className="rounded-xl border border-pl-border bg-pl-surface p-4 shadow-pl-sm sm:p-6 scroll-mt-20">
               <SectionHeading icon={Dices}>Risk and Monte Carlo</SectionHeading>
 
               <Para>
@@ -567,11 +559,11 @@ const EpeHelpGuide = () => {
             </section>
 
             {/* SECTION: PITFALLS */}
-            <section id="section-pitfalls" className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-6">
+            <section id="section-pitfalls" className="rounded-xl border border-pl-border bg-pl-surface p-4 shadow-pl-sm sm:p-6 scroll-mt-20">
               <SectionHeading icon={AlertTriangle}>Pitfalls & FAQ</SectionHeading>
 
               <SubHeading>"My NPV looks too high / too low"</SubHeading>
-              <ul className="list-disc list-inside space-y-1 text-slate-200 ml-2">
+              <ul className="list-disc list-inside space-y-1 text-pl-text ml-2">
                 <li><strong>Check the fiscal framework badge first.</strong> Running PIA-only when you meant NTA (or vice versa) changes NPV by 1–10% typically.</li>
                 <li><strong>Check the discount rate basis.</strong> Real vs nominal makes a big difference if inflation is high. Confirm <Code>discount_rate_pct</Code> matches the basis.</li>
                 <li><strong>Check that capex/opex are in nominal not real terms.</strong> Pre-inflated costs get double-inflated by the engine, blowing up the cost side.</li>
@@ -579,7 +571,7 @@ const EpeHelpGuide = () => {
               </ul>
 
               <SubHeading>"My CSV isn't uploading correctly"</SubHeading>
-              <ul className="list-disc list-inside space-y-1 text-slate-200 ml-2">
+              <ul className="list-disc list-inside space-y-1 text-pl-text ml-2">
                 <li>Open the CSV in a plain text editor. Confirm the headers follow the naming patterns in "Uploading data." Capitalization and spaces are forgiven, but the stream and unit suffixes (like <Code>_oil_bbl</Code> or <Code>_usd</Code>) must be present.</li>
                 <li>Look for hidden BOM characters (UTF-8 with BOM). Save as plain UTF-8.</li>
                 <li>Check that numeric columns don't contain text like "N/A" or thousand-separators like commas inside numbers.</li>
@@ -589,7 +581,7 @@ const EpeHelpGuide = () => {
               <Para>
                 Most engine errors trace to missing or malformed data. Common cases:
               </Para>
-              <ul className="list-disc list-inside space-y-1 text-slate-200 ml-2">
+              <ul className="list-disc list-inside space-y-1 text-pl-text ml-2">
                 <li><Code>No production data found</Code>: production CSV is empty or wasn't uploaded</li>
                 <li><Code>Unrecognized columns</Code>: the engine couldn't map any header to a known pattern. The error lists the headers it saw so you can spot the mismatch. This replaced the old behavior of silently returning a $0 result.</li>
                 <li><Code>Missing run_config_id</Code>: run was started without saving the config first</li>
@@ -612,7 +604,7 @@ const EpeHelpGuide = () => {
             </section>
 
             {/* SECTION: GLOSSARY */}
-            <section id="section-glossary" className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-6">
+            <section id="section-glossary" className="rounded-xl border border-pl-border bg-pl-surface p-4 shadow-pl-sm sm:p-6 scroll-mt-20">
               <SectionHeading icon={BookMarked}>Glossary</SectionHeading>
               <Para>
                 Quick definitions of the terms used across the Studio and this guide.
@@ -643,8 +635,8 @@ const EpeHelpGuide = () => {
                   ['Gross Revenue', 'Production multiplied by price, before royalties, costs or taxes.'],
                 ].map(([term, def]) => (
                   <div key={term} className="text-sm leading-relaxed">
-                    <span className="font-semibold text-cyan-200">{term}:</span>{' '}
-                    <span className="text-slate-200">{def}</span>
+                    <span className="font-semibold text-pl-text">{term}:</span>{' '}
+                    <span className="text-pl-muted">{def}</span>
                   </div>
                 ))}
               </div>
@@ -653,7 +645,7 @@ const EpeHelpGuide = () => {
             {/* Footer nav */}
             <div className="text-center pt-6 pb-12">
               <Link to="/dashboard/apps/economics/epe/cases">
-                <Button className="bg-gradient-to-r from-green-600 to-cyan-600 hover:opacity-90">
+                <Button>
                   Got it, take me to my Cases <ChevronRight className="ml-2 w-4 h-4" />
                 </Button>
               </Link>
