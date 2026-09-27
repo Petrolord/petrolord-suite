@@ -25,6 +25,7 @@ import Signup from '@/pages/Signup';
 import ForgotPassword from '@/pages/ForgotPassword';
 import SetPassword from '@/pages/SetPassword';
 import Dashboard from '@/pages/Dashboard';
+import HubScope from '@/components/hubs/HubScope';
 import PaymentVerification from '@/pages/PaymentVerification';
 import AcceptInvite from '@/pages/auth/AcceptInvite';
 import ConfirmationPage from '@/pages/auth/ConfirmationPage';
@@ -135,6 +136,7 @@ const ProductionHarness = lazy(() => import('@/dev/ProductionHarness'));
 const FacilitiesHarness = lazy(() => import('@/dev/FacilitiesHarness'));
 const StudiosHarness = lazy(() => import('@/dev/StudiosHarness'));
 const AssuranceHarness = lazy(() => import('@/dev/AssuranceHarness'));
+const HubsHarness = lazy(() => import('@/dev/HubsHarness'));
 const ModularRefineryHarness = lazy(() => import('@/dev/ModularRefineryHarness'));
 const CarbonHarness = lazy(() => import('@/dev/CarbonHarness'));
 const ElectrofaciesHarness = lazy(() => import('@/dev/ElectrofaciesHarness'));
@@ -462,7 +464,30 @@ function App() {
                                   </ProtectedRoute>
                                 </OnboardingRoute>
                               }>
-                                <Route index element={<Dashboard />} />
+                                {/* Design-system pilot 1: the dashboard landing and the ten
+                                    module hubs opt in together through one scope (HubScope).
+                                    Everything else under /dashboard, the apps included, sits
+                                    outside it and keeps its current look. */}
+                                <Route element={<HubScope />}>
+                                  <Route index element={<Dashboard />} />
+                                  <Route path="geoscience" element={<AppRoute appName="geoscience"><GeoscienceAnalytics /></AppRoute>} />
+                                  <Route path="reservoir" element={<AppRoute appName="reservoir"><ReservoirManagement /></AppRoute>} />
+                                  <Route path="drilling" element={<AppRoute appName="drilling"><DrillingCompletionsHub /></AppRoute>} />
+                                  <Route path="production" element={<AppRoute appName="production"><ProductionOperationsHub /></AppRoute>} />
+                                  <Route path="economics" element={<AppRoute appName="economics"><EconomicsProjectManagementHub /></AppRoute>} />
+                                  <Route path="facilities" element={<AppRoute appName="facilities"><FacilitiesEngineeringHub /></AppRoute>} />
+                                  {/* DS0: the Suite's eighth module. Its apps are Coming Soon,
+                                      so the hub is the only route it owns for now. */}
+                                  <Route path="midstream-downstream" element={<AppRoute appName="midstream-downstream"><MidstreamDownstreamHub /></AppRoute>} />
+                                  {/* PS0: the Suite's ninth module. Its apps are Coming Soon,
+                                      so the hub is the only route it owns for now. The slug is
+                                      process-safety because "hse" is the external portal below. */}
+                                  <Route path="process-safety" element={<AppRoute appName="process-safety"><ProcessSafetyHub /></AppRoute>} />
+                                  {/* DA0: the Suite's tenth module. Its apps are Coming Soon,
+                                      so the hub is the only route it owns for now. */}
+                                  <Route path="data-ai" element={<AppRoute appName="data-ai"><DataAiHub /></AppRoute>} />
+                                  <Route path="assurance" element={<AppRoute appName="assurance"><AssuranceHub /></AppRoute>} />
+                                </Route>
                                 <Route path="upgrade" element={<QuoteBuilder />} />
                                 <Route path="modules" element={<ModuleAccess />} />
                                 <Route path="seats" element={<SeatManagement />} />
@@ -514,24 +539,6 @@ function App() {
 
                                 <Route path="quote/:quoteId" element={<QuoteDashboard />} />
                                 <Route path="get-quote" element={<GetQuote />} />
-                                
-                                <Route path="geoscience" element={<AppRoute appName="geoscience"><GeoscienceAnalytics /></AppRoute>} />
-                                <Route path="reservoir" element={<AppRoute appName="reservoir"><ReservoirManagement /></AppRoute>} />
-                                <Route path="drilling" element={<AppRoute appName="drilling"><DrillingCompletionsHub /></AppRoute>} />
-                                <Route path="production" element={<AppRoute appName="production"><ProductionOperationsHub /></AppRoute>} />
-                                <Route path="economics" element={<AppRoute appName="economics"><EconomicsProjectManagementHub /></AppRoute>} />
-                                <Route path="facilities" element={<AppRoute appName="facilities"><FacilitiesEngineeringHub /></AppRoute>} />
-                                {/* DS0: the Suite's eighth module. Its apps are Coming Soon,
-                                    so the hub is the only route it owns for now. */}
-                                <Route path="midstream-downstream" element={<AppRoute appName="midstream-downstream"><MidstreamDownstreamHub /></AppRoute>} />
-                                {/* PS0: the Suite's ninth module. Its apps are Coming Soon,
-                                    so the hub is the only route it owns for now. The slug is
-                                    process-safety because "hse" is the external portal below. */}
-                                <Route path="process-safety" element={<AppRoute appName="process-safety"><ProcessSafetyHub /></AppRoute>} />
-                                {/* DA0: the Suite's tenth module. Its apps are Coming Soon,
-                                    so the hub is the only route it owns for now. */}
-                                <Route path="data-ai" element={<AppRoute appName="data-ai"><DataAiHub /></AppRoute>} />
-                                <Route path="assurance" element={<AppRoute appName="assurance"><AssuranceHub /></AppRoute>} />
                                 
                                 <Route path="hse" element={
                                   <ProtectedRoute requiredPermission={HSE_PERMISSIONS.VIEW_DASHBOARD} appContext="hse">
@@ -991,6 +998,7 @@ function App() {
                                   <Route path="/dev/facilities/:app" element={<FacilitiesHarness />} />
                                   <Route path="/dev/studio/:app" element={<StudiosHarness />} />
                                   <Route path="/dev/assurance/:app" element={<AssuranceHarness />} />
+                                  <Route path="/dev/hubs/:page" element={<HubsHarness />} />
                                   <Route path="/dev/modular-refinery-feasibility" element={<ModularRefineryHarness />} />
                                   <Route path="/dev/carbon-footprint-abatement" element={<CarbonHarness />} />
                                   <Route path="/dev/electrofacies-studio" element={<ElectrofaciesHarness />} />
