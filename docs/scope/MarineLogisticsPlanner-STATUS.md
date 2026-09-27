@@ -53,8 +53,11 @@ Six tabs, every figure from the vendored marine logistics engine:
    the planned vessels, expected short vessel-days, the distribution of whole vessels.
    "Copy the fleet sizing inputs" copies into visible fields.
 5. **Deck plan**: `deckPlan` run twice, first-fit decreasing by area beside first fit in
-   the booked order; every unit left behind is named with the engine's reason; lower
-   bound; a vessel's deck figures can be copied into the visible deck fields.
+   the booked order; every unit left behind is named with the engine's reason, which
+   names the limit that stops it (usable area, deck load or both); units no voyage can
+   carry (`neverFit`) are listed apart and tagged in the overflow list; the lower bound
+   counts only units that fit an empty voyage; a vessel's deck figures can be copied
+   into the visible deck fields.
 6. **Shore base**: `shoreBase`; M/M/c (Erlang C) or M/D/c labelled approximate
    (Cosmetatos, no probability of waiting); the berth target search reason printed as
    the engine wrote it; a mean-wait curve by berth count, each point an engine call
@@ -73,6 +76,12 @@ guide in the header (`MarineLogisticsHelpGuide.jsx`), sources cited.
 `packages/engines` moved 3e058f2 to 110f0a0 (engines #282, #283): 11 canonical paths,
 all new, file by file, manifest regenerated, guard clean (1099 paths). Data & AI
 `ENGINE_COMMIT` / `ENGINE_VERSION` pins moved with it (dataai engines unchanged).
+
+2026-09-27: moved 110f0a0 to e67e7ba (engines #284, deckPlan overflow reasons name the
+stopping limit, lowerBound over units that fit an empty voyage, new `neverFit`): 6
+canonical paths, all modified, file by file, manifest regenerated, guard clean (1099
+paths); Data & AI pins moved with it (dataai engines unchanged). The deck plan view
+shows `neverFit` and the help text states the new bound.
 
 ## Portability
 
