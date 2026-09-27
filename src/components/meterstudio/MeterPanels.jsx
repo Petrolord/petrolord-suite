@@ -11,6 +11,13 @@ import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS
 import { useMeter } from '@/contexts/MeterStudioContext';
 import { fmt, Stat, ErrorNote, WarnNote, Field, NumberInput } from './fields';
 
+const reLabel = (v) => {
+  const n = Number(v);
+  if (n >= 1e6) return `${Number((n / 1e6).toPrecision(2))}M`;
+  if (n >= 1e3) return `${Number((n / 1e3).toPrecision(2))}k`;
+  return String(Math.round(n));
+};
+
 export const RunInputs = () => {
   const { inputs, setSection } = useMeter();
   return (
@@ -71,6 +78,24 @@ export const RunInputs = () => {
 
 export const FlowResults = () => {
   const { flow, sized, loss, straightRun, cdCurve } = useMeter();
+  // Even 0.005 steps on the Cd axis (MET-T1-002: recharts chose 0.609,
+  // 0.618, 0.635) and Reynolds numbers written as 3k, 10k, 1M.
+  const cdTicks = (() => {
+    const cds = (cdCurve?.rows || []).map((r) => r.cd).filter(Number.isFinite);
+    if (!cds.length) return { domain: ['auto', 'auto'], ticks: undefined };
+    const lo = Math.floor(Math.min(...cds) * 200) / 200;
+    const hi = Math.ceil(Math.max(...cds) * 200) / 200;
+    const ticks = [];
+    for (let t = lo; t <= hi + 1e-9; t += 0.005) ticks.push(Number(t.toFixed(3)));
+    return { domain: [lo, hi], ticks };
+  })();
+  const reTicks = (() => {
+    const res = (cdCurve?.rows || []).map((r) => r.reynolds).filter((v) => v > 0);
+    if (!res.length) return undefined;
+    const out = [];
+    for (let e = Math.ceil(Math.log10(Math.min(...res))); 10 ** e <= Math.max(...res); e += 1) out.push(10 ** e);
+    return out;
+  })();
   if (flow.error) return <ErrorNote>{flow.error}</ErrorNote>;
   const tick = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
   return (
@@ -110,7 +135,7 @@ export const FlowResults = () => {
               {/* The warning the engine attached to THIS number used to be
                   dropped, because only the flow card's warning was rendered. */}
               {sized.warning && <WarnNote>{sized.warning}</WarnNote>}
-              <p className="text-[12px] text-slate-500">{sized.boreNote}</p>
+              <p className="text-[12px] text-slate-500 first-letter:uppercase">{sized.boreNote}</p>
             </div>
           )}
         </CardContent>
@@ -121,14 +146,16 @@ export const FlowResults = () => {
           <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">The coefficient is not a constant</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <ChartFrame height={260} exportFilename="discharge-coefficient">
-              <ComposedChart data={cdCurve.rows} margin={{ top: 8, right: 30, bottom: 24, left: 8 }}>
+              <ComposedChart data={cdCurve.rows} margin={{ top: 8, right: 30, bottom: 8, left: 20 }}>
                 <CartesianGrid {...GRID_STYLE} />
                 <XAxis height={XAXIS_LABEL_HEIGHT} type="number" dataKey="reynolds" scale="log" domain={['dataMin', 'dataMax']}
                   stroke={CHART_COLORS.axisLine} tick={tick}
-                  tickFormatter={(v) => v.toExponential(0)}
+                  tickFormatter={reLabel} ticks={reTicks}
                   label={{ value: 'Pipe Reynolds number', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
-                <YAxis stroke={CHART_COLORS.axisLine} tick={tick} domain={['auto', 'auto']}
-                  label={{ value: 'Discharge coefficient', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+                <YAxis stroke={CHART_COLORS.axisLine} tick={tick}
+                  domain={cdTicks.domain} ticks={cdTicks.ticks}
+                  tickFormatter={(v) => Number(v).toFixed(3)} width={52}
+                  label={{ value: 'Cd', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
                 <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [fmt(v, 5), 'Cd']}
                   labelFormatter={(v) => `Re ${Number(v).toExponential(1)}` } />
                 <Legend {...LEGEND_PROPS} />
@@ -142,7 +169,7 @@ export const FlowResults = () => {
               custody transfer dispute, which is why the published equation is worth computing
               rather than assuming 0.61.
             </p>
-            <p className="text-[12px] text-slate-500">{cdCurve.reynoldsBasis}</p>
+            <p className="text-[12px] text-slate-500 first-letter:uppercase">{cdCurve.reynoldsBasis}</p>
           </CardContent>
         </Card>
       )}
@@ -156,7 +183,7 @@ export const FlowResults = () => {
                 <Stat label="Upstream straight run" value={fmt(straightRun.upstreamDiameters, 0)} unit="diameters" />
                 <Stat label="Downstream" value={fmt(straightRun.downstreamDiameters, 0)} unit="diameters" />
               </div>
-              <p className="text-[12px] text-slate-500">{straightRun.note}</p>
+              <p className="text-[12px] text-slate-500 first-letter:uppercase">{straightRun.note}</p>
             </>
           )}
         </CardContent>
@@ -188,7 +215,7 @@ export const UncertaintyResults = () => {
             <Stat label="Differential term" value={fmt(uncertainty.differentialUncertaintyPct, 3)} unit="%"
               hint="from the transmitter, not typed" />
           </div>
-          <p className="text-[12px] text-slate-500">{uncertainty.differentialUncertaintySource}</p>
+          <p className="text-[12px] text-slate-500 first-letter:uppercase">{uncertainty.differentialUncertaintySource}</p>
           <ChartFrame height={260} exportFilename="uncertainty-budget">
             <ComposedChart data={data} layout="vertical" margin={{ top: 8, right: 30, bottom: 8, left: 120 }}>
               <CartesianGrid {...GRID_STYLE} />
@@ -228,7 +255,7 @@ export const UncertaintyResults = () => {
                   hint="accuracy is quoted on span, so this rises as the reading falls" />
               </div>
               {transmitter.warning && <WarnNote>{transmitter.warning}</WarnNote>}
-              <p className="text-[12px] text-slate-500">{transmitter.turndownNote}</p>
+              <p className="text-[12px] text-slate-500 first-letter:uppercase">{transmitter.turndownNote}</p>
               <p className="text-[12px] text-slate-500">
                 A transmitter accurate to a fixed fraction of its span becomes proportionally less
                 accurate as the reading falls. That single fact is why an orifice run has a usable
