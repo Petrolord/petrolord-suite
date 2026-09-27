@@ -81,9 +81,9 @@ export const ServiceInputs = () => {
         <>
           <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold pt-2">Gas</p>
           <div className="grid grid-cols-3 gap-2">
-            <Field label="Min (scfh)"><NumberInput section="gas" name="qMinScfh" /></Field>
-            <Field label="Normal"><NumberInput section="gas" name="qNormScfh" /></Field>
-            <Field label="Max"><NumberInput section="gas" name="qMaxScfh" /></Field>
+            <Field label="Min (scfh)"><NumberInput section="gas" name="qMinScfh" compact /></Field>
+            <Field label="Normal"><NumberInput section="gas" name="qNormScfh" compact /></Field>
+            <Field label="Max"><NumberInput section="gas" name="qMaxScfh" compact /></Field>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Gas gravity"><NumberInput section="gas" name="gasSg" step="0.01" /></Field>
@@ -206,7 +206,9 @@ export const SizingResults = () => {
           <p className="text-[12px] text-slate-500">
             {anyChoked
               ? 'At least one case is choked. Past that point the extra pressure drop does nothing at all, so the allowable drop has been used for sizing. Sizing on the full stated drop would have undersized the valve, which is the classic way a control valve ends up unable to pass its own design case.'
-              : 'No case is choked, so each Cv uses the full stated pressure drop. Watch the margin: the boundary moves with the inlet pressure and the vapour pressure, so a summer day or a lighter crude can push a stable service across it.'}
+              : isLiquid
+                ? 'No case is choked, so each Cv uses the full stated pressure drop. Watch the margin: the boundary moves with the inlet pressure and the vapour pressure, so a summer day or a lighter crude can push a stable service across it.'
+                : 'No case is choked, so each Cv uses the full stated pressure drop. For gas the boundary is the terminal pressure-drop ratio: a lower outlet pressure or a trim with a smaller x terminal can reach it.'}
           </p>
         </CardContent>
       </Card>
@@ -271,7 +273,7 @@ export const ControlResults = () => {
               {authority.note && <WarnNote>{authority.note}</WarnNote>}
               {authority.disagreement && <WarnNote>{authority.disagreement}</WarnNote>}
               {authority.recommendation?.reason && (
-                <p className="text-[12px] text-slate-500">{authority.recommendation.reason}</p>
+                <p className="text-[12px] text-slate-500 first-letter:uppercase">{authority.recommendation.reason}</p>
               )}
             </>
           )}
@@ -333,7 +335,7 @@ export const ControlResults = () => {
             </div>
             {noise.powerEffect && <p className="text-[12px] text-amber-400/80">{noise.powerEffect}</p>}
             {noise.warning && <WarnNote>{noise.warning}</WarnNote>}
-            <p className="text-[12px] text-slate-500">{noise.note}</p>
+            <p className="text-[12px] text-slate-500 first-letter:uppercase">{noise.note}</p>
           </CardContent>
         </Card>
       )}

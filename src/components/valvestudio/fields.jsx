@@ -12,7 +12,7 @@ export const Field = ({ label, hint, children }) => (
   </div>
 );
 
-export const NumberInput = ({ section, name, step = 'any' }) => {
+export const NumberInput = ({ section, name, step = 'any', compact = false }) => {
   const { inputs, setSection } = useValve();
   return (
     <Input
@@ -20,7 +20,7 @@ export const NumberInput = ({ section, name, step = 'any' }) => {
       step={step}
       value={inputs[section][name] ?? ''}
       onChange={(e) => setSection(section, name, e.target.value)}
-      className="h-9 bg-slate-800 border-slate-700"
+      className={compact ? 'h-9 bg-slate-800 border-slate-700 px-2 text-xs' : 'h-9 bg-slate-800 border-slate-700'}
     />
   );
 };
@@ -68,7 +68,7 @@ export const ErrorNote = ({ children }) => (
 );
 
 export const WarnNote = ({ children }) => (
-  <div className="rounded-md border border-yellow-700/50 bg-yellow-950/20 px-3 py-2 text-[12px] text-yellow-300">
+  <div className="first-letter:uppercase rounded-md border border-yellow-700/50 bg-yellow-950/20 px-3 py-2 text-[12px] text-yellow-300">
     {children}
   </div>
 );
