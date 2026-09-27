@@ -109,6 +109,10 @@ const PricingInputs = () => {
         <div className="mt-2">
           <Cell label="Regulated cap, if any" unit="local/litre" value={inputs.capPerLitre}
             onChange={(v) => setField('capPerLitre', v)} placeholder="none" />
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            <Cell label="FX sweep from" unit="local/$" value={inputs.sensitivity.low} onChange={(v) => setSection('sensitivity', { low: v })} />
+            <Cell label="FX sweep to" unit="local/$" value={inputs.sensitivity.high} onChange={(v) => setSection('sensitivity', { high: v })} />
+          </div>
         </div>
       </div>
 
@@ -119,6 +123,17 @@ const PricingInputs = () => {
           <Cell label="Payload" unit="litres" value={inputs.lane.payloadLitres} onChange={(v) => setSection('lane', { payloadLitres: v })} />
           <Cell label="Average speed" unit="km/h" value={inputs.lane.averageSpeedKmh} onChange={(v) => setSection('lane', { averageSpeedKmh: v })} />
           <Cell label="Queue at depot" unit="h" value={inputs.lane.queueHours} onChange={(v) => setSection('lane', { queueHours: v })} />
+          {/* Senior test T1: these fed every trip cost and the cycle but had
+              no box, so the lane table carried figures nobody could see. */}
+          <Cell label="Loading" unit="h" value={inputs.lane.loadHours} onChange={(v) => setSection('lane', { loadHours: v })} />
+          <Cell label="Discharge" unit="h" value={inputs.lane.dischargeHours} onChange={(v) => setSection('lane', { dischargeHours: v })} />
+          <Cell label="Driver" unit="per trip" value={inputs.lane.driverCostPerTrip} onChange={(v) => setSection('lane', { driverCostPerTrip: v })} />
+          <Cell label="Overhead" unit="per trip" value={inputs.lane.overheadPerTrip} onChange={(v) => setSection('lane', { overheadPerTrip: v })} />
+          <Cell label="Tolls and levies" unit="per trip" value={inputs.lane.tollsAndLeviesPerTrip} onChange={(v) => setSection('lane', { tollsAndLeviesPerTrip: v })} />
+          <Cell label="Maintenance" unit="per km" value={inputs.lane.maintenancePerKm} onChange={(v) => setSection('lane', { maintenancePerKm: v })} />
+          <Cell label="Tyres" unit="per km" value={inputs.lane.tyresPerKm} onChange={(v) => setSection('lane', { tyresPerKm: v })} />
+          <Cell label="Working hours" unit="per day" value={inputs.lane.workingHoursPerDay} onChange={(v) => setSection('lane', { workingHoursPerDay: v })} />
+          <Cell label="Working days" unit="per year" value={inputs.lane.workingDaysPerYear} onChange={(v) => setSection('lane', { workingDaysPerYear: v })} />
           <Cell label="Diesel use" unit="L/100km" value={inputs.lane.fuelConsumptionLPer100Km} onChange={(v) => setSection('lane', { fuelConsumptionLPer100Km: v })} />
           <Cell label="Diesel price" unit="/litre" value={inputs.lane.dieselPricePerLitre} onChange={(v) => setSection('lane', { dieselPricePerLitre: v })} />
           <Cell label="Truck capital" value={inputs.lane.truckCapitalCost} onChange={(v) => setSection('lane', { truckCapitalCost: v })} />
@@ -136,6 +151,7 @@ const PricingInputs = () => {
           <Cell label="Peak hour share" value={inputs.station.peakHourShare} onChange={(v) => setSection('station', { peakHourShare: v })} />
           <Cell label="Per transaction" unit="litres" value={inputs.station.litresPerTransaction} onChange={(v) => setSection('station', { litresPerTransaction: v })} />
           <Cell label="Dispense rate" unit="L/min" value={inputs.station.dispenseRateLitresPerMinute} onChange={(v) => setSection('station', { dispenseRateLitresPerMinute: v })} />
+          <Cell label="Handling per sale" unit="min" value={inputs.station.transactionOverheadMinutes} onChange={(v) => setSection('station', { transactionOverheadMinutes: v })} />
           <Cell label="Nozzles" value={inputs.station.nozzles} onChange={(v) => setSection('station', { nozzles: v })} />
           <Cell label="Tank capacity" unit="litres" value={inputs.station.tankCapacityLitres} onChange={(v) => setSection('station', { tankCapacityLitres: v })} />
           <Cell label="Dead stock" unit="litres" value={inputs.station.deadStockLitres} onChange={(v) => setSection('station', { deadStockLitres: v })} />
