@@ -51,7 +51,8 @@ const priced = () => result.shadowPrices.filter((r) => Number.isFinite(r.price))
 test('off: total, recipe volumes and shadow prices print as before', async () => {
   await act(async () => { mount(false); });
   expect(result.status).toBe('optimal');
-  expect(screen.getByText(`$${result.totalCost.toFixed(0)}`)).toBeInTheDocument();
+  // Senior test T1: the total is grouped ($86,123).
+  expect(screen.getByText(`$${Math.round(result.totalCost).toLocaleString("en-US")}`)).toBeInTheDocument();
   lines().forEach((l) => expect(screen.getAllByText(`${l.volume.toFixed(1)} bbl`).length).toBeGreaterThan(0));
   expect(priced().length).toBeGreaterThan(0);
   priced().forEach((r) => expect(screen.getAllByText(`$${r.price.toFixed(2)}`).length).toBeGreaterThan(0));
