@@ -205,8 +205,10 @@ export default function FindingDetail() {
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="panel-elevation lg:col-span-1">
+        {/* Senior test T1: the two-thirds column holds a table; side by side
+            from lg it scrolled at 1366, so the columns stack until 2xl. */}
+        <div className="grid grid-cols-1 2xl:grid-cols-3 gap-6">
+          <Card className="panel-elevation 2xl:col-span-1">
             <CardHeader className="border-b border-[hsl(var(--border))] pb-4 flex flex-row items-center justify-between gap-2">
               <CardTitle className="text-lg">The finding</CardTitle>
               <div className="flex gap-2 shrink-0">
@@ -252,7 +254,7 @@ export default function FindingDetail() {
             </CardContent>
           </Card>
 
-          <Card className="panel-elevation lg:col-span-2">
+          <Card className="panel-elevation 2xl:col-span-2">
             <CardHeader className="border-b border-[hsl(var(--border))] pb-4 flex flex-row items-start justify-between gap-3">
               <div>
                 <CardTitle className="text-lg">Correction and cause</CardTitle>
