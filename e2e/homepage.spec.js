@@ -11,36 +11,33 @@ test.describe('public homepage', () => {
 
     await page.goto('/');
 
-    // Hero
-    await expect(page.getByRole('button', { name: 'Start Configuration' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Book Demo' })).toBeVisible();
+    // Hero (redesign 2026-09-27)
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Every discipline of the asset');
+    await expect(page.getByRole('button', { name: /Get an instant quote/ }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Book a demo' }).first()).toBeVisible();
 
-    // Modules showcase (static, no auth-gated DB reads)
-    await expect(page.getByText('Every discipline. One suite.')).toBeVisible();
-    await expect(page.getByText('Reservoir Engineering', { exact: true })).toBeVisible();
+    // Module catalogue (static, from src/data/suiteCatalog.js; no auth-gated DB reads)
+    await expect(page.getByRole('tab', { name: /All modules/ })).toBeVisible();
+    await page.getByRole('tab', { name: /Production/ }).click();
     await expect(page.getByText('Nodal Analysis Studio')).toBeVisible();
-
-    // Quote, HSE, and NextGen sections
-    await expect(page.getByRole('button', { name: /Get Instant Quote/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Explore HSE/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Discover NextGen/ })).toBeVisible();
+    await page.fill('#home-app-search', 'gas lift');
+    await expect(page.getByText('Gas Lift Design Studio')).toBeVisible();
 
     // The dashboard apps grid (auth-gated) must not be on the public page
     await expect(page.getByText('No Applications Found')).toHaveCount(0);
     await expect(page.getByText('Requires License')).toHaveCount(0);
 
-    // Assurance module card (added 2026-08-05; the catalog's largest module)
-    await expect(page.getByText('Assurance & Risk')).toBeVisible();
-
-    // Data-ownership trust section (claims map to shipped offboarding features)
-    await expect(page.getByText('Your data. Always yours.')).toBeVisible();
+    // Pricing, family and data-ownership sections
+    await expect(page.getByRole('heading', { name: /Published prices/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Visit NextGen Academy/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Explore Petrolord HSE/ })).toBeVisible();
     await expect(page.getByRole('link', { name: /Data Retention & Offboarding policy/ })).toBeVisible();
     await expect(page.getByRole('link', { name: /Verify a deletion certificate/ })).toBeVisible();
 
     // Footer
-    await expect(page.getByRole('link', { name: 'NextGen Academy' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Petrolord HSE' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Privacy Policy' })).toBeVisible();
+    await expect(page.getByRole('contentinfo').getByRole('link', { name: 'NextGen Academy', exact: true })).toBeVisible();
+    await expect(page.getByRole('contentinfo').getByRole('link', { name: 'Petrolord HSE', exact: true })).toBeVisible();
+    await expect(page.getByRole('contentinfo').getByRole('link', { name: 'Privacy Policy', exact: true })).toBeVisible();
     await expect(page.getByRole('contentinfo').getByRole('link', { name: 'Data Processing Agreement' })).toBeVisible();
   });
 });

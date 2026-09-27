@@ -5,9 +5,6 @@ const platformLinks = [{
   name: 'Solutions',
   path: '/solutions'
 }, {
-  name: 'NextGen Academy',
-  path: '/nextgen'
-}, {
   name: 'Resources',
   path: '/resources'
 }, {
@@ -45,8 +42,8 @@ const Footer = () => {
                             <Link to="/" className="flex items-center space-x-2 mb-4">
                                 <img className="h-10 w-auto" alt="Petrolord - Energy Industry Management" src="https://horizons-cdn.hostinger.com/43fa5c4b-d185-4d6d-9ff4-a1d78861fb87/petrolord-symbol-text-iFUDK.png" />
                             </Link>
-                            <p className="mb-4">The Digital Operating System for the Modern Energy Enterprise.</p>
-                            <p className="text-sm text-slate-500 max-w-sm">Subsurface intelligence, operational efficiency, and commercial strategy on one unified platform.</p>
+                            <p className="mb-4">Engineering software for the whole energy asset.</p>
+                            <p className="text-sm text-slate-500 max-w-sm">From subsurface to sales on one platform. A Lordsway Energy company.</p>
                         </div>
 
                         <div>
@@ -57,6 +54,11 @@ const Footer = () => {
                                             {link.name}
                                         </Link>
                                     </li>)}
+                                <li>
+                                    <a href="https://nextgen.petrolord.com" className="hover:text-lime-300 transition-colors">
+                                        NextGen Academy
+                                    </a>
+                                </li>
                                 <li>
                                     <a href="https://hse.petrolord.com" target="_blank" rel="noopener noreferrer" className="hover:text-lime-300 transition-colors">
                                         Petrolord HSE

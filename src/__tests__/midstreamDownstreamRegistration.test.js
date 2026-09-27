@@ -13,6 +13,7 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { SUITE_MODULES, suiteStats } from '@/data/suiteCatalog';
 
 const ROOT = path.resolve(__dirname, '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
@@ -110,21 +111,17 @@ describe('pricing', () => {
 });
 
 describe('marketing, which follows the catalog rather than leading it', () => {
-  it('counts itself among the modules now that it has a working app', () => {
-    // Eight at DS1; nine since Process Safety PS1 (2026-09-19), which
-    // processSafetyRegistration.test.js pins. At least eight either way.
-    const m = read('pages/Home.jsx').match(/value: '(\d+)',\s*label: 'Discipline Modules'/);
-    expect(m).toBeTruthy();
-    expect(Number(m[1])).toBeGreaterThanOrEqual(8);
-    expect(read('pages/Solutions.jsx')).toMatch(/(Eight|Nine|Ten) modules/);
+  // Since the 2026-09-27 homepage redesign, the homepage and Solutions page
+  // both derive their counts from src/data/suiteCatalog.js.
+  it('counts itself among the modules', () => {
+    expect(suiteStats().modules).toBeGreaterThanOrEqual(8);
   });
 
-  it('shows the module with the number of apps that actually work', () => {
-    // One of ten. The count is what is built, not what is planned.
-    const showcase = read('components/home/ModulesShowcase.jsx');
-    expect(showcase).toContain('Midstream & Downstream');
-    expect(showcase).toMatch(/count: 1,/);
-    expect(showcase).toContain('Crude Assay & Blending Studio');
+  it('shows the module with the apps that actually work', () => {
+    // One at DS1; all ten by 2026-09-27. The count is what is built.
+    const mod = SUITE_MODULES.find((m) => m.slug === 'midstream-downstream');
+    expect(mod.name).toBe('Midstream & Downstream');
+    expect(mod.apps).toContain('Crude Assay & Blending Studio');
   });
 });
 
