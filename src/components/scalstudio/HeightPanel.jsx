@@ -6,8 +6,8 @@ import { useScalStudio } from '@/contexts/ScalStudioContext';
 import { Field, SectionLabel } from '@/components/waterflooddesign/primitives';
 
 const FIELDS = [
-  { k: 'gammaW', label: 'γw — water specific gravity' },
-  { k: 'gammaHc', label: 'γhc — hydrocarbon specific gravity' },
+  { k: 'gammaW', label: 'γw, water specific gravity' },
+  { k: 'gammaHc', label: 'γhc, hydrocarbon specific gravity' },
   { k: 'fwl_tvdss', label: 'Free water level TVDSS (ft, optional)' },
   { k: 'swMin', label: 'Sw axis minimum' },
   { k: 'swMax', label: 'Sw axis maximum' },

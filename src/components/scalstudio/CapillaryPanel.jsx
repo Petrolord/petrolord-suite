@@ -7,10 +7,10 @@ import { useScalStudio } from '@/contexts/ScalStudioContext';
 import { Field, SectionLabel } from '@/components/waterflooddesign/primitives';
 
 const RESERVOIR_FIELDS = [
-  { k: 'k_md', label: 'k — reservoir permeability (md)' },
-  { k: 'phi', label: 'φ — reservoir porosity (frac)' },
-  { k: 'sigma_dyncm', label: 'σ — IFT at reservoir (dyn/cm)' },
-  { k: 'thetaDeg', label: 'θ — contact angle (deg)' },
+  { k: 'k_md', label: 'k, reservoir permeability (md)' },
+  { k: 'phi', label: 'φ, reservoir porosity (frac)' },
+  { k: 'sigma_dyncm', label: 'σ, IFT at reservoir (dyn/cm)' },
+  { k: 'thetaDeg', label: 'θ, contact angle (deg)' },
 ];
 
 const CapillaryPanel = () => {
@@ -35,9 +35,9 @@ const CapillaryPanel = () => {
       {capillary.jMode === 'manual' ? (
         <section className="space-y-3">
           <SectionLabel>Power law J = a·Sw*^(-b)</SectionLabel>
-          <Field label="a — J at Sw* = 1" value={capillary.manual.a} onChange={(v) => setManualJField('a', v)} />
-          <Field label="b — curvature exponent" value={capillary.manual.b} onChange={(v) => setManualJField('b', v)} />
-          <Field label="Swirr — irreducible water" value={capillary.manual.Swirr} onChange={(v) => setManualJField('Swirr', v)} />
+          <Field label="a, J at Sw* = 1" value={capillary.manual.a} onChange={(v) => setManualJField('a', v)} />
+          <Field label="b, curvature exponent" value={capillary.manual.b} onChange={(v) => setManualJField('b', v)} />
+          <Field label="Swirr, irreducible water" value={capillary.manual.Swirr} onChange={(v) => setManualJField('Swirr', v)} />
           <p className="text-[11px] text-slate-500">
             Sw* is (Sw − Swirr)/(1 − Swirr). Type a published or field-calibrated J correlation here, or switch to
             From samples once lab capillary data is loaded on the Lab Data tab.

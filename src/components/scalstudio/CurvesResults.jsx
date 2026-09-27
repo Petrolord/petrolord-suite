@@ -8,8 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ChartFrame from '@/components/charts/ChartFrame';
 import {
-  CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE,
+  CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT,
 } from '@/utils/chartTheme';
+
+// Senior test T1: one-decimal labels on auto ticks printed 0.25 as 0.3.
+const UNIT_TICKS = [0, 0.2, 0.4, 0.6, 0.8, 1];
 import { useScalStudio } from '@/contexts/ScalStudioContext';
 import { Kpi, LINE, fmt } from '@/components/waterflooddesign/primitives';
 
@@ -83,15 +86,15 @@ const CurvesResults = () => {
           <ChartFrame height={320} exportFilename={isOw ? 'scal-kr-oil-water' : 'scal-kr-gas-oil'}>
             <LineChart data={chartRows} margin={{ top: 16, right: 16, bottom: 8, left: 8 }}>
               <CartesianGrid {...GRID_STYLE} vertical={false} />
-              <XAxis
+              <XAxis height={XAXIS_LABEL_HEIGHT}
                 dataKey={isOw ? 'Sw' : 'Sg'}
                 type="number"
                 domain={[0, 1]}
-                tickFormatter={(v) => v.toFixed(1)}
+                ticks={UNIT_TICKS} tickFormatter={(v) => v.toFixed(1)}
                 {...axisProps}
                 label={{
                   value: isOw ? 'Water saturation Sw' : 'Gas saturation Sg',
-                  position: 'insideBottom', offset: -4,
+                  position: 'insideBottom', offset: 0,
                   fill: CHART_COLORS.axisText, fontSize: 11,
                 }}
               />
@@ -109,7 +112,7 @@ const CurvesResults = () => {
                 formatter={(v, name) => [Number(v).toFixed(4), name]}
                 labelFormatter={(v) => `${isOw ? 'Sw' : 'Sg'} = ${Number(v).toFixed(3)}`}
               />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Legend {...LEGEND_PROPS} />
               {isOw ? (
                 <>
                   <Line dataKey="krw" name="krw" stroke={LINE.water} strokeWidth={2} dot={false} />
@@ -135,13 +138,13 @@ const CurvesResults = () => {
             <ChartFrame height={260} exportFilename="scal-fw-preview">
               <LineChart data={fwPreview.rows} margin={{ top: 16, right: 16, bottom: 8, left: 8 }}>
                 <CartesianGrid {...GRID_STYLE} vertical={false} />
-                <XAxis
+                <XAxis height={XAXIS_LABEL_HEIGHT}
                   dataKey="Sw" type="number" domain={[0, 1]}
-                  tickFormatter={(v) => v.toFixed(1)} {...axisProps}
-                  label={{ value: 'Water saturation Sw', position: 'insideBottom', offset: -4, fill: CHART_COLORS.axisText, fontSize: 11 }}
+                  ticks={UNIT_TICKS} tickFormatter={(v) => v.toFixed(1)} {...axisProps}
+                  label={{ value: 'Water saturation Sw', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: 11 }}
                 />
                 <YAxis
-                  domain={[0, 1]} tickFormatter={(v) => v.toFixed(1)} {...axisProps}
+                  domain={[0, 1]} ticks={UNIT_TICKS} tickFormatter={(v) => v.toFixed(1)} {...axisProps}
                   label={{ value: 'fw', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: 11 }}
                 />
                 <Tooltip

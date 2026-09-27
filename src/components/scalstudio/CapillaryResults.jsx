@@ -9,8 +9,11 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ChartFrame from '@/components/charts/ChartFrame';
 import {
-  CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE,
+  CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT,
 } from '@/utils/chartTheme';
+
+// Senior test T1: one-decimal labels on auto ticks printed 0.25 as 0.3.
+const UNIT_TICKS = [0, 0.2, 0.4, 0.6, 0.8, 1];
 import { useScalStudio } from '@/contexts/ScalStudioContext';
 import { makeJFunction } from '@/utils/scalCalculations';
 import { Kpi, LINE, fmt, SCENARIO_COLORS } from '@/components/waterflooddesign/primitives';
@@ -81,10 +84,10 @@ const CapillaryResults = () => {
           <ChartFrame height={300} exportFilename="scal-j-function">
             <ComposedChart data={jCurveRows} margin={{ top: 16, right: 16, bottom: 8, left: 8 }}>
               <CartesianGrid {...GRID_STYLE} vertical={false} />
-              <XAxis
+              <XAxis height={XAXIS_LABEL_HEIGHT}
                 dataKey="Sw" type="number" domain={[0, 1]}
-                tickFormatter={(v) => v.toFixed(1)} {...axisProps}
-                label={{ value: 'Water saturation Sw', position: 'insideBottom', offset: -4, fill: CHART_COLORS.axisText, fontSize: 11 }}
+                ticks={UNIT_TICKS} tickFormatter={(v) => v.toFixed(1)} {...axisProps}
+                label={{ value: 'Water saturation Sw', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: 11 }}
               />
               <YAxis
                 scale="log" domain={['auto', 'auto']} allowDataOverflow
@@ -97,7 +100,7 @@ const CapillaryResults = () => {
                 formatter={(v, name) => [Number(v).toPrecision(4), name]}
                 labelFormatter={(v) => `Sw = ${Number(v).toFixed(3)}`}
               />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Legend {...LEGEND_PROPS} />
               <Line dataKey="J" name="Working J curve" stroke={LINE.fw} strokeWidth={2} dot={false} />
               {includedSamples.map((s, i) => (
                 <Scatter
@@ -128,10 +131,10 @@ const CapillaryResults = () => {
             <ChartFrame height={280} exportFilename="scal-reservoir-pc">
               <LineChart data={reservoirPc} margin={{ top: 16, right: 16, bottom: 8, left: 8 }}>
                 <CartesianGrid {...GRID_STYLE} vertical={false} />
-                <XAxis
+                <XAxis height={XAXIS_LABEL_HEIGHT}
                   dataKey="Sw" type="number" domain={[0, 1]}
-                  tickFormatter={(v) => v.toFixed(1)} {...axisProps}
-                  label={{ value: 'Water saturation Sw', position: 'insideBottom', offset: -4, fill: CHART_COLORS.axisText, fontSize: 11 }}
+                  ticks={UNIT_TICKS} tickFormatter={(v) => v.toFixed(1)} {...axisProps}
+                  label={{ value: 'Water saturation Sw', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: 11 }}
                 />
                 <YAxis
                   domain={[0, 'auto']}
