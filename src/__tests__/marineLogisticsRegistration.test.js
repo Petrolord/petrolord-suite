@@ -101,12 +101,13 @@ describe('the migrations (files only, held for the owner)', () => {
     expect(ratio).toBeLessThan(0.42);
   });
 
-  it('is logged in MIGRATIONS.md as not yet applied', () => {
+  it('is logged in MIGRATIONS.md as applied by the owner', () => {
     const log = fs.readFileSync(path.resolve(ROOT, '../MIGRATIONS.md'), 'utf8');
     for (const f of [TABLE_SQL, SEED_SQL, ACTIVATE_SQL]) {
       const row = log.split('\n').find((l) => l.includes(f));
       expect(row).toBeDefined();
-      expect(row).toMatch(/NOT YET APPLIED/);
+      expect(row).toMatch(/APPLIED 2026-09-27/);
+      expect(row).not.toMatch(/NOT YET APPLIED/);
     }
   });
 });
