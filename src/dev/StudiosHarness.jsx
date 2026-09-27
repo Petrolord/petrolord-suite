@@ -57,6 +57,7 @@ const SEEDS = {
     ],
     pm_deliverables: [],
   }),
+  'report-autopilot': () => ({ saved_report_autopilot_projects: [] }),
   afe: () => ({
     projects: [{ id: 'proj-h1', user_id: U, name: 'Harness Well H-1', created_at: TS }],
     afes: [{
@@ -82,6 +83,26 @@ const SEEDS = {
   }),
 };
 
+// Stand-ins for edge functions that call a model (not gradable by hand):
+// report-autopilot answers each section with a fixed sentence built only
+// from the brief and the inputs, so the flow around it can be tested.
+const FUNCTIONS = {
+  'report-autopilot': {
+    'report-autopilot': async (body) => ({
+      data: {
+        sections: (body?.sections || []).map((sec) => ({
+          id: sec.id,
+          title: sec.name,
+          content: `Harness draft for ${sec.name} on ${body?.input?.well_name || body?.input?.project_name || 'the project'}. ${sec.brief || ''}`.trim(),
+        })),
+        model: 'harness-stand-in',
+        generated_at: TS,
+      },
+      error: null,
+    }),
+  },
+};
+
 const stores = {};
 const storeFor = (app) => (stores[app] ||= createStore(SEEDS[app] ? SEEDS[app]() : {}));
 
@@ -90,7 +111,7 @@ export default function StudiosHarness() {
   const App = APPS[app];
   if (!App) return <div className="p-6 text-slate-300">Unknown app. Try one of: {Object.keys(APPS).join(', ')}</div>;
   return (
-    <InMemorySupabase db={storeFor(app)}>
+    <InMemorySupabase db={storeFor(app)} functions={FUNCTIONS[app]}>
       <DevAuth>
         <div className="min-h-screen bg-slate-950 text-slate-100">
           <Suspense fallback={<div className="p-6 text-slate-400">Loading...</div>}><App /></Suspense>

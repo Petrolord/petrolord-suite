@@ -169,8 +169,8 @@ const InputPanel = ({ onGenerate, loading, templates, formState, setFormState })
             </p>
             {(formState.kpis || []).map((kpi, index) => (
               <div key={index} className="flex items-center gap-2 mb-2">
-                <Input placeholder="Measured quantity, for example Average ROP" value={kpi.key} onChange={e => handleKpiChange(index, 'key', e.target.value)} />
-                <Input placeholder="The value you measured" value={kpi.value} onChange={e => handleKpiChange(index, 'value', e.target.value)} />
+                <Input aria-label="Measured quantity" title="Measured quantity, for example Average ROP" placeholder="Quantity, e.g. ROP" value={kpi.key} onChange={e => handleKpiChange(index, 'key', e.target.value)} />
+                <Input aria-label="Measured value" placeholder="Value" value={kpi.value} onChange={e => handleKpiChange(index, 'value', e.target.value)} />
                 <Button type="button" variant="ghost" size="icon" onClick={() => removeKpi(index)}><MinusCircle className="h-5 w-5 text-red-400" /></Button>
               </div>
             ))}
@@ -182,7 +182,12 @@ const InputPanel = ({ onGenerate, loading, templates, formState, setFormState })
         <CollapsibleSection title="Supporting Documents" icon={<FileUp />}>
           <div {...getRootProps()} className="p-6 border-2 border-dashed border-slate-600 rounded-lg text-center cursor-pointer hover:border-lime-400 transition-colors">
             <input {...getInputProps()} />
-            {isDragActive ? <p>Drop the files here ...</p> : <p>Drag 'n' drop files here, or click to select</p>}
+            {isDragActive ? <p>Drop the files here</p> : (
+              <>
+                <p>Drag text or CSV files here, or click to choose.</p>
+                <p className="mt-1 text-xs text-slate-400">TXT, CSV, TSV, MD, JSON and LOG are read and given to the writer as data. PDFs and spreadsheets are not read yet; paste their figures into the notes.</p>
+              </>
+            )}
           </div>
           <ul className="mt-2 text-sm text-slate-300">
             {uploadedFiles.map(file => <li key={file.path}>{file.path} - {(file.size / 1024).toFixed(2)} KB</li>)}

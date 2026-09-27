@@ -16,7 +16,7 @@ const EmptyState = () => {
       </div>
       <h2 className="text-2xl font-bold text-white mb-2">Technical Report Autopilot</h2>
       <p className="text-lime-200/80 max-w-md mb-6">
-        Configure your report on the left panel. Select a type, add data, and let our AI generate a comprehensive technical draft for you.
+        Choose a report type, then give it your measured figures, notes and any text or CSV files. The draft is written only from what you give it; where a section has no facts behind it, the draft says so.
       </p>
       <p className="text-xs text-slate-400">Click "Generate Report" when you're ready.</p>
     </motion.div>
