@@ -57,9 +57,9 @@ export const defaultInputs = () => ({
     gasSg: '0.65', tF: '100', z: '0.95', k: '1.28',
   },
   valve: {
-    cvRated: '100', rangeability: '50', characteristic: 'equalPercentage',
+    cvRated: '150', rangeability: '50', characteristic: 'equalPercentage',
     dpSystemTotalPsi: '120', fp: '1',
-    outletIdIn: '4.026', erosionalCPreset: 'continuous',
+    outletIdIn: '6.065', erosionalCPreset: 'continuous',
   },
 });
 
