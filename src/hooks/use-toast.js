@@ -1,6 +1,16 @@
 "use client";
 // Inspired by react-hot-toast library
 import * as React from "react"
+import { toast as sonner } from "sonner"
+
+// Senior test T1 (2026-09-27): this is a second copy of the shadcn toast
+// store (50 files import it). No Toaster renders it, so like the first copy
+// (#707, components/ui/use-toast) every toast it raised was invisible. Each
+// toast is also shown through the sonner Toaster App.jsx mounts.
+const showInSonner = (id, { title, description, variant, duration }) => {
+  const show = variant === "destructive" ? sonner.error : sonner
+  show(title ?? "", { id: `ht-${id}`, description, duration })
+}
 
 const TOAST_LIMIT = 1
 const TOAST_REMOVE_DELAY = 1000000
@@ -106,12 +116,21 @@ function toast({
 }) {
   const id = genId()
 
-  const update = (props) =>
-    dispatch({
+  let current = { ...props }
+  const update = (next) => {
+    current = { ...current, ...next }
+    showInSonner(id, current)
+    return dispatch({
       type: "UPDATE_TOAST",
-      toast: { ...props, id },
+      toast: { ...next, id },
     })
-  const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
+  }
+  const dismiss = () => {
+    sonner.dismiss(`ht-${id}`)
+    return dispatch({ type: "DISMISS_TOAST", toastId: id })
+  }
+
+  showInSonner(id, props)
 
   dispatch({
     type: "ADD_TOAST",
