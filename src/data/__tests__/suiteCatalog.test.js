@@ -56,6 +56,12 @@ describe('the pages that read it', () => {
     expect(read('../index.html')).not.toMatch(/published prices/i);
   });
 
+  it('shows the brand wordmark and lists the UK office and phone before Nigeria', () => {
+    expect(home).toContain("'/petrolord-suite-wordmark.png'");
+    expect(home.indexOf('+44 7403 660720')).toBeLessThan(home.indexOf('+234 901 556 6981'));
+    expect(home.indexOf('London EC1V 2NX')).toBeLessThan(home.indexOf('Lekki Phase 1'));
+  });
+
   it('send signed-in visitors to the real quote route', () => {
     expect(home).toContain("'/dashboard/get-quote'");
     expect(home).not.toMatch(/navigate\('\/get-quote'\)/);
