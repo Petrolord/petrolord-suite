@@ -100,3 +100,7 @@ engines unchanged in the range).
 - Done with SC4: `scm_materials_projects` joined the Project Portability `apps` family
   (`src/lib/portability/familiesCore.js`).
 - NextGen course `materials` follows in `/root/wt-sc3-nextgen`.
+
+## Live (2026-09-27)
+
+Suite zip ef6b02403 uploaded and verified (version.json sha ef6b02403; the planner chunk loads). The table, the Coming Soon seed and the activation migrations are applied to production; the tile is Active, built, at USD 299 (owner-confirmed). Browser walk on staging is still open.
