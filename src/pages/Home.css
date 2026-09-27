@@ -152,10 +152,7 @@
 .suite-home .mod-intro h3{font-size:clamp(30px,3.4vw,40px)}
 .suite-home .mod-intro .tag{font:italic 500 21px/1.3 var(--serif);color:var(--gold)}
 .suite-home .mod-intro > p:not(.eyebrow):not(.tag){color:var(--muted)}
-.suite-home .mod-price{display:grid;gap:2px;border-left:2px solid var(--gold);padding:4px 0 4px 14px;margin:4px 0 6px}
-.suite-home .mod-price span{font-size:13px;color:var(--muted)}
-.suite-home .mod-price strong{font:600 30px/1.1 var(--serif);font-variant-numeric:lining-nums;color:var(--ink)}
-.suite-home .mod-price small{font:500 14px var(--sans);color:var(--muted)}
+.suite-home .mod-note{font-size:14px;color:var(--muted);border-left:2px solid var(--gold);padding:4px 0 4px 14px;margin:4px 0 6px}
 .suite-home .app-list{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;align-content:start}
 .suite-home .app-list li{display:flex;gap:12px;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--line);font-weight:500;font-size:15px}
 .suite-home .app-list .n{font:500 12px/1 var(--mono);color:var(--gold);flex:none}

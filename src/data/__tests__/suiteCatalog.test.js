@@ -49,6 +49,13 @@ describe('the pages that read it', () => {
     expect(visible).not.toMatch(/[–—]/);
   });
 
+  it('keep prices off the homepage (owner, 2026-09-27: prices live in the quote builder)', () => {
+    expect(home).not.toMatch(/pricingModels|MODULE_PRICING|SEAT_TIERS/);
+    const visible = home.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(visible).not.toMatch(/\$\d|\$\{usd/);
+    expect(read('../index.html')).not.toMatch(/published prices/i);
+  });
+
   it('send signed-in visitors to the real quote route', () => {
     expect(home).toContain("'/dashboard/get-quote'");
     expect(home).not.toMatch(/navigate\('\/get-quote'\)/);
