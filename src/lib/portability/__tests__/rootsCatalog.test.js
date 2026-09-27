@@ -24,6 +24,8 @@ beforeEach(() => {
 test('appLabel strips the convention prefix and suffix', () => {
   expect(appLabel('saved_well_test_projects')).toBe('well test');
   expect(appLabel('saved_choke_projects')).toBe('choke');
+  expect(appLabel('scm_materials_projects')).toBe('materials');
+  expect(appLabel('scm_marine_projects')).toBe('marine');
 });
 
 test('saved_project aggregates across every table, newest first, and tolerates a broken table', async () => {

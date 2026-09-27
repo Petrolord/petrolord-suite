@@ -97,7 +97,6 @@ engines unchanged in the range).
 ## Open
 
 - Browser walk on staging not done in this wave (views are covered by jsdom tests).
-- `scm_materials_projects` is not in the Project Portability families
-  (`src/lib/portability/familiesCore.js` lists saved_* tables); add it when the
-  portability registry takes product-prefixed saved-project tables.
+- Done with SC4: `scm_materials_projects` joined the Project Portability `apps` family
+  (`src/lib/portability/familiesCore.js`).
 - NextGen course `materials` follows in `/root/wt-sc3-nextgen`.

@@ -9,6 +9,7 @@ import { registerFamily } from './familySpec';
 //
 // One shape for every table: id, user_id, project_name, inputs_data jsonb,
 // results_data jsonb (26 of them), created_at, updated_at, + PP0 columns.
+// The saved_* tables and the two scm_* supply chain planner tables.
 // The only ids inside inputs_data point at the production spine (po_fields,
 // po_wells) through the `link` block some contexts persist; all optional.
 
@@ -30,6 +31,10 @@ export const SAVED_PROJECT_TABLES = [
   'saved_tank_projects', 'saved_terminal_projects', 'saved_valve_projects',
   'saved_voi_projects', 'saved_vrr_projects', 'saved_waterflood_design_projects',
   'saved_waterflood_projects', 'saved_well_test_projects',
+  // Supply Chain planners: product-prefixed (scm_) tables on the same
+  // saved-projects shape (no results_data): SC3 Materials & Spares Planner,
+  // SC4 Marine Logistics Planner. Their payloads hold no ids of other rows.
+  'scm_materials_projects', 'scm_marine_projects',
 ];
 
 const LINK_REFS = [
@@ -53,7 +58,7 @@ registerFamily('apps', {
     // the payload repeats its own row id (service.save(id, { id, ... })): follow the new id
     softRefs: [{ path: 'inputs_data.id', table: t, optional: true }, ...LINK_REFS],
   }])),
-  // one root kind for all 51 tables; the root names its table
+  // one root kind for all 52 tables; the root names its table
   roots: { saved_project: '*' },
   order: SAVED_PROJECT_TABLES,
 });
