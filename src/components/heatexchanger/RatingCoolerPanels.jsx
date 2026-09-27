@@ -132,7 +132,15 @@ export const CoolerResults = () => {
             <Stat label="Fan inlet air" value={fmt(cooler.fanInletF, 1)} unit="F"
               hint={`${cooler.draftType} draft, at ${fmt(cooler.barometricPsia, 1)} psia`} />
           </div>
-          <InfoNote>{cooler.fNote}</InfoNote>
+          {/* The engine's own note is written for developers (a function
+              name and a return field in backticks, "this repository");
+              say the same thing for an engineer (HX-T1-002). */}
+          <InfoNote>
+            An air cooler is cross-flow. This studio sizes it on the counter-current log mean with
+            F = 1, so the bare-tube area above is a counter-current basis and a real cross-flow unit
+            needs somewhat more surface. The hot-day rating below does not depend on this: it holds
+            the bundle&apos;s effectiveness rather than assuming an arrangement.
+          </InfoNote>
         </CardContent>
       </Card>
 

@@ -56,7 +56,7 @@ export const ErrorNote = ({ children }) => (
 );
 
 export const InfoNote = ({ children }) => (
-  <div className="rounded-md border border-slate-700/60 bg-slate-800/40 px-3 py-2 text-[12px] text-slate-300">
+  <div className="first-letter:uppercase rounded-md border border-slate-700/60 bg-slate-800/40 px-3 py-2 text-[12px] text-slate-300">
     {children}
   </div>
 );
