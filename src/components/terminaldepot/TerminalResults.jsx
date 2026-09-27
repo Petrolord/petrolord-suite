@@ -7,9 +7,11 @@ import { AlertTriangle, CheckCircle2, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS } from '@/utils/chartTheme';
 import { useTerminalDepot } from '@/contexts/TerminalDepotContext';
 
+// Senior test T1: a loss read "$-21,360" in green.
+const money = (v, dp = 0) => (Number.isFinite(v) ? `${v < 0 ? '-' : ''}$${Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })}` : 'n/a');
 const fmt = (v, dp = 1) => (Number.isFinite(v) ? v.toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp }) : 'n/a');
 
 const TerminalResults = () => {
@@ -64,10 +66,10 @@ const TerminalResults = () => {
             <YAxis stroke={CHART_COLORS.axisLine} tick={tick}
               label={{ value: 'm3', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [`${fmt(v)} m3`, n]} />
-            <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
+            <Legend {...LEGEND_PROPS} />
             <ReferenceLine y={0} stroke={CHART_COLORS.axisLine} />
-            <Line type="monotone" dataKey="daily" name="Daily" stroke="#0891b2" strokeWidth={1.5} dot={{ r: 3 }} />
-            <Line type="monotone" dataKey="cumulative" name="Cumulative" stroke="#dc2626" strokeWidth={2} dot={false} />
+            <Line type="linear" dataKey="daily" name="Daily" stroke="#0891b2" strokeWidth={1.5} dot={{ r: 3 }} />
+            <Line type="linear" dataKey="cumulative" name="Cumulative" stroke="#dc2626" strokeWidth={2} dot={false} />
           </LineChart>
         </ChartFrame>
         {trend.prompt && (
@@ -77,13 +79,20 @@ const TerminalResults = () => {
           </div>
         )}
         <div className="mt-3 space-y-1">
+          {inputs.history.length > 0 && (
+            <div className="flex items-center gap-2 text-[10px] text-slate-500">
+              <span className="w-14" />
+              <span className="w-28">Unaccounted (m3)</span>
+              <span className="w-28">Throughput (m3)</span>
+            </div>
+          )}
           {inputs.history.map((d, i) => (
             <div key={d.id} className="flex items-center gap-2">
               <span className="text-[11px] text-slate-500 w-14">Day {i + 1}</span>
-              <Input type="number" step="any" value={d.unaccountedM3}
+              <Input type="number" step="any" value={d.unaccountedM3} aria-label={`Day ${i + 1} unaccounted (m3)`}
                 onChange={(e) => setHistoryDay(d.id, { unaccountedM3: e.target.value })}
                 className="h-7 bg-slate-950 border-slate-700 text-xs w-28" placeholder="unaccounted" />
-              <Input type="number" step="any" value={d.throughputM3}
+              <Input type="number" step="any" value={d.throughputM3} aria-label={`Day ${i + 1} throughput (m3)`}
                 onChange={(e) => setHistoryDay(d.id, { throughputM3: e.target.value })}
                 className="h-7 bg-slate-950 border-slate-700 text-xs w-28" placeholder="throughput" />
               <Button variant="ghost" size="sm" onClick={() => removeHistoryDay(d.id)}
@@ -145,8 +154,8 @@ const TerminalResults = () => {
       <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-4">
         <h3 className="text-sm font-semibold text-white mb-2">Throughput, in money and in carbon</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div><p className="text-[11px] uppercase text-slate-400">Margin</p><p className="text-lg font-bold text-lime-300 mt-1">${fmt(economics.margin, 0)}</p></div>
-          <div><p className="text-[11px] uppercase text-slate-400">Per m3</p><p className="text-lg font-bold text-white mt-1">${fmt(economics.marginPerM3, 2)}</p></div>
+          <div><p className="text-[11px] uppercase text-slate-400">Margin</p><p className={`text-lg font-bold mt-1 ${economics.margin < 0 ? 'text-red-300' : 'text-lime-300'}`}>{money(economics.margin, 0)}</p></div>
+          <div><p className="text-[11px] uppercase text-slate-400">Per m3</p><p className="text-lg font-bold text-white mt-1">{money(economics.marginPerM3, 2)}</p></div>
           <div><p className="text-[11px] uppercase text-slate-400">Loss</p><p className="text-lg font-bold text-white mt-1">{fmt(economics.lossTonnes, 2)} t</p></div>
           <div>
             <p className="text-[11px] uppercase text-slate-400">kgCO2e per tonne</p>
