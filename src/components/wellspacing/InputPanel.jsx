@@ -12,6 +12,7 @@ const InputPanel = ({
   handleInputChange, 
   handleLocationSelect,
   handleCalculate, 
+  handleLoadExample,
   loading 
 }) => {
   const [showDMS, setShowDMS] = React.useState(false);
@@ -526,10 +527,16 @@ const InputPanel = ({
           </div>
         </div>
 
+        {handleLoadExample && (
+          <Button type="button" variant="outline" onClick={handleLoadExample}
+            className="w-full mt-6 border-slate-600 text-slate-200 hover:bg-slate-800">
+            Load example field
+          </Button>
+        )}
         <Button
           onClick={handleCalculate}
           disabled={loading}
-          className="w-full mt-6 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold py-3"
+          className="w-full mt-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold py-3"
         >
           {loading ? (
             <div className="flex items-center justify-center">

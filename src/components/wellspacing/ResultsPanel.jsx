@@ -2,28 +2,30 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Download, FileText, TrendingUp, DollarSign, Target, BarChart3 } from 'lucide-react';
-import { Line } from 'react-chartjs-2';
-import ChartLogo from '@/components/charts/ChartLogo';
-import { CHART_COLORS } from '@/utils/chartTheme';
 import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+} from 'recharts';
+import ChartLogo from '@/components/charts/ChartLogo';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend
+// Senior test T1 (2026-09-27): these three charts were the Suite's only
+// Chart.js charts, off the recharts chart standard, with smoothed lines
+// (tension 0.4) between spacings that are discrete cases. They are recharts
+// on the chart theme, straight between the computed spacings.
+const AXIS = { stroke: CHART_COLORS.axisLine, tick: { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize } };
+const SpacingLine = ({ data, dataKey, name, color, unit, fmt = (v) => v }) => (
+  <ResponsiveContainer width="100%" height="100%">
+    <LineChart data={data} margin={{ top: 12, right: 16, bottom: 4, left: 8 }}>
+      <CartesianGrid {...GRID_STYLE} />
+      <XAxis dataKey="spacing" type="number" domain={['dataMin', 'dataMax']} {...AXIS} height={XAXIS_LABEL_HEIGHT}
+        ticks={data.map((d) => d.spacing).filter((v, i, arr) => arr.length <= 9 || i % Math.ceil(arr.length / 8) === 0)}
+        label={{ value: 'Well spacing (acres/well)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+      <YAxis {...AXIS} width={64} tickFormatter={fmt}
+        label={{ value: unit, angle: -90, position: 'insideLeft', style: { textAnchor: 'middle' }, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+      <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={(v) => `${v} acres/well`} formatter={(v) => [fmt(v), name]} />
+      <Line type="linear" dataKey={dataKey} name={name} stroke={color} strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
+    </LineChart>
+  </ResponsiveContainer>
 );
 
 const ResultsPanel = ({ 
@@ -31,92 +33,7 @@ const ResultsPanel = ({
   downloadCSV, 
   downloadJSON 
 }) => {
-  const npvChartData = {
-    labels: results.spacingResults.map(r => r.spacing),
-    datasets: [
-      {
-        label: 'NPV ($M)',
-        data: results.spacingResults.map(r => r.npv),
-        borderColor: 'rgb(34, 197, 94)',
-        backgroundColor: 'rgba(34, 197, 94, 0.1)',
-        tension: 0.4,
-        pointBackgroundColor: 'rgb(34, 197, 94)',
-        pointBorderColor: 'rgb(34, 197, 94)',
-        pointRadius: 4,
-      }
-    ]
-  };
-
-  const recoveryChartData = {
-    labels: results.spacingResults.map(r => r.spacing),
-    datasets: [
-      {
-        label: 'Field Recovery (%)',
-        data: results.spacingResults.map(r => r.totalFieldRecovery),
-        borderColor: 'rgb(59, 130, 246)',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        tension: 0.4,
-        pointBackgroundColor: 'rgb(59, 130, 246)',
-        pointBorderColor: 'rgb(59, 130, 246)',
-        pointRadius: 4,
-      }
-    ]
-  };
-
-  const costPerBarrelChartData = {
-    labels: results.spacingResults.map(r => r.spacing),
-    datasets: [
-      {
-        label: 'Cost per Barrel ($/bbl)',
-        data: results.spacingResults.map(r => r.costPerBarrel),
-        borderColor: 'rgb(249, 115, 22)',
-        backgroundColor: 'rgba(249, 115, 22, 0.1)',
-        tension: 0.4,
-        pointBackgroundColor: 'rgb(249, 115, 22)',
-        pointBorderColor: 'rgb(249, 115, 22)',
-        pointRadius: 4,
-      }
-    ]
-  };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'top',
-        labels: {
-          color: CHART_COLORS.legendText,
-        },
-      },
-      title: {
-        display: false,
-      },
-    },
-    scales: {
-      x: {
-        title: {
-          display: true,
-          text: 'Well Spacing (acres/well)',
-          color: CHART_COLORS.axisText,
-        },
-        ticks: {
-          color: CHART_COLORS.axisText,
-        },
-        grid: {
-          color: CHART_COLORS.grid,
-        },
-      },
-      y: {
-        ticks: {
-          color: CHART_COLORS.axisText,
-        },
-        grid: {
-          color: CHART_COLORS.grid,
-        },
-      },
-    }
-  };
+  const rows = results.spacingResults;
 
   return (
     <>
@@ -169,6 +86,11 @@ const ResultsPanel = ({
             reservoir work says about drainage. Read the Coverage column alongside NPV, because a
             spacing that leaves part of the field undrained is penalised here purely for that.
           </p>
+          {Number.isFinite(results.boUsed) && (
+            <p className="text-amber-100 text-sm mt-3" data-testid="ws-bo-note">
+              {`Volumes are stock-tank barrels: oil in place is divided by Bo ${results.boUsed.toFixed(3)} rb/stb, from Standing's correlation on your GOR, oil gravity, gas gravity and temperature.`}
+            </p>
+          )}
         </div>
 
         <div className="overflow-x-auto mb-6">
@@ -225,7 +147,7 @@ const ResultsPanel = ({
               <h3 className="text-lg font-semibold text-white">NPV vs. Well Spacing</h3>
             </div>
             <div className="relative bg-white rounded-lg p-3 h-64">
-              <Line data={npvChartData} options={chartOptions} />
+              <SpacingLine data={rows} dataKey="npv" name="NPV" unit="NPV ($M)" color="#16a34a" fmt={(v) => Number(v).toFixed(1)} />
               <ChartLogo />
             </div>
           </div>
@@ -239,7 +161,7 @@ const ResultsPanel = ({
               </div>
             </div>
             <div className="relative bg-white rounded-lg p-3 h-64">
-              <Line data={recoveryChartData} options={chartOptions} />
+              <SpacingLine data={rows} dataKey="totalFieldRecovery" name="Field recovery" unit="Field recovery (%)" color="#2563eb" fmt={(v) => Number(v).toFixed(1)} />
               <ChartLogo />
             </div>
           </div>
@@ -252,7 +174,7 @@ const ResultsPanel = ({
               <h3 className="text-lg font-semibold text-white">Cost per Barrel vs. Well Spacing</h3>
             </div>
             <div className="relative bg-white rounded-lg p-3 h-64">
-              <Line data={costPerBarrelChartData} options={chartOptions} />
+              <SpacingLine data={rows} dataKey="costPerBarrel" name="Cost per barrel" unit="Cost per barrel ($/bbl)" color="#ea580c" fmt={(v) => Number(v).toFixed(2)} />
               <ChartLogo />
             </div>
           </div>

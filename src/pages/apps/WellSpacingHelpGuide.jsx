@@ -155,13 +155,15 @@ const WellSpacingHelpGuide = () => (
       <SubHeading>Wells and volume</SubHeading>
       <Formula>wells = floor(reservoir area / spacing)</Formula>
       <Formula>coverage = wells * spacing / reservoir area</Formula>
-      <Formula>EUR per well = spacing * net pay * porosity * (1 - Sw) * 7758 * RF</Formula>
+      <Formula>EUR per well = spacing * net pay * porosity * (1 - Sw) * 7758 * RF / Bo</Formula>
+      <Formula>Bo = 0.9759 + 0.00012 * (GOR * sqrt(gas gravity / oil SG) + 1.25 * T)^1.2  (Standing)</Formula>
       <Formula>field recovery = coverage * RF</Formula>
       <Para>
         The well count is a whole number, so a spacing that does not divide the area evenly leaves a
         remainder undrained. That remainder is the entire reason the field recovery curve steps up
         and down rather than running smoothly, and it is why the Coverage column sits beside it in
-        the table.
+        the table. Bo turns reservoir barrels into the stock-tank barrels that are sold; it comes
+        from the GOR, oil gravity, gas gravity and temperature you enter.
       </Para>
       <SubHeading>Rate and life</SubHeading>
       <Para>

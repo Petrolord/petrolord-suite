@@ -210,8 +210,10 @@ describe('volumetrics', () => {
   test('EUR per well matches the closed form', async () => {
     const { spacingResults } = await calculateOptimalSpacing(BASE);
     const r = spacingResults.find((x) => x.spacing === 40);
-    // 40 acres x 60 ft x 0.15 x (1 - 0.25) x 7758 x 0.35, in Mbbl.
-    const expected = (40 * 60 * 0.15 * 0.75 * 7758 * 0.35) / 1000;
+    // 40 acres x 60 ft x 0.15 x (1 - 0.25) x 7758 x 0.35 / Bo, in Mbbl
+    // (senior test T1: stock-tank barrels through Standing's Bo).
+    const { boUsed } = await calculateOptimalSpacing(BASE);
+    const expected = (40 * 60 * 0.15 * 0.75 * 7758 * 0.35) / boUsed / 1000;
     expect(r.eurPerWell).toBeCloseTo(expected, 6);
   });
 
@@ -239,5 +241,27 @@ describe('exports', () => {
     expect(json.metadata.objective).toMatch(/NPV/);
     expect(json.metadata.recoveryModel).toMatch(/no interference/i);
     expect(json.optimizationResults).toHaveLength(results.spacingResults.length);
+  });
+});
+
+// Senior test T1 (2026-09-27): stock-tank barrels through Standing's Bo.
+describe('formation volume factor', () => {
+  const example = {
+    fieldName: 'Example field', reservoirArea: '5000', avgNetPayThickness: '60', porosity: '15.2',
+    initialWaterSaturation: '0.25', reservoirTemperature: '180', reservoirPressure: '3500', recoveryFactor: '35',
+    wellPatternType: '5-spot', oilGravity: '35', gasGravity: '0.75', initialSolutionGOR: '500',
+    wellCost: '5000000', operatingExpense: '200000', minEconomicFlowRate: '10', typicalWellDeclineRate: '15',
+    oilPrice: '75', gasPrice: '3.5', discountRate: '10', projectDuration: '20', royaltiesTaxes: '25',
+    minSpacing: '20', maxSpacing: '40', spacingIncrement: '10', latitude: '29.76', longitude: '-95.37',
+  };
+
+  test('EUR per well is in stock-tank barrels: 7758 A h phi (1 - Sw) RF / Bo', async () => {
+    const r = await calculateOptimalSpacing(example);
+    // Standing: 0.9759 + 0.00012 (500 sqrt(0.75/0.8498) + 1.25 x 180)^1.2 = 1.2846
+    expect(r.boUsed).toBeCloseTo(1.2846, 3);
+    const eur20 = r.spacingResults.find((x) => x.spacing === 20).eurPerWell;
+    expect(eur20).toBeCloseTo((7758 * 20 * 60 * 0.152 * 0.75 * 0.35) / 1.2846 / 1000, 0);
+    // negative control: the reservoir-barrel figure it used to show
+    expect(eur20).not.toBeCloseTo(371.5, 0);
   });
 });
