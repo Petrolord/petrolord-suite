@@ -49,7 +49,14 @@ describe('ControlValveSizing page', () => {
     expect(screen.getAllByText(/Sigma/i).length).toBeGreaterThan(0);
     // The RP 14E outlet limit, reused from the validated production engine.
     expect(screen.getAllByText(/Body velocity limit/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/erode its own body/i).length).toBeGreaterThan(0);
+    // The default valve (rated Cv 150 on a 6 in outlet, CV-T1-001) is inside
+    // the limit; the erosion warning is exercised by shrinking the outlet.
+    expect(screen.getAllByText(/percent margin/i).length).toBeGreaterThan(0);
+    const outletBox = screen.getAllByText(/outlet/i)
+      .map((el) => el.parentElement?.querySelector('input'))
+      .find((el) => el && el.value === '6.065');
+    fireEvent.change(outletBox, { target: { value: '4.026' } });
+    await waitFor(() => expect(screen.getAllByText(/erode its own body/i).length).toBeGreaterThan(0));
 
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Control & Noise' }));
     await waitFor(() => expect(screen.getAllByText(/Authority and characteristic/i).length).toBeGreaterThan(0));
