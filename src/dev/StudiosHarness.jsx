@@ -21,6 +21,15 @@ const APPS = {
   blending: lazy(() => import('@/pages/apps/ProductBlendingOptimizer')),
   'refinery-planning': lazy(() => import('@/pages/apps/RefineryPlanningStudio')),
   'terminal-depot': lazy(() => import('@/pages/apps/TerminalDepotStudio')),
+  // Wave 7 (reservoir and ML)
+  eor: lazy(() => import('@/pages/apps/EorScreeningTool')),
+  'recovery-factor': lazy(() => import('@/pages/apps/RecoveryFactorEstimator')),
+  scal: lazy(() => import('@/pages/apps/ScalStudio')),
+  vrr: lazy(() => import('@/pages/apps/VoidageReplacementMonitor')),
+  waterflood: lazy(() => import('@/pages/apps/WaterfloodDesignStudio')),
+  'well-spacing': lazy(() => import('@/pages/apps/WellSpacingOptimizer')),
+  'ml-workbench': lazy(() => import('@/pages/apps/MlWorkbench')),
+  'forecasting-ml': lazy(() => import('@/pages/apps/ForecastingMlWorkbench')),
 };
 
 // Worked cases with closed-form answers, per app (checked in the T1 reports).

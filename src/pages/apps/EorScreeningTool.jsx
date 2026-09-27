@@ -142,9 +142,11 @@ export default function EorScreeningTool() {
               <Button
                 variant="outline" size="sm"
                 className="w-full border-slate-700 text-slate-300"
+                title="A West-Texas-style carbonate CO2 candidate"
                 onClick={() => setForm(Object.fromEntries(Object.entries(sample).map(([k, v]) => [k, String(v)])))}
               >
-                Load sample (West-Texas-style CO2 candidate)
+                {/* Senior test T1: the longer label wrapped over the button's edge at 1366. */}
+                Load a sample CO2 candidate
               </Button>
               <p className="text-[11px] text-slate-500 flex gap-1.5">
                 <Info size={13} className="shrink-0 mt-0.5" />
