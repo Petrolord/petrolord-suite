@@ -91,7 +91,7 @@ const LayeredPanel = () => {
               M = {fmt.f2(displacement?.M)} from the Displacement tab inputs.
             </Label>
           ) : (
-            <Field label="M — endpoint mobility ratio" value={layeredConfig.M} onChange={(v) => setLayeredField('M', v)} />
+            <Field label="M, endpoint mobility ratio" value={layeredConfig.M} onChange={(v) => setLayeredField('M', v)} />
           )}
         </div>
       </section>

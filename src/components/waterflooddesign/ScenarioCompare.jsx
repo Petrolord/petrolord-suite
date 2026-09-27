@@ -7,7 +7,7 @@ import {
 } from 'recharts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useWaterfloodDesign, buildDisplacementSpec } from '@/contexts/WaterfloodDesignContext';
 import { analyzeDisplacement } from '@/utils/fractionalFlowCalculations';
 import { ChartCard, SCENARIO_COLORS, fmt } from './primitives';
@@ -89,10 +89,10 @@ const ScenarioCompare = () => {
       </Card>
 
       <ChartCard title="Displacement efficiency vs PV injected (all scenarios)" height={320}>
-        <LineChart data={overlay} margin={{ top: 8, right: 16, bottom: 4, left: -8 }}>
+        <LineChart data={overlay} margin={{ top: 16, right: 16, bottom: 4, left: 8 }}>
           <CartesianGrid {...GRID_STYLE} />
-          <XAxis dataKey="Qi" {...axisProps} type="number" domain={[0, 'dataMax']} label={{ value: 'PV injected', fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideBottom', dy: 12 }} />
-          <YAxis {...axisProps} domain={[0, 'auto']} label={{ value: 'ED (%)', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', dy: 20 }} />
+          <XAxis height={XAXIS_LABEL_HEIGHT} dataKey="Qi" {...axisProps} type="number" domain={[0, 'dataMax']} label={{ value: 'PV injected', fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideBottom', offset: 0 }} />
+          <YAxis {...axisProps} domain={[0, 'auto']} label={{ value: 'ED (%)', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', style: { textAnchor: 'middle' } }} />
           <Tooltip {...tooltipProps} />
           <Legend {...legendProps} />
           {rows.map((r, idx) => (
