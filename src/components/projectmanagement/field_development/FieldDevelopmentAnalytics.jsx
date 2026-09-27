@@ -67,7 +67,7 @@ export const FieldDevelopmentResourceManager = ({ resources }) => {
                             <div className="text-xs font-bold text-slate-200">{res.discipline}</div>
                             <div className="text-[10px] text-slate-500">{res.type}</div>
                         </div>
-                        <div className="text-xs text-slate-400">{res.name.includes('TBD') ? 'Unfilled' : 'Assigned'}</div>
+                        <div className="text-xs text-slate-400">{!res.name || String(res.name).includes('TBD') ? 'Unfilled' : res.name}</div>
                     </div>
                 ))}
                 {resources.length === 0 && <div className="text-center text-slate-500 text-xs py-4">No resources defined.</div>}

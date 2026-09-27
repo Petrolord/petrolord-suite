@@ -30,6 +30,33 @@ const SEEDS = {
   // AFE: budget 8.5M; EAC max(budget, actual + commitment) unless entered:
   // RIG 5.0M, CSG 2.3M (entered), SVC 1.5M, so 8.8M and a 0.3M overrun;
   // EV 5.0 x 0.6 + 2.0 x 0.9 + 1.5 x 0.3 = 5.25M against 5.2M actual.
+  // Project Management: one Field Development project, as of 2026-09-01.
+  // BAC 10.0M; EV 1.0 + 4.0 x 0.5 + 5.0 x 0.1 = 3.5M; AC 1.1 + 2.2 + 0.4
+  // = 3.7M; PV 1.0 + 4.0 x 184/305 + 5.0 x 62/364 = 4.26M, so CPI 0.946,
+  // SPI 0.821, CV -0.2M, SV -0.76M.
+  'project-management': () => ({
+    projects: [{
+      id: 'pm-h1', user_id: U, name: 'Harness Field Development', company_name: 'Harness Energy', stage: 'Execute',
+      baseline_budget: 10000000, project_type: 'Field Development', status: 'Active', country: 'Nigeria', asset: 'Harness Field',
+      percent_complete: 35, start_date: '2026-01-01', end_date: '2027-06-30', created_at: TS, updated_at: TS,
+    }],
+    tasks: [
+      { id: 'pm-t1', project_id: 'pm-h1', user_id: U, name: 'FEED', workstream: 'Engineering', task_category: 'FEED', type: 'task', owner: 'Harness Lead', planned_start_date: '2026-01-01', planned_end_date: '2026-03-31', actual_end_date: '2026-04-10', planned_cost: 1000000, actual_cost: 1100000, percent_complete: 100, status: 'Done', priority: 'High', display_order: 1, is_archived: false, created_at: TS },
+      { id: 'pm-t2', project_id: 'pm-h1', user_id: U, name: 'Procurement', workstream: 'Supply Chain', task_category: 'Detailed Design', type: 'task', owner: 'Harness Buyer', planned_start_date: '2026-03-01', planned_end_date: '2026-12-31', planned_cost: 4000000, actual_cost: 2200000, percent_complete: 50, status: 'In Progress', priority: 'High', display_order: 2, is_archived: false, created_at: TS },
+      { id: 'pm-t3', project_id: 'pm-h1', user_id: U, name: 'Construction', workstream: 'Construction', task_category: 'Execution', type: 'task', owner: 'Harness Contractor', planned_start_date: '2026-07-01', planned_end_date: '2027-06-30', planned_cost: 5000000, actual_cost: 400000, percent_complete: 10, status: 'In Progress', priority: 'Medium', display_order: 3, is_archived: false, created_at: TS },
+    ],
+    pm_resources: [
+      { id: 'pm-r1', project_id: 'pm-h1', user_id: U, name: 'Harness Lead', type: 'Person', discipline: 'Facilities', skills: ['FEED', 'Topsides'], availability_percent: 80, cost_per_day: 1200, contact_info: 'lead@harness.example', created_at: TS },
+    ],
+    risks: [
+      { id: 'pm-k1', project_id: 'pm-h1', user_id: U, title: 'Long-lead compressor slips', description: 'Vendor quotes 40 weeks', category: 'Schedule', probability: 4, impact: 4, risk_score: 16, status: 'Open', owner: 'Harness Buyer', mitigation_plan: 'Second vendor on standby', due_date: '2026-10-15', created_at: TS },
+      { id: 'pm-k2', project_id: 'pm-h1', user_id: U, title: 'Pipe price rise', description: 'Steel index up', category: 'Cost', probability: 2, impact: 3, risk_score: 6, status: 'Open', owner: 'Harness Lead', mitigation_plan: 'Fixed-price order', due_date: '2026-11-01', created_at: TS },
+    ],
+    project_issues: [
+      { id: 'pm-i1', project_id: 'pm-h1', user_id: U, title: 'Late vendor drawings', description: 'Two weeks late', status: 'Open', severity: 'Medium', priority: 'Medium', occurred_date: '2026-08-20', reported_date: '2026-08-21', owner: 'Harness Lead', created_at: TS },
+    ],
+    pm_deliverables: [],
+  }),
   afe: () => ({
     projects: [{ id: 'proj-h1', user_id: U, name: 'Harness Well H-1', created_at: TS }],
     afes: [{

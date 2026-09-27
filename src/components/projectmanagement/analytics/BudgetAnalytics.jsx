@@ -1,6 +1,10 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar, Cell } from 'recharts';
+import ChartLogo from '@/components/charts/ChartLogo';
+import { CHART_COLORS, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS } from '@/utils/chartTheme';
+
+const AXIS = { stroke: CHART_COLORS.axisLine, tick: { fill: CHART_COLORS.axisText, fontSize: 11 } };
 
 /**
  * EC6-0. Both charts here were fabrications: the cumulative trend was six
@@ -65,7 +69,8 @@ const BudgetAnalytics = ({ projects, financialData }) => {
                         <CardHeader><CardTitle className="text-sm text-slate-300">Reported Cost by Month (Portfolio)</CardTitle></CardHeader>
                         <CardContent className="h-[350px]">
                             {trendData.length === 0 ? <NothingYet what="a cost figure" /> : (
-                            <ResponsiveContainer width="100%" height="100%">
+                            <div className="relative h-full w-full rounded-md bg-white p-2">
+<ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                     <defs>
                                         <linearGradient id="colorBudget" x1="0" y1="0" x2="0" y2="1">
@@ -77,16 +82,18 @@ const BudgetAnalytics = ({ projects, financialData }) => {
                                             <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
                                         </linearGradient>
                                     </defs>
-                                    <XAxis dataKey="month" stroke="#94a3b8" />
-                                    <YAxis stroke="#94a3b8" />
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                                    <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', color: '#fff' }} />
-                                    <Legend />
+                                    <XAxis dataKey="month" {...AXIS} />
+                                    <YAxis {...AXIS} />
+                                    <CartesianGrid {...GRID_STYLE} vertical={false} />
+                                    <Tooltip contentStyle={TOOLTIP_STYLE} />
+                                    <Legend {...LEGEND_PROPS} />
                                     <Area type="monotone" dataKey="Planned" stroke="#3b82f6" fillOpacity={1} fill="url(#colorBudget)" />
                                     <Area type="monotone" dataKey="Actual" stroke="#ef4444" fillOpacity={1} fill="url(#colorActual)" />
                                     <Area type="monotone" dataKey="Earned" stroke="#f59e0b" strokeDasharray="5 5" fill="none" />
                                 </AreaChart>
                             </ResponsiveContainer>
+<ChartLogo />
+</div>
                             )}
                         </CardContent>
                     </Card>
@@ -96,12 +103,13 @@ const BudgetAnalytics = ({ projects, financialData }) => {
                         <CardHeader><CardTitle className="text-sm text-slate-300">Cost Variance % (Latest Update)</CardTitle></CardHeader>
                         <CardContent className="h-[350px]">
                             {varianceData.length === 0 ? <NothingYet what="a planned value to compare against" /> : (
-                            <ResponsiveContainer width="100%" height="100%">
+                            <div className="relative h-full w-full rounded-md bg-white p-2">
+<ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={varianceData} layout="vertical" margin={{ left: 20 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
-                                    <XAxis type="number" stroke="#94a3b8" />
-                                    <YAxis dataKey="name" type="category" stroke="#94a3b8" width={80} fontSize={10} />
-                                    <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', color: '#fff' }} />
+                                    <CartesianGrid {...GRID_STYLE} horizontal={false} />
+                                    <XAxis type="number" {...AXIS} />
+                                    <YAxis dataKey="name" type="category" {...AXIS} width={80} fontSize={10} />
+                                    <Tooltip contentStyle={TOOLTIP_STYLE} />
                                     <Bar dataKey="variance" fill="#8b5cf6" radius={[0, 4, 4, 0]}>
                                         {varianceData.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={entry.variance > 0 ? '#ef4444' : '#10b981'} />
@@ -109,6 +117,8 @@ const BudgetAnalytics = ({ projects, financialData }) => {
                                     </Bar>
                                 </BarChart>
                             </ResponsiveContainer>
+<ChartLogo />
+</div>
                             )}
                         </CardContent>
                     </Card>

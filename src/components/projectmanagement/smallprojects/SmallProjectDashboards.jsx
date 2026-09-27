@@ -2,6 +2,7 @@ import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from '@/components/ui/card';
 import StageTracker from '../StageTracker';
+import { SMALL_PROJECTS_TEMPLATES } from '@/data/smallProjectsTemplates';
 import GanttChart from '../GanttChart';
 import { 
     WellInterventionStageManager, WellInterventionGateManager, WellInterventionTaskManager, WellInterventionRiskManager, WellInterventionKPIDashboard,
@@ -13,12 +14,12 @@ import {
 import { LayoutDashboard, ListChecks, AlertTriangle, BarChart2, CalendarDays } from 'lucide-react';
 
 const GenericSmallProjectDashboard = ({ projectData, onDataChange, type, components }) => {
-    const { tasks, risks, stage } = projectData;
+    const { tasks, rawTasks, risks, stage } = projectData;
     const { StageManager, GateManager, TaskManager, RiskManager, KPIDashboard } = components;
 
     return (
         <div className="flex flex-col h-full gap-4">
-            <StageTracker currentStage={stage || 'Planning'} />
+            <StageTracker currentStage={stage || 'Planning'} template={SMALL_PROJECTS_TEMPLATES[type]} tasks={rawTasks || tasks} />
             
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Card className="bg-slate-900 border-slate-800 p-4">

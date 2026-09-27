@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Gantt, ViewMode } from 'gantt-task-react';
+import ChartLogo from '@/components/charts/ChartLogo';
 import "gantt-task-react/dist/index.css";
 import { Button } from '@/components/ui/button';
 import { Download, ZoomIn, ZoomOut } from 'lucide-react';
@@ -109,20 +110,13 @@ const GanttChart = ({ tasks, projectName, companyName, onDataChange }) => {
           </div>
         </div>
         
-        <style>{`
-          .gantt-container {
-            --gantt-background-color: #0f172a; /* slate-900 */
-            --gantt-header-background-color: #1e293b; /* slate-800 */
-            --gantt-border-color: #334155; /* slate-700 */
-            --gantt-text-color: #e2e8f0; /* slate-200 */
-            --gantt-bar-text-color: #f1f5f9;
-            --gantt-today-highlight-color: rgba(59, 130, 246, 0.1);
-          }
-          ._3_ygE { fill: #1e293b !important; } /* Header bg override hack if needed */
-          .gantt-container svg { font-family: inherit; }
-        `}</style>
         
-        <div className="flex-1 overflow-hidden rounded border border-slate-800">
+        {/* Senior test T1 (2026-09-27): the dark theme here set CSS variables
+            gantt-task-react never reads, so the task list inherited white
+            text over the library's light zebra rows and every second task
+            was unreadable. The chart now sits on the Suite's white chart
+            standard with dark text. */}
+        <div className="relative flex-1 overflow-hidden rounded border border-slate-300 bg-white text-slate-800">
             <Gantt
             tasks={ganttTasks}
             viewMode={viewMode}
@@ -140,6 +134,7 @@ const GanttChart = ({ tasks, projectName, companyName, onDataChange }) => {
             columnWidth={viewMode === ViewMode.Month ? 150 : 60}
             listCellWidth="160px"
             />
+            <ChartLogo />
         </div>
       </div>
     </div>

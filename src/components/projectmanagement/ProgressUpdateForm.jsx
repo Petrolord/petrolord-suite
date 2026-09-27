@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { healthOf } from './ExecutiveSummary';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -31,6 +32,11 @@ const ProgressUpdateForm = ({ open, onOpenChange, project, kpis, onUpdateSaved }
       // no earned-value percentage at all, so the field starts empty rather
       // than at a made-up zero.
       setPercentComplete(typeof kpis.percentComplete === 'number' ? kpis.percentComplete : 0);
+      // Senior test T1: the RAG opened on Green beside an SPI of 0.71. It
+      // now opens on the band the measured indexes fall in (the portfolio's
+      // health bands), and the user can still override it.
+      const band = healthOf(kpis);
+      if (band !== 'unmeasured') setStatus({ onTrack: 'Green', atRisk: 'Amber', critical: 'Red' }[band]);
     }
   }, [open, kpis]);
 
