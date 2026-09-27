@@ -12,6 +12,13 @@ import { useLineSizing } from '@/contexts/LineSizingContext';
 import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
 import { fmt, Stat, ErrorNote } from './fields';
 
+// Name what a failing bore breaks (LS-T1-002), so a dP failure and a
+// velocity failure do not read the same.
+const failReasons = (r) => {
+  const why = [r.overDp && 'dP', r.overV && 'velocity', r.overErosional && 'erosional'].filter(Boolean);
+  return why.length ? `fails ${why.join(', ')}` : 'fails';
+};
+
 const patternLabel = {
   segregated: 'Segregated', intermittent: 'Intermittent (slugging risk)',
   distributed: 'Distributed', transition: 'Transition', static: 'Static',
@@ -108,7 +115,7 @@ const SweepChart = () => {
           label={{ value: 'velocity (ft/s)', angle: 90, position: 'insideRight', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
         <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [fmt(v, 2), n]} />
         <Legend {...LEGEND_PROPS} />
-        <Bar yAxisId="dp" dataKey="dp" name="Pressure drop (psi)">
+        <Bar yAxisId="dp" dataKey="dp" name="Pressure drop (psi): green passes, amber fails" fill="#64748b">
           {data.map((d) => (
             <Cell key={d.name} fill={d.pass ? '#059669' : '#d97706'} />
           ))}
@@ -140,11 +147,11 @@ const SweepTable = () => {
             <tr key={r.label} className={`border-b border-slate-800/60 ${sweep.recommended?.label === r.label ? 'bg-emerald-900/20' : ''}`}>
               <td className="py-1.5 pr-3 text-slate-300">{r.label}</td>
               <td className="py-1.5 pr-3 tabular-nums">{fmt(r.idIn, 3)}</td>
-              <td className="py-1.5 pr-3 tabular-nums">{Number.isFinite(r.dpPsi) ? fmt(r.dpPsi, 1) : r.note || '--'}</td>
+              <td className={`py-1.5 pr-3 tabular-nums ${r.overDp ? 'text-amber-400' : ''}`}>{Number.isFinite(r.dpPsi) ? fmt(r.dpPsi, 1) : r.note || '--'}</td>
               <td className="py-1.5 pr-3 tabular-nums">{fmt(r.vFtS, 2)}</td>
               <td className="py-1.5 pr-3 tabular-nums">{fmt(r.erosionalFtS, 1)}</td>
               <td className={`py-1.5 font-semibold ${r.pass ? 'text-emerald-400' : 'text-amber-400'}`}>
-                {r.pass ? (sweep.recommended?.label === r.label ? 'RECOMMENDED' : 'passes') : 'fails'}
+                {r.pass ? (sweep.recommended?.label === r.label ? 'RECOMMENDED' : 'passes') : failReasons(r)}
               </td>
             </tr>
           ))}

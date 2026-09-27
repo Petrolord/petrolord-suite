@@ -44,7 +44,7 @@ export const friendlyError = (error) => {
 export const defaultInputs = () => ({
   mode: 'liquid',
   liquid: {
-    qBpd: '8000', rhoMode: 'api', oilApi: '35', rhoLbFt3: '54', muCp: '3', maxVFtS: '15',
+    qBpd: '8000', rhoMode: 'api', oilApi: '35', rhoLbFt3: '54', muCp: '3', maxVFtS: '15', maxDpPsi: '100',
   },
   gas: {
     qMMscfd: '20', p1Psia: '900', tAvgF: '70', sg: '0.65',
@@ -304,7 +304,7 @@ export const LineSizingProvider = ({ children }) => {
     try {
       if (inputs.mode === 'liquid') {
         return sizeSweep({
-          mode: 'liquid', inputs: liquidArgs, cFactor, maxLiquidVFtS: num(inputs.liquid.maxVFtS, 15),
+          mode: 'liquid', inputs: liquidArgs, cFactor, maxLiquidVFtS: num(inputs.liquid.maxVFtS, 15), maxLiquidDpPsi: num(inputs.liquid.maxDpPsi, NaN),
         });
       }
       if (inputs.mode === 'gas') {

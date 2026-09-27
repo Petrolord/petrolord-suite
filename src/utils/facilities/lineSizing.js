@@ -506,7 +506,7 @@ export const gasErosionalAlongLine = ({
  * reading a table rather than trusting a single number. `mode` is
  * 'liquid' | 'gas' | 'multiphase'; inputs are that mode's inputs.
  */
-export const sizeSweep = ({ mode, inputs, cFactor = 100, maxLiquidVFtS = 15 }) => {
+export const sizeSweep = ({ mode, inputs, cFactor = 100, maxLiquidVFtS = 15, maxLiquidDpPsi = NaN }) => {
   if (!['liquid', 'gas', 'multiphase'].includes(mode)) {
     return { error: `unknown sweep mode '${mode}'` };
   }
@@ -537,7 +537,15 @@ export const sizeSweep = ({ mode, inputs, cFactor = 100, maxLiquidVFtS = 15 }) =
       rows.push({
         ...cand, idIn, vFtS: r.vFtS, dpPsi: r.dpTotalPsi,
         erosionalFtS: ero.erosionalFtS,
-        pass: !ero.exceeded && r.vFtS <= maxLiquidVFtS,
+        // A liquid line has a pressure budget too. Without it the sweep
+        // recommended 3 in on the default duty, a 700 psi drop over 15,000
+        // ft, because velocity and erosion were the only limits (LS-T1-001).
+        // A blank budget checks velocity and erosion alone, as before.
+        overDp: Number.isFinite(maxLiquidDpPsi) && r.dpTotalPsi > maxLiquidDpPsi,
+        overV: r.vFtS > maxLiquidVFtS,
+        overErosional: ero.exceeded,
+        pass: !ero.exceeded && r.vFtS <= maxLiquidVFtS
+          && !(Number.isFinite(maxLiquidDpPsi) && r.dpTotalPsi > maxLiquidDpPsi),
       });
     } else if (mode === 'gas') {
       const inv = gasOutletPressure({ ...inputs, idIn });

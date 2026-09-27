@@ -81,6 +81,20 @@ describe('erosional status and the sizing sweep', () => {
     expect(erosionalStatus({ vFtS: 10.01, rhoMixLbFt3: 100, cFactor: 100 }).exceeded).toBe(true);
   });
 
+  test('a liquid pressure budget fails bores that spend more than it (LS-T1-001)', () => {
+    const inputs = { qBpd: 8000, lengthFt: 15000, rhoLbFt3: 53, muCp: 3, roughnessIn: 0.0018 };
+    const open = sizeSweep({ mode: 'liquid', inputs, maxLiquidVFtS: 15 });
+    const budget = sizeSweep({ mode: 'liquid', inputs, maxLiquidVFtS: 15, maxLiquidDpPsi: 100 });
+    // Velocity alone lets a bore through that spends hundreds of psi.
+    expect(open.recommended.dpPsi).toBeGreaterThan(100);
+    expect(budget.recommended.dpPsi).toBeLessThanOrEqual(100);
+    expect(budget.recommended.idIn).toBeGreaterThan(open.recommended.idIn);
+    budget.rows.filter((r) => r.dpPsi > 100).forEach((r) => {
+      expect(r.pass).toBe(false);
+      expect(r.overDp).toBe(true);
+    });
+  });
+
   test('liquid sweep recommends the smallest passing bore and dp falls with size', () => {
     const sweep = sizeSweep({
       mode: 'liquid',

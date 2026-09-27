@@ -43,6 +43,9 @@ const LiquidFields = () => {
         <Field label="Viscosity (cp)"><NumberInput section="liquid" name="muCp" step="0.1" /></Field>
         <Field label="Velocity limit (ft/s)"><NumberInput section="liquid" name="maxVFtS" /></Field>
       </div>
+      <Field label="Allowable pressure drop (psi)" hint="The line's pressure budget. The size sweep fails a bore that spends more; leave blank to size on velocity alone.">
+        <NumberInput section="liquid" name="maxDpPsi" />
+      </Field>
     </>
   );
 };
