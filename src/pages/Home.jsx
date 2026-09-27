@@ -15,7 +15,9 @@ import './Home.css';
 // choose apps. Copy follows the owner style rule: no em
 // dashes and no "X, not Y" constructions.
 
-const LOGO = '/petrolord-icon.png';
+// The brand wordmark (symbol, then Petrolord Suite in the brand typeface and
+// gold), built from the official Petrolord PNGs.
+const WORDMARK = '/petrolord-suite-wordmark.png';
 const NEXTGEN_URL = 'https://nextgen.petrolord.com';
 const HSE_URL = 'https://hse.petrolord.com';
 
@@ -234,8 +236,7 @@ function Home() {
       <header className="site">
         <div className="wrap nav">
           <Link className="brand" to="/" aria-label="Petrolord Suite home">
-            <span className="crest"><img src={LOGO} alt="" /></span>
-            <span>Petrolord <em>Suite</em></span>
+            <img className="wordmark" src={WORDMARK} alt="Petrolord Suite" width="1041" height="108" />
           </Link>
           <nav className="links" aria-label="Main">
             {NAV.map(([href, label]) => <a key={href} href={href}>{label}</a>)}
@@ -420,7 +421,7 @@ function Home() {
               <button type="button" className="btn btn-ghost" onClick={() => setDemoOpen(true)}>Book a demo</button>
             </div>
             <p className="contact-line">
-              <a href="mailto:info@petrolord.com">info@petrolord.com</a> · <a href="mailto:info@lordswayenergy.com">info@lordswayenergy.com</a> · +234 901 556 6981 · +44 7403 660720
+              <a href="mailto:info@petrolord.com">info@petrolord.com</a> · <a href="mailto:info@lordswayenergy.com">info@lordswayenergy.com</a> · +44 7403 660720 · +234 901 556 6981
             </p>
           </div>
         </section>
@@ -429,9 +430,8 @@ function Home() {
       <footer className="foot">
         <div className="wrap foot-grid">
           <div>
-            <Link className="brand" to="/">
-              <span className="crest"><img src={LOGO} alt="" /></span>
-              <span>Petrolord <em>Suite</em></span>
+            <Link className="brand" to="/" aria-label="Petrolord Suite home">
+              <img className="wordmark" src={WORDMARK} alt="Petrolord Suite" width="1041" height="108" />
             </Link>
             <p>Engineering software for the whole energy asset, from subsurface to sales. A Lordsway Energy company.</p>
           </div>
@@ -455,8 +455,8 @@ function Home() {
             <Link to="/legal/dpa">Data Processing Agreement</Link>
           </FooterCol>
           <FooterCol title="Offices">
-            <p>8 The Providence Street, Lekki Phase 1, Lagos, Nigeria</p>
             <p>128 City Road, London EC1V 2NX, United Kingdom</p>
+            <p>8 The Providence Street, Lekki Phase 1, Lagos, Nigeria</p>
           </FooterCol>
         </div>
         <div className="wrap foot-bottom">
