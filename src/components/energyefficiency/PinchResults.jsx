@@ -5,7 +5,9 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine,
 } from 'recharts';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import {
+  CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT, niceTicks,
+} from '@/utils/chartTheme';
 import { useEnergyEfficiency } from '@/contexts/EnergyEfficiencyContext';
 
 const fmt = (v, dp = 1) => (Number.isFinite(v)
@@ -43,6 +45,9 @@ const PinchResults = () => {
     enthalpy: p.enthalpyKW, coldC: p.temperatureC,
   }));
   const curves = [...hot, ...cold].sort((a, b) => a.enthalpy - b.enthalpy);
+  const gcc = pinch.grandComposite || [];
+  const gccX = niceTicks(0, Math.max(1, ...gcc.map((p) => p.heatFlowKW).filter(Number.isFinite)), 5);
+  const gccY = niceTicks(...(() => { const t = gcc.map((p) => p.shiftedC).filter(Number.isFinite); return t.length ? [Math.min(...t), Math.max(...t)] : [0, 1]; })(), 5);
 
   return (
     <div className="space-y-5">
@@ -61,6 +66,9 @@ const PinchResults = () => {
       </p>
 
       <div>
+        {/* Senior test T1: composites and the cascade are straight segments
+            between kink temperatures. They were drawn smoothed, which bent
+            them and moved where the closest approach appeared to be. */}
         <h3 className="text-sm font-semibold text-white mb-1">Composite curves</h3>
         <p className="text-[11px] text-slate-500 mb-2">
           The cold composite is shifted right by the cold utility so the two sit in one enthalpy
@@ -70,14 +78,14 @@ const PinchResults = () => {
         <ChartFrame height={300} exportFilename="composite-curves">
           <LineChart data={curves} margin={{ top: 12, right: 24, left: 16, bottom: 32 }}>
             <CartesianGrid {...GRID_STYLE} />
-            <XAxis dataKey="enthalpy" type="number" stroke={CHART_COLORS.axisLine} tick={tick}
-              label={{ value: 'enthalpy (kW)', position: 'insideBottom', offset: -20, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+            <XAxis dataKey="enthalpy" type="number" height={XAXIS_LABEL_HEIGHT} stroke={CHART_COLORS.axisLine} tick={tick}
+              label={{ value: 'enthalpy (kW)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <YAxis stroke={CHART_COLORS.axisLine} tick={tick}
               label={{ value: 'temperature (C)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => `${fmt(v)} C`} />
-            <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
-            <Line type="monotone" dataKey="hotC" name="Hot composite" stroke="#dc2626" strokeWidth={2} dot={{ r: 2 }} connectNulls />
-            <Line type="monotone" dataKey="coldC" name="Cold composite" stroke="#0891b2" strokeWidth={2} dot={{ r: 2 }} connectNulls />
+            <Legend {...LEGEND_PROPS} />
+            <Line type="linear" dataKey="hotC" name="Hot composite" stroke="#dc2626" strokeWidth={2} dot={{ r: 2 }} connectNulls />
+            <Line type="linear" dataKey="coldC" name="Cold composite" stroke="#0891b2" strokeWidth={2} dot={{ r: 2 }} connectNulls />
           </LineChart>
         </ChartFrame>
       </div>
@@ -91,13 +99,13 @@ const PinchResults = () => {
         <ChartFrame height={280} exportFilename="grand-composite">
           <LineChart data={pinch.grandComposite} margin={{ top: 12, right: 24, left: 16, bottom: 32 }}>
             <CartesianGrid {...GRID_STYLE} />
-            <XAxis dataKey="heatFlowKW" type="number" stroke={CHART_COLORS.axisLine} tick={tick}
-              label={{ value: 'net heat flow (kW)', position: 'insideBottom', offset: -20, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
-            <YAxis dataKey="shiftedC" stroke={CHART_COLORS.axisLine} tick={tick}
+            <XAxis dataKey="heatFlowKW" type="number" domain={gccX.domain} ticks={gccX.ticks} height={XAXIS_LABEL_HEIGHT} stroke={CHART_COLORS.axisLine} tick={tick}
+              label={{ value: 'net heat flow (kW)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+            <YAxis dataKey="shiftedC" type="number" domain={gccY.domain} ticks={gccY.ticks} stroke={CHART_COLORS.axisLine} tick={tick}
               label={{ value: 'shifted temperature (C)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <Tooltip contentStyle={TOOLTIP_STYLE} />
             <ReferenceLine x={0} stroke="#f59e0b" strokeDasharray="4 4" />
-            <Line type="monotone" dataKey="shiftedC" name="Cascade" stroke="#7c3aed" strokeWidth={2} dot={{ r: 3 }} />
+            <Line type="linear" dataKey="shiftedC" name="Cascade" stroke="#7c3aed" strokeWidth={2} dot={{ r: 3 }} />
           </LineChart>
         </ChartFrame>
       </div>

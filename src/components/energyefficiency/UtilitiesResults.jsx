@@ -40,7 +40,7 @@ const UtilitiesResults = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Stat label="Per trap" value={`${fmt(trap.kgPerHour, 1)} kg/h`} hint={`${fmt(trap.tonnesPerYear, 0)} t a year`} />
               <Stat label={trapPopulation.error ? 'All traps' : `All ${trapPopulation.count} traps`} value={`${fmt(trapPopulation.tonnesPerYear, 0)} t/yr`} />
-              <Stat label="Annual cost" value={trapPopulation.annualCost == null ? 'not priced' : fmt(trapPopulation.annualCost, 0)} />
+              <Stat label="Annual cost" value={trapPopulation.annualCost == null ? 'not priced' : fmt(trapPopulation.annualCost, 0)} hint={trapPopulation.annualCost == null ? null : 'at your steam cost per tonne'} />
               <Stat label="Carbon"
                 value={trapPopulation.annualTonnesCo2e == null ? 'absent' : `${fmt(trapPopulation.annualTonnesCo2e, 0)} tCO2e/yr`}
                 hint={trapPopulation.annualTonnesCo2e == null ? 'needs an emission factor' : null} />
@@ -108,7 +108,9 @@ const UtilitiesResults = () => {
         <p className="text-[11px] text-slate-500 mb-2">
           Money and carbon from the same energy, in the same run, so the two cannot disagree. The
           abatement cost per tonne is handed on for the Carbon Studio to rank rather than ranked
-          here.
+          here. Every row is valued as fuel at the ledger price, so a trap repair here is the steam's
+          boiler fuel (steam energy over boiler efficiency) and can differ from the trap card's cost,
+          which prices the steam at your steam cost per tonne.
         </p>
         <div className="overflow-x-auto rounded border border-slate-800">
           <table className="w-full text-xs">
