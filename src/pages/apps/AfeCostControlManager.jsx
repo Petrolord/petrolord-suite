@@ -95,8 +95,8 @@ const AfeCostControlManagerInner = () => {
   };
 
   const filteredAfes = afes.filter(a => 
-    (a.afe_number.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    a.afe_name.toLowerCase().includes(searchTerm.toLowerCase())) &&
+    ((a.afe_number || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (a.afe_name || '').toLowerCase().includes(searchTerm.toLowerCase())) &&
     (filterStatus === 'All' || a.status === filterStatus)
   );
 
@@ -196,9 +196,9 @@ const AfeCostControlManagerInner = () => {
             <div className="space-y-6 max-w-7xl mx-auto">
               <div className="flex justify-between items-start">
                 <div>
-                  <h2 className="text-2xl font-bold text-white">{activeAfe.afe_number} - {activeAfe.afe_name}</h2>
+                  <h2 className="text-2xl font-bold text-white">{[activeAfe.afe_number, activeAfe.afe_name].filter(Boolean).join(' - ')}</h2>
                   <p className="text-slate-400 text-sm mt-1">
-                    Project: {projects.find(p => p.id === activeAfe.project_id)?.name || 'Unlinked'} • Class: {activeAfe.class}
+                    Project: {projects.find(p => p.id === activeAfe.project_id)?.name || 'Unlinked'} {activeAfe.class ? ` • Class: ${activeAfe.class}` : ''}
                   </p>
                 </div>
                 <div className="text-right">

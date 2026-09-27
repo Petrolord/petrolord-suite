@@ -174,7 +174,7 @@ const JVPartnerManagement = ({ afe, costItems, onPartnersChanged }) => {
                 </TableHeader>
                 <TableBody>
                     <TableRow className="border-slate-800 bg-slate-800/30">
-                        <TableCell className="font-bold text-white">Petrolord (Operator)</TableCell>
+                        <TableCell className="font-bold text-white">Operator (your share)</TableCell>
                         <TableCell className="text-slate-400">Operator</TableCell>
                         <TableCell className="text-right font-mono text-blue-300">{operatorShare.toFixed(2)}%</TableCell>
                         <TableCell className="text-right font-mono text-white">${operatorAmount.toLocaleString()}</TableCell>
@@ -183,7 +183,7 @@ const JVPartnerManagement = ({ afe, costItems, onPartnersChanged }) => {
                     {partnerAllocations.map(partner => (
                         <TableRow key={partner.id} className="border-slate-800">
                             <TableCell className="text-slate-200">{partner.name}</TableCell>
-                            <TableCell className="text-slate-400">{partner.type}</TableCell>
+                            <TableCell className="text-slate-400">{partner.partner_type || partner.type || 'Non-Operator'}</TableCell>
                             <TableCell className="text-right font-mono text-slate-300">{partner.working_interest}%</TableCell>
                             <TableCell className="text-right font-mono text-white">${partner.shareAmount.toLocaleString()}</TableCell>
                             <TableCell className="text-right">
