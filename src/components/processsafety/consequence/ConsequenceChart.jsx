@@ -16,6 +16,21 @@ import { formatSci } from '@/utils/processSafety/consequenceStudy';
 export const SERIES_COLORS = ['#2563eb', '#d97706', '#059669'];
 const MARK = { target: '#dc2626', point: '#475569' };
 
+// Log axes carry one tick per decade, written 1, 10, 100, 1k, 1M (CQ-T1-001:
+// they mixed "1.0e6" with "10000" and put fifteen odd ticks on distance).
+const decadeTicks = ([lo, hi]) => {
+  const out = [];
+  for (let e = Math.round(Math.log10(lo)); 10 ** e <= hi * 1.0001; e += 1) out.push(10 ** e);
+  return out;
+};
+const decadeLabel = (v) => {
+  const n = Number(v);
+  if (n >= 1e6) return `${Number((n / 1e6).toPrecision(3))}M`;
+  if (n >= 1e3) return `${Number((n / 1e3).toPrecision(3))}k`;
+  if (n >= 1) return String(Number(n.toPrecision(3)));
+  return String(Number(n.toPrecision(2)));
+};
+
 const decadeDomain = (values) => {
   const v = values.filter((x) => Number.isFinite(x) && x > 0);
   if (v.length === 0) return [1, 10];
@@ -44,7 +59,7 @@ const ConsequenceChart = ({
   const ys = data.flatMap((d) => series.map((s) => d[s.key]));
   if (Number.isFinite(targetY)) ys.push(targetY);
   const yDomain = logY ? decadeDomain(ys) : [0, 'auto'];
-  const xDomain = logX ? decadeDomain(data.map((d) => d[xKey])) : ['dataMin', 'dataMax'];
+  const xDomain = logX ? decadeDomain(data.map((d) => d[xKey])) : [(lo) => Math.floor(lo / 50) * 50, (hi) => Math.ceil(hi / 50) * 50];
   return (
     <div className="relative h-80 rounded-lg bg-white p-2" data-testid={testId}>
       <ResponsiveContainer width="100%" height="100%">
@@ -53,13 +68,16 @@ const ConsequenceChart = ({
           <XAxis
             dataKey={xKey} type="number" scale={logX ? 'log' : 'auto'} domain={xDomain} allowDataOverflow
             tick={tickStyle} stroke={CHART_COLORS.axisLine} height={XAXIS_LABEL_HEIGHT}
-            tickFormatter={(v) => formatSci(v, 2)}
+            ticks={logX ? decadeTicks(xDomain) : undefined}
+            tickFormatter={(v) => (logX ? decadeLabel(v) : formatSci(v, 2))}
             label={{ value: xLabel, position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
           />
           <YAxis
             type="number" scale={logY ? 'log' : 'auto'} domain={yDomain} allowDataOverflow tick={tickStyle}
-            stroke={CHART_COLORS.axisLine} tickFormatter={(v) => formatSci(v, 2)} width={72}
-            label={{ value: yLabel, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
+            stroke={CHART_COLORS.axisLine} width={64}
+            ticks={logY ? decadeTicks(yDomain) : undefined}
+            tickFormatter={(v) => (logY ? decadeLabel(v) : formatSci(v, 2))}
+            label={{ value: yLabel, angle: -90, position: 'insideLeft', style: { textAnchor: 'middle' }, dx: 4, fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
           />
           <Tooltip
             {...PINNED_TOOLTIP_PROPS}
