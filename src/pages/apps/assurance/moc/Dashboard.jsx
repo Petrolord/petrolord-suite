@@ -167,7 +167,7 @@ export default function MOCDashboard() {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie data={stageData} cx="50%" cy="45%" innerRadius={60} outerRadius={90}
-                      paddingAngle={2} dataKey="value" nameKey="name">
+                      paddingAngle={stageData.length > 1 ? 2 : 0} dataKey="value" nameKey="name">
                       {stageData.map((d) => <Cell key={d.name} fill={STAGE_CHART_COLORS[d.name]} />)}
                     </Pie>
                     <Tooltip contentStyle={TOOLTIP_STYLE} />
