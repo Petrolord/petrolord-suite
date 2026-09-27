@@ -1,118 +1,151 @@
-import React, { useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, TrendingDown, AlertTriangle, DollarSign, Activity, PieChart } from 'lucide-react';
-import { calculateCPI, calculateSPI } from '@/utils/projectManagementCalculations';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { AlertTriangle, DollarSign, Activity, PieChart } from 'lucide-react';
+import { supabase } from '@/lib/customSupabaseClient';
+import { calculateEVM } from '@/utils/projectManagementCalculations';
 
-const MetricCard = ({ title, value, subtext, trend, icon: Icon, colorClass }) => (
+const MetricCard = ({ title, value, subtext, icon: Icon, colorClass, testId }) => (
   <Card className="bg-slate-900 border-slate-800">
     <CardContent className="p-6">
       <div className="flex justify-between items-start">
         <div>
           <p className="text-sm font-medium text-slate-400">{title}</p>
-          <h3 className="text-2xl font-bold text-white mt-2">{value}</h3>
+          <h3 className="text-2xl font-bold text-white mt-2" data-testid={testId}>{value}</h3>
         </div>
         <div className={`p-2 rounded-lg bg-slate-800 ${colorClass}`}>
           <Icon className="w-5 h-5" />
         </div>
       </div>
-      <div className="mt-4 flex items-center text-xs">
-        {trend && (
-            <span className={`flex items-center ${trend > 0 ? 'text-green-400' : 'text-red-400'} mr-2`}>
-                {trend > 0 ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
-                {Math.abs(trend)}%
-            </span>
-        )}
-        <span className="text-slate-500">{subtext}</span>
-      </div>
+      <div className="mt-4 text-xs text-slate-500">{subtext}</div>
     </CardContent>
   </Card>
 );
 
-const ExecutiveSummary = ({ projects, risks = [] }) => {
-  const metrics = useMemo(() => {
-    const totalBudget = projects.reduce((sum, p) => sum + (parseFloat(p.baseline_budget) || 0), 0);
-    const totalActual = projects.reduce((sum, p) => sum + (parseFloat(p.actual_cost) || 0), 0); // Assuming actual_cost field added or derived
-    
-    // Simplified aggregate SPI/CPI calculation
-    // Ideally, this weights by project size
-    const activeProjects = projects.filter(p => p.stage !== 'Concept' && p.stage !== 'Closeout');
-    const avgSPI = activeProjects.length ? (activeProjects.reduce((sum, p) => sum + (p.spi || 1), 0) / activeProjects.length).toFixed(2) : 1.00;
-    const avgCPI = activeProjects.length ? (activeProjects.reduce((sum, p) => sum + (p.cpi || 1), 0) / activeProjects.length).toFixed(2) : 1.00;
+// Senior test T1 (2026-09-27): these cards used to show SPI and CPI of 1.00
+// for every portfolio (projects carry no index, so the fallback won), four
+// hard-coded trend chips, a critical-risk count over a list nobody passed
+// in, and a health split on Green/Amber/Red while status holds "Active".
+// Each figure now comes from the projects' own tasks and risks through the
+// earned value engine, as of today.
+// Health bands: both indexes at 0.95 or better is on track, either below
+// 0.90 is critical, anything between is at risk (the usual EVM traffic
+// light). A project with no costed, dated tasks is not measured.
+export const CRITICAL_RISK_SCORE = 15;
+export const healthOf = (evm) => {
+  if (!evm || evm.cpi == null || evm.spi == null) return 'unmeasured';
+  if (evm.cpi < 0.9 || evm.spi < 0.9) return 'critical';
+  if (evm.cpi < 0.95 || evm.spi < 0.95) return 'atRisk';
+  return 'onTrack';
+};
 
-    const highRisks = risks.filter(r => r.risk_score >= 15).length;
-    
-    const statusCounts = {
-        Green: projects.filter(p => p.status === 'Green').length,
-        Amber: projects.filter(p => p.status === 'Amber').length,
-        Red: projects.filter(p => p.status === 'Red').length
-    };
+export function summarisePortfolio(projects, tasks, risks, asOf) {
+  const ids = new Set(projects.map((p) => p.id));
+  let ev = 0; let ac = 0; let pv = 0; let evPhased = 0;
+  const health = { onTrack: 0, atRisk: 0, critical: 0, unmeasured: 0 };
+  projects.forEach((p) => {
+    let evm = null;
+    try { evm = calculateEVM(tasks.filter((t) => t.project_id === p.id && !t.is_archived), { asOf }); } catch { evm = null; }
+    if (evm && evm.costed) {
+      ev += evm.ev; ac += evm.ac;
+      if (evm.pv != null) { pv += evm.pv; evPhased += evm.ev; }
+    }
+    health[healthOf(evm)] += 1;
+  });
+  return {
+    totalBudget: projects.reduce((sum, p) => sum + (parseFloat(p.baseline_budget) || 0), 0),
+    spi: pv > 0 ? evPhased / pv : null,
+    cpi: ac > 0 ? ev / ac : null,
+    highRisks: risks.filter((r) => ids.has(r.project_id) && String(r.status || '').toLowerCase() !== 'closed' && Number(r.risk_score) >= CRITICAL_RISK_SCORE).length,
+    health,
+  };
+}
 
-    return {
-        totalBudget,
-        totalForecast: totalBudget * 1.1, // Mock forecast logic
-        avgSPI,
-        avgCPI,
-        highRisks,
-        statusCounts
-    };
-  }, [projects, risks]);
+const ExecutiveSummary = ({ projects }) => {
+  const [tasks, setTasks] = useState([]);
+  const [risks, setRisks] = useState([]);
+  const idKey = projects.map((p) => p.id).join(',');
+
+  useEffect(() => {
+    const ids = idKey ? idKey.split(',') : [];
+    if (!ids.length) { setTasks([]); setRisks([]); return undefined; }
+    let live = true;
+    (async () => {
+      const [t, r] = await Promise.all([
+        supabase.from('tasks').select('*').in('project_id', ids),
+        supabase.from('risks').select('*').in('project_id', ids),
+      ]);
+      if (!live) return;
+      setTasks(t.data || []);
+      setRisks(r.data || []);
+    })();
+    return () => { live = false; };
+  }, [idKey]);
+
+  const metrics = useMemo(() => summarisePortfolio(projects, tasks, risks, new Date()), [projects, tasks, risks]);
+  const idx = (v) => (v == null ? '-' : v.toFixed(2));
 
   const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 }).format(val);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <MetricCard 
-            title="Total Portfolio Value" 
+            title="Total Baseline Budget" 
             value={formatCurrency(metrics.totalBudget)} 
-            subtext="Baseline Budget"
-            trend={5.2}
+            subtext={`${projects.length} project${projects.length === 1 ? '' : 's'}`}
             icon={DollarSign}
             colorClass="text-emerald-400"
         />
         <MetricCard 
             title="Schedule Performance" 
-            value={metrics.avgSPI} 
-            subtext="Avg SPI (Weighted)"
-            trend={-2.1}
+            value={idx(metrics.spi)} 
+            testId="pm-portfolio-spi"
+            subtext={metrics.spi == null ? 'No dated, costed tasks yet' : 'SPI, earned over planned value, as of today'}
             icon={Activity}
             colorClass="text-blue-400"
         />
         <MetricCard 
             title="Cost Performance" 
-            value={metrics.avgCPI} 
-            subtext="Avg CPI (Weighted)"
-            trend={0.8}
+            value={idx(metrics.cpi)} 
+            testId="pm-portfolio-cpi"
+            subtext={metrics.cpi == null ? 'No actual cost booked yet' : 'CPI, earned value over actual cost'}
             icon={PieChart}
             colorClass="text-purple-400"
         />
         <MetricCard 
             title="Critical Risks" 
             value={metrics.highRisks} 
-            subtext="Risks Score > 15"
-            trend={-10} // Negative trend for risks is good? Let's assume negative number means count went down
+            testId="pm-portfolio-risks"
+            subtext={`Open risks scoring ${CRITICAL_RISK_SCORE} or more`}
             icon={AlertTriangle}
             colorClass="text-red-400"
         />
         
         {/* Mini RAG Breakdown included in layout via CSS grid spanning or just simple summary below */}
         <div className="col-span-1 md:col-span-2 lg:col-span-4 bg-slate-900/50 border border-slate-800 rounded-lg p-4 flex items-center justify-between">
-            <span className="text-sm font-medium text-slate-400">Project Health Breakdown:</span>
+            <span className="text-sm font-medium text-slate-400" title="On track: CPI and SPI both 0.95 or better. Critical: either below 0.90.">Project health (CPI and SPI):</span>
             <div className="flex gap-6">
                 <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-green-500" />
-                    <span className="text-white font-bold">{metrics.statusCounts.Green}</span>
+                    <span className="text-white font-bold">{metrics.health.onTrack}</span>
                     <span className="text-slate-500 text-sm">On Track</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                    <span className="text-white font-bold">{metrics.statusCounts.Amber}</span>
+                    <span className="text-white font-bold">{metrics.health.atRisk}</span>
                     <span className="text-slate-500 text-sm">At Risk</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-red-500" />
-                    <span className="text-white font-bold">{metrics.statusCounts.Red}</span>
+                    <span className="text-white font-bold">{metrics.health.critical}</span>
                     <span className="text-slate-500 text-sm">Critical</span>
                 </div>
+                {metrics.health.unmeasured > 0 && (
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-slate-600" />
+                        <span className="text-white font-bold">{metrics.health.unmeasured}</span>
+                        <span className="text-slate-500 text-sm">Not measured</span>
+                    </div>
+                )}
             </div>
         </div>
     </div>

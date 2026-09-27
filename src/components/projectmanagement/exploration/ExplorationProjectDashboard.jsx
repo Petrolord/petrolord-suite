@@ -25,7 +25,7 @@ const ExplorationProjectDashboard = ({ projectData, onDataChange }) => {
     <div className="flex flex-col h-full gap-6">
       {/* Top Header / Stage Tracker */}
       <div>
-        <StageTracker currentStage={stage || 'Prospecting'} />
+        <StageTracker currentStage={stage || 'Prospecting'} template={EXPLORATION_TEMPLATE} tasks={stageTasks} />
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
             <Card className="bg-slate-900 border-slate-800 p-4 flex items-center justify-between">
                 <div>
@@ -125,7 +125,7 @@ const ExplorationProjectDashboard = ({ projectData, onDataChange }) => {
                                 {risks.map((r, i) => (
                                     <div key={i} className="flex justify-between p-2 bg-slate-800 rounded border border-slate-700 text-xs">
                                         <span className="text-slate-200">{r.title}</span>
-                                        <span className="text-red-400 font-bold">{r.risk_score}</span>
+                                        <span className={`font-bold ${r.risk_score >= 15 ? "text-red-400" : r.risk_score >= 8 ? "text-orange-400" : "text-green-400"}`}>{r.risk_score}</span>
                                     </div>
                                 ))}
                             </div>

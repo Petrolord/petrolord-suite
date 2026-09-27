@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { stageProgress } from '../StageTracker';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,8 +12,7 @@ export const ExplorationStageManager = ({ tasks }) => {
   // Filter "tasks" where task_category matches stage names from template, assuming 'category' implies stage membership
   const stages = EXPLORATION_TEMPLATE.stages.map(templateStage => {
       const stageTasks = tasks.filter(t => t.task_category === templateStage.name && t.type !== 'milestone');
-      const completedTasks = stageTasks.filter(t => t.status === 'Done').length;
-      const progress = stageTasks.length > 0 ? Math.round((completedTasks / stageTasks.length) * 100) : 0;
+      const progress = stageProgress(stageTasks);
       
       return { ...templateStage, progress, totalTasks: stageTasks.length };
   });

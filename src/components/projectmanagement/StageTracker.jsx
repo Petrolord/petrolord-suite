@@ -2,7 +2,7 @@ import React from 'react';
 import { CheckCircle2, Circle, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const stages = [
+const DEFAULT_STAGES = [
   { id: 'Concept', label: 'Concept' },
   { id: 'Pre-FEED', label: 'Pre-FEED' },
   { id: 'FEED', label: 'FEED' },
@@ -10,11 +10,40 @@ const stages = [
   { id: 'Close-out', label: 'Close-out' },
 ];
 
-const StageTracker = ({ currentStage }) => {
-  // Determine index of current stage to highlight progress
-  const currentIndex = stages.findIndex(s => s.id === currentStage) !== -1 
-    ? stages.findIndex(s => s.id === currentStage) 
-    : 0;
+// Senior test T1 (2026-09-27): the tracker drew Concept to Close-out for
+// every project and was handed a stage from the project's own template
+// (Prospecting, Appraisal Planning, Planning), which it never found, so
+// every project of every type sat on "Concept" for ever. Nothing in the
+// studio advances projects.stage either. With a template the tracker draws
+// that template's stages, and the current one is the first stage with an
+// unfinished task, which is what the stage table beside it measures.
+// A stage's progress is the mean of its tasks' percent complete (a task
+// marked Done counts as 100). Counting only Done tasks read a stage with
+// every task half finished as 0 percent and Pending.
+export function stageProgress(stageTasks = []) {
+  if (!stageTasks.length) return 0;
+  const pct = (t) => (t.status === 'Done' ? 100 : Math.min(100, Math.max(0, Number(t.percent_complete) || 0)));
+  return Math.round(stageTasks.reduce((a, t) => a + pct(t), 0) / stageTasks.length);
+}
+
+export function currentStageOf(names, tasks = [], fallback) {
+  const staged = (tasks || []).filter((t) => t.type !== 'milestone' && names.includes(t.task_category));
+  if (staged.length) {
+    const open = names.find((n) => staged.some((t) => t.task_category === n && t.status !== 'Done'));
+    return open || names[names.length - 1];
+  }
+  return names.includes(fallback) ? fallback : names[0];
+}
+
+const StageTracker = ({ currentStage, template, tasks }) => {
+  const stages = template?.stages?.length
+    ? template.stages.map((s) => ({ id: s.name, label: s.name }))
+    : DEFAULT_STAGES;
+  const current = template?.stages?.length
+    ? currentStageOf(stages.map((s) => s.id), tasks, currentStage)
+    : currentStage;
+  const found = stages.findIndex((s) => s.id === current);
+  const currentIndex = found !== -1 ? found : 0;
 
   return (
     <div className="w-full bg-slate-950/50 border-b border-white/10 p-4 mb-4">

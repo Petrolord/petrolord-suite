@@ -2,6 +2,10 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import ChartLogo from '@/components/charts/ChartLogo';
+import { CHART_COLORS, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS } from '@/utils/chartTheme';
+
+const AXIS = { stroke: CHART_COLORS.axisLine, tick: { fill: CHART_COLORS.axisText, fontSize: 11 } };
 
 const ProjectTypeAnalytics = ({ projects }) => {
     // Aggregate data by project type
@@ -28,30 +32,36 @@ const ProjectTypeAnalytics = ({ projects }) => {
                 <Card className="bg-slate-900 border-slate-800">
                     <CardHeader><CardTitle className="text-sm text-slate-300">Budget Distribution by Type ($MM)</CardTitle></CardHeader>
                     <CardContent className="h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <div className="relative h-full w-full rounded-md bg-white p-2">
+<ResponsiveContainer width="100%" height="100%">
                             <BarChart data={data}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                                <XAxis dataKey="type" stroke="#94a3b8" fontSize={10} interval={0} angle={-20} textAnchor="end" height={60} />
-                                <YAxis stroke="#94a3b8" fontSize={12} />
-                                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', color: '#fff' }} />
+                                <CartesianGrid {...GRID_STYLE} vertical={false} />
+                                <XAxis dataKey="type" {...AXIS} interval={0} angle={-20} textAnchor="end" height={60} />
+                                <YAxis {...AXIS} />
+                                <Tooltip contentStyle={TOOLTIP_STYLE} />
                                 <Bar dataKey="budgetMillions" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Budget ($M)" />
                             </BarChart>
                         </ResponsiveContainer>
+<ChartLogo />
+</div>
                     </CardContent>
                 </Card>
 
                 <Card className="bg-slate-900 border-slate-800">
                     <CardHeader><CardTitle className="text-sm text-slate-300">Average Progress by Type</CardTitle></CardHeader>
                     <CardContent className="h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <div className="relative h-full w-full rounded-md bg-white p-2">
+<ResponsiveContainer width="100%" height="100%">
                             <BarChart data={data}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                                <XAxis dataKey="type" stroke="#94a3b8" fontSize={10} interval={0} angle={-20} textAnchor="end" height={60} />
-                                <YAxis stroke="#94a3b8" fontSize={12} domain={[0, 100]} />
-                                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', color: '#fff' }} />
+                                <CartesianGrid {...GRID_STYLE} vertical={false} />
+                                <XAxis dataKey="type" {...AXIS} interval={0} angle={-20} textAnchor="end" height={60} />
+                                <YAxis {...AXIS} domain={[0, 100]} />
+                                <Tooltip contentStyle={TOOLTIP_STYLE} />
                                 <Bar dataKey="avgProgress" fill="#10b981" radius={[4, 4, 0, 0]} name="Progress (%)" />
                             </BarChart>
                         </ResponsiveContainer>
+<ChartLogo />
+</div>
                     </CardContent>
                 </Card>
             </div>

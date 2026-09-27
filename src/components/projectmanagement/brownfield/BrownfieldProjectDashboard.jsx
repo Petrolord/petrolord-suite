@@ -4,6 +4,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Layers, Flag, FileText, AlertTriangle, Users, Download, BarChart3, Wrench, Lightbulb, Factory } from 'lucide-react';
 import StageTracker from '../StageTracker';
+import { TaskReportControls } from '../ExportControls';
+import { BROWNFIELD_TEMPLATE } from '@/data/brownfieldTemplate';
 import GanttChart from '../GanttChart';
 import { BrownfieldStageManager, BrownfieldGateManager, BrownfieldDeliverableManager } from './BrownfieldManagers';
 import { BrownfieldKPIDashboard, BrownfieldRiskManager, BrownfieldResourceManager } from './BrownfieldAnalytics';
@@ -22,7 +24,7 @@ const BrownfieldProjectDashboard = ({ projectData, onDataChange }) => {
     <div className="flex flex-col h-full gap-6">
       {/* Top Header / Stage Tracker */}
       <div>
-        <StageTracker currentStage={stage || 'Opportunity Identification'} />
+        <StageTracker currentStage={stage || 'Opportunity Identification'} template={BROWNFIELD_TEMPLATE} tasks={stageTasks} />
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
             <Card className="bg-slate-900 border-slate-800 p-4 flex items-center justify-between">
                 <div>
@@ -76,9 +78,7 @@ const BrownfieldProjectDashboard = ({ projectData, onDataChange }) => {
                 <TabsTrigger value="risks"><AlertTriangle className="w-4 h-4 mr-2"/> Risks</TabsTrigger>
                 <TabsTrigger value="team"><Users className="w-4 h-4 mr-2"/> Team</TabsTrigger>
             </TabsList>
-            <Button variant="outline" size="sm" className="text-slate-400 border-slate-700 hover:text-white ml-2">
-                <Download className="w-4 h-4 mr-2" /> Report
-            </Button>
+            <div className="ml-2"><TaskReportControls tasks={stageTasks} projectName={projectData.name} /></div>
         </div>
 
         <div className="flex-1 mt-4 overflow-y-auto">
@@ -131,7 +131,7 @@ const BrownfieldProjectDashboard = ({ projectData, onDataChange }) => {
                                 {risks.map((r, i) => (
                                     <div key={i} className="flex justify-between p-2 bg-slate-800 rounded border border-slate-700 text-xs">
                                         <span className="text-slate-200">{r.title}</span>
-                                        <span className="text-red-400 font-bold">{r.risk_score}</span>
+                                        <span className={`font-bold ${r.risk_score >= 15 ? "text-red-400" : r.risk_score >= 8 ? "text-orange-400" : "text-green-400"}`}>{r.risk_score}</span>
                                     </div>
                                 ))}
                             </div>

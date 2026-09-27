@@ -13,6 +13,7 @@ const PortfolioAnalyticsDashboard = ({ projects }) => {
     const [activeTab, setActiveTab] = useState('overview');
     const [reportOpen, setReportOpen] = useState(false);
     const [risks, setRisks] = useState([]);
+    const [tasks, setTasks] = useState([]);
     const [resources, setResources] = useState([]);
     const [financials, setFinancials] = useState([]);
 
@@ -26,6 +27,9 @@ const PortfolioAnalyticsDashboard = ({ projects }) => {
             
             const { data: riskData } = await supabase.from('risks').select('*').in('project_id', projectIds);
             setRisks(riskData || []);
+
+            const { data: taskData } = await supabase.from('tasks').select('*').in('project_id', projectIds);
+            setTasks(taskData || []);
 
             const { data: resData } = await supabase.from('pm_resources').select('*').in('project_id', projectIds);
             setResources(resData || []);
@@ -64,7 +68,7 @@ const PortfolioAnalyticsDashboard = ({ projects }) => {
 
                     <div className="mt-4 h-[calc(100vh-250px)] overflow-y-auto pr-2">
                         <TabsContent value="overview" className="mt-0 space-y-6">
-                            <AnalyticsOverview projects={projects} risks={risks} financialData={financials} />
+                            <AnalyticsOverview projects={projects} risks={risks} tasks={tasks} />
                         </TabsContent>
                         
                         <TabsContent value="types" className="mt-0 space-y-6">

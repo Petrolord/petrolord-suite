@@ -3,6 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
+import ChartLogo from '@/components/charts/ChartLogo';
+import { CHART_COLORS, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS } from '@/utils/chartTheme';
+
+const AXIS = { stroke: CHART_COLORS.axisLine, tick: { fill: CHART_COLORS.axisText, fontSize: 11 } };
 
 const RiskAnalytics = ({ risks }) => {
     // Heatmap Data Construction
@@ -29,15 +33,16 @@ const RiskAnalytics = ({ risks }) => {
                 <Card className="bg-slate-900 border-slate-800">
                     <CardHeader><CardTitle className="text-sm text-slate-300">Risk Heatmap (Probability vs Impact)</CardTitle></CardHeader>
                     <CardContent className="h-[350px]">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <div className="relative h-full w-full rounded-md bg-white p-2">
+<ResponsiveContainer width="100%" height="100%">
                             <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                                <XAxis type="number" dataKey="prob" name="Probability" domain={[0, 6]} tickCount={6} label={{ value: 'Probability', position: 'bottom', fill: '#94a3b8' }} />
-                                <YAxis type="number" dataKey="impact" name="Impact" domain={[0, 6]} tickCount={6} label={{ value: 'Impact', angle: -90, position: 'insideLeft', fill: '#94a3b8' }} />
+                                <XAxis type="number" dataKey="prob" name="Probability" domain={[0.5, 5.5]} ticks={[1, 2, 3, 4, 5]} {...AXIS} label={{ value: 'Probability (1 to 5)', position: 'bottom', fill: CHART_COLORS.axisText, fontSize: 12 }} />
+                                <YAxis type="number" dataKey="impact" name="Impact" domain={[0.5, 5.5]} ticks={[1, 2, 3, 4, 5]} {...AXIS} label={{ value: 'Impact (1 to 5)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: 12 }} />
                                 <ZAxis type="number" dataKey="count" range={[100, 500]} name="Count" />
                                 <Tooltip cursor={{ strokeDasharray: '3 3' }} content={({ payload }) => {
                                     if (payload && payload.length) {
                                         const { prob, impact, count } = payload[0].payload;
-                                        return <div className="bg-slate-800 p-2 rounded border border-slate-700 text-xs text-white">Count: {count}<br/>Prob: {prob}, Impact: {impact}</div>;
+                                        return <div className="bg-white p-2 rounded border border-slate-300 text-xs text-slate-800">{count} risk{count === 1 ? '' : 's'}<br/>Probability {prob}, impact {impact}</div>;
                                     }
                                     return null;
                                 }}/>
@@ -48,6 +53,8 @@ const RiskAnalytics = ({ risks }) => {
                                 </Scatter>
                             </ScatterChart>
                         </ResponsiveContainer>
+<ChartLogo />
+</div>
                     </CardContent>
                 </Card>
 

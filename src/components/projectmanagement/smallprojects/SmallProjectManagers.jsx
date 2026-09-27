@@ -1,4 +1,5 @@
 import React from 'react';
+import { stageProgress } from '../StageTracker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
@@ -13,9 +14,8 @@ const GenericStageManager = ({ tasks, type }) => {
   
   const stages = template.stages.map(s => {
       const stageTasks = tasks.filter(t => t.task_category === s.name && t.type !== 'milestone');
-      const completed = stageTasks.filter(t => t.status === 'Done').length;
       const total = stageTasks.length;
-      const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+      const progress = stageProgress(stageTasks);
       return { ...s, progress, total };
   });
 
