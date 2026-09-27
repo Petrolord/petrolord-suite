@@ -6,6 +6,7 @@ import {
   Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
 } from '@/components/ui/sheet';
 import { ASSURANCE_HELP } from '@/data/assuranceHelp';
+import { usePortalThemeProps } from '@/design/themeContext';
 
 /**
  * AS13 — the one help guide for every Assurance app.
@@ -98,13 +99,17 @@ export function AssuranceHelpContent({ appKey }) {
 export default function AssuranceHelp({ appKey, label = 'Help', className, variant = 'outline', size = 'sm' }) {
   const [open, setOpen] = useState(false);
   const guide = ASSURANCE_HELP[appKey];
+  // The drawer is a portal: inside a design-system scope (the Assurance hub)
+  // it carries the theme itself. Empty outside a scope, so the nine
+  // Assurance apps render it exactly as before.
+  const portalTheme = usePortalThemeProps();
   return (
     <>
       <Button type="button" variant={variant} size={size} className={className} onClick={() => setOpen(true)}>
         <HelpCircle className="w-4 h-4 mr-2" /> {label}
       </Button>
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
+        <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto" {...portalTheme}>
           <SheetHeader className="mb-4">
             <SheetTitle className="flex items-center gap-2">
               <BookOpen className="w-4 h-4" /> {guide ? guide.title : 'Help'}
