@@ -156,3 +156,24 @@ export const CHART_LOGO_STYLE = {
   pointerEvents: 'none',
   userSelect: 'none',
 };
+
+/**
+ * Round axis ticks (senior testing, 2026-09-27). Recharts' 'dataMin' and
+ * 'dataMax' put the first and last ticks on the data (80, 480, 880, 1500 F);
+ * this widens the domain to a round step (1, 2, 2.5 or 5 times a power of
+ * ten) giving about `target` intervals, and lists the ticks.
+ * @returns {{ domain: [number, number], ticks: number[] }}
+ */
+export function niceTicks(lo, hi, target = 6) {
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return { domain: ['auto', 'auto'], ticks: undefined };
+  if (hi < lo) [lo, hi] = [hi, lo];
+  if (hi === lo) hi = lo + 1;
+  const raw = (hi - lo) / Math.max(1, target);
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw);
+  const a = Math.floor(lo / step) * step;
+  const b = Math.ceil(hi / step) * step;
+  const ticks = [];
+  for (let v = a; v <= b + step / 1e6; v += step) ticks.push(Number(v.toFixed(10)));
+  return { domain: [a, b], ticks };
+}
