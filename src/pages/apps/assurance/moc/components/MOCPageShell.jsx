@@ -101,7 +101,7 @@ export const MOCPageShell = ({ children, title = "Management of Change", descrip
               <Input
                 type="search"
                 aria-label="Search the change register"
-                placeholder="Search changes, press Enter"
+                placeholder="Search changes"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 className="pl-9 h-9 bg-[hsl(var(--secondary))] border-transparent focus:border-[hsl(var(--primary))]"
