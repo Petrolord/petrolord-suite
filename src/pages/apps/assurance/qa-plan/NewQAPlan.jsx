@@ -16,6 +16,7 @@ import {
 } from './components/SharedComponents';
 import { PointTypeBadge } from './components/QABadges';
 import { useQualityAssurance } from './hooks/useQualityAssurance';
+import { focusFirstError } from '../shared/focusFirstError';
 
 /**
  * AS7 — a quality plan that gets saved.
@@ -129,6 +130,12 @@ export default function NewQAPlan() {
     setRowErrors(perRow);
     if (Object.keys(planErrors).length || Object.keys(perRow).length) {
       setFailure('Some fields need attention before this plan can be saved.');
+      // Senior test T1: take the user to the first field that needs it.
+      const ids = [
+        ...Object.keys(planErrors).map((k) => `plan-${k}`),
+        ...Object.entries(perRow).flatMap(([i, errs]) => Object.keys(errs).map((k) => `${k === 'item_no' ? 'item' : k}-${i}`)),
+      ];
+      focusFirstError(Object.fromEntries(ids.map((k) => [k, true])), ids);
       return;
     }
 

@@ -40,3 +40,13 @@ test('App.jsx mounts the sonner Toaster, and no page mounts a second toaster', (
   const contour = fs.readFileSync(path.join(root, 'src/pages/apps/ContourMapDigitizer.jsx'), 'utf8');
   expect(contour).not.toMatch(/components\/ui\/toaster/);
 });
+
+// The second shadcn toast store (src/hooks/use-toast, 50 files) had no
+// Toaster either; it forwards to sonner the same way.
+test('the hooks/use-toast copy also reaches sonner', () => {
+  const { toast: toast2 } = jest.requireActual('../../../hooks/use-toast');
+  toast2({ title: 'QA plan created', description: 'QAP-2026-001' });
+  expect(sonner).toHaveBeenCalledWith('QA plan created', expect.objectContaining({ description: 'QAP-2026-001' }));
+  const t = toast2({ variant: 'destructive', title: 'Save failed' });
+  expect(sonner.error).toHaveBeenCalledWith('Save failed', expect.objectContaining({ id: `ht-${t.id}` }));
+});

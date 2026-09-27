@@ -193,6 +193,12 @@ const RPC = {
   next_peer_review_code: counter('PR', 'peer_reviews'),
   next_lesson_code: counter('LL', 'lesson_records'),
   next_obligation_code: counter('OBL', 'regulatory_obligations'),
+  next_qa_plan_code: counter('QAP', 'qa_plans'),
+  next_ncr_code: counter('NCR', 'qa_ncrs'),
+  next_audit_code: counter('AUD', 'audit_records'),
+  next_audit_finding_code: counter('AF', 'audit_findings'),
+  next_iso_audit_code: counter('ISA', 'iso_audits'),
+  next_iso_finding_code: counter('ISF', 'iso_findings'),
 };
 
 const START = {

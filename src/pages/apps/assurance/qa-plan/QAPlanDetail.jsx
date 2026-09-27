@@ -226,8 +226,11 @@ export default function QAPlanDetail() {
             token="--warning" hint={`${ncrs.length} raised against this plan in total`} />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="panel-elevation lg:col-span-1">
+        {/* Senior test T1: side by side from lg, the ITP table scrolled its
+            row actions out of view at 1366; the plan card stacks above it
+            until 2xl. */}
+        <div className="grid grid-cols-1 2xl:grid-cols-3 gap-6">
+          <Card className="panel-elevation 2xl:col-span-1">
             <CardHeader className="border-b border-[hsl(var(--border))] pb-4 flex flex-row items-center justify-between">
               <CardTitle className="text-lg">The plan</CardTitle>
               <PlanStatusBadge status={plan.status} />
@@ -278,7 +281,7 @@ export default function QAPlanDetail() {
             </CardContent>
           </Card>
 
-          <Card className="panel-elevation lg:col-span-2">
+          <Card className="panel-elevation 2xl:col-span-2">
             <CardHeader className="border-b border-[hsl(var(--border))] pb-4 flex flex-row items-center justify-between gap-3">
               <div>
                 <CardTitle className="text-lg">Inspection and test plan</CardTitle>
