@@ -165,7 +165,7 @@ export const CurveChart = () => {
         <ChartFrame height={320} exportFilename="pump-system-curves">
           <ComposedChart data={chart.rows} margin={{ top: 8, right: 30, bottom: 24, left: 8 }}>
             <CartesianGrid {...GRID_STYLE} />
-            <XAxis height={XAXIS_LABEL_HEIGHT} type="number" dataKey="q" domain={[0, 'dataMax']} stroke={CHART_COLORS.axisLine} tick={tick}
+            <XAxis height={XAXIS_LABEL_HEIGHT} type="number" dataKey="q" domain={[0, (max) => Math.ceil(max / 500) * 500]} allowDecimals={false} tickFormatter={(v) => Math.round(v).toLocaleString()} stroke={CHART_COLORS.axisLine} tick={tick}
               label={{ value: 'Flow (gpm)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <YAxis stroke={CHART_COLORS.axisLine} tick={tick}
               label={{ value: 'Head (ft)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
