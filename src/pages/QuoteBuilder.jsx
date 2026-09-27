@@ -26,10 +26,11 @@ import {
 // Data & Helpers
 import { appCategories } from '@/data/applications'; 
 import {
-  BASE_PLATFORM_FEE, USER_SEAT_PRICE, STORAGE_GB_PRICE,
-  TIERS, BILLING_PERIODS, VAT_RATE, getAppPrice,
-  SEAT_TIERS, computeSeatCost, seatTierRate
+  BASE_PLATFORM_FEE, STORAGE_GB_PRICE,
+  TIERS, BILLING_PERIODS, VAT_RATE,
+  SEAT_TIERS, ESSENTIALS_SEAT_TIERS, MODULE_PRICING
 } from '@/data/pricingModels';
+import { priceApp, appSeatCost, isEssentialsApp, modulesCharge, platformFeeWaived } from '@/data/quotePricing';
 import { formatCurrency } from '@/utils/adminHelpers';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -69,7 +70,10 @@ const QuoteBuilder = () => {
   // Selection State
   // SCHEMA: selectedApps is an array of UUID strings matching master_apps.id.
   // We strictly store UUIDs here, not names or slugs.
-  const [selectedModules, setSelectedModules] = useState(['geoscience']); 
+  // SCHEMA: selectedModules holds module UUIDs whose whole-module licence is
+  // being bought (module checkbox). Ticking single apps leaves it alone, so
+  // those apps are quoted a la carte. Sent to generate-quote as slugs.
+  const [selectedModules, setSelectedModules] = useState([]); 
   const [selectedApps, setSelectedApps] = useState([]); 
   const [expandedModules, setExpandedModules] = useState([]);
 
@@ -246,11 +250,12 @@ const QuoteBuilder = () => {
       });
 
       rawApps?.forEach(app => {
-          const derivedPrice = getAppPrice(app.slug) || 500; 
+          // The licence price is master_apps.price, the value generate-quote charges.
           const processedApp = {
               id: app.id, // UUID from DB
+              slug: app.slug,
               name: app.app_name,
-              price: derivedPrice,
+              price: Number(app.price) || 0,
               status: app.status,
               moduleId: app.module_id,
               moduleSlug: app.modules?.slug || null, // matches NextGen bridge suite_module
@@ -344,9 +349,6 @@ const QuoteBuilder = () => {
     if (isChecked) {
       setSelectedApps(prev => [...new Set([...prev, appId])]); // appId is UUID
       ensureSeats([appId]);
-      if (!selectedModules.includes(modId)) {
-          setSelectedModules(prev => [...prev, modId]);
-      }
     } else {
       setSelectedApps(prev => prev.filter(id => id !== appId));
       dropSeats([appId]);
@@ -360,8 +362,14 @@ const QuoteBuilder = () => {
     const tier = TIERS.find(t => t.id === serviceTier) || TIERS[0];
     const period = BILLING_PERIODS.find(p => p.id === billingPeriod) || BILLING_PERIODS[0];
     
-    const baseFee = BASE_PLATFORM_FEE * tier.multiplier;
-    let softwareCost = 0;
+    // Module licences are bought by slug; every module together is the
+    // all-access price. The platform fee is waived with a module licence or
+    // an annual term. Mirrors generate-quote (authoritative).
+    const moduleSlugs = selectedModules.map(id => appsGroupedByModule[id]?.slug).filter(Boolean);
+    const modCharge = modulesCharge(moduleSlugs);
+    const feeWaived = platformFeeWaived(moduleSlugs, billingPeriod);
+    const baseFee = feeWaived ? 0 : BASE_PLATFORM_FEE * tier.multiplier;
+    let softwareCost = modCharge.total;
     let seatsCost = 0;
     const breakdown = [];
 
@@ -372,19 +380,35 @@ const QuoteBuilder = () => {
       item: `Base Platform Fee — ${tier.name}`,
       cost: baseFee,
       type: 'base',
-      note: tier.multiplier !== 1 ? `${BASE_PLATFORM_FEE} × ${tier.multiplier} tier` : 'Platform access & support'
+      note: feeWaived ? 'Waived with a module licence or an annual term' : (tier.multiplier !== 1 ? `${BASE_PLATFORM_FEE} × ${tier.multiplier} tier` : 'Platform access & support')
     });
+    if (modCharge.allAccess) {
+      breakdown.push({ item: 'All-access Suite licence', cost: modCharge.total, type: 'module', note: 'Every module, all applications included' });
+    } else {
+      moduleSlugs.forEach(slug => breakdown.push({ item: `${appsGroupedByModule[selectedModules.find(id => appsGroupedByModule[id]?.slug === slug)]?.name || slug} module`, cost: MODULE_PRICING[slug] || 0, type: 'module', note: 'All applications in the module included' }));
+    }
+    // A module's share of the module charge (the all-access price spreads
+    // across the modules), for module-scoped bridge and promo discounts.
+    const modListSum = moduleSlugs.reduce((a, m) => a + (MODULE_PRICING[m] || 0), 0);
+    const moduleShare = (slug) => moduleSlugs.includes(slug) && modListSum > 0 ? (MODULE_PRICING[slug] || 0) * modCharge.total / modListSum : 0;
+    const quotedSlugs = new Set(selectedApps.map(id => masterApps.find(a => a.id === id)?.slug).filter(Boolean));
+    const lineFor = (app) => priceApp(
+      { slug: app.slug, moduleSlug: app.moduleSlug, price: app.price, seats: appSeats[app.id] || 1 },
+      { moduleSlugs, quotedSlugs },
+    );
 
     // 2) App + per-app seat costs. selectedApps is an array of UUIDs.
     selectedApps.forEach(appId => {
         const app = masterApps.find(a => a.id === appId);
         if (app) {
             const nSeats = appSeats[appId] || 1;
-            const appSeatCost = computeSeatCost(nSeats); // graduated per-app tiers
-            softwareCost += app.price;
-            seatsCost += appSeatCost;
-            breakdown.push({ item: `${app.name} — license`, price: app.price, cost: app.price, type: 'app', id: appId, seats: nSeats });
-            breakdown.push({ item: `${app.name} — ${nSeats} seat${nSeats === 1 ? '' : 's'}`, cost: appSeatCost, type: 'seats', id: appId, indent: true });
+            const line = lineFor(app); // licence 0 when module-covered or included with its host
+            softwareCost += line.licence;
+            seatsCost += line.seatCost;
+            const note = line.includedWith ? `Included with ${masterApps.find(a => a.slug === line.includedWith)?.name || line.includedWith}`
+              : line.covered ? 'Included in the module licence' : undefined;
+            breakdown.push({ item: `${app.name} — license`, price: app.price, cost: line.licence, type: 'app', id: appId, seats: nSeats, note });
+            breakdown.push({ item: `${app.name} — ${nSeats} seat${nSeats === 1 ? '' : 's'}${isEssentialsApp(app.slug) ? ' (Essentials)' : ''}`, cost: line.seatCost, type: 'seats', id: appId, indent: true });
         }
     });
 
@@ -407,9 +431,11 @@ const QuoteBuilder = () => {
       selectedApps.forEach(appId => {
         const app = masterApps.find(a => a.id === appId);
         if (app && String(app.moduleSlug || '').toLowerCase() === String(bridgeInfo.suite_module).toLowerCase()) {
-          bridgeableCost += app.price + computeSeatCost(appSeats[appId] || 1);
+          const line = lineFor(app);
+          bridgeableCost += line.licence + line.seatCost;
         }
       });
+      bridgeableCost += moduleShare(String(bridgeInfo.suite_module).toLowerCase());
       bridgeDiscountVal = bridgeableCost * (Number(bridgeInfo.discount_pct) / 100);
     }
 
@@ -425,9 +451,11 @@ const QuoteBuilder = () => {
         selectedApps.forEach(appId => {
           const app = masterApps.find(a => a.id === appId);
           if (app && String(app.moduleSlug || '').toLowerCase() === String(promoInfo.scope).toLowerCase()) {
-            promoableCost += app.price + computeSeatCost(appSeats[appId] || 1);
+            const line = lineFor(app);
+            promoableCost += line.licence + line.seatCost;
           }
         });
+        promoableCost += moduleShare(String(promoInfo.scope).toLowerCase());
         promoDiscountVal = promoableCost * (Number(promoInfo.percent) / 100);
       }
     }
@@ -555,7 +583,7 @@ const QuoteBuilder = () => {
       // emails it, and inserts the quote. We send the configuration, not a price.
       const { data, error } = await supabase.functions.invoke('generate-quote', {
         body: {
-          modules: selectedModules,
+          modules: selectedModules.map(id => appsGroupedByModule[id]?.slug).filter(Boolean),
           // Per-app seats: generate-quote stores these as per-app seats_allocated.
           apps: selectedApps.map(id => ({ id, seats: appSeats[id] || 1 })),
           seats: calculation.totalSeats,
@@ -763,7 +791,9 @@ const QuoteBuilder = () => {
                     const isEmpty = moduleGroup.apps.length === 0;
 
                     const selectedAppsInModule = moduleGroup.apps.filter(app => selectedApps.includes(app.id));
-                    const currentModuleCost = selectedAppsInModule.reduce((acc, app) => acc + (app.price || 0), 0);
+                    const currentModuleCost = isModuleSelected
+                      ? (MODULE_PRICING[moduleGroup.slug] || 0)
+                      : selectedAppsInModule.reduce((acc, app) => acc + (app.price || 0), 0);
 
                     return (
                       <div key={moduleGroup.id} className={`bg-slate-900 border rounded-xl overflow-hidden transition-all duration-300 ${isEmpty ? 'border-slate-800 opacity-70' : 'border-slate-800 hover:border-slate-700'}`}>
@@ -844,7 +874,7 @@ const QuoteBuilder = () => {
                                             return (
                                               <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-700/60" onClick={(e) => e.stopPropagation()}>
                                                 <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                                                  <Users className="w-3 h-3"/> + Seats · {formatCurrency(computeSeatCost(n))}/mo
+                                                  <Users className="w-3 h-3"/> + Seats · {formatCurrency(appSeatCost(app.slug, n))}/mo
                                                 </span>
                                                 <div className="flex items-center gap-1.5">
                                                   <button type="button" onClick={(e) => { e.stopPropagation(); setSeatsFor(app.id, n - 1); }}
@@ -898,7 +928,7 @@ const QuoteBuilder = () => {
                       <span className="text-[#D4AF37] font-bold text-xl">{calculation.totalSeats}</span>
                     </div>
                     <p className="text-xs text-slate-500 mb-3">
-                      Seats are set per app above. Volume tiers: 1–5 ${SEAT_TIERS[0].price}, 6–15 ${SEAT_TIERS[1].price}, 16–40 ${SEAT_TIERS[2].price}, 41+ ${SEAT_TIERS[3].price} /seat·mo.
+                      Seats are set per app above. Volume tiers: 1–5 ${SEAT_TIERS[0].price}, 6–15 ${SEAT_TIERS[1].price}, 16–40 ${SEAT_TIERS[2].price}, 41+ ${SEAT_TIERS[3].price} /seat·mo; Essentials apps ${ESSENTIALS_SEAT_TIERS[0].price}, ${ESSENTIALS_SEAT_TIERS[1].price}, ${ESSENTIALS_SEAT_TIERS[2].price}, ${ESSENTIALS_SEAT_TIERS[3].price}.
                     </p>
                     <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
                       {selectedApps.length === 0 ? (
@@ -909,7 +939,7 @@ const QuoteBuilder = () => {
                         return (
                           <div key={id} className="flex justify-between text-xs text-slate-400">
                             <span className="truncate mr-2">{app?.name || 'App'} · {n} seat{n === 1 ? '' : 's'}</span>
-                            <span className="text-slate-300 shrink-0">{formatCurrency(computeSeatCost(n))}/mo</span>
+                            <span className="text-slate-300 shrink-0">{formatCurrency(app ? appSeatCost(app.slug, n) : 0)}/mo</span>
                           </div>
                         );
                       })}

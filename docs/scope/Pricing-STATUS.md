@@ -1,7 +1,215 @@
-# Suite pricing — status
+# Suite pricing: status
 
-Resolved 2026-08-30. Records what was wrong, what the numbers now are, and
-where to change them.
+Current prices and rules as of the 2026-09 pricing review (owner-approved
+2026-09-27, migration `20260927120000_suite_pricing_2026_09.sql`). The
+history of how module pricing came to have one source of truth follows in
+the 2026-08-30 sections below.
+
+## 2026-09 pricing review
+
+Until this review every app in a module carried one flat price (Geoscience,
+Drilling and Data & AI $899; Reservoir $799; Production, Facilities and
+Process Safety $699; Economics and Midstream $599; Assurance $499). Each app
+is now priced on its own, from the products it competes with.
+
+### Method
+
+For each app, M is the typical per-seat annual price of the product a buyer
+would compare it with, and D (0.5 to 1.0) is how much of that product's
+capability the app delivers.
+
+    target per seat per year = M x D x r(M)
+    r = 60% when M <= $5k, falling (log scale) to 25% at M >= $40k
+    licence per month = target x team / 12 - seat cost for that team
+    team = 3 for engineering apps, 10 for compliance and collaboration apps
+
+Results round to prices ending in 49, 99 or 90, with a floor of $249 for
+engineering apps and $199 for compliance tools and bundle items, and a
+ceiling of $1,990. The benchmark (about 150 competitor products, with
+sources and confidence) is kept with the owner's review page.
+
+### Modules (USD per month, all apps included)
+
+A module costs about 35% of its apps bought one by one (45 to 65% for a
+module of fewer than eight apps).
+
+| Module | Apps | Before | Now |
+|---|---|---|---|
+| Geoscience & Analytics | 12 | 2,999 | **3,990** |
+| Reservoir Management | 13 | 3,299 | **3,990** |
+| Drilling & Completion | 12 | 3,299 | **4,490** |
+| Production Operations | 12 | 2,499 | **3,490** |
+| Facilities Engineering | 13 | 2,499 | **1,990** |
+| Process Safety | 3 | 1,999 | **1,990** |
+| Midstream & Downstream | 10 | 1,999 | **1,490** |
+| Economics & Project Management | 12 | 1,999 | **1,990** |
+| Assurance | 10 | 1,499 | **899** |
+| Data & AI | 5 | 2,999 | **1,290** |
+
+Every module together: **all-access $12,990 a month** (`pricing_config.all_access_price`).
+
+### Rules in the quote engine
+
+Implemented once in `supabase/functions/_shared/suite-pricing.ts`
+(generate-quote, authoritative) and mirrored in `src/data/quotePricing.js`
+(GetQuote and the upgrade QuoteBuilder); `quotePricingParity.test.js` runs
+the same scenarios through both.
+
+- **Essentials seats** for 24 light apps: $19 / $15 / $12 / $9 per seat a
+  month in the same 5 / 15 / 40 bands (`essentials_seat_tiers`,
+  `essentials_seat_apps`). Every other app keeps $49 / $39 / $29 / $19.
+- **Platform fee waived** when a module is licensed or the term is a year
+  or longer. It still applies to monthly and quarterly single-app quotes.
+- **Included apps**: Risk Heatmap with Risk Register, and Lessons Learned DB
+  with Audit & Findings Manager, carry no licence and no seat charge when
+  quoted with their host (`bundle_included_with`).
+- **All-access**: selecting every priced module charges the all-access
+  price instead of the ten module prices.
+
+All four read from `pricing_config`, so a value can change without a
+deploy; the code carries matching fallbacks, held together by the tests.
+
+### Commercial programme
+
+- **FOUNDING30**: 30% off for the first ten organisations
+  (`suite_promo_codes`, scope all). Best on an annual quote, where it covers
+  the first year. Pair it with a 30-day guided pilot of one module on the
+  customer's own data.
+- **Naira rate**: Paystack charges convert at `pricing_config.suite_ngn_per_usd`
+  (falls back to `hse_ngn_per_usd`). Review it monthly against the market.
+- Public pages show no prices; buyers see them in the quote builder after
+  signing up.
+
+### Fixed along the way
+
+- The upgrade QuoteBuilder priced apps from a stale hardcoded list ($99
+  unless overridden) instead of `master_apps.price`, started every quote
+  with the Geoscience module selected, and sent module ids where
+  generate-quote expects slugs, so any other module failed the quote.
+- GetQuote's "Apps Add-on" line summed the prices of apps a module already
+  covered, although the total correctly excluded them.
+
+### Deploy order
+
+1. Apply `20260927120000_suite_pricing_2026_09.sql` (data only).
+2. Deploy `generate-quote`.
+3. Upload the Suite build (GetQuote and QuoteBuilder previews).
+
+Until step 2 the server keeps charging the new app and module prices under
+the old seat and platform-fee rules, so quotes can differ from the preview
+by the seat and fee amounts.
+
+### App prices (USD per month, organisation licence)
+
+| Module | App | Before | Now |
+|---|---|---|---|
+| Geoscience & Analytics | Seismolord | 899 | **1,490** |
+| Geoscience & Analytics | Well Data Manager | 899 | **349** |
+| Geoscience & Analytics | Petrophysics Studio | 899 | **1,290** |
+| Geoscience & Analytics | Well Correlation | 899 | **399** |
+| Geoscience & Analytics | Stratigraphy Studio | 899 | **1,190** |
+| Geoscience & Analytics | Mapping & Surface Studio | 899 | **399** |
+| Geoscience & Analytics | Pore Pressure Studio | 899 | **1,190** |
+| Geoscience & Analytics | Rock Physics Studio | 899 | **1,190** |
+| Geoscience & Analytics | Earth Modeling | 899 | **1,290** |
+| Geoscience & Analytics | Basin & Charge Modeling | 899 | **799** |
+| Geoscience & Analytics | ReservoirCalc Pro | 899 | **990** |
+| Geoscience & Analytics | Wellsite Studio | 899 | **799** |
+| Reservoir Management | Decline Curve Analysis | 799 | **599** |
+| Reservoir Management | Material Balance Studio | 799 | **1,490** |
+| Reservoir Management | Fluid Systems Studio | 799 | **1,490** |
+| Reservoir Management | SCAL Studio | 799 | **699** |
+| Reservoir Management | Well Test Analysis Studio | 699 | **1,190** |
+| Reservoir Management | Reservoir Simulation Studio | 799 | **1,490** |
+| Reservoir Management | Waterflood Design Studio | 799 | **1,190** |
+| Reservoir Management | Voidage Replacement Monitor | 799 | **699** |
+| Reservoir Management | EOR Screening | 799 | **199** |
+| Reservoir Management | Recovery Factor Estimator | 799 | **199** |
+| Reservoir Management | Well Spacing Optimizer | 899 | **799** |
+| Reservoir Management | Forecast Scenario Hub | 799 | **699** |
+| Reservoir Management | Risked Reserves Valuation | 799 | **349** |
+| Drilling & Completion | Well Design Studio | 899 | **1,490** |
+| Drilling & Completion | Casing & Tubing Design Studio | 899 | **1,490** |
+| Drilling & Completion | Drilling Fluids & Hydraulics Studio | 899 | **990** |
+| Drilling & Completion | Torque & Drag Studio | 899 | **899** |
+| Drilling & Completion | Well Control Studio | 899 | **699** |
+| Drilling & Completion | Cementing Studio | 899 | **899** |
+| Drilling & Completion | Geomechanics & Wellbore Stability Studio | 899 | **1,490** |
+| Drilling & Completion | Completion Design Studio | 899 | **990** |
+| Drilling & Completion | Perforation & Sand Control Designer | 899 | **699** |
+| Drilling & Completion | Stimulation Designer | 899 | **1,190** |
+| Drilling & Completion | Well Cost & Time Estimator | 899 | **599** |
+| Drilling & Completion | Well Integrity & P&A Studio | 899 | **990** |
+| Production Operations | Nodal Analysis Studio | 699 | **1,190** |
+| Production Operations | Gas Well Performance Studio | 699 | **990** |
+| Production Operations | Artificial Lift Advisor | 699 | **349** |
+| Production Operations | Gas Lift Design Studio | 699 | **990** |
+| Production Operations | ESP Design Studio | 699 | **799** |
+| Production Operations | Rod Pump Design Studio | 699 | **549** |
+| Production Operations | Choke & Wellhead Performance Studio | 699 | **299** |
+| Production Operations | Flow Assurance Studio | 699 | **1,190** |
+| Production Operations | Production Network Studio | 699 | **799** |
+| Production Operations | Production Allocation Studio | 699 | **799** |
+| Production Operations | Production Surveillance Studio | 699 | **990** |
+| Production Operations | Well Intervention Planner | 699 | **449** |
+| Facilities Engineering | Pipeline & Line Sizing Studio | 699 | **249** |
+| Facilities Engineering | Separator & Slug Catcher Studio | 699 | **399** |
+| Facilities Engineering | Relief & Flare Studio | 699 | **799** |
+| Facilities Engineering | Compressor Station Designer | 699 | **499** |
+| Facilities Engineering | Pump Station Designer | 699 | **249** |
+| Facilities Engineering | Heat Exchanger & Cooling Studio | 699 | **299** |
+| Facilities Engineering | Gas Processing Studio | 699 | **799** |
+| Facilities Engineering | Produced Water Treatment Studio | 699 | **349** |
+| Facilities Engineering | Flow Metering Designer | 699 | **249** |
+| Facilities Engineering | Control Valve & Choke Sizing | 699 | **249** |
+| Facilities Engineering | Storage Tank & Venting Designer | 699 | **349** |
+| Facilities Engineering | Corrosion & Integrity Studio | 699 | **599** |
+| Facilities Engineering | Facility Layout Mapper | 699 | **199** |
+| Process Safety | LOPA & SIL Studio | 699 | **599** |
+| Process Safety | Consequence Modelling Studio | 699 | **1,190** |
+| Process Safety | QRA Studio | 699 | **1,690** |
+| Midstream & Downstream | Crude Assay & Blending Studio | 599 | **699** |
+| Midstream & Downstream | Product Blending Optimizer | 599 | **449** |
+| Midstream & Downstream | Refinery Planning & Scheduling Studio | 599 | **699** |
+| Midstream & Downstream | Modular Refinery Feasibility Studio | 599 | **499** |
+| Midstream & Downstream | Terminal & Depot Studio | 599 | **349** |
+| Midstream & Downstream | Fuel Pricing & Supply Chain Studio | 599 | **299** |
+| Midstream & Downstream | LPG & CNG Rollout Studio | 599 | **249** |
+| Midstream & Downstream | Flare Gas to Value Studio | 599 | **449** |
+| Midstream & Downstream | Energy & Utilities Efficiency Studio | 599 | **249** |
+| Midstream & Downstream | Carbon Footprint & Abatement Studio | 599 | **249** |
+| Economics & Project Management | Petroleum Economics Studio | 599 | **1,190** |
+| Economics & Project Management | Fiscal Regime Designer | 599 | **499** |
+| Economics & Project Management | NPV Scenario Builder | 599 | **249** |
+| Economics & Project Management | Probabilistic Breakeven Analyzer | 599 | **299** |
+| Economics & Project Management | Decision Studio | 599 | **249** |
+| Economics & Project Management | Decision Tree Builder | 599 | **199** |
+| Economics & Project Management | Value of Information Analyzer | 599 | **249** |
+| Economics & Project Management | Capital Portfolio Studio | 599 | **399** |
+| Economics & Project Management | AFE Cost Control Manager | 599 | **499** |
+| Economics & Project Management | Project Management Pro | 599 | **349** |
+| Economics & Project Management | FDP Accelerator | 599 | **1,190** |
+| Economics & Project Management | Technical Report Autopilot | 599 | **199** |
+| Assurance | Risk Register | 499 | **249** |
+| Assurance | Risk Heatmap | 499 | **199** |
+| Assurance | Management of Change | 499 | **249** |
+| Assurance | Audit & Findings Manager | 499 | **299** |
+| Assurance | Document Control | 499 | **199** |
+| Assurance | Peer Review Manager | 499 | **199** |
+| Assurance | Quality Assurance Plan | 499 | **199** |
+| Assurance | ISO Compliance Tool | 499 | **199** |
+| Assurance | Regulatory Compliance | 499 | **249** |
+| Assurance | Lesson Learned DB | 499 | **199** |
+| Data & AI | Data Quality Studio | 899 | **249** |
+| Data & AI | ML Workbench | 899 | **499** |
+| Data & AI | Electrofacies Studio | 899 | **799** |
+| Data & AI | Production Forecasting ML Workbench | 899 | **699** |
+| Data & AI | AI Evaluation Studio | 899 | **249** |
+
+## 2026-08-30: module pricing single source
+
+Resolved 2026-08-30. Records what was wrong, what the numbers were then, and
+where to change them. Superseded prices are kept for history.
 
 ## What was wrong
 

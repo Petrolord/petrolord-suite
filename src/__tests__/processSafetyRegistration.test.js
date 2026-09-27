@@ -117,8 +117,8 @@ describe('pricing, which lands with the first app (PS1)', () => {
   it('is priced in the shared table, the server fallback and the migration alike', () => {
     // The Coming Soon-only module was unpriced at PS0. PS1 ships the LOPA &
     // SIL Studio and prices the module, as DS1 did for Midstream & Downstream.
-    expect(MODULE_PRICING[SLUG]).toBe(1999);
-    expect(read('../supabase/functions/generate-quote/index.ts')).toMatch(/'process-safety': 1999/);
+    expect(MODULE_PRICING[SLUG]).toBe(1990); // reset by the 2026-09 pricing review (20260927120000)
+    expect(read('../supabase/functions/generate-quote/index.ts')).toMatch(/'process-safety': 1990/);
     expect(read(`../supabase/migrations/${PRICING}`)).toContain('{"process-safety":1999}');
   });
 });
@@ -299,7 +299,7 @@ describe('PS2: the Consequence Modelling Studio', () => {
   });
 
   it('changes no price: the module was priced at PS1', () => {
-    expect(MODULE_PRICING[SLUG]).toBe(1999);
+    expect(MODULE_PRICING[SLUG]).toBe(1990); // reset by the 2026-09 pricing review (20260927120000)
     [TABLE, TILE].forEach((f) => expect(sqlOf(f)).not.toMatch(/update public\.pricing_config/));
   });
 
@@ -354,7 +354,7 @@ describe('PS3: the QRA Studio', () => {
   });
 
   it('changes no price: the module was priced at PS1', () => {
-    expect(MODULE_PRICING[SLUG]).toBe(1999);
+    expect(MODULE_PRICING[SLUG]).toBe(1990); // reset by the 2026-09 pricing review (20260927120000)
     [TABLE, TILE].forEach((f) => expect(sqlOf(f)).not.toMatch(/update public\.pricing_config/));
   });
 
