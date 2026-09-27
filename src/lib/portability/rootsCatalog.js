@@ -7,8 +7,8 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { SAVED_PROJECT_TABLES } from './familiesCore';
 
-/** "saved_well_test_projects" -> "well test" */
-export const appLabel = (table) => String(table).replace(/^saved_/, '').replace(/_projects$/, '').replace(/_/g, ' ');
+/** "saved_well_test_projects" -> "well test"; "scm_marine_projects" -> "marine" */
+export const appLabel = (table) => String(table).replace(/^(saved|scm)_/, '').replace(/_projects$/, '').replace(/_/g, ' ');
 
 const rowsOf = async (query) => {
   try {

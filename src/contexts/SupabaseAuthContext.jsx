@@ -78,7 +78,10 @@ const AuthProviderContent = ({ children }) => {
     'ai-evaluation-studio',
     // Supply Chain SC3 (Midstream & Downstream module). Its tile is seeded
     // Coming Soon and goes Active with the deploy that ships the route.
-    'materials-spares-planner'
+    'materials-spares-planner',
+    // Supply Chain SC4 (Midstream & Downstream module), seeded and activated
+    // the same way.
+    'marine-logistics-planner'
   ], []);
 
   const fetchUserOrgAndPermissions = useCallback(async (userId) => {

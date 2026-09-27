@@ -93,7 +93,8 @@ const ids = (rows) => { const s = new Set(); for (const r of rows) { const { pro
 describe('family registry', () => {
   test('families are registered in insertion order and every table has a spec', () => {
     expect(listFamilies().map((f) => f.name)).toEqual(['geoscience', 'apps', 'production', 'economics', 'simulation', 'wellplanning', 'seismic', 'wellsite']);
-    expect(SAVED_PROJECT_TABLES).toHaveLength(50);
+    expect(SAVED_PROJECT_TABLES).toHaveLength(52);
+    expect(SAVED_PROJECT_TABLES).toEqual(expect.arrayContaining(['scm_materials_projects', 'scm_marine_projects']));
     for (const t of SAVED_PROJECT_TABLES) expect(tableSpec(t)).toMatchObject({ family: 'apps', kind: `saved-project:${t}`, stamped: true });
     expect(rootTable('saved_project')).toEqual({ family: 'apps', table: '*' });
     expect(rootTable('po_field')).toEqual({ family: 'production', table: 'po_fields' });
@@ -156,6 +157,27 @@ describe('production + apps: a field with its wells and a linked saved project',
     const choke = sink2.store.rows.saved_choke_projects[0];
     expect(choke.inputs_data.inputs.link).toEqual({ fieldId: null, wellId: null });
     expect(Object.keys(sink2.store.rows)).toEqual(['saved_choke_projects']);
+  });
+
+  test('a supply chain planner study (scm_*) travels as a saved project with its engine commit', async () => {
+    const w = makeWorld();
+    const STUDY = uid(21);
+    w.rows.scm_marine_projects = [{
+      id: STUDY, user_id: SRC, project_name: 'Ekene week', schema_version: 1,
+      inputs_data: { id: STUDY, name: 'Ekene week', schema: 1, engine: '110f0a021406b0a8d0d788aeb9487e8c6d80f2f9', inputs: { shore: { berths: 2 } } },
+    }];
+    const built = await buildPackage(w, [{ kind: 'saved_project', id: STUDY, table: 'scm_marine_projects' }]);
+    expect(validateManifest(built.manifest).ok).toBe(true);
+    expect(built.refs.dangling).toEqual([]);
+    const sink3 = makeSink();
+    await importPackage(await built.writer.toUint8Array(), sink3);
+    expect(Object.keys(sink3.store.rows)).toEqual(['scm_marine_projects']);
+    const row = sink3.store.rows.scm_marine_projects[0];
+    expect(row.user_id).toBe(DST);
+    expect(row.id).not.toBe(STUDY);
+    expect(row.inputs_data.id).toBe(row.id);
+    expect(row.inputs_data.engine).toBe('110f0a021406b0a8d0d788aeb9487e8c6d80f2f9');
+    expect(row.inputs_data.inputs.shore.berths).toBe(2);
   });
 
   test('a saved_project root without a table is rejected before reading', async () => {

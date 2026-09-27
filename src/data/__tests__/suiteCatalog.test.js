@@ -18,11 +18,12 @@ describe('the public app catalogue', () => {
     expect(new Set(apps).size).toBe(apps.length);
   });
 
-  it('matches the live catalogue checked on 2026-09-27, with SC3', () => {
+  it('matches the live catalogue checked on 2026-09-27, with SC3 and SC4', () => {
     // 102 Active, built and functional tiles in master_apps on 2026-09-27,
-    // plus the Materials & Spares Planner (SC3, 20260928120000). Update this
+    // plus the Materials & Spares Planner (SC3, 20260928120000) and the Marine
+    // Logistics Planner (SC4, 20260929120000). Update this
     // number together with the module lists when an app goes live.
-    expect(suiteStats()).toEqual({ apps: 103, modules: 10, modulesWord: 'Ten' });
+    expect(suiteStats()).toEqual({ apps: 104, modules: 10, modulesWord: 'Ten' });
     expect(NEXTGEN_LIVE_COURSES).toBeGreaterThan(0);
   });
 

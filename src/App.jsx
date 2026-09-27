@@ -100,6 +100,7 @@ const RefineryPlanningStudio = lazy(() => import('@/pages/apps/RefineryPlanningS
 const ModularRefineryFeasibility = lazy(() => import('@/pages/apps/ModularRefineryFeasibility'));
 const TerminalDepotStudio = lazy(() => import('@/pages/apps/TerminalDepotStudio'));
 const MaterialsSparesPlanner = lazy(() => import('@/pages/apps/MaterialsSparesPlanner'));
+const MarineLogisticsPlanner = lazy(() => import('@/pages/apps/MarineLogisticsPlanner'));
 const FuelPricingStudio = lazy(() => import('@/pages/apps/FuelPricingStudio'));
 const LpgCngRolloutStudio = lazy(() => import('@/pages/apps/LpgCngRolloutStudio'));
 const EnergyEfficiencyStudio = lazy(() => import('@/pages/apps/EnergyEfficiencyStudio'));
@@ -834,6 +835,8 @@ function App() {
                                 <Route path="apps/midstream-downstream/terminal-depot-studio" element={<ProtectedAppRoute appId="terminal-depot-studio" appName="Terminal & Depot Studio"><TerminalDepotStudio /></ProtectedAppRoute>} />
                                 {/* Supply Chain SC3: Materials & Spares Planner on the inventory engine (course materials). */}
                                 <Route path="apps/midstream-downstream/materials-spares-planner" element={<ProtectedAppRoute appId="materials-spares-planner" appName="Materials & Spares Planner"><MaterialsSparesPlanner /></ProtectedAppRoute>} />
+                                {/* Supply Chain SC4: Marine Logistics Planner on the marine logistics engine (course marine). */}
+                                <Route path="apps/midstream-downstream/marine-logistics-planner" element={<ProtectedAppRoute appId="marine-logistics-planner" appName="Marine Logistics Planner"><MarineLogisticsPlanner /></ProtectedAppRoute>} />
                                 <Route path="apps/midstream-downstream/fuel-pricing-supply-chain" element={<ProtectedAppRoute appId="fuel-pricing-supply-chain" appName="Fuel Pricing & Supply Chain Studio"><FuelPricingStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/midstream-downstream/lpg-cng-rollout-studio" element={<ProtectedAppRoute appId="lpg-cng-rollout-studio" appName="LPG & CNG Rollout Studio"><LpgCngRolloutStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/midstream-downstream/energy-utilities-efficiency" element={<ProtectedAppRoute appId="energy-utilities-efficiency" appName="Energy & Utilities Efficiency Studio"><EnergyEfficiencyStudio /></ProtectedAppRoute>} />
