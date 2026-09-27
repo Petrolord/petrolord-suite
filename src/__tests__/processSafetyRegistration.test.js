@@ -13,6 +13,7 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { SUITE_MODULES, suiteStats } from '@/data/suiteCatalog';
 import { normalizeModuleName, getModuleList } from '@/utils/adminHelpers';
 import { MODULE_PRICING } from '@/data/pricingModels';
 import { moduleSegment, appRoutePath } from '@/utils/appRoute';
@@ -123,23 +124,16 @@ describe('pricing, which lands with the first app (PS1)', () => {
 });
 
 describe('marketing, which follows the catalog rather than leading it', () => {
-  it('counts itself among the modules now that it has working apps', () => {
-    // Nine at PS1; ten since Data & AI D1 (2026-09-23), which
-    // dataAiRegistration.test.js pins. At least nine either way.
-    const m = read('pages/Home.jsx').match(/value: '(\d+)',\s*label: 'Discipline Modules'/);
-    expect(m).toBeTruthy();
-    expect(Number(m[1])).toBeGreaterThanOrEqual(9);
-    expect(read('pages/Solutions.jsx')).toMatch(/(Nine|Ten) modules/);
+  // Since the 2026-09-27 homepage redesign, the homepage and Solutions page
+  // both derive their counts from src/data/suiteCatalog.js.
+  it('counts itself among the modules', () => {
+    expect(suiteStats().modules).toBeGreaterThanOrEqual(9);
   });
 
-  it('shows the module with the number of apps that actually work', () => {
+  it('shows the module with the apps that actually work', () => {
     // Three of three since PS3. The count is what is built, not what is planned.
-    const showcase = read('components/home/ModulesShowcase.jsx');
-    const block = showcase.slice(showcase.indexOf(`name: '${NAME}'`));
-    expect(block).toMatch(/count: 3,/);
-    expect(block).toContain('LOPA & SIL Studio');
-    expect(block).toContain('Consequence Modelling Studio');
-    expect(block).toContain('QRA Studio');
+    const mod = SUITE_MODULES.find((m) => m.slug === 'process-safety');
+    expect(mod.apps).toEqual(['LOPA & SIL Studio', 'Consequence Modelling Studio', 'QRA Studio']);
   });
 });
 

@@ -13,6 +13,7 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { SUITE_MODULES, suiteStats } from '@/data/suiteCatalog';
 import { normalizeModuleName, getModuleList } from '@/utils/adminHelpers';
 import { MODULE_PRICING, MODULE_META } from '@/data/pricingModels';
 import { moduleSegment, appRoutePath } from '@/utils/appRoute';
@@ -127,18 +128,19 @@ describe('pricing, which lands with the first app (D1)', () => {
 });
 
 describe('marketing, which follows the catalog rather than leading it', () => {
+  // Since the 2026-09-27 homepage redesign, the homepage and Solutions page
+  // both derive their counts from src/data/suiteCatalog.js.
+  const mod = SUITE_MODULES.find((m) => m.slug === SLUG);
+
   it('counts ten modules now that the tenth has a working app', () => {
-    expect(read('pages/Home.jsx')).toMatch(/value: '10',\s*label: 'Discipline Modules'/);
-    expect(read('pages/Solutions.jsx')).toContain('Ten modules');
+    expect(suiteStats().modules).toBe(10);
   });
 
-  it('shows the module with the number of apps that actually work', () => {
+  it('shows the module with the apps that actually work', () => {
     // All five (D1 to D5). The count is what is built, not what is planned.
-    const showcase = read('components/home/ModulesShowcase.jsx');
-    const block = showcase.slice(showcase.indexOf(`name: '${NAME}'`));
-    expect(block).toMatch(/count: 5,/);
-    expect(block).toContain("apps: ['Data Quality Studio', 'ML Workbench', 'Electrofacies Studio', 'Production Forecasting ML Workbench', 'AI Evaluation Studio']");
-    expect(block.slice(0, block.indexOf('],'))).not.toMatch(/AI-powered|[–—]/);
+    expect(mod.name).toBe(NAME);
+    expect(mod.apps).toEqual(['Data Quality Studio', 'ML Workbench', 'Electrofacies Studio', 'Production Forecasting ML Workbench', 'AI Evaluation Studio']);
+    expect(mod.description).not.toMatch(/AI-powered|[–—]/);
   });
 });
 

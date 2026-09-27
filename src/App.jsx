@@ -310,7 +310,14 @@ const AboutUs = lazy(() => import('@/pages/company/AboutUs'));
 const Careers = lazy(() => import('@/pages/company/Careers'));
 const Solutions = lazy(() => import('@/pages/Solutions'));
 const Resources = lazy(() => import('@/pages/Resources'));
-const NextGen = lazy(() => import('@/pages/NextGen'));
+// The academy lives on its own site; the old /nextgen marketing page here had
+// drifted from it (membership tiers, summits, a legacy registration form), so
+// the route now sends visitors to the real thing.
+const NEXTGEN_URL = 'https://nextgen.petrolord.com';
+const NextGenRedirect = () => {
+  useEffect(() => { window.location.replace(NEXTGEN_URL); }, []);
+  return null;
+};
 const QuoteBuilder = lazy(() => import('@/pages/QuoteBuilder'));
 const ModuleAccess = lazy(() => import('@/pages/ModuleAccess'));
 const SeatManagement = lazy(() => import('@/pages/SeatManagement'));
@@ -910,7 +917,7 @@ function App() {
 
                               <Route path="/solutions" element={<Solutions />} />
                               <Route path="/resources" element={<Resources />} />
-                              <Route path="/nextgen" element={<NextGen />} />
+                              <Route path="/nextgen" element={<NextGenRedirect />} />
                               <Route path="/about-us" element={<AboutUs />} />
                               <Route path="/careers" element={<Careers />} />
                               <Route path="/legal/terms-of-service" element={<TermsOfService />} />

@@ -3,79 +3,35 @@ import { Helmet } from 'react-helmet';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ChevronRight, Layers, BarChart3, Anchor, Zap, Factory, Milestone, ShieldCheck } from 'lucide-react';
+import { ChevronRight, Layers, BarChart3, Anchor, Zap, Factory, Milestone, ShieldCheck, Container, ShieldHalf, Filter } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { SUITE_MODULES, suiteStats } from '@/data/suiteCatalog';
 
-// Categories, names, and app pills mirror the homepage ModulesShowcase and
-// the live master_apps catalog (Active tiles only, checked 2026-08-05).
-// Update the three together.
-const solutionCategories = [
-  {
-    name: 'Geoscience & Subsurface',
-    icon: Layers,
-    color: 'from-cyan-400 to-blue-500',
-    path: '/dashboard/geoscience',
-    count: 10,
-    description: 'Interpret seismic in 2D and 3D with Seismolord, manage well data and logs, correlate wells, grid and map surfaces, predict pore pressure, and build earth models. Every app reads and publishes to shared well and surface registries, so an interpretation made in one tool is instantly available in the next.',
-    apps: ['Seismolord', 'Well Data Manager', 'Petrophysics Studio', 'Well Correlation', 'Mapping & Surface Studio', 'Pore Pressure Studio', 'Rock Physics Studio', 'Earth Modeling'],
-  },
-  {
-    name: 'Reservoir Engineering',
-    icon: BarChart3,
-    color: 'from-lime-400 to-green-500',
-    path: '/dashboard/reservoir',
-    count: 11,
-    description: 'Work fluids, material balance, decline analysis, SCAL, waterflood design and surveillance, and well test analysis in dedicated studios. The engines behind them are validated against published references before release, and the validation suites run on every change.',
-    apps: ['Decline Curve Analysis', 'Material Balance Studio', 'Fluid Systems Studio', 'SCAL Studio', 'Waterflood Design Studio', 'Well Test Analysis Studio', 'Forecast Scenario Hub', 'EOR Screening'],
-  },
-  {
-    name: 'Production & Optimization',
-    icon: Zap,
-    color: 'from-yellow-400 to-amber-500',
-    path: '/dashboard/production',
-    count: 7,
-    description: 'Model well performance from reservoir to surface with the Nodal Analysis Studio, design artificial lift, watch flow assurance risks, and keep an eye on daily performance with the surveillance dashboard.',
-    apps: ['Nodal Analysis Studio', 'Artificial Lift Designer', 'Flow Assurance Monitor', 'Production Surveillance Dashboard', 'Wellbore Flow Simulator'],
-  },
-  {
-    name: 'Drilling & Completions',
-    icon: Anchor,
-    color: 'from-red-500 to-orange-500',
-    path: '/dashboard/drilling',
-    count: 11,
-    description: 'Plan wells, design casing, tubing and completion strings, and prove hydraulics, torque and drag, well control margins, cementing, wellbore stability, perforating, sand control, stimulation and well integrity through abandonment before committing capital to the hole.',
-    apps: ['Well Design Studio', 'Casing & Tubing Design Studio', 'Drilling Fluids & Hydraulics Studio', 'Torque & Drag Studio', 'Well Control Studio', 'Cementing Studio', 'Geomechanics Studio', 'Completion Design Studio', 'Perforation & Sand Control Designer', 'Stimulation Designer'],
-  },
-  {
-    name: 'Facilities Engineering',
-    icon: Factory,
-    color: 'from-blue-500 to-indigo-600',
-    path: '/dashboard/facilities',
-    count: 7,
-    description: 'Size lines, separators, slug catchers, and relief and blowdown systems, design gas treating and heat exchange, map facility layouts, and predict corrosion so surface infrastructure stays safe and efficient.',
-    apps: ['Facility Network Hydraulics', 'Separator & Slug Catcher Designer', 'Relief & Blowdown Sizer', 'Gas Treating & Dehydration', 'Heat Exchanger Sizer', 'Corrosion Rate Predictor'],
-  },
-  {
-    name: 'Economics & Project Management',
-    icon: Milestone,
-    color: 'from-purple-500 to-indigo-600',
-    path: '/dashboard/economics',
-    count: 11,
-    description: 'Evaluate projects under real fiscal regimes with the Petroleum Economics Studio, manage AFEs and capital portfolios, run breakeven and value-of-information analysis, and accelerate field development planning.',
-    apps: ['Petroleum Economics Studio', 'Fiscal Regime Designer', 'Capital Portfolio Studio', 'AFE Cost Control Manager', 'FDP Accelerator', 'NPV Scenario Builder'],
-  },
-  {
-    name: 'Assurance & Risk',
-    icon: ShieldCheck,
-    color: 'from-emerald-400 to-teal-500',
-    path: '/dashboard/assurance',
-    count: 14,
-    description: 'Quantify uncertainty and manage risk across the portfolio: prospect ranking, exploration risk, Monte Carlo and decision tree analysis, plus compliance registers and audit trails that keep decisions defensible.',
-    apps: ['Risk Register', 'Risk Heatmap', 'Monte Carlo Analyzer', 'Decision Tree Analyzer', 'Exploration Risk Analyzer', 'Prospect Ranking Tool', 'Audit Trail Manager'],
-  },
-];
+// Names, descriptions and app lists come from src/data/suiteCatalog.js, the
+// same list the homepage reads; only the look of each module lives here.
+const LOOK = {
+  geoscience: { icon: Layers, color: 'from-cyan-400 to-blue-500' },
+  reservoir: { icon: BarChart3, color: 'from-lime-400 to-green-500' },
+  drilling: { icon: Anchor, color: 'from-red-500 to-orange-500' },
+  production: { icon: Zap, color: 'from-yellow-400 to-amber-500' },
+  facilities: { icon: Factory, color: 'from-blue-500 to-indigo-600' },
+  'process-safety': { icon: ShieldHalf, color: 'from-red-400 to-amber-500' },
+  'midstream-downstream': { icon: Container, color: 'from-orange-400 to-amber-500' },
+  economics: { icon: Milestone, color: 'from-purple-500 to-indigo-600' },
+  assurance: { icon: ShieldCheck, color: 'from-emerald-400 to-teal-500' },
+  'data-ai': { icon: Filter, color: 'from-sky-400 to-indigo-500' },
+};
+
+const solutionCategories = SUITE_MODULES.map((m) => ({
+  ...m,
+  ...LOOK[m.slug],
+  path: `/dashboard/${m.slug}`,
+  count: m.apps.length,
+}));
+
+const stats = suiteStats();
 
 const Solutions = () => {
   const navigate = useNavigate();
@@ -90,7 +46,7 @@ const Solutions = () => {
     <>
       <Helmet>
         <title>Solutions - Petrolord</title>
-        <meta name="description" content="Ten discipline modules and more than 70 live engineering applications covering the full E&P workflow on one platform." />
+        <meta name="description" content={`${stats.modulesWord} modules and ${stats.apps} live engineering applications covering the energy value chain on one platform.`} />
       </Helmet>
       <div className="min-h-screen bg-gradient-to-b from-slate-900 to-green-950 text-slate-200">
         <Header />
@@ -106,10 +62,10 @@ const Solutions = () => {
               Solutions
             </div>
             <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 leading-tight">
-              Ten modules. One workflow.
+              {stats.modulesWord} modules. One workflow.
             </h1>
             <p className="text-xl text-slate-300 font-light">
-              More than 70 live applications covering the E&P workflow from seismic to sales, sharing one project database.
+              {stats.apps} live applications covering the value chain from seismic to sales, sharing one project database.
             </p>
           </motion.div>
 
@@ -142,7 +98,7 @@ const Solutions = () => {
                     onClick={() => explore(category)}
                     className={`bg-gradient-to-r ${category.color} text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300`}
                   >
-                    {user ? `Open ${category.name.split(' ')[0]}` : 'Get Started'}
+                    {user ? `Open ${category.short}` : 'Get Started'}
                     <ChevronRight className="ml-2 h-4 w-4" />
                   </Button>
                 </div>

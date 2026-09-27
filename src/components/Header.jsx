@@ -25,7 +25,7 @@ const Header = () => {
           <div className="flex items-center space-x-4">
             <Link to="/solutions" className="text-slate-300 hover:text-white transition-colors">Solutions</Link>
             <Link to="/resources" className="text-slate-300 hover:text-white transition-colors">Resources</Link>
-            <Link to="/nextgen" className="text-slate-300 hover:text-white transition-colors">NextGen</Link>
+            <a href="https://nextgen.petrolord.com" className="text-slate-300 hover:text-white transition-colors">NextGen</a>
             <Link to="/about-us" className="text-slate-300 hover:text-white transition-colors">Company</Link>
             {user ? <DropdownMenu>
                 <DropdownMenuTrigger asChild>
