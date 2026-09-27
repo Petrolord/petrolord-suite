@@ -13,7 +13,7 @@ import {
 } from 'recharts';
 import ChartLogo from '@/components/charts/ChartLogo';
 import {
-  CHART_COLORS, CHART_MARGINS, CHART_TYPOGRAPHY, GRID_STYLE, LEGEND_PROPS, PINNED_TOOLTIP_PROPS, XAXIS_LABEL_HEIGHT,
+  CHART_COLORS, CHART_MARGINS, CHART_TYPOGRAPHY, GRID_STYLE, LEGEND_PROPS, PINNED_TOOLTIP_PROPS, XAXIS_LABEL_HEIGHT, niceTicks,
 } from '@/utils/chartTheme';
 import { fmt } from '@/components/dataai/quality/shared';
 import { METHOD_NAMES } from '@/utils/dataAi/forecastWorkflows';
@@ -37,13 +37,19 @@ export const Frame = ({ children, testId, height = 'h-80' }) => (
 
 const periodOf = (series, t) => (t < series.values.length ? series.labels[t] : `forecast step ${t - series.values.length + 1}`);
 
-const Axes = ({ unit, xLabel = 'Step (index from 0)' }) => (
-  <>
-    <CartesianGrid {...GRID_STYLE} />
-    <XAxis type="number" dataKey="t" domain={['dataMin', 'dataMax']} allowDecimals={false} tick={tick} stroke={CHART_COLORS.axisLine} height={XAXIS_LABEL_HEIGHT} label={axisLabel(xLabel, { position: 'insideBottom', offset: 0 })} />
-    <YAxis tick={tick} stroke={CHART_COLORS.axisLine} width={70} tickFormatter={fmt} label={axisLabel(unit ? `Rate (${unit})` : 'Value', { angle: -90, position: 'insideLeft' })} />
-  </>
-);
+// Senior test T1 (2026-09-27): this was a component (<Axes />). Recharts
+// renders only its own element types as a chart's children, so the grid and
+// both axes inside the wrapper were dropped and the forecast charts drew
+// with no axes at all. It returns the elements for the chart to hold.
+const axes = ({ unit, xLabel = 'Step (index from 0)', maxT }) => {
+  // round step ticks rather than ending on the last step (59, 23)
+  const t = Number.isFinite(maxT) && maxT > 0 ? niceTicks(0, maxT, 6) : null;
+  return [
+  <CartesianGrid key="grid" {...GRID_STYLE} />,
+  <XAxis key="x" type="number" dataKey="t" domain={t ? t.domain : ['dataMin', 'dataMax']} ticks={t ? t.ticks : undefined} allowDecimals={false} tick={tick} stroke={CHART_COLORS.axisLine} height={XAXIS_LABEL_HEIGHT} label={axisLabel(xLabel, { position: 'insideBottom', offset: 0 })} />,
+  <YAxis key="y" tick={tick} stroke={CHART_COLORS.axisLine} width={70} tickFormatter={fmt} label={axisLabel(unit ? `Rate (${unit})` : 'Value', { angle: -90, position: 'insideLeft' })} />,
+  ];
+};
 
 /**
  * History, one-step fitted values and h-step forecasts of each method, the
@@ -85,7 +91,7 @@ export const ForecastChart = ({
   return (
     <Frame testId={testId}>
       <ComposedChart data={data} margin={CHART_MARGINS.legend}>
-        <Axes unit={unit} />
+        {axes({ unit, maxT: data.length - 1 })}
         <Tooltip {...PINNED_TOOLTIP_PROPS} labelFormatter={(t) => `Step ${t}: ${periodOf(series, t)}`} formatter={(v) => (Array.isArray(v) ? `${fmt(v[0])} to ${fmt(v[1])}` : fmt(v))} />
         <Legend {...LEGEND_PROPS} />
         {pi ? <Area dataKey="band" name={`P90 to P10 band (${METHOD_NAMES[intervals.method]})`} stroke="none" fill={bandColour} fillOpacity={0.15} isAnimationActive={false} connectNulls={false} /> : null}
@@ -120,7 +126,7 @@ export const OriginChart = ({
   return (
     <Frame testId={testId}>
       <ComposedChart data={data} margin={CHART_MARGINS.legend}>
-        <Axes unit={unit} />
+        {axes({ unit, maxT: data.length - 1 })}
         <Tooltip {...PINNED_TOOLTIP_PROPS} labelFormatter={(t) => `Step ${t}: ${periodOf(series, t)}`} formatter={(v) => fmt(v)} />
         <Legend {...LEGEND_PROPS} />
         <Scatter dataKey="train" name={`Training values (steps 0 to ${origin - 1})`} fill={HISTORY} isAnimationActive={false} shape="circle" />
