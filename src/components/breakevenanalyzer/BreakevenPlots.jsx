@@ -11,7 +11,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ChartFrame from '@/components/charts/ChartFrame';
 import {
-  CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE,
+  CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT,
 } from '@/utils/chartTheme';
 
 const money = (v) => (Number.isFinite(v) ? v.toFixed(2) : '-');
@@ -87,12 +87,12 @@ const BreakevenPlots = ({ cdfData, histogramData, tornadoData, kpis }) => {
           <ChartFrame height={400} exportFilename="breakeven-s-curve">
             <ComposedChart data={cdf} margin={{ top: 12, right: 30, bottom: 28, left: 8 }}>
               <CartesianGrid {...GRID_STYLE} />
-              <XAxis
-                type="number" dataKey="price" domain={['dataMin', 'dataMax']}
+              <XAxis height={XAXIS_LABEL_HEIGHT}
+                type="number" dataKey="price" domain={[(lo) => Math.floor(lo / 10) * 10, (hi) => Math.ceil(hi / 10) * 10]} allowDecimals={false}
                 stroke={CHART_COLORS.axisLine} tick={tick}
-                tickFormatter={money}
+                tickFormatter={(v) => String(Math.round(v))}
                 label={{
-                  value: 'Breakeven oil price ($/bbl)', position: 'insideBottom', offset: -10,
+                  value: 'Breakeven oil price ($/bbl)', position: 'insideBottom', offset: 0,
                   fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
                 }}
               />
@@ -109,11 +109,11 @@ const BreakevenPlots = ({ cdfData, histogramData, tornadoData, kpis }) => {
                 formatter={(v) => [`${(v * 100).toFixed(1)} %`, 'chance of breaking even below']}
                 labelFormatter={(v) => `$${money(v)}/bbl`}
               />
-              <Legend verticalAlign="top" />
+              <Legend {...LEGEND_PROPS} />
               {Number.isFinite(kpis?.p50) && (
                 <ReferenceLine
                   x={kpis.p50} stroke="#f59e0b" strokeDasharray="4 3"
-                  label={{ value: `median $${money(kpis.p50)}`, fill: '#b45309', fontSize: 11, position: 'top' }}
+                  label={{ value: `median $${money(kpis.p50)}`, fill: '#b45309', fontSize: 11, position: 'insideTopLeft' }}
                 />
               )}
               <Line
@@ -132,11 +132,11 @@ const BreakevenPlots = ({ cdfData, histogramData, tornadoData, kpis }) => {
           <ChartFrame height={400} exportFilename="breakeven-histogram">
             <ComposedChart data={hist} margin={{ top: 12, right: 30, bottom: 28, left: 8 }}>
               <CartesianGrid {...GRID_STYLE} />
-              <XAxis
-                type="number" dataKey="price" domain={['dataMin', 'dataMax']}
-                stroke={CHART_COLORS.axisLine} tick={tick} tickFormatter={money}
+              <XAxis height={XAXIS_LABEL_HEIGHT}
+                type="number" dataKey="price" domain={[(lo) => Math.floor(lo / 10) * 10, (hi) => Math.ceil(hi / 10) * 10]} allowDecimals={false}
+                stroke={CHART_COLORS.axisLine} tick={tick} tickFormatter={(v) => String(Math.round(v))}
                 label={{
-                  value: 'Breakeven oil price ($/bbl)', position: 'insideBottom', offset: -10,
+                  value: 'Breakeven oil price ($/bbl)', position: 'insideBottom', offset: 0,
                   fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
                 }}
               />
@@ -152,7 +152,7 @@ const BreakevenPlots = ({ cdfData, histogramData, tornadoData, kpis }) => {
                 formatter={(v) => [v, 'iterations']}
                 labelFormatter={(v) => `around $${money(v)}/bbl`}
               />
-              <Legend verticalAlign="top" />
+              <Legend {...LEGEND_PROPS} />
               <Bar dataKey="count" name="Iterations" fill="#0ea5e9" />
             </ComposedChart>
           </ChartFrame>
@@ -166,12 +166,12 @@ const BreakevenPlots = ({ cdfData, histogramData, tornadoData, kpis }) => {
               margin={{ top: 12, right: 40, bottom: 28, left: 150 }}
             >
               <CartesianGrid {...GRID_STYLE} />
-              <XAxis
+              <XAxis height={XAXIS_LABEL_HEIGHT}
                 type="number" stroke={CHART_COLORS.axisLine} tick={tick}
                 tickFormatter={(v) => `${v > 0 ? '+' : ''}${money(v)}`}
                 label={{
                   value: 'Change in breakeven price vs the base case ($/bbl)',
-                  position: 'insideBottom', offset: -10,
+                  position: 'insideBottom', offset: 0,
                   fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize,
                 }}
               />
@@ -183,7 +183,7 @@ const BreakevenPlots = ({ cdfData, histogramData, tornadoData, kpis }) => {
                 contentStyle={TOOLTIP_STYLE}
                 formatter={(v, name) => [`${v > 0 ? '+' : ''}$${money(v)}/bbl`, name]}
               />
-              <Legend verticalAlign="top" />
+              <Legend {...LEGEND_PROPS} />
               <ReferenceLine x={0} stroke={CHART_COLORS.axisLine} />
               <Bar dataKey="low" name="Favourable end" stackId="swing" fill="#059669">
                 {tornado.map((d) => <Cell key={`lo-${d.name}`} />)}

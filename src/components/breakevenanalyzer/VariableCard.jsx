@@ -30,18 +30,18 @@ const VariableCard = ({ variable, onChange, onRemove }) => {
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="p-4 grid grid-cols-3 gap-3">
+            <div className="p-3 grid grid-cols-3 gap-2">
               <div>
                 <Label className="text-lime-300 text-xs">{VARIABLE_PERCENTILE_LABELS.p10}</Label>
-                <Input type="number" value={variable.p10} onChange={(e) => onChange(variable.id, 'p10', Number(e.target.value))} className="bg-white/5 border-white/20" />
+                <Input type="number" value={variable.p10} onChange={(e) => onChange(variable.id, 'p10', Number(e.target.value))} className="bg-white/5 border-white/20 px-2 tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
               </div>
               <div>
                 <Label className="text-lime-300 text-xs">{VARIABLE_PERCENTILE_LABELS.p50}</Label>
-                <Input type="number" value={variable.p50} onChange={(e) => onChange(variable.id, 'p50', Number(e.target.value))} className="bg-white/5 border-white/20" />
+                <Input type="number" value={variable.p50} onChange={(e) => onChange(variable.id, 'p50', Number(e.target.value))} className="bg-white/5 border-white/20 px-2 tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
               </div>
               <div>
                 <Label className="text-lime-300 text-xs">{VARIABLE_PERCENTILE_LABELS.p90}</Label>
-                <Input type="number" value={variable.p90} onChange={(e) => onChange(variable.id, 'p90', Number(e.target.value))} className="bg-white/5 border-white/20" />
+                <Input type="number" value={variable.p90} onChange={(e) => onChange(variable.id, 'p90', Number(e.target.value))} className="bg-white/5 border-white/20 px-2 tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
               </div>
             </div>
           </motion.div>
