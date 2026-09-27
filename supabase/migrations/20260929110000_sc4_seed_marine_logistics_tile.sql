@@ -17,8 +17,9 @@
 -- Active only in 20260929120000, deploy-gated on the route being live.
 --
 -- Price: master_apps.price 299 (USD per month for the organisation, the
--- a la carte licence), the SC3 planner's held price and the Fuel Pricing &
--- Supply Chain Studio's; the OWNER CONFIRMS OR CHANGES IT before applying.
+-- a la carte licence), OWNER-CONFIRMED 2026-09-27 for both this planner and
+-- the SC3 Materials & Spares Planner; the Fuel Pricing & Supply Chain
+-- Studio's price too.
 -- The module price in pricing_config.module_pricing is not changed here; the
 -- module stays cheaper than its apps bought singly.
 --

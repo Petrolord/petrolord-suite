@@ -19,8 +19,8 @@
 -- Price: master_apps.price 299 (USD per month for the organisation, the
 -- a la carte licence), set the way 20260927120000_suite_pricing_2026_09 sets
 -- every app price (by slug, joined to its module). 299 is the price of the
--- Fuel Pricing & Supply Chain Studio, the nearest peer in the module; the
--- OWNER CONFIRMS OR CHANGES IT before applying. The module price in
+-- Fuel Pricing & Supply Chain Studio, the nearest peer in the module,
+-- OWNER-CONFIRMED 2026-09-27. The module price in
 -- pricing_config.module_pricing already includes every app of the module and
 -- is not changed here; the module stays cheaper than its apps bought singly.
 --

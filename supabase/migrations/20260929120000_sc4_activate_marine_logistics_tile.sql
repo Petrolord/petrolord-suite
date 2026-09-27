@@ -12,7 +12,7 @@
 --      /dashboard/apps/midstream-downstream/marine-logistics-planner is live
 --      and that route has been served on the deployed site. A tile must never
 --      go Active before its route is on the deploy target.
--- src/data/suiteCatalog.js already counts this app (104 live apps with SC3); the
+-- src/data/suiteCatalog.js already counts this app (104 live apps with SC3 and SC4); the
 -- homepage count is right from the moment this is applied.
 --
 -- Note for the pricing migration 20260927120000 (already applied): its guard

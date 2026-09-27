@@ -1,7 +1,7 @@
 -- Supply Chain SC4: Marine Logistics Planner persistence, scm_marine_projects (HELD).
 --
 -- The planner saves whole studies on the saved-projects convention
--- (src/utils/savedProjects.js, the shape scm_marine_projects uses for the
+-- (src/utils/savedProjects.js, the shape scm_materials_projects uses for the
 -- Materials & Spares Planner beside it): one row per study, owned by the user
 -- who made it, the full input state in inputs_data, results recomputed by the
 -- vendored engine (engines/supplychain/marineLogistics.js) whenever a study

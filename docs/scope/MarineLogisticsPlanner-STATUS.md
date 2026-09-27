@@ -19,7 +19,7 @@ then this Suite app, then the NextGen course "Offshore & Marine Logistics" (`mar
 | views | `src/components/marine/` |
 | persistence | `scm_marine_projects` (saved-projects convention, owner RLS; payload carries `engine`, the petrolord-engines commit) |
 | catalogue | `src/data/suiteCatalog.js` counts it: 104 apps, 10 modules (with SC3) |
-| price | master_apps.price 299 in the held seed (as SC3); owner confirms or changes |
+| price | master_apps.price 299 in the held seed (as SC3), owner-confirmed 2026-09-27 |
 | icon | `Waves` (in `iconRegistry`) |
 
 ### Module decision
@@ -100,8 +100,8 @@ both planners travel in a `.pld` package and appear in the export picker.
 
 ## Owner steps (in order)
 
-1. Confirm or change the a la carte price (299) in
-   `20260929110000_sc4_seed_marine_logistics_tile.sql`.
+1. Price: done. The a la carte price 299 in
+   `20260929110000_sc4_seed_marine_logistics_tile.sql` was owner-confirmed 2026-09-27.
 2. Apply `20260929100000_sc4_scm_marine_projects.sql` (safe any time).
 3. Apply `20260929110000_sc4_seed_marine_logistics_tile.sql` (Coming Soon tile).
 4. Merge, build from main (`NODE_OPTIONS=--experimental-global-webcrypto npm run build`
