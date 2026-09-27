@@ -24,6 +24,8 @@ const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
 
 const SERVER = 'supabase/functions/generate-quote/index.ts';
 const MIGRATION = 'supabase/migrations/20260830060000_module_pricing_single_source.sql';
+// The 2026-09 pricing review: full reset of module_pricing plus every app price.
+const REPRICE = 'supabase/migrations/20260927120000_suite_pricing_2026_09.sql';
 // Later migrations that MERGE a module into the seeded object (value || ...).
 const ADDITIONS = [
   'supabase/migrations/20260919230000_ps1_process_safety_module_pricing.sql',
@@ -109,17 +111,12 @@ describe('the server', () => {
 });
 
 describe('the migration that seeds it', () => {
-  it('seeds, with the later additions merged in, exactly the shared table', () => {
-    const sql = read(MIGRATION);
-    const json = sql.match(/'(\{"geoscience[^']*\})'/);
+  it('the latest pricing migration sets exactly the shared table', () => {
+    // 20260927120000 (the 2026-09 pricing review) replaces the whole object,
+    // superseding the seed and the per-module additions below.
+    const json = read(REPRICE).match(/values \('module_pricing', '(\{[^']*\})'::jsonb\)/);
     expect(json).toBeTruthy();
-    const merged = { ...JSON.parse(json[1]) };
-    ADDITIONS.forEach((rel) => {
-      const add = read(rel).match(/set value = value \|\| '(\{[^']*\})'::jsonb/);
-      expect(add).toBeTruthy();
-      Object.assign(merged, JSON.parse(add[1]));
-    });
-    expect(merged).toEqual(MODULE_PRICING);
+    expect(JSON.parse(json[1])).toEqual(MODULE_PRICING);
   });
 
   it('adds a module by merging, so no other module price is overwritten', () => {
@@ -136,47 +133,43 @@ describe('the migration that seeds it', () => {
 });
 
 describe('the commercial rule holds', () => {
-  // A module costs about 3.3x its own per-app price: roughly three apps'
-  // worth of money for ten to fourteen apps. These are the a la carte prices
-  // on master_apps.price as at 2026-08-30.
-  // Process Safety (PS1): its tiles copy a Facilities row, so 699, and it has
-  // three apps planned (LOPA & SIL, Consequence, QRA).
-  // Data & AI (D1): its tiles copy a Geoscience row, so 899, and it has five
-  // apps (D1 to D4, and AI Evaluation Studio, D5, which seeds its own tile).
-  const APP_PRICE = {
-    geoscience: 899, drilling: 899, reservoir: 899, facilities: 699,
-    production: 699, economics: 599, 'midstream-downstream': 599, assurance: 499,
-    'process-safety': 699, 'data-ai': 899,
-  };
-  const APP_COUNT = {
-    geoscience: 10, drilling: 12, reservoir: 13, facilities: 13,
-    production: 12, economics: 12, 'midstream-downstream': 10, assurance: 14,
-    'process-safety': 3, 'data-ai': 5,
-  };
-  // The 60-85 percent discount band describes a module of ten or more apps.
-  // A three-app module cannot sit in it and inside the 2.8x-4.0x rule at
-  // once, so for a small module the test is the rule's purpose: the bundle
-  // must still cost less than its apps bought one by one.
-  const SMALL_MODULE = 10;
+  // Owner-approved pricing review (2026-09-27): each app has its own price,
+  // and a module costs about 35% of its apps bought one by one, or 45 to 65%
+  // for a module of fewer than eight apps. App prices are read from the
+  // migration that sets them, joined to their module there.
+  const APPS = [...read(REPRICE).matchAll(/\('([a-z0-9-]+)', '([a-z-]+)', (\d+)\)/g)]
+    .map(([, slug, module, price]) => ({ slug, module, price: Number(price) }));
+  const byModule = (id) => APPS.filter((a) => a.module === id);
 
-  it('every module costs between three and four of its own apps', () => {
-    Object.keys(MODULE_PRICING).forEach((id) => {
-      const ratio = MODULE_PRICING[id] / APP_PRICE[id];
-      expect(ratio).toBeGreaterThan(2.8);
-      expect(ratio).toBeLessThan(4.0);
+  it('prices all 102 live apps, each once, inside the approved range', () => {
+    expect(APPS).toHaveLength(102);
+    expect(new Set(APPS.map((a) => a.slug)).size).toBe(102);
+    APPS.forEach((a) => {
+      expect(a.price).toBeGreaterThanOrEqual(199);
+      expect(a.price).toBeLessThanOrEqual(1990);
     });
   });
 
-  it('a module always beats buying its apps individually', () => {
-    // If this ever inverts, the bundle is pointless and the a la carte path
-    // is the cheap one, which is the opposite of the intent.
+  it('every module costs about a third of its apps bought singly', () => {
     Object.keys(MODULE_PRICING).forEach((id) => {
-      const alaCarte = APP_PRICE[id] * APP_COUNT[id];
-      expect(MODULE_PRICING[id]).toBeLessThan(alaCarte);
-      if (APP_COUNT[id] < SMALL_MODULE) return;
-      const discount = 1 - MODULE_PRICING[id] / alaCarte;
-      expect(discount).toBeGreaterThan(0.6);
-      expect(discount).toBeLessThan(0.85);
+      const apps = byModule(id);
+      const sum = apps.reduce((acc, a) => acc + a.price, 0);
+      const ratio = MODULE_PRICING[id] / sum;
+      if (apps.length >= 8) {
+        expect(ratio).toBeGreaterThan(0.3);
+        expect(ratio).toBeLessThan(0.42);
+      } else {
+        expect(ratio).toBeGreaterThan(0.45);
+        expect(ratio).toBeLessThan(0.65);
+      }
+    });
+  });
+
+  it('a module always beats buying its apps individually, and costs more than its dearest app', () => {
+    Object.keys(MODULE_PRICING).forEach((id) => {
+      const apps = byModule(id);
+      expect(MODULE_PRICING[id]).toBeLessThan(apps.reduce((acc, a) => acc + a.price, 0));
+      expect(MODULE_PRICING[id]).toBeGreaterThan(Math.max(...apps.map((a) => a.price)));
     });
   });
 

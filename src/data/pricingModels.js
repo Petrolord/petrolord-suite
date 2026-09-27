@@ -51,38 +51,57 @@ export const seatTierRate = (nthSeat) => {
 // module_id matches, so a module's price REPLACES its apps' a la carte
 // prices rather than adding to them.
 //
-// The rule behind the numbers: a module costs about 3.3x its own per-app
-// price, so it costs roughly what three apps cost and delivers ten to
-// fourteen. That keeps the bundle the obvious purchase and keeps a la carte
-// an honest convenience premium for someone who wants two tools.
+// The rule behind the numbers (owner-approved pricing review, 2026-09-27):
+// each app carries its own price, benchmarked against the products it
+// competes with, and a module costs about 35% of its apps bought one by one
+// (50 to 60% for the small Data & AI and Process Safety modules). Seeded by
+// migration 20260927120000_suite_pricing_2026_09.sql, which also sets every
+// app's master_apps.price. docs/scope/Pricing-STATUS.md has the method.
 //
 // HSE is not here: it is the separate external portal, billed in naira.
-//
-// Process Safety joined at PS1 (2026-09-19), when its first app, the LOPA &
-// SIL Studio, shipped, as Midstream & Downstream joined at DS1. Its tiles
-// carry the Facilities per-app price (699). The 3.3x rule gives about 2,299,
-// which would cost more than the module's three planned apps a la carte
-// (2,097), so it is priced at 1,999: 2.86x, inside the rule's tested band and
-// below a la carte. Migration 20260919230000; ProcessSafety-ROADMAP.md.
-//
-// Data & AI joined at D1 (2026-09-23), when its first app, the Data Quality
-// Studio, shipped, as Process Safety joined at PS1. Its tiles carry the
-// Geoscience per-app price (899) that the DA0 seed copies. The 3.3x rule
-// gives 2,967, so the house price 2,999: 3.34x, inside the rule's tested band
-// and below the module's four planned apps a la carte (3,596). Migration
-// 20260923150000; DataAI-ROADMAP.md. The owner may change it.
 export const MODULE_PRICING = {
-  geoscience: 2999,
-  drilling: 3299,
-  reservoir: 3299,
-  facilities: 2499,
-  production: 2499,
-  economics: 1999,
-  'midstream-downstream': 1999,
-  assurance: 1499,
-  'process-safety': 1999,
-  'data-ai': 2999
+  geoscience: 3990,
+  drilling: 4490,
+  reservoir: 3990,
+  facilities: 1990,
+  production: 3490,
+  economics: 1990,
+  'midstream-downstream': 1490,
+  assurance: 899,
+  'process-safety': 1990,
+  'data-ai': 1290
 };
+
+// Every priced module together, per month (pricing_config.all_access_price).
+export const ALL_ACCESS_PRICE = 12990;
+
+// Essentials seats for light apps (pricing_config.essentials_seat_tiers and
+// essentials_seat_apps). Every other app uses SEAT_TIERS.
+export const ESSENTIALS_SEAT_TIERS = [
+  { upTo: 5, price: 19 },
+  { upTo: 15, price: 15 },
+  { upTo: 40, price: 12 },
+  { upTo: Infinity, price: 9 },
+];
+export const ESSENTIALS_SEAT_APPS = [
+  'ai-evaluation-studio', 'audit-findings-manager', 'control-valve-sizing', 'data-quality-studio',
+  'decision-studio', 'decision-tree-builder', 'document-control', 'energy-utilities-efficiency',
+  'eor-screening', 'facility-layout-mapper', 'flow-metering-designer', 'iso-compliance-tool',
+  'lesson-learned-db', 'management-of-change', 'npv-scenario-builder', 'peer-review-manager',
+  'project-management-pro', 'quality-assurance-plan', 'recovery-factor-estimator', 'regulatory-compliance',
+  'risk-heatmap', 'risk-register', 'technical-report-autopilot', 'value-of-information-analyzer',
+];
+
+// An app quoted together with its host carries no licence and no seat
+// charge (pricing_config.bundle_included_with).
+export const INCLUDED_WITH = {
+  'risk-heatmap': 'risk-register',
+  'lesson-learned-db': 'audit-findings-manager',
+};
+
+// The platform fee is waived when a module is licensed or the term is a
+// year or longer.
+export const PLATFORM_FEE_WAIVED_TERMS = ['annual', '2year', '3year'];
 
 // Display metadata for the quote screens, so a module's name and blurb are
 // not a fourth thing that can drift.
@@ -97,17 +116,6 @@ export const MODULE_META = {
   assurance: { name: 'Assurance', description: 'Risk, compliance, competency and quality management' },
   'process-safety': { name: 'Process Safety', description: 'Layers of protection analysis, SIL determination and SIF verification' },
   'data-ai': { name: 'Data & AI', description: 'Data quality checks, machine learning on well data, electrofacies, statistical forecasting and the evaluation of search and question-answering systems' }
-};
-
-// Individual App Base Price (if purchased à la carte)
-export const APP_BASE_PRICE = 99;
-
-// Special app pricing overrides (A la carte)
-export const SPECIAL_APP_PRICING = {
-  'well-planning': 299,
-  'project-management-pro': 199,
-  'basinflow-genesis': 349,
-  'fracture-prediction': 249
 };
 
 // Service Tiers
@@ -135,16 +143,6 @@ export const TIERS = [
   },
 ];
 
-// Bundles
-export const BUNDLES = [
-  {
-    id: 'full_platform',
-    name: 'Full Platform Suite',
-    discount: 0.20,
-    description: 'Get access to all modules at a discounted rate'
-  }
-];
-
 // Billing Periods
 export const BILLING_PERIODS = [
   { id: 'monthly', name: 'Monthly', months: 1, discount: 0, label: '1 Mo', description: 'Standard Billing' },
@@ -153,7 +151,3 @@ export const BILLING_PERIODS = [
   { id: '2year', name: '2 Years', months: 24, discount: 0.20, label: '24 Mo', description: 'Save 20%' },
   { id: '3year', name: '3 Years', months: 36, discount: 0.25, label: '36 Mo', description: 'Save 25%' }
 ];
-
-export const getAppPrice = (appId) => {
-  return SPECIAL_APP_PRICING[appId] || APP_BASE_PRICE;
-};

@@ -5,6 +5,7 @@ import { bridgeVerifyConfigured, verifyBridgeCode } from '../_shared/nextgen-bri
 import { validatePromoCode } from '../_shared/promo-codes.ts';
 import { billingPeriodOf } from '../_shared/billing-term.ts';
 import { ngnPerUsdFromConfig, usdToNgn, ngnToKobo } from '../_shared/paystack-ngn.ts';
+import { pricingRulesFromConfig, appSeatCost as ruleSeatCost, includedWithHost, platformFeeWaived, modulesCharge } from '../_shared/suite-pricing.ts';
 // Logo URLs
 const LORDSWAY_LOGO_URL = 'https://horizons-cdn.hostinger.com/43fa5c4b-d185-4d6d-9ff4-a1d78861fb87/b55e5cb03a1912f6a06152592ab58d1c.png';
 const PETROLORD_LOGO_URL = 'https://horizons-cdn.hostinger.com/43fa5c4b-d185-4d6d-9ff4-a1d78861fb87/b7bb1181c53d21d5cae68a1a79fddaa7.png';
@@ -132,16 +133,20 @@ Deno.serve(async (req)=>{
     } catch (_e) { /* keep defaults */ }
 
     // MODULE PRICING. One source of truth: pricing_config.module_pricing,
-    // seeded by 20260830060000 (Process Safety added by 20260919230000, Data & AI by 20260923150000). The fallback below exists only so a missing
+    // seeded by 20260830060000 and reset by 20260927120000 (the 2026-09
+    // pricing review). The fallback below exists only so a missing
     // config row degrades to the same numbers rather than to a flat rate
     // that undercharges by an order of magnitude, which is what the
     // hardcoded 500 this replaces actually did.
     const MODULE_PRICING_FALLBACK = {
-      geoscience: 2999, drilling: 3299, reservoir: 3299, facilities: 2499,
-      production: 2499, economics: 1999, 'midstream-downstream': 1999, assurance: 1499,
-      'process-safety': 1999, 'data-ai': 2999
+      geoscience: 3990, drilling: 4490, reservoir: 3990, facilities: 1990,
+      production: 3490, economics: 1990, 'midstream-downstream': 1490, assurance: 899,
+      'process-safety': 1990, 'data-ai': 1290
     };
     const MODULE_PRICING = asJson(configMap['module_pricing']) || MODULE_PRICING_FALLBACK;
+    // Essentials seats, bundled apps and the all-access price
+    // (_shared/suite-pricing.ts; live values in pricing_config).
+    const rules = pricingRulesFromConfig(configMap);
     const computeSeatCost = (n)=>{
       let remaining = Math.max(0, parseInt(n) || 0), prevCap = 0, cost = 0;
       for (const t of SEAT_TIERS) {
@@ -163,14 +168,16 @@ Deno.serve(async (req)=>{
       '3year':   { months: 36, discount: 0.25 }
     };
     const tierMultiplier = TIER_MULTIPLIERS[service_tier] ?? 1.0;
-    const BASE_PLATFORM_FEE = BASE_PLATFORM_FEE_RAW * tierMultiplier;
+    // Waived when a module is licensed or the term is a year or longer.
+    const platformWaived = platformFeeWaived(modules || [], billing_term);
+    const BASE_PLATFORM_FEE = platformWaived ? 0 : BASE_PLATFORM_FEE_RAW * tierMultiplier;
     let appsCost = 0;
     let seatsCost = 0; // accumulated per-app via tiers
     const lineItems = [];
     const validatedApps = []; // Track app IDs (UUIDs)
     const appNameMap = {}; // Map app ID to name for PDF
     lineItems.push({
-      description: 'Platform Base Fee',
+      description: platformWaived ? 'Platform Base Fee (waived with a module licence or an annual term)' : 'Platform Base Fee',
       amount: BASE_PLATFORM_FEE
     });
     // Normalize apps: accept ["uuid", ...] (legacy) OR [{ id, seats }, ...] (per-app seats).
@@ -242,15 +249,21 @@ Deno.serve(async (req)=>{
       }
       if (activeApps && activeApps.length > 0) {
         console.log(`[Generate Quote] Found ${activeApps.length} active apps from ${appIds.length} requested`);
+        const quotedSlugs = new Set(activeApps.map((a)=> a.slug));
         activeApps.forEach((app)=>{
           // Covered by a selected module: seats still apply, the licence does
           // not. Charging both is the double-count the quote preview used to
           // show and the server used to disagree with.
           const coveredByModule = selectedModuleIds.has(app.module_id);
-          const price = coveredByModule ? 0 : parseFloat(app.price || 0);
+          // Quoted with its host app (Risk Heatmap with Risk Register, Lessons
+          // Learned with Audit & Findings): no licence and no seat charge.
+          const host = includedWithHost(app.slug, quotedSlugs, rules);
+          const hostName = host ? (activeApps.find((a)=> a.slug === host)?.app_name || host) : null;
+          const price = coveredByModule || host ? 0 : parseFloat(app.price || 0);
           // Per-app seat count (the cap manual_verify_quote writes to seats_allocated).
           const appSeats = perAppSeatMode ? (seatsByApp[app.id] != null ? seatsByApp[app.id] : 1) : (Number(seats) || 1);
-          const appSeatCost = computeSeatCost(appSeats); // graduated per-app tiers
+          // Graduated per-app tiers: Essentials seats for light apps, standard otherwise.
+          const appSeatCost = host ? 0 : ruleSeatCost(app.slug, appSeats, rules);
           appsCost += price;
           seatsCost += appSeatCost;
           // Store an OBJECT (incl. per-app seats) so manual_verify_quote can match on
@@ -263,9 +276,11 @@ Deno.serve(async (req)=>{
           });
           appNameMap[app.id] = app.app_name; // Map for PDF
           lineItems.push({
-            description: coveredByModule
-              ? `App: ${app.app_name} (included in the ${moduleSlugById[app.module_id]} module)`
-              : `App: ${app.app_name}`,
+            description: host
+              ? `App: ${app.app_name} (included with ${hostName})`
+              : coveredByModule
+                ? `App: ${app.app_name} (included in the ${moduleSlugById[app.module_id]} module)`
+                : `App: ${app.app_name}`,
             amount: price
           });
           lineItems.push({
@@ -298,25 +313,40 @@ Deno.serve(async (req)=>{
     if (modules.length > 0) {
       console.log(`[Generate Quote] Processing ${modules.length} modules`);
       modules.forEach((m)=>{
-        const key = String(m).toLowerCase();
-        const modPrice = parseFloat(MODULE_PRICING[key]);
-        if (!Number.isFinite(modPrice)) {
+        if (!Number.isFinite(parseFloat(MODULE_PRICING[String(m).toLowerCase()]))) {
           // An unpriced module is a configuration error. Fail the quote
           // rather than quietly giving the module away.
           throw new Error(`No price is configured for the ${m} module. Add it to pricing_config.module_pricing before quoting it.`);
         }
-        appsCost += modPrice;
+      });
+      // Every priced module together is the single all-access price. Module
+      // discounts (bridge, scoped promo) apply to each module's share of it.
+      const charge = modulesCharge(modules, MODULE_PRICING, rules);
+      const listSum = modules.reduce((a, m)=> a + parseFloat(MODULE_PRICING[String(m).toLowerCase()]), 0);
+      const share = listSum > 0 ? charge.total / listSum : 1;
+      appsCost += charge.total;
+      modules.forEach((m)=>{
+        const key = String(m).toLowerCase();
+        const modPrice = parseFloat(MODULE_PRICING[key]) * share;
         if (bridge && key === String(bridge.suite_module).toLowerCase()) {
           bridgeableCost += modPrice;
         }
         if (promo && promo.scope !== 'all' && key === String(promo.scope).toLowerCase()) {
           promoableCost += modPrice;
         }
-        lineItems.push({
-          description: `Module: ${m} (all applications included)`,
-          amount: modPrice
-        });
+        if (!charge.allAccess) {
+          lineItems.push({
+            description: `Module: ${m} (all applications included)`,
+            amount: modPrice
+          });
+        }
       });
+      if (charge.allAccess) {
+        lineItems.push({
+          description: 'All-access Suite licence (every module, all applications included)',
+          amount: charge.total
+        });
+      }
     }
     // seatsCost was accumulated per-app (graduated tiers) in the loop above.
     // totalSeats is the sum for display/storage.

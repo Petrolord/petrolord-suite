@@ -15,7 +15,8 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/use-toast';
 import { formatCurrency } from '@/utils/adminHelpers';
 import { appCategories } from '@/data/applications';
-import { computeSeatCost, MODULE_PRICING } from '@/data/pricingModels';
+import { MODULE_PRICING, BASE_PLATFORM_FEE } from '@/data/pricingModels';
+import { priceApp, modulesCharge, platformFeeWaived } from '@/data/quotePricing';
 
 const STEPS = [
   { id: 1, title: 'Modules', icon: Layers },
@@ -88,8 +89,21 @@ export default function GetQuote() {
   };
 
   const getTotalSeats = () => selectedApps.reduce((acc, id) => acc + (appSeats[id] || 1), 0);
-  // Graduated per-app seat cost (matches generate-quote / SEAT_TIERS).
-  const getSeatsCost = () => selectedApps.reduce((acc, id) => acc + computeSeatCost(appSeats[id] || 1), 0);
+  // Per-app lines under the shared pricing rules (src/data/quotePricing.js,
+  // mirrored by generate-quote): Essentials seats for light apps, no charge
+  // for an app quoted with its host, no licence for a module-covered app.
+  const appLines = () => {
+    const apps = selectedApps.map(id => availableApps.find(a => a.id === id)).filter(Boolean);
+    const quotedSlugs = new Set(apps.map(a => a.slug));
+    return apps.map(app => priceApp(
+      { slug: app.slug, moduleSlug: isCoveredByModule(app) ? (app.module_id || selectedModules[0]) : null, price: app.price, seats: appSeats[app.id] || 1 },
+      { moduleSlugs: selectedModules, quotedSlugs },
+    ));
+  };
+  const getSeatsCost = () => appLines().reduce((acc, l) => acc + l.seatCost, 0);
+  const getAppsLicence = () => appLines().reduce((acc, l) => acc + l.licence, 0);
+  const getModules = () => modulesCharge(selectedModules);
+  const getPlatformFee = () => (platformFeeWaived(selectedModules, billingTerm) ? 0 : BASE_PLATFORM_FEE);
   const [addOns, setAddOns] = useState([]);
   // Use the explicit ?org_id, the upgrade-button state, or fall back to the
   // logged-in admin's own org (in-app upgrade). Null only for brand-new signups.
@@ -156,19 +170,18 @@ export default function GetQuote() {
     // Modules. A module includes every app in it, so its price REPLACES
     // those apps' a la carte prices. Adding both was the double-count that
     // made this preview disagree with the quote the server generated.
-    selectedModules.forEach(m => subtotal += (MODULE_PRICING[m] || 0));
+    // Every module together is the all-access price.
+    subtotal += getModules().total;
 
     // Apps, charged only where they are not already covered by a selected
     // module. Seats still apply to every app either way.
-    selectedApps.forEach(appId => {
-      const app = availableApps.find(a => a.id === appId);
-      if (!app) return;
-      if (isCoveredByModule(app)) return;
-      subtotal += (parseFloat(app.price) || 0);
-    });
+    subtotal += getAppsLicence();
 
     // Seats (per app, graduated tiers)
     subtotal += getSeatsCost();
+
+    // Platform fee, waived with a module licence or an annual term.
+    subtotal += getPlatformFee();
 
     // Promo (preview only; generate-quote re-validates and is authoritative).
     // 'all' scope discounts the whole monthly subtotal; a module scope is
@@ -476,12 +489,16 @@ export default function GetQuote() {
                       <h3 className="text-xl font-bold mb-6 border-b border-slate-800 pb-4">Estimated Cost</h3>
                       <div className="space-y-3 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-slate-400">Modules Cost</span>
-                          <span>{formatCurrency(selectedModules.reduce((acc, m) => acc + (MODULE_PRICING[m]||0), 0))}</span>
+                          <span className="text-slate-400">{getModules().allAccess ? 'All-access Suite licence' : 'Modules Cost'}</span>
+                          <span>{formatCurrency(getModules().total)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-400">Apps Add-on</span>
-                          <span>{formatCurrency(selectedApps.reduce((acc, id) => acc + (availableApps.find(a=>a.id===id)?.price||0), 0))}</span>
+                          <span>{formatCurrency(getAppsLicence())}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Platform fee</span>
+                          <span>{getPlatformFee() === 0 ? 'Included' : formatCurrency(getPlatformFee())}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-400">Seats ({getTotalSeats()}, tiered)</span>

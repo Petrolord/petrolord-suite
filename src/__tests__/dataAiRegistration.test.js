@@ -120,9 +120,9 @@ describe('pricing, which lands with the first app (D1)', () => {
   it('is priced in the shared table, the server fallback and the migration alike', () => {
     // The Coming Soon-only module was unpriced at DA0. D1 ships the Data
     // Quality Studio and prices the module, as PS1 did for Process Safety.
-    expect(MODULE_PRICING[SLUG]).toBe(2999);
+    expect(MODULE_PRICING[SLUG]).toBe(1290); // reset by the 2026-09 pricing review (20260927120000)
     expect(MODULE_META[SLUG].name).toBe(NAME);
-    expect(read('../supabase/functions/generate-quote/index.ts')).toMatch(/'data-ai': 2999/);
+    expect(read('../supabase/functions/generate-quote/index.ts')).toMatch(/'data-ai': 1290/);
     expect(read(`../supabase/migrations/${PRICING}`)).toContain('{"data-ai":2999}');
   });
 });
@@ -349,7 +349,7 @@ describe('D2: the ML Workbench', () => {
     expect(sql).not.toMatch(/[–—]/);
     expect(sql).not.toMatch(/AI-powered|artificial intelligence/i);
     // the module price already covers its apps; D2 changes no number
-    expect(MODULE_PRICING[SLUG]).toBe(2999);
+    expect(MODULE_PRICING[SLUG]).toBe(1290); // reset by the 2026-09 pricing review (20260927120000)
   });
 
   it('logs both D2 migrations (held or applied), after the D1 ones', () => {
@@ -425,7 +425,7 @@ describe('D3: the Electrofacies Studio', () => {
     expect(sql).not.toMatch(/pricing_config/);
     expect(sql).not.toMatch(/[\u2013\u2014]/);
     expect(sql).not.toMatch(/AI-powered|artificial intelligence/i);
-    expect(MODULE_PRICING[SLUG]).toBe(2999);
+    expect(MODULE_PRICING[SLUG]).toBe(1290); // reset by the 2026-09 pricing review (20260927120000)
   });
 
   it('logs both D3 migrations (held or applied), after the D2 ones', () => {
@@ -502,7 +502,7 @@ describe('D4: the Production Forecasting ML Workbench', () => {
     expect(sql).not.toMatch(/pricing_config/);
     expect(sql).not.toMatch(/[\u2013\u2014]/);
     expect(sql).not.toMatch(/AI-powered|artificial intelligence/i);
-    expect(MODULE_PRICING[SLUG]).toBe(2999);
+    expect(MODULE_PRICING[SLUG]).toBe(1290); // reset by the 2026-09 pricing review (20260927120000)
   });
 
   it('logs both D4 migrations (held or applied), after the D3 ones', () => {
@@ -626,7 +626,7 @@ describe('D5: the AI Evaluation Studio', () => {
     expect(sql).not.toMatch(/pricing_config/);
     expect(sql).not.toMatch(/[–—]/);
     expect(sql).not.toMatch(/AI-powered|artificial intelligence/i);
-    expect(MODULE_PRICING[SLUG]).toBe(2999);
+    expect(MODULE_PRICING[SLUG]).toBe(1290); // reset by the 2026-09 pricing review (20260927120000)
   });
 
   it('logs all four D5 migrations, in order, after the D4 ones, as held or as applied on 2026-09-26', () => {
