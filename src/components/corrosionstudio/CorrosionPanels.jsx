@@ -19,10 +19,10 @@ import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine,
 } from 'recharts';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useCorrosion } from '@/contexts/CorrosionStudioContext';
 import {
-  fmt, Stat, ErrorNote, WarnNote, HeldNote, Field, NumberInput, TextInput, CATEGORY_ACCENT,
+  fmt, Stat, ErrorNote, WarnNote, HeldNote, Field, NumberInput, TextInput, CATEGORY_ACCENT, readable,
 } from './fields';
 
 export const ConditionInputs = () => {
@@ -152,7 +152,7 @@ export const RateResults = () => {
           )}
           {r.warning && <WarnNote>{r.warning}</WarnNote>}
           {(result.notes || []).map((n) => (
-            <p key={n.slice(0, 40)} className="text-[12px] text-slate-500">{n}</p>
+            <p key={n.slice(0, 40)} className="text-[12px] text-slate-500">{readable(n)}</p>
           ))}
           {(result.clamps || []).map((c) => <WarnNote key={c}>{c}</WarnNote>)}
         </CardContent>
@@ -231,12 +231,12 @@ export const SweepChart = () => {
           <ChartFrame height={300} exportFilename="corrosion-velocity-sweep">
             <ComposedChart data={data} margin={{ top: 8, right: 30, bottom: 24, left: 8 }}>
               <CartesianGrid {...GRID_STYLE} />
-              <XAxis type="number" dataKey="v" domain={['dataMin', 'dataMax']} stroke={CHART_COLORS.axisLine} tick={tick}
-                label={{ value: 'Velocity (ft/s)', position: 'insideBottom', offset: -8, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+              <XAxis height={XAXIS_LABEL_HEIGHT} type="number" dataKey="v" domain={['dataMin', 'dataMax']} stroke={CHART_COLORS.axisLine} tick={tick}
+                label={{ value: 'Velocity (ft/s)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
               <YAxis stroke={CHART_COLORS.axisLine} tick={tick}
                 label={{ value: 'Rate (mm/yr)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
               <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v, n) => [fmt(v, 3), n]} labelFormatter={(v) => `${fmt(v, 1)} ft/s`} />
-              <Legend verticalAlign="top" />
+              <Legend {...LEGEND_PROPS} />
               {strip !== null && (
                 <ReferenceLine x={strip} stroke="#dc2626" strokeDasharray="4 3"
                   label={{ value: 'inhibitor film stripped', fill: '#dc2626', fontSize: CHART_TYPOGRAPHY.axisFontSize, position: 'insideTopRight' }} />
@@ -291,11 +291,11 @@ export const SourResults = () => {
         <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">H2S screening threshold</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <Stat label="H2S partial pressure" value={fmt(s.ph2sPsia, 4)} unit="psia"
-              hint={`${fmt(s.ph2sBar, 6)} bar`} />
+            <Stat label="H2S partial pressure" value={fmt(s.ph2sPsia, 3)} unit="psia"
+              hint={`${readable(String(Number(s.ph2sBar.toPrecision(3))))} bar`} />
             <Stat label="Against the threshold" value={s.sour ? 'above' : 'below'}
               accent={s.sour ? 'text-amber-400' : 'text-emerald-400'}
-              hint={`the threshold used here is ${fmt(s.thresholdBar, 4)} bar, which is ${fmt(s.thresholdPsia, 6)} psia`} />
+              hint={`the threshold used here is ${fmt(s.thresholdBar, 4)} bar, which is ${fmt(s.thresholdPsia, 4)} psia`} />
             <Stat label="Decades above the threshold"
               value={s.decadesAboveThreshold === null ? '--' : fmt(s.decadesAboveThreshold, 2)} />
           </div>
@@ -330,7 +330,7 @@ export const SourResults = () => {
               accent={g.rateApplies === false ? 'text-red-400' : 'text-slate-100'}
               hint={g.rateIsUpperBound ? 'as an upper bound only' : undefined} />
           </div>
-          <p className="text-[12px] text-slate-500">{g.note}</p>
+          <p className="text-[12px] text-slate-500">{readable(g.note)}</p>
           <p className="text-[12px] text-slate-500">
             The two ratios that set these bands are not sourced in the engine. When the regime is
             sulphide the studio stops grading the rate and stops reporting a remaining life, and

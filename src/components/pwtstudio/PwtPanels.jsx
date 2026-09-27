@@ -8,7 +8,7 @@ import {
   ComposedChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine,
 } from 'recharts';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useProducedWater, num } from '@/contexts/ProducedWaterContext';
 import { fmt, Stat, ErrorNote, WarnNote, Field, NumberInput, Row } from './fields';
 
@@ -436,14 +436,14 @@ export const DistributionChart = () => {
         <ChartFrame height={300} exportFilename="droplet-distribution">
           <ComposedChart data={data} margin={{ top: 8, right: 30, bottom: 24, left: 8 }}>
             <CartesianGrid {...GRID_STYLE} />
-            <XAxis type="number" dataKey="d" scale="log" domain={['dataMin', 'dataMax']}
+            <XAxis height={XAXIS_LABEL_HEIGHT} type="number" dataKey="d" scale="log" domain={['dataMin', 'dataMax']}
               stroke={CHART_COLORS.axisLine} tick={tick}
-              label={{ value: 'Droplet diameter (um)', position: 'insideBottom', offset: -8, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+              label={{ value: 'Droplet diameter (um)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <YAxis stroke={CHART_COLORS.axisLine} tick={tick}
               label={{ value: 'Oil volume (%)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [`${fmt(v, 2)} %`, 'oil volume']}
               labelFormatter={(d) => `${fmt(d, 1)} um`} />
-            <Legend verticalAlign="top" />
+            <Legend {...LEGEND_PROPS} />
             <Bar dataKey="vol" name="Inlet oil volume (%)" fill="#0ea5e9" />
             {cuts.map((s, i) => (
               <ReferenceLine key={`${s.name}-${i}`} x={Number(s.d50cMicron?.toFixed(2))}

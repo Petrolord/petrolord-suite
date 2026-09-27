@@ -7,7 +7,7 @@ import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useMeter } from '@/contexts/MeterStudioContext';
 import { fmt, Stat, ErrorNote, WarnNote, Field, NumberInput } from './fields';
 
@@ -123,15 +123,15 @@ export const FlowResults = () => {
             <ChartFrame height={260} exportFilename="discharge-coefficient">
               <ComposedChart data={cdCurve.rows} margin={{ top: 8, right: 30, bottom: 24, left: 8 }}>
                 <CartesianGrid {...GRID_STYLE} />
-                <XAxis type="number" dataKey="reynolds" scale="log" domain={['dataMin', 'dataMax']}
+                <XAxis height={XAXIS_LABEL_HEIGHT} type="number" dataKey="reynolds" scale="log" domain={['dataMin', 'dataMax']}
                   stroke={CHART_COLORS.axisLine} tick={tick}
                   tickFormatter={(v) => v.toExponential(0)}
-                  label={{ value: 'Pipe Reynolds number', position: 'insideBottom', offset: -8, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+                  label={{ value: 'Pipe Reynolds number', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
                 <YAxis stroke={CHART_COLORS.axisLine} tick={tick} domain={['auto', 'auto']}
                   label={{ value: 'Discharge coefficient', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
                 <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [fmt(v, 5), 'Cd']}
                   labelFormatter={(v) => `Re ${Number(v).toExponential(1)}` } />
-                <Legend verticalAlign="top" />
+                <Legend {...LEGEND_PROPS} />
                 <Line dataKey="cd" name="Cd at this beta" stroke="#059669" strokeWidth={2} dot={false} />
               </ComposedChart>
             </ChartFrame>
@@ -192,8 +192,8 @@ export const UncertaintyResults = () => {
           <ChartFrame height={260} exportFilename="uncertainty-budget">
             <ComposedChart data={data} layout="vertical" margin={{ top: 8, right: 30, bottom: 8, left: 120 }}>
               <CartesianGrid {...GRID_STYLE} />
-              <XAxis type="number" stroke={CHART_COLORS.axisLine} tick={tick}
-                label={{ value: 'Share of variance (%)', position: 'insideBottom', offset: -4, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+              <XAxis height={XAXIS_LABEL_HEIGHT} type="number" stroke={CHART_COLORS.axisLine} tick={tick}
+                label={{ value: 'Share of variance (%)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
               <YAxis type="category" dataKey="name" width={115} stroke={CHART_COLORS.axisLine}
                 tick={{ ...tick, fontSize: 10 }} />
               <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [`${fmt(v, 1)} %`, 'share of variance']} />

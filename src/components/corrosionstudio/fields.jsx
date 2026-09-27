@@ -53,13 +53,27 @@ export const Stat = ({ label, value, unit, hint, accent = 'text-slate-100' }) =>
 
 export const Row = ({ label, value, hint }) => (
   <div className="flex items-baseline justify-between gap-3 py-1.5 border-b border-slate-800/60 last:border-0">
-    <div>
+    <div className="shrink-0">
       <p className="text-sm text-slate-300">{label}</p>
       {hint && <p className="text-[11px] text-slate-600">{hint}</p>}
     </div>
-    <p className="text-sm font-semibold text-slate-100 tabular-nums whitespace-nowrap">{value}</p>
+    {/* Short figures stay on one line; a sentence value (the binding
+        constraint) wraps right-aligned instead of running off the rail. */}
+    <p className={`min-w-0 text-right text-sm font-semibold text-slate-100 tabular-nums ${String(value).length > 24 ? '' : 'whitespace-nowrap'}`}>{value}</p>
   </div>
 );
+
+/**
+ * Engine notes print some quantities in exponent form ("5.100e-2 bar") or
+ * to six decimals ("0.050763 psia"). Read them as plain decimals to three
+ * significant figures for the screen (COR-T1-001).
+ */
+export const readable = (text) => String(text ?? '')
+  .replace(/(-?\d+(?:\.\d+)?)e([+-]\d+)/g, (m, a, b) => {
+    const v = Number(a) * 10 ** Number(b);
+    return Number.isFinite(v) ? String(Number(v.toPrecision(3))) : m;
+  })
+  .replace(/\b(\d+\.\d{5,})\b/g, (m) => String(Number(Number(m).toPrecision(3))));
 
 export const ErrorNote = ({ children }) => (
   <div className="rounded-md border border-amber-700/50 bg-amber-950/30 px-3 py-2 text-sm text-amber-300">
