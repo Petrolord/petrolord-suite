@@ -992,7 +992,7 @@ function App() {
               </ReservoirProvider>
             </ErrorBoundary>
           </AuthGuard>
-          <Toaster />
+          <Toaster richColors closeButton />
       </HSEProvider>
     </AuthProvider>
   );
