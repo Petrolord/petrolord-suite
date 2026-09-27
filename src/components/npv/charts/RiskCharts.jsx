@@ -7,7 +7,9 @@ import ChartFrame from '@/components/charts/ChartFrame';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { OUTCOME_LABELS } from '@/lib/percentileConventions';
 
-const mm = (v) => (Number.isFinite(v) ? (v / 1e6).toFixed(0) : '-');
+// The engine's cash flow is already in $MM (screening.js divides by 1e6);
+// dividing again printed every tick as $0.0MM (NPV-T1-002).
+const mm = (v) => (Number.isFinite(v) ? Number(v).toFixed(0) : '-');
 const tick = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
 
 // Suite percentile convention (src/lib/percentileConventions.js): P90 is the

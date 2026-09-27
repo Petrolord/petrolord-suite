@@ -60,7 +60,7 @@ test('off: the dashboard prints the compact product text and no Monte Carlo sett
   expect(screen.queryByTestId('npv-sensitivity-table')).toBeNull();
   openTab('Risk');
   expect(screen.queryByTestId('npv-mc-settings')).toBeNull();
-  expect(screen.getByTestId('npv-risk-emv').textContent).toBe(compact(results.risk.emv));
+  expect(screen.getByTestId('npv-risk-emv').textContent).toBe(`${compact(results.risk.emv)} $MM`);
 });
 
 test('on: KPI, cashflow, sensitivity and risk print million USD at 4 decimals', () => {
