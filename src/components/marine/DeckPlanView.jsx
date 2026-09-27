@@ -94,12 +94,14 @@ const RulePlan = ({ label, rkey, r }) => {
   const t = (k) => `deck-${rkey}-${k}`;
   if (isRefusal(r)) return <Refusal result={r} testId={t('refusal')} />;
   const overflowArea = r.overflow.reduce((a, o) => a + o.areaM2, 0);
+  const neverFit = r.neverFit || [];
+  const never = new Set(neverFit);
   return (
     <div className="space-y-2 rounded-md border border-slate-800 p-2" data-testid={t('plan')}>
       <p className="text-sm font-semibold text-slate-100">{label}</p>
       <div className="grid grid-cols-2 gap-2">
         <Stat label="Voyages used" value={String(r.voyagesUsed)} testId={t('used')} />
-        <Stat label="Lower bound on voyages" value={String(r.lowerBound)} testId={t('bound')} />
+        <Stat label="Lower bound on voyages (units that fit an empty voyage)" value={String(r.lowerBound)} testId={t('bound')} />
         <Stat label="Units left behind" value={String(r.overflow.length)} testId={t('overflow-count')} />
         <Stat label="Area left behind (m2)" value={fmtNum(overflowArea, 4)} testId={t('overflow-area')} />
       </div>
@@ -118,9 +120,26 @@ const RulePlan = ({ label, rkey, r }) => {
           ))}
         </tbody>
       </table>
+      {neverFit.length ? (
+        <div className="rounded-md border border-rose-800/60 bg-rose-950/30 p-2 text-[11px] text-rose-200" data-testid={t('never-fit')}>
+          <p className="font-semibold">
+            {neverFit.length === 1 ? '1 unit no voyage can carry' : `${neverFit.length} units no voyage can carry`}
+          </p>
+          <p>
+            Each is larger than the usable deck area or heavier than the deck load, so it stays behind on any number of voyages.
+            The lower bound leaves these units out.
+          </p>
+          <p className="font-mono" data-testid={t('never-fit-units')}>{neverFit.join(', ')}</p>
+        </div>
+      ) : null}
       {r.overflow.length ? (
         <ul className="space-y-0.5 text-[11px] text-amber-200" data-testid={t('overflow')}>
-          {r.overflow.map((o) => <li key={o.unit} data-testid={t(`overflow-${o.unit}`)}>{o.reason}</li>)}
+          {r.overflow.map((o) => (
+            <li key={o.unit} className={never.has(o.unit) ? 'text-rose-200' : undefined} data-testid={t(`overflow-row-${o.unit}`)}>
+              {never.has(o.unit) ? <span className="mr-1 rounded bg-rose-900/60 px-1 font-semibold" data-testid={t(`overflow-never-${o.unit}`)}>no voyage can carry</span> : null}
+              <span data-testid={t(`overflow-${o.unit}`)}>{o.reason}</span>
+            </li>
+          ))}
         </ul>
       ) : <Note testId={t('all-placed')}>Every unit is placed.</Note>}
       <details className="text-[11px] text-slate-400">
@@ -177,7 +196,9 @@ const DeckPlanView = () => (
     <Note>
       Both packing rules run on the same deck and cargo. First-fit decreasing sorts the units by footprint, largest first (heavier
       first on a tie); first fit takes them in the order booked. Each unit goes to the first voyage whose area and deck load still hold
-      it. This is an area bound: units are not stacked and their shapes are not checked against the deck.
+      it. An overflow reason names the limit that stops the unit: usable area, deck load, or both. The lower bound counts only
+      the units that fit an empty voyage; a unit larger than the usable area or heavier than the deck load is listed apart as one no
+      voyage can carry. This is an area bound: units are not stacked and their shapes are not checked against the deck.
     </Note>
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
       <DeckInputs />

@@ -61,7 +61,7 @@ export const helpContent = [
     icon: LayoutGrid,
     title: 'Deck plan: first-fit decreasing and first fit',
     content:
-      'Each cargo line is split into units of its footprint (length times width) and weight. First-fit decreasing sorts the units largest footprint first; first fit keeps the order booked. Each unit goes to the first voyage whose usable area and deck load still hold it, and a unit that fits no voyage is left behind and named with its reason. The lower bound is the larger of total area over usable area and total weight over deck load, rounded up. The plan is an area bound, with no stacking and no check of shapes.',
+      'Each cargo line is split into units of its footprint (length times width) and weight. First-fit decreasing sorts the units largest footprint first; first fit keeps the order booked. Each unit goes to the first voyage whose usable area and deck load still hold it, and a unit that fits no voyage is left behind and named with its reason. The reason states what the unit needs and the most usable area and deck load left on any voyage at its turn, each marked short or enough, and names the limit that stops it. A unit larger than the usable area or heavier than the deck load is listed apart as one no voyage can carry. The lower bound counts only the units that fit an empty voyage: the larger of their total area over usable area and their total weight over deck load, rounded up, and 0 when no unit fits. The plan is an area bound, with no stacking and no check of shapes.',
   },
   {
     id: 'shore',

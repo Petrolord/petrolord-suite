@@ -161,9 +161,39 @@ describe('each view on the Ekene demo prints what the engine returns', () => {
       expect(text(`deck-${k}-overflow-count`)).toBe(String(r.overflow.length));
       expect(text(`deck-${k}-voyage-1-area`)).toBe(fmtNum(r.voyages[0].areaM2, 4));
       r.overflow.forEach((o) => expect(text(`deck-${k}-overflow-${o.unit}`)).toBe(o.reason));
+      expect(r.neverFit).toEqual([]);
+      expect(screen.queryByTestId(`deck-${k}-never-fit`)).toBeNull();
     }
     expect(ff.overflow.map((o) => o.unit)).toEqual(['pipe-bundle#2']);
+    expect(text('deck-ff-overflow-pipe-bundle#2')).toMatch(/; usable area stops it$/);
     expect(ffd.overflow).toHaveLength(11);
+  });
+
+  it('deck plan: units no voyage can carry are listed apart and left out of the lower bound', () => {
+    const inputs = ekeneDemoInputs();
+    inputs.deck.items = [
+      ...inputs.deck.items,
+      { id: 'jacket-leg', name: 'Oversize jacket leg', lengthM: 40, widthM: 20, weightT: 90, quantity: 1 },
+      { id: 'anchor', name: 'Heavy anchor', lengthM: 2, widthM: 2, weightT: 2500, quantity: 1 },
+    ];
+    mountView(DeckPlanView, inputs);
+    const items = [
+      ...fx.deckItems,
+      { id: 'jacket-leg', name: 'Oversize jacket leg', lengthM: 40, widthM: 20, weightT: 90, quantity: 1 },
+      { id: 'anchor', name: 'Heavy anchor', lengthM: 2, widthM: 2, weightT: 2500, quantity: 1 },
+    ];
+    for (const [k, rule] of [['ffd', 'first-fit-decreasing-area'], ['ff', 'first-fit']]) {
+      const r = ml.deckPlan({ deck: fx.deck, items, voyages: 1, rule });
+      expect([...r.neverFit].sort()).toEqual(['anchor', 'jacket-leg']);
+      expect(text(`deck-${k}-bound`)).toBe(String(r.lowerBound));
+      expect(text(`deck-${k}-never-fit-units`)).toBe(r.neverFit.join(', '));
+      for (const u of r.neverFit) {
+        expect(screen.getByTestId(`deck-${k}-overflow-never-${u}`)).toBeInTheDocument();
+        expect(text(`deck-${k}-overflow-${u}`)).toBe(r.overflow.find((o) => o.unit === u).reason);
+      }
+      r.overflow.filter((o) => !r.neverFit.includes(o.unit))
+        .forEach((o) => expect(screen.queryByTestId(`deck-${k}-overflow-never-${o.unit}`)).toBeNull());
+    }
   });
 
   it('shore base: M/M/c with the berth target, and M/D/c labelled approximate', () => {
@@ -240,7 +270,8 @@ describe('the page', () => {
 
 describe('copy rule on the help text', () => {
   it('has no em dashes and none of the banned contrastives', () => {
-    const all = helpContent.map((h) => `${h.title} ${h.content}`).join(' ');
+    mountView(DeckPlanView);
+    const all = `${helpContent.map((h) => `${h.title} ${h.content}`).join(' ')} ${document.body.textContent}`;
     expect(all).not.toMatch(/[–—]/);
     expect(all).not.toMatch(/rather than|instead of|, never|, not /i);
   });
