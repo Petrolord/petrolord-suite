@@ -834,7 +834,8 @@ and its consumers.
   simple or compounded monthly with a stated grace, from the due date to the
   value date, stated suspension and
   forfeiture triggers, JOA Art. 9 and Art. 1.2.2); carry recovery with a
-  stated uplift, recovery share and cap; a back-in under PIA 2021 s.85(4)
+  stated uplift (none, simple interest as HMRC OT18360 describes, compound,
+  or a multiple), recovery share and cap; a back-in under PIA 2021 s.85(4)
   (up to 60%, development and production costs only, no uplift, from future
   entitlement); sole risk premium recovery from production with reversion
   inside the period, or entry at a stated multiple (JOA Art. 18.12, 1000%);
@@ -850,6 +851,62 @@ and its consumers.
   table and the negative control in
   `tools/validation/economics/FINDINGS-jointVenture.md` and
   `negcontrol_jointventure.sh`; timing `timing_jointventure.js`.
+- `engines/economics/farmout.js` (Economics EC10, 2026-09-27): farm-ins,
+  farm-outs and asset valuation. The earning obligation event by event (the
+  farminee pays a stated share of each event's gross cost to earn a stated
+  interest; a gross-cost cap with a stated overrun rule or a carry-amount
+  cap; per-event or all-events vesting, HMRC OT30021's farm in and earn in),
+  the promote and its ratio, the carry, cash bonus and past-cost
+  reimbursement, the equivalent working interest; the value of the deal to
+  each side on a stated risked prospect (the farmor's drill alone, farm out or
+  walk away and the farminee's farm in or decline, rolled back by
+  `economics/decisionTree.js`, with the transfer identity), the exact
+  break-even promote and break-even chance of success; the value of
+  information to either side (`evpi` and `evii`); each side's risk through
+  `economics/portfolio.js` portfolioRiskMetrics (seeded); value per percent of
+  working interest (risked or success case, stated) and transaction ratios of
+  stated inputs; the Nigerian assignment consent fee (AOI Regulations 2024
+  reg. 19: 2% processing and 5% premium, intra group 2%, the 90 + 30 day
+  payment rule and the 0.01% a day surcharge; PIA 2021 s.95); and a
+  development carry or back-in after the farm-in through
+  `economics/jointVenture.js`. Working-interest scaling and NPV are
+  `economics/cashflow.ts` applyJV and npv. Every deal term is a required stated
+  input. Gate: `economics.farmout.test.js` replays
+  `test-data/economics/goldens/farmout_cases.json` (written by
+  `tools/validation/economics/oracle_farmout.py`, stdlib, with the Penn State
+  EME 801 farm-out EMV example); synthetic Ekene Deep farm-out in
+  `test-data/economics/ekene-farmout/`; negative control
+  `negcontrol_farmout.sh`; timing `timing_farmout.js`.
+- `engines/economics/prms.js` (Economics EC11, 2026-09-27): reserves and
+  resources under SPE-PRMS 2018. The class of a project (Reserves,
+  Contingent Resources, Prospective Resources, Discovered or Undiscovered
+  Unrecoverable) from its stated discovery status, recovery project, the
+  seven commerciality criteria and commitment of PRMS 2.1.2.1 (the five-year
+  benchmark of 2.1.2.3), with the sub-class checked against the facts
+  (on production, approved or justified for development from the stated
+  investment decision; the Contingent and Prospective sub-classes stated),
+  the reserves status, the economic status and Pc (Pd, or Pg x Pd), and the
+  PIA 2021 s.78 and s.79 declaration notes; the categories of a set of
+  estimates in the cumulative (1P/2P/3P, 1C/2C/3C, 1U/2U/3U) and incremental
+  (P1/P2/P3, C1/C2/C3) forms with the P90/P50/P10 exceedance meaning of
+  `lib/conventions/percentile.js`; the economic limit and entitlement of a
+  low, best and high technical forecast through `economics/cashflow.ts`
+  (computeCashFlow with apply_economic_limit, cross-checked against the PRMS
+  3.1.3.1 peak of cumulative net cash flow; the undiscounted economic test;
+  1P = 0 when the low case fails; the licence cut; working-interest and
+  royalty-interest scaling through applyJV; gross, working-interest or net
+  entitlement basis; BOE at a stated factor); arithmetic and statistical
+  aggregation (the canonical `lib/stats` correlated sampler, seeded, with a
+  stated correlation, the portfolio effect, the risked mean, and the
+  arithmetic sums as the reportable figures above the field level per SEC
+  S-K Item 1202(a)(3)); and a year-to-year reconciliation with a closing
+  check. Every classification fact, chance, correlation, seed, price, cost,
+  royalty and tax is a required stated input. Gate:
+  `economics.prms.test.js` replays `test-data/economics/goldens/prms_cases.json`
+  (written by `tools/validation/economics/oracle_prms.py`, stdlib, with the
+  AG 2011 Table 6.2 aggregation and PRMS FAQ 3.3 examples); synthetic Ekene
+  field in `test-data/economics/ekene-prms/`; negative control
+  `negcontrol_prms.sh`; timing `timing_prms.js`.
 - `lib/stats/` — the canonical Monte Carlo sampling primitives and
   descriptive statistics (the Suite's src/lib/monteCarlo.js with
   simple-statistics 7.8.8 vendored bit-identically: Kahan sum,
