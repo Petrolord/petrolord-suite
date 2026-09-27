@@ -201,7 +201,7 @@ export default function QuoteDashboard() {
               toast({ title: "Success", description: "Payment verified successfully! Modules unlocked." });
               fetchQuote();
           } else {
-              throw new Error(data?.error || "Verification failed");
+              throw new Error(data?.message || data?.error || "Verification failed");
           }
       } catch (err) {
           console.error(err);
@@ -421,7 +421,9 @@ export default function QuoteDashboard() {
                       </div>
 
                       {/* Local card payment — Paystack, NGN */}
-                      {quote.paystack_link ? (
+                      {/* Only quotes with a locked naira total (issued since 2026-09-27)
+                          get a Paystack button: older links charge the USD figure as naira. */}
+                      {quote.paystack_link && quote.pricing_breakdown?.ngn_total ? (
                           <div className="space-y-2">
                               {checkingPayment ? (
                                 <Button disabled className="w-full bg-blue-600/60 h-12 text-lg text-white cursor-not-allowed">
@@ -430,9 +432,16 @@ export default function QuoteDashboard() {
                               ) : (
                                 <a href={quote.paystack_link} target="_blank" rel="noreferrer" className="w-full block">
                                   <Button className="w-full bg-blue-600 hover:bg-blue-700 h-12 text-lg text-white">
-                                      <CreditCard className="w-5 h-5 mr-2"/> Pay with Paystack (NGN)
+                                      <CreditCard className="w-5 h-5 mr-2"/> {quote.pricing_breakdown?.ngn_total
+                                        ? `Pay ₦${Number(quote.pricing_breakdown.ngn_total).toLocaleString('en-US')} with Paystack`
+                                        : 'Pay with Paystack (NGN)'}
                                   </Button>
                                 </a>
+                              )}
+                              {quote.pricing_breakdown?.ngn_per_usd && (
+                                <p className="text-xs text-center text-slate-500">
+                                  Charged in naira at ₦{Number(quote.pricing_breakdown.ngn_per_usd).toLocaleString('en-US')} per US dollar, fixed for this quote.
+                                </p>
                               )}
                               <Button
                                 onClick={handleVerifyPayment}
@@ -445,7 +454,11 @@ export default function QuoteDashboard() {
                               </Button>
                           </div>
                       ) : (
-                          <p className="text-xs text-center text-slate-500">NGN payment link unavailable. Please contact sales.</p>
+                          <p className="text-xs text-center text-slate-500">
+                            {quote.paystack_link
+                              ? 'This quote was issued before naira pricing was corrected. Please create a new quote to pay in NGN, or contact sales.'
+                              : 'NGN payment link unavailable. Please contact sales.'}
+                          </p>
                       )}
                     </div>
 
@@ -459,6 +472,9 @@ export default function QuoteDashboard() {
                       <div className="flex justify-between"><span className="text-slate-500">Bank</span> <span className="text-white">Providus Bank</span></div>
                       <div className="flex justify-between"><span className="text-slate-500">Account</span> <span className="text-white">1305745085</span></div>
                       <div className="flex justify-between"><span className="text-slate-500">Name</span> <span className="text-white">Lordsway Energy Tech Ltd</span></div>
+                      {quote.pricing_breakdown?.ngn_total && (
+                        <div className="flex justify-between"><span className="text-slate-500">Amount</span> <span className="text-white">₦{Number(quote.pricing_breakdown.ngn_total).toLocaleString('en-US')}</span></div>
+                      )}
                     </div>
 
                     <Dialog>

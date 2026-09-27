@@ -2,6 +2,7 @@ import { corsHeaders } from "./cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { redeemBridgeForQuote } from "../_shared/nextgen-bridge.ts";
 import { isHseQuote, provisionPaidQuote } from "../_shared/provision-quote.ts";
+import { loadNgnPerUsd, expectedNgnForQuote, checkPaystackAmount } from "../_shared/paystack-ngn.ts";
 import { crypto } from "https://deno.land/std@0.177.0/crypto/mod.ts";
 const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
 Deno.serve(async (req)=>{
@@ -55,7 +56,30 @@ Deno.serve(async (req)=>{
       // entitlements — the shared helper branches on the quote's modules (it
       // also marks the quote paid). Suite quotes continue below untouched.
       const { data: quoteForRouting } = await supabase.from('quotes')
-        .select('modules, payment_verified').eq('quote_id', quote_id).maybeSingle();
+        .select('modules, payment_verified, total_amount, pricing_breakdown').eq('quote_id', quote_id).maybeSingle();
+      // Grant nothing unless Paystack collected the naira the quote asks for
+      // (see _shared/paystack-ngn.ts). Acknowledge with 200 so Paystack does
+      // not retry; the mismatch is logged for support to resolve.
+      if (quoteForRouting) {
+        let check;
+        try {
+          const expectedNgn = expectedNgnForQuote(quoteForRouting, await loadNgnPerUsd(supabase));
+          check = checkPaystackAmount({ paidKobo: Number(amount), currency: event.data?.currency, expectedNgn });
+        } catch (e) {
+          check = { ok: false, reason: e.message };
+        }
+        if (!check.ok) {
+          console.error(`[paystack-webhook] amount mismatch on ${quote_id}: ${check.reason}`);
+          const { data: pay } = await supabase.from('payments').select('id').eq('paystack_reference', reference).maybeSingle();
+          await supabase.from('payments').update({ local_status: 'amount_mismatch', updated_at: new Date() }).eq('paystack_reference', reference);
+          await supabase.from('payment_audit_log').insert({
+            payment_id: pay?.id ?? null,
+            action: 'amount_mismatch',
+            details: { quote_id, reason: check.reason, paid_kobo: amount, currency: event.data?.currency, source: 'webhook' }
+          });
+          return new Response("Amount mismatch recorded", { status: 200 });
+        }
+      }
       if (quoteForRouting && isHseQuote(quoteForRouting.modules)) {
         // Idempotency: the redirect verify path may have provisioned already.
         if (quoteForRouting.payment_verified) {

@@ -4,6 +4,7 @@ import { corsHeaders } from "./cors.ts";
 import { redeemBridgeForQuote } from "../_shared/nextgen-bridge.ts";
 import { redeemPromoForQuote } from "../_shared/promo-codes.ts";
 import { isHseQuote, provisionPaidQuote, grantHseWithSuite, suiteSubscriptionModules } from "../_shared/provision-quote.ts";
+import { loadNgnPerUsd, expectedNgnForQuote, checkPaystackAmount } from "../_shared/paystack-ngn.ts";
 import { subscriptionWindow } from "../_shared/billing-term.ts";
 const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
 
@@ -145,7 +146,7 @@ serve(async (req)=>{
     let quoteRow = null;
     if (quote_id) {
       const { data: quote } = await supabase.from('quotes')
-        .select('id, organization_id, total_amount, currency, billing_term, billing_period, modules, apps, seats, user_seats')
+        .select('id, organization_id, total_amount, currency, billing_term, billing_period, modules, apps, seats, user_seats, pricing_breakdown')
         .eq('quote_id', quote_id).maybeSingle();
       if (quote) {
         quoteRow = quote;
@@ -193,6 +194,37 @@ serve(async (req)=>{
             new_status: paystackStatus,
             paystack_response_status: paystackStatus
           }
+        });
+      }
+    }
+    // --- Amount check ---
+    // Access is granted only when Paystack collected the naira the quote asks
+    // for. Before 2026-09-27 nothing compared the two, and quotes charged the
+    // USD figure as naira. A mismatch is recorded, the quote stays unpaid, and
+    // the customer is told to contact support.
+    if (isSuccess && quoteRow) {
+      let check;
+      try {
+        const expectedNgn = expectedNgnForQuote(quoteRow, await loadNgnPerUsd(supabase));
+        check = checkPaystackAmount({ paidKobo: Number(paystackData.amount), currency: paystackData.currency, expectedNgn });
+      } catch (e) {
+        check = { ok: false, reason: e.message };
+      }
+      if (!check.ok) {
+        console.error(`[verify-paystack-payment] amount mismatch on ${quote_id}: ${check.reason}`);
+        await supabase.from('payments').update({ local_status: 'amount_mismatch', updated_at: new Date().toISOString() }).eq('id', paymentId);
+        await supabase.from("payment_audit_log").insert({
+          payment_id: paymentId,
+          action: 'amount_mismatch',
+          details: { quote_id, reason: check.reason, paid_kobo: paystackData.amount, currency: paystackData.currency }
+        });
+        return new Response(JSON.stringify({
+          success: false,
+          status: 'amount_mismatch',
+          message: "We received your payment, but the amount does not match this quote, so access has not been activated yet. Please contact support with your quote number."
+        }), {
+          // 200 so the dashboard can show the message (invoke hides non-2xx bodies).
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
       }
     }
