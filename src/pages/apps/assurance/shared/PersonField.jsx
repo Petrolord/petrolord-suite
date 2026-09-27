@@ -16,14 +16,14 @@ import { memberName } from './people';
  */
 export const PersonField = ({
   id, label, members = [], personId, name, onChange, userId = null,
-  emptyOption = 'Somebody without a Suite account (type the name)',
+  emptyOption = 'Not a Suite user (type the name)',
   namePlaceholder = 'Their name', error, hint, className = '', labelClassName = 'text-sm font-medium',
   selectClassName = 'h-10 w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 text-sm',
 }) => {
   const listed = personId && members.some((m) => m.user_id === personId);
   return (
     <div className={`space-y-1.5 ${className}`}>
-      <label className={labelClassName} htmlFor={id}>{label}</label>
+      <label className={`block leading-5 ${labelClassName}`} htmlFor={id}>{label}</label>
       <select
         id={id}
         className={selectClassName}

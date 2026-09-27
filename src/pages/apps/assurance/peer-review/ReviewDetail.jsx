@@ -31,6 +31,7 @@ import {
 import { ConfirmDelete, DetailField, ErrorState, Loading } from './components/SharedComponents';
 import { usePeerReview } from './hooks/usePeerReview';
 import { reviewLockReason, validateComment } from './utils/reviewPayload';
+import { focusFirstError } from '../shared/focusFirstError';
 
 const showDate = (v) => {
   const d = parseDateOnly(v);
@@ -117,7 +118,7 @@ export default function ReviewDetail() {
   const handleRaise = async (e) => {
     e.preventDefault();
     const found = validateComment(draft);
-    if (Object.keys(found).length) { setErrors(found); return; }
+    if (Object.keys(found).length) { setErrors(found); focusFirstError(found); return; }
     setSaving(true);
     const result = await addComment(review.id, draft);
     setSaving(false);

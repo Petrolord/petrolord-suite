@@ -15,6 +15,7 @@ import {
   Loading,
   SchemaNotice,
 } from './components/SharedComponents';
+import { focusFirstError } from '../shared/focusFirstError';
 
 const EMPTY = {
   name: '', acronym: '', jurisdiction: '', contact_name: '',
@@ -57,7 +58,7 @@ export default function Directory() {
   const handleSave = async (e) => {
     e.preventDefault();
     const found = validateAuthority(editing);
-    if (Object.keys(found).length) { setErrors(found); return; }
+    if (Object.keys(found).length) { setErrors(found); focusFirstError(found); return; }
     setSaving(true);
     const result = editing.id
       ? await updateAuthority(editing.id, editing)

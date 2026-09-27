@@ -23,6 +23,7 @@ import {
   validateFile,
   validateReviewers,
 } from './utils/documentPayload';
+import { focusFirstError } from '../shared/focusFirstError';
 
 const DEPARTMENTS = ['HSE', 'Operations', 'Engineering', 'Finance', 'Human Resources', 'Subsurface', 'Drilling'];
 
@@ -115,7 +116,7 @@ export default function NewDocument() {
       const reviewProblem = validateReviewers(review.reviewers);
       if (reviewProblem) found.review = reviewProblem;
     }
-    if (Object.keys(found).length) { setErrors(found); return; }
+    if (Object.keys(found).length) { setErrors(found); focusFirstError(found); return; }
 
     setSaving(true);
     // The category is a foreign key, not a string. The old form

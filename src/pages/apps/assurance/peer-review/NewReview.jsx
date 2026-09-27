@@ -15,6 +15,7 @@ import { validateReview } from './utils/reviewPayload';
 import { formRosterRefusal } from './utils/segregation';
 import { PersonField } from '../shared/PersonField';
 import { useOrgMembers } from '../shared/useOrgMembers';
+import { focusFirstError } from '../shared/focusFirstError';
 
 const REVIEW_TYPES = [
   'Field Development Plan',
@@ -111,7 +112,7 @@ export default function NewReview() {
   const handleSubmit = async (submitForReview) => {
     setFailure(null);
     const found = validateReview(form);
-    if (Object.keys(found).length) { setErrors(found); return; }
+    if (Object.keys(found).length) { setErrors(found); focusFirstError(found); return; }
     if (independence) { setFailure(independence); return; }
 
     // The author is on the roster under the Author role, so the review
@@ -244,7 +245,10 @@ export default function NewReview() {
               hint="The author responds to comments. They cannot review the work, verify, reject or withdraw a comment on it."
             />
             {roster.map((row, i) => (
-              <div key={i} className="grid grid-cols-1 md:grid-cols-[1fr_180px_1fr_40px] gap-3 items-end">
+              // Senior test T1: items-end dropped Role and Discipline to the level
+              // of the name box under the person picker, so their labels sat
+              // below "Name". The row aligns from the top.
+              <div key={i} className="grid grid-cols-1 md:grid-cols-[1fr_180px_1fr_40px] gap-3 items-start">
                 <PersonField
                   id={`name-${i}`}
                   label={i === 0 ? 'Name' : `Person ${i + 1}`}
@@ -256,17 +260,18 @@ export default function NewReview() {
                   onChange={setPerson(i)}
                   namePlaceholder="Who holds this role"
                 />
-                <div>
-                  {i === 0 ? <Label htmlFor={`role-${i}`}>Role</Label> : null}
+                <div className="space-y-1.5">
+                  {i === 0 ? <Label htmlFor={`role-${i}`} className="block text-sm font-medium leading-5">Role</Label> : null}
                   <Select id={`role-${i}`} value={row.role} onChange={setRow(i, 'role')}
                     options={ROLES} placeholder="Role" />
                 </div>
-                <div>
-                  {i === 0 ? <Label htmlFor={`disc-${i}`}>Discipline</Label> : null}
+                <div className="space-y-1.5">
+                  {i === 0 ? <Label htmlFor={`disc-${i}`} className="block text-sm font-medium leading-5">Discipline</Label> : null}
                   <Input id={`disc-${i}`} value={row.discipline}
                     onChange={setRow(i, 'discipline')} placeholder="Optional" />
                 </div>
                 <Button type="button" variant="ghost" size="icon" aria-label="Remove"
+                  className={i === 0 ? 'md:mt-7' : ''}
                   onClick={() => setRoster((r) => r.filter((_, idx) => idx !== i))}>
                   <X className="w-4 h-4" />
                 </Button>
