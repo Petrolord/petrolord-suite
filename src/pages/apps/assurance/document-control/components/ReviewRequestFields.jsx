@@ -59,8 +59,11 @@ export const ReviewRequestFields = ({
         {REVIEW_ROLES.map((r) => <option key={r} value={r} />)}
       </datalist>
       {value.reviewers.map((r, idx) => (
-        <div key={idx} className="grid grid-cols-1 sm:grid-cols-[1fr_180px_auto] gap-2 items-end">
-          <div className="space-y-1">
+        // Senior test T1: three columns in the narrow Review card left the
+        // member picker about 60 px wide ("Choo"). Picker on its own row,
+        // role and remove beneath it.
+        <div key={idx} className="grid grid-cols-[1fr_auto] gap-2 items-end">
+          <div className="space-y-1 col-span-2">
             <Label htmlFor={`${idPrefix}-reviewer-${idx}`}>Reviewer</Label>
             <select
               id={`${idPrefix}-reviewer-${idx}`}

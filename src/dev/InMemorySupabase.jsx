@@ -42,6 +42,17 @@ export function makeQuery(db, table, user = DEV_USER) {
     if (op === 'gt') return x > v;
     if (op === 'lt') return x < v;
     if (op === 'ilike') return String(x ?? '').toLowerCase().includes(String(v).replace(/%/g, '').toLowerCase());
+    // .not(col, op, value): the negation of eq, is (null) or in
+    if (op === 'not') {
+      const [o, val] = v;
+      if (o === 'is') return val === null || val === 'null' ? x != null : x !== val;
+      if (o === 'eq') return x !== val;
+      if (o === 'in') {
+        const list = Array.isArray(val) ? val : String(val).replace(/^\(|\)$/g, '').split(',').map((t) => t.trim().replace(/^"|"$/g, ''));
+        return !list.includes(x);
+      }
+      return true;
+    }
     // .or('a.eq.1,b.eq.2'): any one clause (eq, neq, is.null, ilike) matching
     if (op === 'or') {
       return v.split(',').some((clause) => {
@@ -117,6 +128,7 @@ export function makeQuery(db, table, user = DEV_USER) {
     is(k, v) { st.filters.push([k, 'is', v]); return q; },
     in(k, v) { st.filters.push([k, 'in', v]); return q; },
     or(expr) { st.filters.push(['__or', 'or', expr]); return q; },
+    not(k, o, v) { st.filters.push([k, 'not', [o, v]]); return q; },
     gte(k, v) { st.filters.push([k, 'gte', v]); return q; },
     lte(k, v) { st.filters.push([k, 'lte', v]); return q; },
     gt(k, v) { st.filters.push([k, 'gt', v]); return q; },
