@@ -14,7 +14,6 @@ import {
 import {
   BasisList, EngineError, Note, NumField, Stat, TextField, Warnings,
 } from './shared';
-import ScopeNotice from './ScopeNotice';
 
 const REDUNDANT = new Set(['1oo2', '2oo3', '1oo3']);
 
@@ -130,7 +129,6 @@ const SifVerification = () => {
   const byId = new Map(evaluation.subsystems.map((s) => [s.id, s]));
   return (
     <div className="space-y-4">
-      <ScopeNotice compact />
       <div className="flex flex-wrap items-end gap-4">
         <label className="flex items-center gap-2 text-sm text-slate-200">
           <Switch

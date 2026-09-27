@@ -39,13 +39,16 @@ const SensitivityChart = ({ rows, required }) => {
         <LineChart data={data} margin={CHART_MARGINS.legend}>
           <CartesianGrid {...GRID_STYLE} />
           <XAxis
-            dataKey="years" type="number" domain={['dataMin', 'dataMax']} tick={tickStyle}
+            dataKey="years" type="number" domain={[0, (hi) => Math.ceil(hi)]} allowDecimals={false} tick={tickStyle}
+            tickFormatter={(v) => String(Number(Number(v).toPrecision(3)))}
             stroke={CHART_COLORS.axisLine} height={XAXIS_LABEL_HEIGHT}
             label={{ value: 'Proof test interval T1 (years)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
           />
           <YAxis
             type="number" scale="log" domain={[lo, hi]} allowDataOverflow tick={tickStyle}
-            stroke={CHART_COLORS.axisLine} tickFormatter={(v) => formatSci(v, 2)} width={70}
+            stroke={CHART_COLORS.axisLine} width={56}
+            ticks={(() => { const t = []; for (let e = Math.round(Math.log10(lo)); 10 ** e <= hi * 1.0001; e += 1) t.push(10 ** e); return t; })()}
+            tickFormatter={(v) => String(Number(Number(v).toPrecision(2)))}
             label={{ value: 'PFDavg (-)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
           />
           <Tooltip
