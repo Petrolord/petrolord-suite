@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Activity, Play, UploadCloud } from 'lucide-react';
 
-const EmptyState = ({ onAnalyze }) => {
+const EmptyState = ({ onAnalyze, fileReady = false }) => {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -20,7 +20,11 @@ const EmptyState = ({ onAnalyze }) => {
       </p>
       <div className="flex items-center justify-center p-4 rounded-lg bg-slate-800/50 border border-white/10">
         <UploadCloud className="w-6 h-6 mr-3 text-lime-300" />
-        <p className="text-white">Start by uploading a production CSV in the panel to the left.</p>
+        <p className="text-white" data-testid="be-next-step">
+          {fileReady
+            ? 'Production profile loaded. Set the variables, then press Run Simulation at the bottom of the setup panel.'
+            : 'Start by uploading a production CSV in the panel to the left.'}
+        </p>
       </div>
     </motion.div>
   );

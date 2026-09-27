@@ -168,7 +168,7 @@ const ProbabilisticBreakevenAnalyzer = () => {
         </div>
         <div className="flex-1 p-6 overflow-y-auto">
           {!results && !loading && (
-            <EmptyState onAnalyze={() => toast({ title: 'Please configure inputs and upload data first.' })} />
+            <EmptyState fileReady={Boolean(inputs.productionData)} onAnalyze={() => toast({ title: 'Please configure inputs and upload data first.' })} />
           )}
           {loading && (
             <div className="flex items-center justify-center h-full">
