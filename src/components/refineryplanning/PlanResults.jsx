@@ -1,7 +1,7 @@
 // The plan: runs, product slate, margin and the marginal value of each stream (DS3).
 import React from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
 } from 'recharts';
 import { AlertTriangle } from 'lucide-react';
 import ChartFrame from '@/components/charts/ChartFrame';
@@ -73,7 +73,6 @@ const PlanResults = () => {
               }}
             />
             <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [`${fmt(v)} bbl`, 'Volume']} />
-            <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
             <Bar dataKey="volume" name="Volume">
               {slate.map((p, i) => <Cell key={p.id} fill={COLORS[i % COLORS.length]} />)}
             </Bar>
@@ -118,7 +117,7 @@ const PlanResults = () => {
                 <tr key={s.id} className="border-b border-slate-800/60 last:border-0">
                   <td className="py-1.5 text-slate-300">{s.id}</td>
                   <td className="py-1.5 text-right font-mono text-white">
-                    {Number.isFinite(s.marginalValue) ? `$${s.marginalValue.toFixed(2)}` : 'n/a'}
+                    {Number.isFinite(s.marginalValue) ? `$${(Math.abs(s.marginalValue) < 0.005 ? 0 : s.marginalValue).toFixed(2)}` : 'n/a'}
                   </td>
                   <td className="py-1.5 text-right font-mono text-slate-500 text-xs">
                     {s.surplus > 1e-6 ? `${fmt(s.surplus)} surplus` : ''}

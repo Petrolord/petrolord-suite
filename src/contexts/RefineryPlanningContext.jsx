@@ -78,6 +78,17 @@ const num = (v, fallback = 0) => {
 // a blank cost as 0, which made that crude free.
 const absentOr = (v) => (v === '' || v === null || v === undefined ? undefined : num(v, NaN));
 
+/**
+ * Display name for a material id (senior test T1): the schedule, the actuals
+ * picker and the variance lines printed crude_a, cdu and fuel_oil.
+ */
+export const materialName = (inputs, id) => {
+  const hit = [...(inputs?.crudes || []), ...(inputs?.units || []), ...(inputs?.products || [])]
+    .find((m) => m.id === id);
+  if (hit?.name) return hit.name;
+  return String(id ?? '').replace(/_/g, ' ');
+};
+
 const Ctx = createContext();
 
 export const useRefineryPlanning = () => {
