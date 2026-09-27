@@ -374,7 +374,14 @@ export const TrainResults = () => {
               that actually move this.
             </WarnNote>
           )}
-          <p className="text-[11px] text-slate-600">{result.dissolvedOilNote}</p>
+          {/* The engine note ends "pass dissolvedOilFloorPpm to apply your
+              own", an argument this screen has no input for (PWT-T1-001). */}
+          <p className="text-[11px] text-slate-600">
+            This is the dispersed oil the devices can catch. Produced water also carries dissolved and
+            soluble oil that none of these devices removes, so there is a floor under any outlet this
+            train reports, and this studio does not know its value. Take a dissolved-oil analysis of
+            the water before relying on an outlet near the spec.
+          </p>
         </CardContent>
       </Card>
 
@@ -434,10 +441,12 @@ export const DistributionChart = () => {
       <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Inlet droplets against the cut sizes</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         <ChartFrame height={300} exportFilename="droplet-distribution">
-          <ComposedChart data={data} margin={{ top: 8, right: 30, bottom: 24, left: 8 }}>
+          <ComposedChart data={data} margin={{ top: 8, right: 30, bottom: 8, left: 24 }}>
             <CartesianGrid {...GRID_STYLE} />
             <XAxis height={XAXIS_LABEL_HEIGHT} type="number" dataKey="d" scale="log" domain={['dataMin', 'dataMax']}
               stroke={CHART_COLORS.axisLine} tick={tick}
+              ticks={[1, 2, 5, 10, 20, 50, 100, 200, 500, 1000].filter((t) => data.length && t >= data[0].d && t <= data[data.length - 1].d)}
+              tickFormatter={(v) => String(v)}
               label={{ value: 'Droplet diameter (um)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <YAxis stroke={CHART_COLORS.axisLine} tick={tick}
               label={{ value: 'Oil volume (%)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
@@ -448,7 +457,7 @@ export const DistributionChart = () => {
             {cuts.map((s, i) => (
               <ReferenceLine key={`${s.name}-${i}`} x={Number(s.d50cMicron?.toFixed(2))}
                 stroke={['#059669', '#d97706', '#dc2626'][i % 3]} strokeDasharray="4 3"
-                label={{ value: s.name, position: 'top', fill: CHART_COLORS.axisText, fontSize: 10 }} />
+                label={{ value: s.name, position: 'insideTopRight', dy: 14 * i, fill: CHART_COLORS.axisText, fontSize: 10 }} />
             ))}
           </ComposedChart>
         </ChartFrame>
