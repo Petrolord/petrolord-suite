@@ -31,23 +31,23 @@ const StudioAutoSave = ({ isSaving, saveError, lastSaveTime, onSave, disabled = 
             <Button
               variant="ghost"
               size="sm"
-              className={tc('h-8 px-2 text-xs text-slate-400 hover:text-white gap-2', 'h-8 px-2 text-xs gap-2')}
+              className="h-8 px-2 text-xs gap-2"
               onClick={onSave}
               disabled={isSaving || disabled}
             >
               {isSaving ? (
                 <>
-                  <Loader2 size={14} className={tc('animate-spin text-blue-400', 'animate-spin text-pl-info-text')} />
+                  <Loader2 size={14} className="animate-spin text-pl-info-text" />
                   <span>Saving...</span>
                 </>
               ) : saveError ? (
                 <>
-                  <AlertCircle size={14} className={tc('text-red-400', 'text-pl-danger-text')} />
-                  <span className={tc('text-red-400', 'text-pl-danger-text')}>Save Failed</span>
+                  <AlertCircle size={14} className="text-pl-danger-text" />
+                  <span className="text-pl-danger-text">Save Failed</span>
                 </>
               ) : lastSaveTime ? (
                 <>
-                  <CheckCircle2 size={14} className={tc('text-emerald-400', 'text-pl-success-text')} />
+                  <CheckCircle2 size={14} className="text-pl-success-text" />
                   <span>Saved {timeAgo}</span>
                 </>
               ) : (
@@ -60,7 +60,7 @@ const StudioAutoSave = ({ isSaving, saveError, lastSaveTime, onSave, disabled = 
           </TooltipTrigger>
           <TooltipContent>
             {saveError ? saveError : `Last saved: ${lastSaveTime ? lastSaveTime.toLocaleTimeString() : 'Never'}`}
-            <div className={tc('text-[10px] text-slate-400 pt-1', 'text-[10px] opacity-80 pt-1')}>Click to save manually</div>
+            <div className="text-[10px] opacity-80 pt-1">Click to save manually</div>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>

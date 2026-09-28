@@ -43,29 +43,24 @@ const StudioLayout = ({
   className,
 }) => {
   const { ds, tc } = useStudioTheme();
-  const [leftOpen, setLeftOpen] = useState(() => (ds && isNarrow() ? false : defaultLeftOpen));
-  const [rightOpen, setRightOpen] = useState(() => (ds && isNarrow() ? false : defaultRightOpen));
-  const rail = (side) => tc(
-    `flex-shrink-0 ${side === 'left' ? 'border-r' : 'border-l'} border-slate-800 bg-slate-900/50 transition-all duration-300 ease-in-out flex flex-col z-20`,
-    `flex-shrink-0 ${side === 'left' ? 'border-r' : 'border-l'} border-pl-border bg-pl-surface transition-all duration-300 ease-in-out flex flex-col z-30 max-md:absolute max-md:inset-y-0 ${side === 'left' ? 'max-md:left-0 max-md:z-40' : 'max-md:right-0'} max-md:max-w-[85vw] max-md:shadow-pl-lg`,
-  );
-  const railToggle = tc('text-slate-400 hover:text-white', '');
+  const [leftOpen, setLeftOpen] = useState(() => (isNarrow() ? false : defaultLeftOpen));
+  const [rightOpen, setRightOpen] = useState(() => (isNarrow() ? false : defaultRightOpen));
+  const rail = (side) => `flex-shrink-0 ${side === 'left' ? 'border-r' : 'border-l'} border-pl-border bg-pl-surface transition-all duration-300 ease-in-out flex flex-col z-30 max-md:absolute max-md:inset-y-0 ${side === 'left' ? 'max-md:left-0 max-md:z-40' : 'max-md:right-0'} max-md:max-w-[85vw] max-md:shadow-pl-lg`;
+  const railToggle = '';
   // Themed only: on a phone the rails float over the page, so each carries
   // its own close button.
-  const railClose = (onClose) => (ds ? (
-    <div className="flex justify-end px-2 pt-2 md:hidden">
+  const railClose = (onClose) => (<div className="flex justify-end px-2 pt-2 md:hidden">
       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose} aria-label="Close panel">
         <X size={18} />
       </Button>
-    </div>
-  ) : null);
+    </div>);
   // no right rail passed (Fluid, SCAL, Material Balance): no empty 24rem
   // column and no toggle for it (Wave 2 T1: the empty rail squeezed the
   // results so KPI values ran out of their cards at 1366 px)
   const hasRight = sidebarRight !== null && sidebarRight !== undefined && sidebarRight !== false;
 
   return (
-    <div className={cn(tc('flex h-screen w-full bg-slate-950 text-slate-100 overflow-hidden', 'relative flex h-screen w-full bg-pl-bg text-pl-text overflow-hidden'), className)}>
+    <div className={cn('relative flex h-screen w-full bg-pl-bg text-pl-text overflow-hidden', className)}>
 
       <StudioNotifications notifications={notifications} onDismiss={onDismissNotification} />
 
@@ -92,21 +87,21 @@ const StudioLayout = ({
       {/* Main Content Wrapper */}
       <div className="flex-1 flex flex-col min-w-0 relative h-full">
         {/* Header Bar */}
-        <header className={tc('h-14 flex-shrink-0 border-b border-slate-800 bg-slate-900/80 flex items-center px-4 justify-between z-10', 'min-h-14 flex-shrink-0 border-b border-pl-border bg-pl-surface flex flex-wrap items-center gap-x-2 gap-y-1 px-2 py-1 sm:px-4 justify-between z-10 md:h-14 md:flex-nowrap md:py-0')}>
-          <div className={tc('flex items-center gap-3 overflow-hidden', 'flex min-w-0 flex-1 items-center gap-2 overflow-hidden max-md:basis-full')}>
+        <header className="min-h-14 flex-shrink-0 border-b border-pl-border bg-pl-surface flex flex-wrap items-center gap-x-2 gap-y-1 px-2 py-1 sm:px-4 justify-between z-10 md:h-14 md:flex-nowrap md:py-0">
+          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden max-md:basis-full">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setLeftOpen(!leftOpen)}
               className={cn(railToggle, 'shrink-0')}
-              aria-label={ds ? (leftOpen ? 'Hide left panel' : 'Show left panel') : undefined}
-              aria-expanded={ds ? leftOpen : undefined}
+              aria-label={leftOpen ? 'Hide left panel' : 'Show left panel'}
+              aria-expanded={leftOpen}
             >
               {leftOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
             </Button>
             <div className="flex-1 min-w-0">{header}</div>
           </div>
-          <div className={tc('flex items-center gap-2 shrink-0', 'flex items-center gap-2 shrink-0 max-md:ml-auto')}>
+          <div className="flex items-center gap-2 shrink-0 max-md:ml-auto">
             {headerActions}
             {hasRight && (
               <Button
@@ -114,8 +109,8 @@ const StudioLayout = ({
                 size="icon"
                 onClick={() => setRightOpen(!rightOpen)}
                 className={railToggle}
-                aria-label={ds ? (rightOpen ? 'Hide right panel' : 'Show right panel') : undefined}
-                aria-expanded={ds ? rightOpen : undefined}
+                aria-label={rightOpen ? 'Hide right panel' : 'Show right panel'}
+                aria-expanded={rightOpen}
               >
                 {rightOpen ? <PanelRightOpen size={20} /> : <PanelRightClose size={20} />}
               </Button>
@@ -125,7 +120,7 @@ const StudioLayout = ({
 
         {/* Content Body */}
         <div className="flex flex-1 overflow-hidden relative">
-          <main className={tc('flex-1 flex flex-col min-w-0 bg-slate-950 overflow-y-auto', 'flex-1 flex flex-col min-w-0 bg-pl-bg overflow-y-auto')}>
+          <main className="flex-1 flex flex-col min-w-0 bg-pl-bg overflow-y-auto">
             <div className="flex-1 flex flex-col overflow-hidden p-2 md:p-4 relative gap-4">
               {main}
             </div>

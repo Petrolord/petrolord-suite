@@ -35,7 +35,7 @@ const SegmentedControl = React.forwardRef(({
   options = [], value, onValueChange, label, size = 'md', className, itemClassName, ...props
 }, ref) => {
   const ds = useDsTheme();
-  const look = ds ? LOOK.themed : LOOK.legacy;
+  const look = LOOK.themed;
   return (
     <div ref={ref} role="group" aria-label={label} className={cn(look.group, className)} {...props}>
       {options.map((opt) => {

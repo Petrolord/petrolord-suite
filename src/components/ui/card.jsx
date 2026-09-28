@@ -18,7 +18,7 @@ const Card = React.forwardRef(({ className, ...props }, ref) => {
   return (
     <div
       ref={ref}
-      className={cn(ds ? THEMED.card : LEGACY.card, className)}
+      className={cn(THEMED.card, className)}
       {...props}
     />
   );
@@ -44,7 +44,7 @@ const CardDescription = React.forwardRef(({ className, ...props }, ref) => {
   return (
     <p
       ref={ref}
-      className={cn(ds ? THEMED.description : LEGACY.description, className)}
+      className={cn(THEMED.description, className)}
       {...props}
     />
   );

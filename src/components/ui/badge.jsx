@@ -61,7 +61,7 @@ function Badge({
   ...props
 }) {
   const ds = useDsTheme()
-  const variants = ds ? themedBadgeVariants : badgeVariants
+  const variants = themedBadgeVariants
   return (<div className={cn(variants({ variant }), className)} {...props} />);
 }
 

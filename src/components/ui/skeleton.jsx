@@ -10,7 +10,7 @@ function Skeleton({
   const ds = useDsTheme()
   return (
     <div
-      className={cn(ds ? "animate-pulse rounded-md bg-pl-border/70" : "animate-pulse rounded-md bg-slate-100 dark:bg-slate-800", className)}
+      className={cn("animate-pulse rounded-md bg-pl-border/70", className)}
       {...props}
     />
   )

@@ -39,7 +39,7 @@ const SheetOverlay = React.forwardRef(({ className, ...props }, ref) => {
       {...portalProps}
       className={cn(
         "fixed inset-0 z-50 bg-background/80 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-        ds && THEMED.overlay,
+        THEMED.overlay,
         className
       )}
       {...props}
@@ -77,11 +77,11 @@ const SheetContent = React.forwardRef(({ side = "right", className, children, ..
       <SheetPrimitive.Content
         ref={ref}
         {...portalProps}
-        className={cn(sheetVariants({ side }), ds && THEMED.content, className)}
+        className={cn(sheetVariants({ side }), THEMED.content, className)}
         {...props}>
         {children}
         <SheetPrimitive.Close
-          className={ds ? cn(closeLegacy, THEMED.close) : closeLegacy}>
+          className={cn(closeLegacy, THEMED.close)}>
           <X className="h-4 w-4" />
           <span className="sr-only">Close</span>
         </SheetPrimitive.Close>
@@ -116,7 +116,7 @@ const SheetTitle = React.forwardRef(({ className, ...props }, ref) => {
   return (
     <SheetPrimitive.Title
       ref={ref}
-      className={cn("text-lg font-semibold text-foreground", ds && THEMED.title, className)}
+      className={cn("text-lg font-semibold text-foreground", THEMED.title, className)}
       {...props} />
   )
 })
@@ -127,7 +127,7 @@ const SheetDescription = React.forwardRef(({ className, ...props }, ref) => {
   return (
     <SheetPrimitive.Description
       ref={ref}
-      className={cn("text-sm text-muted-foreground", ds && THEMED.description, className)}
+      className={cn("text-sm text-muted-foreground", THEMED.description, className)}
       {...props} />
   )
 })

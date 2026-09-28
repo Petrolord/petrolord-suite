@@ -51,7 +51,7 @@ const ToggleGroupItem = React.forwardRef(({ className, children, variant, size, 
   const context = React.useContext(ToggleGroupContext)
   // Design system: the Toggle's themed variants inside an opted-in scope.
   const ds = useDsTheme()
-  const variants = ds ? themedToggleVariants : toggleGroupItemVariants
+  const variants = themedToggleVariants
 
   return (
     <ToggleGroupPrimitive.Item

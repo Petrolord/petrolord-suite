@@ -58,7 +58,7 @@ export function FullPrecisionToggle({ app, className, tone = 'dark' }) {
       <Switch id={id} checked={full} onCheckedChange={(v) => setFull(Boolean(v))} aria-label="Full precision" />
       <label
         htmlFor={id}
-        className={cn('whitespace-nowrap text-[11px] 2xl:text-xs cursor-pointer select-none', tc(tone === 'light' ? 'text-slate-700' : 'text-slate-300', 'text-pl-muted'))}
+        className={cn('whitespace-nowrap text-[11px] 2xl:text-xs cursor-pointer select-none', 'text-pl-muted')}
         title="Prints the graded quantities at 6 decimals (money in $MM at 4 decimals), without digit grouping, so a value can be pasted as it is."
       >
         Full precision
@@ -74,7 +74,7 @@ export function FullPrecisionNote({ className }) {
   const tc = useThemeClass();
   if (!full) return null;
   return (
-    <p className={cn(tc('text-[11px] text-amber-300', 'text-[11px] text-pl-warning-text'), className)} data-testid="full-precision-note">
+    <p className={cn('text-[11px] text-pl-warning-text', className)} data-testid="full-precision-note">
       Full precision is on: graded values print at 6 decimals, money in $MM at 4.
     </p>
   );

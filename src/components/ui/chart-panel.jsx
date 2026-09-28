@@ -30,7 +30,7 @@ const ChartPanel = React.forwardRef(({
   title, subtitle, actions, as: Comp = 'section', className, bodyClassName, children, ...props
 }, ref) => {
   const ds = useDsTheme();
-  const look = ds ? LOOK.themed : LOOK.legacy;
+  const look = LOOK.themed;
   const hasHead = title || subtitle || actions;
   return (
     <Comp ref={ref} data-canvas="chart" className={cn(look.card, className)} {...props}>

@@ -43,7 +43,7 @@ const themedAlertVariants = cva(
 
 const Alert = React.forwardRef(({ className, variant, ...props }, ref) => {
   const ds = useDsTheme()
-  const variants = ds ? themedAlertVariants : alertVariants
+  const variants = themedAlertVariants
   return (
     <div
       ref={ref}

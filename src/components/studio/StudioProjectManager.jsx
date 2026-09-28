@@ -30,7 +30,7 @@ const StudioProjectManager = ({
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const { ds, tc } = useStudioTheme();
-  const outlineBtn = tc('bg-slate-800 border-slate-700', '');
+  const outlineBtn = '';
 
   const handleCreate = () => {
     if (newProjectName) {
@@ -42,13 +42,13 @@ const StudioProjectManager = ({
 
   return (
     <div className="space-y-2">
-      <label className={tc('text-xs font-medium text-slate-400 uppercase', 'text-xs font-medium text-pl-muted uppercase')}>{label}</label>
+      <label className="text-xs font-medium text-pl-muted uppercase">{label}</label>
       <div className="flex gap-2">
         <Select value={currentProjectId || ''} onValueChange={onOpen}>
-          <SelectTrigger className={tc('flex-1 min-w-0 bg-slate-800 border-slate-700 [&>span]:truncate', 'flex-1 min-w-0 [&>span]:truncate')} aria-label={ds ? label : undefined}>
+          <SelectTrigger className="flex-1 min-w-0 [&>span]:truncate" aria-label={label}>
             <SelectValue placeholder={`Select ${noun}`} />
           </SelectTrigger>
-          <SelectContent className={tc('bg-slate-800 border-slate-700 text-slate-100', undefined)}>
+          <SelectContent className={undefined}>
             {projects.length === 0 ? (
               <SelectItem value="none" disabled>{`No ${noun}s yet`}</SelectItem>
             ) : (
@@ -64,7 +64,7 @@ const StudioProjectManager = ({
             variant="outline" size="icon"
             className={outlineBtn}
             title={`Create new ${noun}`}
-            aria-label={ds ? `Create new ${noun}` : undefined}
+            aria-label={`Create new ${noun}`}
             onClick={onRequestCreate}
           >
             <Plus size={16} />
@@ -72,11 +72,11 @@ const StudioProjectManager = ({
         ) : (
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline" size="icon" className={outlineBtn} title={`Create new ${noun}`} aria-label={ds ? `Create new ${noun}` : undefined}>
+            <Button variant="outline" size="icon" className={outlineBtn} title={`Create new ${noun}`} aria-label={`Create new ${noun}`}>
               <Plus size={16} />
             </Button>
           </DialogTrigger>
-          <DialogContent className={tc('bg-slate-900 border-slate-700 text-slate-100', undefined)}>
+          <DialogContent className={undefined}>
             <DialogHeader>
               <DialogTitle>{`Create new ${noun}`}</DialogTitle>
             </DialogHeader>
@@ -86,8 +86,8 @@ const StudioProjectManager = ({
                 value={newProjectName}
                 onChange={(e) => setNewProjectName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); }}
-                className={tc('bg-slate-800 border-slate-700', undefined)}
-                aria-label={ds ? `${noun[0].toUpperCase()}${noun.slice(1)} name` : undefined}
+                className={undefined}
+                aria-label={`${noun[0].toUpperCase()}${noun.slice(1)} name`}
               />
             </div>
             <DialogFooter>
@@ -100,9 +100,9 @@ const StudioProjectManager = ({
         {currentProjectId && (
           <Button
             variant="outline" size="icon"
-            className={tc('bg-slate-800 border-slate-700 text-slate-500 hover:text-red-400', 'text-pl-muted hover:text-pl-danger-text')}
+            className="text-pl-muted hover:text-pl-danger-text"
             title={`Delete current ${noun}`}
-            aria-label={ds ? `Delete current ${noun}` : undefined}
+            aria-label={`Delete current ${noun}`}
             onClick={() => {
               if (window.confirm(confirmDeleteMessage)) {
                 onDelete(currentProjectId);

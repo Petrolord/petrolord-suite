@@ -21,7 +21,7 @@ const WellModelSpinePanel = ({
   // Design system (rollout W0B): roles inside an opted-in app; outside a
   // <ThemedApp> scope tc() returns the legacy strings unchanged.
   const tc = useThemeClass();
-  const note = tc('text-[11px] text-slate-600', 'text-[11px] text-pl-muted');
+  const note = 'text-[11px] text-pl-muted';
   if (!wellName) {
     return (
       <p className={note}>
@@ -34,10 +34,10 @@ const WellModelSpinePanel = ({
     <div className="space-y-2">
       {savedModel ? (
         <>
-          <p className={tc('text-[11px] text-slate-500 flex items-start gap-1', 'text-[11px] text-pl-muted flex items-start gap-1')}>
+          <p className="text-[11px] text-pl-muted flex items-start gap-1">
             {isDirty
-              ? <AlertTriangle className={tc('w-3 h-3 mt-0.5 shrink-0 text-amber-400', 'w-3 h-3 mt-0.5 shrink-0 text-pl-warning')} />
-              : <CheckCircle2 className={tc('w-3 h-3 mt-0.5 shrink-0 text-emerald-400', 'w-3 h-3 mt-0.5 shrink-0 text-pl-success')} />}
+              ? <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0 text-pl-warning" />
+              : <CheckCircle2 className="w-3 h-3 mt-0.5 shrink-0 text-pl-success" />}
             <span>
               {wellName} has a saved model
               {savedModel.updated_at ? ` from ${String(savedModel.updated_at).slice(0, 10)}` : ''}

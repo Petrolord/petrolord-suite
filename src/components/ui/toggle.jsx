@@ -53,7 +53,7 @@ const themedToggleVariants = cva(
 
 const Toggle = React.forwardRef(({ className, variant, size, ...props }, ref) => {
   const ds = useDsTheme()
-  const variants = ds ? themedToggleVariants : toggleVariants
+  const variants = themedToggleVariants
   return (
     <TogglePrimitive.Root
       ref={ref}

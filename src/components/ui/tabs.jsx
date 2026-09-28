@@ -23,7 +23,7 @@ const TabsList = React.forwardRef(({ className, ...props }, ref) => {
   return (
     <TabsPrimitive.List
       ref={ref}
-      className={cn(ds ? THEMED.list : LEGACY.list, className)}
+      className={cn(THEMED.list, className)}
       {...props}
     />
   );
@@ -35,7 +35,7 @@ const TabsTrigger = React.forwardRef(({ className, ...props }, ref) => {
   return (
     <TabsPrimitive.Trigger
       ref={ref}
-      className={cn(ds ? THEMED.trigger : LEGACY.trigger, className)}
+      className={cn(THEMED.trigger, className)}
       {...props}
     />
   );
@@ -47,7 +47,7 @@ const TabsContent = React.forwardRef(({ className, ...props }, ref) => {
   return (
     <TabsPrimitive.Content
       ref={ref}
-      className={cn(ds ? THEMED.content : LEGACY.content, className)}
+      className={cn(THEMED.content, className)}
       {...props}
     />
   );

@@ -247,17 +247,17 @@ export default function PackageImportDialog({ open, onOpenChange, onImported, on
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={tc("max-w-lg bg-slate-900 border-slate-700 text-slate-200")} data-testid="pld-import-dialog">
+      <DialogContent className="max-w-lg" data-testid="pld-import-dialog">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><PackageOpen className={tc("w-4 h-4 text-cyan-400")} /> Import project package</DialogTitle>
-          <DialogDescription className={tc("text-slate-400")}>
+          <DialogTitle className="flex items-center gap-2"><PackageOpen className="w-4 h-4 text-pl-primary-text" /> Import project package</DialogTitle>
+          <DialogDescription className="text-pl-muted">
             Open a .pld file and get an independent copy of its wells, surfaces and interpretations under your account. Nothing you already have is changed.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-2">
           {phase !== 'done' && (
-            <label className={tc("block text-xs text-slate-400")}>
+            <label className="block text-xs text-pl-muted">
               Package file
               <input
                 type="file"
@@ -266,26 +266,26 @@ export default function PackageImportDialog({ open, onOpenChange, onImported, on
                 data-testid="pld-import-file"
                 disabled={busy}
                 onChange={onFile}
-                className={tc("mt-1 block w-full text-xs text-slate-300 file:mr-2 file:rounded file:border-0 file:bg-slate-800 file:px-2 file:py-1 file:text-xs file:text-cyan-300")}
+                className="mt-1 block w-full text-xs text-pl-text file:mr-2 file:rounded file:border file:border-pl-border-strong file:bg-pl-surface file:px-2 file:py-1 file:text-xs file:text-pl-primary-text"
               />
-              {fileName ? <span className={tc("text-slate-500")}>{fileName}</span> : null}
+              {fileName ? <span className="text-pl-muted">{fileName}</span> : null}
             </label>
           )}
 
           {phase === 'checking' && (
-            <div className={tc("flex items-center gap-2 text-xs text-slate-400 py-2")} data-testid="pld-import-progress">
-              <Loader2 className={tc("w-3.5 h-3.5 animate-spin text-cyan-400")} /> Checking package
+            <div className="flex items-center gap-2 text-xs text-pl-muted py-2" data-testid="pld-import-progress">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-pl-primary-text" /> Checking package
             </div>
           )}
 
           {error && (
-            <div className={tc("rounded border border-red-700/60 bg-red-950/40 px-2 py-1.5 text-xs text-red-300 space-y-1")} data-testid="pld-import-error">
+            <div className="rounded border border-pl-danger bg-pl-danger-bg px-2 py-1.5 text-xs text-pl-danger-text space-y-1" data-testid="pld-import-error">
               <div className="flex items-start gap-2">
-                {error.code ? <span className={tc("rounded bg-red-900/60 px-1 text-[10px] uppercase tracking-wider text-red-200 shrink-0")}>{error.code}</span> : null}
+                {error.code ? <span className="rounded bg-pl-danger px-1 text-[10px] uppercase tracking-wider text-pl-danger-fg shrink-0">{error.code}</span> : null}
                 <span>{error.message}</span>
               </div>
               {error.jobId && bytes ? (
-                <Button size="sm" variant="outline" data-testid="pld-import-retry" className={tc("h-6 text-xs border-red-700/60 text-red-200")} onClick={retry} disabled={busy}>
+                <Button size="sm" variant="outline" data-testid="pld-import-retry" className="h-6 text-xs border-pl-danger text-pl-danger-text" onClick={retry} disabled={busy}>
                   Retry
                 </Button>
               ) : null}
@@ -293,99 +293,99 @@ export default function PackageImportDialog({ open, onOpenChange, onImported, on
           )}
 
           {(phase === 'review' || phase === 'running') && plan && manifest && (
-            <div className={tc("rounded border border-slate-700 bg-slate-950/40 px-2 py-1.5 text-xs space-y-1.5")} data-testid="pld-import-review">
-              <div className={tc("text-slate-200 font-medium")}>{manifest.name || 'Unnamed package'}</div>
-              <div className={tc("text-slate-400")}>
+            <div className="rounded border border-pl-border bg-pl-sunken px-2 py-1.5 text-xs space-y-1.5" data-testid="pld-import-review">
+              <div className="text-pl-text font-medium">{manifest.name || 'Unnamed package'}</div>
+              <div className="text-pl-muted">
                 Created {fmtDate(manifest.created_at)} with build {manifest.platform?.sha || 'unknown'}.
                 {' '}Source: {manifest.source?.organization_name || 'private account'}.
               </div>
-              <div className={tc("text-emerald-300/90")}>All {preflight.pkg.integrity?.checked ?? 0} files verified.</div>
+              <div className="text-pl-success-text">All {preflight.pkg.integrity?.checked ?? 0} files verified.</div>
               {Array.isArray(manifest.parts) ? (
-                <div className={tc("text-emerald-300/90")} data-testid="pld-import-parts">{manifest.parts.length} parts, all present and verified.</div>
+                <div className="text-pl-success-text" data-testid="pld-import-parts">{manifest.parts.length} parts, all present and verified.</div>
               ) : null}
               {(() => {
                 const sig = preflight.pkg.signature || { status: 'unsigned', key_id: null };
                 const [label, cls] = SIGNATURE_TAG[sig.status] || SIGNATURE_TAG.unsigned;
                 return (
-                  <div className={tc("text-slate-400 flex items-start gap-2")} data-testid="pld-import-signature">
+                  <div className="text-pl-muted flex items-start gap-2" data-testid="pld-import-signature">
                     <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${tc(cls)}`}>{label}</span>
                     <span>{signatureMessage(sig)}</span>
                   </div>
                 );
               })()}
-              <ul className={tc("text-slate-400 grid grid-cols-2 gap-x-3")}>
+              <ul className="text-pl-muted grid grid-cols-2 gap-x-3">
                 {tableRows.map(([t, n]) => (
-                  <li key={t}><span className={tc("text-slate-500")}>{t}</span> {n}</li>
+                  <li key={t}><span className="text-pl-muted">{t}</span> {n}</li>
                 ))}
-                <li><span className={tc("text-slate-500")}>binary files</span> {plan.counts.blobs}</li>
+                <li><span className="text-pl-muted">binary files</span> {plan.counts.blobs}</li>
               </ul>
               {plan.warnings.length > 0 && (
-                <ul className={tc("list-disc pl-4 text-amber-300/90")}>
+                <ul className="list-disc pl-4 text-pl-warning-text">
                   {plan.warnings.map((w, i) => <li key={i}>{w}</li>)}
                 </ul>
               )}
               {plan.notes.length > 0 && (
-                <ul className={tc("list-disc pl-4 text-slate-400")}>
+                <ul className="list-disc pl-4 text-pl-muted">
                   {plan.notes.map((n, i) => <li key={i}>{n}</li>)}
                 </ul>
               )}
               <div className="pt-1 space-y-1">
-                <div className={tc("text-slate-500 uppercase tracking-wider text-[10px]")}>Import into</div>
-                <label className={tc("flex items-center gap-2 text-slate-300")}>
-                  <input type="radio" name="pld-scope" data-testid="pld-import-scope-private" checked={!shareWithOrg} disabled={busy} onChange={() => changeScope(false)} className={tc("accent-cyan-500")} />
+                <div className="text-pl-muted uppercase tracking-wider text-[10px]">Import into</div>
+                <label className="flex items-center gap-2 text-pl-text">
+                  <input type="radio" name="pld-scope" data-testid="pld-import-scope-private" checked={!shareWithOrg} disabled={busy} onChange={() => changeScope(false)} className="accent-pl-primary" />
                   Private (only me)
                 </label>
                 <label className={`flex items-center gap-2 ${tc(hasOrg ? 'text-slate-300' : 'text-slate-500')}`}>
-                  <input type="radio" name="pld-scope" data-testid="pld-import-scope-org" checked={shareWithOrg} disabled={busy || !hasOrg} onChange={() => changeScope(true)} className={tc("accent-cyan-500")} />
+                  <input type="radio" name="pld-scope" data-testid="pld-import-scope-org" checked={shareWithOrg} disabled={busy || !hasOrg} onChange={() => changeScope(true)} className="accent-pl-primary" />
                   Share with my organization
-                  {!hasOrg ? <span className={tc("text-[10px] text-slate-500")}>(you are not in an organization)</span> : null}
+                  {!hasOrg ? <span className="text-[10px] text-pl-muted">(you are not in an organization)</span> : null}
                 </label>
               </div>
             </div>
           )}
 
           {phase === 'running' && (
-            <div className={tc("flex items-center gap-2 text-xs text-slate-400")} data-testid="pld-import-progress">
-              <Loader2 className={tc("w-3.5 h-3.5 animate-spin text-cyan-400")} /> {progress}
+            <div className="flex items-center gap-2 text-xs text-pl-muted" data-testid="pld-import-progress">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-pl-primary-text" /> {progress}
             </div>
           )}
 
           {phase === 'done' && summary && (
-            <div className={tc("rounded border border-slate-700 bg-slate-950/40 px-2 py-1.5 text-xs space-y-1")} data-testid="pld-import-summary">
-              <div className={tc("text-slate-200")}>
+            <div className="rounded border border-pl-border bg-pl-sunken px-2 py-1.5 text-xs space-y-1" data-testid="pld-import-summary">
+              <div className="text-pl-text">
                 Imported {summary.rowsWritten} rows and {summary.blobsWritten} binary files{summary.skipped ? `, ${summary.skipped} already present from an earlier run` : ''}.
               </div>
               {summary.warnings?.length > 0 && (
-                <ul className={tc("list-disc pl-4 text-amber-300/90")}>
+                <ul className="list-disc pl-4 text-pl-warning-text">
                   {summary.warnings.map((w, i) => <li key={i}>{w}</li>)}
                 </ul>
               )}
               {summary.notes?.length > 0 && (
-                <ul className={tc("list-disc pl-4 text-slate-400")}>
+                <ul className="list-disc pl-4 text-pl-muted">
                   {summary.notes.map((n, i) => <li key={i}>{n}</li>)}
                 </ul>
               )}
             </div>
           )}
 
-          <div className={tc("border-t border-slate-800 pt-1.5")}>
-            <button type="button" className={tc("flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200")} onClick={() => setHistoryOpen((v) => !v)}>
+          <div className="border-t border-pl-border pt-1.5">
+            <button type="button" className="flex items-center gap-1 text-xs text-pl-muted hover:text-pl-text" onClick={() => setHistoryOpen((v) => !v)}>
               {historyOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />} Import history
             </button>
             {historyOpen && (
               <div className="mt-1 text-xs" data-testid="pld-import-history">
                 {jobs === null ? (
-                  <div className={tc("text-slate-500")}>Loading</div>
+                  <div className="text-pl-muted">Loading</div>
                 ) : jobs.length === 0 ? (
-                  <div className={tc("text-slate-500")}>No imports yet.</div>
+                  <div className="text-pl-muted">No imports yet.</div>
                 ) : (
                   <ul className="space-y-0.5">
                     {jobs.map((j) => (
-                      <li key={j.id} className={tc("flex items-center gap-2 text-slate-300")}>
+                      <li key={j.id} className="flex items-center gap-2 text-pl-text">
                         <span className="truncate">{j.package_name || j.package_id}</span>
                         <span className={`text-[10px] uppercase ${tc(j.status === 'done' ? 'text-emerald-300' : j.status === 'failed' ? 'text-red-300' : 'text-slate-400')}`}>{j.status}</span>
-                        <span className={tc("text-slate-500")}>{j.rows_written}/{j.rows_planned} rows</span>
-                        <span className={tc("ml-auto text-slate-500")}>{fmtDate(j.created_at)}</span>
+                        <span className="text-pl-muted">{j.rows_written}/{j.rows_planned} rows</span>
+                        <span className="ml-auto text-pl-muted">{fmtDate(j.created_at)}</span>
                       </li>
                     ))}
                   </ul>
@@ -397,19 +397,19 @@ export default function PackageImportDialog({ open, onOpenChange, onImported, on
 
         <DialogFooter>
           {phase === 'done' ? (
-            <Button size="sm" className={tc("bg-cyan-600 hover:bg-cyan-500 text-white", undefined)} onClick={() => onOpenChange(false)}>
+            <Button size="sm" className={undefined} onClick={() => onOpenChange(false)}>
               Done
             </Button>
           ) : (
             <>
-              <Button variant="outline" size="sm" className={tc("border-slate-700 text-slate-300", undefined)} onClick={() => onOpenChange(false)} disabled={phase === 'running'}>
+              <Button variant="outline" size="sm" className={undefined} onClick={() => onOpenChange(false)} disabled={phase === 'running'}>
                 Close
               </Button>
               <Button
                 size="sm"
                 data-testid="pld-import-run"
                 disabled={phase !== 'review' || !preflight}
-                className={tc("bg-cyan-600 hover:bg-cyan-500 text-white", undefined)}
+                className={undefined}
                 onClick={run}
               >
                 {phase === 'running' ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <PackageOpen className="w-3.5 h-3.5 mr-1" />}

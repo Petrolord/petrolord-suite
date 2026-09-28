@@ -16,13 +16,7 @@ const StudioNotifications = ({ notifications = [], onDismiss }) => {
       {notifications.map((note) => (
         <div
           key={note.id}
-          className={ds
-            ? `pointer-events-auto min-w-0 w-[min(22rem,calc(100vw-2rem))] p-3 rounded-lg shadow-pl-md border animate-in slide-in-from-right-full fade-in duration-300 flex items-start justify-between gap-3 ${THEMED_NOTE[note.type] || 'bg-pl-raised border-pl-border text-pl-text'}`
-            : `pointer-events-auto min-w-[300px] p-3 rounded-lg shadow-lg border animate-in slide-in-from-right-full fade-in duration-300 flex items-start justify-between gap-3
-            ${note.type === 'error' ? 'bg-red-950/90 border-red-800 text-red-200' :
-              note.type === 'success' ? 'bg-emerald-950/90 border-emerald-800 text-emerald-200' :
-              note.type === 'warning' ? 'bg-amber-950/90 border-amber-800 text-amber-200' :
-              'bg-slate-800/90 border-slate-700 text-slate-200'}`}
+          className={`pointer-events-auto min-w-0 w-[min(22rem,calc(100vw-2rem))] p-3 rounded-lg shadow-pl-md border animate-in slide-in-from-right-full fade-in duration-300 flex items-start justify-between gap-3 ${THEMED_NOTE[note.type] || 'bg-pl-raised border-pl-border text-pl-text'}`}
         >
           <div className="text-sm">
             {note.message}
@@ -38,7 +32,7 @@ const StudioNotifications = ({ notifications = [], onDismiss }) => {
               </button>
             )}
           </div>
-          <button onClick={() => onDismiss && onDismiss(note.id)} className="text-current opacity-70 hover:opacity-100" aria-label={ds ? 'Dismiss' : undefined}>
+          <button onClick={() => onDismiss && onDismiss(note.id)} className="text-current opacity-70 hover:opacity-100" aria-label="Dismiss">
             <X size={14} />
           </button>
         </div>

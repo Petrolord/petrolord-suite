@@ -201,9 +201,9 @@ export default function DepthNavigator({
   return (
     <div
       ref={rootRef}
-      className={tc("relative shrink-0 h-full select-none touch-none outline-none focus:ring-1 focus:ring-cyan-500/60")}
+      className="relative shrink-0 h-full select-none touch-none outline-none focus:ring-1 focus:ring-pl-focus"
       style={{ width }}
-      data-canvas={tc(undefined, theme === 'dark' ? 'dark' : 'light')}
+      data-canvas={theme === 'dark' ? 'dark' : 'light'}
       data-testid={testId}
       data-view-top={Number.isFinite(vt) ? (vt * F).toFixed(1) : ''}
       data-view-base={Number.isFinite(vb) ? (vb * F).toFixed(1) : ''}

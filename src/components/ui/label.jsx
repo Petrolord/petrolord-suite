@@ -14,7 +14,7 @@ import React from 'react';
       return (
         <LabelPrimitive.Root
           ref={ref}
-          className={cn(labelVariants(), ds && 'text-pl-text', className)}
+          className={cn(labelVariants(), 'text-pl-text', className)}
           {...props}
         />
       );

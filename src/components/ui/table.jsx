@@ -25,7 +25,7 @@ Table.displayName = "Table"
 
 const TableHeader = React.forwardRef(({ className, ...props }, ref) => {
   const ds = useDsTheme()
-  return <thead ref={ref} className={cn("[&_tr]:border-b", ds && THEMED.header, className)} {...props} />
+  return <thead ref={ref} className={cn("[&_tr]:border-b", THEMED.header, className)} {...props} />
 })
 TableHeader.displayName = "TableHeader"
 
@@ -52,7 +52,7 @@ const TableRow = React.forwardRef(({ className, ...props }, ref) => {
       ref={ref}
       className={cn(
         "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
-        ds && THEMED.row,
+        THEMED.row,
         className
       )}
       {...props} />
@@ -67,7 +67,7 @@ const TableHead = React.forwardRef(({ className, ...props }, ref) => {
       ref={ref}
       className={cn(
         "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
-        ds && THEMED.head,
+        THEMED.head,
         className
       )}
       {...props} />
@@ -80,7 +80,7 @@ const TableCell = React.forwardRef(({ className, ...props }, ref) => {
   return (
     <td
       ref={ref}
-      className={cn("p-4 align-middle [&:has([role=checkbox])]:pr-0", ds && THEMED.cell, className)}
+      className={cn("p-4 align-middle [&:has([role=checkbox])]:pr-0", THEMED.cell, className)}
       {...props} />
   )
 })

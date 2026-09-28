@@ -142,51 +142,51 @@ export default function CoreImagesPanel({ well, images, canEdit = true, onUpload
     <div className="space-y-3 text-xs" data-testid={`${testIdPrefix}-panel`}>
       {canEdit && (
         <div className="flex items-center gap-2 flex-wrap" data-testid={`${testIdPrefix}-upload-form`}>
-          <input type="file" accept="image/jpeg,image/png,image/webp" className={tc("text-slate-400 text-xs")} data-testid={`${testIdPrefix}-file`}
+          <input type="file" accept="image/jpeg,image/png,image/webp" className="text-pl-muted text-xs" data-testid={`${testIdPrefix}-file`}
             onChange={(e) => setFile(e.target.files?.[0] || null)} />
-          <label className={tc("flex items-center gap-1 text-slate-400")}>Top (m) <input className={cell} style={{ width: 72 }} value={top} inputMode="decimal" onChange={(e) => setTop(e.target.value)} data-testid={`${testIdPrefix}-top`} /></label>
-          <label className={tc("flex items-center gap-1 text-slate-400")}>Base (m) <input className={cell} style={{ width: 72 }} value={base} inputMode="decimal" onChange={(e) => setBase(e.target.value)} data-testid={`${testIdPrefix}-base`} /></label>
+          <label className="flex items-center gap-1 text-pl-muted">Top (m) <input className={cell} style={{ width: 72 }} value={top} inputMode="decimal" onChange={(e) => setTop(e.target.value)} data-testid={`${testIdPrefix}-top`} /></label>
+          <label className="flex items-center gap-1 text-pl-muted">Base (m) <input className={cell} style={{ width: 72 }} value={base} inputMode="decimal" onChange={(e) => setBase(e.target.value)} data-testid={`${testIdPrefix}-base`} /></label>
           <input className={cell} style={{ width: 200 }} value={caption} placeholder="Caption (optional)" onChange={(e) => setCaption(e.target.value)} data-testid={`${testIdPrefix}-caption`} />
           <button type="button" className={btn} disabled={!file || busy} onClick={upload} data-testid={`${testIdPrefix}-upload`}>
             {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />} Add photo
           </button>
-          <span className={tc("text-slate-500")}>JPEG, PNG or WebP up to {CORE_IMAGE_MAX_BYTES / 1048576} MB; {(used / 1048576).toFixed(1)} of 200 MB used on this well.</span>
+          <span className="text-pl-muted">JPEG, PNG or WebP up to {CORE_IMAGE_MAX_BYTES / 1048576} MB; {(used / 1048576).toFixed(1)} of 200 MB used on this well.</span>
         </div>
       )}
       {!sorted.length ? (
-        <div className={tc("text-slate-500")} data-testid={`${testIdPrefix}-empty`}>No core photos on {well?.name} yet.</div>
+        <div className="text-pl-muted" data-testid={`${testIdPrefix}-empty`}>No core photos on {well?.name} yet.</div>
       ) : (
         <div className="flex gap-4 items-start">
           <div className="shrink-0 w-24" data-testid={`${testIdPrefix}-strip`} title="Depth-registered core strip">
-            <div className={tc("text-[10px] text-slate-500 mb-0.5")}>{strip.lo} m</div>
-            <div className={tc("relative bg-slate-950 border border-slate-800 rounded")} data-canvas={tc(undefined, 'dark')} style={{ height: 320 }}>
+            <div className="text-[10px] text-pl-muted mb-0.5">{strip.lo} m</div>
+            <div className="relative bg-pl-sunken border border-pl-border rounded" data-canvas="dark" style={{ height: 320 }}>
               {sorted.map((img) => {
                 const y = ((img.top_md_m - strip.lo) / strip.span) * 320;
                 const h = Math.max(2, ((img.base_md_m - img.top_md_m) / strip.span) * 320);
                 return urls[img.id]
                   ? <img key={img.id} src={urls[img.id]} alt={img.caption || `${img.top_md_m} to ${img.base_md_m} m`} className="absolute left-0 right-0 object-cover w-full" style={{ top: y, height: h }} data-testid={`${testIdPrefix}-strip-img-${img.id}`} />
-                  : <div key={img.id} className={tc("absolute left-0 right-0 bg-slate-800")} style={{ top: y, height: h }} />;
+                  : <div key={img.id} className="absolute left-0 right-0 bg-pl-raised" style={{ top: y, height: h }} />;
               })}
             </div>
-            <div className={tc("text-[10px] text-slate-500 mt-0.5")}>{strip.hi} m</div>
+            <div className="text-[10px] text-pl-muted mt-0.5">{strip.hi} m</div>
           </div>
           <table className="text-xs">
             <thead>
-              <tr>{['', 'Top (m)', 'Base (m)', 'Caption', 'Size', ''].map((h, i) => <th key={`${h}-${i}`} className={tc("text-left font-medium text-slate-500 pr-3 pb-1")}>{h}</th>)}</tr>
+              <tr>{['', 'Top (m)', 'Base (m)', 'Caption', 'Size', ''].map((h, i) => <th key={`${h}-${i}`} className="text-left font-medium text-pl-muted pr-3 pb-1">{h}</th>)}</tr>
             </thead>
             <tbody>
               {sorted.map((img) => {
                 const e = edits[img.id] || {};
                 return (
                   <tr key={img.id} data-testid={`${testIdPrefix}-row-${img.id}`} className="align-top">
-                    <td className="pr-3 py-0.5">{urls[img.id] ? <img src={urls[img.id]} alt="" className={tc("w-12 h-12 object-cover rounded border border-slate-800")} /> : <div className={tc("w-12 h-12 rounded bg-slate-800")} />}</td>
+                    <td className="pr-3 py-0.5">{urls[img.id] ? <img src={urls[img.id]} alt="" className="w-12 h-12 object-cover rounded border border-pl-border" /> : <div className="w-12 h-12 rounded bg-pl-sunken" />}</td>
                     <td className="pr-3 py-0.5"><input className={cell} style={{ width: 72 }} disabled={!canEdit} value={e.top ?? img.top_md_m} onChange={(ev) => setEdits((m) => ({ ...m, [img.id]: { ...m[img.id], top: ev.target.value } }))} /></td>
                     <td className="pr-3 py-0.5"><input className={cell} style={{ width: 72 }} disabled={!canEdit} value={e.base ?? img.base_md_m} onChange={(ev) => setEdits((m) => ({ ...m, [img.id]: { ...m[img.id], base: ev.target.value } }))} /></td>
                     <td className="pr-3 py-0.5"><input className={cell} style={{ width: 200 }} disabled={!canEdit} value={e.caption ?? (img.caption || '')} onChange={(ev) => setEdits((m) => ({ ...m, [img.id]: { ...m[img.id], caption: ev.target.value } }))} /></td>
-                    <td className={tc("pr-3 py-0.5 text-slate-500")}>{img.width && img.height ? `${img.width}×${img.height}, ` : ''}{((img.bytes || 0) / 1024).toFixed(0)} KB</td>
+                    <td className="pr-3 py-0.5 text-pl-muted">{img.width && img.height ? `${img.width}×${img.height}, ` : ''}{((img.bytes || 0) / 1024).toFixed(0)} KB</td>
                     <td className="py-0.5 flex gap-1">
                       {canEdit && edits[img.id] && <button type="button" className={btn} onClick={() => saveEdit(img)} title="Save" data-testid={`${testIdPrefix}-save-${img.id}`}><Save className="w-3 h-3" /></button>}
-                      {canEdit && <button type="button" className={tc("text-slate-500 hover:text-red-400")} onClick={() => remove(img)} title="Delete" data-testid={`${testIdPrefix}-del-${img.id}`}><Trash2 className="w-3 h-3" /></button>}
+                      {canEdit && <button type="button" className="text-pl-muted hover:text-pl-danger-text" onClick={() => remove(img)} title="Delete" data-testid={`${testIdPrefix}-del-${img.id}`}><Trash2 className="w-3 h-3" /></button>}
                     </td>
                   </tr>
                 );

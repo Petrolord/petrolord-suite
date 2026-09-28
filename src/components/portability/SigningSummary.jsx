@@ -25,13 +25,13 @@ export default function SigningSummary({ result, idSuffix = '' }) {
         {signingNote(result)}
       </div>
       {cert ? (
-        <div className={tc('text-slate-300 space-y-0.5')}>
+        <div className="text-pl-text space-y-0.5">
           <div>
             Certificate of Export <span className="font-mono">{cert.certificate_no}</span>
             {cert.download_url ? (
               <>
                 {' '}
-                <a href={cert.download_url} target="_blank" rel="noreferrer" className={tc('text-cyan-300 underline')} data-testid={`pld-certificate-link${idSuffix}`}>Download certificate</a>
+                <a href={cert.download_url} target="_blank" rel="noreferrer" className="text-pl-primary-text hover:text-pl-primary-text-hover underline" data-testid={`pld-certificate-link${idSuffix}`}>Download certificate</a>
               </>
             ) : null}
           </div>

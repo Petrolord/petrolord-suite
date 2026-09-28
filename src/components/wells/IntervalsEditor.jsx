@@ -153,26 +153,26 @@ export default function IntervalsEditor({ well, intervals, canEdit = true, onRep
   return (
     <div className="space-y-2 text-xs" data-testid={`${testIdPrefix}-editor`}>
       <div className="flex items-center gap-2 flex-wrap">
-        <label className={tc("flex items-center gap-1 text-slate-400")}>
+        <label className="flex items-center gap-1 text-pl-muted">
           Kind
           <select className={cell} value={kind} onChange={(e) => setKind(e.target.value)} data-testid={`${testIdPrefix}-kind`}>
             {EDITABLE_KINDS.map((k) => <option key={k.code} value={k.code}>{k.name}</option>)}
           </select>
         </label>
-        <span className={tc("text-slate-500")}>{ofKind.length} on {well?.name}{canEdit ? '' : ' (read-only)'}</span>
+        <span className="text-pl-muted">{ofKind.length} on {well?.name}{canEdit ? '' : ' (read-only)'}</span>
         <div className="ml-auto flex items-center gap-1">
-          <button type="button" className={`${btn} ${mode === 'paste' ? tc('border-cyan-500/60 text-cyan-300') : ''}`} disabled={!canEdit} data-testid={`${testIdPrefix}-paste-toggle`}
+          <button type="button" className={`${btn} ${mode === 'paste' ? 'border-pl-primary text-pl-primary-text' : ''}`} disabled={!canEdit} data-testid={`${testIdPrefix}-paste-toggle`}
             onClick={() => { setMode((m) => (m === 'paste' ? 'grid' : 'paste')); setProblems([]); }}>
             <ClipboardPaste className="w-3.5 h-3.5" /> {mode === 'paste' ? 'Back to table' : 'Replace from paste'}
           </button>
           {mode === 'grid' && <button type="button" className={btn} disabled={!canEdit} onClick={addRow} data-testid={`${testIdPrefix}-add`}><Plus className="w-3.5 h-3.5" /> Add</button>}
-          <button type="button" className={`${btn} ${dirty || (mode === 'paste' && pasted) ? tc('border-cyan-500/60 text-cyan-300') : ''}`} disabled={!canEdit || busy || (mode === 'grid' && !dirty) || (mode === 'paste' && !pasted)} onClick={save} data-testid={`${testIdPrefix}-save`}>
+          <button type="button" className={`${btn} ${dirty || (mode === 'paste' && pasted) ? 'border-pl-primary text-pl-primary-text' : ''}`} disabled={!canEdit || busy || (mode === 'grid' && !dirty) || (mode === 'paste' && !pasted)} onClick={save} data-testid={`${testIdPrefix}-save`}>
             {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Save {kind.replace(/_/g, ' ')}
           </button>
         </div>
       </div>
       {problems.length > 0 && (
-        <ul className={tc("text-red-300 space-y-0.5")} data-testid={`${testIdPrefix}-problems`}>
+        <ul className="text-pl-danger-text space-y-0.5" data-testid={`${testIdPrefix}-problems`}>
           {problems.map((p, i) => <li key={`${p.code}-${i}`}>{p.message}</li>)}
         </ul>
       )}
@@ -182,17 +182,17 @@ export default function IntervalsEditor({ well, intervals, canEdit = true, onRep
             labels={{ top: `Top (${mdUnit})`, base: `Base (${mdUnit})`, code: isLith ? 'Lithology' : 'Code', label: 'Label (optional)', description: 'Description (optional)' }}
             convention={{ mdUnit }} onConvention={(c) => setMdUnit(c.mdUnit || 'm')}
             onParsed={setPasted} testIdPrefix={`${testIdPrefix}-paste`} />
-          <p className={tc("text-slate-500")}>Replaces every {kind.replace(/_/g, ' ')} interval on this well. Lithology abbreviations (SST, SH, LS, DOL ...) resolve to the vocabulary; unknown ones are kept as typed.</p>
+          <p className="text-pl-muted">Replaces every {kind.replace(/_/g, ' ')} interval on this well. Lithology abbreviations (SST, SH, LS, DOL ...) resolve to the vocabulary; unknown ones are kept as typed.</p>
         </div>
       ) : !rows.length ? (
-        <div className={tc("text-slate-500")} data-testid={`${testIdPrefix}-empty`}>No {kind.replace(/_/g, ' ')} intervals on this well yet. Add rows, paste a table, or import a LAS 3.0 file with a core or lithology block in Well Data Manager.</div>
+        <div className="text-pl-muted" data-testid={`${testIdPrefix}-empty`}>No {kind.replace(/_/g, ' ')} intervals on this well yet. Add rows, paste a table, or import a LAS 3.0 file with a core or lithology block in Well Data Manager.</div>
       ) : (
         <div className="overflow-x-auto">
           <table className="text-xs min-w-[860px]">
             <thead>
               <tr>
                 {['', 'Top (m)', 'Base (m)', isLith ? 'Lithology' : kind === 'environment' ? 'Environment' : kind === 'motif' ? 'Motif' : kind === 'systems_tract' ? 'Tract' : kind === 'biozone_interval' ? 'Biozone' : 'Code', 'Label', ...(isLith ? ['Grain size'] : []), ...(kind === 'core_description' ? ['Environment'] : []), ...(kind === 'systems_tract' ? ['Stacking'] : []), ...(kind === 'biozone_interval' ? ['Scheme', 'Age top (Ma)', 'Age base (Ma)'] : []), 'Description', 'Source', ''].map((h, i) => (
-                  <th key={`${h}-${i}`} className={tc("text-left font-medium text-slate-500 pr-3 pb-1")}>{h}</th>
+                  <th key={`${h}-${i}`} className="text-left font-medium text-pl-muted pr-3 pb-1">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -250,7 +250,7 @@ export default function IntervalsEditor({ well, intervals, canEdit = true, onRep
                       {INTERVAL_SOURCES.map((sname) => <option key={sname} value={sname}>{sname}</option>)}
                     </select>
                   </td>
-                  <td className="py-0.5"><button type="button" className={tc("text-slate-500 hover:text-red-400")} disabled={!canEdit} title="Remove" onClick={() => delRow(i)} data-testid={`${testIdPrefix}-del-${i}`}><Trash2 className="w-3 h-3" /></button></td>
+                  <td className="py-0.5"><button type="button" className="text-pl-muted hover:text-pl-danger-text" disabled={!canEdit} title="Remove" onClick={() => delRow(i)} data-testid={`${testIdPrefix}-del-${i}`}><Trash2 className="w-3 h-3" /></button></td>
                 </tr>
               ))}
             </tbody>
@@ -258,7 +258,7 @@ export default function IntervalsEditor({ well, intervals, canEdit = true, onRep
         </div>
       )}
       {thickness.length > 0 && mode === 'grid' && (
-        <div className={tc("text-slate-500")} data-testid={`${testIdPrefix}-thickness`}>
+        <div className="text-pl-muted" data-testid={`${testIdPrefix}-thickness`}>
           Thickness: {thickness.map((t) => `${t.label} ${t.thickness_m.toFixed(1)} m`).join(' · ')}
         </div>
       )}

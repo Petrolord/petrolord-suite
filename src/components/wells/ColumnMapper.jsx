@@ -49,7 +49,7 @@ export default function ColumnMapper({ parsed, fields, labels, map, onMap, nCols
     <>
       <div className="flex flex-wrap items-center gap-2">
         {fields.map((f) => (
-          <label key={f} className={tc("text-xs text-slate-400 flex items-center gap-1")}>
+          <label key={f} className="text-xs text-pl-muted flex items-center gap-1">
             {labels[f] || f}
             <select
               className={inputCls}
@@ -66,17 +66,17 @@ export default function ColumnMapper({ parsed, fields, labels, map, onMap, nCols
             </select>
           </label>
         ))}
-        <span className={tc("text-xs text-slate-500")} data-testid={`${testIdPrefix}-import-rowcount`}>
+        <span className="text-xs text-pl-muted" data-testid={`${testIdPrefix}-import-rowcount`}>
           {parsed.rows.length} rows
         </span>
       </div>
       <div className="overflow-x-auto">
-        <table className={tc("text-xs text-slate-300 font-mono")} data-testid={`${testIdPrefix}-import-preview`}>
+        <table className="text-xs text-pl-text font-mono" data-testid={`${testIdPrefix}-import-preview`}>
           {extraColumns.length > 0 && (
             <thead>
               <tr>
-                {fields.map((f) => <th key={f} className={tc("pr-4 text-left font-medium text-slate-500")}>{labels[f] || f}</th>)}
-                {extraColumns.map((c) => <th key={c.label} className={tc("pr-4 text-left font-medium text-cyan-700")}>{c.label}</th>)}
+                {fields.map((f) => <th key={f} className="pr-4 text-left font-medium text-pl-muted">{labels[f] || f}</th>)}
+                {extraColumns.map((c) => <th key={c.label} className="pr-4 text-left font-medium text-pl-primary-text">{c.label}</th>)}
               </tr>
             </thead>
           )}
@@ -91,7 +91,7 @@ export default function ColumnMapper({ parsed, fields, labels, map, onMap, nCols
                   </td>
                 ))}
                 {extraColumns.map((c) => (
-                  <td key={c.label} className={tc("pr-4 whitespace-nowrap text-cyan-700")} data-testid={`${testIdPrefix}-import-preview-stored`}>
+                  <td key={c.label} className="pr-4 whitespace-nowrap text-pl-primary-text" data-testid={`${testIdPrefix}-import-preview-stored`}>
                     {c.cell(r, i)}
                   </td>
                 ))}

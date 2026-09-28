@@ -32,7 +32,7 @@ export function CheckshotConventionRow({ conv, onChange, testIdPrefix = 'well-im
   const tc = useThemeClass(THEMED_CLASSES);
   const inputCls = tc(INPUT_CLS);
   return (
-    <div className={tc("flex flex-wrap items-center gap-2 text-xs text-slate-400")} data-testid={`${testIdPrefix}-cs-convention`}>
+    <div className="flex flex-wrap items-center gap-2 text-xs text-pl-muted" data-testid={`${testIdPrefix}-cs-convention`}>
       Checkshots are
       <select className={inputCls} value={conv.depthRef} onChange={(e) => onChange({ ...conv, depthRef: e.target.value })}
         data-testid={`${testIdPrefix}-cs-depthref`} title="Depth reference of the pasted depth column. Petrel exports MD.">
@@ -61,7 +61,7 @@ export function MdUnitSelect({ value, onChange, testId, label = 'MD in' }) {
   const tc = useThemeClass(THEMED_CLASSES);
   const inputCls = tc(INPUT_CLS);
   return (
-    <label className={tc("text-xs text-slate-400 flex items-center gap-1")}>
+    <label className="text-xs text-pl-muted flex items-center gap-1">
       {label}
       <select className={inputCls} value={value} onChange={(e) => onChange(e.target.value)} data-testid={testId}>
         <option value="m">metres</option>
