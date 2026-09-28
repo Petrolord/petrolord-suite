@@ -86,6 +86,75 @@
   color-scheme: light;
 }
 
+/* light tone "grey-soft" (grey tone experiment, owner 2026-09-28) */
+[data-pl-theme="light"][data-pl-tone="grey-soft"],
+[data-pl-theme="light"][data-pl-tone="grey-soft"] [data-canvas="light"],
+[data-pl-theme="light"][data-pl-tone="grey-soft"] [data-canvas="chart"] {
+  --pl-bg: 230 233 236;
+  --pl-surface: 255 255 255;
+  --pl-raised: 255 255 255;
+  --pl-sunken: 220 224 228;
+  --pl-border: 204 210 216;
+  --pl-border-strong: 122 131 140;
+  --pl-muted: 82 92 102;
+  --background: 210 13.6% 91.4%;
+  --secondary-background: 210 12.9% 87.8%;
+  --card: 0 0% 100%;
+  --popover: 0 0% 100%;
+  --border: 210 13.3% 82.4%;
+  --input: 210 7.3% 51.4%;
+  --secondary: 210 12.9% 87.8%;
+  --muted: 210 12.9% 87.8%;
+  --muted-foreground: 210 10.9% 36.1%;
+  --accent: 210 12.9% 87.8%;
+}
+
+/* light tone "grey-panel" (grey tone experiment, owner 2026-09-28) */
+[data-pl-theme="light"][data-pl-tone="grey-panel"],
+[data-pl-theme="light"][data-pl-tone="grey-panel"] [data-canvas="light"],
+[data-pl-theme="light"][data-pl-tone="grey-panel"] [data-canvas="chart"] {
+  --pl-bg: 225 228 232;
+  --pl-surface: 237 239 242;
+  --pl-raised: 248 249 250;
+  --pl-sunken: 216 220 225;
+  --pl-border: 195 201 208;
+  --pl-border-strong: 110 120 131;
+  --pl-muted: 77 87 97;
+  --background: 214.3 13.2% 89.6%;
+  --secondary-background: 213.3 13% 86.5%;
+  --card: 216 16.1% 93.9%;
+  --popover: 210 16.7% 97.6%;
+  --border: 212.3 12.1% 79%;
+  --input: 211.4 8.7% 47.3%;
+  --secondary: 213.3 13% 86.5%;
+  --muted: 213.3 13% 86.5%;
+  --muted-foreground: 210 11.5% 34.1%;
+  --accent: 213.3 13% 86.5%;
+}
+
+/* light tone "grey-classic" (grey tone experiment, owner 2026-09-28) */
+[data-pl-theme="light"][data-pl-tone="grey-classic"],
+[data-pl-theme="light"][data-pl-tone="grey-classic"] [data-canvas="light"],
+[data-pl-theme="light"][data-pl-tone="grey-classic"] [data-canvas="chart"] {
+  --pl-bg: 216 220 225;
+  --pl-surface: 226 229 233;
+  --pl-raised: 243 244 246;
+  --pl-sunken: 202 208 214;
+  --pl-border: 174 181 190;
+  --pl-border-strong: 95 105 115;
+  --pl-muted: 69 78 87;
+  --background: 213.3 13% 86.5%;
+  --secondary-background: 210 12.8% 81.6%;
+  --card: 214.3 13.7% 90%;
+  --popover: 220 14.3% 95.9%;
+  --border: 213.8 11% 71.4%;
+  --input: 210 9.5% 41.2%;
+  --secondary: 210 12.8% 81.6%;
+  --muted: 210 12.8% 81.6%;
+  --muted-foreground: 210 11.5% 30.6%;
+  --accent: 210 12.8% 81.6%;
+}
+
 [data-pl-theme="dark"],
 [data-pl-theme] [data-canvas="dark"] {
   /* roles as "R G B" channels for rgb(var(--pl-x) / <alpha>) */

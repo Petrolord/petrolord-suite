@@ -114,6 +114,54 @@ export const THEMES = {
   },
 };
 
+// Light-grey TONES of the light theme (owner, 2026-09-28: "light grey for the
+// apps consoles and not off white"). A tone is a partial override of
+// THEMES.light: only the neutral roles (page, panels, rails, borders and the
+// secondary text that sits on them) change; petrol-green primary, gold accent,
+// ink text and the status colours stay. A tone applies only under
+// [data-pl-theme="light"][data-pl-tone="<name>"], so the dark theme, every
+// scope without a tone and everything outside a scope are unchanged.
+// Experiment: Seismolord offers them through a staging-only shade picker.
+export const LIGHT_TONES = {
+  // grey page, white panels and cards: the lightest step away from off-white
+  'grey-soft': {
+    bg: '#E6E9EC',
+    surface: '#FFFFFF',
+    raised: '#FFFFFF',
+    sunken: '#DCE0E4',
+    border: '#CCD2D8',
+    'border-strong': '#7A838C',
+    muted: '#525C66',
+  },
+  // grey page and grey panels, lighter cards and menus
+  'grey-panel': {
+    bg: '#E1E4E8',
+    surface: '#EDEFF2',
+    raised: '#F8F9FA',
+    sunken: '#D8DCE1',
+    border: '#C3C9D0',
+    'border-strong': '#6E7883',
+    muted: '#4D5761',
+  },
+  // the neutral mid-light grey of engineering desktop panels, darker borders
+  'grey-classic': {
+    bg: '#D8DCE1',
+    surface: '#E2E5E9',
+    raised: '#F3F4F6',
+    sunken: '#CAD0D6',
+    border: '#AEB5BE',
+    'border-strong': '#5F6973',
+    muted: '#454E57',
+  },
+};
+
+export const TONE_NAMES = Object.keys(LIGHT_TONES);
+
+/** The full light role map for a tone (THEMES.light when the tone is unknown or empty). */
+export function lightToneRoles(tone) {
+  return { ...THEMES.light, ...(LIGHT_TONES[tone] || {}) };
+}
+
 // The chart standard (white chartTheme + ChartLogo) keeps a white plot in
 // both themes, so a chart surface always takes the light roles.
 export const CHART_SURFACE = '#FFFFFF';

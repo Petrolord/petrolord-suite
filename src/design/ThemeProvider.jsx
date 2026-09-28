@@ -21,7 +21,7 @@
 // known their own per-user choice applies, as before.
 import React, { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AuthContext } from '@/contexts/SupabaseAuthContext';
-import { DEFAULT_THEME, THEME_NAMES } from './tokens.js';
+import { DEFAULT_THEME, THEME_NAMES, TONE_NAMES } from './tokens.js';
 import { ThemeContext, useDsTheme, usePortalThemeProps } from './themeContext.js';
 import { publishActiveTheme } from './activeTheme.js';
 
@@ -30,6 +30,42 @@ export { useDsTheme, usePortalThemeProps };
 export const THEME_STORAGE_PREFIX = 'petrolord.theme.v1:';
 
 export const LAST_THEME_KEY = 'petrolord.theme.v1.last';
+
+// Light-grey tone experiment (owner, 2026-09-28). A tone is the shade of the
+// LIGHT theme (tokens.js LIGHT_TONES); no tone means the standard off-white.
+// Remembered per user next to the theme, for the apps that offer a picker.
+export const TONE_STORAGE_PREFIX = 'petrolord.theme.v1.tone:';
+
+export function toneStorageKey(userId) {
+  return `${TONE_STORAGE_PREFIX}${userId || 'anon'}`;
+}
+
+/** The stored tone for a user, or null (standard off-white). */
+export function readStoredTone(userId, storage = getStorage()) {
+  try {
+    const v = storage ? storage.getItem(toneStorageKey(userId)) : null;
+    return TONE_NAMES.includes(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Store a tone, or clear it with null / an unknown name. */
+export function writeStoredTone(userId, tone, storage = getStorage()) {
+  try {
+    if (!storage) return false;
+    if (TONE_NAMES.includes(tone)) storage.setItem(toneStorageKey(userId), tone);
+    else storage.removeItem(toneStorageKey(userId));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** A valid tone name, or null. */
+export function normaliseTone(tone) {
+  return TONE_NAMES.includes(tone) ? tone : null;
+}
 
 export function themeStorageKey(userId) {
   return `${THEME_STORAGE_PREFIX}${userId || 'anon'}`;
@@ -91,7 +127,7 @@ function resolveTheme(userId, userPending, initial) {
  * Theme state for one opted-in app. Most apps use <ThemedApp> instead,
  * which renders this plus the scoped root element.
  */
-export function ThemeProvider({ userId = null, userPending = false, defaultTheme = DEFAULT_THEME, children }) {
+export function ThemeProvider({ userId = null, userPending = false, defaultTheme = DEFAULT_THEME, tone = null, children }) {
   const initial = THEME_NAMES.includes(defaultTheme) ? defaultTheme : DEFAULT_THEME;
   const pending = Boolean(userPending) && !userId;
   const [theme, setThemeState] = useState(() => resolveTheme(userId, pending, initial));
@@ -129,7 +165,13 @@ export function ThemeProvider({ userId = null, userPending = false, defaultTheme
     setTheme(theme === 'dark' ? 'light' : 'dark');
   }, [theme, setTheme]);
 
-  const value = useMemo(() => ({ theme, setTheme, toggleTheme }), [theme, setTheme, toggleTheme]);
+  // tone is null unless the app passes one, so the context of every other
+  // scope is what it was: { theme, setTheme, toggleTheme, tone: null }
+  const activeTone = normaliseTone(tone);
+  const value = useMemo(
+    () => ({ theme, setTheme, toggleTheme, tone: activeTone }),
+    [theme, setTheme, toggleTheme, activeTone],
+  );
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
@@ -149,23 +191,28 @@ function useOptionalUser() {
  *
  * Renders a root element carrying data-pl-theme (the CSS scope) and
  * data-pl-root (page background), inside a ThemeProvider keyed to the
- * signed-in user. Nested ThemedApps reuse the outer theme.
+ * signed-in user. Nested ThemedApps reuse the outer theme (and tone).
+ *
+ * `tone` (optional) picks a light-grey shade of the light theme, one of
+ * tokens.js TONE_NAMES. It sets data-pl-tone on the root, which only has an
+ * effect while the theme is light. Omitted, nothing about the scope changes.
  */
-export function ThemedApp({ as: Comp = 'div', className = '', userId, defaultTheme, children, ...rest }) {
+export function ThemedApp({ as: Comp = 'div', className = '', userId, defaultTheme, tone, children, ...rest }) {
   const outer = useDsTheme();
   const authUser = useOptionalUser();
   const scopeUser = userId !== undefined ? userId : authUser.id;
   const scopePending = userId !== undefined ? false : authUser.pending;
 
   if (outer) {
+    const outerTone = outer.tone || undefined;
     return (
-      <Comp data-pl-theme={outer.theme} className={className} {...rest}>
+      <Comp data-pl-theme={outer.theme} data-pl-tone={outerTone} className={className} {...rest}>
         {children}
       </Comp>
     );
   }
   return (
-    <ThemeProvider userId={scopeUser} userPending={scopePending} defaultTheme={defaultTheme}>
+    <ThemeProvider userId={scopeUser} userPending={scopePending} defaultTheme={defaultTheme} tone={tone}>
       <ThemedRoot as={Comp} className={className} {...rest}>
         {children}
       </ThemedRoot>
@@ -177,7 +224,7 @@ export function ThemedApp({ as: Comp = 'div', className = '', userId, defaultThe
 const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 function ThemedRoot({ as: Comp, className, children, ...rest }) {
-  const { theme } = useDsTheme();
+  const { theme, tone } = useDsTheme();
   // Tell the root toaster which theme the page is in (activeTheme.js).
   const handle = useRef(null);
   useIsoLayoutEffect(() => {
@@ -192,7 +239,7 @@ function ThemedRoot({ as: Comp, className, children, ...rest }) {
     if (handle.current) handle.current.update(theme);
   }, [theme]);
   return (
-    <Comp data-pl-theme={theme} data-pl-root="" className={className} {...rest}>
+    <Comp data-pl-theme={theme} data-pl-tone={tone || undefined} data-pl-root="" className={className} {...rest}>
       {children}
     </Comp>
   );
