@@ -22,8 +22,10 @@ open: owner staging walks.
 **Design system:** the hub (`/dashboard/assurance`) is on the design system
 from pilot 1 (2026-09-27, `feat/ds-pilot-hubs`): light by default, dark by
 choice, tiers as status badges, chart on `data-canvas="chart"`, help drawer
-themed inside the hub. The nine apps themselves are not migrated and look
-as before.
+themed inside the hub. Rollout batch W4E (2026-09-28) moved five of the
+nine apps onto it: Risk Register, Regulatory Compliance, ISO Compliance,
+Lessons Learned and Audit & Findings Manager (section 3p). Document
+Control, Peer Review, Management of Change and the QA Plan follow in W4F.
 
 The launch was ONE owner-run script:
 `tools/validation/assurance/assurance-launch-apply.sh schema` (now 16
@@ -1757,6 +1759,43 @@ differs only in VENDOR.json and VENDOR.manifest.
   the obligation page shows "30 days, the default (none is set)".
 - Help updated for all three. All 70 assurance suites pass (3731 tests)
   under UTC, Africa/Lagos and Pacific/Pago_Pago; the build passes.
+
+## 3p. Design system rollout W4E, 2026-09-28
+
+Five apps open in the grey-panel light theme by default, and the header
+toggle switches each to dark and back (stored per user). No data or
+behaviour changed.
+
+- **Where the scope lives.** Each app wraps itself: the four `*PageShell`
+  components (Regulatory, ISO, Lessons, Audit) and `RiskRegisterShell`,
+  which all four Risk Register routes render (tabs, New, Edit, the risk
+  page). Routes registered in `src/design/rollout/w4e.js`.
+- **Token-built apps.** Regulatory, ISO, Lessons and Audit were already on
+  the shadcn variables, so they follow the theme once wrapped. Their white
+  chart wrappers carry `data-canvas="chart"`. Regulatory Compliance used
+  amber (`--warning`) as decoration on its main buttons, active tab, icon
+  tile, spinner and focus rings; those are on the primary roles now, and
+  amber stays for status (Due soon, the schema notice).
+- **Risk Register.** Its slate and cyan console classes (471) moved to
+  `pl-*` roles, and overrides on adapted primitives (Card, Select, Dialog,
+  Input, Tabs) were dropped. Risk bands are status, on the status roles in
+  `src/lib/riskScoring.js`: Critical solid danger, High solid warning,
+  Medium warning tint, Low success tint, so the order reads in both themes.
+  The number or band word always sits beside the colour: cells show their
+  count, their tooltip and label give band and score, the legend names the
+  band and its range, and the score badge reads `20 - Critical`. Risk
+  status badges use the Badge status variants.
+- **Shared files.** `lib/riskScoring.js` colour tokens are used only by the
+  Risk Register (the hubs import its scoring rules, no colour).
+  `assurance/shared/ConfirmDialog.jsx` (danger role on its action) and
+  `CompactNav.jsx` (unchanged) are used only by apps in this batch.
+  `PersonField.jsx` (also in Peer Review) is unchanged.
+- **Phone width.** The Regulatory header and the Risk Register report
+  builder's step rail wrap at 390 px; no page scrolls sideways.
+- **Tests.** One theme test per app (`*.theme.test.jsx`, 45 tests) walks
+  every page in light and dark over the in-memory database, opens create
+  forms, the delete confirmation, the snapshot dialog and a generated
+  report. `riskScoring.test.js` pins the role classes in place of hue names.
 
 ## 4. How AS1 was verified
 
