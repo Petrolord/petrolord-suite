@@ -31,48 +31,48 @@ const TeamCollaboration = () => {
 
     return (
         <div className="h-full flex flex-col gap-4 overflow-y-auto">
-            <h2 className="text-xl font-bold text-white flex items-center gap-2"><Users className="w-5 h-5 text-blue-400" /> Collaboration &amp; Handoff</h2>
+            <h2 className="text-xl font-bold text-pl-text flex items-center gap-2"><Users className="w-5 h-5 text-pl-muted" /> Collaboration &amp; Handoff</h2>
 
             {/* Identity */}
-            <Card className="bg-slate-900 border-slate-800">
+            <Card>
                 <CardContent className="p-4 flex items-center gap-3">
-                    <Avatar><AvatarFallback className="bg-blue-900 text-blue-200">{initials}</AvatarFallback></Avatar>
+                    <Avatar><AvatarFallback className="bg-pl-sunken text-pl-text">{initials}</AvatarFallback></Avatar>
                     <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-white truncate">{email}</div>
-                        <div className="text-xs text-slate-500">{user ? 'Signed in' : 'Sign in to save & share projects'}</div>
+                        <div className="text-sm font-medium text-pl-text truncate">{email}</div>
+                        <div className="text-xs text-pl-muted">{user ? 'Signed in' : 'Sign in to save & share projects'}</div>
                     </div>
-                    {user && <Badge variant="outline" className="text-[10px] border-emerald-800 text-emerald-400">Active</Badge>}
+                    {user && <Badge variant="success" className="text-[10px]">Active</Badge>}
                 </CardContent>
             </Card>
 
             {/* Share current workspace */}
-            <Card className="bg-slate-900 border-slate-800">
-                <CardHeader className="pb-2"><CardTitle className="text-white text-sm flex items-center gap-2"><Share2 className="w-4 h-4 text-purple-400" /> Share this workspace</CardTitle></CardHeader>
+            <Card>
+                <CardHeader className="pb-2"><CardTitle className="text-pl-text text-sm flex items-center gap-2"><Share2 className="w-4 h-4 text-pl-muted" /> Share this workspace</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-pl-muted">
                         Export the current model as a self-contained file — it carries the inputs, imported surfaces, AOIs,
                         deterministic &amp; Monte Carlo results, and the full audit trail. A colleague imports it from the
-                        <span className="text-slate-300"> Projects</span> panel to continue exactly where you left off.
+                        <span className="text-pl-text"> Projects</span> panel to continue exactly where you left off.
                     </p>
-                    <Button size="sm" className="bg-blue-600 hover:bg-blue-700 gap-2" onClick={shareWorkspace}>
+                    <Button size="sm" className="gap-2" onClick={shareWorkspace}>
                         <Download className="w-4 h-4" /> Export workspace file
                     </Button>
                 </CardContent>
             </Card>
 
             {/* Saved projects */}
-            <Card className="bg-slate-900 border-slate-800 flex-1">
-                <CardHeader className="pb-2"><CardTitle className="text-white text-sm flex items-center gap-2"><FolderOpen className="w-4 h-4 text-amber-400" /> Your projects ({projects.length})</CardTitle></CardHeader>
+            <Card className="flex-1">
+                <CardHeader className="pb-2"><CardTitle className="text-pl-text text-sm flex items-center gap-2"><FolderOpen className="w-4 h-4 text-pl-muted" /> Your projects ({projects.length})</CardTitle></CardHeader>
                 <CardContent className="p-0">
                     {projects.length === 0 ? (
-                        <div className="p-4 text-center text-xs text-slate-500 italic">No saved projects yet. Save one to share it.</div>
+                        <div className="p-4 text-center text-xs text-pl-muted italic">No saved projects yet. Save one to share it.</div>
                     ) : projects.map((p) => (
-                        <div key={p.id} className="flex items-center gap-2 px-4 py-2 border-t border-slate-800 text-xs">
+                        <div key={p.id} className="flex items-center gap-2 px-4 py-2 border-t border-pl-border text-xs">
                             <div className="flex-1 min-w-0">
-                                <div className="text-slate-200 truncate">{p.name}</div>
-                                <div className="text-slate-500 font-mono">v{p.version} · {new Date(p.updated_at || p.created_at).toLocaleDateString()}</div>
+                                <div className="text-pl-text truncate">{p.name}</div>
+                                <div className="text-pl-muted font-mono">v{p.version} · {new Date(p.updated_at || p.created_at).toLocaleDateString()}</div>
                             </div>
-                            <Button variant="ghost" size="sm" className="h-7 text-[11px] text-blue-400 hover:text-blue-300 gap-1" onClick={() => ProjectService.exportToJSON(p)}>
+                            <Button variant="ghost" size="sm" className="h-7 text-[11px] text-pl-primary-text hover:text-pl-primary-text-hover gap-1" onClick={() => ProjectService.exportToJSON(p)}>
                                 <Download className="w-3.5 h-3.5" /> Export
                             </Button>
                         </div>
@@ -80,8 +80,8 @@ const TeamCollaboration = () => {
                 </CardContent>
             </Card>
 
-            <div className="flex items-start gap-2 text-[11px] text-slate-400 bg-slate-900/40 border border-slate-800 rounded-lg px-3 py-2">
-                <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-slate-500" />
+            <div className="flex items-start gap-2 text-[11px] text-pl-muted bg-pl-surface border border-pl-border rounded-lg px-3 py-2">
+                <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-pl-muted" />
                 <span>Live multi-user editing and in-app sharing aren&apos;t enabled yet: they require a project-sharing service. Until then, exporting/importing project files is the supported way to collaborate, and it transfers the complete model.</span>
             </div>
         </div>

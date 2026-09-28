@@ -15,8 +15,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Trash2, Plus, Layers } from 'lucide-react';
 import { RISK_FACTORS, chanceOfSuccess, riskProspect, portfolioRollup } from '../../services/ProspectRiskEngine';
 import { VOLUME_UNITS } from '../../services/prospectVolumes';
+import { COMPACT_FIELD_THEMED } from '@/components/ui/native-select';
 
-const inputCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
+const inputCls = COMPACT_FIELD_THEMED;
 const fmt = (v, d = 1) => (v === null || v === undefined || Number.isNaN(v) ? '—' : Number(v).toLocaleString(undefined, { maximumFractionDigits: d }));
 const pct = (v) => (Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—');
 
@@ -85,46 +86,46 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
   };
 
   return (
-    <div className="space-y-4 text-slate-200" data-testid="prospect-risking">
+    <div className="space-y-4 text-pl-text" data-testid="prospect-risking">
       <div>
         <div className="flex items-center gap-2 mb-2">
-          <Layers className="w-4 h-4 text-amber-400" />
+          <Layers className="w-4 h-4 text-pl-muted" />
           <h3 className="text-sm font-semibold">Prospect Risking</h3>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           {/* Pg factors */}
-          <div className="rounded border border-slate-800 p-2 space-y-1.5">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500">Chance of success (Pg)</div>
+          <div className="rounded border border-pl-border p-2 space-y-1.5">
+            <div className="text-[10px] uppercase tracking-wider text-pl-muted">Chance of success (Pg)</div>
             {RISK_FACTORS.map((f) => (
               <label key={f} className="flex items-center gap-2 text-xs capitalize">
-                <span className="w-20 text-slate-400">{f}</span>
+                <span className="w-20 text-pl-muted">{f}</span>
                 <input type="range" min="0" max="1" step="0.05" value={factors[f] ?? 1}
-                  data-testid={`pg-${f}`} className="flex-1"
+                  data-testid={`pg-${f}`} className="flex-1 accent-pl-primary"
                   onChange={(e) => setFactors((s) => ({ ...s, [f]: Number(e.target.value) }))} />
                 <span className="w-10 text-right tabular-nums" data-testid={`pgv-${f}`}>{pct(factors[f] ?? 1)}</span>
               </label>
             ))}
-            <div className="flex items-center justify-between pt-1 border-t border-slate-800 text-xs">
-              <span className="text-slate-400">Pg =</span>
-              <span className="font-semibold text-amber-300" data-testid="pg-total">{pct(pg)}</span>
+            <div className="flex items-center justify-between pt-1 border-t border-pl-border text-xs">
+              <span className="text-pl-muted">Pg =</span>
+              <span className="font-semibold font-pl-mono text-pl-text" data-testid="pg-total">{pct(pg)}</span>
             </div>
           </div>
 
           {/* unrisked volume */}
-          <div className="rounded border border-slate-800 p-2 space-y-1.5">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500">
+          <div className="rounded border border-pl-border p-2 space-y-1.5">
+            <div className="text-[10px] uppercase tracking-wider text-pl-muted">
               Unrisked volume {unrisked ? '(from the last Monte Carlo run)' : '(enter, or run Monte Carlo first)'}
             </div>
             <label className="flex items-center gap-2 text-xs">
-              <span className="w-14 text-slate-400">Unit</span>
+              <span className="w-14 text-pl-muted">Unit</span>
               <select className={`${inputCls} flex-1`} value={unit} data-testid="vol-unit" onChange={(e) => setUnit(e.target.value)}>
                 {Object.entries(VOLUME_UNITS).map(([k, u]) => <option key={k} value={k}>{u.label}</option>)}
               </select>
             </label>
             {['mean', 'p90', 'p50', 'p10'].map((k) => (
               <label key={k} className="flex items-center gap-2 text-xs">
-                <span className="w-14 text-slate-400 uppercase">{k}</span>
+                <span className="w-14 text-pl-muted uppercase">{k}</span>
                 <input className={`${inputCls} flex-1`} value={vol[k]} data-testid={`vol-${k}`}
                   onChange={(e) => setVol((s) => ({ ...s, [k]: e.target.value }))} />
               </label>
@@ -134,12 +135,12 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
 
         {/* live risked readout */}
         {live && (
-          <div className="mt-2 rounded border border-amber-900/50 bg-amber-950/20 p-2 grid grid-cols-2 gap-x-6 gap-y-1 text-xs" data-testid="risked-readout">
-            <div className="flex justify-between"><span className="text-slate-400">Risked mean (EMV basis)</span><span className="font-semibold"><span data-testid="risked-mean">{fmt(live.riskedMean)}</span> {VOLUME_UNITS[unit]?.label}</span></div>
-            <div className="flex justify-between"><span className="text-slate-400">P(failure)</span><span>{pct(live.pFailure)}</span></div>
-            <div className="col-span-2 text-[10px] text-slate-500 pt-1">Success case (volumes given discovery):</div>
-            <div className="flex justify-between"><span className="text-slate-400">P90 / P50</span><span data-testid="success-p90p50">{fmt(live.successCase.p90)} / {fmt(live.successCase.p50)}</span></div>
-            <div className="flex justify-between"><span className="text-slate-400">P10 / mean</span><span>{fmt(live.successCase.p10)} / {fmt(live.successCase.mean)}</span></div>
+          <div className="mt-2 rounded border border-pl-border bg-pl-sunken p-2 grid grid-cols-2 gap-x-6 gap-y-1 text-xs" data-testid="risked-readout">
+            <div className="flex justify-between"><span className="text-pl-muted">Risked mean (EMV basis)</span><span className="font-semibold"><span data-testid="risked-mean">{fmt(live.riskedMean)}</span> {VOLUME_UNITS[unit]?.label}</span></div>
+            <div className="flex justify-between"><span className="text-pl-muted">P(failure)</span><span>{pct(live.pFailure)}</span></div>
+            <div className="col-span-2 text-[10px] text-pl-muted pt-1">Success case (volumes given discovery):</div>
+            <div className="flex justify-between"><span className="text-pl-muted">P90 / P50</span><span data-testid="success-p90p50">{fmt(live.successCase.p90)} / {fmt(live.successCase.p50)}</span></div>
+            <div className="flex justify-between"><span className="text-pl-muted">P10 / mean</span><span>{fmt(live.successCase.p10)} / {fmt(live.successCase.mean)}</span></div>
           </div>
         )}
 
@@ -147,14 +148,14 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
           <input className={`${inputCls} flex-1`} placeholder="Prospect name" value={name}
             data-testid="prospect-name" onChange={(e) => setName(e.target.value)} />
           <button type="button" data-testid="prospect-add"
-            className="flex items-center gap-1 px-2.5 py-1 rounded border border-amber-700/60 text-amber-300 hover:bg-amber-500/10 text-xs"
+            className="flex items-center gap-1 px-2.5 py-1 rounded border border-pl-primary text-pl-primary-text hover:bg-pl-sunken text-xs"
             onClick={addToInventory}>
             <Plus className="w-3.5 h-3.5" /> Add to inventory
           </button>
         </div>
-        {status && <p className="mt-1 text-[11px] text-slate-400" data-testid="prospect-status">{status}</p>}
+        {status && <p className="mt-1 text-[11px] text-pl-muted" data-testid="prospect-status">{status}</p>}
         {added && (
-          <a href={valuationHref} className="mt-1 inline-block text-[11px] text-lime-300 hover:underline" data-testid="prospect-value-link">
+          <a href={valuationHref} className="mt-1 inline-block text-[11px] text-pl-primary-text hover:text-pl-primary-text-hover hover:underline" data-testid="prospect-value-link">
             Value the inventory in Risked Reserves Valuation (commercial chance, EMV, break-even Pg)
           </a>
         )}
@@ -162,13 +163,13 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
 
       {/* inventory */}
       <div>
-        <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">
+        <div className="text-[10px] uppercase tracking-wider text-pl-muted mb-1">
           Inventory <span data-testid="prospect-count">{prospects.length}</span>
         </div>
         {prospects.length ? (
           <table className="w-full text-xs" data-testid="prospect-table">
             <thead>
-              <tr className="text-slate-500 text-left">
+              <tr className="text-pl-muted text-left">
                 <th className="pr-2 pb-1 font-medium">Prospect</th>
                 <th className="pr-2 pb-1 font-medium">Pg</th>
                 <th className="pr-2 pb-1 font-medium">Unrisked mean</th>
@@ -182,14 +183,14 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
                 const ppg = chanceOfSuccess(p.pg_factors || {});
                 return (
                   <tr key={p.id} data-testid="prospect-row" data-prospect-name={p.name}>
-                    <td className="pr-2 py-0.5 text-slate-200">{p.name}</td>
+                    <td className="pr-2 py-0.5 text-pl-text">{p.name}</td>
                     <td className="pr-2 py-0.5">{pct(ppg)}</td>
                     <td className="pr-2 py-0.5">{fmt(p.inputs?.mean)}</td>
-                    <td className="pr-2 py-0.5 text-slate-500">{VOLUME_UNITS[p.inputs?.unit]?.label || 'not stated'}</td>
-                    <td className="pr-2 py-0.5 text-amber-300">{fmt(p.risked?.risked_mean ?? ppg * (p.inputs?.mean || 0))}</td>
+                    <td className="pr-2 py-0.5 text-pl-muted">{VOLUME_UNITS[p.inputs?.unit]?.label || 'not stated'}</td>
+                    <td className="pr-2 py-0.5 font-pl-mono text-pl-text">{fmt(p.risked?.risked_mean ?? ppg * (p.inputs?.mean || 0))}</td>
                     <td className="py-0.5 text-right">
                       <button type="button" title={`Delete ${p.name}`} data-testid={`prospect-delete-${p.name}`}
-                        className="text-slate-500 hover:text-red-400" onClick={() => remove(p)}>
+                        className="text-pl-muted hover:text-pl-danger-text" onClick={() => remove(p)}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </td>
@@ -198,17 +199,17 @@ export default function ProspectRiskingPanel({ backend, unrisked, defaultUnit = 
               })}
             </tbody>
           </table>
-        ) : <p className="text-xs text-slate-600">No prospects yet. Add one above.</p>}
+        ) : <p className="text-xs text-pl-muted">No prospects yet. Add one above.</p>}
       </div>
 
       {/* portfolio roll-up */}
       {prospects.length > 0 && (
-        <div className="rounded border border-slate-800 p-2 grid grid-cols-2 gap-x-6 gap-y-1 text-xs" data-testid="portfolio">
-          <div className="col-span-2 text-[10px] uppercase tracking-wider text-slate-500">Portfolio ({rolled.count} prospects, treated independently)</div>
-          <div className="flex justify-between"><span className="text-slate-400">Expected risked volume</span><span className="font-semibold" data-testid="portfolio-risked">{fmt(rolled.expectedRiskedVolume)}</span></div>
-          <div className="flex justify-between"><span className="text-slate-400">Expected discoveries</span><span data-testid="portfolio-discoveries">{fmt(rolled.expectedDiscoveries, 2)}</span></div>
-          <div className="flex justify-between"><span className="text-slate-400">Success-case total</span><span>{fmt(rolled.successCaseMeanTotal)}</span></div>
-          <div className="flex justify-between"><span className="text-slate-400">P(≥1 discovery)</span><span>{pct(rolled.pAtLeastOneDiscovery)}</span></div>
+        <div className="rounded border border-pl-border p-2 grid grid-cols-2 gap-x-6 gap-y-1 text-xs" data-testid="portfolio">
+          <div className="col-span-2 text-[10px] uppercase tracking-wider text-pl-muted">Portfolio ({rolled.count} prospects, treated independently)</div>
+          <div className="flex justify-between"><span className="text-pl-muted">Expected risked volume</span><span className="font-semibold" data-testid="portfolio-risked">{fmt(rolled.expectedRiskedVolume)}</span></div>
+          <div className="flex justify-between"><span className="text-pl-muted">Expected discoveries</span><span data-testid="portfolio-discoveries">{fmt(rolled.expectedDiscoveries, 2)}</span></div>
+          <div className="flex justify-between"><span className="text-pl-muted">Success-case total</span><span>{fmt(rolled.successCaseMeanTotal)}</span></div>
+          <div className="flex justify-between"><span className="text-pl-muted">P(≥1 discovery)</span><span>{pct(rolled.pAtLeastOneDiscovery)}</span></div>
         </div>
       )}
     </div>

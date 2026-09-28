@@ -73,18 +73,18 @@ const MapGenerationPanel = () => {
     };
 
     return (
-        <div className="h-full flex flex-col p-4 space-y-6 bg-slate-950">
+        <div className="h-full flex flex-col p-4 space-y-6 bg-pl-sunken">
             <div>
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <MapIcon className="w-5 h-5 text-blue-400" /> Map Generator
+                <h3 className="text-lg font-bold text-pl-text flex items-center gap-2">
+                    <MapIcon className="w-5 h-5 text-pl-muted" /> Map Generator
                 </h3>
-                <p className="text-sm text-slate-400">Select properties to map across the reservoir grid.</p>
+                <p className="text-sm text-pl-muted">Select properties to map across the reservoir grid.</p>
             </div>
 
-            <Card className="bg-slate-900 border-slate-800 p-4 space-y-4">
+            <Card className="p-4 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-3">
-                        <Label className="text-xs font-bold text-slate-500 uppercase">Geometry</Label>
+                        <Label className="text-xs font-bold text-pl-muted uppercase">Geometry</Label>
                         <div className="flex items-center space-x-2">
                             <Checkbox id="m-struct" checked={selectedMaps.structure} onCheckedChange={() => handleToggle('structure')} />
                             <Label htmlFor="m-struct">Structure (Depth)</Label>
@@ -96,7 +96,7 @@ const MapGenerationPanel = () => {
                     </div>
 
                     <div className="space-y-3">
-                        <Label className="text-xs font-bold text-slate-500 uppercase">Volumetrics</Label>
+                        <Label className="text-xs font-bold text-pl-muted uppercase">Volumetrics</Label>
                         <div className="flex items-center space-x-2">
                             <Checkbox id="m-hcpv" checked={selectedMaps.hcpv} onCheckedChange={() => handleToggle('hcpv')} />
                             <Label htmlFor="m-hcpv">HCPV Column</Label>
@@ -110,7 +110,7 @@ const MapGenerationPanel = () => {
             </Card>
 
             <Button 
-                className="w-full bg-blue-600 hover:bg-blue-700 h-12"
+                className="w-full h-12"
                 onClick={handleGenerate}
                 disabled={isGenerating || surfacesCount === 0}
             >
@@ -122,7 +122,7 @@ const MapGenerationPanel = () => {
             </Button>
 
             {surfacesCount === 0 && (
-                <div className="p-3 bg-amber-900/20 border border-amber-800 rounded text-amber-200 text-xs">
+                <div className="p-3 bg-pl-warning-bg border border-pl-warning/40 rounded text-pl-warning-text text-xs">
                     Import a surface in the Surfaces tab to enable map generation.
                 </div>
             )}
@@ -130,20 +130,20 @@ const MapGenerationPanel = () => {
             {(state.maps?.length > 0) && (
                 <div className="flex-1 min-h-0 flex flex-col">
                     <div className="flex items-center justify-between mb-2">
-                        <Label className="text-xs font-bold text-slate-400 uppercase">Generated Maps ({state.maps.length})</Label>
+                        <Label className="text-xs font-bold text-pl-muted uppercase">Generated Maps ({state.maps.length})</Label>
                     </div>
                     <div className="space-y-2 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-800">
                         {state.maps.map(m => (
-                            <div key={m.id} className="flex items-center justify-between p-2 rounded border border-slate-800 bg-slate-900">
+                            <div key={m.id} className="flex items-center justify-between p-2 rounded border border-pl-border bg-pl-surface">
                                 <div className="min-w-0">
-                                    <div className="text-xs font-medium text-slate-200 truncate">{m.name}</div>
-                                    <div className="text-[10px] text-slate-500">{m.unit || '—'}</div>
+                                    <div className="text-xs font-medium text-pl-text truncate">{m.name}</div>
+                                    <div className="text-[10px] text-pl-muted">{m.unit || '—'}</div>
                                 </div>
                                 <div className="flex items-center gap-1 shrink-0">
-                                    <Eye className="w-3.5 h-3.5 text-slate-600" />
+                                    <Eye className="w-3.5 h-3.5 text-pl-muted" />
                                     <Button
                                         size="icon" variant="ghost"
-                                        className="h-6 w-6 text-slate-500 hover:text-red-400"
+                                        className="h-6 w-6 text-pl-muted hover:text-pl-danger-text"
                                         onClick={() => deleteMap(m.id)}
                                         title="Delete map"
                                     >

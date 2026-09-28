@@ -11,15 +11,16 @@ const ViewToggle = ({ view, setView }) => {
     const opt = (id, label, Icon) => (
         <button
             onClick={() => setView(id)}
+            aria-pressed={view === id}
             className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                view === id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                view === id ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted hover:text-pl-text'
             }`}
         >
             <Icon className="h-3.5 w-3.5" /> {label}
         </button>
     );
     return (
-        <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 p-1">
+        <div className="flex items-center gap-1 rounded-lg border border-pl-border bg-pl-sunken p-1">
             {opt('slide', 'Presentation', Presentation)}
             {opt('detail', 'Detailed', Table2)}
         </div>
@@ -33,14 +34,14 @@ const ResultsModal = ({ isOpen, onClose }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-[96vw] w-full h-[92vh] bg-slate-950 border-slate-800 p-0 flex flex-col">
-                <DialogHeader className="px-6 py-3 border-b border-slate-800 flex flex-row items-center justify-between shrink-0">
+            <DialogContent className="max-w-[96vw] w-full h-[92vh] p-0 flex flex-col">
+                <DialogHeader className="px-6 py-3 border-b border-pl-border flex flex-row items-center justify-between shrink-0">
                     <div>
-                        <DialogTitle className="text-lg font-bold text-white">Calculation Results</DialogTitle>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                            Project: <span className="text-emerald-400 font-medium">{state.currentProjectMeta?.name || 'Untitled'}</span>
-                            <span className="mx-2 text-slate-600">|</span>
-                            Reservoir: <span className="text-emerald-400 font-medium">{state.reservoirName || 'Reservoir 1'}</span>
+                        <DialogTitle className="text-lg font-bold text-pl-text">Calculation Results</DialogTitle>
+                        <p className="text-xs text-pl-muted mt-0.5">
+                            Project: <span className="text-pl-text font-medium">{state.currentProjectMeta?.name || 'Untitled'}</span>
+                            <span className="mx-2 text-pl-muted">|</span>
+                            Reservoir: <span className="text-pl-text font-medium">{state.reservoirName || 'Reservoir 1'}</span>
                         </p>
                     </div>
                     <div className="pr-8">
@@ -52,7 +53,7 @@ const ResultsModal = ({ isOpen, onClose }) => {
                     {view === 'slide' ? (
                         isProb ? <ProbabilisticSlide /> : <DeterministicSlide />
                     ) : (
-                        <div className="h-full overflow-hidden bg-slate-950">
+                        <div className="h-full overflow-hidden bg-pl-sunken">
                             {isProb ? <ProbabilisticResultsDisplay /> : <DeterministicResultsDisplay />}
                         </div>
                     )}

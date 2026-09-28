@@ -148,7 +148,7 @@ const ProbabilisticSlide = () => {
             await ReportGenerator.generateProbabilisticReport(
                 project, probResults, state.unitSystem, { cdf: cdfImg, tornado: tornadoImg }, { template: 'technical', fluidType: ft, reservoirName: reservoir },
             );
-            toast({ title: 'Report downloaded', description: 'The full branded PDF was saved.', className: 'bg-emerald-900 text-white border-emerald-800' });
+            toast({ title: 'Report downloaded', description: 'The full branded PDF was saved.' });
         } catch (e) {
             toast({ variant: 'destructive', title: 'Export failed', description: e?.message || 'Could not generate the PDF.' });
         } finally {
@@ -157,7 +157,7 @@ const ProbabilisticSlide = () => {
     };
 
     const pdfButton = (
-        <Button size="sm" variant="outline" className="h-8 gap-2 border-slate-300 bg-white text-slate-700 hover:bg-slate-100" onClick={exportPDF} disabled={isExporting}>
+        <Button size="sm" variant="outline" className="h-8 gap-2" onClick={exportPDF} disabled={isExporting}>
             <FileText className="h-4 w-4" /> {isExporting ? 'Exporting…' : 'Full PDF'}
         </Button>
     );

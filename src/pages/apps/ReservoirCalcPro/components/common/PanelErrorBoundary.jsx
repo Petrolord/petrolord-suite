@@ -26,11 +26,11 @@ class PanelErrorBoundary extends React.Component {
     render() {
         if (this.state.hasError) {
             return (
-                <div className="h-full w-full flex flex-col items-center justify-center bg-slate-950 text-slate-400 p-6 text-center">
-                    <AlertTriangle className="w-8 h-8 mb-3 text-amber-500" />
-                    <h3 className="text-sm font-semibold text-slate-200">{this.props.label || 'Panel'} failed to render</h3>
+                <div className="h-full w-full flex flex-col items-center justify-center bg-pl-sunken text-pl-muted p-6 text-center">
+                    <AlertTriangle className="w-8 h-8 mb-3 text-pl-warning-text" />
+                    <h3 className="text-sm font-semibold text-pl-text">{this.props.label || 'Panel'} failed to render</h3>
                     <p className="text-xs mt-1 mb-4 max-w-xs opacity-70">{this.state.error?.message || 'Unexpected error.'}</p>
-                    <Button variant="outline" size="sm" onClick={this.reset} className="h-7 text-xs border-slate-700 gap-1.5">
+                    <Button variant="outline" size="sm" onClick={this.reset} className="h-7 text-xs border-pl-border gap-1.5">
                         <RotateCcw className="w-3 h-3" /> Retry
                     </Button>
                 </div>

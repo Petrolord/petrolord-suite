@@ -21,6 +21,8 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOpen }) => {
     const { state, saveCurrentProject } = useReservoirCalc();
@@ -83,8 +85,8 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
     };
 
     return (
-        <header className="h-12 border-b border-slate-800 bg-slate-900 px-4 flex items-center justify-between shrink-0 select-none">
-            <div className="flex items-center gap-4">
+        <header className="h-12 border-b border-pl-border bg-pl-surface px-2 sm:px-4 gap-2 flex items-center justify-between shrink-0 select-none">
+            <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden sm:gap-4">
                 {/* Navigation / Breadcrumbs */}
                 <div className="flex items-center text-sm">
                     <TooltipProvider>
@@ -93,7 +95,7 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
                                 <Button 
                                     variant="ghost" 
                                     size="icon" 
-                                    className="h-8 w-8 text-slate-400 hover:text-white mr-2"
+                                    className="h-8 w-8 text-pl-muted hover:text-pl-text mr-2"
                                     onClick={() => navigate('/dashboard/geoscience')}
                                 >
                                     <ArrowLeft className="w-4 h-4" />
@@ -103,25 +105,25 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
                         </Tooltip>
                     </TooltipProvider>
                     
-                    <div className="hidden md:flex items-center text-slate-500 font-medium">
+                    <div className="hidden md:flex items-center text-pl-muted font-medium">
                         <span 
-                            className="hover:text-blue-400 cursor-pointer transition-colors flex items-center gap-1"
+                            className="hover:text-pl-primary-text-hover cursor-pointer transition-colors flex items-center gap-1"
                             onClick={() => navigate('/dashboard/geoscience')}
                         >
                             <Home className="w-3.5 h-3.5" />
                             Geoscience Hub
                         </span>
                         <ChevronRight className="w-4 h-4 mx-1 opacity-50" />
-                        <span className="text-slate-200 font-semibold">ReservoirCalc Pro</span>
+                        <span className="text-pl-text font-semibold">ReservoirCalc Pro</span>
                     </div>
                 </div>
 
-                <div className="h-5 w-px bg-slate-700 mx-2 hidden md:block" />
+                <div className="h-5 w-px bg-pl-border mx-2 hidden md:block" />
 
                 <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-8 w-8 text-slate-400 hover:text-white hover:bg-slate-800 hidden md:flex"
+                    className="h-8 w-8 text-pl-muted hover:text-pl-text hover:bg-pl-sunken hidden md:flex"
                     onClick={onToggleLeft}
                     title={isLeftOpen ? "Collapse Inputs" : "Expand Inputs"}
                 >
@@ -130,83 +132,85 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
 
                 <div className="flex flex-col justify-center ml-2">
                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-slate-300 max-w-[200px] truncate hidden lg:inline-block" data-testid="rcp-project-name">
+                        <span className="text-xs font-medium text-pl-text max-w-[200px] truncate hidden lg:inline-block" data-testid="rcp-project-name">
                             {state.currentProjectMeta?.name || 'Unsaved Workspace'}
                         </span>
-                        {state.isDirty && <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 text-amber-400 border-amber-500/30">Modified</Badge>}
+                        {state.isDirty && <Badge variant="warning" className="text-[9px] px-1 py-0 h-4">Modified</Badge>}
                      </div>
                 </div>
 
-                <div className="h-5 w-px bg-slate-700 mx-1 hidden md:block" />
+                <div className="h-5 w-px bg-pl-border mx-1 hidden md:block" />
 
                 <ReservoirSwitcher />
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-1 sm:gap-2">
                 <Sheet open={projectsOpen} onOpenChange={setProjectsOpen}>
                     <SheetTrigger asChild>
-                        <Button variant="outline" size="sm" className="gap-2 h-8 text-xs border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200">
+                        <Button variant="outline" size="sm" className="gap-2 h-8 text-xs">
                             <Folder className="w-3 h-3" />
                             <span className="hidden md:inline">Projects</span>
                         </Button>
                     </SheetTrigger>
-                    <SheetContent side="left" className="p-0 w-[400px] bg-slate-950 border-r border-slate-800">
+                    <SheetContent side="left" className="p-0 w-[400px] border-r">
                         <ProjectManager onClose={() => setProjectsOpen(false)} />
                     </SheetContent>
                 </Sheet>
 
                 <Sheet>
                     <SheetTrigger asChild>
-                        <Button variant="outline" size="sm" className="gap-2 h-8 text-xs border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200">
+                        <Button variant="outline" size="sm" className="gap-2 h-8 text-xs border-pl-border bg-pl-sunken hover:bg-pl-sunken text-pl-text">
                             <Wrench className="w-3 h-3" />
                             <span className="hidden md:inline">Tools</span>
                         </Button>
                     </SheetTrigger>
-                    <SheetContent side="right" className="p-0 w-full sm:max-w-[720px] bg-slate-950 border-l border-slate-800">
+                    <SheetContent side="right" className="p-0 w-full sm:max-w-[720px] border-l">
                         <WorkspaceToolsHub />
                     </SheetContent>
                 </Sheet>
 
                 <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
                     <DialogTrigger asChild>
-                        <Button size="sm" data-testid="rcp-save" onClick={handleSaveClick} className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/10">
+                        <Button size="sm" data-testid="rcp-save" onClick={handleSaveClick} className="h-8 text-xs">
                             Save
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="bg-slate-900 border-slate-800 text-white">
+                    <DialogContent>
                         <div className="space-y-4 py-4">
                             <h3 className="text-lg font-bold">Save Project</h3>
                             <div className="space-y-2">
                                 <Label>Project Name</Label>
-                                <Input data-testid="rcp-save-name" value={meta.name} onChange={e => setMeta({...meta, name: e.target.value})} className="bg-slate-950 border-slate-700" />
+                                <Input data-testid="rcp-save-name" value={meta.name} onChange={e => setMeta({...meta, name: e.target.value})} />
                             </div>
                             <div className="space-y-2">
                                 <Label>Description</Label>
-                                <Textarea value={meta.description} onChange={e => setMeta({...meta, description: e.target.value})} className="bg-slate-950 border-slate-700" />
+                                <Textarea value={meta.description} onChange={e => setMeta({...meta, description: e.target.value})} />
                             </div>
                             {saveError && (
-                                <div className="rounded border border-red-500/40 bg-red-950/40 px-3 py-2 text-xs text-red-300">
+                                <div className="rounded border border-pl-danger/40 bg-pl-danger-bg px-3 py-2 text-xs text-pl-danger-text">
                                     {saveError}
                                 </div>
                             )}
                             <div className="flex justify-end gap-2 mt-4">
                                 <Button variant="ghost" onClick={() => setSaveOpen(false)} disabled={saving}>Cancel</Button>
-                                <Button data-testid="rcp-save-confirm" onClick={performSave} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700">{saving ? 'Saving…' : 'Save'}</Button>
+                                <Button data-testid="rcp-save-confirm" onClick={performSave} disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
                             </div>
                         </div>
                     </DialogContent>
                 </Dialog>
 
-                <Button variant="ghost" size="sm" className="w-8 h-8 p-0 text-slate-400 hover:text-white" onClick={onOpenDocs}>
+                <Button variant="ghost" size="sm" className="w-8 h-8 p-0 text-pl-muted hover:text-pl-text" onClick={onOpenDocs} title="Documentation" aria-label="Documentation">
                     <HelpCircle className="w-4 h-4" />
                 </Button>
 
-                <div className="h-5 w-px bg-slate-700 mx-1 hidden md:block" />
+                <ThemeToggle className="h-8 w-8" />
+
+                <div className="h-5 w-px bg-pl-border mx-1 hidden md:block" />
 
                 <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-8 w-8 text-slate-400 hover:text-white hover:bg-slate-800 hidden md:flex"
+                    className="h-8 w-8 text-pl-muted hover:text-pl-text hover:bg-pl-sunken hidden md:flex"
                     onClick={onToggleRight}
                     title={isRightOpen ? "Collapse Results" : "Expand Results"}
                 >
@@ -242,7 +246,7 @@ export const ReservoirCalcProContent = () => {
     }, []);
 
     return (
-        <div className="flex flex-col h-full bg-slate-950 text-slate-100 overflow-hidden">
+        <div className="flex flex-col h-full bg-pl-bg text-pl-text overflow-hidden">
             <Header 
                 onOpenDocs={() => setIsDocsOpen(true)} 
                 onToggleLeft={() => setShowLeft(!showLeft)}
@@ -254,19 +258,19 @@ export const ReservoirCalcProContent = () => {
             <div className="flex-1 overflow-hidden flex p-2 gap-2">
                 {/* Left Panel: Inputs */}
                 <div
-                    className={`flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden flex flex-col rounded-lg border border-slate-800 bg-slate-900/30 backdrop-blur-sm ${showLeft ? 'w-80 opacity-100 ml-0' : 'w-0 opacity-0 -ml-2 border-0'}`}
+                    className={`flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden flex flex-col rounded-lg border border-pl-border bg-pl-surface ${showLeft ? 'w-80 opacity-100 ml-0' : 'w-0 opacity-0 -ml-2 border-0'}`}
                 >
                     <PanelErrorBoundary label="Inputs"><ExpertInputPanel /></PanelErrorBoundary>
                 </div>
 
                 {/* Center Panel: Visualization */}
-                <div className="flex-1 h-full overflow-hidden rounded-lg border border-slate-800 bg-black relative shadow-2xl flex flex-col">
+                <div className="flex-1 h-full overflow-hidden rounded-lg border border-pl-border bg-pl-surface relative shadow-pl-sm flex flex-col">
                     <PanelErrorBoundary label="Visualization"><ExpertVisPanel /></PanelErrorBoundary>
                 </div>
 
                 {/* Right Panel: Results & Analytics */}
                 <div
-                    className={`flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden flex flex-col rounded-lg border border-slate-800 bg-slate-900/30 backdrop-blur-sm ${showRight ? 'w-96 opacity-100 mr-0' : 'w-0 opacity-0 -mr-2 border-0'}`}
+                    className={`flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden flex flex-col rounded-lg border border-pl-border bg-pl-surface ${showRight ? 'w-96 opacity-100 mr-0' : 'w-0 opacity-0 -mr-2 border-0'}`}
                 >
                     <PanelErrorBoundary label="Results"><ExpertResultsPanel /></PanelErrorBoundary>
                 </div>
@@ -279,11 +283,13 @@ export const ReservoirCalcProContent = () => {
 
 const ReservoirCalcPro = () => {
     return (
-        <ReservoirCalcProvider>
-            <TooltipProvider>
-                <ReservoirCalcProContent />
-            </TooltipProvider>
-        </ReservoirCalcProvider>
+        <ThemedApp data-testid="rcp-theme-scope" className="h-full">
+            <ReservoirCalcProvider>
+                <TooltipProvider>
+                    <ReservoirCalcProContent />
+                </TooltipProvider>
+            </ReservoirCalcProvider>
+        </ThemedApp>
     );
 };
 

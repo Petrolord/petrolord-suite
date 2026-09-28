@@ -10,14 +10,15 @@ import { ReservoirCalcProvider } from './contexts/ReservoirCalcContext';
 import { ReservoirCalcProContent } from './ReservoirCalcPro';
 import { makeInMemoryRcpBackend } from './services/rcpBackend';
 import { DEV_APP_PATHS } from '@/components/wells/appLinks';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 export default function ReservoirCalcProHarness() {
   const backend = useMemo(() => makeInMemoryRcpBackend(), []);
   return (
-    <div className="h-screen w-screen bg-slate-950" data-testid="rcp-harness">
+    <ThemedApp className="h-screen w-screen" data-testid="rcp-harness">
       <ReservoirCalcProvider backend={backend} appPaths={DEV_APP_PATHS}>
         <ReservoirCalcProContent />
       </ReservoirCalcProvider>
-    </div>
+    </ThemedApp>
   );
 }

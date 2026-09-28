@@ -23,17 +23,17 @@ const DeterministicSummaryTable = () => {
     const showGas = ft === 'gas' || ft === 'oil_gas';
 
     return (
-        <div className="bg-white text-slate-900 rounded-lg overflow-hidden border border-slate-200 text-xs shadow-sm">
+        <div className="bg-pl-surface text-pl-text rounded-lg overflow-hidden border border-pl-border text-xs shadow-sm">
             {/* Header Information */}
-            <div className="bg-slate-50 p-2 border-b border-slate-200 grid grid-cols-2 gap-4 font-medium">
+            <div className="bg-pl-sunken p-2 border-b border-pl-border grid grid-cols-2 gap-4 font-medium">
                 <div>
-                    <div className="flex justify-between"><span className="text-slate-500">Project:</span> <span>{projectName}</span></div>
-                    <div className="flex justify-between"><span className="text-slate-500">Reservoir:</span> <span className="text-emerald-700 font-semibold">{reservoirName}</span></div>
-                    <div className="flex justify-between"><span className="text-slate-500">Date:</span> <span>{new Date().toLocaleString()}</span></div>
+                    <div className="flex justify-between"><span className="text-pl-muted">Project:</span> <span>{projectName}</span></div>
+                    <div className="flex justify-between"><span className="text-pl-muted">Reservoir:</span> <span className="text-pl-text font-semibold">{reservoirName}</span></div>
+                    <div className="flex justify-between"><span className="text-pl-muted">Date:</span> <span>{new Date().toLocaleString()}</span></div>
                 </div>
                 <div>
-                    <div className="flex justify-between"><span className="text-slate-500">Fluid System:</span> <span className="uppercase">{ft?.replace('_', '+')}</span></div>
-                    <div className="flex justify-between"><span className="text-slate-500">Unit System:</span> <span className="capitalize">{r.unitSystem || state.unitSystem}</span></div>
+                    <div className="flex justify-between"><span className="text-pl-muted">Fluid System:</span> <span className="uppercase">{ft?.replace('_', '+')}</span></div>
+                    <div className="flex justify-between"><span className="text-pl-muted">Unit System:</span> <span className="capitalize">{r.unitSystem || state.unitSystem}</span></div>
                 </div>
             </div>
 
@@ -41,8 +41,8 @@ const DeterministicSummaryTable = () => {
                 <Table className="w-full border-collapse">
                     <TableBody>
                         {/* Input Data Section */}
-                        <TableRow className="bg-slate-100 border-t-2 border-slate-300"><TableCell colSpan={8} className="font-bold py-1">Input data</TableCell></TableRow>
-                        <TableRow className="bg-slate-50 font-semibold text-slate-600">
+                        <TableRow className="bg-pl-sunken border-t-2 border-pl-border-strong"><TableCell colSpan={8} className="font-bold py-1">Input data</TableCell></TableRow>
+                        <TableRow className="bg-pl-sunken font-semibold text-pl-muted">
                             <TableCell className="py-1">Zone(s)</TableCell>
                             <TableCell className="py-1">Top Surface</TableCell>
                             <TableCell className="py-1">Base Surface</TableCell>
@@ -64,8 +64,8 @@ const DeterministicSummaryTable = () => {
                         </TableRow>
 
                         {/* Properties Section */}
-                        <TableRow className="bg-slate-100 border-t-2 border-slate-300"><TableCell colSpan={8} className="font-bold py-1">Fluid Properties</TableCell></TableRow>
-                        <TableRow className="bg-slate-50 font-semibold text-slate-600">
+                        <TableRow className="bg-pl-sunken border-t-2 border-pl-border-strong"><TableCell colSpan={8} className="font-bold py-1">Fluid Properties</TableCell></TableRow>
+                        <TableRow className="bg-pl-sunken font-semibold text-pl-muted">
                             <TableCell className="py-1">Type</TableCell>
                             <TableCell className="py-1">Sat. water</TableCell>
                             {showOil && <TableCell className="py-1">Bo [{isField ? 'RB/STB' : 'rm³/sm³'}]</TableCell>}
@@ -83,8 +83,8 @@ const DeterministicSummaryTable = () => {
                         </TableRow>
 
                         {/* Case Results */}
-                        <TableRow className="bg-slate-100 border-t-2 border-slate-300"><TableCell colSpan={8} className="font-bold py-1">Volumetrics</TableCell></TableRow>
-                        <TableRow className="bg-slate-50 font-semibold text-slate-600">
+                        <TableRow className="bg-pl-sunken border-t-2 border-pl-border-strong"><TableCell colSpan={8} className="font-bold py-1">Volumetrics</TableCell></TableRow>
+                        <TableRow className="bg-pl-sunken font-semibold text-pl-muted">
                             <TableCell className="py-1">Volume Type</TableCell>
                             <TableCell className="py-1">Gross Vol [{r.volUnit}]</TableCell>
                             <TableCell className="py-1">Net Vol [{r.volUnit}]</TableCell>
@@ -96,11 +96,11 @@ const DeterministicSummaryTable = () => {
                         {/* Oil Row */}
                         {showOil && (
                             <TableRow>
-                                <TableCell className="py-1 font-medium text-emerald-600">Oil Zone</TableCell>
+                                <TableCell className="py-1 font-medium">Oil Zone</TableCell>
                                 <TableCell className="py-1">{fmt(r.grvOil, 0)}</TableCell>
                                 <TableCell className="py-1">{fmt(r.grvOil * inputs.ntg, 0)}</TableCell>
                                 <TableCell className="py-1">{fmt(r.grvOil * inputs.ntg * inputs.porosity, 0)}</TableCell>
-                                <TableCell className="py-1 font-bold bg-emerald-50">{fmt(r.stooip, 0)}</TableCell>
+                                <TableCell className="py-1 font-bold bg-pl-sunken">{fmt(r.stooip, 0)}</TableCell>
                                 {showGas && <TableCell className="py-1">-</TableCell>}
                             </TableRow>
                         )}
@@ -108,18 +108,18 @@ const DeterministicSummaryTable = () => {
                         {/* Gas Row */}
                         {showGas && (
                             <TableRow>
-                                <TableCell className="py-1 font-medium text-amber-600">Gas Zone</TableCell>
+                                <TableCell className="py-1 font-medium">Gas Zone</TableCell>
                                 <TableCell className="py-1">{fmt(r.grvGas, 0)}</TableCell>
                                 <TableCell className="py-1">{fmt(r.grvGas * inputs.ntg, 0)}</TableCell>
                                 <TableCell className="py-1">{fmt(r.grvGas * inputs.ntg * inputs.porosity, 0)}</TableCell>
                                 {showOil && <TableCell className="py-1">-</TableCell>}
-                                <TableCell className="py-1 font-bold bg-amber-50">{fmt(r.giip / 1e9, 3)} B</TableCell>
+                                <TableCell className="py-1 font-bold bg-pl-sunken">{fmt(r.giip / 1e9, 3)} B</TableCell>
                             </TableRow>
                         )}
                         
                         {/* Total Row if Mixed */}
                         {(ft === 'oil_gas') && (
-                            <TableRow className="border-t-2 border-slate-300 font-bold bg-slate-50">
+                            <TableRow className="border-t-2 border-pl-border-strong font-bold bg-pl-sunken">
                                 <TableCell className="py-1">Total</TableCell>
                                 <TableCell className="py-1">{fmt(r.bulkVolume, 0)}</TableCell>
                                 <TableCell className="py-1">{fmt(r.netVolume, 0)}</TableCell>
@@ -133,14 +133,14 @@ const DeterministicSummaryTable = () => {
             </div>
 
             {/* Branded footer — Petrolord mark below the last row of the report */}
-            <div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-3 py-2.5">
-                <span className="text-[10px] text-slate-400">
+            <div className="flex items-center justify-between gap-3 border-t border-pl-border bg-pl-sunken px-3 py-2.5">
+                <span className="text-[10px] text-pl-muted">
                     Screening estimate — confirm against reservoir simulation before reserves booking.
                 </span>
                 <div className="flex items-center gap-1.5">
                     <img src="/petrolord-chart-watermark.png" alt="Petrolord" className="h-5 w-auto object-contain" />
-                    <span className="text-[11px] font-bold tracking-tight text-slate-500">
-                        Petrolord <span className="text-emerald-600">Suite</span> - ReservoirCalc Pro
+                    <span className="text-[11px] font-bold tracking-tight text-pl-muted">
+                        Petrolord <span className="text-pl-primary-text">Suite</span> - ReservoirCalc Pro
                     </span>
                 </div>
             </div>
