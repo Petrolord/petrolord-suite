@@ -219,7 +219,7 @@ function Home() {
   const stats = suiteStats();
 
 
-  const quote = () => navigate(user ? '/dashboard/get-quote' : '/signup');
+  const quote = () => navigate(user ? '/dashboard/upgrade' : '/signup');
   const openModule = (m) => navigate(user ? `/dashboard/${m.slug}` : '/signup');
   const closeMenu = () => setMenuOpen(false);
 

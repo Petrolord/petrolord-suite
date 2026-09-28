@@ -5,6 +5,42 @@ Current prices and rules as of the 2026-09 pricing review (owner-approved
 history of how module pricing came to have one source of truth follows in
 the 2026-08-30 sections below.
 
+## 2026-09-28: Get a quote goes to the working quote-and-pay flow
+
+Found in the 3F rollout. `src/pages/GetQuote.jsx` (the old configurator at
+`/dashboard/get-quote`) builds its module list from `appCategories` in
+`src/data/applications.js`, which is `[]`, so step 1 showed no modules and
+Next stayed disabled: a customer who clicked the homepage "Get an instant
+quote" could not get a quote. Confirmed on main 3c0f20ee9 by rendering the
+page with the real `applications.js`.
+
+- Fix: every entry point now lands on the upgrade page (QuoteBuilder at
+  `/dashboard/upgrade`), which reads the live catalogue and is priced by
+  `generate-quote`. Home CTA navigates there for signed-in visitors
+  (signed-out still goes to `/signup`). `/dashboard/get-quote` and the old
+  public `/get-quote` (the promo share-link target, which used to fall
+  through to `/`) are `src/pages/GetQuoteRedirect.jsx`, a `Navigate` that
+  keeps the query string and router state. The admin promo share link
+  builder (`pages/admin/PromoCodes.jsx`) now emits
+  `/dashboard/upgrade?promo=CODE`.
+- Not filled: `appCategories` stays empty on purpose, so there is no second
+  pricing path. QuoteBuilder, pricing, `generate-quote`, Paystack and
+  Stripe are unchanged; `quotePricingParity` and `modulePricing` pass.
+- Open: QuoteBuilder does not read `?promo=`, so a share link no longer
+  pre-applies its code; the customer types it in the promo box (the admin
+  help text says so). Reading `?promo=` in QuoteBuilder is a small follow-up.
+- `GetQuote.jsx` is now unreachable from the router. It is left in place
+  (its theme tests and the pricing guards still read it) for a later cleanup.
+- Same PR: App analytics (`/dashboard/analytics`) showed fixed placeholder
+  figures (124 users, 450 sessions). No real source exists
+  (`app_analytics_daily` has an org-admin read policy but no writer and 0
+  rows; `app_activity_log` has no writer in the repo and no org column), so
+  the page now shows "No usage data recorded yet" and no numbers. The
+  "Payment Confirmed" toast in QuoteDashboard dropped its green className
+  and follows the themed toaster.
+- Tests: `src/pages/__tests__/getQuoteRoute.test.jsx`, the analytics case
+  in `W3fAdminPages.theme.test.jsx`, `suiteCatalog.test.js` updated.
+
 ## 2026-09-28: quote and organisation admin pages on the design system (rollout 3F)
 
 Get quote (`/dashboard/get-quote`), Quote dashboard (`/dashboard/quote/:quoteId`),
