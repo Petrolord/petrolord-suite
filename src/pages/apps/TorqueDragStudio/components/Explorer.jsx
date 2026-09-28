@@ -6,7 +6,6 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2, MapPin, CircleDot, FlaskConical } from 'lucide-react';
 import WellboreDetails from './WellboreDetails';
-import { useThemeClass } from '@/design/themeClass';
 
 export default function Explorer({
   sites, selectedSiteId, onSelectSite,
@@ -14,14 +13,14 @@ export default function Explorer({
   cases, selectedCaseId, onSelectCase, onNewCase, onDeleteCase,
   trajectory, caseLabel = 'T&D cases', testPrefix = 'td',
 }) {
-  // Design system (rollout W0B): theme roles inside an opted-in app; outside
-  // a <ThemedApp> scope tc() returns the legacy strings unchanged.
-  const tc = useThemeClass();
-  const heading = tc('text-slate-500', 'text-pl-muted');
-  const row = tc('hover:bg-slate-800', 'hover:bg-pl-sunken');
-  const selected = tc('bg-slate-800 text-lime-300', 'bg-pl-primary/10 font-medium text-pl-primary-text');
+  // Design system: theme roles only. Every studio that mounts the explorer
+  // wraps itself in <ThemedApp> since rollout batch 3E, so the legacy
+  // branch from W0B is gone.
+  const heading = 'text-pl-muted';
+  const row = 'hover:bg-pl-sunken';
+  const selected = 'bg-pl-primary/10 font-medium text-pl-primary-text';
   return (
-    <div className={tc('flex h-full min-h-0 flex-col overflow-y-auto bg-slate-900/40 p-2 text-xs text-slate-300', 'flex h-full min-h-0 flex-col overflow-y-auto bg-pl-surface p-2 text-xs text-pl-text')}>
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-pl-surface p-2 text-xs text-pl-text">
       <div className={`mb-1 text-[10px] font-semibold uppercase tracking-wide ${heading}`}>Sites</div>
       {(sites || []).map((s) => (
         <button key={s.id} type="button" onClick={() => onSelectSite(s.id)}
@@ -51,7 +50,7 @@ export default function Explorer({
         <>
           <div className="mb-1 mt-3 flex items-center justify-between">
             <span className={`text-[10px] font-semibold uppercase tracking-wide ${heading}`}>{caseLabel}</span>
-            <Button size="icon" variant="ghost" className={tc('h-5 w-5 text-slate-400 hover:text-lime-300', 'h-5 w-5 text-pl-muted hover:text-pl-primary-text')} onClick={onNewCase} data-testid={`${testPrefix}-new-case`}>
+            <Button size="icon" variant="ghost" className="h-5 w-5 text-pl-muted hover:text-pl-primary-text" onClick={onNewCase} data-testid={`${testPrefix}-new-case`}>
               <Plus className="h-3 w-3" />
             </Button>
           </div>
@@ -61,7 +60,7 @@ export default function Explorer({
                 <FlaskConical className="h-3 w-3 shrink-0" />
                 <span className="truncate">{c.name}</span>
               </button>
-              <Button size="icon" variant="ghost" className={tc('h-5 w-5 text-slate-600 opacity-0 hover:text-red-400 group-hover:opacity-100', 'h-5 w-5 text-pl-muted opacity-0 hover:text-pl-danger-text focus-visible:opacity-100 group-hover:opacity-100')} onClick={() => onDeleteCase(c.id)}>
+              <Button size="icon" variant="ghost" className="h-5 w-5 text-pl-muted opacity-0 hover:text-pl-danger-text focus-visible:opacity-100 group-hover:opacity-100" onClick={() => onDeleteCase(c.id)}>
                 <Trash2 className="h-3 w-3" />
               </Button>
             </div>
