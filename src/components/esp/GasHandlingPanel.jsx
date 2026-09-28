@@ -61,7 +61,7 @@ const GasHandlingPanel = () => {
       <CardContent className="space-y-3">
         <div className={`rounded-md border p-2 ${verdict.className}`}>
           <p className="text-sm font-semibold">
-            {fmt(gas.gvfThroughPump * 100, 1)} percent gas by volume through the pump &mdash;{' '}
+            {fmt(gas.gvfThroughPump * 100, 1)} percent gas by volume through the pump:{' '}
             {verdict.label}
           </p>
           <p className="text-[11px] opacity-80 mt-0.5">{verdict.note}</p>
