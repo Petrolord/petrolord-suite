@@ -8,10 +8,10 @@ const fmt = (v, dp = 2) => (Number.isFinite(v)
   : 'not supplied');
 
 const Stat = ({ label, value, hint }) => (
-  <div className="rounded border border-slate-800 bg-slate-900/60 p-3">
-    <p className="text-[10px] uppercase tracking-wide text-slate-500">{label}</p>
-    <p className="text-lg font-semibold text-white">{value}</p>
-    {hint && <p className="text-[11px] text-slate-500 mt-0.5">{hint}</p>}
+  <div className="rounded border border-pl-border bg-pl-surface p-3">
+    <p className="text-[10px] uppercase tracking-wide text-pl-muted">{label}</p>
+    <p className="text-lg font-semibold text-pl-text">{value}</p>
+    {hint && <p className="text-[11px] text-pl-muted mt-0.5">{hint}</p>}
   </div>
 );
 
@@ -23,20 +23,20 @@ const UtilitiesResults = () => {
   return (
     <div className="space-y-5">
       <div>
-        <h3 className="text-sm font-semibold text-white mb-1">Failed steam traps</h3>
+        <h3 className="text-sm font-semibold text-pl-text mb-1">Failed steam traps</h3>
         {trap.error ? (
-          <div className="rounded-lg border border-amber-800/60 bg-amber-950/30 p-4 flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
-            <p className="text-sm text-amber-100">{trap.error}</p>
+          <div className="rounded-lg border border-pl-warning/40 bg-pl-warning-bg p-4 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-pl-warning-text mt-0.5 shrink-0" />
+            <p className="text-sm text-pl-warning-text">{trap.error}</p>
           </div>
         ) : (
           <>
-            <p className={`text-[11px] mb-2 ${trap.choked ? 'text-slate-500' : 'text-amber-300'}`}>
+            <p className={`text-[11px] mb-2 ${trap.choked ? 'text-pl-muted' : 'text-pl-warning-text'}`}>
               {`${trap.choked ? 'Choked' : 'Not choked'}: discharging at ${fmt(trap.downstreamPressureBarA, 3)} bar a, a pressure ratio of ${fmt(trap.pressureRatio, 4)} against the critical ${fmt(trap.criticalPressureRatio, 4)}. `}
               {trap.chokedNote}
             </p>
-            {trapPopulation.error && <p className="text-sm text-amber-300 mb-2">{trapPopulation.error}</p>}
-            {trap.fuelNote && <p className="text-[11px] text-amber-300 mb-2">{trap.fuelNote}</p>}
+            {trapPopulation.error && <p className="text-sm text-pl-warning-text mb-2">{trapPopulation.error}</p>}
+            {trap.fuelNote && <p className="text-[11px] text-pl-warning-text mb-2">{trap.fuelNote}</p>}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Stat label="Per trap" value={`${fmt(trap.kgPerHour, 1)} kg/h`} hint={`${fmt(trap.tonnesPerYear, 0)} t a year`} />
               <Stat label={trapPopulation.error ? 'All traps' : `All ${trapPopulation.count} traps`} value={`${fmt(trapPopulation.tonnesPerYear, 0)} t/yr`} />
@@ -50,8 +50,8 @@ const UtilitiesResults = () => {
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-white mb-1">Condensate return</h3>
-        {condensate.error ? <p className="text-sm text-amber-300">{condensate.error}</p> : (
+        <h3 className="text-sm font-semibold text-pl-text mb-1">Condensate return</h3>
+        {condensate.error ? <p className="text-sm text-pl-warning-text">{condensate.error}</p> : (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Stat label="Extra condensate" value={`${fmt(condensate.extraCondensateTonnesPerYear, 0)} t/yr`} />
@@ -60,29 +60,29 @@ const UtilitiesResults = () => {
               <Stat label="Carbon"
                 value={condensate.annualTonnesCo2e === null ? 'absent' : `${fmt(condensate.annualTonnesCo2e, 0)} tCO2e/yr`} />
             </div>
-            <div className="overflow-x-auto rounded border border-slate-800 mt-3">
+            <div className="overflow-x-auto rounded border border-pl-border mt-3">
               <table className="w-full text-xs">
-                <thead className="bg-slate-900/80 text-slate-400">
+                <thead className="bg-pl-surface text-pl-muted">
                   <tr><th className="text-left px-2 py-1.5">Component of the value</th><th className="text-right px-2 py-1.5">Per year</th></tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800">
+                <tbody className="divide-y divide-pl-border">
                   {condensate.components.map((c) => (
-                    <tr key={c.label} className={c.amount === null ? 'bg-amber-950/20' : ''}>
-                      <td className="px-2 py-1 text-slate-200">{c.label}</td>
-                      <td className="px-2 py-1 text-right text-slate-200">{c.amount === null ? 'not priced' : fmt(c.amount, 0)}</td>
+                    <tr key={c.label} className={c.amount === null ? 'bg-pl-warning-bg' : ''}>
+                      <td className="px-2 py-1 text-pl-text">{c.label}</td>
+                      <td className="px-2 py-1 text-right text-pl-text">{c.amount === null ? 'not priced' : fmt(c.amount, 0)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            {condensate.valueNote && <p className="text-[11px] text-amber-300 mt-2">{condensate.valueNote}</p>}
+            {condensate.valueNote && <p className="text-[11px] text-pl-warning-text mt-2">{condensate.valueNote}</p>}
           </>
         )}
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-white mb-1">Energy intensity</h3>
-        {intensity.error ? <p className="text-sm text-amber-300">{intensity.error}</p> : (
+        <h3 className="text-sm font-semibold text-pl-text mb-1">Energy intensity</h3>
+        {intensity.error ? <p className="text-sm text-pl-warning-text">{intensity.error}</p> : (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Stat label="Total energy" value={`${fmt(intensity.totalEnergyGJ, 0)} GJ/yr`} />
@@ -92,10 +92,10 @@ const UtilitiesResults = () => {
               <Stat label="Gap"
                 value={intensity.gapMJPerTonne === null ? '-' : `${fmt(intensity.gapMJPerTonne, 1)} MJ/t`} />
             </div>
-            {intensity.peerNote && <p className="text-[11px] text-amber-300 mt-2">{intensity.peerNote}</p>}
-            <p className="text-[11px] text-amber-200/90 mt-2">{intensity.disclaimer}</p>
+            {intensity.peerNote && <p className="text-[11px] text-pl-warning-text mt-2">{intensity.peerNote}</p>}
+            <p className="text-[11px] text-pl-warning-text mt-2">{intensity.disclaimer}</p>
             {!intensity.complete && (
-              <p className="text-[11px] text-amber-300 mt-1">
+              <p className="text-[11px] text-pl-warning-text mt-1">
                 {`Not counted: ${intensity.missingStreams.join(', ')}.`}
               </p>
             )}
@@ -104,17 +104,17 @@ const UtilitiesResults = () => {
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-white mb-1">The savings register</h3>
-        <p className="text-[11px] text-slate-500 mb-2">
+        <h3 className="text-sm font-semibold text-pl-text mb-1">The savings register</h3>
+        <p className="text-[11px] text-pl-muted mb-2">
           Money and carbon from the same energy, in the same run, so the two cannot disagree. The
           abatement cost per tonne is handed on for the Carbon Studio to rank rather than ranked
           here. Every row is valued as fuel at the ledger price, so a trap repair here is the steam's
           boiler fuel (steam energy over boiler efficiency) and can differ from the trap card's cost,
           which prices the steam at your steam cost per tonne.
         </p>
-        <div className="overflow-x-auto rounded border border-slate-800">
+        <div className="overflow-x-auto rounded border border-pl-border">
           <table className="w-full text-xs">
-            <thead className="bg-slate-900/80 text-slate-400">
+            <thead className="bg-pl-surface text-pl-muted">
               <tr>
                 <th className="text-left px-2 py-1.5">Measure</th>
                 <th className="text-right px-2 py-1.5">GJ/yr</th>
@@ -122,32 +122,32 @@ const UtilitiesResults = () => {
                 <th className="text-right px-2 py-1.5">tCO2e/yr</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-pl-border">
               {register.length === 0 && (
-                <tr><td colSpan={4} className="px-2 py-2 text-slate-500">
+                <tr><td colSpan={4} className="px-2 py-2 text-pl-muted">
                   No measure is fully specified yet. Supply the inputs each one names.
                 </td></tr>
               )}
               {register.map((r) => (
                 <tr key={r.id}>
-                  <td className="px-2 py-1 text-slate-200">
+                  <td className="px-2 py-1 text-pl-text">
                     {r.label}
-                    {r.error && <span className="block text-[11px] text-amber-300">{r.error}</span>}
+                    {r.error && <span className="block text-[11px] text-pl-warning-text">{r.error}</span>}
                   </td>
-                  <td className="px-2 py-1 text-right text-slate-300">{fmt(r.energySavedGJ, 0)}</td>
-                  <td className="px-2 py-1 text-right text-white">{r.annualValue === null ? 'not priced' : fmt(r.annualValue, 0)}</td>
-                  <td className="px-2 py-1 text-right text-emerald-300">{r.annualTonnesCo2e === null ? 'absent' : fmt(r.annualTonnesCo2e, 1)}</td>
+                  <td className="px-2 py-1 text-right text-pl-text">{fmt(r.energySavedGJ, 0)}</td>
+                  <td className="px-2 py-1 text-right text-pl-text">{r.annualValue === null ? 'not priced' : fmt(r.annualValue, 0)}</td>
+                  <td className="px-2 py-1 text-right">{r.annualTonnesCo2e === null ? 'absent' : fmt(r.annualTonnesCo2e, 1)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
         {register.some((r) => r.basisNote) && (
-          <p className="text-[11px] text-slate-400 mt-2">{register.find((r) => r.basisNote).basisNote}</p>
+          <p className="text-[11px] text-pl-muted mt-2">{register.find((r) => r.basisNote).basisNote}</p>
         )}
         {register.some((r) => r.carbonNote) && (
-          <p className="text-[11px] text-slate-400 mt-2 flex items-start gap-1.5">
-            <Leaf className="w-3.5 h-3.5 text-emerald-400 mt-0.5 shrink-0" />
+          <p className="text-[11px] text-pl-muted mt-2 flex items-start gap-1.5">
+            <Leaf className="w-3.5 h-3.5 text-pl-muted mt-0.5 shrink-0" />
             {register.find((r) => r.carbonNote).carbonNote}
           </p>
         )}
