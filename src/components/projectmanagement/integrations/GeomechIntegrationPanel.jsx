@@ -57,7 +57,7 @@ const GeomechIntegrationPanel = ({ project, onRefresh }) => {
                         Add geomechanics planning items to this project. There is no live link to the app yet, so nothing is read from it.
                     </CardDescription>
                 </div>
-                <Badge variant="neutral">
+                <Badge variant="neutral" className="shrink-0 whitespace-nowrap">
                     Planning aid
                 </Badge>
             </div>

@@ -31,7 +31,7 @@ const FieldDevelopmentProjectDashboard = ({ projectData, onDataChange }) => {
             <Card className="p-4 flex items-center justify-between">
                 <div>
                     <p className="text-[10px] text-pl-muted uppercase font-bold">Project</p>
-                    <p className="text-lg font-pl-mono text-pl-text truncate max-w-[150px]" title={projectData.name}>{projectData.name}</p>
+                    <p className="text-lg font-semibold text-pl-text truncate max-w-[150px]" title={projectData.name}>{projectData.name}</p>
                 </div>
                 <Factory className="w-6 h-6 text-pl-muted" aria-hidden="true" />
             </Card>
@@ -41,7 +41,7 @@ const FieldDevelopmentProjectDashboard = ({ projectData, onDataChange }) => {
                         Fixed Platform. The studio holds no concept for a PM
                         project, so it shows the asset it does hold. */}
                     <p className="text-[10px] text-pl-muted uppercase font-bold">Asset</p>
-                    <p className="text-lg font-pl-mono text-pl-text truncate max-w-[150px]">{projectData.asset || 'Unassigned'}</p>
+                    <p className="text-lg font-semibold text-pl-text truncate max-w-[150px]">{projectData.asset || 'Unassigned'}</p>
                 </div>
                 <Flag className="w-6 h-6 text-pl-muted" aria-hidden="true" />
             </Card>

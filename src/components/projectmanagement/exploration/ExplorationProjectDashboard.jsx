@@ -39,7 +39,7 @@ const ExplorationProjectDashboard = ({ projectData, onDataChange }) => {
             <Card className="p-4 flex items-center justify-between">
                 <div>
                     <p className="text-[10px] text-pl-muted uppercase font-bold">Asset / Block</p>
-                    <p className="text-lg font-pl-mono text-pl-text">{projectData.asset || 'Unassigned'}</p>
+                    <p className="text-lg font-semibold text-pl-text">{projectData.asset || 'Unassigned'}</p>
                 </div>
                 <Flag className="w-6 h-6 text-pl-muted" aria-hidden="true" />
             </Card>
@@ -71,7 +71,7 @@ const ExplorationProjectDashboard = ({ projectData, onDataChange }) => {
 
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <div className="flex justify-between items-center border-b border-pl-border pb-2">
+        <div className="flex justify-between items-center gap-2 border-b border-pl-border pb-2 overflow-x-auto">
             <TabsList>
                 <TabsTrigger value="overview"><BarChart3 className="w-4 h-4 mr-2"/> Overview</TabsTrigger>
                 <TabsTrigger value="schedule"><Layers className="w-4 h-4 mr-2"/> Schedule</TabsTrigger>
