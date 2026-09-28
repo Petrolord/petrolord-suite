@@ -77,12 +77,12 @@ export default function BackupPanel() {
   };
 
   return (
-    <Card className="bg-slate-900 border-slate-800" data-testid="pld-backup-panel">
+    <Card data-testid="pld-backup-panel">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lg">
-          <Archive className="w-5 h-5 text-cyan-400" /> Back up as a Petrolord Project Package
+          <Archive className="w-5 h-5 text-pl-primary-text" aria-hidden="true" /> Back up as a Petrolord Project Package
         </CardTitle>
-        <CardDescription className="text-slate-400">
+        <CardDescription>
           A .pld package of everything you can read, restorable into any Petrolord account with
           Restore from a package. It does not replace the organization data export above, which is
           the legal offboarding record.
@@ -94,7 +94,6 @@ export default function BackupPanel() {
             data-testid="pld-backup-mine"
             disabled={!!busy}
             onClick={() => run('mine')}
-            className="bg-cyan-600 hover:bg-cyan-500 text-white"
           >
             {busy === 'mine' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Back up my work
@@ -105,47 +104,46 @@ export default function BackupPanel() {
             disabled={!!busy || !hasOrg}
             title={hasOrg ? 'Everything shared with your organization, plus your own work' : 'You are not a member of an organization'}
             onClick={() => run('org')}
-            className="border-slate-700 text-slate-200 hover:bg-slate-800"
           >
             {busy === 'org' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Back up what my organization shares
           </Button>
         </div>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-pl-muted">
           Members&apos; private items are not included; each member backs up their own work.
           {!hasOrg ? ' The organization backup needs an organization membership.' : ''}
         </p>
 
         {busy && progress ? (
-          <div className="text-xs text-cyan-300" data-testid="pld-backup-progress">{progress}</div>
+          <div className="text-xs text-pl-info-text" data-testid="pld-backup-progress">{progress}</div>
         ) : null}
 
         {error ? (
-          <div className="rounded border border-red-800 bg-red-950/40 px-3 py-2 text-xs text-red-300" data-testid="pld-backup-error">
+          <div className="rounded border border-pl-danger/40 bg-pl-danger-bg px-3 py-2 text-xs text-pl-danger-text" data-testid="pld-backup-error">
             {error.message}
           </div>
         ) : null}
 
         {summary ? (
-          <div className="rounded border border-slate-700 bg-slate-950/40 px-3 py-2 text-xs space-y-1.5" data-testid="pld-backup-summary">
-            <div className="text-slate-200 font-medium">{summary.name}</div>
-            <div className="text-slate-400">
+          <div className="rounded border border-pl-border bg-pl-sunken px-3 py-2 text-xs space-y-1.5" data-testid="pld-backup-summary">
+            <div className="text-pl-text font-medium">{summary.name}</div>
+            <div className="text-pl-muted">
               {summary.roots} item{summary.roots === 1 ? '' : 's'} backed up, {summary.blobs} binary file{summary.blobs === 1 ? '' : 's'}.
               {' '}
               {summary.parts > 1
                 ? `Saved as ${summary.parts} part files, keep them together: ${summary.files.join(', ')}.`
                 : `Saved as ${summary.files[0] || 'one file'}.`}
             </div>
-            <ul className="text-slate-400 grid grid-cols-2 gap-x-3">
+            <ul className="text-pl-text grid grid-cols-1 sm:grid-cols-2 gap-x-3">
               {summary.tables.map(([t, n]) => (
-                <li key={t}><span className="text-slate-500">{t}</span> {n}</li>
+                <li key={t}><span className="text-pl-muted">{t}</span> {n}</li>
               ))}
             </ul>
             <SigningSummary result={summary.signing} />
             {summary.notes.length ? (
               <div>
-                <div className="text-slate-300">Notes</div>
-                <ul className="list-disc pl-4 text-slate-400">
+                <div className="text-pl-text">Notes</div>
+                <ul className="list-disc pl-4 text-pl-muted">
                   {summary.notes.map((n, i) => <li key={i}>{n}</li>)}
                 </ul>
               </div>

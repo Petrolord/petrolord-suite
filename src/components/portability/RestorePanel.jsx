@@ -10,22 +10,22 @@ export default function RestorePanel() {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState('');
   return (
-    <Card className="bg-slate-900 border-slate-800" data-testid="pld-restore-panel">
+    <Card data-testid="pld-restore-panel">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lg">
-          <PackageOpen className="w-5 h-5 text-cyan-400" /> Restore from a package
+          <PackageOpen className="w-5 h-5 text-pl-primary-text" aria-hidden="true" /> Restore from a package
         </CardTitle>
-        <CardDescription className="text-slate-400">
+        <CardDescription>
           A restore creates new copies under your account, private unless you choose to share
           them with your organization. Nothing you already have is changed. Multi-part backups
           need all their part files chosen together.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">
-        <Button data-testid="pld-restore-open" onClick={() => setOpen(true)} className="bg-cyan-600 hover:bg-cyan-500 text-white">
+        <Button data-testid="pld-restore-open" onClick={() => setOpen(true)}>
           Restore from a package
         </Button>
-        {status ? <div className="text-xs text-slate-400" data-testid="pld-restore-status">{status}</div> : null}
+        {status ? <div className="text-xs text-pl-muted" data-testid="pld-restore-status">{status}</div> : null}
         <PackageImportDialog
           open={open}
           onOpenChange={setOpen}
