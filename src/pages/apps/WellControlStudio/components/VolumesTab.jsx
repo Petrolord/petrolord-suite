@@ -14,11 +14,11 @@ const num = (v) => {
   const x = parseFloat(v);
   return Number.isFinite(x) ? x : 0;
 };
-const cell = 'h-8 bg-slate-950 border-slate-700 text-xs text-slate-200';
+const cell = 'h-8 text-xs';
 
 function Param({ label, value, onChange, testId, width = 'w-28' }) {
   return (
-    <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-slate-500">
+    <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-pl-muted">
       {label}
       <Input type="number" step="any" className={`${cell} ${width} text-right`} value={value}
         onChange={(e) => onChange(num(e.target.value))} data-testid={testId} />
@@ -37,9 +37,9 @@ export default function VolumesTab({
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3">
-      <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+      <div className="rounded-lg border border-pl-border bg-pl-surface p-3">
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-300">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-pl-text">
             Drillstring ({(caseDraft.string || []).length} components)
           </h3>
           {tdCases?.length > 0 && (
@@ -51,15 +51,15 @@ export default function VolumesTab({
             </Select>
           )}
         </div>
-        <div className="text-xs text-slate-400">
+        <div className="text-xs text-pl-muted">
           {(caseDraft.string || []).map((c, i) => (
             <span key={i} className="mr-3">{c.label || c.type} ({c.lengthM.toFixed(0)} m)</span>
           ))}
         </div>
       </div>
 
-      <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-300">Pump, shoe & mud</h3>
+      <div className="rounded-lg border border-pl-border bg-pl-surface p-3">
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-pl-text">Pump, shoe & mud</h3>
         <div className="flex flex-wrap items-end gap-3">
           <Param label="Pump output (L/stk)" testId="wc-pump-output"
             value={+((pump.outputM3PerStroke || 0) * 1000).toFixed(2)}
@@ -83,13 +83,13 @@ export default function VolumesTab({
           <Param label={ft ? 'Mud (ppg)' : 'Mud (kg/m3)'} testId="wc-mud"
             value={ft ? +(((caseDraft.mud?.densityKgM3 || 0)) / 119.826).toFixed(2) : (caseDraft.mud?.densityKgM3 || 0)}
             onChange={(v) => onCaseChange({ mud: { densityKgM3: ft ? v * 119.826 : v } })} />
-          <Button size="sm" className="h-8 bg-lime-500 text-slate-900 hover:bg-lime-600" onClick={onCompute} disabled={running} data-testid="wc-compute-volumes">
+          <Button size="sm" className="h-8" onClick={onCompute} disabled={running} data-testid="wc-compute-volumes">
             <Calculator className="mr-1 h-3.5 w-3.5" /> Compute volumes
           </Button>
-          {error && <span className="text-xs text-red-400">{error}</span>}
+          {error && <span className="text-xs text-pl-danger-text">{error}</span>}
         </div>
         {shoeFracHint != null && (
-          <div className="mt-2 text-[10px] text-cyan-300">
+          <div className="mt-2 text-[10px] text-pl-info-text">
             Published fracture EMW near the shoe: {emwOut(shoeFracHint, depthUnit).toFixed(2)} {emwLabel(depthUnit)} (from the pore pressure prognosis; your entered value is used).
           </div>
         )}
@@ -105,16 +105,16 @@ export default function VolumesTab({
               ['Shoe TVD', `${depthOut(volumes.tvdShoeM, depthUnit).toFixed(0)} ${depthLabel(depthUnit)}`, 'wc-tvd-shoe'],
               ['Full cycle strokes', volumes.strokes ? volumes.strokes.fullCycle.toFixed(0) : '--', 'wc-strokes'],
             ].map(([label, value, tid]) => (
-              <div key={label} className="rounded-md border border-slate-800 bg-slate-900/60 px-3 py-2">
-                <div className="text-[9px] uppercase text-slate-500">{label}</div>
-                <div className="text-sm font-semibold text-slate-100" data-testid={tid}>{value}</div>
+              <div key={label} className="rounded-md border border-pl-border bg-pl-surface px-3 py-2">
+                <div className="text-[9px] uppercase text-pl-muted">{label}</div>
+                <div className="font-pl-mono text-sm font-semibold tabular-nums text-pl-text" data-testid={tid}>{value}</div>
               </div>
             ))}
           </div>
-          <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
-            <table className="w-full text-xs text-slate-300" data-testid="wc-cap-table">
+          <div className="rounded-lg border border-pl-border bg-pl-surface p-3">
+            <table className="w-full text-xs text-pl-text" data-testid="wc-cap-table">
               <thead>
-                <tr className="text-[10px] uppercase text-slate-500">
+                <tr className="text-[10px] uppercase text-pl-muted">
                   <th className="p-1 text-right">From ({depthLabel(depthUnit)})</th>
                   <th className="p-1 text-right">To ({depthLabel(depthUnit)})</th>
                   <th className="p-1 text-right">Annulus cap (L/m)</th>
@@ -123,7 +123,7 @@ export default function VolumesTab({
               </thead>
               <tbody>
                 {volumes.annulusRows.map((r, i) => (
-                  <tr key={i} className="border-t border-slate-800">
+                  <tr key={i} className="border-t border-pl-border">
                     <td className="p-1 text-right">{depthOut(r.fromMd, depthUnit).toFixed(0)}</td>
                     <td className="p-1 text-right">{depthOut(r.toMd, depthUnit).toFixed(0)}</td>
                     <td className="p-1 text-right">{(r.capM2 * 1000).toFixed(1)}</td>

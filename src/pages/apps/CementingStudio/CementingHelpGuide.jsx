@@ -6,6 +6,8 @@ import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
+import { ThemedApp } from '@/design/ThemeProvider';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import {
   ArrowLeft, BookOpen, Zap, Layers, Waves, AlignVerticalSpaceAround,
   ClipboardCheck, BadgeCheck, AlertTriangle, BookMarked,
@@ -24,22 +26,22 @@ const sections = [
 ];
 
 const SectionHeading = ({ icon: Icon, children }) => (
-  <h2 className="flex items-center gap-3 text-3xl font-bold text-white mb-4 mt-0 pt-2">
-    <Icon className="w-7 h-7 text-cyan-300" /> {children}
+  <h2 className="flex items-center gap-3 text-2xl sm:text-3xl font-bold text-pl-text mb-4 mt-0 pt-2">
+    <Icon className="w-7 h-7 shrink-0 text-pl-primary-text" /> {children}
   </h2>
 );
 const SubHeading = ({ children }) => (
-  <h3 className="text-xl font-semibold text-lime-200 mt-6 mb-2">{children}</h3>
+  <h3 className="text-xl font-semibold text-pl-text mt-6 mb-2">{children}</h3>
 );
 const Para = ({ children }) => (
-  <p className="text-slate-200 leading-relaxed mb-3">{children}</p>
+  <p className="text-pl-text leading-relaxed mb-3">{children}</p>
 );
 const Callout = ({ tone = 'info', title, children }) => {
   const tones = {
-    info: 'bg-cyan-900/30 border-cyan-500/40 text-cyan-100',
-    warn: 'bg-amber-900/30 border-amber-500/40 text-amber-100',
-    danger: 'bg-red-900/30 border-red-500/40 text-red-100',
-    success: 'bg-green-900/30 border-green-500/40 text-green-100',
+    info: 'bg-pl-info-bg border-pl-info text-pl-info-text',
+    warn: 'bg-pl-warning-bg border-pl-warning text-pl-warning-text',
+    danger: 'bg-pl-danger-bg border-pl-danger text-pl-danger-text',
+    success: 'bg-pl-success-bg border-pl-success text-pl-success-text',
   };
   return (
     <div className={`border-l-4 rounded p-4 my-4 ${tones[tone]}`}>
@@ -50,25 +52,25 @@ const Callout = ({ tone = 'info', title, children }) => {
 };
 const Step = ({ n, title, children }) => (
   <div className="flex gap-3 mb-4">
-    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-cyan-500 flex items-center justify-center text-white font-bold text-sm">
+    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-pl-primary flex items-center justify-center text-pl-primary-fg font-bold text-sm">
       {n}
     </div>
     <div className="flex-1">
-      <div className="font-semibold text-white mb-1">{title}</div>
-      <div className="text-slate-200 text-sm leading-relaxed">{children}</div>
+      <div className="font-semibold text-pl-text mb-1">{title}</div>
+      <div className="text-pl-text text-sm leading-relaxed">{children}</div>
     </div>
   </div>
 );
 const Table = ({ headers, rows }) => (
   <div className="my-3 overflow-x-auto">
-    <table className="min-w-full text-sm border border-white/10">
-      <thead className="bg-slate-800/60">
-        <tr>{headers.map((h) => <th key={h} className="px-3 py-2 text-left text-cyan-200 font-semibold border-b border-white/10">{h}</th>)}</tr>
+    <table className="min-w-full text-sm border border-pl-border">
+      <thead className="bg-pl-sunken">
+        <tr>{headers.map((h) => <th key={h} className="px-3 py-2 text-left text-pl-text font-semibold border-b border-pl-border">{h}</th>)}</tr>
       </thead>
       <tbody>
         {rows.map((r, i) => (
-          <tr key={i} className={i % 2 ? 'bg-slate-800/20' : ''}>
-            {r.map((c, j) => <td key={j} className="px-3 py-2 text-slate-200 border-b border-white/5 align-top">{c}</td>)}
+          <tr key={i} className={i % 2 ? 'bg-pl-sunken/50' : ''}>
+            {r.map((c, j) => <td key={j} className="px-3 py-2 text-pl-text border-b border-pl-border align-top">{c}</td>)}
           </tr>
         ))}
       </tbody>
@@ -76,12 +78,12 @@ const Table = ({ headers, rows }) => (
   </div>
 );
 const Section = ({ id, children }) => (
-  <section id={`section-${id}`} className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-6 mb-6 scroll-mt-6">
+  <section id={`section-${id}`} className="bg-pl-surface border border-pl-border shadow-pl-sm rounded-xl p-4 sm:p-6 mb-6 scroll-mt-6">
     {children}
   </section>
 );
 
-const CementingHelpGuide = () => {
+const CementingHelpGuideContent = () => {
   const [activeSection, setActiveSection] = useState('overview');
   const scrollTo = (id) => {
     setActiveSection(id);
@@ -95,36 +97,37 @@ const CementingHelpGuide = () => {
         <title>Cementing Studio Help Guide - Petrolord Suite</title>
         <meta name="description" content="Guide to Cementing Studio: job volumes, placement simulation, ECD, centralization." />
       </Helmet>
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mb-6">
-          <div className="mb-4">
+          <div className="mb-4 flex items-center justify-between gap-2">
             <Link to="/dashboard/apps/drilling/cementing-studio">
-              <Button variant="outline" className="text-white border-white/20 hover:bg-white/10">
+              <Button variant="outline">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back to Cementing Studio
               </Button>
             </Link>
+            <ThemeToggle />
           </div>
           <div className="flex items-center space-x-4">
-            <div className="bg-gradient-to-r from-lime-600 to-cyan-600 p-3 rounded-xl">
-              <Layers className="w-8 h-8 text-white" />
+            <div className="bg-pl-primary p-3 rounded-xl shrink-0">
+              <Layers className="w-8 h-8 text-pl-primary-fg" />
             </div>
             <div>
-              <h1 className="text-4xl font-bold text-white">Cementing Studio Help Guide</h1>
-              <p className="text-lime-200 text-lg">Right volumes, safe placement, centralized pipe</p>
+              <h1 className="text-2xl sm:text-4xl font-bold text-pl-text">Cementing Studio Help Guide</h1>
+              <p className="text-pl-muted text-lg">Right volumes, safe placement, centralized pipe</p>
             </div>
           </div>
         </motion.div>
 
         <div className="grid grid-cols-12 gap-6">
           <aside className="col-span-12 lg:col-span-3">
-            <div className="sticky top-6 bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-4">
-              <div className="text-xs uppercase tracking-wider text-lime-300/70 mb-2 px-2">Contents</div>
+            <div className="sticky top-6 bg-pl-surface border border-pl-border shadow-pl-sm rounded-xl p-4">
+              <div className="text-xs uppercase tracking-wider text-pl-accent-text mb-2 px-2">Contents</div>
               <nav className="space-y-1">
                 {sections.map((s) => {
                   const Icon = s.icon;
                   return (
                     <button key={s.id} type="button" onClick={() => scrollTo(s.id)}
-                      className={`w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm ${activeSection === s.id ? 'bg-lime-500/20 text-lime-200' : 'text-slate-300 hover:bg-white/10'}`}>
+                      className={`w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm ${activeSection === s.id ? 'bg-pl-primary/10 text-pl-primary-text' : 'text-pl-text hover:bg-pl-sunken'}`}>
                       <Icon className="h-4 w-4 shrink-0" /> {s.title}
                     </button>
                   );
@@ -279,5 +282,13 @@ const CementingHelpGuide = () => {
     </>
   );
 };
+
+// Design system rollout batch 3D: the guide follows the same per-user theme
+// as the studio itself, so the look does not flip between the two pages.
+const CementingHelpGuide = () => (
+  <ThemedApp className="min-h-screen" data-testid="cmt-help-theme-scope">
+    <CementingHelpGuideContent />
+  </ThemedApp>
+);
 
 export default CementingHelpGuide;

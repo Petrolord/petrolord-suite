@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import HydWorkstation from './HydWorkstation';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { makeWpBackend } from './services/wpBackend';
 
 // Drilling Fluids & Hydraulics Studio (Drilling D2): mud rheology, RP 13D
@@ -21,9 +22,9 @@ export default function HydraulicsStudio() {
           content="Mud rheology, circulating pressure losses, ECD, surge and swab, and hole cleaning on your planned trajectories, validated against independent oracles."
         />
       </Helmet>
-      <div className="h-screen w-full overflow-hidden">
+      <ThemedApp className="h-screen w-full overflow-hidden" data-testid="hyd-theme-scope">
         <HydWorkstation backend={backend} />
-      </div>
+      </ThemedApp>
     </>
   );
 }
