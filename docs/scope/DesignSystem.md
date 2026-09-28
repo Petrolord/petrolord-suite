@@ -19,7 +19,8 @@ Audit, pilots and open decisions: `docs/scope/DesignSystem-PLAN.md`.
 | `src/design/themeClass.js` | `useThemeClass`, the one opt-in helper for shared components (section 4) |
 | `src/design/activeTheme.js` | the theme of the opted-in app on screen, for the root toaster |
 | `src/design/coldLoad.jsx` | hub list, `isThemedPath`, `coldLoadTheme`, `ThemedLoadingScreen` for the cold-load loaders |
-| `src/design/rollout/<batch>.js` | cold-load route prefixes, one file per rollout batch (`pilots.js`, `w1a.js` ... `w6g.js`), aggregated by `rollout/index.js` |
+| `src/design/rollout/<batch>.js` | cold-load route prefixes, one file per rollout batch (`pilots.js`, `w1a.js` ... `w6g.js`, `w7c.js`), aggregated by `rollout/index.js` |
+| `src/components/public/PublicPage.jsx` | the public and auth page frame (batch 7C): `PublicPage` (always light, no toggle), the ink `PublicBrandBar` with the wordmark, `AUTH_CARD` and friends |
 | `src/design/testing/themeAssertions.js` | test only: the shared app theme-test helpers (section 4) |
 | `src/design/testing/LegacyAppFixture.jsx` | test only: the unmigrated-app stand-in for the opt-in proofs |
 | `src/components/ui/theme-toggle.jsx` | `ThemeToggle` |
@@ -131,7 +132,9 @@ the theme too. `--chart-1..5` become the chartTheme series colours.
    `useToast()` or sonner as before; nothing to do per app.
 9. **Loaders.** On the pilot paths (`src/design/coldLoad.jsx`) the
    AuthGuard, ProtectedRoute and root Suspense loaders paint the device's
-   last theme, so a light user does not see a dark spinner first. When an
+   last theme, so a light user does not see a dark spinner first. The
+   public and auth pages (`rollout/w7c.js`) always paint light, as the
+   pages themselves do. When an
    app opts in, add its route to `THEMED_APP_PREFIXES`; the test
    `coldLoad.test.jsx` fails if a `ThemedApp` route in App.jsx is missing.
 
