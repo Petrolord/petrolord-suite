@@ -211,8 +211,10 @@ const MapPanel = ({ activeTool, layers, setLayers, onPlaceItem, onSelectLayer, i
   // whose tiles are light in both themes, so the map sits on a light
   // canvas. The coordinate readout, equipment markers and draw toolbar
   // on top of it keep the light roles whatever theme the page is in.
+  // `relative z-0` keeps Leaflet's pane z-indexes (400 and up) inside the
+  // canvas, so the save, load and help dialogs open above the map.
   return (
-    <div data-canvas="light" className="w-full h-full">
+    <div data-canvas="light" className="relative z-0 w-full h-full">
       <MapContainer ref={(m) => { if (m && mapRef.current !== m) { mapRef.current = m; setMapReady(true); } }} center={[29.7604, -95.3698]} zoom={13} className="w-full h-full" style={{backgroundColor: '#f0f0f0'}}>
         {/* CARTO's basemaps now answer every tile with "API KEY REQUIRED"
             (FLM-T1-001), which left this map blank on every domain. The
