@@ -3,6 +3,9 @@ import React from 'react';
 import { Truck, Fuel, Leaf, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useFuelPricing } from '@/contexts/FuelPricingContext';
+import {
+  NumericTable, NumTh, NumRow, RowLabel, NumCell,
+} from '@/components/ui/numeric-table';
 
 const fmt = (v, dp = 2) => (Number.isFinite(v)
   ? v.toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })
@@ -47,21 +50,19 @@ const SupplyChainResults = () => {
               <Stat label="Per litre delivered" value={fmt(lane.costPerLitreDelivered, 3)}
                 hint={`${fmt(lane.deliveredLitresPerTrip, 0)} litres delivered of the load`} />
             </div>
-            <div className="overflow-x-auto rounded border border-pl-border mt-3">
-              <table className="w-full text-xs">
-                <thead className="bg-pl-surface text-pl-muted">
-                  <tr><th className="text-left px-2 py-1.5">Cost component</th><th className="text-right px-2 py-1.5">Per trip</th></tr>
-                </thead>
-                <tbody className="divide-y divide-pl-border">
-                  {lane.components.map((c) => (
-                    <tr key={c.label} className={c.required ? 'bg-pl-warning-bg' : ''}>
-                      <td className="px-2 py-1 text-pl-text">{c.label}</td>
-                      <td className="px-2 py-1 text-right text-pl-text">{c.amount === null ? 'input required' : fmt(c.amount, 0)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <NumericTable className="mt-3 p-0" data-testid="lane-cost-table">
+              <thead>
+                <tr><NumTh sticky>Cost component</NumTh><NumTh numeric>Per trip</NumTh></tr>
+              </thead>
+              <tbody>
+                {lane.components.map((c) => (
+                  <NumRow key={c.label} className={c.required ? 'bg-pl-warning-bg' : ''}>
+                    <RowLabel className={c.required ? 'bg-pl-warning-bg' : ''}>{c.label}</RowLabel>
+                    <NumCell value={c.amount}>{c.amount === null ? 'input required' : fmt(c.amount, 0)}</NumCell>
+                  </NumRow>
+                ))}
+              </tbody>
+            </NumericTable>
             <p className="text-[11px] text-pl-muted mt-2 flex items-start gap-2">
               <Leaf className="w-3.5 h-3.5 text-pl-muted mt-0.5 shrink-0" />
               {lane.carbonNote || `${fmt(lane.kgCo2ePerTrip, 1)} kgCO2e per trip, ${fmt(lane.kgCo2ePerLitreDelivered, 4)} per litre delivered, from the same diesel burn that priced the trip.`}

@@ -2,6 +2,9 @@
 import React from 'react';
 import { AlertTriangle, Leaf } from 'lucide-react';
 import { useEnergyEfficiency } from '@/contexts/EnergyEfficiencyContext';
+import {
+  NumericTable, NumTh, NumRow, RowLabel, NumCell,
+} from '@/components/ui/numeric-table';
 
 const fmt = (v, dp = 2) => (Number.isFinite(v)
   ? v.toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })
@@ -60,21 +63,19 @@ const UtilitiesResults = () => {
               <Stat label="Carbon"
                 value={condensate.annualTonnesCo2e === null ? 'absent' : `${fmt(condensate.annualTonnesCo2e, 0)} tCO2e/yr`} />
             </div>
-            <div className="overflow-x-auto rounded border border-pl-border mt-3">
-              <table className="w-full text-xs">
-                <thead className="bg-pl-surface text-pl-muted">
-                  <tr><th className="text-left px-2 py-1.5">Component of the value</th><th className="text-right px-2 py-1.5">Per year</th></tr>
-                </thead>
-                <tbody className="divide-y divide-pl-border">
-                  {condensate.components.map((c) => (
-                    <tr key={c.label} className={c.amount === null ? 'bg-pl-warning-bg' : ''}>
-                      <td className="px-2 py-1 text-pl-text">{c.label}</td>
-                      <td className="px-2 py-1 text-right text-pl-text">{c.amount === null ? 'not priced' : fmt(c.amount, 0)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <NumericTable className="mt-3 p-0" data-testid="condensate-value-table">
+              <thead>
+                <tr><NumTh sticky>Component of the value</NumTh><NumTh numeric>Per year</NumTh></tr>
+              </thead>
+              <tbody>
+                {condensate.components.map((c) => (
+                  <NumRow key={c.label} className={c.amount === null ? 'bg-pl-warning-bg' : ''}>
+                    <RowLabel className={c.amount === null ? 'bg-pl-warning-bg' : ''}>{c.label}</RowLabel>
+                    <NumCell value={c.amount}>{c.amount === null ? 'not priced' : fmt(c.amount, 0)}</NumCell>
+                  </NumRow>
+                ))}
+              </tbody>
+            </NumericTable>
             {condensate.valueNote && <p className="text-[11px] text-pl-warning-text mt-2">{condensate.valueNote}</p>}
           </>
         )}
@@ -112,36 +113,34 @@ const UtilitiesResults = () => {
           boiler fuel (steam energy over boiler efficiency) and can differ from the trap card's cost,
           which prices the steam at your steam cost per tonne.
         </p>
-        <div className="overflow-x-auto rounded border border-pl-border">
-          <table className="w-full text-xs">
-            <thead className="bg-pl-surface text-pl-muted">
-              <tr>
-                <th className="text-left px-2 py-1.5">Measure</th>
-                <th className="text-right px-2 py-1.5">GJ/yr</th>
-                <th className="text-right px-2 py-1.5">Value/yr</th>
-                <th className="text-right px-2 py-1.5">tCO2e/yr</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-pl-border">
-              {register.length === 0 && (
-                <tr><td colSpan={4} className="px-2 py-2 text-pl-muted">
-                  No measure is fully specified yet. Supply the inputs each one names.
-                </td></tr>
-              )}
-              {register.map((r) => (
-                <tr key={r.id}>
-                  <td className="px-2 py-1 text-pl-text">
-                    {r.label}
-                    {r.error && <span className="block text-[11px] text-pl-warning-text">{r.error}</span>}
-                  </td>
-                  <td className="px-2 py-1 text-right text-pl-text">{fmt(r.energySavedGJ, 0)}</td>
-                  <td className="px-2 py-1 text-right text-pl-text">{r.annualValue === null ? 'not priced' : fmt(r.annualValue, 0)}</td>
-                  <td className="px-2 py-1 text-right">{r.annualTonnesCo2e === null ? 'absent' : fmt(r.annualTonnesCo2e, 1)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <NumericTable className="p-0" data-testid="savings-register-table">
+          <thead>
+            <tr>
+              <NumTh sticky>Measure</NumTh>
+              <NumTh numeric>GJ/yr</NumTh>
+              <NumTh numeric>Value/yr</NumTh>
+              <NumTh numeric>tCO2e/yr</NumTh>
+            </tr>
+          </thead>
+          <tbody>
+            {register.length === 0 && (
+              <tr><td colSpan={4} className="px-3 py-2 text-xs text-pl-muted">
+                No measure is fully specified yet. Supply the inputs each one names.
+              </td></tr>
+            )}
+            {register.map((r) => (
+              <NumRow key={r.id}>
+                <RowLabel>
+                  {r.label}
+                  {r.error && <span className="block text-[11px] font-normal text-pl-warning-text">{r.error}</span>}
+                </RowLabel>
+                <NumCell value={r.energySavedGJ}>{fmt(r.energySavedGJ, 0)}</NumCell>
+                <NumCell value={r.annualValue}>{r.annualValue === null ? 'not priced' : fmt(r.annualValue, 0)}</NumCell>
+                <NumCell value={r.annualTonnesCo2e}>{r.annualTonnesCo2e === null ? 'absent' : fmt(r.annualTonnesCo2e, 1)}</NumCell>
+              </NumRow>
+            ))}
+          </tbody>
+        </NumericTable>
         {register.some((r) => r.basisNote) && (
           <p className="text-[11px] text-pl-muted mt-2">{register.find((r) => r.basisNote).basisNote}</p>
         )}
