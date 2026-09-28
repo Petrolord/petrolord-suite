@@ -19,8 +19,9 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import InviteEmployee from '@/components/InviteEmployee';
+import { AccountScope, AccountPage, AccountHeader } from '@/components/account/accountChrome';
 
-export default function EmployeeManagement() {
+function EmployeeManagementPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -89,39 +90,43 @@ export default function EmployeeManagement() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-6 md:p-8">
-      <div className="max-w-6xl mx-auto space-y-6">
-        
-        <div className="flex justify-between items-center">
-            <div>
-                <h1 className="text-3xl font-bold flex items-center gap-2"><Users className="w-8 h-8 text-lime-400"/> Team Management</h1>
-                <p className="text-slate-400">Manage your organization's members and their access.</p>
-            </div>
-            <div className="text-right">
-                <div className="text-sm text-slate-400">Members</div>
-                <div className="text-xl font-bold text-white">{seatStats.used}</div>
-                <a href="/dashboard/seats" className="text-xs text-lime-400 hover:underline">Manage app seats →</a>
-            </div>
-        </div>
+    <AccountPage>
 
-        <Card className="bg-slate-900 border-slate-800">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <div className="relative w-64">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-500" />
+        <AccountHeader
+            eyebrow="Organization"
+            title="Team Management"
+            description="Manage your organization's members and their access."
+            icon={Users}
+            actions={
+                <div className="flex items-center gap-4 rounded-lg border border-pl-border bg-pl-surface px-3 py-1.5">
+                    <div>
+                        <div className="text-xs text-pl-muted">Members</div>
+                        <div className="text-xl font-bold font-pl-mono tabular-nums text-pl-text">{seatStats.used}</div>
+                    </div>
+                    <a href="/dashboard/seats" className="text-xs font-medium text-pl-primary-text hover:text-pl-primary-text-hover hover:underline">Manage app seats</a>
+                </div>
+            }
+        />
+
+        <Card>
+            <CardHeader className="flex flex-col gap-3 pb-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+                <div className="relative w-full sm:w-64">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-pl-muted" aria-hidden="true" />
                     <Input 
                         placeholder="Search employees..." 
-                        className="pl-8 bg-slate-950 border-slate-700"
+                        aria-label="Search employees"
+                        className="pl-8"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
                 <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
                     <DialogTrigger asChild>
-                        <Button className="bg-lime-600 hover:bg-lime-700 text-white">
+                        <Button>
                             <UserPlus className="w-4 h-4 mr-2"/> Invite Member
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-lg">
+                    <DialogContent className="max-w-lg">
                         <DialogHeader><DialogTitle>Invite New Member</DialogTitle></DialogHeader>
                         <InviteEmployee 
                             orgId={orgId} 
@@ -133,67 +138,67 @@ export default function EmployeeManagement() {
             <CardContent>
                 <Table>
                     <TableHeader>
-                        <TableRow className="border-slate-800 hover:bg-slate-900">
-                            <TableHead className="text-slate-400">Name / Email</TableHead>
-                            <TableHead className="text-slate-400">Role</TableHead>
-                            <TableHead className="text-slate-400">Status</TableHead>
-                            <TableHead className="text-slate-400">Joined</TableHead>
-                            <TableHead className="text-right text-slate-400">Actions</TableHead>
+                        <TableRow>
+                            <TableHead>Name / Email</TableHead>
+                            <TableHead>Role</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Joined</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {filteredMembers.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={5} className="text-center h-24 text-slate-500">
+                                <TableCell colSpan={5} className="text-center h-24 text-pl-muted">
                                     No members found.
                                 </TableCell>
                             </TableRow>
                         ) : (
                             filteredMembers.map(member => (
-                                <TableRow key={member.id} className="border-slate-800 hover:bg-slate-800/50">
+                                <TableRow key={member.id}>
                                     <TableCell>
-                                        <div className="font-medium text-white">{member.full_name}</div>
-                                        <div className="text-xs text-slate-500">{member.email}</div>
+                                        <div className="font-medium text-pl-text">{member.full_name}</div>
+                                        <div className="text-xs text-pl-muted">{member.email}</div>
                                     </TableCell>
                                     <TableCell>
-                                        <Badge variant="outline" className="capitalize border-slate-600 text-slate-300">
+                                        <Badge variant="neutral" className="capitalize">
                                             {member.role}
                                         </Badge>
                                     </TableCell>
                                     <TableCell>
                                         {member.status === 'active' ? (
-                                            <Badge className="bg-green-500/20 text-green-400 hover:bg-green-500/30">Active</Badge>
+                                            <Badge variant="success"><CheckCircle className="w-3 h-3 mr-1" aria-hidden="true"/> Active</Badge>
                                         ) : member.status === 'invited' ? (
-                                            <Badge className="bg-blue-500/20 text-blue-400 hover:bg-blue-500/30">Invited</Badge>
+                                            <Badge variant="info"><Clock className="w-3 h-3 mr-1" aria-hidden="true"/> Invited</Badge>
                                         ) : (
-                                            <Badge variant="secondary" className="text-slate-500">Inactive</Badge>
+                                            <Badge variant="neutral">Inactive</Badge>
                                         )}
                                     </TableCell>
-                                    <TableCell className="text-sm text-slate-400">
+                                    <TableCell className="whitespace-nowrap font-pl-mono tabular-nums text-sm text-pl-muted">
                                         {member.joined_at ? new Date(member.joined_at).toLocaleDateString() : '-'}
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-white">
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Manage ${member.full_name}`}>
                                                     <MoreHorizontal className="w-4 h-4"/>
                                                 </Button>
                                             </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end" className="bg-slate-900 border-slate-800 text-white">
+                                            <DropdownMenuContent align="end">
                                                 <DropdownMenuLabel>Manage Access</DropdownMenuLabel>
-                                                <DropdownMenuItem className="focus:bg-slate-800 cursor-pointer">
+                                                <DropdownMenuItem className="cursor-pointer">
                                                     <Shield className="w-4 h-4 mr-2"/> Edit Role
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem className="focus:bg-slate-800 cursor-pointer" onClick={() => navigate('/dashboard/seats')}>
+                                                <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/dashboard/seats')}>
                                                     <Users className="w-4 h-4 mr-2"/> Assign Apps
                                                 </DropdownMenuItem>
                                                 {member.status === 'invited' && (
-                                                    <DropdownMenuItem className="focus:bg-slate-800 cursor-pointer text-blue-400">
+                                                    <DropdownMenuItem className="cursor-pointer">
                                                         <Mail className="w-4 h-4 mr-2"/> Resend Invite
                                                     </DropdownMenuItem>
                                                 )}
-                                                <DropdownMenuSeparator className="bg-slate-800"/>
-                                                <DropdownMenuItem className="focus:bg-red-900/20 text-red-400 cursor-pointer" onClick={() => handleDeactivate(member.id)}>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem className="cursor-pointer text-pl-danger-text focus:bg-pl-danger-bg focus:text-pl-danger-text" onClick={() => handleDeactivate(member.id)}>
                                                     <Trash2 className="w-4 h-4 mr-2"/> Deactivate
                                                 </DropdownMenuItem>
                                             </DropdownMenuContent>
@@ -207,7 +212,15 @@ export default function EmployeeManagement() {
             </CardContent>
         </Card>
 
-      </div>
-    </div>
+    </AccountPage>
+  );
+}
+
+// Design system rollout batch 1E: the page wraps itself in <ThemedApp>.
+export default function EmployeeManagement() {
+  return (
+    <AccountScope testId="employees-theme-scope">
+      <EmployeeManagementPage />
+    </AccountScope>
   );
 }

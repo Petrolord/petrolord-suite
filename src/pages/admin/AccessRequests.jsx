@@ -14,8 +14,9 @@ import {
 } from "@/components/ui/table";
 import RespondToRequestModal from '@/components/RespondToRequestModal';
 import { useToast } from '@/components/ui/use-toast';
+import { AccountScope, AccountPage, AccountHeader } from '@/components/account/accountChrome';
 
-export default function AccessRequests() {
+function AccessRequestsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   
@@ -63,29 +64,29 @@ export default function AccessRequests() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-6 md:p-8">
-      <div className="max-w-6xl mx-auto space-y-6">
-        
-        <div className="flex justify-between items-center">
-            <div>
-                <h1 className="text-3xl font-bold flex items-center gap-2"><ShieldCheck className="w-8 h-8 text-blue-400"/> Access Requests</h1>
-                <p className="text-slate-400">Manage employee permissions and app access requests.</p>
-            </div>
-        </div>
+    <AccountPage>
 
-        <Card className="bg-slate-900 border-slate-800">
-            <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2">
-                <div className="flex gap-2">
-                    <Button variant={filter === 'pending' ? 'default' : 'outline'} onClick={() => setFilter('pending')} size="sm" className="border-slate-700">Pending</Button>
-                    <Button variant={filter === 'approved' ? 'default' : 'outline'} onClick={() => setFilter('approved')} size="sm" className="border-slate-700">Approved</Button>
-                    <Button variant={filter === 'rejected' ? 'default' : 'outline'} onClick={() => setFilter('rejected')} size="sm" className="border-slate-700">Rejected</Button>
-                    <Button variant={filter === 'all' ? 'default' : 'outline'} onClick={() => setFilter('all')} size="sm" className="border-slate-700">All</Button>
+        <AccountHeader
+            eyebrow="Organization"
+            title="Access Requests"
+            description="Manage employee permissions and app access requests."
+            icon={ShieldCheck}
+        />
+
+        <Card>
+            <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 space-y-0">
+                <div className="flex flex-wrap gap-2" role="group" aria-label="Filter requests by status">
+                    <Button variant={filter === 'pending' ? 'default' : 'outline'} aria-pressed={filter === 'pending'} onClick={() => setFilter('pending')} size="sm">Pending</Button>
+                    <Button variant={filter === 'approved' ? 'default' : 'outline'} aria-pressed={filter === 'approved'} onClick={() => setFilter('approved')} size="sm">Approved</Button>
+                    <Button variant={filter === 'rejected' ? 'default' : 'outline'} aria-pressed={filter === 'rejected'} onClick={() => setFilter('rejected')} size="sm">Rejected</Button>
+                    <Button variant={filter === 'all' ? 'default' : 'outline'} aria-pressed={filter === 'all'} onClick={() => setFilter('all')} size="sm">All</Button>
                 </div>
-                <div className="relative w-64">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-500" />
+                <div className="relative w-full md:w-64">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-pl-muted" aria-hidden="true" />
                     <Input 
                         placeholder="Search user or app..." 
-                        className="pl-8 bg-slate-950 border-slate-700"
+                        aria-label="Search user or app"
+                        className="pl-8"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -94,41 +95,41 @@ export default function AccessRequests() {
             <CardContent>
                 <Table>
                     <TableHeader>
-                        <TableRow className="border-slate-800 hover:bg-slate-900">
-                            <TableHead className="text-slate-400">Employee</TableHead>
-                            <TableHead className="text-slate-400">Application</TableHead>
-                            <TableHead className="text-slate-400">Date</TableHead>
-                            <TableHead className="text-slate-400">Status</TableHead>
-                            <TableHead className="text-right text-slate-400">Action</TableHead>
+                        <TableRow>
+                            <TableHead>Employee</TableHead>
+                            <TableHead>Application</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Action</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {loading ? (
-                            <TableRow><TableCell colSpan={5} className="text-center h-24">Loading...</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={5} className="text-center h-24 text-pl-muted">Loading...</TableCell></TableRow>
                         ) : filteredRequests.length === 0 ? (
-                            <TableRow><TableCell colSpan={5} className="text-center h-24 text-slate-500">No requests found.</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={5} className="text-center h-24 text-pl-muted">No requests found.</TableCell></TableRow>
                         ) : (
                             filteredRequests.map(req => (
-                                <TableRow key={req.id} className="border-slate-800 hover:bg-slate-800/50">
+                                <TableRow key={req.id}>
                                     <TableCell>
-                                        <div className="font-medium text-white">{req.member?.full_name}</div>
-                                        <div className="text-xs text-slate-500">{req.member?.email}</div>
+                                        <div className="font-medium text-pl-text">{req.member?.full_name}</div>
+                                        <div className="text-xs text-pl-muted">{req.member?.email}</div>
                                     </TableCell>
                                     <TableCell>
-                                        <Badge variant="outline" className="border-slate-700 text-slate-300">
+                                        <Badge variant="neutral">
                                             {req.app_id}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className="text-sm text-slate-400">
+                                    <TableCell className="whitespace-nowrap font-pl-mono tabular-nums text-sm text-pl-muted">
                                         {new Date(req.requested_at).toLocaleDateString()}
                                     </TableCell>
                                     <TableCell>
                                         {req.status === 'approved' ? (
-                                            <Badge className="bg-green-500/20 text-green-400"><CheckCircle className="w-3 h-3 mr-1"/> Approved</Badge>
+                                            <Badge variant="success"><CheckCircle className="w-3 h-3 mr-1"/> Approved</Badge>
                                         ) : req.status === 'rejected' ? (
-                                            <Badge className="bg-red-500/20 text-red-400"><XCircle className="w-3 h-3 mr-1"/> Rejected</Badge>
+                                            <Badge variant="danger"><XCircle className="w-3 h-3 mr-1"/> Rejected</Badge>
                                         ) : (
-                                            <Badge className="bg-amber-500/20 text-amber-400"><Clock className="w-3 h-3 mr-1"/> Pending</Badge>
+                                            <Badge variant="warning"><Clock className="w-3 h-3 mr-1"/> Pending</Badge>
                                         )}
                                     </TableCell>
                                     <TableCell className="text-right">
@@ -136,7 +137,7 @@ export default function AccessRequests() {
                                             <RespondToRequestModal 
                                                 request={req} 
                                                 onSuccess={fetchRequests}
-                                                trigger={<Button size="sm" variant="outline" className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10">Review</Button>}
+                                                trigger={<Button size="sm" variant="outline">Review</Button>}
                                             />
                                         )}
                                     </TableCell>
@@ -147,7 +148,15 @@ export default function AccessRequests() {
                 </Table>
             </CardContent>
         </Card>
-      </div>
-    </div>
+    </AccountPage>
+  );
+}
+
+// Design system rollout batch 1E: the page wraps itself in <ThemedApp>.
+export default function AccessRequests() {
+  return (
+    <AccountScope testId="access-requests-theme-scope">
+      <AccessRequestsPage />
+    </AccountScope>
   );
 }

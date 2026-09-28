@@ -9,8 +9,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { CheckCircle2, ArrowLeft, Loader2 } from 'lucide-react';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { AccountScope } from '@/components/account/accountChrome';
 
-export default function RenewSubscription() {
+function RenewSubscriptionPage() {
   const { moduleId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -68,49 +70,65 @@ export default function RenewSubscription() {
       }
   };
 
-  if(loading) return <div className="p-8 text-white">Loading...</div>;
-  if(!moduleData) return <div className="p-8 text-white">Module not found.</div>;
+  if(loading) return <div className="p-8 text-pl-muted">Loading...</div>;
+  if(!moduleData) return <div className="p-8 text-pl-muted">Module not found.</div>;
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-        <Card className="w-full max-w-lg bg-slate-900 border-slate-800 text-white">
+    <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="w-full max-w-lg">
             <CardHeader>
-                <div className="flex items-center gap-2 mb-2 text-slate-400 cursor-pointer hover:text-white" onClick={() => navigate('/dashboard/subscriptions')}>
-                    <ArrowLeft className="w-4 h-4"/> Back
+                <div className="flex items-center justify-between gap-2 mb-2">
+                    <button
+                        type="button"
+                        className="inline-flex items-center gap-2 rounded-md text-sm text-pl-muted hover:text-pl-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus"
+                        onClick={() => navigate('/dashboard/subscriptions')}
+                    >
+                        <ArrowLeft className="w-4 h-4" aria-hidden="true"/> Back
+                    </button>
+                    <ThemeToggle />
                 </div>
                 <CardTitle>Renew Subscription: {moduleData.module_name}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-                <div className="bg-slate-950 p-4 rounded border border-slate-800">
-                    <p className="text-sm text-slate-400">Current Expiry</p>
-                    <p className="text-xl font-mono">{new Date(moduleData.expiry_date).toLocaleDateString()}</p>
+                <div className="bg-pl-sunken p-4 rounded-md border border-pl-border">
+                    <p className="text-sm text-pl-muted">Current Expiry</p>
+                    <p className="text-xl font-pl-mono tabular-nums text-pl-text">{new Date(moduleData.expiry_date).toLocaleDateString()}</p>
                 </div>
 
                 <div className="space-y-2">
                     <Label>Renewal Duration</Label>
                     <Select value={duration} onValueChange={setDuration}>
-                        <SelectTrigger className="bg-slate-950 border-slate-700 text-white">
+                        <SelectTrigger>
                             <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="bg-slate-900 border-slate-800 text-white">
+                        <SelectContent>
                             <SelectItem value="12">12 Months (Standard)</SelectItem>
                             <SelectItem value="24">24 Months (10% Discount)</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
 
-                <div className="flex justify-between items-center py-2 border-t border-slate-800 mt-4">
+                <div className="flex justify-between items-center py-2 border-t border-pl-border mt-4 text-pl-text">
                     <span>Estimated Cost</span>
-                    <span className="text-xl font-bold text-green-400">$15,000.00</span>
+                    <span className="text-xl font-bold font-pl-mono tabular-nums">$15,000.00</span>
                 </div>
             </CardContent>
             <CardFooter>
-                <Button className="w-full bg-green-600 hover:bg-green-700 text-white" onClick={handleRenewal} disabled={processing}>
+                <Button className="w-full" onClick={handleRenewal} disabled={processing}>
                     {processing ? <Loader2 className="w-4 h-4 animate-spin mr-2"/> : <CheckCircle2 className="w-4 h-4 mr-2"/>}
                     Confirm & Pay
                 </Button>
             </CardFooter>
         </Card>
     </div>
+  );
+}
+
+// Design system rollout batch 1E: the page wraps itself in <ThemedApp>.
+export default function RenewSubscription() {
+  return (
+    <AccountScope testId="renew-subscription-theme-scope">
+      <RenewSubscriptionPage />
+    </AccountScope>
   );
 }

@@ -51,15 +51,15 @@ export default function RespondToRequestModal({ request, onSuccess, trigger }) {
       <DialogTrigger asChild>
         {trigger || <Button size="sm">Review</Button>}
       </DialogTrigger>
-      <DialogContent className="bg-slate-900 border-slate-800 text-white sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Review Access Request</DialogTitle>
-          <DialogDescription className="text-slate-400 pt-2 space-y-2">
+          <DialogDescription className="pt-2 space-y-2">
             <div><strong>User:</strong> {request?.member?.full_name} ({request?.member?.email})</div>
             <div><strong>App:</strong> {request?.app_id}</div>
-            <div className="bg-slate-950 p-2 rounded border border-slate-800 mt-2">
-                <span className="text-xs text-slate-500 uppercase font-bold">Reason:</span>
-                <p className="text-sm italic text-slate-300">"{request?.reason}"</p>
+            <div className="bg-pl-sunken p-2 rounded-md border border-pl-border mt-2">
+                <span className="text-xs text-pl-muted uppercase font-bold">Reason:</span>
+                <p className="text-sm italic text-pl-text">"{request?.reason}"</p>
             </div>
           </DialogDescription>
         </DialogHeader>
@@ -70,7 +70,7 @@ export default function RespondToRequestModal({ request, onSuccess, trigger }) {
                 <Textarea 
                     id="response" 
                     placeholder="Optional message to the employee..." 
-                    className="bg-slate-950 border-slate-700 h-24"
+                    className="h-24"
                     value={responseMsg}
                     onChange={(e) => setResponseMsg(e.target.value)}
                 />
@@ -81,7 +81,7 @@ export default function RespondToRequestModal({ request, onSuccess, trigger }) {
             <div className="flex gap-2 w-full justify-end">
                 <Button 
                     variant="outline" 
-                    className="border-red-900/50 text-red-400 hover:bg-red-900/20 hover:text-red-300"
+                    className="text-pl-danger-text hover:bg-pl-danger-bg hover:text-pl-danger-text"
                     onClick={() => { setAction('rejected'); setTimeout(handleSubmit, 100); }} // immediate trigger for UX simplicity or confirm? assume confirm
                     disabled={loading}
                 >
@@ -89,7 +89,6 @@ export default function RespondToRequestModal({ request, onSuccess, trigger }) {
                     Reject
                 </Button>
                 <Button 
-                    className="bg-green-600 hover:bg-green-700 text-white"
                     onClick={() => { setAction('approved'); setTimeout(handleSubmit, 100); }}
                     disabled={loading}
                 >

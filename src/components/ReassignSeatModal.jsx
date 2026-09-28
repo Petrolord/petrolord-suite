@@ -85,26 +85,26 @@ export default function ReassignSeatModal({ app, orgId, currentAdminId, onSucces
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8 text-xs border-amber-500/50 text-amber-500 hover:bg-amber-500/10">
+        <Button variant="outline" size="sm" className="h-8 text-xs">
             <UserCog className="w-3 h-3 mr-1" /> Transfer My Seat
         </Button>
       </DialogTrigger>
-      <DialogContent className="bg-slate-900 border-slate-800 text-white">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Transfer Admin Seat</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription>
             Reassign your admin seat for <strong>{app.module_name}</strong> to a team member. 
-            <br/><span className="text-amber-500 text-xs">Warning: You will lose access to this app after transfer.</span>
+            <br/><span className="text-pl-warning-text text-xs">Warning: You will lose access to this app after transfer.</span>
           </DialogDescription>
         </DialogHeader>
         
         <div className="py-4">
-            <label className="text-sm font-medium mb-2 block">Select Team Member</label>
+            <label className="text-sm font-medium mb-2 block text-pl-text">Select Team Member</label>
             <Select onValueChange={setSelectedMember} value={selectedMember}>
-                <SelectTrigger className="bg-slate-950 border-slate-700">
+                <SelectTrigger>
                     <SelectValue placeholder="Select member..." />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-950 border-slate-700 text-white">
+                <SelectContent>
                     {members.map(m => (
                         <SelectItem key={m.id} value={m.id}>{m.full_name || 'Unknown User'}</SelectItem>
                     ))}
@@ -113,11 +113,10 @@ export default function ReassignSeatModal({ app, orgId, currentAdminId, onSucces
         </div>
 
         <DialogFooter>
-            <Button variant="ghost" onClick={() => setOpen(false)} className="text-slate-400">Cancel</Button>
+            <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
             <Button 
                 onClick={handleReassign} 
                 disabled={!selectedMember || loading}
-                className="bg-amber-600 hover:bg-amber-700 text-white"
             >
                 {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Confirm Transfer
