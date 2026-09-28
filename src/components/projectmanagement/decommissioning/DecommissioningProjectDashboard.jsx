@@ -31,14 +31,14 @@ const DecommissioningProjectDashboard = ({ projectData, onDataChange }) => {
             <Card className="p-4 flex items-center justify-between">
                 <div>
                     <p className="text-[10px] text-pl-muted uppercase font-bold">Project</p>
-                    <p className="text-lg font-pl-mono text-pl-text truncate max-w-[150px]" title={projectData.name}>{projectData.name}</p>
+                    <p className="text-lg font-semibold text-pl-text truncate max-w-[150px]" title={projectData.name}>{projectData.name}</p>
                 </div>
                 <Trash2 className="w-6 h-6 text-pl-muted opacity-60" />
             </Card>
             <Card className="p-4 flex items-center justify-between">
                 <div>
                     <p className="text-[10px] text-pl-muted uppercase font-bold">Asset</p>
-                    <p className="text-lg font-pl-mono text-pl-text truncate max-w-[150px]">{projectData.asset || 'Unknown'}</p>
+                    <p className="text-lg font-semibold text-pl-text truncate max-w-[150px]">{projectData.asset || 'Unknown'}</p>
                 </div>
                 <Factory className="w-6 h-6 text-pl-muted opacity-50" />
             </Card>
