@@ -3,9 +3,9 @@
 // Doctrine 4: uninstrumented first. Everything starts from a dip.
 import React from 'react';
 import { Helmet } from 'react-helmet';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Warehouse } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Warehouse } from 'lucide-react';
+import { AppHeader } from '@/components/ui/app-shell';
+import { ThemedApp } from '@/design/ThemeProvider';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import StudioNotifications from '@/components/studio/StudioNotifications';
@@ -19,27 +19,15 @@ const Workspace = () => {
   return (
     <>
       <StudioNotifications notifications={notifications} onDismiss={removeNotification} />
-      <div className="flex flex-col h-full bg-slate-950 text-white">
-        <header className="flex-shrink-0 border-b border-slate-800 px-4 py-3">
-          <Link to="/dashboard/midstream-downstream">
-            <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white pl-0 mb-2">
-              <ArrowLeft className="w-4 h-4 mr-2" /> Midstream &amp; Downstream
-            </Button>
-          </Link>
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-2 rounded-xl shadow-lg">
-                <Warehouse className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold tracking-tight">Terminal &amp; Depot Studio</h1>
-                <p className="text-slate-400 text-xs">
-                  Stock, gain and loss, rack throughput and margin, starting from a dip.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-end gap-3">
-              <div className="w-52">
+      <div className="flex min-h-screen flex-col bg-pl-bg text-pl-text md:h-screen">
+        <AppHeader
+          backTo="/dashboard/midstream-downstream"
+          backLabel="Back to Midstream & Downstream"
+          icon={Warehouse}
+          title="Terminal & Depot Studio"
+          actions={(
+            <>
+              <div className="w-full sm:w-52">
                 <StudioProjectManager
                   label="Saved study"
                   projects={persistence.projects}
@@ -58,14 +46,17 @@ const Workspace = () => {
                 disabled={!persistence.currentProjectId}
               />
               <TerminalDepotHelpGuide />
-            </div>
-          </div>
-        </header>
-        <div className="flex flex-1 overflow-hidden">
-          <aside className="w-full md:w-1/3 xl:w-1/4 border-r border-slate-800 bg-slate-900/40 p-4 overflow-y-auto">
+            </>
+          )}
+        />
+        <div className="flex-shrink-0 border-b border-pl-border px-4 py-2 sm:px-6">
+          <p className="text-xs text-pl-muted">Stock, gain and loss, rack throughput and margin, starting from a dip.</p>
+        </div>
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row md:overflow-hidden">
+          <aside className="w-full border-b border-pl-border bg-pl-surface p-4 md:w-1/3 md:overflow-y-auto md:border-b-0 md:border-r xl:w-1/4">
             <TankPanel />
           </aside>
-          <main className="flex-1 p-4 overflow-y-auto">
+          <main className="min-w-0 flex-1 p-4 md:overflow-y-auto">
             <TerminalResults />
           </main>
         </div>
@@ -74,15 +65,21 @@ const Workspace = () => {
   );
 };
 
+// Design system rollout batch 5D (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so it opens light and the header toggle
+// switches it to dark per user. The gain and loss trend keeps the white
+// chart standard.
 const TerminalDepotStudio = () => (
   <>
     <Helmet>
       <title>Terminal &amp; Depot Studio - Petrolord Suite</title>
       <meta name="description" content="Terminal stock reconciliation from manual dips and strapping tables, gain and loss trending, loading rack queueing, tank farm cover and throughput economics." />
     </Helmet>
-    <TerminalDepotProvider>
-      <Workspace />
-    </TerminalDepotProvider>
+    <ThemedApp className="min-h-screen" data-testid="terminaldepot-theme-scope">
+      <TerminalDepotProvider>
+        <Workspace />
+      </TerminalDepotProvider>
+    </ThemedApp>
   </>
 );
 

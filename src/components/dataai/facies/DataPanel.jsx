@@ -24,7 +24,7 @@ const SOURCES = [
   { id: 'upload', label: 'Upload', icon: Upload },
 ];
 
-const ErrorLine = ({ error }) => (error ? <p role="alert" className="text-xs text-red-300">{error}</p> : null);
+const ErrorLine = ({ error }) => (error ? <p role="alert" className="text-xs text-pl-danger-text">{error}</p> : null);
 
 const WellsSource = () => {
   const { setTable } = useElectrofacies();
@@ -84,8 +84,8 @@ const WellsSource = () => {
   }
   return (
     <div className="space-y-2">
-      <p className="text-[11px] text-slate-400">Wells (one or more; kNN and CART hold out whole cored wells)</p>
-      <div className="max-h-44 space-y-1 overflow-y-auto rounded border border-slate-800 p-2" data-testid="well-list">
+      <p className="text-[11px] text-pl-muted">Wells (one or more; kNN and CART hold out whole cored wells)</p>
+      <div className="max-h-44 space-y-1 overflow-y-auto rounded border border-pl-border p-2" data-testid="well-list">
         {wells.map((w) => (
           <Toggle
             key={w.id}
@@ -99,8 +99,8 @@ const WellsSource = () => {
         {busy && !curves ? 'Reading curve lists' : 'List their curves'}
       </Button>
       {curves ? (
-        <div className="space-y-1 rounded border border-slate-800 p-2" data-testid="curve-list">
-          <p className="text-[11px] text-slate-400">Curves to read (the logs, and a facies code curve if you have one)</p>
+        <div className="space-y-1 rounded border border-pl-border p-2" data-testid="curve-list">
+          <p className="text-[11px] text-pl-muted">Curves to read (the logs, and a facies code curve if you have one)</p>
           {curves.map((c) => (
             <Toggle
               key={c.name}
@@ -191,14 +191,14 @@ const UploadSource = () => {
 
   return (
     <div className="space-y-2">
-      <label className="block text-[11px] text-slate-400">
+      <label className="block text-[11px] text-pl-muted">
         <span>CSV, TSV, TXT or Excel file, one row per depth sample</span>
         <input
           type="file"
           accept=".csv,.tsv,.txt,.dat,.prn,.asc,.xlsx,.xlsm,.xls"
           data-testid="upload-input"
           onChange={(e) => onFile(e.target.files?.[0])}
-          className="mt-1 block w-full text-xs text-slate-300"
+          className="mt-1 block w-full text-xs text-pl-text"
         />
       </label>
       <Note>
@@ -216,13 +216,13 @@ const UploadSource = () => {
       ) : null}
       {parsed && !parsed.rows.length ? <Note tone="warn">The file has no data rows.</Note> : null}
       {parsed && parsed.rows.length ? (
-        <div className="space-y-2 rounded border border-slate-800 p-2" data-testid="upload-mapping">
-          <p className="text-[11px] text-slate-400">{parsed.rows.length} rows, {cols.length} columns.</p>
+        <div className="space-y-2 rounded border border-pl-border p-2" data-testid="upload-mapping">
+          <p className="text-[11px] text-pl-muted">{parsed.rows.length} rows, {cols.length} columns.</p>
           <SelectField label="Well (group) column" value={groupCol} onChange={setGroupCol} emptyLabel="Choose" testId="group-col" options={cols.map((c) => ({ value: String(c.index), label: `${c.name} (${c.kind})` }))} />
           <SelectField label="Depth column" value={depthCol} onChange={setDepthCol} emptyLabel="None" testId="depth-col" options={cols.filter((c) => c.kind === 'number').map((c) => ({ value: String(c.index), label: c.name }))} />
           <SelectField label="Core facies column" value={faciesCol} onChange={setFaciesCol} emptyLabel="None" testId="facies-col" options={cols.filter((c) => String(c.index) !== groupCol).map((c) => ({ value: String(c.index), label: `${c.name} (${c.kind})` }))} />
           <div className="space-y-1">
-            <p className="text-[11px] text-slate-400">Log columns</p>
+            <p className="text-[11px] text-pl-muted">Log columns</p>
             {logCols.map((c) => (
               <Toggle key={c.index} label={c.name} checked={chosen.includes(c.index)} onChange={(on) => setChosen((x) => (on ? [...x, c.index] : x.filter((y) => y !== c.index)))} />
             ))}
@@ -248,14 +248,14 @@ const TableSummary = () => {
   if (!table) return <Note testId="no-data">No data loaded. Choose a source above.</Note>;
   const kinds = intervalKinds(table);
   return (
-    <div className="space-y-1 rounded border border-slate-800 bg-slate-950/60 p-2 text-xs" data-testid="table-summary">
-      <p className="font-medium text-slate-100">{table.label}</p>
-      <p className="text-slate-400">
+    <div className="space-y-1 rounded border border-pl-border bg-pl-sunken p-2 text-xs" data-testid="table-summary">
+      <p className="font-medium text-pl-text">{table.label}</p>
+      <p className="text-pl-muted">
         {table.group.length.toLocaleString('en-US')} rows from {table.wells.length} well{table.wells.length === 1 ? '' : 's'};
         curves {Object.keys(table.columns).join(', ') || 'none'}{table.depth ? '' : '; no depth'}.
       </p>
       {table.intervals ? (
-        <p className="text-slate-400" data-testid="interval-kinds">
+        <p className="text-pl-muted" data-testid="interval-kinds">
           Interval logs: {kinds.length ? kinds.map((k) => `${k.kind} (${k.wells.length} well${k.wells.length === 1 ? '' : 's'})`).join(', ') : 'none on these wells'}.
         </p>
       ) : null}
@@ -268,7 +268,7 @@ const DataPanel = () => {
   const { sourceKind, setSourceKind, reloadError, reloading } = useElectrofacies();
   return (
     <div className="space-y-3" data-testid="data-panel">
-      <h2 className="text-sm font-semibold text-slate-100">Data</h2>
+      <h2 className="text-sm font-semibold text-pl-text">Data</h2>
       <div className="flex gap-1" role="tablist" aria-label="Data source">
         {SOURCES.map(({ id, label, icon: Icon }) => (
           <button
@@ -277,7 +277,7 @@ const DataPanel = () => {
             role="tab"
             aria-selected={sourceKind === id}
             onClick={() => setSourceKind(id)}
-            className={`flex flex-1 items-center justify-center gap-1 rounded px-2 py-1 text-xs ${sourceKind === id ? 'bg-sky-700 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+            className={`flex flex-1 items-center justify-center gap-1 rounded px-2 py-1 text-xs ${sourceKind === id ? 'bg-pl-primary text-pl-primary-fg' : 'bg-pl-sunken text-pl-text hover:bg-pl-border'}`}
           >
             <Icon className="h-3.5 w-3.5" /> {label}
           </button>

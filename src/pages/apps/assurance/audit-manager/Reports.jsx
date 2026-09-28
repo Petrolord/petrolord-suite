@@ -290,7 +290,7 @@ export default function Reports() {
                   No findings have been raised.
                 </p>
               ) : (
-                <div className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+                <div className="relative h-[300px] rounded-lg p-2" data-canvas="chart" style={{ backgroundColor: CHART_COLORS.background }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={findingTypeData} margin={CHART_MARGINS.compact}>
                       <CartesianGrid {...GRID_STYLE} vertical={false} />
@@ -321,7 +321,7 @@ export default function Reports() {
                   No findings have been raised.
                 </p>
               ) : (
-                <div className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+                <div className="relative h-[300px] rounded-lg p-2" data-canvas="chart" style={{ backgroundColor: CHART_COLORS.background }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={siteData} layout="vertical" margin={CHART_MARGINS.compact}>
                       <CartesianGrid {...GRID_STYLE} horizontal={false} />
@@ -354,7 +354,7 @@ export default function Reports() {
                 No finding has been given a root cause category yet.
               </p>
             ) : (
-              <div className="relative h-[320px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+              <div className="relative h-[320px] rounded-lg p-2" data-canvas="chart" style={{ backgroundColor: CHART_COLORS.background }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={rootCauseData} layout="vertical" margin={CHART_MARGINS.compact}>
                     <CartesianGrid {...GRID_STYLE} horizontal={false} />

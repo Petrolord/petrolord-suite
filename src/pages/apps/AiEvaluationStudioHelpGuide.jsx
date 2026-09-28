@@ -13,6 +13,7 @@ import {
 import {
   Callout, Code, Formula, GuideSection, HelpGuideShell, Para, SectionHeading, Step, SubHeading, Table,
 } from '@/components/helpguide/HelpGuideLayout';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { EVAL_ROUTE } from '@/utils/dataAi/evalStudy';
 import { APP_CAPS } from '@/utils/dataAi/evalData';
 import { ENGINE_DEFAULTS as D, DEFAULT_SEED, ASSIST_MAX_PASSAGES } from '@/utils/dataAi/evalWorkflows';
@@ -37,7 +38,7 @@ export const EVAL_GUIDE_SECTIONS = [
   { id: 'validation', icon: CheckCircle2, title: 'How the engine was validated' },
 ];
 
-const AiEvaluationStudioHelpGuide = () => (
+const AiEvaluationStudioHelpGuideContent = () => (
   <HelpGuideShell
     title="AI Evaluation Studio Help Guide"
     subtitle="Deterministic evaluation of search and question-answering systems over oilfield documents"
@@ -352,6 +353,12 @@ const AiEvaluationStudioHelpGuide = () => (
       </Para>
     </GuideSection>
   </HelpGuideShell>
+);
+
+const AiEvaluationStudioHelpGuide = () => (
+  <ThemedApp className="min-h-screen" data-testid="aieval-help-theme-scope">
+    <AiEvaluationStudioHelpGuideContent />
+  </ThemedApp>
 );
 
 export default AiEvaluationStudioHelpGuide;

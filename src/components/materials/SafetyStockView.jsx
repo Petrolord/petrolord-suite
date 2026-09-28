@@ -27,7 +27,7 @@ const NormalInputs = () => {
   return (
     <Panel title="Normal demand inputs" testId="safety-inputs">
       <ItemFill items={items} value={s.itemId} onFill={(it) => set(fillFromItem('safety', it))} testId="safety-item" note="Copies the item's monthly usage into the mean demand, so the period is a month; state the lead time and review period in months too." />
-      <p className="text-[11px] text-slate-400">Demand, lead time and review period all in the one period you choose.</p>
+      <p className="text-[11px] text-pl-muted">Demand, lead time and review period all in the one period you choose.</p>
       <div className="grid grid-cols-2 gap-2">
         <NumField label="Mean demand a period" testId="safety-demand" value={s.demandMean} onChange={(v) => set({ demandMean: v })} />
         <NumField label="Standard deviation of demand a period" testId="safety-demandsd" value={s.demandSd} onChange={(v) => set({ demandSd: v })} />
@@ -121,7 +121,7 @@ const PoissonResults = () => {
               <Stat label="Expected units short a cycle" value={fmtNum(r.expectedShortPerCycle, 6)} testId="poisson-short" />
               <Stat label="Fill rate achieved" value={r.achievedFillRate === null ? 'needs an order quantity' : fmtNum(r.achievedFillRate, 6)} testId="poisson-fill" />
             </div>
-            <div className="overflow-hidden rounded-lg border border-slate-700">
+            <div className="overflow-hidden rounded-lg border border-pl-border">
               <ChartFrame height={200} exportFilename="poisson-cumulative">
                 <BarChart data={data} margin={{ top: 16, right: 20, left: 10, bottom: 20 }}>
                   <CartesianGrid {...GRID_STYLE} />

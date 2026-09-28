@@ -7,10 +7,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertTriangle } from 'lucide-react';
 import ChartFrame from '@/components/charts/ChartFrame';
+import {
+  NumericTable, NumTh, NumRow, RowLabel, NumCell,
+} from '@/components/ui/numeric-table';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, niceTicks } from '@/utils/chartTheme';
 import { useCrudeAssay } from '@/contexts/CrudeAssayContext';
 
 const fmt = (v, dp = 2) => (Number.isFinite(v) ? v.toFixed(dp) : 'n/a');
+// Editable cells in the cut table: the table's rule and padding, no mono.
+const FIELD_CELL = 'whitespace-nowrap border-b border-pl-border px-3 py-1.5';
 const CUT_COLORS = ['#7c3aed', '#2563eb', '#0891b2', '#059669', '#d97706', '#78716c'];
 
 const YieldsPanel = () => {
@@ -29,7 +34,7 @@ const YieldsPanel = () => {
   return (
     <div className="space-y-5">
       <div>
-        <h3 className="text-sm font-semibold text-white mb-2">Cut yields of the blend</h3>
+        <h3 className="text-sm font-semibold text-pl-text mb-2">Cut yields of the blend</h3>
         <ChartFrame height={280} exportFilename="crude-blend-yields">
           <BarChart data={chartRows} margin={{ top: 12, right: 24, left: 8, bottom: 40 }}>
             <CartesianGrid {...GRID_STYLE} vertical={false} />
@@ -54,9 +59,9 @@ const YieldsPanel = () => {
           </BarChart>
         </ChartFrame>
         {yields.unknownCuts?.length > 0 && (
-          <div className="mt-2 flex items-start gap-2 rounded border border-amber-800/60 bg-amber-950/30 p-3">
-            <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
-            <p className="text-xs text-amber-200">
+          <div className="mt-2 flex items-start gap-2 rounded border border-pl-warning/40 bg-pl-warning-bg p-3">
+            <AlertTriangle className="w-4 h-4 text-pl-warning-text mt-0.5 shrink-0" />
+            <p className="text-xs text-pl-warning-text">
               No yield for {yields.unknownCuts.join(', ')}. A cut point lies outside what the
               distillation curve measured (or the cut runs backwards), and the curve says nothing
               there. Extend the curve, starting it at 0 percent and ending it at 100, or move the
@@ -65,9 +70,9 @@ const YieldsPanel = () => {
           </div>
         )}
         {!yields.closes && !(yields.unknownCuts?.length > 0) && (
-          <div className="mt-2 flex items-start gap-2 rounded border border-amber-800/60 bg-amber-950/30 p-3">
-            <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
-            <p className="text-xs text-amber-200">
+          <div className="mt-2 flex items-start gap-2 rounded border border-pl-warning/40 bg-pl-warning-bg p-3">
+            <AlertTriangle className="w-4 h-4 text-pl-warning-text mt-0.5 shrink-0" />
+            <p className="text-xs text-pl-warning-text">
               The cuts total {fmt(yields.totalVolPercent, 1)} percent, not 100. The cut set does not
               cover the whole curve. The yields are reported as they compute rather than scaled up to
               close, because scaling would hide the gap.
@@ -76,133 +81,136 @@ const YieldsPanel = () => {
         )}
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-800 text-left">
-              <th className="p-2 text-slate-400 font-medium">Cut</th>
-              <th className="p-2 text-slate-400 font-medium">From (F)</th>
-              <th className="p-2 text-slate-400 font-medium">To (F)</th>
-              <th className="p-2 text-slate-400 font-medium text-right">Blend yield</th>
-              {perCrudeYields.map((c) => (
-                <th key={c.id} className="p-2 text-slate-400 font-medium text-right">{c.name}</th>
-              ))}
-              <th className="p-2 text-slate-400 font-medium text-right">Price ($/bbl)</th>
-              <th className="p-2 text-slate-400 font-medium text-right">Value ($/bbl crude)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {yields.cuts.map((cut, i) => {
-              const row = valuation.rows.find((r) => r.id === cut.id);
-              return (
-                <tr key={cut.id} className="border-b border-slate-800/60">
-                  <td className="p-2 text-white">{cut.name}</td>
-                  <td className="p-2">
-                    <Input
-                      type="number" value={cut.fromF ?? ''} placeholder="IBP"
-                      onChange={(e) => setCut(cut.id, { fromF: e.target.value === '' ? null : Number(e.target.value) })}
-                      className="h-7 w-20 bg-slate-950 border-slate-700 text-xs"
-                    />
-                  </td>
-                  <td className="p-2">
-                    <Input
-                      type="number" value={cut.toF ?? ''} placeholder="FBP"
-                      onChange={(e) => setCut(cut.id, { toF: e.target.value === '' ? null : Number(e.target.value) })}
-                      className="h-7 w-20 bg-slate-950 border-slate-700 text-xs"
-                    />
-                  </td>
-                  <td className="p-2 text-right font-mono text-white">{Number.isFinite(cut.yieldVolPercent) ? `${fmt(cut.yieldVolPercent, 1)}%` : 'n/a'}</td>
-                  {perCrudeYields.map((c) => (
-                    <td key={c.id} className="p-2 text-right font-mono text-slate-400">
-                      {Number.isFinite(c.cuts[i]?.yieldVolPercent) ? `${fmt(c.cuts[i].yieldVolPercent, 1)}%` : 'n/a'}
-                    </td>
-                  ))}
-                  <td className="p-2">
-                    <Input
-                      type="number" value={inputs.valuation.prices[cut.id] ?? ''}
-                      onChange={(e) => setPrice(cut.id, e.target.value)}
-                      className="h-7 w-20 bg-slate-950 border-slate-700 text-xs text-right"
-                    />
-                  </td>
-                  <td className="p-2 text-right font-mono text-lime-300">
-                    {row?.valuePerBblCrude === null || row?.valuePerBblCrude === undefined
-                      ? 'not priced'
-                      : `$${fmt(row.valuePerBblCrude, 2)}`}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <NumericTable>
+        <thead>
+          <tr>
+            <NumTh sticky>Cut</NumTh>
+            <NumTh>From (F)</NumTh>
+            <NumTh>To (F)</NumTh>
+            <NumTh numeric>Blend yield</NumTh>
+            {perCrudeYields.map((c) => (
+              <NumTh key={c.id} numeric>{c.name}</NumTh>
+            ))}
+            <NumTh numeric>Price ($/bbl)</NumTh>
+            <NumTh numeric>Value ($/bbl crude)</NumTh>
+          </tr>
+        </thead>
+        <tbody>
+          {yields.cuts.map((cut, i) => {
+            const row = valuation.rows.find((r) => r.id === cut.id);
+            return (
+              <NumRow key={cut.id}>
+                <RowLabel>{cut.name}</RowLabel>
+                <td className={FIELD_CELL}>
+                  <Input
+                    type="number" value={cut.fromF ?? ''} placeholder="IBP"
+                    onChange={(e) => setCut(cut.id, { fromF: e.target.value === '' ? null : Number(e.target.value) })}
+                    className="h-7 w-20 text-xs"
+                  />
+                </td>
+                <td className={FIELD_CELL}>
+                  <Input
+                    type="number" value={cut.toF ?? ''} placeholder="FBP"
+                    onChange={(e) => setCut(cut.id, { toF: e.target.value === '' ? null : Number(e.target.value) })}
+                    className="h-7 w-20 text-xs"
+                  />
+                </td>
+                <NumCell>{Number.isFinite(cut.yieldVolPercent) ? `${fmt(cut.yieldVolPercent, 1)}%` : 'n/a'}</NumCell>
+                {perCrudeYields.map((c) => (
+                  <NumCell key={c.id} tone="text-pl-muted">
+                    {Number.isFinite(c.cuts[i]?.yieldVolPercent) ? `${fmt(c.cuts[i].yieldVolPercent, 1)}%` : 'n/a'}
+                  </NumCell>
+                ))}
+                <td className={FIELD_CELL}>
+                  <Input
+                    type="number" value={inputs.valuation.prices[cut.id] ?? ''}
+                    onChange={(e) => setPrice(cut.id, e.target.value)}
+                    className="ml-auto h-7 w-20 text-xs text-right"
+                  />
+                </td>
+                <NumCell>
+                  {row?.valuePerBblCrude === null || row?.valuePerBblCrude === undefined
+                    ? 'not priced'
+                    : `$${fmt(row.valuePerBblCrude, 2)}`}
+                </NumCell>
+              </NumRow>
+            );
+          })}
+        </tbody>
+      </NumericTable>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-white">Costs against the barrel</h3>
+        <div className="rounded-lg border border-pl-border bg-pl-surface p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-pl-text">Costs against the barrel</h3>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-[11px] text-slate-400">Processing ($/bbl)</Label>
+              <Label className="text-[11px] text-pl-muted">Processing ($/bbl)</Label>
               <Input type="number" value={inputs.valuation.processingCostPerBbl}
                 onChange={(e) => setValuation({ processingCostPerBbl: e.target.value })}
-                className="h-8 bg-slate-950 border-slate-700 text-sm" />
+                className="h-8 text-sm" />
             </div>
             <div>
-              <Label className="text-[11px] text-slate-400">Freight ($/bbl)</Label>
+              <Label className="text-[11px] text-pl-muted">Freight ($/bbl)</Label>
               <Input type="number" value={inputs.valuation.freightPerBbl}
                 onChange={(e) => setValuation({ freightPerBbl: e.target.value })}
-                className="h-8 bg-slate-950 border-slate-700 text-sm" />
+                className="h-8 text-sm" />
             </div>
             <div>
-              <Label className="text-[11px] text-slate-400">Losses (%)</Label>
+              <Label className="text-[11px] text-pl-muted">Losses (%)</Label>
               <Input type="number" value={inputs.valuation.lossPercent}
                 onChange={(e) => setValuation({ lossPercent: e.target.value })}
-                className="h-8 bg-slate-950 border-slate-700 text-sm" />
+                className="h-8 text-sm" />
             </div>
             <div>
-              <Label className="text-[11px] text-slate-400">Marker netback ($/bbl)</Label>
+              <Label className="text-[11px] text-pl-muted">Marker netback ($/bbl)</Label>
               <Input type="number" value={inputs.valuation.markerNetback} placeholder="optional"
                 onChange={(e) => setValuation({ markerNetback: e.target.value })}
-                className="h-8 bg-slate-950 border-slate-700 text-sm" />
+                className="h-8 text-sm" />
             </div>
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-4">
-          <h3 className="text-sm font-semibold text-white mb-3">Netback</h3>
-          <dl className="space-y-1 text-sm">
-            <div className="flex justify-between"><dt className="text-slate-400">Gross product value</dt><dd className="font-mono text-white">${fmt(valuation.grossValue)}</dd></div>
-            <div className="flex justify-between"><dt className="text-slate-400">Less losses</dt><dd className="font-mono text-slate-300">-${fmt(valuation.lossValue)}</dd></div>
-            <div className="flex justify-between"><dt className="text-slate-400">Less processing</dt><dd className="font-mono text-slate-300">-${fmt(valuation.processingCostPerBbl)}</dd></div>
-            <div className="flex justify-between"><dt className="text-slate-400">Less freight</dt><dd className="font-mono text-slate-300">-${fmt(valuation.freightPerBbl)}</dd></div>
-            <div className="flex justify-between border-t border-slate-700 pt-1 mt-1">
-              <dt className="text-white font-semibold">Netback</dt>
-              <dd className="font-mono text-lime-300 font-bold">${fmt(valuation.netback)}</dd>
-            </div>
-            {valuation.marker && (
-              <div className="flex justify-between">
-                <dt className="text-slate-400">Against the marker</dt>
-                <dd className={`font-mono font-semibold ${valuation.marker.differential >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
-                  {valuation.marker.differential >= 0 ? '+' : ''}${fmt(valuation.marker.differential)}
-                </dd>
-              </div>
-            )}
-          </dl>
+        <div className="rounded-lg border border-pl-border bg-pl-surface p-4">
+          <h3 className="text-sm font-semibold text-pl-text mb-3">Netback</h3>
+          <NumericTable className="border-0 bg-transparent p-0">
+            <tbody>
+              <NumRow><RowLabel>Gross product value</RowLabel><NumCell>${fmt(valuation.grossValue)}</NumCell></NumRow>
+              <NumRow><RowLabel>Less losses</RowLabel><NumCell>-${fmt(valuation.lossValue)}</NumCell></NumRow>
+              <NumRow><RowLabel>Less processing</RowLabel><NumCell>-${fmt(valuation.processingCostPerBbl)}</NumCell></NumRow>
+              <NumRow><RowLabel>Less freight</RowLabel><NumCell>-${fmt(valuation.freightPerBbl)}</NumCell></NumRow>
+              <NumRow>
+                <RowLabel total>Netback</RowLabel>
+                <NumCell total value={valuation.netback}>${fmt(valuation.netback)}</NumCell>
+              </NumRow>
+              {valuation.marker && (
+                <NumRow>
+                  <RowLabel>Against the marker</RowLabel>
+                  <NumCell
+                    className="font-semibold"
+                    tone={valuation.marker.differential >= 0 ? 'text-pl-success-text' : 'text-pl-danger-text'}
+                  >
+                    {valuation.marker.differential >= 0 ? '+' : ''}${fmt(valuation.marker.differential)}
+                  </NumCell>
+                </NumRow>
+              )}
+            </tbody>
+          </NumericTable>
           {valuation.error && (
-            <p className="text-[11px] text-amber-300 mt-3">{valuation.error}</p>
+            <p className="text-[11px] text-pl-warning-text mt-3">{valuation.error}</p>
           )}
           {valuation.assumedZero?.length > 0 && (
-            <p className="text-[11px] text-slate-400 mt-3">
+            <p className="text-[11px] text-pl-muted mt-3">
               Taken as zero because the box is blank: {valuation.assumedZero.join(', ')}.
             </p>
           )}
           {valuation.unyieldedCuts?.length > 0 && (
-            <p className="text-[11px] text-amber-300 mt-3">
+            <p className="text-[11px] text-pl-warning-text mt-3">
               No yield for {valuation.unyieldedCuts.join(', ')}, so those cuts are left out of the
               value above and the netback is not complete.
             </p>
           )}
           {!valuation.complete && !valuation.error && valuation.unpricedCuts?.length > 0 && (
-            <p className="text-[11px] text-amber-300 mt-3">
+            <p className="text-[11px] text-pl-warning-text mt-3">
               No price for {valuation.unpricedCuts.join(', ')}. Those cuts contribute nothing to the
               value above, so the netback is understated until they are priced.
             </p>

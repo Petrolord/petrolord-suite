@@ -4,9 +4,9 @@
 // same energy, in the same run.
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Gauge } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Gauge } from 'lucide-react';
+import { AppHeader } from '@/components/ui/app-shell';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -26,26 +26,17 @@ const Workspace = () => {
   return (
     <>
       <StudioNotifications notifications={notifications} onDismiss={removeNotification} />
-      <div className="flex flex-col h-full bg-slate-950 text-white">
-        <header className="flex-shrink-0 border-b border-slate-800 px-4 py-3">
-          <Link to="/dashboard/midstream-downstream">
-            <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white pl-0 mb-2">
-              <ArrowLeft className="w-4 h-4 mr-2" /> Midstream &amp; Downstream
-            </Button>
-          </Link>
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-r from-lime-500 to-emerald-500 p-2 rounded-xl shadow-lg">
-                <Gauge className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold tracking-tight">Energy &amp; Utilities Efficiency Studio</h1>
-                <p className="text-slate-400 text-xs">
-                  Stack losses, excess air, steam and heat integration, with every saving priced in money and in carbon from the same energy.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-end gap-3">
+      <div className="flex h-full flex-col bg-pl-bg text-pl-text">
+        <AppHeader
+          backTo="/dashboard/midstream-downstream"
+          backLabel="Midstream & Downstream"
+          icon={Gauge}
+          eyebrow="Midstream & Downstream"
+          title="Energy & Utilities Efficiency Studio"
+          subtitle="Stack losses, excess air, steam and heat integration, with every saving priced in money and in carbon from the same energy."
+          className="static flex-shrink-0"
+          actions={(
+            <>
               <div className="w-52">
                 <StudioProjectManager
                   label="Saved study"
@@ -64,19 +55,19 @@ const Workspace = () => {
                 onSave={persistence.manualSave}
                 disabled={!persistence.currentProjectId}
               />
-              <FullPrecisionToggle app="energy-efficiency-studio" className="mb-2" />
+              <FullPrecisionToggle app="energy-efficiency-studio" />
               <EnergyEfficiencyHelpGuide />
-            </div>
-          </div>
-        </header>
+            </>
+          )}
+        />
 
-        <div className="flex flex-1 overflow-hidden">
-          <aside className="w-full md:w-1/3 xl:w-1/4 border-r border-slate-800 bg-slate-900/40 p-4 overflow-y-auto">
+        <div className="flex flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden">
+          <aside className="w-full border-b border-pl-border bg-pl-surface p-4 md:w-1/3 md:overflow-y-auto md:border-b-0 md:border-r xl:w-1/4">
             <EfficiencyInputs />
           </aside>
-          <main className="flex-1 p-4 overflow-y-auto">
+          <main className="min-w-0 flex-1 p-4 md:overflow-y-auto">
             <Tabs value={tab} onValueChange={setTab}>
-              <TabsList className="bg-slate-900 border border-slate-800">
+              <TabsList className="h-auto flex-wrap justify-start">
                 <TabsTrigger value="combustion">Combustion &amp; heaters</TabsTrigger>
                 <TabsTrigger value="utilities">Steam, intensity &amp; register</TabsTrigger>
                 <TabsTrigger value="pinch">Heat integration</TabsTrigger>
@@ -92,8 +83,10 @@ const Workspace = () => {
   );
 };
 
+// Design system rollout batch 5C (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class below is a theme role.
 const EnergyEfficiencyStudio = () => (
-  <>
+  <ThemedApp data-testid="energy-efficiency-theme-scope" className="h-full">
     <Helmet>
       <title>Energy &amp; Utilities Efficiency Studio - Petrolord Suite</title>
       <meta name="description" content="Fired-heater efficiency by the indirect stack-loss method, excess-air optimisation, steam system screening, energy intensity and pinch heat-integration targets." />
@@ -103,7 +96,7 @@ const EnergyEfficiencyStudio = () => (
         <Workspace />
       </FullPrecisionProvider>
     </EnergyEfficiencyProvider>
-  </>
+  </ThemedApp>
 );
 
 export default EnergyEfficiencyStudio;

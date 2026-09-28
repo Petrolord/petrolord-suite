@@ -13,6 +13,7 @@ import {
 import {
   Callout, Code, Formula, GuideSection, HelpGuideShell, Para, SectionHeading, Step, SubHeading, Table,
 } from '@/components/helpguide/HelpGuideLayout';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { FORECASTING_ROUTE } from '@/utils/dataAi/forecastStudy';
 import { DEFAULT_FIRST_ORIGIN, ENGINE_DEFAULTS as D } from '@/utils/dataAi/forecastWorkflows';
 import { MAX_WELLS, MAX_SAVED_UPLOAD_VALUES } from '@/utils/dataAi/forecastData';
@@ -34,7 +35,7 @@ export const FORECAST_GUIDE_SECTIONS = [
   { id: 'validation', icon: CheckCircle2, title: 'How the engine was validated' },
 ];
 
-const ForecastingMlWorkbenchHelpGuide = () => (
+const ForecastingMlWorkbenchHelpGuideContent = () => (
   <HelpGuideShell
     title="Production Forecasting ML Workbench Help Guide"
     subtitle="Exponential smoothing against the Arps decline, backtested on your own wells"
@@ -309,6 +310,12 @@ const ForecastingMlWorkbenchHelpGuide = () => (
       </Para>
     </GuideSection>
   </HelpGuideShell>
+);
+
+const ForecastingMlWorkbenchHelpGuide = () => (
+  <ThemedApp className="min-h-screen" data-testid="forecastml-help-theme-scope">
+    <ForecastingMlWorkbenchHelpGuideContent />
+  </ThemedApp>
 );
 
 export default ForecastingMlWorkbenchHelpGuide;

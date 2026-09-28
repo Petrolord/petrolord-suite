@@ -10,7 +10,7 @@ export const BackButton = () => {
     <Button 
       variant="outline" 
       onClick={() => navigate('/dashboard/assurance')}
-      className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 hover:text-cyan-300 transition-colors h-8 px-3 text-xs"
+      className="h-8 px-3 text-xs"
     >
       <ChevronLeft className="w-4 h-4 mr-1" />
       Back to Assurance

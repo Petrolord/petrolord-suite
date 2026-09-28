@@ -59,51 +59,51 @@ export const ReportViewer = () => {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900 p-4 rounded-lg border border-slate-800">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-pl-surface p-4 rounded-lg border border-pl-border">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={closeReport} className="text-slate-400 hover:text-white px-2">
+          <Button variant="ghost" onClick={closeReport} className="text-pl-muted hover:text-pl-text px-2">
             <ArrowLeft className="w-4 h-4 mr-2" /> Back
           </Button>
           <div>
-            <h2 className="text-xl font-bold text-white">{activeReport.name}</h2>
-            <p className="text-xs text-slate-400">
+            <h2 className="text-xl font-bold text-pl-text">{activeReport.name}</h2>
+            <p className="text-xs text-pl-muted">
               {data.length} records{grouping ? `, grouped by ${columnLabel(grouping).toLowerCase()}` : ''}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex bg-slate-950 p-1 rounded-md border border-slate-800 mr-2">
-            <Button variant="ghost" size="sm" className={`px-3 h-7 ${viewMode === 'table' ? 'bg-slate-800 text-white' : 'text-slate-400'}`} onClick={() => setViewMode('table')}>
+          <div className="flex bg-pl-sunken p-1 rounded-md border border-pl-border mr-2">
+            <Button variant="ghost" size="sm" className={`px-3 h-7 ${viewMode === 'table' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`} onClick={() => setViewMode('table')}>
               <TableIcon className="w-4 h-4 mr-1" /> Table
             </Button>
-            <Button variant="ghost" size="sm" className={`px-3 h-7 ${viewMode === 'chart' ? 'bg-slate-800 text-white' : 'text-slate-400'}`} onClick={() => setViewMode('chart')}>
+            <Button variant="ghost" size="sm" className={`px-3 h-7 ${viewMode === 'chart' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`} onClick={() => setViewMode('chart')}>
               <BarChart3 className="w-4 h-4 mr-1" /> Chart
             </Button>
           </div>
 
-          <Button variant="outline" size="sm" className="border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10" onClick={() => openReportBuilder(activeReport)}>
+          <Button variant="outline" size="sm" onClick={() => openReportBuilder(activeReport)}>
             <Edit2 className="w-3 h-3 mr-2" /> Edit Config
           </Button>
-          <Button variant="outline" size="sm" className="border-slate-700 text-slate-300" onClick={() => setSaveModalOpen(true)}>
+          <Button variant="outline" size="sm" onClick={() => setSaveModalOpen(true)}>
             <Save className="w-3 h-3 mr-2" /> Save As
           </Button>
 
-          <div className="flex gap-1 border-l border-slate-800 pl-2">
-            <Button variant="ghost" size="icon" title="Export PDF" onClick={() => handleExport('pdf')} className="text-slate-400 hover:text-red-400"><FileText className="w-4 h-4"/></Button>
-            <Button variant="ghost" size="icon" title="Export Excel" onClick={() => handleExport('excel')} className="text-slate-400 hover:text-green-400"><FileSpreadsheet className="w-4 h-4"/></Button>
-            <Button variant="ghost" size="icon" title="Print" onClick={() => handleExport('print')} className="text-slate-400 hover:text-slate-200"><Printer className="w-4 h-4"/></Button>
+          <div className="flex gap-1 border-l border-pl-border pl-2">
+            <Button variant="ghost" size="icon" title="Export PDF" onClick={() => handleExport('pdf')} className="text-pl-muted hover:text-pl-text"><FileText className="w-4 h-4"/></Button>
+            <Button variant="ghost" size="icon" title="Export Excel" onClick={() => handleExport('excel')} className="text-pl-muted hover:text-pl-text"><FileSpreadsheet className="w-4 h-4"/></Button>
+            <Button variant="ghost" size="icon" title="Print" onClick={() => handleExport('print')} className="text-pl-muted hover:text-pl-text"><Printer className="w-4 h-4"/></Button>
           </div>
         </div>
       </div>
 
       {/* Content Area */}
-      <Card className="bg-slate-900 border-slate-800 min-h-[500px]">
+      <Card className="min-h-[500px]">
         {viewMode === 'table' ? (
           <div className="overflow-auto max-h-[600px]">
             <Table className="report-table">
               <TableHeader>
-                <TableRow className="border-slate-800">
+                <TableRow>
                   {colDefs.map(col => (
                     <TableHead key={col.key}>{col.label}</TableHead>
                   ))}
@@ -112,17 +112,17 @@ export const ReportViewer = () => {
               <TableBody>
                 {data.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={cols.length} className="h-32 text-center text-slate-500">No data matches the report criteria.</TableCell>
+                    <TableCell colSpan={cols.length} className="h-32 text-center text-pl-muted">No data matches the report criteria.</TableCell>
                   </TableRow>
                 ) : (
                   groupedRows(data, grouping).map((entry, i) => (entry.heading !== undefined ? (
-                    <TableRow key={`g-${entry.heading}`} className="border-slate-800 bg-slate-950/60">
-                      <TableCell colSpan={cols.length} className="text-xs font-semibold uppercase tracking-wide text-cyan-400">
+                    <TableRow key={`g-${entry.heading}`} className="border-pl-border bg-pl-sunken">
+                      <TableCell colSpan={cols.length} className="text-xs font-semibold uppercase tracking-wide text-pl-primary-text">
                         {entry.heading} ({entry.count})
                       </TableCell>
                     </TableRow>
                   ) : (
-                    <TableRow key={entry.row.id || i} className="border-slate-800 hover:bg-slate-800/30">
+                    <TableRow key={entry.row.id || i}>
                       {colDefs.map(col => (
                         <TableCell key={col.key}>
                           {col.key === 'risk_score' || col.key === 'residual_score' ? <RiskScoreBadge score={entry.row[col.key]} /> :
@@ -138,14 +138,14 @@ export const ReportViewer = () => {
           </div>
         ) : (
           <CardContent className="p-6 space-y-3">
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-pl-muted">
               Risks in this report by {columnLabel(chartField).toLowerCase()}
               {grouping ? '' : '. Set a grouping in Edit Config to count by another field'}.
             </p>
             {data.length === 0 ? (
-              <p className="h-[400px] flex items-center justify-center text-slate-500">No data matches the report criteria.</p>
+              <p className="h-[400px] flex items-center justify-center text-pl-muted">No data matches the report criteria.</p>
             ) : (
-              <div className="relative h-[420px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+              <div className="relative h-[420px] rounded-lg p-2" data-canvas="chart" style={{ backgroundColor: CHART_COLORS.background }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} margin={CHART_MARGINS.standard}>
                     <CartesianGrid {...GRID_STYLE} vertical={false} />
@@ -166,19 +166,19 @@ export const ReportViewer = () => {
 
       {/* Save Modal */}
       <Dialog open={saveModalOpen} onOpenChange={setSaveModalOpen}>
-        <DialogContent className="bg-slate-900 border-slate-800 text-white">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Save as a new report</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Report Name</Label>
-              <Input value={reportName} onChange={e => setReportName(e.target.value)} className="bg-slate-950 border-slate-700" />
+              <Input value={reportName} onChange={e => setReportName(e.target.value)} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSaveModalOpen(false)} className="border-slate-700">Cancel</Button>
-            <Button onClick={handleSaveAs} className="bg-cyan-600 hover:bg-cyan-700 text-white">Save Report</Button>
+            <Button variant="outline" onClick={() => setSaveModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveAs}>Save Report</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

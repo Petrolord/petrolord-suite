@@ -94,11 +94,11 @@ export const MaterialsSparesHelpContent = () => (
         <AccordionItem value={item.id} key={item.id}>
           <AccordionTrigger className="text-base hover:no-underline">
             <div className="flex items-center">
-              <Icon className="mr-3 h-5 w-5 text-sky-400" />
+              <Icon className="mr-3 h-5 w-5 text-pl-primary-text" />
               {item.title}
             </div>
           </AccordionTrigger>
-          <AccordionContent className="pl-8 leading-relaxed text-slate-300">
+          <AccordionContent className="pl-8 leading-relaxed text-pl-text">
             {item.content}
           </AccordionContent>
         </AccordionItem>

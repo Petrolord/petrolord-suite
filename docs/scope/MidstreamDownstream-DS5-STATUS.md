@@ -5,6 +5,24 @@ Status: **SHIPPED 2026-08-29** (branch feat/downstream-ds5)
 
 Doctrine 4's application, and the first of Track B.
 
+## Design system rollout, batch 5D (2026-09-28)
+
+The app opens on the Petrolord design system: light grey panel by default,
+dark as a per-user choice from the header toggle, which stays visible at
+phone width.
+
+- Scope: `ThemedApp` inside `src/pages/apps/TerminalDepotStudio.jsx`; App.jsx unchanged.
+  The header is `AppHeader` (back, title, saved study, save, help, toggle).
+  Cold-load prefix `/dashboard/apps/midstream-downstream/terminal-depot-studio` in
+  `src/design/rollout/w5d.js`.
+- The reconciliation banner keeps success, warning or danger with its sentence; a negative margin reads on the danger text and a positive one on plain text (the decorative lime is gone). The gain and loss trend keeps the white chart standard.
+- Test: `src/pages/apps/__tests__/TerminalDepotStudio.theme.test.jsx` (light by default,
+  toggle to dark and back stored per user, no legacy colour outside canvases
+  with a negative control, the route registered, every tab in both themes,
+  the documentation drawer and the new-study dialog inside the scope).
+  Existing tests pass unchanged.
+- No engine or calculation change.
+
 ## The case it is built for
 
 Terminal automation packages assume a meter on every arm, automatic tank

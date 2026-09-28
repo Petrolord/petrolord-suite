@@ -16,8 +16,8 @@ import {
   CrossPlot, DepthTrack, RocChart, MAX_PLOT_POINTS, strideNote,
 } from './charts';
 
-const Th = ({ children }) => <th className="px-2 py-1 text-left font-medium text-slate-400">{children}</th>;
-const Td = ({ children, mono = true }) => <td className={`px-2 py-1 ${mono ? 'font-mono' : ''} text-slate-200`}>{children}</td>;
+const Th = ({ children }) => <th className="px-2 py-1 text-left font-medium text-pl-muted">{children}</th>;
+const Td = ({ children, mono = true }) => <td className={`px-2 py-1 ${mono ? 'font-mono' : ''} text-pl-text`}>{children}</td>;
 
 export const StaleNote = ({ keyName }) => {
   const { isStale } = useMlWorkbench();
@@ -30,7 +30,7 @@ const SavedNote = () => {
   const { savedSummary, dataChanged } = useMlWorkbench();
   if (!savedSummary) return null;
   return (
-    <div className="space-y-1 rounded border border-slate-800 p-2 text-xs text-slate-300" data-testid="saved-summary">
+    <div className="space-y-1 rounded border border-pl-border p-2 text-xs text-pl-text" data-testid="saved-summary">
       <p>
         Saved run: {savedSummary.task}, target {savedSummary.target}, {savedSummary.rows} rows,
         saved {savedSummary.ranAt ? savedSummary.ranAt.slice(0, 16).replace('T', ' ') : ''} UTC with {savedSummary.engine}.
@@ -55,7 +55,7 @@ const FoldTable = ({ ev }) => (
       </thead>
       <tbody>
         {ev.folds.map((f) => (
-          <tr key={f.fold} className="border-t border-slate-800 align-top">
+          <tr key={f.fold} className="border-t border-pl-border align-top">
             <Td>{f.fold}</Td>
             <Td mono={false}>{f.testGroups.join(', ')}</Td>
             <Td>{f.nTrain}</Td>
@@ -66,9 +66,9 @@ const FoldTable = ({ ev }) => (
               <>
                 <Td>{dn(f.test.report.accuracy)}</Td>
                 <Td>{dn(f.test.report.perClass?.[1]?.f1)}</Td>
-                <Td>{f.test.roc.error ? <span className="text-amber-200">{f.test.roc.error}</span> : dn(f.test.roc.auc)}</Td>
+                <Td>{f.test.roc.error ? <span className="text-pl-warning-text">{f.test.roc.error}</span> : dn(f.test.roc.auc)}</Td>
                 <Td>{dn(f.test.logLoss.logLoss)}</Td>
-                <Td mono={false}>{f.fit.converged ? `yes, ${f.fit.iterations} updates` : <span className="text-amber-200">no: {f.fit.warning}</span>}</Td>
+                <Td mono={false}>{f.fit.converged ? `yes, ${f.fit.iterations} updates` : <span className="text-pl-warning-text">no: {f.fit.warning}</span>}</Td>
               </>
             ) : (
               <>
@@ -102,7 +102,7 @@ const CoefficientTable = ({ final, standardise }) => {
         </thead>
         <tbody>
           {f.names.map((nm, j) => (
-            <tr key={nm} className="border-t border-slate-800">
+            <tr key={nm} className="border-t border-pl-border">
               <Td mono={false}>{nm}</Td>
               <Td>{dn(f.coefficients[j])}</Td>
               {f.standardErrors ? <Td>{dn(f.standardErrors[j])}</Td> : null}
@@ -163,12 +163,12 @@ const ClassificationSummary = ({ ev }) => {
         <>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div>
-              <p className="mb-1 text-xs text-slate-400">Confusion matrix (rows are the true class, columns the predicted class)</p>
+              <p className="mb-1 text-xs text-pl-muted">Confusion matrix (rows are the true class, columns the predicted class)</p>
               <table className="text-xs" data-testid="confusion-matrix">
                 <thead><tr><Th />{r.labels.map((l) => <Th key={l}>Predicted {l}</Th>)}</tr></thead>
                 <tbody>
                   {r.labels.map((l, i) => (
-                    <tr key={l} className="border-t border-slate-800"><Td mono={false}>True {l}</Td>{r.matrix[i].map((c, j) => <Td key={r.labels[j]}>{c}</Td>)}</tr>
+                    <tr key={l} className="border-t border-pl-border"><Td mono={false}>True {l}</Td>{r.matrix[i].map((c, j) => <Td key={r.labels[j]}>{c}</Td>)}</tr>
                   ))}
                 </tbody>
               </table>
@@ -178,15 +178,15 @@ const ClassificationSummary = ({ ev }) => {
                 <thead><tr><Th>Class</Th><Th>Precision</Th><Th>Recall</Th><Th>F1</Th><Th>Support</Th></tr></thead>
                 <tbody>
                   {r.perClass.map((c) => (
-                    <tr key={c.label} className="border-t border-slate-800"><Td>{c.label}</Td><Td>{dn(c.precision)}</Td><Td>{dn(c.recall)}</Td><Td>{dn(c.f1)}</Td><Td>{c.support}</Td></tr>
+                    <tr key={c.label} className="border-t border-pl-border"><Td>{c.label}</Td><Td>{dn(c.precision)}</Td><Td>{dn(c.recall)}</Td><Td>{dn(c.f1)}</Td><Td>{c.support}</Td></tr>
                   ))}
-                  <tr className="border-t border-slate-800"><Td mono={false}>Macro</Td><Td>{dn(r.macro.precision)}</Td><Td>{dn(r.macro.recall)}</Td><Td>{dn(r.macro.f1)}</Td><Td /></tr>
-                  <tr className="border-t border-slate-800"><Td mono={false}>Weighted</Td><Td>{dn(r.weighted.precision)}</Td><Td>{dn(r.weighted.recall)}</Td><Td>{dn(r.weighted.f1)}</Td><Td /></tr>
+                  <tr className="border-t border-pl-border"><Td mono={false}>Macro</Td><Td>{dn(r.macro.precision)}</Td><Td>{dn(r.macro.recall)}</Td><Td>{dn(r.macro.f1)}</Td><Td /></tr>
+                  <tr className="border-t border-pl-border"><Td mono={false}>Weighted</Td><Td>{dn(r.weighted.precision)}</Td><Td>{dn(r.weighted.recall)}</Td><Td>{dn(r.weighted.f1)}</Td><Td /></tr>
                 </tbody>
               </table>
             </div>
           </div>
-          <p className="text-xs text-slate-300">
+          <p className="text-xs text-pl-text">
             Accuracy {dn(r.accuracy)}; ROC AUC {p.roc.error ? 'refused' : dn(p.roc.auc)}; log loss {p.logLoss.error ? 'refused' : dn(p.logLoss.logLoss)}
             {p.logLoss.clipped ? ` (${p.logLoss.clipped} probabilities clipped to [1e-15, 1 - 1e-15])` : ''}.
             {r.undefinedRatios.length ? ` Undefined ratios scored 0: ${r.undefinedRatios.map((u) => `${u.metric} of class ${u.label}`).join(', ')}.` : ''}
@@ -237,7 +237,7 @@ const ResultsPanel = () => {
       {ev.error ? <EngineError result={ev} prefix="Validation refused" /> : (
         <>
           <Section title="Held-out scores">
-            <p className="text-xs text-slate-300" data-testid="results-basis">
+            <p className="text-xs text-pl-text" data-testid="results-basis">
               {modelText(parsed)}, {validationText(ev)}; {ev.tested.length.toLocaleString('en-US')} held-out rows.
               {r.task === 'regression' && ev.pooled ? (
                 <span data-testid="pooled-regression"> Pooled RMSE {dn(ev.pooled.rmse)}, MAE {dn(ev.pooled.mae)}, R² {dn(ev.pooled.r2)}.</span>

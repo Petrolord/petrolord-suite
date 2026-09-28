@@ -100,7 +100,7 @@ const RiskRegisterTablePage = ({ cell = null, onClearCell }) => {
       ) : null}
 
       {error ? (
-        <div className="p-4 rounded-lg border border-red-500/30 bg-red-500/5 text-sm">
+        <div className="p-4 rounded-lg border border-pl-danger/30 bg-pl-danger-bg text-sm">
           <p className="font-medium">The register could not be loaded</p>
           <p className="text-[hsl(var(--muted-foreground))] mt-1">{error}</p>
         </div>

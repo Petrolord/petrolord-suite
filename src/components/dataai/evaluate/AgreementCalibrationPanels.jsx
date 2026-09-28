@@ -40,7 +40,7 @@ export const AgreementPanel = () => {
       {out ? (
         <Section title="Results" testId="agreement-results">
           <StaleNote job="agreement" />
-          <p className="text-xs text-slate-300" data-testid="agreement-line">
+          <p className="text-xs text-pl-text" data-testid="agreement-line">
             {out.pairs} pairs{out.labels ? `, grades ${out.labels.join(', ')}` : ''}
             {out.missingSecond ? `; ${out.missingSecond} judged pairs have no second grade and are left out` : ''}.
           </p>
@@ -122,7 +122,7 @@ export const CalibrationPanel = () => {
                   ['Closure (Brier minus the sum)', c.murphy.closure],
                 ]}
               />
-              <p className="text-xs text-slate-300" data-testid="closure-line">The decomposition closes to {dn(c.murphy.closure)} (0 up to rounding).</p>
+              <p className="text-xs text-pl-text" data-testid="closure-line">The decomposition closes to {dn(c.murphy.closure)} (0 up to rounding).</p>
               <div className="grid gap-3 xl:grid-cols-2">
                 <ReliabilityChart calibration={c} />
                 <BinCountChart calibration={c} />

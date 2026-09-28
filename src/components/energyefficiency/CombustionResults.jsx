@@ -12,10 +12,10 @@ const fmt = (v, dp = 2) => (Number.isFinite(v)
   : 'not supplied');
 
 const Stat = ({ label, value, hint }) => (
-  <div className="rounded border border-slate-800 bg-slate-900/60 p-3">
-    <p className="text-[10px] uppercase tracking-wide text-slate-500">{label}</p>
-    <p className="text-lg font-semibold text-white">{value}</p>
-    {hint && <p className="text-[11px] text-slate-500 mt-0.5">{hint}</p>}
+  <div className="rounded border border-pl-border bg-pl-surface p-3">
+    <p className="text-[10px] uppercase tracking-wide text-pl-muted">{label}</p>
+    <p className="text-lg font-semibold text-pl-text">{value}</p>
+    {hint && <p className="text-[11px] text-pl-muted mt-0.5">{hint}</p>}
   </div>
 );
 
@@ -41,9 +41,9 @@ const CombustionResults = () => {
 
   if (st.error) {
     return (
-      <div className="rounded-lg border border-amber-800/60 bg-amber-950/30 p-4 flex items-start gap-3">
-        <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
-        <p className="text-sm text-amber-100">{st.error}</p>
+      <div className="rounded-lg border border-pl-warning/40 bg-pl-warning-bg p-4 flex items-start gap-3">
+        <AlertTriangle className="w-5 h-5 text-pl-warning-text mt-0.5 shrink-0" />
+        <p className="text-sm text-pl-warning-text">{st.error}</p>
       </div>
     );
   }
@@ -51,8 +51,8 @@ const CombustionResults = () => {
   return (
     <div className="space-y-5">
       <div>
-        <h3 className="text-sm font-semibold text-white mb-1">Combustion, from your fuel analysis</h3>
-        <p className="text-[11px] text-slate-500 mb-2">
+        <h3 className="text-sm font-semibold text-pl-text mb-1">Combustion, from your fuel analysis</h3>
+        <p className="text-[11px] text-pl-muted mb-2">
           Air required and flue gas produced come from the carbon and hydrogen in the fuel and the
           oxygen content of air. No chart and no rule of thumb: it is an atom balance. Inerts in
           the fuel are carried through, because they still have to be heated up the stack.
@@ -66,23 +66,23 @@ const CombustionResults = () => {
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-white mb-1">Where the heat goes</h3>
-        {currentEfficiency.error ? <p className="text-sm text-amber-300">{currentEfficiency.error}</p> : (
+        <h3 className="text-sm font-semibold text-pl-text mb-1">Where the heat goes</h3>
+        {currentEfficiency.error ? <p className="text-sm text-pl-warning-text">{currentEfficiency.error}</p> : (
           <>
-            <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-4 mb-3">
-              <p className="font-semibold text-white">
+            <div className="rounded-lg border border-pl-border bg-pl-surface p-4 mb-3">
+              <p className="font-semibold text-pl-text">
                 {`${show(fmt(currentEfficiency.efficiencyPercent, 2), currentEfficiency.efficiencyPercent)}% efficient on ${currentEfficiency.basis}`}
               </p>
-              <p className="text-sm text-amber-200 mt-1">{currentEfficiency.comparisonWarning}</p>
-              <p className="text-[11px] text-slate-500 mt-1">{currentEfficiency.moistureBasisNote}</p>
+              <p className="text-sm text-pl-warning-text mt-1">{currentEfficiency.comparisonWarning}</p>
+              <p className="text-[11px] text-pl-muted mt-1">{currentEfficiency.moistureBasisNote}</p>
               {!unburnedLossSupplied && (
-                <p className="text-sm text-amber-200 mt-1">
+                <p className="text-sm text-pl-warning-text mt-1">
                   Unburned and other loss: not supplied. It is absent here and the efficiency
                   above leaves it out, so it is a best case. Enter the loss to close the ledger.
                 </p>
               )}
             </div>
-            <p className="text-[11px] text-slate-500 mb-2">
+            <p className="text-[11px] text-pl-muted mb-2">
               The indirect method is used rather than the direct one because it says where the
               energy went, and that is the difference between a number and an action.
             </p>
@@ -105,16 +105,16 @@ const CombustionResults = () => {
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-white mb-1">What tuning the excess air is worth</h3>
+        <h3 className="text-sm font-semibold text-pl-text mb-1">What tuning the excess air is worth</h3>
         {tuningSaving.error ? (
           <div className={`rounded-lg border p-4 flex items-start gap-3 ${
             tuningSaving.belowSafeFloor
-              ? 'border-red-800/60 bg-red-950/30' : 'border-amber-800/60 bg-amber-950/30'}`}
+              ? 'border-pl-danger/40 bg-pl-danger-bg' : 'border-pl-warning/40 bg-pl-warning-bg'}`}
           >
             {tuningSaving.belowSafeFloor
-              ? <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 shrink-0" />
-              : <Info className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />}
-            <p className="text-sm text-amber-100">{tuningSaving.error}</p>
+              ? <AlertTriangle className="w-5 h-5 text-pl-danger-text mt-0.5 shrink-0" />
+              : <Info className="w-5 h-5 text-pl-warning-text mt-0.5 shrink-0" />}
+            <p className="text-sm text-pl-warning-text">{tuningSaving.error}</p>
           </div>
         ) : (
           <>
@@ -124,7 +124,7 @@ const CombustionResults = () => {
               <Stat label="Fuel saved" value={`${fmt(tuningSaving.fuelSavingPercent, 2)}%`} />
               <Stat label="Energy saved" value={tuningSaving.annualEnergySavedGJ === null ? 'no annual fuel' : `${fmt(tuningSaving.annualEnergySavedGJ, 0)} GJ/yr`} />
             </div>
-            <p className="text-[11px] text-slate-500 mt-2">{tuningSaving.method}</p>
+            <p className="text-[11px] text-pl-muted mt-2">{tuningSaving.method}</p>
           </>
         )}
       </div>

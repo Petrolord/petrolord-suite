@@ -5,9 +5,9 @@
 // inputs.
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Beaker } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Beaker } from 'lucide-react';
+import { AppHeader } from '@/components/ui/app-shell';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -25,27 +25,15 @@ const Workspace = () => {
   return (
     <>
       <StudioNotifications notifications={notifications} onDismiss={removeNotification} />
-      <div className="flex flex-col h-full bg-slate-950 text-white">
-        <header className="flex-shrink-0 border-b border-slate-800 px-4 py-3">
-          <Link to="/dashboard/midstream-downstream">
-            <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white pl-0 mb-2">
-              <ArrowLeft className="w-4 h-4 mr-2" /> Midstream &amp; Downstream
-            </Button>
-          </Link>
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-2 rounded-xl shadow-lg">
-                <Beaker className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold tracking-tight">Crude Assay &amp; Blending Studio</h1>
-                <p className="text-slate-400 text-xs">
-                  What the barrel becomes, what the blend looks like, whether it is stable, and what it is worth.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-end gap-3">
-              <div className="w-52">
+      <div className="flex min-h-screen flex-col bg-pl-bg text-pl-text md:h-screen">
+        <AppHeader
+          backTo="/dashboard/midstream-downstream"
+          backLabel="Back to Midstream & Downstream"
+          icon={Beaker}
+          title="Crude Assay & Blending Studio"
+          actions={(
+            <>
+              <div className="w-full sm:w-52">
                 <StudioProjectManager
                   label="Saved study"
                   projects={persistence.projects}
@@ -64,17 +52,20 @@ const Workspace = () => {
                 disabled={!persistence.currentProjectId}
               />
               <CrudeAssayHelpGuide />
-            </div>
-          </div>
-        </header>
+            </>
+          )}
+        />
+        <div className="flex-shrink-0 border-b border-pl-border px-4 py-2 sm:px-6">
+          <p className="text-xs text-pl-muted">What the barrel becomes, what the blend looks like, whether it is stable, and what it is worth.</p>
+        </div>
 
-        <div className="flex flex-1 overflow-hidden">
-          <aside className="w-full md:w-1/3 xl:w-1/4 border-r border-slate-800 bg-slate-900/40 p-4 overflow-y-auto">
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row md:overflow-hidden">
+          <aside className="w-full border-b border-pl-border bg-pl-surface p-4 md:w-1/3 md:overflow-y-auto md:border-b-0 md:border-r xl:w-1/4">
             <AssayPanel />
           </aside>
-          <main className="flex-1 p-4 overflow-y-auto">
+          <main className="min-w-0 flex-1 p-4 md:overflow-y-auto">
             <Tabs value={tab} onValueChange={setTab}>
-              <TabsList className="bg-slate-900 border border-slate-800">
+              <TabsList>
                 <TabsTrigger value="blend">Blend &amp; stability</TabsTrigger>
                 <TabsTrigger value="yields">Yields &amp; netback</TabsTrigger>
               </TabsList>
@@ -92,15 +83,21 @@ const Workspace = () => {
   );
 };
 
+// Design system rollout batch 5D (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so it opens light and the header toggle
+// switches it to dark per user. The distillation curves keep the white chart
+// standard.
 const CrudeAssayBlendingStudio = () => (
   <>
     <Helmet>
       <title>Crude Assay &amp; Blending Studio - Petrolord Suite</title>
       <meta name="description" content="Crude assay cut yields, blend property prediction, asphaltene stability screening and netback valuation." />
     </Helmet>
-    <CrudeAssayProvider>
-      <Workspace />
-    </CrudeAssayProvider>
+    <ThemedApp className="min-h-screen" data-testid="crudeassay-theme-scope">
+      <CrudeAssayProvider>
+        <Workspace />
+      </CrudeAssayProvider>
+    </ThemedApp>
   </>
 );
 

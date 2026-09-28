@@ -15,10 +15,10 @@ const fmt = (v, dp = 1) => (Number.isFinite(v)
   : 'n/a');
 
 const Stat = ({ label, value, hint }) => (
-  <div className="rounded border border-slate-800 bg-slate-900/60 p-3">
-    <p className="text-[10px] uppercase tracking-wide text-slate-500">{label}</p>
-    <p className="text-lg font-semibold text-white">{value}</p>
-    {hint && <p className="text-[11px] text-slate-500 mt-0.5">{hint}</p>}
+  <div className="rounded border border-pl-border bg-pl-surface p-3">
+    <p className="text-[10px] uppercase tracking-wide text-pl-muted">{label}</p>
+    <p className="text-lg font-semibold text-pl-text">{value}</p>
+    {hint && <p className="text-[11px] text-pl-muted mt-0.5">{hint}</p>}
   </div>
 );
 
@@ -28,9 +28,9 @@ const PinchResults = () => {
 
   if (pinch.error) {
     return (
-      <div className="rounded-lg border border-amber-800/60 bg-amber-950/30 p-4 flex items-start gap-3">
-        <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
-        <p className="text-sm text-amber-100">{pinch.error}</p>
+      <div className="rounded-lg border border-pl-warning/40 bg-pl-warning-bg p-4 flex items-start gap-3">
+        <AlertTriangle className="w-5 h-5 text-pl-warning-text mt-0.5 shrink-0" />
+        <p className="text-sm text-pl-warning-text">{pinch.error}</p>
       </div>
     );
   }
@@ -60,7 +60,7 @@ const PinchResults = () => {
           hint={pinch.thresholdProblem ? 'threshold problem' : 'hot side / cold side'} />
       </div>
 
-      <p className="text-[11px] text-slate-500">
+      <p className="text-[11px] text-pl-muted">
         {pinch.crossPinchNote}
         {pinch.thresholdProblem && ' This stream set is a threshold problem: one of the utilities is zero, so there is no pinch constraining the design.'}
       </p>
@@ -69,8 +69,8 @@ const PinchResults = () => {
         {/* Senior test T1: composites and the cascade are straight segments
             between kink temperatures. They were drawn smoothed, which bent
             them and moved where the closest approach appeared to be. */}
-        <h3 className="text-sm font-semibold text-white mb-1">Composite curves</h3>
-        <p className="text-[11px] text-slate-500 mb-2">
+        <h3 className="text-sm font-semibold text-pl-text mb-1">Composite curves</h3>
+        <p className="text-[11px] text-pl-muted mb-2">
           The cold composite is shifted right by the cold utility so the two sit in one enthalpy
           frame. Where they overlap is heat the process can recover from itself; the tails are the
           utilities, and the closest vertical approach between them is the pinch.
@@ -91,8 +91,8 @@ const PinchResults = () => {
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-white mb-1">Grand composite</h3>
-        <p className="text-[11px] text-slate-500 mb-2">
+        <h3 className="text-sm font-semibold text-pl-text mb-1">Grand composite</h3>
+        <p className="text-[11px] text-pl-muted mb-2">
           The heat cascade against shifted temperature. It touches zero at the pinch, which is
           exactly why the pinch is a constraint: no heat can flow through that point.
         </p>
@@ -111,10 +111,10 @@ const PinchResults = () => {
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-white mb-1">The problem table</h3>
-        <div className="overflow-x-auto rounded border border-slate-800">
+        <h3 className="text-sm font-semibold text-pl-text mb-1">The problem table</h3>
+        <div className="overflow-x-auto rounded border border-pl-border">
           <table className="w-full text-xs">
-            <thead className="bg-slate-900/80 text-slate-400">
+            <thead className="bg-pl-surface text-pl-muted">
               <tr>
                 <th className="text-right px-2 py-1.5">Top (shifted C)</th>
                 <th className="text-right px-2 py-1.5">Bottom</th>
@@ -124,22 +124,22 @@ const PinchResults = () => {
                 <th className="text-right px-2 py-1.5">Cascade (kW)</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-pl-border">
               {pinch.intervals.map((iv) => (
                 <tr key={`${iv.topShiftedC}-${iv.bottomShiftedC}`}
-                  className={Math.abs(iv.cascadeKW) < 1e-6 ? 'bg-amber-950/25' : ''}>
-                  <td className="px-2 py-1 text-right text-slate-300">{fmt(iv.topShiftedC, 1)}</td>
-                  <td className="px-2 py-1 text-right text-slate-300">{fmt(iv.bottomShiftedC, 1)}</td>
-                  <td className="px-2 py-1 text-right text-slate-400">{fmt(iv.cpHotKWperK, 2)}</td>
-                  <td className="px-2 py-1 text-right text-slate-400">{fmt(iv.cpColdKWperK, 2)}</td>
-                  <td className="px-2 py-1 text-right text-slate-300">{fmt(iv.surplusKW, 1)}</td>
-                  <td className="px-2 py-1 text-right text-white">{fmt(iv.cascadeKW, 1)}</td>
+                  className={Math.abs(iv.cascadeKW) < 1e-6 ? 'bg-pl-warning-bg' : ''}>
+                  <td className="px-2 py-1 text-right text-pl-text">{fmt(iv.topShiftedC, 1)}</td>
+                  <td className="px-2 py-1 text-right text-pl-text">{fmt(iv.bottomShiftedC, 1)}</td>
+                  <td className="px-2 py-1 text-right text-pl-muted">{fmt(iv.cpHotKWperK, 2)}</td>
+                  <td className="px-2 py-1 text-right text-pl-muted">{fmt(iv.cpColdKWperK, 2)}</td>
+                  <td className="px-2 py-1 text-right text-pl-text">{fmt(iv.surplusKW, 1)}</td>
+                  <td className="px-2 py-1 text-right text-pl-text">{fmt(iv.cascadeKW, 1)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <p className="text-[11px] text-slate-500 mt-1">
+        <p className="text-[11px] text-pl-muted mt-1">
           {`Energy balance closes to ${fmt(pinch.balanceCheck, 3)} kW: hot utility plus hot streams equals cold utility plus cold streams.`}
         </p>
       </div>

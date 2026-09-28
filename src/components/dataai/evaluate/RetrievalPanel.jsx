@@ -26,7 +26,7 @@ const Explain = ({ explain }) => {
   const bm25 = r.method === 'bm25';
   return (
     <div className="space-y-2" data-testid="explain">
-      <p className="text-xs text-slate-200" data-testid="explain-query">{explain.query}: {explain.text}</p>
+      <p className="text-xs text-pl-text" data-testid="explain-query">{explain.query}: {explain.text}</p>
       {r.note ? <Note tone="warn" testId="explain-note">{r.note}</Note> : null}
       {bm25 ? (
         <Grid
@@ -53,7 +53,7 @@ const Explain = ({ explain }) => {
             : x.terms.map((t) => `${t.term}: ${dn(t.query)} x ${dn(t.document)}`).join('; '),
         ])}
       />
-      <p className="text-xs text-slate-300" data-testid="explain-ties">
+      <p className="text-xs text-pl-text" data-testid="explain-ties">
         {r.ranking.length} of {r.matched} matching passages shown.
         {' '}{r.ties.length ? `Tied within the top ${r.k}: ${r.ties.map((t) => t.join(' = ')).join('; ')} (ordered by id).` : `No tie within the top ${r.k}.`}
         {r.tieAtCutoff ? ` The passage at rank ${r.k} ties with the next one below the cut; the id decided which one is in.` : ''}
