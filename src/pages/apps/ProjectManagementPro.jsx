@@ -250,8 +250,8 @@ const ProjectManagementProInner = () => {
 
 // W3 (D3): the Full precision switch prints SPI at 6 decimals and planned
 // value to the cent, without digit grouping.
-// Design system rollout 6C: the app wraps itself in the Petrolord theme
-// scope (light by default, dark per user through the header toggle).
+// Design system rollout 6C: the app sits in the dashboard scope (light by
+// default, dark per user through the header toggle).
 const ProjectManagementPro = () => (
   <div className="h-full min-h-screen" data-testid="pmp-theme-scope">
     <FullPrecisionProvider>

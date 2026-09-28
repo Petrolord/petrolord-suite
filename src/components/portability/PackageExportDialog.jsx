@@ -21,68 +21,7 @@ import { listRootCandidates } from '@/lib/portability/rootsCatalog';
 import { requestSignature } from '@/lib/portability/signClient';
 import { supabase } from '@/lib/customSupabaseClient';
 import SigningSummary from './SigningSummary';
-import { useThemeClass } from '@/design/themeClass';
 
-// Design system (W0C): themed strings for tc(); outside an opted-in scope
-// tc() returns the legacy string unchanged.
-// Buttons and the dialog panel take the themed ui defaults (the legacy
-// overrides drop inside a scope); the Dialog carries the scope to its portal.
-const THEMED_CLASSES = {
-  "accent-cyan-500":
-    "accent-pl-primary",
-  "block text-xs text-slate-400":
-    "block text-xs text-pl-muted",
-  "flex items-center gap-2 text-xs text-slate-400 py-2":
-    "flex items-center gap-2 text-xs text-pl-muted py-2",
-  "max-w-lg bg-slate-900 border-slate-700 text-slate-200":
-    "max-w-lg",
-  "text-slate-400 grid grid-cols-2 gap-x-3":
-    "text-pl-muted grid grid-cols-2 gap-x-3",
-  "text-slate-400":
-    "text-pl-muted",
-  "text-slate-500":
-    "text-pl-muted",
-  "w-3.5 h-3.5 animate-spin text-cyan-400":
-    "w-3.5 h-3.5 animate-spin text-pl-primary-text",
-  "w-4 h-4 text-cyan-400":
-    "w-4 h-4 text-pl-primary-text",
-  "rounded border border-slate-700 bg-slate-950/40 px-2 py-1.5 text-xs space-y-1":
-    "rounded border border-pl-border bg-pl-sunken px-2 py-1.5 text-xs space-y-1",
-  "px-2 py-1 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-800 flex items-center":
-    "px-2 py-1 text-[11px] uppercase tracking-wider text-pl-muted border-b border-pl-border flex items-center",
-  "rounded border border-slate-700 bg-slate-950/40":
-    "rounded border border-pl-border bg-pl-surface",
-  "text-slate-600":
-    "text-pl-muted",
-  "ml-auto text-slate-600":
-    "ml-auto text-pl-muted",
-  "px-2 py-2 text-xs text-slate-500":
-    "px-2 py-2 text-xs text-pl-muted",
-  "flex items-center gap-2 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800 cursor-pointer":
-    "flex items-center gap-2 px-2 py-1 text-xs text-pl-text hover:bg-pl-sunken cursor-pointer",
-  "ml-auto text-[10px] text-slate-500 truncate max-w-[40%]":
-    "ml-auto text-[10px] text-pl-muted truncate max-w-[40%]",
-  "ml-auto text-[10px] text-slate-500":
-    "ml-auto text-[10px] text-pl-muted",
-  "mt-1 w-full rounded bg-slate-950 border border-slate-700 px-2 py-1 text-sm text-slate-200":
-    "mt-1 w-full rounded bg-pl-surface border border-pl-border-strong px-2 py-1 text-sm text-pl-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus",
-  "w-3.5 h-3.5 absolute left-1.5 top-2 text-slate-500":
-    "w-3.5 h-3.5 absolute left-1.5 top-2 text-pl-muted",
-  "w-full rounded bg-slate-950 border border-slate-700 pl-6 pr-2 py-1 text-xs text-slate-200":
-    "w-full rounded bg-pl-surface border border-pl-border-strong pl-6 pr-2 py-1 text-xs text-pl-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus",
-  "flex items-center gap-2 text-xs text-slate-300":
-    "flex items-center gap-2 text-xs text-pl-text",
-  "text-xs text-slate-400 flex items-center gap-2":
-    "text-xs text-pl-muted flex items-center gap-2",
-  "rounded border border-red-700/60 bg-red-950/40 px-2 py-1.5 text-xs text-red-300":
-    "rounded border border-pl-danger bg-pl-danger-bg px-2 py-1.5 text-xs text-pl-danger-text",
-  "text-slate-300":
-    "text-pl-text",
-  "text-amber-300/90 mt-1":
-    "text-pl-warning-text mt-1",
-  "list-disc pl-4 text-slate-300":
-    "list-disc pl-4 text-pl-text",
-};
 
 /** The signed-in user's email for the certificate, or null; never throws. */
 async function exporterEmail() {
@@ -110,35 +49,34 @@ const norm = (s) => String(s || '').toLowerCase();
 
 function PickList({ title, items, selected, onToggle, testPrefix, search, emptyText, sectionKey, keyOf = (it) => it.id, collapsible = false }) {
   const [collapsed, setCollapsed] = useState(false);
-  const tc = useThemeClass(THEMED_CLASSES);
   const shown = items.filter((it) => !search || norm(it.name).includes(norm(search)) || norm(it.uwi).includes(norm(search)) || norm(it.subtitle).includes(norm(search)));
   return (
-    <div className={tc("rounded border border-slate-700 bg-slate-950/40")}>
+    <div className="rounded border border-pl-border bg-pl-surface">
       <div
-        className={`${tc('px-2 py-1 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-800 flex items-center')} ${collapsible ? 'cursor-pointer select-none' : ''}`}
+        className={`${'px-2 py-1 text-[11px] uppercase tracking-wider text-pl-muted border-b border-pl-border flex items-center'} ${collapsible ? 'cursor-pointer select-none' : ''}`}
         data-testid={sectionKey ? `pld-section-${sectionKey}` : undefined}
         onClick={collapsible ? () => setCollapsed((c) => !c) : undefined}
       >
-        <span>{title} <span className={tc("text-slate-600")}>({selected.size} of {items.length})</span></span>
-        {collapsible ? <span className={tc("ml-auto text-slate-600")}>{collapsed ? 'show' : 'hide'}</span> : null}
+        <span>{title} <span className="text-pl-muted">({selected.size} of {items.length})</span></span>
+        {collapsible ? <span className="ml-auto text-pl-muted">{collapsed ? 'show' : 'hide'}</span> : null}
       </div>
       {!collapsed && (
         <div className="max-h-36 overflow-y-auto">
           {shown.length === 0 && (
-            <div className={tc("px-2 py-2 text-xs text-slate-500")}>{emptyText}</div>
+            <div className="px-2 py-2 text-xs text-pl-muted">{emptyText}</div>
           )}
           {shown.map((it) => (
-            <label key={keyOf(it)} className={tc("flex items-center gap-2 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800 cursor-pointer")}>
+            <label key={keyOf(it)} className="flex items-center gap-2 px-2 py-1 text-xs text-pl-text hover:bg-pl-sunken cursor-pointer">
               <input
                 type="checkbox"
                 data-testid={`${testPrefix}-${keyOf(it)}`}
                 checked={selected.has(keyOf(it))}
                 onChange={() => onToggle(keyOf(it))}
-                className={tc("accent-cyan-500")}
+                className="accent-pl-primary"
               />
               <span className="truncate">{it.name || it.uwi || it.id}</span>
-              {it.subtitle ? <span className={tc("ml-auto text-[10px] text-slate-500 truncate max-w-[40%]")}>{it.subtitle}</span> : null}
-              {!it.subtitle && it.organization_id ? <span className={tc("ml-auto text-[10px] text-slate-500")}>shared</span> : null}
+              {it.subtitle ? <span className="ml-auto text-[10px] text-pl-muted truncate max-w-[40%]">{it.subtitle}</span> : null}
+              {!it.subtitle && it.organization_id ? <span className="ml-auto text-[10px] text-pl-muted">shared</span> : null}
             </label>
           ))}
         </div>
@@ -148,7 +86,6 @@ function PickList({ title, items, selected, onToggle, testPrefix, search, emptyT
 }
 
 export default function PackageExportDialog({ open, onOpenChange, preselect, onStatus }) {
-  const tc = useThemeClass(THEMED_CLASSES);
   const [wells, setWells] = useState([]);
   const [surfaces, setSurfaces] = useState([]);
   const [culture, setCulture] = useState([]);
@@ -293,20 +230,20 @@ export default function PackageExportDialog({ open, onOpenChange, preselect, onS
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={tc("max-w-lg bg-slate-900 border-slate-700 text-slate-200")} data-testid="pld-export-dialog">
+      <DialogContent className="max-w-lg" data-testid="pld-export-dialog">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><Package className={tc("w-4 h-4 text-cyan-400")} /> Export project package</DialogTitle>
-          <DialogDescription className={tc("text-slate-400")}>
+          <DialogTitle className="flex items-center gap-2"><Package className="w-4 h-4 text-pl-primary-text" /> Export project package</DialogTitle>
+          <DialogDescription className="text-pl-muted">
             A portable .pld file with the selected items, their data, and open-format sidecars where a format exists. Import it into any Petrolord account for an independent copy.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-2">
-          <label className={tc("block text-xs text-slate-400")}>
+          <label className="block text-xs text-pl-muted">
             Package name
             <input
               data-testid="pld-name"
-              className={tc("mt-1 w-full rounded bg-slate-950 border border-slate-700 px-2 py-1 text-sm text-slate-200")}
+              className="mt-1 w-full rounded bg-pl-surface border border-pl-border-strong px-2 py-1 text-sm text-pl-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="For example: KETA field handover"
@@ -314,10 +251,10 @@ export default function PackageExportDialog({ open, onOpenChange, preselect, onS
           </label>
 
           <div className="relative">
-            <Search className={tc("w-3.5 h-3.5 absolute left-1.5 top-2 text-slate-500")} />
+            <Search className="w-3.5 h-3.5 absolute left-1.5 top-2 text-pl-muted" />
             <input
               data-testid="pld-search"
-              className={tc("w-full rounded bg-slate-950 border border-slate-700 pl-6 pr-2 py-1 text-xs text-slate-200")}
+              className="w-full rounded bg-pl-surface border border-pl-border-strong pl-6 pr-2 py-1 text-xs text-pl-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus"
               placeholder="Filter by name"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -325,7 +262,7 @@ export default function PackageExportDialog({ open, onOpenChange, preselect, onS
           </div>
 
           {loading ? (
-            <div className={tc("flex items-center gap-2 text-xs text-slate-400 py-2")}><Loader2 className="w-3.5 h-3.5 animate-spin" /> Reading the registry</div>
+            <div className="flex items-center gap-2 text-xs text-pl-muted py-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Reading the registry</div>
           ) : (
             <div className="space-y-1.5">
               <PickList title="Wells" items={wells} selected={selWells} onToggle={toggle(setSelWells)} testPrefix="pld-well" search={search} emptyText="No wells in your registry." />
@@ -349,42 +286,42 @@ export default function PackageExportDialog({ open, onOpenChange, preselect, onS
             </div>
           )}
 
-          <label className={tc("flex items-center gap-2 text-xs text-slate-300")}>
-            <input type="checkbox" data-testid="pld-include-interp" checked={includeInterpretations} onChange={(e) => setIncludeInterpretations(e.target.checked)} className={tc("accent-cyan-500")} />
+          <label className="flex items-center gap-2 text-xs text-pl-text">
+            <input type="checkbox" data-testid="pld-include-interp" checked={includeInterpretations} onChange={(e) => setIncludeInterpretations(e.target.checked)} className="accent-pl-primary" />
             Include my interpretations that refer only to the selected wells
           </label>
-          <label className={tc("flex items-center gap-2 text-xs text-slate-300")}>
-            <input type="checkbox" data-testid="pld-include-sidecars" checked={includeSidecars} onChange={(e) => setIncludeSidecars(e.target.checked)} className={tc("accent-cyan-500")} />
+          <label className="flex items-center gap-2 text-xs text-pl-text">
+            <input type="checkbox" data-testid="pld-include-sidecars" checked={includeSidecars} onChange={(e) => setIncludeSidecars(e.target.checked)} className="accent-pl-primary" />
             Include open-format sidecars (LAS, ZMAP, CSV)
           </label>
 
           {(running || progress) && (
-            <div className={tc("text-xs text-slate-400 flex items-center gap-2")} data-testid="pld-progress">
-              {running ? <Loader2 className={tc("w-3.5 h-3.5 animate-spin text-cyan-400")} /> : null}
+            <div className="text-xs text-pl-muted flex items-center gap-2" data-testid="pld-progress">
+              {running ? <Loader2 className="w-3.5 h-3.5 animate-spin text-pl-primary-text" /> : null}
               <span>{progress}{percent != null && running ? ` ${Math.round(percent)}%` : ''}</span>
             </div>
           )}
 
           {error && (
-            <div className={tc("rounded border border-red-700/60 bg-red-950/40 px-2 py-1.5 text-xs text-red-300")} data-testid="pld-error">
+            <div className="rounded border border-pl-danger bg-pl-danger-bg px-2 py-1.5 text-xs text-pl-danger-text" data-testid="pld-error">
               {error}
             </div>
           )}
 
           {summary && (
-            <div className={tc("rounded border border-slate-700 bg-slate-950/40 px-2 py-1.5 text-xs space-y-1")} data-testid="pld-summary">
-              <div className={tc("text-slate-300")}>
+            <div className="rounded border border-pl-border bg-pl-sunken px-2 py-1.5 text-xs space-y-1" data-testid="pld-summary">
+              <div className="text-pl-text">
                 Saved {summary.method === 'fsa' ? 'to the file you chose' : 'to your downloads'}: {tableRows.reduce((n, [, t]) => n + (t.rows || 0), 0)} rows across {tableRows.length} tables, {(summary.manifest.blobs || []).length} binary files.
               </div>
-              <ul className={tc("text-slate-400 grid grid-cols-2 gap-x-3")}>
+              <ul className="text-pl-muted grid grid-cols-2 gap-x-3">
                 {tableRows.map(([t, info]) => (
-                  <li key={t}><span className={tc("text-slate-500")}>{t}</span> {info.rows}</li>
+                  <li key={t}><span className="text-pl-muted">{t}</span> {info.rows}</li>
                 ))}
               </ul>
               {(summary.manifest.notes || []).length > 0 && (
                 <div>
-                  <div className={tc("text-amber-300/90 mt-1")}>Notes</div>
-                  <ul className={tc("list-disc pl-4 text-slate-300")}>
+                  <div className="text-pl-warning-text mt-1">Notes</div>
+                  <ul className="list-disc pl-4 text-pl-text">
                     {summary.manifest.notes.map((n, i) => <li key={i}>{n}</li>)}
                   </ul>
                 </div>
@@ -395,14 +332,14 @@ export default function PackageExportDialog({ open, onOpenChange, preselect, onS
         </div>
 
         <DialogFooter>
-          <Button variant="outline" size="sm" className={tc("border-slate-700 text-slate-300", undefined)} onClick={() => onOpenChange(false)}>
+          <Button variant="outline" size="sm" className={undefined} onClick={() => onOpenChange(false)}>
             Close
           </Button>
           <Button
             size="sm"
             data-testid="pld-export-run"
             disabled={running || loading || totalSelected === 0}
-            className={tc("bg-cyan-600 hover:bg-cyan-500 text-white", undefined)}
+            className={undefined}
             onClick={run}
           >
             {running ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Package className="w-3.5 h-3.5 mr-1" />}

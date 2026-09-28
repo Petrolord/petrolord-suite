@@ -5,7 +5,6 @@
 import React, { createContext, useContext, useMemo, useState } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
-import { useThemeClass } from '@/design/themeClass';
 import {
   formatFull, formatMoneyMM, pickPrecision, FULL_PRECISION_DECIMALS, MONEY_MM_DECIMALS,
 } from '@/lib/fullPrecision';
@@ -38,14 +37,12 @@ export function useFullPrecision() {
 }
 
 // The switch itself. `app` names the app for the page's own markers; the
-// label and the note say what changes and nothing else. `tone` picks the
-// legacy label colour for a light or dark header; inside a design-system
-// scope the label uses the muted text role whatever the tone (the Switch
-// themes itself), and outside one the legacy strings are unchanged
-// (pinned in src/design/__tests__/uiLegacyDom.test.jsx).
-export function FullPrecisionToggle({ app, className, tone = 'dark' }) {
+// label and the note say what changes and nothing else. The label uses the
+// muted text role (the Switch themes itself); `tone` is still accepted from
+// older callers and changes nothing.
+// eslint-disable-next-line no-unused-vars
+export function FullPrecisionToggle({ app, className, tone }) {
   const ctx = useContext(FullPrecisionContext);
-  const tc = useThemeClass();
   if (!ctx) return null;
   const { full, setFull } = ctx;
   const id = `full-precision-${app || 'app'}`;
@@ -58,7 +55,7 @@ export function FullPrecisionToggle({ app, className, tone = 'dark' }) {
       <Switch id={id} checked={full} onCheckedChange={(v) => setFull(Boolean(v))} aria-label="Full precision" />
       <label
         htmlFor={id}
-        className={cn('whitespace-nowrap text-[11px] 2xl:text-xs cursor-pointer select-none', tc(tone === 'light' ? 'text-slate-700' : 'text-slate-300', 'text-pl-muted'))}
+        className="whitespace-nowrap text-[11px] 2xl:text-xs cursor-pointer select-none text-pl-muted"
         title="Prints the graded quantities at 6 decimals (money in $MM at 4 decimals), without digit grouping, so a value can be pasted as it is."
       >
         Full precision
@@ -71,10 +68,9 @@ export function FullPrecisionToggle({ app, className, tone = 'dark' }) {
 // says which mode it was taken in.
 export function FullPrecisionNote({ className }) {
   const { full } = useFullPrecision();
-  const tc = useThemeClass();
   if (!full) return null;
   return (
-    <p className={cn(tc('text-[11px] text-amber-300', 'text-[11px] text-pl-warning-text'), className)} data-testid="full-precision-note">
+    <p className={cn('text-[11px] text-pl-warning-text', className)} data-testid="full-precision-note">
       Full precision is on: graded values print at 6 decimals, money in $MM at 4.
     </p>
   );

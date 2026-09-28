@@ -33,15 +33,18 @@ const show = async (msg) => {
   });
 };
 
-it('no scope on screen: legacy toaster, no scope attribute, nothing published', async () => {
+it('no scope on screen (the homepage): one light paper toast, no lime, no green, nothing published', async () => {
   render(<Toaster richColors closeButton />);
-  await show('Saved legacy');
+  await show('Saved on paper');
   expect(getActiveTheme()).toBeNull();
   expect(document.documentElement).not.toHaveAttribute('data-pl-active-theme');
   expect(document.querySelector('[data-pl-toaster]')).toBeNull();
-  const li = screen.getByText('Saved legacy').closest('li');
-  expect(li.className).toMatch(/group-\[\.toaster\]:bg-background/);
-  expect(li.className).not.toMatch(/-pl-/);
+  expect(document.querySelector('[data-sonner-toaster]')).toHaveAttribute('data-theme', 'light');
+  expect(document.querySelector('[data-sonner-toaster]')).not.toHaveAttribute('data-rich-colors', 'true');
+  const li = screen.getByText('Saved on paper').closest('li');
+  expect(li.className).toMatch(/group-\[\.toaster\]:bg-\[#FFFFFF\]/);
+  expect(li.className).toMatch(/group-\[\.toaster\]:text-\[#14231B\]/);
+  expect(li.className).not.toMatch(/lime|green|emerald|bg-background/);
 });
 
 it('inside a light app: toasts are light and on theme roles', async () => {
@@ -61,7 +64,7 @@ it('inside a light app: toasts are light and on theme roles', async () => {
   expect(li.className).toMatch(/group-\[\.toaster\]:bg-pl-raised/);
 });
 
-it('follows the toggle to dark and back to legacy when the app unmounts', async () => {
+it('follows the toggle to dark and back to paper when the app unmounts', async () => {
   const { rerender } = render(
     <>
       <ThemedApp userId="u-toggle"><ThemeToggle /></ThemedApp>

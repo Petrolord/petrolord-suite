@@ -455,7 +455,7 @@ const CapitalPortfolioStudioInner = () => {
 // P90 / P10 and the inventory EMV column at 4 decimals in $MM.
 //
 // Design system rollout batch 2E (docs/scope/DesignSystem-Rollout.md): the
-// page wraps itself in <ThemedApp>, so it opens light and the header toggle
+// page sits in the dashboard scope, so it opens light and the header toggle
 // switches it to dark per user. The frontier and comparison charts keep the
 // white chart standard.
 const CapitalPortfolioStudio = () => (

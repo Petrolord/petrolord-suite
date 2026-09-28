@@ -368,7 +368,7 @@ function ForecastScenarioHubContent() {
 }
 
 // Design system rollout batch 2A (docs/scope/DesignSystem-Rollout.md): the
-// page wraps itself in <ThemedApp>, so it opens light and the header toggle
+// page sits in the dashboard scope, so it opens light and the header toggle
 // switches it to dark per user. The rate chart keeps the white chart standard.
 export default function ForecastScenarioHub() {
   return (

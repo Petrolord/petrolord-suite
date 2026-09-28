@@ -33,7 +33,7 @@ import SummaryPanel from '@/components/intervention/SummaryPanel';
 import InterventionHelpContent from '@/components/intervention/InterventionHelpGuide';
 
 // Design system rollout batch 2D (docs/scope/DesignSystem-Rollout.md): the
-// page wraps itself in <ThemedApp>, so every class below is a theme role.
+// page sits in the dashboard scope, so every class below is a theme role.
 
 const TABS = [
   { value: 'diagnosis', label: 'Diagnosis' },

@@ -18,8 +18,8 @@ const ContentRouter = () => {
     }
 };
 
-// Design system rollout batch 6A: the app wraps itself in <ThemedApp>, so the
-// whole app (and its dev harness) opens light with the per-user dark choice.
+// Design system rollout batch 6A: the app sits in the dashboard scope (its
+// dev harness in the dev scope), so it opens light with the per-user dark choice.
 const FDPAccelerator = () => {
     return (
       <div data-testid="fdp-theme-scope">

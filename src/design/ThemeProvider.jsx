@@ -1,12 +1,11 @@
-// Petrolord theme provider and the opt-in <ThemedApp> scope.
+// Petrolord theme provider and the <ThemedApp> scope.
 //
-// Owner decision 2026-09-27: application consoles move to a LIGHT default
-// with DARK as a per-user choice, rolled out app by app. Only an app wrapped
-// in <ThemedApp> gets the new theme; everything else keeps the legacy dark
-// console exactly as it is, because:
-//   - src/design/theme.css only has selectors under [data-pl-theme], and
-//   - the adapted @/components/ui/* pieces only switch to token classes when
-//     useDsTheme() finds a provider above them.
+// Owner decision 2026-09-27: application consoles are LIGHT by default with
+// DARK as a per-user choice. src/design/theme.css only has selectors under
+// [data-pl-theme], so every themed page sits in a scope: the dashboard scope
+// (DashboardScope), the public frame (PublicPage, PublicScope), AccountScope,
+// the /mobile shell and the dev harness scope. FixedTheme gives the dark ink
+// rail a fixed theme. The ui pieces render theme roles only (batch 7B).
 //
 // The choice is remembered per user in localStorage (keyed by the signed-in
 // user id, or "anon"), wrapped in try/catch because storage can be missing
@@ -174,6 +173,24 @@ export function ThemedApp({ as: Comp = 'div', className = '', userId, defaultThe
 }
 
 // Layout effect so the toaster follows the page from the first paint.
+const noop = () => {};
+const FIXED_VALUES = Object.fromEntries(
+  THEME_NAMES.map((t) => [t, Object.freeze({ theme: t, setTheme: noop, toggleTheme: noop, fixed: true })]),
+);
+
+/**
+ * A fixed theme for a piece of frame that is not a page: the dashboard's
+ * ink rail and its phone drawer (lead decision 1). It provides the theme
+ * context (so the ui pieces inside, and their portals, carry
+ * data-pl-theme) with no storage, no toggle (ThemeToggle renders nothing
+ * here) and no page background. Put the data-pl-theme attribute on the
+ * frame element yourself, as the rail does.
+ */
+export function FixedTheme({ theme = 'dark', children }) {
+  const value = FIXED_VALUES[theme] || FIXED_VALUES.dark;
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+}
+
 const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 function ThemedRoot({ as: Comp, className, children, ...rest }) {

@@ -7,9 +7,8 @@
 // starts empty, and the code-number RPCs are stood in.
 //
 // Design-system rollout (Wave 0A): the harness adds no colours and no theme
-// scope of its own. Each app paints itself exactly as on its real route (an
-// unmigrated app on the body's legacy dark background, a migrated one inside
-// the ThemedApp it wraps itself in), so no rollout batch edits this file.
+// scope of its own: the dev routes sit in one theme scope in App.jsx
+// (batch 7A), so each app paints itself as on its real route.
 import React, { lazy, Suspense } from 'react';
 import {
   MemoryRouter, Routes, Route, useParams, UNSAFE_LocationContext, UNSAFE_RouteContext,
@@ -217,7 +216,7 @@ const B = '/dashboard/apps/assurance';
 
 export default function AssuranceHarness() {
   const { app } = useParams();
-  if (!START[app]) return <div className="p-6 text-slate-300">Unknown app. Try one of: {Object.keys(START).join(', ')}</div>;
+  if (!START[app]) return <div className="p-6 text-pl-text">Unknown app. Try one of: {Object.keys(START).join(', ')}</div>;
   if (!store) store = createStore(seed());
   return (
     <InMemorySupabase db={store} rpc={RPC}>
@@ -226,7 +225,7 @@ export default function AssuranceHarness() {
           <UNSAFE_RouteContext.Provider value={{ outlet: null, matches: [], isDataRoute: false }}>
             <MemoryRouter initialEntries={[`${B}/${START[app]}`]}>
               <div className="min-h-screen">
-                <Suspense fallback={<div className="p-6 text-slate-400">Loading...</div>}>
+                <Suspense fallback={<div className="p-6 text-pl-muted">Loading...</div>}>
                   <Routes>
                     <Route path={`${B}/risk-register`} element={<RiskRegister />} />
                     <Route path={`${B}/risk-register/new`} element={<NewRisk />} />

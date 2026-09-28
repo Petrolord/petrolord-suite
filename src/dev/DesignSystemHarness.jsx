@@ -1,6 +1,6 @@
 // Dev-only specimen page for the Petrolord design system (/dev/design-system).
-// Shows every shared shell piece inside an opted-in <ThemedApp> scope, with
-// the chart standard and a dark canvas, next to a legacy card for comparison.
+// Shows every shared shell piece inside a <ThemedApp> scope, with the chart
+// standard and a dark canvas.
 // Absent from production builds (the route sits behind import.meta.env.DEV).
 import React, { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
@@ -54,7 +54,7 @@ function Controls() {
   const [view, setView] = useState('rate');
   const [on, setOn] = useState(true);
   return (
-    <PageSection title="Controls" description="Adapted in the follow-up: every piece switches inside a scope and keeps its legacy classes outside one.">
+    <PageSection title="Controls" description="Every piece takes the theme roles and switches with the toggle.">
       <Card>
         <CardContent className="grid gap-6 pt-6 md:grid-cols-2">
           <div className="space-y-4">
@@ -255,20 +255,8 @@ function Specimen() {
 
 export default function DesignSystemHarness() {
   return (
-    <div className="min-h-screen">
-      <ThemedApp className="min-h-screen">
-        <Specimen />
-      </ThemedApp>
-      <div className="bg-slate-950 p-6">
-        <p className="mb-3 text-sm text-slate-400">Legacy console, outside the scope, unchanged:</p>
-        <Card className="max-w-md">
-          <CardHeader>
-            <CardTitle>Legacy card</CardTitle>
-            <CardDescription>Still slate on the dark console</CardDescription>
-          </CardHeader>
-          <CardContent><Button>Legacy button</Button></CardContent>
-        </Card>
-      </div>
-    </div>
+    <ThemedApp className="min-h-screen">
+      <Specimen />
+    </ThemedApp>
   );
 }

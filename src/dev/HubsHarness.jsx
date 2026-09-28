@@ -7,7 +7,8 @@
 // "mbal" (Material Balance Studio), "epe" (Petroleum Economics Studio),
 // "separator" (Separator & Slug Catcher Studio), "help" (the Stratigraphy
 // Studio help guide) and "denied" (an app without a licence, so the
-// access-restricted state). Everything sits in DashboardLayout's one theme
+// access-restricted state); "profile" and "admin" mount /profile and the
+// admin centre outside DashboardLayout, in their own AccountScope. Everything sits in DashboardLayout's one theme
 // scope. The pages run in a nested MemoryRouter that starts at the real
 // /dashboard path. Never in production builds.
 import React, { lazy, Suspense } from 'react';
@@ -38,6 +39,8 @@ const EpeCaseList = lazy(() => import('@/pages/apps/epe/EpeCaseList'));
 const SeparatorSlugCatcherDesigner = lazy(() => import('@/pages/apps/SeparatorSlugCatcherDesigner'));
 const StratigraphyHelpGuide = lazy(() => import('@/pages/apps/StratigraphyStudio/StratigraphyHelpGuide'));
 const PetrophysicsStudio = lazy(() => import('@/pages/apps/PetrophysicsStudio/PetrophysicsStudio'));
+const Profile = lazy(() => import('@/pages/Profile'));
+const AdminCenter = lazy(() => import('@/pages/admin/AdminCenter'));
 
 const ORG = { id: '00000000-0000-4000-8000-000000000001', name: 'Harness Energy' };
 const USER = { ...DEV_USER, user_metadata: { full_name: 'Ada Harness', role: 'admin' } };
@@ -93,6 +96,9 @@ const START = {
   separator: '/dashboard/apps/facilities/separator-slug-catcher-designer',
   help: '/dashboard/apps/geoscience/stratigraphy-studio/help',
   denied: '/dashboard/apps/geoscience/petrophysics-studio',
+  // batch 7B: the pages outside /dashboard that open their own scope (AccountScope)
+  profile: '/profile',
+  admin: '/admin/center',
 };
 const hubRoute = (slug, Hub) => <Route path={slug} element={<AppRoute appName={slug}><Hub /></AppRoute>} />;
 // An app route as App.jsx wires it, behind the entitlement guard.
@@ -119,7 +125,7 @@ export default function HubsHarness() {
         <UNSAFE_LocationContext.Provider value={null}>
           <UNSAFE_RouteContext.Provider value={{ outlet: null, matches: [], isDataRoute: false }}>
             <MemoryRouter initialEntries={[start]}>
-              <Suspense fallback={<div className="p-6 text-slate-400">Loading...</div>}>
+              <Suspense fallback={<div className="p-6 text-pl-muted">Loading...</div>}>
                 <Routes>
                   <Route path="/dashboard" element={<DashboardLayout />}>
                     <Route element={<HubScope />}>
@@ -142,7 +148,9 @@ export default function HubsHarness() {
                     {appRoute('apps/geoscience/petrophysics-studio', 'petrophysics-studio', 'Petrophysics Studio', PetrophysicsStudio)}
                     <Route path="apps/geoscience/stratigraphy-studio/help" element={<StratigraphyHelpGuide />} />
                   </Route>
-                  <Route path="*" element={<div className="p-6 text-amber-300">Left the hubs (a link outside the harness).</div>} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/admin/center" element={<AdminCenter />} />
+                  <Route path="*" element={<div className="p-6 text-pl-warning-text">Left the hubs (a link outside the harness).</div>} />
                 </Routes>
               </Suspense>
             </MemoryRouter>

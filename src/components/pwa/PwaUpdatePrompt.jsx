@@ -68,18 +68,20 @@ export default function PwaUpdatePrompt() {
   };
 
   if (!showUpdate && !offlineReady) return null;
+  // Mounted at the app root outside every page scope: a fixed ink chip
+  // (data-pl-theme="dark", like the dashboard rail) in every theme.
   return (
-    <div className="fixed bottom-3 right-3 z-[60] rounded border border-slate-700 bg-slate-900 text-slate-100 text-xs shadow-lg px-3 py-2 flex items-center gap-3" data-testid="pwa-prompt" role="status">
+    <div data-pl-theme="dark" className="fixed bottom-3 right-3 z-[60] rounded border border-pl-border bg-pl-raised text-pl-text text-xs shadow-pl-lg px-3 py-2 flex items-center gap-3" data-testid="pwa-prompt" role="status">
       {showUpdate ? (
         <>
           <span>A new version of the Suite is ready. Reload when it suits you.</span>
-          <button type="button" data-testid="pwa-reload" className="px-2 py-0.5 rounded border border-cyan-500/60 text-cyan-300" onClick={() => updateServiceWorker(true)}>Reload</button>
-          <button type="button" data-testid="pwa-later" className="px-2 py-0.5 text-slate-400" onClick={later}>Later</button>
+          <button type="button" data-testid="pwa-reload" className="px-2 py-0.5 rounded border border-pl-accent/60 text-pl-accent-text" onClick={() => updateServiceWorker(true)}>Reload</button>
+          <button type="button" data-testid="pwa-later" className="px-2 py-0.5 text-pl-muted" onClick={later}>Later</button>
         </>
       ) : (
         <>
           <span>The Suite shell is ready to open without a connection.</span>
-          <button type="button" data-testid="pwa-ok" className="px-2 py-0.5 text-slate-400" onClick={() => setOfflineReady(false)}>OK</button>
+          <button type="button" data-testid="pwa-ok" className="px-2 py-0.5 text-pl-muted" onClick={() => setOfflineReady(false)}>OK</button>
         </>
       )}
     </div>

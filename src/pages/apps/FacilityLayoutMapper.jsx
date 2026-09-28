@@ -95,7 +95,7 @@ const FacilityLayoutMapper = () => {
 
 
   // Design system rollout batch 5A (docs/scope/DesignSystem-Rollout.md): the
-  // page wraps itself in <ThemedApp>; the panels use theme roles and the
+  // page sits in the dashboard scope; the panels use theme roles and the
   // map sits on a light canvas (MapPanel).
   return (
     <div data-testid="layoutmapper-theme-scope">

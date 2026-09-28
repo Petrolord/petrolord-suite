@@ -4,9 +4,8 @@
 // projects work without auth or a database. One store per page load.
 //
 // Design-system rollout (Wave 0A): the harness adds no colours and no theme
-// scope of its own. Each app paints itself exactly as on its real route (an
-// unmigrated app on the body's legacy dark background, a migrated one inside
-// the ThemedApp it wraps itself in), so no rollout batch edits this file.
+// scope of its own: the dev routes sit in one theme scope in App.jsx
+// (batch 7A), so each app paints itself as on its real route.
 import React, { lazy, Suspense } from 'react';
 import { useParams } from 'react-router-dom';
 import InMemorySupabase, { createStore } from './InMemorySupabase';
@@ -32,12 +31,12 @@ const db = createStore(productionSeed());
 export default function ProductionHarness() {
   const { app } = useParams();
   const App = APPS[app];
-  if (!App) return <div className="p-6 text-slate-300">Unknown app. Try one of: {Object.keys(APPS).join(', ')}</div>;
+  if (!App) return <div className="p-6 text-pl-text">Unknown app. Try one of: {Object.keys(APPS).join(', ')}</div>;
   return (
     <InMemorySupabase db={db}>
       <DevAuth>
         <div className="min-h-screen">
-          <Suspense fallback={<div className="p-6 text-slate-400">Loading...</div>}><App /></Suspense>
+          <Suspense fallback={<div className="p-6 text-pl-muted">Loading...</div>}><App /></Suspense>
         </div>
       </DevAuth>
     </InMemorySupabase>

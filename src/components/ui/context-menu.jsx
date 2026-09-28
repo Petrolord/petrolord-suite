@@ -3,19 +3,8 @@ import * as ContextMenuPrimitive from "@radix-ui/react-context-menu"
 import { Check, ChevronRight, Circle } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { useDsTheme, usePortalThemeProps } from "@/design/themeContext"
+import { usePortalThemeProps } from "@/design/themeContext";
 
-// Design system: merged over the legacy classes only inside an opted-in
-// scope (tailwind-merge swaps the colours), the same roles as the dropdown
-// menu. Menu surfaces carry data-pl-theme themselves because the content
-// renders in a portal outside the scope element.
-const THEMED = {
-  content: "border-pl-border bg-pl-raised text-pl-text shadow-pl-md",
-  item: "focus:bg-pl-sunken focus:text-pl-text data-[state=open]:bg-pl-sunken",
-  label: "text-pl-text",
-  separator: "bg-pl-border",
-  shortcut: "text-pl-muted",
-}
 
 const ContextMenu = ContextMenuPrimitive.Root
 
@@ -30,14 +19,12 @@ const ContextMenuSub = ContextMenuPrimitive.Sub
 const ContextMenuRadioGroup = ContextMenuPrimitive.RadioGroup
 
 const ContextMenuSubTrigger = React.forwardRef(({ className, inset, children, ...props }, ref) => {
-  const ds = useDsTheme()
   return (
     <ContextMenuPrimitive.SubTrigger
       ref={ref}
       className={cn(
-        "flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-slate-700 data-[state=open]:bg-slate-700",
+        "flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-pl-sunken focus:text-pl-text data-[state=open]:bg-pl-sunken",
         inset && "pl-8",
-        ds && THEMED.item,
         className
       )}
       {...props}
@@ -51,15 +38,13 @@ ContextMenuSubTrigger.displayName =
   ContextMenuPrimitive.SubTrigger.displayName
 
 const ContextMenuSubContent = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme()
   const portalProps = usePortalThemeProps()
   return (
     <ContextMenuPrimitive.SubContent
       ref={ref}
       {...portalProps}
       className={cn(
-        "z-50 min-w-[8rem] overflow-hidden rounded-md border border-slate-700 bg-slate-800 p-1 text-slate-100 shadow-md animate-in fade-in-80",
-        ds && THEMED.content,
+        "z-50 min-w-[8rem] overflow-hidden rounded-md border p-1 shadow-md animate-in fade-in-80 border-pl-border bg-pl-raised text-pl-text shadow-pl-md",
         className
       )}
       {...props}
@@ -70,7 +55,6 @@ ContextMenuSubContent.displayName =
   ContextMenuPrimitive.SubContent.displayName
 
 const ContextMenuContent = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme()
   const portalProps = usePortalThemeProps()
   return (
     <ContextMenuPrimitive.Portal>
@@ -78,8 +62,7 @@ const ContextMenuContent = React.forwardRef(({ className, ...props }, ref) => {
         ref={ref}
         {...portalProps}
         className={cn(
-          "z-50 min-w-[8rem] overflow-hidden rounded-md border border-slate-700 bg-slate-800 p-1 text-slate-100 shadow-md animate-in fade-in-80",
-          ds && THEMED.content,
+          "z-50 min-w-[8rem] overflow-hidden rounded-md border p-1 shadow-md animate-in fade-in-80 border-pl-border bg-pl-raised text-pl-text shadow-pl-md",
           className
         )}
         {...props}
@@ -90,14 +73,12 @@ const ContextMenuContent = React.forwardRef(({ className, ...props }, ref) => {
 ContextMenuContent.displayName = ContextMenuPrimitive.Content.displayName
 
 const ContextMenuItem = React.forwardRef(({ className, inset, ...props }, ref) => {
-  const ds = useDsTheme()
   return (
     <ContextMenuPrimitive.Item
       ref={ref}
       className={cn(
-        "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-slate-700 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 focus:bg-pl-sunken focus:text-pl-text data-[state=open]:bg-pl-sunken",
         inset && "pl-8",
-        ds && THEMED.item,
         className
       )}
       {...props}
@@ -107,13 +88,11 @@ const ContextMenuItem = React.forwardRef(({ className, inset, ...props }, ref) =
 ContextMenuItem.displayName = ContextMenuPrimitive.Item.displayName
 
 const ContextMenuCheckboxItem = React.forwardRef(({ className, children, checked, ...props }, ref) => {
-  const ds = useDsTheme()
   return (
   <ContextMenuPrimitive.CheckboxItem
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-slate-700 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-      ds && THEMED.item,
+      "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 focus:bg-pl-sunken focus:text-pl-text data-[state=open]:bg-pl-sunken",
       className
     )}
     checked={checked}
@@ -132,13 +111,11 @@ ContextMenuCheckboxItem.displayName =
   ContextMenuPrimitive.CheckboxItem.displayName
 
 const ContextMenuRadioItem = React.forwardRef(({ className, children, ...props }, ref) => {
-  const ds = useDsTheme()
   return (
   <ContextMenuPrimitive.RadioItem
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-slate-700 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-      ds && THEMED.item,
+      "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 focus:bg-pl-sunken focus:text-pl-text data-[state=open]:bg-pl-sunken",
       className
     )}
     {...props}
@@ -155,14 +132,12 @@ const ContextMenuRadioItem = React.forwardRef(({ className, children, ...props }
 ContextMenuRadioItem.displayName = ContextMenuPrimitive.RadioItem.displayName
 
 const ContextMenuLabel = React.forwardRef(({ className, inset, ...props }, ref) => {
-  const ds = useDsTheme()
   return (
     <ContextMenuPrimitive.Label
       ref={ref}
       className={cn(
-        "px-2 py-1.5 text-sm font-semibold text-slate-100",
+        "px-2 py-1.5 text-sm font-semibold text-pl-text",
         inset && "pl-8",
-        ds && THEMED.label,
         className
       )}
       {...props}
@@ -172,11 +147,10 @@ const ContextMenuLabel = React.forwardRef(({ className, inset, ...props }, ref) 
 ContextMenuLabel.displayName = ContextMenuPrimitive.Label.displayName
 
 const ContextMenuSeparator = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme()
   return (
     <ContextMenuPrimitive.Separator
       ref={ref}
-      className={cn("-mx-1 my-1 h-px bg-slate-700", ds && THEMED.separator, className)}
+      className={cn("-mx-1 my-1 h-px bg-pl-border", className)}
       {...props}
     />
   )
@@ -187,10 +161,9 @@ const ContextMenuShortcut = ({
   className,
   ...props
 }) => {
-  const ds = useDsTheme()
   return (
     <span
-      className={cn("ml-auto text-xs tracking-widest text-slate-400", ds && THEMED.shortcut, className)}
+      className={cn("ml-auto text-xs tracking-widest text-pl-muted", className)}
       {...props}
     />
   )

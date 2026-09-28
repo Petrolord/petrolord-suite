@@ -19,19 +19,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { useThemeClass } from '@/design/themeClass';
 
-// Design system (rollout W0B): inside an opted-in app the panel drops its
-// dark console overrides so the adapted Input, Select and Textarea theme
-// themselves, and its own text uses roles. Outside a <ThemedApp> scope
-// tc() returns the legacy strings unchanged.
+// Design system (rollout W0B): the adapted Input, Select and Textarea theme
+// themselves, and the panel's own text uses roles.
 const Field = ({ label, hint, children }) => {
-  const tc = useThemeClass();
   return (
     <div className="space-y-1">
-      <Label className={tc('text-xs text-slate-400', 'text-xs text-pl-muted')}>{label}</Label>
+      <Label className="text-xs text-pl-muted">{label}</Label>
       {children}
-      {hint && <p className={tc('text-[11px] text-slate-600', 'text-[11px] text-pl-muted')}>{hint}</p>}
+      {hint && <p className="text-[11px] text-pl-muted">{hint}</p>}
     </div>
   );
 };
@@ -55,19 +51,18 @@ const WellModelPanel = ({
   completionNote = null,
 }) => {
   const { well, inflow, fluid, completion = {} } = inputs;
-  const tc = useThemeClass();
-  const trigger = tc('h-9 bg-slate-800 border-slate-700 text-left [&>span]:truncate', 'h-9 text-left [&>span]:truncate');
-  const menu = tc('bg-slate-800 border-slate-700 text-slate-100', undefined);
-  const section = tc('border-t border-slate-800 pt-3 space-y-3', 'border-t border-pl-border pt-3 space-y-3');
-  const sectionTitle = tc('text-[10px] uppercase tracking-widest text-slate-500 font-bold', 'text-[10px] uppercase tracking-widest text-pl-muted font-bold');
-  const note = tc('text-[11px] text-slate-600', 'text-[11px] text-pl-muted');
+  const trigger = 'h-9 text-left [&>span]:truncate';
+  const menu = undefined;
+  const section = 'border-t border-pl-border pt-3 space-y-3';
+  const sectionTitle = 'text-[10px] uppercase tracking-widest text-pl-muted font-bold';
+  const note = 'text-[11px] text-pl-muted';
   const NumberInput = ({ section, name, step = 'any' }) => (
     <Input
       type="number"
       step={step}
       value={inputs[section]?.[name] ?? ''}
       onChange={(e) => setSection(section, name, e.target.value)}
-      className={tc('h-9 bg-slate-800 border-slate-700', 'h-9')}
+      className="h-9"
     />
   );
 
@@ -96,7 +91,7 @@ const WellModelPanel = ({
             rows={4}
             value={well.surveyText}
             onChange={(e) => setSection('well', 'surveyText', e.target.value)}
-            className={tc('bg-slate-800 border-slate-700 font-mono text-xs', 'font-pl-mono text-xs')}
+            className="font-pl-mono text-xs"
           />
         </Field>
       )}
@@ -156,7 +151,7 @@ const WellModelPanel = ({
           <Field label="Qmax (stb/d)"><NumberInput section="inflow" name="qmax" /></Field>
         )}
         {inflow.calMode === 'qmax' && inflow.model !== 'vogel' && (
-          <p className={tc('text-[11px] text-amber-300', 'text-[11px] text-pl-warning-text')}>
+          <p className="text-[11px] text-pl-warning-text">
             Absolute open flow calibrates a Vogel inflow. Pick a productivity index or a production
             test for this model, or change the model to Vogel.
           </p>

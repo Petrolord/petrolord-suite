@@ -20,7 +20,7 @@ import { fmt, Row } from '@/components/pumpstudio/fields';
 import { FullPrecisionProvider, FullPrecisionToggle, useFullPrecision } from '@/components/fullprecision/FullPrecision';
 
 // Design system rollout batch 5B (docs/scope/DesignSystem-Rollout.md): the
-// page wraps itself in <ThemedApp>, so every class below is a theme role.
+// page sits in the dashboard scope, so every class below is a theme role.
 
 const TABS = [
   { value: 'duty', label: 'Duty Point' },

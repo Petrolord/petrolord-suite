@@ -72,7 +72,6 @@ import TeamManagement from '@/pages/admin/TeamManagement';
 import BulkImportEmployees from '@/pages/admin/BulkImportEmployees';
 import AppAnalyticsDashboard from '@/pages/admin/AppAnalyticsDashboard';
 import QuoteDashboard from '@/pages/QuoteDashboard';
-import GetQuote from '@/pages/GetQuote';
 import { renderAccountPage } from './accountTestKit';
 
 const quoteOpts = { path: '/dashboard/quote/q1', pattern: '/dashboard/quote/:quoteId' };
@@ -84,7 +83,6 @@ const PAGES = [
   { name: 'Bulk import', route: '/dashboard/bulk-import', Page: BulkImportEmployees, scope: 'bulk-import-theme-scope', ready: () => screen.findByText('Upload CSV') },
   { name: 'App analytics', route: '/dashboard/analytics', Page: AppAnalyticsDashboard, scope: 'app-analytics-theme-scope', ready: () => screen.findByText('No usage data recorded yet') },
   { name: 'Quote dashboard', route: '/dashboard/quote/q1', Page: QuoteDashboard, scope: 'quote-dashboard-theme-scope', ready: () => screen.findByText('PL-Q-0001'), opts: quoteOpts },
-  { name: 'Get quote', route: '/dashboard/get-quote', Page: GetQuote, scope: 'get-quote-theme-scope', ready: () => screen.findByText('Select Modules') },
 ];
 
 PAGES.forEach(({ name, route, Page, scope, ready, opts }) => {
@@ -163,24 +161,6 @@ describe('W3F pages, loaded states and dialogs', () => {
     fireEvent.click(screen.getByRole('button', { name: /Upload Payment Proof/ }));
     const dialog = await screen.findByRole('dialog');
     expect(dialog.closest('[data-pl-theme]')).toHaveAttribute('data-pl-theme', 'light');
-    expectNoLegacyChrome();
-  });
-
-  it('get quote walks to the cost step and the review step with no legacy chrome', async () => {
-    renderAccountPage(GetQuote);
-    await screen.findByText('Select Modules');
-    fireEvent.click(screen.getAllByText(/Starts at/)[0]);
-    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
-    await screen.findByText('Select Applications');
-    fireEvent.click(await screen.findByText('Seismic interpretation'));
-    expectNoLegacyChrome();
-    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
-    await screen.findByText('Estimated Cost');
-    expect(screen.getByText('Monthly Subtotal')).toBeInTheDocument();
-    expectNoLegacyChrome();
-    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
-    await screen.findByText('Ready to Generate Quote');
-    expect(screen.getByRole('button', { name: /Generate Official Quote/ })).toBeInTheDocument();
     expectNoLegacyChrome();
   });
 });

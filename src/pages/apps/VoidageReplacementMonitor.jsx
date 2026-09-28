@@ -34,10 +34,8 @@ const TABS = [
   { value: 'patterns', label: 'Patterns' },
 ];
 
-// Design system pilot 5 (docs/scope/DesignSystem.md): the page wraps itself
-// in <ThemedApp> (below), so every class here is a theme role. It had a
-// legacy branch only while it stood in as the non-pilot proof; that proof
-// now mounts Waterflood Design Studio (src/design/__tests__/optInScope.test.jsx).
+// Design system pilot 5 (docs/scope/DesignSystem.md): the page sits in the
+// dashboard scope, so every class here is a theme role.
 const SectionLabel = ({ children }) => {
   return (
     <h3 className="text-[11px] font-semibold text-pl-accent-text uppercase mb-3 tracking-widest">{children}</h3>

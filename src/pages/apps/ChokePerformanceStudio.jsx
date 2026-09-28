@@ -27,7 +27,7 @@ import ChokeWarningsPanel from '@/components/choke/WarningsPanel';
 import ChokeHelpContent from '@/components/choke/ChokeHelpGuide';
 
 // Design system rollout batch 2D (docs/scope/DesignSystem-Rollout.md): the
-// page wraps itself in <ThemedApp>, so every class below is a theme role.
+// page sits in the dashboard scope, so every class below is a theme role.
 
 const TABS = [
   { value: 'operating', label: 'Operating Point' },

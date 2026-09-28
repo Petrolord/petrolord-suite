@@ -152,7 +152,7 @@ function AccessRequestsPage() {
   );
 }
 
-// Design system rollout batch 1E: the page wraps itself in <ThemedApp>.
+// Design system rollout batch 1E: the page opens its theme scope through AccountScope inside the dashboard scope.
 export default function AccessRequests() {
   return (
     <AccountScope testId="access-requests-theme-scope">

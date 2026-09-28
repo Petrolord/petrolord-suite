@@ -13,9 +13,7 @@ export default function Explorer({
   cases, selectedCaseId, onSelectCase, onNewCase, onDeleteCase,
   trajectory, caseLabel = 'T&D cases', testPrefix = 'td',
 }) {
-  // Design system: theme roles only. Every studio that mounts the explorer
-  // wraps itself in <ThemedApp> since rollout batch 3E, so the legacy
-  // branch from W0B is gone.
+  // Design system: theme roles only (every studio sits in the dashboard scope).
   const heading = 'text-pl-muted';
   const row = 'hover:bg-pl-sunken';
   const selected = 'bg-pl-primary/10 font-medium text-pl-primary-text';

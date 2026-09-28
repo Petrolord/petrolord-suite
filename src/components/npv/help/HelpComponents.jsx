@@ -24,6 +24,19 @@ export const CategoryCard = ({ category, onClick }) => {
   );
 };
 
+// The article HTML is styled with explicit role classes (the Suite has no
+// typography plugin, so the old prose classes did nothing).
+const ARTICLE_BODY = [
+  'max-w-none text-sm leading-relaxed text-pl-text',
+  '[&_h1]:mb-3 [&_h1]:mt-6 [&_h1]:text-2xl [&_h1]:font-semibold',
+  '[&_h2]:mb-2 [&_h2]:mt-6 [&_h2]:text-xl [&_h2]:font-semibold',
+  '[&_h3]:mb-2 [&_h3]:mt-5 [&_h3]:text-lg [&_h3]:font-semibold',
+  '[&_h4]:mb-1 [&_h4]:mt-4 [&_h4]:font-semibold',
+  '[&_p]:mb-3 [&_ul]:mb-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:mb-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:mb-1',
+  '[&_strong]:font-semibold [&_a]:text-pl-primary-text [&_a]:underline [&_code]:rounded [&_code]:bg-pl-sunken [&_code]:px-1 [&_code]:font-pl-mono',
+  '[&_table]:w-full [&_th]:border-b [&_th]:border-pl-border [&_th]:py-1 [&_th]:text-left [&_th]:text-pl-muted [&_td]:border-b [&_td]:border-pl-border [&_td]:py-1',
+].join(' ');
+
 export const ArticleViewer = ({ article, onBack }) => {
   return (
     <div className="space-y-6 h-full flex flex-col">
@@ -33,7 +46,7 @@ export const ArticleViewer = ({ article, onBack }) => {
       <div className="flex-1 overflow-y-auto pr-4">
         <h1 className="text-3xl font-bold text-pl-text mb-6">{article.title}</h1>
         <div 
-          className="prose max-w-none text-pl-text prose-headings:text-pl-text prose-p:text-pl-text prose-li:text-pl-text prose-strong:text-pl-text"
+          className={ARTICLE_BODY}
           dangerouslySetInnerHTML={{ __html: article.content }}
         />
       </div>

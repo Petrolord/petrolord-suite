@@ -2,10 +2,8 @@ import React from "react"
 import * as SliderPrimitive from "@radix-ui/react-slider"
 
 import { cn } from "@/lib/utils"
-import { useDsTheme } from "@/design/themeContext"
 
-// Design system: track, range and thumb on theme roles inside an opted-in
-// scope; the legacy lime slider outside one, byte for byte.
+// Design system: track, range and thumb on theme roles.
 const THEMED = {
   track: "relative h-2 w-full grow overflow-hidden rounded-full bg-pl-border",
   range: "absolute h-full bg-pl-primary",
@@ -13,7 +11,6 @@ const THEMED = {
 }
 
 const Slider = React.forwardRef(({ className, ...props }, ref) => {
-  const ds = useDsTheme()
   return (
     <SliderPrimitive.Root
       ref={ref}
@@ -23,10 +20,10 @@ const Slider = React.forwardRef(({ className, ...props }, ref) => {
       )}
       {...props}
     >
-      <SliderPrimitive.Track className={ds ? THEMED.track : "relative h-2 w-full grow overflow-hidden rounded-full bg-slate-700"}>
-        <SliderPrimitive.Range className={ds ? THEMED.range : "absolute h-full bg-lime-400"} />
+      <SliderPrimitive.Track className={THEMED.track}>
+        <SliderPrimitive.Range className={THEMED.range} />
       </SliderPrimitive.Track>
-      <SliderPrimitive.Thumb className={ds ? THEMED.thumb : "block h-5 w-5 rounded-full border-2 border-lime-400 bg-slate-900 ring-offset-slate-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"} />
+      <SliderPrimitive.Thumb className={THEMED.thumb} />
     </SliderPrimitive.Root>
   )
 })

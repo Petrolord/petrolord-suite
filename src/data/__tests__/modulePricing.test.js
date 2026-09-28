@@ -54,17 +54,18 @@ describe('the shared table', () => {
 });
 
 describe('nobody keeps a second copy', () => {
-  it('GetQuote imports the table instead of declaring one', () => {
-    const src = read('src/pages/GetQuote.jsx');
-    expect(src).toMatch(/import \{[^}]*MODULE_PRICING[^}]*\} from '@\/data\/pricingModels'/);
-    expect(src).not.toMatch(/const MODULE_PRICING\s*=\s*\{/);
-  });
-
-  it('QuoteEditor derives its list from the table', () => {
-    const src = read('src/components/admin/organizations/quotes/QuoteEditor.jsx');
-    expect(src).toMatch(/import \{[^}]*MODULE_PRICING[^}]*\} from '@\/data\/pricingModels'/);
-    // The old shape was a literal array with prices written into it.
-    expect(src).not.toMatch(/\{\s*id:\s*'geoscience',\s*name:.*price:\s*\d+/);
+  it('no source file outside pricingModels.js declares its own price table', () => {
+    // GetQuote and the admin QuoteEditor used to (both deleted in design
+    // batch 7B as unreachable); nothing may bring a copy back.
+    const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => {
+      const full = path.join(d, e.name);
+      if (e.isDirectory()) return e.name === '__tests__' ? [] : walk(full);
+      return /\.(jsx?|tsx?)$/.test(e.name) ? [full] : [];
+    });
+    const offenders = walk(path.join(root, 'src'))
+      .filter((f) => !f.endsWith(path.join('data', 'pricingModels.js')))
+      .filter((f) => /const MODULE_PRICING\s*=\s*\{/.test(fs.readFileSync(f, 'utf8')));
+    expect(offenders).toEqual([]);
   });
 
   it('the dead billing engine is gone', () => {

@@ -13,38 +13,7 @@ import {
   getProjectCrs, setProjectCrs, countCrsTaggedData, addCustomDef,
 } from '@/lib/crs/settingsService';
 import { reprojectProjectData } from '@/lib/crs/reprojectProject';
-import { useThemeClass } from '@/design/themeClass';
 
-// Design system: themed class strings for tc() (see src/design/themeClass.js).
-// Outside an opted-in scope tc() returns the legacy string unchanged.
-const THEMED_CLASSES = {
-  "bg-slate-900 border-slate-700 text-slate-200 max-w-lg":
-    "bg-pl-sunken border-pl-border text-pl-text max-w-lg",
-  "flex items-center text-white":
-    "flex items-center text-pl-text",
-  "w-5 h-5 mr-2 text-cyan-400":
-    "w-5 h-5 mr-2 text-pl-primary-text",
-  "text-slate-400":
-    "text-pl-muted",
-  "flex items-center text-slate-400 text-sm py-4":
-    "flex items-center text-pl-muted text-sm py-4",
-  "text-slate-300":
-    "text-pl-text",
-  "rounded-lg border border-amber-700/50 bg-amber-950/20 p-3 text-sm text-amber-300 flex items-start":
-    "rounded-lg border border-pl-warning/50 bg-pl-warning-bg p-3 text-sm text-pl-warning-text flex items-start",
-  "border-amber-700/60 text-amber-300 hover:bg-amber-500/10":
-    "border-pl-warning/60 text-pl-warning-text hover:bg-pl-warning-bg",
-  "flex items-center text-sm text-cyan-300":
-    "flex items-center text-sm text-pl-primary-text",
-  "rounded-lg border border-emerald-700/50 bg-emerald-950/20 p-3 text-sm text-emerald-300 space-y-1":
-    "rounded-lg border border-pl-success/50 bg-pl-success-bg p-3 text-sm text-pl-success-text space-y-1",
-  "text-amber-300":
-    "text-pl-warning-text",
-  "bg-cyan-600 hover:bg-cyan-500 text-white":
-    "bg-pl-primary hover:bg-pl-primary-hover text-pl-primary-fg",
-  "bg-amber-600 hover:bg-amber-500 text-white":
-    "bg-pl-warning-bg hover:bg-pl-warning text-pl-text",
-};
 
 /**
  * View and set the Project CRS (Petrel model): the one system all
@@ -55,7 +24,6 @@ const THEMED_CLASSES = {
  *   onChanged?: (p: {tag: string, name: ?string}) => void}} p
  */
 export default function ProjectCrsDialog({ open, onOpenChange, onChanged }) {
-  const tc = useThemeClass(THEMED_CLASSES);
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -118,13 +86,13 @@ export default function ProjectCrsDialog({ open, onOpenChange, onChanged }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={tc("bg-slate-900 border-slate-700 text-slate-200 max-w-lg")}>
+      <DialogContent className="bg-pl-sunken border-pl-border text-pl-text max-w-lg">
         <DialogHeader>
-          <DialogTitle className={tc("flex items-center text-white")}>
-            <Globe2 className={tc("w-5 h-5 mr-2 text-cyan-400")} />
+          <DialogTitle className="flex items-center text-pl-text">
+            <Globe2 className="w-5 h-5 mr-2 text-pl-primary-text" />
             Project coordinate reference system
           </DialogTitle>
-          <DialogDescription className={tc("text-slate-400")}>
+          <DialogDescription className="text-pl-muted">
             Every import converts into this system, so wells, seismic and
             surfaces always share one frame. This is the same role the
             project CRS plays in Petrel.
@@ -132,20 +100,20 @@ export default function ProjectCrsDialog({ open, onOpenChange, onChanged }) {
         </DialogHeader>
 
         {loading ? (
-          <div className={tc("flex items-center text-slate-400 text-sm py-4")}>
+          <div className="flex items-center text-pl-muted text-sm py-4">
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             Loading settings…
           </div>
         ) : (
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-sm">
-              <span className={tc("text-slate-400")}>Current:</span>
+              <span className="text-pl-muted">Current:</span>
               <CrsBadge tag={current?.tag} name={current?.name} />
-              {current?.name && <span className={tc("text-slate-300")}>{current.name}</span>}
+              {current?.name && <span className="text-pl-text">{current.name}</span>}
             </div>
 
             {locked && (
-              <div className={tc("rounded-lg border border-amber-700/50 bg-amber-950/20 p-3 text-sm text-amber-300 flex items-start")}>
+              <div className="rounded-lg border border-pl-warning/50 bg-pl-warning-bg p-3 text-sm text-pl-warning-text flex items-start">
                 <Lock className="w-4 h-4 mr-2 mt-0.5 shrink-0" />
                 <div>
                   The Project CRS is locked: {counts.total} dataset(s) are already stored in it
@@ -170,7 +138,7 @@ export default function ProjectCrsDialog({ open, onOpenChange, onChanged }) {
             {locked && !reprojectOpen && !report && (
               <Button
                 variant="outline"
-                className={tc("border-amber-700/60 text-amber-300 hover:bg-amber-500/10")}
+                className="border-pl-warning/60 text-pl-warning-text hover:bg-pl-warning-bg"
                 onClick={() => { setChoice(null); setReprojectOpen(true); }}
               >
                 Change Project CRS and reproject the data…
@@ -178,7 +146,7 @@ export default function ProjectCrsDialog({ open, onOpenChange, onChanged }) {
             )}
 
             {reprojecting && (
-              <div className={tc("flex items-center text-sm text-cyan-300")}>
+              <div className="flex items-center text-sm text-pl-primary-text">
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Reprojecting {reprojecting.step}
                 {reprojecting.total > 1 ? ` (${reprojecting.done + 1} of ${reprojecting.total})` : ''}…
@@ -186,13 +154,13 @@ export default function ProjectCrsDialog({ open, onOpenChange, onChanged }) {
             )}
 
             {report && (
-              <div className={tc("rounded-lg border border-emerald-700/50 bg-emerald-950/20 p-3 text-sm text-emerald-300 space-y-1")}>
+              <div className="rounded-lg border border-pl-success/50 bg-pl-success-bg p-3 text-sm text-pl-success-text space-y-1">
                 <div>
                   Reprojection complete: {report.wells.converted} wells, {report.surfaces.converted} surfaces,
                   {' '}{report.volumes.converted} seismic volumes, {report.models.converted} models converted.
                 </div>
                 {report.skippedNames.length > 0 && (
-                  <div className={tc("text-amber-300")}>
+                  <div className="text-pl-warning-text">
                     Skipped (unknown or local placement, unchanged): {report.skippedNames.join('; ')}
                   </div>
                 )}
@@ -207,7 +175,7 @@ export default function ProjectCrsDialog({ open, onOpenChange, onChanged }) {
             <Button
               disabled={loading || saving || !choice}
               onClick={save}
-              className={tc("bg-cyan-600 hover:bg-cyan-500 text-white")}
+              className="bg-pl-primary hover:bg-pl-primary-hover text-pl-primary-fg"
             >
               {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Set Project CRS
@@ -233,7 +201,7 @@ export default function ProjectCrsDialog({ open, onOpenChange, onChanged }) {
                   setReprojecting(null);
                 }
               }}
-              className={tc("bg-amber-600 hover:bg-amber-500 text-white")}
+              className="bg-pl-warning-bg hover:bg-pl-warning text-pl-text"
             >
               {reprojecting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Reproject everything to the new CRS

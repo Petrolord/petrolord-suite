@@ -18,45 +18,8 @@ import { ArrowLeft, BookOpen } from 'lucide-react';
 import { buildLabel } from '@/lib/platformBuild';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { useDsTheme } from '@/design/themeContext';
 
-// Design system (pilot 4, Seismolord): inside an opted-in <ThemedApp> scope
-// the guide uses the theme roles; everywhere else (every guide whose app has
-// not migrated) the legacy dark classes render byte for byte.
-// src/components/workstation/__tests__/sharedShellsOptIn.test.jsx holds that.
-const LEGACY = {
-  h2: 'flex items-center gap-3 text-3xl font-bold text-white mb-4 mt-0 pt-2',
-  h2Icon: 'w-7 h-7 text-cyan-300',
-  h3: 'text-xl font-semibold text-lime-200 mt-6 mb-2',
-  para: 'text-slate-200 leading-relaxed mb-3',
-  code: 'px-1.5 py-0.5 rounded bg-slate-900/70 text-cyan-200 text-sm font-mono',
-  formula: 'my-3 px-4 py-3 rounded bg-slate-900/70 border border-white/10 text-cyan-100 font-mono text-sm overflow-x-auto',
-  tones: {
-    info: 'bg-cyan-900/30 border-cyan-500/40 text-cyan-100',
-    warn: 'bg-amber-900/30 border-amber-500/40 text-amber-100',
-    danger: 'bg-red-900/30 border-red-500/40 text-red-100',
-    success: 'bg-green-900/30 border-green-500/40 text-green-100',
-  },
-  stepBadge: 'flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-cyan-500 flex items-center justify-center text-white font-bold text-sm',
-  stepTitle: 'font-semibold text-white mb-1',
-  stepBody: 'text-slate-200 text-sm leading-relaxed',
-  table: 'min-w-full text-sm border border-white/10',
-  thead: 'bg-slate-800/60',
-  th: 'px-3 py-2 text-left text-cyan-200 font-semibold border-b border-white/10',
-  trOdd: 'bg-slate-800/20',
-  td: 'px-3 py-2 text-slate-200 border-b border-white/5 align-top',
-  section: 'bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-6',
-  back: 'text-white border-white/20 hover:bg-white/10',
-  headerBadge: 'bg-gradient-to-r from-indigo-500 to-purple-500 p-3 rounded-xl',
-  headerIcon: 'w-8 h-8 text-white',
-  h1: 'text-4xl font-bold text-white',
-  subtitle: 'text-lime-200 text-lg',
-  rail: 'sticky top-6 bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-4',
-  railLabel: 'text-xs uppercase tracking-wider text-lime-300/70 mb-2 px-2',
-  navActive: 'bg-gradient-to-r from-green-500/20 to-cyan-500/20 text-white border-l-2 border-cyan-400',
-  navIdle: 'text-slate-300 hover:bg-white/5 hover:text-white',
-  footer: 'mt-10 border-t border-white/10 pt-4 text-xs text-slate-500',
-};
+// Design system roles (every guide sits in the dashboard scope).
 const THEMED = {
   h2: 'flex items-center gap-3 text-3xl font-semibold text-pl-text mb-4 mt-0 pt-2',
   h2Icon: 'w-7 h-7 text-pl-primary-text',
@@ -90,7 +53,7 @@ const THEMED = {
   navIdle: 'text-pl-text hover:bg-pl-sunken',
   footer: 'mt-10 border-t border-pl-border pt-4 text-xs text-pl-muted',
 };
-const useGuideClasses = () => (useDsTheme() ? THEMED : LEGACY);
+const useGuideClasses = () => THEMED;
 
 export const SectionHeading = ({ icon: Icon, children }) => {
   const c = useGuideClasses();

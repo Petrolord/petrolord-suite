@@ -33,7 +33,20 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import LegacyAppFixture, { LEGACY_FIXTURE_PATH } from '@/design/testing/LegacyAppFixture';
+// A page with its own legacy console classes, for the detector's controls
+// (the shared LegacyAppFixture went with the legacy branches in batch 7B).
+const OUTSIDE_PATH = '/legacy/unmigrated-page';
+function UnmigratedPage() {
+  return (
+    <div className="bg-slate-900 text-slate-100">
+      <h1 className="text-lime-400">Old Studio</h1>
+      <div className="border border-slate-700 bg-slate-800 p-2">panel</div>
+      <p className="text-slate-400">note</p>
+      <span className="text-white">chip</span>
+      <button type="button" className="bg-lime-500 text-slate-950">go</button>
+    </div>
+  );
+}
 import {
   describeAppTheme, hasLegacyChrome, legacyChromeClasses, getScopeRoot,
   expectLightByDefault, expectToggleRoundTrip, expectNoLegacyChrome,
@@ -107,11 +120,10 @@ describe('the detector', () => {
     }
   });
 
-  it('finds the unmigrated fixture\'s classes when it is wrapped in a scope', () => {
-    render(<MemoryRouter><ThemedApp userId="t"><LegacyAppFixture /></ThemedApp></MemoryRouter>);
+  it('finds a page\'s own legacy classes when it is wrapped in a scope', () => {
+    render(<MemoryRouter><ThemedApp userId="t"><UnmigratedPage /></ThemedApp></MemoryRouter>);
     const found = legacyChromeClasses();
     expect(found.length).toBeGreaterThan(5);
-    // the kit themes itself; the app's own classes are what is left
     expect(found.some((c) => /\btext-lime-400\b/.test(c))).toBe(true);
     expect(found.some((c) => /\bbg-slate-900\b/.test(c))).toBe(true);
   });
@@ -159,7 +171,7 @@ describe('each assertion fails on the matching broken app (negative controls)', 
   });
 
   it('getScopeRoot fails on an app that is not wrapped', () => {
-    render(<LegacyAppFixture />, { wrapper: MemoryRouter });
+    render(<UnmigratedPage />, { wrapper: MemoryRouter });
     fails(() => getScopeRoot());
   });
 
@@ -178,7 +190,7 @@ describe('each assertion fails on the matching broken app (negative controls)', 
   });
 
   it('expectThemedPath fails on a path outside every scope', () => {
-    fails(() => expectThemedPath(LEGACY_FIXTURE_PATH));
+    fails(() => expectThemedPath(OUTSIDE_PATH));
     fails(() => expectThemedPath('/nextgen'));
   });
 });

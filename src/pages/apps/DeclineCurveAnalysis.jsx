@@ -231,9 +231,9 @@ const DeclineCurveContent = () => {
   );
 };
 
-// Design system pilot 2: the whole app sits in one opted-in theme scope
-// (light by default, dark by the user's choice from the header toggle). The
-// scope wraps the page itself so the route and the /dev/dca harness share it.
+// Design system pilot 2: the whole app sits in the dashboard scope (light by
+// default, dark by the user's choice from the header toggle); the /dev/dca
+// harness sits in the dev scope.
 const DeclineCurveAnalysisPage = () => {
   return (
     <div data-testid="dca-theme-scope">

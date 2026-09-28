@@ -1516,14 +1516,14 @@ function SliceView({
         </div>
         <canvas ref={annoRef} className="absolute inset-0 w-full h-full pointer-events-none" />
         {!slice && (
-          <div className="absolute inset-0 flex items-center justify-center text-center px-8 text-slate-500 text-sm">
+          <div className="absolute inset-0 flex items-center justify-center text-center px-8 text-pl-muted text-sm">
             {emptyHint || 'Select an ingested volume to view sections.'}
           </div>
         )}
         {loading && (
-          <div className="absolute top-2 right-2 text-cyan-300 flex items-center gap-2">
+          <div className="absolute top-2 right-2 text-pl-primary-text flex items-center gap-2">
             {loadingText && (
-              <span className="text-xs bg-slate-950/70 rounded px-1.5 py-0.5" data-testid="slice-loading-text">
+              <span className="text-xs bg-pl-raised/90 text-pl-text rounded px-1.5 py-0.5" data-testid="slice-loading-text">
                 {loadingText}
               </span>
             )}
@@ -1531,7 +1531,7 @@ function SliceView({
           </div>
         )}
         {glError && (
-          <div className="absolute inset-x-0 bottom-0 bg-red-950/80 text-red-300 text-xs p-2">
+          <div className="absolute inset-x-0 bottom-0 bg-pl-danger-bg text-pl-danger-text text-xs p-2">
             {glError}
           </div>
         )}

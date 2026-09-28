@@ -100,14 +100,9 @@ describe('pricing', () => {
       .toMatch(new RegExp(`['"]?${SLUG}['"]?\\s*:\\s*\\d+`));
   });
 
-  it('the consumers import that table rather than keeping their own', () => {
-    ['pages/GetQuote.jsx', 'components/admin/organizations/quotes/QuoteEditor.jsx']
-      .forEach((rel) => {
-        const src = read(rel);
-        expect(src).toMatch(/from '@\/data\/pricingModels'/);
-        expect(src).not.toMatch(/const MODULE_PRICING\s*=\s*\{/);
-      });
-  });
+  // The consumers that kept their own copy (GetQuote, the admin QuoteEditor)
+  // were deleted in design batch 7B; modulePricing.test.js guards that no
+  // file declares a second table.
 });
 
 describe('marketing, which follows the catalog rather than leading it', () => {

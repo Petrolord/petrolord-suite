@@ -157,28 +157,28 @@ export default function FrameworkView3D({
           <span key={`tick-${i}`} className="absolute text-[8px] text-slate-400" style={{ left: t.screen.x + 2, top: t.screen.y }}>{t.text}</span>
         ))}
       </div>
-      <div className="absolute left-2 top-2 flex flex-wrap items-center gap-1 rounded bg-slate-900/80 px-2 py-1 text-[10px] text-slate-300">
+      <div className="absolute left-2 top-2 flex flex-wrap items-center gap-1 rounded border border-pl-border bg-pl-raised/90 px-2 py-1 text-[10px] text-pl-text shadow-pl-sm">
         <span>VE</span>
         {VE.map((v) => (
           <button key={v} type="button" data-testid={`em-3d-ve-${v}`} onClick={() => setVe(v)}
-            className={`rounded px-1.5 py-0.5 ${ve === v ? 'bg-cyan-700 text-white' : 'bg-slate-800'}`}>{v}x</button>
+            className={`rounded px-1.5 py-0.5 ${ve === v ? 'bg-pl-primary text-pl-primary-fg' : 'bg-pl-sunken text-pl-muted hover:text-pl-text'}`}>{v}x</button>
         ))}
-        <span className="mx-1 text-slate-600">|</span>
+        <span className="mx-1 text-pl-border-strong">|</span>
         <button type="button" data-testid="em-3d-colorby" onClick={() => setColorBy((c) => (c === 'depth' ? 'surface' : 'depth'))}
-          className="rounded bg-slate-800 px-1.5 py-0.5" title="Colour the surfaces by depth or one colour per surface">colour: {colorBy}</button>
-        <button type="button" data-testid="em-3d-fit" onClick={fit} className="rounded bg-slate-800 px-1.5 py-0.5" title="Fit the model"><Maximize2 className="inline h-3 w-3" /></button>
-        <button type="button" data-testid="em-3d-png" onClick={snapshot} className="rounded bg-slate-800 px-1.5 py-0.5" title="Download a PNG"><Camera className="inline h-3 w-3" /> PNG</button>
+          className="rounded bg-pl-sunken px-1.5 py-0.5" title="Colour the surfaces by depth or one colour per surface">colour: {colorBy}</button>
+        <button type="button" data-testid="em-3d-fit" onClick={fit} className="rounded bg-pl-sunken px-1.5 py-0.5" title="Fit the model"><Maximize2 className="inline h-3 w-3" /></button>
+        <button type="button" data-testid="em-3d-png" onClick={snapshot} className="rounded bg-pl-sunken px-1.5 py-0.5" title="Download a PNG"><Camera className="inline h-3 w-3" /> PNG</button>
       </div>
-      <div className="absolute right-2 top-2 flex flex-col gap-0.5 rounded bg-slate-900/80 px-2 py-1 text-[10px]" data-testid="em-3d-legend">
+      <div className="absolute right-2 top-2 flex flex-col gap-0.5 rounded border border-pl-border bg-pl-raised/90 px-2 py-1 text-[10px]" data-testid="em-3d-legend">
         {(built?.clamped || []).map((_, i) => (
-          <label key={i} className="flex items-center gap-1 text-slate-300">
+          <label key={i} className="flex items-center gap-1 text-pl-text">
             <input type="checkbox" data-testid={`em-3d-surface-${i}`} checked={!hidden.has(i)} onChange={() => toggleSurface(i)} />
             <span className="inline-block h-2 w-2 rounded-sm" style={{ background: ['#4ade80', '#60a5fa', '#facc15', '#f472b6', '#c084fc', '#f87171'][i % 6] }} />
             {surfaceNames[i] || `Surface ${i + 1}`}
           </label>
         ))}
       </div>
-      <div className="absolute bottom-1 right-2 text-[9px] text-slate-500">drag orbit, shift-drag pan, wheel zoom, depth in {depthUnit}</div>
+      <div className="absolute bottom-1 right-2 text-[9px] text-pl-muted">drag orbit, shift-drag pan, wheel zoom, depth in {depthUnit}</div>
     </div>
   );
 }

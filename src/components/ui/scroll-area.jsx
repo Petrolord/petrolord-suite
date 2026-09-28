@@ -2,7 +2,6 @@ import * as React from "react"
 import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"
 
 import { cn } from "@/lib/utils"
-import { useDsTheme } from "@/design/themeContext"
 
 const ScrollArea = React.forwardRef(({ className, children, ...props }, ref) => (
   <ScrollAreaPrimitive.Root
@@ -20,7 +19,6 @@ ScrollArea.displayName = ScrollAreaPrimitive.Root.displayName
 
 const ScrollBar = React.forwardRef(({ className, orientation = "vertical", ...props }, ref) => {
   // Design system: the thumb takes the control outline role inside a scope.
-  const ds = useDsTheme()
   return (
     <ScrollAreaPrimitive.ScrollAreaScrollbar
       ref={ref}
@@ -34,7 +32,7 @@ const ScrollBar = React.forwardRef(({ className, orientation = "vertical", ...pr
         className
       )}
       {...props}>
-      <ScrollAreaPrimitive.ScrollAreaThumb className={ds ? "relative flex-1 rounded-full bg-pl-border-strong/70 hover:bg-pl-border-strong" : "relative flex-1 rounded-full bg-slate-500"} />
+      <ScrollAreaPrimitive.ScrollAreaThumb className="relative flex-1 rounded-full bg-pl-border-strong/70 hover:bg-pl-border-strong" />
     </ScrollAreaPrimitive.ScrollAreaScrollbar>
   )
 })

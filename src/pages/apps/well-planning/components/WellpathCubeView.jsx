@@ -236,28 +236,29 @@ const WellpathCubeView = ({
         )}
       </div>
 
-      {/* controls */}
-      <div className="absolute left-2 top-2 flex flex-wrap items-center gap-1 rounded bg-slate-900/80 px-2 py-1 text-[10px] text-slate-300">
+      {/* controls: theme roles, which inside the canvas follow its own
+          background (dark roles on the dark canvas, light on the white one) */}
+      <div className="absolute left-2 top-2 flex flex-wrap items-center gap-1 rounded border border-pl-border bg-pl-raised/90 px-2 py-1 text-[10px] text-pl-text shadow-pl-sm">
         <span>Vexag</span>
         {[1, 2, 5].map((v) => (
           <button key={v} type="button" onClick={() => setVexag(v)}
-            className={`rounded px-1.5 py-0.5 ${vexag === v ? 'bg-lime-600 text-white' : 'bg-slate-800'}`}>
+            className={`rounded px-1.5 py-0.5 ${vexag === v ? 'bg-pl-primary text-pl-primary-fg' : 'bg-pl-sunken text-pl-muted hover:text-pl-text'}`}>
             {v}x
           </button>
         ))}
-        <span className="mx-1 text-slate-600">|</span>
+        <span className="mx-1 text-pl-border-strong">|</span>
         {[['eou', 'EOU'], ['targets', 'Targets'], ['tops', 'Tops'], ['offsets', 'Offsets']].map(([key, lab]) => (
           <button key={key} type="button" onClick={() => toggle(key)}
-            className={`rounded px-1.5 py-0.5 ${layers[key] ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-500'}`}>
+            className={`rounded px-1.5 py-0.5 ${layers[key] ? 'bg-pl-primary/15 text-pl-primary-text' : 'bg-pl-sunken text-pl-muted'}`}>
             {lab}
           </button>
         ))}
         <Button size="sm" variant="ghost" onClick={handleSnapshot} data-testid="wp-cube-snapshot"
-          className="ml-1 h-5 px-1.5 text-[10px] text-slate-300 hover:bg-slate-700">
+          className="ml-1 h-5 px-1.5 text-[10px]">
           <Camera className="mr-0.5 h-3 w-3" /> PNG
         </Button>
       </div>
-      <div className="absolute bottom-1 right-2 text-[9px] text-slate-500">
+      <div className="absolute bottom-1 right-2 text-[9px] text-pl-muted">
         drag orbit · shift-drag pan · wheel zoom
       </div>
     </div>

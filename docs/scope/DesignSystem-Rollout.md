@@ -661,6 +661,30 @@ for the public pages that still use `Button`, `Input`, `Label`, `Card`):
 - `panel-elevation`, `btn-primary` and the `data-grid-*` component classes
   in `index.css` already use variables; keep them or fold them into roles.
 
+**As built (7B, `feat/ds-w7b`).** Every legacy branch is gone: the ui kit
+(`LEGACY` tables, `ds ? THEMED : LEGACY`, the legacy cva sets; the merged
+legacy+themed strings folded into one role string with the same
+tailwind-merge result; one `buttonVariants`, `badgeVariants`,
+`toggleVariants`, `alertVariants`), the Studio kit, `WorkspaceShell`,
+`ModuleHomeLink`, `HelpGuideLayout`, the CRS, wells, culture, portability
+and production kits, `AccessDenied`, `ComingSoon`, `UpgradeSuiteButton`,
+`FullPrecision`. `useThemeClass`, `themeClassPicker` and `useStudioTheme`
+are removed. The places that still rendered shared pieces with no scope
+now get one: the homepage Book a Demo dialog (`PublicScope`, always
+light), the root `ErrorBoundary` panels and `ProtectedRoute`'s denied state
+(`AccountScope`), and the ink rail and phone drawer (`FixedTheme`, dark, no
+toggle, no storage, so their portals are themed). `index.css` `:root` holds
+the light scope's shadcn values and Public Sans (no `.dark`, no DM Sans);
+`App.css` (never imported) is deleted; the App.jsx root div, the
+DashboardLayout frame and the AuthGuard, ProtectedRoute and PageLoader
+legacy loaders are gone (the themed loader, light where no scope follows).
+The root toaster shows one light paper style where no scope is mounted.
+Unused `command`, `drawer`, `toast`, `toaster` ui files, `GetQuote`,
+`PortfolioCharts`, `PortfolioReportGenerator`, `SmallProjectsAnalytics`
+and the admin `QuoteEditor`, `QuotePreview`, `EmailQuoteModal` are deleted.
+The legacy-DOM pins, the outside-scope snapshots and `LegacyAppFixture`
+are retired. Button `sm` is `h-8 text-xs`, flush with an h-8 text-xs field.
+
 ### 5.4 Pages outside the dashboard (decision)
 
 Twenty public and auth pages (login, signup, set and reset password,

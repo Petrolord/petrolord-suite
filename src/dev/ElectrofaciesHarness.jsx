@@ -14,7 +14,7 @@ const db = createStore({
 export default function ElectrofaciesHarness() {
   return (
     <InMemorySupabase db={db}>
-      <DevAuth><div className="min-h-screen bg-slate-950 text-slate-100"><ElectrofaciesStudio /></div></DevAuth>
+      <DevAuth><div className="min-h-screen"><ElectrofaciesStudio /></div></DevAuth>
     </InMemorySupabase>
   );
 }

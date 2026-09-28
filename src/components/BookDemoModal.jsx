@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2, AlertCircle } from 'lucide-react';
+import { PublicScope } from '@/components/public/PublicPage';
 
 const BookDemoModal = ({ isOpen, onClose }) => {
   const { 
@@ -71,12 +72,15 @@ const BookDemoModal = ({ isOpen, onClose }) => {
     }
   };
 
+  // The homepage opens no theme scope, so the dialog brings the always-light
+  // public one (the same look as the sign-in pages).
   return (
+    <PublicScope className="contents" data-testid="book-demo-scope">
     <Dialog open={isOpen} onOpenChange={(open) => !isSubmitting && onClose(open)}>
-      <DialogContent className="sm:max-w-[500px] bg-slate-950 border-slate-800 text-slate-100 shadow-2xl">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-white tracking-tight">Book a Demo</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogTitle className="font-pl-display text-3xl font-semibold tracking-tight">Book a Demo</DialogTitle>
+          <DialogDescription>
             See how Petrolord Suite can transform your operations. Fill out the form below.
           </DialogDescription>
         </DialogHeader>
@@ -85,11 +89,11 @@ const BookDemoModal = ({ isOpen, onClose }) => {
           <div className="grid gap-5">
             {/* Full Name */}
             <div className="grid gap-2">
-              <Label htmlFor="full_name" className="text-slate-200">Full Name <span className="text-red-400">*</span></Label>
+              <Label htmlFor="full_name">Full Name <span className="text-pl-danger-text">*</span></Label>
               <div className="relative">
                 <Input
                   id="full_name"
-                  className={`bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-600 focus:border-[#FCD34D] focus:ring-1 focus:ring-[#FCD34D] transition-all ${errors.full_name ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                  className={`transition-all ${errors.full_name ? 'border-pl-danger focus-visible:ring-pl-danger' : ''}`}
                   placeholder="John Doe"
                   disabled={isSubmitting}
                   {...register("full_name", { 
@@ -99,7 +103,7 @@ const BookDemoModal = ({ isOpen, onClose }) => {
                 />
               </div>
               {errors.full_name && (
-                <span className="text-red-400 text-xs flex items-center mt-1">
+                <span className="text-pl-danger-text text-xs flex items-center mt-1">
                   <AlertCircle className="w-3 h-3 mr-1" /> {errors.full_name.message}
                 </span>
               )}
@@ -107,11 +111,11 @@ const BookDemoModal = ({ isOpen, onClose }) => {
             
             {/* Email */}
             <div className="grid gap-2">
-              <Label htmlFor="email" className="text-slate-200">Work Email <span className="text-red-400">*</span></Label>
+              <Label htmlFor="email">Work Email <span className="text-pl-danger-text">*</span></Label>
               <Input
                 id="email"
                 type="email"
-                className={`bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-600 focus:border-[#FCD34D] focus:ring-1 focus:ring-[#FCD34D] transition-all ${errors.email ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                className={`transition-all ${errors.email ? 'border-pl-danger focus-visible:ring-pl-danger' : ''}`}
                 placeholder="john@company.com"
                 disabled={isSubmitting}
                 {...register("email", { 
@@ -123,7 +127,7 @@ const BookDemoModal = ({ isOpen, onClose }) => {
                 })}
               />
               {errors.email && (
-                <span className="text-red-400 text-xs flex items-center mt-1">
+                <span className="text-pl-danger-text text-xs flex items-center mt-1">
                   <AlertCircle className="w-3 h-3 mr-1" /> {errors.email.message}
                 </span>
               )}
@@ -131,10 +135,10 @@ const BookDemoModal = ({ isOpen, onClose }) => {
 
             {/* Company */}
             <div className="grid gap-2">
-              <Label htmlFor="company_name" className="text-slate-200">Company Name <span className="text-red-400">*</span></Label>
+              <Label htmlFor="company_name">Company Name <span className="text-pl-danger-text">*</span></Label>
               <Input
                 id="company_name"
-                className={`bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-600 focus:border-[#FCD34D] focus:ring-1 focus:ring-[#FCD34D] transition-all ${errors.company_name ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                className={`transition-all ${errors.company_name ? 'border-pl-danger focus-visible:ring-pl-danger' : ''}`}
                 placeholder="Acme Energy Inc."
                 disabled={isSubmitting}
                 {...register("company_name", { 
@@ -143,7 +147,7 @@ const BookDemoModal = ({ isOpen, onClose }) => {
                 })}
               />
               {errors.company_name && (
-                <span className="text-red-400 text-xs flex items-center mt-1">
+                <span className="text-pl-danger-text text-xs flex items-center mt-1">
                   <AlertCircle className="w-3 h-3 mr-1" /> {errors.company_name.message}
                 </span>
               )}
@@ -151,10 +155,10 @@ const BookDemoModal = ({ isOpen, onClose }) => {
 
             {/* Message */}
             <div className="grid gap-2">
-              <Label htmlFor="message" className="text-slate-200">Message (Optional)</Label>
+              <Label htmlFor="message">Message (Optional)</Label>
               <Textarea
                 id="message"
-                className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-600 focus:border-[#FCD34D] focus:ring-1 focus:ring-[#FCD34D] min-h-[100px] resize-none transition-all"
+                className="min-h-[100px] resize-none transition-all"
                 placeholder="Tell us about your specific needs..."
                 disabled={isSubmitting}
                 {...register("message", {
@@ -162,7 +166,7 @@ const BookDemoModal = ({ isOpen, onClose }) => {
                 })}
               />
               {errors.message && (
-                <span className="text-red-400 text-xs flex items-center mt-1">
+                <span className="text-pl-danger-text text-xs flex items-center mt-1">
                   <AlertCircle className="w-3 h-3 mr-1" /> {errors.message.message}
                 </span>
               )}
@@ -175,13 +179,13 @@ const BookDemoModal = ({ isOpen, onClose }) => {
               variant="ghost" 
               onClick={() => onClose(false)}
               disabled={isSubmitting}
-              className="text-slate-400 hover:text-white hover:bg-slate-800"
             >
               Cancel
             </Button>
             <Button 
-              type="submit" 
-              className="bg-[#FCD34D] text-slate-900 hover:bg-[#fbbf24] font-bold transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+              type="submit"
+              variant="accent"
+              className="font-semibold disabled:opacity-70 disabled:cursor-not-allowed"
               disabled={isSubmitting || !isValid}
             >
               {isSubmitting ? (
@@ -197,6 +201,7 @@ const BookDemoModal = ({ isOpen, onClose }) => {
         </form>
       </DialogContent>
     </Dialog>
+    </PublicScope>
   );
 };
 

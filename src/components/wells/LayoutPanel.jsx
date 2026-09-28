@@ -12,62 +12,10 @@ import {
   activeTemplate, updateTemplate, newId, applySourceScale,
   INPUT_SOURCES, OUTPUT_SOURCES, PROBABILISTIC_SOURCES, MINERAL_FIXED_SOURCES, isMineralSource, THRESHOLD_PARAMS, STRIP_SOURCES,
 } from './layout/layoutSchema';
-import { useThemeClass } from '@/design/themeClass';
 
-// Design system (W0C): themed strings for tc(); outside an opted-in scope
-// tc() returns the legacy string unchanged.
-// Curve and fill colours are data (the swatches) and stay as chosen.
-const THEMED_CLASSES = {
-  "rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs w-full":
-    "rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs w-full focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-pl-focus",
-  "rounded bg-slate-950 border border-slate-700 text-slate-200 px-1 py-0.5 text-[11px]":
-    "rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5 text-[11px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-pl-focus",
-  "p-2 space-y-1.5 text-xs border-t border-slate-800/60":
-    "p-2 space-y-1.5 text-xs text-pl-text border-t border-pl-border",
-  "text-[10px] uppercase tracking-wider text-slate-500":
-    "text-[10px] uppercase tracking-wider text-pl-muted",
-  "flex-1 px-1.5 py-0.5 rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10":
-    "flex-1 px-1.5 py-0.5 rounded border border-pl-primary text-pl-primary-text hover:bg-pl-sunken",
-  "flex-1 px-1.5 py-0.5 rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40":
-    "flex-1 px-1.5 py-0.5 rounded border border-pl-border-strong text-pl-text hover:bg-pl-sunken disabled:opacity-40",
-  "flex-1 px-1.5 py-0.5 rounded border border-red-900/60 text-red-300 hover:bg-red-500/10 disabled:opacity-40":
-    "flex-1 px-1.5 py-0.5 rounded border border-pl-danger text-pl-danger-text hover:bg-pl-danger-bg disabled:opacity-40",
-  "text-[10px] text-slate-500":
-    "text-[10px] text-pl-muted",
-  "rounded border border-slate-800":
-    "rounded border border-pl-border",
-  "text-slate-400":
-    "text-pl-muted",
-  "truncate text-slate-300":
-    "truncate text-pl-text",
-  "text-slate-600 text-[10px]":
-    "text-pl-muted text-[10px]",
-  "text-slate-500 hover:text-slate-200":
-    "text-pl-muted hover:text-pl-text",
-  "text-slate-500 hover:text-red-400":
-    "text-pl-muted hover:text-pl-danger-text",
-  "px-1.5 pb-1.5 space-y-1 border-t border-slate-800/60 pt-1":
-    "px-1.5 pb-1.5 space-y-1 border-t border-pl-border pt-1",
-  "text-slate-500 w-9":
-    "text-pl-muted w-9",
-  "text-[10px] text-slate-500 pt-0.5":
-    "text-[10px] text-pl-muted pt-0.5",
-  "w-6 h-5 rounded border border-slate-700 bg-transparent":
-    "w-6 h-5 rounded border border-pl-border-strong bg-transparent",
-  "flex items-center gap-1 px-1.5 py-0.5 rounded border border-slate-700 text-slate-400 hover:bg-slate-800":
-    "flex items-center gap-1 px-1.5 py-0.5 rounded border border-pl-border-strong text-pl-muted hover:bg-pl-sunken hover:text-pl-text",
-  "flex items-center gap-0.5 text-slate-500":
-    "flex items-center gap-0.5 text-pl-muted",
-  "text-slate-400 hover:text-slate-200":
-    "text-pl-muted hover:text-pl-text",
-  "flex items-center gap-1 px-1.5 py-0.5 rounded border border-slate-700 text-slate-400 hover:bg-slate-800 disabled:opacity-40":
-    "flex items-center gap-1 px-1.5 py-0.5 rounded border border-pl-border-strong text-pl-muted hover:bg-pl-sunken hover:text-pl-text disabled:opacity-40",
-  "flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded border border-slate-700 text-slate-300 hover:bg-slate-800":
-    "flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded border border-pl-border-strong text-pl-text hover:bg-pl-sunken",
-};
 
-const inputCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs w-full';
-const miniCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1 py-0.5 text-[11px]';
+const inputCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs w-full focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-pl-focus';
+const miniCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5 text-[11px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-pl-focus';
 const SOURCES = [...INPUT_SOURCES, ...OUTPUT_SOURCES];
 
 // Numeric text box that lets a person type a number the way people type
@@ -110,9 +58,8 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
     .filter((m) => m && !/^(DEPT|DEPTH|MD)(:\d+)?$/i.test(m))
     .map((m) => `log:${m}`), [logSources]);
   const tpl = activeTemplate(layouts);
-  const tc = useThemeClass(THEMED_CLASSES);
-  const inp = tc(inputCls);
-  const mini = tc(miniCls);
+  const inp = inputCls;
+  const mini = miniCls;
   const [openTrack, setOpenTrack] = useState(null); // track id
 
   useEffect(() => {
@@ -170,8 +117,8 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
   };
 
   return (
-    <div className={tc("p-2 space-y-1.5 text-xs border-t border-slate-800/60")} data-testid="petro-layout">
-      <div className={tc("text-[10px] uppercase tracking-wider text-slate-500")}>Track layout</div>
+    <div className="p-2 space-y-1.5 text-xs text-pl-text border-t border-pl-border" data-testid="petro-layout">
+      <div className="text-[10px] uppercase tracking-wider text-pl-muted">Track layout</div>
       <div className="flex items-center gap-1">
         <select
           className={inp}
@@ -186,51 +133,51 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
       </div>
       <div className="flex gap-1">
         <button type="button" data-testid="petro-layout-saveas"
-          className={tc("flex-1 px-1.5 py-0.5 rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10")}
+          className="flex-1 px-1.5 py-0.5 rounded border border-pl-primary text-pl-primary-text hover:bg-pl-sunken"
           onClick={saveAs}
         >
           Save as…
         </button>
         <button type="button" data-testid="petro-layout-rename" disabled={tpl.builtin}
           title={tpl.builtin ? 'Built-in templates fork when edited' : 'Rename this template'}
-          className={tc("flex-1 px-1.5 py-0.5 rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40")}
+          className="flex-1 px-1.5 py-0.5 rounded border border-pl-border-strong text-pl-text hover:bg-pl-sunken disabled:opacity-40"
           onClick={rename}
         >
           Rename
         </button>
         <button type="button" data-testid="petro-layout-delete" disabled={tpl.builtin}
-          className={tc("flex-1 px-1.5 py-0.5 rounded border border-red-900/60 text-red-300 hover:bg-red-500/10 disabled:opacity-40")}
+          className="flex-1 px-1.5 py-0.5 rounded border border-pl-danger text-pl-danger-text hover:bg-pl-danger-bg disabled:opacity-40"
           onClick={remove}
         >
           Delete
         </button>
       </div>
       {tpl.builtin && (
-        <p className={tc("text-[10px] text-slate-500")}>Built-in template. Any edit forks it into your own copy.</p>
+        <p className="text-[10px] text-pl-muted">Built-in template. Any edit forks it into your own copy.</p>
       )}
 
       {tpl.tracks.map((tr, i) => (
-        <div key={tr.id} className={tc("rounded border border-slate-800")} data-testid={`petro-layout-track-${tr.title}`}>
+        <div key={tr.id} className="rounded border border-pl-border" data-testid={`petro-layout-track-${tr.title}`}>
           <div className="flex items-center gap-1 px-1.5 py-1">
-            <button type="button" className={tc("text-slate-400")}
+            <button type="button" className="text-pl-muted"
               data-testid={`petro-layout-expand-${tr.title}`}
               onClick={() => setOpenTrack(openTrack === tr.id ? null : tr.id)}
             >
               {openTrack === tr.id ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
             </button>
-            <span className={tc("truncate text-slate-300")}>{tr.title}</span>
-            <span className={tc("text-slate-600 text-[10px]")}>{tr.type === 'strip' ? 'strip' : `${tr.curves.length} curve${tr.curves.length === 1 ? '' : 's'}`}</span>
+            <span className="truncate text-pl-text">{tr.title}</span>
+            <span className="text-pl-muted text-[10px]">{tr.type === 'strip' ? 'strip' : `${tr.curves.length} curve${tr.curves.length === 1 ? '' : 's'}`}</span>
             <div className="ml-auto flex items-center gap-0.5">
-              <button type="button" title="Move up" className={tc("text-slate-500 hover:text-slate-200")} onClick={() => moveTrack(i, -1)}>
+              <button type="button" title="Move up" className="text-pl-muted hover:text-pl-text" onClick={() => moveTrack(i, -1)}>
                 <ArrowUp className="w-3 h-3" />
               </button>
-              <button type="button" title="Move down" className={tc("text-slate-500 hover:text-slate-200")}
+              <button type="button" title="Move down" className="text-pl-muted hover:text-pl-text"
                 data-testid={`petro-layout-down-${tr.title}`}
                 onClick={() => moveTrack(i, 1)}
               >
                 <ArrowDown className="w-3 h-3" />
               </button>
-              <button type="button" title="Remove track" className={tc("text-slate-500 hover:text-red-400")}
+              <button type="button" title="Remove track" className="text-pl-muted hover:text-pl-danger-text"
                 data-testid={`petro-layout-remove-${tr.title}`}
                 onClick={() => edit((t) => ({ ...t, tracks: t.tracks.filter((x) => x.id !== tr.id) }))}
               >
@@ -240,22 +187,22 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
           </div>
 
           {openTrack === tr.id && (
-            <div className={tc("px-1.5 pb-1.5 space-y-1 border-t border-slate-800/60 pt-1")}>
+            <div className="px-1.5 pb-1.5 space-y-1 border-t border-pl-border pt-1">
               <div className="grid grid-cols-2 gap-1">
                 <label className="flex items-center gap-1">
-                  <span className={tc("text-slate-500 w-9")}>Title</span>
+                  <span className="text-pl-muted w-9">Title</span>
                   <input className={mini} style={{ width: '100%' }} value={tr.title}
                     data-testid="petro-layout-track-title"
                     onChange={(e) => editTrack(tr.id, (x) => ({ ...x, title: e.target.value }))} />
                 </label>
                 <label className="flex items-center gap-1">
-                  <span className={tc("text-slate-500 w-9")}>Width</span>
+                  <span className="text-pl-muted w-9">Width</span>
                   <NumText className={mini} style={{ width: '100%' }} value={tr.width ?? 1} data-testid="petro-layout-track-width"
                     onCommit={(v) => editTrack(tr.id, (x) => ({ ...x, width: v > 0 ? v : x.width }))} />
                 </label>
                 {tr.type === 'strip' && (
                   <label className="flex items-center gap-1 col-span-2">
-                    <span className={tc("text-slate-500 w-9")}>Source</span>
+                    <span className="text-pl-muted w-9">Source</span>
                     <select className={mini} style={{ width: '100%' }} value={tr.source || 'facies'}
                       data-testid="petro-layout-strip-source"
                       onChange={(e) => editTrack(tr.id, (x) => ({ ...x, source: e.target.value }))}>
@@ -266,7 +213,7 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
                 {tr.type !== 'strip' && (
                   <>
                     <label className="flex items-center gap-1">
-                      <span className={tc("text-slate-500 w-9")}>Scale</span>
+                      <span className="text-pl-muted w-9">Scale</span>
                       <select className={mini} style={{ width: '100%' }} value={tr.scale || 'linear'}
                         onChange={(e) => editTrack(tr.id, (x) => ({ ...x, scale: e.target.value }))}
                       >
@@ -275,7 +222,7 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
                       </select>
                     </label>
                     <div className="flex items-center gap-1">
-                      <span className={tc("text-slate-500 w-9")}>Range</span>
+                      <span className="text-pl-muted w-9">Range</span>
                       <NumText className={mini} style={{ width: 52 }} value={tr.min} title="Track min" data-testid="petro-layout-track-min"
                         onCommit={(v) => editTrack(tr.id, (x) => ({ ...x, min: v }))} />
                       <NumText className={mini} style={{ width: 52 }} value={tr.max} title="Track max" data-testid="petro-layout-track-max"
@@ -287,7 +234,7 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
 
               {tr.type !== 'strip' && (
                 <>
-                  <div className={tc("text-[10px] text-slate-500 pt-0.5")}>Curves</div>
+                  <div className="text-[10px] text-pl-muted pt-0.5">Curves</div>
                   {tr.curves.map((c, ci) => (
                     <div key={`${tr.id}-c${ci}`} className="flex items-center gap-1">
                       <select className={mini} style={{ flex: 1 }} value={c.source}
@@ -323,7 +270,7 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
                           <option value={c.source}>{c.source} (not in this well)</option>
                         )}
                       </select>
-                      <input type="color" className={tc("w-6 h-5 rounded border border-slate-700 bg-transparent")} value={c.color || '#0891b2'}
+                      <input type="color" className="w-6 h-5 rounded border border-pl-border-strong bg-transparent" value={c.color || '#0891b2'}
                         title="Curve color"
                         onChange={(e) => editTrack(tr.id, (x) => ({
                           ...x, curves: x.curves.map((y, yi) => (yi === ci ? { ...y, color: e.target.value } : y)),
@@ -348,7 +295,7 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
                         <option value="dash">dash</option>
                         <option value="dot">dot</option>
                       </select>
-                      <button type="button" className={tc("text-slate-500 hover:text-red-400")} title="Remove curve"
+                      <button type="button" className="text-pl-muted hover:text-pl-danger-text" title="Remove curve"
                         onClick={() => editTrack(tr.id, (x) => ({ ...x, curves: x.curves.filter((_, yi) => yi !== ci) }))}
                       >
                         <Trash2 className="w-3 h-3" />
@@ -356,7 +303,7 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
                     </div>
                   ))}
                   <button type="button" data-testid="petro-layout-add-curve"
-                    className={tc("flex items-center gap-1 px-1.5 py-0.5 rounded border border-slate-700 text-slate-400 hover:bg-slate-800")}
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-pl-border-strong text-pl-muted hover:bg-pl-sunken hover:text-pl-text"
                     onClick={() => editTrack(tr.id, (x) => applySourceScale({
                       ...x, curves: [...x.curves, { source: 'input:GR', label: 'GR', color: '#059669' }],
                     }, 'input:GR'))}
@@ -364,7 +311,7 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
                     <Plus className="w-3 h-3" /> Curve
                   </button>
 
-                  <div className={tc("text-[10px] text-slate-500 pt-0.5")}>Fills</div>
+                  <div className="text-[10px] text-pl-muted pt-0.5">Fills</div>
                   {(tr.fills || []).map((f, fi) => (
                     <div key={`${tr.id}-f${fi}`} className="flex items-center gap-1 flex-wrap">
                       <select className={mini} value={f.mode} data-testid={`petro-layout-fill-mode-${fi}`}
@@ -432,26 +379,26 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
                       )}
                       {f.mode === 'crossover' && (
                         <>
-                          <input type="color" className={tc("w-6 h-5 rounded border border-slate-700 bg-transparent")} value={f.positiveColor || '#facc15'}
+                          <input type="color" className="w-6 h-5 rounded border border-pl-border-strong bg-transparent" value={f.positiveColor || '#facc15'}
                             title="A right of B (density-neutron: gas)" data-testid={`petro-layout-fill-pos-${fi}`}
                             onChange={(e) => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.map((y, yi) => (yi === fi ? { ...y, positiveColor: e.target.value } : y)) }))} />
-                          <input type="color" className={tc("w-6 h-5 rounded border border-slate-700 bg-transparent")} value={f.negativeColor || '#9ca3af'}
+                          <input type="color" className="w-6 h-5 rounded border border-pl-border-strong bg-transparent" value={f.negativeColor || '#9ca3af'}
                             title="A left of B (density-neutron: shale)" data-testid={`petro-layout-fill-neg-${fi}`}
                             onChange={(e) => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.map((y, yi) => (yi === fi ? { ...y, negativeColor: e.target.value } : y)) }))} />
                         </>
                       )}
                       {f.mode === 'threshold' && (
                         <>
-                          <input type="color" className={tc("w-6 h-5 rounded border border-slate-700 bg-transparent")} value={f.color || '#fde047'}
+                          <input type="color" className="w-6 h-5 rounded border border-pl-border-strong bg-transparent" value={f.color || '#fde047'}
                             title="Colour on the chosen side" data-testid={`petro-layout-fill-color-${fi}`}
                             onChange={(e) => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.map((y, yi) => (yi === fi ? { ...y, color: e.target.value } : y)) }))} />
-                          <label className={tc("flex items-center gap-0.5 text-slate-500")} title="Also colour the other side">
+                          <label className="flex items-center gap-0.5 text-pl-muted" title="Also colour the other side">
                             <input type="checkbox" checked={!!f.color2} data-testid={`petro-layout-fill-color2-on-${fi}`}
                               onChange={(e) => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.map((y, yi) => (yi === fi ? { ...y, color2: e.target.checked ? (y.color2 || '#9ca3af') : undefined } : y)) }))} />
                             other side
                           </label>
                           {f.color2 && (
-                            <input type="color" className={tc("w-6 h-5 rounded border border-slate-700 bg-transparent")} value={f.color2}
+                            <input type="color" className="w-6 h-5 rounded border border-pl-border-strong bg-transparent" value={f.color2}
                               title="Colour on the other side" data-testid={`petro-layout-fill-color2-${fi}`}
                               onChange={(e) => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.map((y, yi) => (yi === fi ? { ...y, color2: e.target.value } : y)) }))} />
                           )}
@@ -473,16 +420,16 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
                               <NumText className={mini} style={{ width: 44 }} value={st.value} title="Stop value"
                                 data-testid={`petro-layout-ramp-value-${fi}-${si}`}
                                 onCommit={(v) => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.map((y, yi) => (yi === fi ? { ...y, stops: y.stops.map((z, zi) => (zi === si ? { ...z, value: v } : z)) } : y)) }))} />
-                              <input type="color" className={tc("w-6 h-5 rounded border border-slate-700 bg-transparent")} value={st.color}
+                              <input type="color" className="w-6 h-5 rounded border border-pl-border-strong bg-transparent" value={st.color}
                                 data-testid={`petro-layout-ramp-color-${fi}-${si}`}
                                 onChange={(e) => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.map((y, yi) => (yi === fi ? { ...y, stops: y.stops.map((z, zi) => (zi === si ? { ...z, color: e.target.value } : z)) } : y)) }))} />
                               {(f.stops || []).length > 2 && (
-                                <button type="button" className={tc("text-slate-500 hover:text-red-400")} title="Remove stop"
+                                <button type="button" className="text-pl-muted hover:text-pl-danger-text" title="Remove stop"
                                   onClick={() => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.map((y, yi) => (yi === fi ? { ...y, stops: y.stops.filter((_, zi) => zi !== si) } : y)) }))}>×</button>
                               )}
                             </span>
                           ))}
-                          <button type="button" className={tc("text-slate-400 hover:text-slate-200")} title="Add a stop" data-testid={`petro-layout-ramp-add-${fi}`}
+                          <button type="button" className="text-pl-muted hover:text-pl-text" title="Add a stop" data-testid={`petro-layout-ramp-add-${fi}`}
                             onClick={() => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.map((y, yi) => {
                               if (yi !== fi) return y;
                               const st = [...(y.stops || [])].sort((p, q) => p.value - q.value);
@@ -491,13 +438,13 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
                             }) }))}>+ stop</button>
                         </>
                       )}
-                      <label className={tc("flex items-center gap-0.5 text-slate-500")} title="Opacity">
+                      <label className="flex items-center gap-0.5 text-pl-muted" title="Opacity">
                         <input type="range" min="0" max="1" step="0.05" value={f.opacity ?? 0.3} className="w-14"
                           data-testid={`petro-layout-fill-opacity-${fi}`}
                           onChange={(e) => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.map((y, yi) => (yi === fi ? { ...y, opacity: Number(e.target.value) } : y)) }))} />
                         {Math.round((f.opacity ?? 0.3) * 100)}%
                       </label>
-                      <button type="button" className={tc("text-slate-500 hover:text-red-400")} title="Remove fill"
+                      <button type="button" className="text-pl-muted hover:text-pl-danger-text" title="Remove fill"
                         onClick={() => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.filter((_, yi) => yi !== fi) }))}
                       >
                         <Trash2 className="w-3 h-3" />
@@ -505,7 +452,7 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
                     </div>
                   ))}
                   <button type="button" data-testid="petro-layout-add-fill" disabled={!tr.curves.length}
-                    className={tc("flex items-center gap-1 px-1.5 py-0.5 rounded border border-slate-700 text-slate-400 hover:bg-slate-800 disabled:opacity-40")}
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-pl-border-strong text-pl-muted hover:bg-pl-sunken hover:text-pl-text disabled:opacity-40"
                     onClick={() => editTrack(tr.id, (x) => ({
                       ...x,
                       fills: [...(x.fills || []), { mode: 'threshold', a: x.curves[0].source, threshold: { param: 'cutPhi' }, side: 'above', color: '#fde047', opacity: 0.25 }],
@@ -522,13 +469,13 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
 
       <div className="flex gap-1">
         <button type="button" data-testid="petro-layout-add-track"
-          className={tc("flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded border border-slate-700 text-slate-300 hover:bg-slate-800")}
+          className="flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded border border-pl-border-strong text-pl-text hover:bg-pl-sunken"
           onClick={addTrack}
         >
           <Plus className="w-3.5 h-3.5" /> Add track
         </button>
         <button type="button" data-testid="petro-layout-add-strip" title="Add a categorical strip: registry lithology, core, facies or a crossplot facies"
-          className={tc("flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded border border-slate-700 text-slate-300 hover:bg-slate-800")}
+          className="flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded border border-pl-border-strong text-pl-text hover:bg-pl-sunken"
           onClick={() => edit((t) => ({ ...t, tracks: [...t.tracks, { id: newId('trk'), title: 'Lithology', type: 'strip', width: 0.45, source: 'intervals:lithology' }] }))}
         >
           <Plus className="w-3.5 h-3.5" /> Add strip

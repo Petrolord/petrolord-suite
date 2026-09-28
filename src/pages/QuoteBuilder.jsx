@@ -1320,7 +1320,7 @@ const ContactSalesModal = ({ open, onOpenChange, onSubmit, defaultEmail, quoteId
     );
 };
 
-// Design system rollout batch 1E: the page wraps itself in <ThemedApp>, so
+// Design system rollout batch 1E: the page sits in the dashboard scope, so
 // the loading, error and quote screens all follow the user's theme.
 const QuoteBuilderPage = () => (
   <AccountScope testId="quote-builder-theme-scope">

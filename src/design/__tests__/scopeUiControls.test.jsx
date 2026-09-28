@@ -142,10 +142,10 @@ describe('new shared pieces', () => {
     expect(screen.getByText('s').className).toMatch(/\btext-pl-primary-text\b/);
   });
 
-  it('Badge neutral and selected exist outside a scope too, and the old variants are untouched', () => {
+  it('Badge neutral and selected are role variants', () => {
     render(<><Badge variant="neutral">n</Badge><Badge variant="selected">s</Badge></>);
-    expect(screen.getByText('n').className).toMatch(/\bbg-slate-800\b/);
-    expect(screen.getByText('s').className).not.toMatch(/-pl-/);
+    expect(screen.getByText('n').className).toMatch(/\bbg-pl-sunken\b/);
+    expect(screen.getByText('s').className).toMatch(/\bbg-pl-primary\/10\b/);
   });
 
   it('Alert status variants inside a scope', () => {
@@ -180,17 +180,17 @@ describe('new shared pieces', () => {
     expect(onChange).toHaveBeenCalledTimes(1);
   });
 
-  it('NativeSelect and CompactInput follow the scope', () => {
+  it('NativeSelect and CompactInput take the field roles', () => {
     render(
       <>
-        <NativeSelect aria-label="legacy"><option>a</option></NativeSelect>
+        <NativeSelect aria-label="unscoped"><option>a</option></NativeSelect>
         <ThemedApp userId="t">
           <NativeSelect aria-label="themed"><option>a</option></NativeSelect>
           <CompactInput aria-label="cell" />
         </ThemedApp>
       </>,
     );
-    expect(screen.getByLabelText('legacy').className).toMatch(/\bbg-slate-800\b/);
+    expect(screen.getByLabelText('unscoped').className).toMatch(/\bborder-pl-border-strong\b/);
     expect(screen.getByLabelText('themed').className).toMatch(/\bborder-pl-border-strong\b/);
     expect(screen.getByLabelText('cell').className).toMatch(/\bpy-1\b.*\btext-xs\b/);
   });

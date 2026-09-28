@@ -8,7 +8,7 @@ export const useOpenCv = (onReady) => {
         const m = document.getElementById('ld-msg');
         if (m) {
             m.textContent = text;
-            m.className = `text-center min-h-[1.5rem] mt-2 ${isError ? 'text-red-400' : 'text-lime-300'}`;
+            m.className = `text-center min-h-[1.5rem] mt-2 ${isError ? 'text-pl-danger-text' : 'text-pl-success-text'}`;
         }
     }, []);
 

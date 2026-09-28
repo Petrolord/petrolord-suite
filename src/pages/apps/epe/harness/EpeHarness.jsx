@@ -8,7 +8,7 @@
 //
 // Design system pilot 3 (2026-09-27): the harness also mounts the case list,
 // case detail, Run Console, comparison and help pages on the same in-memory
-// tables, inside the same ThemedApp scope as the live routes, so every EPE
+// tables, inside the dev theme scope, as the live routes sit in the dashboard scope, so every EPE
 // page can be walked in light and dark (/dev/epe/cases, /dev/epe/cases/c1,
 // /dev/epe/cases/c1/run, /dev/epe/cases/c1/compare, /dev/epe/help).
 

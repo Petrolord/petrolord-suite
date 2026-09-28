@@ -1,23 +1,6 @@
-// Design system bridge for the Studio kit and the apps built on it.
-//
-// The kit is shared by about 33 apps and only the apps wrapped in
-// <ThemedApp> (docs/scope/DesignSystem.md section 4) may change, so every
-// themed class here is chosen at render time: outside a [data-pl-theme]
-// scope useDsTheme() is null and the legacy string comes back byte for
-// byte. An app opts in at its route; its own components can use the same
-// picker while both looks are still needed.
-import { useDsTheme } from '@/design/themeContext';
-import { themeClassPicker } from '@/design/themeClass';
-
-/**
- * Returns tc(legacy, themed): the legacy class string outside a theme
- * scope, the themed one inside it. A thin wrapper over the shared helper
- * (src/design/themeClass.js) that also hands back the theme itself.
- */
-export function useStudioTheme() {
-  const ds = useDsTheme();
-  return { ds, tc: themeClassPicker(ds) };
-}
+// Design system roles for the Studio kit and the apps built on it: the
+// status tones as theme roles (docs/scope/DesignSystem.md). Every Studio app
+// sits in the dashboard scope, so the kit uses roles only.
 
 // Status chips and banners on theme roles (colour only for status, always
 // paired with a word). Keys follow the tone names the Studio apps use.

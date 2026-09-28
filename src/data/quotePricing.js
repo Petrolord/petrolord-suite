@@ -1,5 +1,5 @@
-// The Suite pricing rules for the quote screens (GetQuote and the upgrade
-// QuoteBuilder). generate-quote applies the same rules server side from
+// The Suite pricing rules for the quote screens (the upgrade
+// page, QuoteBuilder). generate-quote applies the same rules server side from
 // supabase/functions/_shared/suite-pricing.ts and is authoritative;
 // quotePricingParity.test.js runs the same scenarios through both.
 import {

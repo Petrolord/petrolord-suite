@@ -30,20 +30,11 @@ import { computeStretch, invertShift } from '@/lib/stratigraphy/stretch';
 import { hitTopAt } from '@/components/wells/hitTest';
 import { topColor } from '@/components/wells/topColors';
 import { depthLabel } from '@/components/wells/depthModes';
-import { useThemeClass } from '@/design/themeClass';
 import TopNamePopover from '@/components/wells/TopNamePopover';
 import DepthNavigator from '@/components/wells/DepthNavigator';
 import { zoomAbout, panBy } from '@/components/wells/depthNavMath';
 import { trackPlotPng } from '@/components/wells/plotPng';
 
-// Design system (W0C): themed strings for tc(); outside an opted-in scope
-// tc() returns the legacy string unchanged.
-// The drawing area is printed-log paper, white in both themes
-// (data-canvas="chart"), so everything drawn on it keeps its plotting colours.
-const THEMED_CLASSES = {
-  "absolute bottom-1 right-2 text-[10px] text-slate-500 pointer-events-none":
-    "absolute bottom-1 right-2 text-[10px] text-pl-muted pointer-events-none",
-};
 
 export const AXIS_W = 56;      // depth axis gutter (TrackViewer)
 export const WELL_H = 26;      // well name band above the track headers
@@ -100,7 +91,6 @@ const CrossSection = forwardRef(function CrossSection({
   view: viewProp, onViewChange,
 }, exportRef) {
   const wrapRef = useRef(null);
-  const tc = useThemeClass(THEMED_CLASSES);
   const canvasRef = useRef(null);
   const staticRef = useRef(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
@@ -629,7 +619,7 @@ const CrossSection = forwardRef(function CrossSection({
       data-ghost={ghost?.sourceWellId ? `${ghost.sourceWellId}>${ghost.targetWellId}:${ghost.shiftM || 0}` : ''}
       data-scheme={scheme}
     >
-      <div ref={wrapRef} className="flex-1 min-w-0 h-full relative overflow-hidden bg-white" data-canvas={tc(undefined, 'chart')}>
+      <div ref={wrapRef} className="flex-1 min-w-0 h-full relative overflow-hidden bg-white" data-canvas="chart">
         <canvas
           ref={canvasRef}
           data-testid="corr-section-canvas"
@@ -654,7 +644,7 @@ const CrossSection = forwardRef(function CrossSection({
             testIdPrefix="corr-top"
           />
         )}
-        <span className={tc("absolute bottom-1 right-2 text-[10px] text-slate-500 pointer-events-none")}>
+        <span className="absolute bottom-1 right-2 text-[10px] text-pl-muted pointer-events-none">
           {pickMode === 'top'
             ? 'click a column: place a top · Esc: finish'
             : 'drag a name tag: move a top · drag: pan · wheel: zoom · double-click: fit'}

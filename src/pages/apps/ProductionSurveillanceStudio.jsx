@@ -174,7 +174,7 @@ const SurveillanceContent = () => {
 };
 
 // Design system rollout batch 2B (docs/scope/DesignSystem-Rollout.md): the
-// page wraps itself in <ThemedApp>, so it opens light and the header toggle
+// page sits in the dashboard scope, so it opens light and the header toggle
 // switches it to dark per user. Charts keep the white chart standard.
 export default function ProductionSurveillanceStudio() {
   return (

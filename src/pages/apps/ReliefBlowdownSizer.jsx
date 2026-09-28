@@ -23,7 +23,7 @@ import SummaryPanel from '@/components/reliefstudio/SummaryPanel';
 import ReliefHelpContent from '@/components/reliefstudio/ReliefHelpGuide';
 
 // Design system rollout batch 5B (docs/scope/DesignSystem-Rollout.md): the
-// page wraps itself in <ThemedApp>, so every class below is a theme role.
+// page sits in the dashboard scope, so every class below is a theme role.
 
 const TABS = [
   { value: 'psv', label: 'PSV Sizing' },

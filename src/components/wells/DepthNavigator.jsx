@@ -15,16 +15,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   resolveView, panBy, zoomAbout, dragEdge, centerOn, stepPan, hitNav, navYOf, navDOf, decimateProfile, MIN_SPAN_M,
 } from './depthNavMath';
-import { useThemeClass } from '@/design/themeClass';
 
-// Design system (W0C): themed strings for tc(); outside an opted-in scope
-// tc() returns the legacy string unchanged.
-// The navigator is a miniature of the log paper: its drawing keeps the
-// plotting colours of `theme` and the root is marked as a data canvas.
-const THEMED_CLASSES = {
-  "relative shrink-0 h-full select-none touch-none outline-none focus:ring-1 focus:ring-cyan-500/60":
-    "relative shrink-0 h-full select-none touch-none outline-none focus:ring-1 focus:ring-pl-focus",
-};
 
 const THEMES = {
   light: { bg: '#ffffff', frame: 'rgba(148,163,184,0.9)', text: '#475569', profile: 'rgba(71,85,105,0.55)', band: 'rgba(14,116,144,0.16)', bandEdge: 'rgba(14,116,144,0.9)', handle: '#0e7490', handleText: '#0f172a' },
@@ -37,7 +28,6 @@ export default function DepthNavigator({
   headerOffset = 0, bottomPad = 4, minSpan = MIN_SPAN_M, theme = 'light', testId = 'depth-nav', width = 64,
 }) {
   const rootRef = useRef(null);
-  const tc = useThemeClass(THEMED_CLASSES);
   const staticRef = useRef(null);
   const overlayRef = useRef(null);
   const [h, setH] = useState(0);
@@ -201,9 +191,9 @@ export default function DepthNavigator({
   return (
     <div
       ref={rootRef}
-      className={tc("relative shrink-0 h-full select-none touch-none outline-none focus:ring-1 focus:ring-cyan-500/60")}
+      className="relative shrink-0 h-full select-none touch-none outline-none focus:ring-1 focus:ring-pl-focus"
       style={{ width }}
-      data-canvas={tc(undefined, theme === 'dark' ? 'dark' : 'light')}
+      data-canvas={theme === 'dark' ? 'dark' : 'light'}
       data-testid={testId}
       data-view-top={Number.isFinite(vt) ? (vt * F).toFixed(1) : ''}
       data-view-base={Number.isFinite(vb) ? (vb * F).toFixed(1) : ''}

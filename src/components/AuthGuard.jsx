@@ -13,14 +13,9 @@ const AuthGuard = ({ children }) => {
   const isPublicRoute = publicRoutes.some(route => location.pathname.startsWith(route));
 
   if (loading && !isPublicRoute) {
-    // Design system: opted-in paths paint the device's last theme.
-    const theme = coldLoadTheme(location.pathname);
-    if (theme) return <ThemedLoadingScreen theme={theme} />;
-    return (
-      <div className="flex items-center justify-center h-screen bg-slate-900 text-white">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-lime-400"></div>
-      </div>
-    );
+    // Design system: the themed loader in the theme the page will open in
+    // (light where no scope follows).
+    return <ThemedLoadingScreen theme={coldLoadTheme(location.pathname) || 'light'} />;
   }
 
   return <>{children}</>;

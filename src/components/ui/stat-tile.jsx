@@ -1,7 +1,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 
-// Design system KPI tile for opted-in apps (inside <ThemedApp>).
+// Design system KPI tile (theme roles; use it inside a theme scope).
 // `status` is optional and is the only thing that adds colour: a small
 // marker and the hint text take the status role. Values use the mono face
 // with tabular figures so columns of numbers line up.

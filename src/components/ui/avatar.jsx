@@ -2,7 +2,6 @@ import React from 'react';
 import * as AvatarPrimitive from '@radix-ui/react-avatar';
 
 import { cn } from '@/lib/utils';
-import { useThemeClass } from '@/design/themeClass';
 
 const Avatar = React.forwardRef(({ className, ...props }, ref) => (
   <AvatarPrimitive.Root
@@ -25,18 +24,13 @@ const AvatarImage = React.forwardRef(({ className, ...props }, ref) => (
 ));
 AvatarImage.displayName = AvatarPrimitive.Image.displayName;
 
-// Design system: theme roles inside an opted-in scope; outside one the
-// legacy string, byte for byte (pinned in uiLegacyDom.test.jsx).
+// Design system roles.
 const AvatarFallback = React.forwardRef(({ className, ...props }, ref) => {
-  const tc = useThemeClass();
   return (
     <AvatarPrimitive.Fallback
       ref={ref}
       className={cn(
-        tc(
-          'flex h-full w-full items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800',
-          'flex h-full w-full items-center justify-center rounded-full bg-pl-sunken text-pl-muted font-medium',
-        ),
+        'flex h-full w-full items-center justify-center rounded-full bg-pl-sunken text-pl-muted font-medium',
         className
       )}
       {...props}

@@ -9,7 +9,7 @@
  *   2. Mounted through the real DashboardLayout, a hub sits in the light
  *      dashboard scope with the toggle in its header, and the toggle
  *      switches light and dark.
- *   3. A page opened from a hub (the test-only LegacyAppFixture stands in)
+ *   3. A page opened from a hub (a small Studio-kit page stands in)
  *      renders inside the same single scope: one [data-pl-root], one toggle.
  *   4. The sidebar is a fixed dark ink scope in both themes, outside the
  *      dashboard scope.
@@ -81,7 +81,19 @@ import ApplicationsGrid from '@/components/ApplicationsGrid';
 // eslint-disable-next-line import/first
 import { ThemedApp } from '@/design/ThemeProvider';
 // eslint-disable-next-line import/first
-import LegacyAppFixture, { LEGACY_FIXTURE_TITLE } from '@/design/testing/LegacyAppFixture';
+import StudioLayout from '@/components/studio/StudioLayout';
+import StudioHeader from '@/components/studio/StudioHeader';
+
+// A stand-in app page on the shared Studio kit (the LegacyAppFixture it
+// replaces went with the legacy branches in batch 7B).
+const STAND_IN_TITLE = 'Stand-in Studio';
+function StandInApp() {
+  return (
+    <StudioLayout header={<StudioHeader title={STAND_IN_TITLE} tabs={[]} />}>
+      <p>stand-in body</p>
+    </StudioLayout>
+  );
+}
 // eslint-disable-next-line import/first
 import { DashboardScope, DASHBOARD_SCOPE_TEST_ID } from '@/design/DashboardScope';
 
@@ -121,7 +133,7 @@ function Shell({ at }) {
             <Route element={<HubScope />}>
               <Route path="data-ai" element={<DataAiHub />} />
             </Route>
-            <Route path={APP_PATH.slice('/dashboard/'.length)} element={<LegacyAppFixture />} />
+            <Route path={APP_PATH.slice('/dashboard/'.length)} element={<StandInApp />} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -189,7 +201,7 @@ describe('a module hub inside the dashboard shell', () => {
 describe('a page opened from a hub', () => {
   it('renders inside the same single dashboard scope, and its header toggle switches it', async () => {
     render(<Shell at={APP_PATH} />);
-    const title = await screen.findByText(LEGACY_FIXTURE_TITLE);
+    const title = await screen.findByText(STAND_IN_TITLE);
     const scope = screen.getByTestId(DASHBOARD_SCOPE_TEST_ID);
     expect(document.querySelectorAll('[data-pl-root]')).toHaveLength(1);
     expect(title.closest('[data-pl-root]')).toBe(scope);

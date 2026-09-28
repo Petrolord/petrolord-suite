@@ -66,7 +66,7 @@ const Workspace = () => {
   );
 };
 
-// Design system rollout w5e: the page wraps itself in <ThemedApp>, so the
+// Design system rollout w5e: the page sits in the dashboard scope, so the
 // classes below are theme roles; the recipe chart stays white (ChartFrame).
 const ProductBlendingOptimizer = () => (
   <div className="flex min-h-screen flex-col" data-testid="blend-theme-scope">

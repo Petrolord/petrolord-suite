@@ -11,7 +11,7 @@ const db = createStore({ dai_qc_runs: [], geo_wells: [], geo_wells_logs: [], pro
 export default function DataQualityHarness() {
   return (
     <InMemorySupabase db={db}>
-      <DevAuth><div className="min-h-screen bg-slate-950 text-slate-100"><DataQualityStudio /></div></DevAuth>
+      <DevAuth><div className="min-h-screen"><DataQualityStudio /></div></DevAuth>
     </InMemorySupabase>
   );
 }

@@ -34,38 +34,7 @@ import { placeWellLocation, placeDeviation } from '@/lib/crs/wellPlacement';
 import { normalizeTag, isTransformableTag, UNKNOWN } from '@/lib/crs/tags';
 import ColumnMapper from './ColumnMapper';
 import { CheckshotConventionRow, MdUnitSelect, CHECKSHOT_FIELD_LABELS } from './PasteReplacePanel';
-import { useThemeClass } from '@/design/themeClass';
 
-// Design system: themed class strings for tc() (see src/design/themeClass.js).
-// Outside an opted-in scope tc() returns the legacy string unchanged.
-const THEMED_CLASSES = {
-  "rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs":
-    "rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs",
-  "text-xs text-slate-400 flex items-center gap-1":
-    "text-xs text-pl-muted flex items-center gap-1",
-  "rounded border border-slate-800 bg-slate-950/40 p-2 space-y-2":
-    "rounded border border-pl-border bg-pl-sunken/40 p-2 space-y-2",
-  "flex items-center gap-2 text-xs text-slate-400":
-    "flex items-center gap-2 text-xs text-pl-muted",
-  "border-cyan-500/60 text-cyan-300":
-    "border-pl-primary/60 text-pl-primary-text",
-  "border-slate-700 text-slate-400":
-    "border-pl-border text-pl-muted",
-  "ml-auto text-slate-500":
-    "ml-auto text-pl-muted",
-  "text-xs text-slate-400 flex items-center gap-1 col-span-2":
-    "text-xs text-pl-muted flex items-center gap-1 col-span-2",
-  "ml-auto text-xs text-slate-400 cursor-pointer hover:text-slate-200":
-    "ml-auto text-xs text-pl-muted cursor-pointer hover:text-pl-text",
-  "flex flex-wrap items-center gap-3 text-xs text-slate-400":
-    "flex flex-wrap items-center gap-3 text-xs text-pl-muted",
-  "text-[11px] text-slate-500":
-    "text-[11px] text-pl-muted",
-  "text-xs text-red-400":
-    "text-xs text-pl-danger-text",
-  "bg-cyan-600 hover:bg-cyan-500 text-white":
-    "bg-pl-primary hover:bg-pl-primary-hover text-pl-primary-fg",
-};
 
 const TABS = [
   { key: 'deviation', label: 'Deviation', fields: ['md', 'inc', 'azi'] },
@@ -73,7 +42,7 @@ const TABS = [
   { key: 'checkshots', label: 'Checkshots', fields: ['depth', 'time'] },
 ];
 
-const INPUT_CLS = 'rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
+const INPUT_CLS = 'rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs';
 
 /** One import tab's parse + mapping state, derived from its text. */
 function useTabData(text, fields, mapOverride) {
@@ -107,8 +76,7 @@ const unitLabel = (u) => (u === 'ft' ? 'ft' : 'm');
  *   UNKNOWN placement
  */
 export default function WellImport({ onSave, crsContext }) {
-  const tc = useThemeClass(THEMED_CLASSES);
-  const inputCls = tc(INPUT_CLS);
+  const inputCls = INPUT_CLS;
   const [head, setHead] = useState({ name: '', uwi: '', x: '', y: '', kb: '0', td: '' });
   const [headUnit, setHeadUnit] = useState('m');           // KB and TD as typed
   const [tab, setTab] = useState('deviation');
@@ -323,7 +291,7 @@ export default function WellImport({ onSave, crsContext }) {
           onChange={setHeadField('name')} data-testid="well-import-name" />
         <input className={inputCls} placeholder="UWI (optional)" value={head.uwi}
           onChange={setHeadField('uwi')} />
-        <label className={tc("text-xs text-slate-400 flex items-center gap-1")}>
+        <label className="text-xs text-pl-muted flex items-center gap-1">
           KB, TD in
           <select className={inputCls} value={headUnit} onChange={(e) => setHeadUnit(e.target.value)}
             data-testid="well-import-depthunit" title="Unit of the KB and TD you type. Stored in metres.">
@@ -340,13 +308,13 @@ export default function WellImport({ onSave, crsContext }) {
 
       {/* Surface location with an explicit CRS declaration (Phase 4):
           coordinates convert into the Project CRS at save. */}
-      <div className={tc("rounded border border-slate-800 bg-slate-950/40 p-2 space-y-2")}>
-        <div className={tc("flex items-center gap-2 text-xs text-slate-400")}>
+      <div className="rounded border border-pl-border bg-pl-sunken/40 p-2 space-y-2">
+        <div className="flex items-center gap-2 text-xs text-pl-muted">
           Surface location
           <button
             type="button"
             className={`px-1.5 py-0.5 rounded border text-xs ${locMode === 'xy'
-              ? tc('border-cyan-500/60 text-cyan-300') : tc('border-slate-700 text-slate-400')}`}
+              ? 'border-pl-primary/60 text-pl-primary-text' : 'border-pl-border text-pl-muted'}`}
             onClick={() => setLocMode('xy')}
             data-testid="well-loc-xy"
           >
@@ -355,14 +323,14 @@ export default function WellImport({ onSave, crsContext }) {
           <button
             type="button"
             className={`px-1.5 py-0.5 rounded border text-xs ${locMode === 'latlon'
-              ? tc('border-cyan-500/60 text-cyan-300') : tc('border-slate-700 text-slate-400')}`}
+              ? 'border-pl-primary/60 text-pl-primary-text' : 'border-pl-border text-pl-muted'}`}
             onClick={() => setLocMode('latlon')}
             data-testid="well-loc-latlon"
           >
             Lat / Lon (WGS 84)
           </button>
           {crsContext?.projectTag && isTransformableTag(crsContext.projectTag) && (
-            <span className={tc("ml-auto text-slate-500")}>
+            <span className="ml-auto text-pl-muted">
               Stored in {crsContext.projectName || crsContext.projectTag}
             </span>
           )}
@@ -381,7 +349,7 @@ export default function WellImport({ onSave, crsContext }) {
               onChange={setHeadField('x')} data-testid="well-import-x" />
             <input className={inputCls} placeholder="Surface Y *" value={head.y}
               onChange={setHeadField('y')} data-testid="well-import-y" />
-            <label className={tc("text-xs text-slate-400 flex items-center gap-1 col-span-2")}>
+            <label className="text-xs text-pl-muted flex items-center gap-1 col-span-2">
               Values are in
               <select
                 className={inputCls}
@@ -414,21 +382,21 @@ export default function WellImport({ onSave, crsContext }) {
             type="button"
             data-testid={`well-tab-${t.key}`}
             className={`px-2 py-1 text-xs rounded border ${tab === t.key
-              ? tc('border-cyan-500/60 text-cyan-300') : tc('border-slate-700 text-slate-400')}`}
+              ? 'border-pl-primary/60 text-pl-primary-text' : 'border-pl-border text-pl-muted'}`}
             onClick={() => { setTab(t.key); setError(null); }}
           >
             {t.label}
             {texts[t.key].trim() ? ' •' : ''}
           </button>
         ))}
-        <label className={tc("ml-auto text-xs text-slate-400 cursor-pointer hover:text-slate-200")}>
+        <label className="ml-auto text-xs text-pl-muted cursor-pointer hover:text-pl-text">
           Load file…
           <input type="file" accept=".csv,.txt,.dev,.tsv,text/*" className="hidden" onChange={loadFile} />
         </label>
       </div>
 
       {tab === 'deviation' && (
-        <div className={tc("flex flex-wrap items-center gap-3 text-xs text-slate-400")}>
+        <div className="flex flex-wrap items-center gap-3 text-xs text-pl-muted">
           <MdUnitSelect value={conv.deviation.mdUnit} onChange={(u) => setTabConv('deviation', { mdUnit: u })} testId="well-import-devunit" label="Survey MD in" />
           {texts.deviation.trim() && (
             <>
@@ -487,14 +455,14 @@ export default function WellImport({ onSave, crsContext }) {
             extraColumns={csPreview ? [{ label: 'stored TVDSS m / TWT ms', cell: csPreview.cell }] : []}
           />
           {csPreview?.note && (
-            <div className={tc("text-[11px] text-slate-500")} data-testid="well-import-cs-note">{csPreview.note}</div>
+            <div className="text-[11px] text-pl-muted" data-testid="well-import-cs-note">{csPreview.note}</div>
           )}
         </>
       )}
 
-      {error && <div className={tc("text-xs text-red-400")} data-testid="well-import-error">{error}</div>}
+      {error && <div className="text-xs text-pl-danger-text" data-testid="well-import-error">{error}</div>}
 
-      <Button size="sm" className={tc("bg-cyan-600 hover:bg-cyan-500 text-white")}
+      <Button size="sm" className="bg-pl-primary hover:bg-pl-primary-hover text-pl-primary-fg"
         onClick={save} disabled={busy} data-testid="well-import-save"
       >
         {busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}

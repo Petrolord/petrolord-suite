@@ -197,7 +197,7 @@ const NpvScenarioBuilderContent = () => {
 };
 
 // Design system rollout batch 2E (docs/scope/DesignSystem-Rollout.md): the
-// page wraps itself in <ThemedApp>, so it opens light and the header toggle
+// page sits in the dashboard scope, so it opens light and the header toggle
 // switches it to dark per user. The cash-flow, sensitivity and risk charts
 // keep the white chart standard.
 const NpvScenarioBuilder = () => (
