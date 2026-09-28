@@ -1,11 +1,6 @@
 /**
- * Design system rollout W0C: the shared wells kit (track layout panel, top
- * name popover, depth navigator, cross-section viewport, core photographs
- * panel, interval editor) follows the theme inside an opted-in scope.
- * Petrophysics, Well Correlation, Stratigraphy and Well Data Manager still
- * render outside one, so the snapshots below were recorded on main
- * (92782cda7) before this batch touched the files: every unmigrated app
- * sees the same DOM byte for byte. Inside a scope no dark console colour is
+ * The shared wells kit on theme roles (rollout W0C; the legacy branch and
+ * its snapshots went in batch 7B): inside a scope no dark console colour is
  * left outside the log paper, and the log paper (cross-section drawing
  * area, depth navigator) stays white in both themes.
  */
@@ -126,14 +121,6 @@ const chromeHtml = (root) => {
   return clone.innerHTML;
 };
 
-describe('outside a scope the wells kit renders exactly as on main', () => {
-  test.each(Object.keys(SCENES))('%s', async (name) => {
-    const c = await renderScene(SCENES[name]);
-    expect(c.innerHTML).toMatchSnapshot();
-    expect(c.innerHTML).not.toMatch(/-pl-|data-pl-theme|data-canvas/);
-  });
-});
-
 describe.each(['light', 'dark'])('inside a %s scope the wells kit follows the theme', (theme) => {
   const wrap = (x) => <ThemedApp userId="t1" defaultTheme={theme}>{x}</ThemedApp>;
 
@@ -154,8 +141,11 @@ describe.each(['light', 'dark'])('inside a %s scope the wells kit follows the th
   });
 });
 
-test('negative control: the legacy regex catches a dark console class', async () => {
-  // the unscoped render still carries the console colours the scoped test forbids
+test('negative control: the legacy regex catches a planted dark console class', async () => {
   const c = await renderScene(SCENES['core photographs']);
+  expect(chromeHtml(c)).not.toMatch(LEGACY_CONSOLE);
+  const plant = document.createElement('div');
+  plant.className = 'bg-slate-900 text-white';
+  c.appendChild(plant);
   expect(chromeHtml(c)).toMatch(LEGACY_CONSOLE);
 });

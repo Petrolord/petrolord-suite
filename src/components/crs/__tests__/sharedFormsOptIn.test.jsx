@@ -1,11 +1,8 @@
 /**
- * Design system pilot 4 (Seismolord): the shared import forms that open
- * inside Seismolord (CRS picker and badge, Project CRS dialog, culture
- * import, well import with its column mapper, the Open in menu) follow the
- * theme inside an opted-in scope. Every other app that uses them must see
- * no change: the snapshots below were recorded on main (7ac8b8213) before
- * the pilot touched these files. Inside a scope no dark console colour is
- * left.
+ * The shared import forms (CRS picker and badge, Project CRS dialog,
+ * culture import, well import with its column mapper, the Open in menu) on
+ * theme roles (design system pilot 4; the legacy branch and its snapshots
+ * went in batch 7B): inside a scope no dark console colour is left.
  */
 import React from 'react';
 import '@testing-library/jest-dom';
@@ -83,20 +80,6 @@ const renderDialogs = async (wrap = (x) => x) => {
   });
   return document.body;
 };
-
-describe('outside a scope the shared import forms render exactly as on main', () => {
-  test('badge, picker (open), Open in menu and the well import form', async () => {
-    const { container } = await renderAll();
-    expect(stable(container.innerHTML)).toMatchSnapshot();
-    expect(container.innerHTML).not.toMatch(/-pl-|data-pl-theme/);
-  });
-
-  test('Project CRS and culture import dialogs', async () => {
-    const body = await renderDialogs();
-    expect(stable(body.innerHTML)).toMatchSnapshot();
-    expect(body.innerHTML).not.toMatch(/-pl-|data-pl-theme/);
-  });
-});
 
 describe('inside a scope they follow the theme', () => {
   test('no dark console colours are left in the forms', async () => {

@@ -1,11 +1,8 @@
 /**
- * Design system rollout W0C: the portability Package Import and Export
- * dialogs and the SigningSummary follow the theme inside an opted-in scope.
- * The Data export page, Petrophysics and Well Data Manager still render
- * outside one, so the snapshots below were recorded on main (92782cda7)
- * before this batch touched the files: every unmigrated caller sees the
- * same DOM byte for byte. Inside a scope the dialog portals carry the scope
- * attribute and no dark console colour is left.
+ * The portability Package Import and Export dialogs and the SigningSummary
+ * on theme roles (rollout W0C; the legacy branch and its snapshots went in
+ * batch 7B): the dialog portals carry the scope attribute and no dark
+ * console colour is left.
  */
 import React from 'react';
 import '@testing-library/jest-dom';
@@ -168,14 +165,6 @@ const renderScene = async (scene, wrap = (x) => x) => {
 
 beforeEach(() => { jest.clearAllMocks(); });
 
-describe('outside a scope the portability dialogs render exactly as on main', () => {
-  test.each(Object.keys(SCENES))('%s', async (name) => {
-    const body = await renderScene(SCENES[name]);
-    expect(stable(body.innerHTML)).toMatchSnapshot();
-    expect(body.innerHTML).not.toMatch(/-pl-|data-pl-theme/);
-  });
-});
-
 describe.each(['light', 'dark'])('inside a %s scope they follow the theme', (theme) => {
   const wrap = (x) => <ThemedApp userId="t1" defaultTheme={theme}>{x}</ThemedApp>;
   test.each(Object.keys(SCENES))('%s', async (name) => {
@@ -187,7 +176,11 @@ describe.each(['light', 'dark'])('inside a %s scope they follow the theme', (the
   });
 });
 
-test('negative control: the unscoped export dialog carries the classes the scoped test forbids', async () => {
+test('negative control: a planted console class in the export dialog is caught', async () => {
   const body = await renderScene(SCENES['export dialog, lists loaded']);
+  expect(body.innerHTML).not.toMatch(LEGACY_CONSOLE);
+  const plant = document.createElement('div');
+  plant.className = 'bg-slate-900 text-white';
+  body.appendChild(plant);
   expect(body.innerHTML).toMatch(LEGACY_CONSOLE);
 });

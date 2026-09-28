@@ -1,14 +1,7 @@
 /**
- * Design system pilot 4 (Seismolord) made three shared pieces theme aware:
- * the workstation shell (WorkspaceShell, used by about 20 geoscience and
- * drilling workstations), ModuleHomeLink (the ribbon's way back to the
- * module dashboard) and the help guide layout (23 app guides).
- *
- * Rule 5 of the pilot brief: shared layouts may follow the theme only when
- * that is inert outside a [data-pl-theme] scope. The snapshots below were
- * recorded on main (7ac8b8213) before the pilot touched these files, so
- * any change to what a non-pilot app renders fails here. Inside a scope
- * the same pieces switch to theme roles.
+ * The shared workstation pieces on theme roles (design system pilot 4; the
+ * legacy branch and its snapshots went in batch 7B): WorkspaceShell,
+ * ModuleHomeLink and the help guide layout use theme roles in a scope.
  */
 import React from 'react';
 import '@testing-library/jest-dom';
@@ -45,28 +38,6 @@ const shell = () => (
 const stableHtml = (el) => el.innerHTML.replace(
   /(data-testid="helpguide-build">)[^<]*/, '$1BUILD',
 );
-
-describe('outside a scope the shared shells render exactly as on main', () => {
-  test('WorkspaceShell', () => {
-    const { container } = render(shell());
-    expect(container.innerHTML).toMatchSnapshot();
-    expect(container.innerHTML).not.toMatch(/-pl-|data-pl-theme/);
-  });
-
-  test('ModuleHomeLink', () => {
-    const { container } = render(
-      <MemoryRouter><ModuleHomeLink module="geoscience" /></MemoryRouter>,
-    );
-    expect(container.innerHTML).toMatchSnapshot();
-    expect(container.innerHTML).not.toMatch(/-pl-/);
-  });
-
-  test('a real non-pilot help guide (Stratigraphy Studio)', () => {
-    const { container } = render(<MemoryRouter><StratigraphyHelpGuide /></MemoryRouter>);
-    expect(stableHtml(container.querySelector('[data-testid="strat-help-theme-scope"]'))).toMatchSnapshot();
-    expect(container.innerHTML).not.toMatch(/-pl-|data-pl-theme/);
-  });
-});
 
 describe('inside a scope the shared shells follow the theme', () => {
   test('WorkspaceShell, ModuleHomeLink and the help layout use theme roles', () => {

@@ -1,11 +1,7 @@
 /**
- * Design system rollout W0B: the shared production kit (WellModelPanel,
- * WellModelSpinePanel) is used by nine production apps that migrate in
- * Wave 2. Outside a <ThemedApp> scope it must render exactly what it
- * rendered before the rollout: the snapshots below were recorded on
- * origin/main (92782cda7) before these files were touched, open select
- * menus included, so any change to an unmigrated app's DOM fails here.
- * Inside a scope the kit uses theme roles, in light and in dark.
+ * The shared production kit (WellModelPanel, WellModelSpinePanel) on theme
+ * roles, in light and in dark (rollout W0B; the legacy branch and its
+ * snapshots went in batch 7B).
  */
 import React from 'react';
 import '@testing-library/jest-dom';
@@ -57,18 +53,6 @@ const openFirstSelect = async () => {
   await act(async () => { fireEvent.keyDown(trigger, { key: 'ArrowDown' }); });
 };
 
-describe('outside a scope the production kit renders exactly as on main', () => {
-  for (const [name, Scene] of Object.entries(productionScenes)) {
-    test(name, async () => {
-      render(<Scene />);
-      expect(document.body.innerHTML).toMatchSnapshot('closed');
-      await openFirstSelect();
-      expect(document.body.innerHTML).toMatchSnapshot('first select open');
-      expect(document.body.innerHTML).not.toMatch(/-pl-|data-pl-theme/);
-    });
-  }
-});
-
 // Inside a scope: every legacy console colour in these files is gone, the
 // open select menu included (it is portalled, so check document.body).
 const LEGACY = /\b(?:bg|text|border)-(?:slate|amber|emerald)-\d|text-white\b/;
@@ -80,11 +64,16 @@ const renderThemed = async (Scene, theme) => {
 };
 
 describe('inside a scope the production kit uses theme roles', () => {
-  test('negative control: the legacy render does carry console colours', async () => {
+  test('negative control: a planted console class is caught', async () => {
     const Scene = productionScenes['WellModelPanel vertical, PI, completion'];
     render(<Scene />);
     await openFirstSelect();
+    expect(document.body.innerHTML).not.toMatch(LEGACY);
+    const plant = document.createElement('div');
+    plant.className = 'bg-slate-900 text-white';
+    document.body.appendChild(plant);
     expect(document.body.innerHTML).toMatch(LEGACY);
+    plant.remove();
   });
 
   for (const theme of ['light', 'dark']) {
