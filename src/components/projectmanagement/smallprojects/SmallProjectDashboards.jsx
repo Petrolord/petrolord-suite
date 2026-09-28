@@ -22,26 +22,26 @@ const GenericSmallProjectDashboard = ({ projectData, onDataChange, type, compone
             <StageTracker currentStage={stage || 'Planning'} template={SMALL_PROJECTS_TEMPLATES[type]} tasks={rawTasks || tasks} />
             
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card className="bg-slate-900 border-slate-800 p-4">
-                    <p className="text-[10px] text-slate-500 uppercase">Project</p>
-                    <p className="text-lg font-bold text-white truncate">{projectData.name}</p>
+                <Card className="p-4">
+                    <p className="text-[10px] text-pl-muted uppercase">Project</p>
+                    <p className="text-lg font-bold text-pl-text truncate">{projectData.name}</p>
                 </Card>
-                <Card className="bg-slate-900 border-slate-800 p-4">
-                    <p className="text-[10px] text-slate-500 uppercase">Type</p>
-                    <p className="text-lg font-bold text-white">{type}</p>
+                <Card className="p-4">
+                    <p className="text-[10px] text-pl-muted uppercase">Type</p>
+                    <p className="text-lg font-bold text-pl-text">{type}</p>
                 </Card>
-                <Card className="bg-slate-900 border-slate-800 p-4">
-                    <p className="text-[10px] text-slate-500 uppercase">Budget</p>
-                    <p className="text-lg font-bold text-green-400">${projectData.baseline_budget?.toLocaleString()}</p>
+                <Card className="p-4">
+                    <p className="text-[10px] text-pl-muted uppercase">Budget</p>
+                    <p className="text-lg font-bold font-pl-mono text-pl-text">${projectData.baseline_budget?.toLocaleString()}</p>
                 </Card>
-                <Card className="bg-slate-900 border-slate-800 p-4">
-                    <p className="text-[10px] text-slate-500 uppercase">Tasks</p>
-                    <p className="text-lg font-bold text-blue-400">{tasks.filter(t=>t.status==='Done').length}/{tasks.length}</p>
+                <Card className="p-4">
+                    <p className="text-[10px] text-pl-muted uppercase">Tasks</p>
+                    <p className="text-lg font-bold font-pl-mono text-pl-text">{tasks.filter(t=>t.status==='Done').length}/{tasks.length}</p>
                 </Card>
             </div>
 
             <Tabs defaultValue="overview" className="flex-1 flex flex-col">
-                <TabsList className="bg-slate-900 w-fit">
+                <TabsList className="w-fit max-w-full overflow-x-auto">
                     <TabsTrigger value="overview"><LayoutDashboard className="w-4 h-4 mr-2"/> Overview</TabsTrigger>
                     <TabsTrigger value="tasks"><ListChecks className="w-4 h-4 mr-2"/> Tasks & Gates</TabsTrigger>
                     <TabsTrigger value="schedule"><CalendarDays className="w-4 h-4 mr-2"/> Schedule</TabsTrigger>
@@ -65,7 +65,7 @@ const GenericSmallProjectDashboard = ({ projectData, onDataChange, type, compone
                         <TaskManager tasks={tasks} />
                     </TabsContent>
                     <TabsContent value="schedule" className="h-full m-0">
-                        <div className="bg-slate-900 border-slate-800 border rounded p-1 h-[500px]">
+                        <div className="bg-pl-surface border-pl-border border rounded p-1 h-[500px]">
                             <GanttChart tasks={tasks} projectName={projectData.name} onDataChange={onDataChange} />
                         </div>
                     </TabsContent>

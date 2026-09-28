@@ -41,40 +41,40 @@ const VelocityIntegrationPanel = ({ project, onRefresh }) => {
   };
 
   return (
-    <Card className="bg-slate-900/50 border-slate-800">
+    <Card>
         <CardHeader className="pb-3">
             <div className="flex justify-between items-start">
                 <div>
-                    <CardTitle className="text-base flex items-center gap-2 text-white">
-                        <Layers className="w-5 h-5 text-emerald-400" />
+                    <CardTitle className="text-base flex items-center gap-2 text-pl-text">
+                        <Layers className="w-5 h-5 text-pl-primary-text" aria-hidden="true" />
                         Velocity Model Builder
                     </CardTitle>
-                    <CardDescription className="text-slate-400">
+                    <CardDescription className="text-pl-muted">
                         Add depth-conversion planning items to this project. There is no live link to the app yet, so nothing is read from it.
                     </CardDescription>
                 </div>
-                <Badge variant="outline" className="text-slate-400 border-slate-700">
+                <Badge variant="neutral" className="shrink-0 whitespace-nowrap">
                     Planning aid
                 </Badge>
             </div>
         </CardHeader>
         <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="p-3 bg-slate-800/50 rounded border border-slate-700 flex flex-col gap-2">
-                    <div className="flex items-center gap-2 text-slate-300 font-medium text-sm">
-                        <FileCheck className="w-4 h-4 text-emerald-400" /> Depth Conversion
+                <div className="p-3 bg-pl-sunken rounded border border-pl-border flex flex-col gap-2">
+                    <div className="flex items-center gap-2 text-pl-text font-medium text-sm">
+                        <FileCheck className="w-4 h-4 text-pl-muted" aria-hidden="true" /> Depth Conversion
                     </div>
-                    <p className="text-xs text-slate-500">Save approved model as gate deliverable.</p>
+                    <p className="text-xs text-pl-muted">Save approved model as gate deliverable.</p>
                     <Button size="sm" variant="secondary" onClick={handleSaveModel} disabled={loading} className="w-full mt-auto">
                         Save Model as Deliverable
                     </Button>
                 </div>
 
-                 <div className="p-3 bg-slate-800/50 rounded border border-slate-700 flex flex-col gap-2">
-                    <div className="flex items-center gap-2 text-slate-300 font-medium text-sm">
-                        <ListTodo className="w-4 h-4 text-emerald-400" /> Task Management
+                 <div className="p-3 bg-pl-sunken rounded border border-pl-border flex flex-col gap-2">
+                    <div className="flex items-center gap-2 text-pl-text font-medium text-sm">
+                        <ListTodo className="w-4 h-4 text-pl-muted" aria-hidden="true" /> Task Management
                     </div>
-                    <p className="text-xs text-slate-500">Automate QC and integration workflows.</p>
+                    <p className="text-xs text-pl-muted">Automate QC and integration workflows.</p>
                     <Button size="sm" variant="secondary" onClick={handleCreateQCTask} disabled={loading} className="w-full mt-auto">
                         Generate QC Tasks
                     </Button>

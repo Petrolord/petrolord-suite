@@ -45,40 +45,40 @@ const GeomechIntegrationPanel = ({ project, onRefresh }) => {
   };
 
   return (
-    <Card className="bg-slate-900/50 border-slate-800">
+    <Card>
         <CardHeader className="pb-3">
             <div className="flex justify-between items-start">
                 <div>
-                    <CardTitle className="text-base flex items-center gap-2 text-white">
-                        <Ruler className="w-5 h-5 text-orange-400" />
+                    <CardTitle className="text-base flex items-center gap-2 text-pl-text">
+                        <Ruler className="w-5 h-5 text-pl-primary-text" aria-hidden="true" />
                         1D Geomechanics
                     </CardTitle>
-                    <CardDescription className="text-slate-400">
+                    <CardDescription className="text-pl-muted">
                         Add geomechanics planning items to this project. There is no live link to the app yet, so nothing is read from it.
                     </CardDescription>
                 </div>
-                <Badge variant="outline" className="text-slate-400 border-slate-700">
+                <Badge variant="neutral" className="shrink-0 whitespace-nowrap">
                     Planning aid
                 </Badge>
             </div>
         </CardHeader>
         <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="p-3 bg-slate-800/50 rounded border border-slate-700 flex flex-col gap-2">
-                    <div className="flex items-center gap-2 text-slate-300 font-medium text-sm">
-                        <CheckSquare className="w-4 h-4 text-orange-400" /> Gates
+                <div className="p-3 bg-pl-sunken rounded border border-pl-border flex flex-col gap-2">
+                    <div className="flex items-center gap-2 text-pl-text font-medium text-sm">
+                        <CheckSquare className="w-4 h-4 text-pl-muted" aria-hidden="true" /> Gates
                     </div>
-                    <p className="text-xs text-slate-500">Mark "MEM Completed" gate as achieved.</p>
+                    <p className="text-xs text-pl-muted">Mark "MEM Completed" gate as achieved.</p>
                     <Button size="sm" variant="secondary" onClick={handleUpdateGate} disabled={loading} className="w-full mt-auto">
                         Complete MEM Gate
                     </Button>
                 </div>
 
-                 <div className="p-3 bg-slate-800/50 rounded border border-slate-700 flex flex-col gap-2">
-                    <div className="flex items-center gap-2 text-slate-300 font-medium text-sm">
-                        <FileOutput className="w-4 h-4 text-orange-400" /> Parameters
+                 <div className="p-3 bg-pl-sunken rounded border border-pl-border flex flex-col gap-2">
+                    <div className="flex items-center gap-2 text-pl-text font-medium text-sm">
+                        <FileOutput className="w-4 h-4 text-pl-muted" aria-hidden="true" /> Parameters
                     </div>
-                    <p className="text-xs text-slate-500">Push mud weight window to drilling plan.</p>
+                    <p className="text-xs text-pl-muted">Push mud weight window to drilling plan.</p>
                     <Button size="sm" variant="secondary" onClick={handlePushMudWindow} disabled={loading} className="w-full mt-auto">
                         Push Mud Window
                     </Button>

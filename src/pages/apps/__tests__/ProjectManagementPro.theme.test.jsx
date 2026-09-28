@@ -20,15 +20,20 @@
  *     integration panels) pass with an allow-list built from exactly those
  *     files' own legacy tokens.
  *
- * 6D and 6E: when you convert your files, delete them from PENDING_6D /
- * PENDING_6E below. When both lists are empty the allow-list is empty and
- * the PENDING tests become strict; fold them into the strict block then.
+ * 6E (session 3) converted exploration/, field_development/, help/,
+ * integrations/ and smallprojects/: PENDING_6E is empty and the 6E views
+ * (integrations tab, exploration dashboard, help centre, the wizards, the
+ * field development and small project dashboards) are strict below.
+ *
+ * With 6D and 6E done both pending lists are empty, so the allow-list is
+ * empty and every check in this file is strict; the pending views were
+ * folded into the 6D and 6E strict blocks.
  */
 import React from 'react';
 import fs from 'fs';
 import path from 'path';
 import '@testing-library/jest-dom';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 jest.mock('@/lib/customSupabaseClient', () => {
@@ -104,32 +109,17 @@ import {
 } from '@/design/testing/themeAssertions';
 import { AuthContext } from '@/contexts/SupabaseAuthContext';
 import ProjectManagementPro from '@/pages/apps/ProjectManagementPro';
+import { ThemedApp } from '@/design/ThemeProvider';
+import FieldDevelopmentProjectDashboard from '@/components/projectmanagement/field_development/FieldDevelopmentProjectDashboard';
+import { WorkoverProjectDashboard } from '@/components/projectmanagement/smallprojects/SmallProjectDashboards';
+import { WorkoverProjectWizard } from '@/components/projectmanagement/smallprojects/SmallProjectWizards';
 
 // Files still to convert (paths under src/components/projectmanagement).
 // 6D and 6E: remove your files from these lists as you convert them.
 const PENDING_6D = [];
-const PENDING_6E = [
-  'exploration/ExplorationAnalytics.jsx',
-  'exploration/ExplorationManagers.jsx',
-  'exploration/ExplorationProjectDashboard.jsx',
-  'exploration/ExplorationProjectWizard.jsx',
-  'field_development/FieldDevelopmentAnalytics.jsx',
-  'field_development/FieldDevelopmentManagers.jsx',
-  'field_development/FieldDevelopmentPhaseTrackers.jsx',
-  'field_development/FieldDevelopmentProjectDashboard.jsx',
-  'field_development/FieldDevelopmentProjectWizard.jsx',
-  'help/HelpComponents.jsx',
-  'help/HelpGuide.jsx',
-  'integrations/BasinFlowIntegrationPanel.jsx',
-  'integrations/DeliverableManager.jsx',
-  'integrations/GeomechIntegrationPanel.jsx',
-  'integrations/LogFaciesIntegrationPanel.jsx',
-  'integrations/PPFGIntegrationPanel.jsx',
-  'integrations/VelocityIntegrationPanel.jsx',
-  'smallprojects/SmallProjectDashboards.jsx',
-  'smallprojects/SmallProjectManagers.jsx',
-  'smallprojects/SmallProjectWizards.jsx',
-];
+// 6E converted its files (exploration, field_development, help,
+// integrations, smallprojects); their views are checked strictly below.
+const PENDING_6E = [];
 
 // The allow-list: every legacy class token written in a pending file, and
 // nothing else, so a legacy token that only a converted file uses still fails.
@@ -354,7 +344,104 @@ describe('Project Management Pro theme, 6D views (strict)', () => {
   });
 });
 
-describe('Project Management Pro theme, views with 6E files (pending allow-list)', () => {
+
+describe('Project Management Pro theme, 6E views (strict)', () => {
+  beforeAll(() => { installDomShims(); installSvgShims(); });
+  beforeEach(() => {
+    try { window.localStorage.clear(); } catch { /* storage unavailable */ }
+  });
+
+  it('the integrations tab (6E) and an exploration project dashboard (6E) carry no legacy colour, light and dark', async () => {
+    renderApp();
+    await ready();
+    await openProject('p1', 'Compressor skid FEED');
+    tab('Integrations');
+    expect(await screen.findByText('App Integrations')).toBeInTheDocument();
+    expect(screen.getByText('Pore Pressure (PPFG) Integration')).toBeInTheDocument();
+    expect(screen.getByText('Project Deliverables')).toBeInTheDocument();
+    expectNoLegacyChrome();
+
+    fireEvent.change(screen.getByLabelText('Select Project'), { target: { value: 'p2' } });
+    await waitFor(() => expect(screen.queryByText('Compressor skid FEED')).not.toBeInTheDocument());
+    expect(await screen.findByText('Stage Management')).toBeInTheDocument();
+    expect(getScopeRoot(SCOPE).querySelectorAll('[data-canvas="chart"]').length).toBeGreaterThan(0);
+    expectNoLegacyChrome();
+    for (const name of ['Schedule', 'Gates & Stages', 'Deliverables', 'Risks', 'Team']) {
+      tab(name);
+      expectNoLegacyChrome();
+    }
+
+    fireEvent.click(screen.getByTestId('theme-toggle'));
+    expect(getScopeRoot(SCOPE)).toHaveAttribute('data-pl-theme', 'dark');
+    expectNoLegacyChrome();
+  });
+
+  it('the help centre (6E) and the exploration and field development wizards (6E) open in the scope with no legacy colour', async () => {
+    renderApp();
+    await ready();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Help' }));
+    let dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Help Center')).toBeInTheDocument();
+    expect(dialog).not.toHaveAttribute('data-pl-theme', 'dark');
+    expect(dialog.closest('[data-pl-theme]')).not.toBeNull();
+    expectNoLegacyChrome();
+    for (const name of [/Video Tutorials/, /FAQ/, /Glossary/]) {
+      fireEvent.click(within(dialog).getByRole('button', { name }));
+      expectNoLegacyChrome();
+    }
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    for (const [button, title] of [[/New Exploration Project/, 'New Exploration Project'], [/New Field Dev Project/, 'New Field Development Project']]) {
+      fireEvent.click(screen.getByRole('button', { name: button }));
+      dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getAllByText(new RegExp(title)).length).toBeGreaterThan(0);
+      expect(dialog).not.toHaveAttribute('data-pl-theme', 'dark');
+      expectNoLegacyChrome();
+      fireEvent.keyDown(dialog, { key: 'Escape' });
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    }
+  });
+
+  it('the field development and small project dashboards and the small project wizard (6E) carry no legacy colour, light and dark', async () => {
+    // The mocked portfolio holds no field development or small project,
+    // so these views are mounted on their own inside the app's theme scope.
+    const tasks = [
+      { id: 't1', name: 'Concept select', type: 'task', status: 'Done', percent_complete: 100, task_category: 'Concept', planned_start_date: '2026-01-05', planned_end_date: '2026-03-01' },
+      { id: 't2', name: 'FID', type: 'milestone', status: 'To Do', percent_complete: 0, task_category: 'FEED', planned_start_date: '2026-12-30', planned_end_date: '2026-12-31' },
+    ];
+    const projectData = {
+      id: 'p9', name: 'Ekene Phase 2', asset: 'Ekene', baseline_budget: 90000000, stage: 'Concept',
+      tasks, rawTasks: tasks, resources: [{ discipline: 'Process', type: 'Internal', name: 'Ada Obi' }],
+      risks: [{ title: 'Long-lead compressor', risk_score: 16, status: 'Open' }, { title: 'Late vendor data', risk_score: 6, status: 'Open' }],
+      deliverables: [{ name: 'FEED report', status: 'Under Review', app_source: 'PPFG' }], kpis: { cpi: 0.93 },
+    };
+    const views = [
+      ['Development Stages', <FieldDevelopmentProjectDashboard projectData={projectData} onDataChange={() => {}} />],
+      ['KPI targets', <WorkoverProjectDashboard projectData={projectData} onDataChange={() => {}} />],
+      ['New Workover Project', <WorkoverProjectWizard open onOpenChange={() => {}} onProjectCreated={() => {}} userId="u1" />],
+    ];
+    for (const theme of ['light', 'dark']) {
+      for (const [text, view] of views) {
+        try { window.localStorage.clear(); } catch { /* storage unavailable */ }
+        const { unmount } = render(
+          <MemoryRouter>
+            <AuthContext.Provider value={{ user: USER, session: null, loading: false }}>
+              <ThemedApp defaultTheme={theme} data-testid="pmp-6e-scope">{view}</ThemedApp>
+            </AuthContext.Provider>
+          </MemoryRouter>,
+        );
+        expect((await screen.findAllByText(new RegExp(text))).length).toBeGreaterThan(0);
+        expect(getScopeRoot('pmp-6e-scope')).toHaveAttribute('data-pl-theme', theme);
+        expectNoLegacyChrome();
+        unmount();
+      }
+    }
+  });
+});
+
+describe('Project Management Pro theme, allow-list (empty after 6D and 6E)', () => {
   beforeAll(installDomShims);
   beforeEach(() => {
     try { window.localStorage.clear(); } catch { /* storage unavailable */ }
@@ -365,18 +452,5 @@ describe('Project Management Pro theme, views with 6E files (pending allow-list)
     // pending, and every entry really is a legacy token.
     if (PENDING_6D.length + PENDING_6E.length === 0) expect(PENDING_ALLOW).toEqual([]);
     PENDING_ALLOW.forEach((t) => expect(hasLegacyChrome(t)).toBe(true));
-  });
-
-  it('an exploration project dashboard (6E) and the integrations tab (6E) pass with the pending allow-list', async () => {
-    renderApp();
-    await ready();
-    await openProject('p1', 'Compressor skid FEED');
-    tab('Integrations');
-    expect(await screen.findByText('App Integrations')).toBeInTheDocument();
-    expectNoLegacyChrome({ allow: PENDING_ALLOW });
-
-    fireEvent.change(screen.getByLabelText('Select Project'), { target: { value: 'p2' } });
-    await waitFor(() => expect(screen.queryByText('Compressor skid FEED')).not.toBeInTheDocument());
-    expectNoLegacyChrome({ allow: PENDING_ALLOW });
   });
 });
