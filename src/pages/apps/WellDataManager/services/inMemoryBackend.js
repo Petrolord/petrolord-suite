@@ -301,6 +301,10 @@ export function makeInMemoryBackend(opts = {}) {
 
     async listLogs(wellId) { return [...(logsByWell.get(wellId) || [])]; },
 
+    // registry-wide reads (U2-005 / U2-006), same shape as wellsRegistry
+    async listAllLogMeta() { return [...logsByWell.values()].flat().map((l) => ({ ...l })); },
+    async listAllTops() { return [...topsByWell.values()].flat().map((t) => ({ ...t })); },
+
     async saveLogs(wellId, logs) {
       ownWell(wellId, 'add logs to');
       const saved = logs.map((log) => {

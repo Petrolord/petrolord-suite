@@ -16,6 +16,7 @@ import {
   shareWell, unshareWell,
   listTops, replaceTops, saveTop, updateTop, deleteTop,
   listLogs, saveLogs, deleteLog, downloadCurve,
+  listAllLogMeta, listAllTops,
 } from '@/lib/wellsRegistry';
 import { parseLasFile } from './lasImportService';
 import {
@@ -57,6 +58,8 @@ export function makeRegistryBackend() {
     deleteLog,
     downloadCurve,
     parseLasFile,
+    listAllLogMeta,
+    listAllTops,
 
     /** null when the user belongs to no organization — the share
      *  toggle renders disabled with an explanation instead of failing. */

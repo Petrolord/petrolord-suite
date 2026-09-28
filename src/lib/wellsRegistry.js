@@ -214,6 +214,35 @@ export async function listWellsWithTops() {
   }));
 }
 
+// ---- registry-wide reads (Well Data Manager U2-005 / U2-006) --------------
+// One query per child table for every well the caller can see (RLS does the
+// filtering), paged past PostgREST's 1,000-row cap, so the inventory and the
+// cross-well tops sheet never issue one request per well.
+
+const PAGE_ROWS = 1000;
+async function selectAllRows(table, columns, what) {
+  const out = [];
+  for (let from = 0; ; from += PAGE_ROWS) {
+    const { data, error } = await supabase.from(table).select(columns)
+      .order('id', { ascending: true }).range(from, from + PAGE_ROWS - 1);
+    if (error) throw new Error(`Could not load ${what}: ${error.message}`);
+    out.push(...(data || []));
+    if (!data || data.length < PAGE_ROWS) return out;
+  }
+}
+
+/** Log metadata (no samples) of every visible well: the inventory's input. */
+export async function listAllLogMeta() {
+  return selectAllRows('geo_wells_logs',
+    'id, well_id, mnemonic, unit, description, start_md_m, stop_md_m, step_m, n_samples, null_count, source_file, provenance, storage_path, created_at',
+    'log inventory');
+}
+
+/** Every top of every visible well (the cross-well tops sheet). */
+export async function listAllTops() {
+  return selectAllRows('geo_wells_tops', '*', 'tops');
+}
+
 export async function getWell(wellId) {
   const { data, error } = await supabase.from('geo_wells')
     .select('*').eq('id', wellId).single();

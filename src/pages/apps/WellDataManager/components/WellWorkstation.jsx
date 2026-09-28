@@ -7,7 +7,7 @@
 
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Database, Loader2, Map as MapIcon, CircleDot } from 'lucide-react';
+import { Database, Loader2, Map as MapIcon, CircleDot, ClipboardList } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -15,6 +15,7 @@ import { OpenInAppMenu } from '@/components/wells/OpenInAppMenu';
 import WellsTree from './WellsTree';
 import WellsMap from './WellsMap';
 import WellDetail from './WellDetail';
+import InventoryView from './InventoryView';
 import LasImportDialog from './LasImportDialog';
 import AddWellDialog from './AddWellDialog';
 import DeleteWellDialog from './DeleteWellDialog';
@@ -34,7 +35,7 @@ export default function WellWorkstation({ backend, appPaths = {} }) {
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState(null);
   const [busyId, setBusyId] = useState(null);     // well with an in-flight action
-  const [view, setView] = useState('map');        // 'map' | 'detail'
+  const [view, setView] = useState('map');        // 'map' | 'detail' | 'inventory'
   const [status, setStatus] = useState('Ready.');
   const [lasOpen, setLasOpen] = useState(false);
   const [packageOpen, setPackageOpen] = useState(false);
@@ -167,6 +168,18 @@ export default function WellWorkstation({ backend, appPaths = {} }) {
         </button>
         <button
           type="button"
+          data-testid="wdm-view-inventory"
+          title="Every well against its logs, tops, survey, checkshots, CRS and KB, with QC flags"
+          className={`flex items-center gap-1 px-2 py-1 text-xs rounded border
+            ${view === 'inventory'
+              ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text'
+              : 'border-pl-border text-pl-muted hover:text-pl-text'}`}
+          onClick={() => setView('inventory')}
+        >
+          <ClipboardList className="w-3.5 h-3.5" /> Inventory
+        </button>
+        <button
+          type="button"
           data-testid="wdm-view-detail"
           disabled={!selected}
           className={`flex items-center gap-1 px-2 py-1 text-xs rounded border disabled:opacity-40
@@ -212,7 +225,9 @@ export default function WellWorkstation({ backend, appPaths = {} }) {
     </div>
   ) : (
     <div className="h-full min-h-0 overflow-auto">
-      {view === 'map' || !selected ? (
+      {view === 'inventory' ? (
+        <InventoryView backend={backend} wells={filtered} unit={unit} onOpen={select} onStatus={setStatus} reloadKey={wells} />
+      ) : view === 'map' || !selected ? (
         <div className="p-3">
           <WellsMap wells={list} selectedId={selectedId} onSelect={select} />
         </div>
