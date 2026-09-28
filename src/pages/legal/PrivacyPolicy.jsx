@@ -1,5 +1,6 @@
 import React from 'react';
     import { Helmet } from 'react-helmet';
+    import { PublicPage } from '@/components/public/PublicPage';
     import { Link } from 'react-router-dom';
     import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
     import { ScrollArea } from '@/components/ui/scroll-area';
@@ -13,33 +14,33 @@ import React from 'react';
             <title>Privacy Policy - Petrolord</title>
             <meta name="description" content="Read the Privacy Policy for the Petrolord platform to understand how we handle your data." />
           </Helmet>
-          <div className="min-h-screen bg-slate-900 text-slate-200 py-12 px-4 sm:px-6 lg:px-8">
+          <div className="py-10 px-4 sm:px-6 sm:py-12 lg:px-8">
             <div className="max-w-4xl mx-auto">
               <div className="mb-6">
-                <Button asChild variant="outline" className="bg-slate-800 border-slate-700 hover:bg-slate-700">
+                <Button asChild variant="outline">
                   <Link to="/">
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back to Home
                   </Link>
                 </Button>
               </div>
-              <Card className="bg-slate-800/50 border-slate-700 shadow-lg">
+              <Card>
                 <CardHeader className="text-center">
-                  <CardTitle className="text-4xl font-bold text-lime-300 tracking-tight">Privacy Policy</CardTitle>
-                  <p className="text-slate-400 mt-2">Last Updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                  <CardTitle className="font-pl-display text-4xl font-semibold leading-tight text-pl-text">Privacy Policy</CardTitle>
+                  <p className="text-pl-muted mt-2">Last Updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                 </CardHeader>
                 <CardContent>
                   <ScrollArea className="h-[60vh] pr-6">
-                    <div className="space-y-6 text-slate-300 prose prose-invert prose-p:leading-relaxed">
+                    <div className="space-y-6 text-pl-text leading-relaxed">
                       <section>
-                        <h2 className="text-xl font-semibold text-white">1. Introduction</h2>
+                        <h2 className="text-xl font-semibold text-pl-text">1. Introduction</h2>
                         <p>
                           Welcome to Petrolord, a platform by Lordsway Energy ("we," "us," or "our"). We are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our platform and services ("Service"). Please read this policy carefully.
                         </p>
                       </section>
 
                       <section>
-                        <h2 className="text-xl font-semibold text-white">2. Information We Collect</h2>
+                        <h2 className="text-xl font-semibold text-pl-text">2. Information We Collect</h2>
                         <p>
                           We may collect information about you in a variety of ways. The information we may collect on the Service includes:
                         </p>
@@ -57,7 +58,7 @@ import React from 'react';
                       </section>
 
                       <section>
-                        <h2 className="text-xl font-semibold text-white">3. Use of Your Information</h2>
+                        <h2 className="text-xl font-semibold text-pl-text">3. Use of Your Information</h2>
                         <p>
                           Having accurate information about you permits us to provide you with a smooth, efficient, and customized experience. Specifically, we may use information collected about you via the Service to:
                         </p>
@@ -72,7 +73,7 @@ import React from 'react';
                       </section>
 
                       <section>
-                        <h2 className="text-xl font-semibold text-white">4. Disclosure of Your Information</h2>
+                        <h2 className="text-xl font-semibold text-pl-text">4. Disclosure of Your Information</h2>
                         <p>
                           We do not share, sell, rent, or trade your personal information with third parties for their commercial purposes. We may share information we have collected about you in certain situations:
                         </p>
@@ -87,37 +88,37 @@ import React from 'react';
                       </section>
 
                       <section>
-                        <h2 className="text-xl font-semibold text-white">5. Security of Your Information</h2>
+                        <h2 className="text-xl font-semibold text-pl-text">5. Security of Your Information</h2>
                         <p>
                           We use administrative, technical, and physical security measures to help protect your personal information and project data. While we have taken reasonable steps to secure the information you provide to us, please be aware that no security measures are perfect or impenetrable, and no method of data transmission can be guaranteed against any interception or other type of misuse.
                         </p>
                       </section>
 
                       <section>
-                        <h2 className="text-xl font-semibold text-white">6. Your Data Rights</h2>
+                        <h2 className="text-xl font-semibold text-pl-text">6. Your Data Rights</h2>
                         <p>
-                          You have the right to access, correct, or delete your personal data. You can review and change your account information at any time from your profile. Organization administrators can download a complete copy of their organization&apos;s data at any time from the Data Export page in the dashboard, and can schedule account closure from the same page, with a 30 day grace period and a verifiable Certificate of Data Deletion on completion. Full details are in our <Link to="/legal/data-retention" className="text-lime-400 hover:underline">Data Retention and Offboarding policy</Link>. To close a personal account or request deletion of your personal data, contact support@petrolord.com and we will action the request and confirm completion in writing.
+                          You have the right to access, correct, or delete your personal data. You can review and change your account information at any time from your profile. Organization administrators can download a complete copy of their organization&apos;s data at any time from the Data Export page in the dashboard, and can schedule account closure from the same page, with a 30 day grace period and a verifiable Certificate of Data Deletion on completion. Full details are in our <Link to="/legal/data-retention" className="text-pl-primary-text hover:text-pl-primary-text-hover hover:underline">Data Retention and Offboarding policy</Link>. To close a personal account or request deletion of your personal data, contact support@petrolord.com and we will action the request and confirm completion in writing.
                         </p>
                       </section>
                       
                       <section>
-                        <h2 className="text-xl font-semibold text-white">7. Policy for Children</h2>
+                        <h2 className="text-xl font-semibold text-pl-text">7. Policy for Children</h2>
                         <p>
                           We do not knowingly solicit information from or market to children under the age of 13. If you become aware of any data we have collected from children under age 13, please contact us using the contact information provided below.
                         </p>
                       </section>
 
                       <section>
-                        <h2 className="text-xl font-semibold text-white">8. Changes to This Privacy Policy</h2>
+                        <h2 className="text-xl font-semibold text-pl-text">8. Changes to This Privacy Policy</h2>
                         <p>
                           We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page. You are advised to review this Privacy Policy periodically for any changes.
                         </p>
                       </section>
 
                       <section>
-                        <h2 className="text-xl font-semibold text-white">9. Contact Us</h2>
+                        <h2 className="text-xl font-semibold text-pl-text">9. Contact Us</h2>
                         <p>
-                          If you have any questions about this Privacy Policy, please contact us at <a href="mailto:privacy@petrolord.com" className="text-lime-400 hover:underline">privacy@petrolord.com</a>.
+                          If you have any questions about this Privacy Policy, please contact us at <a href="mailto:privacy@petrolord.com" className="text-pl-primary-text hover:text-pl-primary-text-hover hover:underline">privacy@petrolord.com</a>.
                         </p>
                       </section>
                     </div>
@@ -130,4 +131,11 @@ import React from 'react';
       );
     };
 
-    export default PrivacyPolicy;
+// Batch 7C: the page wraps itself in the public frame (light, brand bar).
+const PrivacyPolicyPage = () => (
+  <PublicPage testId="privacy-theme-scope">
+    <PrivacyPolicy />
+  </PublicPage>
+);
+
+export default PrivacyPolicyPage;

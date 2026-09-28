@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
+import { PublicPage } from '@/components/public/PublicPage';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -10,7 +11,7 @@ import { ArrowLeft, BadgeCheck, Download, Loader2, ShieldX } from 'lucide-react'
 // Public verifier for Certificates of Data Deletion. Anyone holding a
 // certificate number and its verification code can confirm the attested
 // facts directly against the platform's deletion records.
-export default function VerifyDeletion() {
+function VerifyDeletion() {
   const [certNo, setCertNo] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -45,19 +46,19 @@ export default function VerifyDeletion() {
         <title>Verify a Deletion Certificate - Petrolord</title>
         <meta name="description" content="Verify a Petrolord Certificate of Data Deletion against the platform's deletion records." />
       </Helmet>
-      <div className="min-h-screen bg-slate-900 text-slate-200 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="py-10 px-4 sm:px-6 sm:py-12 lg:px-8">
         <div className="max-w-2xl mx-auto space-y-6">
-          <Button asChild variant="outline" className="bg-slate-800 border-slate-700 hover:bg-slate-700">
+          <Button asChild variant="outline">
             <Link to="/">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Home
             </Link>
           </Button>
 
-          <Card className="bg-slate-800/50 border-slate-700 shadow-lg">
+          <Card>
             <CardHeader>
-              <CardTitle className="text-2xl font-bold text-lime-300">Verify a Certificate of Data Deletion</CardTitle>
-              <CardDescription className="text-slate-400">
+              <CardTitle className="font-pl-display text-3xl font-semibold text-pl-text">Verify a Certificate of Data Deletion</CardTitle>
+              <CardDescription className="text-pl-muted">
                 Enter the certificate number and verification code printed on the certificate.
                 The check reads the deletion record directly from our systems, so a successful
                 result confirms the certificate independently of the document itself.
@@ -65,27 +66,26 @@ export default function VerifyDeletion() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <label className="block text-sm text-slate-300 mb-1">Certificate number</label>
+                <label className="block text-sm text-pl-text mb-1">Certificate number</label>
                 <Input
                   value={certNo}
                   onChange={(e) => setCertNo(e.target.value)}
                   placeholder="PLD-DC-2026-XXXXXXXX"
-                  className="bg-slate-950 border-slate-700 font-mono"
+                  className="font-pl-mono"
                 />
               </div>
               <div>
-                <label className="block text-sm text-slate-300 mb-1">Verification code</label>
+                <label className="block text-sm text-pl-text mb-1">Verification code</label>
                 <Input
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   placeholder="00000000-0000-0000-0000-000000000000"
-                  className="bg-slate-950 border-slate-700 font-mono"
+                  className="font-pl-mono"
                 />
               </div>
               <Button
                 onClick={verify}
                 disabled={busy || !certNo.trim() || !code.trim()}
-                className="bg-lime-600 hover:bg-lime-700 text-white"
               >
                 {busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <BadgeCheck className="w-4 h-4 mr-2" />}
                 Verify
@@ -94,12 +94,12 @@ export default function VerifyDeletion() {
           </Card>
 
           {result && (result.valid ? (
-            <Card className="bg-slate-800/50 border-green-800 shadow-lg">
+            <Card className="border-pl-success/40">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-xl text-green-400">
+                <CardTitle className="flex items-center gap-2 text-xl text-pl-success-text">
                   <BadgeCheck className="w-6 h-6" /> Certificate verified
                 </CardTitle>
-                <CardDescription className="text-slate-400">
+                <CardDescription className="text-pl-muted">
                   The following facts are confirmed against Petrolord&apos;s deletion records.
                 </CardDescription>
               </CardHeader>
@@ -114,7 +114,7 @@ export default function VerifyDeletion() {
                 <Row label="Records detached, not deleted" value={String(cert.summary.rowsUnshared)} />
                 {result.download_url && (
                   <div className="pt-3">
-                    <Button asChild variant="outline" className="border-slate-600 text-slate-200 hover:bg-slate-800">
+                    <Button asChild variant="outline">
                       <a href={result.download_url} target="_blank" rel="noopener noreferrer">
                         <Download className="w-4 h-4 mr-2" /> Download certificate PDF
                       </a>
@@ -124,12 +124,12 @@ export default function VerifyDeletion() {
               </CardContent>
             </Card>
           ) : (
-            <Card className="bg-slate-800/50 border-red-900 shadow-lg">
+            <Card className="border-pl-danger/40">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-xl text-red-400">
+                <CardTitle className="flex items-center gap-2 text-xl text-pl-danger-text">
                   <ShieldX className="w-6 h-6" /> Not verified
                 </CardTitle>
-                <CardDescription className="text-slate-400">
+                <CardDescription className="text-pl-muted">
                   {result.error || 'No deletion record matches that certificate number and verification code.'}
                   {' '}Check both values for typos. If you believe this is wrong, contact support@petrolord.com.
                 </CardDescription>
@@ -144,9 +144,18 @@ export default function VerifyDeletion() {
 
 function Row({ label, value, mono = false }) {
   return (
-    <div className="flex justify-between gap-4 border-b border-slate-700/60 pb-1">
-      <span className="text-slate-400">{label}</span>
-      <span className={`text-slate-100 text-right ${mono ? 'font-mono' : ''}`}>{value}</span>
+    <div className="flex justify-between gap-4 border-b border-pl-border pb-1">
+      <span className="text-pl-muted">{label}</span>
+      <span className={`text-pl-text text-right ${mono ? 'font-pl-mono' : ''}`}>{value}</span>
     </div>
   );
 }
+
+// Batch 7C: the page wraps itself in the public frame (light, brand bar).
+const VerifyDeletionPage = () => (
+  <PublicPage testId="verify-deletion-theme-scope">
+    <VerifyDeletion />
+  </PublicPage>
+);
+
+export default VerifyDeletionPage;

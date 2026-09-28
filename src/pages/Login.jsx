@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LogIn, Loader2, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { Helmet } from 'react-helmet';
+import { PublicPage, AUTH_CARD, AUTH_TITLE, TEXT_LINK } from '@/components/public/PublicPage';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -61,21 +62,17 @@ const Login = () => {
         <title>Login - Petrolord</title>
         <meta name="description" content="Login to your Petrolord account." />
       </Helmet>
-      <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4">
+      <div className="flex flex-1 items-center justify-center px-4 py-10 sm:py-16">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           className="w-full max-w-md"
         >
-          <div className="bg-slate-800/50 backdrop-blur-lg border border-slate-700 rounded-2xl p-8 shadow-2xl">
+          <div className={AUTH_CARD}>
             <div className="text-center mb-8">
-              <img
-                src="https://horizons-cdn.hostinger.com/43fa5c4b-d185-4d6d-9ff4-a1d78861fb87/petrolord-symbol-text-7X03X.png"
-                alt="Petrolord - Energy Industry Management"
-                className="h-14 w-auto mx-auto mb-2"
-              />
-              <p className="text-slate-400 mt-2">Sign in to access your dashboard</p>
+              <h1 className={AUTH_TITLE}>Welcome back</h1>
+              <p className="text-pl-muted mt-2">Sign in to access your dashboard</p>
             </div>
 
             <AnimatePresence>
@@ -84,17 +81,17 @@ const Login = () => {
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6 text-sm text-yellow-200"
+                  className="bg-pl-warning-bg border border-pl-warning/30 rounded-lg p-4 mb-6 text-sm text-pl-warning-text"
                 >
                   <div className="flex items-start gap-3">
-                    <AlertTriangle className="w-5 h-5 text-yellow-500 shrink-0" />
+                    <AlertTriangle className="w-5 h-5 text-pl-warning shrink-0" aria-hidden="true" />
                     <div>
                       <p className="font-medium mb-1">Email not verified</p>
-                      <p className="text-yellow-200/80 mb-2">We sent a confirmation link to {unconfirmedEmail}.</p>
+                      <p className="mb-2">We sent a confirmation link to {unconfirmedEmail}.</p>
                       <Link 
                         to="/auth/confirm" 
                         state={{ email: unconfirmedEmail }}
-                        className="text-yellow-400 hover:text-yellow-300 underline font-medium"
+                        className="underline font-semibold hover:no-underline"
                       >
                         Resend confirmation email
                       </Link>
@@ -106,7 +103,7 @@ const Login = () => {
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-lime-300">Email</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
                   type="email"
@@ -114,13 +111,12 @@ const Login = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="bg-slate-900/50 border-slate-700 focus:border-lime-400"
                 />
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <Label htmlFor="password" className="text-lime-300">Password</Label>
-                  <Link to="/forgot-password" className="text-sm text-lime-400 hover:underline">
+                  <Label htmlFor="password">Password</Label>
+                  <Link to="/forgot-password" className={`text-sm ${TEXT_LINK}`}>
                     Forgot password?
                   </Link>
                 </div>
@@ -132,26 +128,26 @@ const Login = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="bg-slate-900/50 border-slate-700 focus:border-lime-400 pr-10"
+                    className="pr-10"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-sm text-pl-muted hover:text-pl-text"
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
               </div>
-              <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-lime-400 to-teal-500 hover:from-lime-500 hover:to-teal-600 text-slate-900 font-bold">
+              <Button type="submit" disabled={loading} className="w-full font-semibold">
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
                 Login
               </Button>
             </form>
-            <p className="text-center text-sm text-slate-400 mt-8">
+            <p className="text-center text-sm text-pl-muted mt-8">
               Don't have an account?{' '}
-              <Link to="/signup" className="font-medium text-lime-400 hover:underline">
+              <Link to="/signup" className={TEXT_LINK}>
                 Sign up
               </Link>
             </p>
@@ -162,4 +158,11 @@ const Login = () => {
   );
 };
 
-export default Login;
+// Batch 7C: the page wraps itself in the public frame (light, brand bar).
+const LoginPage = () => (
+  <PublicPage testId="login-theme-scope">
+    <Login />
+  </PublicPage>
+);
+
+export default LoginPage;

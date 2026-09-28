@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
 import { Lock, Loader2, CheckCircle2 } from 'lucide-react';
 import { Helmet } from 'react-helmet';
+import { PublicPage, AUTH_CARD, AUTH_TITLE } from '@/components/public/PublicPage';
 
 const AcceptInvite = () => {
   const [searchParams] = useSearchParams();
@@ -56,11 +57,11 @@ const AcceptInvite = () => {
 
   if (success) {
       return (
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 text-white">
-            <div className="bg-slate-900 border border-green-500/30 p-8 rounded-xl text-center max-w-md w-full">
-                <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4"/>
-                <h1 className="text-2xl font-bold mb-2">Welcome Aboard!</h1>
-                <p className="text-slate-400">Your account has been successfully set up.</p>
+        <div className="flex flex-1 items-center justify-center px-4 py-10 sm:py-16">
+            <div className={`${AUTH_CARD} text-center max-w-md w-full`}>
+                <CheckCircle2 className="w-16 h-16 text-pl-success mx-auto mb-4" aria-hidden="true"/>
+                <h1 className={`${AUTH_TITLE} mb-2`}>Welcome Aboard!</h1>
+                <p className="text-pl-muted">Your account has been successfully set up.</p>
             </div>
         </div>
       );
@@ -69,22 +70,22 @@ const AcceptInvite = () => {
   return (
     <>
       <Helmet><title>Accept Invitation - Petrolord</title></Helmet>
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 text-white">
+      <div className="flex flex-1 items-center justify-center px-4 py-10 sm:py-16">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
-            <div className="bg-slate-900 border border-slate-800 p-8 rounded-xl shadow-2xl">
+            <div className={AUTH_CARD}>
                 <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-white">Set Your Password</h1>
-                    <p className="text-slate-400 mt-2">Complete your account setup to join the team.</p>
+                    <h1 className={AUTH_TITLE}>Set Your Password</h1>
+                    <p className="text-pl-muted mt-2">Complete your account setup to join the team.</p>
                 </div>
                 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="space-y-2">
                         <Label>New Password</Label>
                         <div className="relative">
-                            <Lock className="absolute left-3 top-3 w-4 h-4 text-slate-500"/>
+                            <Lock className="absolute left-3 top-3 w-4 h-4 text-pl-muted" aria-hidden="true"/>
                             <Input 
                                 type="password" 
-                                className="pl-10 bg-slate-950 border-slate-700" 
+                                className="pl-10" 
                                 value={password}
                                 onChange={e => setPassword(e.target.value)}
                                 required
@@ -95,17 +96,17 @@ const AcceptInvite = () => {
                     <div className="space-y-2">
                         <Label>Confirm Password</Label>
                         <div className="relative">
-                            <Lock className="absolute left-3 top-3 w-4 h-4 text-slate-500"/>
+                            <Lock className="absolute left-3 top-3 w-4 h-4 text-pl-muted" aria-hidden="true"/>
                             <Input 
                                 type="password" 
-                                className="pl-10 bg-slate-950 border-slate-700" 
+                                className="pl-10" 
                                 value={confirmPassword}
                                 onChange={e => setConfirmPassword(e.target.value)}
                                 required
                             />
                         </div>
                     </div>
-                    <Button type="submit" className="w-full bg-lime-600 hover:bg-lime-700 text-white font-bold" disabled={loading}>
+                    <Button type="submit" className="w-full font-semibold" disabled={loading}>
                         {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2"/> : "Activate Account"}
                     </Button>
                 </form>
@@ -116,4 +117,11 @@ const AcceptInvite = () => {
   );
 };
 
-export default AcceptInvite;
+// Batch 7C: the page wraps itself in the public frame (light, brand bar).
+const AcceptInvitePage = () => (
+  <PublicPage testId="accept-invite-theme-scope">
+    <AcceptInvite />
+  </PublicPage>
+);
+
+export default AcceptInvitePage;

@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { motion } from 'framer-motion';
 import { Mail, Loader2 } from 'lucide-react';
 import { Helmet } from 'react-helmet';
+import { PublicPage, AUTH_CARD, AUTH_TITLE, TEXT_LINK } from '@/components/public/PublicPage';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
@@ -26,21 +27,21 @@ const ForgotPassword = () => {
         <title>Forgot Password - Petrolord</title>
         <meta name="description" content="Reset your Petrolord account password." />
       </Helmet>
-      <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4">
+      <div className="flex flex-1 items-center justify-center px-4 py-10 sm:py-16">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           className="w-full max-w-md"
         >
-          <div className="bg-slate-800/50 backdrop-blur-lg border border-slate-700 rounded-2xl p-8 shadow-2xl">
+          <div className={AUTH_CARD}>
             <div className="text-center mb-8">
-              <h1 className="text-4xl font-bold text-lime-300">Forgot Password</h1>
-              <p className="text-slate-400 mt-2">Enter your email to get a reset link</p>
+              <h1 className={AUTH_TITLE}>Forgot Password</h1>
+              <p className="text-pl-muted mt-2">Enter your email to get a reset link</p>
             </div>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-lime-300">Email</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
                   type="email"
@@ -48,17 +49,16 @@ const ForgotPassword = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="bg-slate-900/50 border-slate-700 focus:border-lime-400"
                 />
               </div>
-              <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-lime-400 to-teal-500 hover:from-lime-500 hover:to-teal-600 text-slate-900 font-bold">
+              <Button type="submit" disabled={loading} className="w-full font-semibold">
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
                 Send Reset Link
               </Button>
             </form>
-            <p className="text-center text-sm text-slate-400 mt-8">
+            <p className="text-center text-sm text-pl-muted mt-8">
               Remember your password?{' '}
-              <Link to="/login" className="font-medium text-lime-400 hover:underline">
+              <Link to="/login" className={TEXT_LINK}>
                 Login
               </Link>
             </p>
@@ -69,4 +69,11 @@ const ForgotPassword = () => {
   );
 };
 
-export default ForgotPassword;
+// Batch 7C: the page wraps itself in the public frame (light, brand bar).
+const ForgotPasswordPage = () => (
+  <PublicPage testId="forgot-password-theme-scope">
+    <ForgotPassword />
+  </PublicPage>
+);
+
+export default ForgotPasswordPage;

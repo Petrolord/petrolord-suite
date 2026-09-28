@@ -57,63 +57,63 @@ import React, { useState, useRef } from 'react';
 
       return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-          <DialogContent className="sm:max-w-[625px] bg-slate-900 border-slate-700 text-slate-200">
+          <DialogContent className="sm:max-w-[625px]">
             <DialogHeader>
-              <DialogTitle className="text-2xl text-lime-300">Apply for {jobTitle || 'a Position'}</DialogTitle>
-              <DialogDescription className="text-slate-400">
+              <DialogTitle className="font-pl-display text-2xl font-semibold text-pl-text">Apply for {jobTitle || 'a Position'}</DialogTitle>
+              <DialogDescription>
                 Submit your application below. We're excited to learn more about you.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit}>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="fullName" className="text-right text-slate-300">
+                  <Label htmlFor="fullName" className="text-right">
                     Full Name
                   </Label>
-                  <Input id="fullName" value={formData.fullName} onChange={handleInputChange} className="col-span-3 bg-slate-800 border-slate-600 text-white" required />
+                  <Input id="fullName" value={formData.fullName} onChange={handleInputChange} className="col-span-3" required />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="email" className="text-right text-slate-300">
+                  <Label htmlFor="email" className="text-right">
                     Email
                   </Label>
-                  <Input id="email" type="email" value={formData.email} onChange={handleInputChange} className="col-span-3 bg-slate-800 border-slate-600 text-white" required />
+                  <Input id="email" type="email" value={formData.email} onChange={handleInputChange} className="col-span-3" required />
                 </div>
                  <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="phone" className="text-right text-slate-300">
+                  <Label htmlFor="phone" className="text-right">
                     Phone
                   </Label>
-                  <Input id="phone" type="tel" value={formData.phone} onChange={handleInputChange} className="col-span-3 bg-slate-800 border-slate-600 text-white" />
+                  <Input id="phone" type="tel" value={formData.phone} onChange={handleInputChange} className="col-span-3" />
                 </div>
                 <div className="grid grid-cols-4 items-start gap-4">
-                    <Label htmlFor="resume" className="text-right pt-2 text-slate-300">
+                    <Label htmlFor="resume" className="text-right pt-2">
                         Resume/CV
                     </Label>
                     <div className="col-span-3">
                         <div 
-                            className="relative flex flex-col items-center justify-center w-full h-32 border-2 border-slate-600 border-dashed rounded-lg cursor-pointer bg-slate-800/50 hover:bg-slate-800 transition-colors"
+                            className="relative flex flex-col items-center justify-center w-full h-32 border-2 border-pl-border-strong border-dashed rounded-lg cursor-pointer bg-pl-surface hover:bg-pl-sunken transition-colors"
                             onDragOver={handleDragOver}
                             onDrop={handleDrop}
                             onClick={() => fileInputRef.current?.click()}
                         >
                             {resume ? (
                                 <div className="text-center">
-                                    <FileIcon className="mx-auto h-8 w-8 text-lime-400" />
-                                    <p className="mt-2 text-sm text-slate-300">{resume.name}</p>
+                                    <FileIcon className="mx-auto h-8 w-8 text-pl-primary-text" />
+                                    <p className="mt-2 text-sm text-pl-text">{resume.name}</p>
                                     <button
                                         type="button"
                                         onClick={(e) => { e.stopPropagation(); setResume(null); }}
-                                        className="absolute top-2 right-2 text-slate-400 hover:text-white"
+                                        className="absolute top-2 right-2 rounded-sm text-pl-muted hover:text-pl-text"
                                     >
                                         <X size={16} />
                                     </button>
                                 </div>
                             ) : (
                                 <div className="text-center">
-                                    <UploadCloud className="mx-auto h-8 w-8 text-slate-400" />
-                                    <p className="mt-2 text-sm text-slate-400">
-                                        <span className="font-semibold text-lime-400">Click to upload</span> or drag and drop
+                                    <UploadCloud className="mx-auto h-8 w-8 text-pl-muted" />
+                                    <p className="mt-2 text-sm text-pl-muted">
+                                        <span className="font-semibold text-pl-primary-text">Click to upload</span> or drag and drop
                                     </p>
-                                    <p className="text-xs text-slate-500">PDF, DOC, DOCX (MAX. 5MB)</p>
+                                    <p className="text-xs text-pl-muted">PDF, DOC, DOCX (MAX. 5MB)</p>
                                 </div>
                             )}
                         </div>
@@ -121,17 +121,17 @@ import React, { useState, useRef } from 'react';
                     </div>
                 </div>
                 <div className="grid grid-cols-4 items-start gap-4">
-                  <Label htmlFor="coverLetter" className="text-right pt-2 text-slate-300">
+                  <Label htmlFor="coverLetter" className="text-right pt-2">
                     Cover Letter
                   </Label>
-                  <Textarea id="coverLetter" value={coverLetter} onChange={(e) => setCoverLetter(e.target.value)} placeholder="Tell us why you're a great fit..." className="col-span-3 bg-slate-800 border-slate-600 text-white" rows={5} />
+                  <Textarea id="coverLetter" value={coverLetter} onChange={(e) => setCoverLetter(e.target.value)} placeholder="Tell us why you're a great fit..." className="col-span-3" rows={5} />
                 </div>
               </div>
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={onClose} className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white">
+                <Button type="button" variant="outline" onClick={onClose}>
                   Cancel
                 </Button>
-                <Button type="submit" className="bg-gradient-to-r from-lime-500 to-green-600 hover:from-lime-600 hover:to-green-700 text-slate-900 font-bold">
+                <Button type="submit" className="font-semibold">
                   Submit Application
                 </Button>
               </DialogFooter>
