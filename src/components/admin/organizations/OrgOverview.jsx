@@ -25,34 +25,34 @@ const OrgOverview = ({ orgUsers }) => {
     <div className="space-y-6">
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-slate-900 border-slate-800 rounded-xl shadow-lg">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-400">Total Members</CardTitle>
-            <Users className="h-4 w-4 text-blue-500" />
+            <CardTitle className="text-sm font-medium text-pl-muted">Total Members</CardTitle>
+            <Users className="h-4 w-4 text-pl-muted" aria-hidden="true" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-100">{activeUsers}</div>
-            <div className="text-xs text-slate-500 mt-1">
+            <div className="text-2xl font-bold text-pl-text">{activeUsers}</div>
+            <div className="text-xs text-pl-muted mt-1">
               {activeUsers} / {userLimit} seats used ({usagePercent}%)
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800 rounded-xl shadow-lg relative overflow-hidden">
+        <Card className="relative overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-400">Current Plan</CardTitle>
-            <CreditCard className="h-4 w-4 text-lime-500" />
+            <CardTitle className="text-sm font-medium text-pl-muted">Current Plan</CardTitle>
+            <CreditCard className="h-4 w-4 text-pl-muted" aria-hidden="true" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-100 capitalize truncate">{planName}</div>
+            <div className="text-2xl font-bold text-pl-text capitalize truncate">{planName}</div>
             <div className="flex justify-between items-center mt-1">
-                <div className="text-xs text-slate-500 flex items-center">
-                <span className={`w-2 h-2 rounded-full mr-2 ${subscription.status === 'active' ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
+                <div className="text-xs text-pl-muted flex items-center">
+                <span className={`w-2 h-2 rounded-full mr-2 ${subscription.status === 'active' ? 'bg-pl-success' : 'bg-pl-warning'}`}></span>
                 {subscription.status || 'Active'}
                 </div>
                 <Button 
                     variant="link" 
-                    className="text-[#D4AF37] h-auto p-0 text-xs font-bold hover:text-[#B5902B]"
+                    className="text-pl-accent-text h-auto p-0 text-xs font-bold hover:text-pl-text"
                     onClick={() => navigate('/dashboard/upgrade', { state: { targetOrgId: selectedOrg.id } })}
                 >
                     Upgrade
@@ -61,25 +61,25 @@ const OrgOverview = ({ orgUsers }) => {
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800 rounded-xl shadow-lg">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-400">Health Status</CardTitle>
-            <CheckCircle className="h-4 w-4 text-emerald-500" />
+            <CardTitle className="text-sm font-medium text-pl-muted">Health Status</CardTitle>
+            <CheckCircle className="h-4 w-4 text-pl-success-text" aria-hidden="true" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-emerald-400">Healthy</div>
-            <p className="text-xs text-slate-500 mt-1">System operational</p>
+            <div className="text-2xl font-bold text-pl-success-text">Healthy</div>
+            <p className="text-xs text-pl-muted mt-1">System operational</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800 rounded-xl shadow-lg">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-400">Est. MRR</CardTitle>
-            <Activity className="h-4 w-4 text-purple-500" />
+            <CardTitle className="text-sm font-medium text-pl-muted">Est. MRR</CardTitle>
+            <Activity className="h-4 w-4 text-pl-muted" aria-hidden="true" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-100">{formatCurrency(subscription.amount || 0)}</div>
-            <p className="text-xs text-slate-500 mt-1">Recurring revenue</p>
+            <div className="text-2xl font-bold text-pl-text">{formatCurrency(subscription.amount || 0)}</div>
+            <p className="text-xs text-pl-muted mt-1">Recurring revenue</p>
           </CardContent>
         </Card>
       </div>
@@ -87,7 +87,7 @@ const OrgOverview = ({ orgUsers }) => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Organization Info Card */}
-        <Card className="lg:col-span-2 bg-slate-900 border-slate-800 rounded-xl shadow-lg h-full">
+        <Card className="lg:col-span-2 h-full">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Organization Profile</CardTitle>
             <Button size="sm" variant="outline" onClick={() => navigate(`/admin/organizations/${selectedOrg.id}/edit`)}>
@@ -97,40 +97,40 @@ const OrgOverview = ({ orgUsers }) => {
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase">Organization Name</label>
-                <div className="text-base text-slate-200 font-medium mt-1">{selectedOrg.name}</div>
+                <label className="text-xs font-bold text-pl-muted uppercase">Organization Name</label>
+                <div className="text-base text-pl-text font-medium mt-1">{selectedOrg.name}</div>
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase">Contact Email</label>
-                <div className="text-base text-slate-200 mt-1">{selectedOrg.contact_email}</div>
+                <label className="text-xs font-bold text-pl-muted uppercase">Contact Email</label>
+                <div className="text-base text-pl-text mt-1">{selectedOrg.contact_email}</div>
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase">Phone</label>
-                <div className="text-base text-slate-200 mt-1">{selectedOrg.contact_phone || 'N/A'}</div>
+                <label className="text-xs font-bold text-pl-muted uppercase">Phone</label>
+                <div className="text-base text-pl-text mt-1">{selectedOrg.contact_phone || 'N/A'}</div>
               </div>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase">Organization ID</label>
-                <div className="text-xs font-mono text-slate-400 mt-1 bg-slate-950 p-2 rounded border border-slate-800 select-all">
+                <label className="text-xs font-bold text-pl-muted uppercase">Organization ID</label>
+                <div className="text-xs font-pl-mono text-pl-muted mt-1 bg-pl-sunken p-2 rounded border border-pl-border select-all break-all">
                   {selectedOrg.id}
                 </div>
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase">Joined On</label>
-                <div className="text-base text-slate-200 mt-1 flex items-center">
-                  <Calendar className="h-4 w-4 mr-2 text-slate-500" />
+                <label className="text-xs font-bold text-pl-muted uppercase">Joined On</label>
+                <div className="text-base text-pl-text mt-1 flex items-center">
+                  <Calendar className="h-4 w-4 mr-2 text-pl-muted" aria-hidden="true" />
                   {formatDate(selectedOrg.created_at)}
                 </div>
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase">Subscribed Modules</label>
+                <label className="text-xs font-bold text-pl-muted uppercase">Subscribed Modules</label>
                 <div className="flex flex-wrap gap-2 mt-2">
                   {subscribedModules.length > 0 ? subscribedModules.map(m => (
-                    <Badge key={m} variant="secondary" className="capitalize bg-slate-800 text-slate-300">
+                    <Badge key={m} variant="neutral" className="capitalize">
                       {m.replace('_', ' ')}
                     </Badge>
-                  )) : <span className="text-sm text-slate-500">No active modules</span>}
+                  )) : <span className="text-sm text-pl-muted">No active modules</span>}
                 </div>
               </div>
             </div>
