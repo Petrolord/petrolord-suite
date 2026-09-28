@@ -12,7 +12,7 @@ const ResidualPlot = ({ roStats, tempStats, depthLabel = 'Depth (m)', tempUnit =
     if (!roStats || !tempStats) return null;
 
     return (
-        <div className="w-full h-full bg-white border border-slate-300 rounded-lg p-4 flex flex-col overflow-hidden relative">
+        <div className="w-full h-full bg-white border border-slate-300 rounded-lg p-4 flex flex-col overflow-hidden relative" data-canvas="chart">
             <h3 className="text-center text-sm font-semibold" style={{ color: CHART_COLORS.axisLabel }}>Residual Analysis (Measured − Modeled)</h3>
             <div className="flex-1 grid grid-cols-2 gap-4 min-h-0">
                 <div className="flex flex-col h-full">

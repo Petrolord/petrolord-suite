@@ -15,11 +15,11 @@ const ErosionStep = () => {
     const setCustom = (patch) => setWizardData((prev) => ({ ...prev, erosionEvent: { ...(prev.erosionEvent || { age: 10, amount: 500 }), ...patch } }));
 
     return (
-        <div className="h-full flex gap-6">
+        <div className="h-full flex flex-col lg:flex-row gap-6">
              <div className="flex-1 flex flex-col">
                 <div className="mb-6">
-                    <h2 className="text-2xl font-bold text-white mb-2">Erosion Events</h2>
-                    <p className="text-slate-400">Specify if the basin experienced significant uplift and removal of overburden.</p>
+                    <h2 className="text-2xl font-bold text-pl-text mb-2">Erosion Events</h2>
+                    <p className="text-pl-muted">Specify if the basin experienced significant uplift and removal of overburden.</p>
                 </div>
 
                 <RadioGroup 
@@ -32,30 +32,30 @@ const ErosionStep = () => {
                             <RadioGroupItem value={opt.id} id={opt.id} className="peer sr-only" />
                             <Label 
                                 htmlFor={opt.id}
-                                className="flex flex-col p-4 rounded-lg border-2 border-slate-800 bg-slate-900 cursor-pointer hover:bg-slate-800/50 peer-data-[state=checked]:border-emerald-500 peer-data-[state=checked]:bg-emerald-900/10 transition-all"
+                                className="flex flex-col p-4 rounded-lg border-2 border-pl-border bg-pl-surface cursor-pointer hover:bg-pl-sunken peer-data-[state=checked]:border-pl-primary peer-data-[state=checked]:bg-pl-sunken transition-all"
                             >
                                  <div className="flex justify-between items-center mb-2">
-                                    <div className="flex items-center gap-2 font-bold text-white">
-                                        <Mountain className={`w-5 h-5 ${opt.amount > 0 ? 'text-amber-500' : 'text-slate-500'}`} />
+                                    <div className="flex items-center gap-2 font-bold text-pl-text">
+                                        <Mountain className={`w-5 h-5 ${opt.amount > 0 ? 'text-pl-primary-text' : 'text-pl-muted'}`} />
                                         {opt.name}
                                     </div>
                                     {opt.amount > 0 && (
-                                        <div className="text-sm font-mono text-amber-400 font-bold">
+                                        <div className="text-sm font-mono text-pl-text font-bold">
                                             ~{opt.amount}m Removal
                                         </div>
                                     )}
                                 </div>
-                                <p className="text-sm text-slate-400">{opt.description}</p>
+                                <p className="text-sm text-pl-muted">{opt.description}</p>
                                 
                                 {opt.id === 'custom' && wizardData.erosionOption === 'custom' && (
-                                    <div className="mt-4 p-3 bg-slate-950 rounded border border-slate-800 grid grid-cols-2 gap-3 text-xs" onClick={(e) => e.preventDefault()}>
-                                        <label className="text-slate-400">
+                                    <div className="mt-4 p-3 bg-pl-bg rounded border border-pl-border grid grid-cols-2 gap-3 text-xs" onClick={(e) => e.preventDefault()}>
+                                        <label className="text-pl-muted">
                                             Age of the uplift (Ma)
-                                            <Input type="number" step="any" data-testid="bf-wizard-erosion-age" value={custom.age} onChange={(e) => setCustom({ age: parseFloat(e.target.value) })} className="mt-1 h-8 bg-slate-900" />
+                                            <Input type="number" step="any" data-testid="bf-wizard-erosion-age" value={custom.age} onChange={(e) => setCustom({ age: parseFloat(e.target.value) })} className="mt-1 h-8" />
                                         </label>
-                                        <label className="text-slate-400">
+                                        <label className="text-pl-muted">
                                             Section removed ({units.depth})
-                                            <Input type="number" step="any" data-testid="bf-wizard-erosion-amount" value={tidy(depthToDisplay(custom.amount, units.depth))} onChange={(e) => setCustom({ amount: depthFromDisplay(parseFloat(e.target.value), units.depth) })} className="mt-1 h-8 bg-slate-900" />
+                                            <Input type="number" step="any" data-testid="bf-wizard-erosion-amount" value={tidy(depthToDisplay(custom.amount, units.depth))} onChange={(e) => setCustom({ amount: depthFromDisplay(parseFloat(e.target.value), units.depth) })} className="mt-1 h-8" />
                                         </label>
                                     </div>
                                 )}
@@ -65,11 +65,11 @@ const ErosionStep = () => {
                 </RadioGroup>
             </div>
             
-            <div className="w-80 shrink-0 border-l border-slate-800 pl-6">
-                 <h3 className="text-xs font-bold text-slate-400 uppercase mb-4 flex items-center gap-2">
+            <div className="w-full lg:w-80 shrink-0 border-t lg:border-t-0 lg:border-l border-pl-border pt-4 lg:pt-0 lg:pl-6">
+                 <h3 className="text-xs font-bold text-pl-muted uppercase mb-4 flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4" /> Impact Warning
                 </h3>
-                <div className="p-4 bg-amber-900/10 border border-amber-900/30 rounded-lg text-sm text-amber-200/80 leading-relaxed">
+                <div className="p-4 bg-pl-warning-bg border border-pl-warning/40 rounded-lg text-sm text-pl-warning-text leading-relaxed">
                     <p className="mb-3">
                         Erosion events significantly impact maturity modeling by cooling source rocks after maximum burial.
                     </p>

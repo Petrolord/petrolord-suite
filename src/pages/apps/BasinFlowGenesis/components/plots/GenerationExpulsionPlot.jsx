@@ -31,14 +31,14 @@ const GenerationExpulsionPlot = ({ results }) => {
 
     if (sourceLayers.length === 0) {
         return (
-            <div className="w-full h-full min-h-[400px] flex items-center justify-center bg-white rounded-lg border border-slate-300">
+            <div className="w-full h-full min-h-[400px] flex items-center justify-center bg-white rounded-lg border border-slate-300" data-canvas="chart">
                 <p className="text-slate-500">No hydrocarbon generation: no source rock reached transformation.</p>
             </div>
         );
     }
 
     return (
-        <div className="w-full h-full min-h-[400px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative">
+        <div className="w-full h-full min-h-[400px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative" data-canvas="chart">
             <h3 className="text-center text-sm font-semibold" style={{ color: CHART_COLORS.axisLabel }}>Generation & Expulsion (cumulative)</h3>
             <div className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
