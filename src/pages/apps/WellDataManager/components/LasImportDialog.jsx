@@ -25,13 +25,35 @@ import useCrsContext from '@/components/crs/useCrsContext';
 import { placeWellLocation } from '@/lib/crs/wellPlacement';
 import { UNKNOWN } from '@/lib/crs/tags';
 import { intervalsFromLasBlocks } from '../engine/lasBlocks';
+import { topsFromLasBlocks } from '../engine/lasTops';
+import { isDepthAlias } from '../engine/lasIndex';
+import { crsUnit } from '@/lib/crs';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const inputCls = 'rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs w-full';
 const thCls = 'text-left font-medium text-pl-muted pr-3 pb-1';
 const tdCls = 'pr-3 py-0.5 text-pl-text whitespace-nowrap';
 
-const KNOWN_SI = new Set(['M', 'US/M', 'MS', 'S', 'GAPI', 'API', 'G/C3', 'G/CM3', 'KG/M3', 'V/V', 'OHMM', 'OHM.M', 'MV', 'IN', 'MM', 'B/E', '%', '']);
+// Units the registry keeps as they are (no conversion needed). WDM-U1-012:
+// common spellings of the same units (m3/m3, pu, ohm-m, degC ...) are listed
+// so they are not flagged "as-is" as if they were unknown.
+const KNOWN_SI = new Set(['M', 'US/M', 'MS', 'S', 'GAPI', 'API', 'G/C3', 'G/CM3', 'G/CC', 'KG/M3', 'V/V', 'M3/M3', 'CFCF', 'PU', 'DEC', 'FRAC',
+  'OHMM', 'OHM.M', 'OHM-M', 'OHM_M', 'MV', 'IN', 'MM', 'CM', 'B/E', 'BARN/E', '%', 'PPM', 'DEGC', 'DEG C', 'DEGF', 'DEG', 'KPA', 'MPA', 'PSI',
+  'N/A', 'UNITLESS', 'NONE', '']);
+
+const isDepthRow = (l) => isDepthAlias(l.mnemonic);
+
+const XY_UNITS = [['m', 'metres'], ['ft', 'feet'], ['ftUS', 'US survey feet']];
+
+/** A header input that keeps its label once filled (WDM-U1-007). */
+function HeadField({ label, children }) {
+  return (
+    <label className="flex flex-col gap-0.5 text-[11px] text-pl-muted">
+      <span>{label}</span>
+      {children}
+    </label>
+  );
+}
 
 const emptyHeader = { name: '', uwi: '', x: '', y: '', kb: '', td: '', crs: '' };
 
@@ -44,6 +66,9 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
   const [crsTag, setCrsTag] = useState(null);
   const [lasIntervals, setLasIntervals] = useState(null);      // ST1 {intervals, skipped} from the LAS 3.0 blocks
   const [importIntervals, setImportIntervals] = useState(false);
+  const [lasTops, setLasTops] = useState(null);                // WDM-U1-009 {tops, block, skipped} from ~Tops_Data
+  const [importTops, setImportTops] = useState(false);
+  const [xyUnit, setXyUnit] = useState('m');                   // unit of the typed surface X/Y (WDM-U1-004)
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [fileName, setFileName] = useState(null);
@@ -93,6 +118,9 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
     setOnClash({});
     setTarget('new');
     setHead(emptyHeader);
+    setLasTops(null);
+    setImportTops(false);
+    setXyUnit('m');
   };
 
   const close = (v) => {
@@ -122,12 +150,18 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
       const found = intervalsFromLasBlocks(result.meta.blocks || {});
       setLasIntervals(found);
       setImportIntervals(found.intervals.length > 0);
+      const t = topsFromLasBlocks(result.meta.blocks || {});
+      setLasTops(t);
+      setImportTops(t.tops.length > 0);
       const s = result.meta.suggestedHeader;
+      // WDM-U1-008: XWELL/YWELL (or X/Y) from the file are offered, with the
+      // unit the file states; the user still declares the CRS
+      setXyUnit(s.xyUnit || 'm');
       setHead({
         name: s.name || '',
         uwi: s.uwi || '',
-        x: '',
-        y: '',
+        x: s.surfaceX != null ? String(s.surfaceX) : '',
+        y: s.surfaceY != null ? String(s.surfaceY) : '',
         kb: s.kbM != null ? String(Number(s.kbM.toFixed(3))) : '',
         td: s.tdMdM != null ? String(Number(s.tdMdM.toFixed(2))) : '',
         crs: '',
@@ -159,8 +193,8 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
         const surfaceY = Number(head.y);
         if (head.x.trim() === '' || head.y.trim() === ''
           || !Number.isFinite(surfaceX) || !Number.isFinite(surfaceY)) {
-          throw new Error('Surface X and Y must be world coordinates in metres '
-            + '(LAS files rarely carry them, so enter them here).');
+          throw new Error('Enter the surface X and Y in the coordinate system chosen below '
+            + '(this file does not carry them).');
         }
         const kbM = head.kb.trim() === '' ? 0 : Number(head.kb);
         if (!Number.isFinite(kbM)) throw new Error('KB must be a number (metres above datum).');
@@ -173,6 +207,7 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
             crsTag: crsTag || crsContext?.projectTag || UNKNOWN,
             x: surfaceX,
             y: surfaceY,
+            xyUnit,
           },
           crsContext || {},
         );
@@ -217,6 +252,19 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
         toSave = plan.logs;
       }
       const saved = await backend.saveLogs(wellId, toSave);
+      // WDM-U1-009: tops from the LAS 3.0 Tops block. A new well takes them
+      // all; an existing well gains the names it does not have yet.
+      let nTops = 0;
+      let topsKept = 0;
+      if (importTops && lasTops?.tops?.length && backend.saveTop) {
+        const have = target === 'new' ? [] : await backend.listTops(wellId);
+        const haveNames = new Set(have.map((x) => String(x.name).trim().toUpperCase()));
+        for (const tp of lasTops.tops) {
+          if (haveNames.has(tp.name.toUpperCase())) { topsKept++; continue; }
+          await backend.saveTop(wellId, { name: tp.name, mdM: tp.md, interpreter: null });
+          nTops++;
+        }
+      }
       let nIntervals = 0;
       if (importIntervals && lasIntervals?.intervals?.length && backend.replaceIntervals) {
         const byKind = new Map();
@@ -224,7 +272,14 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
         for (const [kind, rows] of byKind) { await backend.replaceIntervals(wellId, kind, rows); nIntervals += rows.length; }
       }
       close(false);
-      onDone({ wellId, well, nLogs: saved.length, nIntervals, fileName, note: nIntervals ? `${note ? `${note} ` : ''}${nIntervals} interval${nIntervals === 1 ? '' : 's'} imported from the LAS 3.0 blocks.` : note });
+      const extra = [
+        note,
+        nIntervals ? `${nIntervals} interval${nIntervals === 1 ? '' : 's'} imported from the LAS 3.0 blocks` : '',
+        nTops ? `${nTops} top${nTops === 1 ? '' : 's'} from the Tops block` : '',
+        topsKept ? `${topsKept} top${topsKept === 1 ? '' : 's'} already on the well kept as they were` : '',
+      ].filter(Boolean).join(' · ');
+      const nCurves = saved.filter((l) => !isDepthRow(l)).length;
+      onDone({ wellId, well, nLogs: saved.length, nCurves, nIntervals, nTops, fileName, note: extra });
     } catch (err) {
       setError(err.message);
       setBusy(false);
@@ -318,22 +373,37 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
                 {prep.depthUnit}{prep.depthFactor !== 1 ? ` → m (×${prep.depthFactor})` : ' (m)'} ·{' '}
                 {prep.startMdM?.toFixed(1)}–{prep.stopMdM?.toFixed(1)} m ·{' '}
                 {prep.stepM == null ? 'irregular step' : `step ${prep.stepM.toFixed(3)} m`} ·{' '}
-                {prep.logs.length - 1} curves
+                {prep.logs.length - 1} curve{prep.logs.length - 1 === 1 ? '' : 's'}
                 {parsed.meta.version >= 3 && parsed.meta.delimiter && parsed.meta.delimiter !== 'space' ? ` · ${parsed.meta.delimiter}-delimited` : ''}
               </p>
+              {parsed.meta.indexNotes?.length > 0 && (
+                <p className="text-xs text-pl-warning-text" data-testid="wdm-las-index-note">{parsed.meta.indexNotes.join(' ')}</p>
+              )}
               {(parsed.meta.skippedCurves?.length > 0 || parsed.meta.ignoredSections?.length > 0) && (
                 <p className="text-xs text-pl-warning-text" data-testid="wdm-las-las3-note">
                   {parsed.meta.skippedCurves?.length > 0 && (
                     <>Not imported (text columns): {parsed.meta.skippedCurves.map((c) => `${c.mnemonic}${c.format ? ` {${c.format}}` : ''}`).join(', ')}. </>
                   )}
-                  {parsed.meta.ignoredSections?.length > 0 && (
-                    <>Other LAS 3.0 data blocks: {parsed.meta.ignoredSections.join(', ')} (only ~Log_Data imports as curves).</>
-                  )}
+                  {(() => {
+                    // the Tops block is offered below when it yields tops (WDM-U1-009)
+                    const other = (parsed.meta.ignoredSections || []).filter((n) => !(lasTops?.tops?.length && n === lasTops.block));
+                    return other.length > 0 ? <>Other LAS 3.0 data blocks: {other.join(', ')} (only ~Log_Data imports as curves).</> : null;
+                  })()}
                   {lasIntervals?.intervals?.length > 0 && (
                     <label className="flex items-center gap-1 mt-1 text-pl-text" data-testid="wdm-las-intervals">
                       <input type="checkbox" checked={importIntervals} onChange={(e) => setImportIntervals(e.target.checked)} data-testid="wdm-las-intervals-check" />
                       Import {lasIntervals.intervals.length} interval{lasIntervals.intervals.length === 1 ? '' : 's'} from the {Array.from(new Set(lasIntervals.intervals.map((r) => r.kind))).map((k) => k.replace(/_/g, ' ')).join(' and ')} block{new Set(lasIntervals.intervals.map((r) => r.kind)).size === 1 ? '' : 's'} (replaces those kinds on the well)
                     </label>
+                  )}
+                  {lasTops?.tops?.length > 0 && (
+                    <label className="flex items-center gap-1 mt-1 text-pl-text" data-testid="wdm-las-tops">
+                      <input type="checkbox" checked={importTops} onChange={(e) => setImportTops(e.target.checked)} data-testid="wdm-las-tops-check" />
+                      Import {lasTops.tops.length} top{lasTops.tops.length === 1 ? '' : 's'} from the {lasTops.block} block ({lasTops.tops.map((x) => `${x.name} ${x.md.toFixed(1)} m MD`).join(', ')})
+                      {target !== 'new' ? '; names the well already has are kept as they are' : ''}
+                    </label>
+                  )}
+                  {lasTops?.skipped?.length > 0 && (
+                    <span className="block text-pl-warning-text" data-testid="wdm-las-tops-skipped">Tops not imported: {lasTops.skipped.join('; ')}.</span>
                   )}
                   {lasIntervals?.skipped?.filter((x) => /dropped/.test(x.reason)).map((x) => (
                     <div key={x.block} className="text-pl-warning-text">{x.block}: {x.reason}.</div>
@@ -431,29 +501,55 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
               </div>
 
               {target === 'new' && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  <input className={inputCls} placeholder="Well name *" value={head.name}
-                    onChange={setHeadField('name')} data-testid="wdm-las-name" />
-                  <input className={inputCls} placeholder="UWI (optional)" value={head.uwi}
-                    onChange={setHeadField('uwi')} />
-                  <input className={inputCls} placeholder="Surface X (m) *" value={head.x}
-                    onChange={setHeadField('x')} data-testid="wdm-las-x"
-                    title="LAS files rarely carry surface coordinates, so enter world metres" />
-                  <input className={inputCls} placeholder="Surface Y (m) *" value={head.y}
-                    onChange={setHeadField('y')} data-testid="wdm-las-y" />
-                  <input className={inputCls} placeholder="KB m above datum" value={head.kb}
-                    onChange={setHeadField('kb')} />
-                  <input className={inputCls} placeholder="TD m MD" value={head.td}
-                    onChange={setHeadField('td')} />
-                  <div className="col-span-2">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2" data-testid="wdm-las-header">
+                  <HeadField label="Well name *">
+                    <input className={inputCls} value={head.name} onChange={setHeadField('name')} data-testid="wdm-las-name" />
+                  </HeadField>
+                  <HeadField label="UWI (optional)">
+                    <input className={inputCls} value={head.uwi} onChange={setHeadField('uwi')} data-testid="wdm-las-uwi" />
+                  </HeadField>
+                  <HeadField label={`Surface X (${xyUnit}) *`}>
+                    <input className={inputCls} value={head.x} onChange={setHeadField('x')} data-testid="wdm-las-x"
+                      title="Easting in the coordinate system chosen below" />
+                  </HeadField>
+                  <HeadField label={`Surface Y (${xyUnit}) *`}>
+                    <input className={inputCls} value={head.y} onChange={setHeadField('y')} data-testid="wdm-las-y"
+                      title="Northing in the coordinate system chosen below" />
+                  </HeadField>
+                  <HeadField label="KB (m above datum)">
+                    <input className={inputCls} value={head.kb} onChange={setHeadField('kb')} data-testid="wdm-las-kb" />
+                  </HeadField>
+                  <HeadField label="TD (m MD)">
+                    <input className={inputCls} value={head.td} onChange={setHeadField('td')} data-testid="wdm-las-td" />
+                  </HeadField>
+                  <HeadField label="X and Y are in">
+                    <select className={inputCls} value={xyUnit} onChange={(e) => setXyUnit(e.target.value)} data-testid="wdm-las-xyunit"
+                      title="Unit of the X and Y numbers above; they convert to the coordinate system's own unit on import">
+                      {XY_UNITS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </select>
+                  </HeadField>
+                  <HeadField label="CRS note (optional context)">
+                    <input className={inputCls} value={head.crs} onChange={setHeadField('crs')} data-testid="wdm-las-crsnote" />
+                  </HeadField>
+                  <div className="col-span-2 md:col-span-4">
                     <CrsPicker
                       value={crsTag || crsContext?.projectTag || null}
                       onChange={(tag) => setCrsTag(tag)}
                       customDefs={crsContext?.customDefs || {}}
                     />
+                    {(() => {
+                      const tag = crsTag || crsContext?.projectTag || null;
+                      const native = tag ? crsUnit(tag, crsContext?.customDefs || {}) : null;
+                      return native && native !== xyUnit ? (
+                        <p className="mt-1 text-[11px] text-pl-muted" data-testid="wdm-las-xyunit-note">
+                          This coordinate system works in {XY_UNITS.find(([v]) => v === native)?.[1] || native}; the {XY_UNITS.find(([v]) => v === xyUnit)?.[1]} you enter convert on import.
+                        </p>
+                      ) : null;
+                    })()}
+                    {parsed.meta.suggestedHeader?.surfaceX != null && (
+                      <p className="mt-1 text-[11px] text-pl-muted" data-testid="wdm-las-xy-from-file">Surface X and Y come from the file's ~Well section; check the coordinate system they are in.</p>
+                    )}
                   </div>
-                  <input className={`${inputCls} col-span-2`} placeholder="CRS note (optional context)"
-                    value={head.crs} onChange={setHeadField('crs')} />
                 </div>
               )}
             </>

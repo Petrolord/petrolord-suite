@@ -1,0 +1,128 @@
+{
+ "release": "G1 2026-07-13 (PR #55-#58)",
+ "note": "Rows as the G1 Well Data Manager stored them. Loaded by src/pages/apps/WellDataManager/__tests__/savedState.test.jsx.",
+ "wells": [
+  {
+   "id": "g1-well-1",
+   "user_id": "user-dev",
+   "organization_id": null,
+   "name": "LEGACY G1-7",
+   "uwi": "LG-7",
+   "surface_x": 501800.0,
+   "surface_y": 6700900.0,
+   "kb_m": 24.99,
+   "td_md_m": 2300.0,
+   "crs_note": "UTM 30N (typed by hand)",
+   "units_note": "LAS depth unit F -> m (SI internal)",
+   "deviation": [
+    {
+     "md": 0,
+     "inc": 0,
+     "azi": 0
+    },
+    {
+     "md": 1000,
+     "inc": 10,
+     "azi": 45
+    },
+    {
+     "md": 2300,
+     "inc": 30,
+     "azi": 50
+    }
+   ],
+   "checkshots": [
+    {
+     "tvdss_m": 300,
+     "twt_ms": 320
+    },
+    {
+     "tvdss_m": 900,
+     "twt_ms": 820
+    },
+    {
+     "tvdss_m": 1800,
+     "twt_ms": 1450
+    }
+   ],
+   "created_at": "2026-07-14T09:00:00.000Z",
+   "updated_at": "2026-07-14T09:00:00.000Z"
+  }
+ ],
+ "tops": {
+  "g1-well-1": [
+   {
+    "id": "g1-top-1",
+    "name": "Top Reservoir",
+    "md_m": 2134.5,
+    "interpreter": "ama"
+   },
+   {
+    "id": "g1-top-2",
+    "name": "Base Reservoir",
+    "md_m": 2135.0,
+    "interpreter": null
+   }
+  ]
+ },
+ "logs": {
+  "g1-well-1": [
+   {
+    "id": "g1-log-1",
+    "mnemonic": "TDEP",
+    "description": "Tool depth",
+    "unit": "M",
+    "start_md_m": 2135.2763999999997,
+    "stop_md_m": 2133.6,
+    "step_m": null,
+    "n_samples": 12,
+    "null_count": 0,
+    "source_file": "slb_run1.las",
+    "storage_path": "user-dev/g1-well-1/logs/g1-log-1.f32",
+    "created_at": "2026-07-14T09:01:00.000Z",
+    "samples": [
+     2135.2763999999997,
+     2135.124,
+     2134.9716,
+     2134.8192,
+     2134.6668,
+     2134.5144,
+     2134.362,
+     2134.2095999999997,
+     2134.0571999999997,
+     2133.9048,
+     2133.7524,
+     2133.6
+    ]
+   },
+   {
+    "id": "g1-log-2",
+    "mnemonic": "GR",
+    "description": "Gamma ray",
+    "unit": "GAPI",
+    "start_md_m": 2135.2763999999997,
+    "stop_md_m": 2133.6,
+    "step_m": null,
+    "n_samples": 12,
+    "null_count": 0,
+    "source_file": "slb_run1.las",
+    "storage_path": "user-dev/g1-well-1/logs/g1-log-2.f32",
+    "created_at": "2026-07-14T09:01:00.000Z",
+    "samples": [
+     60.0,
+     65.695,
+     71.274,
+     76.623,
+     81.633,
+     86.203,
+     90.239,
+     93.659,
+     96.393,
+     98.386,
+     99.596,
+     100.0
+    ]
+   }
+  ]
+ }
+}

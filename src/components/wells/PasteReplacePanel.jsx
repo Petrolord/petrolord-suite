@@ -5,7 +5,7 @@
 // converts and saves.
 
 import React, { useMemo, useState } from 'react';
-import { parseDelimited, guessMapping, guessCheckshotConvention } from '@/lib/wellImport';
+import { parseDelimited, guessMapping, guessCheckshotConvention, guessMdUnit } from '@/lib/wellImport';
 import ColumnMapper from './ColumnMapper';
 
 
@@ -94,6 +94,11 @@ export default function PasteReplacePanel({ kind, fields, labels, convention, on
       const hint = guessCheckshotConvention(p.header);
       if (Object.keys(hint).length) onConvention({ ...convention, ...hint });
     }
+    // WDM-U1-005: "MD (ft)" in a tops or survey header sets the unit once
+    if (kind !== 'checkshots' && !touched && fields.includes('md')) {
+      const unit = guessMdUnit(parseDelimited(v).header, fields);
+      if (unit && unit !== convention.mdUnit) onConvention({ ...convention, mdUnit: unit });
+    }
     onParsed(null);
   };
   React.useEffect(() => { onParsed(state.parsed.rows.length ? state : null); }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -103,7 +108,7 @@ export default function PasteReplacePanel({ kind, fields, labels, convention, on
       {kind === 'checkshots' ? (
         <CheckshotConventionRow conv={convention} onChange={(c) => { setTouched(true); onConvention(c); }} testIdPrefix={testIdPrefix} />
       ) : (
-        <MdUnitSelect value={convention.mdUnit} onChange={(u) => onConvention({ ...convention, mdUnit: u })} testId={`${testIdPrefix}-mdunit`} />
+        <MdUnitSelect value={convention.mdUnit} onChange={(u) => { setTouched(true); onConvention({ ...convention, mdUnit: u }); }} testId={`${testIdPrefix}-mdunit`} />
       )}
       <textarea
         className={`${inputCls} w-full h-24 font-mono`}

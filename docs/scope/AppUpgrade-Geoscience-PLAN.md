@@ -117,7 +117,7 @@ Each is assigned to the app whose Step 2c will fix it:
 
 | # | App | Step 1 | Step 2 | Batches merged | Upgrade doc |
 |---|---|---|---|---|---|
-| 1 | Well Data Manager | not started | not started | | |
+| 1 | Well Data Manager | done 2026-09-28: 12 checks, 33 findings, 19 fixed (all S2) | analysed 2026-09-28: 18 items, batches A/B/C for the owner | | `docs/upgrade/WellDataManager-UPGRADE.md` |
 | 2 | Petrophysics Studio | not started | not started | | |
 | 3 | Well Correlation | not started | not started | | |
 | 4 | Stratigraphy Studio | not started | not started | | |

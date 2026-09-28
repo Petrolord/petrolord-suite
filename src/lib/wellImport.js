@@ -69,6 +69,28 @@ export function guessCheckshotConvention(header) {
   return out;
 }
 
+/**
+ * Depth unit stated in a header cell ("MD (ft)", "MD[ft]", "MD_FT",
+ * "Depth m", "MD (metres)"), or null when the cell states none.
+ * WDM-U1-005: tops and survey pastes read the unit off the header the way
+ * checkshots already did, so a Petrel "MD (ft)" column is never stored as
+ * metres by default.
+ * @returns {'m'|'ft'|null}
+ */
+export function guessDepthUnit(cell) {
+  const w = ` ${String(cell ?? '').toLowerCase().replace(/[_\-()[\]/,.]/g, ' ')} `;
+  if (/\b(ft|feet|foot|usft|ftus)\b/.test(w)) return 'ft';
+  if (/\b(m|metres?|meters?)\b/.test(w)) return 'm';
+  return null;
+}
+
+/** The depth unit of the MD column a header maps to (tops, deviation). */
+export function guessMdUnit(header, fields = ['md']) {
+  if (!header) return null;
+  const map = guessMapping(header, fields);
+  return map.md >= 0 ? guessDepthUnit(header[map.md]) : null;
+}
+
 const M_PER_FT = 0.3048;
 const toM = (v, unit) => (unit === 'ft' ? v * M_PER_FT : v);
 
@@ -190,6 +212,12 @@ export function buildCheckshotInputs(rows, map) {
     out.push({ depth: num(rows, r, map.depth, 'depth'), time: num(rows, r, map.time, 'time') });
   }
   if (out.length < 2) throw new Error('A checkshot table needs at least 2 rows.');
+  // WDM-U1-013: Petrel exports checkshot Z as an elevation, negative down.
+  // Say so plainly instead of the monotonic-order error it used to trip.
+  if (out.every((r) => r.depth <= 0) && out.some((r) => r.depth < 0)) {
+    throw new Error('Every depth in this table is zero or negative, which reads as an elevation (Petrel Z, negative down). '
+      + 'Checkshot depths here are positive downward: remove the minus signs, or export the checkshots as TVDSS or MD, then paste again.');
+  }
   return out;
 }
 

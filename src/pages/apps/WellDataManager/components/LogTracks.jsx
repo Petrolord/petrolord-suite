@@ -21,6 +21,13 @@ const GRID = 'rgba(203,213,225,0.9)';  // slate-300
 const AXIS_TEXT = '#475569';           // slate-600
 const COLORS = ['#0e7490', '#d97706', '#059669', '#db2777', '#7c3aed', '#dc2626'];
 
+/** Depth tick text with enough decimals that neighbouring ticks never read
+ *  the same (WDM-U1-014: a 7.5 m interval used to print 2007 twice). */
+export function depthTickLabel(d, tickStep) {
+  const dec = tickStep >= 1 ? 0 : (tickStep >= 0.1 ? 1 : 2);
+  return d.toFixed(dec);
+}
+
 function finiteRange(data) {
   let min = Infinity;
   let max = -Infinity;
@@ -80,6 +87,11 @@ export default function LogTracks({ tracks, height = 420 }) {
     const axisMin = regular ? start : 0;
     const axisMax = regular ? stop : maxN - 1;
     const yOf = (d) => plotTop + ((d - axisMin) / (axisMax - axisMin || 1)) * plotH;
+    // geometry for the browser checks (AppUpgrade PL6): the depth at the top
+    // and bottom of the plot, so a test can assert depth increases downward
+    canvas.dataset.depthTop = String(axisMin);
+    canvas.dataset.depthBottom = String(axisMax);
+    canvas.dataset.depthAxis = regular ? 'md' : 'index';
 
     // depth gridlines + labels
     ctx.strokeStyle = GRID;
@@ -94,7 +106,7 @@ export default function LogTracks({ tracks, height = 420 }) {
       ctx.moveTo(GUTTER, y);
       ctx.lineTo(cssW, y);
       ctx.stroke();
-      ctx.fillText(regular ? `${Math.round(d)}` : `#${Math.round(d)}`, GUTTER - 4, y + 3);
+      ctx.fillText(regular ? depthTickLabel(d, (axisMax - axisMin) / nTicks) : `#${Math.round(d)}`, GUTTER - 4, y + 3);
     }
     ctx.save();
     ctx.translate(11, plotTop + plotH / 2);

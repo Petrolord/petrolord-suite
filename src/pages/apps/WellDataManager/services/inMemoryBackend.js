@@ -10,7 +10,7 @@
 
 import { wellNameClashMessage, validateStoredCheckshotsShape } from '@/lib/wellsRegistry';
 import { parseLas } from '../engine/lasParse';
-import { prepareLogs, suggestWellHeader } from '../engine/lasImport';
+import { prepareLasForRegistry } from '../engine/lasIndex';
 
 const DEV_USER = 'user-dev';
 const DEV_ORG = 'org-dev';
@@ -66,6 +66,22 @@ export function makeInMemoryBackend(opts = {}) {
     logsByWell.set(id, []);
   }
 
+  // Saved-state fixtures (AppUpgrade PL5) and scale runs (PL10): registry
+  // rows exactly as an older release stored them. `samples` on a log row
+  // becomes its curve object; is_own defaults to the dev user's ownership.
+  if (opts.seedRows) {
+    const { wells: sw = [], tops: st = {}, logs: sl = {} } = opts.seedRows;
+    for (const w of sw) {
+      wells.push({ ...w, is_own: w.is_own ?? (w.user_id === DEV_USER) });
+      topsByWell.set(w.id, [...(st[w.id] || [])].map((t) => ({ well_id: w.id, ...t })));
+      logsByWell.set(w.id, (sl[w.id] || []).map(({ samples, ...row }) => {
+        const r = { well_id: w.id, ...row };
+        if (samples) curveStore.set(r.storage_path, Float32Array.from(samples, (v) => (v === null ? Number.NaN : v)));
+        return r;
+      }));
+    }
+  }
+
   const ownWell = (wellId, what) => {
     const w = wells.find((x) => x.id === wellId);
     if (!w) throw new Error(`Well not found.`);
@@ -103,6 +119,11 @@ export function makeInMemoryBackend(opts = {}) {
         surface_y: w.surfaceY,
         kb_m: w.kbM ?? 0,
         td_md_m: w.tdMdM ?? null,
+        // WDM-U1-018: the structured CRS the live registry stores (the
+        // harness used to drop it, so no CRS path was ever exercised here)
+        crs: w.crs ?? null,
+        xy_unit: w.xyUnit || null,
+        crs_provenance: w.crsProvenance || null,
         crs_note: w.crsNote || null,
         units_note: w.unitsNote || null,
         deviation: w.deviation || [],
@@ -329,7 +350,7 @@ export function makeInMemoryBackend(opts = {}) {
       }
       const text = await file.text();
       const parsed = parseLas(text);
-      const prep = prepareLogs(parsed, { sourceFile: file.name || null });
+      const { prep, notes, suggestedHeader } = prepareLasForRegistry(parsed, { sourceFile: file.name || null });
       return {
         meta: {
           version: parsed.version,
@@ -338,7 +359,9 @@ export function makeInMemoryBackend(opts = {}) {
           well: parsed.well,
           params: parsed.params,
           depthUnit: parsed.depthUnit,
-          suggestedHeader: suggestWellHeader(parsed),
+          suggestedHeader,
+          indexNotes: notes,
+          blocks: parsed.blocks || {},
           // LAS 3.0 (2026-09-03): what the reader left out, for the import preview
           delimiter: parsed.delimiter || 'space',
           skippedCurves: parsed.skippedCurves || [],

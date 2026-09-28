@@ -23,7 +23,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Loader2, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
-  parseDelimited, guessMapping, guessCheckshotConvention,
+  parseDelimited, guessMapping, guessCheckshotConvention, guessMdUnit,
   buildDeviation, buildTops, buildCheckshotInputs,
 } from '@/lib/wellImport';
 import {
@@ -128,9 +128,15 @@ export default function WellImport({ onSave, crsContext }) {
       const hint = guessCheckshotConvention(parseDelimited(value).header);
       if (Object.keys(hint).length) setConv((c) => ({ ...c, checkshots: { ...c.checkshots, ...hint } }));
     }
+    // WDM-U1-005: a unit in the MD header ("MD (ft)") sets the tab's unit
+    if ((tab === 'deviation' || tab === 'tops') && !mdTouched[tab]) {
+      const unit = guessMdUnit(parseDelimited(value).header, tab === 'tops' ? ['name', 'md'] : ['md', 'inc', 'azi']);
+      if (unit) setConv((c) => ({ ...c, [tab]: { ...c[tab], mdUnit: unit } }));
+    }
   };
   const setMapField = (f, idx) => setMaps((m) => ({ ...m, [tab]: { ...m[tab], [f]: idx } }));
-  const setTabConv = (key, next) => setConv((c) => ({ ...c, [key]: next }));
+  const [mdTouched, setMdTouched] = useState({});
+  const setTabConv = (key, next) => { setMdTouched((t) => ({ ...t, [key]: true })); setConv((c) => ({ ...c, [key]: next })); };
 
   const loadFile = async (e) => {
     const f = e.target.files?.[0];

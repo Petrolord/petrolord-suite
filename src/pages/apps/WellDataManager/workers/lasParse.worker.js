@@ -14,11 +14,12 @@
 // prep  = prepareLogs output, SI-converted, arrays transferred.
 
 import { parseLas } from '../engine/lasParse';
-import { prepareLogs, suggestWellHeader } from '../engine/lasImport';
+import { prepareLasForRegistry } from '../engine/lasIndex';
 
 function run(id, text, sourceFile) {
   const parsed = parseLas(text);
-  const prep = prepareLogs(parsed, { sourceFile });
+  // WDM-U1-001..003: index checked, oriented ascending and named DEPT
+  const { prep, notes, suggestedHeader } = prepareLasForRegistry(parsed, { sourceFile });
   const meta = {
     version: parsed.version,
     wrap: parsed.wrap,
@@ -26,7 +27,8 @@ function run(id, text, sourceFile) {
     well: parsed.well,
     params: parsed.params,
     depthUnit: parsed.depthUnit,
-    suggestedHeader: suggestWellHeader(parsed),
+    suggestedHeader,
+    indexNotes: notes,
     // LAS 3.0 (2026-09-03): what the reader left out, for the import preview
     delimiter: parsed.delimiter || 'space',
     skippedCurves: parsed.skippedCurves || [],
