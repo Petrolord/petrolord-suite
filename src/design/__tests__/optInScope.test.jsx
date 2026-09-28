@@ -4,9 +4,10 @@
  *   1. the shared ui pieces render their legacy class strings byte for byte
  *      outside a <ThemedApp> scope (the strings below are copied from main
  *      before the design system landed);
- *   2. a real non-pilot app (Waterflood Design Studio, on the shared Studio
- *      kit; Voidage Replacement Monitor was the proof until it became pilot
- *      5) mounts with its dark console classes, no themed scope and no pl-*
+ *   2. an unmigrated app (the test-only LegacyAppFixture, built like the
+ *      unmigrated apps on the shared Studio kit and ui pieces; until Wave 0A
+ *      this proof mounted a real app and moved each time that app migrated)
+ *      mounts with its dark console classes, no themed scope and no pl-*
  *      token classes;
  *   3. inside a scope the same pieces switch to theme roles, and portal
  *      content (dialogs, menus) carries the scope attribute itself.
@@ -40,7 +41,8 @@ import { Select, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import StudioHeader from '@/components/studio/StudioHeader';
 import ChartFrame from '@/components/charts/ChartFrame';
-import WaterfloodDesignStudio from '@/pages/apps/WaterfloodDesignStudio';
+import LegacyAppFixture, { LEGACY_FIXTURE_TITLE, LEGACY_FIXTURE_PATH } from '@/design/testing/LegacyAppFixture';
+import { isThemedPath } from '@/design/coldLoad';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
@@ -161,14 +163,14 @@ describe('outside a scope: legacy output, byte for byte', () => {
   });
 });
 
-describe('a real non-pilot app is unchanged', () => {
-  it('Waterflood Design Studio mounts on the dark console with no themed scope', async () => {
+describe('an unmigrated app is unchanged', () => {
+  it('the legacy app fixture mounts on the dark console with no themed scope', async () => {
     const { container } = render(
       <MemoryRouter>
-        <WaterfloodDesignStudio />
+        <LegacyAppFixture />
       </MemoryRouter>,
     );
-    expect(await screen.findByText('Waterflood Design Studio')).toBeInTheDocument();
+    expect(await screen.findByText(LEGACY_FIXTURE_TITLE)).toBeInTheDocument();
     // StudioLayout root keeps the legacy dark console classes
     const root = container.firstElementChild;
     expect(root.className).toMatch(/\bbg-slate-950\b/);
@@ -183,6 +185,14 @@ describe('a real non-pilot app is unchanged', () => {
     // its panels are still painted with the slate console colours
     const slatePanels = [...container.querySelectorAll('[class]')].filter((el) => /\bbg-slate-(800|900|950)\b/.test(el.getAttribute('class')));
     expect(slatePanels.length).toBeGreaterThan(5);
+    // the Wave 0A pieces it carries keep their legacy strings too
+    expect(screen.getByText('AT').className).toMatch(/\bbg-slate-100\b/);
+    screen.getAllByRole('radio').forEach((r) => expect(r.className).toMatch(/\bborder-slate-400\b/));
+    expect(screen.getByTestId('full-precision-note').className).toMatch(/\btext-amber-300\b/);
+  });
+
+  it('the fixture path is registered by no rollout batch', () => {
+    expect(isThemedPath(LEGACY_FIXTURE_PATH)).toBe(false);
   });
 });
 

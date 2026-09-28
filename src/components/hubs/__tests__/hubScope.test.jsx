@@ -7,8 +7,9 @@
  *   2. Mounted through the real DashboardLayout, a hub sits in a light
  *      [data-pl-root] scope with the toggle in its header, and the toggle
  *      switches light and dark.
- *   3. An unmigrated app opened from a hub (Waterflood Design Studio; it was
- *      Voidage Replacement Monitor until that became pilot 5)
+ *   3. An unmigrated app opened from a hub (the test-only LegacyAppFixture,
+ *      since Wave 0A; a real app was the proof until then and had to move
+ *      each time it migrated)
  *      has no [data-pl-theme] ancestor, no toggle and no pl-* class, and its
  *      markup is identical to the app rendered on its own.
  *   4. The sidebar is a fixed dark ink scope in both themes.
@@ -80,7 +81,7 @@ import ApplicationsGrid from '@/components/ApplicationsGrid';
 // eslint-disable-next-line import/first
 import { ThemedApp } from '@/design/ThemeProvider';
 // eslint-disable-next-line import/first
-import WaterfloodDesignStudio from '@/pages/apps/WaterfloodDesignStudio';
+import LegacyAppFixture, { LEGACY_FIXTURE_PATH, LEGACY_FIXTURE_TITLE } from '@/design/testing/LegacyAppFixture';
 
 beforeAll(() => {
   global.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
@@ -107,7 +108,7 @@ const AUTH = {
   signOut: jest.fn(),
 };
 
-const APP_PATH = '/dashboard/apps/reservoir/waterflood-design-studio';
+const APP_PATH = LEGACY_FIXTURE_PATH;
 
 function Shell({ at }) {
   return (
@@ -118,7 +119,7 @@ function Shell({ at }) {
             <Route element={<HubScope />}>
               <Route path="data-ai" element={<DataAiHub />} />
             </Route>
-            <Route path="apps/reservoir/waterflood-design-studio" element={<WaterfloodDesignStudio />} />
+            <Route path={APP_PATH.slice('/dashboard/'.length)} element={<LegacyAppFixture />} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -185,7 +186,7 @@ describe('a module hub inside the dashboard shell', () => {
 describe('an unmigrated app opened from a hub', () => {
   it('has no themed ancestor, no toggle and no pl-* class, and renders exactly as it does alone', async () => {
     const { unmount } = render(<Shell at={APP_PATH} />);
-    const title = await screen.findByText('Waterflood Design Studio');
+    const title = await screen.findByText(LEGACY_FIXTURE_TITLE);
     expect(title.closest('[data-pl-theme]')).toBeNull();
     expect(document.querySelector('[data-pl-root]')).toBeNull();
     expect(screen.queryByTestId('theme-toggle')).toBeNull();
@@ -200,11 +201,11 @@ describe('an unmigrated app opened from a hub', () => {
     const alone = render(
       <AuthContext.Provider value={AUTH}>
         <MemoryRouter initialEntries={[APP_PATH]}>
-          <WaterfloodDesignStudio />
+          <LegacyAppFixture />
         </MemoryRouter>
       </AuthContext.Provider>,
     );
-    await screen.findByText('Waterflood Design Studio');
+    await screen.findByText(LEGACY_FIXTURE_TITLE);
     expect(inShell).toBe(normalise(alone.container.innerHTML));
   });
 });
