@@ -1,8 +1,10 @@
 /**
- * Cold-load loaders on the opted-in paths paint the device's last theme
+ * Cold-load loaders on the themed paths paint the device's last theme
  * (petrolord.theme.v1.last), so a light user does not see a dark spinner
  * before a light app. Other paths keep the legacy loader (pinned in
- * uiLegacyDom.test.jsx). THEMED paths stay in step with App.jsx.
+ * uiLegacyDom.test.jsx). Since batch 7A every /dashboard path is themed
+ * (one scope in DashboardLayout); the themed paths outside /dashboard stay
+ * in step with App.jsx.
  */
 import React from 'react';
 import fs from 'fs';
@@ -18,7 +20,9 @@ jest.mock('@/hooks/useSuiteAccess', () => ({ useSuiteAccess: () => ({ can: () =>
 import { AuthContext } from '@/contexts/SupabaseAuthContext';
 import AuthGuard from '@/components/AuthGuard';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { isThemedPath, isPublicLightPath, coldLoadTheme, THEMED_HUBS } from '@/design/coldLoad';
+import {
+  isThemedPath, isPublicLightPath, coldLoadTheme, THEMED_PAGE_PREFIXES, PUBLIC_PAGE_PREFIXES,
+} from '@/design/coldLoad';
 import { LAST_THEME_KEY } from '@/design/ThemeProvider';
 import { LEGACY_FIXTURE_PATH } from '@/design/testing/LegacyAppFixture';
 
@@ -40,13 +44,17 @@ describe('isThemedPath', () => {
     '/dashboard/apps/reservoir/decline-curve-analysis',
     '/dashboard/apps/geoscience/seismolord', '/dashboard/apps/geoscience/seismolord/help',
     '/dashboard/apps/reservoir/voidage-replacement-monitor',
+    // since 7A: any path under /dashboard, whatever the route
+    '/dashboard/reservoir-x', '/dashboard/apps', '/dashboard/apps/economics', '/dashboard/upgrade',
+    '/dashboard/apps/economics/epe-suite', '/dashboard/apps/not-a-route/help',
+    // the signed-in pages outside /dashboard that open their own scope
+    '/profile', '/mobile/tasks', '/super-admin', '/admin/organizations/42/edit',
   ])('%s is themed', (p) => expect(isThemedPath(p)).toBe(true));
 
   it.each([
-    // paths no rollout batch registers (batch paths are checked in rolloutFiles.test.js)
-    '/', '/nextgen', '/login-x', '/legal', '/dashboard/reservoir-x', '/dashboard/apps', '/dashboard/apps/economics',
-    LEGACY_FIXTURE_PATH, `${LEGACY_FIXTURE_PATH}/help`, '/dashboard/apps/economics/epe-suite',
-    '/dashboard/apps/geoscience/seismolord-legacy', undefined,
+    '/', '/nextgen', '/login-x', '/legal', '/dashboardx', '/dashboard-x', '/x/dashboard',
+    '/admin', '/admin/organizationsx', '/profiles',
+    LEGACY_FIXTURE_PATH, `${LEGACY_FIXTURE_PATH}/help`, undefined, null, 42,
   ])('%s is not themed', (p) => expect(isThemedPath(p)).toBe(false));
 });
 
@@ -101,7 +109,7 @@ describe('the loaders', () => {
   });
 });
 
-describe('THEMED paths stay in step with App.jsx', () => {
+describe('the themed paths stay in step with App.jsx', () => {
   const app = fs.readFileSync(path.resolve(__dirname, '../../App.jsx'), 'utf8');
 
   it('the root Suspense PageLoader uses the cold-load theme', () => {
@@ -110,33 +118,21 @@ describe('THEMED paths stay in step with App.jsx', () => {
     expect(loader).toMatch(/ThemedLoadingScreen/);
   });
 
-  it('every hub inside HubScope is listed', () => {
-    const start = app.indexOf('<Route element={<HubScope />}>');
-    const block = app.slice(start, app.indexOf('</Route>', start));
-    const hubs = [...block.matchAll(/path="([^"]+)"/g)].map((m) => m[1]);
-    expect(hubs.length).toBe(10);
-    expect([...hubs].sort()).toEqual([...THEMED_HUBS].sort());
+  it('/dashboard renders DashboardLayout, which holds the one dashboard scope', () => {
+    const start = app.indexOf('<Route path="/dashboard" element={');
+    expect(start).toBeGreaterThan(-1);
+    expect(app.slice(start, app.indexOf('}>', start))).toMatch(/<DashboardLayout \/>/);
+    const layout = fs.readFileSync(path.resolve(__dirname, '../../layouts/DashboardLayout.jsx'), 'utf8');
+    expect(layout).toMatch(/<DashboardScope>[\s\S]*<Outlet \/>[\s\S]*<\/DashboardScope>/);
   });
 
-  it('every route inside the EPE ThemedApp layout route and every ThemedApp route element is themed', () => {
-    const start = app.indexOf('<Route element={<ThemedApp');
-    const block = app.slice(start, app.indexOf('</Route>', start + 10));
-    const epe = [...block.matchAll(/path="([^"]+)"/g)].map((m) => m[1]);
-    expect(epe.length).toBeGreaterThan(5);
-    const inline = [...app.matchAll(/path="([^"]+)" element=\{<ThemedApp/g)].map((m) => m[1]);
-    for (const p of [...epe, ...inline]) {
-      expect({ p, themed: isThemedPath(`/dashboard/${p.replace(/:[^/]+/g, 'x')}`) }).toEqual({ p, themed: true });
-    }
-  });
-
-  it('the apps that wrap ThemedApp inside their own component are listed', () => {
-    for (const [route, file] of [
-      ['apps/reservoir/decline-curve-analysis', '../../pages/apps/DeclineCurveAnalysis.jsx'],
-      ['apps/geoscience/seismolord', '../../pages/apps/Seismolord/Seismolord.jsx'],
-    ]) {
-      expect(app).toContain(`path="${route}"`);
-      expect(fs.readFileSync(path.resolve(__dirname, file), 'utf8')).toMatch(/<ThemedApp/);
-      expect(isThemedPath(`/dashboard/${route}`)).toBe(true);
+  it('every themed prefix outside /dashboard is well formed, listed once and starts a route', () => {
+    const all = [...THEMED_PAGE_PREFIXES, ...PUBLIC_PAGE_PREFIXES];
+    expect(new Set(all).size).toBe(all.length);
+    for (const p of all) {
+      expect({ p, ok: /^\/[a-z0-9][a-z0-9/_-]*[a-z0-9]$/i.test(p) && !p.startsWith('/dashboard') }).toEqual({ p, ok: true });
+      expect({ p, route: app.includes(`path="${p}`) }).toEqual({ p, route: true });
+      expect({ p, themed: isThemedPath(`${p}/help`) }).toEqual({ p, themed: true });
     }
   });
 });

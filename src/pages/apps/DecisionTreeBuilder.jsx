@@ -14,7 +14,6 @@ import DecisionTreeHelpGuide from '@/components/decisiontree/DecisionTreeHelpGui
 import { firstMoveLabel, isIndifferentFirstMove } from '@/components/decisiontree/firstMoveLabel';
 import { FullPrecisionProvider, FullPrecisionToggle, useFullPrecision } from '@/components/fullprecision/FullPrecision';
 import { formatFull, MONEY_MM_DECIMALS } from '@/lib/fullPrecision';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { AppHeader } from '@/components/ui/app-shell';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
@@ -299,11 +298,11 @@ const DecisionTreeBuilderInner = () => {
 };
 
 const DecisionTreeBuilder = () => (
-  <ThemedApp className="min-h-screen" data-testid="dtb-theme-scope">
+  <div className="min-h-screen" data-testid="dtb-theme-scope">
     <FullPrecisionProvider>
       <DecisionTreeBuilderInner />
     </FullPrecisionProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default DecisionTreeBuilder;

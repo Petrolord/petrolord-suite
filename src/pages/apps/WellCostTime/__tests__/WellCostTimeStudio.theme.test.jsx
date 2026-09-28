@@ -22,6 +22,7 @@ jest.mock('../services/wpBackend', () => ({
 
 import {
   describeAppTheme, expectNoLegacyChrome, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import { AuthContext } from '@/contexts/SupabaseAuthContext';
 import WellCostTimeStudio from '../WellCostTimeStudio';
@@ -41,6 +42,10 @@ const renderApp = () => render(
   </AuthContext.Provider>,
 );
 const ready = () => screen.findByTestId('wct-activities-card', {}, WAIT);
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: USER_ID });
 
 describeAppTheme({
   name: 'Well Cost & Time Estimator',

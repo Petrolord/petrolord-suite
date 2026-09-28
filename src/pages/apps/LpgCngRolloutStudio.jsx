@@ -6,7 +6,6 @@ import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Flame } from 'lucide-react';
 import { AppHeader } from '@/components/ui/app-shell';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -91,11 +90,11 @@ const LpgCngRolloutStudio = () => (
       <title>LPG &amp; CNG Rollout Studio - Petrolord Suite</title>
       <meta name="description" content="LPG bottling, storage and cylinder-fleet logistics; CNG cascade storage, compression and dispensing; and vehicle conversion economics with the emissions avoided." />
     </Helmet>
-    <ThemedApp className="min-h-screen" data-testid="lpgcng-theme-scope">
+    <div className="min-h-screen" data-testid="lpgcng-theme-scope">
       <LpgCngProvider>
         <Workspace />
       </LpgCngProvider>
-    </ThemedApp>
+    </div>
   </>
 );
 

@@ -14,7 +14,6 @@ import {
 import {
   Callout, Code, Formula, GuideSection, HelpGuideShell, Para, SectionHeading, Step, SubHeading, Table,
 } from '@/components/helpguide/HelpGuideLayout';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { ML_WORKBENCH_ROUTE } from '@/utils/dataAi/mlStudy';
 import { MAX_FIT_ROWS, MAX_IMPORTANCE_ROWS } from '@/utils/dataAi/mlData';
 
@@ -362,9 +361,9 @@ const MlWorkbenchHelpGuideContent = () => (
 );
 
 const MlWorkbenchHelpGuide = () => (
-  <ThemedApp className="min-h-screen" data-testid="mlwb-help-theme-scope">
+  <div className="min-h-screen" data-testid="mlwb-help-theme-scope">
     <MlWorkbenchHelpGuideContent />
-  </ThemedApp>
+  </div>
 );
 
 export default MlWorkbenchHelpGuide;

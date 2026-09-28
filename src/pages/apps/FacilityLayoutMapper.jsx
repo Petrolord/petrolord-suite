@@ -13,7 +13,6 @@ import { nextEquipmentTag } from '@/utils/facilities/layoutTags';
 import { DEFAULT_SPACING_INPUTS, normaliseSpacingInputs } from '@/utils/facilities/layoutSpacing';
 import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 const iconMap = {
   'Wellhead': CircleDot,
@@ -99,7 +98,7 @@ const FacilityLayoutMapper = () => {
   // page wraps itself in <ThemedApp>; the panels use theme roles and the
   // map sits on a light canvas (MapPanel).
   return (
-    <ThemedApp data-testid="layoutmapper-theme-scope">
+    <div data-testid="layoutmapper-theme-scope">
       <FullPrecisionProvider>
         <Helmet>
           <title>Facility Layout Mapper - Petrolord</title>
@@ -161,7 +160,7 @@ const FacilityLayoutMapper = () => {
           </main>
         </div>
       </FullPrecisionProvider>
-    </ThemedApp>
+    </div>
   );
 };
 

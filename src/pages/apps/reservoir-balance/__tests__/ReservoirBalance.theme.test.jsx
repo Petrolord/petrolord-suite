@@ -39,9 +39,14 @@ jest.mock('@/lib/customSupabaseClient', () => {
 
 import {
   describeAppTheme, expectNoLegacyChrome, expectThemedPath, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import ReservoirBalance from '@/pages/apps/reservoir-balance/ReservoirBalance';
 import MbalHarness from '@/pages/apps/reservoir-balance/harness/MbalHarness';
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: 'Material Balance Studio',

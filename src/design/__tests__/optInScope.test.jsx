@@ -191,7 +191,7 @@ describe('an unmigrated app is unchanged', () => {
     expect(screen.getByTestId('full-precision-note').className).toMatch(/\btext-amber-300\b/);
   });
 
-  it('the fixture path is registered by no rollout batch', () => {
+  it('the fixture path sits outside every themed path (outside /dashboard since 7A)', () => {
     expect(isThemedPath(LEGACY_FIXTURE_PATH)).toBe(false);
   });
 });

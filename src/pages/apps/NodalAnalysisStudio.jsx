@@ -19,7 +19,6 @@ import { SensitivityResults, GasLiftResults } from '@/components/nodalstudio/Swe
 import ChokesResults from '@/components/nodalstudio/ChokesResults';
 import NASHelpContent from '@/components/nodalstudio/NASHelpContent';
 import { SectionLabel } from '@/components/nodalstudio/primitives';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 // Design system rollout batch 2D (docs/scope/DesignSystem-Rollout.md): the
 // page wraps itself in <ThemedApp>, so every class below is a theme role.
@@ -206,10 +205,10 @@ const NodalStudioContent = () => {
 
 export default function NodalAnalysisStudio() {
   return (
-    <ThemedApp data-testid="nodal-theme-scope">
+    <div data-testid="nodal-theme-scope">
       <NodalAnalysisStudioProvider>
         <NodalStudioContent />
       </NodalAnalysisStudioProvider>
-    </ThemedApp>
+    </div>
   );
 }

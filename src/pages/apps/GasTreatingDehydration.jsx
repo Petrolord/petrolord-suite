@@ -19,7 +19,6 @@ import {
 } from '@/components/gasprocessing/SweeteningDewPanels';
 import GasProcessingHelpContent from '@/components/gasprocessing/GasProcessingHelpGuide';
 import { fmt, Row } from '@/components/gasprocessing/fields';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 // Design system rollout batch 5B (docs/scope/DesignSystem-Rollout.md): the
 // page wraps itself in <ThemedApp>, so every class below is a theme role.
@@ -169,13 +168,13 @@ const StudioContent = () => {
 };
 
 const GasTreatingDehydration = () => (
-  <ThemedApp data-testid="gasprocessing-theme-scope">
+  <div data-testid="gasprocessing-theme-scope">
     <GasProcessingProvider>
       <FullPrecisionProvider>
         <StudioContent />
       </FullPrecisionProvider>
     </GasProcessingProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default GasTreatingDehydration;

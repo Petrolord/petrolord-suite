@@ -22,6 +22,7 @@ jest.mock('@/lib/customSupabaseClient', () => ({
 
 import DeclineCurveAnalysis from '@/pages/apps/DeclineCurveAnalysis';
 import { themeStorageKey } from '@/design/ThemeProvider';
+import { installDashboardScope, getScopeRoot } from '@/design/testing/themeAssertions';
 
 beforeAll(() => {
   global.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
@@ -41,11 +42,15 @@ const hasLegacyColour = (cls) => cls.split(/\s+/)
   .filter((t) => !t.startsWith('dark:'))
   .some((t) => LEGACY_TOKEN.test(t));
 
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
+
 describe('Decline Curve Analysis on the design system', () => {
   it('renders inside a light theme scope by default', async () => {
     renderPage();
     await screen.findByText('Decline Curve Analysis');
-    const root = screen.getByTestId('dca-theme-scope');
+    const root = getScopeRoot('dca-theme-scope');
     expect(root).toHaveAttribute('data-pl-theme', 'light');
     expect(root).toHaveAttribute('data-pl-root');
   });
@@ -53,7 +58,7 @@ describe('Decline Curve Analysis on the design system', () => {
   it('the header toggle switches light and dark and remembers the choice', async () => {
     renderPage();
     await screen.findByText('Decline Curve Analysis');
-    const root = screen.getByTestId('dca-theme-scope');
+    const root = getScopeRoot('dca-theme-scope');
     const toggle = screen.getByTestId('theme-toggle');
     expect(toggle).toHaveAttribute('aria-pressed', 'false');
     fireEvent.click(toggle);
@@ -67,7 +72,7 @@ describe('Decline Curve Analysis on the design system', () => {
   it('has no legacy console colours outside chart canvases, on both tabs', async () => {
     renderPage();
     await screen.findByText('Decline Curve Analysis');
-    const offenders = () => [...screen.getByTestId('dca-theme-scope').querySelectorAll('[class]')]
+    const offenders = () => [...getScopeRoot('dca-theme-scope').querySelectorAll('[class]')]
       .filter((el) => !el.closest('[data-canvas="chart"]'))
       .map((el) => el.getAttribute('class'))
       .filter(hasLegacyColour);

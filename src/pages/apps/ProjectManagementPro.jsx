@@ -22,7 +22,6 @@ import {
 import EmptyState from '@/components/projectmanagement/EmptyState';
 import { calculateEVM, formatTasksForGantt } from '@/utils/projectManagementCalculations';
 import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { AppHeader } from '@/components/ui/app-shell';
 
 /** Today as a local calendar date, the as-of date the dashboard measures to. */
@@ -254,11 +253,11 @@ const ProjectManagementProInner = () => {
 // Design system rollout 6C: the app wraps itself in the Petrolord theme
 // scope (light by default, dark per user through the header toggle).
 const ProjectManagementPro = () => (
-  <ThemedApp className="h-full min-h-screen" data-testid="pmp-theme-scope">
+  <div className="h-full min-h-screen" data-testid="pmp-theme-scope">
     <FullPrecisionProvider>
       <ProjectManagementProInner />
     </FullPrecisionProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default ProjectManagementPro;

@@ -11,13 +11,12 @@
 import React, { useMemo } from 'react';
 import EarthWorkstation from './components/EarthWorkstation';
 import { makeInMemoryBackend } from './services/inMemoryBackend';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 export default function EarthModelingHarness() {
   const backend = useMemo(() => makeInMemoryBackend(), []);
   return (
-    <ThemedApp className="h-screen w-full overflow-hidden" data-testid="em-theme-scope">
+    <div className="h-screen w-full overflow-hidden" data-testid="em-theme-scope">
       <EarthWorkstation backend={backend} appPaths={{ 'mapping-surface-studio': '/dev/mapping-surface-studio', 'reservoircalc-pro': '/dashboard/apps/geoscience/reservoircalc-pro', 'earth-modeling': '/dev/earth-modeling' }} />
-    </ThemedApp>
+    </div>
   );
 }

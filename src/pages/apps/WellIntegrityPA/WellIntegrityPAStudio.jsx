@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { ThemedApp } from '@/design/ThemeProvider';
 import WiWorkstation from './WiWorkstation';
 import { makeWpBackend } from './services/wpBackend';
 
@@ -18,7 +17,7 @@ export default function WellIntegrityPAStudio() {
   // user's theme choice from the ribbon toggle. The route element in App.jsx
   // is unchanged.
   return (
-    <ThemedApp data-testid="wi-theme-scope">
+    <div data-testid="wi-theme-scope">
       <Helmet>
         <title>Well Integrity & P&A Studio - Petrolord Suite</title>
         <meta
@@ -29,6 +28,6 @@ export default function WellIntegrityPAStudio() {
       <div className="h-screen w-full overflow-hidden">
         <WiWorkstation backend={backend} />
       </div>
-    </ThemedApp>
+    </div>
   );
 }

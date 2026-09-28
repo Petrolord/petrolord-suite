@@ -53,6 +53,7 @@ jest.mock('@/lib/customSupabaseClient', () => {
 
 import {
   describeAppTheme, expectNoLegacyChrome, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import { AuthContext } from '@/contexts/SupabaseAuthContext';
 import AfeCostControlManager from '@/pages/apps/AfeCostControlManager';
@@ -66,6 +67,10 @@ const renderApp = () => render(
   </MemoryRouter>,
 );
 const ready = () => screen.findByText('AFE-26-001');
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: 'u1' });
 
 describeAppTheme({
   name: 'AFE Cost Control Manager',

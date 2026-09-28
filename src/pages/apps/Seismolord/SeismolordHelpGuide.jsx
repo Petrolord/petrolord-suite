@@ -3,7 +3,6 @@
 // nine Seismolord handbooks. Every control named here exists in the
 // workspace today. Copy rule: no em dashes. Guard: __tests__/helpGuide.test.jsx.
 import React from 'react';
-import { ThemedApp } from '@/design/ThemeProvider';
 import {
   BookOpen, Zap, Database, Layers, Activity, GitBranch, CircleDot, Map as MapIcon, Box, Rows, Ruler, Link2, AlertTriangle, BookMarked,
   Waves, Sparkles,
@@ -38,7 +37,7 @@ export default function SeismolordHelpGuide() {
   // design system pilot 4: the guide follows the same per-user theme as
   // the workspace so it does not flip between the app's pages
   return (
-    <ThemedApp className="min-h-screen" data-testid="seismolord-help-root">
+    <div className="min-h-screen" data-testid="seismolord-help-root">
     <HelpGuideShell
       title="Seismolord Help Guide"
       subtitle="3D and 2D seismic interpretation in the browser: SEG-Y volumes, horizons, faults, wells and ties, surfaces and the shared registry"
@@ -403,6 +402,6 @@ export default function SeismolordHelpGuide() {
         ]} />
       </GuideSection>
     </HelpGuideShell>
-    </ThemedApp>
+    </div>
   );
 }

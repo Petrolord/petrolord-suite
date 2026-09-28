@@ -9,7 +9,6 @@ import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Ship } from 'lucide-react';
 import { AppHeader } from '@/components/ui/app-shell';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -105,7 +104,7 @@ const Workspace = () => {
 // Design system rollout batch 5C (docs/scope/DesignSystem-Rollout.md): the
 // page wraps itself in <ThemedApp>, so every class below is a theme role.
 const MarineLogisticsPlanner = ({ initialInputs }) => (
-  <ThemedApp data-testid="marine-logistics-theme-scope" className="h-full">
+  <div data-testid="marine-logistics-theme-scope" className="h-full">
     <Helmet>
       <title>Marine Logistics Planner - Petrolord Suite</title>
       <meta name="description" content="Offshore marine logistics: voyage plans with the binding capacity constraint named, supply vessel fleet sizing with stated rounding rules, fleet variability by seeded Monte Carlo, deck plans by first-fit decreasing, and supply base queues by M/M/c or M/D/c." />
@@ -113,7 +112,7 @@ const MarineLogisticsPlanner = ({ initialInputs }) => (
     <MarineLogisticsProvider initialInputs={initialInputs}>
       <Workspace />
     </MarineLogisticsProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default MarineLogisticsPlanner;

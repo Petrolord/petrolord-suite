@@ -16,7 +16,6 @@ import React, { useEffect, useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
 import { AuthContext } from '@/contexts/SupabaseAuthContext';
-import { ThemedApp } from '@/design/ThemeProvider';
 import EpeResultsViewer from '../EpeResultsViewer';
 import EpeCaseList from '../EpeCaseList';
 import EpeCaseDetail from '../EpeCaseDetail';
@@ -78,7 +77,7 @@ export default function EpeHarness() {
   if (!ready) return null;
   return (
     <AuthContext.Provider value={DEV_AUTH}>
-      <ThemedApp className="min-h-screen" data-testid="epe-harness">
+      <div className="min-h-screen" data-testid="epe-harness">
         <Routes>
           <Route path="runs/:runId" element={<EpeResultsViewer />} />
           <Route path="cases" element={<EpeCaseList />} />
@@ -87,7 +86,7 @@ export default function EpeHarness() {
           <Route path="cases/:caseId/compare" element={<EpeRunComparison />} />
           <Route path="help" element={<EpeHelpGuide />} />
         </Routes>
-      </ThemedApp>
+      </div>
     </AuthContext.Provider>
   );
 }

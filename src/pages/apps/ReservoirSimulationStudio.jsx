@@ -17,7 +17,6 @@ import RunPanel from '@/components/simstudio/RunPanel';
 import ResultsPanel from '@/components/simstudio/ResultsPanel';
 import SimKpiPanel from '@/components/simstudio/SimKpiPanel';
 import SimHelpGuide from '@/components/simstudio/SimHelpGuide';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 const TABS = [
   { value: 'deck', label: 'Deck' },
@@ -125,10 +124,10 @@ const SimStudioContent = () => {
 // 3D preview is a dark canvas.
 export default function ReservoirSimulationStudio() {
   return (
-    <ThemedApp data-testid="sim-theme-scope">
+    <div data-testid="sim-theme-scope">
       <SimStudioProvider>
         <SimStudioContent />
       </SimStudioProvider>
-    </ThemedApp>
+    </div>
   );
 }

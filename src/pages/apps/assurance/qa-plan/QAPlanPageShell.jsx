@@ -1,6 +1,5 @@
 import React, { Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 const Dashboard = lazy(() => import('./Dashboard'));
 const Register = lazy(() => import('./Register'));
@@ -20,7 +19,7 @@ const Reports = lazy(() => import('./Reports'));
  */
 export default function QAPlanPageShell() {
   return (
-    <ThemedApp className="qa-plan-shell flex h-full min-h-screen w-full flex-col" data-testid="qa-plan-theme-scope">
+    <div className="qa-plan-shell flex h-full min-h-screen w-full flex-col" data-testid="qa-plan-theme-scope">
       <Suspense fallback={<div className="flex items-center justify-center h-full">Loading QA Plan Module...</div>}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
@@ -33,6 +32,6 @@ export default function QAPlanPageShell() {
           <Route path="*" element={<Dashboard />} />
         </Routes>
       </Suspense>
-    </ThemedApp>
+    </div>
   );
 }

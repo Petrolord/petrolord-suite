@@ -1,17 +1,32 @@
 // Shared page chrome for the account and billing pages (design-system
 // rollout batch 1E: upgrade, modules, seats, employees, access requests,
 // subscriptions, renew, history, usage). Theme roles only, so everything
-// here belongs inside the page's own <ThemedApp> scope, which AccountScope
-// provides. Every consumer of this file is in batch 1E.
+// here belongs inside a theme scope. Under /dashboard that is the one
+// dashboard scope (DashboardLayout, batch 7A); the pages outside it
+// (/profile and the super-admin pages) get their own scope from
+// AccountScope. Every consumer of this file is in batch 1E.
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ThemedApp } from '@/design/ThemeProvider';
+import { useDsTheme } from '@/design/themeContext';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
-/** The page's own theme scope (DesignSystem-Rollout.md section 4, step 2). */
+/**
+ * The page root. Inside the dashboard scope it is a plain element (one
+ * provider for the whole dashboard, no nested scope); outside it (/profile,
+ * /admin/*, /super-admin) it opens the page's own theme scope.
+ */
 export function AccountScope({ testId, className, children }) {
+  const outer = useDsTheme();
+  if (outer) {
+    return (
+      <div className={cn('min-h-screen', className)} data-testid={testId}>
+        {children}
+      </div>
+    );
+  }
   return (
     <ThemedApp className={cn('min-h-screen', className)} data-testid={testId}>
       {children}

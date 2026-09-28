@@ -68,6 +68,7 @@ jest.mock('@/utils/savedProjects', () => {
 
 import {
   describeAppTheme, expectNoLegacyChrome, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import { AuthContext } from '@/contexts/SupabaseAuthContext';
 import ProductionAllocationStudio from '@/pages/apps/ProductionAllocationStudio';
@@ -79,6 +80,10 @@ const renderApp = () => render(
   </AuthContext.Provider>,
 );
 const ready = () => screen.findByText('Production Allocation Studio');
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: 'u1' });
 
 describeAppTheme({
   name: 'Production Allocation Studio',

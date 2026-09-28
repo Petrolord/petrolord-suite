@@ -30,7 +30,6 @@ import ReportResults from '@/components/welltest/ReportResults';
 import DiagnosticsRail from '@/components/welltest/DiagnosticsRail';
 import WTSHelpContent from '@/components/welltest/WTSHelpContent';
 import { SectionLabel } from '@/components/welltest/primitives';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 const TABS = [
   { value: 'data', label: 'Data' },
@@ -155,10 +154,10 @@ const WellTestStudioContent = () => {
 // switches it to dark per user. Charts keep the white chart standard.
 export default function WellTestAnalysisStudio() {
   return (
-    <ThemedApp data-testid="wts-theme-scope">
+    <div data-testid="wts-theme-scope">
       <WellTestStudioProvider>
         <WellTestStudioContent />
       </WellTestStudioProvider>
-    </ThemedApp>
+    </div>
   );
 }

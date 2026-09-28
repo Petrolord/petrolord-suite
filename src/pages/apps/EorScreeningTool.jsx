@@ -15,7 +15,6 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import ChartFrame from '@/components/charts/ChartFrame';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE,
@@ -267,8 +266,8 @@ function EorScreeningContent() {
 // user's theme choice from the header toggle.
 export default function EorScreeningTool() {
   return (
-    <ThemedApp className="min-h-full" data-testid="eor-theme-scope">
+    <div className="min-h-full" data-testid="eor-theme-scope">
       <EorScreeningContent />
-    </ThemedApp>
+    </div>
   );
 }

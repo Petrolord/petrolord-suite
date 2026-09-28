@@ -16,6 +16,7 @@ import { MemoryRouter } from 'react-router-dom';
 import {
   describeAppTheme, expectNoLegacyChrome, expectLightByDefault, expectNegativeControl,
   expectThemedPath, installDomShims, getScopeRoot,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import { themeStorageKey } from '@/design/ThemeProvider';
 import { openWellsiteDb } from '@/lib/wellsite/db';
@@ -53,6 +54,10 @@ const wellOpen = () => waitFor(() => expect(screen.getByTestId('ws-status-bit'))
 
 beforeAll(installDomShims);
 beforeEach(async () => { mockBackend = await seedBackend(); });
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: 'Wellsite Studio',
@@ -111,7 +116,7 @@ describe('Wellsite Studio themed states', () => {
 
   test('the help guide shares the scope and opens light', () => {
     render(<MemoryRouter><WellsiteHelpGuide /></MemoryRouter>);
-    const scope = screen.getByTestId('ws-help-theme-scope');
+    const scope = getScopeRoot('ws-help-theme-scope');
     expectLightByDefault(scope);
     expectNoLegacyChrome();
     expectThemedPath(`${ROUTE}/help`);

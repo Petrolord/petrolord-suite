@@ -14,7 +14,6 @@ import { ValveStudioProvider, useValve } from '@/contexts/ValveStudioContext';
 import { ServiceInputs, SizingResults, ControlResults } from '@/components/valvestudio/ValvePanels';
 import ValveHelpContent from '@/components/valvestudio/ValveHelpGuide';
 import { fmt, Row } from '@/components/valvestudio/fields';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 const TABS = [
   { value: 'sizing', label: 'Sizing' },
@@ -155,11 +154,11 @@ const StudioContent = () => {
 // page wraps itself in <ThemedApp>, so every class in its own files is a
 // theme role.
 const ControlValveSizing = () => (
-  <ThemedApp data-testid="valve-theme-scope">
+  <div data-testid="valve-theme-scope">
     <ValveStudioProvider>
       <StudioContent />
     </ValveStudioProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default ControlValveSizing;

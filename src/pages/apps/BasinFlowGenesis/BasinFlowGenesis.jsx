@@ -10,7 +10,6 @@ import ExpertModePanel from './components/ExpertModePanel';
 import { ErrorBoundary } from 'react-error-boundary';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle } from 'lucide-react';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 const ErrorFallback = ({ error, resetErrorBoundary }) => {
   return (
@@ -70,7 +69,7 @@ export const BasinFlowApp = () => {
  *  carries the theme scope, so the page and the harness both open light
  *  with the header toggle for dark. */
 export const BasinFlowShell = ({ backend, appPaths = {} }) => (
-  <ThemedApp className="h-screen w-full" data-testid="bf-theme-scope">
+  <div className="h-screen w-full" data-testid="bf-theme-scope">
     <ErrorBoundary FallbackComponent={ErrorFallback}>
       <MultiWellProvider backend={backend}>
         <BasinFlowProvider appPaths={appPaths}>
@@ -78,7 +77,7 @@ export const BasinFlowShell = ({ backend, appPaths = {} }) => (
         </BasinFlowProvider>
       </MultiWellProvider>
     </ErrorBoundary>
-  </ThemedApp>
+  </div>
 );
 
 const BasinFlowGenesis = () => {

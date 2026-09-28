@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { BarChart3, HelpCircle } from 'lucide-react';
 import { AppHeader } from '@/components/ui/app-shell';
-import { ThemedApp } from '@/design/ThemeProvider';
 import InputPanel from '@/components/npv/InputPanel';
 import ResultsPanel from '@/components/npv/ResultsPanel';
 import EmptyState from '@/components/npv/EmptyState';
@@ -202,9 +201,9 @@ const NpvScenarioBuilderContent = () => {
 // switches it to dark per user. The cash-flow, sensitivity and risk charts
 // keep the white chart standard.
 const NpvScenarioBuilder = () => (
-  <ThemedApp className="min-h-screen" data-testid="npv-theme-scope">
+  <div className="min-h-screen" data-testid="npv-theme-scope">
     <NpvScenarioBuilderContent />
-  </ThemedApp>
+  </div>
 );
 
 export default NpvScenarioBuilder;

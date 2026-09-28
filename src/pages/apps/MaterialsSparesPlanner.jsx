@@ -9,7 +9,6 @@ import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Package } from 'lucide-react';
 import { AppHeader } from '@/components/ui/app-shell';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -109,11 +108,11 @@ const MaterialsSparesPlanner = ({ initialInputs }) => (
       <title>Materials &amp; Spares Planner - Petrolord Suite</title>
       <meta name="description" content="Materials and spares planning: criticality and ABC classes, EOQ and quantity discounts, safety stock and reorder points for normal and Poisson demand, insurance spares, lead-time risk by seeded Monte Carlo, and slow-moving and obsolete stock." />
     </Helmet>
-    <ThemedApp className="min-h-screen" data-testid="materials-theme-scope">
+    <div className="min-h-screen" data-testid="materials-theme-scope">
       <MaterialsSparesProvider initialInputs={initialInputs}>
         <Workspace />
       </MaterialsSparesProvider>
-    </ThemedApp>
+    </div>
   </>
 );
 

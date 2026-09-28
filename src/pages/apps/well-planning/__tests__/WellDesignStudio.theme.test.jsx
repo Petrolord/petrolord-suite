@@ -85,6 +85,7 @@ jest.mock('react-leaflet', () => {
 
 import {
   describeAppTheme, expectNoLegacyChrome, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import { AuthContext } from '@/contexts/SupabaseAuthContext';
 import WellPlanning from '@/pages/apps/WellPlanning';
@@ -103,6 +104,10 @@ const renderApp = () => render(
 );
 const WAIT = { timeout: 5000 };
 const ready = () => screen.findByText('Theme Pad', {}, WAIT);
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: USER_ID });
 
 describeAppTheme({
   name: 'Well Design Studio',

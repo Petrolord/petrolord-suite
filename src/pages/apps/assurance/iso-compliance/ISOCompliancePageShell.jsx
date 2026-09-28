@@ -1,6 +1,5 @@
 import React, { Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 const Dashboard = lazy(() => import('./Dashboard'));
 const Standards = lazy(() => import('./Standards'));
@@ -23,7 +22,7 @@ const Reports = lazy(() => import('./Reports'));
  */
 export default function ISOCompliancePageShell() {
   return (
-    <ThemedApp className="iso-compliance-shell h-full w-full" data-testid="iso-theme-scope">
+    <div className="iso-compliance-shell h-full w-full" data-testid="iso-theme-scope">
       <Suspense fallback={<div className="flex items-center justify-center h-full">Loading ISO Compliance...</div>}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
@@ -37,6 +36,6 @@ export default function ISOCompliancePageShell() {
           <Route path="*" element={<Dashboard />} />
         </Routes>
       </Suspense>
-    </ThemedApp>
+    </div>
   );
 }

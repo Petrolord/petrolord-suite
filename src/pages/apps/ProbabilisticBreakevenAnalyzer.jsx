@@ -16,7 +16,6 @@ import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullpre
 import EmptyState from '@/components/breakevenanalyzer/EmptyState';
 import BreakevenHelpGuide from '@/components/breakevenanalyzer/BreakevenHelpGuide';
 import { Activity } from 'lucide-react';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { AppHeader } from '@/components/ui/app-shell';
 
 const TABLE = 'saved_breakeven_projects';
@@ -132,7 +131,7 @@ const ProbabilisticBreakevenAnalyzer = () => {
   }, [toast]);
 
   return (
-    <ThemedApp className="flex min-h-screen flex-col" data-testid="pba-theme-scope">
+    <div className="flex min-h-screen flex-col" data-testid="pba-theme-scope">
     <FullPrecisionProvider>
       <Helmet>
         <title>Probabilistic Breakeven Analyzer - Petrolord Suite</title>
@@ -203,7 +202,7 @@ const ProbabilisticBreakevenAnalyzer = () => {
         </div>
       </div>
     </FullPrecisionProvider>
-    </ThemedApp>
+    </div>
   );
 };
 

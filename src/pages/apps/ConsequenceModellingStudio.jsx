@@ -12,7 +12,6 @@ import { Link } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -116,7 +115,7 @@ const Workspace = () => {
 };
 
 const ConsequenceModellingStudio = () => (
-  <ThemedApp className="h-full min-h-screen" data-testid="consequence-theme-scope">
+  <div className="h-full min-h-screen" data-testid="consequence-theme-scope">
     <Helmet>
       <title>Consequence Modelling Studio - Petrolord Suite</title>
       <meta
@@ -127,7 +126,7 @@ const ConsequenceModellingStudio = () => (
     <ConsequenceStudioProvider>
       <Workspace />
     </ConsequenceStudioProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default ConsequenceModellingStudio;

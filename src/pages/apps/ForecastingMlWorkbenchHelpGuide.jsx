@@ -13,7 +13,6 @@ import {
 import {
   Callout, Code, Formula, GuideSection, HelpGuideShell, Para, SectionHeading, Step, SubHeading, Table,
 } from '@/components/helpguide/HelpGuideLayout';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { FORECASTING_ROUTE } from '@/utils/dataAi/forecastStudy';
 import { DEFAULT_FIRST_ORIGIN, ENGINE_DEFAULTS as D } from '@/utils/dataAi/forecastWorkflows';
 import { MAX_WELLS, MAX_SAVED_UPLOAD_VALUES } from '@/utils/dataAi/forecastData';
@@ -313,9 +312,9 @@ const ForecastingMlWorkbenchHelpGuideContent = () => (
 );
 
 const ForecastingMlWorkbenchHelpGuide = () => (
-  <ThemedApp className="min-h-screen" data-testid="forecastml-help-theme-scope">
+  <div className="min-h-screen" data-testid="forecastml-help-theme-scope">
     <ForecastingMlWorkbenchHelpGuideContent />
-  </ThemedApp>
+  </div>
 );
 
 export default ForecastingMlWorkbenchHelpGuide;

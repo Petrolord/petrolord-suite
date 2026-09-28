@@ -14,7 +14,6 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, BookOpen, Scale } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -118,7 +117,7 @@ const Workspace = () => {
 };
 
 const QraStudio = () => (
-  <ThemedApp className="h-full min-h-screen" data-testid="qra-theme-scope">
+  <div className="h-full min-h-screen" data-testid="qra-theme-scope">
     <Helmet>
       <title>QRA Studio - Petrolord Suite</title>
       <meta
@@ -129,7 +128,7 @@ const QraStudio = () => (
     <QraStudioProvider>
       <Workspace />
     </QraStudioProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default QraStudio;

@@ -13,7 +13,6 @@ import StudioHeader from '@/components/studio/StudioHeader';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import StudioHelp from '@/components/studio/StudioHelp';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
-import { ThemedApp } from '@/design/ThemeProvider';
 import {
   ProductionSurveillanceProvider, useSurveillance,
 } from '@/contexts/ProductionSurveillanceContext';
@@ -179,10 +178,10 @@ const SurveillanceContent = () => {
 // switches it to dark per user. Charts keep the white chart standard.
 export default function ProductionSurveillanceStudio() {
   return (
-    <ThemedApp data-testid="surveillance-theme-scope">
+    <div data-testid="surveillance-theme-scope">
       <ProductionSurveillanceProvider>
         <SurveillanceContent />
       </ProductionSurveillanceProvider>
-    </ThemedApp>
+    </div>
   );
 }

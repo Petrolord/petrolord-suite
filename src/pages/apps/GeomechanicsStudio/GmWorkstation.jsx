@@ -6,7 +6,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -345,8 +344,8 @@ function GmWorkstationContent({ backend }) {
 // harness both mount this component, so they share the one scope.
 export default function GmWorkstation(props) {
   return (
-    <ThemedApp className="h-full" data-testid="gm-theme-scope">
+    <div className="h-full" data-testid="gm-theme-scope">
       <GmWorkstationContent {...props} />
-    </ThemedApp>
+    </div>
   );
 }

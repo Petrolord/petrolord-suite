@@ -25,11 +25,16 @@ jest.mock('@/lib/customSupabaseClient', () => ({
 
 import {
   describeAppTheme, expectNoLegacyChrome, expectThemedPath, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import WellTestAnalysisStudio from '@/pages/apps/WellTestAnalysisStudio';
 
 const renderApp = () => render(<MemoryRouter><WellTestAnalysisStudio /></MemoryRouter>);
 const ready = () => screen.findByText('Well Test Analysis Studio');
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: 'Well Test Analysis Studio',

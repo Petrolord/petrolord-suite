@@ -30,11 +30,16 @@ jest.mock('@/utils/savedProjects', () => {
 
 import {
   describeAppTheme, expectNoLegacyChrome, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import ProductionNetworkStudio from '@/pages/apps/ProductionNetworkStudio';
 
 const renderApp = () => render(<MemoryRouter><ProductionNetworkStudio /></MemoryRouter>);
 const ready = () => screen.findByText('Production Network Studio');
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: 'Production Network Studio',

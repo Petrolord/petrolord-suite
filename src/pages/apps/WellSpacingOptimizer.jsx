@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { Target, HelpCircle } from 'lucide-react';
 import { AppHeader } from '@/components/ui/app-shell';
-import { ThemedApp } from '@/design/ThemeProvider';
 import InputPanel from '@/components/wellspacing/InputPanel';
 import ResultsPanel from '@/components/wellspacing/ResultsPanel';
 import EmptyState from '@/components/wellspacing/EmptyState';
@@ -202,9 +201,9 @@ const WellSpacingOptimizerContent = () => {
 // switches it to dark per user. The spacing charts keep the white chart
 // standard.
 const WellSpacingOptimizer = () => (
-  <ThemedApp className="min-h-screen" data-testid="wso-theme-scope">
+  <div className="min-h-screen" data-testid="wso-theme-scope">
     <WellSpacingOptimizerContent />
-  </ThemedApp>
+  </div>
 );
 
 export default WellSpacingOptimizer;

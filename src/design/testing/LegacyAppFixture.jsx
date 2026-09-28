@@ -1,6 +1,6 @@
 // TEST-ONLY. A stand-in for "an app that has not migrated" in the opt-in
 // proofs (src/design/__tests__/optInScope.test.jsx and
-// src/components/hubs/__tests__/hubScope.test.jsx). Until Wave 0A the proof
+// src/design/__tests__/coldLoad.test.jsx). Until Wave 0A the proof
 // mounted a real app (Voidage Replacement Monitor, then Waterflood Design
 // Studio) and had to move each time that app migrated; this fixture never
 // migrates, so no rollout batch has to touch the proof again.
@@ -25,8 +25,11 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { FullPrecisionProvider, FullPrecisionToggle, FullPrecisionNote } from '@/components/fullprecision/FullPrecision';
 
-/** A dashboard path no batch registers; the fixture "lives" here in the proofs. */
-export const LEGACY_FIXTURE_PATH = '/dashboard/apps/legacy/unmigrated-fixture';
+/**
+ * A path outside every scope; the fixture "lives" here in the proofs. Since
+ * batch 7A every /dashboard path is themed, so it sits outside /dashboard.
+ */
+export const LEGACY_FIXTURE_PATH = '/legacy/unmigrated-fixture';
 export const LEGACY_FIXTURE_TITLE = 'Legacy Fixture Studio';
 
 const TABS = [

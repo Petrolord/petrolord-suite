@@ -15,7 +15,6 @@ import { MeterStudioProvider, useMeter } from '@/contexts/MeterStudioContext';
 import { RunInputs, FlowResults, UncertaintyResults } from '@/components/meterstudio/MeterPanels';
 import MeterHelpContent from '@/components/meterstudio/MeterHelpGuide';
 import { fmt, Row } from '@/components/meterstudio/fields';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 // Design system rollout batch 5B (docs/scope/DesignSystem-Rollout.md): the
 // page wraps itself in <ThemedApp>, so every class below is a theme role.
@@ -151,11 +150,11 @@ const StudioContent = () => {
 };
 
 const FlowMeteringDesigner = () => (
-  <ThemedApp data-testid="meter-theme-scope">
+  <div data-testid="meter-theme-scope">
     <MeterStudioProvider>
       <StudioContent />
     </MeterStudioProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default FlowMeteringDesigner;

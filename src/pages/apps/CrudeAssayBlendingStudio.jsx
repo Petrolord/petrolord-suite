@@ -7,7 +7,6 @@ import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Beaker } from 'lucide-react';
 import { AppHeader } from '@/components/ui/app-shell';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -93,11 +92,11 @@ const CrudeAssayBlendingStudio = () => (
       <title>Crude Assay &amp; Blending Studio - Petrolord Suite</title>
       <meta name="description" content="Crude assay cut yields, blend property prediction, asphaltene stability screening and netback valuation." />
     </Helmet>
-    <ThemedApp className="min-h-screen" data-testid="crudeassay-theme-scope">
+    <div className="min-h-screen" data-testid="crudeassay-theme-scope">
       <CrudeAssayProvider>
         <Workspace />
       </CrudeAssayProvider>
-    </ThemedApp>
+    </div>
   </>
 );
 

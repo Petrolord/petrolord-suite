@@ -14,7 +14,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describeAppTheme, expectNoLegacyChrome, installDomShims } from '@/design/testing/themeAssertions';
+import { describeAppTheme, expectNoLegacyChrome, installDomShims, installDashboardScope } from '@/design/testing/themeAssertions';
 
 jest.mock('react-leaflet', () => {
   const Pass = ({ children }) => <div data-testid="map-pass">{children}</div>;
@@ -53,6 +53,10 @@ import FacilityLayoutMapper from '@/pages/apps/FacilityLayoutMapper';
 const TITLE = 'Layout Mapper';
 const renderApp = () => render(<MemoryRouter><FacilityLayoutMapper /></MemoryRouter>);
 const SECTIONS = ['Project', 'Equipment', 'Custom Icons', 'Precision Placement', 'Properties', 'Safety Spacing', 'Export'];
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: 'Facility Layout Mapper',

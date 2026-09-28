@@ -7,7 +7,6 @@ import { useRiskReporting } from '../contexts/RiskReportingContext';
 import { useRiskRegister } from '../hooks/useRiskRegister';
 import AssuranceHelp from '@/components/assurance/AssuranceHelp';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 export const RiskRegisterShell = ({ children, activeTab, onTabChange }) => {
   // AS2: the snapshot needs the register it is capturing. It used to
@@ -44,7 +43,7 @@ export const RiskRegisterShell = ({ children, activeTab, onTabChange }) => {
   return (
     // Design system (W4E): every Risk Register route renders this shell,
     // so the one theme scope lives here.
-    <ThemedApp className="flex flex-col h-full bg-pl-bg text-pl-text" data-testid="risk-theme-scope">
+    <div className="flex flex-col h-full bg-pl-bg text-pl-text" data-testid="risk-theme-scope">
       <div className="flex-none bg-pl-surface border-b border-pl-border">
         <div className="px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-4">
@@ -88,6 +87,6 @@ export const RiskRegisterShell = ({ children, activeTab, onTabChange }) => {
       <div className="flex-1 overflow-y-auto relative">
          {children}
       </div>
-    </ThemedApp>
+    </div>
   );
 };

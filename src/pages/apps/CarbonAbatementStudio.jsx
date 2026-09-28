@@ -5,7 +5,6 @@ import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Leaf } from 'lucide-react';
 import { AppHeader } from '@/components/ui/app-shell';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -77,7 +76,7 @@ const Workspace = () => {
 // Design system rollout w5e: the page wraps itself in <ThemedApp>, so the
 // classes below are theme roles; the charts stay white (ChartFrame).
 const CarbonAbatementStudio = () => (
-  <ThemedApp className="flex min-h-screen flex-col" data-testid="carbon-theme-scope">
+  <div className="flex min-h-screen flex-col" data-testid="carbon-theme-scope">
     <Helmet>
       <title>Carbon Footprint &amp; Abatement Studio - Petrolord Suite</title>
       <meta name="description" content="Scope 1 and 2 GHG inventory from stream and fuel data, carbon intensity per tonne, and a marginal abatement cost curve that flags interacting measures." />
@@ -85,7 +84,7 @@ const CarbonAbatementStudio = () => (
     <CarbonAbatementProvider>
       <Workspace />
     </CarbonAbatementProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default CarbonAbatementStudio;

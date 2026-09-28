@@ -33,7 +33,6 @@ import DiagnosticsRail from '@/components/waterflooddesign/DiagnosticsRail';
 import WDSHelpContent from '@/components/waterflooddesign/WDSHelpContent';
 import { SectionLabel } from '@/components/waterflooddesign/primitives';
 import { mapScalKrIntake } from '@/components/waterflooddesign/scalKrIntake';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 // Design system rollout batch 1D (docs/scope/DesignSystem-Rollout.md): the
 // page wraps itself in <ThemedApp>, so every class below is a theme role.
@@ -175,10 +174,10 @@ const WaterfloodDesignContent = () => {
 
 export default function WaterfloodDesignStudio() {
   return (
-    <ThemedApp data-testid="wds-theme-scope">
+    <div data-testid="wds-theme-scope">
       <WaterfloodDesignProvider>
         <WaterfloodDesignContent />
       </WaterfloodDesignProvider>
-    </ThemedApp>
+    </div>
   );
 }

@@ -6,7 +6,6 @@ import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import {
   ArrowLeft, BookOpen, Zap, Layers, Waves, AlignVerticalSpaceAround,
@@ -286,9 +285,9 @@ const CementingHelpGuideContent = () => {
 // Design system rollout batch 3D: the guide follows the same per-user theme
 // as the studio itself, so the look does not flip between the two pages.
 const CementingHelpGuide = () => (
-  <ThemedApp className="min-h-screen" data-testid="cmt-help-theme-scope">
+  <div className="min-h-screen" data-testid="cmt-help-theme-scope">
     <CementingHelpGuideContent />
-  </ThemedApp>
+  </div>
 );
 
 export default CementingHelpGuide;

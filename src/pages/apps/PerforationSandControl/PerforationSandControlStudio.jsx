@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import PsWorkstation from './PsWorkstation';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { makeWpBackend } from './services/wpBackend';
 
 // Perforation & Sand Control Designer (Drilling D8): Karakas-Tariq
@@ -22,9 +21,9 @@ export default function PerforationSandControlStudio() {
           content="Design perforating and sand control on your planned wellbores: Karakas-Tariq skin and productivity ratio, gun clearance, underbalance guidance, sieve statistics, Saucier gravel and screen selection, and sanding-onset screening."
         />
       </Helmet>
-      <ThemedApp className="h-screen w-full overflow-hidden" data-testid="ps-theme-scope">
+      <div className="h-screen w-full overflow-hidden" data-testid="ps-theme-scope">
         <PsWorkstation backend={backend} />
-      </ThemedApp>
+      </div>
     </>
   );
 }

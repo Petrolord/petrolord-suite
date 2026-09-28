@@ -22,7 +22,6 @@ import { FluidStudioHelpContent } from '@/components/fluidstudio/FluidStudioHelp
 import { useFluidStudioProjects } from '@/components/fluidstudio/useFluidStudioProjects';
 import { analyzeFluidSystem, sampleFluidStudioData } from '@/utils/fluidStudioCalculations';
 import { runEosFlash, runEosSeparator, runEosPvtTable } from '@/utils/fluidstudio/eosAnalysis';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 // Design system rollout batch 1D (docs/scope/DesignSystem-Rollout.md): the
 // page wraps itself in <ThemedApp>, so every class below is a theme role.
@@ -168,8 +167,8 @@ const FluidSystemsStudioContent = () => {
 
 export default function FluidSystemsStudio() {
   return (
-    <ThemedApp data-testid="fluid-theme-scope">
+    <div data-testid="fluid-theme-scope">
       <FluidSystemsStudioContent />
-    </ThemedApp>
+    </div>
   );
 }

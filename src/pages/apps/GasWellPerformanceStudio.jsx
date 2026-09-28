@@ -26,7 +26,6 @@ import ForecastPanel from '@/components/gaswell/ForecastPanel';
 import PlungerPanel from '@/components/gaswell/PlungerPanel';
 import GasWellWarningsPanel from '@/components/gaswell/WarningsPanel';
 import GasWellHelpContent from '@/components/gaswell/GasWellHelpGuide';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 // Design system rollout batch 2D (docs/scope/DesignSystem-Rollout.md): the
 // page wraps itself in <ThemedApp>, so every class below is a theme role.
@@ -172,10 +171,10 @@ const GasWellContent = () => {
 
 export default function GasWellPerformanceStudio() {
   return (
-    <ThemedApp data-testid="gaswell-theme-scope">
+    <div data-testid="gaswell-theme-scope">
       <GasWellPerformanceProvider>
         <GasWellContent />
       </GasWellPerformanceProvider>
-    </ThemedApp>
+    </div>
   );
 }

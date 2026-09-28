@@ -12,7 +12,6 @@ import {
 import {
   HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Callout, Step, Table,
 } from '@/components/helpguide/HelpGuideLayout';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { CURVE_ALIASES } from './services/prep';
 import { VELOCITY_UNITS, DENSITY_UNITS, DEPTH_UNITS } from './services/units';
 import { DEFAULT_AVO, DEFAULT_WEDGE } from './services/defaults';
@@ -230,8 +229,8 @@ function RockPhysicsStudioHelpGuideContent() {
 // as Rock Physics Studio itself, so the look does not flip between the two pages.
 export default function RockPhysicsStudioHelpGuide() {
   return (
-    <ThemedApp className="min-h-screen" data-testid="rp-help-theme-scope">
+    <div className="min-h-screen" data-testid="rp-help-theme-scope">
       <RockPhysicsStudioHelpGuideContent />
-    </ThemedApp>
+    </div>
   );
 }

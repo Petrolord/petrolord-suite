@@ -9,6 +9,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import {
   describeAppTheme, expectNoLegacyChrome, expectThemedPath, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 
 jest.mock('@/lib/customSupabaseClient', () => ({
@@ -34,6 +35,10 @@ import ArtificialLiftAdvisor from '@/pages/apps/ArtificialLiftAdvisor';
 const TITLE = 'Artificial Lift Advisor';
 const renderApp = () => render(<MemoryRouter><ArtificialLiftAdvisor /></MemoryRouter>);
 const openTab = (name) => fireEvent.mouseDown(screen.getByRole('tab', { name }));
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: TITLE,

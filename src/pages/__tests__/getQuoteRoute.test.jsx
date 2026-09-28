@@ -107,9 +107,9 @@ describe('every link to get a quote lands on the upgrade page', () => {
         }
         if (!/\.(jsx?|tsx?)$/.test(d.name)) return;
         const rel = path.relative(path.join(__dirname, '..', '..'), p);
-        // The old page itself, the redirect, the route table (checked above)
-        // and the W3F theme path list are the only places allowed to say it.
-        if (['pages/GetQuote.jsx', 'pages/GetQuoteRedirect.jsx', 'App.jsx', 'design/rollout/w3f.js'].includes(rel)) return;
+        // The old page itself, the redirect and the route table (checked above)
+        // are the only places allowed to say it.
+        if (['pages/GetQuote.jsx', 'pages/GetQuoteRedirect.jsx', 'App.jsx'].includes(rel)) return;
         const src = fs.readFileSync(p, 'utf8');
         if (/['"`/]get-quote/.test(src)) {
           offenders.push(rel);

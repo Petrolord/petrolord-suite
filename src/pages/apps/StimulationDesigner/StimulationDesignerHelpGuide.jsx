@@ -6,7 +6,6 @@ import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import {
   ArrowLeft, BookOpen, Zap, Ruler, Timer, TrendingUp, FlaskConical,
@@ -327,9 +326,9 @@ const StimulationDesignerHelpGuideContent = () => {
 // Design system rollout batch 3E: the guide follows the same per-user theme
 // as Stimulation Designer itself, so the look does not flip between the two pages.
 const StimulationDesignerHelpGuide = () => (
-  <ThemedApp className="min-h-screen" data-testid="st-help-theme-scope">
+  <div className="min-h-screen" data-testid="st-help-theme-scope">
     <StimulationDesignerHelpGuideContent />
-  </ThemedApp>
+  </div>
 );
 
 export default StimulationDesignerHelpGuide;

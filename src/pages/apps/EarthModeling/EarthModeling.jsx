@@ -4,7 +4,6 @@ import { Link, useSearchParams } from 'react-router-dom';
 import EarthWorkstation from './components/EarthWorkstation';
 import { makeRegistryBackend } from './services/registryBackend';
 import { makeInMemoryBackend } from './services/inMemoryBackend';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 // Earth Modeling (Geoscience G8): the consolidation workstation on the
 // shared registries — structural surfaces from Mapping & Surface
@@ -32,7 +31,7 @@ export default function EarthModeling() {
         />
       </Helmet>
 
-      <ThemedApp className="h-screen w-full overflow-hidden flex flex-col" data-testid="em-theme-scope">
+      <div className="h-screen w-full overflow-hidden flex flex-col" data-testid="em-theme-scope">
         {sample && (
           <div className="px-3 py-1 text-[11px] bg-pl-warning-bg text-pl-warning-text border-b border-pl-warning/40 flex items-center gap-2" data-testid="em-sample-banner">
             Sample data: three surfaces and four wells held in this tab. Nothing is saved to your registry.
@@ -42,7 +41,7 @@ export default function EarthModeling() {
         <div className="flex-1 min-h-0">
           <EarthWorkstation backend={backend} sample={sample} />
         </div>
-      </ThemedApp>
+      </div>
     </>
   );
 }

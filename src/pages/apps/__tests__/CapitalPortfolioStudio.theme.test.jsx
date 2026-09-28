@@ -39,6 +39,7 @@ jest.mock('recharts', () => {
 import { AuthContext } from '@/contexts/SupabaseAuthContext';
 import {
   describeAppTheme, expectNoLegacyChrome, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import CapitalPortfolioStudio from '@/pages/apps/CapitalPortfolioStudio';
 
@@ -63,6 +64,10 @@ const seed = () => {
     { id: 'x4', name: 'Refused', capex: 10, npv_p50: 100, pos: 1.4 },
   ];
 };
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: 'u1' });
 
 describeAppTheme({
   name: 'Capital Portfolio Studio',

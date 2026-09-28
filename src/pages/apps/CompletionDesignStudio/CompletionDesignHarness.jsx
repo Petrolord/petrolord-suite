@@ -8,17 +8,16 @@
 // CdWorkstation on makeWpBackend.
 
 import React, { useMemo } from 'react';
-import { ThemedApp } from '@/design/ThemeProvider';
 import CdWorkstation from './CdWorkstation';
 import { makeInMemoryBackend } from './services/inMemoryBackend';
 
 export default function CompletionDesignHarness() {
   const backend = useMemo(() => makeInMemoryBackend(), []);
   return (
-    <ThemedApp data-testid="cd-harness-theme-scope">
+    <div data-testid="cd-harness-theme-scope">
       <div className="h-screen w-full overflow-hidden">
         <CdWorkstation backend={backend} />
       </div>
-    </ThemedApp>
+    </div>
   );
 }

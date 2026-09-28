@@ -28,7 +28,6 @@ import HeightResults from '@/components/scalstudio/HeightResults';
 import ExportTab from '@/components/scalstudio/ExportTab';
 import ScalHelpContent from '@/components/scalstudio/ScalHelpContent';
 import { SectionLabel } from '@/components/waterflooddesign/primitives';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 // Design system rollout batch 1D (docs/scope/DesignSystem-Rollout.md): the
 // page wraps itself in <ThemedApp>, so every class below is a theme role.
@@ -138,10 +137,10 @@ const ScalStudioContent = () => {
 
 export default function ScalStudio() {
   return (
-    <ThemedApp data-testid="scal-theme-scope">
+    <div data-testid="scal-theme-scope">
       <ScalStudioProvider>
         <ScalStudioContent />
       </ScalStudioProvider>
-    </ThemedApp>
+    </div>
   );
 }
