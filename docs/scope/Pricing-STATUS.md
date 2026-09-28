@@ -5,6 +5,42 @@ Current prices and rules as of the 2026-09 pricing review (owner-approved
 history of how module pricing came to have one source of truth follows in
 the 2026-08-30 sections below.
 
+## 2026-09-28: account page fixes (renewals, access requests, availability)
+
+Fixes three of the defects found in rollout 1E (below). Owner decision
+2026-09-28: renewals go through the normal quote-and-pay flow.
+
+- Renew (`/dashboard/subscriptions/renew`, old `/renew/:moduleId` kept)
+  no longer shows a fixed "$15,000.00" or makes up a payment reference, and
+  no longer calls `renew-subscription`. It reads what the organisation holds
+  (`src/lib/renewalSelection.js`: app-level `purchased_modules` rows with
+  their `seats_allocated`, module licences from the active `subscriptions`
+  rows' `modules` less `hse_professional`, and the latest term) and opens the
+  upgrade page with that as route state. QuoteBuilder only ticks the boxes
+  (module check selects all its apps at one seat, a held app keeps its seat
+  count, Coming Soon apps are skipped, as the hand handlers do); pricing,
+  generate-quote and Paystack are unchanged. Subscriptions page has a Renew
+  button; the (currently unmounted) renewal banner points to the same flow.
+- `RespondToRequestModal`: Approve and Reject pass their decision straight to
+  `handleSubmit`, so `respond-to-access-request` is called with it.
+- Module access Availability Overview lists `SUITE_MODULES`
+  (`src/data/suiteCatalog.js`) matched to licences by slug, the live
+  `modules` UUID or an app's parent module (`src/lib/moduleAvailability.js`).
+  `appCategories` stays empty: GetQuote reads it for its app list and
+  pricing preview, so filling it would change that page.
+- Success toasts for quote generated, invite sent and request answered no
+  longer pass a green className.
+- Tests: `src/pages/__tests__/accountFixes.test.jsx`,
+  `src/lib/__tests__/renewalSelection.test.js`, updated
+  `SubscriptionPages.theme.test.jsx`.
+
+Open (server side, not changed here): when a renewal quote is paid,
+`manual_verify_quote` upserts existing app rows on `(organization_id,
+app_id)` without updating `quote_id`, and sets `expiry_date` from the quote.
+The paid-quote expiry sync in verify-paystack-payment / provision-quote then
+matches rows by the new `quote_id`, so renewed rows may not get the new
+subscription end date. Needs a migration (owner and second-engineer review).
+
 ## 2026-09-28: account and billing pages on the design system (rollout 1E)
 
 The upgrade page (quote builder), module access, seats, employees, access

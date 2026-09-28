@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   CheckCircle, ChevronDown, ChevronRight, Save, FileText, ArrowLeft, Loader2, DollarSign, Mail,
@@ -37,12 +37,19 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { generateQuotePDF } from '@/utils/quotePdfGenerator';
 import { isValidUUID } from '@/lib/utils';
 import { resolveUserOrgId } from '@/lib/orgContext';
+import { resolveRenewalSelection } from '@/lib/renewalSelection';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { COMPACT_FIELD_THEMED } from '@/components/ui/native-select';
 import { AccountScope, accountCallout } from '@/components/account/accountChrome';
 
 const QuoteBuilder = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  // Renewal pre-selection from the Renew page (route state). It only ticks
+  // boxes; the quote is priced below and by generate-quote exactly as a new
+  // order would be.
+  const renewalRequest = location.state?.renewal || null;
+  const [renewalApplied, setRenewalApplied] = useState(null);
   const { user, isSuperAdmin } = useAuth();
   const { toast } = useToast();
   
@@ -290,6 +297,17 @@ const QuoteBuilder = () => {
   useEffect(() => {
     fetchCatalog();
   }, []);
+
+  // Apply the renewal pre-selection once the catalogue has loaded.
+  useEffect(() => {
+    if (!renewalRequest || renewalApplied || isLoadingCatalog || catalogError) return;
+    const r = resolveRenewalSelection(renewalRequest, { masterApps, appsGroupedByModule });
+    setSelectedModules(r.moduleIds);
+    setSelectedApps(r.appIds);
+    setAppSeats(r.seats);
+    if (r.billingTerm && BILLING_PERIODS.some(p => p.id === r.billingTerm)) setBillingPeriod(r.billingTerm);
+    setRenewalApplied(r);
+  }, [renewalRequest, renewalApplied, isLoadingCatalog, catalogError, masterApps, appsGroupedByModule]);
 
   // ------------------------------------------------------------------
   // Visual Helpers
@@ -607,7 +625,7 @@ const QuoteBuilder = () => {
       if (data?.error) throw new Error(data.error);
 
       setGenerating(false);
-      toast({ title: "Success", description: "Quote generated successfully!", className: "bg-green-600 text-white" });
+      toast({ title: "Success", description: "Quote generated successfully!" });
       const newId = data?.quote_id || quoteId;
       navigate(`/dashboard/quote/${newId}`);
     } catch (error) {
@@ -694,7 +712,23 @@ const QuoteBuilder = () => {
         
         {/* --- LEFT CONFIGURATION PANEL --- */}
         <div className="col-span-12 lg:col-span-8 space-y-8 min-w-0">
-          
+
+          {renewalApplied && (
+            <div className={accountCallout('info')} data-testid="renewal-note">
+              <p className="font-semibold text-pl-text">Renewing your subscription</p>
+              <p className="mt-1">
+                {renewalApplied.moduleIds.length + renewalApplied.appIds.length > 0
+                  ? 'Your current modules, apps and seat counts are selected below. Check them, choose a billing period, then use Generate & Pay. The renewal is priced like any new order.'
+                  : 'We could not find your current modules, so please select them below, choose a billing period, then use Generate & Pay.'}
+              </p>
+              {(renewalApplied.missingModules.length + renewalApplied.missingApps.length) > 0 && (
+                <p className="mt-1">
+                  {renewalApplied.missingModules.length + renewalApplied.missingApps.length} item(s) you hold are no longer offered, so they are not selected.
+                </p>
+              )}
+            </div>
+          )}
+
           <Tabs defaultValue="config" className="w-full">
             <TabsList className="mb-6">
               <TabsTrigger value="config">Configuration</TabsTrigger>

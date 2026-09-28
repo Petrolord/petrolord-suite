@@ -51,7 +51,7 @@ export default function RenewalReminderBanner({ modules }) {
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white" onClick={() => navigate('/dashboard/subscriptions')}>
+        <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white" onClick={() => navigate('/dashboard/subscriptions/renew')}>
             Review & Renew
         </Button>
         <Button variant="ghost" size="icon" onClick={handleDismiss} className="text-amber-400 hover:text-amber-200 hover:bg-amber-900/50">

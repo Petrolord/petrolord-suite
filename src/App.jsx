@@ -533,6 +533,7 @@ function App() {
                                     <SubscriptionManagement />
                                   </ProtectedRoute>
                                 } />
+                                <Route path="subscriptions/renew" element={<RenewSubscription />} />
                                 <Route path="subscriptions/renew/:moduleId" element={<RenewSubscription />} />
                                 <Route path="subscriptions/analytics" element={
                                   <ProtectedRoute requiredPermission={SUITE_PERMISSIONS.VIEW_ANALYTICS}>
