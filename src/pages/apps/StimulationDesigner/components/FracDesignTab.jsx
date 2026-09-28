@@ -52,8 +52,8 @@ export default function FracDesignTab({ caseDraft, onCaseChange, res, depthUnit 
           </div>
           {rock && (
             <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 border-t border-pl-border pt-2 text-xs text-pl-text">
-              <div>Closure (SHMIN) <span className="float-right font-mono" data-testid="st-closure">{MPa(rock.closurePa)} MPa</span></div>
-              <div>Reservoir p (PP) <span className="float-right font-mono" data-testid="st-pres">{MPa(rock.pResPa)} MPa</span></div>
+              <div>Closure (SHMIN) <span className="float-right font-pl-mono tabular-nums" data-testid="st-closure">{MPa(rock.closurePa)} MPa</span></div>
+              <div>Reservoir p (PP) <span className="float-right font-pl-mono tabular-nums" data-testid="st-pres">{MPa(rock.pResPa)} MPa</span></div>
               <div className="col-span-2 text-[10px] text-pl-muted">
                 {rock.source === 'published'
                   ? `From the published gm-1.0.0/pp-1.0.0 curves at ${Math.round(rock.midTvdM)} m TVD.`
@@ -82,7 +82,7 @@ export default function FracDesignTab({ caseDraft, onCaseChange, res, depthUnit 
           </div>
           {res && (
             <div className="mt-2 border-t border-pl-border pt-2 text-xs text-pl-text">
-              Plane strain E' <span className="float-right font-mono">{(res.ePrimePa / 1e9).toFixed(2)} GPa</span>
+              Plane strain E' <span className="float-right font-pl-mono tabular-nums">{(res.ePrimePa / 1e9).toFixed(2)} GPa</span>
             </div>
           )}
           {rock?.intervalTvdM > 0 && f.hfM < rock.intervalTvdM && (
@@ -106,10 +106,10 @@ export default function FracDesignTab({ caseDraft, onCaseChange, res, depthUnit 
           </div>
           {geo && (
             <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-pl-text">
-              <div>Max width <span className="float-right font-mono" data-testid="st-wmax">{(geo.wMaxM * 1000).toFixed(2)} mm</span></div>
-              <div>Average width <span className="float-right font-mono">{(geo.wAvgM * 1000).toFixed(2)} mm</span></div>
-              <div>Net pressure <span className="float-right font-mono" data-testid="st-pnet">{MPa(geo.pNetPa)} MPa</span></div>
-              <div>BH treating p <span className="float-right font-mono" data-testid="st-bhtp">{MPa(geo.bhtpPa)} MPa</span></div>
+              <div>Max width <span className="float-right font-pl-mono tabular-nums" data-testid="st-wmax">{(geo.wMaxM * 1000).toFixed(2)} mm</span></div>
+              <div>Average width <span className="float-right font-pl-mono tabular-nums">{(geo.wAvgM * 1000).toFixed(2)} mm</span></div>
+              <div>Net pressure <span className="float-right font-pl-mono tabular-nums" data-testid="st-pnet">{MPa(geo.pNetPa)} MPa</span></div>
+              <div>BH treating p <span className="float-right font-pl-mono tabular-nums" data-testid="st-bhtp">{MPa(geo.bhtpPa)} MPa</span></div>
               <div className="col-span-2 text-[10px] text-pl-muted">
                 Newtonian 2D widths at the target half-length; hydrostatic and pipe or perforation
                 friction are not included here.

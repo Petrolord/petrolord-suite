@@ -52,9 +52,9 @@ export default function AcidizingTab({
           </div>
           {acid && (
             <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 border-t border-pl-border pt-2 text-xs text-pl-text">
-              <div>Skin before <span className="float-right font-mono" data-testid="st-sbefore">{acid.sandstone.sBefore.toFixed(2)}</span></div>
-              <div>Skin after <span className="float-right font-mono" data-testid="st-safter">{acid.sandstone.sAfter.toFixed(2)}</span></div>
-              <div>Acid volume <span className="float-right font-mono" data-testid="st-acid-vol">{acid.sandstone.volumeM3.toFixed(1)} m3</span></div>
+              <div>Skin before <span className="float-right font-pl-mono tabular-nums" data-testid="st-sbefore">{acid.sandstone.sBefore.toFixed(2)}</span></div>
+              <div>Skin after <span className="float-right font-pl-mono tabular-nums" data-testid="st-safter">{acid.sandstone.sAfter.toFixed(2)}</span></div>
+              <div>Acid volume <span className="float-right font-pl-mono tabular-nums" data-testid="st-acid-vol">{acid.sandstone.volumeM3.toFixed(1)} m3</span></div>
               <div className="text-[10px] text-pl-muted">
                 {acid.sandstone.removed ? 'Front reaches past the damage: skin removed.' : 'Partial removal: push ra past rs to zero the skin.'}
               </div>
@@ -71,8 +71,8 @@ export default function AcidizingTab({
           </div>
           {acid && (
             <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 border-t border-pl-border pt-2 text-xs text-pl-text">
-              <div>Wormhole radius <span className="float-right font-mono">{acid.carbonate.rWhM.toFixed(2)} m</span></div>
-              <div>Stimulation skin <span className="float-right font-mono" data-testid="st-carb-skin">{acid.carbonate.skin.toFixed(2)}</span></div>
+              <div>Wormhole radius <span className="float-right font-pl-mono tabular-nums">{acid.carbonate.rWhM.toFixed(2)} m</span></div>
+              <div>Stimulation skin <span className="float-right font-pl-mono tabular-nums" data-testid="st-carb-skin">{acid.carbonate.skin.toFixed(2)}</span></div>
               <div className="col-span-2 text-[10px] text-pl-muted">
                 PV_bt comes from core tests at the optimal interstitial velocity; the default is a
                 placeholder until the lab number exists.
@@ -86,7 +86,7 @@ export default function AcidizingTab({
             <div className="text-xs text-pl-warning-text">Needs closure and reservoir pressure from the published curves.</div>
           ) : (
             <div className="text-xs text-pl-text">
-              <div>Max rate below frac <span className="float-right font-mono" data-testid="st-qmax">{(acid.matrixRate.qM3s * 60000).toFixed(0)} L/min</span></div>
+              <div>Max rate below frac <span className="float-right font-pl-mono tabular-nums" data-testid="st-qmax">{(acid.matrixRate.qM3s * 60000).toFixed(0)} L/min</span></div>
               <div className="mt-1 text-[10px] text-pl-muted">
                 Steady-state Darcy with p_wf held at closure; stay under it or you are fracturing,
                 not matrix acidizing.

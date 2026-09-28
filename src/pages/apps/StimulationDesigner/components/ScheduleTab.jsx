@@ -61,10 +61,10 @@ export default function ScheduleTab({ caseDraft, onCaseChange, res }) {
         <Card title="Nolte material balance" testId="st-balance-card">
           {!bal ? <div className="text-xs text-pl-muted">Fix the case inputs.</div> : (
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-pl-text">
-              <div>Pump time <span className="float-right font-mono" data-testid="st-ti">{(bal.tiS / 60).toFixed(1)} min</span></div>
-              <div>Fluid efficiency <span className="float-right font-mono" data-testid="st-eta">{(bal.etaFrac * 100).toFixed(1)}%</span></div>
-              <div>Slurry volume <span className="float-right font-mono">{bal.viM3.toFixed(1)} m3</span></div>
-              <div>Leaked volume <span className="float-right font-mono">{bal.vlM3.toFixed(1)} m3</span></div>
+              <div>Pump time <span className="float-right font-pl-mono tabular-nums" data-testid="st-ti">{(bal.tiS / 60).toFixed(1)} min</span></div>
+              <div>Fluid efficiency <span className="float-right font-pl-mono tabular-nums" data-testid="st-eta">{(bal.etaFrac * 100).toFixed(1)}%</span></div>
+              <div>Slurry volume <span className="float-right font-pl-mono tabular-nums">{bal.viM3.toFixed(1)} m3</span></div>
+              <div>Leaked volume <span className="float-right font-pl-mono tabular-nums">{bal.vlM3.toFixed(1)} m3</span></div>
             </div>
           )}
         </Card>
@@ -73,10 +73,10 @@ export default function ScheduleTab({ caseDraft, onCaseChange, res }) {
           {sch && (
             <div className="text-xs text-pl-text">
               <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                <div>Pad fraction <span className="float-right font-mono" data-testid="st-pad">{(sch.padFrac * 100).toFixed(1)}%</span></div>
-                <div>Pad volume <span className="float-right font-mono">{sch.padM3.toFixed(1)} m3</span></div>
-                <div>Ramp exponent <span className="float-right font-mono">{sch.eps.toFixed(3)}</span></div>
-                <div>Proppant mass <span className="float-right font-mono" data-testid="st-mass">{(sch.massKg / 1000).toFixed(1)} t</span></div>
+                <div>Pad fraction <span className="float-right font-pl-mono tabular-nums" data-testid="st-pad">{(sch.padFrac * 100).toFixed(1)}%</span></div>
+                <div>Pad volume <span className="float-right font-pl-mono tabular-nums">{sch.padM3.toFixed(1)} m3</span></div>
+                <div>Ramp exponent <span className="float-right font-pl-mono tabular-nums">{sch.eps.toFixed(3)}</span></div>
+                <div>Proppant mass <span className="float-right font-pl-mono tabular-nums" data-testid="st-mass">{(sch.massKg / 1000).toFixed(1)} t</span></div>
               </div>
               <table className="mt-2 w-full text-[11px]">
                 <thead className="text-pl-muted">
@@ -91,9 +91,9 @@ export default function ScheduleTab({ caseDraft, onCaseChange, res }) {
                   {sch.steps.map((s, i) => (
                     <tr key={i} className="border-t border-pl-border text-pl-text">
                       <td className="px-1 py-1">{i + 1}</td>
-                      <td className="px-1 py-1 text-right font-mono">{(s.tStartS / 60).toFixed(1)}</td>
-                      <td className="px-1 py-1 text-right font-mono">{(s.tEndS / 60).toFixed(1)}</td>
-                      <td className="px-1 py-1 text-right font-mono">{s.cKgM3.toFixed(0)}</td>
+                      <td className="px-1 py-1 text-right font-pl-mono tabular-nums">{(s.tStartS / 60).toFixed(1)}</td>
+                      <td className="px-1 py-1 text-right font-pl-mono tabular-nums">{(s.tEndS / 60).toFixed(1)}</td>
+                      <td className="px-1 py-1 text-right font-pl-mono tabular-nums">{s.cKgM3.toFixed(0)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -107,9 +107,9 @@ export default function ScheduleTab({ caseDraft, onCaseChange, res }) {
             <div className="text-xs text-pl-warning-text">Needs the closure stress (publish the curves or set an override).</div>
           ) : (
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-pl-text">
-              <div>Pack permeability <span className="float-right font-mono" data-testid="st-kf">{(pack.kfM2 / DARCY_M2).toFixed(0)} D</span></div>
-              <div>Propped width <span className="float-right font-mono" data-testid="st-wp">{(pack.wpM * 1000).toFixed(2)} mm</span></div>
-              <div>Areal conc <span className="float-right font-mono">{pack.arealKgM2.toFixed(2)} kg/m2</span></div>
+              <div>Pack permeability <span className="float-right font-pl-mono tabular-nums" data-testid="st-kf">{(pack.kfM2 / DARCY_M2).toFixed(0)} D</span></div>
+              <div>Propped width <span className="float-right font-pl-mono tabular-nums" data-testid="st-wp">{(pack.wpM * 1000).toFixed(2)} mm</span></div>
+              <div>Areal conc <span className="float-right font-pl-mono tabular-nums">{pack.arealKgM2.toFixed(2)} kg/m2</span></div>
               <div className="text-[10px] text-pl-muted">nominal catalog data at closure; vendor cells govern</div>
             </div>
           )}

@@ -25,7 +25,7 @@ export default function ProfilesTab({
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4 text-xs">
           <div className={`rounded-md border px-3 py-2 ${mem.quality.score < 80 ? 'border-pl-warning/40 bg-pl-warning-bg' : 'border-pl-border bg-pl-surface'}`}>
             <div className="text-[9px] uppercase text-pl-muted">Quality score</div>
-            <div className="text-sm font-semibold text-pl-text" data-testid="gm-quality">{mem.quality.score}</div>
+            <div className="font-pl-mono text-sm font-semibold tabular-nums text-pl-text" data-testid="gm-quality">{mem.quality.score}</div>
           </div>
           <div className="rounded-md border border-pl-border bg-pl-surface px-3 py-2">
             <div className="text-[9px] uppercase text-pl-muted">PP / Sv source</div>
