@@ -48,6 +48,9 @@ export default {
     'evalWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/evalWorkerFactoryMock.js',
     // Mapping T1: the gridding worker factory (import.meta)
     'mappingGridWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/mappingGridWorkerFactoryMock.js',
+    // the build-mode flag reads import.meta.env.DEV; tests see a production
+    // build unless a test mocks the module (grey tone experiment, 2026-09-28)
+    'devBuildFlag(\\.js)?$': '<rootDir>/src/__mocks__/devBuildFlagMock.js',
     // the PWA register hook is a Vite virtual module (WS6)
     '^virtual:pwa-register/react$': '<rootDir>/src/__mocks__/pwaRegisterMock.js',
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',

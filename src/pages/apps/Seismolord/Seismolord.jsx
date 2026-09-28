@@ -2,6 +2,7 @@ import React from 'react';
 import { Helmet } from 'react-helmet';
 import { ThemedApp } from '@/design/ThemeProvider';
 import ViewerPanel from './components/ViewerPanel';
+import { SeismolordToneProvider, useSeismolordTone } from './toneExperiment';
 
 // Seismolord renders as a full-viewport workstation (ribbon / explorer
 // tree / viewport windows / status bar — Petrel-style). ViewerPanel is
@@ -11,7 +12,11 @@ import ViewerPanel from './components/ViewerPanel';
 // Design system pilot 4: the page opts in to the Petrolord theme (light by
 // default, dark per user). Panels, trees, dialogs and tables follow it; the
 // seismic, map and 3D canvases stay dark (data-canvas="dark").
+// Grey tone experiment (owner, 2026-09-28): on staging and dev only, a shade
+// picker in the ribbon switches the light theme between off-white and three
+// light greys (toneExperiment.jsx). Production keeps off-white.
 export default function Seismolord() {
+  const toneState = useSeismolordTone();
   return (
     <>
       <Helmet>
@@ -22,9 +27,11 @@ export default function Seismolord() {
         />
       </Helmet>
 
-      <ThemedApp className="h-screen w-full overflow-hidden" data-testid="seismolord-root">
-        <ViewerPanel />
-      </ThemedApp>
+      <SeismolordToneProvider value={toneState}>
+        <ThemedApp className="h-screen w-full overflow-hidden" data-testid="seismolord-root" tone={toneState.tone || undefined}>
+          <ViewerPanel />
+        </ThemedApp>
+      </SeismolordToneProvider>
     </>
   );
 }
