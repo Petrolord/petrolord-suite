@@ -49,19 +49,19 @@ export default function TubingSizingTab({ caseDraft, onCaseChange, stations, res
 
   return (
     <div className="space-y-3 p-3">
-      <div className="rounded border border-slate-800 bg-slate-900/40 p-2">
+      <div className="rounded border border-pl-border bg-pl-surface p-2">
         <div className="mb-2 flex items-center gap-2">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Design point</span>
-          <span className="rounded bg-cyan-500/15 px-1.5 py-0.5 text-[10px] text-cyan-300">Production nodal engine</span>
-          <span className="text-[10px] text-slate-500">node at the packer, {Math.round(nodeMdM)} m MD</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-pl-muted">Design point</span>
+          <span className="rounded bg-pl-sunken px-1.5 py-0.5 text-[10px] text-pl-muted">Production nodal engine</span>
+          <span className="text-[10px] text-pl-muted">node at the packer, {Math.round(nodeMdM)} m MD</span>
         </div>
-        <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+        <div className="flex flex-wrap items-center gap-2 text-[11px] text-pl-muted">
           {FIELDS.map(([k, label]) => (
             <label key={k} className="flex items-center gap-1">
               {label}
               <Input type="number" step="any" value={sizing[k] ?? ''}
                 onChange={(e) => onCaseChange((d) => { d.params.sizing[k] = parseFloat(e.target.value) || 0; })}
-                className="h-6 w-20 bg-slate-900 border-slate-700 text-right font-mono text-[11px]"
+                className="h-6 w-20 text-right font-pl-mono text-[11px]"
                 data-testid={`cd-sizing-${k}`} />
             </label>
           ))}
@@ -69,8 +69,8 @@ export default function TubingSizingTab({ caseDraft, onCaseChange, stations, res
             Correlation
             <Select value={sizing.correlation || 'beggsBrill'}
               onValueChange={(v) => onCaseChange((d) => { d.params.sizing.correlation = v; })}>
-              <SelectTrigger className="h-6 w-44 bg-slate-900 border-slate-700 text-[11px]"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-slate-900 border-slate-700">
+              <SelectTrigger className="h-6 w-44 text-[11px]"><SelectValue /></SelectTrigger>
+              <SelectContent className="">
                 {CORRELATIONS.map((c) => <SelectItem key={c} value={c}>{CORRELATION_NAMES[c] || c}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -78,12 +78,12 @@ export default function TubingSizingTab({ caseDraft, onCaseChange, stations, res
         </div>
       </div>
 
-      {table.error && <div className="rounded border border-red-800 bg-red-950/40 p-2 text-xs text-red-300">{table.error}</div>}
+      {table.error && <div className="rounded border border-pl-danger bg-pl-danger-bg p-2 text-xs text-pl-danger-text">{table.error}</div>}
 
       {table.data && (
-        <div className="rounded border border-slate-800 bg-slate-900/40 p-2">
+        <div className="rounded border border-pl-border bg-pl-surface p-2">
           <table className="w-full text-xs">
-            <thead className="text-slate-500">
+            <thead className="text-pl-muted">
               <tr>
                 <th className="px-1 py-1 text-left">Tubing</th>
                 <th className="px-1 py-1 text-right">ID (in)</th>
@@ -95,22 +95,22 @@ export default function TubingSizingTab({ caseDraft, onCaseChange, stations, res
             <tbody data-testid="cd-sizing-rows">
               {table.data.rows.map((r) => (
                 <tr key={r.designation}
-                  className={`border-t border-slate-800 ${inString(r) ? 'bg-lime-500/10 text-lime-200' : 'text-slate-300'}`}>
+                  className={`border-t border-pl-border ${inString(r) ? 'bg-pl-primary/10 text-pl-primary-text' : 'text-pl-text'}`}>
                   <td className="px-1 py-1">{r.designation}{inString(r) ? ' (in string)' : ''}</td>
-                  <td className="px-1 py-1 text-right font-mono">{r.idIn.toFixed(3)}</td>
-                  <td className="px-1 py-1 text-right font-mono" data-testid={`cd-sizing-bhp-${r.odIn}`}>
+                  <td className="px-1 py-1 text-right font-pl-mono">{r.idIn.toFixed(3)}</td>
+                  <td className="px-1 py-1 text-right font-pl-mono" data-testid={`cd-sizing-bhp-${r.odIn}`}>
                     {r.bhpPsi == null ? 'no solution' : r.bhpPsi.toFixed(0)}
                   </td>
-                  <td className="px-1 py-1 text-right font-mono">{r.frictionPsi == null ? '—' : r.frictionPsi.toFixed(0)}</td>
-                  <td className="px-1 py-1 text-[10px] text-slate-500">{r.warnings?.[0] || ''}</td>
+                  <td className="px-1 py-1 text-right font-pl-mono">{r.frictionPsi == null ? '--' : r.frictionPsi.toFixed(0)}</td>
+                  <td className="px-1 py-1 text-[10px] text-pl-muted">{r.warnings?.[0] || ''}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className="mt-2 text-[10px] text-slate-500">
+          <p className="mt-2 text-[10px] text-pl-muted">
             Flowing BHP the reservoir must deliver at the node for this rate and wellhead pressure; lower is easier. Whether the reservoir can deliver it is an inflow question:
-            {' '}<Link to="/dashboard/apps/production/nodal-analysis-studio" className="text-cyan-400 hover:underline">match the operating point in Nodal Analysis Studio</Link>,
-            and take stress and packer forces from <Link to="/dashboard/apps/drilling/casing-tubing-design-pro" className="text-cyan-400 hover:underline">Casing &amp; Tubing Design Studio</Link>.
+            {' '}<Link to="/dashboard/apps/production/nodal-analysis-studio" className="text-pl-primary-text hover:underline">match the operating point in Nodal Analysis Studio</Link>,
+            and take stress and packer forces from <Link to="/dashboard/apps/drilling/casing-tubing-design-pro" className="text-pl-primary-text hover:underline">Casing &amp; Tubing Design Studio</Link>.
           </p>
         </div>
       )}

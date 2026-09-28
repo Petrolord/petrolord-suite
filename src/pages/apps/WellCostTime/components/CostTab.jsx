@@ -4,6 +4,9 @@
 
 import React from 'react';
 import { Input } from '@/components/ui/input';
+import {
+  NumericTable, NumTh, NumRow, RowLabel, NumCell,
+} from '@/components/ui/numeric-table';
 import { Trash2, Plus } from 'lucide-react';
 import { costPerMeter, COST_BASES, COST_CATEGORIES } from '../services/wctRun';
 import { CostTimeChart } from '../charts/WctCharts';
@@ -11,8 +14,8 @@ import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
 import { formatFull } from '@/lib/fullPrecision';
 
 const Card = ({ title, children, testId }) => (
-  <div className="rounded border border-slate-800 bg-slate-900/40" data-testid={testId}>
-    <div className="border-b border-slate-800 px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{title}</div>
+  <div className="rounded border border-pl-border bg-pl-surface" data-testid={testId}>
+    <div className="border-b border-pl-border px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-pl-muted">{title}</div>
     <div className="p-2">{children}</div>
   </div>
 );
@@ -54,11 +57,11 @@ export default function CostTab({ caseDraft, onCaseChange, res }) {
               <div key={it.id} className="flex flex-wrap items-center gap-1.5" data-testid={`wct-item-${it.id}`}>
                 <Input className="h-7 min-w-[120px] flex-1 text-xs" value={it.label || ''}
                   onChange={(e) => onCaseChange((d) => { d.costs.items[i].label = e.target.value; })} />
-                <select className="h-7 rounded border border-slate-700 bg-slate-900 px-1 text-[10px]" value={it.category}
+                <select className="h-7 rounded border border-pl-border-strong bg-pl-surface px-1 text-pl-text text-[10px]" value={it.category}
                   onChange={(e) => onCaseChange((d) => { d.costs.items[i].category = e.target.value; })}>
                   {COST_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
                 </select>
-                <select className="h-7 rounded border border-slate-700 bg-slate-900 px-1 text-[10px]" value={it.basis}
+                <select className="h-7 rounded border border-pl-border-strong bg-pl-surface px-1 text-pl-text text-[10px]" value={it.basis}
                   data-testid={`wct-item-${it.id}-basis`}
                   onChange={(e) => onCaseChange((d) => {
                     const row = d.costs.items[i];
@@ -76,7 +79,7 @@ export default function CostTab({ caseDraft, onCaseChange, res }) {
                     if (row.basis === 'lump') row.value = num(e.target.value); else row.rate = num(e.target.value);
                   })} />
                 {it.basis === 'lump' && (
-                  <select className="h-7 w-28 rounded border border-slate-700 bg-slate-900 px-1 text-[10px]"
+                  <select className="h-7 w-28 rounded border border-pl-border-strong bg-pl-surface px-1 text-pl-text text-[10px]"
                     value={it.atActivityId ?? ''} title="accrues at the end of"
                     onChange={(e) => onCaseChange((d) => {
                       const row = d.costs.items[i];
@@ -86,10 +89,10 @@ export default function CostTab({ caseDraft, onCaseChange, res }) {
                     {acts.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
                   </select>
                 )}
-                <span className="w-20 text-right font-mono text-[10px] text-slate-400" data-testid={`wct-item-${it.id}-total`}>
+                <span className="w-20 text-right font-pl-mono text-[10px] text-pl-muted" data-testid={`wct-item-${it.id}-total`}>
                   {usd(costs?.byItem?.find((r) => r.id === it.id)?.amountUsd)}
                 </span>
-                <button type="button" className="text-slate-500 hover:text-red-400"
+                <button type="button" className="text-pl-muted hover:text-pl-danger-text"
                   onClick={() => onCaseChange((d) => { d.costs.items.splice(i, 1); })}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
@@ -97,13 +100,13 @@ export default function CostTab({ caseDraft, onCaseChange, res }) {
             ))}
           </div>
           <button type="button" data-testid="wct-add-item"
-            className="mt-2 flex items-center gap-1 rounded bg-slate-800 px-2 py-1 text-xs text-slate-300 hover:text-slate-100"
+            className="mt-2 flex items-center gap-1 rounded bg-pl-sunken px-2 py-1 text-xs text-pl-text hover:text-pl-text"
             onClick={() => onCaseChange((d) => {
               d.costs.items.push({ id: nid(), label: 'New item', category: 'intangible', basis: 'lump', value: 100000 });
             })}>
             <Plus className="h-3 w-3" /> Add item
           </button>
-          <div className="mt-2 flex items-center gap-2 text-xs text-slate-400">
+          <div className="mt-2 flex items-center gap-2 text-xs text-pl-muted">
             Contingency (fraction of base)
             <Input className="h-7 w-20 text-right text-xs" type="number" step={0.01} min={0}
               value={caseDraft.costs.contingencyFrac ?? 0} data-testid="wct-contingency"
@@ -117,7 +120,7 @@ export default function CostTab({ caseDraft, onCaseChange, res }) {
               bitCostUsd: 'bit USD', rigRateUsdPerHr: 'rig USD/h', drillingHr: 'drill h',
               connectionHr: 'conn h', tripHr: 'trip h', intervalM: 'interval m',
             }).map(([f, lab]) => (
-              <label key={f} className="text-[10px] text-slate-500">
+              <label key={f} className="text-[10px] text-pl-muted">
                 {lab}
                 <Input className="h-7 text-right text-xs" type="number" value={cpmIn[f]}
                   data-testid={`wct-cpm-${f}`}
@@ -128,9 +131,9 @@ export default function CostTab({ caseDraft, onCaseChange, res }) {
               </label>
             ))}
           </div>
-          <div className="mt-2 text-xs text-slate-300">
+          <div className="mt-2 text-xs text-pl-text">
             Interval drilling cost
-            <span className="float-right font-mono text-lime-300" data-testid="wct-cpm-result">
+            <span className="float-right font-pl-mono text-pl-primary-text" data-testid="wct-cpm-result">
               {cpm == null ? '--' : `${show(cpm.toFixed(2), cpm)} USD/m`}
             </span>
           </div>
@@ -139,53 +142,59 @@ export default function CostTab({ caseDraft, onCaseChange, res }) {
 
       <div className="flex flex-col gap-3">
         {costs && (
-          <Card title="AFE rollup" testId="wct-rollup-card">
-            <div className="text-xs text-slate-300">
+          <NumericTable title="AFE rollup" data-testid="wct-rollup-card">
+            <thead>
+              <tr>
+                <NumTh sticky>Line</NumTh>
+                <NumTh numeric>Amount</NumTh>
+              </tr>
+            </thead>
+            <tbody>
               {[
                 ['Tangible', costs.tangibleUsd, 'wct-tangible'],
                 ['Intangible', costs.intangibleUsd, 'wct-intangible'],
                 ['Base subtotal', costs.baseUsd, 'wct-base'],
                 [`Contingency (${((caseDraft.costs.contingencyFrac ?? 0) * 100).toFixed(0)}%)`, costs.contingencyUsd, 'wct-contingency-usd'],
               ].map(([lab, v, tid]) => (
-                <div key={tid} className="flex justify-between border-b border-slate-800/60 py-1">
-                  <span>{lab}</span>
-                  <span className="font-mono" data-testid={tid}>{show(usd(v), v, 2)} USD</span>
-                </div>
+                <NumRow key={tid}>
+                  <RowLabel>{lab}</RowLabel>
+                  <NumCell value={v} data-testid={tid}>{show(usd(v), v, 2)} USD</NumCell>
+                </NumRow>
               ))}
-              <div className="flex justify-between py-1 font-semibold text-lime-300">
-                <span>AFE total</span>
-                <span className="font-mono" data-testid="wct-total-usd">{show(usd(costs.totalUsd), costs.totalUsd, 2)} USD</span>
-              </div>
-            </div>
-          </Card>
+              <NumRow>
+                <RowLabel total>AFE total</RowLabel>
+                <NumCell total value={costs.totalUsd} data-testid="wct-total-usd">{show(usd(costs.totalUsd), costs.totalUsd, 2)} USD</NumCell>
+              </NumRow>
+            </tbody>
+          </NumericTable>
         )}
         <div className="h-72 min-h-0">
           <CostTimeChart points={res?.costCurve} />
         </div>
         {full && res?.costCurve?.length > 1 && (
-          <Card title="Cumulative cost at the end of each activity" testId="wct-curve-table">
-            <table className="w-full text-[11px]">
+          <div data-testid="wct-curve-table">
+            <NumericTable title="Cumulative cost at the end of each activity">
               <thead>
-                <tr className="text-slate-500">
-                  <th className="text-left font-normal">Activity</th>
-                  <th className="text-right font-normal">Elapsed h</th>
-                  <th className="text-right font-normal">Cumulative USD</th>
+                <tr>
+                  <NumTh sticky>Activity</NumTh>
+                  <NumTh numeric>Elapsed h</NumTh>
+                  <NumTh numeric>Cumulative USD</NumTh>
                 </tr>
               </thead>
               <tbody>
                 {res.program.rows.map((r, i) => (
-                  <tr key={r.id} className="border-t border-slate-800/60 text-slate-300" data-testid={`wct-curve-${r.id}`}>
-                    <td className="py-0.5">{r.label || r.id}</td>
-                    <td className="py-0.5 text-right font-mono">{formatFull(res.costCurve[i + 1]?.tHr, 6)}</td>
-                    <td className="py-0.5 text-right font-mono">{formatFull(res.costCurve[i + 1]?.usd, 2)}</td>
-                  </tr>
+                  <NumRow key={r.id} data-testid={`wct-curve-${r.id}`}>
+                    <RowLabel>{r.label || r.id}</RowLabel>
+                    <NumCell value={res.costCurve[i + 1]?.tHr}>{formatFull(res.costCurve[i + 1]?.tHr, 6)}</NumCell>
+                    <NumCell value={res.costCurve[i + 1]?.usd}>{formatFull(res.costCurve[i + 1]?.usd, 2)}</NumCell>
+                  </NumRow>
                 ))}
               </tbody>
-            </table>
-            <p className="mt-1 text-[10px] text-slate-500">
+            </NumericTable>
+            <p className="mt-1 text-[10px] text-pl-muted">
               Elapsed time is the productive clock stretched by the NPT allowance. The cumulative cost has no contingency line.
             </p>
-          </Card>
+          </div>
         )}
       </div>
     </div>
