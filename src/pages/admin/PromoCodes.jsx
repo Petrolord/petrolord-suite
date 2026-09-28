@@ -241,7 +241,7 @@ const PromoCodes = () => {
       </Card>
 
       <p className="text-xs text-slate-500 mt-4 max-w-2xl">
-        The share link opens the quote builder on the upgrade page, where the customer enters the code. Deactivating a code stops
+        The share link opens the quote builder on the upgrade page with the code pre-filled and checked for the customer. Deactivating a code stops
         new quotes from using it; quotes already generated with it still honor the discount.
       </p>
     </div>
