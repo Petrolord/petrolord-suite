@@ -67,7 +67,8 @@ describe('the pages that read it', () => {
   });
 
   it('send signed-in visitors to the real quote route', () => {
-    expect(home).toContain("'/dashboard/get-quote'");
+    expect(home).toContain("'/dashboard/upgrade'");
+    expect(home).not.toContain("'/dashboard/get-quote'");
     expect(home).not.toMatch(/navigate\('\/get-quote'\)/);
   });
 });

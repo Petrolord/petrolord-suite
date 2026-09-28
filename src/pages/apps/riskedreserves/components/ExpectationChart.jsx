@@ -26,7 +26,7 @@ export default function ExpectationChart({ curve, mefs, pg, successCase }) {
   const data = curve.map((p) => ({ volume: p.volume, chance: p.exceedance * 100 }));
   const ticks = logTicks(data[0].volume, data[data.length - 1].volume);
   return (
-    <div className="relative h-72 bg-white rounded border border-slate-200" data-testid="rrv-expectation-chart">
+    <div className="relative h-72 bg-white rounded border border-slate-200" data-canvas="chart" data-testid="rrv-expectation-chart">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 16, right: 20, left: 4, bottom: 8 }}>
           <CartesianGrid {...GRID_STYLE} />

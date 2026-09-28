@@ -9,8 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Trash } from 'lucide-react';
 
 const Card = ({ title, children, testId }) => (
-  <div className="rounded border border-slate-800 bg-slate-900/40" data-testid={testId}>
-    <div className="border-b border-slate-800 px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{title}</div>
+  <div className="rounded border border-pl-border bg-pl-surface" data-testid={testId}>
+    <div className="border-b border-pl-border px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-pl-muted">{title}</div>
     <div className="p-2">{children}</div>
   </div>
 );
@@ -21,7 +21,7 @@ const num = (v) => {
 };
 
 const Field = ({ label, value, onChange, step = 0.1, testId }) => (
-  <label className="flex items-center justify-between gap-2 text-xs text-slate-300">
+  <label className="flex items-center justify-between gap-2 text-xs text-pl-text">
     <span>{label}</span>
     <Input className="h-7 w-24 text-right text-xs" type="number" step={step} value={value}
       data-testid={testId} onChange={(e) => onChange(num(e.target.value))} />
@@ -51,11 +51,11 @@ export default function AcidizingTab({
               onChange={(v) => onCaseChange((d) => { d.acid.pvFactor = v; })} />
           </div>
           {acid && (
-            <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 border-t border-slate-800 pt-2 text-xs text-slate-300">
-              <div>Skin before <span className="float-right font-mono" data-testid="st-sbefore">{acid.sandstone.sBefore.toFixed(2)}</span></div>
-              <div>Skin after <span className="float-right font-mono" data-testid="st-safter">{acid.sandstone.sAfter.toFixed(2)}</span></div>
-              <div>Acid volume <span className="float-right font-mono" data-testid="st-acid-vol">{acid.sandstone.volumeM3.toFixed(1)} m3</span></div>
-              <div className="text-[10px] text-slate-500">
+            <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 border-t border-pl-border pt-2 text-xs text-pl-text">
+              <div>Skin before <span className="float-right font-pl-mono tabular-nums" data-testid="st-sbefore">{acid.sandstone.sBefore.toFixed(2)}</span></div>
+              <div>Skin after <span className="float-right font-pl-mono tabular-nums" data-testid="st-safter">{acid.sandstone.sAfter.toFixed(2)}</span></div>
+              <div>Acid volume <span className="float-right font-pl-mono tabular-nums" data-testid="st-acid-vol">{acid.sandstone.volumeM3.toFixed(1)} m3</span></div>
+              <div className="text-[10px] text-pl-muted">
                 {acid.sandstone.removed ? 'Front reaches past the damage: skin removed.' : 'Partial removal: push ra past rs to zero the skin.'}
               </div>
             </div>
@@ -70,10 +70,10 @@ export default function AcidizingTab({
               onChange={(v) => onCaseChange((d) => { d.acid.pvBt = v; })} />
           </div>
           {acid && (
-            <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 border-t border-slate-800 pt-2 text-xs text-slate-300">
-              <div>Wormhole radius <span className="float-right font-mono">{acid.carbonate.rWhM.toFixed(2)} m</span></div>
-              <div>Stimulation skin <span className="float-right font-mono" data-testid="st-carb-skin">{acid.carbonate.skin.toFixed(2)}</span></div>
-              <div className="col-span-2 text-[10px] text-slate-500">
+            <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 border-t border-pl-border pt-2 text-xs text-pl-text">
+              <div>Wormhole radius <span className="float-right font-pl-mono tabular-nums">{acid.carbonate.rWhM.toFixed(2)} m</span></div>
+              <div>Stimulation skin <span className="float-right font-pl-mono tabular-nums" data-testid="st-carb-skin">{acid.carbonate.skin.toFixed(2)}</span></div>
+              <div className="col-span-2 text-[10px] text-pl-muted">
                 PV_bt comes from core tests at the optimal interstitial velocity; the default is a
                 placeholder until the lab number exists.
               </div>
@@ -83,11 +83,11 @@ export default function AcidizingTab({
 
         <Card title="Matrix injection ceiling" testId="st-matrix-card">
           {!acid?.matrixRate ? (
-            <div className="text-xs text-amber-300">Needs closure and reservoir pressure from the published curves.</div>
+            <div className="text-xs text-pl-warning-text">Needs closure and reservoir pressure from the published curves.</div>
           ) : (
-            <div className="text-xs text-slate-300">
-              <div>Max rate below frac <span className="float-right font-mono" data-testid="st-qmax">{(acid.matrixRate.qM3s * 60000).toFixed(0)} L/min</span></div>
-              <div className="mt-1 text-[10px] text-slate-500">
+            <div className="text-xs text-pl-text">
+              <div>Max rate below frac <span className="float-right font-pl-mono tabular-nums" data-testid="st-qmax">{(acid.matrixRate.qM3s * 60000).toFixed(0)} L/min</span></div>
+              <div className="mt-1 text-[10px] text-pl-muted">
                 Steady-state Darcy with p_wf held at closure; stay under it or you are fracturing,
                 not matrix acidizing.
               </div>
@@ -104,14 +104,14 @@ export default function AcidizingTab({
           </div>
           <div className="flex flex-col gap-1" data-testid="st-run-rows">
             {(runs || []).map((r) => (
-              <div key={r.id} className="flex items-center justify-between rounded border border-slate-800 px-2 py-1 text-[11px] text-slate-400">
+              <div key={r.id} className="flex items-center justify-between rounded border border-pl-border px-2 py-1 text-[11px] text-pl-muted">
                 <span>{new Date(r.created_at).toLocaleString()} · {r.summary?.status ?? '--'} · FOI {r.summary?.foi?.toFixed?.(2) ?? '--'}</span>
-                <button type="button" className="text-slate-600 hover:text-red-400" onClick={() => onDeleteRun(r.id)}>
+                <button type="button" className="text-pl-muted hover:text-pl-danger-text" onClick={() => onDeleteRun(r.id)}>
                   <Trash className="h-3 w-3" />
                 </button>
               </div>
             ))}
-            {!runs?.length && <div className="text-[11px] text-slate-600">No runs saved yet.</div>}
+            {!runs?.length && <div className="text-[11px] text-pl-muted">No runs saved yet.</div>}
           </div>
         </Card>
       </div>

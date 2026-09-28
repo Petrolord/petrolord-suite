@@ -1,11 +1,10 @@
 /**
- * Design system rollout W0B: the shared drilling kit (WellboreDetails,
- * Explorer, GeometryNotice) is used by eleven drilling apps that migrate in
- * Waves 2 and 3. Outside a <ThemedApp> scope it must render exactly what it
- * rendered before the rollout: the snapshots below were recorded on
- * origin/main (92782cda7) before these files were touched, so any change to
- * an unmigrated app's DOM fails here. Inside a scope the kit uses theme
- * roles, in light and in dark.
+ * Design system: the shared drilling kit (WellboreDetails, Explorer,
+ * GeometryNotice) serves eleven drilling apps. W0B made it scope-aware with
+ * a pinned legacy branch; once batch 3E migrated the last of those apps the
+ * legacy branch was removed, so the kit renders theme roles only. Inside a
+ * scope it reads in light and in dark, with every status tone on a status
+ * role, and no console palette colour is left in any scene.
  */
 import React from 'react';
 import '@testing-library/jest-dom';
@@ -57,18 +56,7 @@ const openSurvey = () => {
 
 afterEach(cleanup);
 
-describe('outside a scope the drilling kit renders exactly as on main', () => {
-  for (const [name, Scene] of Object.entries(drillingScenes)) {
-    test(name, () => {
-      render(<MemoryRouter><Scene /></MemoryRouter>);
-      openSurvey();
-      expect(document.body.innerHTML).toMatchSnapshot();
-      expect(document.body.innerHTML).not.toMatch(/-pl-|data-pl-theme/);
-    });
-  }
-});
-
-// Inside a scope: every legacy console colour in these files is gone.
+// Every legacy console colour in these files is gone.
 const LEGACY = /\b(?:bg|text|border)-(?:slate|cyan|amber|red|lime)-\d|text-white\b/;
 const renderThemed = (Scene, theme) => {
   window.localStorage.clear();
@@ -82,12 +70,11 @@ const renderThemed = (Scene, theme) => {
 };
 
 describe('inside a scope the drilling kit uses theme roles', () => {
-  test('negative control: the legacy render does carry console colours', () => {
-    const Scene = drillingScenes['Explorer full selection'];
-    render(<MemoryRouter><Scene /></MemoryRouter>);
-    openSurvey();
-    expect(document.body.innerHTML).toMatch(LEGACY);
+  test('negative control: the pattern does catch a console colour', () => {
+    expect('rounded bg-slate-900 text-slate-300').toMatch(LEGACY);
+    expect('border-cyan-500/50 text-cyan-300').toMatch(LEGACY);
   });
+
 
   for (const theme of ['light', 'dark']) {
     for (const [name, Scene] of Object.entries(drillingScenes)) {

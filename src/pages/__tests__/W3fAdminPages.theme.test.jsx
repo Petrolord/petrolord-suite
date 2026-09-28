@@ -82,7 +82,7 @@ const PAGES = [
   { name: 'Audit logs', route: '/dashboard/audit-logs', Page: AuditLogs, scope: 'audit-logs-theme-scope', ready: () => screen.findByText('member.invited') },
   { name: 'Teams', route: '/dashboard/teams', Page: TeamManagement, scope: 'team-management-theme-scope', ready: () => screen.findByText('grace@example.com') },
   { name: 'Bulk import', route: '/dashboard/bulk-import', Page: BulkImportEmployees, scope: 'bulk-import-theme-scope', ready: () => screen.findByText('Upload CSV') },
-  { name: 'App analytics', route: '/dashboard/analytics', Page: AppAnalyticsDashboard, scope: 'app-analytics-theme-scope', ready: () => screen.findByText('Geoscience Hub') },
+  { name: 'App analytics', route: '/dashboard/analytics', Page: AppAnalyticsDashboard, scope: 'app-analytics-theme-scope', ready: () => screen.findByText('No usage data recorded yet') },
   { name: 'Quote dashboard', route: '/dashboard/quote/q1', Page: QuoteDashboard, scope: 'quote-dashboard-theme-scope', ready: () => screen.findByText('PL-Q-0001'), opts: quoteOpts },
   { name: 'Get quote', route: '/dashboard/get-quote', Page: GetQuote, scope: 'get-quote-theme-scope', ready: () => screen.findByText('Select Modules') },
 ];
@@ -135,6 +135,18 @@ describe('W3F pages, loaded states and dialogs', () => {
     await screen.findByText('grace@example.com');
     expect(screen.getByText('active')).toBeInTheDocument();
     expect(screen.getByText('invited')).toBeInTheDocument();
+    expectNoLegacyChrome();
+  });
+
+  it('app analytics shows an honest empty state and no invented figures', async () => {
+    renderAccountPage(AppAnalyticsDashboard);
+    await screen.findByText('No usage data recorded yet');
+    const scope = screen.getByTestId('app-analytics-theme-scope');
+    // The old placeholders: 124 users, 450 sessions, 18m 30s, Geoscience Hub at 45%.
+    ['124', '450', '18m 30s', 'Geoscience Hub', '45%', '+12%'].forEach((fake) => {
+      expect(scope).not.toHaveTextContent(fake);
+    });
+    expect(scope.textContent).not.toMatch(/\d/);
     expectNoLegacyChrome();
   });
 

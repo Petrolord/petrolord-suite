@@ -50,7 +50,7 @@ const PromoCodes = () => {
     });
   }, [fetchCodes]);
 
-  const shareLink = (code) => `${window.location.origin}/get-quote?promo=${encodeURIComponent(code)}`;
+  const shareLink = (code) => `${window.location.origin}/dashboard/upgrade?promo=${encodeURIComponent(code)}`;
 
   const copyShareLink = async (code) => {
     try {
@@ -241,7 +241,7 @@ const PromoCodes = () => {
       </Card>
 
       <p className="text-xs text-slate-500 mt-4 max-w-2xl">
-        The share link opens the public quote page with the code pre-applied. Deactivating a code stops
+        The share link opens the quote builder on the upgrade page, where the customer enters the code. Deactivating a code stops
         new quotes from using it; quotes already generated with it still honor the discount.
       </p>
     </div>

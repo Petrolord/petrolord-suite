@@ -7,3 +7,24 @@ Updated 2026-09-26 (Senior Testing Wave 1, #4).
 - **App:** `src/pages/apps/riskedreserves/` (RrvWorkstation, ExpectationChart, rrvStore); harness `/dev/risked-reserves`.
 - **Data:** reads `rcp_prospects` through the RCP prospects backend; economics per browser (localStorage `rrv.prospects.v1`). No schema change.
 - **Open (after NAPE):** dependent prospects in the portfolio; value per barrel by field size from EPE.
+
+## Design system rollout, batch 3E (2026-09-28)
+
+The workstation and its help guide open on the Petrolord design system:
+light grey panel by default, dark as a per-user choice from the toolbar
+toggle (beside Help).
+
+- Scope: `ThemedApp` inside `riskedreserves/components/RrvWorkstation.jsx`
+  (the route page and the `/dev/risked-reserves` harness share it) and
+  `RiskedReservesHelpGuide.jsx`; App.jsx unchanged. Cold-load prefix
+  `/dashboard/apps/reservoir/risked-reserves-valuation` in
+  `src/design/rollout/w3e.js` (covers `/help`).
+- Own classes moved to `pl-*` roles; EMV signs and the input problems use
+  the status roles; numeric inputs, Pc, EMV and the readout values read
+  in the mono face. The expectation curve stays white
+  (`data-canvas="chart"`).
+- Phone width: the prospect table keeps a 960 px minimum and scrolls
+  sideways inside its card (the inputs were squeezed to one digit).
+- Test: `riskedreserves/__tests__/RiskedReservesValuation.theme.test.jsx`
+  (the shared four checks, an imported prospect with its chart and
+  readout in light and dark, the help guide). No calculation change.
