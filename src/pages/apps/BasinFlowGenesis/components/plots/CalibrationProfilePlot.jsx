@@ -15,7 +15,7 @@ const CalibrationProfilePlot = ({ title, xLabel, modeled, measured, color, depth
     ].sort((a, b) => a.depth - b.depth);
 
     return (
-        <div className="w-full h-full bg-white border border-slate-300 rounded-lg p-3 flex flex-col relative">
+        <div className="w-full h-full bg-white border border-slate-300 rounded-lg p-3 flex flex-col relative" data-canvas="chart">
             <h4 className="text-xs text-center font-semibold mb-1" style={{ color: CHART_COLORS.axisLabel }}>{title}</h4>
             <div className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">

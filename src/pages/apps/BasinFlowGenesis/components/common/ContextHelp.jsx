@@ -24,11 +24,11 @@ export const ContextHelp = ({ content, title }) => {
             <Tooltip delayDuration={300}>
                 <TooltipTrigger asChild>
                     <span className="inline-flex items-center justify-center ml-1.5 align-middle cursor-help opacity-70 hover:opacity-100 transition-opacity">
-                        <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
+                        <HelpCircle className="w-3.5 h-3.5 text-pl-muted" />
                     </span>
                 </TooltipTrigger>
-                <TooltipContent className="max-w-xs bg-slate-900 border-slate-700 text-slate-300 text-xs p-3 shadow-xl">
-                    {title && <div className="font-semibold text-white mb-1">{title}</div>}
+                <TooltipContent className="max-w-xs text-xs p-3">
+                    {title && <div className="font-semibold text-pl-text mb-1">{title}</div>}
                     <p>{content}</p>
                 </TooltipContent>
             </Tooltip>

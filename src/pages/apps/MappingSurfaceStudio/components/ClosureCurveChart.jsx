@@ -27,7 +27,7 @@ export default function ClosureCurveChart({ curve, contactM, spillZ, toDisplay, 
     area: p.areaM2 / 1e6,
   }));
   return (
-    <div className="relative h-64 bg-white rounded border border-slate-200" data-testid="map-grv-curve">
+    <div className="relative h-64 bg-white rounded border border-slate-200" data-canvas="chart" data-testid="map-grv-curve">
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data} margin={{ top: 22, right: 4, left: 2, bottom: 4 }}>
           <CartesianGrid {...GRID_STYLE} />

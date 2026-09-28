@@ -23,6 +23,7 @@ import {
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import SurfacesExplorer from './SurfacesExplorer';
 import MapCanvas, { DEFAULT_MAP_DISPLAY, contourPlan, displaySign } from './MapCanvas';
 import { contourPaths } from '@/components/maps/mapPainter';
@@ -65,7 +66,7 @@ import { consensusTag } from '@/lib/crs/tags';
 import { crsUnit } from '@/lib/crs';
 import { placeWellsForHost } from '@/lib/crs/guards';
 
-const selCls = 'w-full rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
+const selCls = 'w-full rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs';
 
 export const DEPTH_UNIT_KEY = 'mapping.depthUnit';
 // T1 (MAP-T1-013): show depth structures as positive depth below datum
@@ -1023,64 +1024,65 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
   };
 
   const ribbon = (
-    <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
+    <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 bg-pl-surface border-b border-pl-border">
       <ModuleHomeLink module="geoscience" />
-      <MapIcon className="w-4 h-4 text-cyan-400" />
-      <span className="text-sm font-semibold text-slate-100">Mapping &amp; Surface Studio</span>
-      <span className="text-[11px] text-slate-500">gridding &amp; contouring on the shared registry</span>
+      <MapIcon className="w-4 h-4 text-pl-primary-text" />
+      <span className="text-sm font-semibold text-pl-text">Mapping &amp; Surface Studio</span>
+      <span className="text-[11px] text-pl-muted">gridding &amp; contouring on the shared registry</span>
       <button type="button" data-testid="map-depth-unit"
-        className="ml-2 px-2 py-0.5 text-[11px] rounded border border-slate-700 text-slate-300 hover:bg-slate-800"
+        className="ml-2 px-2 py-0.5 text-[11px] rounded border border-pl-border text-pl-text hover:bg-pl-sunken"
         title="Depth display unit (feet or metres). Surfaces are stored in metres."
         onClick={() => changeDepthUnit(depthUnit === 'ft' ? 'm' : 'ft')}>
         depth: {depthUnit}
       </button>
       <button type="button" data-testid="map-depth-sign"
-        className="px-2 py-0.5 text-[11px] rounded border border-slate-700 text-slate-300 hover:bg-slate-800"
+        className="px-2 py-0.5 text-[11px] rounded border border-pl-border text-pl-text hover:bg-pl-sunken"
         title="Show structure maps as elevation (negative below datum) or as positive depth below datum. Storage is unchanged."
         onClick={() => setDepthPositive((d) => !d)}>
         {depthPositive ? 'depth +' : 'elevation'}
       </button>
       <button type="button" data-testid="map-export-png"
-        className="flex items-center gap-1 px-2 py-0.5 text-[11px] rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+        className="flex items-center gap-1 px-2 py-0.5 text-[11px] rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
         disabled={!displayGrid} title="Download the map as a titled PNG" onClick={exportPng}>
         <ImageIcon className="w-3.5 h-3.5" /> PNG
       </button>
       <button type="button" data-testid="map-undo" disabled={!undoDepth}
-        className="px-2 py-0.5 text-[11px] rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+        className="px-2 py-0.5 text-[11px] rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
         title="Undo the last grid, arithmetic or depth conversion preview" onClick={undo}>
         Undo
       </button>
       <Link to={`${appPath(MAPPING_ID)}/help`} data-testid="map-help" title="Open the Mapping & Surface Studio help guide"
-        className="flex items-center gap-1 px-2 py-0.5 text-[11px] rounded border border-slate-700 text-cyan-300 hover:bg-slate-800">
+        className="flex items-center gap-1 px-2 py-0.5 text-[11px] rounded border border-pl-border text-pl-primary-text hover:bg-pl-sunken">
         <HelpCircle className="w-3.5 h-3.5" /> Help
       </Link>
       {linkedWellIds && (
-        <button type="button" data-testid="map-linked-clear" className="px-2 py-0.5 text-[11px] rounded border border-amber-700/60 text-amber-300 hover:bg-amber-500/10"
+        <button type="button" data-testid="map-linked-clear" className="px-2 py-0.5 text-[11px] rounded border border-pl-border text-pl-text hover:bg-pl-sunken"
           title="The link posted only some wells; show every well again" onClick={() => setLinkedWellIds(null)}>
           {linkedWellIds.length} linked wells · show all
         </button>
       )}
       {preview && (
         <button type="button" data-testid="map-publish"
-          className="ml-auto flex items-center gap-1 px-2 py-1 text-xs rounded border border-emerald-700/60 text-emerald-300 hover:bg-emerald-500/10"
+          className="ml-auto flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-primary-text hover:bg-pl-sunken"
           onClick={publish}>
           <UploadCloud className="w-3.5 h-3.5" /> {replaceId ? 'Replace surface' : 'Publish surface'}
         </button>
       )}
+      <ThemeToggle className={`h-7 w-7 ${preview ? '' : 'ml-auto'}`} />
     </div>
   );
 
   const statusBar = (
-    <div className="flex items-center gap-3 px-3 py-1 bg-slate-900 border-t border-slate-800 text-[11px] text-slate-400">
+    <div className="flex items-center gap-3 px-3 py-1 bg-pl-surface border-t border-pl-border text-[11px] text-pl-muted">
       <span data-testid="map-status" className="truncate">{status}</span>
       {pendingDelete && (
         <button type="button" data-testid="map-delete-undo" onClick={undoDelete}
-          className="px-2 py-0.5 rounded border border-amber-700/60 text-amber-300 hover:bg-amber-500/10 whitespace-nowrap">
+          className="px-2 py-0.5 rounded border border-pl-border text-pl-text hover:bg-pl-sunken whitespace-nowrap">
           Undo delete
         </button>
       )}
       <span className="ml-auto whitespace-nowrap">{surfaces.length} surfaces{preview ? ' · unsaved preview' : ''}</span>
-      <span className="whitespace-nowrap text-slate-600" data-testid="map-status-unit">depth: {depthUnit} · {zConventionText}</span>
+      <span className="whitespace-nowrap text-pl-muted" data-testid="map-status-unit">depth: {depthUnit} · {zConventionText}</span>
     </div>
   );
 
@@ -1098,12 +1100,12 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
   }, [wells, displaySurface, linkedWellIds]);
 
   const center = !wells ? (
-    <div className="h-full flex items-center justify-center text-slate-500 text-sm"><Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading registry…</div>
+    <div className="h-full flex items-center justify-center text-pl-muted text-sm"><Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading registry…</div>
   ) : !displayGrid ? (
-    <div className="h-full flex flex-col items-center justify-center gap-2 text-slate-500 text-sm" data-testid="map-empty">
+    <div className="h-full flex flex-col items-center justify-center gap-2 text-pl-muted text-sm" data-testid="map-empty">
       <span>Grid a top from the left, or select a surface.</span>
       {!sample && backend.canImportCulture && (
-        <Link to="?sample=1" data-testid="map-try-sample" className="text-cyan-400 hover:underline text-xs">
+        <Link to="?sample=1" data-testid="map-try-sample" className="text-pl-primary-text hover:underline text-xs">
           New here? Try it on sample data (nothing is saved)
         </Link>
       )}
@@ -1186,23 +1188,23 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
       )}
       center={center}
       dock={(
-        <ScrollArea className="h-full min-h-0 bg-slate-900/60 border-l border-slate-800/60">
+        <ScrollArea className="h-full min-h-0 bg-pl-surface border-l border-pl-border">
           <div className="p-2 space-y-2 text-xs" data-testid="map-controls">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500 flex items-center gap-1"><SlidersHorizontal className="w-3 h-3" /> Display</div>
-            <label className="flex items-center gap-2 text-slate-300">
+            <div className="text-[10px] uppercase tracking-wider text-pl-muted flex items-center gap-1"><SlidersHorizontal className="w-3 h-3" /> Display</div>
+            <label className="flex items-center gap-2 text-pl-text">
               <span className="w-24 shrink-0">Contour interval</span>
               <input className={`${selCls} flex-1`} data-testid="map-contour-interval" value={mapSettings.contourStep}
                 placeholder="auto" title={`Contour interval in ${isLengthSurface(displaySurface) ? depthUnit : 'attribute units'}; blank = automatic`}
                 onChange={(e) => setSetting('contourStep', e.target.value)} />
             </label>
-            <label className="flex items-center gap-2 text-slate-300">
+            <label className="flex items-center gap-2 text-pl-text">
               <span className="w-24 shrink-0">Colour map</span>
               <select className={`${selCls} flex-1 min-w-0`} data-testid="map-colormap" value={mapSettings.colormap}
                 onChange={(e) => setSetting('colormap', e.target.value)}>
                 {MAP_COLORMAPS.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
               </select>
             </label>
-            <label className="flex items-center gap-2 text-slate-300">
+            <label className="flex items-center gap-2 text-pl-text">
               <span className="w-24 shrink-0">Contours from</span>
               <select className={`${selCls} flex-1 min-w-0`} data-testid="map-contour-from" value={contourFromId}
                 title="Draw the contours of another surface over this one's colours (structure over amplitude or net sand)"
@@ -1211,7 +1213,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
                 {surfaces.filter((x) => x.id !== displaySurface?.id).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
               </select>
             </label>
-            <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-slate-300">
+            <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-pl-text">
               {[
                 ['reverse', 'Reverse colours'], ['labels', 'Contour labels'], ['names', 'Well names'],
                 ['posted', 'Posted values'], ['legend', 'Legend'], ['scaleBar', 'Scale bar'],
@@ -1225,15 +1227,15 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
               ))}
             </div>
 
-            <div className="pt-2 border-t border-slate-800/60 text-[10px] uppercase tracking-wider text-slate-500 flex items-center gap-1"><Pentagon className="w-3 h-3" /> Polygons</div>
+            <div className="pt-2 border-t border-pl-border text-[10px] uppercase tracking-wider text-pl-muted flex items-center gap-1"><Pentagon className="w-3 h-3" /> Polygons</div>
             {!drawMode ? (
               <div className="flex gap-1">
                 <button type="button" data-testid="map-draw-fault" disabled={!displayGrid} title="Draw a fault-block polygon: the surface is gridded independently inside and outside it"
-                  className="flex-1 px-2 py-1 rounded border border-amber-700/60 text-amber-300 hover:bg-amber-500/10 disabled:opacity-40" onClick={() => startDraw('fault')}>
+                  className="flex-1 px-2 py-1 rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40" onClick={() => startDraw('fault')}>
                   <Pentagon className="w-3.5 h-3.5 inline mr-1" />Fault block
                 </button>
                 <button type="button" data-testid="map-draw-boundary" disabled={!displayGrid} title="Draw a boundary: gridding can clip to it"
-                  className="flex-1 px-2 py-1 rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-40" onClick={() => startDraw('boundary')}>
+                  className="flex-1 px-2 py-1 rounded border border-pl-primary/50 text-pl-primary-text hover:bg-pl-primary/10 disabled:opacity-40" onClick={() => startDraw('boundary')}>
                   <Square className="w-3.5 h-3.5 inline mr-1" />Boundary
                 </button>
               </div>
@@ -1241,36 +1243,36 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
             {!drawMode ? (
               <div className="flex gap-1">
                 <button type="button" data-testid="map-draw-facies" disabled={!displayGrid} title="Draw a facies polygon (Stratigraphy ST4): name it after a lithology to colour it"
-                  className="flex-1 px-2 py-1 rounded border border-orange-700/60 text-orange-300 hover:bg-orange-500/10 disabled:opacity-40" onClick={() => startDraw('facies')}>
+                  className="flex-1 px-2 py-1 rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40" onClick={() => startDraw('facies')}>
                   <Pentagon className="w-3.5 h-3.5 inline mr-1" />Facies
                 </button>
                 <button type="button" data-testid="map-draw-paleo" disabled={!displayGrid} title="Draw a paleogeography polygon (Stratigraphy ST4): name it after an environment to colour it"
-                  className="flex-1 px-2 py-1 rounded border border-sky-700/60 text-sky-300 hover:bg-sky-500/10 disabled:opacity-40" onClick={() => startDraw('paleo')}>
+                  className="flex-1 px-2 py-1 rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40" onClick={() => startDraw('paleo')}>
                   <Pentagon className="w-3.5 h-3.5 inline mr-1" />Paleogeography
                 </button>
               </div>
             ) : drawMode !== 'guide' ? (
-              <div className="space-y-1 rounded border border-amber-700/40 p-1.5" data-testid="map-draw-form">
-                <div className="text-slate-300"><span data-testid="map-draw-count">{pending.length}</span> vertices on the map ({drawMode === 'fault' ? 'fault block' : drawMode === 'facies' ? 'facies' : drawMode === 'paleo' ? 'paleogeography' : 'boundary'})</div>
+              <div className="space-y-1 rounded border border-pl-border p-1.5" data-testid="map-draw-form">
+                <div className="text-pl-text"><span data-testid="map-draw-count">{pending.length}</span> vertices on the map ({drawMode === 'fault' ? 'fault block' : drawMode === 'facies' ? 'facies' : drawMode === 'paleo' ? 'paleogeography' : 'boundary'})</div>
                 <input className={selCls} data-testid="map-polygon-name" placeholder="Polygon name" value={polyName} onChange={(e) => setPolyName(e.target.value)} />
                 <div className="flex gap-1">
                   <button type="button" data-testid="map-polygon-save" disabled={pending.length < 3 || !polyName.trim()}
-                    className="flex-1 px-2 py-1 rounded border border-emerald-700/60 text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-40" onClick={savePolygon}>Save</button>
-                  <button type="button" data-testid="map-draw-undo" disabled={!pending.length} className="px-2 py-1 rounded border border-slate-700 text-slate-300 disabled:opacity-40" onClick={() => setPending((p) => p.slice(0, -1))}>Undo</button>
-                  <button type="button" data-testid="map-draw-cancel" className="px-2 py-1 rounded border border-slate-700 text-slate-300" onClick={cancelDraw}>Cancel</button>
+                    className="flex-1 px-2 py-1 rounded border border-pl-border text-pl-primary-text hover:bg-pl-sunken disabled:opacity-40" onClick={savePolygon}>Save</button>
+                  <button type="button" data-testid="map-draw-undo" disabled={!pending.length} className="px-2 py-1 rounded border border-pl-border text-pl-text disabled:opacity-40" onClick={() => setPending((p) => p.slice(0, -1))}>Undo</button>
+                  <button type="button" data-testid="map-draw-cancel" className="px-2 py-1 rounded border border-pl-border text-pl-text" onClick={cancelDraw}>Cancel</button>
                 </div>
               </div>
             ) : null}
             {polygonRows.map((c) => (
-              <div key={c.id} className="flex items-center gap-1.5 py-0.5 text-slate-300" data-testid={`map-polygon-row-${c.name}`}>
-                <button type="button" title={visibleCultureIds.has(c.id) ? 'Hide' : 'Show'} className="text-slate-400" onClick={() => toggleCultureLayer(c)}>
+              <div key={c.id} className="flex items-center gap-1.5 py-0.5 text-pl-text" data-testid={`map-polygon-row-${c.name}`}>
+                <button type="button" title={visibleCultureIds.has(c.id) ? 'Hide' : 'Show'} className="text-pl-muted" onClick={() => toggleCultureLayer(c)}>
                   {visibleCultureIds.has(c.id) ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
                 </button>
                 <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: c.style?.color || '#eab308' }} />
                 <span className="truncate">{c.name}</span>
-                <span className="text-[10px] text-slate-500">{POLYGON_KIND_LABEL[c.kind] || c.kind}</span>
+                <span className="text-[10px] text-pl-muted">{POLYGON_KIND_LABEL[c.kind] || c.kind}</span>
                 {STRAT_POLYGON_KINDS.includes(c.kind) ? (
-                  <span className="ml-auto text-[10px] text-slate-500" data-testid={`map-facies-legend-${c.name}`}>legend</span>
+                  <span className="ml-auto text-[10px] text-pl-muted" data-testid={`map-facies-legend-${c.name}`}>legend</span>
                 ) : c.kind === POLYGON_KINDS.fault ? (
                   <label className="ml-auto flex items-center gap-1 text-[10px] cursor-pointer" title="Use as a fault block when gridding">
                     <input type="checkbox" data-testid={`map-fault-use-${c.name}`} checked={gridFaultIds.has(c.id)}
@@ -1285,56 +1287,56 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
                   </label>
                 )}
                 {c.is_own && (
-                  <button type="button" title={`Delete ${c.name}`} data-testid={`map-polygon-delete-${c.name}`} className="text-slate-500 hover:text-red-400" onClick={() => deletePolygon(c)}>
+                  <button type="button" title={`Delete ${c.name}`} data-testid={`map-polygon-delete-${c.name}`} className="text-pl-muted hover:text-pl-danger-text" onClick={() => deletePolygon(c)}>
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
             ))}
-            {!polygonRows.length && <p className="text-[10px] text-slate-600">No polygons yet. Fault blocks split the gridding; a boundary clips it.</p>}
+            {!polygonRows.length && <p className="text-[10px] text-pl-muted">No polygons yet. Fault blocks split the gridding; a boundary clips it.</p>}
 
-            <div className="pt-2 border-t border-slate-800/60 text-[10px] uppercase tracking-wider text-slate-500 flex items-center gap-1"><MapPin className="w-3 h-3" /> Guide points</div>
+            <div className="pt-2 border-t border-pl-border text-[10px] uppercase tracking-wider text-pl-muted flex items-center gap-1"><MapPin className="w-3 h-3" /> Guide points</div>
             {drawMode === 'guide' ? (
-              <div className="space-y-1 rounded border border-pink-700/40 p-1.5" data-testid="map-guide-form">
-                <div className="text-slate-300">{guideAt ? `At X ${guideAt.x.toFixed(0)}, Y ${guideAt.y.toFixed(0)}` : 'Click the map to place the point'}</div>
+              <div className="space-y-1 rounded border border-pl-border p-1.5" data-testid="map-guide-form">
+                <div className="text-pl-text">{guideAt ? `At X ${guideAt.x.toFixed(0)}, Y ${guideAt.y.toFixed(0)}` : 'Click the map to place the point'}</div>
                 <div className="flex gap-1">
                   <input className={`${selCls} flex-1`} data-testid="map-guide-value" placeholder={`value (${depthUnit}, ${depthPositive ? 'depth' : 'elevation'})`} value={guideValue} onChange={(e) => setGuideValue(e.target.value)} />
-                  <button type="button" data-testid="map-guide-add" disabled={!guideAt} className="px-2 py-1 rounded border border-emerald-700/60 text-emerald-300 disabled:opacity-40" onClick={addGuide}>Add</button>
-                  <button type="button" data-testid="map-guide-cancel" className="px-2 py-1 rounded border border-slate-700 text-slate-300" onClick={cancelDraw}>Cancel</button>
+                  <button type="button" data-testid="map-guide-add" disabled={!guideAt} className="px-2 py-1 rounded border border-pl-border text-pl-primary-text hover:bg-pl-sunken disabled:opacity-40" onClick={addGuide}>Add</button>
+                  <button type="button" data-testid="map-guide-cancel" className="px-2 py-1 rounded border border-pl-border text-pl-text" onClick={cancelDraw}>Cancel</button>
                 </div>
               </div>
             ) : (
               <button type="button" data-testid="map-guide-point" disabled={!displayGrid}
-                className="w-full px-2 py-1 rounded border border-pink-700/60 text-pink-300 hover:bg-pink-500/10 disabled:opacity-40" onClick={() => startDraw('guide')}>
+                className="w-full px-2 py-1 rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40" onClick={() => startDraw('guide')}>
                 <MapPin className="w-3.5 h-3.5 inline mr-1" />Add a guide point
               </button>
             )}
             {drawMode === 'contour' ? (
-              <div className="space-y-1 rounded border border-pink-700/40 p-1.5" data-testid="map-contour-form">
-                <div className="text-slate-300">{contourDrag ? `Moving the ${fmtZ(contourDrag.level)} contour` : 'Press on a contour, drag, release'}</div>
-                <button type="button" data-testid="map-contour-cancel" className="px-2 py-1 rounded border border-slate-700 text-slate-300" onClick={cancelDraw}>Cancel</button>
+              <div className="space-y-1 rounded border border-pl-border p-1.5" data-testid="map-contour-form">
+                <div className="text-pl-text">{contourDrag ? `Moving the ${fmtZ(contourDrag.level)} contour` : 'Press on a contour, drag, release'}</div>
+                <button type="button" data-testid="map-contour-cancel" className="px-2 py-1 rounded border border-pl-border text-pl-text" onClick={cancelDraw}>Cancel</button>
               </div>
             ) : (
               <button type="button" data-testid="map-contour-edit" disabled={!displayGrid || !isLengthSurface(displaySurface)}
                 title="Drag a contour to a new position; it becomes guide points at its value and the surface re-grids through them"
-                className="w-full px-2 py-1 rounded border border-pink-700/60 text-pink-300 hover:bg-pink-500/10 disabled:opacity-40" onClick={() => startDraw('contour')}>
+                className="w-full px-2 py-1 rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40" onClick={() => startDraw('contour')}>
                 <Spline className="w-3.5 h-3.5 inline mr-1" />Move a contour
               </button>
             )}
             {guidePoints.length > 0 && (
-              <button type="button" data-testid="map-guide-clear" className="w-full px-2 py-0.5 text-[10px] rounded border border-slate-800 text-slate-500 hover:text-slate-300" onClick={() => setGuidePoints([])}>Clear all guide points</button>
+              <button type="button" data-testid="map-guide-clear" className="w-full px-2 py-0.5 text-[10px] rounded border border-pl-border text-pl-muted hover:text-pl-text" onClick={() => setGuidePoints([])}>Clear all guide points</button>
             )}
             {guidePoints.map((gp, i) => (
-              <div key={gp.label} className="flex items-center gap-1.5 text-slate-300" data-testid={`map-guide-row-${gp.label}`}>
-                <span className="text-pink-300">{gp.label}</span>
-                <span className="text-[10px] text-slate-500">X {gp.x.toFixed(0)} Y {gp.y.toFixed(0)}</span>
+              <div key={gp.label} className="flex items-center gap-1.5 text-pl-text" data-testid={`map-guide-row-${gp.label}`}>
+                <span className="text-pl-text">{gp.label}</span>
+                <span className="text-[10px] text-pl-muted">X {gp.x.toFixed(0)} Y {gp.y.toFixed(0)}</span>
                 <span className="ml-auto">{fmtZ(gp.z, { kind: 'structure', z_domain: 'depth' })}</span>
-                <button type="button" title="Remove" className="text-slate-500 hover:text-red-400" onClick={() => setGuidePoints((g) => g.filter((_, j) => j !== i))}><Trash2 className="w-3.5 h-3.5" /></button>
+                <button type="button" title="Remove" className="text-pl-muted hover:text-pl-danger-text" onClick={() => setGuidePoints((g) => g.filter((_, j) => j !== i))}><Trash2 className="w-3.5 h-3.5" /></button>
               </div>
             ))}
-            {!guidePoints.length && <p className="text-[10px] text-slate-600">A guide point is a control value you place by hand; it grids with the wells (hand editing, v1).</p>}
+            {!guidePoints.length && <p className="text-[10px] text-pl-muted">A guide point is a control value you place by hand; it grids with the wells (hand editing, v1).</p>}
 
-            <div className="pt-2 border-t border-slate-800/60 text-[10px] uppercase tracking-wider text-slate-500 flex items-center gap-1"><Sigma className="w-3 h-3" /> Surface arithmetic</div>
+            <div className="pt-2 border-t border-pl-border text-[10px] uppercase tracking-wider text-pl-muted flex items-center gap-1"><Sigma className="w-3 h-3" /> Surface arithmetic</div>
             <select className={selCls} value={arith.op} data-testid="map-arith-op" onChange={(e) => setArith((a) => ({ ...a, op: e.target.value }))}>
               {ARITH_OPS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
             </select>
@@ -1352,34 +1354,34 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
               <input className={selCls} data-testid="map-arith-k" placeholder="k" value={arith.k} onChange={(e) => setArith((a) => ({ ...a, k: e.target.value }))} />
             )}
             {ARITH_OPS.find((o) => o.key === arith.op)?.needsBoundary && (
-              <p className="text-[10px] text-slate-500">Uses the boundary marked clip in the Polygons section.</p>
+              <p className="text-[10px] text-pl-muted">Uses the boundary marked clip in the Polygons section.</p>
             )}
             <button type="button" data-testid="map-iso-run"
-              className="w-full px-2 py-1 rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-40"
+              className="w-full px-2 py-1 rounded border border-pl-primary/50 text-pl-primary-text hover:bg-pl-primary/10 disabled:opacity-40"
               disabled={!isoPair.a || (ARITH_OPS.find((o) => o.key === arith.op)?.needsB && (!isoPair.b || isoPair.a === isoPair.b))} onClick={runArith}>
               {arith.op === 'thickness' ? 'Compute isochore' : 'Compute'}
             </button>
-            <p className="text-[10px] text-slate-600">Two-surface operations resample B onto A's frame; the isochore subtracts elevations, so the thickness is positive where the base is deeper. Publish to save.</p>
+            <p className="text-[10px] text-pl-muted">Two-surface operations resample B onto A's frame; the isochore subtracts elevations, so the thickness is positive where the base is deeper. Publish to save.</p>
 
-            <div className="pt-2 border-t border-slate-800/60 text-[10px] uppercase tracking-wider text-slate-500 flex items-center gap-1"><Calculator className="w-3 h-3" /> Quick GRV</div>
+            <div className="pt-2 border-t border-pl-border text-[10px] uppercase tracking-wider text-pl-muted flex items-center gap-1"><Calculator className="w-3 h-3" /> Quick GRV</div>
             <div className="flex gap-1">
               <input className={`${selCls} flex-1`} data-testid="map-grv-contact" placeholder={`contact (${depthUnit})`} title={`Contact in ${depthUnit}: an elevation (negative below datum) or a depth below datum`}
                 value={grvContact} onChange={(e) => setGrvContact(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') runGrv(); }} />
-              <button type="button" data-testid="map-grv-run" disabled={!displayGrid} className="px-2 py-1 rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-40" onClick={() => runGrv()}>GRV</button>
+              <button type="button" data-testid="map-grv-run" disabled={!displayGrid} className="px-2 py-1 rounded border border-pl-primary/50 text-pl-primary-text hover:bg-pl-primary/10 disabled:opacity-40" onClick={() => runGrv()}>GRV</button>
             </div>
             <button type="button" data-testid="map-grv-pick" disabled={!displayGrid || grvContact === ''}
               title="Click a closure on the map to measure that one instead of the highest"
-              className="w-full px-2 py-0.5 text-[11px] rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+              className="w-full px-2 py-0.5 text-[11px] rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
               onClick={() => { setDrawMode('grvpick'); setStatus('Click inside the closure to measure.'); }}>
               {drawMode === 'grvpick' ? 'Click a closure on the map…' : 'Pick a closure on the map'}
             </button>
             {grvResult && (
-              <p className={`text-[11px] ${grvData?.open ? 'text-amber-300' : 'text-slate-300'}`} data-testid="map-grv-result"
+              <p className={`text-[11px] ${grvData?.open ? 'text-pl-warning-text' : 'text-pl-text'}`} data-testid="map-grv-result"
                 data-open={grvData?.kind === 'closure' ? String(grvData.open) : undefined}>{grvResult}</p>
             )}
             {grvData?.kind === 'closure' && (
               <button type="button" data-testid="map-prospect-card" onClick={exportProspectCard}
-                className="w-full px-2 py-0.5 text-[11px] rounded border border-emerald-700/60 text-emerald-300 hover:bg-emerald-500/10">
+                className="w-full px-2 py-0.5 text-[11px] rounded border border-pl-border text-pl-primary-text hover:bg-pl-sunken">
                 Prospect card (PNG)
               </button>
             )}
@@ -1387,11 +1389,11 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
               <ClosureCurveChart curve={grvData.curve} contactM={grvData.contactM} spillZ={grvData.spill.z}
                 toDisplay={(m) => toDisplay(m, depthUnit)} unit={depthUnit} />
             )}
-            <p className="text-[10px] text-slate-600">Gross rock volume of one closure above a contact: the highest, or the one you pick. The curve shows area and GRV from the crest down to the spill. ReservoirCalc Pro is the place for fluids and uncertainty.</p>
+            <p className="text-[10px] text-pl-muted">Gross rock volume of one closure above a contact: the highest, or the one you pick. The curve shows area and GRV from the crest down to the spill. ReservoirCalc Pro is the place for fluids and uncertainty.</p>
 
             {displaySurface?.z_domain === 'time' && (
               <>
-                <div className="pt-2 border-t border-slate-800/60 text-[10px] uppercase tracking-wider text-slate-500 flex items-center gap-1"><Clock className="w-3 h-3" /> Time to depth</div>
+                <div className="pt-2 border-t border-pl-border text-[10px] uppercase tracking-wider text-pl-muted flex items-center gap-1"><Clock className="w-3 h-3" /> Time to depth</div>
                 <select className={selCls} value={tdMethod} data-testid="map-td-method" onChange={(e) => setTdMethod(e.target.value)}>
                   <option value="linear">Linear V(z) from a Seismolord velocity model</option>
                   <option value="wells">Average velocity from the wells</option>
@@ -1411,14 +1413,14 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
                       <option value="ft">depth in feet</option>
                       <option value="m">depth in metres</option>
                     </select>
-                    <label className="flex items-center gap-1.5 text-slate-300 text-[11px]" title="Spread the mis-ties at the wells over the map (Franke-Little field, radius three well spacings)">
+                    <label className="flex items-center gap-1.5 text-pl-text text-[11px]" title="Spread the mis-ties at the wells over the map (Franke-Little field, radius three well spacings)">
                       <input type="checkbox" data-testid="map-td-correct" checked={tdCorrect} disabled={!tdTop} onChange={(e) => setTdCorrect(e.target.checked)} /> correct the map to the top
                     </label>
                   </>
                 )}
                 <button type="button" data-testid="map-td-run" disabled={tdMethod === 'linear' ? !tdModelId : !tdTop}
-                  className="w-full px-2 py-1 rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-40" onClick={runTimeDepth}>Convert</button>
-                <p className="text-[10px] text-slate-600">{tdMethod === 'wells'
+                  className="w-full px-2 py-1 rounded border border-pl-primary/50 text-pl-primary-text hover:bg-pl-primary/10 disabled:opacity-40" onClick={runTimeDepth}>Convert</button>
+                <p className="text-[10px] text-pl-muted">{tdMethod === 'wells'
                   ? 'Average velocity (depth over one-way time) at each well carrying the top, gridded over the horizon; the map honours every well.'
                   : "V(z) = v0 + k·z from the volume's velocity model; the result is elevation, negative below datum. Layer cakes convert in Seismolord."}</p>
               </>
@@ -1426,12 +1428,12 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
 
             {residuals && <ResidualTable title={residuals.title} rows={residuals.rows} stats={residuals.stats} fmt={(m) => fmtZ(m, { kind: 'structure', z_domain: 'depth' })} fmtLen={(m) => fmtZ(m, { kind: 'isochore', z_domain: 'depth' })} />}
 
-            <div className="pt-2 border-t border-slate-800/60">
-              <div className="text-[10px] uppercase tracking-wider text-slate-500 flex items-center gap-1 mb-1">
+            <div className="pt-2 border-t border-pl-border">
+              <div className="text-[10px] uppercase tracking-wider text-pl-muted flex items-center gap-1 mb-1">
                 <Globe2 className="w-3 h-3" /> Culture layers
               </div>
               {otherCulture.map((c) => (
-                <label key={c.id} className="flex items-center gap-1.5 py-0.5 text-slate-300 cursor-pointer">
+                <label key={c.id} className="flex items-center gap-1.5 py-0.5 text-pl-text cursor-pointer">
                   <input
                     type="checkbox"
                     checked={visibleCultureIds.has(c.id)}
@@ -1442,11 +1444,11 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
                     style={{ background: c.style?.color || '#f59e0b' }}
                   />
                   <span className="truncate">{c.name}</span>
-                  <span className="ml-auto text-slate-600">{c.feature_count}</span>
+                  <span className="ml-auto text-pl-muted">{c.feature_count}</span>
                 </label>
               ))}
               {!otherCulture.length && (
-                <p className="text-[10px] text-slate-600">
+                <p className="text-[10px] text-pl-muted">
                   No culture layers yet (license blocks, outlines, pipelines).
                 </p>
               )}
@@ -1454,7 +1456,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
                 <button
                   type="button"
                   data-testid="map-culture-import"
-                  className="mt-1 w-full px-2 py-1 rounded border border-slate-700 text-slate-300 hover:bg-slate-800"
+                  className="mt-1 w-full px-2 py-1 rounded border border-pl-border text-pl-text hover:bg-pl-sunken"
                   onClick={() => setCultureImportOpen(true)}
                 >
                   Import GeoJSON / shapefile…
@@ -1484,7 +1486,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel data-testid="map-delete-cancel">Keep it</AlertDialogCancel>
-            <AlertDialogAction data-testid="map-delete-go" className="bg-red-600 hover:bg-red-700" onClick={confirmDel}>Delete</AlertDialogAction>
+            <AlertDialogAction data-testid="map-delete-go" className="bg-pl-danger text-pl-danger-fg hover:bg-pl-danger/90" onClick={confirmDel}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

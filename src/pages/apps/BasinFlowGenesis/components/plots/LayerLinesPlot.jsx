@@ -18,7 +18,7 @@ const LayerLinesPlot = ({ results, field, title, yLabel, yDomain, children, yCon
     }, [data, field, meta, yConvert]);
 
     return (
-        <div className="w-full h-full min-h-[400px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative">
+        <div className="w-full h-full min-h-[400px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative" data-canvas="chart">
             <h3 className="text-center text-sm font-semibold" style={{ color: CHART_COLORS.axisLabel }}>{title}</h3>
             <div className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">

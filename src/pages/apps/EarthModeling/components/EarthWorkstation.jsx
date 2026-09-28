@@ -13,6 +13,7 @@ import { Link } from 'react-router-dom';
 import { Mountain, Loader2, Hammer, UploadCloud, Map as MapIcon, Rows, ClipboardCheck, ImageDown, Route, FileDown, ExternalLink, HelpCircle, Box } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import ModelExplorer from './ModelExplorer';
 import BuilderDock from './BuilderDock';
 import MapView from './MapView';
@@ -34,11 +35,11 @@ import { validatePolygon } from '../engine/blocks';
 import { surfaceStats } from '@/lib/gridding/gridmath';
 import { depthDownToSurfaceZ } from '@/lib/surfaceConvention';
 
-const selCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
+const selCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs';
 const viewBtn = (active) =>
   `flex items-center gap-1 px-2 py-1 text-xs rounded border ${active
-    ? 'border-cyan-600 text-cyan-300 bg-cyan-500/10'
-    : 'border-slate-700 text-slate-400 hover:bg-slate-700/30'}`;
+    ? 'border-pl-primary text-pl-primary-text bg-pl-primary/10'
+    : 'border-pl-border text-pl-muted hover:bg-pl-sunken'}`;
 
 const LAYERS = [
   { key: 'top', label: 'Zone top (depth)' },
@@ -365,12 +366,12 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
   };
 
   const ribbon = (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-1.5 bg-pl-surface border-b border-pl-border">
       <ModuleHomeLink module="geoscience" />
-      <Mountain className="w-4 h-4 text-cyan-400" />
-      <span className="text-sm font-semibold text-slate-100">Earth Modeling</span>
-      <span className="text-[11px] text-slate-500">layer-cake framework on the shared registry</span>
-      <div className="ml-4 flex items-center gap-1">
+      <Mountain className="w-4 h-4 text-pl-primary-text" />
+      <span className="text-sm font-semibold text-pl-text whitespace-nowrap">Earth Modeling</span>
+      <span className="hidden 2xl:inline text-[11px] text-pl-muted">layer-cake framework on the shared registry</span>
+      <div className="ml-4 flex flex-wrap items-center gap-1">
         <button type="button" data-testid="em-view-map" className={viewBtn(view === 'map')} onClick={() => setView('map')}>
           <MapIcon className="w-3.5 h-3.5" /> Map
         </button>
@@ -384,9 +385,9 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
           <Box className="w-3.5 h-3.5" /> 3D
         </button>
       </div>
-      <div className="ml-auto flex items-center gap-1">
+      <div className="ml-auto flex flex-wrap items-center gap-1">
         <button type="button" data-testid="em-depth-unit"
-          className="px-2 py-1 text-[11px] rounded border border-slate-700 text-slate-300 hover:bg-slate-800"
+          className="px-2 py-1 text-[11px] rounded border border-pl-border text-pl-text hover:bg-pl-sunken"
           title="Depth display unit (feet or metres), the account's Geoscience setting. The model computes in metres."
           onClick={() => changeDepthUnit(depthUnit === 'ft' ? 'm' : 'ft')}>
           depth: {depthUnit}
@@ -396,17 +397,17 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
           {Object.values(VOLUME_UNIT_SETS).map((u) => <option key={u.key} value={u.key}>{u.label}</option>)}
         </select>
         <button type="button" data-testid="em-build"
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-40"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-primary/50 text-pl-primary-text hover:bg-pl-primary/10 disabled:opacity-40"
           disabled={building || definition.surfaceIds.length < 2} onClick={build}>
           {building ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Hammer className="w-3.5 h-3.5" />} Build model
         </button>
         <button type="button" data-testid="em-publish"
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-emerald-700/60 text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-40"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-primary-text hover:bg-pl-sunken disabled:opacity-40"
           disabled={!built || !mapGrid || layer === 'blocks'} onClick={publish}>
           <UploadCloud className="w-3.5 h-3.5" /> Publish layer
         </button>
         <button type="button" data-testid="em-volumes-csv" title="Download the volume tables as CSV in the chosen units"
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
           disabled={!built} onClick={() => exportVolumesCsv()}>
           <FileDown className="w-3.5 h-3.5" /> Volumes CSV
         </button>
@@ -414,36 +415,37 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
           <>
             <Link to={reservoirCalcSurfaceHref(lastPublished.id, appPath(RESERVOIRCALC_ID, appPaths))} data-testid="em-open-rcp"
               title={`Open ReservoirCalc Pro's Surface import on ${lastPublished.name}`}
-              className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-amber-700/60 text-amber-300 hover:bg-amber-500/10">
+              className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken">
               <ExternalLink className="w-3.5 h-3.5" /> Open in ReservoirCalc Pro
             </Link>
             <Link to={mapSurfaceHref(lastPublished.id, appPath(MAPPING_ID, appPaths))} data-testid="em-open-mapping"
               title={`Open ${lastPublished.name} in Mapping & Surface Studio`}
-              className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10">
+              className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-primary/50 text-pl-primary-text hover:bg-pl-primary/10">
               <MapIcon className="w-3.5 h-3.5" /> Open in Mapping
             </Link>
           </>
         )}
         <button type="button" data-testid="em-depth-sign" onClick={toggleDepthSign}
           title="Show depths as positive TVDSS or as elevation (negative below datum); shared with Mapping"
-          className="px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800">
+          className="px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken">
           {depthPositive ? 'depth +' : 'elevation'}
         </button>
         <Link to={`${appPath(EARTH_MODELING_ID, appPaths)}/help`} data-testid="em-help" title="Open the Earth Modeling help guide"
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800">
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken">
           <HelpCircle className="w-3.5 h-3.5" /> Help
         </Link>
+        <ThemeToggle className="h-7 w-7" />
       </div>
     </div>
   );
 
   const statusBar = (
-    <div className="flex items-center gap-3 px-3 py-1 bg-slate-900 border-t border-slate-800 text-[11px] text-slate-400">
+    <div className="flex items-center gap-3 px-3 py-1 bg-pl-surface border-t border-pl-border text-[11px] text-pl-muted">
       <span data-testid="em-status" className="truncate">{status}</span>
       <span className="ml-auto whitespace-nowrap" data-testid="em-frame">
         {built ? `${built.spec.nx}×${built.spec.ny} @ ${built.spec.dx} m` : `${definition.surfaceIds.length} surfaces stacked`}
       </span>
-      <span className="whitespace-nowrap text-slate-600">{depthPositive ? 'TVDSS' : 'elevation'} {depthUnit}, SI internal</span>
+      <span className="whitespace-nowrap text-pl-muted">{depthPositive ? 'TVDSS' : 'elevation'} {depthUnit}, SI internal</span>
     </div>
   );
 
@@ -451,7 +453,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
     <div className="flex items-center gap-2 mb-2">
       {sectionDrawing && (
         <>
-          <span className="text-[11px] text-cyan-300" data-testid="em-sec-pending">{sectionPending.length} section vertices</span>
+          <span className="text-[11px] text-pl-primary-text" data-testid="em-sec-pending">{sectionPending.length} section vertices</span>
           <button type="button" data-testid="em-sec-finish" className={viewBtn(true)} disabled={sectionPending.length < 2} onClick={() => finishSection()}>Finish section line</button>
           <button type="button" data-testid="em-sec-cancel" className={viewBtn(false)} onClick={() => cancelSection()}>Cancel</button>
         </>
@@ -463,8 +465,8 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
       <select className={selCls} data-testid="em-map-layer" value={layer} onChange={(e) => setLayer(e.target.value)}>
         {LAYERS.filter((l) => !l.key.endsWith('_var') || built.zones[zoneIdx]?.variance?.[l.key.slice(0, -4)]).map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}
       </select>
-      {layer === 'blocks' && !built.labels && <span className="text-[11px] text-slate-500">no fault polygons — single block</span>}
-      {layer.endsWith('_var') && <span className="text-[11px] text-slate-500" data-testid="em-map-variance-note">low near the wells, high where the property is guessed</span>}
+      {layer === 'blocks' && !built.labels && <span className="text-[11px] text-pl-muted">no fault polygons, so a single block</span>}
+      {layer.endsWith('_var') && <span className="text-[11px] text-pl-muted" data-testid="em-map-variance-note">low near the wells, high where the property is guessed</span>}
     </div>
   );
 
@@ -546,7 +548,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
         onChange={(e) => setSectionWells((p) => ({ ...p, a: e.target.value }))}>
         {(wells || []).map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
       </select>
-      <span className="text-[11px] text-slate-500">→</span>
+      <span className="text-[11px] text-pl-muted">→</span>
       <select className={selCls} data-testid="em-sec-b" value={sectionWells.b}
         onChange={(e) => { setSectionWells((p) => ({ ...p, b: e.target.value })); setSectionPath(null); }}>
         {(wells || []).map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
@@ -555,12 +557,12 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
         <Route className="w-3.5 h-3.5" /> {sectionPath ? 'Redraw line' : 'Draw line on map'}
       </button>
       {sectionPath && <button type="button" data-testid="em-sec-clear" className={viewBtn(false)} onClick={() => { setSectionPath(null); setStatus('Section back to the well pair.'); }}>Well pair</button>}
-      <label className="flex items-center gap-1 text-[11px] text-slate-400">VE
+      <label className="flex items-center gap-1 text-[11px] text-pl-muted">VE
         <select className={selCls} data-testid="em-sec-ve" value={ve} onChange={(e) => setVe(Number(e.target.value))}>
           {VE_OPTIONS.map((v) => <option key={v} value={v}>{v}x</option>)}
         </select>
       </label>
-      <span className="text-[11px] text-slate-500" data-testid="em-sec-wells">{projected.length} well{projected.length === 1 ? '' : 's'} on the line</span>
+      <span className="text-[11px] text-pl-muted" data-testid="em-sec-wells">{projected.length} well{projected.length === 1 ? '' : 's'} on the line</span>
       <button type="button" data-testid="em-sec-png" className={`${viewBtn(false)} ml-auto`} title="Download the section as a PNG" onClick={exportSectionPng}>
         <ImageDown className="w-3.5 h-3.5" /> PNG
       </button>
@@ -568,7 +570,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
   );
 
   const center = !wells ? (
-    <div className="h-full flex items-center justify-center text-slate-500 text-sm">
+    <div className="h-full flex items-center justify-center text-pl-muted text-sm">
       <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading registry…
     </div>
   ) : view === 'qc' ? (
@@ -578,7 +580,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
       {built ? (
         <FrameworkView3D built={built} wells={wells} surfaceNames={surfaceNames} faultPolygons={definition.faultPolygons || []} depthUnit={depthUnit} onStatus={setStatus} />
       ) : (
-        <div className="h-full flex items-center justify-center text-slate-500 text-sm" data-testid="em-3d-empty">Build the model to see it in 3D.</div>
+        <div className="h-full flex items-center justify-center text-pl-muted text-sm" data-testid="em-3d-empty">Build the model to see it in 3D.</div>
       )}
     </div>
   ) : view === 'section' ? (
@@ -598,11 +600,11 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
       />
     </div>
   ) : !built ? (
-    <div className="h-full flex items-center justify-center text-slate-500 text-sm" data-testid="em-empty">
+    <div className="h-full flex items-center justify-center text-pl-muted text-sm" data-testid="em-empty">
       <span className="flex flex-col items-center gap-2">
         <span>Stack two or more registry surfaces (explorer), then Build model.</span>
         {!sample && !backend.isSample && (
-          <Link to="?sample=1" data-testid="em-try-sample" className="text-cyan-400 hover:underline text-xs">New here? Try it on sample data (nothing is saved)</Link>
+          <Link to="?sample=1" data-testid="em-try-sample" className="text-pl-primary-text hover:underline text-xs">New here? Try it on sample data (nothing is saved)</Link>
         )}
       </span>
     </div>

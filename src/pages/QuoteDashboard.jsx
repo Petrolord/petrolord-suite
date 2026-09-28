@@ -88,7 +88,7 @@ function QuoteDashboardPage() {
       });
       if (error) throw error;
       if (data?.success) {
-        toast({ title: 'Payment Confirmed', description: 'Thank you! Your payment is verified and your subscription is now active.', className: 'bg-green-600 text-white' });
+        toast({ title: 'Payment Confirmed', description: 'Thank you! Your payment is verified and your subscription is now active.' });
         await fetchQuote();
       } else if (fromRedirect) {
         toast({ title: 'Payment Not Yet Confirmed', description: data?.message || "If you were debited, use 'I Have Paid (Verify)' to retry, or contact support.", variant: 'destructive' });

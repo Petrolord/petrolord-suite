@@ -19,14 +19,14 @@ const ChargeTimingPlot = ({ results }) => {
 
     if (!rows.length || !(maxAge > 0)) {
         return (
-            <div className="w-full h-full flex items-center justify-center bg-white rounded-lg border border-slate-300">
+            <div className="w-full h-full flex items-center justify-center bg-white rounded-lg border border-slate-300" data-canvas="chart">
                 <p className="text-slate-500">Run a simulation to see the events chart.</p>
             </div>
         );
     }
 
     return (
-        <div className="w-full h-full min-h-[400px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative" data-testid="bf-events-chart">
+        <div className="w-full h-full min-h-[400px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative" data-canvas="chart" data-testid="bf-events-chart">
             <h3 className="text-center text-sm font-semibold mb-3" style={{ color: CHART_COLORS.axisLabel }}>Petroleum System Events Chart</h3>
             <div className="flex-1 min-h-0 flex flex-col">
                 <div className="relative flex-1 min-h-0">

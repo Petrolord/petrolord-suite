@@ -13,8 +13,8 @@ const ResultsDashboard = ({ onBack }) => {
     const [exportOpen, setExportOpen] = React.useState(false);
 
     return (
-        <div className="h-full flex flex-col bg-slate-950">
-            <div className="border-b border-slate-800 p-4 flex justify-between items-center bg-slate-900">
+        <div className="h-full flex flex-col bg-pl-bg">
+            <div className="border-b border-pl-border p-4 flex justify-between items-center bg-pl-surface">
                 <div className="flex items-center gap-4">
                     {onBack && (
                         <Button variant="ghost" size="icon" onClick={onBack}>
@@ -22,14 +22,14 @@ const ResultsDashboard = ({ onBack }) => {
                         </Button>
                     )}
                     <div>
-                        <h1 className="text-lg font-bold text-white">Simulation Results</h1>
-                        <p className="text-xs text-slate-400">
+                        <h1 className="text-lg font-bold text-pl-text">Simulation Results</h1>
+                        <p className="text-xs text-pl-muted">
                             Project: {state.project?.name || 'Untitled'} | Scenario: {state.activeScenarioId || 'Current'}
                         </p>
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" size="sm" data-testid="bf-dashboard-export" onClick={() => setExportOpen(true)}>
+                    <Button size="sm" data-testid="bf-dashboard-export" onClick={() => setExportOpen(true)}>
                         <Download className="w-4 h-4 mr-2" /> Export
                     </Button>
                 </div>
@@ -38,8 +38,8 @@ const ResultsDashboard = ({ onBack }) => {
 
             <div className="flex-1 overflow-hidden">
                 <Tabs defaultValue="summary" className="h-full flex flex-col">
-                    <div className="px-6 pt-4 bg-slate-900 border-b border-slate-800 shrink-0">
-                        <TabsList className="bg-slate-950 border border-slate-800">
+                    <div className="px-6 pt-4 bg-pl-surface border-b border-pl-border shrink-0">
+                        <TabsList>
                             <TabsTrigger value="summary">Dashboard</TabsTrigger>
                             <TabsTrigger value="detailed">Detailed Plots</TabsTrigger>
                         </TabsList>

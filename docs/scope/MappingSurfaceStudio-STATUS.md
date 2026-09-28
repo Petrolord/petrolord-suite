@@ -329,3 +329,31 @@ three stdlib oracles, 43 gates, negcontrol 30/30. Suite PRs #629
 
 Known limits: kriging maps inside the wells only; tension and kriging grid
 without fault blocks; the GRV range treats nodes as fully correlated.
+
+## 2026-09-28: design system rollout W4B (light default, dark per user)
+
+The app, its dev harness and its help guide each wrap themselves in
+`ThemedApp` (App.jsx is untouched), so the app opens on the grey panel
+light theme and the ribbon's toggle switches to dark and back, stored per
+user. The route prefix `/dashboard/apps/geoscience/mapping-surface-studio` (the help guide is a sub-path) is
+registered in `src/design/rollout/w4b.js` for the themed cold-load
+loaders.
+
+- Chrome on roles: the ribbon (new theme toggle at the right), the
+  surfaces explorer, the display and tools dock, the residual table, the
+  surface import dialog, the delete confirmation and the status bar moved
+  to `pl-*` roles. Decorative cyan, emerald, orange, sky and pink
+  buttons, forms and badges went; shared and private surfaces use the
+  primary tint and the neutral chip. No-CRS, re-gridding, open-closure and
+  residual notes keep the warning role. The overrides on `DialogContent`
+  and `Input` in the import dialog were removed. The sample banner is a
+  warning callout.
+- Canvases: the map is painted with light ink for a dark ground, so the
+  shared map viewport (`components/maps/MapViewport.jsx`, consumed only by
+  this app and Earth Modeling) marks its frame `data-canvas="dark"` with a
+  slate ground (the pixels behind the map are unchanged); its zoom
+  buttons and readout keep their dark look. The closure curve stays white
+  chart paper (`data-canvas="chart"`).
+- Tests: new `src/pages/apps/MappingSurfaceStudio/__tests__/MappingSurfaceStudio.theme.test.jsx`
+  (the shared `describeAppTheme` checks on the real workstation, plus the
+  views, the dark theme and the help guide). No calculation, engine, export or plotting change; the existing suites pass unchanged.

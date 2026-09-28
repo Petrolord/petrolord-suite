@@ -35,7 +35,7 @@ export default function WheelerChart({ wells, scheme = 'catuneanu', width = 720,
 
   if (!n) {
     return (
-      <div className="text-xs text-slate-500 p-3" data-testid={`${testIdPrefix}-empty`}>
+      <div className="text-xs text-pl-muted p-3" data-testid={`${testIdPrefix}-empty`}>
         No well has two dated surfaces yet. Give the tops ages in the Tops view (and a hiatus end for unconformities) to build the Wheeler chart.
         {chart.skipped.length > 0 && <ul className="mt-1">{chart.skipped.map((s) => <li key={s.id}>{s.name}: {s.reason}</li>)}</ul>}
       </div>
@@ -49,7 +49,9 @@ export default function WheelerChart({ wells, scheme = 'catuneanu', width = 720,
   };
 
   return (
-    <div data-testid={`${testIdPrefix}-chart`} data-cell-count={chart.wells.reduce((s, w) => s + w.cells.length, 0)} data-age-max={chart.age_max_ma} className="overflow-x-auto">
+    // design system (W4B): the chart and its legend are drawn for a dark
+    // ground, so they sit on a dark canvas in both themes; unchanged inside
+    <div data-testid={`${testIdPrefix}-chart`} data-cell-count={chart.wells.reduce((s, w) => s + w.cells.length, 0)} data-age-max={chart.age_max_ma} data-canvas="dark" className="overflow-x-auto rounded bg-slate-950">
       <svg width={width} height={height} className="block">
         <defs>
           <pattern id={`${testIdPrefix}-hatch`} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
