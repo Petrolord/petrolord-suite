@@ -26,15 +26,15 @@ const ExportControls = ({ data, columns, fileName, title }) => {
     <div className="flex items-center gap-2">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="bg-slate-900 border-slate-800 text-slate-300">
+          <Button variant="outline" size="sm">
             <Download className="w-4 h-4 mr-2" /> Export
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="bg-slate-900 border-slate-800 text-slate-300">
-          <DropdownMenuItem onClick={handlePdfExport} className="cursor-pointer hover:bg-slate-800">
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={handlePdfExport} className="cursor-pointer">
             <FileText className="w-4 h-4 mr-2" /> Export as PDF
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleCsvExport} className="cursor-pointer hover:bg-slate-800">
+          <DropdownMenuItem onClick={handleCsvExport} className="cursor-pointer">
             <Table className="w-4 h-4 mr-2" /> Export as CSV
           </DropdownMenuItem>
         </DropdownMenuContent>
