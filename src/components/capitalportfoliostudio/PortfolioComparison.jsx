@@ -3,6 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import ChartFrame from '@/components/charts/ChartFrame';
+import { ChartPanel } from '@/components/ui/chart-panel';
+import { signedTone } from '@/components/ui/numeric-table';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { motion } from 'framer-motion';
 
@@ -21,20 +23,16 @@ const PortfolioComparison = ({ isOpen, onClose, comparisonData }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl h-[90vh] bg-slate-900 border-slate-700 text-white flex flex-col">
+      <DialogContent className="max-w-6xl h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="text-3xl font-bold text-white">Portfolio Scenario Comparison</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogTitle className="text-2xl font-bold">Portfolio Scenario Comparison</DialogTitle>
+          <DialogDescription>
             Side-by-side comparison of your optimized portfolio scenarios.
           </DialogDescription>
         </DialogHeader>
         <div className="flex-grow mt-6 grid grid-cols-1 lg:grid-cols-2 gap-8 overflow-y-auto">
           <div className="lg:col-span-2">
-            <Card className="bg-white/5 border-white/10">
-              <CardHeader>
-                <CardTitle className="text-xl text-amber-300">Risked EMV vs. CAPEX</CardTitle>
-              </CardHeader>
-              <CardContent>
+            <ChartPanel title="Risked EMV vs. CAPEX">
                 <ChartFrame height={300} exportFilename="portfolio-comparison">
                     <BarChart data={chartData} margin={{ top: 8, right: 24, left: 16, bottom: 8 }}>
                       <CartesianGrid {...GRID_STYLE} vertical={false} />
@@ -47,8 +45,7 @@ const PortfolioComparison = ({ isOpen, onClose, comparisonData }) => {
                       <Bar yAxisId="right" dataKey="CAPEX" fill="#d97706" name="Total CAPEX" />
                     </BarChart>
                 </ChartFrame>
-              </CardContent>
-            </Card>
+            </ChartPanel>
           </div>
           <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {comparisonData.map((item, index) => (
@@ -58,23 +55,23 @@ const PortfolioComparison = ({ isOpen, onClose, comparisonData }) => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
               >
-                <Card className="bg-white/5 border-white/10 h-full flex flex-col">
+                <Card className="h-full flex flex-col">
                   <CardHeader>
-                    <CardTitle className="text-lg text-blue-300">{item.name}</CardTitle>
-                    <p className="text-sm text-slate-400">CAPEX Limit: {formatCurrency(item.capex_limit)}</p>
+                    <CardTitle className="text-lg">{item.name}</CardTitle>
+                    <p className="text-sm text-pl-muted">CAPEX Limit: <span className="font-pl-mono tabular-nums">{formatCurrency(item.capex_limit)}</span></p>
                   </CardHeader>
                   <CardContent className="flex-grow space-y-3">
                     <div>
-                      <p className="text-sm text-slate-400">Optimal Risked EMV</p>
-                      <p className="text-2xl font-bold text-lime-400">{formatCurrency(item.totalNpv)}</p>
+                      <p className="text-sm text-pl-muted">Optimal Risked EMV</p>
+                      <p className={`text-2xl font-semibold font-pl-mono tabular-nums ${signedTone(item.totalNpv) || 'text-pl-text'}`}>{formatCurrency(item.totalNpv)}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-slate-400">Optimal Total CAPEX</p>
-                      <p className="text-2xl font-bold text-amber-400">{formatCurrency(item.totalCapex)}</p>
+                      <p className="text-sm text-pl-muted">Optimal Total CAPEX</p>
+                      <p className="text-2xl font-semibold font-pl-mono tabular-nums text-pl-text">{formatCurrency(item.totalCapex)}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-slate-400">Funded Projects</p>
-                      <p className="text-2xl font-bold text-white">{item.optimalProjects.length}</p>
+                      <p className="text-sm text-pl-muted">Funded Projects</p>
+                      <p className="text-2xl font-semibold font-pl-mono tabular-nums text-pl-text">{item.optimalProjects.length}</p>
                     </div>
                   </CardContent>
                 </Card>

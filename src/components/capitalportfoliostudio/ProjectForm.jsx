@@ -117,52 +117,52 @@ const ProjectForm = ({ project, onSave, onCancel }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div><Label htmlFor="name">Project Name</Label><Input id="name" name="name" value={formData.name} onChange={handleChange} className="bg-white/5 border-white/20" required /></div>
+      <div><Label htmlFor="name">Project Name</Label><Input id="name" name="name" value={formData.name} onChange={handleChange} required /></div>
 
       {/* Valuation source */}
-      <div className="rounded-lg border border-white/15 p-3">
+      <div className="rounded-lg border border-pl-border p-3">
         <div className="flex items-center justify-between mb-2">
-          <Label className="text-slate-200">Valuation</Label>
+          <Label>Valuation</Label>
           {formData.source_type === 'epe_mc' ? (
-            <span className="text-xs text-emerald-300 bg-emerald-900/30 border border-emerald-500/30 rounded px-2 py-0.5 flex items-center gap-1">
+            <span className="text-xs text-pl-text bg-pl-sunken border border-pl-border rounded px-2 py-0.5 flex items-center gap-1">
               <Link2 className="w-3 h-3" /> {formData.source_label}
-              <button type="button" onClick={unlink} title="Unlink and edit manually" className="ml-1 text-slate-300 hover:text-white"><X className="w-3 h-3" /></button>
+              <button type="button" onClick={unlink} title="Unlink and edit manually" className="ml-1 text-pl-muted hover:text-pl-text" aria-label="Unlink and edit manually"><X className="w-3 h-3" /></button>
             </span>
           ) : (
-            <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs text-sky-300 hover:text-sky-200" onClick={openMcPicker}>
+            <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs text-pl-primary-text hover:text-pl-primary-text-hover" onClick={openMcPicker}>
               <Link2 className="w-3 h-3 mr-1" /> Link EPE Monte Carlo run
             </Button>
           )}
         </div>
-        <div className="grid grid-cols-3 gap-4">
-          <div><Label htmlFor="npv_p90">NPV P90 ($MM)</Label><Input id="npv_p90" name="npv_p90" type="number" step="any" value={formData.npv_p90} onChange={handleChange} disabled={formData.source_type === 'epe_mc'} className="bg-white/5 border-white/20 disabled:opacity-60" required /></div>
-          <div><Label htmlFor="npv_p50">NPV P50 ($MM)</Label><Input id="npv_p50" name="npv_p50" type="number" step="any" value={formData.npv_p50} onChange={handleChange} disabled={formData.source_type === 'epe_mc'} className="bg-white/5 border-white/20 disabled:opacity-60" required /></div>
-          <div><Label htmlFor="npv_p10">NPV P10 ($MM)</Label><Input id="npv_p10" name="npv_p10" type="number" step="any" value={formData.npv_p10} onChange={handleChange} disabled={formData.source_type === 'epe_mc'} className="bg-white/5 border-white/20 disabled:opacity-60" required /></div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div><Label htmlFor="npv_p90">NPV P90 ($MM)</Label><Input id="npv_p90" name="npv_p90" type="number" step="any" value={formData.npv_p90} onChange={handleChange} disabled={formData.source_type === 'epe_mc'} required /></div>
+          <div><Label htmlFor="npv_p50">NPV P50 ($MM)</Label><Input id="npv_p50" name="npv_p50" type="number" step="any" value={formData.npv_p50} onChange={handleChange} disabled={formData.source_type === 'epe_mc'} required /></div>
+          <div><Label htmlFor="npv_p10">NPV P10 ($MM)</Label><Input id="npv_p10" name="npv_p10" type="number" step="any" value={formData.npv_p10} onChange={handleChange} disabled={formData.source_type === 'epe_mc'} required /></div>
         </div>
-        <p className="text-xs text-slate-400 mt-2">Petroleum convention: P90 is the low case. Linked runs also carry the NPV standard deviation into portfolio risk.</p>
+        <p className="text-xs text-pl-muted mt-2">Petroleum convention: P90 is the low case. Linked runs also carry the NPV standard deviation into portfolio risk.</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <div><Label htmlFor="capex">CAPEX ($MM)</Label><Input id="capex" name="capex" type="number" min="0" step="any" value={formData.capex} onChange={handleChange} className="bg-white/5 border-white/20" required /></div>
-        <div><Label htmlFor="risk_score">Risk Score (1-10)</Label><Input id="risk_score" name="risk_score" type="number" min="1" max="10" value={formData.risk_score} onChange={handleChange} className="bg-white/5 border-white/20" required /></div>
+        <div><Label htmlFor="capex">CAPEX ($MM)</Label><Input id="capex" name="capex" type="number" min="0" step="any" value={formData.capex} onChange={handleChange} required /></div>
+        <div><Label htmlFor="risk_score">Risk Score (1-10)</Label><Input id="risk_score" name="risk_score" type="number" min="1" max="10" value={formData.risk_score} onChange={handleChange} required /></div>
       </div>
       <div className="grid grid-cols-2 gap-4">
-        <div><Label htmlFor="pos">Chance of success (%)</Label><Input id="pos" name="pos" type="number" min="0" max="100" step="1" value={formData.pos} onChange={handleChange} className="bg-white/5 border-white/20" required /></div>
-        <div><Label htmlFor="fail_cost">Loss if it fails ($MM)</Label><Input id="fail_cost" name="fail_cost" type="number" min="0" step="any" value={formData.fail_cost} onChange={handleChange} className="bg-white/5 border-white/20" /></div>
+        <div><Label htmlFor="pos">Chance of success (%)</Label><Input id="pos" name="pos" type="number" min="0" max="100" step="1" value={formData.pos} onChange={handleChange} required /></div>
+        <div><Label htmlFor="fail_cost">Loss if it fails ($MM)</Label><Input id="fail_cost" name="fail_cost" type="number" min="0" step="any" value={formData.fail_cost} onChange={handleChange} /></div>
       </div>
-      <p className="text-xs text-slate-400">The optimizer maximizes risked EMV: chance of success times NPV P50, minus the failure loss weighted by the failure chance.</p>
+      <p className="text-xs text-pl-muted">The optimizer maximizes risked EMV: chance of success times NPV P50, minus the failure loss weighted by the failure chance.</p>
 
       {showMcPicker && (
-        <div className="rounded-lg border border-slate-600 bg-slate-900 p-3 max-h-56 overflow-y-auto">
+        <div className="rounded-lg border border-pl-border bg-pl-surface p-3 max-h-56 overflow-y-auto">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-semibold text-white">Pick a saved Monte Carlo run</p>
-            <button type="button" onClick={() => setShowMcPicker(false)} className="text-slate-400 hover:text-white"><X className="w-4 h-4" /></button>
+            <p className="text-sm font-semibold text-pl-text">Pick a saved Monte Carlo run</p>
+            <button type="button" onClick={() => setShowMcPicker(false)} className="text-pl-muted hover:text-pl-text" aria-label="Close run picker"><X className="w-4 h-4" /></button>
           </div>
-          {(mcRuns || []).length === 0 && <p className="text-xs text-slate-400">No saved runs. Run one from an EPE result's Risk tab first.</p>}
+          {(mcRuns || []).length === 0 && <p className="text-xs text-pl-muted">No saved runs. Run one from an EPE result's Risk tab first.</p>}
           {(mcRuns || []).map((run) => (
-            <button key={run.id} type="button" onClick={() => linkMcRun(run)} className="w-full text-left py-1.5 px-2 rounded hover:bg-slate-800 border-b border-white/5">
-              <span className="text-sm text-sky-300">{run.epe_run_configs?.config_name || 'EPE run'}</span>
-              <span className="block text-xs text-slate-400">
+            <button key={run.id} type="button" onClick={() => linkMcRun(run)} className="w-full text-left py-1.5 px-2 rounded hover:bg-pl-sunken border-b border-pl-border">
+              <span className="text-sm text-pl-primary-text">{run.epe_run_configs?.config_name || 'EPE run'}</span>
+              <span className="block text-xs text-pl-muted">
                 NPV mean {(run.results?.npv?.mean / 1e6).toFixed(1)} $MM · {new Date(run.created_at).toLocaleString()}
               </span>
             </button>

@@ -32,6 +32,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, BarChartHorizontal, BrainCircuit, LineChart as LineIcon, TrendingUp } from 'lucide-react';
 import ChartFrame from '@/components/charts/ChartFrame';
+import { ChartPanel } from '@/components/ui/chart-panel';
+import { NumericTable, NumTh, NumRow, RowLabel, NumCell } from '@/components/ui/numeric-table';
 import PriceShareChart from '@/components/fiscaldesigner/PriceShareChart';
 import { buildPriceShareChart } from '@/components/fiscaldesigner/priceShareChart';
 import { irrText } from '@/components/fiscaldesigner/fiscalResultText';
@@ -115,17 +117,16 @@ const ResultsPanel = ({ results }) => {
     />
   ));
 
+  // Charts keep the white standard in both themes (ChartPanel carries
+  // data-canvas="chart").
   const ChartCard = ({ title, children }) => (
-    <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-4">
-      <h3 className="text-sm font-semibold text-white mb-2">{title}</h3>
-      {children}
-    </div>
+    <ChartPanel title={title}>{children}</ChartPanel>
   );
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
       <Tabs defaultValue="summary" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 bg-black/20">
+        <TabsList className="w-full justify-start overflow-x-auto">
           <TabsTrigger value="summary"><Table className="w-4 h-4 mr-2" />Summary</TabsTrigger>
           <TabsTrigger value="cashflow"><BarChartHorizontal className="w-4 h-4 mr-2" />Cash Flow</TabsTrigger>
           <TabsTrigger value="payout"><LineIcon className="w-4 h-4 mr-2" />Payout</TabsTrigger>
@@ -134,60 +135,60 @@ const ResultsPanel = ({ results }) => {
         </TabsList>
 
         <TabsContent value="summary" className="mt-4">
-          <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-4 overflow-x-auto">
-            <table className="w-full text-left">
+          <div className="space-y-3">
+            <NumericTable title="Regime comparison">
               <thead>
-                <tr className="border-b border-white/20">
-                  <th className="p-2 text-lime-300">Regime</th>
-                  <th className="p-2 text-lime-300">NPV ($MM)</th>
-                  <th className="p-2 text-lime-300">IRR (%)</th>
-                  <th className="p-2 text-lime-300">Payback (yrs)</th>
-                  <th className="p-2 text-lime-300" title={GOVERNMENT_CASH_FLOW.definition}>{GOVERNMENT_CASH_FLOW.title} ($MM)</th>
-                  {full && <th className="p-2 text-lime-300" data-testid="fiscal-total-tax-head">Total tax ($MM)</th>}
-                  <th className="p-2 text-lime-300 text-base" data-metric="headline" title={metricDefinition(TAKE)}>{metricLabel(TAKE)}, %</th>
-                  <th className="p-2 text-lime-300/80 text-xs font-normal" data-metric="secondary" title={metricDefinition(SHARE_OF_NR)}>{metricLabel(SHARE_OF_NR)}, %</th>
+                <tr>
+                  <NumTh sticky>Regime</NumTh>
+                  <NumTh numeric>NPV ($MM)</NumTh>
+                  <NumTh numeric>IRR (%)</NumTh>
+                  <NumTh numeric>Payback (yrs)</NumTh>
+                  <NumTh numeric title={GOVERNMENT_CASH_FLOW.definition}>{GOVERNMENT_CASH_FLOW.title} ($MM)</NumTh>
+                  {full && <NumTh numeric data-testid="fiscal-total-tax-head">Total tax ($MM)</NumTh>}
+                  <NumTh numeric className="min-w-[9rem] text-base normal-case tracking-normal font-pl-sans text-pl-text" data-metric="headline" title={metricDefinition(TAKE)}>{metricLabel(TAKE)}, %</NumTh>
+                  <NumTh numeric className="min-w-[8rem] text-xs normal-case tracking-normal font-pl-sans font-normal" data-metric="secondary" title={metricDefinition(SHARE_OF_NR)}>{metricLabel(SHARE_OF_NR)}, %</NumTh>
                 </tr>
               </thead>
               <tbody>
                 {summary.map((s) => (
-                  <tr key={s.id} className="border-b border-white/10 last:border-b-0">
-                    <td className="p-2 text-white font-semibold">{s.name}</td>
-                    <td className="p-2 font-bold text-green-400">{show(s.npv.toFixed(1), s.npv, 4)}</td>
-                    <td className="p-2 text-white" data-metric="irr">
+                  <NumRow key={s.id}>
+                    <RowLabel className="font-semibold">{s.name}</RowLabel>
+                    <NumCell value={s.npv} className="font-semibold">{show(s.npv.toFixed(1), s.npv, 4)}</NumCell>
+                    <NumCell value={s.irr} signed={false} className="whitespace-normal min-w-[7rem]" data-metric="irr">
                       {irrText(s).value}
                       {irrText(s).reason && (
-                        <span className="block text-[11px] font-normal text-slate-300">{irrText(s).reason}</span>
+                        <span className="block text-[11px] font-pl-sans font-normal text-pl-muted">{irrText(s).reason}</span>
                       )}
-                    </td>
-                    <td className="p-2 text-white">{s.paybackPeriod || 'N/A'}</td>
-                    <td className="p-2 text-white" title={GOVERNMENT_CASH_FLOW.definition}>{show(s.govTake.toFixed(1), s.govTake, 4)}</td>
-                    {full && <td className="p-2 text-white" data-testid="fiscal-total-tax">{formatFull(totalTax(s.id), 4)}</td>}
-                    <td className="p-2 text-white text-lg font-bold" data-metric="headline" title={metricDefinition(TAKE)}>
+                    </NumCell>
+                    <NumCell signed={false}>{s.paybackPeriod || 'N/A'}</NumCell>
+                    <NumCell value={s.govTake} title={GOVERNMENT_CASH_FLOW.definition}>{show(s.govTake.toFixed(1), s.govTake, 4)}</NumCell>
+                    {full && <NumCell value={totalTax(s.id)} signed={false} data-testid="fiscal-total-tax">{formatFull(totalTax(s.id), 4)}</NumCell>}
+                    <NumCell signed={false} className="text-lg font-semibold whitespace-normal min-w-[9rem]" data-metric="headline" title={metricDefinition(TAKE)}>
                       {takeText(s.governmentTakePct, s.governmentTakeState)}
                       <span
-                        className="block text-[11px] font-normal text-slate-300"
+                        className="block text-[11px] font-pl-sans font-normal text-pl-muted"
                         title={metricDefinition(TAKE, s.discountRatePct)}
                       >
                         {basisLabel(s.discountRatePct)}: {takeText(s.governmentTakeDiscountedPct, s.governmentTakeDiscountedState)}
                       </span>
-                    </td>
-                    <td className="p-2 text-slate-200 text-sm" data-metric="secondary" title={metricDefinition(SHARE_OF_NR)}>
+                    </NumCell>
+                    <NumCell signed={false} className="text-sm" tone="text-pl-muted" data-metric="secondary" title={metricDefinition(SHARE_OF_NR)}>
                       {Number.isFinite(s.governmentShareOfNetRevenuePct) ? `${s.governmentShareOfNetRevenuePct.toFixed(1)}%` : 'none'}
-                    </td>
-                  </tr>
+                    </NumCell>
+                  </NumRow>
                 ))}
               </tbody>
-            </table>
+            </NumericTable>
             <FullPrecisionNote className="mt-3" />
             {full && (
-              <p className="text-[12px] text-slate-300 mt-1">
+              <p className="text-[12px] text-pl-muted mt-1">
                 Total tax is the sum over the project life, undiscounted, of each year&apos;s tax: income tax plus resource rent tax, or the minimum tax where that is larger.
               </p>
             )}
-            <div className="text-[12px] text-slate-300 mt-3 space-y-1" data-testid="fiscal-metric-definitions">
+            <div className="text-[12px] text-pl-muted mt-3 space-y-1 px-1" data-testid="fiscal-metric-definitions">
               <p>Contractor NPV is discounted at year end, matching Petroleum Economics Studio.</p>
               <p>{GOVERNMENT_CASH_FLOW.title}: {GOVERNMENT_CASH_FLOW.definition}</p>
-              <p className="text-slate-200">{metricDefinition(TAKE)}</p>
+              <p className="text-pl-text">{metricDefinition(TAKE)}</p>
               <p>{metricDefinition(SHARE_OF_NR)}</p>
             </div>
           </div>
@@ -261,18 +262,18 @@ const ResultsPanel = ({ results }) => {
           </div>
         </TabsContent>
 
-        <TabsContent value="insights" className="mt-4 p-4 bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl">
-          <h3 className="text-xl font-bold text-white mb-4">What the comparison shows</h3>
+        <TabsContent value="insights" className="mt-4 p-4 bg-pl-surface border border-pl-border rounded-xl shadow-pl-sm">
+          <h3 className="text-xl font-bold text-pl-text mb-4">What the comparison shows</h3>
           {insights.length === 0 ? (
-            <p className="text-slate-300 text-sm">Run a comparison to see what it shows.</p>
+            <p className="text-pl-muted text-sm">Run a comparison to see what it shows.</p>
           ) : (
-            <div className="space-y-3 text-lime-200">
+            <div className="space-y-3 text-pl-text">
               {insights.map((item) => (
                 <p key={item.key}><strong>{item.label}:</strong> {item.text}</p>
               ))}
             </div>
           )}
-          <p className="text-[12px] text-slate-400 mt-4">
+          <p className="text-[12px] text-pl-muted mt-4">
             Every line above is computed from this comparison. A conclusion the numbers do not
             support is left out rather than stated.
           </p>
