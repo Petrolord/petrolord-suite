@@ -27,8 +27,7 @@ const ConfirmationPage = () => {
 
       toast({
         title: "Email Sent",
-        description: "A new confirmation link has been sent to your inbox.",
-        className: "bg-green-600 text-white"
+        description: "A new confirmation link has been sent to your inbox."
       });
     } catch (error) {
       toast({
