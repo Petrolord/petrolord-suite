@@ -131,11 +131,12 @@ test('publish curves + zone, batch run, and project persistence across reload', 
   // publish the seeded SAND A zone summary -> "on record" marker
   await page.getByTestId('petro-zone-publish-SAND A').click();
   await expect(page.getByTestId('petro-zone-summary-SAND A')).toBeVisible();
-  await expect(page.getByTestId('petro-zones')).toContainText('published summary on record');
+  await expect(page.getByTestId('petro-zone-published-SAND A')).toContainText('matches these numbers');
 
-  // change a parameter and save the project
+  // change a parameter and save the project; the published row is now stale and says so (PETRO-U1-014)
   await page.getByTestId('petro-param-cutSw').fill('0.55');
   await page.getByTestId('petro-params-apply').click();
+  await expect(page.getByTestId('petro-zone-published-SAND A')).toContainText('publish again');
   await page.getByTestId('petro-save-project').click();
   await expect(page.getByTestId('petro-status')).toContainText('Saved Default interpretation');
 

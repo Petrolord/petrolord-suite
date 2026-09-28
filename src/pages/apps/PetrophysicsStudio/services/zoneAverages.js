@@ -169,3 +169,21 @@ export function zonePublishProperties({ curves, outputs, params, zoneParams = {}
   if (zone.properties?.from_tops) props.from_tops = zone.properties.from_tops;
   return props;
 }
+
+/**
+ * What the zone card may say about the registry row (PETRO-U1-014, PL4):
+ * 'none' when nothing was published (a zone cut from tops carries only
+ * from_tops), 'current' when the published numbers are the card's,
+ * 'stale' when parameters or zones moved since.
+ * @returns {{state: 'none'|'current'|'stale', at: ?string}}
+ */
+export function publishedState(zone, summary) {
+  const p = zone?.properties || {};
+  const published = Number.isFinite(p.net_m) || Number.isFinite(p.phi_avg) || !!p.published_at;
+  if (!published) return { state: 'none', at: null };
+  const at = p.published_at ? String(p.published_at).slice(0, 10) : null;
+  if (!summary) return { state: 'stale', at };
+  const same = (a, b) => (a == null && b == null) || (Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(b)));
+  const keys = ['gross_m', 'net_m', 'phi_avg', 'sw_avg', 'vsh_avg'];
+  return { state: keys.every((k) => same(p[k], summary[k])) ? 'current' : 'stale', at };
+}

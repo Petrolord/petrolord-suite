@@ -13,7 +13,7 @@
  */
 import typewell from '../../../../../packages/engines/test-data/petrophysics/typewell.json';
 import { computeWell, computeWellZoned, DEFAULT_PARAMS } from '../engine/pipeline';
-import { zoneReport, zoneReports, zonePublishProperties, verticalSampleThickness, isTotalSwModel } from '../services/zoneAverages';
+import { zoneReport, zoneReports, zonePublishProperties, verticalSampleThickness, isTotalSwModel, publishedState } from '../services/zoneAverages';
 
 const F = (a) => Float64Array.from(a);
 const curvesOf = () => {
@@ -148,5 +148,20 @@ describe('a zone publish carries the zone\'s own cutoffs', () => {
     expect(props.cutoffs.phi_min).toBe(0.26);
     expect(props.sw_avg_weighting).toBe('pore-volume');
     expect(props.from_tops).toEqual({ top: 'Top Sand A' });
+  });
+});
+
+describe('the zone card only claims a publish the row records (PL4)', () => {
+  const summary = { gross_m: 20, net_m: 18, phi_avg: 0.2, sw_avg: 0.3, vsh_avg: 0.1 };
+  test('a zone cut from tops carries from_tops only: nothing was published', () => {
+    // negative control: the pre-fix card said "published summary on record" for any non-empty properties
+    expect(publishedState({ properties: { from_tops: { top: 'A', base: 'B' } } }, summary).state).toBe('none');
+    expect(publishedState({ properties: {} }, summary).state).toBe('none');
+  });
+  test('current until the numbers move, then stale', () => {
+    const zone = { properties: { ...summary, published_at: '2026-09-28T09:00:00Z' } };
+    expect(publishedState(zone, summary)).toEqual({ state: 'current', at: '2026-09-28' });
+    expect(publishedState(zone, { ...summary, net_m: 17.5 }).state).toBe('stale');
+    expect(publishedState(zone, null).state).toBe('stale');
   });
 });

@@ -9,7 +9,7 @@ import { Trash2, Plus, Loader2, UploadCloud, Crosshair, Layers } from 'lucide-re
 import { toDisplay, fromDisplay, depthLabel } from '../viewer/depthModes';
 import { validateZoneWindow, planZoneFromTops, planZonesBetweenConsecutiveTops } from '../services/zonePlanner';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
-import { AVERAGING_NOTE } from '../services/zoneAverages';
+import { AVERAGING_NOTE, publishedState } from '../services/zoneAverages';
 
 const inputCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
 const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v) ? EMPTY_VALUE : Number(v).toFixed(d));
@@ -148,9 +148,14 @@ export default function ZoneManager({
                 {' · '}P10 <b className="text-pl-text">{fmt(toDisplay(probZones[z.id].outcomes.net_m.p10, depthUnit), 1)}</b> {u}
               </div>
             )}
-            {Object.keys(z.properties || {}).length > 0 && (
-              <div className="mt-1 text-[10px] text-pl-success-text">published summary on record</div>
-            )}
+            {(() => {
+              // PETRO-U1-014: say what the registry row is, from the row itself
+              const ps = publishedState(z, s);
+              if (ps.state === 'none') return null;
+              return ps.state === 'current'
+                ? <div className="mt-1 text-[10px] text-pl-success-text" data-testid={`petro-zone-published-${z.name}`}>published{ps.at ? ` ${ps.at}` : ''}; matches these numbers</div>
+                : <div className="mt-1 text-[10px] text-pl-warning-text" data-testid={`petro-zone-published-${z.name}`}>published{ps.at ? ` ${ps.at}` : ''} with different numbers; publish again to update what other apps read</div>;
+            })()}
           </div>
         );
       })}
