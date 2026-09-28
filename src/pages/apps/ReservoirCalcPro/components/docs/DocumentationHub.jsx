@@ -156,7 +156,9 @@ const DocumentationHub = ({ open, onOpenChange }) => {
 
         {/* Content */}
         <div className="flex-1 flex flex-col min-w-0 bg-pl-sunken">
-          <div className="p-4 border-b border-pl-border flex justify-between items-center bg-pl-surface">
+          {/* pr-12 keeps the header clear of the dialog's close X, which the
+              ui Dialog pins at right-4 top-4 over this row. */}
+          <div data-testid="rcp-docs-header" className="p-4 pr-12 gap-3 border-b border-pl-border flex justify-between items-center bg-pl-surface">
             <div className="flex items-center text-sm text-pl-muted min-w-0">
               <span className="hover:text-pl-text cursor-pointer shrink-0" onClick={() => setActiveSection('getting-started')}>Docs</span>
               <span className="mx-2 shrink-0">/</span>
