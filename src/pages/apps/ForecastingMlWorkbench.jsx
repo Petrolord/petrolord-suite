@@ -73,7 +73,7 @@ const Workspace = () => {
   return (
     <>
       <StudioNotifications notifications={notifications} onDismiss={removeNotification} />
-      <div className="flex h-full flex-col bg-pl-bg text-pl-text">
+      <div className="flex h-full flex-1 flex-col bg-pl-bg text-pl-text">
         <header className="flex-shrink-0 border-b border-pl-border bg-pl-surface px-4 py-3">
           <Link to="/dashboard/data-ai">
             <Button variant="ghost" size="sm" className="mb-2 pl-0 text-pl-muted hover:text-pl-text">
@@ -156,7 +156,7 @@ const Workspace = () => {
 };
 
 const ForecastingMlWorkbench = ({ createWorker }) => (
-  <ThemedApp className="h-full min-h-screen" data-testid="forecastml-theme-scope">
+  <ThemedApp className="flex h-full min-h-screen flex-col" data-testid="forecastml-theme-scope">
     <Helmet>
       <title>Production Forecasting ML Workbench - Petrolord Suite</title>
       <meta
