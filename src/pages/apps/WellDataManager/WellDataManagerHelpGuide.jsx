@@ -202,6 +202,12 @@ export default function WellDataManagerHelpGuide({ backTo = APP_PATH }) {
             Edit opens a grid: row edits keep each top's id, so Well Correlation keeps its picks. Replace from paste
             reads a table copied from Excel or a Petrel export; a header such as MD (ft) sets the unit.
           </Para>
+          <Para>
+            After a save, Undo last tops save puts every top of the well back as it was: changed tops return to their
+            values with their ids, added tops are removed, and removed tops are re-created. A re-created top has a new
+            id, so Well Correlation treats it as a new pick; the status line says how many. Only the last save on the
+            selected well can be undone.
+          </Para>
           <SubHeading>The tops sheet (every well at once)</SubHeading>
           <Para>
             Tops sheet (ribbon) lists every top of every well you can see, with MD, TVD and TVDSS in the display unit.
@@ -314,7 +320,11 @@ export default function WellDataManagerHelpGuide({ backTo = APP_PATH }) {
           <SubHeading>A well is missing from the map</SubHeading>
           <Para>It has no surface location. The map caption counts such wells; the inventory flags them.</Para>
           <SubHeading>My checkshot depths are negative</SubHeading>
-          <Para>They are elevations (Petrel Z, negative down). The paste message says so and names the fix.</Para>
+          <Para>
+            They are elevations (Petrel Z, negative down). In Replace from paste (and in Add well), tick Z is an
+            elevation: the values are read as TVDSS with the sign flipped, and the table records that it was entered
+            that way.
+          </Para>
           <Callout tone="info" title="Values in formulas">
             TVDSS is computed as <Code>TVDSS = TVD - KB</Code>; feet convert as <Code>ft = m / 0.3048</Code>.
           </Callout>

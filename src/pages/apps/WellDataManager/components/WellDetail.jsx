@@ -32,6 +32,7 @@ import { EMPTY_VALUE } from '@/lib/emptyValue';
 import { fmtDepth, editCell, parseDisplayed, unitText, toDisp } from '../engine/displayUnits';
 import { bottomUpLogs, orientForDisplay, planReorient } from '../engine/reorient';
 import { isDepthAlias } from '../engine/lasIndex';
+import { planRestore, recreatePayload } from '../engine/topsUndo';
 
 const TABS = ['Header', 'Logs', 'Tops', 'Zones', 'Intervals', 'Core', 'Deviation', 'Checkshots'];
 
@@ -104,6 +105,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
   const [curveBusy, setCurveBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null); // WDM-U1-006: log id awaiting a second click
   const [exportOpen, setExportOpen] = useState(false);      // WDM-U2-002
+  const [topsUndo, setTopsUndo] = useState(null);           // WDM-U2-016: {wellId, tops, what} before the last tops save
   const curveCache = useRef(new Map());         // log id -> Float32Array
 
   const refreshChildren = useCallback(async () => {
@@ -140,7 +142,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
   }, [refreshChildren, refreshNonce]);
 
   // PT1: leave any edit mode when the well changes
-  useEffect(() => { setEditor(null); setCsView(null); setStatusValue(null); }, [well.id]);
+  useEffect(() => { setEditor(null); setCsView(null); setStatusValue(null); setTopsUndo(null); }, [well.id]);
 
   // PT8: the frame the surface coordinates are already in. Editing them
   // never transforms anything, so the label states the frame plainly.
@@ -280,7 +282,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
         let inputs;
         if (editor.mode === 'paste') {
           if (!editor.pasted) throw new Error('Paste a checkshot table first.');
-          inputs = buildCheckshotInputs(editor.pasted.parsed.rows, editor.pasted.map);
+          inputs = buildCheckshotInputs(editor.pasted.parsed.rows, editor.pasted.map, { elevation: editor.mode === 'paste' && !!editor.conv.elevation });
         } else {
           inputs = editor.rows.filter((r) => String(r.depth).trim() !== '' || String(r.time).trim() !== '')
             .map((r) => ({ depth: Number(r.depth), time: Number(r.time) }));
@@ -291,6 +293,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
           const res = toStoredCheckshots(inputs, editor.conv, frame);
           rows = res.rows;
           prov = makeCheckshotProvenance(editor.conv, { source: 'wdm-edit', kbM: well.kb_m ?? 0, stations: frame.stations ? frame.stations.length : 0 });
+          if (editor.mode === 'paste' && editor.conv.elevation) prov.z_elevation = true;
           if (res.warnings.length) onStatus(res.warnings[0]);
         }
         const row = await backend.updateWellData(well.id, { checkshots: rows, checkshotsProvenance: prov });
@@ -298,9 +301,11 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
         return;
       }
       if (editor.tab === 'Tops') {
+        const snapshot = (tops || []).map((t) => ({ ...t }));
         if (editor.mode === 'paste') {
           if (!editor.pasted) throw new Error('Paste tops first.');
           const list = buildTops(editor.pasted.parsed.rows, editor.pasted.map, { mdUnit: editor.conv.mdUnit });
+          setTopsUndo({ wellId: well.id, tops: snapshot, what: 'replace from paste' });
           await backend.replaceTops(well.id, list);
           setEditor(null);
           onStatus(`Tops replaced (${list.length}).`);
@@ -315,6 +320,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
           if (!Number.isFinite(Number(r.md)) || String(r.md).trim() === '') throw new Error(`Row ${i + 1}: MD "${r.md}" is not a number.`);
         }
         const before = tops || [];
+        setTopsUndo({ wellId: well.id, tops: snapshot, what: 'grid save' });
         const keptIds = new Set(wanted.filter((r) => r.id).map((r) => r.id));
         for (const t of before) if (!keptIds.has(t.id)) await backend.deleteTop(t);
         let changed = 0;
@@ -405,6 +411,25 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
   };
 
   const shared = !!well.organization_id;
+
+  // WDM-U2-016: put the tops back as they were before the last save
+  const undoTops = async () => {
+    if (!topsUndo || topsUndo.wellId !== well.id) return;
+    try {
+      const current = await backend.listTops(well.id);
+      const plan = planRestore(current, topsUndo.tops);
+      for (const t of plan.deletes) await backend.deleteTop(t);
+      for (const u of plan.updates) await backend.updateTop(u.id, u.patch);
+      for (const t of plan.creates) await backend.saveTop(well.id, recreatePayload(t));
+      setTopsUndo(null);
+      onStatus(`Tops restored to before the last ${topsUndo.what} (${plan.updates.length} changed back, ${plan.deletes.length} removed, `
+        + `${plan.creates.length} re-created${plan.creates.length ? ' with new ids, so Well Correlation sees them as new picks' : ''}).`);
+      await refreshChildren();
+      if (onWellChanged) await onWellChanged(well);
+    } catch (e) {
+      onStatus(e.message);
+    }
+  };
   const upLogs = bottomUpLogs(logs || []);
   const [reorientBusy, setReorientBusy] = useState(false);
 
@@ -810,6 +835,12 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
                   ))}
                 </tbody>
               </table>
+              {topsUndo?.wellId === well.id && well.is_own && (
+                <button type="button" className={btnCls} onClick={undoTops} data-testid="wdm-tops-undo"
+                  title="Put every top back as it was before the last save on this well">
+                  Undo last tops save ({topsUndo.what})
+                </button>
+              )}
               {!(Number(well.kb_m) > 0) && (
                 <p className="text-[11px] text-pl-warning-text" data-testid="wdm-tops-kb-note">
                   KB is not set on this well (0 m), so TVDSS equals TVD. Set the KB on the Header tab.
@@ -819,7 +850,16 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
                 <p className="text-[11px] text-pl-muted">† below the last survey station (extrapolated along the final tangent)</p>
               )}
               </div>
-            ) : <p className="text-xs text-pl-muted">No tops on this well.</p>
+            ) : (
+              <div className="space-y-1">
+                <p className="text-xs text-pl-muted">No tops on this well.</p>
+                {topsUndo?.wellId === well.id && well.is_own && (
+                  <button type="button" className={btnCls} onClick={undoTops} data-testid="wdm-tops-undo">
+                    Undo last tops save ({topsUndo.what})
+                  </button>
+                )}
+              </div>
+            )
           )
         )}
 
