@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
-import { ArrowLeft, Landmark, FileDown, GitMerge, Package, BarChart3, ExternalLink } from 'lucide-react';
+import { Landmark, FileDown, GitMerge, Package, BarChart3, ExternalLink } from 'lucide-react';
 import { buildBriefModel, fmtMMUsd, fmtPct } from '@/components/decisionstudio/briefModel';
 import { FullPrecisionProvider, FullPrecisionToggle, useFullPrecision } from '@/components/fullprecision/FullPrecision';
 import { downloadBriefPdf } from '@/components/decisionstudio/briefPdf';
@@ -18,6 +18,13 @@ import DecisionStudioHelpGuide from '@/components/decisionstudio/DecisionStudioH
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE,
 } from '@/utils/chartTheme';
+import { ThemedApp } from '@/design/ThemeProvider';
+import { AppHeader } from '@/components/ui/app-shell';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { ChartPanel } from '@/components/ui/chart-panel';
+import { NumericTable, NumTh, NumRow, RowLabel, NumCell } from '@/components/ui/numeric-table';
 
 // Wave C (audit 3.8): overlaid NPV S-curves for the compared cases, one line
 // per saved Monte Carlo run, from the persisted results.npv.cdf arrays.
@@ -32,9 +39,9 @@ const SCURVE_COLORS = ['#2563eb', '#059669', '#7c3aed', '#d97706'];
 const Pick = ({ items, selectedId, onSelect, render, emptyText, actionLink, actionText }) => (
   <div className="space-y-1 max-h-56 overflow-y-auto pr-1">
     {items.length === 0 && (
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-pl-muted">
         {emptyText}{' '}
-        {actionLink && <Link to={actionLink} className="text-sky-300 hover:text-sky-200 inline-flex items-center gap-1">{actionText} <ExternalLink className="w-3 h-3" /></Link>}
+        {actionLink && <Link to={actionLink} className="text-pl-primary-text hover:text-pl-primary-text-hover hover:underline inline-flex items-center gap-1">{actionText} <ExternalLink className="w-3 h-3" /></Link>}
       </p>
     )}
     {items.map((item) => (
@@ -42,10 +49,11 @@ const Pick = ({ items, selectedId, onSelect, render, emptyText, actionLink, acti
         key={item.id}
         type="button"
         onClick={() => onSelect(selectedId === item.id ? null : item.id)}
+        aria-pressed={selectedId === item.id}
         className={`w-full text-left px-3 py-2 rounded border text-sm transition-colors ${
           selectedId === item.id
-            ? 'border-lime-400/60 bg-lime-500/10'
-            : 'border-white/10 hover:bg-white/5'
+            ? 'border-pl-primary bg-pl-primary/10'
+            : 'border-pl-border hover:bg-pl-sunken'
         }`}
       >
         {render(item)}
@@ -55,10 +63,10 @@ const Pick = ({ items, selectedId, onSelect, render, emptyText, actionLink, acti
 );
 
 const SectionCard = ({ icon: Icon, title, children }) => (
-  <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+  <div className="bg-pl-surface border border-pl-border rounded-xl p-4 shadow-pl-sm">
     <div className="flex items-center gap-2 mb-3">
-      <Icon className="w-4 h-4 text-lime-300" />
-      <h2 className="text-sm font-semibold text-white">{title}</h2>
+      <Icon className="w-4 h-4 text-pl-muted" aria-hidden="true" />
+      <h2 className="text-sm font-semibold text-pl-text">{title}</h2>
     </div>
     {children}
   </div>
@@ -169,32 +177,22 @@ const DecisionStudioInner = ({ userOverride = null }) => {
         <title>Decision Studio - Petrolord Suite</title>
         <meta name="description" content="Executive decision briefs built on validated economics, decision trees, and portfolio analysis." />
       </Helmet>
-      <div className="p-4 md:p-6 min-h-screen bg-slate-950 text-white">
-        <div className="mb-5 border-b border-slate-800 pb-4">
-          <Link to="/dashboard/economics">
-            <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white pl-0 mb-2">
-              <ArrowLeft className="w-4 h-4 mr-2" /> Back
-            </Button>
-          </Link>
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center space-x-3">
-              <div className="bg-gradient-to-r from-emerald-500 to-teal-500 p-2 rounded-xl shadow-lg">
-                <Landmark className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold tracking-tight">Decision Studio</h1>
-                <p className="text-slate-400 text-xs">Boardroom view of the decision chain: probabilistic economics, decision trees, and capital allocation, with provenance on every number.</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <FullPrecisionToggle app="decision-studio" />
-              <DecisionStudioHelpGuide />
-            </div>
-          </div>
-        </div>
-
+      <AppHeader
+        title="Decision Studio"
+        eyebrow="Economics"
+        subtitle="Boardroom view of the decision chain: probabilistic economics, decision trees, and capital allocation, with provenance on every number."
+        icon={Landmark}
+        backTo="/dashboard/economics"
+        actions={(
+          <>
+            <FullPrecisionToggle app="decision-studio" />
+            <DecisionStudioHelpGuide />
+          </>
+        )}
+      />
+      <div className="mx-auto w-full max-w-[1400px] px-4 py-6 text-pl-text sm:px-6">
         {loading ? (
-          <p className="text-slate-300 text-sm py-8">Loading your saved analyses...</p>
+          <p className="text-pl-muted text-sm py-8">Loading your saved analyses...</p>
         ) : (
           <div className="space-y-6">
             {/* Evidence pickers */}
@@ -209,8 +207,8 @@ const DecisionStudioInner = ({ userOverride = null }) => {
                   actionText="Run one in EPE"
                   render={(r) => (
                     <>
-                      <span className="text-sky-300">{r.configName || 'EPE run'}</span>
-                      <span className="block text-xs text-slate-400">
+                      <span className="font-medium text-pl-text">{r.configName || 'EPE run'}</span>
+                      <span className="block text-xs text-pl-muted">
                         P50 {fmtMMUsd(r.results?.npv?.p50)} · P(NPV&gt;0) {fmtPct(r.results?.probNpvPositive, 0)} · {new Date(r.created_at).toLocaleDateString()}
                       </span>
                     </>
@@ -228,8 +226,8 @@ const DecisionStudioInner = ({ userOverride = null }) => {
                   actionText="Build one"
                   render={(t) => (
                     <>
-                      <span className="text-sky-300">{t.project_name}</span>
-                      <span className="block text-xs text-slate-400">{new Date(t.updated_at || t.created_at).toLocaleString()}</span>
+                      <span className="font-medium text-pl-text">{t.project_name}</span>
+                      <span className="block text-xs text-pl-muted">{new Date(t.updated_at || t.created_at).toLocaleString()}</span>
                     </>
                   )}
                 />
@@ -245,8 +243,8 @@ const DecisionStudioInner = ({ userOverride = null }) => {
                   actionText="Create one"
                   render={(p) => (
                     <>
-                      <span className="text-sky-300">{p.name}</span>
-                      <span className="block text-xs text-slate-400">CAPEX limit {p.capex_limit} $MM · optimized at brief time over {portfolioProjects.length} projects</span>
+                      <span className="font-medium text-pl-text">{p.name}</span>
+                      <span className="block text-xs text-pl-muted">CAPEX limit {p.capex_limit} $MM · optimized at brief time over {portfolioProjects.length} projects</span>
                     </>
                   )}
                 />
@@ -261,46 +259,49 @@ const DecisionStudioInner = ({ userOverride = null }) => {
                     key={r.id}
                     type="button"
                     onClick={() => toggleCompare(r.id)}
+                    aria-pressed={compareIds.has(r.id)}
                     className={`px-2.5 py-1 rounded-full text-xs border ${
-                      compareIds.has(r.id) ? 'border-lime-400/70 bg-lime-500/15 text-lime-200' : 'border-white/15 text-slate-300 hover:bg-white/5'
+                      compareIds.has(r.id) ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-text hover:bg-pl-sunken'
                     }`}
                   >
                     {r.configName || 'EPE run'} · {new Date(r.created_at).toLocaleDateString()}
                   </button>
                 ))}
-                {mcRuns.length === 0 && <p className="text-xs text-slate-400">Saved Monte Carlo runs appear here for side by side comparison.</p>}
+                {mcRuns.length === 0 && <p className="text-xs text-pl-muted">Saved Monte Carlo runs appear here for side by side comparison.</p>}
               </div>
               {compareRows.length >= 2 && (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-slate-400 border-b border-white/10">
-                        <th className="py-1.5 pr-4">Metric</th>
-                        {compareRows.map((r) => <th key={r.id} className="py-1.5 pr-4">{r.configName || 'EPE run'}</th>)}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[
-                        ['NPV P90 (low)', (r) => fmtMMUsd(r.results?.npv?.p90)],
-                        ['NPV P50', (r) => fmtMMUsd(r.results?.npv?.p50)],
-                        ['NPV P10 (high)', (r) => fmtMMUsd(r.results?.npv?.p10)],
-                        ['NPV mean', (r) => fmtMMUsd(r.results?.npv?.mean)],
-                        ['P(NPV positive)', (r) => fmtPct(r.results?.probNpvPositive)],
-                        ['Deterministic base', (r) => fmtMMUsd(r.results?.base?.npv)],
-                        ['Iterations / seed', (r) => `${r.results?.iterations} / ${r.results?.seed}`],
-                      ].map(([label, fn]) => (
-                        <tr key={label} className="border-b border-white/5">
-                          <td className="py-1.5 pr-4 text-slate-300">{label}</td>
-                          {compareRows.map((r) => <td key={r.id} className="py-1.5 pr-4 font-medium text-white">{fn(r)}</td>)}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <NumericTable className="p-0 border-0" data-testid="ds-compare-table">
+                  <thead>
+                    <tr>
+                      <NumTh sticky>Metric</NumTh>
+                      {compareRows.map((r) => <NumTh key={r.id} numeric>{r.configName || 'EPE run'}</NumTh>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {/* The third entry is the raw number behind a money cell,
+                        so a negative NPV reads in the danger text beside its
+                        minus sign (the EPE money-table recipe). */}
+                    {[
+                      ['NPV P90 (low)', (r) => fmtMMUsd(r.results?.npv?.p90), (r) => r.results?.npv?.p90],
+                      ['NPV P50', (r) => fmtMMUsd(r.results?.npv?.p50), (r) => r.results?.npv?.p50],
+                      ['NPV P10 (high)', (r) => fmtMMUsd(r.results?.npv?.p10), (r) => r.results?.npv?.p10],
+                      ['NPV mean', (r) => fmtMMUsd(r.results?.npv?.mean), (r) => r.results?.npv?.mean],
+                      ['P(NPV positive)', (r) => fmtPct(r.results?.probNpvPositive)],
+                      ['Deterministic base', (r) => fmtMMUsd(r.results?.base?.npv), (r) => r.results?.base?.npv],
+                      ['Iterations / seed', (r) => `${r.results?.iterations} / ${r.results?.seed}`],
+                    ].map(([label, fn, raw]) => (
+                      <NumRow key={label}>
+                        <RowLabel>{label}</RowLabel>
+                        {compareRows.map((r) => (
+                          <NumCell key={r.id} value={raw ? raw(r) : undefined} signed={Boolean(raw)}>{fn(r)}</NumCell>
+                        ))}
+                      </NumRow>
+                    ))}
+                  </tbody>
+                </NumericTable>
               )}
               {compareRows.length >= 2 && compareRows.some((r) => (r.results?.npv?.cdf || []).length > 1) && (
-                <div className="mt-4">
-                  <h4 className="text-sm font-semibold text-white mb-2">NPV S-curves</h4>
+                <ChartPanel className="mt-4" title="NPV S-curves">
                   <ChartFrame height={340} logoHeight={24} exportFilename="decision-studio-npv-scurves">
                     <ComposedChart margin={CHART_MARGINS.withLegend}>
                       <CartesianGrid {...GRID_STYLE} />
@@ -343,41 +344,39 @@ const DecisionStudioInner = ({ userOverride = null }) => {
                       ))}
                     </ComposedChart>
                   </ChartFrame>
-                  <p className="text-[11px] text-slate-400 mt-1">
+                  <p className="text-[11px] text-pl-muted mt-1">
                     Cumulative probability that each case's NPV falls at or below a value. A curve further to the right is better; a steeper curve is more certain. Runs saved before the S-curve update may not appear.
                   </p>
-                </div>
+                </ChartPanel>
               )}
             </SectionCard>
 
             {/* Brief builder */}
             <SectionCard icon={FileDown} title="Decision brief">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                <label className="text-xs text-slate-300">
-                  Brief title
-                  <input
+                <Label className="block space-y-1 text-xs">
+                  <span>Brief title</span>
+                  <Input
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="Investment decision brief"
-                    className="mt-1 w-full px-3 py-2 rounded bg-slate-800 border border-slate-600 text-white text-sm"
                   />
-                </label>
-                <label className="text-xs text-slate-300">
-                  Recommendation (one or two sentences)
-                  <textarea
+                </Label>
+                <Label className="block space-y-1 text-xs">
+                  <span>Recommendation (one or two sentences)</span>
+                  <Textarea
                     value={recommendation}
                     onChange={(e) => setRecommendation(e.target.value)}
                     rows={2}
                     placeholder="Proceed to FID subject to..."
-                    className="mt-1 w-full px-3 py-2 rounded bg-slate-800 border border-slate-600 text-white text-sm"
                   />
-                </label>
+                </Label>
               </div>
               <div className="flex items-center justify-between flex-wrap gap-3">
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-pl-muted">
                   Includes: {[selectedMcRun && 'economics', selectedTree && 'decision', selectedPortfolio && 'portfolio'].filter(Boolean).join(', ') || 'nothing selected yet'}. Each section states its source run, timestamp, and assumptions.
                 </p>
-                <Button onClick={exportBrief} disabled={exporting} className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white">
+                <Button onClick={exportBrief} disabled={exporting}>
                   <FileDown className="w-4 h-4 mr-2" /> {exporting ? 'Building PDF...' : 'Export one-page brief (PDF)'}
                 </Button>
               </div>
@@ -393,9 +392,11 @@ const DecisionStudioInner = ({ userOverride = null }) => {
 // analysis money (Optimal EMV, Next best alternative, Decision advantage) in
 // $MM at 4 decimals.
 const DecisionStudio = ({ userOverride = null }) => (
-  <FullPrecisionProvider>
-    <DecisionStudioInner userOverride={userOverride} />
-  </FullPrecisionProvider>
+  <ThemedApp className="min-h-screen" data-testid="ds-theme-scope">
+    <FullPrecisionProvider>
+      <DecisionStudioInner userOverride={userOverride} />
+    </FullPrecisionProvider>
+  </ThemedApp>
 );
 
 export default DecisionStudio;
