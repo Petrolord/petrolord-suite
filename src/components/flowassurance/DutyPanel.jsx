@@ -16,7 +16,7 @@ const DutyPanel = () => {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Producing rate</p>
+        <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Producing rate</p>
         {isGas ? (
           <div className="grid grid-cols-2 gap-2">
             <Field label="Gas rate (Mscf/d)"><NumberInput section="duty" name="qgMscfd" /></Field>
@@ -38,8 +38,8 @@ const DutyPanel = () => {
         </Field>
       </div>
 
-      <div className="border-t border-slate-800 pt-3 space-y-3">
-        <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">The choke</p>
+      <div className="border-t border-pl-border pt-3 space-y-3">
+        <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">The choke</p>
         <Field
           label="Downstream pressure (psia)"
           hint="The flowline inlet. The drop across the bean is what cools the fluid."
@@ -53,37 +53,37 @@ const DutyPanel = () => {
           <NumberInput section="choke" name="jtCoeffFPerPsi" step="0.001" />
         </Field>
         {choke?.ok && (
-          <p className="text-[11px] text-cyan-300">
+          <p className="text-[11px] text-pl-info-text">
             {fmt(choke.dpPsi)} psi across the bean cools the stream {fmt(choke.coolingF, 1)} F, to{' '}
             {fmt(choke.tDownF, 1)} F.
           </p>
         )}
         {choke && !choke.ok && (
-          <p className="text-[11px] text-rose-400">{choke.error}</p>
+          <p className="text-[11px] text-pl-danger-text">{choke.error}</p>
         )}
       </div>
 
-      <div className="border-t border-slate-800 pt-3 space-y-3">
-        <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Fluid heat capacity</p>
+      <div className="border-t border-pl-border pt-3 space-y-3">
+        <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Fluid heat capacity</p>
         <div className="grid grid-cols-3 gap-2">
           <Field label="Oil"><NumberInput section="thermal" name="cpOil" step="0.01" /></Field>
           <Field label="Water"><NumberInput section="thermal" name="cpWater" step="0.01" /></Field>
           <Field label="Gas"><NumberInput section="thermal" name="cpGas" step="0.01" /></Field>
         </div>
-        <p className="text-[11px] text-slate-600">
+        <p className="text-[11px] text-pl-muted">
           Btu/lb-F. Mixed by mass, which is exact; only the three components are representative.
           Override them if you have real numbers.
         </p>
         {analysis?.mass?.ok && (
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-pl-muted">
             {fmt(analysis.mass.massRateLbHr)} lb/hr at a mixture heat capacity of{' '}
             {fmt(analysis.mass.cpBtuLbF, 3)} Btu/lb-F.
           </p>
         )}
       </div>
 
-      <div className="border-t border-slate-800 pt-3 space-y-3">
-        <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Hydrate boundary</p>
+      <div className="border-t border-pl-border pt-3 space-y-3">
+        <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Hydrate boundary</p>
         <Field
           label="Gas gravity for the boundary"
           hint="Blank uses the well record's gas gravity. Override it if the hydrate curve was matched to a different one."
@@ -98,15 +98,15 @@ const DutyPanel = () => {
         </Field>
       </div>
 
-      <div className="border-t border-slate-800 pt-3 space-y-3">
-        <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Inhibitor</p>
+      <div className="border-t border-pl-border pt-3 space-y-3">
+        <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Inhibitor</p>
         <Field label="Inhibitor">
           <Select
             value={inputs.inhibitor.inhibitorId}
             onValueChange={(v) => setSection('inhibitor', 'inhibitorId', v)}
           >
-            <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-            <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+            <SelectContent>
               <SelectItem value="methanol">Methanol</SelectItem>
               <SelectItem value="meg">Monoethylene glycol (MEG)</SelectItem>
               <SelectItem value="deg">Diethylene glycol (DEG)</SelectItem>

@@ -8,10 +8,10 @@ import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
 import { fmt, Stat, Row } from './fields';
 
 const ratingAccent = (pct) => {
-  if (!Number.isFinite(pct)) return 'text-slate-100';
-  if (pct > 100) return 'text-red-400';
-  if (pct > 85) return 'text-amber-300';
-  return 'text-emerald-400';
+  if (!Number.isFinite(pct)) return 'text-pl-text';
+  if (pct > 100) return 'text-pl-danger-text';
+  if (pct > 85) return 'text-pl-warning-text';
+  return 'text-pl-success-text';
 };
 
 const LoadsPanel = () => {
@@ -22,13 +22,13 @@ const LoadsPanel = () => {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">
             <span className="flex items-center gap-2">
-              <ArrowDownToLine className="w-4 h-4 text-sky-400" /> What the plunger lifts
+              <ArrowDownToLine className="w-4 h-4 text-pl-muted" /> What the plunger lifts
             </span>
-            <span className="block text-xs font-normal text-slate-500 mt-0.5">
+            <span className="block text-xs font-normal text-pl-muted mt-0.5">
               The fluid load is the differential across the plunger times its area. Both pressures
               are computed: the intake off the inflow, the discharge from the liquid column plus the
               wellhead pressure.
@@ -48,7 +48,7 @@ const LoadsPanel = () => {
               value={fmt(intake.submergenceFt)}
               unit="ft"
               hint="Fluid standing over the pump"
-              accent={intake.submergenceFt < 100 ? 'text-amber-300' : 'text-slate-100'}
+              accent={intake.submergenceFt < 100 ? 'text-pl-warning-text' : 'text-pl-text'}
             />
             <Stat
               label="Discharge pressure"
@@ -60,13 +60,13 @@ const LoadsPanel = () => {
               label="Fluid load"
               value={fmt(design.fluidLoadLb)}
               unit="lb"
-              accent="text-emerald-400"
+              accent="text-pl-text"
               hint={`On a ${fmt(design.plungerDIn, 3)} in plunger`}
             />
           </div>
 
-          <div className="border-t border-slate-800 pt-4">
-            <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-3">
+          <div className="border-t border-pl-border pt-4">
+            <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold mb-3">
               What reaches the plunger, and what the well makes
             </p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -80,7 +80,7 @@ const LoadsPanel = () => {
                 label="Barrel fillage"
                 value={fmt(gas.fillage * 100, 1)}
                 unit="%"
-                accent={gas.fillage < 0.85 ? 'text-amber-300' : 'text-emerald-400'}
+                accent={gas.fillage < 0.85 ? 'text-pl-warning-text' : 'text-pl-success-text'}
                 hint={gas.freeGasResBpd > 0
                   ? `${fmt(gas.gasThroughPumpResBpd, 1)} bbl/d of gas into the barrel`
                   : 'No free gas at intake conditions'}
@@ -101,13 +101,13 @@ const LoadsPanel = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">
             <span className="flex items-center gap-2">
-              <Gauge className="w-4 h-4 text-amber-400" /> Loads, torque and the unit
+              <Gauge className="w-4 h-4 text-pl-muted" /> Loads, torque and the unit
             </span>
-            <span className="block text-xs font-normal text-slate-500 mt-0.5">
+            <span className="block text-xs font-normal text-pl-muted mt-0.5">
               The counterbalance is solved so the gearbox sees the same peak on the upstroke as on
               the downstroke, which is what balancing a unit means.
             </span>
@@ -120,7 +120,7 @@ const LoadsPanel = () => {
               label="Minimum rod load"
               value={fmt(design.mprlLb)}
               unit="lb"
-              accent={design.mprlLb < 0 ? 'text-red-400' : 'text-slate-100'}
+              accent={design.mprlLb < 0 ? 'text-pl-danger-text' : 'text-pl-text'}
               hint={design.mprlLb < 0 ? 'Negative: the rods go into compression' : `Buoyed string ${fmt(string.weightFluidLb)} lb`}
             />
             <Stat
@@ -138,8 +138,8 @@ const LoadsPanel = () => {
           </div>
 
           {rating && Number.isFinite(rating.structuralPct) && (
-            <div className="border-t border-slate-800 pt-4">
-              <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-3">
+            <div className="border-t border-pl-border pt-4">
+              <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold mb-3">
                 Against the unit's ratings
               </p>
               <div className="grid grid-cols-3 gap-4">
@@ -165,11 +165,11 @@ const LoadsPanel = () => {
             </div>
           )}
 
-          <div className="border-t border-slate-800 pt-4">
-            <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">
+          <div className="border-t border-pl-border pt-4">
+            <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold mb-2">
               The dimensionless groups
             </p>
-            <p className="text-[11px] text-slate-600 mb-2">
+            <p className="text-[11px] text-pl-muted mb-2">
               These are how a rod-pump answer is read, and they are the groups API RP 11L is plotted
               against. The numbers beside them came out of the wave equation rather than off a chart.
             </p>

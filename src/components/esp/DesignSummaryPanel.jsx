@@ -10,12 +10,12 @@ const fmt = (v, digits = 0) => (Number.isFinite(v)
   : '--');
 
 const Row = ({ label, value, hint }) => (
-  <div className="flex items-baseline justify-between gap-3 py-1.5 border-b border-slate-800/60 last:border-0">
+  <div className="flex items-baseline justify-between gap-3 py-1.5 border-b border-pl-border last:border-0">
     <div>
-      <p className="text-xs text-slate-400">{label}</p>
-      {hint && <p className="text-[11px] text-slate-600">{hint}</p>}
+      <p className="text-xs text-pl-muted">{label}</p>
+      {hint && <p className="text-[11px] text-pl-muted">{hint}</p>}
     </div>
-    <p className="text-sm font-semibold text-slate-100 tabular-nums whitespace-nowrap">{value}</p>
+    <p className="text-sm font-semibold text-pl-text font-pl-mono tabular-nums whitespace-nowrap">{value}</p>
   </div>
 );
 
@@ -24,11 +24,11 @@ const DesignSummaryPanel = () => {
 
   if (!result.ok || !design) {
     return (
-      <div className="rounded-md border border-amber-900/60 bg-amber-950/30 p-3 space-y-2">
-        <p className="text-xs font-semibold text-amber-300 flex items-center gap-1">
+      <div className="rounded-md border border-pl-warning/40 bg-pl-warning-bg p-3 space-y-2">
+        <p className="text-xs font-semibold text-pl-warning-text flex items-center gap-1">
           <AlertTriangle className="w-3.5 h-3.5" /> Design cannot run
         </p>
-        <ul className="text-[11px] text-amber-200/80 space-y-1 list-disc pl-4">
+        <ul className="text-[11px] text-pl-warning-text space-y-1 list-disc pl-4">
           {result.errors.map((e) => <li key={e}>{e}</li>)}
         </ul>
       </div>
@@ -81,12 +81,12 @@ const DesignSummaryPanel = () => {
 
       <div className="pt-2">
         {warnings.length === 0 ? (
-          <p className="text-[11px] text-emerald-400 flex items-center gap-1">
+          <p className="text-[11px] text-pl-success-text flex items-center gap-1">
             <CheckCircle2 className="w-3.5 h-3.5" /> The duty sits inside the pump's published range.
           </p>
         ) : (
-          <div className="rounded-md border border-amber-900/60 bg-amber-950/30 p-2">
-            <p className="text-[11px] font-semibold text-amber-300">
+          <div className="rounded-md border border-pl-warning/40 bg-pl-warning-bg p-2">
+            <p className="text-[11px] font-semibold text-pl-warning-text">
               {warnings.length} thing{warnings.length === 1 ? '' : 's'} to look at
             </p>
           </div>

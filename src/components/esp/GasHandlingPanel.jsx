@@ -14,28 +14,28 @@ const fmt = (v, digits = 0) => (Number.isFinite(v)
 const VERDICT = {
   standard: {
     label: 'Standard stage',
-    className: 'text-emerald-400 border-emerald-900/60 bg-emerald-950/20',
+    className: 'text-pl-success-text border-pl-success/40 bg-pl-success-bg',
     note: 'The gas through the stages is inside the standard limit.',
   },
   gasHandler: {
     label: 'Gas handler',
-    className: 'text-amber-300 border-amber-900/60 bg-amber-950/20',
+    className: 'text-pl-warning-text border-pl-warning/40 bg-pl-warning-bg',
     note: 'Above the standard limit: a gas handler or an advanced gas-handling stage is normal practice here.',
   },
   separatorRequired: {
     label: 'Separator, or a different lift method',
-    className: 'text-red-300 border-red-900/60 bg-red-950/20',
+    className: 'text-pl-danger-text border-pl-danger/40 bg-pl-danger-bg',
     note: 'Above the handler limit. Take the gas out ahead of the pump, or consider gas lift, which likes this well far more than a centrifugal pump does.',
   },
 };
 
 const Row = ({ label, value, hint }) => (
-  <div className="flex items-baseline justify-between gap-3 py-1.5 border-b border-slate-800/60 last:border-0">
+  <div className="flex items-baseline justify-between gap-3 py-1.5 border-b border-pl-border last:border-0">
     <div>
-      <p className="text-sm text-slate-300">{label}</p>
-      {hint && <p className="text-[11px] text-slate-600">{hint}</p>}
+      <p className="text-sm text-pl-text">{label}</p>
+      {hint && <p className="text-[11px] text-pl-muted">{hint}</p>}
     </div>
-    <p className="text-sm font-semibold text-slate-100 tabular-nums whitespace-nowrap">{value}</p>
+    <p className="text-sm font-semibold text-pl-text font-pl-mono tabular-nums whitespace-nowrap">{value}</p>
   </div>
 );
 
@@ -46,11 +46,11 @@ const GasHandlingPanel = () => {
   const verdict = VERDICT[gas.verdict] || VERDICT.standard;
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base">
           Gas at the intake
-          <span className="block text-xs font-normal text-slate-500 mt-0.5">
+          <span className="block text-xs font-normal text-pl-muted mt-0.5">
             At {fmt(pipPsia)} psia and {fmt(tempF)} F the oil holds {fmt(pvt.rs)} scf/stb in solution
             {pvt.rs >= design.gorScfStb - 0.5
               ? `, all of the produced ${fmt(design.gorScfStb)} scf/stb, so no gas is free at the intake.`

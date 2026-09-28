@@ -8,9 +8,9 @@ const SummaryPanel = () => {
   const { model, diagnosis, plan, history } = useIntervention();
   if (!model) {
     return (
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardContent className="py-4">
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-pl-muted">
             The well model is incomplete. Fill in the Well tab.
           </p>
         </CardContent>
@@ -21,24 +21,24 @@ const SummaryPanel = () => {
   const blocked = (plan?.screening || []).filter((r) => r.blocked).length;
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardContent className="py-3">
         <Row
           label="History"
           value={history.length ? `${history.length} days` : 'None linked'}
-          accent={history.length ? 'text-slate-100' : 'text-amber-400'}
+          accent={history.length ? 'text-pl-text' : 'text-pl-warning-text'}
         />
         <Row
           label="Mechanism"
           value={diagnosis?.mechanism?.label || '--'}
-          accent={diagnosis?.mechanism?.id === 'channelling' ? 'text-amber-400'
-            : diagnosis?.mechanism?.id === 'coning' ? 'text-rose-400' : 'text-slate-100'}
+          accent={diagnosis?.mechanism?.id === 'channelling' ? 'text-pl-warning-text'
+            : diagnosis?.mechanism?.id === 'coning' ? 'text-pl-danger-text' : 'text-pl-text'}
           hint={diagnosis?.confidence ? `${diagnosis.confidence} confidence` : undefined}
         />
         <Row
           label="Treatable by a squeeze"
           value={diagnosis?.mechanism ? (diagnosis.mechanism.treatable ? 'Yes' : 'No') : '--'}
-          accent={diagnosis?.mechanism?.treatable ? 'text-emerald-400' : 'text-slate-400'}
+          accent={diagnosis?.mechanism?.treatable ? 'text-pl-success-text' : 'text-pl-muted'}
         />
         {plan && (
           <>
@@ -46,12 +46,12 @@ const SummaryPanel = () => {
               label="Ruled out"
               value={String(blocked)}
               hint="By the diagnosis, not by a score"
-              accent={blocked ? 'text-rose-400' : 'text-slate-100'}
+              accent={blocked ? 'text-pl-danger-text' : 'text-pl-text'}
             />
             <Row
               label="Uplift"
               value={sized?.ok ? `${fmt(sized.upliftStbd)} stb/d` : '--'}
-              accent="text-emerald-400"
+              accent="text-pl-success-text"
             />
             <Row
               label="NPV"
@@ -59,7 +59,7 @@ const SummaryPanel = () => {
                 ? `$${fmt(plan.economics.economics.metrics.npv, 2)} MM`
                 : '--'}
               accent={plan.economics?.ok && plan.economics.economics.metrics.npv > 0
-                ? 'text-emerald-400' : 'text-slate-400'}
+                ? 'text-pl-success-text' : 'text-pl-muted'}
             />
           </>
         )}

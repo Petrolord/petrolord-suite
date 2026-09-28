@@ -12,9 +12,9 @@ import { useEsp } from '@/contexts/EspDesignContext';
 
 const Field = ({ label, hint, children }) => (
   <div className="space-y-1">
-    <Label className="text-xs text-slate-400">{label}</Label>
+    <Label className="text-xs text-pl-muted">{label}</Label>
     {children}
-    {hint && <p className="text-[11px] text-slate-600">{hint}</p>}
+    {hint && <p className="text-[11px] text-pl-muted">{hint}</p>}
   </div>
 );
 
@@ -30,8 +30,8 @@ const PumpPanel = () => {
     <div className="space-y-4">
       <Field label="Stage curve from">
         <Select value={pump.curveSource} onValueChange={(v) => setSection('pump', 'curveSource', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+          <SelectContent>
             <SelectItem value="reference">A reference model stage</SelectItem>
             <SelectItem value="vendor">The vendor's curve points</SelectItem>
           </SelectContent>
@@ -48,8 +48,8 @@ const PumpPanel = () => {
               value={pump.referenceStageId}
               onValueChange={(v) => setSection('pump', 'referenceStageId', v)}
             >
-              <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
                 {referenceStages.map((s) => (
                   <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
                 ))}
@@ -57,15 +57,15 @@ const PumpPanel = () => {
             </Select>
           </Field>
           {stage && (
-            <div className="rounded-md border border-slate-800 bg-slate-950/40 p-2 space-y-1">
-              <p className="text-[11px] text-slate-500">
+            <div className="rounded-md border border-pl-border bg-pl-sunken p-2 space-y-1">
+              <p className="text-[11px] text-pl-muted">
                 {stage.bepBpd.toLocaleString()} bbl/d and {stage.bepHeadFt} ft per stage at best
                 efficiency ({(stage.bepEfficiency * 100).toFixed(0)} percent), published range{' '}
                 {stage.qMin.toLocaleString()} to {stage.qMax.toLocaleString()} bbl/d, housing{' '}
                 {stage.housingOdIn} in.
               </p>
               {tooBig && (
-                <p className="text-[11px] text-amber-400 flex items-start gap-1">
+                <p className="text-[11px] text-pl-warning-text flex items-start gap-1">
                   <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
                   A {stage.housingOdIn} in housing does not go into {casingIdIn} in casing. Pick a
                   smaller series or check the casing ID.
@@ -85,7 +85,7 @@ const PumpPanel = () => {
               placeholder={'1500, 32, 55\n2500, 28, 70\n3500, 20, 60'}
               value={pump.curveText}
               onChange={(e) => setSection('pump', 'curveText', e.target.value)}
-              className="bg-slate-800 border-slate-700 font-mono text-xs"
+              className="font-pl-mono text-xs"
             />
           </Field>
           <Field
@@ -96,11 +96,11 @@ const PumpPanel = () => {
               type="number"
               value={pump.curveRefHz}
               onChange={(e) => setSection('pump', 'curveRefHz', e.target.value)}
-              className="h-9 bg-slate-800 border-slate-700"
+              className="h-9"
             />
           </Field>
           {curve?.ok && (
-            <p className="text-[11px] text-slate-600">
+            <p className="text-[11px] text-pl-muted">
               {curve.points.length} point{curve.points.length === 1 ? '' : 's'} read,{' '}
               {curve.qMin.toLocaleString(undefined, { maximumFractionDigits: 0 })} to{' '}
               {curve.qMax.toLocaleString(undefined, { maximumFractionDigits: 0 })} bbl/d.
@@ -110,14 +110,14 @@ const PumpPanel = () => {
       )}
 
       {!curve?.ok && (curve?.warnings || []).length > 0 && (
-        <div className="rounded-md border border-amber-900/60 bg-amber-950/30 p-2">
-          <ul className="text-[11px] text-amber-200/80 space-y-1 list-disc pl-4">
+        <div className="rounded-md border border-pl-warning/40 bg-pl-warning-bg p-2">
+          <ul className="text-[11px] text-pl-warning-text space-y-1 list-disc pl-4">
             {curve.warnings.map((w) => <li key={w}>{w}</li>)}
           </ul>
         </div>
       )}
 
-      <div className="border-t border-slate-800 pt-3">
+      <div className="border-t border-pl-border pt-3">
         <Field
           label="Drive frequency (Hz)"
           hint="Affinity laws for a fixed impeller: rate with speed, head with speed squared, power with speed cubed."
@@ -126,7 +126,7 @@ const PumpPanel = () => {
             type="number"
             value={pump.hz}
             onChange={(e) => setSection('pump', 'hz', e.target.value)}
-            className="h-9 bg-slate-800 border-slate-700"
+            className="h-9"
           />
         </Field>
       </div>

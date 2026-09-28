@@ -75,11 +75,11 @@ const TracePanel = () => {
 
   if (!analysis?.ok && !trace.length) {
     return (
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardContent className="py-10 text-center space-y-2">
-          <p className="text-sm text-slate-400">The trace has not run.</p>
+          <p className="text-sm text-pl-muted">The trace has not run.</p>
           {(analysis?.errors || []).map((e) => (
-            <p key={e} className="text-[11px] text-rose-400">{e}</p>
+            <p key={e} className="text-[11px] text-pl-danger-text">{e}</p>
           ))}
         </CardContent>
       </Card>
@@ -90,11 +90,11 @@ const TracePanel = () => {
   const worst = hydrate?.worst;
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
-            <Route className="w-4 h-4 text-cyan-400" /> Perforations to arrival
+            <Route className="w-4 h-4 text-pl-muted" /> Perforations to arrival
           </CardTitle>
           <div className="flex gap-1">
             <Button
@@ -114,7 +114,7 @@ const TracePanel = () => {
       </CardHeader>
       <CardContent className="space-y-3">
         {hydrate?.inHydrate ? (
-          <p className="text-[11px] text-rose-300 flex items-start gap-1.5">
+          <p className="text-[11px] text-pl-danger-text flex items-start gap-1.5">
             <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
             <span>
               The trace crosses into the hydrate region {fmt(entry?.sFt)} ft from the perforations,
@@ -125,7 +125,7 @@ const TracePanel = () => {
             </span>
           </p>
         ) : (
-          <p className="text-[11px] text-emerald-400">
+          <p className="text-[11px] text-pl-success-text">
             The whole trace stays outside the hydrate region. The closest approach is{' '}
             {fmt(Math.abs(hydrate?.maxSubcoolingF ?? 0), 1)} F clear, at {fmt(worst?.pPsia)} psia.
           </p>
@@ -235,10 +235,10 @@ const TracePanel = () => {
           </ChartFrame>
         )}
 
-        <p className="text-[11px] text-slate-600">
+        <p className="text-[11px] text-pl-muted">
           {hydrate?.basis}
         </p>
-        <p className="text-[11px] text-slate-600">
+        <p className="text-[11px] text-pl-muted">
           {hydrate?.salinity}
         </p>
       </CardContent>

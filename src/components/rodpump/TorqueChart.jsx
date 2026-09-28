@@ -35,11 +35,11 @@ const TorqueChart = () => {
     : null;
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base">
           Gearbox torque through a revolution
-          <span className="block text-xs font-normal text-slate-500 mt-0.5">
+          <span className="block text-xs font-normal text-pl-muted mt-0.5">
             Peak {fmt(design.balance.peakTorqueInLb)} in-lb, on a counterbalance moment of{' '}
             {fmt(design.balance.momentInLb)} in-lb. The counterweights are at the top of their
             travel when the rods are at the bottom of theirs, so they fall through the upstroke,

@@ -30,6 +30,10 @@ import SpeedSweepPanel from '@/components/rodpump/SpeedSweepPanel';
 import DiagnosticsPanel from '@/components/rodpump/DiagnosticsPanel';
 import RodWarningsPanel from '@/components/rodpump/WarningsPanel';
 import RodPumpHelpContent from '@/components/rodpump/RodPumpHelpGuide';
+import { ThemedApp } from '@/design/ThemeProvider';
+
+// Design system rollout batch 2C (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class below is a theme role.
 
 const TABS = [
   { value: 'design', label: 'Design' },
@@ -41,7 +45,7 @@ const TABS = [
 ];
 
 const SectionLabel = ({ children }) => (
-  <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest">{children}</h3>
+  <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
 );
 
 const RodPumpContent = () => {
@@ -158,7 +162,6 @@ const RodPumpContent = () => {
             backTo="/dashboard/production"
             backTitle="Back to Production Operations"
             icon={ArrowUpDown}
-            iconGradientClass="from-emerald-600 to-teal-700"
             title="Rod Pump Design Studio"
             tabs={TABS}
             activeTab={activeTab}
@@ -168,12 +171,12 @@ const RodPumpContent = () => {
         headerActions={
           <>
             <FullPrecisionToggle app="rod-pump-design-studio" />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioAutoSave
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
             />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Rod Pump Design Studio Guide"
               description="How the plunger stroke, the loads, the torque and the rod stresses are worked out."
@@ -196,10 +199,12 @@ const RodPumpContent = () => {
 
 export default function RodPumpDesignStudio() {
   return (
-    <RodPumpDesignProvider>
-      <FullPrecisionProvider>
-        <RodPumpContent />
-      </FullPrecisionProvider>
-    </RodPumpDesignProvider>
+    <ThemedApp data-testid="rodpump-theme-scope">
+      <RodPumpDesignProvider>
+        <FullPrecisionProvider>
+          <RodPumpContent />
+        </FullPrecisionProvider>
+      </RodPumpDesignProvider>
+    </ThemedApp>
   );
 }

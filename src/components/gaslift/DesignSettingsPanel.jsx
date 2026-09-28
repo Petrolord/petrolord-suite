@@ -28,10 +28,10 @@ const DesignSettingsPanel = () => {
   return (
     <div className="space-y-3">
       <div className="space-y-1">
-        <Label className="text-xs text-slate-400">Spacing method</Label>
+        <Label className="text-xs text-pl-muted">Spacing method</Label>
         <Select value={design.method} onValueChange={(v) => setSection('design', 'method', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+          <SelectContent>
             <SelectItem value="surfaceClose">Decreasing surface pressure</SelectItem>
             <SelectItem value="constantPressure">Constant surface pressure</SelectItem>
           </SelectContent>
@@ -40,14 +40,14 @@ const DesignSettingsPanel = () => {
 
       {design.method === 'surfaceClose' && (
         <div className="space-y-1">
-          <Label className="text-xs text-slate-400">Pressure drop per valve (psi)</Label>
+          <Label className="text-xs text-pl-muted">Pressure drop per valve (psi)</Label>
           <Input
             type="number"
             value={design.dpPerValvePsi ?? ''}
             onChange={(e) => setSection('design', 'dpPerValvePsi', e.target.value)}
-            className="h-9 bg-slate-800 border-slate-700"
+            className="h-9"
           />
-          <p className="text-[11px] text-slate-600">
+          <p className="text-[11px] text-pl-muted">
             Must exceed the valve spread or the upper valves will not close. The Unloading tab
             checks this for every stage.
           </p>
@@ -56,13 +56,13 @@ const DesignSettingsPanel = () => {
 
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1">
-          <Label className="text-xs text-slate-400">Valve size</Label>
+          <Label className="text-xs text-pl-muted">Valve size</Label>
           <Select
             value={design.valveFamilyId}
             onValueChange={(v) => setSection('design', 'valveFamilyId', v)}
           >
-            <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-            <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+            <SelectContent>
               {valveFamilies.map((f) => (
                 <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>
               ))}
@@ -70,24 +70,24 @@ const DesignSettingsPanel = () => {
           </Select>
         </div>
         <div className="space-y-1">
-          <Label className="text-xs text-slate-400">Valve type</Label>
+          <Label className="text-xs text-pl-muted">Valve type</Label>
           <Select value={design.valveType} onValueChange={(v) => setSection('design', 'valveType', v)}>
-            <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-            <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+            <SelectContent>
               <SelectItem value="IPO">Injection operated (IPO)</SelectItem>
               <SelectItem value="PPO">Production operated (PPO)</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
-      <p className="text-[11px] text-slate-600">
+      <p className="text-[11px] text-pl-muted">
         Bellows area {family.bellowsAreaIn2} sq in. {family.mandrelNote}
       </p>
 
       <div className="flex items-center justify-between">
         <div>
-          <Label className="text-xs text-slate-400">Orifice at the bottom</Label>
-          <p className="text-[11px] text-slate-600">The operating point is normally an orifice, not a charged valve.</p>
+          <Label className="text-xs text-pl-muted">Orifice at the bottom</Label>
+          <p className="text-[11px] text-pl-muted">The operating point is normally an orifice, not a charged valve.</p>
         </div>
         <Switch
           checked={design.bottomOrifice !== false}
@@ -97,13 +97,13 @@ const DesignSettingsPanel = () => {
 
       {design.bottomOrifice !== false && (
         <div className="space-y-1">
-          <Label className="text-xs text-slate-400">Orifice size (in)</Label>
+          <Label className="text-xs text-pl-muted">Orifice size (in)</Label>
           <Select
             value={String(design.orificeIdIn)}
             onValueChange={(v) => setSection('design', 'orificeIdIn', v)}
           >
-            <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-            <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+            <SelectContent>
               {family.ports.map((p) => (
                 <SelectItem key={p.label} value={String(p.idIn)}>{p.label}</SelectItem>
               ))}
@@ -112,10 +112,10 @@ const DesignSettingsPanel = () => {
         </div>
       )}
 
-      <div className="flex items-center justify-between border-t border-slate-800 pt-3">
+      <div className="flex items-center justify-between border-t border-pl-border pt-3">
         <div>
-          <Label className="text-xs text-slate-400">Space to the computed injection point</Label>
-          <p className="text-[11px] text-slate-600">
+          <Label className="text-xs text-pl-muted">Space to the computed injection point</Label>
+          <p className="text-[11px] text-pl-muted">
             Off: space to the packer depth instead.
           </p>
         </div>
@@ -127,15 +127,15 @@ const DesignSettingsPanel = () => {
 
       {NUMERIC.map(({ key, label, hint, step }) => (
         <div key={key} className="space-y-1">
-          <Label className="text-xs text-slate-400">{label}</Label>
+          <Label className="text-xs text-pl-muted">{label}</Label>
           <Input
             type="number"
             step={step || 'any'}
             value={design[key] ?? ''}
             onChange={(e) => setSection('design', key, e.target.value)}
-            className="h-9 bg-slate-800 border-slate-700"
+            className="h-9"
           />
-          {hint && <p className="text-[11px] text-slate-600">{hint}</p>}
+          {hint && <p className="text-[11px] text-pl-muted">{hint}</p>}
         </div>
       ))}
     </div>

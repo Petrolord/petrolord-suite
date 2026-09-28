@@ -11,12 +11,12 @@ const GasInflowFields = () => {
   const { inputs, setSection } = useChoke();
   const g = inputs.gasInflow;
   return (
-    <div className="border-t border-slate-800 pt-3 space-y-3">
-      <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Gas inflow</p>
+    <div className="border-t border-pl-border pt-3 space-y-3">
+      <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Gas inflow</p>
       <Field label="Deliverability model">
         <Select value={g.model} onValueChange={(v) => setSection('gasInflow', 'model', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+          <SelectContent>
             <SelectItem value="backPressure">Back pressure (Rawlins and Schellhardt)</SelectItem>
             <SelectItem value="lit">Laminar-inertial-turbulent (Houpeurt)</SelectItem>
             <SelectItem value="darcy">Pseudo-pressure deliverability (Darcy)</SelectItem>
@@ -59,8 +59,8 @@ const WellModelPanel = () => {
         hint="An oil well takes the Gilbert family; a gas well takes the single-phase gas choke. The record decides, so nothing has to be restated."
       >
         <Select value={inputs.well.phase} onValueChange={(v) => setSection('well', 'phase', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+          <SelectContent>
             <SelectItem value="oil">Oil well</SelectItem>
             <SelectItem value="gas">Gas well</SelectItem>
           </SelectContent>

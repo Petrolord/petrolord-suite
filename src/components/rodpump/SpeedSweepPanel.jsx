@@ -21,10 +21,10 @@ import { Field, NumberInput, fmt } from './fields';
 const COLOR = { rate: '#059669', loading: '#dc2626', torque: '#d97706' };
 
 const StaleNote = ({ onRerun }) => (
-  <div className="flex items-center gap-2 text-[11px] text-amber-400 mb-2">
+  <div className="flex items-center gap-2 text-[11px] text-pl-warning-text mb-2">
     <RefreshCw className="w-3 h-3" />
     Inputs changed since this ran.
-    <button type="button" className="underline hover:text-amber-300" onClick={onRerun}>
+    <button type="button" className="underline hover:opacity-80" onClick={onRerun}>
       Run again
     </button>
   </div>
@@ -45,12 +45,12 @@ const SpeedSweepPanel = () => {
   const refused = (sweep?.points || []).filter((p) => !p.ok);
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-emerald-400" /> Production against pumping speed
+          <TrendingUp className="w-4 h-4 text-pl-muted" /> Production against pumping speed
           {design && (
-            <span className="text-xs font-normal text-slate-500">
+            <span className="text-xs font-normal text-pl-muted">
               designed at {fmt(design.spm, 1)} spm
             </span>
           )}
@@ -67,7 +67,7 @@ const SpeedSweepPanel = () => {
         </div>
 
         {!sweep ? (
-          <p className="text-sm text-slate-500 py-6 text-center">
+          <p className="text-sm text-pl-muted py-6 text-center">
             Each point here is a full wave-equation solve marched to a repeating stroke, so it runs
             when you ask for it.
           </p>
@@ -130,7 +130,7 @@ const SpeedSweepPanel = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
+                  <tr className="text-[10px] uppercase tracking-wider text-pl-muted border-b border-pl-border">
                     <th className="text-left font-semibold px-3 py-2">Speed (spm)</th>
                     <th className="text-right font-semibold px-3 py-2">Production (bbl/d)</th>
                     <th className="text-right font-semibold px-3 py-2">Plunger stroke (in)</th>
@@ -141,20 +141,20 @@ const SpeedSweepPanel = () => {
                 </thead>
                 <tbody>
                   {sweep.points.map((p) => (
-                    <tr key={p.spm} className="border-b border-slate-800/60 last:border-0">
-                      <td className="px-3 py-2 text-slate-200">{fmt(p.spm, 1)}</td>
+                    <tr key={p.spm} className="border-b border-pl-border last:border-0">
+                      <td className="px-3 py-2 text-pl-text">{fmt(p.spm, 1)}</td>
                       {p.ok ? (
                         <>
-                          <td className="px-3 py-2 text-right tabular-nums text-slate-300">{fmt(p.producedBpd, 1)}</td>
-                          <td className="px-3 py-2 text-right tabular-nums text-slate-300">{fmt(p.plungerStrokeIn, 1)}</td>
-                          <td className="px-3 py-2 text-right tabular-nums text-slate-300">{fmt(p.pprlLb)}</td>
-                          <td className="px-3 py-2 text-right tabular-nums text-slate-300">{fmt(p.peakTorqueInLb)}</td>
-                          <td className={`px-3 py-2 text-right tabular-nums ${p.loadingPct > 100 ? 'text-red-400' : 'text-slate-300'}`}>
+                          <td className="px-3 py-2 text-right font-pl-mono tabular-nums text-pl-text">{fmt(p.producedBpd, 1)}</td>
+                          <td className="px-3 py-2 text-right font-pl-mono tabular-nums text-pl-text">{fmt(p.plungerStrokeIn, 1)}</td>
+                          <td className="px-3 py-2 text-right font-pl-mono tabular-nums text-pl-text">{fmt(p.pprlLb)}</td>
+                          <td className="px-3 py-2 text-right font-pl-mono tabular-nums text-pl-text">{fmt(p.peakTorqueInLb)}</td>
+                          <td className={`px-3 py-2 text-right font-pl-mono tabular-nums ${p.loadingPct > 100 ? 'text-pl-danger-text' : 'text-pl-text'}`}>
                             {fmt(p.loadingPct, 1)} %
                           </td>
                         </>
                       ) : (
-                        <td colSpan={5} className="px-3 py-2 text-[11px] text-amber-300">{p.reason}</td>
+                        <td colSpan={5} className="px-3 py-2 text-[11px] text-pl-warning-text">{p.reason}</td>
                       )}
                     </tr>
                   ))}
@@ -163,7 +163,7 @@ const SpeedSweepPanel = () => {
             </div>
 
             {refused.length > 0 && (
-              <p className="text-[11px] text-slate-600">
+              <p className="text-[11px] text-pl-muted">
                 {refused.length} speed{refused.length === 1 ? '' : 's'} could not be designed and
                 are listed with the reason rather than dropped from the curve.
               </p>

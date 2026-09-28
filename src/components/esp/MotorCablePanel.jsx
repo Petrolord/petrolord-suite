@@ -9,9 +9,9 @@ import { useEsp } from '@/contexts/EspDesignContext';
 
 const Field = ({ label, hint, children }) => (
   <div className="space-y-1">
-    <Label className="text-xs text-slate-400">{label}</Label>
+    <Label className="text-xs text-pl-muted">{label}</Label>
     {children}
-    {hint && <p className="text-[11px] text-slate-600">{hint}</p>}
+    {hint && <p className="text-[11px] text-pl-muted">{hint}</p>}
   </div>
 );
 
@@ -23,7 +23,7 @@ const NumberInput = ({ name, step = 'any' }) => {
       step={step}
       value={inputs.motor[name] ?? ''}
       onChange={(e) => setSection('motor', name, e.target.value)}
-      className="h-9 bg-slate-800 border-slate-700"
+      className="h-9"
     />
   );
 };
@@ -38,8 +38,8 @@ const MotorCablePanel = () => {
         hint="Common submersible nameplate combinations. Selecting one fills the three numbers below; all of them stay editable."
       >
         <Select value={inputs.motor.motorFrameId} onValueChange={applyMotorFrame}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+          <SelectContent>
             {motorFrames.map((m) => (
               <SelectItem key={m.id} value={m.id}>
                 {m.hp} hp, {m.volts} V, {m.amps} A ({m.seriesOdIn} in)
@@ -60,8 +60,8 @@ const MotorCablePanel = () => {
         <Field label="Power factor"><NumberInput name="powerFactor" step="0.01" /></Field>
       </div>
 
-      <div className="border-t border-slate-800 pt-3 space-y-3">
-        <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Cable</p>
+      <div className="border-t border-pl-border pt-3 space-y-3">
+        <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Cable</p>
         <Field
           label="Cable length (ft)"
           hint="Measured depth to the motor plus the surface run to the switchboard."
@@ -72,7 +72,7 @@ const MotorCablePanel = () => {
           <Field label="Average cable temp (F)"><NumberInput name="cableTempF" /></Field>
           <Field label="Max voltage drop (%)"><NumberInput name="maxDropPct" /></Field>
         </div>
-        <p className="text-[11px] text-slate-600">
+        <p className="text-[11px] text-pl-muted">
           Conductor resistance is the published copper value with the standard temperature
           correction. Ampacity belongs to the insulation system and the well temperature, so it is
           a manufacturer number and is not assumed here.

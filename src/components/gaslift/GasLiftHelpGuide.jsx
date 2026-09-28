@@ -75,14 +75,14 @@ const helpContent = [
 const GasLiftHelpContent = () => (
   <Accordion type="single" collapsible className="w-full">
     {helpContent.map(({ id, icon: Icon, title, content }) => (
-      <AccordionItem key={id} value={id} className="border-slate-800">
+      <AccordionItem key={id} value={id} className="border-pl-border">
         <AccordionTrigger className="text-left text-sm hover:no-underline">
           <span className="flex items-center gap-2">
-            <Icon className="w-4 h-4 text-amber-400 shrink-0" />
+            <Icon className="w-4 h-4 text-pl-muted shrink-0" />
             {title}
           </span>
         </AccordionTrigger>
-        <AccordionContent className="text-sm text-slate-400 leading-relaxed">
+        <AccordionContent className="text-sm text-pl-muted leading-relaxed">
           {content}
         </AccordionContent>
       </AccordionItem>
