@@ -17,23 +17,23 @@ export const FieldDevelopmentStageManager = ({ tasks }) => {
   });
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
-        <CardHeader><CardTitle className="text-sm text-slate-300 flex items-center gap-2"><Layers className="w-4 h-4"/> Development Stages</CardTitle></CardHeader>
+    <Card>
+        <CardHeader><CardTitle className="text-sm text-pl-text flex items-center gap-2"><Layers className="w-4 h-4 text-pl-muted"/> Development Stages</CardTitle></CardHeader>
         <CardContent>
             <Table>
-                <TableHeader><TableRow className="border-b-slate-800"><TableHead className="text-white">Stage</TableHead><TableHead className="text-white">Tasks</TableHead><TableHead className="text-white">Progress</TableHead><TableHead className="text-white">Status</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow className="border-b-pl-border"><TableHead>Stage</TableHead><TableHead>Tasks</TableHead><TableHead>Progress</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
                 <TableBody>
                     {stages.map((stage, idx) => (
-                        <TableRow key={idx} className="border-b-slate-800">
-                            <TableCell className="font-medium text-slate-200">{stage.name}</TableCell>
-                            <TableCell className="text-slate-400">{stage.totalTasks}</TableCell>
+                        <TableRow key={idx} className="border-b-pl-border">
+                            <TableCell className="font-medium text-pl-text">{stage.name}</TableCell>
+                            <TableCell className="text-pl-muted">{stage.totalTasks}</TableCell>
                             <TableCell>
-                                <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                                    <div className="h-full bg-cyan-500" style={{ width: `${stage.progress}%` }} />
+                                <div className="w-full bg-pl-sunken h-2 rounded-full overflow-hidden">
+                                    <div className="h-full bg-pl-primary" style={{ width: `${stage.progress}%` }} />
                                 </div>
                             </TableCell>
                             <TableCell>
-                                <Badge variant="outline" className={stage.progress === 100 ? "text-green-400 border-green-500/50" : stage.progress > 0 ? "text-cyan-400 border-cyan-500/50" : "text-slate-500 border-slate-600"}>
+                                <Badge variant={stage.progress === 100 ? "success" : stage.progress > 0 ? "info" : "neutral"}>
                                     {stage.progress === 100 ? 'Complete' : stage.progress > 0 ? 'Active' : 'Pending'}
                                 </Badge>
                             </TableCell>
@@ -51,26 +51,26 @@ export const FieldDevelopmentGateManager = ({ tasks }) => {
   const gates = tasks.filter(t => t.type === 'milestone' && FIELD_DEVELOPMENT_TEMPLATE.gates.some(g => g.name === t.name));
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
-        <CardHeader><CardTitle className="text-sm text-slate-300 flex items-center gap-2"><Flag className="w-4 h-4"/> Stage Gates</CardTitle></CardHeader>
+    <Card>
+        <CardHeader><CardTitle className="text-sm text-pl-text flex items-center gap-2"><Flag className="w-4 h-4 text-pl-muted"/> Stage Gates</CardTitle></CardHeader>
         <CardContent>
              <Table>
-                <TableHeader><TableRow className="border-b-slate-800"><TableHead className="text-white">Gate</TableHead><TableHead className="text-white">Stage</TableHead><TableHead className="text-white">Status</TableHead><TableHead className="text-right text-white">Review</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow className="border-b-pl-border"><TableHead>Gate</TableHead><TableHead>Stage</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Review</TableHead></TableRow></TableHeader>
                 <TableBody>
                     {gates.length > 0 ? gates.map((gate, idx) => (
-                        <TableRow key={idx} className="border-b-slate-800">
-                            <TableCell className="font-medium text-slate-200">{gate.name}</TableCell>
-                            <TableCell className="text-xs text-slate-400">{gate.task_category}</TableCell>
+                        <TableRow key={idx} className="border-b-pl-border">
+                            <TableCell className="font-medium text-pl-text">{gate.name}</TableCell>
+                            <TableCell className="text-xs text-pl-muted">{gate.task_category}</TableCell>
                             <TableCell>
-                                <Badge variant="secondary" className={gate.status === 'Done' ? "bg-green-900/30 text-green-400" : "bg-slate-800 text-slate-400"}>
+                                <Badge variant={gate.status === 'Done' ? "success" : "neutral"}>
                                     {gate.status}
                                 </Badge>
                             </TableCell>
                             <TableCell className="text-right">
-                                <Button size="sm" variant="ghost" className="h-7 text-xs text-cyan-400 hover:text-white">Criteria</Button>
+                                <Button size="sm" variant="ghost" className="h-7 text-xs text-pl-primary-text hover:text-pl-primary-text-hover">Criteria</Button>
                             </TableCell>
                         </TableRow>
-                    )) : <TableRow><TableCell colSpan="4" className="text-center text-slate-500 py-4">No gates found.</TableCell></TableRow>}
+                    )) : <TableRow><TableCell colSpan="4" className="text-center text-pl-muted py-4">No gates found.</TableCell></TableRow>}
                 </TableBody>
             </Table>
         </CardContent>
@@ -81,25 +81,21 @@ export const FieldDevelopmentGateManager = ({ tasks }) => {
 // --- DELIVERABLE MANAGER ---
 export const FieldDevelopmentDeliverableManager = ({ deliverables }) => {
   return (
-    <Card className="bg-slate-900 border-slate-800">
-        <CardHeader><CardTitle className="text-sm text-slate-300 flex items-center gap-2"><FileText className="w-4 h-4"/> Key Deliverables</CardTitle></CardHeader>
+    <Card>
+        <CardHeader><CardTitle className="text-sm text-pl-text flex items-center gap-2"><FileText className="w-4 h-4 text-pl-muted"/> Key Deliverables</CardTitle></CardHeader>
         <CardContent>
              <Table>
-                <TableHeader><TableRow className="border-b-slate-800"><TableHead className="text-white">Item</TableHead><TableHead className="text-white">Status</TableHead><TableHead className="text-white">Source</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow className="border-b-pl-border"><TableHead>Item</TableHead><TableHead>Status</TableHead><TableHead>Source</TableHead></TableRow></TableHeader>
                 <TableBody>
                     {deliverables.length > 0 ? deliverables.map((del, idx) => (
-                        <TableRow key={idx} className="border-b-slate-800">
-                            <TableCell className="font-medium text-slate-200">{del.name}</TableCell>
+                        <TableRow key={idx} className="border-b-pl-border">
+                            <TableCell className="font-medium text-pl-text">{del.name}</TableCell>
                             <TableCell>
-                                <span className={`text-xs px-2 py-0.5 rounded border ${
-                                    del.status === 'Approved' ? 'border-green-500/50 text-green-400 bg-green-500/10' : 
-                                    del.status === 'Under Review' ? 'border-yellow-500/50 text-yellow-400 bg-yellow-500/10' : 
-                                    'border-slate-600 text-slate-400'
-                                }`}>{del.status}</span>
+                                <Badge variant={del.status === 'Approved' ? 'success' : del.status === 'Under Review' ? 'warning' : 'neutral'}>{del.status}</Badge>
                             </TableCell>
-                            <TableCell className="text-xs text-slate-500">{del.app_source}</TableCell>
+                            <TableCell className="text-xs text-pl-muted">{del.app_source}</TableCell>
                         </TableRow>
-                    )) : <TableRow><TableCell colSpan="3" className="text-center text-slate-500 py-4">No deliverables found.</TableCell></TableRow>}
+                    )) : <TableRow><TableCell colSpan="3" className="text-center text-pl-muted py-4">No deliverables found.</TableCell></TableRow>}
                 </TableBody>
             </Table>
         </CardContent>

@@ -187,14 +187,13 @@ const ExplorationProjectWizard = ({ open, onOpenChange, onProjectCreated, userId
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {/* Interim (rollout 6C): a dark island until this file moves to theme roles; remove data-pl-theme then. */}
-      <DialogContent data-pl-theme="dark" className="bg-slate-900 border-slate-700 text-white sm:max-w-[700px] h-[80vh] flex flex-col">
+      <DialogContent className="sm:max-w-[700px] h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
-            <Globe className="w-6 h-6 text-blue-400" />
+            <Globe className="w-6 h-6 text-pl-primary-text" aria-hidden="true" />
             New Exploration Project
           </DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-pl-muted">
             Step {currentStep} of {steps.length}: {steps[currentStep-1].title}
           </DialogDescription>
         </DialogHeader>
@@ -204,15 +203,15 @@ const ExplorationProjectWizard = ({ open, onOpenChange, onProjectCreated, userId
             {steps.map((step, idx) => (
                 <div key={step.id} className="flex flex-col items-center">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors ${
-                        currentStep >= step.id ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-600 text-slate-500'
+                        currentStep >= step.id ? 'bg-pl-primary border-pl-primary text-pl-primary-fg' : 'border-pl-border-strong text-pl-muted'
                     }`}>
                         <step.icon className="w-4 h-4" />
                     </div>
-                    <span className={`text-[10px] mt-1 ${currentStep >= step.id ? 'text-blue-400' : 'text-slate-600'}`}>{step.title}</span>
+                    <span className={`text-[10px] mt-1 ${currentStep >= step.id ? 'text-pl-primary-text font-medium' : 'text-pl-muted'}`}>{step.title}</span>
                 </div>
             ))}
         </div>
-        <Separator className="bg-slate-800" />
+        <Separator />
 
         <ScrollArea className="flex-1 px-4 py-6">
             {currentStep === 1 && (
@@ -220,25 +219,25 @@ const ExplorationProjectWizard = ({ open, onOpenChange, onProjectCreated, userId
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label>Project Name</Label>
-                            <Input name="name" value={formData.name} onChange={handleInputChange} placeholder="e.g. Alpha Prospect Exploration" className="bg-slate-800 border-slate-700" />
+                            <Input name="name" value={formData.name} onChange={handleInputChange} placeholder="e.g. Alpha Prospect Exploration" />
                         </div>
                         <div className="space-y-2">
                             <Label>Project Code</Label>
-                            <Input name="code" value={formData.code} onChange={handleInputChange} placeholder="e.g. EXP-2024-001" className="bg-slate-800 border-slate-700" />
+                            <Input name="code" value={formData.code} onChange={handleInputChange} placeholder="e.g. EXP-2024-001" />
                         </div>
                     </div>
                     <div className="space-y-2">
                         <Label>Description</Label>
-                        <Textarea name="description" value={formData.description} onChange={handleInputChange} placeholder="Objectives and scope..." className="bg-slate-800 border-slate-700" />
+                        <Textarea name="description" value={formData.description} onChange={handleInputChange} placeholder="Objectives and scope..." />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label>Country</Label>
-                            <Input name="country" value={formData.country} onChange={handleInputChange} className="bg-slate-800 border-slate-700" />
+                            <Input name="country" value={formData.country} onChange={handleInputChange} />
                         </div>
                         <div className="space-y-2">
                             <Label>Region / Basin</Label>
-                            <Input name="region" value={formData.region} onChange={handleInputChange} className="bg-slate-800 border-slate-700" />
+                            <Input name="region" value={formData.region} onChange={handleInputChange} />
                         </div>
                     </div>
                 </div>
@@ -249,19 +248,19 @@ const ExplorationProjectWizard = ({ open, onOpenChange, onProjectCreated, userId
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label>Asset / Block</Label>
-                            <Input name="asset" value={formData.asset} onChange={handleInputChange} placeholder="Block 12-A" className="bg-slate-800 border-slate-700" />
+                            <Input name="asset" value={formData.asset} onChange={handleInputChange} placeholder="Block 12-A" />
                         </div>
                         <div className="space-y-2">
                             <Label>Primary Prospect</Label>
-                            <Input name="prospectName" value={formData.prospectName} onChange={handleInputChange} className="bg-slate-800 border-slate-700" />
+                            <Input name="prospectName" value={formData.prospectName} onChange={handleInputChange} />
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label>Seismic Data Type</Label>
                             <Select name="seismicType" value={formData.seismicType} onValueChange={(val) => handleSelectChange('seismicType', val)}>
-                                <SelectTrigger className="bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-                                <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
                                     <SelectItem value="2D">2D Seismic</SelectItem>
                                     <SelectItem value="3D">3D Seismic</SelectItem>
                                     <SelectItem value="Reprocessing">Reprocessing Only</SelectItem>
@@ -271,8 +270,8 @@ const ExplorationProjectWizard = ({ open, onOpenChange, onProjectCreated, userId
                         <div className="space-y-2">
                             <Label>Exploration Concept</Label>
                             <Select name="concept" value={formData.concept} onValueChange={(val) => handleSelectChange('concept', val)}>
-                                <SelectTrigger className="bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-                                <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
                                     <SelectItem value="Structural Trap">Structural Trap</SelectItem>
                                     <SelectItem value="Stratigraphic Trap">Stratigraphic Trap</SelectItem>
                                     <SelectItem value="Combination">Combination</SelectItem>
@@ -282,7 +281,7 @@ const ExplorationProjectWizard = ({ open, onOpenChange, onProjectCreated, userId
                     </div>
                     <div className="space-y-2">
                         <Label>Est. Unrisked Reserves (MMboe)</Label>
-                        <Input name="estimatedReserves" type="number" value={formData.estimatedReserves} onChange={handleInputChange} className="bg-slate-800 border-slate-700" />
+                        <Input name="estimatedReserves" type="number" value={formData.estimatedReserves} onChange={handleInputChange} />
                     </div>
                 </div>
             )}
@@ -292,11 +291,11 @@ const ExplorationProjectWizard = ({ open, onOpenChange, onProjectCreated, userId
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label>Start Date</Label>
-                            <Input name="startDate" type="date" value={formData.startDate} onChange={handleInputChange} className="bg-slate-800 border-slate-700" />
+                            <Input name="startDate" type="date" value={formData.startDate} onChange={handleInputChange} />
                         </div>
                         <div className="space-y-2">
                             <Label>Est. End Date (Auto-calc)</Label>
-                            <div className="h-10 px-3 py-2 rounded bg-slate-800/50 border border-slate-700 text-slate-400">
+                            <div className="h-10 px-3 py-2 rounded bg-pl-sunken border border-pl-border text-pl-muted">
                                 {format(calculateEndDate(), 'MMM dd, yyyy')}
                             </div>
                         </div>
@@ -305,15 +304,15 @@ const ExplorationProjectWizard = ({ open, onOpenChange, onProjectCreated, userId
                         <div className="space-y-2">
                             <Label>Estimated Budget (Millions)</Label>
                             <div className="relative">
-                                <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
-                                <Input name="budget" type="number" value={formData.budget} onChange={handleInputChange} className="pl-9 bg-slate-800 border-slate-700" placeholder="15.0" />
+                                <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-pl-muted" />
+                                <Input name="budget" type="number" value={formData.budget} onChange={handleInputChange} className="pl-9" placeholder="15.0" />
                             </div>
                         </div>
                         <div className="space-y-2">
                             <Label>Currency</Label>
                             <Select name="currency" value={formData.currency} onValueChange={(val) => handleSelectChange('currency', val)}>
-                                <SelectTrigger className="bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-                                <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
                                     <SelectItem value="USD">USD ($)</SelectItem>
                                     <SelectItem value="EUR">EUR (€)</SelectItem>
                                 </SelectContent>
@@ -322,37 +321,37 @@ const ExplorationProjectWizard = ({ open, onOpenChange, onProjectCreated, userId
                     </div>
                     <div className="space-y-2">
                         <Label>Project Manager</Label>
-                        <Input name="manager" value={formData.manager} onChange={handleInputChange} placeholder="Name of lead" className="bg-slate-800 border-slate-700" />
+                        <Input name="manager" value={formData.manager} onChange={handleInputChange} placeholder="Name of lead" />
                     </div>
                 </div>
             )}
 
             {currentStep === 4 && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                    <div className="bg-slate-800/50 p-4 rounded border border-slate-700 space-y-3">
-                        <h3 className="font-bold text-white border-b border-slate-700 pb-2">Summary</h3>
+                    <div className="bg-pl-sunken p-4 rounded border border-pl-border space-y-3">
+                        <h3 className="font-bold text-pl-text border-b border-pl-border pb-2">Summary</h3>
                         <div className="grid grid-cols-2 gap-2 text-sm">
-                            <span className="text-slate-400">Project Name:</span> <span className="text-white">{formData.name}</span>
-                            <span className="text-slate-400">Asset / Block:</span> <span className="text-white">{formData.asset}</span>
-                            <span className="text-slate-400">Start Date:</span> <span className="text-white">{formData.startDate}</span>
-                            <span className="text-slate-400">Budget:</span> <span className="text-white">${formData.budget}M</span>
-                            <span className="text-slate-400">Type:</span> <span className="text-white">Exploration (Standard)</span>
+                            <span className="text-pl-muted">Project Name:</span> <span className="text-pl-text">{formData.name}</span>
+                            <span className="text-pl-muted">Asset / Block:</span> <span className="text-pl-text">{formData.asset}</span>
+                            <span className="text-pl-muted">Start Date:</span> <span className="text-pl-text">{formData.startDate}</span>
+                            <span className="text-pl-muted">Budget:</span> <span className="text-pl-text">${formData.budget}M</span>
+                            <span className="text-pl-muted">Type:</span> <span className="text-pl-text">Exploration (Standard)</span>
                         </div>
                     </div>
                     <div className="space-y-2">
-                        <h4 className="text-sm font-semibold text-slate-300">Included Templates:</h4>
+                        <h4 className="text-sm font-semibold text-pl-text">Included Templates:</h4>
                         <div className="grid grid-cols-2 gap-2">
-                            <div className="p-2 bg-slate-800 rounded border border-slate-700 text-xs text-slate-300 flex items-center gap-2">
-                                <CheckCircle className="w-3 h-3 text-green-400" /> 5 Stages Defined
+                            <div className="p-2 bg-pl-sunken rounded border border-pl-border text-xs text-pl-text flex items-center gap-2">
+                                <CheckCircle className="w-3 h-3 text-pl-primary-text" aria-hidden="true" /> 5 Stages Defined
                             </div>
-                            <div className="p-2 bg-slate-800 rounded border border-slate-700 text-xs text-slate-300 flex items-center gap-2">
-                                <CheckCircle className="w-3 h-3 text-green-400" /> {EXPLORATION_TEMPLATE.gates.length} Decision Gates
+                            <div className="p-2 bg-pl-sunken rounded border border-pl-border text-xs text-pl-text flex items-center gap-2">
+                                <CheckCircle className="w-3 h-3 text-pl-primary-text" aria-hidden="true" /> {EXPLORATION_TEMPLATE.gates.length} Decision Gates
                             </div>
-                            <div className="p-2 bg-slate-800 rounded border border-slate-700 text-xs text-slate-300 flex items-center gap-2">
-                                <CheckCircle className="w-3 h-3 text-green-400" /> {EXPLORATION_TEMPLATE.tasks.length} Standard Tasks
+                            <div className="p-2 bg-pl-sunken rounded border border-pl-border text-xs text-pl-text flex items-center gap-2">
+                                <CheckCircle className="w-3 h-3 text-pl-primary-text" aria-hidden="true" /> {EXPLORATION_TEMPLATE.tasks.length} Standard Tasks
                             </div>
-                            <div className="p-2 bg-slate-800 rounded border border-slate-700 text-xs text-slate-300 flex items-center gap-2">
-                                <CheckCircle className="w-3 h-3 text-green-400" /> {EXPLORATION_TEMPLATE.risks.length} Common Risks
+                            <div className="p-2 bg-pl-sunken rounded border border-pl-border text-xs text-pl-text flex items-center gap-2">
+                                <CheckCircle className="w-3 h-3 text-pl-primary-text" aria-hidden="true" /> {EXPLORATION_TEMPLATE.risks.length} Common Risks
                             </div>
                         </div>
                     </div>
@@ -360,18 +359,18 @@ const ExplorationProjectWizard = ({ open, onOpenChange, onProjectCreated, userId
             )}
         </ScrollArea>
 
-        <DialogFooter className="border-t border-slate-800 pt-4 mt-auto">
+        <DialogFooter className="border-t border-pl-border pt-4 mt-auto">
             {currentStep > 1 && (
-                <Button variant="outline" onClick={prevStep} disabled={loading} className="border-slate-600 text-slate-300">
+                <Button variant="outline" onClick={prevStep} disabled={loading}>
                     <ArrowLeft className="w-4 h-4 mr-2" /> Back
                 </Button>
             )}
             {currentStep < 4 ? (
-                <Button onClick={nextStep} className="bg-blue-600 hover:bg-blue-700">
+                <Button onClick={nextStep}>
                     Next <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
             ) : (
-                <Button onClick={handleCreate} disabled={loading} className="bg-green-600 hover:bg-green-700 text-white">
+                <Button onClick={handleCreate} disabled={loading}>
                     {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
                     Create Project
                 </Button>
