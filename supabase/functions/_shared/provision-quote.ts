@@ -15,6 +15,7 @@ import { redeemBridgeForQuote } from "./nextgen-bridge.ts";
 import { redeemPromoForQuote } from "./promo-codes.ts";
 import { sendEmail } from "./email.ts";
 import { subscriptionWindow, provisionedEnd } from "./billing-term.ts";
+import { writeSubscriptionForQuote } from "./subscription-write.ts";
 
 // Coerce the quote's jsonb `modules` (strings or objects) into text[] for
 // subscriptions.modules (a NOT NULL text[] column). Mirrors verify-paystack-payment.
@@ -126,13 +127,9 @@ export async function upsertSuiteSubscription(supabase: any, o: SuiteSubscriptio
       updated_at: new Date().toISOString(),
     };
 
-    const { data: existingSub } = await supabase.from("subscriptions")
-      .select("id").eq("organization_id", o.orgId).eq("quote_id", quote.id).limit(1).maybeSingle();
-    if (existingSub?.id) {
-      await supabase.from("subscriptions").update(subRow).eq("id", existingSub.id);
-    } else {
-      await supabase.from("subscriptions").insert(subRow);
-    }
+    // Update the (org, quote) row or insert it; a lost insert race (23505 on
+    // subscriptions_org_quote_key) updates the winner's row instead.
+    await writeSubscriptionForQuote(supabase, subRow);
 
     await grantHseWithSuite(supabase, o.orgId, userLimit, logPrefix);
     return { ok: true, endDate };
@@ -316,13 +313,8 @@ async function provisionPaidHseQuote(supabase: any, quote: any, opts: ProvisionO
       updated_at: new Date().toISOString(),
     };
 
-    const { data: existingSub } = await supabase.from("subscriptions")
-      .select("id").eq("organization_id", orgId).eq("quote_id", quoteUuid).limit(1).maybeSingle();
-    if (existingSub?.id) {
-      await supabase.from("subscriptions").update(subRow).eq("id", existingSub.id);
-    } else {
-      await supabase.from("subscriptions").insert(subRow);
-    }
+    // Same race-safe write as the Suite row (see subscription-write.ts).
+    await writeSubscriptionForQuote(supabase, subRow);
   } catch (subErr) {
     console.error("[provision-hse] subscription sync failed (non-fatal):", (subErr as Error).message);
   }

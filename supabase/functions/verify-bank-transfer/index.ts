@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "./cors.ts";
+import { writeSubscriptionForQuote } from "../_shared/subscription-write.ts";
 
 // verify-bank-transfer
 // --------------------------------------------------------------------------
@@ -143,31 +144,13 @@ serve(async (req) => {
 
     // 4. Upsert: reuse an existing subscription for this quote (e.g. the buyer
     //    re-uploads a clearer receipt) instead of stacking duplicate rows.
-    const { data: existing } = await supabase
-      .from("subscriptions")
-      .select("id")
-      .eq("organization_id", orgId)
-      .eq("quote_id", quote.id)
-      .limit(1)
-      .maybeSingle();
-
-    let subscriptionId: string;
-    if (existing?.id) {
-      const { error: updErr } = await supabase
-        .from("subscriptions")
-        .update(subRow)
-        .eq("id", existing.id);
-      if (updErr) throw updErr;
-      subscriptionId = existing.id;
-    } else {
-      const { data: inserted, error: insErr } = await supabase
-        .from("subscriptions")
-        .insert(subRow)
-        .select("id")
-        .single();
-      if (insErr) throw insErr;
-      subscriptionId = inserted.id;
-    }
+    //    Two uploads racing on the same quote: the loser's insert hits 23505
+    //    on subscriptions_org_quote_key and updates the winner's row instead
+    //    (_shared/subscription-write.ts), so it still returns the one row id.
+    const written = await writeSubscriptionForQuote(supabase, subRow);
+    if (written.error) throw written.error;
+    if (!written.id) throw new Error("Subscription write returned no id");
+    const subscriptionId: string = written.id;
 
     // 5. Move quote + org into the verification queue.
     const { error: quoteUpdErr } = await supabase
