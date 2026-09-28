@@ -3,7 +3,8 @@
 One visual family for Suite, NextGen and HSE, taken from the 2026-09
 homepages (petrol-green ink, gold, ivory paper; Cormorant Garamond, Public
 Sans, IBM Plex Mono). Application consoles are **light by default**; **dark is
-a per-user choice**. Apps adopt it one at a time by opting in.
+a per-user choice**. Since the rollout (waves 0 to 7) every Suite page sits
+in a theme scope.
 
 Audit, pilots and open decisions: `docs/scope/DesignSystem-PLAN.md`.
 
@@ -14,15 +15,13 @@ Audit, pilots and open decisions: `docs/scope/DesignSystem-PLAN.md`.
 | `src/design/tokens.js` | the tokens (single source) and the colour maths |
 | `src/design/theme.css` | GENERATED; `node scripts/design/build-theme-css.mjs` |
 | `src/design/themeCss.js` | the CSS renderer the script and the test share |
-| `src/design/ThemeProvider.jsx` | `ThemedApp`, `ThemeProvider`, storage helpers |
+| `src/design/ThemeProvider.jsx` | `ThemedApp`, `ThemeProvider`, `FixedTheme` (the ink rail's fixed dark theme), storage helpers |
 | `src/design/themeContext.js` | `useDsTheme`, `usePortalThemeProps` (no dependencies) |
-| `src/design/themeClass.js` | `useThemeClass`, the one opt-in helper for shared components (section 4) |
-| `src/design/activeTheme.js` | the theme of the opted-in app on screen, for the root toaster |
+| `src/design/activeTheme.js` | the theme of the scope on screen, for the root toaster |
 | `src/design/DashboardScope.jsx` | `DashboardScope`: the one `ThemedApp` DashboardLayout renders around every `/dashboard` page (batch 7A) |
 | `src/design/coldLoad.jsx` | `isThemedPath` (any `/dashboard` path, plus the themed pages outside it), `isPublicLightPath`, `coldLoadTheme`, `ThemedLoadingScreen` for the cold-load loaders |
-| `src/components/public/PublicPage.jsx` | the public and auth page frame (batch 7C): `PublicPage` (always light, no toggle), the ink `PublicBrandBar` with the wordmark, `AUTH_CARD` and friends |
+| `src/components/public/PublicPage.jsx` | the public and auth page frame (batch 7C): `PublicPage` (always light, no toggle), the ink `PublicBrandBar` with the wordmark, `AUTH_CARD` and friends, and `PublicScope` (the always-light scope without the frame, for the homepage's Book a Demo dialog) |
 | `src/design/testing/themeAssertions.js` | test only: the shared app theme-test helpers (section 4) |
-| `src/design/testing/LegacyAppFixture.jsx` | test only: the unmigrated-app stand-in for the opt-in proofs |
 | `src/components/ui/theme-toggle.jsx` | `ThemeToggle` |
 | `src/components/ui/app-shell.jsx` | `AppHeader`, `PageContainer`, `PageSection`, `DisplayHeading` |
 | `src/components/ui/stat-tile.jsx` | `StatTile` |
@@ -75,12 +74,15 @@ Checked pairs (all AA 4.5:1 for text, 3:1 for borders and focus, both
 themes, also after rounding to the shadcn HSL triplets): see
 `CONTRAST_PAIRS` in `tokens.js`.
 
-Inside a scope the legacy shadcn variables are re-pointed at these roles
+Inside a scope the shadcn variables are re-pointed at these roles
 (`--background` = bg, `--card` = surface, `--popover` = raised,
 `--muted` = sunken, `--muted-foreground` = muted, `--input` = border-strong,
 `--ring` = focus, `--primary` = primary, `--destructive` = danger ...), so
 `bg-background`, `text-muted-foreground`, `border-input` and the rest follow
 the theme too. `--chart-1..5` become the chartTheme series colours.
+Outside every scope `src/index.css` sets `:root` to the light scope's
+values of the same variables (the old "Dark Premium" globals were retired
+in 7B; `tokens.test.js` keeps the two in step).
 
 ### Type
 - `font-pl-display`: Cormorant Garamond. Page titles and hero numbers only
@@ -127,15 +129,17 @@ the theme too. `--chart-1..5` become the chartTheme series colours.
 7. **Focus.** Keep the component focus rings (`ring-pl-focus`). The scope also
    draws a focus outline on any element without its own ring.
 8. **Toasts match the page** (owner revision of lead decision 3,
-   2026-09-28). The one root toaster takes the theme of the opted-in app on
-   screen; on every other page it keeps its legacy look. Apps call
+   2026-09-28). The one root toaster takes the theme of the scope on
+   screen; where none is mounted (the homepage) it shows one light style in
+   the homepage's paper palette. Apps call
    `useToast()` or sonner as before; nothing to do per app.
 9. **Loaders.** On the themed paths (`src/design/coldLoad.jsx`: every
    `/dashboard` path and the themed pages outside it) the AuthGuard,
    ProtectedRoute and root Suspense loaders, and DashboardLayout's own
    loader, paint the device's last theme, so a light user does not see a
    dark spinner first. The public and auth pages (`PUBLIC_PAGE_PREFIXES`)
-   always paint light, as the pages themselves do.
+   always paint light, as the pages themselves do, and so do the paths with
+   no scope (the homepage).
 
 ## 4. The dashboard scope, and how a page is themed
 
@@ -148,14 +152,21 @@ states all sit in it. A page under `/dashboard` does **not** wrap itself in
 under `src/pages`, `src/components` or `src/layouts` renders one, apart
 from the pages outside `/dashboard` listed there). Its header carries the
 `ThemeToggle` (`AppHeader`, `StudioHeader` and the help guide shell have
-it), which switches the dashboard scope. The sidebar rail and the phone
-bar stay outside the scope as the fixed dark ink frame.
+it), which switches the dashboard scope. The sidebar rail, the phone bar
+and the phone navigation drawer stay outside the scope as the fixed dark
+ink frame: they carry `data-pl-theme="dark"` inside a `FixedTheme` (no
+storage, no toggle), so their portals (the log-out dialog, the drawer)
+carry the dark theme too.
 
 Pages outside `/dashboard` open their own scope: the public and auth pages
 through `PublicPage` (always light), `/profile` and the super-admin pages
 through `AccountScope` (a plain element when it already sits in a scope),
 the `/mobile` shell through `MobileLayout`, and the dev harness routes
-through one scope in App.jsx.
+through one scope in App.jsx. The root `ErrorBoundary` panels and
+`ProtectedRoute`'s access-denied state (for example `/super-admin` for a
+non super admin) open one through `AccountScope`. The homepage opens none
+(it paints its own paper look in `Home.css`); its Book a Demo dialog brings
+`PublicScope`, and the root `PwaUpdatePrompt` is a fixed ink chip.
 
 `ThemedApp` renders a `div` with `data-pl-theme="light|dark"` (the CSS
 scope) and `data-pl-root` (page background), reads the signed-in user from
@@ -181,37 +192,15 @@ user yet) it paints the last theme this device resolved
 - A dark canvas: `<div data-canvas="dark">...</div>`. Components inside it
   use the dark roles even when the app is light.
 
-Outside a `ThemedApp` nothing changes: the primitives render their legacy
-classes byte for byte and no rule in `theme.css` matches.
+Since batch 7B the shared pieces (the ui kit, the Studio kit, the
+workstation shells, the CRS, wells, culture, portability and production
+forms, `AccessDenied`, `ComingSoon`) render theme roles only: there is no
+legacy branch and no opt-in helper (`useThemeClass` and `useStudioTheme`
+are gone). Every page sits in a scope, and the classes only resolve inside
+one, so a new page outside `/dashboard` must open a scope (see above).
 
-Class overrides still win (tailwind-merge), so a pilot must remove its own
-`bg-slate-*`, `text-white` and similar classes for the theme to show.
-
-### Shared components opt in with `useThemeClass`
-
-A component used both by opted-in apps and by unmigrated ones (the ui kit,
-the Studio kit, workstation shells, shared forms) must render its legacy
-classes byte for byte outside a scope. The one helper for that is
-`useThemeClass` from `src/design/themeClass.js`:
-
-```jsx
-import { useThemeClass } from '@/design/themeClass';
-
-const tc = useThemeClass();
-<div className={tc('bg-slate-900 text-slate-200', 'bg-pl-surface text-pl-text')} />
-
-// or with a table of { legacy: themed }
-const tc = useThemeClass(THEMED);
-<div className={tc('bg-slate-900 text-slate-200')} />
-```
-
-Outside a scope `tc()` returns its first argument. Inside one it returns the
-second argument when one is passed (an explicit `undefined` drops the class
-or attribute), otherwise the table entry, otherwise the legacy string. Write
-themed strings out literally so Tailwind generates them. The Studio kit's
-`useStudioTheme()` returns the same picker (plus `ds`). Pin the legacy DOM
-of any shared component you adapt (see `uiLegacyDom.test.jsx` and
-`studioKitLegacyDom.test.jsx`).
+Class overrides still win (tailwind-merge), so a page must not add its own
+`bg-slate-*`, `text-white` and similar classes over a themed piece.
 
 ### The cold-load loaders
 
@@ -272,9 +261,7 @@ pieces below:
 A legacy token is any Tailwind palette colour on a colour utility (with any
 variant), `text-white`, solid `bg-black`, translucent `bg-white/`, gradients
 and hex colours. Tokens under `dark:` are ignored (the Suite never sets
-`.dark`), and so are translucent black scrims. The unmigrated-app proof in
-`optInScope.test.jsx` and `hubScope.test.jsx` mounts the test-only
-`LegacyAppFixture`, so no batch moves it.
+`.dark`), and so are translucent black scrims.
 
 ## 5. Components
 
