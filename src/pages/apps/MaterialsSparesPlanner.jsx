@@ -7,9 +7,9 @@
 // controls and prints the engine's results, reasons and refusals.
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Package } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Package } from 'lucide-react';
+import { AppHeader } from '@/components/ui/app-shell';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -43,28 +43,15 @@ const Workspace = () => {
   return (
     <>
       <StudioNotifications notifications={notifications} onDismiss={removeNotification} />
-      <div className="flex h-full flex-col bg-slate-950 text-white">
-        <header className="flex-shrink-0 border-b border-slate-800 px-4 py-3">
-          <Link to="/dashboard/midstream-downstream">
-            <Button variant="ghost" size="sm" className="mb-2 pl-0 text-slate-400 hover:text-white">
-              <ArrowLeft className="mr-2 h-4 w-4" /> Midstream &amp; Downstream
-            </Button>
-          </Link>
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-gradient-to-r from-sky-500 to-teal-500 p-2 shadow-lg">
-                <Package className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold tracking-tight">Materials &amp; Spares Planner</h1>
-                <p className="text-xs text-slate-400">
-                  Criticality and ABC, order quantities, safety stock, insurance spares, lead-time risk and slow-moving stock,
-                  computed by the Petrolord inventory engine from inputs you state.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-end gap-3">
-              <div className="w-52">
+      <div className="flex min-h-screen flex-col bg-pl-bg text-pl-text md:h-screen">
+        <AppHeader
+          backTo="/dashboard/midstream-downstream"
+          backLabel="Back to Midstream & Downstream"
+          icon={Package}
+          title="Materials & Spares Planner"
+          actions={(
+            <>
+              <div className="w-full sm:w-52">
                 <StudioProjectManager
                   label="Saved study"
                   projects={persistence.projects}
@@ -83,20 +70,23 @@ const Workspace = () => {
                 disabled={!persistence.currentProjectId}
               />
               <MaterialsSparesHelpGuide />
-            </div>
-          </div>
-          <p className="mt-2 text-[11px] text-slate-500" data-testid="engine-line">
+            </>
+          )}
+        />
+        <div className="flex-shrink-0 border-b border-pl-border px-4 py-2 sm:px-6">
+          <p className="text-xs text-pl-muted">Criticality and ABC, order quantities, safety stock, insurance spares, lead-time risk and slow-moving stock, computed by the Petrolord inventory engine from inputs you state.</p>
+          <p className="mt-1 text-[11px] text-pl-muted" data-testid="engine-line">
             {inputs.register.source === 'ekene' ? 'Ekene demo (synthetic). ' : ''}
             Engine: petrolord-engines {ENGINE_COMMIT.slice(0, 7)}, engines/supplychain/inventory.js.
           </p>
-        </header>
-        <Tabs value={tab} onValueChange={setTab} className="flex flex-1 flex-col overflow-hidden">
-          <TabsList className="mx-4 mt-3 flex h-auto flex-wrap justify-start gap-1 bg-slate-900">
+        </div>
+        <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col md:overflow-hidden">
+          <TabsList className="mx-4 mt-3 flex h-auto flex-wrap justify-start gap-1">
             {TABS.map((t) => (
               <TabsTrigger key={t.value} value={t.value} data-testid={`tab-${t.value}`}>{t.label}</TabsTrigger>
             ))}
           </TabsList>
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="min-h-0 flex-1 p-4 md:overflow-y-auto">
             {TABS.map(({ value, View }) => (
               <TabsContent key={value} value={value} className="mt-0">
                 <View />
@@ -109,15 +99,21 @@ const Workspace = () => {
   );
 };
 
+// Design system rollout batch 5D (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so it opens light and the header toggle
+// switches it to dark per user. The engine outputs, reasons and refusals
+// print as before, and the charts keep the white chart standard.
 const MaterialsSparesPlanner = ({ initialInputs }) => (
   <>
     <Helmet>
       <title>Materials &amp; Spares Planner - Petrolord Suite</title>
       <meta name="description" content="Materials and spares planning: criticality and ABC classes, EOQ and quantity discounts, safety stock and reorder points for normal and Poisson demand, insurance spares, lead-time risk by seeded Monte Carlo, and slow-moving and obsolete stock." />
     </Helmet>
-    <MaterialsSparesProvider initialInputs={initialInputs}>
-      <Workspace />
-    </MaterialsSparesProvider>
+    <ThemedApp className="min-h-screen" data-testid="materials-theme-scope">
+      <MaterialsSparesProvider initialInputs={initialInputs}>
+        <Workspace />
+      </MaterialsSparesProvider>
+    </ThemedApp>
   </>
 );
 
