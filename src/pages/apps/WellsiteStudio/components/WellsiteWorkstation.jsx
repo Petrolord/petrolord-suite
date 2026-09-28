@@ -11,6 +11,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Activity, Settings, HelpCircle, Loader2, Plus, HardHat, PenLine, ListOrdered, FlaskConical, PanelRight, Droplets, Eye, Camera, Tags, ClipboardList, FileText } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getDepthUnit } from '@/lib/crs/settingsService';
 import { tourAt, toRigLocal, offsetLabel } from '@/lib/wellsite/time';
@@ -352,57 +353,58 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const isMember = true;
 
   const ribbon = (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
+    <div className="flex items-center gap-2 px-3 py-1.5 bg-pl-surface border-b border-pl-border">
       <ModuleHomeLink module="geoscience" testId="ws-home" />
-      <HardHat className="w-4 h-4 text-cyan-400" />
-      <span className="text-sm font-semibold text-slate-100">Wellsite Studio</span>
-      <span className="hidden 2xl:inline text-[11px] text-slate-500">the geological record of a live well</span>
+      <HardHat className="w-4 h-4 text-pl-primary-text" />
+      <span className="text-sm font-semibold text-pl-text">Wellsite Studio</span>
+      <span className="hidden 2xl:inline text-[11px] text-pl-muted">the geological record of a live well</span>
       <div className="flex items-center gap-1 ml-4">
         {VIEWS.map((v) => (
           <button key={v.id} type="button" data-testid={`ws-nav-${v.id}`} disabled={!well && v.id !== 'live'}
-            className={`flex items-center gap-1 px-2 py-1 text-xs rounded border ${view === v.id ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400 hover:bg-slate-800'} disabled:opacity-40`}
+            className={`flex items-center gap-1 px-2 py-1 text-xs rounded border ${view === v.id ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:bg-pl-sunken'} disabled:opacity-40`}
             onClick={() => setView(v.id)}>
             <v.icon className="w-3.5 h-3.5" /> {v.label}
           </button>
         ))}
-        <button type="button" data-testid="ws-nav-setup" className={`flex items-center gap-1 px-2 py-1 text-xs rounded border ${view === 'setup' ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400 hover:bg-slate-800'}`} onClick={() => setView('setup')}>
+        <button type="button" data-testid="ws-nav-setup" className={`flex items-center gap-1 px-2 py-1 text-xs rounded border ${view === 'setup' ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:bg-pl-sunken'}`} onClick={() => setView('setup')}>
           <Plus className="w-3.5 h-3.5" /> New well
         </button>
       </div>
       <div className="ml-auto flex items-center gap-2">
-        <label className="flex items-center gap-1 text-[11px] text-slate-400" title="Display unit; the record stores metres">
+        <label className="flex items-center gap-1 text-[11px] text-pl-muted" title="Display unit; the record stores metres">
           Depth
-          <select value={units.depth} onChange={(e) => setUnit(e.target.value)} data-testid="ws-unit" className="bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-xs text-slate-100">
+          <select value={units.depth} onChange={(e) => setUnit(e.target.value)} data-testid="ws-unit" className="bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text">
             {DEPTH_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
         </label>
         <SyncStatusPill onClick={() => { setDockView('sync'); setDockOpen(true); }} />
         <Link to="/dashboard/apps/geoscience/wellsite-studio/help" data-testid="ws-help" title="Open the Wellsite Studio help guide"
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800">
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken">
           <HelpCircle className="w-3.5 h-3.5" /> Help
         </Link>
         <button type="button" data-testid="ws-toggle-dock" title="Show or hide the lag panel"
-          className={`px-2 py-1 text-xs rounded border ${dockOpen ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400'}`}
+          className={`px-2 py-1 text-xs rounded border ${dockOpen ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted'}`}
           onClick={() => setDockOpen((v) => !v)}>
           <PanelRight className="w-3.5 h-3.5" />
         </button>
+        <ThemeToggle />
       </div>
     </div>
   );
 
   const explorer = (
-    <ScrollArea className="h-full min-h-0 bg-slate-900/60 border-r border-slate-800/60">
+    <ScrollArea className="h-full min-h-0 bg-pl-surface border-r border-pl-border">
       <div className="p-2 space-y-1">
-        <div className="text-[10px] uppercase tracking-wide text-slate-500 px-1">Live wells</div>
-        {wells === null && <div className="text-xs text-slate-500 px-1">Loading</div>}
-        {wells && wells.length === 0 && <div className="text-xs text-slate-500 px-1" data-testid="ws-no-wells">No live well yet. Use New well.</div>}
+        <div className="text-[10px] uppercase tracking-wide text-pl-muted px-1">Live wells</div>
+        {wells === null && <div className="text-xs text-pl-muted px-1">Loading</div>}
+        {wells && wells.length === 0 && <div className="text-xs text-pl-muted px-1" data-testid="ws-no-wells">No live well yet. Use New well.</div>}
         {(wells || []).map((w) => (
           <button key={w.id} type="button" data-testid={`ws-well-${w.name}`} onClick={() => { wellParam.current = null; setSetupGeoId(null); setSelectedId(w.id); if (view === 'setup') setView('live'); }}
-            className={`w-full text-left px-2 py-1 text-xs rounded ${w.id === selectedId ? 'bg-cyan-500/10 text-cyan-200' : 'text-slate-300 hover:bg-slate-800'}`}>
+            className={`w-full text-left px-2 py-1 text-xs rounded ${w.id === selectedId ? 'bg-pl-primary/10 text-pl-primary-text' : 'text-pl-text hover:bg-pl-sunken'}`}>
             {w.name}
-            <div className="text-[10px] text-slate-500">{w.header?.field || ''}{w.header?.rig ? `, ${w.header.rig}` : ''}</div>
+            <div className="text-[10px] text-pl-muted">{w.header?.field || ''}{w.header?.rig ? `, ${w.header.rig}` : ''}</div>
             {w.id === selectedId && (
-              <div className="text-[10px] text-slate-500 mt-0.5" data-testid="ws-explorer-counts">{descriptions.length} description(s), {events.length} event(s){events.some((e) => e.duration && e.endUtcMs == null) ? ', one open' : ''}, {shows.length} show(s), {photos.length} photo(s), {topsBoard.rows.filter((r) => r.call).length} top(s) called{Math.max(topsBoard.conflicts.length, syncState.conflicts) ? `, ${Math.max(topsBoard.conflicts.length, syncState.conflicts)} conflict(s)` : ''}</div>
+              <div className="text-[10px] text-pl-muted mt-0.5" data-testid="ws-explorer-counts">{descriptions.length} description(s), {events.length} event(s){events.some((e) => e.duration && e.endUtcMs == null) ? ', one open' : ''}, {shows.length} show(s), {photos.length} photo(s), {topsBoard.rows.filter((r) => r.call).length} top(s) called{Math.max(topsBoard.conflicts.length, syncState.conflicts) ? `, ${Math.max(topsBoard.conflicts.length, syncState.conflicts)} conflict(s)` : ''}</div>
             )}
           </button>
         ))}
@@ -414,7 +416,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   if (view === 'setup' || (!well && wells && wells.length === 0)) {
     center = <WellSetup backend={backend} initialGeoId={setupGeoId} onStatus={setStatus} onCreated={async (w) => { wellParam.current = null; setSetupGeoId(null); await refreshWells(); setSelectedId(w.id); setView('live'); }} />;
   } else if (!well) {
-    center = <div className="p-4 text-xs text-slate-500" data-testid="ws-need-well">Choose a live well in the explorer.</div>;
+    center = <div className="p-4 text-xs text-pl-muted" data-testid="ws-need-well">Choose a live well in the explorer.</div>;
   } else if (view === 'samples') {
     center = <SamplesView board={board} programme={programme} onProgrammeSave={saveProgramme} onStage={recordStage} onSchedule={async () => { const n = await scheduleAhead(); setStatus(n ? `${n} sample(s) scheduled ahead of the bit.` : 'The schedule already reaches ahead of the bit.'); }}
       onDescribe={(smp) => { setDescribeSample(smp); setView('describe'); }} unit={units.depth} offsetMin={offsetMin} nowMs={nowForLag} onStatus={setStatus} />;
@@ -443,7 +445,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   }
 
   const statusBar = (
-    <div className="flex items-center gap-4 px-3 py-1 bg-slate-900 border-t border-slate-800 text-[11px] text-slate-400">
+    <div className="flex items-center gap-4 px-3 py-1 bg-pl-surface border-t border-pl-border text-[11px] text-pl-muted">
       <span data-testid="ws-status" className="truncate">{loading ? <Loader2 className="inline w-3 h-3 animate-spin mr-1" /> : null}{status}</span>
       <span className="ml-auto" data-testid="ws-status-bit">Bit {latestBit ? fmtDepth(latestBit.md_calc_m, units.depth) : 'n/a'}</span>
       <span data-testid="ws-status-lagged">Lagged {lag.available && Number.isFinite(lag.laggedMdM) ? fmtDepth(lag.laggedMdM, units.depth) : 'n/a'}</span>
@@ -457,15 +459,15 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
 
   return (
     <WorkspaceShell autoSaveId="wellsite.workspace.v2" minWidth={1000} dockDefaultSize={22} dockOpen={dockOpen} onDockOpenChange={setDockOpen}
-      ribbon={ribbon} explorer={explorer} center={<ScrollArea className="h-full min-h-0 bg-slate-950">{center}</ScrollArea>} statusBar={statusBar}
+      ribbon={ribbon} explorer={explorer} center={<ScrollArea className="h-full min-h-0 bg-pl-bg">{center}</ScrollArea>} statusBar={statusBar}
       dock={(
-        <ScrollArea className="h-full min-h-0 bg-slate-900/60 border-l border-slate-800/60">
+        <ScrollArea className="h-full min-h-0 bg-pl-surface border-l border-pl-border">
           {dockView === 'sync' ? (
             <SyncDrawer backend={backend} wellId={well ? well.id : null} offsetMin={offsetMin} onClose={() => setDockView('panels')} onOpenConflicts={() => { setView('tops'); setDockView('panels'); }} onKeepOffline={keepOffline} offlineReady={offlineReady} />
           ) : well ? (
             <>
               <LagPanel lag={lag} pumpEvents={pumpEvents} onPump={recordPump} unit={units.depth} offsetMin={offsetMin} nowMs={nowForLag} floater={floater} />
-              <div className="border-t border-slate-800/60" />
+              <div className="border-t border-pl-border" />
               <ApproachPanel next={topsBoard.next} evidence={approachEvidence} unit={units.depth} offsetMin={offsetMin} onOpenTops={() => setView('tops')} />
             </>
           ) : null}

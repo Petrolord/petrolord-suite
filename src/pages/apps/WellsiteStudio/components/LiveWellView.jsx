@@ -42,7 +42,7 @@ export default function LiveWellView({ backend, well, ctx, bitDepths, pumpEvents
   };
   const lastPump = pumpEvents[pumpEvents.length - 1] || null;
   const local = (iso) => toRigLocal(Date.parse(iso), offsetMin).hhmm;
-  const inp = 'bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100';
+  const inp = 'bg-pl-surface border border-pl-border-strong rounded px-2 py-1 text-xs text-pl-text';
 
   return (
     <div className="p-4 space-y-5" data-testid="ws-live">
@@ -60,21 +60,21 @@ export default function LiveWellView({ backend, well, ctx, bitDepths, pumpEvents
       </div>
       {board && board.nextDue && onStage && (board.nextDue.state === 'due' || board.nextDue.state === 'overdue') && (
         <div className="flex items-center gap-2 text-xs" data-testid="ws-live-catch">
-          <span className={board.nextDue.state === 'overdue' ? 'text-amber-300' : 'text-cyan-200'}>Sample {board.nextDue.sample.sample_no} at {fmtDepth(board.nextDue.sample.md_calc_m, unit)} is {board.nextDue.state === 'overdue' ? 'overdue for review' : 'due at surface'}.</span>
+          <span className={board.nextDue.state === 'overdue' ? 'text-pl-warning-text' : 'text-pl-primary-text'}>Sample {board.nextDue.sample.sample_no} at {fmtDepth(board.nextDue.sample.md_calc_m, unit)} is {board.nextDue.state === 'overdue' ? 'overdue for review' : 'due at surface'}.</span>
           <Button size="sm" onClick={() => onStage(board.nextDue.sample, 'caught')} data-testid="ws-live-catch-btn">Catch</Button>
         </div>
       )}
       <section className="space-y-2">
-        <h3 className="text-xs font-semibold text-slate-200">Events</h3>
+        <h3 className="text-xs font-semibold text-pl-text">Events</h3>
         <EventBar events={events} onStart={onStartEvent} onEnd={onEndEvent} offsetMin={offsetMin} compact />
       </section>
       <section className="space-y-2">
-        <h3 className="text-xs font-semibold text-slate-200">Record bit depth</h3>
+        <h3 className="text-xs font-semibold text-pl-text">Record bit depth</h3>
         <DepthEntry value={entry} onChange={(e) => setEntry(e)} kind="bit_depth" ctx={ctx} testIdPrefix="ws-bit" />
         <Button size="sm" onClick={recordBit} disabled={!Number.isFinite(entry.value)} data-testid="ws-bit-save">Record bit depth</Button>
       </section>
       <section className="space-y-2">
-        <h3 className="text-xs font-semibold text-slate-200">Pump rate change</h3>
+        <h3 className="text-xs font-semibold text-pl-text">Pump rate change</h3>
         <div className="flex items-center gap-2">
           <input className={`${inp} w-24`} type="number" placeholder="spm" value={spm} onChange={(e) => setSpm(e.target.value)} data-testid="ws-pump-spm" />
           {floater && <input className={`${inp} w-28`} type="number" placeholder="booster spm" title="Booster pump strokes per minute" value={boosterSpm} onChange={(e) => setBoosterSpm(e.target.value)} data-testid="ws-pump-booster" />}
@@ -84,11 +84,11 @@ export default function LiveWellView({ backend, well, ctx, bitDepths, pumpEvents
         </div>
       </section>
       <section>
-        <h3 className="text-xs font-semibold text-slate-200 mb-1">Recent bit depths</h3>
-        <table className="text-xs text-slate-300">
+        <h3 className="text-xs font-semibold text-pl-text mb-1">Recent bit depths</h3>
+        <table className="text-xs text-pl-text">
           <tbody>
             {[...bitDepths].reverse().slice(0, 8).map((b) => (
-              <tr key={b.id} data-testid={`ws-bit-row-${b.id}`}><td className="pr-3">{local(b.occurred_at)}</td><td className="pr-3">{fmtDepth(b.md_calc_m, unit)}</td><td className="text-slate-500">{b.depth_value} {b.depth_unit} {b.depth_ref} {b.depth_datum}</td></tr>
+              <tr key={b.id} data-testid={`ws-bit-row-${b.id}`}><td className="pr-3">{local(b.occurred_at)}</td><td className="pr-3">{fmtDepth(b.md_calc_m, unit)}</td><td className="text-pl-muted">{b.depth_value} {b.depth_unit} {b.depth_ref} {b.depth_datum}</td></tr>
             ))}
           </tbody>
         </table>
@@ -99,10 +99,10 @@ export default function LiveWellView({ backend, well, ctx, bitDepths, pumpEvents
 
 function Card({ label, value, sub, testId }) {
   return (
-    <div className="rounded border border-slate-800 bg-slate-900/60 px-3 py-2">
-      <div className="text-[10px] uppercase tracking-wide text-slate-500">{label}</div>
-      <div className="text-sm text-slate-100" data-testid={testId}>{value}</div>
-      {sub ? <div className="text-[10px] text-slate-500">{sub}</div> : null}
+    <div className="rounded border border-pl-border bg-pl-surface px-3 py-2">
+      <div className="text-[10px] uppercase tracking-wide text-pl-muted">{label}</div>
+      <div className="text-sm text-pl-text" data-testid={testId}>{value}</div>
+      {sub ? <div className="text-[10px] text-pl-muted">{sub}</div> : null}
     </div>
   );
 }
