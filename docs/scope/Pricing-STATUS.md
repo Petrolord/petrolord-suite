@@ -5,6 +5,42 @@ Current prices and rules as of the 2026-09 pricing review (owner-approved
 history of how module pricing came to have one source of truth follows in
 the 2026-08-30 sections below.
 
+## 2026-09-28: account and billing pages on the design system (rollout 1E)
+
+The upgrade page (quote builder), module access, seats, employees, access
+requests, subscriptions, renew, subscription history and usage analytics
+each wrap themselves in `ThemedApp` through `AccountScope`
+(`src/components/account/accountChrome.jsx`, batch-local, used only by
+these pages). They open light, the header toggle switches to dark per user,
+and their routes are registered in `src/design/rollout/w1e.js`
+(`/dashboard/subscriptions` covers renew, history and analytics).
+
+- Visual change only. The quote calculation, the verify-bridge-code,
+  verify-promo-code and generate-quote calls, the Paystack path, the seat
+  RPCs and every database write are byte-identical (checked by extracting
+  each page's logic above its render and comparing with main).
+- Status colour only for status: active, invited, pending, approved,
+  rejected, locked, full seats, code accepted or rejected. Discount lines
+  and savings read as plain text with their minus sign. Gold is the brand
+  CTA (`Button variant="accent"`, "Generate & Pay") and the "SAVE n%" flag.
+- Tests: `src/pages/__tests__/{QuoteBuilder,ModuleAccess,EmployeeManagement,SubscriptionPages}.theme.test.jsx`
+  (describeAppTheme per page, plus dialog, menu and select walks).
+- Checked at 1440 and 390 wide in light and in dark from a private preview
+  server with stand-in data: no sideways page scroll.
+
+Found on the way, left as they are (behaviour, outside this visual batch):
+
+- `RespondToRequestModal`: Approve and Reject call `handleSubmit` through
+  `setTimeout` from the render where `action` is still null, so the early
+  return fires and nothing is sent.
+- `ModuleAccess` "Availability Overview" is always empty: `appCategories`
+  in `src/data/applications.js` is an empty list.
+- `RenewSubscription` shows a fixed "$15,000.00" and a simulated payment
+  reference; renewal does not go through Paystack.
+- Success toasts raised inside the money and write handlers (quote
+  generated, renewal, invite sent, request answered) still pass a green
+  `className`, so they stay green in the themed toaster.
+
 ## 2026-09 pricing review
 
 Until this review every app in a module carried one flat price (Geoscience,
