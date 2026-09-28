@@ -8,9 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2, Send, Calculator } from 'lucide-react';
+import { Loader2, Send, Calculator } from 'lucide-react';
+import { AccountScope, AccountPage, AccountHeader } from '@/components/account/accountChrome';
 
-const OrgSendQuote = () => {
+const OrgSendQuotePage = () => {
   const { orgId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -146,67 +147,71 @@ const OrgSendQuote = () => {
     }
   };
 
-  if (loading) return <div className="p-8 text-white">Loading...</div>;
+  if (loading) return <div className="p-8 text-pl-muted" role="status">Loading...</div>;
+
+  const inputCls = 'font-pl-mono tabular-nums';
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-8">
-      <div className="max-w-5xl mx-auto space-y-8">
-        
-        {/* Header */}
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <Link to="/admin/organizations" className="hover:text-white transition-colors">Organizations</Link>
-            <span>/</span>
-            <Link to={`/admin/organizations/${orgId}`} className="hover:text-white transition-colors">{org?.name}</Link>
-            <span>/</span>
-            <span className="text-white font-medium">Send Quote</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <Button variant="ghost" className="text-slate-400 hover:text-white pl-0" onClick={() => navigate(`/admin/organizations/${orgId}`)}>
-              <ArrowLeft className="w-4 h-4 mr-2" /> Cancel
-            </Button>
-          </div>
-        </div>
+    <AccountPage width="max-w-5xl">
+        {/* Breadcrumb */}
+        <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-sm text-pl-muted">
+          <Link to="/admin/organizations" className="hover:text-pl-text transition-colors">Organizations</Link>
+          <span aria-hidden="true">/</span>
+          <Link to={`/admin/organizations/${orgId}`} className="hover:text-pl-text transition-colors">{org?.name}</Link>
+          <span aria-hidden="true">/</span>
+          <span className="text-pl-text font-medium">Send Quote</span>
+        </nav>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <AccountHeader
+          eyebrow="Platform admin"
+          icon={Send}
+          title="Send Quote"
+          description={org?.contact_email ? `To ${org.contact_email}` : undefined}
+          backTo={`/admin/organizations/${orgId}`}
+          backLabel="Cancel and go back"
+        />
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
             {/* Form Column */}
             <div className="lg:col-span-2 space-y-6">
-                <Card className="bg-slate-900 border-slate-800">
+                <Card>
                     <CardHeader>
-                        <CardTitle className="text-white">Quote Configuration</CardTitle>
+                        <CardTitle className="text-lg">Quote Configuration</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                                <Label className="text-slate-300">User Licenses</Label>
+                                <Label htmlFor="sq-users">User Licenses</Label>
                                 <Input 
+                                    id="sq-users"
                                     type="number" 
                                     min="1"
                                     value={quoteData.user_count}
                                     onChange={(e) => setQuoteData({...quoteData, user_count: parseInt(e.target.value) || 0})}
-                                    className="bg-slate-950 border-slate-700"
+                                    className={inputCls}
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-slate-300">Active Apps</Label>
+                                <Label htmlFor="sq-apps">Active Apps</Label>
                                 <Input 
+                                    id="sq-apps"
                                     type="number" 
                                     min="1"
                                     value={quoteData.app_count}
                                     onChange={(e) => setQuoteData({...quoteData, app_count: parseInt(e.target.value) || 0})}
-                                    className="bg-slate-950 border-slate-700"
+                                    className={inputCls}
                                 />
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                                <Label className="text-slate-300">Deployment</Label>
+                                <Label>Deployment</Label>
                                 <Select value={quoteData.deployment} onValueChange={(val) => setQuoteData({...quoteData, deployment: val})}>
-                                    <SelectTrigger className="bg-slate-950 border-slate-700">
+                                    <SelectTrigger aria-label="Deployment">
                                         <SelectValue />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                                    <SelectContent>
                                         <SelectItem value="cloud">Cloud (SaaS)</SelectItem>
                                         <SelectItem value="hybrid">Hybrid</SelectItem>
                                         <SelectItem value="premise">On-Premise</SelectItem>
@@ -214,12 +219,12 @@ const OrgSendQuote = () => {
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-slate-300">Support Level</Label>
+                                <Label>Support Level</Label>
                                 <Select value={quoteData.support} onValueChange={(val) => setQuoteData({...quoteData, support: val})}>
-                                    <SelectTrigger className="bg-slate-950 border-slate-700">
+                                    <SelectTrigger aria-label="Support Level">
                                         <SelectValue />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                                    <SelectContent>
                                         <SelectItem value="standard">Standard (Email)</SelectItem>
                                         <SelectItem value="priority">Priority (24h)</SelectItem>
                                         <SelectItem value="24/7">24/7 Dedicated</SelectItem>
@@ -228,36 +233,39 @@ const OrgSendQuote = () => {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                                <Label className="text-slate-300">Duration (Months)</Label>
+                                <Label htmlFor="sq-duration">Duration (Months)</Label>
                                 <Input 
+                                    id="sq-duration"
                                     type="number" 
                                     min="1"
                                     value={quoteData.duration}
                                     onChange={(e) => setQuoteData({...quoteData, duration: parseInt(e.target.value) || 0})}
-                                    className="bg-slate-950 border-slate-700"
+                                    className={inputCls}
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-slate-300">Discount (%)</Label>
+                                <Label htmlFor="sq-discount">Discount (%)</Label>
                                 <Input 
+                                    id="sq-discount"
                                     type="number" 
                                     min="0"
                                     max="100"
                                     value={quoteData.discount}
                                     onChange={(e) => setQuoteData({...quoteData, discount: parseFloat(e.target.value) || 0})}
-                                    className="bg-slate-950 border-slate-700"
+                                    className={inputCls}
                                 />
                             </div>
                         </div>
 
                         <div className="space-y-2">
-                            <Label className="text-slate-300">Notes / Custom Terms</Label>
+                            <Label htmlFor="sq-notes">Notes / Custom Terms</Label>
                             <Textarea 
+                                id="sq-notes"
                                 value={quoteData.notes}
                                 onChange={(e) => setQuoteData({...quoteData, notes: e.target.value})}
-                                className="bg-slate-950 border-slate-700 min-h-[100px]"
+                                className="min-h-[100px]"
                                 placeholder="Enter any specific terms or notes for this quote..."
                             />
                         </div>
@@ -267,46 +275,47 @@ const OrgSendQuote = () => {
 
             {/* Summary Column */}
             <div className="space-y-6">
-                <Card className="bg-[#1e293b] border-[#FCD34D]/20 shadow-2xl sticky top-8">
-                    <CardHeader className="bg-[#FCD34D]/10 border-b border-[#FCD34D]/10">
-                        <CardTitle className="text-[#FCD34D] flex items-center gap-2">
-                            <Calculator className="w-5 h-5"/> Estimated Cost
+                <Card className="shadow-pl-md lg:sticky lg:top-8 overflow-hidden">
+                    <CardHeader className="bg-pl-sunken border-b border-pl-border">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                            <Calculator className="w-5 h-5 text-pl-muted" aria-hidden="true"/> Estimated Cost
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="p-6 space-y-4">
                         <div className="space-y-2 text-sm">
-                            <div className="flex justify-between text-slate-400">
+                            <div className="flex justify-between text-pl-muted">
                                 <span>Monthly Base</span>
-                                <span>${pricing.monthly.toFixed(2)}</span>
+                                <span className="font-pl-mono tabular-nums">${pricing.monthly.toFixed(2)}</span>
                             </div>
-                            <div className="flex justify-between text-slate-400">
+                            <div className="flex justify-between text-pl-muted">
                                 <span>Duration</span>
-                                <span>{quoteData.duration} Months</span>
+                                <span className="font-pl-mono tabular-nums">{quoteData.duration} Months</span>
                             </div>
-                            <div className="flex justify-between text-white font-medium pt-2 border-t border-slate-700">
+                            <div className="flex justify-between text-pl-text font-medium pt-2 border-t border-pl-border">
                                 <span>Subtotal</span>
-                                <span>${pricing.subtotal.toFixed(2)}</span>
+                                <span className="font-pl-mono tabular-nums">${pricing.subtotal.toFixed(2)}</span>
                             </div>
                             {pricing.discountAmount > 0 && (
-                                <div className="flex justify-between text-green-400">
+                                <div className="flex justify-between text-pl-text">
                                     <span>Discount ({quoteData.discount}%)</span>
-                                    <span>-${pricing.discountAmount.toFixed(2)}</span>
+                                    <span className="font-pl-mono tabular-nums">-${pricing.discountAmount.toFixed(2)}</span>
                                 </div>
                             )}
                         </div>
                         
-                        <div className="pt-4 border-t border-slate-700">
-                            <div className="flex justify-between items-end">
-                                <span className="text-lg font-bold text-white">Total</span>
-                                <span className="text-3xl font-bold text-[#FCD34D]">
+                        <div className="pt-4 border-t border-pl-border">
+                            <div className="flex justify-between items-end gap-2">
+                                <span className="text-lg font-bold text-pl-text">Total</span>
+                                <span className="text-3xl font-bold font-pl-mono tabular-nums text-pl-text">
                                     ${pricing.total.toFixed(2)}
                                 </span>
                             </div>
-                            <p className="text-xs text-slate-500 text-right mt-1">USD (Excl. Tax)</p>
+                            <p className="text-xs text-pl-muted text-right mt-1">USD (Excl. Tax)</p>
                         </div>
 
                         <Button 
-                            className="w-full bg-[#FCD34D] hover:bg-[#fbbf24] text-slate-900 font-bold mt-4" 
+                            variant="accent"
+                            className="w-full font-bold mt-4" 
                             size="lg"
                             onClick={handleSendQuote}
                             disabled={sending}
@@ -318,9 +327,14 @@ const OrgSendQuote = () => {
                 </Card>
             </div>
         </div>
-      </div>
-    </div>
+    </AccountPage>
   );
 };
 
-export default OrgSendQuote;
+export default function OrgSendQuote() {
+  return (
+    <AccountScope testId="org-send-quote-theme-scope">
+      <OrgSendQuotePage />
+    </AccountScope>
+  );
+}

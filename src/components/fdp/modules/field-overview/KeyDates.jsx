@@ -10,10 +10,10 @@ const KeyDates = ({ dates, onChange }) => {
     };
 
     return (
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
             <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-medium text-white flex items-center">
-                    <Calendar className="w-5 h-5 mr-2 text-purple-400" />
+                <CardTitle className="text-lg font-medium text-pl-text flex items-center">
+                    <Calendar className="w-5 h-5 mr-2 text-pl-muted" />
                     Project Timeline
                 </CardTitle>
             </CardHeader>
@@ -24,7 +24,6 @@ const KeyDates = ({ dates, onChange }) => {
                         type="date"
                         value={dates.discovery || ''} 
                         onChange={(e) => handleChange('discovery', e.target.value)}
-                        className="bg-slate-800 border-slate-700"
                     />
                 </div>
                 <div className="space-y-2">
@@ -33,7 +32,6 @@ const KeyDates = ({ dates, onChange }) => {
                         type="date"
                         value={dates.appraisal || ''} 
                         onChange={(e) => handleChange('appraisal', e.target.value)}
-                        className="bg-slate-800 border-slate-700"
                     />
                 </div>
                 <div className="space-y-2">
@@ -42,7 +40,7 @@ const KeyDates = ({ dates, onChange }) => {
                         type="date"
                         value={dates.firstOil || ''} 
                         onChange={(e) => handleChange('firstOil', e.target.value)}
-                        className="bg-slate-800 border-slate-700 border-l-4 border-l-green-500"
+                        className="border-l-4 border-l-pl-primary"
                     />
                 </div>
                 <div className="space-y-2">
@@ -51,7 +49,6 @@ const KeyDates = ({ dates, onChange }) => {
                         type="date"
                         value={dates.plateauStart || ''} 
                         onChange={(e) => handleChange('plateauStart', e.target.value)}
-                        className="bg-slate-800 border-slate-700"
                     />
                 </div>
                 <div className="space-y-2">
@@ -60,7 +57,6 @@ const KeyDates = ({ dates, onChange }) => {
                         type="date"
                         value={dates.plateauEnd || ''} 
                         onChange={(e) => handleChange('plateauEnd', e.target.value)}
-                        className="bg-slate-800 border-slate-700"
                     />
                 </div>
                 <div className="space-y-2">
@@ -69,7 +65,6 @@ const KeyDates = ({ dates, onChange }) => {
                         type="date"
                         value={dates.abandonment || ''} 
                         onChange={(e) => handleChange('abandonment', e.target.value)}
-                        className="bg-slate-800 border-slate-700"
                     />
                 </div>
             </CardContent>

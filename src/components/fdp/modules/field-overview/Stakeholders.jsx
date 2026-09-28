@@ -20,28 +20,28 @@ const Stakeholders = ({ stakeholders = [], onChange }) => {
     };
 
     return (
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                <CardTitle className="text-lg font-medium text-white flex items-center">
-                    <Users className="w-5 h-5 mr-2 text-orange-400" />
+                <CardTitle className="text-lg font-medium text-pl-text flex items-center">
+                    <Users className="w-5 h-5 mr-2 text-pl-muted" />
                     Stakeholders & Equity
                 </CardTitle>
-                <Button size="sm" variant="outline" onClick={addStakeholder} className="border-slate-700 hover:bg-slate-800">
+                <Button size="sm" variant="outline" onClick={addStakeholder}>
                     <Plus className="w-4 h-4 mr-2" /> Add
                 </Button>
             </CardHeader>
             <CardContent className="space-y-3">
                 {stakeholders.length === 0 && (
-                    <div className="text-center py-4 text-slate-500 text-sm">No stakeholders added yet.</div>
+                    <div className="text-center py-4 text-pl-muted text-sm">No stakeholders added yet.</div>
                 )}
                 {stakeholders.map((stakeholder) => (
-                    <div key={stakeholder.id} className="grid grid-cols-12 gap-2 items-center bg-slate-800/50 p-2 rounded border border-slate-700/50">
+                    <div key={stakeholder.id} className="grid grid-cols-12 gap-2 items-center bg-pl-sunken p-2 rounded border border-pl-border">
                         <div className="col-span-5">
                             <Input 
                                 placeholder="Company Name" 
                                 value={stakeholder.name}
                                 onChange={(e) => updateStakeholder(stakeholder.id, 'name', e.target.value)}
-                                className="h-8 bg-slate-900 border-slate-700"
+                                className="h-8"
                             />
                         </div>
                         <div className="col-span-4">
@@ -49,7 +49,7 @@ const Stakeholders = ({ stakeholders = [], onChange }) => {
                                 placeholder="Role" 
                                 value={stakeholder.role}
                                 onChange={(e) => updateStakeholder(stakeholder.id, 'role', e.target.value)}
-                                className="h-8 bg-slate-900 border-slate-700"
+                                className="h-8"
                             />
                         </div>
                         <div className="col-span-2">
@@ -58,11 +58,11 @@ const Stakeholders = ({ stakeholders = [], onChange }) => {
                                 type="number"
                                 value={stakeholder.interest}
                                 onChange={(e) => updateStakeholder(stakeholder.id, 'interest', e.target.value)}
-                                className="h-8 bg-slate-900 border-slate-700 text-right"
+                                className="h-8 text-right"
                             />
                         </div>
                         <div className="col-span-1 flex justify-end">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-red-400" onClick={() => removeStakeholder(stakeholder.id)}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-pl-muted hover:text-pl-danger-text" onClick={() => removeStakeholder(stakeholder.id)}>
                                 <Trash2 className="w-4 h-4" />
                             </Button>
                         </div>

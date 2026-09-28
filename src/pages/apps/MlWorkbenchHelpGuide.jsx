@@ -14,6 +14,7 @@ import {
 import {
   Callout, Code, Formula, GuideSection, HelpGuideShell, Para, SectionHeading, Step, SubHeading, Table,
 } from '@/components/helpguide/HelpGuideLayout';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { ML_WORKBENCH_ROUTE } from '@/utils/dataAi/mlStudy';
 import { MAX_FIT_ROWS, MAX_IMPORTANCE_ROWS } from '@/utils/dataAi/mlData';
 
@@ -33,7 +34,7 @@ export const ML_GUIDE_SECTIONS = [
   { id: 'validation', icon: CheckCircle2, title: 'How the engine was validated' },
 ];
 
-const MlWorkbenchHelpGuide = () => (
+const MlWorkbenchHelpGuideContent = () => (
   <HelpGuideShell
     title="ML Workbench Help Guide"
     subtitle="Regression and logistic classification on well data, validated by holding out whole wells"
@@ -358,6 +359,12 @@ const MlWorkbenchHelpGuide = () => (
       </Para>
     </GuideSection>
   </HelpGuideShell>
+);
+
+const MlWorkbenchHelpGuide = () => (
+  <ThemedApp className="min-h-screen" data-testid="mlwb-help-theme-scope">
+    <MlWorkbenchHelpGuideContent />
+  </ThemedApp>
 );
 
 export default MlWorkbenchHelpGuide;

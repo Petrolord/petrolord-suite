@@ -12,6 +12,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { getModuleList } from '@/utils/adminHelpers';
+import { NativeSelect } from '@/components/ui/native-select';
 
 const OrgTeam = ({ users, onUpdate }) => {
   const { selectedOrg } = useAdminOrg();
@@ -52,25 +53,26 @@ const OrgTeam = ({ users, onUpdate }) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div className="relative w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+      <div className="flex flex-col sm:flex-row gap-3 justify-between sm:items-center">
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-pl-muted" aria-hidden="true" />
           <Input 
             placeholder="Search team members..." 
-            className="pl-9 bg-slate-900 border-slate-700"
+            className="pl-9"
+            aria-label="Search team members"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <Button onClick={() => setIsInviteOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+        <Button onClick={() => setIsInviteOpen(true)}>
           <UserPlus className="h-4 w-4 mr-2" /> Add Member
         </Button>
       </div>
 
-      <div className="border border-slate-800 rounded-md bg-slate-900/50">
+      <div className="border border-pl-border rounded-md overflow-x-auto">
         <Table>
           <TableHeader>
-            <TableRow className="border-slate-800 hover:bg-slate-900">
+            <TableRow>
               <TableHead>User</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Access</TableHead>
@@ -82,7 +84,7 @@ const OrgTeam = ({ users, onUpdate }) => {
             {/* Handle empty state explicitly */}
             {filteredUsers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center h-24 text-slate-500">
+                <TableCell colSpan={5} className="text-center h-24 text-pl-muted">
                   {users && users.length > 0 ? 'No members match your search.' : 'No team members found.'}
                 </TableCell>
               </TableRow>
@@ -114,42 +116,42 @@ const OrgTeam = ({ users, onUpdate }) => {
                 }
 
                 return (
-                  <TableRow key={user.user_id || Math.random()} className="border-slate-800 hover:bg-slate-800/50">
+                  <TableRow key={user.user_id || Math.random()} >
                     <TableCell>
                       <div className="flex items-center">
-                        <div className="h-8 w-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 font-bold mr-3">
+                        <div className="h-8 w-8 shrink-0 rounded-full bg-pl-sunken border border-pl-border flex items-center justify-center text-pl-text font-bold mr-3">
                           {avatarChar}
                         </div>
                         <div>
-                          <div className="font-medium text-slate-200">{userEmail}</div>
-                          <div className="text-xs text-slate-500">ID: {userIdDisplay}</div>
+                          <div className="font-medium text-pl-text">{userEmail}</div>
+                          <div className="text-xs text-pl-muted">ID: {userIdDisplay}</div>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="capitalize bg-slate-800 text-slate-300 border-slate-600">
+                      <Badge variant="neutral" className="capitalize">
                         {userRole}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="text-xs text-slate-400 max-w-[200px] truncate">
+                      <div className="text-xs text-pl-muted max-w-[200px] truncate">
                         {Array.isArray(user.modules) ? `${user.modules.length} modules` : 'No access'}
                       </div>
                     </TableCell>
-                    <TableCell className="text-slate-400 text-sm">
+                    <TableCell className="text-pl-muted text-sm whitespace-nowrap">
                       {joinedDate}
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" aria-label={`Actions for ${userEmail}`}><MoreHorizontal className="h-4 w-4" aria-hidden="true" /></Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-slate-900 border-slate-800 text-slate-200">
+                        <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => handleEditClick(user)}><Shield className="h-4 w-4 mr-2" /> Edit Role & Access</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => navigator.clipboard.writeText(userEmail)}><Copy className="h-4 w-4 mr-2" /> Copy Email</DropdownMenuItem>
-                          <DropdownMenuSeparator className="bg-slate-800" />
-                          <DropdownMenuItem className="text-red-400" onClick={() => handleDeleteUser(user.user_id)}>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="text-pl-danger-text" onClick={() => handleDeleteUser(user.user_id)}>
                             <Trash2 className="h-4 w-4 mr-2" /> Remove User
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -218,25 +220,25 @@ const InviteUserDialog = ({ isOpen, setIsOpen, organization, onSuccess }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="bg-slate-900 border-slate-800 text-slate-100">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Invite Team Member</DialogTitle>
           <DialogDescription>Send an email invitation to join {organization?.name || 'the organization'}.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label>Email Address</Label>
+            <Label htmlFor="org-invite-email">Email Address</Label>
             <Input 
+              id="org-invite-email"
               placeholder="colleague@company.com" 
               value={email} 
               onChange={e => setEmail(e.target.value)} 
-              className="bg-slate-950 border-slate-700"
             />
           </div>
           <div className="space-y-2">
-            <Label>Initial Role</Label>
-            <select 
-              className="flex h-10 w-full items-center justify-between rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm ring-offset-slate-950 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-white"
+            <Label htmlFor="org-invite-role">Initial Role</Label>
+            <NativeSelect 
+              id="org-invite-role"
               value={role}
               onChange={e => setRole(e.target.value)}
             >
@@ -244,7 +246,7 @@ const InviteUserDialog = ({ isOpen, setIsOpen, organization, onSuccess }) => {
               <option value="manager">Manager</option>
               <option value="engineer">Engineer</option>
               <option value="viewer">Viewer</option>
-            </select>
+            </NativeSelect>
           </div>
         </div>
         <DialogFooter>
@@ -303,15 +305,15 @@ const EditPermissionsDialog = ({ isOpen, setIsOpen, user, organization, onSucces
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="bg-slate-900 border-slate-800 text-slate-100 max-w-2xl">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Edit Permissions: {user?.email || 'User'}</DialogTitle>
         </DialogHeader>
         <div className="space-y-6 py-4">
           <div className="space-y-2">
-            <Label>User Role</Label>
-            <select 
-              className="w-full p-2 rounded bg-slate-950 border border-slate-700 text-white"
+            <Label htmlFor="org-edit-role">User Role</Label>
+            <NativeSelect 
+              id="org-edit-role"
               value={role}
               onChange={e => setRole(e.target.value)}
             >
@@ -319,14 +321,14 @@ const EditPermissionsDialog = ({ isOpen, setIsOpen, user, organization, onSucces
               <option value="manager">Manager - Manage Projects & Team</option>
               <option value="engineer">Engineer - Technical Access</option>
               <option value="viewer">Viewer - Read Only</option>
-            </select>
+            </NativeSelect>
           </div>
           
           <div className="space-y-2">
             <Label>Module Access</Label>
-            <p className="text-sm text-slate-400 border border-slate-800 p-3 rounded bg-slate-950/50">
+            <p className="text-sm text-pl-muted border border-pl-border p-3 rounded bg-pl-sunken">
               Per-user module grants have been retired. App and module access is
-              organization-level (subscriptions) with per-user seats — manage it
+              organization-level (subscriptions) with per-user seats. Manage it
               from Seat Management.
             </p>
           </div>

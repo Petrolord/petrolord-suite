@@ -71,14 +71,13 @@ const ScenarioModule = () => {
         <div className="space-y-6 p-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-2xl font-bold text-white">Scenario Planning</h2>
-                    <p className="text-slate-400">Evaluate economic viability under different conditions.</p>
+                    <h2 className="text-2xl font-bold text-pl-text">Scenario Planning</h2>
+                    <p className="text-pl-muted">Evaluate economic viability under different conditions.</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 shrink-0">
                     <Button 
                         variant={view === 'form' ? 'secondary' : 'default'}
                         onClick={handleCreate} 
-                        className="bg-green-600 hover:bg-green-700"
                     >
                         <Plus className="w-4 h-4 mr-2" /> New Scenario
                     </Button>
@@ -116,7 +115,7 @@ const ScenarioModule = () => {
                     </AlertDialogHeader>
                     <div className="flex justify-end gap-2">
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700">
+                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-pl-danger text-pl-danger-fg hover:bg-pl-danger/90">
                             Delete
                         </AlertDialogAction>
                     </div>

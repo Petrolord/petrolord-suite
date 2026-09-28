@@ -21,7 +21,7 @@ const SilhouetteLine = ({ s, testId }) => {
   if (s.error) return <EngineError result={s} prefix="Silhouette" />;
   return (
     <div className="space-y-1">
-      <p className="text-xs text-slate-200">
+      <p className="text-xs text-pl-text">
         Mean silhouette <span className="font-mono" data-testid={testId}>{dn(s.mean)}</span>
         {s.sampled ? ` on a seeded sample of ${s.n.toLocaleString('en-US')} rows (the engine's sample rule; the silhouette measures every pair of rows).` : ` on all ${s.n.toLocaleString('en-US')} rows.`}
       </p>
@@ -51,7 +51,7 @@ const KmeansSection = () => {
       {km && !km.error ? (
         <div className="space-y-2" data-testid="kmeans-result">
           {km.warning ? <Note tone="warn">{km.warning}</Note> : null}
-          <p className="text-xs text-slate-200">
+          <p className="text-xs text-pl-text">
             Inertia <span className="font-mono" data-testid="kmeans-inertia">{dn(km.inertia)}</span> (sum of squared distances to the centres, on the scaled logs);
             {' '}best of {km.runs.length} start{km.runs.length === 1 ? '' : 's'} was run {km.bestRun} (from 0), {km.iterations} assignment passes, {km.converged ? 'converged' : 'not converged'}
             {km.emptyClusterRelocations ? `, ${km.emptyClusterRelocations} empty cluster relocations` : ''}.
@@ -93,7 +93,7 @@ const ElbowSection = () => {
       {r?.error ? <EngineError result={r} /> : null}
       {r && !r.error ? (
         <div className="space-y-2" data-testid="elbow-result">
-          <p className="text-xs text-slate-200" data-testid="elbow-rows">
+          <p className="text-xs text-pl-text" data-testid="elbow-rows">
             {r.sampled ? `Ran on a seeded sample of ${r.n.toLocaleString('en-US')} rows (seed ${r.seed}).` : `Ran on all ${r.n.toLocaleString('en-US')} rows.`}
             {r.bestSilhouetteK !== null ? ` Highest mean silhouette at k = ${r.bestSilhouetteK}.` : ''}
           </p>
@@ -141,7 +141,7 @@ const AgglomerativeSection = () => {
       {ag?.error ? <EngineError result={ag} /> : null}
       {ag && !ag.error ? (
         <div className="space-y-2" data-testid="agglomerative-result">
-          <p className="text-xs text-slate-200" data-testid="agg-rows">
+          <p className="text-xs text-pl-text" data-testid="agg-rows">
             {r.sampled
               ? `Clustered a seeded sample of ${ag.n.toLocaleString('en-US')} of ${design.X.length.toLocaleString('en-US')} rows (seed ${spec.agglomerative.seed}); the other rows have no label.`
               : `Clustered all ${ag.n.toLocaleString('en-US')} rows.`}

@@ -16,11 +16,11 @@ const FDPGenerationModule = () => {
         <div className="space-y-6 p-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
                 <div>
-                    <h2 className="text-2xl font-bold text-white">Document Generation</h2>
-                    <p className="text-slate-400">Compile, validate, and export the final Field Development Plan.</p>
+                    <h2 className="text-2xl font-bold text-pl-text">Document Generation</h2>
+                    <p className="text-pl-muted">Compile, validate, and export the final Field Development Plan.</p>
                 </div>
-                <div className="flex gap-2">
-                    <Button className="bg-blue-600 hover:bg-blue-700">
+                <div className="flex flex-wrap gap-2 shrink-0">
+                    <Button>
                         <FileText className="w-4 h-4 mr-2" /> Preview Document
                     </Button>
                 </div>

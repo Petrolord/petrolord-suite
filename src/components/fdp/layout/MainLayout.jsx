@@ -56,38 +56,38 @@ const RightPanel = () => {
     const gasP50 = planReservesP50(state, 'Gas');
 
     return (
-        <div className="h-full flex flex-col bg-slate-900 border-l border-slate-800 w-80">
-            <div className="p-4 border-b border-slate-800 font-semibold text-white flex items-center justify-between">
+        <div className="h-full flex flex-col bg-pl-surface border-l border-pl-border w-80">
+            <div className="p-4 border-b border-pl-border font-semibold text-pl-text flex items-center justify-between">
                 <span>Plan status</span>
-                <Activity className="w-4 h-4 text-slate-500" />
+                <Activity className="w-4 h-4 text-pl-muted" />
             </div>
             <ScrollArea className="flex-1">
                 <div className="p-4 space-y-6">
                     <div>
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Project Stats</h3>
+                        <h3 className="text-xs font-bold text-pl-muted uppercase tracking-wider mb-3">Project Stats</h3>
                         <div className="grid grid-cols-2 gap-2">
-                            <div className="bg-slate-800 p-2 rounded border border-slate-700">
-                                <div className="text-xs text-slate-400">NPV</div>
+                            <div className="bg-pl-sunken p-2 rounded border border-pl-border">
+                                <div className="text-xs text-pl-muted">NPV</div>
                                 {economics.available ? (
-                                    <div className={`text-lg font-bold ${economics.metrics.npv >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                    <div className={`text-lg font-bold font-pl-mono tabular-nums ${economics.metrics.npv >= 0 ? 'text-pl-success-text' : 'text-pl-danger-text'}`}>
                                         {fmtMM(economics.metrics.npv)}
                                     </div>
                                 ) : (
-                                    <div className="text-sm font-medium text-slate-400">Not yet</div>
+                                    <div className="text-sm font-medium text-pl-muted">Not yet</div>
                                 )}
                             </div>
-                            <div className="bg-slate-800 p-2 rounded border border-slate-700">
-                                <div className="text-xs text-slate-400">
+                            <div className="bg-pl-sunken p-2 rounded border border-pl-border">
+                                <div className="text-xs text-pl-muted">
                                     Reserves P50 ({gasP50 > 0 && oilP50 === 0 ? 'Bcf' : 'MMbbl'})
                                 </div>
                                 {/* EC6-0: oil in MMbbl and gas in Bcf are different numbers and
                                     are never added together. */}
-                                <div className="text-lg font-bold text-blue-400">
+                                <div className="text-lg font-bold font-pl-mono tabular-nums text-pl-text">
                                     {gasP50 > 0 && oilP50 === 0 ? gasP50 : oilP50}
                                 </div>
                             </div>
                         </div>
-                        <p className="text-[11px] text-slate-500 mt-2">
+                        <p className="text-[11px] text-pl-muted mt-2">
                             {economics.available
                                 ? `NPV is post royalty and tax, discounted mid year, on this plan's cost items at $${economics.basis.oilPrice}/bbl.`
                                 : `No NPV yet: this plan is still missing ${economics.missing.join(', ')}.`}
@@ -98,11 +98,11 @@ const RightPanel = () => {
                     </div>
 
                     <div>
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Still to do</h3>
+                        <h3 className="text-xs font-bold text-pl-muted uppercase tracking-wider mb-3">Still to do</h3>
                         {outstanding.length === 0 ? (
-                            <div className="bg-emerald-900/20 border border-emerald-700/30 rounded p-3 flex items-start">
-                                <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 mr-2 shrink-0" />
-                                <p className="text-xs text-emerald-200/80">
+                            <div className="bg-pl-success-bg border border-pl-success/40 rounded p-3 flex items-start">
+                                <CheckCircle2 className="w-4 h-4 text-pl-success-text mt-0.5 mr-2 shrink-0" />
+                                <p className="text-xs text-pl-success-text">
                                     Every section has data in it. That says the plan is complete, not that it
                                     is right; review each tab before you generate the document.
                                 </p>
@@ -110,9 +110,9 @@ const RightPanel = () => {
                         ) : (
                             <ul className="space-y-2">
                                 {outstanding.map((item) => (
-                                    <li key={item} className="bg-yellow-900/20 border border-yellow-700/30 rounded p-2 flex items-start">
-                                        <AlertCircle className="w-3.5 h-3.5 text-yellow-500 mt-0.5 mr-2 shrink-0" />
-                                        <span className="text-xs text-yellow-200/80">{item}</span>
+                                    <li key={item} className="bg-pl-warning-bg border border-pl-warning/40 rounded p-2 flex items-start">
+                                        <AlertCircle className="w-3.5 h-3.5 text-pl-warning-text mt-0.5 mr-2 shrink-0" />
+                                        <span className="text-xs text-pl-warning-text">{item}</span>
                                     </li>
                                 ))}
                             </ul>
@@ -143,7 +143,7 @@ const MainLayout = ({ children }) => {
     const { sidebarCollapsed, rightPanelOpen } = state.navigation;
 
     return (
-        <div className="h-screen w-full bg-slate-950 flex flex-col overflow-hidden text-slate-200 font-sans">
+        <div className="h-screen w-full bg-pl-bg flex flex-col overflow-hidden text-pl-text font-sans">
             <StudioNotifications notifications={notifications} onDismiss={removeNotification} />
             <TopNavigation />
             
@@ -151,7 +151,7 @@ const MainLayout = ({ children }) => {
                 {/* Left Sidebar */}
                 <aside 
                     className={cn(
-                        "bg-slate-900 border-r border-slate-800 transition-all duration-300 ease-in-out flex-shrink-0 z-20",
+                        "bg-pl-surface border-r border-pl-border transition-all duration-300 ease-in-out flex-shrink-0 z-20",
                         sidebarCollapsed ? "w-16" : "w-64"
                     )}
                 >
@@ -162,7 +162,7 @@ const MainLayout = ({ children }) => {
                 {/* FDP-T1-002: a plain scroller. Radix ScrollArea sizes its
                     viewport to the widest child, so a wide Gantt pushed the
                     whole column under the Plan status rail. */}
-                <main className="flex-1 min-w-0 flex flex-col overflow-hidden relative bg-slate-950">
+                <main className="flex-1 min-w-0 flex flex-col overflow-hidden relative bg-pl-bg">
                     <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
                         <div className="p-6 min-h-full">
                             {children}
@@ -173,7 +173,7 @@ const MainLayout = ({ children }) => {
                 {/* Right Panel */}
                 <aside 
                     className={cn(
-                        "border-l border-slate-800 bg-slate-900 transition-all duration-300 ease-in-out flex-shrink-0 z-10",
+                        "border-l border-pl-border bg-pl-surface transition-all duration-300 ease-in-out flex-shrink-0 z-10",
                         rightPanelOpen ? "w-80" : "w-0 border-l-0 overflow-hidden"
                     )}
                 >
@@ -182,7 +182,7 @@ const MainLayout = ({ children }) => {
             </div>
             
             {/* Status Bar */}
-            <div className="h-6 bg-slate-900 border-t border-slate-800 flex items-center justify-between px-4 text-[10px] text-slate-500 select-none">
+            <div className="h-6 bg-pl-surface border-t border-pl-border flex items-center justify-between px-4 text-[10px] text-pl-muted select-none">
                 <div className="flex items-center space-x-4">
                     <span>Ready</span>
                     <span>v1.0.0</span>

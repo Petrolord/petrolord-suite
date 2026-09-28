@@ -10,34 +10,35 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription, DialogClose } from '@/components/ui/dialog';
-import { Loader2, Search, Eye, CheckCircle, FileText, Trash2, Edit, Send } from 'lucide-react';
+import { Loader2, Search, Eye, CheckCircle, FileText, Trash2, Edit, Send, Building2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AccountScope, AccountPage, AccountHeader } from '@/components/account/accountChrome';
 
 // Renders a bank-transfer payment proof. Proof URLs are stored as
 // proofs/<quote>-<ts>.<ext> (see verify-bank-transfer), so the extension tells
 // us how to display it: PDFs in an inline viewer, everything else as an image.
 function ProofViewer({ url }) {
-  if (!url) return <span className="text-slate-500">No proof uploaded</span>;
+  if (!url) return <span className="text-pl-muted">No proof uploaded</span>;
 
   const isPdf = url.split('?')[0].toLowerCase().endsWith('.pdf');
 
   return (
     <div className="w-full flex flex-col items-center gap-2">
       {isPdf ? (
-        <iframe src={url} title="Payment proof (PDF)" className="w-full h-[400px] rounded bg-white" />
+        <iframe src={url} title="Payment proof (PDF)" className="w-full h-[400px] rounded bg-pl-chart-surface" />
       ) : (
         <img src={url} alt="Payment proof" className="max-h-[400px] object-contain" />
       )}
-      <a href={url} target="_blank" rel="noreferrer" className="text-xs text-[#84CC16] hover:underline">
+      <a href={url} target="_blank" rel="noreferrer" className="text-xs text-pl-primary-text hover:text-pl-primary-text-hover hover:underline">
         Open in new tab
       </a>
     </div>
   );
 }
 
-export default function AdminOrganizations() {
+function AdminOrganizationsPage() {
   const [organizations, setOrganizations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -131,15 +132,20 @@ export default function AdminOrganizations() {
   const activeOrgs = filteredOrgs.filter(o => o.suite_status === 'ACTIVE');
   const pendingPaymentOrgs = filteredOrgs.filter(o => o.suite_status === 'PENDING_PAYMENT');
 
+  const suiteTone = (status) => (
+    status === 'ACTIVE' ? 'success' : status === 'PENDING_VERIFICATION' ? 'info' : 'warning'
+  );
+
   const OrgTable = ({ data }) => (
+    <div className="overflow-x-auto">
     <Table>
       <TableHeader>
-        <TableRow className="border-slate-700 hover:bg-slate-800/50">
-          <TableHead className="text-slate-300">Name</TableHead>
-          <TableHead className="text-slate-300">HSE Status</TableHead>
-          <TableHead className="text-slate-300">Suite Status</TableHead>
-          <TableHead className="text-slate-300">Created</TableHead>
-          <TableHead className="text-right text-slate-300">Actions</TableHead>
+        <TableRow>
+          <TableHead>Name</TableHead>
+          <TableHead>HSE Status</TableHead>
+          <TableHead>Suite Status</TableHead>
+          <TableHead>Created</TableHead>
+          <TableHead className="text-right">Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -148,26 +154,22 @@ export default function AdminOrganizations() {
             const pendingSub = org.subscriptions?.find(s => s.payment_status === 'PENDING');
 
             return (
-            <TableRow key={org.id} className="border-slate-700 hover:bg-slate-800/50">
+            <TableRow key={org.id}>
                 <TableCell className="font-medium">
-                <div className="text-white font-semibold">{org.name}</div>
-                <div className="text-xs text-slate-500">{org.contact_email}</div>
+                <div className="text-pl-text font-semibold">{org.name}</div>
+                <div className="text-xs text-pl-muted">{org.contact_email}</div>
                 </TableCell>
                 <TableCell>
-                <Badge variant="outline" className={org.hse_status === 'ACTIVE' ? 'border-green-500 text-green-500' : 'border-slate-500 text-slate-500'}>
+                <Badge variant={org.hse_status === 'ACTIVE' ? 'success' : 'neutral'}>
                     {org.hse_status || 'NONE'}
                 </Badge>
                 </TableCell>
                 <TableCell>
-                <Badge className={
-                    org.suite_status === 'ACTIVE' ? 'bg-green-500/20 text-green-400' :
-                    org.suite_status === 'PENDING_VERIFICATION' ? 'bg-blue-500/20 text-blue-400' :
-                    'bg-yellow-500/20 text-yellow-400'
-                }>
+                <Badge variant={suiteTone(org.suite_status)}>
                     {org.suite_status || 'NONE'}
                 </Badge>
                 </TableCell>
-                <TableCell className="text-slate-400">{format(new Date(org.created_at), 'MMM d, yyyy')}</TableCell>
+                <TableCell className="text-pl-muted whitespace-nowrap">{format(new Date(org.created_at), 'MMM d, yyyy')}</TableCell>
                 <TableCell className="text-right">
                 <div className="flex justify-end gap-2 items-center">
                     {/* View Details */}
@@ -177,10 +179,11 @@ export default function AdminOrganizations() {
                           <Button 
                             size="icon" 
                             variant="ghost" 
-                            className="h-8 w-8 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
+                            className="h-8 w-8"
+                            aria-label={`View details of ${org.name}`}
                             onClick={() => navigate(`/admin/organizations/${org.id}`)}
                           >
-                            <Eye className="w-4 h-4" />
+                            <Eye className="w-4 h-4" aria-hidden="true" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent><p>View Details</p></TooltipContent>
@@ -194,10 +197,11 @@ export default function AdminOrganizations() {
                           <Button 
                             size="icon" 
                             variant="ghost" 
-                            className="h-8 w-8 text-slate-400 hover:text-white hover:bg-slate-800"
+                            className="h-8 w-8"
+                            aria-label={`Edit ${org.name}`}
                             onClick={() => navigate(`/admin/organizations/${org.id}/edit`)}
                           >
-                            <Edit className="w-4 h-4" />
+                            <Edit className="w-4 h-4" aria-hidden="true" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent><p>Edit Organization</p></TooltipContent>
@@ -211,10 +215,11 @@ export default function AdminOrganizations() {
                           <Button 
                             size="icon" 
                             variant="ghost" 
-                            className="h-8 w-8 text-[#FCD34D] hover:text-yellow-300 hover:bg-yellow-900/20"
+                            className="h-8 w-8"
+                            aria-label={`Send quote to ${org.name}`}
                             onClick={() => navigate(`/admin/organizations/${org.id}/send-quote`)}
                           >
-                            <Send className="w-4 h-4" />
+                            <Send className="w-4 h-4" aria-hidden="true" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent><p>Send Quote</p></TooltipContent>
@@ -225,19 +230,19 @@ export default function AdminOrganizations() {
                     {org.suite_status === 'PENDING_VERIFICATION' && pendingSub && (
                     <Dialog>
                         <DialogTrigger asChild>
-                        <Button size="sm" variant="outline" className="h-8 border-[#84CC16] text-[#84CC16] hover:bg-[#84CC16]/10 px-2 text-xs">
-                            <CheckCircle className="w-3 h-3 mr-1"/> Verify
+                        <Button size="sm" variant="outline" className="h-8 px-2 text-xs">
+                            <CheckCircle className="w-3 h-3 mr-1" aria-hidden="true"/> Verify
                         </Button>
                         </DialogTrigger>
-                        <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-2xl">
+                        <DialogContent className="max-w-2xl">
                         <DialogHeader><DialogTitle>Verify Payment Proof</DialogTitle></DialogHeader>
                         <div className="grid gap-4 py-4">
-                            <div className="bg-black p-2 rounded-lg border border-slate-800 flex justify-center">
+                            <div className="bg-pl-sunken p-2 rounded-lg border border-pl-border flex justify-center">
                                 <ProofViewer url={pendingSub.bank_transfer_proof_url} />
                             </div>
                             <div className="flex justify-end gap-2 mt-4">
                                 <Button variant="destructive" onClick={() => handleRejectPayment(pendingSub.id)} disabled={verifying}>Reject</Button>
-                                <Button className="bg-[#84CC16] hover:bg-[#65a30d] text-slate-900 font-bold" 
+                                <Button className="font-bold" 
                                     onClick={() => handleVerifyPayment(org.id, pendingSub.id)}
                                     disabled={verifying}>
                                     {verifying ? <Loader2 className="w-4 h-4 animate-spin mr-2"/> : <CheckCircle className="w-4 h-4 mr-2"/>}
@@ -254,8 +259,8 @@ export default function AdminOrganizations() {
                        <TooltipProvider>
                        <Tooltip>
                          <TooltipTrigger asChild>
-                            <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-white" onClick={() => window.open(`/dashboard/quote/${activeQuote.quote_id}`, '_blank')}>
-                                <FileText className="w-4 h-4"/>
+                            <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="View active quote" onClick={() => window.open(`/dashboard/quote/${activeQuote.quote_id}`, '_blank')}>
+                                <FileText className="w-4 h-4" aria-hidden="true"/>
                             </Button>
                          </TooltipTrigger>
                          <TooltipContent><p>View Active Quote</p></TooltipContent>
@@ -266,14 +271,14 @@ export default function AdminOrganizations() {
                     {/* Delete Action */}
                     <Dialog>
                       <DialogTrigger asChild>
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:text-red-400 hover:bg-red-900/20">
-                          <Trash2 className="w-4 h-4" />
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-pl-danger-text hover:bg-pl-danger-bg hover:text-pl-danger-text" aria-label={`Delete ${org.name}`}>
+                          <Trash2 className="w-4 h-4" aria-hidden="true" />
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="bg-slate-900 border-slate-700 text-white">
+                      <DialogContent>
                         <DialogHeader>
-                          <DialogTitle className="text-red-500 flex items-center gap-2"><Trash2 className="w-5 h-5"/> Delete Organization?</DialogTitle>
-                          <DialogDescription className="text-slate-400">
+                          <DialogTitle className="text-pl-danger-text flex items-center gap-2"><Trash2 className="w-5 h-5" aria-hidden="true"/> Delete Organization?</DialogTitle>
+                          <DialogDescription>
                             This action cannot be undone. This will permanently delete <strong>{org.name}</strong> and remove all associated data including:
                             <ul className="list-disc pl-5 mt-2 space-y-1">
                               <li>All member accounts and profiles</li>
@@ -305,36 +310,48 @@ export default function AdminOrganizations() {
         })}
       </TableBody>
     </Table>
+    </div>
   );
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-white">Organization Management</h1>
-          <div className="relative w-64">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-500" />
-            <Input
-              placeholder="Search organizations..."
-              className="pl-8 bg-slate-900 border-slate-700 focus:ring-[#FCD34D]"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+    <AccountPage width="max-w-7xl">
+        <AccountHeader
+          eyebrow="Platform admin"
+          icon={Building2}
+          title="Organization Management"
+          actions={(
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-pl-muted" aria-hidden="true" />
+              <Input
+                placeholder="Search organizations..."
+                aria-label="Search organizations"
+                className="pl-8"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          )}
+        />
+
+        {loading ? (
+          <div className="flex justify-center p-10" role="status" aria-label="Loading organizations">
+            <Loader2 className="w-6 h-6 animate-spin text-pl-muted" aria-hidden="true" />
           </div>
-        </div>
-
+        ) : (
         <Tabs defaultValue="all" className="space-y-4">
-          <TabsList className="bg-slate-900 border-slate-800">
-            <TabsTrigger value="all" className="data-[state=active]:bg-slate-800">All Orgs</TabsTrigger>
-            <TabsTrigger value="pending_verif" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 relative">
+          <div className="overflow-x-auto">
+          <TabsList>
+            <TabsTrigger value="all">All Orgs</TabsTrigger>
+            <TabsTrigger value="pending_verif">
                 Pending Verification
-                {pendingVerificationOrgs.length > 0 && <span className="ml-2 bg-blue-500 text-white text-[10px] px-1.5 rounded-full">{pendingVerificationOrgs.length}</span>}
+                {pendingVerificationOrgs.length > 0 && <Badge variant="info" className="ml-2 px-1.5 py-0 text-[10px]">{pendingVerificationOrgs.length}</Badge>}
             </TabsTrigger>
-            <TabsTrigger value="pending_pay" className="data-[state=active]:bg-slate-800">Pending Payment</TabsTrigger>
-            <TabsTrigger value="active" className="data-[state=active]:bg-[#84CC16]/20 data-[state=active]:text-[#84CC16]">Active Suite</TabsTrigger>
+            <TabsTrigger value="pending_pay">Pending Payment</TabsTrigger>
+            <TabsTrigger value="active">Active Suite</TabsTrigger>
           </TabsList>
+          </div>
 
-          <Card className="bg-slate-900 border-slate-800 shadow-xl">
+          <Card>
             <CardContent className="p-0">
               <TabsContent value="all" className="m-0"><OrgTable data={filteredOrgs} /></TabsContent>
               <TabsContent value="pending_verif" className="m-0"><OrgTable data={pendingVerificationOrgs} /></TabsContent>
@@ -343,7 +360,15 @@ export default function AdminOrganizations() {
             </CardContent>
           </Card>
         </Tabs>
-      </div>
-    </div>
+        )}
+    </AccountPage>
+  );
+}
+
+export default function AdminOrganizations() {
+  return (
+    <AccountScope testId="admin-organizations-theme-scope">
+      <AdminOrganizationsPage />
+    </AccountScope>
   );
 }

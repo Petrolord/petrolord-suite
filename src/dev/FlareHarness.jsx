@@ -7,5 +7,5 @@ import InMemorySupabase, { createStore } from './InMemorySupabase';
 const db = createStore({ saved_flare_projects: [] });
 
 export default function FlareHarness() {
-  return <InMemorySupabase db={db}><div className="min-h-screen bg-slate-950 text-slate-100"><FlareToValueStudio /></div></InMemorySupabase>;
+  return <InMemorySupabase db={db}><div className="min-h-screen"><FlareToValueStudio /></div></InMemorySupabase>;
 }

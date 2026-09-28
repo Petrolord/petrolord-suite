@@ -7,9 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Loader2, Save } from 'lucide-react';
+import { Loader2, Save, Building2 } from 'lucide-react';
+import { AccountScope, AccountPage, AccountHeader } from '@/components/account/accountChrome';
 
-const OrgEdit = () => {
+const OrgEditPage = () => {
   const { orgId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -85,84 +86,79 @@ const OrgEdit = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-[#84CC16]" />
+      <div className="min-h-screen flex items-center justify-center" role="status" aria-label="Loading organization">
+        <Loader2 className="w-8 h-8 animate-spin text-pl-muted" aria-hidden="true" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-8">
-      <div className="max-w-3xl mx-auto space-y-8">
-        
-        {/* Header */}
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <Link to="/admin/organizations" className="hover:text-white transition-colors">Organizations</Link>
-            <span>/</span>
-            <Link to={`/admin/organizations/${orgId}`} className="hover:text-white transition-colors">{formData.name}</Link>
-            <span>/</span>
-            <span className="text-white font-medium">Edit</span>
-          </div>
-          
-          <div className="flex justify-between items-center">
-            <Button variant="ghost" className="text-slate-400 hover:text-white pl-0" onClick={() => navigate(`/admin/organizations/${orgId}`)}>
-              <ArrowLeft className="w-4 h-4 mr-2" /> Cancel
-            </Button>
-          </div>
-        </div>
+    <AccountPage width="max-w-3xl">
+        {/* Breadcrumb */}
+        <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-sm text-pl-muted">
+          <Link to="/admin/organizations" className="hover:text-pl-text transition-colors">Organizations</Link>
+          <span aria-hidden="true">/</span>
+          <Link to={`/admin/organizations/${orgId}`} className="hover:text-pl-text transition-colors">{formData.name}</Link>
+          <span aria-hidden="true">/</span>
+          <span className="text-pl-text font-medium">Edit</span>
+        </nav>
 
-        <Card className="bg-slate-900 border-slate-800 shadow-xl">
+        <AccountHeader
+          eyebrow="Platform admin"
+          icon={Building2}
+          title="Edit Organization"
+          backTo={`/admin/organizations/${orgId}`}
+          backLabel="Cancel and go back"
+        />
+
+        <Card>
           <CardHeader>
-            <CardTitle className="text-2xl text-white">Edit Organization</CardTitle>
+            <CardTitle className="text-lg">Organization details</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSave} className="space-y-6">
               
               <div className="space-y-2">
-                <Label htmlFor="name" className="text-slate-300">Organization Name</Label>
+                <Label htmlFor="name">Organization Name</Label>
                 <Input 
                   id="name" 
                   value={formData.name} 
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  className="bg-slate-950 border-slate-700"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-slate-300">Contact Email</Label>
+                  <Label htmlFor="email">Contact Email</Label>
                   <Input 
                     id="email" 
                     type="email"
                     value={formData.contact_email} 
                     onChange={(e) => setFormData({...formData, contact_email: e.target.value})}
-                    className="bg-slate-950 border-slate-700"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-slate-300">Phone</Label>
+                  <Label htmlFor="phone">Phone</Label>
                   <Input 
                     id="phone" 
                     value={formData.contact_phone} 
                     onChange={(e) => setFormData({...formData, contact_phone: e.target.value})}
-                    className="bg-slate-950 border-slate-700"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
-                  <Label className="text-slate-300">Suite Status</Label>
+                  <Label>Suite Status</Label>
                   <Select 
                     value={formData.suite_status} 
                     onValueChange={(val) => setFormData({...formData, suite_status: val})}
                   >
-                    <SelectTrigger className="bg-slate-950 border-slate-700">
+                    <SelectTrigger aria-label="Suite Status">
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                    <SelectContent>
                       <SelectItem value="ACTIVE">Active</SelectItem>
                       <SelectItem value="PENDING_VERIFICATION">Pending Verification</SelectItem>
                       <SelectItem value="PENDING_PAYMENT">Pending Payment</SelectItem>
@@ -172,15 +168,15 @@ const OrgEdit = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-slate-300">HSE Status</Label>
+                  <Label>HSE Status</Label>
                   <Select 
                     value={formData.hse_status} 
                     onValueChange={(val) => setFormData({...formData, hse_status: val})}
                   >
-                    <SelectTrigger className="bg-slate-950 border-slate-700">
+                    <SelectTrigger aria-label="HSE Status">
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                    <SelectContent>
                       <SelectItem value="ACTIVE">Active</SelectItem>
                       <SelectItem value="NONE">None</SelectItem>
                     </SelectContent>
@@ -188,15 +184,15 @@ const OrgEdit = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-slate-300">Subscription Tier</Label>
+                  <Label>Subscription Tier</Label>
                   <Select 
                     value={formData.subscription_tier} 
                     onValueChange={(val) => setFormData({...formData, subscription_tier: val})}
                   >
-                    <SelectTrigger className="bg-slate-950 border-slate-700">
+                    <SelectTrigger aria-label="Subscription Tier">
                       <SelectValue placeholder="Select tier" />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                    <SelectContent>
                       <SelectItem value="free">Free</SelectItem>
                       <SelectItem value="premium">Premium</SelectItem>
                       <SelectItem value="enterprise">Enterprise</SelectItem>
@@ -209,7 +205,7 @@ const OrgEdit = () => {
                 <Button type="button" variant="ghost" onClick={() => navigate(`/admin/organizations/${orgId}`)}>
                   Cancel
                 </Button>
-                <Button type="submit" className="bg-[#84CC16] hover:bg-[#65a30d] text-slate-900 font-bold min-w-[120px]" disabled={saving}>
+                <Button type="submit" className="font-bold min-w-[120px]" disabled={saving}>
                   {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                   Save Changes
                 </Button>
@@ -218,10 +214,14 @@ const OrgEdit = () => {
             </form>
           </CardContent>
         </Card>
-
-      </div>
-    </div>
+    </AccountPage>
   );
 };
 
-export default OrgEdit;
+export default function OrgEdit() {
+  return (
+    <AccountScope testId="org-edit-theme-scope">
+      <OrgEditPage />
+    </AccountScope>
+  );
+}

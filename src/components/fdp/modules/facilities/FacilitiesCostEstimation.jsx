@@ -9,7 +9,7 @@ const FacilitiesCostEstimation = ({ facility }) => {
     // W3 (D3): Full precision prints the estimate in $MM at 4 decimals.
     const { full } = useFullPrecision();
     const mm = (v) => (full ? formatFull(v, MONEY_MM_DECIMALS) : v.toFixed(1));
-    if (!facility) return <div className="text-slate-500 p-4">Select a facility to view costs.</div>;
+    if (!facility) return <div className="text-pl-muted p-4">Select a facility to view costs.</div>;
 
     const costs = calculateFacilityCost(facility);
     const lifeOfField = facility.designLife || 20;
@@ -18,34 +18,34 @@ const FacilitiesCostEstimation = ({ facility }) => {
     return (
         <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card className="bg-slate-900 border-slate-800">
+                <Card>
                     <div className="p-4">
-                        <div className="text-xs text-slate-400 uppercase">Total CAPEX</div>
-                        <div className="text-2xl font-bold text-orange-400">${mm(costs.capex)}M</div>
-                        <div className="text-xs text-slate-500 mt-1">Initial investment</div>
+                        <div className="text-xs text-pl-muted uppercase">Total CAPEX</div>
+                        <div className="text-2xl font-bold font-pl-mono tabular-nums text-pl-text">${mm(costs.capex)}M</div>
+                        <div className="text-xs text-pl-muted mt-1">Initial investment</div>
                     </div>
                 </Card>
-                <Card className="bg-slate-900 border-slate-800">
+                <Card>
                     <div className="p-4">
-                        <div className="text-xs text-slate-400 uppercase">Annual OPEX</div>
-                        <div className="text-2xl font-bold text-orange-300">${mm(costs.opex)}M</div>
-                        <div className="text-xs text-slate-500 mt-1">Per year operation</div>
+                        <div className="text-xs text-pl-muted uppercase">Annual OPEX</div>
+                        <div className="text-2xl font-bold font-pl-mono tabular-nums text-pl-text">${mm(costs.opex)}M</div>
+                        <div className="text-xs text-pl-muted mt-1">Per year operation</div>
                     </div>
                 </Card>
-                <Card className="bg-slate-900 border-slate-800">
+                <Card>
                     <div className="p-4">
-                        <div className="text-xs text-slate-400 uppercase">Decommissioning</div>
-                        <div className="text-2xl font-bold text-orange-200" data-testid="decommissioning">
+                        <div className="text-xs text-pl-muted uppercase">Decommissioning</div>
+                        <div className="text-2xl font-bold font-pl-mono tabular-nums text-pl-text" data-testid="decommissioning">
                             ${mm(costs.decommissioning)}M
                         </div>
-                        <div className="text-xs text-slate-500 mt-1">15 percent of the sized capex</div>
+                        <div className="text-xs text-pl-muted mt-1">15 percent of the sized capex</div>
                     </div>
                 </Card>
-                <Card className="bg-slate-900 border-slate-800">
+                <Card>
                     <div className="p-4">
-                        <div className="text-xs text-slate-400 uppercase">Lifecycle Cost</div>
-                        <div className="text-2xl font-bold text-white">${mm(totalLifecycle)}M</div>
-                        <div className="text-xs text-slate-500 mt-1">{lifeOfField} years + decom</div>
+                        <div className="text-xs text-pl-muted uppercase">Lifecycle Cost</div>
+                        <div className="text-2xl font-bold font-pl-mono tabular-nums text-pl-text">${mm(totalLifecycle)}M</div>
+                        <div className="text-xs text-pl-muted mt-1">{lifeOfField} years + decom</div>
                     </div>
                 </Card>
             </div>
@@ -55,28 +55,28 @@ const FacilitiesCostEstimation = ({ facility }) => {
                 plants and subsea tie-backs, against an estimate nobody had
                 split that way. A split the studio does not compute is not
                 shown. */}
-            <Card className="bg-slate-900 border-slate-800">
+            <Card>
                 <CardHeader>
-                    <CardTitle className="text-sm font-medium text-white flex items-center">
-                        <DollarSign className="w-4 h-4 mr-2 text-green-500" />
+                    <CardTitle className="text-sm font-medium text-pl-text flex items-center">
+                        <DollarSign className="w-4 h-4 mr-2 text-pl-muted" />
                         What is in this estimate
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-sm text-slate-300">
+                    <p className="text-sm text-pl-text">
                         A class 5 screening figure from the facility type and its nameplate: a base
                         cost for the type, scaled by size to the power 0.7 for capex and 0.6 for
                         opex, with decommissioning at 15 percent of the base. There is no
                         hull-and-topsides split behind it, so none is drawn.
                     </p>
-                    <p className="text-xs text-slate-500 mt-3">
+                    <p className="text-xs text-pl-muted mt-3">
                         The facility list shows the capex you entered; this card shows what the
                         screening estimate makes of the same facility. They are two different
                         numbers and they are meant to be compared.
                     </p>
                     {/* EC6-8 (engines #191): this estimate is no longer shown and
                         left out of the cash flow. */}
-                    <p className="text-xs text-slate-400 mt-3" data-testid="decommissioning-in-economics">
+                    <p className="text-xs text-pl-muted mt-3" data-testid="decommissioning-in-economics">
                         The decommissioning figure is charged in the final production year of the plan's
                         economics when the plan carries no ABEX cost item. Enter an ABEX cost item to use
                         your own figure instead.

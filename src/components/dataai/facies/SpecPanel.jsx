@@ -82,7 +82,7 @@ const SpecPanel = () => {
         {design?.error ? <EngineError result={design} /> : null}
         {ok ? (
           <>
-            <p className="text-xs text-slate-200" data-testid="design-rows">
+            <p className="text-xs text-pl-text" data-testid="design-rows">
               {design.X.length.toLocaleString('en-US')} rows on {design.names.join(', ')} from {design.wells.length} well{design.wells.length === 1 ? '' : 's'}
               {design.facies ? `; ${design.labelled.length.toLocaleString('en-US')} have a core facies (${design.classes.length} facies: ${design.classes.join(', ')}).` : '; no core facies chosen.'}
             </p>
@@ -91,7 +91,7 @@ const SpecPanel = () => {
               headers={['Well', 'Rows', 'Rows with core facies']}
               rows={design.wells.map((w) => [w.name, w.rows, design.facies ? w.cored : ''])}
             />
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-pl-muted">
               Left out: {design.counts.outsideWindow} outside the window, {design.counts.thinned} thinned, {design.counts.missing} missing a log,
               {' '}{design.counts.nonPositiveLog} zero or negative in a log10 log (of {design.counts.total} loaded).
             </p>
