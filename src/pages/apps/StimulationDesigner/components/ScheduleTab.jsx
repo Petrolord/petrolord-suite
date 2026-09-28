@@ -9,8 +9,8 @@ import { PROPPANT_CATALOG, DARCY_M2 } from '../services/stRun';
 import { ScheduleChart } from '../charts/StCharts';
 
 const Card = ({ title, children, testId }) => (
-  <div className="rounded border border-slate-800 bg-slate-900/40" data-testid={testId}>
-    <div className="border-b border-slate-800 px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{title}</div>
+  <div className="rounded border border-pl-border bg-pl-surface" data-testid={testId}>
+    <div className="border-b border-pl-border px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-pl-muted">{title}</div>
     <div className="p-2">{children}</div>
   </div>
 );
@@ -21,7 +21,7 @@ const num = (v) => {
 };
 
 const Field = ({ label, value, onChange, step = 1, testId }) => (
-  <label className="flex items-center justify-between gap-2 text-xs text-slate-300">
+  <label className="flex items-center justify-between gap-2 text-xs text-pl-text">
     <span>{label}</span>
     <Input className="h-7 w-28 text-right text-xs" type="number" step={step} value={value}
       data-testid={testId} onChange={(e) => onChange(num(e.target.value))} />
@@ -45,9 +45,9 @@ export default function ScheduleTab({ caseDraft, onCaseChange, res }) {
               onChange={(v) => onCaseChange((d) => { d.frac.cEojKgM3 = v; })} />
             <Field label="Blender steps" value={f.nSteps} step={1}
               onChange={(v) => onCaseChange((d) => { d.frac.nSteps = Math.max(1, Math.round(v)); })} />
-            <label className="flex items-center justify-between gap-2 text-xs text-slate-300">
+            <label className="flex items-center justify-between gap-2 text-xs text-pl-text">
               <span>Proppant</span>
-              <select className="rounded border border-slate-700 bg-slate-900 px-1 py-0.5 text-xs"
+              <select className="rounded border border-pl-border-strong bg-pl-surface px-1 py-0.5 text-xs text-pl-text"
                 value={f.proppantName} data-testid="st-proppant"
                 onChange={(e) => onCaseChange((d) => { d.frac.proppantName = e.target.value; })}>
                 {PROPPANT_CATALOG.map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}
@@ -59,8 +59,8 @@ export default function ScheduleTab({ caseDraft, onCaseChange, res }) {
         </Card>
 
         <Card title="Nolte material balance" testId="st-balance-card">
-          {!bal ? <div className="text-xs text-slate-500">Fix the case inputs.</div> : (
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-300">
+          {!bal ? <div className="text-xs text-pl-muted">Fix the case inputs.</div> : (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-pl-text">
               <div>Pump time <span className="float-right font-mono" data-testid="st-ti">{(bal.tiS / 60).toFixed(1)} min</span></div>
               <div>Fluid efficiency <span className="float-right font-mono" data-testid="st-eta">{(bal.etaFrac * 100).toFixed(1)}%</span></div>
               <div>Slurry volume <span className="float-right font-mono">{bal.viM3.toFixed(1)} m3</span></div>
@@ -71,7 +71,7 @@ export default function ScheduleTab({ caseDraft, onCaseChange, res }) {
 
         <Card title="Pad + ramp (Nolte)" testId="st-pad-card">
           {sch && (
-            <div className="text-xs text-slate-300">
+            <div className="text-xs text-pl-text">
               <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                 <div>Pad fraction <span className="float-right font-mono" data-testid="st-pad">{(sch.padFrac * 100).toFixed(1)}%</span></div>
                 <div>Pad volume <span className="float-right font-mono">{sch.padM3.toFixed(1)} m3</span></div>
@@ -79,7 +79,7 @@ export default function ScheduleTab({ caseDraft, onCaseChange, res }) {
                 <div>Proppant mass <span className="float-right font-mono" data-testid="st-mass">{(sch.massKg / 1000).toFixed(1)} t</span></div>
               </div>
               <table className="mt-2 w-full text-[11px]">
-                <thead className="text-slate-500">
+                <thead className="text-pl-muted">
                   <tr>
                     <th className="px-1 py-1 text-left">Stage</th>
                     <th className="px-1 py-1 text-right">Start (min)</th>
@@ -89,7 +89,7 @@ export default function ScheduleTab({ caseDraft, onCaseChange, res }) {
                 </thead>
                 <tbody data-testid="st-schedule-rows">
                   {sch.steps.map((s, i) => (
-                    <tr key={i} className="border-t border-slate-800 text-slate-300">
+                    <tr key={i} className="border-t border-pl-border text-pl-text">
                       <td className="px-1 py-1">{i + 1}</td>
                       <td className="px-1 py-1 text-right font-mono">{(s.tStartS / 60).toFixed(1)}</td>
                       <td className="px-1 py-1 text-right font-mono">{(s.tEndS / 60).toFixed(1)}</td>
@@ -104,13 +104,13 @@ export default function ScheduleTab({ caseDraft, onCaseChange, res }) {
 
         <Card title="Propped fracture" testId="st-pack-card">
           {!pack ? (
-            <div className="text-xs text-amber-300">Needs the closure stress (publish the curves or set an override).</div>
+            <div className="text-xs text-pl-warning-text">Needs the closure stress (publish the curves or set an override).</div>
           ) : (
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-300">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-pl-text">
               <div>Pack permeability <span className="float-right font-mono" data-testid="st-kf">{(pack.kfM2 / DARCY_M2).toFixed(0)} D</span></div>
               <div>Propped width <span className="float-right font-mono" data-testid="st-wp">{(pack.wpM * 1000).toFixed(2)} mm</span></div>
               <div>Areal conc <span className="float-right font-mono">{pack.arealKgM2.toFixed(2)} kg/m2</span></div>
-              <div className="text-[10px] text-slate-500">nominal catalog data at closure; vendor cells govern</div>
+              <div className="text-[10px] text-pl-muted">nominal catalog data at closure; vendor cells govern</div>
             </div>
           )}
         </Card>
