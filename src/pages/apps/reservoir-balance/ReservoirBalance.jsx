@@ -26,6 +26,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 import { useToast } from '@/components/ui/use-toast';
 import StudioLayout from '@/components/studio/StudioLayout';
 import StudioHeader from '@/components/studio/StudioHeader';
@@ -47,6 +48,7 @@ import RbDiagnosticPlots from '@/components/reservoirbalance/RbDiagnosticPlots';
 import ValidationTierBadge from '@/components/reservoirbalance/ValidationTierBadge';
 import NewCaseDialog, { fluidSystemDisplay } from '@/components/reservoirbalance/NewCaseDialog';
 import MbsHelpContent from '@/components/reservoirbalance/MbsHelpContent';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { mapWellTestIntake } from './lib/wellTestIntake';
 
 const TABS = [
@@ -69,7 +71,7 @@ function formatNumber(n, opts = {}) {
 const Stat = ({ label, value, hint }) => (
   <div>
     <p className="text-xs text-muted-foreground">{label}</p>
-    <p className="text-xl font-semibold">{value}</p>
+    <p className="text-xl font-semibold font-pl-mono tabular-nums">{value}</p>
     {hint && <p className="text-xs text-muted-foreground mt-1">{hint}</p>}
   </div>
 );
@@ -77,7 +79,7 @@ const Stat = ({ label, value, hint }) => (
 const DriveIndex = ({ label, value }) => (
   <div className="border rounded-md p-3">
     <p className="text-xs text-muted-foreground">{label}</p>
-    <p className="text-base font-semibold mt-1">
+    <p className="text-base font-semibold mt-1 font-pl-mono tabular-nums">
       {value === null || value === undefined ? '—' : value.toFixed(3)}
     </p>
   </div>
@@ -90,32 +92,32 @@ const CaseSummary = ({ onEdit }) => {
   const fluid = fluidSystemDisplay(caseData.fluid_system);
   const FluidIcon = fluid.icon;
   return (
-    <section className="rounded-lg border border-slate-800 bg-slate-900 p-3 space-y-2">
+    <section className="rounded-lg border border-pl-border bg-pl-surface p-3 space-y-2">
       <div className="flex items-center gap-2">
         <FluidIcon className={`h-4 w-4 shrink-0 ${fluid.color}`} />
-        <span className="text-sm font-medium text-slate-200 truncate min-w-0 flex-1">{caseData.name}</span>
+        <span className="text-sm font-medium text-pl-text truncate min-w-0 flex-1">{caseData.name}</span>
         {onEdit && (
           <button type="button" onClick={onEdit} data-testid="mbal-edit-case"
-            className="shrink-0 text-[11px] text-cyan-300 hover:underline">Edit case</button>
+            className="shrink-0 text-[11px] text-pl-primary-text hover:text-pl-primary-text-hover hover:underline">Edit case</button>
         )}
       </div>
-      <p className="text-[11px] text-slate-500">
+      <p className="text-[11px] text-pl-muted">
         {caseData.field_name || 'No field'}
         {caseData.reservoir_name && ` / ${caseData.reservoir_name}`}
       </p>
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
-        <span className="text-slate-500">Initial P</span>
-        <span className="text-slate-300 text-right">{formatNumber(caseData.initial_pressure_psia)} psia</span>
-        <span className="text-slate-500">Temperature</span>
-        <span className="text-slate-300 text-right">{formatNumber(caseData.reservoir_temperature_f)} °F</span>
-        <span className="text-slate-500">Initial Sw</span>
-        <span className="text-slate-300 text-right">{formatNumber(caseData.initial_water_saturation, { decimals: 3 })}</span>
-        <span className="text-slate-500">Bubble point</span>
-        <span className="text-slate-300 text-right">
+        <span className="text-pl-muted">Initial P</span>
+        <span className="text-pl-text text-right">{formatNumber(caseData.initial_pressure_psia)} psia</span>
+        <span className="text-pl-muted">Temperature</span>
+        <span className="text-pl-text text-right">{formatNumber(caseData.reservoir_temperature_f)} °F</span>
+        <span className="text-pl-muted">Initial Sw</span>
+        <span className="text-pl-text text-right">{formatNumber(caseData.initial_water_saturation, { decimals: 3 })}</span>
+        <span className="text-pl-muted">Bubble point</span>
+        <span className="text-pl-text text-right">
           {caseData.bubble_point_psia ? `${formatNumber(caseData.bubble_point_psia)} psia` : '—'}
         </span>
-        <span className="text-slate-500">Data rows</span>
-        <span className="text-slate-300 text-right">{caseData.production_data?.length ?? 0}</span>
+        <span className="text-pl-muted">Data rows</span>
+        <span className="text-pl-text text-right">{caseData.production_data?.length ?? 0}</span>
       </div>
     </section>
   );
@@ -176,7 +178,7 @@ const RunPanel = () => {
                   tolerancePct={lastResult.validation_tolerance_pct}
                 />
               ) : (
-                <CheckCircle2 className="h-6 w-6 text-green-500" />
+                <CheckCircle2 className="h-6 w-6 text-pl-success-text" />
               )}
             </div>
           </CardHeader>
@@ -233,7 +235,7 @@ const RunPanel = () => {
             </div>
 
             {lastResult.warnings && lastResult.warnings.length > 0 && (
-              <Alert className="mt-6">
+              <Alert variant="warning" className="mt-6">
                 <Info className="h-4 w-4" />
                 <AlertTitle>Engine warnings</AlertTitle>
                 <AlertDescription>
@@ -254,9 +256,9 @@ const RunPanel = () => {
 
 const NoCaseSelected = ({ onCreate }) => (
   <div className="flex flex-col items-center justify-center h-full py-24 text-center">
-    <Database className="h-12 w-12 text-slate-700 mb-4" />
-    <h3 className="text-lg font-semibold text-slate-200 mb-1">No case open</h3>
-    <p className="text-sm text-slate-500 max-w-md mb-6">
+    <Database className="h-12 w-12 text-pl-muted mb-4" />
+    <h3 className="text-lg font-semibold text-pl-text mb-1">No case open</h3>
+    <p className="text-sm text-pl-muted max-w-md mb-6">
       Select a case in the left rail, or create a new material balance study to estimate OOIP, drive mechanism and aquifer support from production history.
     </p>
     <Button onClick={onCreate}>Create a case</Button>
@@ -318,12 +320,12 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
           confirmDeleteMessage="Delete this case? Its production data, run configs, runs and results are removed permanently. This cannot be undone."
         />
         {casesError && (
-          <p className="text-[11px] text-red-400 mt-2">{casesError}</p>
+          <p className="text-[11px] text-pl-danger-text mt-2">{casesError}</p>
         )}
       </section>
       <CaseSummary onEdit={() => setEditCaseOpen(true)} />
       {caseData && (
-        <p className="text-[11px] text-slate-500 leading-relaxed">
+        <p className="text-[11px] text-pl-muted leading-relaxed">
           Edits on every tab save straight to the case database when you apply them. Results always come from a fresh engine run, never from stored numbers.
         </p>
       )}
@@ -334,7 +336,7 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
     <NoCaseSelected onCreate={openCreate} />
   ) : caseLoading ? (
     <div className="flex items-center justify-center h-full">
-      <Loader2 className="h-6 w-6 animate-spin text-slate-500" />
+      <Loader2 className="h-6 w-6 animate-spin text-pl-muted" />
     </div>
   ) : caseError || !caseData ? (
     <Alert variant="destructive" className="max-w-xl">
@@ -355,21 +357,14 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
       )}
       {activeTab === 'aquifer' && (
         <div className="space-y-4">
-          <div className="flex gap-2">
-            {[['model', 'Model'], ['screening', 'Screening']].map(([seg, label]) => (
-              <button
-                key={seg}
-                onClick={() => setAquiferSegment(seg)}
-                className={`px-4 py-1.5 rounded-md text-sm border transition-colors ${
-                  aquiferSegment === seg
-                    ? 'bg-emerald-700 border-emerald-600 text-white'
-                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-            <p className="text-[11px] text-slate-500 self-center ml-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <SegmentedControl
+              label="Aquifer view"
+              value={aquiferSegment}
+              onValueChange={setAquiferSegment}
+              options={[['model', 'Model'], ['screening', 'Screening']].map(([v, l]) => ({ value: v, label: l }))}
+            />
+            <p className="text-[11px] text-pl-muted min-w-0 basis-full sm:basis-0 sm:flex-1">
               Model drives the engine run; Screening explores influx client-side and can write its parameters into the model.
             </p>
           </div>
@@ -382,21 +377,14 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
       )}
       {activeTab === 'run' && (
         <div className="space-y-4">
-          <div className="flex gap-2">
-            {[['regression', 'Regression'], ['match', 'History match']].map(([seg, label]) => (
-              <button
-                key={seg}
-                onClick={() => setRunSegment(seg)}
-                className={`px-4 py-1.5 rounded-md text-sm border transition-colors ${
-                  runSegment === seg
-                    ? 'bg-emerald-700 border-emerald-600 text-white'
-                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-            <p className="text-[11px] text-slate-500 self-center ml-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <SegmentedControl
+              label="Run mode"
+              value={runSegment}
+              onValueChange={setRunSegment}
+              options={[['regression', 'Regression'], ['match', 'History match']].map(([v, l]) => ({ value: v, label: l }))}
+            />
+            <p className="text-[11px] text-pl-muted min-w-0 basis-full sm:basis-0 sm:flex-1">
               Regression solves OOIP or OGIP from the observed pressures; History match simulates pressures from candidate parameters and fits them to the observations.
             </p>
           </div>
@@ -427,7 +415,6 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
             backTo="/dashboard/reservoir"
             backTitle="Back to Reservoir Management"
             icon={Scale}
-            iconGradientClass="from-emerald-600 to-teal-600"
             title="Material Balance Studio"
             tabs={TABS}
             activeTab={activeTab}
@@ -479,9 +466,14 @@ export default function ReservoirBalance() {
     else navigate(basePath);
   };
 
+  // Design system rollout batch 1A (docs/scope/DesignSystem-Rollout.md):
+  // the page wraps itself in <ThemedApp>, so it opens light and the header
+  // toggle switches it to dark per user. Charts keep the white standard.
   return (
-    <MaterialBalanceStudioProvider caseId={caseId ?? null} onOpenCase={handleOpenCase}>
-      <MaterialBalanceStudioContent onOpenCase={handleOpenCase} />
-    </MaterialBalanceStudioProvider>
+    <ThemedApp data-testid="mbal-theme-scope">
+      <MaterialBalanceStudioProvider caseId={caseId ?? null} onOpenCase={handleOpenCase}>
+        <MaterialBalanceStudioContent onOpenCase={handleOpenCase} />
+      </MaterialBalanceStudioProvider>
+    </ThemedApp>
   );
 }

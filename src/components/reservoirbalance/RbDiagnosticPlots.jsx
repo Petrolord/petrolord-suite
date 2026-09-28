@@ -189,7 +189,7 @@ const ExportButton = ({ elementId, filename }) => (
     onClick={() => exportChartAsImage(elementId, filename)}
     variant="ghost"
     size="sm"
-    className="h-7 px-2 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+    className="h-7 px-2 text-xs text-pl-muted hover:text-pl-text hover:bg-pl-sunken"
     title="Export plot as PNG"
   >
     <Download className="h-3.5 w-3.5 mr-1" />
@@ -199,12 +199,12 @@ const ExportButton = ({ elementId, filename }) => (
 
 const DetailRow = ({ label, value, unit, accent }) => (
   <div className="flex justify-between items-baseline gap-2 text-[11px]">
-    <span className="text-slate-600">{label}</span>
+    <span className="text-pl-muted">{label}</span>
     <span
-      className={`font-mono ${accent ? 'text-amber-700 font-semibold' : 'text-slate-800'}`}
+      className={`font-mono ${accent ? 'text-pl-accent-text font-semibold' : 'text-pl-text'}`}
     >
       {value}
-      <span className="text-[10px] text-slate-500 ml-1">{unit}</span>
+      <span className="text-[10px] text-pl-muted ml-1">{unit}</span>
     </span>
   </div>
 );
@@ -225,21 +225,21 @@ const TimestepDetailPanel = ({ row, isGas, onClose }) => {
   };
 
   const fitBadge = row.point_in_fit ? (
-    <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-800 font-semibold">
+    <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-pl-info-bg text-pl-info-text font-semibold">
       In fit
     </span>
   ) : (
-    <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-200 text-slate-600 font-semibold">
+    <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-pl-sunken text-pl-muted font-semibold">
       Excluded
     </span>
   );
 
   return (
-    <div className="border-t border-slate-200 bg-slate-50 px-4 py-3">
+    <div className="border-t border-pl-border bg-pl-sunken px-4 py-3">
       <div className="flex items-start justify-between mb-2 gap-2">
         <div className="flex items-center gap-2">
-          <Info className="w-3.5 h-3.5 text-cyan-600" />
-          <span className="text-xs font-semibold text-slate-700">
+          <Info className="w-3.5 h-3.5 text-pl-info-text" />
+          <span className="text-xs font-semibold text-pl-text">
             Timestep {row.timestep_index}
           </span>
           {fitBadge}
@@ -248,7 +248,7 @@ const TimestepDetailPanel = ({ row, isGas, onClose }) => {
           onClick={onClose}
           variant="ghost"
           size="sm"
-          className="h-6 w-6 p-0 text-slate-400 hover:text-slate-700 hover:bg-slate-200"
+          className="h-6 w-6 p-0 text-pl-muted hover:text-pl-text hover:bg-pl-border"
           aria-label="Close detail panel"
         >
           <X className="w-3.5 h-3.5" />
@@ -257,7 +257,7 @@ const TimestepDetailPanel = ({ row, isGas, onClose }) => {
 
       <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
         <div className="space-y-1">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-0.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-pl-muted mb-0.5">
             Reservoir state
           </p>
           <DetailRow label="Pressure" value={fmt(row.pressure, 1)} unit="psia" />
@@ -278,7 +278,7 @@ const TimestepDetailPanel = ({ row, isGas, onClose }) => {
         </div>
 
         <div className="space-y-1">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-0.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-pl-muted mb-0.5">
             MBE terms
           </p>
           <DetailRow label="F (voidage)" value={fmt(row.F)} unit="rb" />
@@ -294,7 +294,7 @@ const TimestepDetailPanel = ({ row, isGas, onClose }) => {
           {row.We != null && (
             <DetailRow label="We (water influx)" value={fmt(row.We, 0)} unit="rb" />
           )}
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mt-2 mb-0.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-pl-muted mt-2 mb-0.5">
             Drive indices
           </p>
           {!isGas && row.ddi != null && (
@@ -378,15 +378,15 @@ const HavlenaOdehPlot = ({ rows, result, isGas, caseName }) => {
   const slopeForLabel = result?.regression_slope;
 
   return (
-    <Card className="bg-white border-slate-200">
-      <CardHeader className="pb-2 border-b border-slate-200">
+    <Card data-canvas="chart" className="bg-pl-chart-surface">
+      <CardHeader className="pb-2 border-b border-pl-border">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1">
-            <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-              <FlaskConical className="w-4 h-4 text-cyan-600" />
+            <CardTitle className="text-sm font-semibold text-pl-text flex items-center gap-2">
+              <FlaskConical className="w-4 h-4 text-pl-muted" />
               Havlena-Odeh: F vs Et
             </CardTitle>
-            <CardDescription className="text-xs text-slate-500">
+            <CardDescription className="text-xs text-pl-muted">
               Reservoir voidage vs total expansion. For a depletion-drive case the points should lie on a straight line through the origin whose slope is {isGas ? 'OGIP' : 'OOIP'}; the fitted line carries a free intercept, shown in the box, and an intercept far from zero points to an unmodelled drive or data error. With aquifer support the points curve upward.
             </CardDescription>
           </div>
@@ -482,25 +482,25 @@ const HavlenaOdehPlot = ({ rows, result, isGas, caseName }) => {
           </ResponsiveContainer>
           <ChartLogo style={MBAL_LOGO_STYLE} />
           {/* Annotation box top-right */}
-          <div className="absolute top-3 right-3 bg-white/95 border border-slate-300 rounded px-3 py-2 text-[11px] font-mono leading-relaxed shadow-sm">
-            <div className="text-slate-700">
+          <div className="absolute top-3 right-3 bg-pl-chart-surface/95 border border-pl-border rounded px-3 py-2 text-[11px] font-mono leading-relaxed shadow-sm">
+            <div className="text-pl-text">
               R² = <span className="font-semibold">{r2?.toFixed(4) ?? '—'}</span>
             </div>
-            <div className="text-slate-700">
+            <div className="text-pl-text">
               slope = <span className="font-semibold">{slopeForLabel != null ? slopeForLabel.toExponential(3) : '—'}</span>
             </div>
             {Number.isFinite(result?.regression_intercept) && (
-              <div className="text-slate-700" data-testid="rb-ho-intercept">
+              <div className="text-pl-text" data-testid="rb-ho-intercept">
                 intercept = <span className="font-semibold">{result.regression_intercept.toExponential(2)} bbl</span>
               </div>
             )}
             {ooipMmstb != null && (
-              <div className="text-slate-700">
+              <div className="text-pl-text">
                 OOIP = <span className="font-semibold">{ooipMmstb.toFixed(2)} MM STB</span>
               </div>
             )}
             {ogipBcf != null && (
-              <div className="text-slate-700">
+              <div className="text-pl-text">
                 OGIP = <span className="font-semibold">{ogipBcf.toFixed(2)} Bcf</span>
               </div>
             )}
@@ -583,15 +583,15 @@ const PZPlot = ({ rows, result, caseName, ramagost }) => {
   const ogipBcf = (result?.estimated_ogip_scf ?? 0) / 1e9;
 
   return (
-    <Card className="bg-white border-slate-200">
-      <CardHeader className="pb-2 border-b border-slate-200">
+    <Card data-canvas="chart" className="bg-pl-chart-surface">
+      <CardHeader className="pb-2 border-b border-pl-border">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1">
-            <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-              <FlaskConical className="w-4 h-4 text-cyan-600" />
+            <CardTitle className="text-sm font-semibold text-pl-text flex items-center gap-2">
+              <FlaskConical className="w-4 h-4 text-pl-muted" />
               p/z plot
             </CardTitle>
-            <CardDescription className="text-xs text-slate-500">
+            <CardDescription className="text-xs text-pl-muted">
               Classic gas reservoir diagnostic. Linear p/z vs Gp extrapolates to apparent OGIP at p/z=0. With aquifer support the extrapolation overestimates because water influx props up pressure. The dashed purple series is the Ramagost-Farshad correction (p/z scaled by 1 minus the rock and water compressibility term); it matters for abnormally pressured reservoirs where compaction bends the raw curve.
             </CardDescription>
           </div>
@@ -700,17 +700,17 @@ const PZPlot = ({ rows, result, caseName, ramagost }) => {
             </ComposedChart>
           </ResponsiveContainer>
           <ChartLogo style={MBAL_LOGO_STYLE} />
-          <div className="absolute top-3 right-3 bg-white/95 border border-slate-300 rounded px-3 py-2 text-[11px] font-mono leading-relaxed shadow-sm">
+          <div className="absolute top-3 right-3 bg-pl-chart-surface/95 border border-pl-border rounded px-3 py-2 text-[11px] font-mono leading-relaxed shadow-sm">
             {apparentOgipBcf != null && (
-              <div className="text-slate-700">
+              <div className="text-pl-text">
                 p/z extrap: <span className="font-semibold">{apparentOgipBcf.toFixed(2)} Bcf</span>
               </div>
             )}
-            <div className="text-slate-700">
+            <div className="text-pl-text">
               MBAL OGIP: <span className="font-semibold">{ogipBcf.toFixed(2)} Bcf</span>
             </div>
             {apparentOgipBcf != null && (
-              <div className="text-[10px] text-slate-500 italic mt-1">
+              <div className="text-[10px] text-pl-muted italic mt-1">
                 {apparentOgipBcf > ogipBcf * 1.02
                   ? '↑ p/z overestimates — aquifer support present'
                   : 'p/z agrees with MBAL — likely depletion drive'}
@@ -771,15 +771,15 @@ const ColePlot = ({ rows, result, caseName }) => {
   const ogipBcf = (result?.estimated_ogip_scf ?? 0) / 1e9;
 
   return (
-    <Card className="bg-white border-slate-200">
-      <CardHeader className="pb-2 border-b border-slate-200">
+    <Card data-canvas="chart" className="bg-pl-chart-surface">
+      <CardHeader className="pb-2 border-b border-pl-border">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1">
-            <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-              <FlaskConical className="w-4 h-4 text-cyan-600" />
+            <CardTitle className="text-sm font-semibold text-pl-text flex items-center gap-2">
+              <FlaskConical className="w-4 h-4 text-pl-muted" />
               Cole plot
             </CardTitle>
-            <CardDescription className="text-xs text-slate-500">
+            <CardDescription className="text-xs text-pl-muted">
               Diagnostic for aquifer presence. Horizontal line = depletion drive; positive slope = strong waterdrive; negative slope = weak waterdrive (apparent OGIP decreases with time). The dashed red line shows the MBAL-derived OGIP for reference.
             </CardDescription>
           </div>
@@ -924,15 +924,15 @@ const CampbellPlot = ({ rows, result, caseName }) => {
   const ooipMmstb = (result?.estimated_ooip_stb ?? 0) / 1e6;
 
   return (
-    <Card className="bg-white border-slate-200">
-      <CardHeader className="pb-2 border-b border-slate-200">
+    <Card data-canvas="chart" className="bg-pl-chart-surface">
+      <CardHeader className="pb-2 border-b border-pl-border">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1">
-            <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-              <FlaskConical className="w-4 h-4 text-cyan-600" />
+            <CardTitle className="text-sm font-semibold text-pl-text flex items-center gap-2">
+              <FlaskConical className="w-4 h-4 text-pl-muted" />
               Campbell plot
             </CardTitle>
-            <CardDescription className="text-xs text-slate-500">
+            <CardDescription className="text-xs text-pl-muted">
               Oil-side equivalent of the Cole plot. Horizontal = depletion drive; positive slope = strong waterdrive; negative slope = weak waterdrive. The dashed red line shows the MBAL-derived OOIP for reference.
             </CardDescription>
           </div>
@@ -1074,15 +1074,15 @@ const DriveIndicesPlot = ({ rows, isGas, caseName }) => {
   );
 
   return (
-    <Card className="bg-white border-slate-200">
-      <CardHeader className="pb-2 border-b border-slate-200">
+    <Card data-canvas="chart" className="bg-pl-chart-surface">
+      <CardHeader className="pb-2 border-b border-pl-border">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1">
-            <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-              <FlaskConical className="w-4 h-4 text-cyan-600" />
+            <CardTitle className="text-sm font-semibold text-pl-text flex items-center gap-2">
+              <FlaskConical className="w-4 h-4 text-pl-muted" />
               Drive indices by timestep
             </CardTitle>
-            <CardDescription className="text-xs text-slate-500">
+            <CardDescription className="text-xs text-pl-muted">
               {isGas
                 ? 'Gas drive (GDI) + rock/water compressibility (CDI) + water drive (WDI) = 1.0 for a correctly-solved material balance.'
                 : 'Depletion drive (DDI) + gas-cap drive (GDI) + rock/water compressibility (CDI) + water drive (WDI) = 1.0 for a correctly-solved material balance.'}
@@ -1283,9 +1283,9 @@ const RbDiagnosticPlots = ({ caseId, caseData, runVersion = 0 }) => {
   // ── Loading ──
   if (loading) {
     return (
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card>
         <CardContent className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-pl-muted" />
         </CardContent>
       </Card>
     );
@@ -1294,8 +1294,8 @@ const RbDiagnosticPlots = ({ caseId, caseData, runVersion = 0 }) => {
   // ── No case data ──
   if (!caseData) {
     return (
-      <Card className="bg-slate-800/50 border-slate-700">
-        <CardContent className="py-12 text-center text-slate-400">
+      <Card>
+        <CardContent className="py-12 text-center text-pl-muted">
           No case data. Diagnostic plots require an active case.
         </CardContent>
       </Card>
@@ -1305,11 +1305,11 @@ const RbDiagnosticPlots = ({ caseId, caseData, runVersion = 0 }) => {
   // ── No run yet ──
   if (!result) {
     return (
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card>
         <CardContent className="py-12 text-center">
-          <Info className="w-10 h-10 mx-auto text-slate-500 mb-3" />
-          <p className="text-slate-300 font-medium">No MBAL results yet</p>
-          <p className="text-sm text-slate-500 mt-1">
+          <Info className="w-10 h-10 mx-auto text-pl-muted mb-3" />
+          <p className="text-pl-text font-medium">No MBAL results yet</p>
+          <p className="text-sm text-pl-muted mt-1">
             Go to the Run tab and click Run MBAL. Diagnostic plots will appear here once a run completes.
           </p>
         </CardContent>
@@ -1330,11 +1330,11 @@ const RbDiagnosticPlots = ({ caseId, caseData, runVersion = 0 }) => {
   // ── Insufficient plot data ──
   if (!result.plot_data || (result.plot_data.timestep_index?.length ?? 0) < 2) {
     return (
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card>
         <CardContent className="py-12 text-center">
-          <Info className="w-10 h-10 mx-auto text-amber-500 mb-3" />
-          <p className="text-slate-300 font-medium">Insufficient data for plots</p>
-          <p className="text-sm text-slate-500 mt-1">
+          <Info className="w-10 h-10 mx-auto text-pl-warning-text mb-3" />
+          <p className="text-pl-text font-medium">Insufficient data for plots</p>
+          <p className="text-sm text-pl-muted mt-1">
             The latest run completed but its plot data has fewer than 2 timesteps. Re-run with more production observations.
           </p>
         </CardContent>
@@ -1348,10 +1348,10 @@ const RbDiagnosticPlots = ({ caseId, caseData, runVersion = 0 }) => {
   return (
     <div className="space-y-4">
       {/* Header card — summary + refresh */}
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card>
         <CardHeader className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <CardTitle className="text-lime-300">Diagnostic Plots</CardTitle>
+            <CardTitle>Diagnostic Plots</CardTitle>
             <CardDescription>
               Five plots derived from the latest MBAL run on this case.
               {' '}{isGas ? 'Gas reservoir: showing F vs Et, p/z, Cole, and drive indices.' : 'Oil reservoir: showing F vs Et, Campbell, and drive indices.'}
@@ -1362,7 +1362,6 @@ const RbDiagnosticPlots = ({ caseId, caseData, runVersion = 0 }) => {
             onClick={() => setRefreshTick((n) => n + 1)}
             variant="outline"
             size="sm"
-            className="border-slate-600"
           >
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
@@ -1387,10 +1386,10 @@ const RbDiagnosticPlots = ({ caseId, caseData, runVersion = 0 }) => {
       </div>
 
       {/* Honest footer note */}
-      <Alert className="bg-slate-800/40 border-slate-700">
+      <Alert>
         <Info className="h-4 w-4" />
-        <AlertTitle className="text-sm text-slate-300">About these plots</AlertTitle>
-        <AlertDescription className="text-xs text-slate-400 leading-relaxed">
+        <AlertTitle className="text-sm text-pl-text">About these plots</AlertTitle>
+        <AlertDescription className="text-xs text-pl-muted leading-relaxed">
           Hollow circles are points excluded from the regression fit (typically early-time points where the straight-line trend hasn't fully developed). Filled circles are the points used. The dashed red reference line on Campbell/Cole plots shows the MBAL-derived OOIP/OGIP for visual comparison with the apparent value the plot would suggest at each timestep.
         </AlertDescription>
       </Alert>
