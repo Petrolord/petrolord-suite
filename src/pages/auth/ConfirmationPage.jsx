@@ -6,6 +6,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Mail, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Helmet } from 'react-helmet';
+import { PublicPage } from '@/components/public/PublicPage';
 
 const ConfirmationPage = () => {
   const location = useLocation();
@@ -45,20 +46,20 @@ const ConfirmationPage = () => {
       <Helmet>
         <title>Check Your Email - Petrolord</title>
       </Helmet>
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 text-white">
-        <Card className="w-full max-w-md bg-slate-900 border-slate-800 shadow-2xl">
+      <div className="flex flex-1 flex-col items-center justify-center px-4 py-10 sm:py-16">
+        <Card className="w-full max-w-md rounded-2xl bg-pl-raised shadow-pl-lg">
           <CardHeader className="text-center pb-2">
-            <div className="mx-auto w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mb-4">
-              <Mail className="w-8 h-8 text-blue-400" />
+            <div className="mx-auto w-16 h-16 bg-pl-sunken rounded-full flex items-center justify-center mb-4">
+              <Mail className="w-8 h-8 text-pl-primary-text" aria-hidden="true" />
             </div>
-            <CardTitle className="text-2xl font-bold text-white">Check Your Email</CardTitle>
-            <CardDescription className="text-slate-400 text-base mt-2">
+            <CardTitle className="font-pl-display text-3xl font-semibold text-pl-text">Check Your Email</CardTitle>
+            <CardDescription className="text-base mt-2">
               We've sent a confirmation link to <br/>
-              <span className="font-semibold text-white">{email || 'your email address'}</span>
+              <span className="font-semibold text-pl-text">{email || 'your email address'}</span>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 pt-6 text-center">
-            <div className="text-sm text-slate-400 bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+            <div className="text-sm text-pl-muted bg-pl-surface p-4 rounded-lg border border-pl-border">
               <p className="mb-2">Please click the link in the email to verify your account and access the dashboard.</p>
               <p>Can't find it? Check your spam folder.</p>
             </div>
@@ -66,7 +67,7 @@ const ConfirmationPage = () => {
             <div className="space-y-3">
               <Button 
                 variant="outline" 
-                className="w-full border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800"
+                className="w-full"
                 onClick={handleResend}
                 disabled={resending || !email}
               >
@@ -75,7 +76,7 @@ const ConfirmationPage = () => {
               </Button>
               
               <Link to="/login" className="block w-full">
-                <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                <Button className="w-full font-semibold">
                   Back to Login
                 </Button>
               </Link>
@@ -87,4 +88,11 @@ const ConfirmationPage = () => {
   );
 };
 
-export default ConfirmationPage;
+// Batch 7C: the page wraps itself in the public frame (light, brand bar).
+const ConfirmationPagePage = () => (
+  <PublicPage testId="confirmation-theme-scope">
+    <ConfirmationPage />
+  </PublicPage>
+);
+
+export default ConfirmationPagePage;

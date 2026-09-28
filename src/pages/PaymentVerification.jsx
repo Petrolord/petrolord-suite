@@ -5,6 +5,7 @@ import { Loader2, CheckCircle, XCircle, ArrowRight, RefreshCw, Home, AlertTriang
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
+import { PublicPage } from '@/components/public/PublicPage';
 
 const PaymentVerification = () => {
   const [searchParams] = useSearchParams();
@@ -136,15 +137,11 @@ const PaymentVerification = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md bg-slate-900 border-slate-800 shadow-2xl relative overflow-hidden">
-        {/* Decorative background blur */}
-        <div className="absolute top-[-50px] right-[-50px] w-32 h-32 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-[-50px] left-[-50px] w-32 h-32 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
-
+    <div className="flex flex-1 items-center justify-center px-4 py-10 sm:py-16">
+      <Card className="w-full max-w-md rounded-2xl bg-pl-raised shadow-pl-lg relative overflow-hidden">
         <CardHeader className="text-center pb-2">
-          <CardTitle className="text-white text-2xl">Payment Verification</CardTitle>
-          <CardDescription className="text-slate-400">Reference: <span className="font-mono text-xs bg-slate-800 px-1 rounded">{txnKey}</span></CardDescription>
+          <CardTitle className="font-pl-display text-3xl font-semibold text-pl-text">Payment Verification</CardTitle>
+          <CardDescription>Reference: <span className="font-pl-mono text-xs bg-pl-sunken text-pl-text px-1 rounded">{txnKey}</span></CardDescription>
         </CardHeader>
         
         <CardContent className="flex flex-col items-center text-center space-y-8 pt-6">
@@ -152,28 +149,28 @@ const PaymentVerification = () => {
           {(status === 'verifying' || status === 'pending') && (
             <div className="flex flex-col items-center animate-in fade-in duration-500">
               <div className="relative">
-                <div className="w-20 h-20 border-4 border-slate-800 rounded-full"></div>
-                <div className="w-20 h-20 border-4 border-t-blue-500 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin absolute top-0 left-0"></div>
-                <Loader2 className="w-8 h-8 text-blue-500 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-pulse" />
+                <div className="w-20 h-20 border-4 border-pl-sunken rounded-full"></div>
+                <div className="w-20 h-20 border-4 border-t-pl-primary border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin absolute top-0 left-0"></div>
+                <Loader2 className="w-8 h-8 text-pl-primary-text absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-pulse" />
               </div>
-              <p className="text-slate-300 mt-6 text-lg font-medium">{message}</p>
-              <p className="text-slate-500 text-sm mt-2">Checking payment status...</p>
+              <p className="text-pl-text mt-6 text-lg font-medium">{message}</p>
+              <p className="text-pl-muted text-sm mt-2">Checking payment status...</p>
             </div>
           )}
 
           {status === 'success' && (
             <div className="flex flex-col items-center animate-in zoom-in duration-300">
-              <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mb-4 ring-4 ring-green-500/10">
-                <CheckCircle className="w-10 h-10 text-green-500" />
+              <div className="w-20 h-20 bg-pl-success-bg rounded-full flex items-center justify-center mb-4 ring-4 ring-pl-success/10">
+                <CheckCircle className="w-10 h-10 text-pl-success" aria-hidden="true" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">Activation Complete</h3>
-              <p className="text-slate-400 mb-8 max-w-xs">{message}</p>
+              <h3 className="text-xl font-semibold text-pl-success-text mb-2">Activation Complete</h3>
+              <p className="text-pl-muted mb-8 max-w-xs">{message}</p>
               
               <div className="grid gap-3 w-full">
-                <Button className="w-full bg-blue-600 hover:bg-blue-700 h-12 text-md font-medium shadow-lg shadow-blue-900/20" onClick={() => navigate('/dashboard/subscriptions')}>
+                <Button className="w-full h-12 text-base font-semibold" onClick={() => navigate('/dashboard/subscriptions')}>
                   Go to Subscription Dashboard <ArrowRight className="w-4 h-4 ml-2"/>
                 </Button>
-                <Button variant="outline" className="w-full border-slate-700 text-slate-300 hover:text-white" onClick={() => navigate('/dashboard/modules')}>
+                <Button variant="outline" className="w-full" onClick={() => navigate('/dashboard/modules')}>
                   View Unlocked Apps
                 </Button>
               </div>
@@ -182,28 +179,28 @@ const PaymentVerification = () => {
 
           {status === 'error' && (
             <div className="flex flex-col items-center animate-in zoom-in duration-300 w-full">
-              <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mb-4 ring-4 ring-red-500/10">
-                <XCircle className="w-10 h-10 text-red-500" />
+              <div className="w-20 h-20 bg-pl-danger-bg rounded-full flex items-center justify-center mb-4 ring-4 ring-pl-danger/10">
+                <XCircle className="w-10 h-10 text-pl-danger" aria-hidden="true" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">Verification Failed</h3>
-              <p className="text-slate-300 mb-2 max-w-xs font-medium">{message}</p>
+              <h3 className="text-xl font-semibold text-pl-danger-text mb-2">Verification Failed</h3>
+              <p className="text-pl-text mb-2 max-w-xs font-medium">{message}</p>
               
               {errorDetails && (
-                <div className="bg-red-950/30 border border-red-900/50 p-3 rounded mb-6 text-xs text-red-200 w-full max-w-xs flex items-start gap-2 text-left">
+                <div className="bg-pl-danger-bg border border-pl-danger/30 p-3 rounded mb-6 text-xs text-pl-danger-text w-full max-w-xs flex items-start gap-2 text-left">
                     <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                     <span>{errorDetails}</span>
                 </div>
               )}
               
               <div className="flex flex-col gap-3 w-full">
-                <Button className="w-full bg-slate-800 hover:bg-slate-700 text-white" onClick={handleManualRetry}>
+                <Button variant="secondary" className="w-full" onClick={handleManualRetry}>
                   <RefreshCw className="w-4 h-4 mr-2"/> Retry Verification
                 </Button>
                 <div className="flex gap-3">
-                    <Button variant="outline" className="flex-1 border-slate-700 hover:bg-slate-800 text-slate-300" onClick={() => navigate('/dashboard')}>
+                    <Button variant="outline" className="flex-1" onClick={() => navigate('/dashboard')}>
                         <Home className="w-4 h-4 mr-2"/> Dashboard
                     </Button>
-                    <Button variant="outline" className="flex-1 border-slate-700 hover:bg-slate-800 text-slate-300" onClick={() => window.location.href = 'mailto:support@petrolord.com'}>
+                    <Button variant="outline" className="flex-1" onClick={() => window.location.href = 'mailto:support@petrolord.com'}>
                         Contact Support
                     </Button>
                 </div>
@@ -217,4 +214,11 @@ const PaymentVerification = () => {
   );
 };
 
-export default PaymentVerification;
+// Batch 7C: the page wraps itself in the public frame (light, brand bar).
+const PaymentVerificationPage = () => (
+  <PublicPage testId="payment-verification-theme-scope">
+    <PaymentVerification />
+  </PublicPage>
+);
+
+export default PaymentVerificationPage;

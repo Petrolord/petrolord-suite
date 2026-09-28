@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
 import { KeyRound, Loader2, UserCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Helmet } from 'react-helmet';
+import { PublicPage, AUTH_CARD, AUTH_TITLE } from '@/components/public/PublicPage';
 
 const SetPassword = () => {
   const [searchParams] = useSearchParams();
@@ -256,19 +257,19 @@ const SetPassword = () => {
           <title>Validating Invitation - Petrolord</title>
           <meta name="description" content="Validating your invitation link..." />
         </Helmet>
-        <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4">
+        <div className="flex flex-1 items-center justify-center px-4 py-10 sm:py-16">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
             className="w-full max-w-md"
           >
-            <div className="bg-slate-800/50 backdrop-blur-lg border border-slate-700 rounded-2xl p-8 shadow-2xl">
+            <div className={AUTH_CARD}>
               <div className="text-center">
-                <Loader2 className="h-12 w-12 animate-spin text-lime-400 mx-auto mb-4" />
-                <h1 className="text-2xl font-bold text-lime-300">Validating Invitation</h1>
-                <p className="text-slate-400 mt-4">Please wait while we verify your invitation link...</p>
-                <p className="text-slate-500 text-sm mt-2">Ensure you have accessed this page via your invitation email.</p>
+                <Loader2 className="h-12 w-12 animate-spin text-pl-primary-text mx-auto mb-4" />
+                <h1 className={AUTH_TITLE}>Validating Invitation</h1>
+                <p className="text-pl-muted mt-4">Please wait while we verify your invitation link...</p>
+                <p className="text-pl-muted text-sm mt-2">Ensure you have accessed this page via your invitation email.</p>
               </div>
             </div>
           </motion.div>
@@ -285,31 +286,31 @@ const SetPassword = () => {
           <title>Account Activated - Petrolord</title>
           <meta name="description" content="Your account has been successfully activated." />
         </Helmet>
-        <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4">
+        <div className="flex flex-1 items-center justify-center px-4 py-10 sm:py-16">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
             className="w-full max-w-md"
           >
-            <div className="bg-slate-800/50 backdrop-blur-lg border border-lime-700/30 rounded-2xl p-8 shadow-2xl">
+            <div className={AUTH_CARD}>
               <div className="text-center mb-8">
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ duration: 0.5, delay: 0.2 }}
                 >
-                  <CheckCircle2 className="h-16 w-16 text-lime-400 mx-auto mb-4" />
+                  <CheckCircle2 className="h-16 w-16 text-pl-success mx-auto mb-4" aria-hidden="true" />
                 </motion.div>
-                <h1 className="text-3xl font-bold text-lime-300">Success!</h1>
-                <p className="text-slate-400 mt-2">Your account has been activated.</p>
+                <h1 className={AUTH_TITLE}>Success!</h1>
+                <p className="text-pl-muted mt-2">Your account has been activated.</p>
               </div>
-              <p className="text-slate-300 text-center mb-6">
+              <p className="text-pl-text text-center mb-6">
                 You will be redirected to the dashboard shortly. If not, click the button below.
               </p>
               <Button
                 onClick={() => navigate('/dashboard', { replace: true })}
-                className="w-full bg-gradient-to-r from-lime-400 to-teal-500 hover:from-lime-500 hover:to-teal-600 text-slate-900 font-bold shadow-lg shadow-lime-900/20"
+                className="w-full font-semibold"
               >
                 Go to Dashboard
               </Button>
@@ -328,25 +329,26 @@ const SetPassword = () => {
           <title>Invalid Link - Petrolord</title>
           <meta name="description" content="This reset link is invalid or has expired." />
         </Helmet>
-        <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4">
+        <div className="flex flex-1 items-center justify-center px-4 py-10 sm:py-16">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
             className="w-full max-w-md"
           >
-            <div className="bg-slate-800/50 backdrop-blur-lg border border-red-700/30 rounded-2xl p-8 shadow-2xl">
+            <div className={AUTH_CARD}>
               <div className="text-center mb-8">
-                <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
-                <h1 className="text-2xl font-bold text-red-400">Invalid Link</h1>
-                <p className="text-slate-400 mt-2">This reset link is invalid or has expired.</p>
+                <AlertCircle className="h-12 w-12 text-pl-danger mx-auto mb-4" aria-hidden="true" />
+                <h1 className="font-pl-display text-3xl font-semibold leading-tight text-pl-danger-text">Invalid Link</h1>
+                <p className="text-pl-muted mt-2">This reset link is invalid or has expired.</p>
               </div>
-              <p className="text-slate-300 text-center mb-6">
+              <p className="text-pl-text text-center mb-6">
                 {tokenError}
               </p>
               <Button
                 onClick={() => navigate('/', { replace: true })}
-                className="w-full bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white font-bold shadow-lg shadow-slate-900/20"
+                variant="outline"
+                className="w-full font-semibold"
               >
                 Back to Home
               </Button>
@@ -364,44 +366,44 @@ const SetPassword = () => {
         <title>{getPageTitle()} - Petrolord</title>
         <meta name="description" content="Complete your Petrolord account setup by setting your password." />
       </Helmet>
-      <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4">
+      <div className="flex flex-1 items-center justify-center px-4 py-10 sm:py-16">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           className="w-full max-w-md"
         >
-          <div className="bg-slate-800/50 backdrop-blur-lg border border-slate-700 rounded-2xl p-8 shadow-2xl">
+          <div className={AUTH_CARD}>
             <div className="text-center mb-8">
               <motion.div
                 initial={{ scale: 0.8 }}
                 animate={{ scale: 1 }}
                 transition={{ duration: 0.3 }}
               >
-                <KeyRound className="h-12 w-12 text-lime-400 mx-auto mb-4" />
+                <KeyRound className="h-12 w-12 text-pl-primary-text mx-auto mb-4" aria-hidden="true" />
               </motion.div>
-              <h1 className="text-3xl font-bold text-lime-300">{getPageTitle()}</h1>
-              <p className="text-slate-400 mt-2">{getPageDescription()}</p>
+              <h1 className={AUTH_TITLE}>{getPageTitle()}</h1>
+              <p className="text-pl-muted mt-2">{getPageDescription()}</p>
             </div>
 
             {user ? (
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Email (Read-only) */}
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-lime-300">Email Address</Label>
+                  <Label htmlFor="email">Email Address</Label>
                   <Input
                     id="email"
                     type="email"
                     value={user.email || email || ''}
                     disabled
-                    className="bg-slate-900/80 border-slate-700 text-slate-400 cursor-not-allowed"
+                    className="cursor-not-allowed bg-pl-sunken text-pl-muted"
                   />
-                  <p className="text-xs text-slate-500">This is the email you were invited with</p>
+                  <p className="text-xs text-pl-muted">This is the email you were invited with</p>
                 </div>
 
                 {/* Display Name */}
                 <div className="space-y-2">
-                  <Label htmlFor="displayName" className="text-lime-300">Full Name</Label>
+                  <Label htmlFor="displayName">Full Name</Label>
                   <Input
                     id="displayName"
                     type="text"
@@ -409,15 +411,14 @@ const SetPassword = () => {
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     disabled={loading}
-                    className="bg-slate-900/50 border-slate-700 focus:border-lime-400"
                     required
                   />
-                  <p className="text-xs text-slate-500">How you'll appear in the system</p>
+                  <p className="text-xs text-pl-muted">How you'll appear in the system</p>
                 </div>
 
                 {/* Password */}
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-lime-300">New Password</Label>
+                  <Label htmlFor="password">New Password</Label>
                   <Input
                     id="password"
                     type="password"
@@ -425,16 +426,15 @@ const SetPassword = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={loading}
-                    className="bg-slate-900/50 border-slate-700 focus:border-lime-400"
                     required
                     minLength={8}
                   />
-                  <p className="text-xs text-slate-500">Minimum 8 characters</p>
+                  <p className="text-xs text-pl-muted">Minimum 8 characters</p>
                 </div>
 
                 {/* Confirm Password */}
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword" className="text-lime-300">Confirm New Password</Label>
+                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
                   <Input
                     id="confirmPassword"
                     type="password"
@@ -442,7 +442,6 @@ const SetPassword = () => {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     disabled={loading}
-                    className="bg-slate-900/50 border-slate-700 focus:border-lime-400"
                     required
                     minLength={8}
                   />
@@ -452,7 +451,7 @@ const SetPassword = () => {
                 <Button 
                   type="submit" 
                   disabled={loading} 
-                  className="w-full bg-gradient-to-r from-lime-400 to-teal-500 hover:from-lime-500 hover:to-teal-600 text-slate-900 font-bold shadow-lg shadow-lime-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (
                     <>
@@ -468,15 +467,15 @@ const SetPassword = () => {
                 </Button>
               </form>
             ) : (
-              <div className="text-center text-slate-400 flex flex-col items-center py-8">
-                <div className="bg-red-500/10 p-3 rounded-full mb-4">
-                  <KeyRound className="h-8 w-8 text-red-400" />
+              <div className="text-center text-pl-muted flex flex-col items-center py-8">
+                <div className="bg-pl-danger-bg p-3 rounded-full mb-4">
+                  <KeyRound className="h-8 w-8 text-pl-danger" aria-hidden="true" />
                 </div>
-                <h3 className="text-lg font-semibold text-white mb-2">Invalid or Expired Link</h3>
+                <h3 className="text-lg font-semibold text-pl-danger-text mb-2">Invalid or Expired Link</h3>
                 <p className="text-sm">The link you used is either invalid or has expired.</p>
                 <Button 
                   variant="link" 
-                  className="mt-4 text-lime-400 hover:text-lime-300"
+                  className="mt-4"
                   onClick={() => navigate('/login', { replace: true })}
                 >
                   Return to Login
@@ -484,8 +483,8 @@ const SetPassword = () => {
               </div>
             )}
 
-            <div className="mt-8 pt-6 border-t border-slate-700">
-              <p className="text-center text-slate-400 text-sm">
+            <div className="mt-8 pt-6 border-t border-pl-border">
+              <p className="text-center text-pl-muted text-sm">
                 Having trouble? Contact your administrator for a new invitation link.
               </p>
             </div>
@@ -496,4 +495,11 @@ const SetPassword = () => {
   );
 };
 
-export default SetPassword;
+// Batch 7C: the page wraps itself in the public frame (light, brand bar).
+const SetPasswordPage = () => (
+  <PublicPage testId="set-password-theme-scope">
+    <SetPassword />
+  </PublicPage>
+);
+
+export default SetPasswordPage;

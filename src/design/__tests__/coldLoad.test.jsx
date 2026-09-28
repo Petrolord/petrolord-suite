@@ -18,7 +18,7 @@ jest.mock('@/hooks/useSuiteAccess', () => ({ useSuiteAccess: () => ({ can: () =>
 import { AuthContext } from '@/contexts/SupabaseAuthContext';
 import AuthGuard from '@/components/AuthGuard';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { isThemedPath, coldLoadTheme, THEMED_HUBS } from '@/design/coldLoad';
+import { isThemedPath, isPublicLightPath, coldLoadTheme, THEMED_HUBS } from '@/design/coldLoad';
 import { LAST_THEME_KEY } from '@/design/ThemeProvider';
 import { LEGACY_FIXTURE_PATH } from '@/design/testing/LegacyAppFixture';
 
@@ -44,7 +44,7 @@ describe('isThemedPath', () => {
 
   it.each([
     // paths no rollout batch registers (batch paths are checked in rolloutFiles.test.js)
-    '/', '/login', '/dashboard/reservoir-x', '/dashboard/apps', '/dashboard/apps/economics',
+    '/', '/nextgen', '/login-x', '/legal', '/dashboard/reservoir-x', '/dashboard/apps', '/dashboard/apps/economics',
     LEGACY_FIXTURE_PATH, `${LEGACY_FIXTURE_PATH}/help`, '/dashboard/apps/economics/epe-suite',
     '/dashboard/apps/geoscience/seismolord-legacy', undefined,
   ])('%s is not themed', (p) => expect(isThemedPath(p)).toBe(false));
@@ -78,6 +78,21 @@ describe('the loaders', () => {
     expect(screen.queryByTestId('themed-loading')).toBeNull();
     expect(document.querySelector('.bg-slate-900')).not.toBeNull();
     expect(document.querySelector('[data-pl-theme]')).toBeNull();
+  });
+
+  it('the public and auth pages (7C) paint light whatever the device key says', () => {
+    window.localStorage.setItem(LAST_THEME_KEY, 'dark');
+    for (const p of ['/login', '/signup', '/set-password', '/auth/reset-password', '/legal/privacy-policy']) {
+      expect(isPublicLightPath(p)).toBe(true);
+      expect(coldLoadTheme(p)).toBe('light');
+    }
+    render(loading(<AuthGuard><p>app</p></AuthGuard>, '/login'));
+    expect(screen.getByTestId('themed-loading')).toHaveAttribute('data-pl-theme', 'light');
+    // the app paths still follow the device key
+    expect(isPublicLightPath('/dashboard')).toBe(false);
+    expect(coldLoadTheme('/dashboard')).toBe('dark');
+    // and the homepage keeps its legacy loader
+    expect(coldLoadTheme('/')).toBeNull();
   });
 
   it('a garbage device key falls back to light', () => {

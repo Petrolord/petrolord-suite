@@ -15,6 +15,7 @@ import React from 'react';
 import { readLastTheme } from './ThemeProvider.jsx';
 import { DEFAULT_THEME } from './tokens.js';
 import { THEMED_APP_PREFIXES } from './rollout/index.js';
+import PUBLIC_PAGE_PREFIXES from './rollout/w7c.js';
 
 // the dashboard landing and the ten module hubs (pilot 1, HubScope)
 export const THEMED_HUBS = [
@@ -28,21 +29,35 @@ export { THEMED_APP_PREFIXES };
 
 const trimSlash = (p) => (p.length > 1 && p.endsWith('/') ? p.slice(0, -1) : p);
 
+const underPrefix = (p, pre) => {
+  const bare = trimSlash(pre);
+  return p === bare || p.startsWith(`${bare}/`);
+};
+
+// the public and auth pages (batch 7C) always render light: they have no
+// toggle and follow no per-user choice, so their loader paints light too
+export { PUBLIC_PAGE_PREFIXES };
+
+/** True when `pathname` is a public or auth page (always light). */
+export function isPublicLightPath(pathname) {
+  if (typeof pathname !== 'string') return false;
+  const p = trimSlash(pathname);
+  return PUBLIC_PAGE_PREFIXES.some((pre) => underPrefix(p, pre));
+}
+
 /** True when `pathname` renders inside a design-system scope. */
 export function isThemedPath(pathname) {
   if (typeof pathname !== 'string') return false;
   const p = trimSlash(pathname);
   if (p === '/dashboard') return true;
   if (THEMED_HUBS.some((h) => p === `/dashboard/${h}`)) return true;
-  return THEMED_APP_PREFIXES.some((pre) => {
-    const bare = trimSlash(pre);
-    return p === bare || p.startsWith(`${bare}/`);
-  });
+  return THEMED_APP_PREFIXES.some((pre) => underPrefix(p, pre));
 }
 
 /** The theme a cold-load loader should paint on `pathname`, or null for legacy. */
 export function coldLoadTheme(pathname) {
   if (!isThemedPath(pathname)) return null;
+  if (isPublicLightPath(pathname)) return 'light';
   return readLastTheme() || DEFAULT_THEME;
 }
 

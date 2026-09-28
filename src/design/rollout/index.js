@@ -1,6 +1,6 @@
 // The cold-load path list, one file per rollout batch
 // (docs/scope/DesignSystem-Rollout.md, Wave 0A). Each batch registers its
-// migrated route prefixes in its own file (w1a.js ... w6g.js) and never edits
+// migrated route prefixes in its own file (w1a.js ... w6g.js, w7c.js) and never edits
 // this index, so parallel batches do not collide. Every batch file exists
 // already (an empty list until the batch lands); the test
 // src/design/__tests__/rolloutFiles.test.js fails if a file in this folder
@@ -42,6 +42,7 @@ import w6d from './w6d.js';
 import w6e from './w6e.js';
 import w6f from './w6f.js';
 import w6g from './w6g.js';
+import w7c from './w7c.js';
 
 /** Every batch's list, by batch id (pilots first). */
 export const ROLLOUT_BATCHES = Object.freeze({
@@ -50,7 +51,7 @@ export const ROLLOUT_BATCHES = Object.freeze({
   w2d, w2e, w2f, w3a, w3b, w3c, w3d, w3e,
   w3f, w4a, w4b, w4c, w4d, w4e, w4f, w5a,
   w5b, w5c, w5d, w5e, w5f, w6a, w6b, w6c,
-  w6d, w6e, w6f, w6g,
+  w6d, w6e, w6f, w6g, w7c,
 });
 
 /** All themed app prefixes, in batch order. */

@@ -26,8 +26,8 @@ describe('the per-batch rollout files', () => {
     for (const b of files) expect(index).toContain(`import ${b} from './${b}.js';`);
   });
 
-  it('there is one file for each rollout batch, 1A to 6G, plus the pilots', () => {
-    const want = ['pilots'];
+  it('there is one file for each rollout batch, 1A to 6G and 7C, plus the pilots', () => {
+    const want = ['pilots', 'w7c'];
     for (const [wave, last] of [[1, 'e'], [2, 'f'], [3, 'f'], [4, 'f'], [5, 'f'], [6, 'g']]) {
       for (let c = 'a'.charCodeAt(0); c <= last.charCodeAt(0); c += 1) want.push(`w${wave}${String.fromCharCode(c)}`);
     }
