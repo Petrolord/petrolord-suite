@@ -6,8 +6,8 @@
 // makeInMemoryBackend with no auth or DB (the harness philosophy).
 
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Database, Loader2, Map as MapIcon, CircleDot, ClipboardList } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Database, Loader2, Map as MapIcon, CircleDot, ClipboardList, HelpCircle } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -26,7 +26,8 @@ import { readDisplayUnit, writeDisplayUnit, unitText } from '../engine/displayUn
 
 /** @param {Object} [p.appPaths] route overrides for the "Open in" launchers
  *  (the harness points them at the other /dev harnesses) */
-export default function WellWorkstation({ backend, appPaths = {} }) {
+/** @param {string} [p.helpPath] the in-app help guide route (the harness uses its /dev twin) */
+export default function WellWorkstation({ backend, appPaths = {}, helpPath = '/dashboard/apps/geoscience/well-data-manager/help' }) {
   // deep link (PT1): ?well=<id>&tab=<header|logs|tops|deviation|checkshots>
   // selects the well once the list has loaded (Petrophysics links here)
   const [searchParams] = useSearchParams();
@@ -191,6 +192,10 @@ export default function WellWorkstation({ backend, appPaths = {} }) {
           <CircleDot className="w-3.5 h-3.5" /> {selected ? selected.name : 'Well'}
         </button>
         <OpenInAppMenu wellIds={selectedId ? [selectedId] : []} paths={appPaths} testIdPrefix="wdm" disabled={!selected} />
+        <Link to={helpPath} data-testid="wdm-help" title="Open the Well Data Manager help guide"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken">
+          <HelpCircle className="w-3.5 h-3.5" /> Help
+        </Link>
         <label className="flex items-center gap-1 text-[11px] text-pl-muted" title="Depth unit for every table, editor, plot and export. The registry stores metres.">
           Depths in
           <select className="rounded border border-pl-border bg-pl-surface text-pl-text px-1 py-0.5 text-xs" value={unit}

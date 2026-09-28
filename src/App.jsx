@@ -201,6 +201,7 @@ const WellSpacingHelpGuide = lazy(() => import('@/pages/apps/WellSpacingHelpGuid
 const GeomechanicsHarness = lazy(() => import('@/pages/apps/GeomechanicsStudio/GeomechanicsHarness'));
 const WellDesignHelpGuide = lazy(() => import('@/pages/apps/well-planning/WellDesignHelpGuide'));
 const WellDataManager = lazy(() => import('@/pages/apps/WellDataManager/WellDataManager'));
+const WellDataManagerHelpGuide = lazy(() => import('@/pages/apps/WellDataManager/WellDataManagerHelpGuide'));
 const WellTestAnalysisStudio = lazy(() => import('@/pages/apps/WellTestAnalysisStudio'));
 const NodalAnalysisStudio = lazy(() => import('@/pages/apps/NodalAnalysisStudio'));
 const ProductionSurveillanceStudio = lazy(() => import('@/pages/apps/ProductionSurveillanceStudio'));
@@ -607,6 +608,7 @@ function App() {
                                 <Route path="apps/geoscience/seismolord" element={<ProtectedAppRoute appId="seismolord" appName="Seismolord"><Seismolord /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/seismolord/help" element={<ProtectedAppRoute appId="seismolord" appName="Seismolord"><SeismolordHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/well-data-manager" element={<ProtectedAppRoute appId="well-data-manager" appName="Well Data Manager"><WellDataManager /></ProtectedAppRoute>} />
+                                <Route path="apps/geoscience/well-data-manager/help" element={<ProtectedAppRoute appId="well-data-manager" appName="Well Data Manager"><WellDataManagerHelpGuide /></ProtectedAppRoute>} />
 
                                 {/* Legacy MEM aliases — the 1D MEM rebuilt under Drilling at D5 (Drilling-ROADMAP.md); the legacy tree is deleted */}
                                 <Route path="apps/geoscience/mechanical-earth-model" element={<Navigate to="/dashboard/apps/drilling/geomechanics-studio" replace />} />
@@ -971,6 +973,7 @@ function App() {
                                     <Route path="/dev/seismolord-synthetics" element={<SeismolordSyntheticsHarness />} />
                                     <Route path="/dev/seismolord-workspace" element={<SeismolordWorkspaceHarness />} />
                                     <Route path="/dev/well-data-manager" element={<WellDataManagerHarness />} />
+                                    <Route path="/dev/well-data-manager/help" element={<WellDataManagerHelpGuide backTo="/dev/well-data-manager" />} />
                                     <Route path="/dev/petrophysics-studio" element={<PetrophysicsStudioHarness />} />
                                     <Route path="/dev/well-correlation" element={<WellCorrelationHarness />} />
                                     <Route path="/dev/stratigraphy-studio" element={<StratigraphyStudioHarness />} />

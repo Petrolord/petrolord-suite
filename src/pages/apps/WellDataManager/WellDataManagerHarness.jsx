@@ -33,7 +33,7 @@ export default function WellDataManagerHarness() {
   }, []);
   return (
     <div className="h-screen w-full overflow-hidden" data-testid="wdm-theme-scope">
-      <WellWorkstation backend={backend} appPaths={DEV_APP_PATHS} />
+      <WellWorkstation backend={backend} appPaths={DEV_APP_PATHS} helpPath="/dev/well-data-manager/help" />
     </div>
   );
 }
