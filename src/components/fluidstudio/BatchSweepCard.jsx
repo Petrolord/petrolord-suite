@@ -25,12 +25,12 @@ const BatchSweepCard = ({ rows, variable, unit, label, blendingActive }) => {
   const xLabel = `${label || variable}${unit ? ` (${unit})` : ''}`;
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base text-white flex items-center"><SlidersHorizontal className="mr-2 text-cyan-300 w-5 h-5" /> Batch sensitivity: {label || variable}</CardTitle>
-        <p className="text-xs text-slate-400">Other inputs held at Stream A. Each point is a full re-run of the engine.</p>
+        <CardTitle className="text-base text-pl-text flex items-center"><SlidersHorizontal className="mr-2 text-pl-muted w-5 h-5" /> Batch sensitivity: {label || variable}</CardTitle>
+        <p className="text-xs text-pl-muted">Other inputs held at Stream A. Each point is a full re-run of the engine.</p>
         {blendingActive && (
-          <p className="text-xs text-amber-300/80">Blending applies to the main result; this sweep characterizes the un-blended Stream A fluid.</p>
+          <p className="text-xs text-pl-warning-text">Blending applies to the main result; this sweep characterizes the un-blended Stream A fluid.</p>
         )}
       </CardHeader>
       <CardContent className="space-y-4">
@@ -50,29 +50,29 @@ const BatchSweepCard = ({ rows, variable, unit, label, blendingActive }) => {
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="border-slate-800 hover:bg-transparent">
-                <TableHead className="text-lime-300 text-right">{label || variable}{unit ? ` (${unit})` : ''}</TableHead>
-                <TableHead className="text-lime-300 text-right">Pb (psia)</TableHead>
-                <TableHead className="text-lime-300 text-right">Bo @ Pb</TableHead>
-                <TableHead className="text-lime-300 text-right">μo @ Pb (cP)</TableHead>
-                <TableHead className="text-lime-300 text-right">WAT (°F)</TableHead>
+              <TableRow className="border-pl-border hover:bg-transparent">
+                <TableHead className="text-right">{label || variable}{unit ? ` (${unit})` : ''}</TableHead>
+                <TableHead className="text-right">Pb (psia)</TableHead>
+                <TableHead className="text-right">Bo @ Pb</TableHead>
+                <TableHead className="text-right">μo @ Pb (cP)</TableHead>
+                <TableHead className="text-right">WAT (°F)</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data.map((r, i) => (
-                <TableRow key={i} className="border-slate-800">
-                  <TableCell className="text-right font-mono text-white">{fmt(r.input, 2)}</TableCell>
-                  <TableCell className="text-right font-mono text-slate-300">{fmt(r.pb, 0)}</TableCell>
-                  <TableCell className="text-right font-mono text-slate-300">{fmt(r.bo_at_pb, 3)}</TableCell>
-                  <TableCell className="text-right font-mono text-slate-300">{fmt(r.mu_o_at_pb, 3)}</TableCell>
-                  <TableCell className="text-right font-mono text-slate-300">{fmt(r.wat, 1)}</TableCell>
+                <TableRow key={i} className="border-pl-border">
+                  <TableCell className="text-right font-pl-mono tabular-nums text-pl-text">{fmt(r.input, 2)}</TableCell>
+                  <TableCell className="text-right font-pl-mono tabular-nums text-pl-text">{fmt(r.pb, 0)}</TableCell>
+                  <TableCell className="text-right font-pl-mono tabular-nums text-pl-text">{fmt(r.bo_at_pb, 3)}</TableCell>
+                  <TableCell className="text-right font-pl-mono tabular-nums text-pl-text">{fmt(r.mu_o_at_pb, 3)}</TableCell>
+                  <TableCell className="text-right font-pl-mono tabular-nums text-pl-text">{fmt(r.wat, 1)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
         {!hasWat && (
-          <p className="text-xs text-slate-500">WAT is blank because it requires Flow Assurance (a measured WAT or wax content); no value is fabricated from black-oil inputs.</p>
+          <p className="text-xs text-pl-muted">WAT is blank because it requires Flow Assurance (a measured WAT or wax content); no value is fabricated from black-oil inputs.</p>
         )}
       </CardContent>
     </Card>

@@ -12,13 +12,13 @@ import {
 const C = { hydrate: '#2563eb', profile: '#d97706', risk: '#dc2626', wat: '#7c3aed' };
 const fmt = (v, d = 1) => (v == null || !Number.isFinite(v) ? '—' : Number(v).toFixed(d));
 
-const Tile = ({ label, value, sub, icon: Icon, tone = 'text-white' }) => (
-  <div className="rounded-lg border border-slate-700 bg-slate-800/40 px-3 py-2">
-    <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-slate-500">
+const Tile = ({ label, value, sub, icon: Icon, tone = 'text-pl-text' }) => (
+  <div className="rounded-lg border border-pl-border bg-pl-sunken px-3 py-2">
+    <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-pl-muted">
       {Icon && <Icon className="w-3 h-3" />}{label}
     </div>
     <div className={`text-base font-bold mt-0.5 ${tone}`}>{value}</div>
-    {sub && <div className="text-[10px] text-slate-500 mt-0.5 lowercase">{sub}</div>}
+    {sub && <div className="text-[10px] text-pl-muted mt-0.5 lowercase">{sub}</div>}
   </div>
 );
 
@@ -31,8 +31,8 @@ const FlowAssuranceCard = ({ fa }) => {
   if (!fa) return null;
   if (!fa.hydrate_curve?.length) {
     return (
-      <Card className="bg-slate-900 border-slate-800">
-        <CardContent className="p-6 text-sm text-slate-400">
+      <Card>
+        <CardContent className="p-6 text-sm text-pl-muted">
           Provide a valid gas gravity and a P-T profile (or WAT/wax data) to run hydrate screening.
         </CardContent>
       </Card>
@@ -44,20 +44,20 @@ const FlowAssuranceCard = ({ fa }) => {
   const watSub = fa.wat_basis ? fa.wat_basis.replace(/_/g, ' ') : 'not from black-oil';
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base text-white flex items-center"><Snowflake className="mr-2 text-cyan-300 w-5 h-5" /> Flow assurance screening</CardTitle>
-        <p className="text-xs text-slate-400">Hydrate formation envelope (Motiee 1991) vs the flowline P-T profile. Sweet-gas basis; indicative only.</p>
+        <CardTitle className="text-base text-pl-text flex items-center"><Snowflake className="mr-2 text-pl-muted w-5 h-5" /> Flow assurance screening</CardTitle>
+        <p className="text-xs text-pl-muted">Hydrate formation envelope (Motiee 1991) vs the flowline P-T profile. Sweet-gas basis; indicative only.</p>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Tile label="Wax Appearance (WAT)" value={watLabel} sub={watSub} icon={Thermometer} />
           <Tile label="Asphaltene Onset (AOP)" value="N/A" sub="needs SARA data" icon={AlertTriangle} />
           <Tile label="Min profile temp" value={fa.hydrate_risk.min_temp != null ? `${fmt(fa.hydrate_risk.min_temp)} °F` : '—'} icon={Thermometer} />
-          <Tile label="Max subcooling" value={`${fmt(fa.hydrate_risk.max_subcooling)} °F`} icon={Snowflake} tone={fa.hydrate_risk.max_subcooling > 0 ? 'text-red-300' : 'text-white'} />
+          <Tile label="Max subcooling" value={`${fmt(fa.hydrate_risk.max_subcooling)} °F`} icon={Snowflake} tone={fa.hydrate_risk.max_subcooling > 0 ? 'text-pl-danger-text' : 'text-pl-text'} />
         </div>
 
-        <div className={`flex items-center gap-3 rounded-lg border px-4 py-3 ${crosses ? 'bg-red-900/30 border-red-700 text-red-300' : 'bg-emerald-900/30 border-emerald-700 text-emerald-300'}`}>
+        <div className={`flex items-center gap-3 rounded-lg border px-4 py-3 ${crosses ? 'bg-pl-danger-bg border-pl-danger/40 text-pl-danger-text' : 'bg-pl-success-bg border-pl-success/40 text-pl-success-text'}`}>
           {crosses ? <Route className="w-6 h-6 shrink-0" /> : <ShieldCheck className="w-6 h-6 shrink-0" />}
           <div className="text-sm font-semibold">
             {crosses
@@ -85,7 +85,7 @@ const FlowAssuranceCard = ({ fa }) => {
           </ScatterChart>
         </ChartFrame>
 
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-pl-muted">
           Points left of the hydrate curve (colder than T<sub>hyd</sub> at their pressure) are inside the hydrate region and shown in red.
           Motiee validity ~0.55–1.0 gas SG, ±5–8 °F, no H₂S/CO₂/inhibitor/salt correction. AOP needs SARA/compositional data (not
           computable here); WAT is populated only from a measured value or a labeled wax-content screening estimate, never fabricated from API.

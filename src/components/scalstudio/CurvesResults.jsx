@@ -38,8 +38,8 @@ const CurvesResults = () => {
 
   if (error || !rows) {
     return (
-      <Card className="bg-slate-900 border-slate-800">
-        <CardContent className="py-10 text-center text-sm text-slate-400">
+      <Card>
+        <CardContent className="py-10 text-center text-sm text-pl-muted">
           {error ?? 'Set the Corey parameters in the left rail.'}
         </CardContent>
       </Card>
@@ -70,7 +70,7 @@ const CurvesResults = () => {
         )}
       </div>
 
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2 flex flex-row items-center justify-between">
           <CardTitle className="text-base">
             {isOw ? 'Relative permeability (oil-water)' : 'Relative permeability (gas-oil)'}
@@ -130,7 +130,7 @@ const CurvesResults = () => {
       </Card>
 
       {isOw && fwPreview && (
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Fractional flow preview</CardTitle>
           </CardHeader>
@@ -156,7 +156,7 @@ const CurvesResults = () => {
                 <Line dataKey="fw" name="fw" stroke={LINE.fw} strokeWidth={2} dot={false} />
               </LineChart>
             </ChartFrame>
-            <p className="text-[11px] text-slate-500 px-4 pb-3">
+            <p className="text-[11px] text-pl-muted px-4 pb-3">
               Mobility context at μw {fwPreview.muW} cp and μo {fwPreview.muO} cp. Displacement design (Welge,
               breakthrough, recovery) lives in the Waterflood Design Studio.
             </p>

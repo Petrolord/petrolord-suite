@@ -23,8 +23,8 @@ const pressureTicks = (data) => {
 };
 
 const PvtChart = ({ title, data, dataKey, color, yLabel, yDomain, pb, tickFmt }) => (
-  <Card className="bg-slate-900 border-slate-800">
-    <CardHeader className="pb-2"><CardTitle className="text-base text-white">{title}</CardTitle></CardHeader>
+  <Card>
+    <CardHeader className="pb-2"><CardTitle className="text-base text-pl-text">{title}</CardTitle></CardHeader>
     <CardContent className="p-0">
       <ChartFrame height={264}>
         <LineChart data={data} margin={{ top: 12, right: 20, bottom: 4, left: -4 }}>

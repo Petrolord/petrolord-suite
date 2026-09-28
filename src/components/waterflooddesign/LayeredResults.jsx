@@ -36,7 +36,7 @@ const LayeredResults = () => {
 
   if (!layeredResult) {
     return (
-      <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-300 px-4 py-3 text-sm">
+      <div className="rounded-lg border border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text px-4 py-3 text-sm">
         Enter at least two layers with positive h and k, plus a positive M and capacity ratio A.
       </div>
     );
@@ -88,12 +88,12 @@ const LayeredResults = () => {
         </BarChart>
       </ChartCard>
 
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2"><CardTitle className="text-base">Breakthrough stages</CardTitle></CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
-              <TableRow className="border-slate-800">
+              <TableRow className="border-pl-border">
                 <TableHead>Stage (layer BT)</TableHead>
                 <TableHead>k broken (md)</TableHead>
                 <TableHead>DP coverage</TableHead>
@@ -104,7 +104,7 @@ const LayeredResults = () => {
             </TableHeader>
             <TableBody>
               {dykstraParsons.map((s, i) => (
-                <TableRow key={i} className="border-slate-800">
+                <TableRow key={i} className="border-pl-border">
                   <TableCell>{i + 1}</TableCell>
                   <TableCell>{fmt.f1(s.kBroken)}</TableCell>
                   <TableCell>{fmt.pct(s.coverage)}</TableCell>

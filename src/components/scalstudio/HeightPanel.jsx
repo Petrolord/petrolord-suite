@@ -23,13 +23,13 @@ const HeightPanel = () => {
         {FIELDS.map(({ k, label }) => (
           <Field key={k} label={label} value={height[k]} onChange={(v) => setHeightField(k, v)} />
         ))}
-        <p className="text-[11px] text-slate-500">
+        <p className="text-[11px] text-pl-muted">
           Height above the free water level is h = Pc divided by 0.4335 times the specific gravity difference.
           With a FWL entered, the table and CSV also carry TVDSS = FWL minus h.
         </p>
       </section>
       {(!jResolved.jSpec || !reservoir.props) && (
-        <p className="text-xs text-amber-400">
+        <p className="text-xs text-pl-warning-text">
           The profile needs a working J-function and reservoir rock from the Capillary tab first.
         </p>
       )}

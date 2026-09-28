@@ -55,19 +55,19 @@ const LayeredPanel = () => {
         <div className="space-y-2">
           {layers.map((l, i) => (
             <div key={i} className="flex gap-2 items-center">
-              <Input value={l.h} onChange={(e) => setCell(i, 'h', e.target.value)} placeholder="h" className="h-8 bg-slate-800 border-slate-700 text-xs" />
-              <Input value={l.k} onChange={(e) => setCell(i, 'k', e.target.value)} placeholder="k" className="h-8 bg-slate-800 border-slate-700 text-xs" />
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-red-400 shrink-0" onClick={() => removeRow(i)}>
+              <Input value={l.h} onChange={(e) => setCell(i, 'h', e.target.value)} placeholder="h" className="h-8 text-xs" />
+              <Input value={l.k} onChange={(e) => setCell(i, 'k', e.target.value)} placeholder="k" className="h-8 text-xs" />
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-pl-muted hover:text-pl-danger-text shrink-0" onClick={() => removeRow(i)}>
                 <Trash2 size={13} />
               </Button>
             </div>
           ))}
         </div>
         <div className="flex gap-2 mt-3">
-          <Button variant="outline" size="sm" onClick={addRow} className="flex-1 bg-slate-800 border-slate-700">
+          <Button variant="outline" size="sm" onClick={addRow} className="flex-1">
             <Plus size={14} className="mr-1" /> Layer
           </Button>
-          <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} className="flex-1 bg-slate-800 border-slate-700">
+          <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} className="flex-1">
             <Upload size={14} className="mr-1" /> CSV
           </Button>
           <input
@@ -80,14 +80,14 @@ const LayeredPanel = () => {
       <section>
         <SectionLabel>Mobility ratio M</SectionLabel>
         <Tabs value={layeredConfig.mSource} onValueChange={(v) => setLayeredField('mSource', v)}>
-          <TabsList className="h-8 bg-slate-800/50 border border-slate-700 p-0.5 w-full">
-            <TabsTrigger value="displacement" className="h-7 text-xs flex-1 data-[state=active]:bg-slate-700">From displacement</TabsTrigger>
-            <TabsTrigger value="manual" className="h-7 text-xs flex-1 data-[state=active]:bg-slate-700">Manual</TabsTrigger>
+          <TabsList className="h-8 p-0.5 w-full">
+            <TabsTrigger value="displacement" className="h-7 text-xs flex-1">From displacement</TabsTrigger>
+            <TabsTrigger value="manual" className="h-7 text-xs flex-1">Manual</TabsTrigger>
           </TabsList>
         </Tabs>
         <div className="mt-2">
           {layeredConfig.mSource === 'displacement' ? (
-            <Label className="text-xs text-slate-500">
+            <Label className="text-xs text-pl-muted">
               M = {fmt.f2(displacement?.M)} from the Displacement tab inputs.
             </Label>
           ) : (
@@ -102,10 +102,10 @@ const LayeredPanel = () => {
       </section>
 
       <section>
-        <Button variant="outline" size="sm" onClick={loadSample} className="w-full bg-slate-800 border-slate-700">
+        <Button variant="outline" size="sm" onClick={loadSample} className="w-full">
           <Beaker className="w-4 h-4 mr-1" /> Sample layer set
         </Button>
-        <Button variant="ghost" size="sm" onClick={() => setLayers(DEFAULT_LAYERS)} className="w-full mt-1 text-slate-500">
+        <Button variant="ghost" size="sm" onClick={() => setLayers(DEFAULT_LAYERS)} className="w-full mt-1 text-pl-muted">
           Reset layers
         </Button>
       </section>

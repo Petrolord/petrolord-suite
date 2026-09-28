@@ -7,8 +7,10 @@
  *   1. outside a scope every kit class string is the legacy one, byte for
  *      byte (the strings below are copied from main before the kit became
  *      theme-aware), with no scope attribute and no pl-* token class;
- *   2. two real Studio-kit apps that have not opted in (Waterflood Design
- *      Studio, SCAL Studio) mount on the dark console exactly as before;
+ *   2. an app that has not opted in (the test-only LegacyAppFixture, built
+ *      on the Studio kit like the unmigrated apps) mounts on the dark
+ *      console exactly as before. It stood on Waterflood Design Studio and
+ *      SCAL Studio until those migrated in rollout batch 1D;
  *   3. inside a scope the same pieces use theme roles, the help drawer
  *      (a portal) carries the scope attribute, and notifications use the
  *      status roles.
@@ -36,8 +38,7 @@ import StudioHeader from '@/components/studio/StudioHeader';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import StudioHelp from '@/components/studio/StudioHelp';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
-import WaterfloodDesignStudio from '@/pages/apps/WaterfloodDesignStudio';
-import ScalStudio from '@/pages/apps/ScalStudio';
+import LegacyAppFixture, { LEGACY_FIXTURE_TITLE } from '@/design/testing/LegacyAppFixture';
 
 beforeAll(() => {
   global.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
@@ -126,10 +127,9 @@ describe('outside a scope: the kit renders its legacy classes, byte for byte', (
   });
 });
 
-describe('real Studio-kit apps that have not opted in are unchanged', () => {
+describe('a Studio-kit app that has not opted in is unchanged', () => {
   it.each([
-    ['Waterflood Design Studio', WaterfloodDesignStudio],
-    ['SCAL Studio', ScalStudio],
+    [LEGACY_FIXTURE_TITLE, LegacyAppFixture],
   ])('%s mounts on the dark console with no themed scope', async (title, App) => {
     const { container } = render(<MemoryRouter><App /></MemoryRouter>);
     expect(await screen.findByText(title)).toBeInTheDocument();

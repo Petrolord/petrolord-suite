@@ -28,6 +28,10 @@ import HeightResults from '@/components/scalstudio/HeightResults';
 import ExportTab from '@/components/scalstudio/ExportTab';
 import ScalHelpContent from '@/components/scalstudio/ScalHelpContent';
 import { SectionLabel } from '@/components/waterflooddesign/primitives';
+import { ThemedApp } from '@/design/ThemeProvider';
+
+// Design system rollout batch 1D (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class below is a theme role.
 
 const TABS = [
   { value: 'curves', label: 'Curves' },
@@ -70,7 +74,7 @@ const ScalStudioContent = () => {
       {activeTab === 'capillary' && <CapillaryPanel />}
       {activeTab === 'height' && <HeightPanel />}
       {activeTab === 'export' && (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-pl-muted">
           Handoffs and downloads live in the main area. Everything exports the WORKING state: the Curves tab's
           oil-water set, the Capillary tab's scaled Pc and the Height tab's profile.
         </p>
@@ -113,7 +117,7 @@ const ScalStudioContent = () => {
         headerActions={
           <>
             <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="SCAL Studio Guide"
               description="Corey relative permeability and Leverett J-function capillary pressure, validated thin and done properly."
@@ -135,8 +139,10 @@ const ScalStudioContent = () => {
 
 export default function ScalStudio() {
   return (
-    <ScalStudioProvider>
-      <ScalStudioContent />
-    </ScalStudioProvider>
+    <ThemedApp data-testid="scal-theme-scope">
+      <ScalStudioProvider>
+        <ScalStudioContent />
+      </ScalStudioProvider>
+    </ThemedApp>
   );
 }

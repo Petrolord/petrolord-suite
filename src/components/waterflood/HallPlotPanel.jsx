@@ -35,18 +35,18 @@ const HallPlotPanel = ({ data, alerts }) => {
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
-      className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6"
+      className="bg-pl-surface border border-pl-border rounded-xl p-6 shadow-pl-sm"
     >
-      <h2 className="text-2xl font-bold text-white mb-1">Hall Plot Analysis</h2>
-      <p className="text-cyan-200/80 text-sm mb-4">
+      <h2 className="text-2xl font-bold text-pl-text mb-1">Hall Plot Analysis</h2>
+      <p className="text-pl-muted text-sm mb-4">
         Hall integral (Σ&nbsp;p·Δt) vs cumulative injection. A steepening slope (rising p/q) signals declining injectivity; a flattening slope signals improving injectivity.
       </p>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="md:col-span-1">
-          <h3 className="font-semibold text-white mb-2">Injectors</h3>
+          <h3 className="font-semibold text-pl-text mb-2">Injectors</h3>
           <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
             {data.map((d) => (
-              <div key={d.injector} className="flex items-center space-x-2 bg-white/5 p-2 rounded-md">
+              <div key={d.injector} className="flex items-center space-x-2 bg-pl-sunken p-2 rounded-md">
                 <Checkbox
                   id={`check-${d.injector}`}
                   checked={selectedInjectors.includes(d.injector)}
@@ -60,7 +60,7 @@ const HallPlotPanel = ({ data, alerts }) => {
             ))}
           </div>
         </div>
-        <div className="md:col-span-3 bg-white rounded-lg p-4">
+        <div data-canvas="chart" className="md:col-span-3 bg-white rounded-lg p-4">
           <ChartFrame height={360}>
             <ScatterChart margin={CHART_MARGINS.legend}>
               <CartesianGrid {...GRID_STYLE} />
