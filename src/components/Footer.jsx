@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { WORDMARK } from '@/components/public/PublicPage';
 
 const platformLinks = [{
   name: 'Solutions',
@@ -35,32 +36,32 @@ const legalLinks = [{
   path: '/legal/dpa'
 }];
 const Footer = () => {
-  return <footer className="bg-slate-900 border-t border-slate-700 text-slate-400">
-                <div className="container mx-auto px-6 py-12">
+  return <footer data-pl-theme="dark" className="bg-pl-bg border-t border-pl-accent/20 text-pl-muted">
+                <div className="mx-auto w-full max-w-[1180px] px-4 py-12 sm:px-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
                         <div className="lg:col-span-2">
-                            <Link to="/" className="flex items-center space-x-2 mb-4">
-                                <img className="h-10 w-auto" alt="Petrolord - Energy Industry Management" src="https://horizons-cdn.hostinger.com/43fa5c4b-d185-4d6d-9ff4-a1d78861fb87/petrolord-symbol-text-iFUDK.png" />
+                            <Link to="/" aria-label="Petrolord Suite home" className="mb-4 flex w-fit items-center rounded-sm">
+                                <img className="block h-7 w-auto max-w-full" alt="Petrolord Suite" width="1041" height="108" src={WORDMARK} />
                             </Link>
                             <p className="mb-4">Engineering software for the whole energy asset.</p>
-                            <p className="text-sm text-slate-500 max-w-sm">From subsurface to sales on one platform. A Lordsway Energy company.</p>
+                            <p className="text-sm text-pl-muted max-w-sm">From subsurface to sales on one platform. A Lordsway Energy company.</p>
                         </div>
 
                         <div>
-                            <p className="font-semibold text-slate-200 tracking-wider uppercase mb-4">Platform</p>
+                            <p className="font-semibold text-pl-accent-text text-xs tracking-[0.14em] uppercase mb-4">Platform</p>
                             <ul className="space-y-2">
                                 {platformLinks.map(link => <li key={link.name}>
-                                        <Link to={link.path} className="hover:text-lime-300 transition-colors">
+                                        <Link to={link.path} className="rounded-sm hover:text-pl-text transition-colors">
                                             {link.name}
                                         </Link>
                                     </li>)}
                                 <li>
-                                    <a href="https://nextgen.petrolord.com" className="hover:text-lime-300 transition-colors">
+                                    <a href="https://nextgen.petrolord.com" className="rounded-sm hover:text-pl-text transition-colors">
                                         NextGen Academy
                                     </a>
                                 </li>
                                 <li>
-                                    <a href="https://hse.petrolord.com" target="_blank" rel="noopener noreferrer" className="hover:text-lime-300 transition-colors">
+                                    <a href="https://hse.petrolord.com" target="_blank" rel="noopener noreferrer" className="rounded-sm hover:text-pl-text transition-colors">
                                         Petrolord HSE
                                     </a>
                                 </li>
@@ -68,10 +69,10 @@ const Footer = () => {
                         </div>
 
                         <div>
-                            <p className="font-semibold text-slate-200 tracking-wider uppercase mb-4">Company</p>
+                            <p className="font-semibold text-pl-accent-text text-xs tracking-[0.14em] uppercase mb-4">Company</p>
                             <ul className="space-y-2">
                                 {companyLinks.map(link => <li key={link.name}>
-                                        <Link to={link.path} className="hover:text-lime-300 transition-colors">
+                                        <Link to={link.path} className="rounded-sm hover:text-pl-text transition-colors">
                                             {link.name}
                                         </Link>
                                     </li>)}
@@ -79,10 +80,10 @@ const Footer = () => {
                         </div>
 
                         <div>
-                            <p className="font-semibold text-slate-200 tracking-wider uppercase mb-4">Legal</p>
+                            <p className="font-semibold text-pl-accent-text text-xs tracking-[0.14em] uppercase mb-4">Legal</p>
                             <ul className="space-y-2">
                                 {legalLinks.map(link => <li key={link.name}>
-                                        <Link to={link.path} className="hover:text-lime-300 transition-colors">
+                                        <Link to={link.path} className="rounded-sm hover:text-pl-text transition-colors">
                                             {link.name}
                                         </Link>
                                     </li>)}
@@ -90,7 +91,7 @@ const Footer = () => {
                         </div>
                     </div>
 
-                    <div className="mt-12 pt-8 border-t border-slate-700 text-center">
+                    <div className="mt-12 pt-8 border-t border-pl-border text-center">
                         <p>&copy; {new Date().getFullYear()} Lordsway Energy. All Rights Reserved.</p>
                     </div>
                 </div>

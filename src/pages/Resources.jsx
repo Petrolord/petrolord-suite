@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/componen
 import { ArrowRight, BookOpen, GraduationCap, LifeBuoy, MessageSquare } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { PublicPage } from '@/components/public/PublicPage';
 
 const Resources = () => {
   const resources = [
@@ -46,8 +47,7 @@ const Resources = () => {
         <title>Resources - Petrolord</title>
         <meta name="description" content="Learning and support resources for the Petrolord platform: the NextGen Academy, in-app help guides, documentation and support." />
       </Helmet>
-      <div className="min-h-screen bg-gradient-to-b from-slate-900 to-green-950 text-slate-200">
-        <Header />
+      <PublicPage testId="resources-theme-scope" header={<Header />}>
         <div className="relative container mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -55,28 +55,28 @@ const Resources = () => {
             transition={{ duration: 0.8 }}
             className="text-center my-12"
           >
-            <h1 className="text-5xl md:text-7xl font-bold bg-gradient-to-r from-white via-lime-200 to-green-300 bg-clip-text text-transparent mb-4">
+            <h1 className="font-pl-display text-5xl md:text-7xl font-semibold text-pl-text mb-4">
               Resources
             </h1>
-            <p className="text-xl md:text-2xl text-slate-300 max-w-4xl mx-auto">
+            <p className="text-xl md:text-2xl text-pl-muted max-w-4xl mx-auto">
               Where to learn the platform and where to get help with it.
             </p>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
             {resources.map((item) => (
-              <Card key={item.title} className="bg-slate-800/60 border-slate-700 flex flex-col justify-between hover:border-lime-400 transition-colors duration-300 shadow-lg">
+              <Card key={item.title} className="flex flex-col justify-between hover:border-pl-primary transition-colors duration-300">
                 <CardHeader>
-                  <CardTitle className="flex items-center text-xl text-slate-100">
-                    <item.icon className="mr-3 h-6 w-6 text-lime-400" />
+                  <CardTitle className="flex items-center text-xl text-pl-text">
+                    <item.icon className="mr-3 h-6 w-6 text-pl-primary-text" aria-hidden="true" />
                     {item.title}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="flex-grow">
-                  <p className="text-slate-400">{item.description}</p>
+                  <p className="text-pl-muted">{item.description}</p>
                 </CardContent>
                 <CardFooter>
-                  <Button asChild variant="link" className="p-0 text-lime-400 hover:text-lime-300">
+                  <Button asChild variant="link" className="p-0">
                     <Link to={item.to}>
                       {item.cta} <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
@@ -87,7 +87,7 @@ const Resources = () => {
           </div>
         </div>
         <Footer />
-      </div>
+      </PublicPage>
     </>
   );
 };
