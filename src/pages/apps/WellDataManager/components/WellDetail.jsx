@@ -14,6 +14,7 @@ import { OpenInAppMenu } from '@/components/wells/OpenInAppMenu';
 import { mapTopHref, appPath, MAPPING_ID } from '@/components/wells/appLinks';
 import CrsBadge from '@/components/crs/CrsBadge';
 import CrsPicker from '@/components/crs/CrsPicker';
+import { datumTransformInfo } from '@/lib/crs';
 import RowGridEditor from '@/components/wells/RowGridEditor';
 import PasteReplacePanel, { CheckshotConventionRow } from '@/components/wells/PasteReplacePanel';
 import { buildDeviation, buildTops, buildCheckshotInputs } from '@/lib/wellImport';
@@ -531,6 +532,21 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
                 </div>
               )}
             </Field>
+            {well.crs_provenance?.datum_transform && (() => {
+              // WDM-U2-014: the site's datum-transformation choice, which every
+              // coordinate conversion of this well uses
+              const info = datumTransformInfo(crsTag, well.crs_provenance.datum_transform);
+              return (
+                <Field label="Datum transformation">
+                  <span data-testid="wdm-header-datum-transform"
+                    title="Chosen for the site in Well Design Studio; reprojection and map placement convert through it">
+                    {info && !info.overrideIgnored
+                      ? `${info.transform.name} (${info.transform.code}, ${info.transform.accuracyM} m)${info.isDefault ? '' : ', site choice'}`
+                      : `${well.crs_provenance.datum_transform} (not published for ${crsTag || 'this CRS'}; the catalog default applies)`}
+                  </span>
+                </Field>
+              );
+            })()}
             <Field label="Status">
               {/* Mapping T1 (MAP-T1-015): drives the map well symbols */}
               <select className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5 text-xs"

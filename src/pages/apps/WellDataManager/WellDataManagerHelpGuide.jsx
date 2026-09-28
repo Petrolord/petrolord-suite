@@ -90,6 +90,12 @@ export default function WellDataManagerHelpGuide({ backTo = APP_PATH }) {
             wells have no location and are left off, and warns when the wells sit in more than one CRS, because their
             positions are then not comparable on one canvas.
           </Para>
+          <Callout tone="info" title="Datum transformations">
+            A well published from Well Design Studio carries the site's chosen datum transformation (for example one of
+            the published Minna to WGS 84 transformations, which differ by about 10 m). The Header tab names it, and
+            every conversion of the well's coordinates uses it: Project CRS reprojection, the map overlays in
+            Seismolord and Mapping, and the well door.
+          </Callout>
         </GuideSection>
 
         <GuideSection id="header">

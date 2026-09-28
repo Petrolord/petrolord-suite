@@ -5,16 +5,17 @@
 // anything but the same LOCAL grid.
 
 import { compareTags, normalizeTag } from './tags';
-import { getTransformer, crsDisplayName } from './index';
+import { getTransformer, crsDisplayName, rowDatumTransform } from './index';
 
 // Transformer cache: overlay paths run per render, proj4 construction
 // does not need to.
 const cache = new Map();
 
-/** Cached point transformer between two transformable tags. */
-export function cachedTransformer(fromTag, toTag, customDefs = {}) {
-  const key = `${normalizeTag(fromTag)}->${normalizeTag(toTag)}`;
-  if (!cache.has(key)) cache.set(key, getTransformer(fromTag, toTag, customDefs));
+/** Cached point transformer between two transformable tags; `fromTransform`
+ *  is the source row's datum-transformation choice (WDM-U2-014). */
+export function cachedTransformer(fromTag, toTag, customDefs = {}, fromTransform = null) {
+  const key = `${normalizeTag(fromTag)}->${normalizeTag(toTag)}${fromTransform ? `|${fromTransform}` : ''}`;
+  if (!cache.has(key)) cache.set(key, getTransformer(fromTag, toTag, customDefs, fromTransform ? { fromTransform } : {}));
   return cache.get(key);
 }
 
@@ -40,7 +41,7 @@ export function placeWellsForHost(wells, hostTag, customDefs = {}) {
       out.push({ ...w, crsStatus: 'same' });
     } else if (rel === 'transformable') {
       try {
-        const t = cachedTransformer(w.crs, hostTag, customDefs);
+        const t = cachedTransformer(w.crs, hostTag, customDefs, rowDatumTransform(w));
         const s = t.forward(w.surfaceX, w.surfaceY);
         out.push({
           ...w,

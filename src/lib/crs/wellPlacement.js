@@ -11,7 +11,7 @@
 
 import { normalizeTag, isTransformableTag, LOCAL, UNKNOWN } from '@/lib/crs/tags';
 import {
-  getTransformer, projectorFor, convergenceAt, crsUnit, unitToMetres,
+  getTransformer, projectorFor, convergenceAt, crsUnit, unitToMetres, rowDatumTransform,
 } from '@/lib/crs';
 import { toGridAzimuths } from '../../../packages/engines/engines/seismolord/wellPath';
 
@@ -67,11 +67,15 @@ export function placeWellLocation(loc, crsContext = {}) {
   if (!Number.isFinite(x) || !Number.isFinite(y)) {
     throw new Error('Surface X and Y must be numbers.');
   }
+  // WDM-U2-014: a datum-transformation choice for the declared CRS (a Well
+  // Design site's) is used for the conversion and kept with the row
+  const dt = loc.datumTransform ? rowDatumTransform({ crs: declared, datumTransform: loc.datumTransform }) : null;
   const provenance = {
     declared_crs: declared,
     declared_x: x,
     declared_y: y,
     declared_unit: loc.xyUnit || null,
+    ...(dt ? { datum_transform: dt } : {}),
   };
 
   if (!isTransformableTag(declared)) {
@@ -105,7 +109,7 @@ export function placeWellLocation(loc, crsContext = {}) {
     };
   }
 
-  const t = getTransformer(declared, project, customDefs).forward(nx, ny);
+  const t = getTransformer(declared, project, customDefs, dt ? { fromTransform: dt } : {}).forward(nx, ny);
   return {
     surfaceX: t.x,
     surfaceY: t.y,
