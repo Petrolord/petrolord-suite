@@ -23,17 +23,17 @@ const ArrayEditor = ({ label, values, onChange, unit }) => {
             <div className="grid grid-cols-5 gap-2">
                 {Array.from({length: displayYears}).map((_, i) => (
                     <div key={i}>
-                        <span className="text-[10px] text-slate-500">Y{i+1}</span>
+                        <span className="text-[10px] text-pl-muted">Y{i+1}</span>
                         <Input 
                             type="number" 
                             value={values[i] || 0} 
                             onChange={e => handleChange(i, e.target.value)} 
-                            className="h-8 text-xs bg-slate-800 border-slate-700" 
+                            className="h-8 text-xs font-pl-mono tabular-nums" 
                         />
                     </div>
                 ))}
             </div>
-            <p className="text-xs text-slate-500 italic text-right">Showing first {displayYears} years only</p>
+            <p className="text-xs text-pl-muted italic text-right">Showing first {displayYears} years only</p>
         </div>
     );
 };
@@ -76,16 +76,16 @@ const ExpertInput = ({ data, onChange }) => {
 
   return (
     <Tabs defaultValue="production" className="w-full">
-        <TabsList className="bg-slate-900 border border-slate-800 w-full justify-start">
+        <TabsList className="w-full justify-start overflow-x-auto">
             <TabsTrigger value="production">Production</TabsTrigger>
             <TabsTrigger value="price">Prices</TabsTrigger>
             <TabsTrigger value="cost">Costs</TabsTrigger>
             <TabsTrigger value="fiscal">Fiscal Terms</TabsTrigger>
         </TabsList>
 
-        <div className="mt-4 space-y-4 h-[500px] overflow-y-auto pr-2">
+        <div className="mt-4 space-y-4 lg:h-[500px] lg:overflow-y-auto pr-2">
             <TabsContent value="production" className="space-y-6">
-                <Card className="bg-slate-900 p-4 border-slate-800">
+                <Card className="p-4">
                     <ArrayEditor 
                         label="Oil Production" 
                         unit="bbl/yr" 
@@ -93,7 +93,7 @@ const ExpertInput = ({ data, onChange }) => {
                         onChange={v => handleDeepChange(['production', 'oil'], v)} 
                     />
                 </Card>
-                <Card className="bg-slate-900 p-4 border-slate-800">
+                <Card className="p-4">
                     <ArrayEditor 
                         label="Gas Production" 
                         unit="mscf/yr" 
@@ -104,7 +104,7 @@ const ExpertInput = ({ data, onChange }) => {
             </TabsContent>
 
             <TabsContent value="price" className="space-y-6">
-                <Card className="bg-slate-900 p-4 border-slate-800">
+                <Card className="p-4">
                     <ArrayEditor 
                         label="Oil Price Deck" 
                         unit="$/bbl" 
@@ -112,7 +112,7 @@ const ExpertInput = ({ data, onChange }) => {
                         onChange={v => handleDeepChange(['price', 'oil'], v)} 
                     />
                 </Card>
-                <Card className="bg-slate-900 p-4 border-slate-800">
+                <Card className="p-4">
                     <ArrayEditor 
                         label="Gas Price Deck" 
                         unit="$/mscf" 
@@ -123,7 +123,7 @@ const ExpertInput = ({ data, onChange }) => {
             </TabsContent>
 
             <TabsContent value="cost" className="space-y-6">
-                <Card className="bg-slate-900 p-4 border-slate-800">
+                <Card className="p-4">
                     <ArrayEditor 
                         label="CAPEX Phasing" 
                         unit="$MM" 
@@ -131,7 +131,7 @@ const ExpertInput = ({ data, onChange }) => {
                         onChange={v => handleDeepChange(['capex'], v)} 
                     />
                 </Card>
-                <Card className="bg-slate-900 p-4 border-slate-800">
+                <Card className="p-4">
                     <ArrayEditor 
                         label="Fixed OPEX" 
                         unit="$MM/yr" 
@@ -139,7 +139,7 @@ const ExpertInput = ({ data, onChange }) => {
                         onChange={v => handleDeepChange(['opexFixed'], v)} 
                     />
                 </Card>
-                <Card className="bg-slate-900 p-4 border-slate-800">
+                <Card className="p-4">
                     <ArrayEditor 
                         label="Variable OPEX" 
                         unit="$MM Total/yr" 
@@ -153,8 +153,8 @@ const ExpertInput = ({ data, onChange }) => {
                 <div className="space-y-2">
                     <Label>Fiscal System</Label>
                     <Select value={data.fiscalType} onValueChange={v => handleDeepChange(['fiscalType'], v)}>
-                        <SelectTrigger className="bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
                             <SelectItem value="TaxRoyalty">Tax & Royalty (Concession)</SelectItem>
                             <SelectItem value="PSC">Production Sharing Contract (PSC)</SelectItem>
                         </SelectContent>
@@ -162,21 +162,21 @@ const ExpertInput = ({ data, onChange }) => {
                 </div>
 
                 {data.fiscalType === 'TaxRoyalty' && (
-                    <Card className="bg-slate-900 p-4 border-slate-800 grid grid-cols-2 gap-4">
-                        <div><Label>Royalty Rate (%)</Label><Input type="number" value={data.royaltyRate} onChange={e => handleDeepChange(['royaltyRate'], parseFloat(e.target.value))} className="bg-slate-800 border-slate-700" /></div>
-                        <div><Label>Corporate Tax (%)</Label><Input type="number" value={data.taxRate} onChange={e => handleDeepChange(['taxRate'], parseFloat(e.target.value))} className="bg-slate-800 border-slate-700" /></div>
+                    <Card className="p-4 grid grid-cols-2 gap-4">
+                        <div><Label>Royalty Rate (%)</Label><Input type="number" value={data.royaltyRate} onChange={e => handleDeepChange(['royaltyRate'], parseFloat(e.target.value))} /></div>
+                        <div><Label>Corporate Tax (%)</Label><Input type="number" value={data.taxRate} onChange={e => handleDeepChange(['taxRate'], parseFloat(e.target.value))} /></div>
                     </Card>
                 )}
 
                 {data.fiscalType === 'PSC' && (
-                    <Card className="bg-slate-900 p-4 border-slate-800 space-y-4">
+                    <Card className="p-4 space-y-4">
                         <div className="grid grid-cols-2 gap-4">
-                            <div><Label>Cost Recovery Cap (%)</Label><Input type="number" value={data.costRecoveryCap} onChange={e => handleDeepChange(['costRecoveryCap'], parseFloat(e.target.value))} className="bg-slate-800 border-slate-700" /></div>
-                            <div><Label>Contractor Profit Share (%)</Label><Input type="number" value={data.profitSplitContractor} onChange={e => handleDeepChange(['profitSplitContractor'], parseFloat(e.target.value))} className="bg-slate-800 border-slate-700" /></div>
+                            <div><Label>Cost Recovery Cap (%)</Label><Input type="number" value={data.costRecoveryCap} onChange={e => handleDeepChange(['costRecoveryCap'], parseFloat(e.target.value))} /></div>
+                            <div><Label>Contractor Profit Share (%)</Label><Input type="number" value={data.profitSplitContractor} onChange={e => handleDeepChange(['profitSplitContractor'], parseFloat(e.target.value))} /></div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <div><Label>Royalty (%)</Label><Input type="number" value={data.royaltyRate} onChange={e => handleDeepChange(['royaltyRate'], parseFloat(e.target.value))} className="bg-slate-800 border-slate-700" /></div>
-                            <div><Label>Tax on Profit Oil (%)</Label><Input type="number" value={data.taxRate} onChange={e => handleDeepChange(['taxRate'], parseFloat(e.target.value))} className="bg-slate-800 border-slate-700" /></div>
+                            <div><Label>Royalty (%)</Label><Input type="number" value={data.royaltyRate} onChange={e => handleDeepChange(['royaltyRate'], parseFloat(e.target.value))} /></div>
+                            <div><Label>Tax on Profit Oil (%)</Label><Input type="number" value={data.taxRate} onChange={e => handleDeepChange(['taxRate'], parseFloat(e.target.value))} /></div>
                         </div>
                     </Card>
                 )}

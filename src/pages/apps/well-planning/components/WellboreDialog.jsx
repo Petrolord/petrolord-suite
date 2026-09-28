@@ -125,10 +125,10 @@ const WellboreDialog = ({ open, onOpenChange, site, wellbore, siblings = [], onS
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg bg-slate-900 border-slate-700 text-white">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{editing ? 'Edit wellbore' : 'New wellbore'}</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-pl-muted">
             Wellhead location comes from a slot on the pad or explicit coordinates in the site CRS. Depths reference the KB elevation.
           </DialogDescription>
         </DialogHeader>
@@ -137,11 +137,11 @@ const WellboreDialog = ({ open, onOpenChange, site, wellbore, siblings = [], onS
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">Wellbore name</Label>
-              <Input value={form.name || ''} onChange={(e) => set('name', e.target.value)} className="bg-slate-800 border-slate-700 h-9" />
+              <Input value={form.name || ''} onChange={(e) => set('name', e.target.value)} className="h-9" />
             </div>
             <div>
               <Label className="text-xs">UWI (optional)</Label>
-              <Input value={form.uwi || ''} onChange={(e) => set('uwi', e.target.value)} className="bg-slate-800 border-slate-700 h-9" />
+              <Input value={form.uwi || ''} onChange={(e) => set('uwi', e.target.value)} className="h-9" />
             </div>
           </div>
 
@@ -149,8 +149,8 @@ const WellboreDialog = ({ open, onOpenChange, site, wellbore, siblings = [], onS
             <div>
               <Label className="text-xs">Slot</Label>
               <Select value={form.slot_name} onValueChange={(v) => set('slot_name', v)}>
-                <SelectTrigger className="bg-slate-800 border-slate-700 h-9"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
                   <SelectItem value={NONE}>No slot</SelectItem>
                   {slots.map((s) => <SelectItem key={s.name} value={s.name}>{s.name}</SelectItem>)}
                 </SelectContent>
@@ -158,26 +158,26 @@ const WellboreDialog = ({ open, onOpenChange, site, wellbore, siblings = [], onS
             </div>
             <div>
               <Label className="text-xs">Wellhead E (m)</Label>
-              <Input type="number" value={form.head_x} onChange={(e) => set('head_x', e.target.value)} placeholder="from slot" className="bg-slate-800 border-slate-700 h-9" />
+              <Input type="number" value={form.head_x} onChange={(e) => set('head_x', e.target.value)} placeholder="from slot" className="h-9" />
             </div>
             <div>
               <Label className="text-xs">Wellhead N (m)</Label>
-              <Input type="number" value={form.head_y} onChange={(e) => set('head_y', e.target.value)} placeholder="from slot" className="bg-slate-800 border-slate-700 h-9" />
+              <Input type="number" value={form.head_y} onChange={(e) => set('head_y', e.target.value)} placeholder="from slot" className="h-9" />
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div>
               <Label className="text-xs">KB elev (m MSL)</Label>
-              <Input type="number" value={form.kb_elev_m} onChange={(e) => set('kb_elev_m', e.target.value)} className="bg-slate-800 border-slate-700 h-9" />
+              <Input type="number" value={form.kb_elev_m} onChange={(e) => set('kb_elev_m', e.target.value)} className="h-9" />
             </div>
             <div>
               <Label className="text-xs">Ground elev (m MSL)</Label>
-              <Input type="number" value={form.ground_elev_m} onChange={(e) => set('ground_elev_m', e.target.value)} className="bg-slate-800 border-slate-700 h-9" />
+              <Input type="number" value={form.ground_elev_m} onChange={(e) => set('ground_elev_m', e.target.value)} className="h-9" />
             </div>
             <div>
               <Label className="text-xs">Water depth (m)</Label>
-              <Input type="number" value={form.water_depth_m} onChange={(e) => set('water_depth_m', e.target.value)} className="bg-slate-800 border-slate-700 h-9" />
+              <Input type="number" value={form.water_depth_m} onChange={(e) => set('water_depth_m', e.target.value)} className="h-9" />
             </div>
           </div>
 
@@ -185,8 +185,8 @@ const WellboreDialog = ({ open, onOpenChange, site, wellbore, siblings = [], onS
             <div>
               <Label className="text-xs">Depth unit</Label>
               <Select value={form.depth_unit} onValueChange={(v) => set('depth_unit', v)}>
-                <SelectTrigger className="bg-slate-800 border-slate-700 h-9"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
                   <SelectItem value="m">Metres</SelectItem>
                   <SelectItem value="ft">Feet</SelectItem>
                 </SelectContent>
@@ -195,8 +195,8 @@ const WellboreDialog = ({ open, onOpenChange, site, wellbore, siblings = [], onS
             <div>
               <Label className="text-xs">Azimuth reference</Label>
               <Select value={form.azimuth_reference} onValueChange={(v) => set('azimuth_reference', v)}>
-                <SelectTrigger className="bg-slate-800 border-slate-700 h-9"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
                   <SelectItem value="grid">Grid north</SelectItem>
                   <SelectItem value="true">True north</SelectItem>
                   <SelectItem value="magnetic">Magnetic north</SelectItem>
@@ -206,8 +206,8 @@ const WellboreDialog = ({ open, onOpenChange, site, wellbore, siblings = [], onS
             <div>
               <Label className="text-xs">Sidetrack of</Label>
               <Select value={form.parent_wellbore_id} onValueChange={(v) => set('parent_wellbore_id', v)}>
-                <SelectTrigger className="bg-slate-800 border-slate-700 h-9"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
                   <SelectItem value={NONE}>Not a sidetrack</SelectItem>
                   {siblings.filter((w) => w.id !== wellbore?.id).map((w) => (
                     <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
@@ -217,28 +217,28 @@ const WellboreDialog = ({ open, onOpenChange, site, wellbore, siblings = [], onS
             </div>
           </div>
 
-          <div className="rounded-md border border-slate-700 bg-slate-800/50 p-2 text-xs text-slate-400">
+          <div className="rounded-md border border-pl-border bg-pl-sunken p-2 text-xs text-pl-muted">
             Grid convergence at wellhead: {convergence != null
-              ? <span className="font-mono text-slate-200">{convergence.toFixed(4)} deg</span>
+              ? <span className="font-mono text-pl-text">{convergence.toFixed(4)} deg</span>
               : <span className="italic">needs a site CRS and a wellhead location</span>}
-            <span className="mx-2 text-slate-600">|</span>
+            <span className="mx-2 text-pl-muted">|</span>
             Declination ({magnetics ? magnetics.model : 'WMM-2025'}): {magnetics
               ? (
-                <span className="font-mono text-slate-200" data-testid="wellbore-declination">
+                <span className="font-mono text-pl-text" data-testid="wellbore-declination">
                   {magnetics.declinationDeg.toFixed(4)} deg
-                  {!magnetics.inModelRange && <span className="ml-1 text-amber-400">(outside model validity)</span>}
+                  {!magnetics.inModelRange && <span className="ml-1 text-pl-warning-text">(outside model validity)</span>}
                 </span>
               )
               : <span className="italic">needs a transformable site CRS</span>}
             {magnetics && (
-              <span className="ml-2 text-slate-500">dip {magnetics.dipDeg.toFixed(2)} deg, field {(magnetics.totalFieldNt / 1000).toFixed(2)} uT</span>
+              <span className="ml-2 text-pl-muted">dip {magnetics.dipDeg.toFixed(2)} deg, field {(magnetics.totalFieldNt / 1000).toFixed(2)} uT</span>
             )}
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="border-slate-600 text-slate-300">Cancel</Button>
-          <Button onClick={handleSave} disabled={saving || !form.name?.trim()} className="bg-[#4CAF50] hover:bg-[#43a047] text-white">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving || !form.name?.trim()}>
             {editing ? 'Save changes' : 'Create wellbore'}
           </Button>
         </DialogFooter>

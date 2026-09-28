@@ -5,6 +5,8 @@
 
 import React, { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { ThemedApp } from '@/design/ThemeProvider';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { compileSegments } from './engine/segmentCompiler';
 import { solveSlant, solveHorizontalLanding } from './engine/profileDesign';
 import { declinationAt } from './engine/magnetics';
@@ -205,42 +207,44 @@ const WellDesignHarness = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 p-4 text-white">
+    <ThemedApp className="min-h-screen" data-testid="wds-harness-theme-scope">
+    <div className="min-h-screen bg-pl-bg p-4 text-pl-text">
       <h1 className="mb-2 text-sm font-bold">Well Design Studio harness</h1>
       <div className="mb-3 flex gap-2">
-        <Button size="sm" data-testid="wd-open-solver" onClick={() => setSolverOpen(true)} className="h-7 bg-lime-600 text-xs">Design methods</Button>
-        <Button size="sm" data-testid="wd-reset" onClick={() => { setSegments([{ id: 'h1', type: 'Hold', length: 500, buildRate: 0, turnRate: 0 }]); setKickoffAzi(0); }} variant="outline" className="h-7 border-slate-600 text-xs text-slate-300">Reset</Button>
+        <ThemeToggle className="h-7 w-7" />
+        <Button size="sm" data-testid="wd-open-solver" onClick={() => setSolverOpen(true)} className="h-7 text-xs">Design methods</Button>
+        <Button size="sm" data-testid="wd-reset" onClick={() => { setSegments([{ id: 'h1', type: 'Hold', length: 500, buildRate: 0, turnRate: 0 }]); setKickoffAzi(0); }} variant="outline" className="h-7 text-xs">Reset</Button>
       </div>
 
       <div className="mb-3 grid grid-cols-7 gap-2 text-xs" data-testid="wd-readout">
-        <div>MD <span data-testid="wd-md" className="font-mono text-lime-400">{last ? last.md.toFixed(1) : '--'}</span></div>
-        <div>TVD <span data-testid="wd-tvd" className="font-mono text-lime-400">{last ? last.tvd.toFixed(1) : '--'}</span></div>
-        <div>N <span data-testid="wd-n" className="font-mono text-lime-400">{last ? last.n.toFixed(1) : '--'}</span></div>
-        <div>E <span data-testid="wd-e" className="font-mono text-lime-400">{last ? last.e.toFixed(1) : '--'}</span></div>
-        <div>Inc <span data-testid="wd-inc" className="font-mono text-lime-400">{last ? last.inc.toFixed(2) : '--'}</span></div>
-        <div>Segs <span data-testid="wd-segcount" className="font-mono text-lime-400">{segments.length}</span></div>
-        <div>Tgt skip <span data-testid="wd-target-problems" className="font-mono text-lime-400">{targetFrame.problems.length}</span></div>
-        <div>Decl <span data-testid="wd-decl" className="font-mono text-lime-400">{declinationAt(MAG_PROBE).declinationDeg.toFixed(3)}</span></div>
-        <div>AC SF <span data-testid="wd-acsf" className="font-mono text-lime-400">{acProbe ? acProbe.summary.minSf.toFixed(4) : '--'}</span></div>
-        <div>CSV <span data-testid="wd-csvlines" className="font-mono text-lime-400">{wd5 ? wd5.csvLines : '--'}</span></div>
-        <div>DXF <span data-testid="wd-dxfverts" className="font-mono text-lime-400">{wd5 ? wd5.dxfVertices : '--'}</span></div>
-        <div>TDss <span data-testid="wd-tdtvdss" className="font-mono text-lime-400">{wd5 ? wd5.tdTvdss.toFixed(1) : '--'}</span></div>
-        <div>Snap <span data-testid="wd-snapbytes" className="font-mono text-lime-400">{snapshotBytes ?? '--'}</span></div>
-        <div>Pub <span data-testid="wd-pubdev" className="font-mono text-lime-400">{publishProbe ? `${publishProbe.count}@${publishProbe.tdMdM}` : '--'}</span></div>
+        <div>MD <span data-testid="wd-md" className="font-mono text-pl-primary-text">{last ? last.md.toFixed(1) : '--'}</span></div>
+        <div>TVD <span data-testid="wd-tvd" className="font-mono text-pl-primary-text">{last ? last.tvd.toFixed(1) : '--'}</span></div>
+        <div>N <span data-testid="wd-n" className="font-mono text-pl-primary-text">{last ? last.n.toFixed(1) : '--'}</span></div>
+        <div>E <span data-testid="wd-e" className="font-mono text-pl-primary-text">{last ? last.e.toFixed(1) : '--'}</span></div>
+        <div>Inc <span data-testid="wd-inc" className="font-mono text-pl-primary-text">{last ? last.inc.toFixed(2) : '--'}</span></div>
+        <div>Segs <span data-testid="wd-segcount" className="font-mono text-pl-primary-text">{segments.length}</span></div>
+        <div>Tgt skip <span data-testid="wd-target-problems" className="font-mono text-pl-primary-text">{targetFrame.problems.length}</span></div>
+        <div>Decl <span data-testid="wd-decl" className="font-mono text-pl-primary-text">{declinationAt(MAG_PROBE).declinationDeg.toFixed(3)}</span></div>
+        <div>AC SF <span data-testid="wd-acsf" className="font-mono text-pl-primary-text">{acProbe ? acProbe.summary.minSf.toFixed(4) : '--'}</span></div>
+        <div>CSV <span data-testid="wd-csvlines" className="font-mono text-pl-primary-text">{wd5 ? wd5.csvLines : '--'}</span></div>
+        <div>DXF <span data-testid="wd-dxfverts" className="font-mono text-pl-primary-text">{wd5 ? wd5.dxfVertices : '--'}</span></div>
+        <div>TDss <span data-testid="wd-tdtvdss" className="font-mono text-pl-primary-text">{wd5 ? wd5.tdTvdss.toFixed(1) : '--'}</span></div>
+        <div>Snap <span data-testid="wd-snapbytes" className="font-mono text-pl-primary-text">{snapshotBytes ?? '--'}</span></div>
+        <div>Pub <span data-testid="wd-pubdev" className="font-mono text-pl-primary-text">{publishProbe ? `${publishProbe.count}@${publishProbe.tdMdM}` : '--'}</span></div>
         <div>
-          <button type="button" data-testid="wd-pdf-run" onClick={handlePdfProbe} className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300">PDF</button>
+          <button type="button" data-testid="wd-pdf-run" onClick={handlePdfProbe} className="rounded bg-pl-sunken px-1.5 py-0.5 text-[10px] text-pl-text">PDF</button>
           {' '}
-          <span data-testid="wd-pdfprobe" className="font-mono text-lime-400">{pdfProbe ? `${pdfProbe.pages}p/${pdfProbe.bytes}` : '--'}</span>
+          <span data-testid="wd-pdfprobe" className="font-mono text-pl-primary-text">{pdfProbe ? `${pdfProbe.pages}p/${pdfProbe.bytes}` : '--'}</span>
         </div>
       </div>
-      {compiled.error && <div className="mb-3 text-xs text-red-400" data-testid="wd-error">{compiled.error}</div>}
+      {compiled.error && <div className="mb-3 text-xs text-pl-danger-text" data-testid="wd-error">{compiled.error}</div>}
 
-      <div className="grid h-[52vh] grid-cols-3 gap-px bg-slate-800">
+      <div className="grid h-[52vh] grid-cols-3 gap-px bg-pl-border">
         <PlanViewChart rows={rows || []} targets={chartTargets} unit="m" />
         <SectionViewPanel rows={rows || []} unit="m" vsAzimuthDeg={last?.closureAzi} />
         <DlsPanel rows={rows || []} unit="m" />
       </div>
-      <div className="mt-px grid h-[34vh] grid-cols-3 gap-px bg-slate-800">
+      <div className="mt-px grid h-[34vh] grid-cols-3 gap-px bg-pl-border">
         <LadderChart results={acResults} mode="sf" unit="m" />
         <TravelingCylinderChart results={acResults} unit="m" />
         <div className="relative">
@@ -271,6 +275,7 @@ const WellDesignHarness = () => {
         onApply={applySolution}
       />
     </div>
+    </ThemedApp>
   );
 };
 

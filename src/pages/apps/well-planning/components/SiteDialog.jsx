@@ -96,10 +96,10 @@ const SiteDialog = ({ open, onOpenChange, site, onSave, customDefs = {} }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg bg-slate-900 border-slate-700 text-white">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{editing ? 'Edit site' : 'New site'}</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-pl-muted">
             A site is the pad: it carries the coordinate system, the pad origin, and the slot template every wellbore on it uses.
           </DialogDescription>
         </DialogHeader>
@@ -108,13 +108,13 @@ const SiteDialog = ({ open, onOpenChange, site, onSave, customDefs = {} }) => {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">Site name</Label>
-              <Input value={form.name || ''} onChange={(e) => set('name', e.target.value)} className="bg-slate-800 border-slate-700 h-9" />
+              <Input value={form.name || ''} onChange={(e) => set('name', e.target.value)} className="h-9" />
             </div>
             <div>
               <Label className="text-xs">North reference</Label>
               <Select value={form.north_reference} onValueChange={(v) => set('north_reference', v)}>
-                <SelectTrigger className="bg-slate-800 border-slate-700 h-9"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
                   <SelectItem value="grid">Grid north</SelectItem>
                   <SelectItem value="true">True north</SelectItem>
                 </SelectContent>
@@ -124,7 +124,7 @@ const SiteDialog = ({ open, onOpenChange, site, onSave, customDefs = {} }) => {
 
           <div>
             <Label className="text-xs">Coordinate reference system</Label>
-            <div className="mt-1 rounded-md border border-slate-700 bg-slate-800 p-2">
+            <div className="mt-1 rounded-md border border-pl-border bg-pl-sunken p-2">
               <CrsPicker
                 value={form.crs}
                 onChange={(tag) => setForm((f) => ({ ...f, crs: tag, datum_transform: null }))}
@@ -138,8 +138,8 @@ const SiteDialog = ({ open, onOpenChange, site, onSave, customDefs = {} }) => {
                   value={dtInfo.transform.code}
                   onValueChange={(v) => set('datum_transform', v === crsEntry?.datumTransform ? null : v)}
                 >
-                  <SelectTrigger className="bg-slate-800 border-slate-700 h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700">
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
                     {dtInfo.options.map((t) => (
                       <SelectItem key={t.code} value={t.code}>
                         {t.name}, {t.code}, {t.accuracyM} m{t.code === crsEntry?.datumTransform ? ' (default)' : ''}
@@ -147,17 +147,17 @@ const SiteDialog = ({ open, onOpenChange, site, onSave, customDefs = {} }) => {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-slate-400" data-testid="site-datum-accuracy">
+                <p className="text-xs text-pl-muted" data-testid="site-datum-accuracy">
                   {dtInfo.transform.name} ({dtInfo.transform.code}), {dtInfo.transform.method}.
                   {' '}Published accuracy {dtInfo.transform.accuracyM} m. Area of use: {dtInfo.transform.areaName}.
                 </p>
                 {dtInfo.overrideIgnored && (
-                  <p className="text-xs text-amber-300">
+                  <p className="text-xs text-pl-warning-text">
                     The saved transformation does not apply to this CRS, so the default is used.
                   </p>
                 )}
                 {originCheck && !originCheck.inside && (
-                  <p className="text-xs text-amber-300" data-testid="site-datum-outside">
+                  <p className="text-xs text-pl-warning-text" data-testid="site-datum-outside">
                     The site origin ({originCheck.lat.toFixed(4)}°, {originCheck.lon.toFixed(4)}°) lies outside this
                     transformation&apos;s published area of use.
                     {' '}{originCheck.covering.length
@@ -168,7 +168,7 @@ const SiteDialog = ({ open, onOpenChange, site, onSave, customDefs = {} }) => {
               </div>
             )}
             {!dtInfo && crsEntry?.datumAccuracyM && (
-              <p className="mt-2 text-xs text-slate-400" data-testid="site-datum-accuracy">
+              <p className="mt-2 text-xs text-pl-muted" data-testid="site-datum-accuracy">
                 The datum shift to WGS 84 is approximate, about {crsEntry.datumAccuracyM} m.
               </p>
             )}
@@ -177,22 +177,22 @@ const SiteDialog = ({ open, onOpenChange, site, onSave, customDefs = {} }) => {
           <div className="grid grid-cols-3 gap-3">
             <div>
               <Label className="text-xs">Origin Easting (m)</Label>
-              <Input type="number" value={form.origin_x} onChange={(e) => set('origin_x', e.target.value)} className="bg-slate-800 border-slate-700 h-9" />
+              <Input type="number" value={form.origin_x} onChange={(e) => set('origin_x', e.target.value)} className="h-9" />
             </div>
             <div>
               <Label className="text-xs">Origin Northing (m)</Label>
-              <Input type="number" value={form.origin_y} onChange={(e) => set('origin_y', e.target.value)} className="bg-slate-800 border-slate-700 h-9" />
+              <Input type="number" value={form.origin_y} onChange={(e) => set('origin_y', e.target.value)} className="h-9" />
             </div>
             <div>
               <Label className="text-xs">Ground elev (m MSL)</Label>
-              <Input type="number" value={form.default_ground_elev_m} onChange={(e) => set('default_ground_elev_m', e.target.value)} className="bg-slate-800 border-slate-700 h-9" />
+              <Input type="number" value={form.default_ground_elev_m} onChange={(e) => set('default_ground_elev_m', e.target.value)} className="h-9" />
             </div>
           </div>
 
           <div>
             <div className="flex items-center justify-between">
               <Label className="text-xs">Slot template (offsets from origin, m)</Label>
-              <Button variant="ghost" size="sm" className="h-6 text-lime-400" onClick={() => setSlots((s) => [...s, { name: `S${s.length + 1}`, dx_m: 0, dy_m: 0 }])}>
+              <Button variant="ghost" size="sm" className="h-6 text-pl-primary-text" onClick={() => setSlots((s) => [...s, { name: `S${s.length + 1}`, dx_m: 0, dy_m: 0 }])}>
                 <Plus className="mr-1 h-3 w-3" /> Slot
               </Button>
             </div>
@@ -200,10 +200,10 @@ const SiteDialog = ({ open, onOpenChange, site, onSave, customDefs = {} }) => {
               <div className="mt-1 space-y-1">
                 {slots.map((s, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <Input value={s.name} onChange={(e) => setSlot(i, 'name', e.target.value)} placeholder="Name" className="h-7 w-20 bg-slate-800 border-slate-700 text-xs" />
-                    <Input type="number" value={s.dx_m} onChange={(e) => setSlot(i, 'dx_m', e.target.value)} placeholder="dE" className="h-7 w-24 bg-slate-800 border-slate-700 text-xs" />
-                    <Input type="number" value={s.dy_m} onChange={(e) => setSlot(i, 'dy_m', e.target.value)} placeholder="dN" className="h-7 w-24 bg-slate-800 border-slate-700 text-xs" />
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:text-red-400" onClick={() => setSlots((rows) => rows.filter((_, j) => j !== i))}>
+                    <Input value={s.name} onChange={(e) => setSlot(i, 'name', e.target.value)} placeholder="Name" className="h-7 w-20 text-xs" />
+                    <Input type="number" value={s.dx_m} onChange={(e) => setSlot(i, 'dx_m', e.target.value)} placeholder="dE" className="h-7 w-24 text-xs" />
+                    <Input type="number" value={s.dy_m} onChange={(e) => setSlot(i, 'dy_m', e.target.value)} placeholder="dN" className="h-7 w-24 text-xs" />
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-pl-muted hover:text-pl-danger-text" onClick={() => setSlots((rows) => rows.filter((_, j) => j !== i))}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
@@ -214,8 +214,8 @@ const SiteDialog = ({ open, onOpenChange, site, onSave, customDefs = {} }) => {
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="border-slate-600 text-slate-300">Cancel</Button>
-          <Button onClick={handleSave} disabled={saving || !form.name?.trim()} className="bg-[#4CAF50] hover:bg-[#43a047] text-white">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving || !form.name?.trim()}>
             {editing ? 'Save changes' : 'Create site'}
           </Button>
         </DialogFooter>

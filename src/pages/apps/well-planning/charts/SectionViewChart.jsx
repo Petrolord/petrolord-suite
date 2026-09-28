@@ -99,7 +99,7 @@ const SectionViewChart = ({
   const clipId = useMemo(() => `sv-clip-${Math.random().toString(36).slice(2, 9)}`, []);
 
   return (
-    <div className="relative flex h-full min-h-0 w-full min-w-0 flex-col bg-white" data-testid="section-view-chart">
+    <div className="relative flex h-full min-h-0 w-full min-w-0 flex-col bg-white" data-testid="section-view-chart" data-canvas="chart">
       <div className="flex items-center gap-2 px-3 pt-2">
         <div className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-700">
           {title || `Section view (TVD vs VS at ${Number.isFinite(vsAzimuthDeg) ? vsAzimuthDeg.toFixed(1) : '--'}°, ${unit})`}

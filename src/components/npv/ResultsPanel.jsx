@@ -1,7 +1,7 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ChartPanel } from '@/components/ui/chart-panel';
+import { NumericTable, NumTh, NumRow, RowLabel, NumCell } from '@/components/ui/numeric-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Download, FileText, Presentation, TrendingUp, TrendingDown, Minus, AlertTriangle } from 'lucide-react';
@@ -35,7 +35,7 @@ const ResultsPanel = ({ results, onRerunRisk, riskRunning = false }) => {
   const formatCurrency = (val) => (full ? formatFull(val, 4) : compactCurrency(val));
   // cashflow rows hold million USD; the product text scales them to USD first
   const cfMoney = (mm, sign = '') => (full ? formatFull(mm, 4) : `${sign}${compactCurrency(mm * 1e6)}`);
-  const mmUnit = <span className="text-xs font-normal text-slate-500"> $MM</span>;
+  const mmUnit = <span className="text-xs font-normal font-pl-sans text-pl-muted"> $MM</span>;
   // EC6-1: the screening engine reports no internal rate of return when
   // there is none to report (every period the same sign, several roots, or a
   // rate above the band it searches), where it used to return the 1000
@@ -144,260 +144,240 @@ const ResultsPanel = ({ results, onRerunRisk, riskRunning = false }) => {
       doc.save("Economic_Summary_Report.pdf");
   };
 
-  const getKPICardColor = (metric, value) => {
-      if (metric === 'NPV') return value > 0 ? 'text-green-400' : 'text-red-400';
-      // EC6-1: no rate is not a red rate; it is no rate.
-      if (metric === 'IRR') {
-        if (typeof value !== 'number' || !Number.isFinite(value)) return 'text-slate-400';
-        return value > 15 ? 'text-green-400' : value > 10 ? 'text-amber-400' : 'text-red-400';
-      }
-      return 'text-white';
-  };
+  // Design system (rollout 2E): colour is for status only. A negative NPV
+  // prints in danger text beside its minus sign; the other KPI values are
+  // plain text, since a hurdle colour with no word would be the only signal.
+  const npvTone = (value) => (typeof value === 'number' && value < 0 ? 'text-pl-danger-text' : 'text-pl-text');
+  const kpiCard = 'bg-pl-surface border border-pl-border rounded-lg p-4 shadow-pl-sm';
+  const kpiLabel = 'text-xs text-pl-muted uppercase font-semibold tracking-wide';
+  const kpiValue = 'text-2xl font-semibold font-pl-mono tabular-nums';
+  const kpiNote = 'text-[11px] text-pl-muted mt-1';
+  // costs print with a leading minus in the product view and as positive
+  // amounts at full precision, so the tone follows the sign on screen
+  const costValue = (v) => (full ? v : -v);
 
   return (
-    <div className="h-full flex flex-col space-y-4 animate-in fade-in duration-500">
+    <div className="lg:h-full flex flex-col space-y-4 animate-in fade-in duration-500">
         
         {/* Tabs Navigation */}
-        <Tabs defaultValue="dashboard" className="flex-1 flex flex-col overflow-hidden">
+        <Tabs defaultValue="dashboard" className="flex-1 flex flex-col lg:overflow-hidden">
             <div className="flex justify-between items-center flex-wrap gap-2">
-                <TabsList className="bg-slate-900 border border-slate-800">
+                <TabsList className="max-w-full overflow-x-auto justify-start">
                     <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
                     <TabsTrigger value="cashflow">Cashflow</TabsTrigger>
                     <TabsTrigger value="scenarios">Scenarios</TabsTrigger>
                     <TabsTrigger value="sensitivity">Sensitivity</TabsTrigger>
                     <TabsTrigger value="risk">Risk</TabsTrigger>
                 </TabsList>
-                <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={exportExcel} className="h-8 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800">
+                <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" size="sm" onClick={exportExcel} className="h-8">
                         <FileText className="w-3 h-3 mr-2" /> Excel
                     </Button>
-                    <Button variant="outline" size="sm" onClick={exportPDF} className="h-8 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800">
+                    <Button variant="outline" size="sm" onClick={exportPDF} className="h-8">
                         <Download className="w-3 h-3 mr-2" /> PDF
                     </Button>
-                    <Button variant="outline" size="sm" className="h-8 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800">
+                    <Button variant="outline" size="sm" className="h-8">
                         <Presentation className="w-3 h-3 mr-2" /> PPT
                     </Button>
                 </div>
             </div>
 
             {/* 1. Dashboard Tab */}
-            <TabsContent value="dashboard" className="flex-1 overflow-y-auto space-y-4 mt-4">
+            <TabsContent value="dashboard" className="flex-1 lg:overflow-y-auto space-y-4 mt-4">
                 <FullPrecisionNote />
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <Card className="bg-slate-900 border-slate-800 p-4">
-                        <p className="text-xs text-slate-500 uppercase font-semibold">Net Present Value</p>
-                        <p className={`text-2xl font-bold ${getKPICardColor('NPV', metrics.npv)}`}>{formatCurrency(metrics.npv)}{mmUnit}</p>
-                    </Card>
-                    <Card className="bg-slate-900 border-slate-800 p-4">
-                        <p className="text-xs text-slate-500 uppercase font-semibold">Internal Rate of Return</p>
-                        <p className={`text-2xl font-bold ${getKPICardColor('IRR', metrics.irr)}`}>{formatPct(metrics.irr)}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className={kpiCard}>
+                        <p className={kpiLabel}>Net Present Value</p>
+                        <p className={`${kpiValue} ${npvTone(metrics.npv)}`}>{formatCurrency(metrics.npv)}{mmUnit}</p>
+                    </div>
+                    <div className={kpiCard}>
+                        <p className={kpiLabel}>Internal Rate of Return</p>
+                        <p className={`${kpiValue} ${typeof metrics.irr === 'number' && Number.isFinite(metrics.irr) ? 'text-pl-text' : 'text-pl-muted'}`}>{formatPct(metrics.irr)}</p>
                         {metrics.irr === null && irrReasonFor(metrics) ? (
-                          <p className="text-[11px] text-slate-500 mt-1">{irrReasonFor(metrics)}</p>
+                          <p className={kpiNote}>{irrReasonFor(metrics)}</p>
                         ) : null}
-                    </Card>
-                    <Card className="bg-slate-900 border-slate-800 p-4">
-                        <p className="text-xs text-slate-500 uppercase font-semibold">Payback Period</p>
-                        <p className={`text-2xl font-bold ${metrics.payback === null ? 'text-slate-400' : 'text-blue-400'}`} data-testid="npv-payback">
+                    </div>
+                    <div className={kpiCard}>
+                        <p className={kpiLabel}>Payback Period</p>
+                        <p className={`${kpiValue} ${metrics.payback === null ? 'text-pl-muted' : 'text-pl-text'}`} data-testid="npv-payback">
                           {metrics.payback === null ? 'n/a' : `${formatYears(metrics.payback)} Years`}
                         </p>
                         {paybackNote(metrics) ? (
-                          <p className="text-[11px] text-slate-500 mt-1" data-testid="npv-payback-note">{paybackNote(metrics)}</p>
+                          <p className={kpiNote} data-testid="npv-payback-note">{paybackNote(metrics)}</p>
                         ) : null}
-                    </Card>
-                    <Card className="bg-slate-900 border-slate-800 p-4">
-                        <p className="text-xs text-slate-500 uppercase font-semibold">Max Exposure</p>
-                        <p className="text-2xl font-bold text-red-400">{formatCurrency(exposureOf(metrics))}{mmUnit}</p>
-                    </Card>
+                    </div>
+                    <div className={kpiCard}>
+                        <p className={kpiLabel}>Max Exposure</p>
+                        <p className={`${kpiValue} text-pl-text`}>{formatCurrency(exposureOf(metrics))}{mmUnit}</p>
+                    </div>
                 </div>
-                <Card className="bg-slate-900 border-slate-800 flex-1 min-h-[400px]">
-                    <CardHeader><CardTitle className="text-sm text-slate-300">Value Erosion Waterfall</CardTitle></CardHeader>
-                    <CardContent>
-                        <WaterfallChart metrics={metrics} />
-                    </CardContent>
-                </Card>
+                <ChartPanel title="Value Erosion Waterfall" className="min-h-[400px]">
+                    <WaterfallChart metrics={metrics} />
+                </ChartPanel>
             </TabsContent>
 
             {/* 2. Cashflow Tab */}
-            <TabsContent value="cashflow" className="flex-1 overflow-y-auto space-y-4 mt-4">
-                <Card className="bg-slate-900 border-slate-800">
-                    <CardHeader><CardTitle className="text-sm text-slate-300">Annual Cashflow Profile</CardTitle></CardHeader>
-                    <CardContent>
-                        <StackedCashflowChart data={cashflow} />
-                    </CardContent>
-                </Card>
-                <Card className="bg-slate-900 border-slate-800 overflow-hidden">
-                    {full && (
-                      <p className="text-[11px] text-amber-300 px-4 pt-3" data-testid="npv-cashflow-full">
-                        Million USD at 4 decimals. Royalty, OPEX, CAPEX and tax print as positive amounts.
-                      </p>
-                    )}
-                    <Table>
-                        <TableHeader>
-                            <TableRow className="border-b-slate-800 bg-slate-950">
-                                <TableHead className="text-slate-300">Year</TableHead>
-                                <TableHead className="text-right text-emerald-400">Gross Rev</TableHead>
-                                <TableHead className="text-right text-slate-400">Royalty</TableHead>
-                                <TableHead className="text-right text-amber-400">OPEX</TableHead>
-                                <TableHead className="text-right text-blue-400">CAPEX</TableHead>
-                                <TableHead className="text-right text-red-400">Tax</TableHead>
-                                <TableHead className="text-right font-bold text-white">NCF</TableHead>
-                                <TableHead className="text-right text-slate-500">Cum. NCF</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {cashflow.map((row, i) => (
-                                <TableRow key={i} className="border-b-slate-800 hover:bg-slate-800/50">
-                                    <TableCell className="font-mono text-xs text-slate-400">{row.year}</TableCell>
-                                    <TableCell className="font-mono text-xs text-right text-emerald-400">{cfMoney(row.grossRevenue)}</TableCell>
-                                    <TableCell className="font-mono text-xs text-right text-slate-400">{cfMoney(row.royalty, '-')}</TableCell>
-                                    <TableCell className="font-mono text-xs text-right text-amber-400">{cfMoney(row.opex, '-')}</TableCell>
-                                    <TableCell className="font-mono text-xs text-right text-blue-400">{cfMoney(row.capex, '-')}</TableCell>
-                                    <TableCell className="font-mono text-xs text-right text-red-400">{cfMoney(row.tax, '-')}</TableCell>
-                                    <TableCell className={`font-mono text-xs text-right font-bold ${row.ncf >= 0 ? 'text-white' : 'text-red-400'}`}>{cfMoney(row.ncf)}</TableCell>
-                                    <TableCell className="font-mono text-xs text-right text-slate-500">{cfMoney(row.cumulativeNCF)}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </Card>
+            <TabsContent value="cashflow" className="flex-1 lg:overflow-y-auto space-y-4 mt-4">
+                <ChartPanel title="Annual Cashflow Profile">
+                    <StackedCashflowChart data={cashflow} />
+                </ChartPanel>
+                {full && (
+                  <p className="text-[11px] text-pl-warning-text px-1" data-testid="npv-cashflow-full">
+                    Million USD at 4 decimals. Royalty, OPEX, CAPEX and tax print as positive amounts.
+                  </p>
+                )}
+                <NumericTable title="Annual cash flow" data-testid="npv-cashflow-table">
+                    <thead>
+                        <tr>
+                            <NumTh sticky>Year</NumTh>
+                            <NumTh numeric>Gross Rev</NumTh>
+                            <NumTh numeric>Royalty</NumTh>
+                            <NumTh numeric>OPEX</NumTh>
+                            <NumTh numeric>CAPEX</NumTh>
+                            <NumTh numeric>Tax</NumTh>
+                            <NumTh numeric>NCF</NumTh>
+                            <NumTh numeric>Cum. NCF</NumTh>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {cashflow.map((row, i) => (
+                            <NumRow key={i}>
+                                <RowLabel className="font-pl-mono tabular-nums">{row.year}</RowLabel>
+                                <NumCell value={row.grossRevenue}>{cfMoney(row.grossRevenue)}</NumCell>
+                                <NumCell value={costValue(row.royalty)}>{cfMoney(row.royalty, '-')}</NumCell>
+                                <NumCell value={costValue(row.opex)}>{cfMoney(row.opex, '-')}</NumCell>
+                                <NumCell value={costValue(row.capex)}>{cfMoney(row.capex, '-')}</NumCell>
+                                <NumCell value={costValue(row.tax)}>{cfMoney(row.tax, '-')}</NumCell>
+                                <NumCell value={row.ncf} className="font-semibold">{cfMoney(row.ncf)}</NumCell>
+                                <NumCell
+                                  value={row.cumulativeNCF}
+                                  tone={row.cumulativeNCF >= 0 ? 'text-pl-success-text' : 'text-pl-danger-text'}
+                                >
+                                  {cfMoney(row.cumulativeNCF)}
+                                </NumCell>
+                            </NumRow>
+                        ))}
+                    </tbody>
+                </NumericTable>
             </TabsContent>
-
             {/* 3. Scenarios Tab */}
-            <TabsContent value="scenarios" className="flex-1 overflow-y-auto space-y-4 mt-4">
+            <TabsContent value="scenarios" className="flex-1 lg:overflow-y-auto space-y-4 mt-4">
                 {scenarios && (
-                    <div className="grid grid-cols-1 lg:grid-cols-1 gap-4">
-                        <Card className="bg-slate-900 border-slate-800">
-                            <CardHeader><CardTitle className="text-sm text-slate-300">Scenario Comparison Matrix</CardTitle></CardHeader>
-                            <CardContent>
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow className="border-b-slate-800">
-                                            <TableHead className="text-slate-300">Metric</TableHead>
-                                            <TableHead className="text-right text-slate-400">Low Case</TableHead>
-                                            <TableHead className="text-right font-bold text-white bg-slate-800/50">Base Case</TableHead>
-                                            <TableHead className="text-right text-slate-400">High Case</TableHead>
-                                            <TableHead className="text-right text-slate-500">Delta (Base vs High)</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {[
-                                            { label: 'NPV ($MM)', key: 'npv', format: (v) => formatCurrency(v) },
-                                            { label: 'IRR (%)', key: 'irr', format: (v) => formatPct(v) },
-                                            { label: 'Payback (Yrs)', key: 'payback', format: (v) => formatYears(v) },
-                                            { label: 'Max Exposure ($MM)', key: 'maxExposure', format: (v) => formatCurrency(Math.max(0, -v)) }
-                                        ].map(m => (
-                                            <TableRow key={m.key} className="border-b-slate-800">
-                                                <TableCell className="font-medium text-slate-300">{m.label}</TableCell>
-                                                <TableCell className="text-right font-mono text-slate-400">{m.format(scenarios.Low.metrics[m.key])}</TableCell>
-                                                <TableCell className="text-right font-mono font-bold text-white bg-slate-800/50">{m.format(scenarios.Base.metrics[m.key])}</TableCell>
-                                                <TableCell className="text-right font-mono text-slate-400">{m.format(scenarios.High.metrics[m.key])}</TableCell>
-                                                <TableCell className="text-right font-mono">
-                                                    {(() => {
-                                                        const high = scenarios.High.metrics[m.key];
-                                                        const base = scenarios.Base.metrics[m.key];
-                                                        // EC6-1: a difference needs two numbers.
-                                                        if (typeof high !== 'number' || typeof base !== 'number') {
-                                                          return <span className="text-slate-500">n/a</span>;
-                                                        }
-                                                        const diff = high - base;
-                                                        const color = m.key === 'payback' || m.key === 'maxExposure' ? (diff < 0 ? 'text-green-400' : 'text-red-400') : (diff > 0 ? 'text-green-400' : 'text-red-400');
-                                                        return <span className={color}>{diff > 0 ? '+' : ''}{m.key === 'irr' ? diff.toFixed(1)+'%' : m.key === 'payback' ? diff.toFixed(1) : formatCurrency(diff)}</span>;
-                                                    })()}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                                <p className="text-[11px] text-slate-500 mt-3" data-testid="npv-scenario-definition">
-                                    Low is 20 percent lower price and production with 20 percent higher capex and fixed opex; High is the mirror image.
-                                    Variable operating cost moves with production, so a barrel not produced is a barrel not paid for.
-                                    {['Low', 'Base', 'High'].some((k) => scenarios[k].metrics.paybackStatus === 'recrossed' || scenarios[k].metrics.paybackStatus === 'not-recovered')
-                                      ? ' A payback of n/a means that case never pays back; see the Dashboard for why a payback can go back below zero.'
-                                      : ''}
-                                </p>
-                            </CardContent>
-                        </Card>
+                    <div className="space-y-3">
+                        <NumericTable title="Scenario Comparison Matrix">
+                            <thead>
+                                <tr>
+                                    <NumTh sticky>Metric</NumTh>
+                                    <NumTh numeric>Low Case</NumTh>
+                                    <NumTh numeric className="text-pl-text">Base Case</NumTh>
+                                    <NumTh numeric>High Case</NumTh>
+                                    <NumTh numeric>Delta (Base vs High)</NumTh>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {[
+                                    { label: 'NPV ($MM)', key: 'npv', format: (v) => formatCurrency(v) },
+                                    { label: 'IRR (%)', key: 'irr', format: (v) => formatPct(v) },
+                                    { label: 'Payback (Yrs)', key: 'payback', format: (v) => formatYears(v) },
+                                    { label: 'Max Exposure ($MM)', key: 'maxExposure', format: (v) => formatCurrency(Math.max(0, -v)) }
+                                ].map(m => {
+                                    // only the NPV row is a signed money figure; exposure prints as a positive amount
+                                    const signed = m.key === 'npv';
+                                    return (
+                                    <NumRow key={m.key}>
+                                        <RowLabel>{m.label}</RowLabel>
+                                        <NumCell value={scenarios.Low.metrics[m.key]} signed={signed}>{m.format(scenarios.Low.metrics[m.key])}</NumCell>
+                                        <NumCell value={scenarios.Base.metrics[m.key]} signed={signed} className="font-semibold bg-pl-sunken/60">{m.format(scenarios.Base.metrics[m.key])}</NumCell>
+                                        <NumCell value={scenarios.High.metrics[m.key]} signed={signed}>{m.format(scenarios.High.metrics[m.key])}</NumCell>
+                                        {(() => {
+                                            const high = scenarios.High.metrics[m.key];
+                                            const base = scenarios.Base.metrics[m.key];
+                                            // EC6-1: a difference needs two numbers.
+                                            if (typeof high !== 'number' || typeof base !== 'number') {
+                                              return <NumCell signed={false} tone="text-pl-muted">n/a</NumCell>;
+                                            }
+                                            const diff = high - base;
+                                            // the sign carries the meaning, so a better case reads success and a worse one danger
+                                            const better = m.key === 'payback' || m.key === 'maxExposure' ? diff < 0 : diff > 0;
+                                            const color = better ? 'text-pl-success-text' : 'text-pl-danger-text';
+                                            return <NumCell value={diff} tone={color}>{diff > 0 ? '+' : ''}{m.key === 'irr' ? diff.toFixed(1)+'%' : m.key === 'payback' ? diff.toFixed(1) : formatCurrency(diff)}</NumCell>;
+                                        })()}
+                                    </NumRow>
+                                    );
+                                })}
+                            </tbody>
+                        </NumericTable>
+                        <p className="text-[11px] text-pl-muted px-1" data-testid="npv-scenario-definition">
+                            Low is 20 percent lower price and production with 20 percent higher capex and fixed opex; High is the mirror image.
+                            Variable operating cost moves with production, so a barrel not produced is a barrel not paid for.
+                            {['Low', 'Base', 'High'].some((k) => scenarios[k].metrics.paybackStatus === 'recrossed' || scenarios[k].metrics.paybackStatus === 'not-recovered')
+                              ? ' A payback of n/a means that case never pays back; see the Dashboard for why a payback can go back below zero.'
+                              : ''}
+                        </p>
                     </div>
                 )}
             </TabsContent>
 
             {/* 4. Sensitivity Tab */}
-            <TabsContent value="sensitivity" className="flex-1 overflow-y-auto space-y-4 mt-4">
+            <TabsContent value="sensitivity" className="flex-1 lg:overflow-y-auto space-y-4 mt-4">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <Card className="bg-slate-900 border-slate-800">
-                        <CardHeader><CardTitle className="text-sm text-slate-300">Tornado Chart (NPV Impact)</CardTitle></CardHeader>
-                        <CardContent>
-                            {sensitivity && <TornadoChart data={sensitivity.map(s => ({ name: s.name, low: s.lowParamNPV, high: s.highParamNPV, base: s.baseNPV }))} />}
-                        </CardContent>
-                    </Card>
-                    <Card className="bg-slate-900 border-slate-800">
-                        <CardHeader><CardTitle className="text-sm text-slate-300">Spider Plot</CardTitle></CardHeader>
-                        <CardContent>
-                            {sensitivity && <SpiderChart sensitivityData={sensitivity} />}
-                        </CardContent>
-                    </Card>
+                    <ChartPanel title="Tornado Chart (NPV Impact)">
+                        {sensitivity && <TornadoChart data={sensitivity.map(s => ({ name: s.name, low: s.lowParamNPV, high: s.highParamNPV, base: s.baseNPV }))} />}
+                    </ChartPanel>
+                    <ChartPanel title="Spider Plot">
+                        {sensitivity && <SpiderChart sensitivityData={sensitivity} />}
+                    </ChartPanel>
                 </div>
                 {full && sensitivity && (
-                    <Card className="bg-slate-900 border-slate-800" data-testid="npv-sensitivity-table">
-                        <CardHeader><CardTitle className="text-sm text-slate-300">Sensitivity sweep (NPV, million USD)</CardTitle></CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow className="border-b-slate-800">
-                                        <TableHead className="text-slate-300">Variable</TableHead>
-                                        <TableHead className="text-right text-slate-400">At 30 percent lower</TableHead>
-                                        <TableHead className="text-right text-slate-400">Base</TableHead>
-                                        <TableHead className="text-right text-slate-400">At 30 percent higher</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {sensitivity.map((s) => (
-                                        <TableRow key={s.name} className="border-b-slate-800">
-                                            <TableCell className="text-slate-300">{s.name}</TableCell>
-                                            <TableCell className="text-right font-mono text-slate-300">{formatFull(s.lowParamNPV, 4)}</TableCell>
-                                            <TableCell className="text-right font-mono text-slate-300">{formatFull(s.baseNPV, 4)}</TableCell>
-                                            <TableCell className="text-right font-mono text-slate-300">{formatFull(s.highParamNPV, 4)}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
+                    <NumericTable title="Sensitivity sweep (NPV, million USD)" data-testid="npv-sensitivity-table">
+                        <thead>
+                            <tr>
+                                <NumTh sticky>Variable</NumTh>
+                                <NumTh numeric>At 30 percent lower</NumTh>
+                                <NumTh numeric>Base</NumTh>
+                                <NumTh numeric>At 30 percent higher</NumTh>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {sensitivity.map((s) => (
+                                <NumRow key={s.name}>
+                                    <RowLabel>{s.name}</RowLabel>
+                                    <NumCell value={s.lowParamNPV}>{formatFull(s.lowParamNPV, 4)}</NumCell>
+                                    <NumCell value={s.baseNPV}>{formatFull(s.baseNPV, 4)}</NumCell>
+                                    <NumCell value={s.highParamNPV}>{formatFull(s.highParamNPV, 4)}</NumCell>
+                                </NumRow>
+                            ))}
+                        </tbody>
+                    </NumericTable>
                 )}
             </TabsContent>
 
             {/* 5. Risk Tab */}
-            <TabsContent value="risk" className="flex-1 overflow-y-auto space-y-4 mt-4">
+            <TabsContent value="risk" className="flex-1 lg:overflow-y-auto space-y-4 mt-4">
                 {full && <MonteCarloSettings risk={risk} onRun={onRerunRisk} running={riskRunning} />}
-                <div className="grid grid-cols-4 gap-4 mb-2">
-                    <Card className="bg-slate-900 border-slate-800 p-4 col-span-1">
-                         <p className="text-xs text-slate-500 uppercase font-semibold">EMV (Expected Value)</p>
-                         <p className="text-xl font-bold text-blue-400" data-testid="npv-risk-emv">{risk ? formatCurrency(risk.emv) : '-'}{risk ? mmUnit : null}</p>
-                    </Card>
-                    <div className="col-span-3">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-2">
+                    <div className={`${kpiCard} md:col-span-1`}>
+                         <p className={kpiLabel}>EMV (Expected Value)</p>
+                         <p className={`text-xl font-semibold font-pl-mono tabular-nums ${risk ? npvTone(risk.emv) : 'text-pl-text'}`} data-testid="npv-risk-emv">{risk ? formatCurrency(risk.emv) : '-'}{risk ? mmUnit : null}</p>
+                    </div>
+                    <div className="md:col-span-3">
                         <RiskCaseCards risk={risk} formatValue={formatCurrency} unit="$MM" />
-                        <p className="text-[11px] text-slate-400 mt-1" data-testid="npv-risk-sampling">
+                        <p className="text-[11px] text-pl-muted mt-1" data-testid="npv-risk-sampling">
                             Each iteration draws one factor for price, one for reserves and one for capex, within plus or minus 20 percent, and applies it to every year:
                             reserves moves oil and gas volume and the variable operating cost with it, price moves oil and gas prices, capex moves every capex entry.
                         </p>
                     </div>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                     <Card className="bg-slate-900 border-slate-800">
-                        <CardHeader><CardTitle className="text-sm text-slate-300">NPV Distribution</CardTitle></CardHeader>
-                        <CardContent>
-                            {risk && (() => {
-                              const [low, best, high] = riskCases(risk);
-                              return <HistogramChart data={risk.histogram} lowCase={low.value} bestCase={best.value} highCase={high.value} />;
-                            })()}
-                        </CardContent>
-                    </Card>
-                    <Card className="bg-slate-900 border-slate-800">
-                        <CardHeader><CardTitle className="text-sm text-slate-300">Cumulative Probability (S-Curve)</CardTitle></CardHeader>
-                        <CardContent>
-                            {risk && <SCurveChart data={risk.cdf} />}
-                        </CardContent>
-                    </Card>
+                    <ChartPanel title="NPV Distribution">
+                        {risk && (() => {
+                          const [low, best, high] = riskCases(risk);
+                          return <HistogramChart data={risk.histogram} lowCase={low.value} bestCase={best.value} highCase={high.value} />;
+                        })()}
+                    </ChartPanel>
+                    <ChartPanel title="Cumulative Probability (S-Curve)">
+                        {risk && <SCurveChart data={risk.cdf} />}
+                    </ChartPanel>
                 </div>
             </TabsContent>
         </Tabs>

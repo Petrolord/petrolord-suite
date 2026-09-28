@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import ChartFrame from '@/components/charts/ChartFrame';
+import { ChartPanel } from '@/components/ui/chart-panel';
+import { signedTone } from '@/components/ui/numeric-table';
 import { AlertTriangle } from 'lucide-react';
 import { projectEmv } from '@/utils/portfolioOptimizer';
 import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
@@ -16,13 +18,17 @@ const formatCurrency = (value, unit = 'MM') => new Intl.NumberFormat('en-US', { 
 
 const AXIS_TICK = { fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText };
 
-const Metric = ({ title, value, accent, detail }) => (
-  <div>
-    <p className="text-xs text-slate-400 uppercase tracking-wide">{title}</p>
-    <p className={`font-bold ${accent || 'text-white'}`}>{value}</p>
-    {detail && <p className="text-[11px] text-slate-400" data-testid="risk-method">{detail}</p>}
+// Design system (rollout 2E): KPI values are plain mono text; colour is kept
+// for status, and a negative figure reads in danger beside its minus sign.
+const Metric = ({ title, value, tone, detail }) => (
+  <div className="min-w-0">
+    <p className="text-xs text-pl-muted uppercase tracking-wide">{title}</p>
+    <p className={`font-semibold font-pl-mono tabular-nums break-words ${tone || 'text-pl-text'}`}>{value}</p>
+    {detail && <p className="text-[11px] text-pl-muted" data-testid="risk-method">{detail}</p>}
   </div>
 );
+
+const numCell = (tone) => `text-right font-pl-mono tabular-nums whitespace-nowrap ${tone || 'text-pl-text'}`;
 
 // EC5-0 (owner decision 2026-09-14): the loss probability and the P90 / P10
 // cards come from the engine's seeded Monte Carlo, so each card states the
@@ -73,18 +79,17 @@ const OptimizationResults = ({ result }) => {
 
   return (
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
-      <Card className="bg-gradient-to-br from-green-500/10 via-slate-900 to-slate-900 border-green-500/30 text-white">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-2xl text-green-300">Optimal Portfolio</CardTitle>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 pt-2">
-            <Metric title="Risked EMV" value={money(totalEmv)} accent="text-lime-300" />
-            <Metric title="Success-case NPV" value={money(totalNpvSuccess)} accent="text-emerald-200" />
-            <Metric title="Total CAPEX" value={formatCurrency(totalCapex)} accent="text-amber-300" />
+          <CardTitle className="text-xl">Optimal Portfolio</CardTitle>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 pt-2">
+            <Metric title="Risked EMV" value={money(totalEmv)} tone={signedTone(totalEmv)} />
+            <Metric title="Success-case NPV" value={money(totalNpvSuccess)} tone={signedTone(totalNpvSuccess)} />
+            <Metric title="Total CAPEX" value={formatCurrency(totalCapex)} />
             <Metric title="Projects" value={optimalProjects.length} />
             <Metric
               title="P(portfolio NPV < 0)"
               value={`${(risk.probLoss * 100).toFixed(1)}%`}
-              accent={risk.probLoss <= 0.1 ? 'text-emerald-300' : risk.probLoss <= 0.3 ? 'text-amber-300' : 'text-red-300'}
               detail={methodLabel}
             />
             <Metric
@@ -99,7 +104,7 @@ const OptimizationResults = ({ result }) => {
               the exact solve, and then it says so and bounds what it may have
               left on the table. */}
           {solveMethod === 'grid-feasible' && Number.isFinite(resolution) && (
-            <p className="text-xs text-slate-400 pt-1" data-testid="grid-resolution">
+            <p className="text-xs text-pl-muted pt-1" data-testid="grid-resolution">
               This portfolio was too large to solve exactly, so capital was quantized onto a grid with a
               resolution of {formatMM(resolution)} and every candidate rounded UP onto it, which keeps the
               funded set inside your limit. At most {formatMM(optimalityGap)} of risked EMV could have been
@@ -107,12 +112,12 @@ const OptimizationResults = ({ result }) => {
             </p>
           )}
           {solveMethod === 'exact' && (
-            <p className="text-xs text-slate-400 pt-1" data-testid="exact-solve">
+            <p className="text-xs text-pl-muted pt-1" data-testid="exact-solve">
               Solved exactly on the capital figures you entered, so the funded set is the best that fits
               inside the limit of {formatMM(result.capexLimit)}.
             </p>
           )}
-          <p className="text-xs text-slate-400 pt-1">
+          <p className="text-xs text-pl-muted pt-1">
             {risk.correlation > 0 ? (
               <>
                 Risk metrics use an average pairwise correlation of {risk.correlation.toFixed(2)}
@@ -137,32 +142,31 @@ const OptimizationResults = ({ result }) => {
         <CardContent>
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <div>
-              <h3 className="text-lg font-semibold mb-2 text-slate-200">Funded Projects</h3>
+              <h3 className="text-base font-semibold mb-2 text-pl-text">Funded Projects</h3>
               <div className="max-h-80 overflow-y-auto pr-2">
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-b-white/20 hover:bg-transparent">
-                      <TableHead className="text-white">Project</TableHead>
-                      <TableHead className="text-white text-right">CAPEX</TableHead>
-                      <TableHead className="text-white text-right">POS</TableHead>
-                      <TableHead className="text-white text-right">Risked EMV</TableHead>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead>Project</TableHead>
+                      <TableHead className="text-right">CAPEX</TableHead>
+                      <TableHead className="text-right">POS</TableHead>
+                      <TableHead className="text-right">Risked EMV</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {optimalProjects.map(p => (
-                      <TableRow key={p.id} className="border-b-white/10">
+                      <TableRow key={p.id}>
                         <TableCell className="font-medium">{p.name}</TableCell>
-                        <TableCell className="text-right text-amber-300">{formatCurrency(p.capex)}</TableCell>
-                        <TableCell className="text-right text-slate-300">{Math.round((p.pos ?? 1) * 100)}%</TableCell>
-                        <TableCell className="text-right text-lime-300">{money(projectEmv(p))}</TableCell>
+                        <TableCell className={numCell()}>{formatCurrency(p.capex)}</TableCell>
+                        <TableCell className={numCell()}>{Math.round((p.pos ?? 1) * 100)}%</TableCell>
+                        <TableCell className={numCell(signedTone(projectEmv(p)))}>{money(projectEmv(p))}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               </div>
             </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-2 text-slate-200">Efficient Frontier (risked EMV vs capital)</h3>
+            <ChartPanel title="Efficient Frontier (risked EMV vs capital)">
               <ChartFrame height={300} exportFilename="portfolio-efficient-frontier">
                 <ScatterChart margin={{ top: 16, right: 20, bottom: 8, left: 30 }}>
                   <CartesianGrid {...GRID_STYLE} />
@@ -188,7 +192,7 @@ const OptimizationResults = ({ result }) => {
                   <Scatter name="Optimal portfolio" data={optimalPoint} fill="#059669" shape="star" isAnimationActive={false} />
                 </ScatterChart>
               </ChartFrame>
-            </div>
+            </ChartPanel>
           </div>
         </CardContent>
       </Card>

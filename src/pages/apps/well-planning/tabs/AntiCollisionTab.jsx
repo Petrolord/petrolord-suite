@@ -38,9 +38,9 @@ import LadderChart from '../charts/LadderChart';
 import TravelingCylinderChart from '../charts/TravelingCylinderChart';
 
 const STATUS_CHIP = {
-  'no-go': 'bg-red-500/20 text-red-300',
-  review: 'bg-amber-500/20 text-amber-300',
-  clear: 'bg-green-500/20 text-green-300',
+  'no-go': 'bg-pl-danger-bg text-pl-danger-text',
+  review: 'bg-pl-warning-bg text-pl-warning-text',
+  clear: 'bg-pl-success-bg text-pl-success-text',
 };
 
 const AntiCollisionTab = () => {
@@ -168,7 +168,7 @@ const AntiCollisionTab = () => {
       const row = serializeAcRun({ designId: design.id, reference, results: scan, params });
       await wpApi.saveAcRun(row, user.id);
       setRuns(await wpApi.listAcRuns(design.id));
-      toast({ title: 'Anti-collision run saved', className: 'bg-green-600 text-white' });
+      toast({ title: 'Anti-collision run saved' });
     } catch (e) {
       toast({ variant: 'destructive', title: 'Save failed', description: e.message });
     } finally {
@@ -193,7 +193,7 @@ const AntiCollisionTab = () => {
 
   if (!wellbore || !design) {
     return (
-      <div className="flex h-[50vh] items-center justify-center text-sm text-slate-500">
+      <div className="flex h-[50vh] items-center justify-center text-sm text-pl-muted">
         Select a design in the tree to run anti-collision.
       </div>
     );
@@ -208,22 +208,22 @@ const AntiCollisionTab = () => {
   return (
     <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-140px)]">
       {/* left rail: setup */}
-      <div className="w-full lg:w-[340px] shrink-0 flex flex-col bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
-        <div className="p-3 border-b border-slate-800 flex items-center gap-2">
-          <Shield className="h-4 w-4 text-lime-400" />
-          <h2 className="text-sm font-bold text-white">Anti-collision setup</h2>
+      <div className="w-full lg:w-[340px] shrink-0 flex flex-col bg-pl-surface border border-pl-border rounded-lg overflow-hidden">
+        <div className="p-3 border-b border-pl-border flex items-center gap-2">
+          <Shield className="h-4 w-4 text-pl-primary-text" />
+          <h2 className="text-sm font-bold text-pl-text">Anti-collision setup</h2>
         </div>
         <ScrollArea className="flex-1 p-3">
           <div className="space-y-4">
             {!magRef && (
-              <div className="flex gap-2 rounded-md border border-red-900/50 bg-red-900/15 px-3 py-2 text-xs text-red-300">
+              <div className="flex gap-2 rounded-md border border-pl-danger/40 bg-pl-danger-bg px-3 py-2 text-xs text-pl-danger-text">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
                 No geomagnetic reference: the wellbore has no cached magnetic model and the site CRS
                 cannot resolve the wellhead to lat/lon. Re-save the wellbore with a transformable site CRS.
               </div>
             )}
             {magRef && (
-              <p className="text-[10px] text-slate-500">
+              <p className="text-[10px] text-pl-muted">
                 Error model: ISCWSA MWD Rev4 · field {(magRef.bTotalNT / 1000).toFixed(2)} uT,
                 dip {magRef.dipDeg.toFixed(1)}°, declination {magRef.declinationDeg.toFixed(2)}°
                 ({magRef.source === 'cache' ? 'cached on wellbore' : 'live WMM2025'})
@@ -231,10 +231,10 @@ const AntiCollisionTab = () => {
             )}
 
             <div>
-              <Label className="text-xs text-slate-400">Reference trajectory</Label>
+              <Label className="text-xs text-pl-muted">Reference trajectory</Label>
               <Select value={reference} onValueChange={setReference}>
-                <SelectTrigger className="h-8 mt-1 bg-slate-800 border-slate-700 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-slate-800 text-white">
+                <SelectTrigger className="h-8 mt-1 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
                   <SelectItem value="plan" className="text-xs">
                     Plan — {design.name} r{design.revision}
                   </SelectItem>
@@ -244,53 +244,53 @@ const AntiCollisionTab = () => {
                 </SelectContent>
               </Select>
               {reference === 'plan' && !refStations && (
-                <p className="mt-1 text-[10px] text-amber-400">
+                <p className="mt-1 text-[10px] text-pl-warning-text">
                   This design has no saved station cache. Save it in the Design tab first.
                 </p>
               )}
             </div>
 
             <div>
-              <Label className="text-xs text-slate-400">Offset wells ({selectedOffsets.length} selected)</Label>
+              <Label className="text-xs text-pl-muted">Offset wells ({selectedOffsets.length} selected)</Label>
               <div className="mt-1 space-y-1">
                 {offsetCandidates.length === 0 && (
-                  <p className="text-[10px] text-slate-500">
+                  <p className="text-[10px] text-pl-muted">
                     No candidates: other wellbores on this site need a saved design, and registry wells
                     need a deviation in the site CRS ({site?.crs || 'unset'}).
                   </p>
                 )}
                 {offsetCandidates.map((c) => (
-                  <label key={c.id} className="flex items-center gap-2 rounded bg-slate-800/60 px-2 py-1.5 text-xs text-slate-300 cursor-pointer hover:bg-slate-800">
+                  <label key={c.id} className="flex items-center gap-2 rounded bg-pl-sunken px-2 py-1.5 text-xs text-pl-text cursor-pointer hover:bg-pl-primary/5">
                     <Checkbox
                       checked={!!checkedOffsets[c.id]}
                       onCheckedChange={(v) => setCheckedOffsets((prev) => ({ ...prev, [c.id]: !!v }))}
                     />
                     <span className="truncate">{c.label}</span>
-                    <span className="ml-auto text-[9px] uppercase text-slate-500">{c.kind === 'geo' ? 'registry' : 'plan'}</span>
+                    <span className="ml-auto text-[9px] uppercase text-pl-muted">{c.kind === 'geo' ? 'registry' : 'plan'}</span>
                   </label>
                 ))}
               </div>
             </div>
 
-            <div className="space-y-2 rounded-lg border border-slate-700 bg-slate-800/50 p-3">
-              <Label className="text-[10px] uppercase font-bold text-slate-400">Separation rule (SPE-187073)</Label>
+            <div className="space-y-2 rounded-lg border border-pl-border bg-pl-sunken p-3">
+              <Label className="text-[10px] uppercase font-bold text-pl-muted">Separation rule (SPE-187073)</Label>
               <div className="grid grid-cols-3 gap-2">
-                <div><Label className="text-[10px]">k</Label><Input type="number" step="0.1" defaultValue={params.k} onBlur={numP('k')} className="h-7 bg-slate-900 text-xs" /></div>
-                <div><Label className="text-[10px]">σpa (m)</Label><Input type="number" step="0.1" defaultValue={params.sigmaPa} onBlur={numP('sigmaPa')} className="h-7 bg-slate-900 text-xs" /></div>
-                <div><Label className="text-[10px]">Sm (m)</Label><Input type="number" step="0.1" defaultValue={params.Sm} onBlur={numP('Sm')} className="h-7 bg-slate-900 text-xs" /></div>
-                <div><Label className="text-[10px]">Ref radius ({mdUnit})</Label><Input type="number" step="0.01" defaultValue={+metersToUser(params.refRadius).toFixed(3)} onBlur={numP('refRadius', true)} className="h-7 bg-slate-900 text-xs" /></div>
-                <div><Label className="text-[10px]">Off radius ({mdUnit})</Label><Input type="number" step="0.01" defaultValue={+metersToUser(params.offRadius).toFixed(3)} onBlur={numP('offRadius', true)} className="h-7 bg-slate-900 text-xs" /></div>
+                <div><Label className="text-[10px]">k</Label><Input type="number" step="0.1" defaultValue={params.k} onBlur={numP('k')} className="h-7 text-xs" /></div>
+                <div><Label className="text-[10px]">σpa (m)</Label><Input type="number" step="0.1" defaultValue={params.sigmaPa} onBlur={numP('sigmaPa')} className="h-7 text-xs" /></div>
+                <div><Label className="text-[10px]">Sm (m)</Label><Input type="number" step="0.1" defaultValue={params.Sm} onBlur={numP('Sm')} className="h-7 text-xs" /></div>
+                <div><Label className="text-[10px]">Ref radius ({mdUnit})</Label><Input type="number" step="0.01" defaultValue={+metersToUser(params.refRadius).toFixed(3)} onBlur={numP('refRadius', true)} className="h-7 text-xs" /></div>
+                <div><Label className="text-[10px]">Off radius ({mdUnit})</Label><Input type="number" step="0.01" defaultValue={+metersToUser(params.offRadius).toFixed(3)} onBlur={numP('offRadius', true)} className="h-7 text-xs" /></div>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div><Label className="text-[10px]">No-go SF below</Label><Input type="number" step="0.1" defaultValue={params.noGo} onBlur={numP('noGo')} className="h-7 bg-slate-900 text-xs" /></div>
-                <div><Label className="text-[10px]">Review SF below</Label><Input type="number" step="0.1" defaultValue={params.review} onBlur={numP('review')} className="h-7 bg-slate-900 text-xs" /></div>
+                <div><Label className="text-[10px]">No-go SF below</Label><Input type="number" step="0.1" defaultValue={params.noGo} onBlur={numP('noGo')} className="h-7 text-xs" /></div>
+                <div><Label className="text-[10px]">Review SF below</Label><Input type="number" step="0.1" defaultValue={params.review} onBlur={numP('review')} className="h-7 text-xs" /></div>
               </div>
             </div>
 
             <Button
               onClick={handleRun}
               disabled={running || !refStations || !magRef || selectedOffsets.length === 0}
-              className="w-full h-8 bg-lime-600 hover:bg-lime-700 text-white text-xs"
+              className="w-full h-8 text-xs"
               data-testid="run-anticollision"
             >
               {running ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Play className="mr-1 h-3.5 w-3.5" />}
@@ -299,18 +299,18 @@ const AntiCollisionTab = () => {
 
             {/* run history */}
             <div>
-              <Label className="text-xs text-slate-400 flex items-center gap-1"><History className="h-3.5 w-3.5" /> Run history</Label>
+              <Label className="text-xs text-pl-muted flex items-center gap-1"><History className="h-3.5 w-3.5" /> Run history</Label>
               <div className="mt-1 space-y-1">
-                {runs.length === 0 && <p className="text-[10px] text-slate-500">No saved runs for this design.</p>}
+                {runs.length === 0 && <p className="text-[10px] text-pl-muted">No saved runs for this design.</p>}
                 {runs.map((r) => (
                   <div key={r.id}
-                    className={`flex items-center gap-2 rounded px-2 py-1.5 text-[10px] cursor-pointer ${viewedRun?.id === r.id ? 'bg-slate-700' : 'bg-slate-800/60 hover:bg-slate-800'}`}
+                    className={`flex items-center gap-2 rounded px-2 py-1.5 text-[10px] cursor-pointer ${viewedRun?.id === r.id ? 'bg-pl-primary/10 text-pl-text' : 'bg-pl-sunken hover:bg-pl-primary/5'}`}
                     onClick={() => { setViewedRun(viewedRun?.id === r.id ? null : r); }}
                   >
                     <span className={`rounded-full px-1.5 py-0.5 uppercase ${STATUS_CHIP[r.summary?.status] || ''}`}>{r.summary?.status}</span>
-                    <span className="text-slate-300">min SF {r.summary?.overallMinSf ?? '--'}</span>
-                    <span className="text-slate-500">{new Date(r.created_at).toLocaleString()}</span>
-                    <Button variant="ghost" size="icon" className="ml-auto h-5 w-5 text-slate-600 hover:text-red-400"
+                    <span className="text-pl-text">min SF {r.summary?.overallMinSf ?? '--'}</span>
+                    <span className="text-pl-muted">{new Date(r.created_at).toLocaleString()}</span>
+                    <Button variant="ghost" size="icon" className="ml-auto h-5 w-5 text-pl-muted hover:text-pl-danger-text"
                       onClick={(e) => { e.stopPropagation(); handleDeleteRun(r.id); }}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
@@ -325,9 +325,9 @@ const AntiCollisionTab = () => {
       {/* right: results */}
       <div className="flex-1 min-w-0 flex flex-col gap-3">
         {!displayed && (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-lg border border-slate-800 bg-slate-900 text-center">
-            <Shield className="h-10 w-10 text-slate-700" />
-            <p className="max-w-md text-sm text-slate-500">
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-lg border border-pl-border bg-pl-surface text-center">
+            <Shield className="h-10 w-10 text-pl-muted" />
+            <p className="max-w-md text-sm text-pl-muted">
               Pick offset wells and run the separation scan. Results show the SPE-187073
               separation factor per station with ladder and traveling-cylinder views.
             </p>
@@ -337,7 +337,7 @@ const AntiCollisionTab = () => {
         {displayed && (
           <>
             {viewedRun && (
-              <div className="rounded-md border border-sky-900/50 bg-sky-900/15 px-3 py-1.5 text-xs text-sky-300">
+              <div className="rounded-md border border-pl-info/40 bg-pl-info-bg px-3 py-1.5 text-xs text-pl-info-text">
                 Viewing saved run from {new Date(viewedRun.created_at).toLocaleString()} (reference: {viewedRun.reference}). Click it again in the history to return to live results.
               </div>
             )}
@@ -345,13 +345,13 @@ const AntiCollisionTab = () => {
             {/* summary cards */}
             <div className="flex flex-wrap gap-2">
               {displayed.map((r) => (
-                <div key={r.id} className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2">
+                <div key={r.id} className="flex items-center gap-2 rounded-lg border border-pl-border bg-pl-surface px-3 py-2">
                   <span className={`rounded-full px-2 py-0.5 text-[10px] uppercase font-bold ${STATUS_CHIP[r.classification.status]}`}>
                     {r.classification.status}
                   </span>
                   <div className="text-xs">
-                    <div className="text-slate-200">{r.label}</div>
-                    <div className="text-slate-500">
+                    <div className="text-pl-text">{r.label}</div>
+                    <div className="text-pl-muted">
                       min SF {Number.isFinite(r.clearance.summary.minSf) ? r.clearance.summary.minSf.toFixed(2) : '--'}
                       {' '}at MD {metersToUser(r.clearance.summary.minSfMd ?? 0).toFixed(0)} {mdUnit}
                     </div>
@@ -361,8 +361,8 @@ const AntiCollisionTab = () => {
             </div>
 
             {/* charts */}
-            <div className="flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-2 gap-px bg-slate-800 rounded-lg overflow-hidden border border-slate-800">
-              <div className="relative flex flex-col bg-white min-h-[280px]">
+            <div className="flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-2 gap-px bg-pl-border rounded-lg overflow-hidden border border-pl-border">
+              <div className="relative flex flex-col bg-white min-h-[280px]" data-canvas="chart">
                 <div className="absolute right-2 top-1 z-10 flex gap-1">
                   <Button size="sm" variant="ghost" onClick={() => setChartMode('sf')} className={`h-6 px-2 text-[10px] ${chartMode === 'sf' ? 'bg-slate-200' : ''}`}>SF</Button>
                   <Button size="sm" variant="ghost" onClick={() => setChartMode('distance')} className={`h-6 px-2 text-[10px] ${chartMode === 'distance' ? 'bg-slate-200' : ''}`}>Distance</Button>
@@ -375,7 +375,7 @@ const AntiCollisionTab = () => {
                   metersToUser={metersToUser}
                 />
               </div>
-              <div className="relative flex flex-col bg-white min-h-[280px]">
+              <div className="relative flex flex-col bg-white min-h-[280px]" data-canvas="chart">
                 <div className="absolute right-2 top-1 z-10 flex gap-1">
                   <Button size="sm" variant="ghost" onClick={() => setTcFrame('highside')} className={`h-6 px-2 text-[10px] ${tcFrame === 'highside' ? 'bg-slate-200' : ''}`}>Highside</Button>
                   <Button size="sm" variant="ghost" onClick={() => setTcFrame('north')} className={`h-6 px-2 text-[10px] ${tcFrame === 'north' ? 'bg-slate-200' : ''}`}>North</Button>
@@ -390,14 +390,14 @@ const AntiCollisionTab = () => {
             </div>
 
             {/* violations table + save */}
-            <div className="rounded-lg border border-slate-800 bg-slate-900">
-              <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800">
-                <span className="text-xs font-bold text-slate-300">
+            <div className="rounded-lg border border-pl-border bg-pl-surface">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-pl-border">
+                <span className="text-xs font-bold text-pl-text">
                   Stations below review threshold ({displayedParams.review})
                 </span>
                 {!viewedRun && (
                   <Button size="sm" onClick={handleSaveRun} disabled={saving || !scan}
-                    className="h-7 bg-[#4CAF50] hover:bg-[#43a047] text-white text-xs">
+                    className="h-7 text-xs">
                     {saving ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Save className="mr-1 h-3 w-3" />}
                     Save run
                   </Button>
@@ -405,13 +405,13 @@ const AntiCollisionTab = () => {
               </div>
               <div className="max-h-44 overflow-auto">
                 <Table>
-                  <TableHeader className="bg-slate-800 sticky top-0">
-                    <TableRow className="border-slate-700">
-                      <TableHead className="text-slate-300 text-xs">Offset</TableHead>
-                      <TableHead className="text-slate-300 text-xs">Ref MD ({mdUnit})</TableHead>
-                      <TableHead className="text-slate-300 text-xs">SF</TableHead>
-                      <TableHead className="text-slate-300 text-xs">C-C dist ({mdUnit})</TableHead>
-                      <TableHead className="text-slate-300 text-xs">Level</TableHead>
+                  <TableHeader className="bg-pl-sunken sticky top-0">
+                    <TableRow className="border-pl-border">
+                      <TableHead className="text-pl-text text-xs">Offset</TableHead>
+                      <TableHead className="text-pl-text text-xs">Ref MD ({mdUnit})</TableHead>
+                      <TableHead className="text-pl-text text-xs">SF</TableHead>
+                      <TableHead className="text-pl-text text-xs">C-C dist ({mdUnit})</TableHead>
+                      <TableHead className="text-pl-text text-xs">Level</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -419,11 +419,11 @@ const AntiCollisionTab = () => {
                       .map((md, i) => ({ md, sf: r.clearance.sf[i], dist: r.clearance.distanceCC[i] }))
                       .filter((row) => row.sf < displayedParams.review)
                       .map((row, i) => (
-                        <TableRow key={`${r.id}-${i}`} className="border-slate-800">
-                          <TableCell className="text-xs text-slate-300">{r.label}</TableCell>
-                          <TableCell className="font-mono text-xs text-lime-400">{metersToUser(row.md).toFixed(0)}</TableCell>
-                          <TableCell className="font-mono text-xs text-slate-300">{row.sf.toFixed(2)}</TableCell>
-                          <TableCell className="font-mono text-xs text-slate-400">{metersToUser(row.dist).toFixed(1)}</TableCell>
+                        <TableRow key={`${r.id}-${i}`} className="border-pl-border">
+                          <TableCell className="text-xs text-pl-text">{r.label}</TableCell>
+                          <TableCell className="font-mono text-xs text-pl-primary-text">{metersToUser(row.md).toFixed(0)}</TableCell>
+                          <TableCell className="font-mono text-xs text-pl-text">{row.sf.toFixed(2)}</TableCell>
+                          <TableCell className="font-mono text-xs text-pl-muted">{metersToUser(row.dist).toFixed(1)}</TableCell>
                           <TableCell>
                             <span className={`rounded-full px-1.5 py-0.5 text-[9px] uppercase ${row.sf < displayedParams.noGo ? STATUS_CHIP['no-go'] : STATUS_CHIP.review}`}>
                               {row.sf < displayedParams.noGo ? 'no-go' : 'review'}
@@ -432,8 +432,8 @@ const AntiCollisionTab = () => {
                         </TableRow>
                       )))}
                     {displayed.every((r) => r.clearance.sf.every((v) => v >= displayedParams.review)) && (
-                      <TableRow className="border-slate-800">
-                        <TableCell colSpan={5} className="text-center text-xs text-slate-500">
+                      <TableRow className="border-pl-border">
+                        <TableCell colSpan={5} className="text-center text-xs text-pl-muted">
                           No stations below the review threshold.
                         </TableCell>
                       </TableRow>

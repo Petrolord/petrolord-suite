@@ -33,12 +33,12 @@ const InputPanel = ({ onCalculate, loading, state, setState }) => {
     <div className="h-full flex flex-col space-y-4">
         {/* Mode Toggle */}
         <div className="flex justify-center">
-            <div className="bg-slate-900 p-1 rounded-lg border border-slate-800 inline-flex">
+            <div className="bg-pl-sunken p-1 rounded-lg border border-pl-border inline-flex">
                 <ToggleGroup type="single" value={mode} onValueChange={(val) => val && setMode(val)}>
-                    <ToggleGroupItem value="Quick" className="data-[state=on]:bg-lime-600 data-[state=on]:text-white px-4 py-2 text-sm transition-all">
+                    <ToggleGroupItem value="Quick" className="px-4 py-2 text-sm transition-all">
                         <Wand2 className="w-4 h-4 mr-2" /> Quick Mode
                     </ToggleGroupItem>
-                    <ToggleGroupItem value="Expert" className="data-[state=on]:bg-purple-600 data-[state=on]:text-white px-4 py-2 text-sm transition-all">
+                    <ToggleGroupItem value="Expert" className="px-4 py-2 text-sm transition-all">
                         <MonitorPlay className="w-4 h-4 mr-2" /> Expert Mode
                     </ToggleGroupItem>
                 </ToggleGroup>
@@ -46,7 +46,7 @@ const InputPanel = ({ onCalculate, loading, state, setState }) => {
         </div>
 
         {/* Input Area */}
-        <div className="flex-1 overflow-y-auto px-1">
+        <div className="flex-1 lg:overflow-y-auto px-1">
             {mode === 'Quick' ? (
                 <QuickInput data={quickData} onChange={setQuickData} />
             ) : (
@@ -55,11 +55,11 @@ const InputPanel = ({ onCalculate, loading, state, setState }) => {
         </div>
 
         {/* Action Footer */}
-        <div className="pt-4 border-t border-slate-800">
+        <div className="pt-4 border-t border-pl-border">
             <Button 
                 onClick={handleCalculate} 
                 disabled={loading}
-                className={`w-full h-12 text-lg font-semibold shadow-lg ${mode === 'Quick' ? 'bg-gradient-to-r from-lime-600 to-green-600 hover:from-lime-500 hover:to-green-500' : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500'}`}
+                className="w-full h-12 text-lg font-semibold"
             >
                 {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <><Calculator className="w-5 h-5 mr-2" /> Calculate Economics</>}
             </Button>

@@ -11,7 +11,6 @@ import React from 'react';
             icon: BookCopy,
             appId: 'drilling/casing-tubing-design-pro',
             status: 'Available',
-            color: 'from-gray-500 to-slate-600',
         },
         {
             name: 'Torque & Drag',
@@ -19,7 +18,6 @@ import React from 'react';
             icon: GitBranch,
             appId: 'drilling/torque-drag-predictor',
             status: 'Available',
-            color: 'from-fuchsia-500 to-pink-600',
         },
         {
             name: 'Cost Estimation (AFE)',
@@ -27,7 +25,6 @@ import React from 'react';
             icon: DollarSign,
             appId: 'economics/afe-cost-control',
             status: 'Available',
-            color: 'from-green-500 to-emerald-600',
         },
         {
             name: 'Wellbore Stability',
@@ -35,7 +32,6 @@ import React from 'react';
             icon: ShieldCheck,
             appId: 'drilling/wellbore-stability-analyzer',
             status: 'Available',
-            color: 'from-lime-500 to-green-600',
         }
     ];
 
@@ -56,8 +52,8 @@ import React from 'react';
 
         return (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                <h2 className="text-2xl font-bold text-white">Analysis & Engineering</h2>
-                <p className="text-slate-400">
+                <h2 className="text-2xl font-bold text-pl-text">Analysis & Engineering</h2>
+                <p className="text-pl-muted">
                     Dive deeper into the engineering and economic aspects of your well plan. Launch detailed analyses using the generated trajectory.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -67,17 +63,17 @@ import React from 'react';
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.5, delay: 0.1 * index }}
-                            className="bg-slate-800 border border-slate-700 rounded-lg p-6 hover:border-lime-400/50 transition-all cursor-pointer flex flex-col items-start"
+                            className="bg-pl-sunken border border-pl-border rounded-lg p-6 hover:border-pl-primary transition-all cursor-pointer flex flex-col items-start"
                             onClick={() => handleAppClick(app)}
                         >
                             <div className="flex items-center w-full mb-4">
-                                <div className={`p-3 rounded-lg bg-gradient-to-r ${app.color}`}>
-                                    <app.icon className="w-6 h-6 text-white" />
+                                <div className="p-3 rounded-lg bg-pl-primary">
+                                    <app.icon className="w-6 h-6 text-pl-primary-fg" />
                                 </div>
-                                <h3 className="text-xl font-semibold text-white ml-4">{app.name}</h3>
+                                <h3 className="text-xl font-semibold text-pl-text ml-4">{app.name}</h3>
                             </div>
-                            <p className="text-slate-400 flex-grow mb-4">{app.description}</p>
-                            <span className={`px-3 py-1 text-xs font-medium rounded-full ${app.status === 'Available' ? 'bg-green-500/20 text-green-300' : 'bg-yellow-500/20 text-yellow-300'}`}>
+                            <p className="text-pl-muted flex-grow mb-4">{app.description}</p>
+                            <span className={`px-3 py-1 text-xs font-medium rounded-full ${app.status === 'Available' ? 'bg-pl-success-bg text-pl-success-text' : 'bg-pl-sunken text-pl-muted'}`}>
                                 {app.status}
                             </span>
                         </motion.div>

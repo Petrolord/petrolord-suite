@@ -5,4 +5,7 @@
 // '/dashboard/apps/reservoir/material-balance-studio'); every sub-path
 // under a prefix is themed too. Only this batch edits this file; the
 // rollout index aggregates it (docs/scope/DesignSystem.md section 4).
-export default [];
+export default [
+  // Covers the studio, its /help guide and the /:wellId alias route.
+  '/dashboard/apps/drilling/well-planning',
+];
