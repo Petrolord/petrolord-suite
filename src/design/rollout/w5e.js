@@ -6,4 +6,9 @@
 // '/dashboard/apps/reservoir/material-balance-studio'); every sub-path
 // under a prefix is themed too. Only this batch edits this file; the
 // rollout index aggregates it (docs/scope/DesignSystem.md section 4).
-export default [];
+export default [
+  '/dashboard/apps/midstream-downstream/carbon-footprint-abatement',
+  '/dashboard/apps/midstream-downstream/product-blending-optimizer',
+  '/dashboard/apps/midstream-downstream/flare-gas-to-value',
+  '/dashboard/apps/midstream-downstream/modular-refinery-feasibility',
+];
