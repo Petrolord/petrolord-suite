@@ -7,12 +7,14 @@
 // see a dark spinner before a light app, and a dark user sees no light flash.
 // Every other path keeps its legacy loader byte for byte.
 //
-// Keep THEMED_PATHS in step with the opted-in routes in App.jsx; the test
-// src/design/__tests__/coldLoad.test.jsx reads App.jsx and fails if a scoped
-// route is missing here.
+// A migrated app registers its route prefix in its rollout batch's own file,
+// src/design/rollout/<batch>.js (never in this file). The test
+// src/design/__tests__/coldLoad.test.jsx reads App.jsx and fails if a route
+// scoped there is missing.
 import React from 'react';
 import { readLastTheme } from './ThemeProvider.jsx';
 import { DEFAULT_THEME } from './tokens.js';
+import { THEMED_APP_PREFIXES } from './rollout/index.js';
 
 // the dashboard landing and the ten module hubs (pilot 1, HubScope)
 export const THEMED_HUBS = [
@@ -20,13 +22,9 @@ export const THEMED_HUBS = [
   'midstream-downstream', 'process-safety', 'data-ai', 'assurance',
 ];
 
-// apps that opted in, by path prefix (pilots 2 to 5)
-export const THEMED_APP_PREFIXES = [
-  '/dashboard/apps/reservoir/decline-curve-analysis',
-  '/dashboard/apps/economics/epe',
-  '/dashboard/apps/geoscience/seismolord',
-  '/dashboard/apps/reservoir/voidage-replacement-monitor',
-];
+// apps that opted in, by path prefix: the pilots plus one file per rollout
+// batch (src/design/rollout/<batch>.js), aggregated in rollout/index.js
+export { THEMED_APP_PREFIXES };
 
 const trimSlash = (p) => (p.length > 1 && p.endsWith('/') ? p.slice(0, -1) : p);
 

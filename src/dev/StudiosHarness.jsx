@@ -2,11 +2,15 @@
 // economics, downstream, reservoir, Data & AI or Assurance studio on the
 // in-memory Supabase double, so it runs and saves without auth or a
 // database. One store per page load; tables are created on first use.
+//
+// Design-system rollout (Wave 0A): the harness adds no colours and no theme
+// scope of its own. Each app paints itself exactly as on its real route (an
+// unmigrated app on the body's legacy dark background, a migrated one inside
+// the ThemedApp it wraps itself in), so no rollout batch edits this file.
 import React, { lazy, Suspense } from 'react';
 import { useParams } from 'react-router-dom';
 import InMemorySupabase, { createStore, DEV_USER } from './InMemorySupabase';
 import DevAuth from './DevAuth';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 const APPS = {
   afe: lazy(() => import('@/pages/apps/AfeCostControlManager')),
@@ -32,10 +36,6 @@ const APPS = {
   'ml-workbench': lazy(() => import('@/pages/apps/MlWorkbench')),
   'forecasting-ml': lazy(() => import('@/pages/apps/ForecastingMlWorkbench')),
 };
-
-// Apps opted in to the design system render inside their theme scope here,
-// as they do on their real routes.
-const THEMED = new Set(['vrr']);
 
 // Worked cases with closed-form answers, per app (checked in the T1 reports).
 const U = DEV_USER.id;
@@ -134,9 +134,9 @@ export default function StudiosHarness() {
   return (
     <InMemorySupabase db={storeFor(app)} functions={FUNCTIONS[app]}>
       <DevAuth>
-        <div className="min-h-screen bg-slate-950 text-slate-100">
+        <div className="min-h-screen">
           <Suspense fallback={<div className="p-6 text-slate-400">Loading...</div>}>
-            {THEMED.has(app) ? <ThemedApp><App /></ThemedApp> : <App />}
+            <App />
           </Suspense>
         </div>
       </DevAuth>
