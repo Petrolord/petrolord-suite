@@ -37,13 +37,13 @@ const RegisterView = () => {
     <div className="space-y-4">
       <Panel title="Load a register" testId="register-load">
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" onClick={loadEkene} data-testid="load-ekene" className="bg-sky-600 hover:bg-sky-500">
+          <Button size="sm" onClick={loadEkene} data-testid="load-ekene">
             <Database className="mr-1 h-4 w-4" /> Load the Ekene demo
           </Button>
-          <Button size="sm" variant="outline" className="border-slate-700 bg-slate-900 text-slate-200" onClick={clearAll} data-testid="clear-all">
+          <Button size="sm" variant="outline" onClick={clearAll} data-testid="clear-all">
             <Trash2 className="mr-1 h-4 w-4" /> Clear everything
           </Button>
-          <Button size="sm" variant="outline" className="border-slate-700 bg-slate-900 text-slate-200" onClick={exportCsv} disabled={!items.length} data-testid="export-register">
+          <Button size="sm" variant="outline" onClick={exportCsv} disabled={!items.length} data-testid="export-register">
             <FileDown className="mr-1 h-4 w-4" /> Register as CSV
           </Button>
         </div>
@@ -53,21 +53,21 @@ const RegisterView = () => {
           same file the inventory engine is validated on. No real company, supplier or price appears in it.
         </Note>
         <div className="space-y-1">
-          <label htmlFor="msp-register-paste" className="block text-[11px] font-medium text-slate-300">Paste a register (CSV or JSON)</label>
+          <label htmlFor="msp-register-paste" className="block text-[11px] font-medium text-pl-text">Paste a register (CSV or JSON)</label>
           <textarea
             id="msp-register-paste"
             data-testid="register-paste"
-            className="h-32 w-full rounded-md border border-slate-700 bg-slate-950 p-2 font-mono text-xs text-white"
+            className="h-32 w-full rounded-md border border-pl-border-strong bg-pl-surface p-2 font-mono text-xs text-pl-text placeholder:text-pl-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus"
             value={paste}
             placeholder={'id,name,annualUsage,unitCost,onHand,monthsSinceLastIssue,monthlyUsage,score_safety,score_production\nVALVE-1,Gate valve 2 in,12,850,6,2,1,4,3'}
             onChange={(e) => setPaste(e.target.value)}
           />
-          <p className="text-[10px] leading-snug text-slate-500">
+          <p className="text-[10px] leading-snug text-pl-muted">
             CSV columns: id, name, {ITEM_FIELDS.join(', ')}, and score_&lt;criterion&gt; for each criticality criterion. JSON: an
             array of items, or an object with an items array, each item {'{ id, name, ...figures, scores: { criterion: score } }'}.
             Importing replaces the items only; your policy and calculation inputs stay as they are.
           </p>
-          <Button size="sm" onClick={doImport} data-testid="import-register" className="bg-slate-700 hover:bg-slate-600">
+          <Button size="sm" onClick={doImport} data-testid="import-register">
             <Upload className="mr-1 h-4 w-4" /> Import
           </Button>
           {parseError ? <Note tone="warn" testId="register-parse-error">{parseError}</Note> : null}
@@ -77,14 +77,14 @@ const RegisterView = () => {
       <Panel
         title={inputs.register.title || 'Item register'}
         testId="register-table"
-        right={<span className="text-[11px] text-slate-400" data-testid="register-count">{items.length} items{inputs.register.currency ? `, money in ${inputs.register.currency}` : ''}</span>}
+        right={<span className="text-[11px] text-pl-muted" data-testid="register-count">{items.length} items{inputs.register.currency ? `, money in ${inputs.register.currency}` : ''}</span>}
       >
         {items.length === 0 ? (
           <Note tone="warn" testId="empty-register">The register is empty. Load the Ekene demo or paste your own register above.</Note>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
-              <thead className="text-left text-slate-400">
+              <thead className="text-left text-pl-muted">
                 <tr>
                   <th className="p-1">Id</th>
                   <th className="p-1">Name</th>
@@ -94,7 +94,7 @@ const RegisterView = () => {
               </thead>
               <tbody>
                 {items.map((it) => (
-                  <tr key={it.id} className="border-t border-slate-800 text-slate-200" data-testid={`register-row-${it.id}`}>
+                  <tr key={it.id} className="border-t border-pl-border text-pl-text" data-testid={`register-row-${it.id}`}>
                     <td className="p-1 font-mono">{it.id}</td>
                     <td className="p-1">{it.name}</td>
                     {ITEM_FIELDS.map((f) => <td key={f} className="p-1 text-right font-mono">{String(it[f] ?? '')}</td>)}

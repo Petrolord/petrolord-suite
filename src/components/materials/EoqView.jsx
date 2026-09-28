@@ -75,7 +75,7 @@ const EoqResults = () => {
               <Stat label="Relevant cost at the EOQ" value={fmtNum(r.relevantCostAtEoq, 2)} testId="eoq-cost-at-eoq" />
               <Stat label="Rounding penalty" value={fmtPct(r.roundingPenaltyPct, 3)} testId="eoq-penalty" />
             </div>
-            <div className="overflow-hidden rounded-lg border border-slate-700">
+            <div className="overflow-hidden rounded-lg border border-pl-border">
               <ChartFrame height={200} exportFilename="eoq-costs">
                 <BarChart data={data} margin={{ top: 16, right: 20, left: 10, bottom: 8 }}>
                   <CartesianGrid {...GRID_STYLE} />
@@ -110,15 +110,15 @@ const DiscountInputs = () => {
         <NumField label="Holding rate (fraction a year)" testId="discount-holdingrate" value={s.holdingRate} onChange={(v) => set({ holdingRate: v })} />
       </div>
       <div>
-        <p className="mb-1 text-[11px] font-medium text-slate-300">Price bands (the first from quantity 0, quantities rising, prices falling)</p>
+        <p className="mb-1 text-[11px] font-medium text-pl-text">Price bands (the first from quantity 0, quantities rising, prices falling)</p>
         {s.breaks.map((b, i) => (
           <div key={i} className="mb-1 grid grid-cols-[1fr_1fr_auto] items-end gap-2">
             <NumField label={i === 0 ? 'From quantity' : ''} testId={`break-q-${i}`} value={b.minQuantity} onChange={(v) => setBreak(i, { minQuantity: v })} />
             <NumField label={i === 0 ? 'Unit price' : ''} testId={`break-p-${i}`} value={b.unitPrice} onChange={(v) => setBreak(i, { unitPrice: v })} />
-            <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400" onClick={() => set({ breaks: s.breaks.filter((_, j) => j !== i) })} aria-label={`Remove band ${i + 1}`}><X className="h-4 w-4" /></Button>
+            <Button size="icon" variant="ghost" className="h-8 w-8 text-pl-muted" onClick={() => set({ breaks: s.breaks.filter((_, j) => j !== i) })} aria-label={`Remove band ${i + 1}`}><X className="h-4 w-4" /></Button>
           </div>
         ))}
-        <Button size="sm" variant="ghost" className="text-sky-300" onClick={() => set({ breaks: [...s.breaks, { minQuantity: '', unitPrice: '' }] })} data-testid="add-break">
+        <Button size="sm" variant="ghost" className="text-pl-primary-text" onClick={() => set({ breaks: [...s.breaks, { minQuantity: '', unitPrice: '' }] })} data-testid="add-break">
           <Plus className="mr-1 h-3 w-3" /> Band
         </Button>
       </div>
@@ -151,7 +151,7 @@ const DiscountResults = () => {
               <Stat label="Saving against no discount" value={fmtNum(r.savingsAgainstNoDiscount, 2)} testId="discount-saving" />
             </div>
             {data.length ? (
-              <div className="overflow-hidden rounded-lg border border-slate-700">
+              <div className="overflow-hidden rounded-lg border border-pl-border">
                 <ChartFrame height={200} exportFilename="discount-candidates">
                   <BarChart data={data} margin={{ top: 16, right: 20, left: 10, bottom: 8 }}>
                     <CartesianGrid {...GRID_STYLE} />
@@ -167,16 +167,16 @@ const DiscountResults = () => {
               </div>
             ) : null}
             <table className="w-full text-xs">
-              <thead className="text-left text-slate-400"><tr><th className="p-1">Band</th><th className="p-1 text-right">Price</th><th className="p-1 text-right">EOQ</th><th className="p-1 text-right">Candidate</th><th className="p-1 text-right">Total cost</th><th className="p-1">Reason</th></tr></thead>
+              <thead className="text-left text-pl-muted"><tr><th className="p-1">Band</th><th className="p-1 text-right">Price</th><th className="p-1 text-right">EOQ</th><th className="p-1 text-right">Candidate</th><th className="p-1 text-right">Total cost</th><th className="p-1">Reason</th></tr></thead>
               <tbody>
                 {r.candidates.map((c) => (
-                  <tr key={c.band} className="border-t border-slate-800 text-slate-200" data-testid={`discount-row-${c.band}`}>
+                  <tr key={c.band} className="border-t border-pl-border text-pl-text" data-testid={`discount-row-${c.band}`}>
                     <td className="p-1">{c.band}</td>
                     <td className="p-1 text-right font-mono">{fmtNum(c.unitPrice, 2)}</td>
                     <td className="p-1 text-right font-mono">{fmtNum(c.eoq, 2)}</td>
                     <td className="p-1 text-right font-mono">{c.feasible ? fmtNum(c.quantity, 2) : 'none'}</td>
                     <td className="p-1 text-right font-mono">{c.feasible ? fmtNum(c.totalCost, 2) : 'none'}</td>
-                    <td className="p-1 text-slate-400">{c.reason}</td>
+                    <td className="p-1 text-pl-muted">{c.reason}</td>
                   </tr>
                 ))}
               </tbody>

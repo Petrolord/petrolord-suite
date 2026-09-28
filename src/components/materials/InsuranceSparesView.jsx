@@ -51,7 +51,7 @@ const SparesResults = () => {
               <Stat label="Mean orders outstanding" value={fmtNum(r.meanOutstanding, 6)} testId="spares-mean" />
             </div>
             {r.atSearchLimit ? <Note tone="warn" testId="spares-limit">The cheapest option is at the largest number considered, so a larger stock may cost less. Raise the largest number of spares.</Note> : null}
-            <div className="overflow-hidden rounded-lg border border-slate-700">
+            <div className="overflow-hidden rounded-lg border border-pl-border">
               <ChartFrame height={240} exportFilename="insurance-spares">
                 <ComposedChart data={data} margin={{ top: 16, right: 20, left: 10, bottom: 8 }}>
                   <CartesianGrid {...GRID_STYLE} />
@@ -66,10 +66,10 @@ const SparesResults = () => {
               </ChartFrame>
             </div>
             <table className="w-full text-xs">
-              <thead className="text-left text-slate-400"><tr><th className="p-1">Spares</th><th className="p-1 text-right">P(no shortage)</th><th className="p-1 text-right">Fill rate</th><th className="p-1 text-right">Expected units down</th><th className="p-1 text-right">Holding</th><th className="p-1 text-right">Downtime</th><th className="p-1 text-right">Total</th></tr></thead>
+              <thead className="text-left text-pl-muted"><tr><th className="p-1">Spares</th><th className="p-1 text-right">P(no shortage)</th><th className="p-1 text-right">Fill rate</th><th className="p-1 text-right">Expected units down</th><th className="p-1 text-right">Holding</th><th className="p-1 text-right">Downtime</th><th className="p-1 text-right">Total</th></tr></thead>
               <tbody>
                 {r.options.map((o) => (
-                  <tr key={o.spares} className={`border-t border-slate-800 ${o.spares === r.spares ? 'text-emerald-300' : 'text-slate-200'}`} data-testid={`spares-row-${o.spares}`}>
+                  <tr key={o.spares} className={`border-t border-pl-border ${o.spares === r.spares ? 'text-pl-success-text' : 'text-pl-text'}`} data-testid={`spares-row-${o.spares}`}>
                     <td className="p-1">{o.spares}</td>
                     <td className="p-1 text-right font-mono">{fmtNum(o.probabilityNoShortage, 6)}</td>
                     <td className="p-1 text-right font-mono">{fmtNum(o.fillRate, 6)}</td>

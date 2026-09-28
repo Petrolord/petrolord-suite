@@ -31,37 +31,37 @@ const CriticalityInputs = () => {
   return (
     <Panel title="Criticality policy" testId="criticality-inputs">
       <div>
-        <p className="mb-1 text-[11px] font-medium text-slate-300">Criteria (weights add to 100; ids match the register&apos;s score columns)</p>
+        <p className="mb-1 text-[11px] font-medium text-pl-text">Criteria (weights add to 100; ids match the register&apos;s score columns)</p>
         {c.criteria.map((x, i) => (
           <div key={i} className="mb-1 grid grid-cols-[1fr_2fr_1fr_auto] items-end gap-2">
             <TextField testId={`crit-id-${i}`} value={x.id} onChange={(v) => setCriterion(i, { id: v })} placeholder="id" />
             <TextField testId={`crit-label-${i}`} value={x.label} onChange={(v) => setCriterion(i, { label: v })} placeholder="label (optional)" />
             <NumField label={i === 0 ? 'Weight' : ''} testId={`crit-weight-${i}`} value={x.weight} onChange={(v) => setCriterion(i, { weight: v })} />
-            <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400" onClick={() => set({ criteria: c.criteria.filter((_, j) => j !== i) })} aria-label={`Remove criterion ${i + 1}`}><X className="h-4 w-4" /></Button>
+            <Button size="icon" variant="ghost" className="h-8 w-8 text-pl-muted" onClick={() => set({ criteria: c.criteria.filter((_, j) => j !== i) })} aria-label={`Remove criterion ${i + 1}`}><X className="h-4 w-4" /></Button>
           </div>
         ))}
-        <Button size="sm" variant="ghost" className="text-sky-300" onClick={() => set({ criteria: [...c.criteria, { id: '', label: '', weight: '' }] })} data-testid="add-criterion">
+        <Button size="sm" variant="ghost" className="text-pl-primary-text" onClick={() => set({ criteria: [...c.criteria, { id: '', label: '', weight: '' }] })} data-testid="add-criterion">
           <Plus className="mr-1 h-3 w-3" /> Criterion
         </Button>
       </div>
       <NumField label="Maximum score on each criterion" testId="crit-scoremax" value={c.scoreMax} onChange={(v) => set({ scoreMax: v })} hint="Weighted score = sum of weight x score / maximum, so it runs 0 to 100." />
       <div>
-        <p className="mb-1 text-[11px] font-medium text-slate-300">Classes, highest first, the last at minimum score 0</p>
+        <p className="mb-1 text-[11px] font-medium text-pl-text">Classes, highest first, the last at minimum score 0</p>
         {c.classes.map((x, i) => (
           <div key={i} className="mb-1 grid grid-cols-[1fr_1fr_auto] items-end gap-2">
             <TextField testId={`class-label-${i}`} value={x.label} onChange={(v) => setClass(i, { label: v })} placeholder="label" />
             <NumField label={i === 0 ? 'Minimum score' : ''} testId={`class-min-${i}`} value={x.minScore} onChange={(v) => setClass(i, { minScore: v })} />
-            <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400" onClick={() => set({ classes: c.classes.filter((_, j) => j !== i) })} aria-label={`Remove class ${i + 1}`}><X className="h-4 w-4" /></Button>
+            <Button size="icon" variant="ghost" className="h-8 w-8 text-pl-muted" onClick={() => set({ classes: c.classes.filter((_, j) => j !== i) })} aria-label={`Remove class ${i + 1}`}><X className="h-4 w-4" /></Button>
           </div>
         ))}
-        <Button size="sm" variant="ghost" className="text-sky-300" onClick={() => set({ classes: [...c.classes, { label: '', minScore: '' }] })} data-testid="add-class">
+        <Button size="sm" variant="ghost" className="text-pl-primary-text" onClick={() => set({ classes: [...c.classes, { label: '', minScore: '' }] })} data-testid="add-class">
           <Plus className="mr-1 h-3 w-3" /> Class
         </Button>
       </div>
       <div>
-        <p className="mb-1 text-[11px] font-medium text-slate-300">Top class on a maximum score (a stated override; tick none for no override)</p>
-        {c.criteria.length === 0 ? <p className="text-[11px] text-slate-500">Add criteria first.</p> : c.criteria.map((x, i) => (
-          <label key={i} className="mr-3 inline-flex items-center gap-1 text-xs text-slate-300">
+        <p className="mb-1 text-[11px] font-medium text-pl-text">Top class on a maximum score (a stated override; tick none for no override)</p>
+        {c.criteria.length === 0 ? <p className="text-[11px] text-pl-muted">Add criteria first.</p> : c.criteria.map((x, i) => (
+          <label key={i} className="mr-3 inline-flex items-center gap-1 text-xs text-pl-text">
             <input type="checkbox" checked={c.topClassOnMaxScore.includes(x.id)} onChange={() => toggleTop(x.id)} data-testid={`top-${x.id}`} /> {x.id || '(no id)'}
           </label>
         ))}
@@ -83,7 +83,7 @@ const CriticalityResults = () => {
             <div className="grid grid-cols-3 gap-2">
               {Object.entries(r.counts).map(([k, n]) => <Stat key={k} label={`Class ${k}`} value={`${n} items`} testId={`crit-count-${k}`} />)}
             </div>
-            <div className="overflow-hidden rounded-lg border border-slate-700">
+            <div className="overflow-hidden rounded-lg border border-pl-border">
               <ChartFrame height={240} exportFilename="criticality-scores">
                 <BarChart data={data} margin={{ top: 16, right: 20, left: 0, bottom: 40 }}>
                   <CartesianGrid {...GRID_STYLE} />
@@ -98,14 +98,14 @@ const CriticalityResults = () => {
               </ChartFrame>
             </div>
             <table className="w-full text-xs">
-              <thead className="text-left text-slate-400"><tr><th className="p-1">Item</th><th className="p-1 text-right">Weighted score</th><th className="p-1">Class</th><th className="p-1">Reason</th></tr></thead>
+              <thead className="text-left text-pl-muted"><tr><th className="p-1">Item</th><th className="p-1 text-right">Weighted score</th><th className="p-1">Class</th><th className="p-1">Reason</th></tr></thead>
               <tbody>
                 {r.items.map((it) => (
-                  <tr key={it.id} className="border-t border-slate-800 text-slate-200" data-testid={`crit-row-${it.id}`}>
+                  <tr key={it.id} className="border-t border-pl-border text-pl-text" data-testid={`crit-row-${it.id}`}>
                     <td className="p-1 font-mono">{it.id}</td>
                     <td className="p-1 text-right font-mono" data-testid={`crit-score-${it.id}`}>{fmtNum(it.weightedScore, 2)}</td>
                     <td className="p-1 font-semibold" data-testid={`crit-class-${it.id}`}>{it.class}</td>
-                    <td className="p-1 text-slate-400">{it.reason}</td>
+                    <td className="p-1 text-pl-muted">{it.reason}</td>
                   </tr>
                 ))}
               </tbody>
@@ -158,7 +158,7 @@ const AbcResults = () => {
                 <Stat key={k} label={`Class ${k}`} value={`${r.summary[k].count} items, ${fmtPct(r.summary[k].valueSharePct)} of value`} testId={`abc-summary-${k}`} />
               ))}
             </div>
-            <div className="overflow-hidden rounded-lg border border-slate-700">
+            <div className="overflow-hidden rounded-lg border border-pl-border">
               <ChartFrame height={260} exportFilename="abc-pareto">
                 <ComposedChart data={data} margin={{ top: 16, right: 20, left: 10, bottom: 8 }}>
                   <CartesianGrid {...GRID_STYLE} />
@@ -177,17 +177,17 @@ const AbcResults = () => {
               </ChartFrame>
             </div>
             <table className="w-full text-xs">
-              <thead className="text-left text-slate-400"><tr><th className="p-1">Rank</th><th className="p-1">Item</th><th className="p-1 text-right">Annual value</th><th className="p-1 text-right">Share</th><th className="p-1 text-right">Cumulative</th><th className="p-1">Class</th><th className="p-1">Reason</th></tr></thead>
+              <thead className="text-left text-pl-muted"><tr><th className="p-1">Rank</th><th className="p-1">Item</th><th className="p-1 text-right">Annual value</th><th className="p-1 text-right">Share</th><th className="p-1 text-right">Cumulative</th><th className="p-1">Class</th><th className="p-1">Reason</th></tr></thead>
               <tbody>
                 {r.items.map((it) => (
-                  <tr key={it.id} className="border-t border-slate-800 text-slate-200" data-testid={`abc-row-${it.id}`}>
+                  <tr key={it.id} className="border-t border-pl-border text-pl-text" data-testid={`abc-row-${it.id}`}>
                     <td className="p-1">{it.rank}</td>
                     <td className="p-1 font-mono">{it.id}</td>
                     <td className="p-1 text-right font-mono" data-testid={`abc-value-${it.id}`}>{fmtNum(it.annualValue, 2)}</td>
                     <td className="p-1 text-right font-mono">{fmtPct(it.sharePct, 2)}</td>
                     <td className="p-1 text-right font-mono" data-testid={`abc-cum-${it.id}`}>{fmtPct(it.cumulativePct, 2)}</td>
                     <td className="p-1 font-semibold" data-testid={`abc-class-${it.id}`}>{it.class}</td>
-                    <td className="p-1 text-slate-400">{it.reason}</td>
+                    <td className="p-1 text-pl-muted">{it.reason}</td>
                   </tr>
                 ))}
               </tbody>

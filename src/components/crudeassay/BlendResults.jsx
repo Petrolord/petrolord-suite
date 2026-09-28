@@ -15,10 +15,10 @@ const SERIES = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#dc2626'];
 const fmt = (v, dp = 2) => (Number.isFinite(v) ? v.toFixed(dp) : 'n/a');
 
 const Stat = ({ label, value, basis }) => (
-  <div className="rounded border border-slate-800 bg-slate-900/60 p-3">
-    <p className="text-[11px] uppercase tracking-wide text-slate-400">{label}</p>
-    <p className="text-xl font-bold text-white mt-1">{value}</p>
-    {basis && <p className="text-[10px] text-slate-500 mt-1">{basis}</p>}
+  <div className="rounded-lg border border-pl-border bg-pl-surface p-3">
+    <p className="text-[11px] uppercase tracking-wide text-pl-muted">{label}</p>
+    <p className="font-pl-mono text-xl font-bold tabular-nums text-pl-text mt-1">{value}</p>
+    {basis && <p className="text-[10px] text-pl-muted mt-1">{basis}</p>}
   </div>
 );
 
@@ -49,14 +49,14 @@ const BlendResults = () => {
 
   const Icon = stability.stable === true ? CheckCircle2 : stability.stable === false ? AlertTriangle : HelpCircle;
   const tone = stability.stable === true
-    ? 'border-emerald-800/60 bg-emerald-950/30 text-emerald-200'
+    ? 'border-pl-success/40 bg-pl-success-bg text-pl-success-text'
     : stability.stable === false
-      ? 'border-red-800/60 bg-red-950/30 text-red-200'
-      : 'border-amber-800/60 bg-amber-950/30 text-amber-200';
+      ? 'border-pl-danger/40 bg-pl-danger-bg text-pl-danger-text'
+      : 'border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text';
 
   if (blend.error) {
     return (
-      <div className="rounded-lg border border-amber-800/60 bg-amber-950/30 p-4 flex items-start gap-3 text-amber-200">
+      <div className="rounded-lg border border-pl-warning/40 bg-pl-warning-bg p-4 flex items-start gap-3 text-pl-warning-text">
         <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" />
         <div>
           <p className="font-semibold">This blend cannot be formed yet</p>
@@ -95,7 +95,7 @@ const BlendResults = () => {
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-white mb-2">Distillation curves</h3>
+        <h3 className="text-sm font-semibold text-pl-text mb-2">Distillation curves</h3>
         <ChartFrame height={340} exportFilename="crude-blend-tbp">
           <LineChart data={chartRows} margin={{ top: 12, right: 24, left: 8, bottom: 28 }}>
             <CartesianGrid {...GRID_STYLE} />
@@ -132,7 +132,7 @@ const BlendResults = () => {
             <Line type="linear" dataKey="Blend" stroke="#0f172a" strokeWidth={2.5} dot={false} />
           </LineChart>
         </ChartFrame>
-        <p className="text-[12px] text-slate-500 mt-2">
+        <p className="text-[12px] text-pl-muted mt-2">
           The blend curve is built by mixing the component yields at each temperature, which is what
           is additive. Averaging the components&apos; temperatures instead would mean nothing. Dashed
           verticals are the cut points.

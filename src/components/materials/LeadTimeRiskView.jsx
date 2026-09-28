@@ -25,7 +25,7 @@ export const pLabel = (k) => `${OUTCOME_LABELS[k]} (${P_READING[k]})`;
 const DistField = ({
   title, mode, fixed, tri, onMode, onFixed, onTri, testId, unit,
 }) => (
-  <div className="space-y-2 rounded-md border border-slate-800 p-2">
+  <div className="space-y-2 rounded-md border border-pl-border p-2">
     <SelectField
       label={title}
       testId={`${testId}-mode`}
@@ -99,12 +99,12 @@ const LeadTimeResults = () => {
               <Stat label="Reorder point for the stated service level" value={r.reorderPointForService === null ? 'no service level stated' : fmtNum(r.reorderPointForService, 4)} testId="lt-rop-service" />
             </div>
             <table className="w-full text-xs">
-              <thead className="text-left text-slate-400">
+              <thead className="text-left text-pl-muted">
                 <tr><th className="p-1">Statistic</th><th className="p-1 text-right">Lead time (days)</th><th className="p-1 text-right">Lead-time demand (units)</th></tr>
               </thead>
               <tbody>
                 {['mean', ...OUTCOME_ORDER, 'min', 'max'].map((k) => (
-                  <tr key={k} className="border-t border-slate-800 text-slate-200" data-testid={`lt-row-${k}`}>
+                  <tr key={k} className="border-t border-pl-border text-pl-text" data-testid={`lt-row-${k}`}>
                     <td className="p-1">{OUTCOME_LABELS[k] ? pLabel(k) : k === 'mean' ? 'Mean' : k === 'min' ? 'Smallest draw' : 'Largest draw'}</td>
                     <td className="p-1 text-right font-mono" data-testid={`lt-stat-days-${k}`}>{fmtNum(r.leadTime[k], 4)}</td>
                     <td className="p-1 text-right font-mono" data-testid={`lt-stat-ltd-${k}`}>{fmtNum(r.leadTimeDemand[k], 4)}</td>
@@ -113,7 +113,7 @@ const LeadTimeResults = () => {
               </tbody>
             </table>
             <Note testId="lt-definition">{r.percentileDefinition} For a lead time or a demand, P90 is therefore the low figure and the stockout risk sits at the P10 end.</Note>
-            <div className="overflow-hidden rounded-lg border border-slate-700">
+            <div className="overflow-hidden rounded-lg border border-pl-border">
               <ChartFrame height={200} exportFilename="lead-time-demand">
                 <BarChart data={data} margin={{ top: 16, right: 20, left: 10, bottom: 8 }}>
                   <CartesianGrid {...GRID_STYLE} />
