@@ -298,7 +298,7 @@ const MobileTasks = lazy(() => import('@/pages/mobile/MobileTasks'));
 const MobileNotifications = lazy(() => import('@/pages/mobile/MobileNotifications'));
 const MobileProfile = lazy(() => import('@/pages/mobile/MobileProfile'));
 const QuoteDashboard = lazy(() => import('@/pages/QuoteDashboard'));
-const GetQuote = lazy(() => import('@/pages/GetQuote'));
+const GetQuoteRedirect = lazy(() => import('@/pages/GetQuoteRedirect'));
 const Profile = lazy(() => import('@/pages/Profile'));
 const AdminCreateUser = lazy(() => import('@/pages/AdminCreateUser'));
 const AdminOrganizations = lazy(() => import('@/pages/admin/AdminOrganizations'));
@@ -452,6 +452,9 @@ function App() {
                                 </SuperAdminRoute>
                               } />
                               
+                              {/* Old promo share links (/get-quote?promo=CODE) land on the working quote flow. */}
+                              <Route path="/get-quote" element={<GetQuoteRedirect />} />
+
                               <Route path="/mobile" element={
                                 <ProtectedRoute>
                                   <MobileLayout />
@@ -547,7 +550,7 @@ function App() {
                                 } />
 
                                 <Route path="quote/:quoteId" element={<QuoteDashboard />} />
-                                <Route path="get-quote" element={<GetQuote />} />
+                                <Route path="get-quote" element={<GetQuoteRedirect />} />
                                 
                                 <Route path="hse" element={
                                   <ProtectedRoute requiredPermission={HSE_PERMISSIONS.VIEW_DASHBOARD} appContext="hse">
