@@ -28,8 +28,11 @@ function scaleRows(n) {
 
 export default function WellDataManagerHarness() {
   const backend = useMemo(() => {
-    const n = Number(new URLSearchParams(window.location.search).get('seedWells')) || 0;
-    return makeInMemoryBackend({ worker: true, ...(n > 0 ? { seedRows: scaleRows(Math.min(n, 20000)) } : {}) });
+    const q = new URLSearchParams(window.location.search);
+    const n = Number(q.get('seedWells')) || 0;
+    // U2-013: ?saveDelayMs=<ms> slows each curve save so the progress and stop controls can be driven
+    const saveDelayMs = Math.min(Number(q.get('saveDelayMs')) || 0, 5000);
+    return makeInMemoryBackend({ worker: true, saveDelayMs, ...(n > 0 ? { seedRows: scaleRows(Math.min(n, 20000)) } : {}) });
   }, []);
   return (
     <div className="h-screen w-full overflow-hidden" data-testid="wdm-theme-scope">

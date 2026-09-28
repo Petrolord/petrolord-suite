@@ -13,7 +13,7 @@
 // unrecognised units stay as-is and are marked, never guessed
 // (engine/lasImport.js contract).
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { planMerge, findDepthLog, clashFor, sameGrid } from '../engine/mergeImport';
 import { Loader2, Upload, FileText } from 'lucide-react';
 import {
@@ -71,6 +71,8 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
   const [lasTops, setLasTops] = useState(null);                // WDM-U1-009 {tops, block, skipped} from ~Tops_Data
   const [importTops, setImportTops] = useState(false);
   const [importText, setImportText] = useState(true);          // WDM-U2-017 LAS 3.0 text channels
+  const [upload, setUpload] = useState(null);                  // WDM-U2-013 {done, total, mnemonic}
+  const cancelRef = useRef({ cancelled: false });
   const [xyUnit, setXyUnit] = useState('m');                   // unit of the typed surface X/Y (WDM-U1-004)
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -264,7 +266,19 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
         if (plan.errors.length) throw new Error(plan.errors[0]);
         toSave = plan.logs;
       }
-      const saved = await backend.saveLogs(wellId, toSave);
+      cancelRef.current = { cancelled: false };
+      let saved;
+      try {
+        saved = await backend.saveLogs(wellId, toSave, { onProgress: setUpload, cancel: cancelRef.current });
+      } catch (err) {
+        if (err?.name !== 'LogsStoppedError') throw err;
+        // honest partial result: what was saved stays, and the status says so
+        setUpload(null);
+        close(false);
+        onDone({ wellId, well, nLogs: err.saved.length, nCurves: err.saved.filter((l) => !isDepthRow(l)).length, fileName, note: err.message });
+        return;
+      }
+      setUpload(null);
       // WDM-U1-009: tops from the LAS 3.0 Tops block. A new well takes them
       // all; an existing well gains the names it does not have yet.
       let nTops = 0;
@@ -296,6 +310,7 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
     } catch (err) {
       setError(err.message);
       setBusy(false);
+      setUpload(null);
     }
   };
 
@@ -580,17 +595,31 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
             </>
           )}
 
+          {upload && (
+            <div data-testid="wdm-las-progress" className="space-y-1 text-xs">
+              <div className="h-1.5 rounded bg-pl-sunken overflow-hidden">
+                <div className="h-full bg-pl-primary" style={{ width: `${Math.round((upload.done / Math.max(1, upload.total)) * 100)}%` }} />
+              </div>
+              <div className="text-pl-muted">Saving curve {Math.min(upload.done + 1, upload.total)} of {upload.total}{upload.mnemonic ? ` (${upload.mnemonic})` : ''}</div>
+            </div>
+          )}
           {error && (
             <div className="text-xs text-pl-danger-text" data-testid="wdm-las-error">{error}</div>
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" size="sm"
-            onClick={() => close(false)}
-          >
-            Cancel
-          </Button>
+          {upload ? (
+            <Button variant="outline" size="sm" onClick={() => { cancelRef.current.cancelled = true; }} data-testid="wdm-las-stop">
+              Stop after this curve
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm"
+              onClick={() => close(false)}
+            >
+              Cancel
+            </Button>
+          )}
           <Button size="sm"
             disabled={!parsed || busy} onClick={doImport} data-testid="wdm-las-import"
           >

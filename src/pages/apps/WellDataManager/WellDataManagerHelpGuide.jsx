@@ -141,6 +141,11 @@ export default function WellDataManagerHelpGuide({ backTo = APP_PATH }) {
             microseconds per foot to microseconds per metre) and the factor is recorded in each log's provenance.
             A unit the reader does not recognise is imported unchanged and marked as-is.
           </Para>
+          <Para>
+            While the curves are saved the dialog shows which curve of how many it is on. Stop after this curve ends the
+            import cleanly: the curves already saved stay on the well, and the status bar says how many. Every row the
+            app writes records the software build that wrote it.
+          </Para>
           <SubHeading>The depth index</SubHeading>
           <Table headers={['The file', 'What happens']} rows={[
             ['indexed by MD under any name', `saved as DEPT so every app finds it; these names already count as depth: ${CURVE_ALIASES.DEPT.join(', ')}`],

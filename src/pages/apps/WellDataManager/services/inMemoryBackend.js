@@ -8,7 +8,8 @@
 // (is_own=false rows hide the owner-only actions, like RLS would
 // reject them server-side).
 
-import { wellNameClashMessage, validateStoredCheckshotsShape } from '@/lib/wellsRegistry';
+import { wellNameClashMessage, validateStoredCheckshotsShape, LogsStoppedError } from '@/lib/wellsRegistry';
+import { PLATFORM_BUILD } from '@/lib/platformBuild';
 import { parseLas } from '../engine/lasParse';
 import { prepareLasForRegistry } from '../engine/lasIndex';
 import { prepareTextChannels } from '../engine/lasTextChannels';
@@ -311,9 +312,9 @@ export function makeInMemoryBackend(opts = {}) {
     async listAllLogMeta() { return [...logsByWell.values()].flat().map((l) => ({ ...l })); },
     async listAllTops() { return [...topsByWell.values()].flat().map((t) => ({ ...t })); },
 
-    async saveLogs(wellId, logs) {
+    async saveLogs(wellId, logs, { onProgress = null, cancel = null } = {}) {
       ownWell(wellId, 'add logs to');
-      const saved = logs.map((log) => {
+      const saveOne = (log) => {
         const id = nextId('log');
         const path = `${DEV_USER}/${wellId}/logs/${id}.f32`;
         curveStore.set(path, log.data);
@@ -331,11 +332,21 @@ export function makeInMemoryBackend(opts = {}) {
           source_file: log.provenance?.source_file || null,
           provenance: log.provenance || {},
           storage_path: path,
+          app_build: PLATFORM_BUILD.sha,
           created_at: new Date(2026, 6, 13, 2, 0, seq).toISOString(),
         };
         logsByWell.get(wellId).push(row);
         return row;
-      });
+      };
+      const saved = [];
+      for (let i = 0; i < logs.length; i++) {
+        // U2-013: same progress and stop contract as wellsRegistry.saveLogs
+        if (cancel?.cancelled) throw new LogsStoppedError(saved, logs.length);
+        onProgress?.({ done: i, total: logs.length, mnemonic: logs[i].mnemonic });
+        if (opts.saveDelayMs) await new Promise((r) => setTimeout(r, opts.saveDelayMs));
+        saved.push(saveOne(logs[i]));
+      }
+      onProgress?.({ done: logs.length, total: logs.length, mnemonic: null });
       return saved;
     },
 
