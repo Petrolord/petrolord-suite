@@ -16,12 +16,17 @@ jest.mock('@/components/wellspacing/InteractiveMap', () => () => <div data-testi
 
 import {
   describeAppTheme, expectNoLegacyChrome, expectThemedPath, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import WellSpacingOptimizer from '@/pages/apps/WellSpacingOptimizer';
 import WellSpacingHelpGuide from '@/pages/apps/WellSpacingHelpGuide';
 
 const renderApp = () => render(<MemoryRouter><WellSpacingOptimizer /></MemoryRouter>);
 const ready = () => screen.findByText('Well Spacing Optimizer');
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: 'Well Spacing Optimizer',

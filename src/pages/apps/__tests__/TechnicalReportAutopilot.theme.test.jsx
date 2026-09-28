@@ -13,6 +13,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import {
   describeAppTheme, expectNoLegacyChrome, expectThemedPath, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import { themeStorageKey } from '@/design/ThemeProvider';
 
@@ -35,6 +36,10 @@ import TechnicalReportAutopilot from '@/pages/apps/TechnicalReportAutopilot';
 const ROUTE = '/dashboard/apps/economics/report-autopilot';
 const renderApp = () => render(<MemoryRouter initialEntries={[ROUTE]}><TechnicalReportAutopilot /></MemoryRouter>);
 const ready = () => screen.findByRole('heading', { level: 1, name: 'Technical Report Autopilot' });
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: 'Technical Report Autopilot',

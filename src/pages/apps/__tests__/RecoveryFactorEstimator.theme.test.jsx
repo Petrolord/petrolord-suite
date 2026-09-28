@@ -25,11 +25,16 @@ jest.mock('@/lib/customSupabaseClient', () => ({
 
 import {
   describeAppTheme, expectNoLegacyChrome, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import RecoveryFactorEstimator from '@/pages/apps/RecoveryFactorEstimator';
 
 const renderApp = () => render(<MemoryRouter><RecoveryFactorEstimator /></MemoryRouter>);
 const ready = () => screen.findByText('Recovery Factor Estimator');
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: 'Recovery Factor Estimator',

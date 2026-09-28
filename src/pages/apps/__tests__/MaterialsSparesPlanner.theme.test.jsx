@@ -10,7 +10,7 @@ import React from 'react';
 import '@testing-library/jest-dom';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describeAppTheme, expectNoLegacyChrome, installDomShims } from '@/design/testing/themeAssertions';
+import { describeAppTheme, expectNoLegacyChrome, installDomShims, installDashboardScope, getScopeRoot } from '@/design/testing/themeAssertions';
 
 jest.mock('@/lib/customSupabaseClient', () => ({
   supabase: {
@@ -34,6 +34,10 @@ const SCOPE = 'materials-theme-scope';
 const TABS = ['Criticality & ABC', 'EOQ & discounts', 'Safety stock', 'Insurance spares', 'Lead-time risk', 'Slow-moving', 'Register'];
 const renderApp = (props = {}) => render(<MemoryRouter><MaterialsSparesPlanner {...props} /></MemoryRouter>);
 
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
+
 describeAppTheme({
   name: TITLE,
   route: '/dashboard/apps/midstream-downstream/materials-spares-planner',
@@ -51,7 +55,7 @@ describe(`${TITLE} themed states`, () => {
   it('every tab leaves no legacy colour, in light and in dark', async () => {
     renderApp();
     await screen.findAllByText(TITLE);
-    const scope = screen.getByTestId(SCOPE);
+    const scope = getScopeRoot(SCOPE);
     for (const theme of ['light', 'dark']) {
       if (theme === 'dark') fireEvent.click(screen.getByTestId('theme-toggle'));
       expect(scope).toHaveAttribute('data-pl-theme', theme);
@@ -68,7 +72,7 @@ describe(`${TITLE} themed states`, () => {
     renderApp({ initialInputs: ekeneDemoInputs() });
     await screen.findAllByText(TITLE);
     await screen.findByTestId('register-grid');
-    const scope = screen.getByTestId(SCOPE);
+    const scope = getScopeRoot(SCOPE);
     for (const theme of ['light', 'dark']) {
       if (theme === 'dark') fireEvent.click(screen.getByTestId('theme-toggle'));
       expect(scope).toHaveAttribute('data-pl-theme', theme);

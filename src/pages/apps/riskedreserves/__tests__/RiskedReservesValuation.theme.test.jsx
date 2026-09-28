@@ -15,6 +15,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import {
   describeAppTheme, expectNoLegacyChrome, expectThemedPath, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import { themeStorageKey } from '@/design/ThemeProvider';
 import RiskedReservesValuation from '@/pages/apps/RiskedReservesValuation';
@@ -37,6 +38,10 @@ jest.mock('recharts', () => {
 const ROUTE = '/dashboard/apps/reservoir/risked-reserves-valuation';
 const renderApp = () => render(<MemoryRouter><RiskedReservesValuation /></MemoryRouter>);
 const ready = () => screen.findByTestId('rrv-empty');
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: 'Risked Reserves Valuation',

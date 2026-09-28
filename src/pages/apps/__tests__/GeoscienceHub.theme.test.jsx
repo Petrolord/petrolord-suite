@@ -11,6 +11,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import {
   describeAppTheme, expectNoLegacyChrome, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import { themeStorageKey } from '@/design/ThemeProvider';
 import GeoscienceHub from '../GeoscienceHub';
@@ -22,6 +23,10 @@ jest.mock('@/contexts/SupabaseAuthContext', () => ({
 
 const ROUTE = '/dashboard/apps/geoscience/hub';
 const renderApp = () => render(<MemoryRouter initialEntries={[ROUTE]}><GeoscienceHub /></MemoryRouter>);
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: 'Geoscience Hub',

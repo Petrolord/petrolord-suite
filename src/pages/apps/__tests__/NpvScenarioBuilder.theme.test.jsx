@@ -41,12 +41,17 @@ jest.mock('@/components/npv/charts/RiskCharts', () => ({
 
 import {
   describeAppTheme, expectNoLegacyChrome, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import NpvScenarioBuilder from '@/pages/apps/NpvScenarioBuilder';
 
 const SCOPE = 'npv-theme-scope';
 const renderApp = () => render(<MemoryRouter><NpvScenarioBuilder /></MemoryRouter>);
 const ready = () => screen.findByText('Saved scenario');
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: 'NPV Scenario Builder',

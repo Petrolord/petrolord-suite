@@ -21,6 +21,7 @@ jest.mock('../services/wpBackend', () => {
 
 import {
   describeAppTheme, expectNoLegacyChrome, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import { AuthContext } from '@/contexts/SupabaseAuthContext';
 import HydraulicsStudio from '../HydraulicsStudio';
@@ -38,6 +39,10 @@ const renderApp = () => render(
   </AuthContext.Provider>,
 );
 const ready = () => screen.findByTestId('hyd-density', {}, WAIT);
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: USER_ID });
 
 describeAppTheme({
   name: 'Drilling Fluids & Hydraulics Studio',

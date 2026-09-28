@@ -12,6 +12,7 @@ import React from 'react';
 import { screen, fireEvent } from '@testing-library/react';
 import {
   describeAppTheme, installDomShims, expectThemedPath,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import { makeFakeSupabase } from '../../shared/__tests__/fakeSupabase';
 import {
@@ -49,6 +50,10 @@ const seed = () => ({
   regulatory_evidence: [],
   organization_members: [],
 });
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 beforeAll(installDomShims);
 beforeEach(() => { mockDb = makeFakeSupabase(seed()); });

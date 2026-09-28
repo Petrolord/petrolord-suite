@@ -21,6 +21,7 @@ import {
 import { MemoryRouter } from 'react-router-dom';
 import {
   describeAppTheme, expectNoLegacyChrome, expectThemedPath, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import { parseLas } from '../../../../packages/engines/engines/welldata/lasParse';
 import { prepareLogs } from '../../../../packages/engines/engines/welldata/lasImport';
@@ -261,6 +262,10 @@ APPS.forEach((app) => {
     });
   });
 });
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describe('Data & AI result states stay on roles, charts stay white', () => {
   beforeAll(installDomShims);

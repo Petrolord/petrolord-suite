@@ -9,7 +9,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describeAppTheme, expectNoLegacyChrome, installDomShims } from '@/design/testing/themeAssertions';
+import { describeAppTheme, expectNoLegacyChrome, installDomShims, installDashboardScope, getScopeRoot } from '@/design/testing/themeAssertions';
 
 jest.mock('@/lib/customSupabaseClient', () => ({
   supabase: {
@@ -28,6 +28,10 @@ const TITLE = 'Separator & Slug Catcher Studio';
 const SCOPE = 'separator-theme-scope';
 const renderApp = () => render(<MemoryRouter><SeparatorSlugCatcherDesigner /></MemoryRouter>);
 
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
+
 describeAppTheme({
   name: TITLE,
   route: '/dashboard/apps/facilities/separator-slug-catcher-designer',
@@ -45,7 +49,7 @@ describe('Separator & Slug Catcher Studio themed states', () => {
   it('every header tab leaves no legacy colour, in light and in dark', async () => {
     renderApp();
     await screen.findAllByText(TITLE);
-    const scope = screen.getByTestId(SCOPE);
+    const scope = getScopeRoot(SCOPE);
     for (const theme of ['light', 'dark']) {
       if (theme === 'dark') fireEvent.click(screen.getByTestId('theme-toggle'));
       expect(scope).toHaveAttribute('data-pl-theme', theme);

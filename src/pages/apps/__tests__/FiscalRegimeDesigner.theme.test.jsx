@@ -34,6 +34,7 @@ jest.mock('recharts', () => {
 import { AuthContext } from '@/contexts/SupabaseAuthContext';
 import {
   describeAppTheme, expectNoLegacyChrome, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import FiscalRegimeDesigner from '@/pages/apps/FiscalRegimeDesigner';
 
@@ -45,6 +46,10 @@ const renderApp = () => render(
   </AuthContext.Provider>,
 );
 const ready = () => screen.findByRole('heading', { level: 1, name: 'Fiscal Regime Designer' });
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: 'u1' });
 
 describeAppTheme({
   name: 'Fiscal Regime Designer',

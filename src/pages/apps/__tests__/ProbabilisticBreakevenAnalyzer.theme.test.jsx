@@ -32,6 +32,7 @@ jest.mock('@/lib/customSupabaseClient', () => {
 
 import {
   describeAppTheme, expectNoLegacyChrome, getScopeRoot, installDomShims,
+  installDashboardScope,
 } from '@/design/testing/themeAssertions';
 import { ThemedApp } from '@/design/ThemeProvider';
 import { FullPrecisionProvider } from '@/components/fullprecision/FullPrecision';
@@ -40,6 +41,10 @@ import ResultsPanel from '@/components/breakevenanalyzer/ResultsPanel';
 
 const renderApp = () => render(<MemoryRouter><ProbabilisticBreakevenAnalyzer /></MemoryRouter>);
 const ready = () => screen.findByRole('heading', { level: 1, name: 'Probabilistic Breakeven Analyzer' });
+
+// Since batch 7A a /dashboard page has no scope of its own: every render
+// here mounts inside the dashboard's one scope, as DashboardLayout does.
+installDashboardScope({ userId: null });
 
 describeAppTheme({
   name: 'Probabilistic Breakeven Analyzer',
