@@ -27,11 +27,25 @@ const WTSHelpContent = () => (
     <H>1. Data</H>
     <P>
       Choose the test type and enter the reservoir and fluid properties (net thickness, porosity, wellbore radius,
-      total compressibility, FVF, viscosity, rate, initial pressure). Import the gauge as a two-column CSV: elapsed
-      time in hours (shut-in time for a buildup) and pressure in the unit system you have selected. The field labels
-      show the live unit, so check the selector before importing and the file will be read correctly either way. For a
-      buildup, set the producing time tp and the flowing pressure at shut-in; if left blank the earliest gauge point
-      is used. The spike filter removes isolated gauge outliers and dense data is thinned to a set number of points
+      total compressibility, FVF, viscosity, rate, initial pressure). Add the field and analyst names beside the well
+      name; all three head the PDF report.
+    </P>
+    <P>
+      Import the gauge as a CSV with a time column and a pressure column in any order. The studio reads the column
+      headers to find them (Time, Elapsed, Delta t, Date for time; Pressure, P, Pws, Pwf, BHP for pressure) and skips
+      columns such as temperature or rate. Units written in the headers are picked up too: hours, minutes, seconds,
+      days or date/time stamps for time, and psia, psig, kPa, bar or MPa (absolute or gauge) for pressure. After the
+      import a mapping card shows the columns and units that were used, and changing any of them re-reads the file at
+      once. Gauge readings are converted to absolute pressure by adding one standard atmosphere, because the analysis
+      compares the gauge with the initial pressure in psia. A file without headers is read as time then pressure.
+    </P>
+    <P>
+      For a buildup, set the producing time tp. When the gauge record also holds the flowing period, enter the shut-in
+      time on the gauge clock: elapsed shut-in time Δt then counts from that moment and the flowing readings are set
+      aside. The flowing pressure pwf at shut-in is the pressure at Δt = 0 hr. Enter it, or leave it blank and the
+      studio takes the gauge reading at the shut-in, or failing that the last flowing reading in the 15 minutes before
+      it. The Data tab states the value, the gauge time it refers to and where it came from. If none of these exist the
+      earliest buildup point anchors the plot and skin is withheld. The spike filter removes isolated gauge outliers and dense data is thinned to a set number of points
       per log cycle. The Sample button loads a synthetic homogeneous buildup so you can explore the workflow.
     </P>
     <P>
@@ -56,6 +70,12 @@ const WTSHelpContent = () => (
       auto-fit runs Levenberg-Marquardt on pressure and derivative simultaneously, starting from your manual match,
       and reports 95% confidence intervals. Storage and skin trade off strongly at early time, so a sensible manual
       starting point improves the regression.
+    </P>
+    <P>
+      The auto-fit is optional. A match made with the sliders alone is reported as a manual match, with no regression
+      status and no confidence intervals. The regression status and its intervals appear in the report only while the
+      match still holds the values the auto-fit returned. Moving a slider, changing the model or editing the data
+      after a fit turns the match back into a manual one.
     </P>
 
     <H>Units and gas pseudo-time</H>
@@ -145,7 +165,8 @@ const WTSHelpContent = () => (
     <P>
       The report tab consolidates the match, straight-line answers, derived quantities (kh, skin pressure drop, flow
       efficiency, radius of investigation), the flow regimes read off the diagnostic plot, the rate transient results
-      where production data was analyzed, and your interpretation notes. Projects save automatically to your account;
+      where production data was analyzed, and your interpretation notes. The PDF header lists the project, well,
+      field, analyst, test type, producing time, the shut-in time and the pwf at shut-in time 0 hr. Projects save automatically to your account;
       export a PDF report or a JSON snapshot for sharing. The JSON carries the whole study, including the gas
       deliverability points, the rate transient inputs and the unit system, so a colleague opens it in the state you
       left it.

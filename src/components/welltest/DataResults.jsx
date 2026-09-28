@@ -4,6 +4,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'r
 import { CHART_COLORS, CHART_TYPOGRAPHY, PINNED_TOOLTIP_PROPS, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { unitLabel, fromOilfield } from '@/utils/welltest/units';
+import { gaugeTime } from '@/utils/welltest/gaugeImport';
 import { ChartCard, Kpi, LINE, WarningBanner, fmt, fmtU } from './primitives';
 
 const axisProps = { stroke: CHART_COLORS.axisLine, tick: { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize } };
@@ -59,8 +60,15 @@ const DataResults = () => {
         <Kpi title="Gauge points" value={fmt.int(gaugeRows.length)} />
         <Kpi title="Points used" value={fmt.int(prepared.points.length)} accent />
         <Kpi title="Time span" value={prepared.points.length ? `${fmt.sig3(prepared.points[0].time)} to ${fmt.sig3(prepared.points[prepared.points.length - 1].time)}` : '—'} unit="hr" />
-        <Kpi title="pwf at shut-in" value={fmtU('pressure', prepared.pwfShutIn, unitSystem, fmt.f1)} unit={unitLabel('pressure', unitSystem)} />
+        <Kpi
+          title={configSpec.config?.family === 'buildup' ? `pwf at Δt = 0 (gauge ${gaugeTime(prepared.testStartTime)} hr)` : 'Start of flow (gauge clock)'}
+          value={configSpec.config?.family === 'buildup' ? fmtU('pressure', prepared.pwfShutIn, unitSystem, fmt.f1) : gaugeTime(prepared.testStartTime)}
+          unit={configSpec.config?.family === 'buildup' ? unitLabel('pressure', unitSystem) : 'hr'}
+        />
       </div>
+      {prepared.info?.length > 0 && (
+        <p className="text-[11px] text-pl-muted -mt-2" data-testid="wts-data-info">{prepared.info.join(' ')}</p>
+      )}
 
       <ChartCard title="Pressure history">
         <LineChart data={historyData} margin={{ top: 10, right: 20, bottom: 8, left: 10 }}>

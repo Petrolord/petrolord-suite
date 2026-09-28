@@ -8,6 +8,7 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { unitLabel, fromOilfield, kindForCatalogUnit } from '@/utils/welltest/units';
+import { gaugeTime, PWF_SOURCE_TEXT } from '@/utils/welltest/gaugeImport';
 
 const NAVY = [15, 23, 42];
 const SLATE = [100, 116, 139];
@@ -29,11 +30,52 @@ const TEST_LABELS = {
 };
 
 /**
+ * Report header rows as [label, value, label, value] pairs. Analyst and
+ * field sit beside the well name; for a buildup/falloff the pressure at
+ * shut-in is stated with its time (dt = 0 hr, and the gauge-clock time).
+ */
+export const buildReportHeader = ({
+  projectName, wellName, fieldName, analyst, config, prepared, isGas, unitSystem = 'oilfield',
+  generatedAt = new Date(),
+}) => {
+  const isBuildup = config?.family === 'buildup';
+  const dash = (v) => (v && String(v).trim() ? String(v).trim() : '-');
+  const pUnit = unitLabel('pressure', unitSystem);
+  const pwf = prepared?.pwfShutIn;
+  const cells = [
+    ['Project', dash(projectName) === '-' ? 'Untitled interpretation' : dash(projectName)],
+    ['Well', dash(wellName)],
+    ['Field', dash(fieldName)],
+    ['Analyst', dash(analyst)],
+    ['Test type', TEST_LABELS[config?.testType] || 'Well test'],
+    ['Fluid', isGas ? 'Gas, pseudo-pressure m(p)' : 'Oil'],
+  ];
+  if (isBuildup) {
+    cells.push([config?.mirror ? 'Injection time tp' : 'Producing time tp', `${f1(config?.tp)} hr`]);
+    cells.push(['Shut-in time', `0 hr elapsed (gauge clock ${gaugeTime(prepared?.testStartTime)} hr)`]);
+    cells.push([
+      config?.mirror ? 'pwi at shut-in' : 'pwf at shut-in',
+      Number.isFinite(pwf)
+        ? `${f1(fromOilfield('pressure', pwf, unitSystem))} ${pUnit} at shut-in time 0 hr (${PWF_SOURCE_TEXT[prepared?.pwfSource?.kind] || 'from data'})`
+        : '-',
+    ]);
+  } else {
+    cells.push(['Start of flow', `0 hr elapsed (gauge clock ${gaugeTime(prepared?.testStartTime)} hr)`]);
+  }
+  cells.push(['Generated', `${generatedAt.toISOString().slice(0, 16).replace('T', ' ')} UTC`]);
+  const rows = [];
+  for (let i = 0; i < cells.length; i += 2) {
+    rows.push([...cells[i], ...(cells[i + 1] || ['', ''])]);
+  }
+  return rows;
+};
+
+/**
  * Build and save the interpretation report.
  * @returns {boolean} success
  */
 export const exportWellTestPdf = ({
-  projectName, wellName, config, reservoir, prepared,
+  projectName, wellName, fieldName, analyst, config, reservoir, prepared,
   model, matchParams, fitResult, derivedKpis,
   semilogResult, sqrtResult, pssResult, multiRateResult, deliverabilityResult,
   rtaResult, regimes, notes, unitSystem = 'oilfield',
@@ -52,22 +94,31 @@ export const exportWellTestPdf = ({
     doc.setFontSize(18);
     doc.setTextColor(...NAVY);
     doc.text('Well Test Analysis Report', 14, y);
-    y += 8;
-    doc.setFontSize(10);
-    doc.setTextColor(...SLATE);
-    doc.text(
-      [
-        projectName || 'Untitled interpretation',
-        wellName ? `Well ${wellName}` : null,
-        TEST_LABELS[config?.testType] || 'Well test',
-        isBuildup ? `tp = ${f1(config?.tp)} hr` : null,
-        isGas ? 'Gas analysis in pseudo-pressure m(p)' : 'Oil analysis',
-      ].filter(Boolean).join('  |  '),
-      14, y
-    );
     y += 5;
-    doc.text(`Generated ${new Date().toISOString().slice(0, 16).replace('T', ' ')}  |  Petrolord Well Test Analysis Studio`, 14, y);
-    y += 4;
+    doc.setFontSize(9);
+    doc.setTextColor(...SLATE);
+    doc.text('Petrolord Well Test Analysis Studio', 14, y);
+    y += 3;
+
+    // Header block (tester round 2026-09-28): identity of the test and the
+    // analyst, and the pressure at shut-in with the time it refers to.
+    const header = buildReportHeader({
+      projectName, wellName, fieldName, analyst, config, prepared, isGas, unitSystem,
+    });
+    doc.autoTable({
+      startY: y,
+      body: header,
+      theme: 'plain',
+      styles: { fontSize: 9, cellPadding: 1, textColor: SLATE },
+      columnStyles: {
+        0: { fontStyle: 'bold', textColor: NAVY, cellWidth: 30 },
+        1: { cellWidth: 61 },
+        2: { fontStyle: 'bold', textColor: NAVY, cellWidth: 30 },
+        3: { cellWidth: 61 },
+      },
+      margin: { left: 14, right: 14 },
+    });
+    y = doc.lastAutoTable.finalY + 2;
     doc.setDrawColor(...SLATE);
     doc.line(14, y, 196, y);
     y += 6;

@@ -2,7 +2,8 @@
 import React from 'react';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { unitLabel, fromOilfield, kindForCatalogUnit } from '@/utils/welltest/units';
-import { Kpi, fmt, fmtU } from './primitives';
+import { gaugeTime, PWF_SOURCE_TEXT } from '@/utils/welltest/gaugeImport';
+import { Kpi, fmt, fmtU, MATCH_METHOD_LABEL } from './primitives';
 
 const Row = ({ label, value, unit }) => (
   <tr className="border-t border-pl-border">
@@ -18,9 +19,9 @@ const ci = (pair) =>
 
 const ReportResults = () => {
   const {
-    wellName, projectName, configSpec, reservoirSpec, prepared,
+    wellName, fieldName, analyst, projectName, configSpec, reservoirSpec, prepared,
     matchParams, semilogResult, sqrtResult, pssResult, derivedKpis, sqrtMeaningful,
-    multiRateResult, deliverabilityResult, fitResult, fitStale, regimes, notes, model,
+    multiRateResult, deliverabilityResult, fitResult, matchMethod, regimes, notes, model,
     unitSystem, rtaResult,
   } = useWellTestStudio();
   const uL = (kind) => unitLabel(kind, unitSystem);
@@ -50,11 +51,22 @@ const ReportResults = () => {
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <div>
             <p className="text-lg font-semibold text-pl-text">{projectName || 'Untitled interpretation'}</p>
+            <p className="text-xs text-pl-muted" data-testid="wts-report-identity">
+              {[
+                wellName ? `Well ${wellName}` : null,
+                fieldName ? `Field ${fieldName}` : null,
+                analyst ? `Analyst ${analyst}` : null,
+              ].filter(Boolean).join(' · ')}
+            </p>
             <p className="text-xs text-pl-muted">
-              {wellName ? `Well ${wellName}. ` : ''}
               {TEST_LABELS[cfg?.testType] || 'Well test'}{isBuildup ? `, tp = ${fmt.f1(cfg.tp)} hr` : ''}
               {isGas ? ', gas analysis in pseudo-pressure m(p)' : ''}. {prepared.points.length} analysis points.
             </p>
+            {isBuildup && Number.isFinite(prepared.pwfShutIn) && (
+              <p className="text-xs text-pl-muted" data-testid="wts-report-pwf">
+                {cfg.mirror ? 'pwi' : 'pwf'} at shut-in, Δt = 0 hr (gauge time {gaugeTime(prepared.testStartTime)} hr): {fmtU('pressure', prepared.pwfShutIn, unitSystem, fmt.f1)} {uL('pressure')} ({PWF_SOURCE_TEXT[prepared.pwfSource?.kind] || 'from data'}).
+              </p>
+            )}
           </div>
           <p className="text-xs text-pl-muted">Model: {model?.label}</p>
         </div>
@@ -100,9 +112,9 @@ const ReportResults = () => {
               })}
               <Row label="Dimensionless storage CD" value={fmt.sig3(derivedKpis?.cd)} />
               <Row label="Flow efficiency" value={fmt.pct(derivedKpis?.flowEfficiency)} />
-              {fitResult && <Row label="Regression" value={`${fitResult.converged ? 'converged' : 'stopped early'}${fitStale ? ', stale' : ''}`} />}
-              {fitResult && ci(fitResult.confidence95.k) && <Row label="k 95% CI" value={ci(fitResult.confidence95.k)} unit="md" />}
-              {fitResult && !prepared?.skinWithheld && ci(fitResult.confidence95.skin) && <Row label="Skin 95% CI" value={ci(fitResult.confidence95.skin)} />}
+              <Row label="Match method" value={MATCH_METHOD_LABEL(matchMethod, fitResult)} />
+              {matchMethod?.kind === 'regression' && ci(fitResult.confidence95.k) && <Row label="k 95% CI" value={ci(fitResult.confidence95.k)} unit="md" />}
+              {matchMethod?.kind === 'regression' && !prepared?.skinWithheld && ci(fitResult.confidence95.skin) && <Row label="Skin 95% CI" value={ci(fitResult.confidence95.skin)} />}
             </tbody>
           </table>
           )}

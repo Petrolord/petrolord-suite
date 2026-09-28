@@ -1,9 +1,10 @@
 // Left rail for the Data tab: test setup, unit system, reservoir and fluid
 // properties, gauge CSV import, rate history editor and the deterministic
 // sample test. All state is oilfield units; the unit system converts at the
-// display layer (see utils/welltest/units.js).
-import React, { useRef } from 'react';
-import Papa from 'papaparse';
+// display layer (see utils/welltest/units.js). The gauge import finds the
+// time and pressure columns from the headers and converts the file's units
+// (utils/welltest/gaugeImport.js).
+import React, { useRef, useState } from 'react';
 import { Upload, FlaskConical, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,29 +12,93 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
-import { unitLabel, toOilfield, displayInputString, storeInputString } from '@/utils/welltest/units';
-import { SectionLabel, Field, UnitField } from './primitives';
+import { unitLabel, displayInputString, storeInputString } from '@/utils/welltest/units';
+import {
+  readGaugeTable, detectGaugeMapping, convertGaugeRows, PRESSURE_UNITS, TIME_UNITS, PWF_SOURCE_TEXT, gaugeTime,
+} from '@/utils/welltest/gaugeImport';
+import { SectionLabel, Field, UnitField, fmt, valueWithUnit } from './primitives';
 
-// Accept the first two numeric columns as (time hr, pressure in the active
-// display system); pressures are converted to oilfield psi before they reach
-// state.
-export function parseGaugeCsv(text, { unitSystem = 'oilfield' } = {}) {
-  const { data } = Papa.parse(text.trim(), { skipEmptyLines: true });
-  const rows = [];
-  for (const raw of data) {
-    if (!Array.isArray(raw) || raw.length < 2) continue;
-    const t = parseFloat(raw[0]);
-    const p = parseFloat(raw[1]);
-    if (Number.isFinite(t) && Number.isFinite(p) && t > 0) {
-      rows.push({ t, p: toOilfield('pressure', p, unitSystem) });
-    }
-  }
-  return rows;
+const defaultPressureUnit = (unitSystem) => (unitSystem === 'si' ? 'kpaa' : 'psia');
+
+// Import a gauge file with automatic column and unit detection; rows come
+// back oilfield (hr, psia).
+export function parseGaugeCsv(text, { unitSystem = 'oilfield', mapping } = {}) {
+  const table = readGaugeTable(text);
+  const m = { ...detectGaugeMapping(table, { defaultPressure: defaultPressureUnit(unitSystem) }), ...(mapping || {}) };
+  return convertGaugeRows(table, m).rows;
 }
+
+const columnName = (table, i) => table.headers?.[i] || `Column ${i + 1}`;
+
+// Column and unit choices for the file just imported. Every change
+// re-converts the file, so a wrong guess is one click to correct.
+const ImportMapping = ({ imported, onChange }) => {
+  const { table, mapping, fileName, skipped, count } = imported;
+  const cols = Array.from({ length: table.columnCount }, (_, i) => i);
+  const set = (k, v) => onChange({ ...mapping, [k]: v });
+  const detected = [];
+  if (mapping.detectedFrom?.time) detected.push('time');
+  if (mapping.detectedFrom?.pressure) detected.push('pressure');
+  return (
+    <div className="rounded-md border border-pl-border p-3 space-y-2" data-testid="wts-import-mapping">
+      <p className="text-[11px] text-pl-muted">
+        <span className="text-pl-text font-medium">{fileName}</span>: {count} readings loaded{skipped ? `, ${skipped} rows skipped` : ''}.
+        {' '}{detected.length ? `Columns found from the headers (${detected.join(' and ')}).` : 'No column headers recognised: check the columns below.'}
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1">
+          <Label className="text-xs text-pl-muted">Time column</Label>
+          <Select value={String(mapping.timeCol)} onValueChange={(v) => set('timeCol', Number(v))}>
+            <SelectTrigger className="h-8" aria-label="Time column"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {cols.map((i) => <SelectItem key={i} value={String(i)}>{columnName(table, i)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-pl-muted">Time unit</Label>
+          <Select value={mapping.timeUnit} onValueChange={(v) => set('timeUnit', v)}>
+            <SelectTrigger className="h-8" aria-label="Time unit"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {Object.entries(TIME_UNITS).map(([k, u]) => <SelectItem key={k} value={k}>{u.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-pl-muted">Pressure column</Label>
+          <Select value={String(mapping.pressureCol)} onValueChange={(v) => set('pressureCol', Number(v))}>
+            <SelectTrigger className="h-8" aria-label="Pressure column"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {cols.map((i) => <SelectItem key={i} value={String(i)}>{columnName(table, i)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-pl-muted">Pressure unit</Label>
+          <Select value={mapping.pressureUnit} onValueChange={(v) => set('pressureUnit', v)}>
+            <SelectTrigger className="h-8" aria-label="Pressure unit"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {Object.entries(PRESSURE_UNITS).map(([k, u]) => <SelectItem key={k} value={k}>{u.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <p className="text-[11px] text-pl-muted">
+        {PRESSURE_UNITS[mapping.pressureUnit]?.gauge
+          ? 'Gauge readings are converted to absolute pressure by adding one standard atmosphere (14.696 psi, 101.325 kPa).'
+          : 'Readings are taken as absolute pressure.'}
+        {mapping.timeUnit === 'datetime' ? ' Date/time stamps are counted in hours from the first reading.' : ''}
+      </p>
+    </div>
+  );
+};
 
 const DataPanel = () => {
   const {
     wellName, setWellName,
+    fieldName, setFieldName,
+    analyst, setAnalyst,
+    prepared,
     reservoirInputs, setReservoirField,
     testConfig, setTestField,
     gaugeRows, setGaugeRows,
@@ -42,8 +107,27 @@ const DataPanel = () => {
     unitSystem, setUnitSystem,
   } = useWellTestStudio();
   const fileRef = useRef(null);
+  // the file just imported, held so its column/unit mapping can be changed
+  const [imported, setImported] = useState(null);
   const isGas = reservoirInputs.fluid === 'gas';
   const rateKind = isGas ? 'gasRate' : 'oilRate';
+  const isBuildupFamily = testConfig.testType === 'buildup' || testConfig.testType === 'falloff';
+
+  const applyImport = (table, mapping, fileName, announce) => {
+    const { rows, skipped } = convertGaugeRows(table, mapping);
+    if (rows.length < 5) {
+      addNotification(`Could not read at least 5 (time, pressure) readings with the ${columnName(table, mapping.timeCol)} and ${columnName(table, mapping.pressureCol)} columns. Pick the time and pressure columns below.`, 'error');
+      setImported({ table, mapping, fileName, skipped, count: rows.length });
+      return;
+    }
+    setGaugeRows(rows);
+    setImported({ table, mapping, fileName, skipped, count: rows.length });
+    if (announce) {
+      const pu = PRESSURE_UNITS[mapping.pressureUnit]?.label;
+      const tu = TIME_UNITS[mapping.timeUnit]?.label;
+      addNotification(`Loaded ${rows.length} gauge points from ${fileName} (time in ${tu}, pressure in ${pu}).`, 'success');
+    }
+  };
 
   const onFile = (e) => {
     const file = e.target.files?.[0];
@@ -51,13 +135,13 @@ const DataPanel = () => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const rows = parseGaugeCsv(String(ev.target.result || ''), { unitSystem });
-      if (rows.length < 5) {
-        addNotification(`Could not read at least 5 (time, pressure) rows from the file. Expected two numeric columns: elapsed hours, pressure ${unitLabel('pressure', unitSystem)}.`, 'error');
+      const table = readGaugeTable(String(ev.target.result || ''));
+      if (!table.rows.length) {
+        addNotification('The file has no data rows.', 'error');
         return;
       }
-      setGaugeRows(rows);
-      addNotification(`Loaded ${rows.length} gauge points from ${file.name}.`, 'success');
+      const mapping = detectGaugeMapping(table, { defaultPressure: defaultPressureUnit(unitSystem) });
+      applyImport(table, mapping, file.name, true);
     };
     reader.onerror = () => addNotification('Could not read the file', 'error');
     reader.readAsText(file);
@@ -73,6 +157,10 @@ const DataPanel = () => {
         <SectionLabel>Test setup</SectionLabel>
         <div className="space-y-3">
           <Field label="Well name" value={wellName} onChange={setWellName} placeholder="Optional" />
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Field" value={fieldName} onChange={setFieldName} placeholder="Optional" />
+            <Field label="Analyst" value={analyst} onChange={setAnalyst} placeholder="Optional" />
+          </div>
           <div className="space-y-1">
             <Label className="text-xs text-pl-muted">Unit system</Label>
             <Select value={unitSystem} onValueChange={setUnitSystem}>
@@ -95,15 +183,28 @@ const DataPanel = () => {
               </SelectContent>
             </Select>
           </div>
-          {(testConfig.testType === 'buildup' || testConfig.testType === 'falloff') && (
+          {isBuildupFamily && (
+            <Field label={testConfig.testType === 'falloff' ? 'Injection time tp' : 'Producing time tp'} suffix="hr" value={testConfig.tp} onChange={(v) => setTestField('tp', v)} />
+          )}
+          <Field
+            label={isBuildupFamily ? 'Shut-in time on the gauge clock' : 'Start of flow on the gauge clock'}
+            suffix="hr, blank = 0"
+            value={testConfig.testStartTime ?? ''}
+            onChange={(v) => setTestField('testStartTime', v)}
+          />
+          {isBuildupFamily && (
             <>
-              <Field label={testConfig.testType === 'falloff' ? 'Injection time tp' : 'Producing time tp'} suffix="hr" value={testConfig.tp} onChange={(v) => setTestField('tp', v)} />
               <UnitField
                 kind="pressure" system={unitSystem}
-                label={testConfig.testType === 'falloff' ? 'Injection pressure at shut-in' : 'Flowing pressure at shut-in'}
+                label={testConfig.testType === 'falloff' ? 'Injection pressure at shut-in, pwi at Δt = 0 hr' : 'Flowing pressure at shut-in, pwf at Δt = 0 hr'}
                 suffixNote="blank = from data"
                 value={testConfig.pwfShutIn} onChange={(v) => setTestField('pwfShutIn', v)}
               />
+              {Number.isFinite(prepared.pwfShutIn) && (
+                <p className="text-[11px] text-pl-muted" data-testid="wts-pwf-readout">
+                  {testConfig.testType === 'falloff' ? 'pwi' : 'pwf'} at Δt = 0 hr (gauge time {gaugeTime(prepared.testStartTime)} hr): {valueWithUnit('pressure', prepared.pwfShutIn, unitSystem, fmt.f1)}, {PWF_SOURCE_TEXT[prepared.pwfSource?.kind] || 'from data'}.
+                </p>
+              )}
             </>
           )}
         </div>
@@ -122,9 +223,15 @@ const DataPanel = () => {
             </Button>
           </div>
           <p className="text-[11px] text-pl-muted">
-            Two numeric columns: elapsed time in hours ({testConfig.testType === 'buildup' || testConfig.testType === 'falloff' ? 'shut-in time' : 'flowing time'}) and gauge pressure in {unitLabel('pressure', unitSystem)}.
+            A time column and a pressure column, in any order: headers such as Time (hr), Elapsed (min), Date, Pressure (psig) or BHP (kPa) are recognised, and the units can be changed after import.
             {gaugeRows.length ? ` Loaded: ${gaugeRows.length} points.` : ' No data loaded yet.'}
           </p>
+          {imported && (
+            <ImportMapping
+              imported={imported}
+              onChange={(mapping) => applyImport(imported.table, mapping, imported.fileName, false)}
+            />
+          )}
         </div>
       </section>
 

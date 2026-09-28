@@ -23,7 +23,7 @@ const ci = (pair, digits = 3) =>
 const MatchResults = () => {
   const {
     loglog, modelSeries, prepared, matchParams, model,
-    reservoirSpec, configSpec, fitResult, fitStale, matchKpis,
+    reservoirSpec, configSpec, fitResult, fitStale, matchKpis, matchMethod,
     unitSystem, pseudoTime,
   } = useWellTestStudio();
   const dpKind = reservoirSpec.reservoir?.fluid === 'gas' ? 'pseudoPressure' : 'pressure';
@@ -113,8 +113,15 @@ const MatchResults = () => {
       {fitResult && (
         <div className="rounded-lg border border-pl-border bg-pl-surface p-4">
           <p className="text-xs font-semibold text-pl-muted uppercase tracking-wider mb-2">
-            Regression result {fitResult.converged ? '(converged)' : '(stopped early)'}
+            {matchMethod?.kind === 'regression'
+              ? `Regression result ${fitResult.converged ? '(converged)' : '(stopped early)'}`
+              : 'Last auto-fit (not the working match)'}
           </p>
+          {matchMethod?.kind !== 'regression' && matchMethod?.note && (
+            <p className="text-[11px] text-pl-muted mb-2" data-testid="wts-fit-superseded">
+              {matchMethod.note} The working match is reported as a manual match, without regression status or confidence intervals.
+            </p>
+          )}
           <table className="w-full text-xs">
             <thead>
               <tr className="text-pl-muted text-left">

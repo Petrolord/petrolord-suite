@@ -29,6 +29,16 @@ export const fmt = {
   sci: (v) => (v == null || !Number.isFinite(v) ? '—' : Number(v).toExponential(2)),
 };
 
+// How the working match was reached (context matchMethod). "Regression"
+// appears only while the match still holds the auto-fit's own values.
+export const MATCH_METHOD_LABEL = (matchMethod, fitResult) => {
+  if (!matchMethod || matchMethod.kind === 'none') return 'Not matched';
+  if (matchMethod.kind === 'regression') {
+    return fitResult?.converged ? 'Regression (converged)' : 'Regression (stopped early)';
+  }
+  return 'Manual match';
+};
+
 export const LINE = {
   dp: '#2563eb', // pressure change
   derivative: '#dc2626', // Bourdet derivative
