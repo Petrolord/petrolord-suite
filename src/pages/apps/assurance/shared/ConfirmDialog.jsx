@@ -25,7 +25,7 @@ export const ConfirmDialog = ({
         <AlertDialogCancel disabled={busy}>Keep it</AlertDialogCancel>
         <AlertDialogAction
           disabled={busy}
-          className="bg-[hsl(var(--destructive))] text-white hover:bg-[hsl(var(--destructive))]/90"
+          className="bg-pl-danger text-pl-danger-fg hover:bg-pl-danger/90"
           onClick={(e) => { e.preventDefault(); if (onConfirm) onConfirm(); }}
         >
           {confirmLabel}

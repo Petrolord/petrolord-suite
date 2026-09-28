@@ -36,7 +36,7 @@ const showDate = (value) => {
 };
 
 const Tile = ({ label, value, icon, tone, onClick }) => (
-  <Card className={`panel-elevation ${onClick ? 'cursor-pointer hover:border-[hsl(var(--warning))]/50 transition-colors' : ''}`}
+  <Card className={`panel-elevation ${onClick ? 'cursor-pointer hover:border-pl-primary/50 transition-colors' : ''}`}
     onClick={onClick}>
     <CardContent className="p-5 flex items-center justify-between">
       <div>
@@ -121,7 +121,7 @@ export default function Dashboard() {
           description="Add the permits, licences and returns it is held to. Nothing is shown here until there is something real to show."
           action={(
             <Button onClick={() => navigate(`${BASE}/new`)}
-              className="bg-[hsl(var(--warning))] text-white hover:bg-[hsl(var(--warning))]/90 border-0">
+             >
               <Plus className="w-4 h-4 mr-2" /> Add the first obligation
             </Button>
           )}
@@ -148,7 +148,7 @@ export default function Dashboard() {
             Reports
           </Button>
           <Button onClick={() => navigate(`${BASE}/new`)}
-            className="bg-[hsl(var(--warning))] text-white hover:bg-[hsl(var(--warning))]/90 border-0">
+           >
             <Plus className="w-4 h-4 mr-2" /> Add obligation
           </Button>
         </div>
@@ -173,7 +173,7 @@ export default function Dashboard() {
         <Card className="panel-elevation">
           <CardHeader><CardTitle className="text-lg">Where the register stands</CardTitle></CardHeader>
           <CardContent>
-            <div className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+            <div className="relative h-[300px] rounded-lg p-2" data-canvas="chart" style={{ backgroundColor: CHART_COLORS.background }}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie data={statusData} cx="50%" cy="45%" innerRadius={60} outerRadius={90}
@@ -196,7 +196,7 @@ export default function Dashboard() {
             <CardTitle className="text-lg">Obligations by regime</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+            <div className="relative h-[300px] rounded-lg p-2" data-canvas="chart" style={{ backgroundColor: CHART_COLORS.background }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={regimeData} layout="vertical" margin={CHART_MARGINS.compact}>
                   <CartesianGrid {...GRID_STYLE} horizontal={false} />
@@ -219,7 +219,7 @@ export default function Dashboard() {
           <CardHeader className="border-b border-[hsl(var(--border))] pb-4 flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Needs attention</CardTitle>
             <Button variant="ghost" size="sm" onClick={() => navigate(`${BASE}/register`)}
-              className="text-[hsl(var(--warning))] hover:bg-[hsl(var(--warning))]/10">View all</Button>
+              className="text-pl-primary-text hover:bg-pl-sunken">View all</Button>
           </CardHeader>
           <CardContent className="p-0">
             {attention.length ? (

@@ -6,6 +6,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { CompactNav } from '../../shared/CompactNav';
 import AssuranceHelp from '@/components/assurance/AssuranceHelp';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export const BASE = '/dashboard/apps/assurance/lessons-learned';
 
@@ -52,6 +53,7 @@ export const LessonsShell = ({
             <Plus className="w-4 h-4 mr-2" /> Capture a lesson
           </Button>
           <AssuranceHelp appKey="lessons" />
+          <ThemeToggle />
         </div>
       </div>
 

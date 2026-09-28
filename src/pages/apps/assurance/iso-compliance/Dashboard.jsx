@@ -184,7 +184,7 @@ export default function Dashboard() {
                   No clauses in the register yet.
                 </p>
               ) : (
-                <div className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+                <div className="relative h-[300px] rounded-lg p-2" data-canvas="chart" style={{ backgroundColor: CHART_COLORS.background }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={clauseStatusData} margin={CHART_MARGINS.compact}>
                       <CartesianGrid {...GRID_STYLE} vertical={false} />
@@ -218,7 +218,7 @@ export default function Dashboard() {
                   No applicable clauses to cover yet.
                 </p>
               ) : (
-                <div className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+                <div className="relative h-[300px] rounded-lg p-2" data-canvas="chart" style={{ backgroundColor: CHART_COLORS.background }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={coverageData} layout="vertical" margin={CHART_MARGINS.compact}>
                       <CartesianGrid {...GRID_STYLE} horizontal={false} />

@@ -62,31 +62,30 @@ export const SnapshotManager = ({ risks = [] }) => {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="bg-slate-900 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10">
+        <Button variant="outline">
           <Camera className="w-4 h-4 mr-2" /> Save Snapshot
         </Button>
       </DialogTrigger>
-      <DialogContent className="bg-slate-900 border-slate-800 text-white sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Snapshot Management</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 space-y-4">
-            <h4 className="text-sm font-medium text-slate-200">Create new snapshot</h4>
+          <div className="bg-pl-sunken p-4 rounded-lg border border-pl-border space-y-4">
+            <h4 className="text-sm font-medium text-pl-text">Create new snapshot</h4>
             <div className="space-y-2">
               <Label>Snapshot name</Label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g., Q3 2026 Board Review"
-                className="bg-slate-900 border-slate-700"
               />
             </div>
             <Button
               onClick={handleSave}
               disabled={saving || !name.trim()}
-              className="w-full bg-cyan-600 hover:bg-cyan-700 text-white"
+              className="w-full"
             >
               {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
               Capture {risks.length} risk{risks.length === 1 ? '' : 's'}
@@ -94,23 +93,23 @@ export const SnapshotManager = ({ risks = [] }) => {
           </div>
 
           <div className="space-y-2">
-            <h4 className="text-sm font-medium text-slate-200 flex items-center gap-2 mt-4">
-              <Clock className="w-4 h-4 text-slate-400" /> Saved snapshots
+            <h4 className="text-sm font-medium text-pl-text flex items-center gap-2 mt-4">
+              <Clock className="w-4 h-4 text-pl-muted" /> Saved snapshots
             </h4>
 
-            {loading && <p className="text-xs text-slate-500">Loading…</p>}
-            {error && <p className="text-sm text-red-400">{error}</p>}
+            {loading && <p className="text-xs text-pl-muted">Loading…</p>}
+            {error && <p className="text-sm text-pl-danger-text">{error}</p>}
             {!loading && !error && snapshots.length === 0 && (
-              <p className="text-sm text-slate-500 italic">
+              <p className="text-sm text-pl-muted italic">
                 No snapshots yet. The first one you capture will appear here.
               </p>
             )}
 
             {snapshots.map((s) => (
-              <div key={s.id} className="flex items-center justify-between p-3 bg-slate-950 border border-slate-800 rounded-lg gap-3">
+              <div key={s.id} className="flex items-center justify-between p-3 bg-pl-surface border border-pl-border rounded-lg gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-slate-200 truncate">{s.name}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-sm font-medium text-pl-text truncate">{s.name}</p>
+                  <p className="text-xs text-pl-muted">
                     {new Date(s.created_at).toLocaleDateString()}
                     {' • '}
                     {s.snapshot_data?.risk_count ?? s.snapshot_data?.risks?.length ?? 0} risks
@@ -118,10 +117,10 @@ export const SnapshotManager = ({ risks = [] }) => {
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <Button variant="ghost" size="icon" onClick={() => handleExport(s)} title="Export as JSON">
-                    <Download className="w-4 h-4 text-slate-400 hover:text-cyan-400" />
+                    <Download className="w-4 h-4 text-pl-muted hover:text-pl-primary-text" />
                   </Button>
                   <Button variant="ghost" size="icon" onClick={() => handleDelete(s)} title="Delete">
-                    <Trash2 className="w-4 h-4 text-slate-400 hover:text-red-400" />
+                    <Trash2 className="w-4 h-4 text-pl-muted hover:text-pl-danger-text" />
                   </Button>
                 </div>
               </div>
