@@ -24,6 +24,7 @@ import { buildReport } from '../services/petroReport';
 export default function ExportDialog({
   open, onOpenChange, wellName, wellData, outputs, params, zones, summaries, projectId, projectName, onStatus,
   trackPng, well = null, depthUnit = 'm', probabilistic = null,
+  zoneParams = {}, reportHeader = {}, onReportHeader = () => {},
 }) {
   const [busy, setBusy] = useState(null); // which deliverable is building
   // depth options (PT2): unit, which depth columns travel, which is DEPT
@@ -118,9 +119,12 @@ export default function ExportDialog({
       testid: 'petro-export-pdf',
       icon: FileText,
       label: 'PDF summary report',
-      note: 'Parameters, methods with citations, zone table and provenance.',
+      note: 'Header (company, field, analyst below), every parameter and zone override, methods with citations, zone table and provenance.',
       build: async () => {
-        const doc = await buildReport({ wellName, wellData, params, zones, summaries, projectId, depthUnit: unit, well, columns: depthOpts.columns, probabilistic });
+        const doc = await buildReport({
+          wellName, wellData, params, zones, summaries, projectId, depthUnit: unit, well, columns: depthOpts.columns, probabilistic,
+          projectName, zoneParams, header: reportHeader,
+        });
         doc.save(`${base}_petrophysics_report.pdf`);
       },
     },
@@ -168,6 +172,24 @@ export default function ExportDialog({
             </label>
           </div>
           {depthNote && <div className="text-[11px] text-pl-muted" data-testid="petro-export-depth-note">{depthNote}</div>}
+        </div>
+
+        {/* PETRO-U1-009: the identity a reviewer signs against; remembered per user on this browser */}
+        <div className="rounded border border-pl-border px-3 py-2 space-y-1 text-xs" data-testid="petro-export-header">
+          <div className="text-pl-muted">Report header</div>
+          <div className="grid grid-cols-3 gap-2">
+            {[['company', 'Company'], ['field', 'Field'], ['analyst', 'Analyst']].map(([k, label]) => (
+              <label key={k} className="flex flex-col gap-0.5 text-pl-text">
+                {label}
+                <input
+                  className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5"
+                  value={reportHeader[k] || ''}
+                  data-testid={`petro-export-header-${k}`}
+                  onChange={(e) => onReportHeader({ ...reportHeader, [k]: e.target.value })}
+                />
+              </label>
+            ))}
+          </div>
         </div>
 
         <div className="space-y-1.5">

@@ -1601,6 +1601,9 @@ export default function PetroWorkstation({
         projectName={projectName}
         trackPng={trackPngBlob}
         probabilistic={probResult && probResult.wellId === wellData?.wellId ? probResult : null}
+        zoneParams={zoneParams}
+        reportHeader={prefs.reportHeader || {}}
+        onReportHeader={(h) => setPref({ reportHeader: h })}
         onStatus={setStatus}
       />
     )}
