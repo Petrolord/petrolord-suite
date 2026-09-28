@@ -18,7 +18,7 @@ import {
   fromRcpProspect, blankProspect, inputProblem, loadProspects, saveProspects, valuationCsv,
 } from '../services/rrvStore';
 
-const cell = 'w-full rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs font-pl-mono tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus';
+const cell = 'w-full rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus';
 const btn = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40';
 const fmt = (v, d = 1) => (v == null || !Number.isFinite(v) ? '—' : v.toLocaleString(undefined, { maximumFractionDigits: d, minimumFractionDigits: d }));
 const pct = (v) => (v == null || !Number.isFinite(v) ? '—' : `${(v * 100).toFixed(1)}%`);
@@ -100,7 +100,7 @@ function RrvWorkstationContent({ backend }) {
           </div>
         ) : (
           <div className="overflow-x-auto rounded border border-pl-border bg-pl-surface">
-            <table className="w-full text-xs">
+            <table className="w-full min-w-[960px] text-xs">
               <thead className="text-pl-muted">
                 <tr>
                   <th className="text-left px-2 py-1">Prospect</th>
@@ -119,7 +119,7 @@ function RrvWorkstationContent({ backend }) {
                     </td>
                     {FIELDS.map(([k]) => (
                       <td key={k} className="px-1 py-1 w-[72px]">
-                        <input className={`${cell} text-right`} value={p[k]} inputMode="decimal" onChange={(e) => patch(p.id, k, e.target.value)} data-testid={`rrv-${k}-${p.name}`} />
+                        <input className={`${cell} text-right font-pl-mono tabular-nums`} value={p[k]} inputMode="decimal" onChange={(e) => patch(p.id, k, e.target.value)} data-testid={`rrv-${k}-${p.name}`} />
                       </td>
                     ))}
                     <td className="px-2 py-1 text-right font-pl-mono tabular-nums" data-testid={`rrv-pc-${p.name}`}>{pv ? pct(pv.pc) : '—'}</td>

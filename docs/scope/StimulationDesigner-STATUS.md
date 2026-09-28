@@ -100,3 +100,28 @@ fixes. See `docs/testing/StimulationDesigner-T1.md`.
    closure.
 6. Save, duplicate, reload round-trip; save a run into the immutable
    history.
+
+## Design system rollout, batch 3E (2026-09-28)
+
+Stimulation Designer and its help guide open on the Petrolord design system: light
+grey panel by default, dark as a per-user choice from the ribbon toggle
+(beside Help).
+
+- Scope: `ThemedApp` inside `StWorkstation.jsx` (so the route page and the
+  `/dev/stimulation` harness share it) and `StimulationDesignerHelpGuide.jsx`; App.jsx unchanged.
+  Cold-load prefix `/dashboard/apps/drilling/stimulation-designer` in `src/design/rollout/w3e.js`
+  (covers `/help`).
+- Own classes moved to `pl-*` roles: ribbon, tabs, status bar, panels,
+  KPI tiles, tables and fields. The primary action is the default Button
+  (lime fills gone); warnings, errors and the PASS/WARN/FAIL banner status marks use the
+  status roles only; numbers read in the mono face.
+- Charts stay white (`data-canvas="chart"` on the chart frames) in both
+  themes. The studio has no schematic or 3D view, so no dark canvas.
+- The drilling kit (`TorqueDragStudio/components` Explorer,
+  WellboreDetails, GeometryNotice) is unchanged: it is scope-aware since
+  W0B and still has unmigrated consumers.
+- The workstation stays desktop-targeted: below 1100 px the workspace
+  scrolls inside its frame, with no page-level sideways scroll.
+- Test: `StimulationDesigner/__tests__/StimulationDesigner.theme.test.jsx` (the shared four checks, every ribbon tab with a run and
+  its charts, a dark-first open, the help guide). No engine or calculation
+  change.
