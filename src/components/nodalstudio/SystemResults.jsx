@@ -20,10 +20,10 @@ const tooltipProps = {
 const legendProps = LEGEND_PROPS;
 
 const STATUS_COPY = {
-  flowing: { text: 'The well flows at a stable operating point.', cls: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300' },
-  dead: { text: 'The outflow curve sits above the inflow everywhere. The well cannot flow naturally at this wellhead pressure. Consider artificial lift or a lower wellhead pressure.', cls: 'border-rose-500/40 bg-rose-500/10 text-rose-300' },
-  'no-stable-solution': { text: 'The curves cross only on the unstable heading branch. Sustained flow is unlikely without changing the completion or wellhead pressure.', cls: 'border-amber-500/40 bg-amber-500/10 text-amber-300' },
-  invalid: { text: 'Inputs are incomplete.', cls: 'border-slate-600 bg-slate-800/40 text-slate-300' },
+  flowing: { text: 'The well flows at a stable operating point.', cls: 'border-pl-success/40 bg-pl-success-bg text-pl-success-text' },
+  dead: { text: 'The outflow curve sits above the inflow everywhere. The well cannot flow naturally at this wellhead pressure. Consider artificial lift or a lower wellhead pressure.', cls: 'border-pl-danger/40 bg-pl-danger-bg text-pl-danger-text' },
+  'no-stable-solution': { text: 'The curves cross only on the unstable heading branch. Sustained flow is unlikely without changing the completion or wellhead pressure.', cls: 'border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text' },
+  invalid: { text: 'Inputs are incomplete.', cls: 'border-pl-border bg-pl-sunken text-pl-text' },
 };
 
 const SystemResults = () => {
@@ -115,7 +115,7 @@ const SystemResults = () => {
       {system?.intersections?.length > 1 && (
         <div className="space-y-2">
           <SectionLabel>Curve crossings</SectionLabel>
-          <div className="text-xs text-slate-400 space-y-1">
+          <div className="text-xs text-pl-muted space-y-1">
             {system.intersections.map((x, i) => (
               <div key={i}>
                 {valueWithUnit(rateKind, x.q, unitSystem, fmt.int)} at {valueWithUnit('pressure', x.pwf, unitSystem, fmt.int)}

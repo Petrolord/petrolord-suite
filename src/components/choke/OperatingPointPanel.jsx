@@ -14,13 +14,13 @@ const OperatingPointPanel = () => {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">
             <span className="flex items-center gap-2">
-              <Gauge className="w-4 h-4 text-sky-400" /> A {result.s64}/64 bean on this well
+              <Gauge className="w-4 h-4 text-pl-muted" /> A {result.s64}/64 bean on this well
             </span>
-            <span className="block text-xs font-normal text-slate-500 mt-0.5">
+            <span className="block text-xs font-normal text-pl-muted mt-0.5">
               The choke sets the wellhead pressure, the tubing carries it down, and the inflow
               closes it. The bean is a constraint in the nodal solve rather than a number applied
               afterwards.
@@ -29,16 +29,16 @@ const OperatingPointPanel = () => {
         </CardHeader>
         <CardContent className="space-y-5">
           <div className={`rounded-md border p-3 ${solved.critical
-            ? 'border-emerald-900/60 bg-emerald-950/20'
-            : 'border-amber-900/60 bg-amber-950/20'}`}
+            ? 'border-pl-success/40 bg-pl-success-bg'
+            : 'border-pl-warning/40 bg-pl-warning-bg'}`}
           >
-            <p className={`text-sm font-semibold flex items-center gap-2 ${solved.critical ? 'text-emerald-400' : 'text-amber-300'}`}>
+            <p className={`text-sm font-semibold flex items-center gap-2 ${solved.critical ? 'text-pl-success-text' : 'text-pl-warning-text'}`}>
               {solved.critical ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
               {solved.critical
                 ? `Critical flow: the bean is setting the rate at ${fmt(solved.q)} ${rateUnit}.`
                 : `${isGas ? 'Subsonic' : 'Subcritical'}: the line pressure is setting the rate, not the bean.`}
             </p>
-            <p className="text-[11px] text-slate-400 mt-1">
+            <p className="text-[11px] text-pl-muted mt-1">
               {isGas
                 ? `Downstream is ${fmt(solved.ratio * 100)} percent of upstream, against a critical ratio of ${fmt(solved.yc * 100)} percent from the heat capacity ratio.`
                 : `Downstream is ${fmt(solved.ratio * 100)} percent of the wellhead pressure. The Gilbert family holds below 55 percent.`}
@@ -51,7 +51,7 @@ const OperatingPointPanel = () => {
               value={fmt(solved.q)}
               unit={rateUnit}
               hint={!isGas && Number.isFinite(solved.qLiquid) ? `${fmt(solved.qLiquid)} bbl/d liquid through the bean` : undefined}
-              accent="text-emerald-400"
+              accent="text-pl-success-text"
             />
             <Stat
               label="Wellhead pressure"
@@ -72,8 +72,8 @@ const OperatingPointPanel = () => {
             />
           </div>
 
-          <div className="border-t border-slate-800 pt-4">
-            <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">
+          <div className="border-t border-pl-border pt-4">
+            <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold mb-2">
               How the answer was reached
             </p>
             <Row
@@ -100,11 +100,11 @@ const OperatingPointPanel = () => {
       </Card>
 
       {erosion?.ok && (
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">
               The flowline
-              <span className="block text-xs font-normal text-slate-500 mt-0.5">
+              <span className="block text-xs font-normal text-pl-muted mt-0.5">
                 API RP 14E erosional velocity at C = {result.cFactor}. The fluid is taken at
                 wellhead conditions, because a gassy stream at 200 psia is a different fluid from
                 the same stream at 2,000.
@@ -117,14 +117,14 @@ const OperatingPointPanel = () => {
                 label="Mixture velocity"
                 value={fmt(erosion.velocityFtS, 1)}
                 unit="ft/s"
-                accent={erosion.exceeded ? 'text-red-400' : 'text-emerald-400'}
+                accent={erosion.exceeded ? 'text-pl-danger-text' : 'text-pl-success-text'}
               />
               <Stat label="Erosional limit" value={fmt(erosion.erosionalFtS, 1)} unit="ft/s" />
               <Stat
                 label="Margin"
                 value={fmt(erosion.marginPct)}
                 unit="%"
-                accent={erosion.exceeded ? 'text-red-400' : 'text-emerald-400'}
+                accent={erosion.exceeded ? 'text-pl-danger-text' : 'text-pl-success-text'}
               />
               <Stat
                 label="Mixture density"
@@ -138,11 +138,11 @@ const OperatingPointPanel = () => {
       )}
 
       {hydrate?.ok && (
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">
               Hydrate screening
-              <span className="block text-xs font-normal text-slate-500 mt-0.5">
+              <span className="block text-xs font-normal text-pl-muted mt-0.5">
                 A screening only. The Hammerschmidt form takes no account of gas composition, which
                 hydrate formation depends strongly on; a real curve is a flash against a hydrate
                 model with the actual composition.
@@ -157,7 +157,7 @@ const OperatingPointPanel = () => {
                 label="Margin"
                 value={fmt(hydrate.marginF)}
                 unit="F"
-                accent={hydrate.atRisk ? 'text-red-400' : 'text-emerald-400'}
+                accent={hydrate.atRisk ? 'text-pl-danger-text' : 'text-pl-success-text'}
                 hint={hydrate.atRisk ? 'below the screening line' : 'above the screening line'}
               />
             </div>
