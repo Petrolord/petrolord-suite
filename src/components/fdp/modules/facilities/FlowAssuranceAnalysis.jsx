@@ -26,7 +26,7 @@ const CORROSION_VERDICT = {
  * tiles are the hazards the engine actually found.
  */
 const FlowAssuranceAnalysis = ({ facility, fluidProps, onFluidChange }) => {
-    if (!facility) return <div className="text-slate-500 p-4">Select a facility to view analysis.</div>;
+    if (!facility) return <div className="text-pl-muted p-4">Select a facility to view analysis.</div>;
 
     const properties = fluidProps || {};
     let analysis = null;
@@ -38,8 +38,8 @@ const FlowAssuranceAnalysis = ({ facility, fluidProps, onFluidChange }) => {
     }
     if (refusal) {
         return (
-            <div role="alert" className="flex items-start gap-2 rounded border border-red-800 bg-red-950/40 p-4 text-sm text-red-200">
-                <Activity className="w-4 h-4 mt-0.5 shrink-0 text-red-400" />
+            <div role="alert" className="flex items-start gap-2 rounded border border-pl-danger/40 bg-pl-danger-bg p-4 text-sm text-pl-danger-text">
+                <Activity className="w-4 h-4 mt-0.5 shrink-0 text-pl-danger-text" />
                 <span>The flow assurance screen cannot run: {refusal}.</span>
             </div>
         );
@@ -49,16 +49,16 @@ const FlowAssuranceAnalysis = ({ facility, fluidProps, onFluidChange }) => {
     const corrosion = analysis.corrosion;
 
     return (
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
             <CardHeader>
-                <CardTitle className="text-white flex items-center justify-between">
+                <CardTitle className="text-pl-text flex items-center justify-between">
                     <div className="flex items-center">
-                        <ThermometerSnowflake className="w-5 h-5 mr-2 text-blue-300" />
+                        <ThermometerSnowflake className="w-5 h-5 mr-2 text-pl-muted" />
                         Flow Assurance Risks
                     </div>
                     <span
                         data-testid="flow-assurance-score"
-                        className={`text-sm px-3 py-1 rounded-full ${analysis.score > 0 ? 'bg-amber-900 text-amber-200' : 'bg-slate-800 text-slate-300'}`}
+                        className={`text-sm px-3 py-1 rounded-full ${analysis.score > 0 ? 'bg-pl-warning-bg text-pl-warning-text' : 'bg-pl-sunken text-pl-text'}`}
                     >
                         Hazard score {analysis.score}
                     </span>
@@ -70,57 +70,57 @@ const FlowAssuranceAnalysis = ({ facility, fluidProps, onFluidChange }) => {
                         borrowed the risk register's words for a different
                         quantity. The score is shown with the triggers that
                         produced it and the hazards each one names. */}
-                    <div className="text-xs text-slate-400" data-testid="flow-assurance-breakdown">
+                    <div className="text-xs text-pl-muted" data-testid="flow-assurance-breakdown">
                         {analysis.contributions.length === 0 ? (
                             <p>Score 0: no screening trigger fired on this facility and fluid.</p>
                         ) : (
                             <ul className="space-y-1">
                                 {analysis.contributions.map((c) => (
                                     <li key={c.trigger}>
-                                        <span className="text-slate-200">{c.trigger}</span>: {c.points} point{c.points === 1 ? '' : 's'} ({c.hazards.join(', ')})
+                                        <span className="text-pl-text">{c.trigger}</span>: {c.points} point{c.points === 1 ? '' : 's'} ({c.hazards.join(', ')})
                                     </li>
                                 ))}
                             </ul>
                         )}
                     </div>
                     <div className="grid grid-cols-3 gap-2 text-center text-sm mb-4">
-                        <div className="p-2 bg-slate-800 rounded">
-                            <div className="text-slate-500">Hydrates</div>
-                            <div className="font-bold text-white">{severityOf('Hydrates')}</div>
+                        <div className="p-2 bg-pl-sunken rounded">
+                            <div className="text-pl-muted">Hydrates</div>
+                            <div className="font-bold text-pl-text">{severityOf('Hydrates')}</div>
                         </div>
-                        <div className="p-2 bg-slate-800 rounded">
-                            <div className="text-slate-500">Wax</div>
-                            <div className="font-bold text-white">{severityOf('Wax')}</div>
+                        <div className="p-2 bg-pl-sunken rounded">
+                            <div className="text-pl-muted">Wax</div>
+                            <div className="font-bold text-pl-text">{severityOf('Wax')}</div>
                         </div>
-                        <div className="p-2 bg-slate-800 rounded">
-                            <div className="text-slate-500">Corrosion</div>
-                            <div className={`font-bold ${corrosion.status === 'sour-service' ? 'text-red-400' : 'text-white'}`}
+                        <div className="p-2 bg-pl-sunken rounded">
+                            <div className="text-pl-muted">Corrosion</div>
+                            <div className={`font-bold ${corrosion.status === 'sour-service' ? 'text-pl-danger-text' : 'text-pl-text'}`}
                                 data-testid="corrosion-verdict">
                                 {CORROSION_VERDICT[corrosion.status] || corrosion.status}
                             </div>
                         </div>
                     </div>
 
-                    <h4 className="text-sm font-medium text-slate-300 mb-2">Detected Hazards</h4>
+                    <h4 className="text-sm font-medium text-pl-text mb-2">Detected Hazards</h4>
                     <div className="space-y-2">
                         {analysis.risks.map((risk, i) => (
-                            <div key={i} className="flex items-center justify-between p-3 bg-slate-800/50 rounded border border-slate-700">
+                            <div key={i} className="flex items-center justify-between p-3 bg-pl-sunken rounded border border-pl-border">
                                 <div>
-                                    <div className="text-white font-medium">{risk.type}</div>
-                                    <div className="text-xs text-slate-400">Mitigation: {risk.mitigation}</div>
+                                    <div className="text-pl-text font-medium">{risk.type}</div>
+                                    <div className="text-xs text-pl-muted">Mitigation: {risk.mitigation}</div>
                                 </div>
-                                <div className={`text-xs font-bold px-2 py-1 rounded ${risk.severity === 'High' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                                <div className={`text-xs font-bold px-2 py-1 rounded ${risk.severity === 'High' ? 'bg-pl-danger-bg text-pl-danger-text' : 'bg-pl-warning-bg text-pl-warning-text'}`}>
                                     {risk.severity}
                                 </div>
                             </div>
                         ))}
-                        {analysis.risks.length === 0 && <p className="text-sm text-slate-500">No significant flow assurance risks detected based on current inputs.</p>}
+                        {analysis.risks.length === 0 && <p className="text-sm text-pl-muted">No significant flow assurance risks detected based on current inputs.</p>}
                     </div>
 
                     {onFluidChange && (
                         <div className="grid grid-cols-2 gap-3 mt-4" data-testid="sour-service-inputs">
                             <div className="space-y-1">
-                                <label className="text-xs text-slate-400" htmlFor="fdp-h2s">H2S (ppm)</label>
+                                <label className="text-xs text-pl-muted" htmlFor="fdp-h2s">H2S (ppm)</label>
                                 <input
                                     id="fdp-h2s"
                                     type="number"
@@ -131,11 +131,11 @@ const FlowAssuranceAnalysis = ({ facility, fluidProps, onFluidChange }) => {
                                         ...properties,
                                         h2s: e.target.value === '' ? undefined : parseFloat(e.target.value),
                                     })}
-                                    className="w-full h-9 rounded-md border border-slate-700 bg-slate-800 px-3 text-sm text-white"
+                                    className="w-full h-9 rounded-md border border-pl-border bg-pl-sunken px-3 text-sm text-pl-text"
                                 />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-xs text-slate-400" htmlFor="fdp-operating-pressure">
+                                <label className="text-xs text-pl-muted" htmlFor="fdp-operating-pressure">
                                     Operating pressure (psia)
                                 </label>
                                 <input
@@ -148,17 +148,17 @@ const FlowAssuranceAnalysis = ({ facility, fluidProps, onFluidChange }) => {
                                         ...properties,
                                         operatingPressurePsia: e.target.value === '' ? undefined : parseFloat(e.target.value),
                                     })}
-                                    className="w-full h-9 rounded-md border border-slate-700 bg-slate-800 px-3 text-sm text-white"
+                                    className="w-full h-9 rounded-md border border-pl-border bg-pl-sunken px-3 text-sm text-pl-text"
                                 />
                             </div>
                         </div>
                     )}
 
-                    <div className="text-xs text-slate-400 mt-4 space-y-2" data-testid="corrosion-screen">
+                    <div className="text-xs text-pl-muted mt-4 space-y-2" data-testid="corrosion-screen">
                         <p>
-                            <span className="text-slate-300">Sour service screen:</span> {corrosion.message}
+                            <span className="text-pl-text">Sour service screen:</span> {corrosion.message}
                         </p>
-                        <p className="text-slate-500">
+                        <p className="text-pl-muted">
                             Screened on the plan's own fluid properties
                             {hasApi ? `: ${properties.api} API` : ': no API entered'}. The corrosion
                             trigger is the H2S partial pressure against the {corrosion.standard} threshold

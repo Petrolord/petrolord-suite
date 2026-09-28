@@ -58,20 +58,20 @@ const FieldLocationMap = ({ location }) => {
     }, []);
 
     return (
-        <Card className="bg-slate-900 border-slate-800 h-full min-h-[400px] relative overflow-hidden group">
-             <div className="absolute top-4 left-4 z-10 bg-slate-900/80 backdrop-blur p-2 rounded border border-slate-700">
-                 <div className="text-xs text-slate-400 font-bold uppercase mb-1">Field Coordinates</div>
-                 <div className="text-sm text-white font-mono">
+        <Card data-canvas="dark" className="h-full min-h-[400px] relative overflow-hidden group">
+             <div className="absolute top-4 left-4 z-10 bg-pl-surface backdrop-blur p-2 rounded border border-pl-border">
+                 <div className="text-xs text-pl-muted font-bold uppercase mb-1">Field Coordinates</div>
+                 <div className="text-sm text-pl-text font-pl-mono tabular-nums">
                     LAT: {location.lat || '00°00\'00" N'}<br/>
                     LNG: {location.lng || '00°00\'00" E'}
                  </div>
              </div>
              
              <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
-                 <Button size="icon" variant="secondary" className="bg-slate-800 hover:bg-slate-700 text-white border border-slate-600">
+                 <Button size="icon" variant="secondary" className="bg-pl-sunken hover:bg-pl-raised text-pl-text border border-pl-border">
                      <Maximize2 className="w-4 h-4" />
                  </Button>
-                 <Button size="icon" variant="secondary" className="bg-slate-800 hover:bg-slate-700 text-white border border-slate-600">
+                 <Button size="icon" variant="secondary" className="bg-pl-sunken hover:bg-pl-raised text-pl-text border border-pl-border">
                      <MapPin className="w-4 h-4" />
                  </Button>
              </div>
@@ -83,7 +83,7 @@ const FieldLocationMap = ({ location }) => {
                 className="w-full h-full object-cover"
              />
              
-             <div className="absolute bottom-4 right-4 bg-slate-900/80 px-2 py-1 rounded text-xs text-slate-400 border border-slate-700">
+             <div className="absolute bottom-4 right-4 bg-pl-surface px-2 py-1 rounded text-xs text-pl-muted border border-pl-border">
                  Scale 1:50000
              </div>
         </Card>

@@ -77,15 +77,15 @@ const GuidedMode = () => {
             <div className="mb-6 max-w-4xl mx-auto w-full">
                 <div className="flex justify-between items-end mb-2">
                     <div>
-                        <h2 className="text-2xl font-bold text-white">{steps[currentStep].title}</h2>
-                        <p className="text-slate-400 text-sm">{steps[currentStep].description}</p>
+                        <h2 className="text-2xl font-bold text-pl-text">{steps[currentStep].title}</h2>
+                        <p className="text-pl-muted text-sm">{steps[currentStep].description}</p>
                     </div>
                     <div className="text-right">
-                        <span className="text-sm text-slate-400 block">Step {currentStep + 1} of {steps.length}</span>
-                        <span className="text-xs text-blue-400 font-medium">{Math.round(progress)}% Complete</span>
+                        <span className="text-sm text-pl-muted block">Step {currentStep + 1} of {steps.length}</span>
+                        <span className="text-xs text-pl-muted font-medium">{Math.round(progress)}% Complete</span>
                     </div>
                 </div>
-                <Progress value={progress} className="h-2 bg-slate-800" indicatorClassName="bg-blue-500" />
+                <Progress value={progress} className="h-2" />
             </div>
 
             {/* Step Content */}
@@ -96,23 +96,21 @@ const GuidedMode = () => {
             </div>
 
             {/* Navigation Footer */}
-            <div className="fixed bottom-0 left-0 right-0 p-4 bg-slate-900 border-t border-slate-800 flex justify-between items-center z-50 pl-64 transition-all duration-300">
+            <div className="fixed bottom-0 left-0 right-0 p-4 bg-pl-surface border-t border-pl-border flex justify-between items-center z-50 pl-64 transition-all duration-300">
                  <Button 
                     variant="ghost" 
                     onClick={handlePrev} 
                     disabled={currentStep === 0}
-                    className="text-slate-300 hover:text-white"
                 >
                     <ArrowLeft className="w-4 h-4 mr-2" /> Previous
                 </Button>
                 
                 <div className="flex space-x-3">
-                    <Button variant="outline" className="border-slate-700 text-slate-300">
+                    <Button variant="outline">
                         <Save className="w-4 h-4 mr-2" /> Save Draft
                     </Button>
                     <Button 
                         onClick={handleNext}
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
                         disabled={currentStep === steps.length - 1 && currentStep !== 11}
                     >
                         {currentStep === steps.length - 1 ? 'Finish' : 'Next Step'} <ArrowRight className="w-4 h-4 ml-2" />

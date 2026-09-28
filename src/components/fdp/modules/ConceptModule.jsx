@@ -73,10 +73,10 @@ const ConceptModule = () => {
         <div className="space-y-6 p-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-2xl font-bold text-white">Development Concepts</h2>
-                    <p className="text-slate-400">Define and evaluate different technical solutions.</p>
+                    <h2 className="text-2xl font-bold text-pl-text">Development Concepts</h2>
+                    <p className="text-pl-muted">Define and evaluate different technical solutions.</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 shrink-0">
                     <Button 
                         variant={view === 'compare' ? 'secondary' : 'outline'} 
                         onClick={() => setView('compare')}
@@ -87,7 +87,6 @@ const ConceptModule = () => {
                     <Button 
                         variant={view === 'form' ? 'secondary' : 'default'}
                         onClick={handleCreate} 
-                        className="bg-blue-600 hover:bg-blue-700"
                     >
                         <Plus className="w-4 h-4 mr-2" /> New Concept
                     </Button>
@@ -115,7 +114,7 @@ const ConceptModule = () => {
 
             {view === 'compare' && (
                 <div className="space-y-4">
-                    <Button variant="ghost" onClick={() => setView('list')} className="text-slate-400">
+                    <Button variant="ghost" onClick={() => setView('list')} className="text-pl-muted">
                         ← Back to List
                     </Button>
                     <ConceptComparison concepts={concepts} />
@@ -132,7 +131,7 @@ const ConceptModule = () => {
                     </AlertDialogHeader>
                     <div className="flex justify-end gap-2">
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700">
+                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-pl-danger text-pl-danger-fg hover:bg-pl-danger/90">
                             Delete
                         </AlertDialogAction>
                     </div>

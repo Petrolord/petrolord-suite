@@ -10,47 +10,47 @@ const ConceptCard = ({ concept, onEdit, onDelete, onDuplicate, isSelected, onSel
 
     return (
         <Card 
-            className={`bg-slate-800 border transition-all duration-200 cursor-pointer ${isSelected ? 'border-blue-500 shadow-lg shadow-blue-900/20' : 'border-slate-700 hover:border-slate-600'}`}
+            className={`bg-pl-sunken border transition-all duration-200 cursor-pointer ${isSelected ? 'border-pl-primary ring-1 ring-pl-primary shadow-pl-md' : 'border-pl-border hover:border-pl-border-strong'}`}
             onClick={() => onSelect(concept.id)}
         >
             <CardContent className="p-4">
                 <div className="flex justify-between items-start mb-2">
                     <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-white">{concept.name}</h3>
-                        {isSelected && <CheckCircle className="w-4 h-4 text-blue-500" />}
+                        <h3 className="font-bold text-pl-text">{concept.name}</h3>
+                        {isSelected && <CheckCircle className="w-4 h-4 text-pl-primary-text" />}
                     </div>
-                    <Badge variant="outline" className="bg-slate-900 text-slate-300 border-slate-600">
+                    <Badge variant="outline" className="bg-pl-surface text-pl-text border-pl-border">
                         {concept.facilityType}
                     </Badge>
                 </div>
                 
-                <p className="text-sm text-slate-400 line-clamp-2 mb-4 h-10">
+                <p className="text-sm text-pl-muted line-clamp-2 mb-4 h-10">
                     {concept.description || "No description provided."}
                 </p>
 
                 <div className="grid grid-cols-3 gap-2 text-xs mb-4">
-                    <div className="bg-slate-900 p-2 rounded">
-                        <div className="text-slate-500">Total CAPEX</div>
-                        <div className="font-mono text-white">${costs.totalCapex}m</div>
+                    <div className="bg-pl-surface p-2 rounded">
+                        <div className="text-pl-muted">Total CAPEX</div>
+                        <div className="font-pl-mono tabular-nums text-pl-text">${costs.totalCapex}m</div>
                     </div>
-                    <div className="bg-slate-900 p-2 rounded">
-                        <div className="text-slate-500">Peak Prod</div>
-                        <div className="font-mono text-white">{concept.peakProduction} kbpd</div>
+                    <div className="bg-pl-surface p-2 rounded">
+                        <div className="text-pl-muted">Peak Prod</div>
+                        <div className="font-pl-mono tabular-nums text-pl-text">{concept.peakProduction} kbpd</div>
                     </div>
-                    <div className="bg-slate-900 p-2 rounded">
-                        <div className="text-slate-500">Wells</div>
-                        <div className="font-mono text-white">{concept.wellCount}</div>
+                    <div className="bg-pl-surface p-2 rounded">
+                        <div className="text-pl-muted">Wells</div>
+                        <div className="font-pl-mono tabular-nums text-pl-text">{concept.wellCount}</div>
                     </div>
                 </div>
 
-                <div className="flex justify-end gap-1 border-t border-slate-700 pt-2" onClick={e => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white" onClick={() => onDuplicate(concept)}>
+                <div className="flex justify-end gap-1 border-t border-pl-border pt-2" onClick={e => e.stopPropagation()}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-pl-muted hover:text-pl-text" onClick={() => onDuplicate(concept)}>
                         <Copy className="w-3.5 h-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white" onClick={() => onEdit(concept)}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-pl-muted hover:text-pl-text" onClick={() => onEdit(concept)}>
                         <Edit2 className="w-3.5 h-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-red-400" onClick={() => onDelete(concept.id)}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-pl-muted hover:text-pl-danger-text" onClick={() => onDelete(concept.id)}>
                         <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                 </div>
@@ -62,9 +62,9 @@ const ConceptCard = ({ concept, onEdit, onDelete, onDuplicate, isSelected, onSel
 const ConceptManager = ({ concepts, onEdit, onDelete, onDuplicate, selectedId, onSelect }) => {
     if (concepts.length === 0) {
         return (
-            <div className="text-center py-12 bg-slate-900/50 border border-dashed border-slate-800 rounded-lg">
-                <p className="text-slate-500 mb-2">No concepts defined yet.</p>
-                <p className="text-sm text-slate-600">Create a new concept to start evaluating development options.</p>
+            <div className="text-center py-12 bg-pl-surface border border-dashed border-pl-border rounded-lg">
+                <p className="text-pl-muted mb-2">No concepts defined yet.</p>
+                <p className="text-sm text-pl-muted">Create a new concept to start evaluating development options.</p>
             </div>
         );
     }

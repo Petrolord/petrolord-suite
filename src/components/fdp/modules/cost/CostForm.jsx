@@ -34,10 +34,10 @@ const CostForm = ({ initialData, onSave, onCancel }) => {
     };
 
     return (
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
             <CardHeader>
-                <CardTitle className="text-white flex items-center">
-                    <DollarSign className="w-5 h-5 mr-2 text-green-400" />
+                <CardTitle className="text-pl-text flex items-center">
+                    <DollarSign className="w-5 h-5 mr-2 text-pl-muted" />
                     {initialData ? 'Edit Cost Item' : 'New Cost Item'}
                 </CardTitle>
             </CardHeader>
@@ -51,7 +51,6 @@ const CostForm = ({ initialData, onSave, onCancel }) => {
                                 onChange={(e) => handleChange('name', e.target.value)} 
                                 placeholder="e.g., FEED Study"
                                 required
-                                className="bg-slate-800 border-slate-700"
                             />
                         </div>
                         <div className="space-y-2">
@@ -60,7 +59,7 @@ const CostForm = ({ initialData, onSave, onCancel }) => {
                                 value={formData.category} 
                                 onValueChange={(v) => handleChange('category', v)}
                             >
-                                <SelectTrigger className="bg-slate-800 border-slate-700">
+                                <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -82,7 +81,7 @@ const CostForm = ({ initialData, onSave, onCancel }) => {
                                 value={formData.type} 
                                 onValueChange={(v) => handleChange('type', v)}
                             >
-                                <SelectTrigger className="bg-slate-800 border-slate-700">
+                                <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -99,7 +98,6 @@ const CostForm = ({ initialData, onSave, onCancel }) => {
                                 step="0.01"
                                 value={formData.amount} 
                                 onChange={(e) => handleChange('amount', parseFloat(e.target.value))} 
-                                className="bg-slate-800 border-slate-700"
                             />
                         </div>
                         <div className="space-y-2">
@@ -108,7 +106,7 @@ const CostForm = ({ initialData, onSave, onCancel }) => {
                                 value={formData.phase} 
                                 onValueChange={(v) => handleChange('phase', v)}
                             >
-                                <SelectTrigger className="bg-slate-800 border-slate-700">
+                                <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -123,10 +121,10 @@ const CostForm = ({ initialData, onSave, onCancel }) => {
                     </div>
 
                     <div className="flex justify-end gap-2 pt-4">
-                        <Button type="button" variant="ghost" onClick={onCancel} className="text-slate-400 hover:text-white">
+                        <Button type="button" variant="ghost" onClick={onCancel} className="text-pl-muted hover:text-pl-text">
                             <X className="w-4 h-4 mr-2" /> Cancel
                         </Button>
-                        <Button type="submit" className="bg-green-600 hover:bg-green-700 text-white">
+                        <Button type="submit">
                             <Save className="w-4 h-4 mr-2" /> Save Item
                         </Button>
                     </div>
