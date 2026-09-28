@@ -606,6 +606,26 @@ Once every route under `/dashboard` is migrated:
   follows the user's theme) is one attribute change in `DashboardSidebar`
   and the mobile sheet. Owner to confirm at 7A.
 
+**As built (7A, `feat/ds-w7a`).** `DashboardLayout` renders
+`DashboardScope` (`src/design/DashboardScope.jsx`, one `ThemedApp`) around
+the org closure banner and the `<Outlet />`. 165 per-app wraps became
+plain root elements (their `data-testid` kept), and the EPE layout route
+and the `HubScope` wrap went (HubScope keeps its `Suspense`). The dev
+harness routes in App.jsx get one scope of their own, since they render
+app pages outside DashboardLayout. `AccountScope` is a plain element
+inside a scope and opens its own on `/profile` and the super-admin pages.
+`ProtectedAppRoute`'s loading, licence-banner and access-restricted
+states moved to roles. `HelpGuideShell` shows the `ThemeToggle`.
+`isThemedPath` is any `/dashboard` path plus `THEMED_PAGE_PREFIXES` and
+`PUBLIC_PAGE_PREFIXES` in `coldLoad.jsx`; `src/design/rollout/` and
+`rolloutFiles.test.js` are gone. The sidebar keeps the ink rail (lead
+decision). `dashboardScope.test.jsx` fails if a page renders its own
+`ThemedApp`. Theme tests mount `/dashboard` pages through
+`installDashboardScope`. Left for 7B: the outer `DashboardLayout` frame
+(`bg-slate-900 text-white`, outside the scope and behind the rail), the
+`LegacyAppFixture` (now at a path outside `/dashboard`) and the other
+legacy fixtures in 5.2.
+
 ### 5.2 Delete the legacy branches (7B)
 
 Only when no page renders the shared components outside a scope (see 5.4

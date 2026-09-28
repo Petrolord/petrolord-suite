@@ -18,8 +18,8 @@ Audit, pilots and open decisions: `docs/scope/DesignSystem-PLAN.md`.
 | `src/design/themeContext.js` | `useDsTheme`, `usePortalThemeProps` (no dependencies) |
 | `src/design/themeClass.js` | `useThemeClass`, the one opt-in helper for shared components (section 4) |
 | `src/design/activeTheme.js` | the theme of the opted-in app on screen, for the root toaster |
-| `src/design/coldLoad.jsx` | hub list, `isThemedPath`, `coldLoadTheme`, `ThemedLoadingScreen` for the cold-load loaders |
-| `src/design/rollout/<batch>.js` | cold-load route prefixes, one file per rollout batch (`pilots.js`, `w1a.js` ... `w6g.js`, `w7c.js`), aggregated by `rollout/index.js` |
+| `src/design/DashboardScope.jsx` | `DashboardScope`: the one `ThemedApp` DashboardLayout renders around every `/dashboard` page (batch 7A) |
+| `src/design/coldLoad.jsx` | `isThemedPath` (any `/dashboard` path, plus the themed pages outside it), `isPublicLightPath`, `coldLoadTheme`, `ThemedLoadingScreen` for the cold-load loaders |
 | `src/components/public/PublicPage.jsx` | the public and auth page frame (batch 7C): `PublicPage` (always light, no toggle), the ink `PublicBrandBar` with the wordmark, `AUTH_CARD` and friends |
 | `src/design/testing/themeAssertions.js` | test only: the shared app theme-test helpers (section 4) |
 | `src/design/testing/LegacyAppFixture.jsx` | test only: the unmigrated-app stand-in for the opt-in proofs |
@@ -130,29 +130,32 @@ the theme too. `--chart-1..5` become the chartTheme series colours.
    2026-09-28). The one root toaster takes the theme of the opted-in app on
    screen; on every other page it keeps its legacy look. Apps call
    `useToast()` or sonner as before; nothing to do per app.
-9. **Loaders.** On the pilot paths (`src/design/coldLoad.jsx`) the
-   AuthGuard, ProtectedRoute and root Suspense loaders paint the device's
-   last theme, so a light user does not see a dark spinner first. The
-   public and auth pages (`rollout/w7c.js`) always paint light, as the
-   pages themselves do. When an
-   app opts in, add its route to `THEMED_APP_PREFIXES`; the test
-   `coldLoad.test.jsx` fails if a `ThemedApp` route in App.jsx is missing.
+9. **Loaders.** On the themed paths (`src/design/coldLoad.jsx`: every
+   `/dashboard` path and the themed pages outside it) the AuthGuard,
+   ProtectedRoute and root Suspense loaders, and DashboardLayout's own
+   loader, paint the device's last theme, so a light user does not see a
+   dark spinner first. The public and auth pages (`PUBLIC_PAGE_PREFIXES`)
+   always paint light, as the pages themselves do.
 
-## 4. How an app opts in
+## 4. The dashboard scope, and how a page is themed
 
-```jsx
-import { ThemedApp } from '@/design/ThemeProvider';
+Since batch 7A every page under `/dashboard` is themed by one scope:
+`DashboardLayout` renders `DashboardScope` (one `ThemedApp`) around its
+content column, so the landing, the module hubs, every app and help guide,
+the account pages and the `AccessDenied`, `ComingSoon` and access-restricted
+states all sit in it. A page under `/dashboard` does **not** wrap itself in
+`ThemedApp` (`src/design/__tests__/dashboardScope.test.jsx` fails if a file
+under `src/pages`, `src/components` or `src/layouts` renders one, apart
+from the pages outside `/dashboard` listed there). Its header carries the
+`ThemeToggle` (`AppHeader`, `StudioHeader` and the help guide shell have
+it), which switches the dashboard scope. The sidebar rail and the phone
+bar stay outside the scope as the fixed dark ink frame.
 
-<Route path="apps/economics/epe/cases" element={
-  <ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio">
-    <ThemedApp className="min-h-screen"><EpeCaseList /></ThemedApp>
-  </ProtectedAppRoute>
-} />
-```
-
-Wrap every route of the app (or give the app a layout route with one
-`ThemedApp` around its `<Outlet />`), so the theme does not flip while the
-user moves between the app's pages.
+Pages outside `/dashboard` open their own scope: the public and auth pages
+through `PublicPage` (always light), `/profile` and the super-admin pages
+through `AccountScope` (a plain element when it already sits in a scope),
+the `/mobile` shell through `MobileLayout`, and the dev harness routes
+through one scope in App.jsx.
 
 `ThemedApp` renders a `div` with `data-pl-theme="light|dark"` (the CSS
 scope) and `data-pl-root` (page background), reads the signed-in user from
@@ -169,7 +172,8 @@ user yet) it paints the last theme this device resolved
   variants), `Separator`, `ContextMenu`, `AlertDialog`, `Skeleton`,
   `Toggle`, `ToggleGroup`, `Avatar`, `RadioGroup`, the `FullPrecision`
   toggle and note, `StudioHeader` (shows the toggle), and the full-page
-  `AccessDenied` and `ComingSoon` screens.
+  `AccessDenied` and `ComingSoon` screens; `ProtectedAppRoute`'s loading,
+  licence-banner and access-restricted states use roles (7A).
 - Put `<ThemeToggle />` in the header, or use `AppHeader`, which has it.
 - Portal content (dialog, sheet and alert-dialog overlays and panels,
   menus and submenus, selects, popovers, tooltips) carries the scope
@@ -209,26 +213,15 @@ themed strings out literally so Tailwind generates them. The Studio kit's
 of any shared component you adapt (see `uiLegacyDom.test.jsx` and
 `studioKitLegacyDom.test.jsx`).
 
-### Register the route for the cold-load loaders
+### The cold-load loaders
 
 Before the session restores, the loaders outside any scope (AuthGuard,
-ProtectedRoute, the root PageLoader) paint the user's last theme only on
-paths `isThemedPath()` knows. Each rollout batch lists its route prefixes in
-its own file and edits nothing else:
-
-```js
-// src/design/rollout/w1a.js
-export default [
-  '/dashboard/apps/reservoir/material-balance-studio',
-  '/dashboard/apps/reservoir/well-test-analysis-studio',
-];
-```
-
-A prefix covers its sub-paths (`/help`, `/cases/42`). A page outside
-`/dashboard` uses its absolute path (`/profile`). `rollout/index.js` already
-imports every batch file, so a batch never touches it, `coldLoad.jsx` or
-another batch's file. `rolloutFiles.test.js` checks that each prefix is well
-formed, starts a route in `App.jsx` and is registered once.
+ProtectedRoute, the root PageLoader) paint the user's last theme on the
+paths `isThemedPath()` knows: every `/dashboard` path, and the prefixes in
+`THEMED_PAGE_PREFIXES` for the themed pages outside it. A new page under
+`/dashboard` needs no registration. A new themed page outside `/dashboard`
+adds its prefix there; `coldLoad.test.jsx` checks each prefix is well
+formed, listed once and starts a route in `App.jsx`.
 
 ### The app theme test
 
@@ -247,7 +240,7 @@ describeAppTheme({
   route: '/dashboard/apps/reservoir/material-balance-studio',
   renderApp: () => render(<MemoryRouter><ReservoirBalance /></MemoryRouter>),
   ready: () => screen.findByText('Material Balance Studio'),
-  scopeTestId: 'mbal-theme-scope',
+  scopeTestId: 'mbal-theme-scope', // the app's root element; the checks run on the scope around it
   // userId: 'u1' when the test provides an AuthContext user (default null, the anon key)
   // allow: ['text-red-600'] only for a deliberate legacy token, with the reason
 });
@@ -258,8 +251,12 @@ the header toggle goes to dark and back and stores the choice under the
 user's key; no legacy console colour under any `[data-pl-theme]` element
 (portals included) outside `data-canvas` regions, with a planted negative
 control; and `isThemedPath(route)` is true. It installs the jsdom shims and
-clears storage before each test. For further states (tabs, dialogs,
-results), call the pieces in the app's own tests:
+clears storage before each test. For a `/dashboard` route it mounts the app
+inside `DashboardScope`, as DashboardLayout does. For further states (tabs,
+dialogs, results), call `installDashboardScope({ userId })` once at the top
+of the file (every `render()` in that block then mounts inside the
+dashboard scope, inside any `wrapper` and across `rerender`) and use the
+pieces below:
 
 | helper | checks |
 |---|---|
@@ -268,7 +265,9 @@ results), call the pieces in the app's own tests:
 | `expectNegativeControl(scope, { allow? })` | a planted `bg-slate-900 text-white` is found, one inside `data-canvas` is not |
 | `expectLightByDefault(scope)`, `expectToggleRoundTrip(scope, { userId? })` | the theme checks on their own |
 | `expectThemedPath(route)` | the route is registered |
-| `getScopeRoot(testId?)`, `installDomShims()`, `hasLegacyChrome(cls)` | utilities |
+| `installDashboardScope({ userId? })` | every `render()` in the block mounts inside `DashboardScope` |
+| `getScopeRoot(testId?)` | the scope root; a test id on an app's own root resolves to the scope around it |
+| `installDomShims()`, `hasLegacyChrome(cls)` | utilities |
 
 A legacy token is any Tailwind palette colour on a colour utility (with any
 variant), `text-white`, solid `bg-black`, translucent `bg-white/`, gradients
@@ -306,7 +305,9 @@ and hex colours. Tokens under `dark:` are ignored (the Suite never sets
 
 ## 6. Migration checklist (per app)
 
-1. Wrap the route element in `<ThemedApp>`; one PR per app.
+1. A page under `/dashboard` is already in the dashboard scope; do not
+   wrap it in `<ThemedApp>` (section 4). A new themed page outside
+   `/dashboard` opens its own scope and lists its prefix in `coldLoad.jsx`.
 2. Replace the app's own header with `AppHeader`, or keep `StudioHeader`
    (it themes itself). Make sure the toggle is visible.
 3. Remove hard-coded console colours from the app tree: `bg-slate-*`,
@@ -327,8 +328,8 @@ and hex colours. Tokens under `dark:` are ignored (the Suite never sets
    the page title if used.
 9. Copy pass on every string touched (section 3, rule 5).
 10. Tests: app tests still pass; add the app theme test with
-    `describeAppTheme` (section 4). Register the route in the batch's own
-    `src/design/rollout/<batch>.js`.
+    `describeAppTheme` (section 4), and `installDashboardScope` for the
+    app's further theme states.
 11. Staging walk in light and dark (and the phone width), then update the
     app's `docs/scope/<App>-STATUS.md` and the pilot table in
     `DesignSystem-PLAN.md`.
