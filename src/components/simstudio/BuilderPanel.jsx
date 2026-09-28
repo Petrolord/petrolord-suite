@@ -20,14 +20,14 @@ import Grid3DView from '@/components/simstudio/builder/Grid3DView';
 
 const Field = ({ label, value, onChange, className = '' }) => (
   <div className={`space-y-1 ${className}`}>
-    <Label className="text-[11px] text-slate-400">{label}</Label>
+    <Label className="text-[11px] text-pl-muted">{label}</Label>
     <Input value={value} onChange={(e) => onChange(e.target.value)}
-      className="h-8 bg-slate-800 border-slate-700 text-xs" />
+      className="h-8 text-xs" />
   </div>
 );
 
 const Section = ({ title, children, aside }) => (
-  <Card className="bg-slate-900 border-slate-800">
+  <Card>
     <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
       <CardTitle className="text-sm">{title}</CardTitle>
       {aside}
@@ -85,8 +85,8 @@ const BuilderPanel = () => {
 
   if (!activeCase) {
     return (
-      <Card className="bg-slate-900 border-slate-800">
-        <CardContent className="py-10 text-center text-sm text-slate-500">
+      <Card>
+        <CardContent className="py-10 text-center text-sm text-pl-muted">
           Create or open a case first: the generated deck attaches to it.
         </CardContent>
       </Card>
@@ -123,7 +123,7 @@ const BuilderPanel = () => {
           ))}
         </div>
         {form.structure?.mode === 'surface' && (
-          <p className="text-[11px] text-slate-500 mt-2">
+          <p className="text-[11px] text-pl-muted mt-2">
             DX/DY and the top depth are taken from the sampled structure below while surface mode is on.
           </p>
         )}
@@ -141,7 +141,7 @@ const BuilderPanel = () => {
           <Field label="Solution GOR (scf/STB)" value={form.fluid.gor} onChange={(v) => set('fluid.gor', v)} />
           <Field label="Salinity (ppm)" value={form.fluid.salinityPpm} onChange={(v) => set('fluid.salinityPpm', v)} />
         </div>
-        <p className="text-[11px] text-slate-500 mt-2">
+        <p className="text-[11px] text-pl-muted mt-2">
           PVTO/PVDG tables come from the Standing and Beggs-Robinson correlation set; the bubble point is solved from the GOR.
         </p>
       </Section>
@@ -160,7 +160,7 @@ const BuilderPanel = () => {
       <Section
         title="Relative permeability (Corey, SCAL Studio model)"
         aside={(
-          <label className="flex items-center gap-2 text-[11px] text-slate-400">
+          <label className="flex items-center gap-2 text-[11px] text-pl-muted">
             <input type="checkbox" checked={form.scal.pc.enabled}
               onChange={(e) => set('scal.pc.enabled', e.target.checked)} />
             Leverett-J capillary pressure
@@ -182,7 +182,7 @@ const BuilderPanel = () => {
           <Field label="nog" value={form.scal.go.nog} onChange={(v) => set('scal.go.nog', v)} />
         </div>
         {form.scal.pc.enabled && (
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mt-3 pt-3 border-t border-slate-800">
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mt-3 pt-3 border-t border-pl-border">
             <Field label="J: a" value={form.scal.pc.jA} onChange={(v) => set('scal.pc.jA', v)} />
             <Field label="J: b" value={form.scal.pc.jB} onChange={(v) => set('scal.pc.jB', v)} />
             <Field label="k (mD)" value={form.scal.pc.k_md} onChange={(v) => set('scal.pc.k_md', v)} />
@@ -205,7 +205,7 @@ const BuilderPanel = () => {
       <Section
         title="Wells (vertical I/J/K window, or deviated from a survey)"
         aside={(
-          <Button size="sm" variant="ghost" className="h-6 text-xs text-slate-300"
+          <Button size="sm" variant="ghost" className="h-6 text-xs text-pl-text"
             onClick={() => set('wells', [...form.wells, {
               name: `W${form.wells.length + 1}`, type: 'producer', i: '5', j: '5', k1: '1',
               k2: String(nz), refDepth: form.grid.topsDepth, mode: 'ORAT', rate: '2000', bhp: '1200',
@@ -221,16 +221,16 @@ const BuilderPanel = () => {
               <div className="grid grid-cols-4 md:grid-cols-9 gap-2 items-end">
                 <Field label="Name" value={w.name} onChange={(v) => set(`wells.${idx}.name`, v)} />
                 <div className="space-y-1">
-                  <Label className="text-[11px] text-slate-400">Type</Label>
+                  <Label className="text-[11px] text-pl-muted">Type</Label>
                   <select value={w.type} onChange={(e) => set(`wells.${idx}.type`, e.target.value)}
-                    className="w-full h-8 rounded-md bg-slate-800 border border-slate-700 px-1 text-xs">
+                    className="w-full h-8 rounded-md border border-pl-border-strong bg-pl-surface px-1 text-xs text-pl-text">
                     <option value="producer">Producer</option>
                     <option value="water_injector">Water inj</option>
                     <option value="gas_injector">Gas inj</option>
                   </select>
                 </div>
                 {w.trajectory?.enabled ? (
-                  <div className="col-span-2 md:col-span-4 text-[11px] text-slate-500 pb-2">
+                  <div className="col-span-2 md:col-span-4 text-[11px] text-pl-muted pb-2">
                     Completion from the survey below; cells are computed at generate time.
                   </div>
                 ) : (
@@ -246,7 +246,7 @@ const BuilderPanel = () => {
                 <Field label={w.type === 'producer' ? 'BHP min (psia)' : 'BHP max (psia)'}
                   value={w.bhp} onChange={(v) => set(`wells.${idx}.bhp`, v)} />
                 <div className="flex items-end gap-1">
-                  <label className="flex items-center gap-1 text-[11px] text-slate-400 h-8"
+                  <label className="flex items-center gap-1 text-[11px] text-pl-muted h-8"
                     title="Complete this well along a deviated survey">
                     <input type="checkbox" checked={!!w.trajectory?.enabled}
                       data-testid={`well-deviated-${idx}`}
@@ -255,7 +255,7 @@ const BuilderPanel = () => {
                         : null)} />
                     Deviated
                   </label>
-                  <Button size="sm" variant="ghost" className="h-8 text-red-400"
+                  <Button size="sm" variant="ghost" className="h-8 text-pl-danger-text"
                     onClick={() => set('wells', form.wells.filter((_, k) => k !== idx))}
                     title="Remove well">
                     <Trash2 className="w-3.5 h-3.5" />
@@ -273,14 +273,14 @@ const BuilderPanel = () => {
       <HistoryCard form={form} set={set} addNotification={addNotification} />
 
       {errors && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-amber-300 text-xs">
+        <div className="flex items-start gap-2 rounded-lg border border-pl-warning/40 bg-pl-warning-bg px-3 py-2.5 text-pl-warning-text text-xs">
           <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
           <div className="space-y-1">{errors.map((e, i) => <div key={i}>{e}</div>)}</div>
         </div>
       )}
 
       <div className="flex justify-end">
-        <Button className="bg-lime-600 hover:bg-lime-700" disabled={busy} onClick={generate} data-testid="generate-deck">
+        <Button disabled={busy} onClick={generate} data-testid="generate-deck">
           {busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Wand2 className="w-4 h-4 mr-2" />}
           Generate deck
         </Button>
