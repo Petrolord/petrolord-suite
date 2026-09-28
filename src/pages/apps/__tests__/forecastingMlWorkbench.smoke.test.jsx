@@ -43,6 +43,8 @@ jest.mock('@/lib/customSupabaseClient', () => ({
 
 jest.mock('@/contexts/SupabaseAuthContext', () => ({
   useAuth: () => ({ user: { id: 'u1' }, organization: { id: 'org-1' } }),
+  // ThemedApp (design system rollout w5f) reads AuthContext.
+  AuthContext: require('react').createContext(null),
 }));
 
 import ForecastingMlWorkbench from '@/pages/apps/ForecastingMlWorkbench';
