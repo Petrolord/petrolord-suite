@@ -7,6 +7,7 @@
 
 import { useMemo } from 'react';
 import { mapLogs } from './curveMap';
+import { inputCurves } from './curveUnits';
 
 const CAP = 16;
 
@@ -22,12 +23,11 @@ export function useWellCurvesCache(backend) {
          
         raw[log.mnemonic] = await backend.downloadCurve(log);
       }
-      const curves = {};
-      for (const [key, log] of Object.entries(mapped)) {
-        if (log) curves[key] = raw[log.mnemonic];
-      }
+      // PETRO-U1-006/007: pipeline inputs in the engines' units (curveUnits.js)
+      const { curves, notes } = inputCurves(mapped, raw);
       return {
         curves,
+        inputNotes: notes,
         logs: raw,
         inventory: Object.entries(mapped).map(([key, log]) => ({ key, log })),
       };

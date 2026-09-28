@@ -17,6 +17,7 @@ import {
 } from '../engine/conditioning';
 import { applyNormalization } from '../engine/normalize';
 import { PIPELINE_VERSION } from '../engine/pipeline';
+import { derivedInputUnit } from '@/components/wells/curveUnits';
 
 const inputCls = 'w-20 rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
 const selCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
@@ -131,7 +132,7 @@ export default function ConditioningDialog({
       const opParams = { op, srcKey, ...p };
       const logs = [buildLog(
         `${srcKey}_CND`,
-        srcLog?.unit || '',
+        derivedInputUnit(srcKey, srcLog),
         `${srcKey} conditioned (${op})`,
         data,
         op,

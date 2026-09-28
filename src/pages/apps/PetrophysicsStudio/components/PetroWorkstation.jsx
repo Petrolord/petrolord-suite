@@ -61,6 +61,7 @@ import { nameKey, digitizedCurveName } from '@/lib/curveNames';
 import { resolveTracks, sourceStatus } from '../layout/resolveTracks';
 import { migrationStatusLine, applyDeliberateNone, provenanceOf } from '../services/projectState';
 import { mapLogs } from '../services/curveMap';
+import { inputCurves } from '@/components/wells/curveUnits';
 import { zoneReports, zonePublishProperties } from '../services/zoneAverages';
 import { depthLabel, DEPTH_TRACK_KEYS, DEPTH_TRACK_TITLE } from '../viewer/depthModes';
 
@@ -222,10 +223,8 @@ export default function PetroWorkstation({
       // other mnemonic can be drawn through a `log:` layout address
       const rawLogs = {};
       for (const log of logs) rawLogs[log.mnemonic] = await backend.downloadCurve(log);
-      const curves = {};
-      for (const [key, log] of Object.entries(mapped)) {
-        if (log) curves[key] = rawLogs[log.mnemonic];
-      }
+      // PETRO-U1-006/007: inputs in the engines' units, vendor nulls as nulls
+      const { curves, notes: inputNotes } = inputCurves(mapped, rawLogs);
       setWellData({
         wellId,
         curves,
@@ -234,9 +233,10 @@ export default function PetroWorkstation({
         tops,
         intervals: intervals || [],   // ST1 interval logs (lithology, core, facies ...) for the strip tracks
         allLogs: logs,
+        inputNotes,
       });
       await refreshZones(wellId);
-      setStatus(`Loaded ${logs.length} curves (${Object.keys(curves).length} mapped to pipeline inputs).`);
+      setStatus(`Loaded ${logs.length} curves (${Object.keys(curves).length} mapped to pipeline inputs).${inputNotes.length ? ` ${inputNotes.join(' ')}` : ''}`);
     } catch (e) {
       setStatus(e.message);
       setWellData(null);
@@ -865,12 +865,13 @@ export default function PetroWorkstation({
     const logs = await backend.listLogs(well.id);
     const mapped = mapLogs(logs);
     if (!mapped.DEPT) throw new Error('no depth curve');
-    const curves = {};
+    const raw = {};
     const inventory = [];
     for (const [key, log] of Object.entries(mapped)) {
-      if (log) curves[key] = await backend.downloadCurve(log);
+      if (log) raw[log.mnemonic] = await backend.downloadCurve(log);
       inventory.push({ key, log });
     }
+    const { curves } = inputCurves(mapped, raw);
     // each well's OWN zones drive the overrides (patches are keyed by
     // zone id, so any well's zones the user has overridden apply here)
     const wellZones = await backend.listZones(well.id);

@@ -10,6 +10,7 @@ import { writeLas } from '../../WellDataManager/engine/lasWrite';
 import { makeDepthFrame, M_PER_FT } from '../../WellDataManager/engine/checkshots';
 import { PIPELINE_VERSION } from '../engine/pipeline';
 import { probabilisticCsv } from './probabilistic';
+import { derivedInputUnit } from '@/components/wells/curveUnits';
 
 // canonical registry units for the mapped inputs (SI at import) and
 // the published outputs — used when the inventory has no unit string
@@ -112,7 +113,9 @@ export function exportColumns(wellData, outputs) {
     if (!wellData.curves[key]) continue;
     cols.push({
       key,
-      unit: log?.unit || CANONICAL_UNITS[key] || '',
+      // the exported samples are the pipeline inputs (curveUnits.js), so
+      // NPHI, RHOB and DT carry the pipeline's unit, not the stored row's
+      unit: derivedInputUnit(key, log) || CANONICAL_UNITS[key] || '',
       descr: log?.description || '',
       data: wellData.curves[key],
     });
