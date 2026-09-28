@@ -144,4 +144,13 @@ describe('ReservoirCalc Pro documentation', () => {
     expect(hasClearance('p-4 border-b flex')).toBe(false); // negative control
     expect(hasClearance(header.className)).toBe(true);
   });
+
+  test('on a phone the sidebar stacks above the article', () => {
+    render(<DocumentationHub open onOpenChange={() => {}} />);
+    const cls = screen.getByTestId('rcp-docs-sidebar').className.split(/\s+/);
+    // a fixed w-64 rail left the article about 120px wide at 390
+    expect(cls).toContain('w-full');
+    expect(cls).toContain('md:w-64');
+    expect(cls).not.toContain('w-64');
+  });
 });
