@@ -5,6 +5,11 @@
  * the top-level components/projectmanagement/*.jsx files to theme roles;
  * the subfolders are converted in 6D and 6E.
  *
+ * 6D (session 2) converted analytics/, reports/, appraisal/, brownfield/ and
+ * decommissioning/: the portfolio analytics tab, the report builder, the
+ * three stage-type dashboards and their wizards now have strict checks, and
+ * the wizards no longer carry 6C's interim dark island.
+ *
  * Two kinds of check:
  *   - STRICT (no allow-list): the views built only from 6C files (portfolio
  *     projects tab, the default project dashboard and every one of its tabs
@@ -36,6 +41,19 @@ jest.mock('@/lib/customSupabaseClient', () => {
       id: 'p2', name: 'Ekene North Exploration', company_name: 'Lordsway', stage: 'Prospecting', baseline_budget: 5000000,
       project_type: 'Exploration', status: 'Amber', country: 'Nigeria', asset: 'Ekene North', percent_complete: 10, start_date: '2026-02-01', user_id: 'u1',
     },
+    // 6D: one project per stage-type dashboard 6D converted.
+    {
+      id: 'p3', name: 'Ekene West Appraisal', company_name: 'Lordsway', stage: 'Appraisal Planning', baseline_budget: 8000000,
+      project_type: 'Appraisal', status: 'Green', country: 'Nigeria', asset: 'Ekene West', percent_complete: 20, start_date: '2026-03-01', user_id: 'u1',
+    },
+    {
+      id: 'p4', name: 'Ekene Platform Revamp', company_name: 'Lordsway', stage: 'Opportunity Identification', baseline_budget: 6000000,
+      project_type: 'Brownfield Development', status: 'Green', country: 'Nigeria', asset: 'Ekene', percent_complete: 5, start_date: '2026-04-01', user_id: 'u1',
+    },
+    {
+      id: 'p5', name: 'Ekene South Decommissioning', company_name: 'Lordsway', stage: 'Planning', baseline_budget: 9000000,
+      project_type: 'Decommissioning', status: 'Green', country: 'Nigeria', asset: 'Ekene South', percent_complete: 0, start_date: '2026-05-01', user_id: 'u1',
+    },
   ];
   const rows = {
     projects: PROJECTS,
@@ -43,9 +61,16 @@ jest.mock('@/lib/customSupabaseClient', () => {
       { id: 't1', project_id: 'p1', name: 'Compressor skid FEED', type: 'task', status: 'In Progress', priority: 'High', percent_complete: 50, planned_start_date: '2026-01-05', planned_end_date: '2026-12-20', planned_cost: 100000, actual_cost: 60000, owner: 'Ada', task_category: 'FEED', display_order: 1 },
       { id: 't2', project_id: 'p1', name: 'FEED gate', type: 'milestone', status: 'To Do', priority: 'Critical', percent_complete: 0, planned_start_date: '2026-12-30', planned_end_date: '2026-12-31', planned_cost: 0, display_order: 2 },
     ],
-    pm_resources: [{ id: 'r1', project_id: 'p1', name: 'Ada Obi', discipline: 'Process', type: 'Internal', availability_percent: 90, cost_per_day: 900, skills: ['HYSYS'] }],
+    pm_resources: [
+      { id: 'r1', project_id: 'p1', name: 'Ada Obi', discipline: 'Process', type: 'Internal', availability_percent: 90, cost_per_day: 900, skills: ['HYSYS'] },
+      // 6D: a team member and a risk on each stage-type project, so their lists render.
+      ...['p3', 'p4', 'p5'].map((pid) => ({ id: `r-${pid}`, project_id: pid, name: 'Chidi Eze', discipline: 'Reservoir', type: 'Internal', availability_percent: 80, cost_per_day: 800, skills: [] })),
+    ],
     pm_resource_assignments: [],
-    risks: [{ id: 'k1', project_id: 'p1', title: 'Long-lead compressor', category: 'Commercial', probability: 4, impact: 4, risk_score: 16, status: 'Open', owner: 'Ada' }],
+    risks: [
+      { id: 'k1', project_id: 'p1', title: 'Long-lead compressor', category: 'Commercial', probability: 4, impact: 4, risk_score: 16, status: 'Open', owner: 'Ada' },
+      ...['p3', 'p4', 'p5'].map((pid) => ({ id: `k-${pid}`, project_id: pid, title: 'Rig slot slips', category: 'Schedule', probability: 3, impact: 3, risk_score: 9, status: 'Open', owner: 'Chidi' })),
+    ],
     project_issues: [{ id: 'i1', project_id: 'p1', title: 'Vendor data late', owner: 'Ada', status: 'Open', reported_date: '2026-03-01' }],
     pm_deliverables: [],
     project_updates: [{ id: 'u1', project_id: 'p1', report_date: '2026-03-01', status: 'Amber', percent_complete: 40, narrative: 'On track for FEED gate', spi: 0.95, cpi: 1.02 }],
@@ -82,29 +107,7 @@ import ProjectManagementPro from '@/pages/apps/ProjectManagementPro';
 
 // Files still to convert (paths under src/components/projectmanagement).
 // 6D and 6E: remove your files from these lists as you convert them.
-const PENDING_6D = [
-  'analytics/AnalyticsOverview.jsx',
-  'analytics/BudgetAnalytics.jsx',
-  'analytics/PortfolioAnalyticsDashboard.jsx',
-  'analytics/ProjectTypeAnalytics.jsx',
-  'analytics/RiskAnalytics.jsx',
-  'reports/AdvancedReportBuilder.jsx',
-  'appraisal/AppraisalAnalytics.jsx',
-  'appraisal/AppraisalManagers.jsx',
-  'appraisal/AppraisalProjectDashboard.jsx',
-  'appraisal/AppraisalProjectWizard.jsx',
-  'appraisal/AppraisalWellManager.jsx',
-  'brownfield/BrownfieldAnalytics.jsx',
-  'brownfield/BrownfieldManagers.jsx',
-  'brownfield/BrownfieldPhaseTrackers.jsx',
-  'brownfield/BrownfieldProjectDashboard.jsx',
-  'brownfield/BrownfieldProjectWizard.jsx',
-  'decommissioning/DecommissioningAnalytics.jsx',
-  'decommissioning/DecommissioningManagers.jsx',
-  'decommissioning/DecommissioningPhaseTrackers.jsx',
-  'decommissioning/DecommissioningProjectDashboard.jsx',
-  'decommissioning/DecommissioningProjectWizard.jsx',
-];
+const PENDING_6D = [];
 const PENDING_6E = [
   'exploration/ExplorationAnalytics.jsx',
   'exploration/ExplorationManagers.jsx',
@@ -273,7 +276,85 @@ describe('Project Management Pro theme, 6C views (strict)', () => {
   });
 });
 
-describe('Project Management Pro theme, views with 6D/6E files (pending allow-list)', () => {
+describe('Project Management Pro theme, 6D views (strict)', () => {
+  beforeAll(() => { installDomShims(); installSvgShims(); });
+  beforeEach(() => {
+    try { window.localStorage.clear(); } catch { /* storage unavailable */ }
+  });
+
+  const walkTabs = async (names) => {
+    for (const name of names) {
+      tab(name);
+      // eslint-disable-next-line no-await-in-loop
+      await waitFor(() => expect(screen.getByRole('tab', { name: new RegExp(name) })).toHaveAttribute('data-state', 'active'));
+      expectNoLegacyChrome();
+    }
+  };
+
+  it('the portfolio analytics tab, each of its views and the report builder carry no legacy colour, light and dark', async () => {
+    renderApp();
+    await ready();
+    tab('Analytics');
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Analytics/ })).toHaveAttribute('data-state', 'active'));
+    expect(await screen.findByText('Portfolio Value')).toBeInTheDocument();
+    expect(getScopeRoot(SCOPE).querySelectorAll('[data-canvas="chart"]').length).toBeGreaterThan(0);
+    expectNoLegacyChrome();
+    await walkTabs(['By Type', 'Budget & Cost', 'Risks']);
+    expect(await screen.findByText('Critical Risks (Top 5)')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Export Report/ }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).not.toHaveAttribute('data-pl-theme', 'dark');
+    expectNoLegacyChrome();
+
+    fireEvent.click(screen.getByTestId('theme-toggle'));
+    expect(getScopeRoot(SCOPE)).toHaveAttribute('data-pl-theme', 'dark');
+    expectNoLegacyChrome();
+  });
+
+  it.each([
+    ['appraisal', 'p3', 'Stage Management', ['Wells', 'Schedule', 'Gates & Stages', 'Deliverables', 'Risks', 'Team', 'Overview']],
+    ['brownfield', 'p4', 'Brownfield Stages', ['Tracks & Optimization', 'Schedule', 'Gates', 'Deliverables', 'Risks', 'Team', 'Overview']],
+    ['decommissioning', 'p5', 'Decommissioning Stages', ['Operations & Enviro', 'Schedule', 'Gates', 'Deliverables', 'Risks', 'Team', 'Overview']],
+  ])('the %s project dashboard and every one of its tabs are themed; the risk chart is on a white canvas', async (_kind, id, heading, tabs) => {
+    renderApp();
+    await ready();
+    fireEvent.change(screen.getByLabelText('Select Project'), { target: { value: id } });
+    expect(await screen.findByText(heading)).toBeInTheDocument();
+    expect(await screen.findByText('Reservoir')).toBeInTheDocument();
+    expect(getScopeRoot(SCOPE).querySelectorAll('[data-canvas="chart"]').length).toBeGreaterThan(0);
+    expectNoLegacyChrome();
+    await walkTabs(tabs.slice(0, -2));
+    // The risks tab lists each risk with its score and band word.
+    expect(screen.getByText('9 Medium')).toBeInTheDocument();
+    await walkTabs(tabs.slice(-2));
+    fireEvent.click(screen.getByTestId('theme-toggle'));
+    expect(getScopeRoot(SCOPE)).toHaveAttribute('data-pl-theme', 'dark');
+    expectNoLegacyChrome();
+  });
+
+  it.each([
+    ['New Appraisal Project'],
+    ['New Brownfield Project'],
+    ['New Decom Project'],
+  ])('the %s wizard follows the theme (no interim dark island) through every step', async (label) => {
+    renderApp();
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(label) }));
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).not.toHaveAttribute('data-pl-theme', 'dark');
+    expectNoLegacyChrome();
+    // Step through to the review page; the name is required on step 1.
+    fireEvent.change(dialog.querySelector('input[name="name"]'), { target: { value: 'Theme walk' } });
+    for (let i = 0; i < 3; i += 1) {
+      fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+      expectNoLegacyChrome();
+    }
+    expect(screen.getByRole('button', { name: /Create Project/ })).toBeInTheDocument();
+  });
+});
+
+describe('Project Management Pro theme, views with 6E files (pending allow-list)', () => {
   beforeAll(installDomShims);
   beforeEach(() => {
     try { window.localStorage.clear(); } catch { /* storage unavailable */ }
@@ -284,14 +365,6 @@ describe('Project Management Pro theme, views with 6D/6E files (pending allow-li
     // pending, and every entry really is a legacy token.
     if (PENDING_6D.length + PENDING_6E.length === 0) expect(PENDING_ALLOW).toEqual([]);
     PENDING_ALLOW.forEach((t) => expect(hasLegacyChrome(t)).toBe(true));
-  });
-
-  it('the portfolio analytics tab (6D) passes with the pending allow-list', async () => {
-    renderApp();
-    await ready();
-    tab('Analytics');
-    await waitFor(() => expect(screen.getByRole('tab', { name: /Analytics/ })).toHaveAttribute('data-state', 'active'));
-    expectNoLegacyChrome({ allow: PENDING_ALLOW });
   });
 
   it('an exploration project dashboard (6E) and the integrations tab (6E) pass with the pending allow-list', async () => {

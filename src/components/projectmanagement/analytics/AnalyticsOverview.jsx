@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { ChartPanel } from '@/components/ui/chart-panel';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { DollarSign, Calendar, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import ChartLogo from '@/components/charts/ChartLogo';
@@ -14,19 +15,20 @@ const HEALTH = [
     { key: 'unmeasured', name: 'Not measured', fill: '#94a3b8' },
 ];
 
-const KPICard = ({ title, value, subtext, icon: Icon, color, testId }) => (
-    <Card className="bg-slate-900 border-slate-800">
+// Icons are neutral: colour is for status only (design system rule 3).
+const KPICard = ({ title, value, subtext, icon: Icon, testId }) => (
+    <Card>
         <CardContent className="p-6">
             <div className="flex justify-between items-start">
                 <div>
-                    <p className="text-sm font-medium text-slate-400">{title}</p>
-                    <h3 className="text-2xl font-bold text-white mt-2" data-testid={testId}>{value}</h3>
+                    <p className="text-sm font-medium text-pl-muted">{title}</p>
+                    <h3 className="text-2xl font-bold font-pl-mono tabular-nums text-pl-text mt-2" data-testid={testId}>{value}</h3>
                 </div>
-                <div className={`p-2 rounded-lg bg-slate-800/50 ${color}`}>
+                <div className="p-2 rounded-lg bg-pl-sunken text-pl-muted">
                     <Icon className="w-5 h-5" />
                 </div>
             </div>
-            <div className="mt-4 text-xs text-slate-500">{subtext}</div>
+            <div className="mt-4 text-xs text-pl-muted">{subtext}</div>
         </CardContent>
     </Card>
 );
@@ -66,21 +68,18 @@ const AnalyticsOverview = ({ projects, risks, tasks = [] }) => {
                     value={formatCurrency(totalBudget)} 
                     subtext="Total baseline budget" 
                     icon={DollarSign} 
-                    color="text-emerald-400"
                 />
                 <KPICard 
                     title="Avg Progress" 
                     value={avgProgress == null ? '-' : `${Math.round(avgProgress)}%`} 
                     subtext="Weighted by baseline budget" 
                     icon={CheckCircle2} 
-                    color="text-blue-400"
                 />
                 <KPICard 
                     title="Risk Exposure" 
                     value={summary.highRisks} 
                     subtext={`scoring ${CRITICAL_RISK_SCORE} or more, of ${openRisks} open risk${openRisks === 1 ? '' : 's'}`} 
                     icon={AlertTriangle} 
-                    color="text-red-400"
                 />
                 <KPICard 
                     title="Schedule Health" 
@@ -88,16 +87,13 @@ const AnalyticsOverview = ({ projects, risks, tasks = [] }) => {
                     testId="pm-analytics-schedule-health"
                     subtext={measured > 0 ? `of ${measured} measured project${measured === 1 ? '' : 's'} on track` : 'No project has dated, costed tasks yet'} 
                     icon={Calendar} 
-                    color="text-purple-400"
                 />
             </div>
 
             {/* Charts Row 1 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="bg-slate-900 border-slate-800">
-                    <CardHeader><CardTitle className="text-sm text-slate-300">Project Health (CPI and SPI)</CardTitle></CardHeader>
-                    <CardContent className="h-[300px]">
-                        <div className="relative h-full w-full rounded-md bg-white p-2">
+                <ChartPanel title="Project Health (CPI and SPI)">
+                        <div className="relative h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie data={healthData} nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={healthData.length > 1 ? 5 : 0} dataKey="value">
@@ -109,13 +105,10 @@ const AnalyticsOverview = ({ projects, risks, tasks = [] }) => {
                         </ResponsiveContainer>
                         <ChartLogo />
                         </div>
-                    </CardContent>
-                </Card>
+                </ChartPanel>
 
-                <Card className="bg-slate-900 border-slate-800">
-                    <CardHeader><CardTitle className="text-sm text-slate-300">Projects by Type</CardTitle></CardHeader>
-                    <CardContent className="h-[300px]">
-                        <div className="relative h-full w-full rounded-md bg-white p-2">
+                <ChartPanel title="Projects by Type">
+                        <div className="relative h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={typeData} layout="vertical" margin={{ left: 8, right: 16 }}>
                                 <CartesianGrid {...GRID_STYLE} horizontal={false} />
@@ -127,8 +120,7 @@ const AnalyticsOverview = ({ projects, risks, tasks = [] }) => {
                         </ResponsiveContainer>
                         <ChartLogo />
                         </div>
-                    </CardContent>
-                </Card>
+                </ChartPanel>
             </div>
         </div>
     );

@@ -187,14 +187,13 @@ const BrownfieldProjectWizard = ({ open, onOpenChange, onProjectCreated, userId 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {/* Interim (rollout 6C): a dark island until this file moves to theme roles; remove data-pl-theme then. */}
-      <DialogContent data-pl-theme="dark" className="bg-slate-900 border-slate-700 text-white sm:max-w-[750px] h-[85vh] flex flex-col">
+      <DialogContent className="sm:max-w-[750px] h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
-            <Settings className="w-6 h-6 text-orange-400" />
+            <Settings className="w-6 h-6 text-pl-primary-text" />
             New Brownfield Project
           </DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-pl-muted">
             Step {currentStep} of {steps.length}: {steps[currentStep-1].title}
           </DialogDescription>
         </DialogHeader>
@@ -203,15 +202,15 @@ const BrownfieldProjectWizard = ({ open, onOpenChange, onProjectCreated, userId 
             {steps.map((step) => (
                 <div key={step.id} className="flex flex-col items-center">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors ${
-                        currentStep >= step.id ? 'bg-orange-600 border-orange-600 text-white' : 'border-slate-600 text-slate-500'
+                        currentStep >= step.id ? 'bg-pl-primary border-pl-primary text-pl-primary-fg' : 'border-pl-border-strong text-pl-muted'
                     }`}>
                         <step.icon className="w-5 h-5" />
                     </div>
-                    <span className={`text-xs mt-2 ${currentStep >= step.id ? 'text-orange-400' : 'text-slate-600'}`}>{step.title}</span>
+                    <span className={`text-xs mt-2 ${currentStep >= step.id ? 'text-pl-primary-text' : 'text-pl-muted'}`}>{step.title}</span>
                 </div>
             ))}
         </div>
-        <Separator className="bg-slate-800" />
+        <Separator />
 
         <ScrollArea className="flex-1 px-4 py-6">
             {currentStep === 1 && (
@@ -219,23 +218,23 @@ const BrownfieldProjectWizard = ({ open, onOpenChange, onProjectCreated, userId 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label>Project Name</Label>
-                            <Input name="name" value={formData.name} onChange={handleInputChange} placeholder="e.g. Platform B Revamp" className="bg-slate-800 border-slate-700" />
+                            <Input name="name" value={formData.name} onChange={handleInputChange} placeholder="e.g. Platform B Revamp" />
                         </div>
                         <div className="space-y-2">
                             <Label>Project Code</Label>
-                            <Input name="code" value={formData.code} onChange={handleInputChange} placeholder="e.g. BRN-2024-01" className="bg-slate-800 border-slate-700" />
+                            <Input name="code" value={formData.code} onChange={handleInputChange} placeholder="e.g. BRN-2024-01" />
                         </div>
                     </div>
                     <div className="space-y-2">
                         <Label>Description</Label>
-                        <Textarea name="description" value={formData.description} onChange={handleInputChange} placeholder="Scope description..." className="bg-slate-800 border-slate-700" />
+                        <Textarea name="description" value={formData.description} onChange={handleInputChange} placeholder="Scope description..." />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label>Existing Infrastructure</Label>
                             <Select name="existingInfrastructure" value={formData.existingInfrastructure} onValueChange={(val) => handleSelectChange('existingInfrastructure', val)}>
-                                <SelectTrigger className="bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-                                <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
                                     <SelectItem value="Offshore Platform">Offshore Platform</SelectItem>
                                     <SelectItem value="Onshore Plant">Onshore Plant</SelectItem>
                                     <SelectItem value="FPSO">FPSO</SelectItem>
@@ -245,7 +244,7 @@ const BrownfieldProjectWizard = ({ open, onOpenChange, onProjectCreated, userId 
                         </div>
                         <div className="space-y-2">
                             <Label>Asset / Field</Label>
-                            <Input name="asset" value={formData.asset} onChange={handleInputChange} className="bg-slate-800 border-slate-700" />
+                            <Input name="asset" value={formData.asset} onChange={handleInputChange} />
                         </div>
                     </div>
                 </div>
@@ -257,8 +256,8 @@ const BrownfieldProjectWizard = ({ open, onOpenChange, onProjectCreated, userId 
                         <div className="space-y-2">
                             <Label>Facility Upgrade Type</Label>
                             <Select name="facilityUpgrades" value={formData.facilityUpgrades} onValueChange={(val) => handleSelectChange('facilityUpgrades', val)}>
-                                <SelectTrigger className="bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-                                <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
                                     <SelectItem value="Debottlenecking">Debottlenecking</SelectItem>
                                     <SelectItem value="Compression Upgrade">Compression Upgrade</SelectItem>
                                     <SelectItem value="Water Injection">Water Injection</SelectItem>
@@ -269,17 +268,17 @@ const BrownfieldProjectWizard = ({ open, onOpenChange, onProjectCreated, userId 
                         </div>
                         <div className="space-y-2">
                             <Label>Production Increase Target</Label>
-                            <Input name="productionIncreaseTarget" value={formData.productionIncreaseTarget} onChange={handleInputChange} placeholder="e.g. +5000 bopd" className="bg-slate-800 border-slate-700" />
+                            <Input name="productionIncreaseTarget" value={formData.productionIncreaseTarget} onChange={handleInputChange} placeholder="e.g. +5000 bopd" />
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label>New Wells (Infill)</Label>
-                            <Input name="wellCount" type="number" value={formData.wellCount} onChange={handleInputChange} className="bg-slate-800 border-slate-700" />
+                            <Input name="wellCount" type="number" value={formData.wellCount} onChange={handleInputChange} />
                         </div>
                         <div className="space-y-2">
                             <Label>Incremental Reserves (MMboe)</Label>
-                            <Input name="estimatedReserves" type="number" value={formData.estimatedReserves} onChange={handleInputChange} className="bg-slate-800 border-slate-700" />
+                            <Input name="estimatedReserves" type="number" value={formData.estimatedReserves} onChange={handleInputChange} />
                         </div>
                     </div>
                 </div>
@@ -290,32 +289,32 @@ const BrownfieldProjectWizard = ({ open, onOpenChange, onProjectCreated, userId 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label>Start Date</Label>
-                            <Input name="startDate" type="date" value={formData.startDate} onChange={handleInputChange} className="bg-slate-800 border-slate-700" />
+                            <Input name="startDate" type="date" value={formData.startDate} onChange={handleInputChange} />
                         </div>
                         <div className="space-y-2">
                             <Label>Estimated Budget (Millions)</Label>
                             <div className="relative">
-                                <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
-                                <Input name="budget" type="number" value={formData.budget} onChange={handleInputChange} className="pl-9 bg-slate-800 border-slate-700" />
+                                <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-pl-muted" />
+                                <Input name="budget" type="number" value={formData.budget} onChange={handleInputChange} className="pl-9" />
                             </div>
                         </div>
                     </div>
                     <div className="space-y-2">
                         <Label>Project Manager</Label>
-                        <Input name="manager" value={formData.manager} onChange={handleInputChange} className="bg-slate-800 border-slate-700" />
+                        <Input name="manager" value={formData.manager} onChange={handleInputChange} />
                     </div>
-                    <div className="p-4 bg-slate-800/50 rounded border border-slate-700 mt-4">
-                        <h4 className="text-sm font-bold text-slate-300 mb-2">Auto-Calculated Timeline</h4>
-                        <div className="flex justify-between text-xs text-slate-400">
+                    <div className="p-4 bg-pl-sunken/60 rounded border border-pl-border mt-4">
+                        <h4 className="text-sm font-bold text-pl-text mb-2">Auto-Calculated Timeline</h4>
+                        <div className="flex justify-between text-xs text-pl-muted">
                             <span>Opp. ID (4w)</span>
                             <span>Design (12w)</span>
                             <span>Execution (20w)</span>
                         </div>
-                        <div className="w-full h-2 bg-slate-700 rounded-full mt-1 overflow-hidden flex">
-                            <div className="h-full bg-blue-500 w-[10%]"></div>
-                            <div className="h-full bg-yellow-500 w-[30%]"></div>
-                            <div className="h-full bg-green-500 w-[40%]"></div>
-                            <div className="h-full bg-purple-500 w-[20%]"></div>
+                        <div className="w-full h-2 bg-pl-border rounded-full mt-1 overflow-hidden flex">
+                            <div className="h-full bg-pl-primary border-r border-pl-surface last:border-r-0 w-[10%]"></div>
+                            <div className="h-full bg-pl-primary/70 border-r border-pl-surface last:border-r-0 w-[30%]"></div>
+                            <div className="h-full bg-pl-primary/45 border-r border-pl-surface last:border-r-0 w-[40%]"></div>
+                            <div className="h-full bg-pl-primary/25 border-r border-pl-surface last:border-r-0 w-[20%]"></div>
                         </div>
                     </div>
                 </div>
@@ -323,48 +322,48 @@ const BrownfieldProjectWizard = ({ open, onOpenChange, onProjectCreated, userId 
 
             {currentStep === 4 && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                    <div className="bg-slate-800/50 p-4 rounded border border-slate-700 space-y-3">
-                        <h3 className="font-bold text-white border-b border-slate-700 pb-2">Project Summary</h3>
+                    <div className="bg-pl-sunken/60 p-4 rounded border border-pl-border space-y-3">
+                        <h3 className="font-bold text-pl-text border-b border-pl-border pb-2">Project Summary</h3>
                         <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm">
-                            <div className="flex flex-col"><span className="text-slate-500 text-xs">Project Name</span><span className="text-white">{formData.name}</span></div>
-                            <div className="flex flex-col"><span className="text-slate-500 text-xs">Asset</span><span className="text-white">{formData.asset}</span></div>
-                            <div className="flex flex-col"><span className="text-slate-500 text-xs">Upgrade</span><span className="text-white">{formData.facilityUpgrades}</span></div>
-                            <div className="flex flex-col"><span className="text-slate-500 text-xs">Budget</span><span className="text-white font-mono">${formData.budget}M</span></div>
-                            <div className="flex flex-col"><span className="text-slate-500 text-xs">Target Uplift</span><span className="text-white">{formData.productionIncreaseTarget}</span></div>
-                            <div className="flex flex-col"><span className="text-slate-500 text-xs">Duration</span><span className="text-white">~{(BROWNFIELD_TEMPLATE.stages.reduce((a,b)=>a+b.duration_weeks,0)/4).toFixed(1)} months</span></div>
+                            <div className="flex flex-col"><span className="text-pl-muted text-xs">Project Name</span><span className="text-pl-text">{formData.name}</span></div>
+                            <div className="flex flex-col"><span className="text-pl-muted text-xs">Asset</span><span className="text-pl-text">{formData.asset}</span></div>
+                            <div className="flex flex-col"><span className="text-pl-muted text-xs">Upgrade</span><span className="text-pl-text">{formData.facilityUpgrades}</span></div>
+                            <div className="flex flex-col"><span className="text-pl-muted text-xs">Budget</span><span className="text-pl-text font-pl-mono tabular-nums">${formData.budget}M</span></div>
+                            <div className="flex flex-col"><span className="text-pl-muted text-xs">Target Uplift</span><span className="text-pl-text">{formData.productionIncreaseTarget}</span></div>
+                            <div className="flex flex-col"><span className="text-pl-muted text-xs">Duration</span><span className="text-pl-text">~{(BROWNFIELD_TEMPLATE.stages.reduce((a,b)=>a+b.duration_weeks,0)/4).toFixed(1)} months</span></div>
                         </div>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
-                        <div className="p-2 bg-slate-800 rounded border border-slate-700 flex items-center gap-2">
-                            <CheckCircle className="w-3 h-3 text-orange-400" /> {BROWNFIELD_TEMPLATE.stages.length} Stages
+                    <div className="grid grid-cols-2 gap-2 text-xs text-pl-text">
+                        <div className="p-2 bg-pl-sunken rounded border border-pl-border flex items-center gap-2">
+                            <CheckCircle className="w-3 h-3 text-pl-primary-text" /> {BROWNFIELD_TEMPLATE.stages.length} Stages
                         </div>
-                        <div className="p-2 bg-slate-800 rounded border border-slate-700 flex items-center gap-2">
-                            <CheckCircle className="w-3 h-3 text-orange-400" /> {BROWNFIELD_TEMPLATE.gates.length} Decision Gates
+                        <div className="p-2 bg-pl-sunken rounded border border-pl-border flex items-center gap-2">
+                            <CheckCircle className="w-3 h-3 text-pl-primary-text" /> {BROWNFIELD_TEMPLATE.gates.length} Decision Gates
                         </div>
-                        <div className="p-2 bg-slate-800 rounded border border-slate-700 flex items-center gap-2">
-                            <CheckCircle className="w-3 h-3 text-orange-400" /> {BROWNFIELD_TEMPLATE.tasks.length} Tasks Pre-loaded
+                        <div className="p-2 bg-pl-sunken rounded border border-pl-border flex items-center gap-2">
+                            <CheckCircle className="w-3 h-3 text-pl-primary-text" /> {BROWNFIELD_TEMPLATE.tasks.length} Tasks Pre-loaded
                         </div>
-                        <div className="p-2 bg-slate-800 rounded border border-slate-700 flex items-center gap-2">
-                            <CheckCircle className="w-3 h-3 text-orange-400" /> {BROWNFIELD_TEMPLATE.risks.length} Risks Initialized
+                        <div className="p-2 bg-pl-sunken rounded border border-pl-border flex items-center gap-2">
+                            <CheckCircle className="w-3 h-3 text-pl-primary-text" /> {BROWNFIELD_TEMPLATE.risks.length} Risks Initialized
                         </div>
                     </div>
                 </div>
             )}
         </ScrollArea>
 
-        <DialogFooter className="border-t border-slate-800 pt-4 mt-auto">
+        <DialogFooter className="border-t border-pl-border pt-4 mt-auto">
             {currentStep > 1 && (
-                <Button variant="outline" onClick={prevStep} disabled={loading} className="border-slate-600 text-slate-300">
+                <Button variant="outline" onClick={prevStep} disabled={loading}>
                     <ArrowLeft className="w-4 h-4 mr-2" /> Back
                 </Button>
             )}
             {currentStep < 4 ? (
-                <Button onClick={nextStep} className="bg-orange-600 hover:bg-orange-700 text-white">
+                <Button onClick={nextStep}>
                     Next <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
             ) : (
-                <Button onClick={handleCreate} disabled={loading} className="bg-green-600 hover:bg-green-700 text-white">
+                <Button onClick={handleCreate} disabled={loading}>
                     {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
                     Create Project
                 </Button>

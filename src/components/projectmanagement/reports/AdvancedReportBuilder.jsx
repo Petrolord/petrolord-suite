@@ -153,14 +153,13 @@ const AdvancedReportBuilder = ({ open, onOpenChange, projects, risks = [], resou
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            {/* Interim (rollout 6C): a dark island until this file moves to theme roles; remove data-pl-theme then. */}
-            <DialogContent data-pl-theme="dark" className="bg-slate-900 border-slate-700 text-white sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
-                        <FileText className="w-5 h-5 text-blue-400" />
+                        <FileText className="w-5 h-5 text-pl-primary-text" />
                         Report Builder
                     </DialogTitle>
-                    <DialogDescription className="text-slate-400">Select content to include in your PDF report.</DialogDescription>
+                    <DialogDescription>Select content to include in your PDF report.</DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4 py-4">
@@ -169,7 +168,6 @@ const AdvancedReportBuilder = ({ open, onOpenChange, projects, risks = [], resou
                         <Input 
                             value={reportTitle} 
                             onChange={(e) => setReportTitle(e.target.value)} 
-                            className="bg-slate-800 border-slate-700"
                         />
                     </div>
 
@@ -192,7 +190,7 @@ const AdvancedReportBuilder = ({ open, onOpenChange, projects, risks = [], resou
 
                 <DialogFooter>
                     <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button onClick={handleGenerate} disabled={loading} className="bg-blue-600 hover:bg-blue-700">
+                    <Button onClick={handleGenerate} disabled={loading}>
                         {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Download className="w-4 h-4 mr-2" />}
                         Generate PDF
                     </Button>
