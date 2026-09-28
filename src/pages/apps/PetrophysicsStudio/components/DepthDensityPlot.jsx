@@ -222,7 +222,7 @@ export default function DepthDensityPlot({
   };
 
   return (
-    <div ref={wrapRef} className="relative h-full w-full min-h-0" data-testid="petro-density-wrap">
+    <div ref={wrapRef} className="relative h-full w-full min-h-0 bg-white" data-canvas="chart" data-testid="petro-density-wrap">
       <canvas
         ref={canvasRef}
         data-testid="petro-density-canvas"

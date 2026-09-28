@@ -239,7 +239,7 @@ export default function HistogramChart({
   };
 
   return (
-    <div ref={wrapRef} className="h-full min-h-0 w-full relative overflow-hidden bg-white">
+    <div ref={wrapRef} className="h-full min-h-0 w-full relative overflow-hidden bg-white" data-canvas="chart">
       <canvas
         ref={canvasRef}
         data-testid="petro-histogram-canvas"

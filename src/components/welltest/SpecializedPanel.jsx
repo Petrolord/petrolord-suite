@@ -36,19 +36,19 @@ const SpecializedPanel = () => {
           <Field label="To" suffix="hr" value={windows.semilogMax} onChange={(v) => setWindowField('semilogMax', v)} placeholder="auto" />
         </div>
         {semilogWindowSource === 'radial' && (
-          <p className="text-[11px] text-slate-500 mt-2" data-testid="wts-semilog-auto">
+          <p className="text-[11px] text-pl-muted mt-2" data-testid="wts-semilog-auto">
             Auto: the line is fitted over the detected radial flow, {fmt.sig3(autoSemilogWindow.min)} to {fmt.sig3(autoSemilogWindow.max)} hr
             shut-in time ({fmt.sig3(radial.xStart)} to {fmt.sig3(radial.xEnd)} hr equivalent time). Type a bound to override.
           </p>
         )}
         {semilogWindowSource === 'manual' && radial && (
-          <p className="text-[11px] text-slate-500 mt-2">
+          <p className="text-[11px] text-pl-muted mt-2">
             Detected radial flow spans {fmt.sig3(radial.xStart)} to {fmt.sig3(radial.xEnd)} hr (equivalent time). Keep the
             window inside it for a clean straight line; clear both bounds to use it.
           </p>
         )}
         {!radial && (
-          <p className="text-[11px] text-amber-400/90 mt-2">
+          <p className="text-[11px] text-pl-warning-text mt-2">
             No radial stabilization detected yet{semilogWindowSource === 'full' ? ', so the line is fitted over all points' : ''}.
             A line through storage-dominated data gives a k far from the truth; set the window on the flat derivative.
           </p>
@@ -61,7 +61,7 @@ const SpecializedPanel = () => {
           <Field label="From" suffix="hr" value={windows.sqrtMin} onChange={(v) => setWindowField('sqrtMin', v)} placeholder="auto" />
           <Field label="To" suffix="hr" value={windows.sqrtMax} onChange={(v) => setWindowField('sqrtMax', v)} placeholder="auto" />
         </div>
-        <p className="text-[11px] text-slate-500 mt-2">
+        <p className="text-[11px] text-pl-muted mt-2">
           Linear-flow diagnostic. Set the window on a half-slope derivative; for fracture half-length, match a fracture model on the Match tab.
         </p>
       </section>
@@ -73,7 +73,7 @@ const SpecializedPanel = () => {
             <Field label="From" suffix="hr" value={windows.pssMin} onChange={(v) => setWindowField('pssMin', v)} placeholder="auto" />
             <Field label="To" suffix="hr" value={windows.pssMax} onChange={(v) => setWindowField('pssMax', v)} placeholder="auto" />
           </div>
-          <p className="text-[11px] text-slate-500 mt-2">
+          <p className="text-[11px] text-pl-muted mt-2">
             Cartesian pwf vs t line during pseudo-steady state gives the connected pore volume.
           </p>
         </section>
@@ -85,9 +85,9 @@ const SpecializedPanel = () => {
           <div className="space-y-3">
             <UnitField kind="pressureAbs" system={unitSystem} label="Average reservoir pressure pr" suffixNote="blank = pi" value={deliverabilityInputs.pr} onChange={(v) => setDeliverabilityField('pr', v)} />
             <div className="space-y-1">
-              <Label className="text-xs text-slate-400">Method</Label>
+              <Label className="text-xs text-pl-muted">Method</Label>
               <Select value={deliverabilityInputs.method} onValueChange={(v) => setDeliverabilityField('method', v)}>
-                <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="pressure-squared">Pressure squared (pr² − pwf²)</SelectItem>
                   <SelectItem value="pseudo-pressure">Pseudo-pressure Δm(p)</SelectItem>
@@ -96,18 +96,18 @@ const SpecializedPanel = () => {
             </div>
             <div className="space-y-2">
               {rows.length === 0 && (
-                <p className="text-[11px] text-slate-500">Flow-after-flow or isochronal points: stabilized rate and flowing pressure.</p>
+                <p className="text-[11px] text-pl-muted">Flow-after-flow or isochronal points: stabilized rate and flowing pressure.</p>
               )}
               {rows.map((r, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <Input value={displayInputString('gasRate', r.q, unitSystem)} onChange={(e) => setRow(i, 'q', e.target.value)} placeholder={unitLabel('gasRate', unitSystem)} className="h-8 bg-slate-800 border-slate-700" />
-                  <Input value={displayInputString('pressure', r.pwf, unitSystem)} onChange={(e) => setRow(i, 'pwf', e.target.value)} placeholder={`pwf ${unitLabel('pressureAbs', unitSystem)}`} className="h-8 bg-slate-800 border-slate-700" />
-                  <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-slate-500" onClick={() => setDeliverabilityRows(rows.filter((_, idx) => idx !== i))}>
+                  <Input value={displayInputString('gasRate', r.q, unitSystem)} onChange={(e) => setRow(i, 'q', e.target.value)} placeholder={unitLabel('gasRate', unitSystem)} className="h-8" />
+                  <Input value={displayInputString('pressure', r.pwf, unitSystem)} onChange={(e) => setRow(i, 'pwf', e.target.value)} placeholder={`pwf ${unitLabel('pressureAbs', unitSystem)}`} className="h-8" />
+                  <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-pl-muted" onClick={() => setDeliverabilityRows(rows.filter((_, idx) => idx !== i))}>
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
               ))}
-              <Button size="sm" variant="ghost" className="text-slate-400" onClick={() => setDeliverabilityRows([...rows, { q: '', pwf: '' }])}>
+              <Button size="sm" variant="ghost" className="text-pl-muted" onClick={() => setDeliverabilityRows([...rows, { q: '', pwf: '' }])}>
                 <Plus className="w-4 h-4 mr-1" /> Add test point
               </Button>
             </div>

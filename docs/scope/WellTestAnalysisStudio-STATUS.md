@@ -460,3 +460,28 @@ rejected: it still left 10.8 psi on that file. Now:
 - `fmt.sig3` writes values from 1,000 up in full; sqrt(t) slope reported
   only with linear flow or a set window (`sqrtMeaningful`).
 - Harness `/dev/well-test-analysis-studio` runs on the in-memory Supabase.
+
+## 2026-09-28: design system rollout, batch 1A (branch `feat/ds-w1a`)
+
+The studio opts in to the Petrolord design system (plan of record
+`docs/scope/DesignSystem-Rollout.md`). No engine, fitting, persistence or
+report change.
+
+- `WellTestAnalysisStudio.jsx` wraps itself in `<ThemedApp data-testid="wts-theme-scope">`
+  (both slugs and `/dev/well-test-analysis-studio`): light by default, dark by
+  the header toggle per user. `well-test-analysis-studio` and
+  `well-test-analyzer` are registered in `src/design/rollout/w1a.js`.
+- `src/components/welltest/*` moved to theme roles: `primitives.jsx` (section
+  labels, fields, KPI tiles in mono, chart cards, the warning banner) and every
+  panel and results view. The flow-regime rows lost their per-regime hues
+  (they are labels, and the plot does not shade regimes) and share one
+  neutral look.
+- Charts untouched: `ChartFrame`, `chartTheme`, the `LINE` colours and the
+  pinned tooltip stay the white chart standard in both themes.
+- Test: `src/pages/apps/__tests__/WellTestAnalysisStudio.theme.test.jsx`
+  (the shared `describeAppTheme` checks, both slugs registered, every tab with
+  the sample buildup, the help drawer and the new-project dialog, the chart
+  frame white in dark). The smoke, wiring and chart render suites pass
+  unchanged.
+- Screenshots: harness at 1440 and 390 in light, plus dark at 1440
+  (Diagnostics, Match); no sideways page scroll.

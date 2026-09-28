@@ -38,9 +38,9 @@ const DataResults = () => {
 
   if (!gaugeRows.length) {
     return (
-      <div className="rounded-lg border border-slate-700 bg-slate-900 px-6 py-10 text-center space-y-2">
-        <p className="text-slate-300 font-medium">No test data loaded.</p>
-        <p className="text-sm text-slate-500">
+      <div className="rounded-lg border border-pl-border bg-pl-surface px-6 py-10 text-center space-y-2">
+        <p className="text-pl-text font-medium">No test data loaded.</p>
+        <p className="text-sm text-pl-muted">
           Import a gauge CSV in the left rail, or load the sample buildup to explore the studio. Set the test type,
           producing time and reservoir properties there as well.
         </p>
@@ -90,20 +90,20 @@ const DataResults = () => {
       )}
 
       {flowPeriods.periods.length > 0 && (
-        <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Flow periods</p>
+        <div className="rounded-lg border border-pl-border bg-pl-surface p-4">
+          <p className="text-xs font-semibold text-pl-muted uppercase tracking-wider mb-2">Flow periods</p>
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-slate-500 text-left">
+              <tr className="text-pl-muted text-left">
                 <th className="py-1 font-medium">Type</th>
                 <th className="py-1 font-medium">Start (hr)</th>
                 <th className="py-1 font-medium">End (hr)</th>
                 <th className="py-1 font-medium">Rate ({unitLabel(rateKind, unitSystem)})</th>
               </tr>
             </thead>
-            <tbody className="text-slate-300">
+            <tbody className="text-pl-text">
               {flowPeriods.periods.map((p, i) => (
-                <tr key={i} className="border-t border-slate-800">
+                <tr key={i} className="border-t border-pl-border">
                   <td className="py-1 capitalize">{p.type}</td>
                   <td className="py-1">{fmt.f1(p.start)}</td>
                   <td className="py-1">{p.end == null ? 'open' : fmt.f1(p.end)}</td>
@@ -113,7 +113,7 @@ const DataResults = () => {
             </tbody>
           </table>
           {Number.isFinite(flowPeriods.equivalentTp) && (
-            <p className="text-[11px] text-slate-500 mt-2">
+            <p className="text-[11px] text-pl-muted mt-2">
               Equivalent producing time from the rate history (cumulative production over final rate): {fmt.f1(flowPeriods.equivalentTp)} hr.
             </p>
           )}

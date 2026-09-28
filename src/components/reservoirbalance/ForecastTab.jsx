@@ -43,10 +43,10 @@ const fmtRate = (v, isGas) => {
 };
 
 const Kpi = ({ label, value, hint }) => (
-  <div className="border border-slate-800 rounded-md p-3 bg-slate-950/40">
-    <p className="text-[11px] text-slate-500">{label}</p>
-    <p className="text-base font-semibold text-slate-200 mt-0.5">{value}</p>
-    {hint && <p className="text-[11px] text-slate-500 mt-0.5">{hint}</p>}
+  <div className="border border-pl-border rounded-md p-3 bg-pl-sunken">
+    <p className="text-[11px] text-pl-muted">{label}</p>
+    <p className="text-base font-semibold text-pl-text mt-0.5">{value}</p>
+    {hint && <p className="text-[11px] text-pl-muted mt-0.5">{hint}</p>}
   </div>
 );
 
@@ -121,7 +121,7 @@ const ForecastTab = () => {
     return (
       <Card>
         <CardContent className="py-6">
-          <p className="text-sm text-slate-400 flex items-start gap-2">
+          <p className="text-sm text-pl-muted flex items-start gap-2">
             <Info className="h-4 w-4 mt-0.5 shrink-0" />
             The forecast needs dated production history: at least four rows with observation dates and growing
             cumulative volumes in the Data tab. Rates are derived from the cumulative differences between rows.
@@ -138,7 +138,7 @@ const ForecastTab = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <TrendingDown className="h-4 w-4 text-emerald-500" />
+            <TrendingDown className="h-4 w-4 text-pl-primary-text" />
             Decline forecast
           </CardTitle>
           <CardDescription>
@@ -150,7 +150,7 @@ const ForecastTab = () => {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Decline model</Label>
+              <Label className="text-xs text-pl-muted">Decline model</Label>
               <Select value={model} onValueChange={setModel}>
                 <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -159,18 +159,18 @@ const ForecastTab = () => {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">
+              <Label className="text-xs text-pl-muted">
                 Economic limit ({isGas ? 'scf/d' : 'STB/d'})
               </Label>
               <Input value={econLimit} onChange={(e) => setEconLimit(e.target.value)} className="h-8 font-mono text-xs" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Horizon (years)</Label>
+              <Label className="text-xs text-pl-muted">Horizon (years)</Label>
               <Input value={horizonYears} onChange={(e) => setHorizonYears(e.target.value)} className="h-8 font-mono text-xs" />
             </div>
             {isGas && (
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400">Abandonment pressure (psia)</Label>
+                <Label className="text-xs text-pl-muted">Abandonment pressure (psia)</Label>
                 <Input
                   value={abandonment}
                   onChange={(e) => setAbandonment(e.target.value)}
@@ -182,7 +182,7 @@ const ForecastTab = () => {
           </div>
 
           {!fitUsable ? (
-            <p className="text-sm text-amber-400 flex items-center gap-2">
+            <p className="text-sm text-pl-warning-text flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" />
               The decline fit failed on this history (rates may be too noisy or not declining). Try a different model
               or a cleaner rate history.
@@ -256,7 +256,7 @@ const ForecastTab = () => {
         </CardHeader>
         <CardContent>
           {!reconciliation || reconciliation.kind === 'unavailable' ? (
-            <p className="text-sm text-slate-400 flex items-center gap-2">
+            <p className="text-sm text-pl-muted flex items-center gap-2">
               <Info className="h-4 w-4" />
               {reconciliation?.reason ?? 'Generate a decline forecast first.'}
             </p>
@@ -276,14 +276,14 @@ const ForecastTab = () => {
                 />
               </div>
               {reconciliation.mbalRemaining <= 0 && (
-                <p className="text-sm text-amber-400">
+                <p className="text-sm text-pl-warning-text">
                   Production to date already exceeds the p/z recoverable at this abandonment pressure. Either the
                   abandonment pressure is too high or pressure support (aquifer) is adding recovery beyond simple
                   depletion.
                 </p>
               )}
               {reconciliation.note && (
-                <p className="text-xs text-slate-500">{reconciliation.note}</p>
+                <p className="text-xs text-pl-muted">{reconciliation.note}</p>
               )}
             </div>
           ) : (
@@ -302,7 +302,7 @@ const ForecastTab = () => {
                 />
               </div>
               {reconciliation.withinBand === false && (
-                <p className="text-sm text-amber-400 flex items-start gap-2">
+                <p className="text-sm text-pl-warning-text flex items-start gap-2">
                   <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
                   The implied recovery factor sits outside the statistical range for this drive mechanism
                   (Arps and API study ranges as tabulated in Ahmed). That does not make either number wrong, but the
@@ -311,7 +311,7 @@ const ForecastTab = () => {
                 </p>
               )}
               {reconciliation.withinBand === true && (
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-pl-muted">
                   The implied recovery factor is consistent with the statistical range for this drive mechanism.
                 </p>
               )}

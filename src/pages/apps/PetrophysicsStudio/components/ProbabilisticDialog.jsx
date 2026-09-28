@@ -21,18 +21,18 @@ import {
 import { OUTCOME_LABELS, EXCEEDANCE_DEFINITION, parameterPercentileLabel } from '@/lib/percentileConventions';
 
 const fmt = (v, d = 3) => (v === null || v === undefined || Number.isNaN(v) ? '—' : Number(v).toFixed(d));
-const cellCls = 'w-full min-w-[3.5rem] rounded bg-slate-950 border px-1 py-0.5 text-xs text-slate-200';
-const selCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1 py-0.5 text-xs';
+const cellCls = 'w-full min-w-[3.5rem] rounded bg-pl-surface border px-1 py-0.5 text-xs text-pl-text';
+const selCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5 text-xs';
 
 function Tornado({ zone, depthUnit }) {
   const F = depthUnit === 'ft' ? 1 / 0.3048 : 1;
   const rows = (zone.sensitivity?.tornado || []).slice(0, 8);
-  if (!rows.length) return <p className="text-[10px] text-slate-500 px-1">Sensitivity needs at least 30 realisations.</p>;
+  if (!rows.length) return <p className="text-[10px] text-pl-muted px-1">Sensitivity needs at least 30 realisations.</p>;
   const base = rows[0].base;
   const maxSwing = Math.max(1e-9, ...rows.map((r) => Math.max(Math.abs(r.low - base), Math.abs(r.high - base))));
   return (
     <div className="px-1 space-y-0.5" data-testid={`petro-prob-tornado-${zone.name}`}>
-      <div className="text-[10px] text-slate-500">Net pay swing about the median ({fmt(base * F, 1)} {depthUnit}) when a parameter sits in its bottom or top tenth of draws</div>
+      <div className="text-[10px] text-pl-muted">Net pay swing about the median ({fmt(base * F, 1)} {depthUnit}) when a parameter sits in its bottom or top tenth of draws</div>
       {rows.map((r) => {
         const lo = Math.min(r.low, r.high) - base;
         const hi = Math.max(r.low, r.high) - base;
@@ -40,12 +40,12 @@ function Tornado({ zone, depthUnit }) {
         const width = ((hi - lo) / maxSwing) * 50;
         return (
           <div key={r.parameter} className="flex items-center gap-1 text-[10px]">
-            <span className="w-20 text-slate-400 truncate">{r.parameter}</span>
-            <div className="relative flex-1 h-3 bg-slate-800/60 rounded">
-              <div className="absolute top-0 bottom-0 w-px bg-slate-500" style={{ left: '50%' }} />
-              <div className="absolute top-0.5 bottom-0.5 rounded bg-cyan-600/70" style={{ left: `${left}%`, width: `${Math.max(1, width)}%` }} />
+            <span className="w-20 text-pl-muted truncate">{r.parameter}</span>
+            <div className="relative flex-1 h-3 bg-pl-sunken rounded">
+              <div className="absolute top-0 bottom-0 w-px bg-pl-border-strong" style={{ left: '50%' }} />
+              <div className="absolute top-0.5 bottom-0.5 rounded bg-pl-primary/70" style={{ left: `${left}%`, width: `${Math.max(1, width)}%` }} />
             </div>
-            <span className="w-24 text-slate-400 text-right">{fmt((base + lo) * F, 1)} to {fmt((base + hi) * F, 1)}</span>
+            <span className="w-24 text-pl-muted text-right">{fmt((base + lo) * F, 1)} to {fmt((base + hi) * F, 1)}</span>
           </div>
         );
       })}
@@ -91,10 +91,10 @@ export default function ProbabilisticDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] w-[95vw] bg-slate-900 border-slate-700 text-slate-200" data-testid="petro-prob-dialog">
+      <DialogContent className="max-w-[95vw] w-[95vw]" data-testid="petro-prob-dialog">
         <DialogHeader>
           <DialogTitle>Probabilistic petrophysics</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-pl-muted">
             Tick the parameters to vary, give each a distribution, and run a few hundred realisations of the
             zoned pipeline with a fixed seed. Curves come back as 10th, 50th and 90th percentiles; zone net pay
             comes back as P90, P50 and P10 cases. {BEST_CASE_NOTE}
@@ -102,12 +102,12 @@ export default function ProbabilisticDialog({
         </DialogHeader>
 
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-3 text-xs">
-          <div className="max-h-[55vh] overflow-auto rounded border border-slate-800">
+          <div className="max-h-[55vh] overflow-auto rounded border border-pl-border">
             <table className="text-xs border-collapse min-w-full">
-              <thead className="sticky top-0 bg-slate-900 z-10">
+              <thead className="sticky top-0 bg-pl-surface z-10">
                 <tr>
                   {['Parameter', 'Current', 'Vary', 'Distribution', 'Value 1', 'Value 2', 'Value 3'].map((h) => (
-                    <th key={h} className="text-left px-2 py-1 text-slate-400 font-normal whitespace-nowrap">{h}</th>
+                    <th key={h} className="text-left px-2 py-1 text-pl-muted font-normal whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -119,9 +119,9 @@ export default function ProbabilisticDialog({
                   const fields = DIST_FIELDS[e.type] || [];
                   const bad = problems[key];
                   return (
-                    <tr key={key} className={`border-t border-slate-800/60 ${applies ? '' : 'opacity-50'}`} data-testid={`petro-prob-row-${key}`} title={applies ? undefined : 'Not used by the current models'}>
-                      <td className="px-2 py-0.5 text-slate-300 whitespace-nowrap">{f ? fieldLabel(f, params) : key}<span className="text-slate-600"> {key}</span></td>
-                      <td className="px-2 py-0.5 text-slate-400">{fmt(params[key], 4)}</td>
+                    <tr key={key} className={`border-t border-pl-border ${applies ? '' : 'opacity-50'}`} data-testid={`petro-prob-row-${key}`} title={applies ? undefined : 'Not used by the current models'}>
+                      <td className="px-2 py-0.5 text-pl-text whitespace-nowrap">{f ? fieldLabel(f, params) : key}<span className="text-pl-muted"> {key}</span></td>
+                      <td className="px-2 py-0.5 text-pl-muted">{fmt(params[key], 4)}</td>
                       <td className="px-2 py-0.5"><input type="checkbox" data-testid={`petro-prob-vary-${key}`} checked={!!e.vary} onChange={(ev) => setEntry(key, { vary: ev.target.checked })} /></td>
                       <td className="px-2 py-0.5">
                         <select className={selCls} data-testid={`petro-prob-dist-${key}`} value={e.type} disabled={!e.vary} onChange={(ev) => setEntry(key, { type: ev.target.value })}>
@@ -133,7 +133,7 @@ export default function ProbabilisticDialog({
                         if (!fd) return <td key={i} className="px-2 py-0.5" />;
                         return (
                           <td key={fd[0]} className="px-2 py-0.5">
-                            <input className={`${cellCls} ${bad ? 'border-red-700' : 'border-slate-800'}`} disabled={!e.vary} title={fd[1]} placeholder={fd[1]}
+                            <input className={`${cellCls} ${bad ? 'border-pl-danger' : 'border-pl-border'}`} disabled={!e.vary} title={fd[1]} placeholder={fd[1]}
                               data-testid={`petro-prob-${key}-${fd[0]}`} value={e[fd[0]] ?? ''} onChange={(ev) => setEntry(key, { [fd[0]]: ev.target.value })} />
                           </td>
                         );
@@ -143,56 +143,56 @@ export default function ProbabilisticDialog({
                 })}
               </tbody>
             </table>
-            <p className="px-2 py-1 text-[10px] text-slate-500">
+            <p className="px-2 py-1 text-[10px] text-pl-muted">
               Triangular takes the parameter&apos;s 10th, 50th and 90th percentiles (fitted, not min/mode/max). Uniform takes min and max. Normal and lognormal take mean and standard deviation.
             </p>
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <label className="flex items-center gap-1 text-slate-400">Draws
+              <label className="flex items-center gap-1 text-pl-muted">Draws
                 <select className={selCls} data-testid="petro-prob-n" value={n} onChange={(e) => setN(Number(e.target.value))}>
                   {DRAW_CHOICES.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </label>
-              <label className="flex items-center gap-1 text-slate-400">Seed
-                <input className={`${cellCls} border-slate-800`} style={{ width: 64 }} data-testid="petro-prob-seed" value={seed} onChange={(e) => setSeed(e.target.value)} />
+              <label className="flex items-center gap-1 text-pl-muted">Seed
+                <input className={`${cellCls} border-pl-border`} style={{ width: 64 }} data-testid="petro-prob-seed" value={seed} onChange={(e) => setSeed(e.target.value)} />
               </label>
               {running ? (
-                <Button variant="outline" size="sm" data-testid="petro-prob-cancel" className="border-red-900/60 text-red-300" onClick={onCancel}>Cancel</Button>
+                <Button variant="outline" size="sm" data-testid="petro-prob-cancel" className="border-pl-danger/40 text-pl-danger-text" onClick={onCancel}>Cancel</Button>
               ) : (
-                <Button size="sm" data-testid="petro-prob-run" disabled={nProblems > 0 || !varying.length} className="bg-cyan-700 hover:bg-cyan-600 text-white" onClick={run}>
+                <Button size="sm" data-testid="petro-prob-run" disabled={nProblems > 0 || !varying.length} onClick={run}>
                   Run {n} realisations
                 </Button>
               )}
-              <span className="text-[11px] text-slate-500" data-testid="petro-prob-state">
+              <span className="text-[11px] text-pl-muted" data-testid="petro-prob-state">
                 {nProblems ? `${nProblems} entr${nProblems === 1 ? 'y needs' : 'ies need'} fixing: ${Object.values(problems)[0]}` : running ? `${progress?.phase === 'zones' ? 'summarising zones' : 'computing curves'}…` : result ? `${result.draws.n} realisations, seed ${result.draws.seed}, ${varying.length} parameters varied${runMs ? `, ${(runMs / 1000).toFixed(1)} s` : ''}` : `${varying.length} parameter${varying.length === 1 ? '' : 's'} to vary`}
               </span>
             </div>
-            {running && <Progress value={pct} className="h-2 bg-slate-800" data-testid="petro-prob-progress" />}
+            {running && <Progress value={pct} className="h-2 bg-pl-sunken" data-testid="petro-prob-progress" />}
 
-            <div className="rounded border border-slate-800 max-h-[40vh] overflow-auto">
+            <div className="rounded border border-pl-border max-h-[40vh] overflow-auto">
               <table className="text-xs border-collapse min-w-full">
-                <thead className="sticky top-0 bg-slate-900">
+                <thead className="sticky top-0 bg-pl-surface">
                   <tr>
-                    <th className="text-left px-2 py-1 text-slate-400 font-normal" rowSpan={2}>Zone</th>
-                    <th className="text-left px-2 py-1 text-slate-400 font-normal whitespace-nowrap" colSpan={4}>Net pay ({depthUnit}), exceedance cases</th>
-                    <th className="text-left px-2 py-1 text-slate-400 font-normal" colSpan={3}>φe avg, percentiles</th>
-                    <th className="text-left px-2 py-1 text-slate-400 font-normal" colSpan={3}>Sw avg, percentiles</th>
-                    <th className="text-left px-2 py-1 text-slate-400 font-normal" colSpan={3}>k gm (mD), percentiles</th>
+                    <th className="text-left px-2 py-1 text-pl-muted font-normal" rowSpan={2}>Zone</th>
+                    <th className="text-left px-2 py-1 text-pl-muted font-normal whitespace-nowrap" colSpan={4}>Net pay ({depthUnit}), exceedance cases</th>
+                    <th className="text-left px-2 py-1 text-pl-muted font-normal" colSpan={3}>φe avg, percentiles</th>
+                    <th className="text-left px-2 py-1 text-pl-muted font-normal" colSpan={3}>Sw avg, percentiles</th>
+                    <th className="text-left px-2 py-1 text-pl-muted font-normal" colSpan={3}>k gm (mD), percentiles</th>
                   </tr>
                   <tr>
-                    {[OUTCOME_LABELS.p90, OUTCOME_LABELS.p50, OUTCOME_LABELS.p10, 'mean'].map((h) => <th key={`net-${h}`} className="text-left px-2 py-0.5 text-slate-500 font-normal">{h}</th>)}
+                    {[OUTCOME_LABELS.p90, OUTCOME_LABELS.p50, OUTCOME_LABELS.p10, 'mean'].map((h) => <th key={`net-${h}`} className="text-left px-2 py-0.5 text-pl-muted font-normal">{h}</th>)}
                     {['phi', 'Sw', 'k'].flatMap((q) => ['q10', 'q50', 'q90'].map((k) => (
-                      <th key={`${q}-${k}`} className="text-left px-2 py-0.5 text-slate-500 font-normal whitespace-nowrap" title={parameterPercentileLabel(q, k)}>{k.slice(1)}th</th>
+                      <th key={`${q}-${k}`} className="text-left px-2 py-0.5 text-pl-muted font-normal whitespace-nowrap" title={parameterPercentileLabel(q, k)}>{k.slice(1)}th</th>
                     )))}
                   </tr>
                 </thead>
                 <tbody>
-                  {!result && <tr><td colSpan={14} className="px-2 py-2 text-slate-500">{zones.length ? 'Run to fill the table.' : 'No zones on this well yet; the run still draws on the tracks.'}</td></tr>}
+                  {!result && <tr><td colSpan={14} className="px-2 py-2 text-pl-muted">{zones.length ? 'Run to fill the table.' : 'No zones on this well yet; the run still draws on the tracks.'}</td></tr>}
                   {result?.zones.map((z) => (
-                    <tr key={z.name} className="border-t border-slate-800/60" data-testid={`petro-prob-row-zone-${z.name}`}>
-                      <td className="px-2 py-0.5 text-slate-300">{z.name}</td>
+                    <tr key={z.name} className="border-t border-pl-border" data-testid={`petro-prob-row-zone-${z.name}`}>
+                      <td className="px-2 py-0.5 text-pl-text">{z.name}</td>
                       {['p90', 'p50', 'p10', 'mean'].map((k) => <td key={k} className="px-2 py-0.5" data-testid={`petro-prob-net-${z.name}-${k}`}>{fmt(z.outcomes.net_m[k] * F, 1)}</td>)}
                       {['phi_avg', 'sw_avg', 'k_gm_md'].flatMap((f) => ['q10', 'q50', 'q90'].map((k) => (
                         <td key={`${f}-${k}`} className="px-2 py-0.5">{fmt(z.parameters[f][k], f === 'k_gm_md' ? 1 : 3)}</td>
@@ -202,21 +202,21 @@ export default function ProbabilisticDialog({
                 </tbody>
               </table>
               {result?.zones.map((z) => <Tornado key={z.name} zone={z} depthUnit={depthUnit} />)}
-              {result && <p className="px-2 py-1 text-[10px] text-slate-500">{EXCEEDANCE_DEFINITION}</p>}
+              {result && <p className="px-2 py-1 text-[10px] text-pl-muted">{EXCEEDANCE_DEFINITION}</p>}
             </div>
           </div>
         </div>
 
         <DialogFooter className="flex items-center gap-2">
-          <span className="mr-auto text-[11px] text-slate-500">Low case Sw is the high Sw value; low case porosity the low value. The band tracks say which in their headers.</span>
-          <Button variant="outline" size="sm" className="border-slate-700 text-slate-300" onClick={() => onOpenChange(false)}>Close</Button>
-          <Button variant="outline" size="sm" data-testid="petro-prob-csv" disabled={!result || !result.zones.length} className="border-slate-700 text-slate-300" onClick={exportCsv}>Export CSV</Button>
+          <span className="mr-auto text-[11px] text-pl-muted">Low case Sw is the high Sw value; low case porosity the low value. The band tracks say which in their headers.</span>
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button variant="outline" size="sm" data-testid="petro-prob-csv" disabled={!result || !result.zones.length} onClick={exportCsv}>Export CSV</Button>
           <Button variant="outline" size="sm" data-testid="petro-prob-publish" disabled={!canPublish || !result}
             title={canPublish ? 'Write the percentile curves and PAY_PROB to the registry' : 'Org-shared wells are read-only'}
-            className="border-emerald-700/60 text-emerald-300 hover:bg-emerald-500/10" onClick={async () => { await onPublish(); onOpenChange(false); }}>
+            className="border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10" onClick={async () => { await onPublish(); onOpenChange(false); }}>
             Publish
           </Button>
-          <Button size="sm" data-testid="petro-prob-apply" disabled={!result} className="bg-cyan-700 hover:bg-cyan-600 text-white" onClick={() => { onApply(); onOpenChange(false); }}>
+          <Button size="sm" data-testid="petro-prob-apply" disabled={!result} onClick={() => { onApply(); onOpenChange(false); }}>
             Apply to tracks
           </Button>
         </DialogFooter>

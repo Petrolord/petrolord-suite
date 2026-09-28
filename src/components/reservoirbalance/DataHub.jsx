@@ -621,9 +621,9 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
   // ── Loading state ──
   if (loading) {
     return (
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card>
         <CardContent className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-pl-muted" />
         </CardContent>
       </Card>
     );
@@ -631,8 +631,8 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
 
   if (!caseData) {
     return (
-      <Card className="bg-slate-800/50 border-slate-700">
-        <CardContent className="py-12 text-center text-slate-400">
+      <Card>
+        <CardContent className="py-12 text-center text-pl-muted">
           No case data. DataHub must be mounted inside a case detail page.
         </CardContent>
       </Card>
@@ -650,22 +650,21 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
   // =============================================================================
   return (
     <div className="space-y-6">
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card>
         <CardHeader className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <CardTitle className="text-lime-300">Data Hub</CardTitle>
+            <CardTitle>Data Hub</CardTitle>
             <CardDescription>
               Upload production history as CSV. Columns are auto-mapped to the case schema; units (Mscf, Bscf) auto-converted.
             </CardDescription>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             {serverRows.length > 0 && !pendingRows && (
               <>
                 <Button
                   onClick={downloadServerData}
                   variant="outline"
                   size="sm"
-                  className="border-slate-600"
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Download CSV
@@ -675,7 +674,7 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
                   disabled={saving}
                   variant="outline"
                   size="sm"
-                  className="border-rose-700 text-rose-400 hover:bg-rose-950/50"
+                  className="border-pl-danger/40 text-pl-danger-text hover:bg-pl-danger-bg"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Clear all
@@ -691,16 +690,16 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
               {...getRootProps()}
               className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
                 isDragActive
-                  ? 'border-lime-400 bg-lime-900/20'
-                  : 'border-slate-700 hover:border-slate-600 bg-slate-900/30'
+                  ? 'border-pl-primary bg-pl-primary/10'
+                  : 'border-pl-border-strong hover:border-pl-primary bg-pl-surface'
               }`}
             >
               <input {...getInputProps()} />
-              <Upload className="w-10 h-10 mx-auto mb-3 text-lime-400" />
-              <p className="text-slate-200 font-medium mb-1">
+              <Upload className="w-10 h-10 mx-auto mb-3 text-pl-primary-text" />
+              <p className="text-pl-text font-medium mb-1">
                 {isDragActive ? 'Drop the CSV file here…' : 'Drag a CSV file here, or click to select'}
               </p>
-              <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+              <p className="text-xs text-pl-muted mt-2 leading-relaxed">
                 Required column: <span className="font-mono">Pressure</span> (psia).
                 Recommended: <span className="font-mono">Np / Gp / Wp</span> (cumulative oil/gas/water).
                 Optional per-row PVT: <span className="font-mono">Bo, Rs, Bg, Bw, z</span>.
@@ -712,14 +711,14 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
           {/* Pending upload summary */}
           {pendingRows && (
             <div className="space-y-3">
-              <div className="flex items-center justify-between bg-slate-900/70 border border-amber-700/50 rounded p-4">
+              <div className="flex items-center justify-between bg-pl-surface border border-pl-warning/40 rounded p-4">
                 <div className="flex items-center gap-3">
-                  <Info className="w-5 h-5 text-amber-400 flex-shrink-0" />
+                  <Info className="w-5 h-5 text-pl-warning-text flex-shrink-0" />
                   <div>
-                    <p className="text-sm text-slate-200 font-medium">
+                    <p className="text-sm text-pl-text font-medium">
                       Pending: {pendingFileName}
                     </p>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-pl-muted">
                       {pendingRows.length} rows parsed. {validationErrors.length === 0 ? 'Ready to save.' : `${validationErrors.length} validation error(s) — fix and re-upload.`}
                     </p>
                   </div>
@@ -729,7 +728,6 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
                     onClick={discardPending}
                     variant="outline"
                     size="sm"
-                    className="border-slate-600"
                   >
                     <X className="h-4 w-4 mr-2" />
                     Discard
@@ -737,7 +735,7 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
                   <Button
                     onClick={handleSave}
                     disabled={!canSave || saving}
-                    className="bg-lime-600 hover:bg-lime-500 text-slate-950 font-semibold"
+                    className="font-semibold"
                   >
                     {saving ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -751,15 +749,15 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
 
               {/* Column mapping report */}
               {colMap && (
-                <div className="bg-slate-900/40 border border-slate-700 rounded p-3">
-                  <p className="text-xs font-medium text-slate-300 mb-2">
+                <div className="bg-pl-surface border border-pl-border rounded p-3">
+                  <p className="text-xs font-medium text-pl-text mb-2">
                     Column mapping
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[11px] font-mono">
                     {Object.entries(colMap).map(([schemaCol, header]) => (
                       <div key={schemaCol} className="flex justify-between gap-2">
-                        <span className="text-slate-500">{schemaCol}</span>
-                        <span className={header ? 'text-lime-400' : 'text-slate-600'}>
+                        <span className="text-pl-muted">{schemaCol}</span>
+                        <span className={header ? 'text-pl-primary-text' : 'text-pl-muted'}>
                           {header ?? '—'}
                         </span>
                       </div>
@@ -770,9 +768,9 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
 
               {/* Parse warnings */}
               {parseWarnings.length > 0 && (
-                <div className="bg-amber-950/30 border border-amber-800/50 rounded p-3 space-y-1">
+                <div className="bg-pl-warning-bg border border-pl-warning/40 rounded p-3 space-y-1">
                   {parseWarnings.map((w, i) => (
-                    <p key={i} className="text-xs text-amber-300 flex items-start gap-2">
+                    <p key={i} className="text-xs text-pl-warning-text flex items-start gap-2">
                       <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
                       {w}
                     </p>
@@ -782,15 +780,15 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
 
               {/* Validation errors */}
               {validationErrors.length > 0 && (
-                <div className="bg-rose-950/40 border border-rose-700/50 rounded p-3 space-y-1">
-                  <p className="text-xs font-medium text-rose-300 mb-2">
+                <div className="bg-pl-danger-bg border border-pl-danger/40 rounded p-3 space-y-1">
+                  <p className="text-xs font-medium text-pl-danger-text mb-2">
                     Validation errors ({validationErrors.length})
                   </p>
                   {validationErrors.map((err, i) => (
-                    <p key={i} className="text-xs text-rose-300 flex items-start gap-2">
+                    <p key={i} className="text-xs text-pl-danger-text flex items-start gap-2">
                       <X className="w-3 h-3 flex-shrink-0 mt-0.5" />
                       {err.row != null && (
-                        <span className="font-mono text-rose-400 flex-shrink-0">
+                        <span className="font-mono text-pl-danger-text flex-shrink-0">
                           Row {err.row}:
                         </span>
                       )}
@@ -804,23 +802,23 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
 
           {/* Preview table — shows pending OR server rows */}
           {visibleRows.length > 0 && (
-            <Card className="bg-slate-900/50 border-slate-700">
-              <CardHeader className="border-b border-slate-800 p-3">
+            <Card>
+              <CardHeader className="border-b border-pl-border p-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                  <CardTitle className="text-xs font-bold text-pl-text uppercase tracking-wider flex items-center gap-2">
                     {pendingRows ? (
                       <>
-                        <RefreshCw className="w-3 h-3 text-amber-400" />
+                        <RefreshCw className="w-3 h-3 text-pl-warning-text" />
                         Pending preview
                       </>
                     ) : (
                       <>
-                        <CheckCircle className="w-3 h-3 text-green-400" />
+                        <CheckCircle className="w-3 h-3 text-pl-success-text" />
                         Saved data
                       </>
                     )}
                   </CardTitle>
-                  <span className="text-[10px] text-slate-500">
+                  <span className="text-[10px] text-pl-muted">
                     {visibleRows.length} rows · {visibleSchemaCols.length} columns
                   </span>
                 </div>
@@ -828,16 +826,16 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
               <CardContent className="p-0">
                 <ScrollArea className="h-[360px] w-full">
                   <UiTable>
-                    <TableHeader className="bg-slate-950 sticky top-0 z-10">
-                      <TableRow className="border-slate-800">
+                    <TableHeader className="bg-pl-sunken sticky top-0 z-10">
+                      <TableRow>
                         {visibleSchemaCols.map(({ col, label, unit }) => (
                           <TableHead
                             key={col}
-                            className="text-xs text-slate-400 font-semibold py-2 whitespace-nowrap"
+                            className="text-xs text-pl-muted font-semibold py-2 whitespace-nowrap"
                           >
                             {label}
                             {unit && (
-                              <span className="text-[10px] block font-normal text-slate-500">
+                              <span className="text-[10px] block font-normal text-pl-muted">
                                 ({unit})
                               </span>
                             )}
@@ -849,12 +847,12 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
                       {visibleRows.map((r, i) => (
                         <TableRow
                           key={i}
-                          className="border-slate-800/50 hover:bg-slate-800/30"
+                          className="border-pl-border hover:bg-pl-sunken"
                         >
                           {visibleSchemaCols.map(({ col }) => (
                             <TableCell
                               key={col}
-                              className="font-mono text-xs text-slate-300 py-1.5 whitespace-nowrap"
+                              className="font-mono text-xs text-pl-text py-1.5 whitespace-nowrap"
                             >
                               {col === 'timestep_index'
                                 ? r[col]
@@ -878,7 +876,7 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
 
           {/* Empty state */}
           {!pendingRows && serverRows.length === 0 && (
-            <div className="text-center py-8 text-slate-500">
+            <div className="text-center py-8 text-pl-muted">
               <p className="text-sm">No production data yet.</p>
               <p className="text-xs mt-1">Upload a CSV above to get started.</p>
             </div>

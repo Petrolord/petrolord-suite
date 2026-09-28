@@ -64,9 +64,9 @@ const RtaResults = () => {
 
   if (!rtaRows.length) {
     return (
-      <div className="rounded-lg border border-slate-700 bg-slate-900 px-6 py-10 text-center space-y-2">
-        <p className="text-slate-300 font-medium">No production data loaded.</p>
-        <p className="text-sm text-slate-500">
+      <div className="rounded-lg border border-pl-border bg-pl-surface px-6 py-10 text-center space-y-2">
+        <p className="text-pl-text font-medium">No production data loaded.</p>
+        <p className="text-sm text-pl-muted">
           Import a production CSV in the left rail (time in days, rate, flowing pressure). Reservoir and fluid
           properties are taken from the Data tab.
         </p>
@@ -91,7 +91,7 @@ const RtaResults = () => {
       </div>
 
       {isGas && fmbResult && (
-        <p className="text-[11px] text-slate-500">
+        <p className="text-[11px] text-pl-muted">
           Dynamic material balance: {fmbResult.iterations} iterations{fmbResult.converged ? ' (converged)' : ' (not converged, review)'} on
           the G, average-pressure and pseudo-time loop.
         </p>
@@ -128,8 +128,8 @@ const RtaResults = () => {
         </ComposedChart>
       </ChartCard>
 
-      <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Transient linear flow (Wattenbarger)</p>
+      <div className="rounded-lg border border-pl-border bg-pl-surface p-4">
+        <p className="text-xs font-semibold text-pl-muted uppercase tracking-wider mb-2">Transient linear flow (Wattenbarger)</p>
         {linear ? (
           <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
             <Kpi title="xf √k" value={fmt.sig3(unitSystem === 'si' ? linear.xfSqrtK * 0.3048 : linear.xfSqrtK)} unit={unitSystem === 'si' ? 'm·√md' : 'ft·√md'} accent />
@@ -137,7 +137,7 @@ const RtaResults = () => {
             <Kpi title="Fit r²" value={fmt.f3(linear.r2)} />
           </div>
         ) : (
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-pl-muted">
             Set the linear window over an early half-slope trend (needs at least 3 points inside the window and valid
             reservoir properties).
           </p>

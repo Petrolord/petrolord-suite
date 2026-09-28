@@ -574,9 +574,9 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
   // Loading state
   if (loading) {
     return (
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card>
         <CardContent className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-pl-muted" />
         </CardContent>
       </Card>
     );
@@ -584,8 +584,8 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
 
   if (!caseData) {
     return (
-      <Card className="bg-slate-800/50 border-slate-700">
-        <CardContent className="py-12 text-center text-slate-400">
+      <Card>
+        <CardContent className="py-12 text-center text-pl-muted">
           No case data. PvtRock must be mounted inside a case detail page.
         </CardContent>
       </Card>
@@ -598,10 +598,10 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
   return (
     <div className="space-y-6">
       {/* Header card with controls and save state */}
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card>
         <CardHeader className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <CardTitle className="text-lime-300">PVT & Rock Properties</CardTitle>
+            <CardTitle>PVT & Rock Properties</CardTitle>
             <CardDescription>
               Configure correlations and fluid properties. Engine uses these for runs and for this preview.
             </CardDescription>
@@ -611,7 +611,7 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
               <Button
                 onClick={handleSave}
                 disabled={saving || (form.pvt_source === 'lab_table' && labTableErrors.length > 0)}
-                className="bg-amber-600 hover:bg-amber-500 text-white disabled:opacity-50"
+                variant="accent"
               >
                 {saving ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -622,7 +622,7 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
               </Button>
             )}
             {!dirty && loadedConfigId && (
-              <span className="text-xs text-green-400 flex items-center gap-1">
+              <span className="text-xs text-pl-success-text flex items-center gap-1">
                 <CheckCircle className="w-3 h-3" />
                 Saved
               </span>
@@ -632,61 +632,62 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
         <CardContent className="grid grid-cols-1 md:grid-cols-5 gap-6">
           {/* ─── Controls Panel ─── */}
           <div className="md:col-span-2 space-y-4">
-            <Card className="bg-slate-900/50 border-slate-700 h-full flex flex-col shadow-lg">
-              <CardHeader className="border-b border-slate-800 bg-slate-900/80 p-4">
-                <CardTitle className="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                  <Calculator className="w-4 h-4 text-lime-400" />
+            <Card className="h-full flex flex-col">
+              <CardHeader className="border-b border-pl-border p-4">
+                <CardTitle className="text-sm font-bold text-pl-text uppercase tracking-wider flex items-center gap-2">
+                  <Calculator className="w-4 h-4 text-pl-muted" />
                   Correlation Engine
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 p-4 flex-1">
                 {/* Read-only case-level facts */}
-                <div className="bg-slate-950/50 border border-slate-800 rounded p-3 space-y-1">
+                <div className="bg-pl-sunken border border-pl-border rounded p-3 space-y-1">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-400">Reservoir temperature</span>
-                    <span className="font-mono text-slate-300">
+                    <span className="text-pl-muted">Reservoir temperature</span>
+                    <span className="font-mono text-pl-text">
                       {formatNum(caseData.reservoir_temperature_f, 1)} °F
                     </span>
                   </div>
                   {caseData.bubble_point_psia && (
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-400">Bubble point</span>
-                      <span className="font-mono text-slate-300">
+                      <span className="text-pl-muted">Bubble point</span>
+                      <span className="font-mono text-pl-text">
                         {formatNum(caseData.bubble_point_psia, 0)} psia
                       </span>
                     </div>
                   )}
                   {caseData.initial_pressure_psia && (
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-400">Initial pressure</span>
-                      <span className="font-mono text-slate-300">
+                      <span className="text-pl-muted">Initial pressure</span>
+                      <span className="font-mono text-pl-text">
                         {formatNum(caseData.initial_pressure_psia, 0)} psia
                       </span>
                     </div>
                   )}
-                  <p className="text-[10px] text-slate-500 pt-1">
+                  <p className="text-[10px] text-pl-muted pt-1">
                     Edit these with Edit case on the case card.
                   </p>
                 </div>
 
                 {/* PVT source */}
                 <div className="pt-2 space-y-2">
-                  <Label className="text-xs text-slate-400 uppercase tracking-wider">
+                  <Label className="text-xs text-pl-muted uppercase tracking-wider">
                     PVT source
                   </Label>
                   <Select
                     value={form.pvt_source}
                     onValueChange={(v) => updateForm('pvt_source', v)}
                   >
-                    <SelectTrigger className="bg-slate-950 border-slate-700">
-                      <SelectValue />
+                    <SelectTrigger>
+                      {/* the label only; the description shows under the field */}
+                      <SelectValue>{PVT_SOURCE_OPTIONS.find((o) => o.value === form.pvt_source)?.label}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {PVT_SOURCE_OPTIONS.map((opt) => (
                         <SelectItem key={opt.value} value={opt.value}>
                           <div className="flex flex-col items-start gap-0.5 py-0.5">
                             <span>{opt.label}</span>
-                            <span className="text-[10px] text-slate-500 font-normal leading-tight">
+                            <span className="text-[10px] text-pl-muted font-normal leading-tight">
                               {opt.description}
                             </span>
                           </div>
@@ -697,7 +698,7 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
                   {(() => {
                     const opt = PVT_SOURCE_OPTIONS.find((o) => o.value === form.pvt_source);
                     return opt ? (
-                      <p className="text-[10px] text-slate-500 italic leading-snug pt-0.5">
+                      <p className="text-[10px] text-pl-muted italic leading-snug pt-0.5">
                         {opt.description}
                       </p>
                     ) : null;
@@ -731,7 +732,7 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
                 </div>
 
                 {/* Compressibilities */}
-                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-800">
+                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-pl-border">
                   <InputGroup
                     label={<>c<sub>f</sub> (1/psi)</>}
                     id="cf"
@@ -753,7 +754,7 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
                     the only route, so a gas-cap case that skipped the match ran
                     as an undersaturated one. */}
                 {isOilWithGasCap && (
-                  <div className="pt-3 border-t border-slate-800 space-y-1.5">
+                  <div className="pt-3 border-t border-pl-border space-y-1.5">
                     <InputGroup
                       label={<>Gas cap ratio m (gas cap volume / oil volume, res bbl/res bbl)</>}
                       id="gasCapM"
@@ -763,7 +764,7 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
                       value={form.gas_cap_ratio_m}
                       onChange={(e) => updateForm('gas_cap_ratio_m', e.target.value)}
                     />
-                    <p className="text-[10px] text-slate-500 italic leading-snug">
+                    <p className="text-[10px] text-pl-muted italic leading-snug">
                       {parseGasCapM(form.gas_cap_ratio_m) > 0 ? (
                         <>
                           Adds the m·E<sub>g</sub> gas cap expansion term to the material balance.
@@ -783,7 +784,7 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
                 )}
 
                 {/* Correlation selects */}
-                <div className="space-y-3 pt-3 border-t border-slate-800">
+                <div className="space-y-3 pt-3 border-t border-pl-border">
                   {showOilProps && (
                     <>
                       <CorrelationSelect
@@ -810,18 +811,18 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
                   )}
 
                   {/* Single-option correlations — surfaced as informational rows */}
-                  <div className="pt-2 mt-2 border-t border-slate-800/60 space-y-1.5">
-                    <p className="text-[10px] uppercase tracking-wider text-slate-500">
+                  <div className="pt-2 mt-2 border-t border-pl-border space-y-1.5">
+                    <p className="text-[10px] uppercase tracking-wider text-pl-muted">
                       Other correlations in use
                     </p>
                     <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-slate-400">Water FVF (Bw)</span>
-                      <span className="font-mono text-slate-300">McCain (1990)</span>
+                      <span className="text-pl-muted">Water FVF (Bw)</span>
+                      <span className="font-mono text-pl-text">McCain (1990)</span>
                     </div>
                     {showGasProps && (
                       <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-400">Gas viscosity (μg)</span>
-                        <span className="font-mono text-slate-300">Lee-Gonzalez-Eakin (1966)</span>
+                        <span className="text-pl-muted">Gas viscosity (μg)</span>
+                        <span className="font-mono text-pl-text">Lee-Gonzalez-Eakin (1966)</span>
                       </div>
                     )}
                   </div>
@@ -831,7 +832,7 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
                   <Button
                     onClick={handleRecalculate}
                     disabled={previewLoading}
-                    className="w-full bg-lime-600 hover:bg-lime-500 text-slate-950 font-semibold shadow-md"
+                    className="w-full font-semibold"
                   >
                     {previewLoading ? (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -847,13 +848,13 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
 
           {/* ─── Preview Table ─── */}
           <div className="md:col-span-3 space-y-4">
-            <Card className="bg-slate-900/50 border-slate-700 h-full flex flex-col shadow-lg">
-              <CardHeader className="border-b border-slate-800 bg-slate-900/80 p-4">
+            <Card className="h-full flex flex-col">
+              <CardHeader className="border-b border-pl-border p-4">
                 <div className="flex justify-between items-center">
-                  <CardTitle className="text-sm font-bold text-slate-200 uppercase tracking-wider">
+                  <CardTitle className="text-sm font-bold text-pl-text uppercase tracking-wider">
                     PVT Preview Table
                   </CardTitle>
-                  <div className="flex items-center text-[11px] uppercase tracking-wide font-semibold text-yellow-400 bg-yellow-400/10 px-2 py-1 rounded">
+                  <div className="flex items-center text-[11px] uppercase tracking-wide font-semibold text-pl-warning-text bg-pl-warning-bg px-2 py-1 rounded">
                     <AlertTriangle className="w-3 h-3 mr-1.5" />
                     {form.pvt_source === 'lab_table' ? 'Lab Table' : 'Correlated'}
                   </div>
@@ -861,9 +862,9 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
               </CardHeader>
               <CardContent className="p-0 flex-1">
                 {form.pvt_source === 'lab_table' && (
-                  <div className="px-4 py-2 bg-slate-950/40 border-b border-slate-800">
-                    <p className="text-[10px] text-slate-400 leading-snug">
-                      <Info className="inline w-3 h-3 mr-1 -mt-0.5 text-sky-400" />
+                  <div className="px-4 py-2 bg-pl-sunken border-b border-pl-border">
+                    <p className="text-[10px] text-pl-muted leading-snug">
+                      <Info className="inline w-3 h-3 mr-1 -mt-0.5 text-pl-info-text" />
                       This preview shows correlation-derived values for reference. MBAL runs will use the lab table you defined below; engine interpolates at each timestep pressure.
                     </p>
                   </div>
@@ -871,46 +872,46 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
                 <ScrollArea className="h-[320px] w-full">
                   {previewRows.length > 0 ? (
                     <Table>
-                      <TableHeader className="bg-slate-950 sticky top-0 z-10">
-                        <TableRow className="border-slate-800">
-                          <TableHead className="text-xs text-slate-400 font-semibold py-2">
+                      <TableHeader className="bg-pl-sunken sticky top-0 z-10">
+                        <TableRow>
+                          <TableHead className="text-xs text-pl-muted font-semibold py-2">
                             Pressure
-                            <span className="text-[10px] block font-normal text-slate-500">(psia)</span>
+                            <span className="text-[10px] block font-normal text-pl-muted">(psia)</span>
                           </TableHead>
                           {showOilProps && (
                             <>
-                              <TableHead className="text-xs text-slate-400 font-semibold py-2 text-right">
+                              <TableHead className="text-xs text-pl-muted font-semibold py-2 text-right">
                                 Bo
-                                <span className="text-[10px] block font-normal text-slate-500">(rb/STB)</span>
+                                <span className="text-[10px] block font-normal text-pl-muted">(rb/STB)</span>
                               </TableHead>
-                              <TableHead className="text-xs text-slate-400 font-semibold py-2 text-right">
+                              <TableHead className="text-xs text-pl-muted font-semibold py-2 text-right">
                                 Rs
-                                <span className="text-[10px] block font-normal text-slate-500">(scf/STB)</span>
+                                <span className="text-[10px] block font-normal text-pl-muted">(scf/STB)</span>
                               </TableHead>
                             </>
                           )}
                           {showGasProps && (
                             <>
-                              <TableHead className="text-xs text-slate-400 font-semibold py-2 text-right">
+                              <TableHead className="text-xs text-pl-muted font-semibold py-2 text-right">
                                 z
-                                <span className="text-[10px] block font-normal text-slate-500">(–)</span>
+                                <span className="text-[10px] block font-normal text-pl-muted">(–)</span>
                               </TableHead>
-                              <TableHead className="text-xs text-slate-400 font-semibold py-2 text-right">
+                              <TableHead className="text-xs text-pl-muted font-semibold py-2 text-right">
                                 Bg
-                                <span className="text-[10px] block font-normal text-slate-500">(RB/Mscf)</span>
+                                <span className="text-[10px] block font-normal text-pl-muted">(RB/Mscf)</span>
                               </TableHead>
                             </>
                           )}
                           {showOilProps && (
-                            <TableHead className="text-xs text-slate-400 font-semibold py-2 text-right pr-4">
+                            <TableHead className="text-xs text-pl-muted font-semibold py-2 text-right pr-4">
                               Oil Visc
-                              <span className="text-[10px] block font-normal text-slate-500">(cP)</span>
+                              <span className="text-[10px] block font-normal text-pl-muted">(cP)</span>
                             </TableHead>
                           )}
                           {showGasProps && (
-                            <TableHead className="text-xs text-slate-400 font-semibold py-2 text-right pr-4">
+                            <TableHead className="text-xs text-pl-muted font-semibold py-2 text-right pr-4">
                               Gas Visc
-                              <span className="text-[10px] block font-normal text-slate-500">(cP)</span>
+                              <span className="text-[10px] block font-normal text-pl-muted">(cP)</span>
                             </TableHead>
                           )}
                         </TableRow>
@@ -919,40 +920,40 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
                         {previewRows.map((row, i) => (
                           <TableRow
                             key={i}
-                            className={`border-slate-800/50 hover:bg-slate-800/50 ${
-                              row.is_above_bubble_point ? 'bg-slate-800/30' : ''
+                            className={`border-pl-border hover:bg-pl-sunken ${
+                              row.is_above_bubble_point ? 'bg-pl-sunken' : ''
                             }`}
                           >
-                            <TableCell className="font-mono text-xs text-slate-300 py-1.5">
+                            <TableCell className="font-mono text-xs text-pl-text py-1.5">
                               {formatNum(row.pressure_psia, 0)}
                             </TableCell>
                             {showOilProps && (
                               <>
-                                <TableCell className="font-mono text-xs text-lime-400 text-right py-1.5">
+                                <TableCell className="font-mono text-xs text-pl-text text-right py-1.5">
                                   {formatNum(row.Bo, 4)}
                                 </TableCell>
-                                <TableCell className="font-mono text-xs text-sky-400 text-right py-1.5">
+                                <TableCell className="font-mono text-xs text-pl-text text-right py-1.5">
                                   {formatNum(row.Rs, 0)}
                                 </TableCell>
                               </>
                             )}
                             {showGasProps && (
                               <>
-                                <TableCell className="font-mono text-xs text-lime-400 text-right py-1.5">
+                                <TableCell className="font-mono text-xs text-pl-text text-right py-1.5">
                                   {formatNum(row.z, 4)}
                                 </TableCell>
-                                <TableCell className="font-mono text-xs text-sky-400 text-right py-1.5">
+                                <TableCell className="font-mono text-xs text-pl-text text-right py-1.5">
                                   {formatNum(row.Bg, 4)}
                                 </TableCell>
                               </>
                             )}
                             {showOilProps && (
-                              <TableCell className="font-mono text-xs text-rose-400 text-right py-1.5 pr-4">
+                              <TableCell className="font-mono text-xs text-pl-text text-right py-1.5 pr-4">
                                 {formatNum(row.oil_viscosity_cp, 3)}
                               </TableCell>
                             )}
                             {showGasProps && (
-                              <TableCell className="font-mono text-xs text-rose-400 text-right py-1.5 pr-4">
+                              <TableCell className="font-mono text-xs text-pl-text text-right py-1.5 pr-4">
                                 {row.gas_viscosity_cp != null
                                   ? formatNum(row.gas_viscosity_cp, 4)
                                   : '—'}
@@ -963,7 +964,7 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
                       </TableBody>
                     </Table>
                   ) : (
-                    <div className="h-full flex items-center justify-center text-slate-500 text-sm p-8">
+                    <div className="h-full flex items-center justify-center text-pl-muted text-sm p-8">
                       No preview yet. Click "Recalculate PVT Table" to generate.
                     </div>
                   )}
@@ -975,7 +976,7 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
 
         {previewMeta && (
           <div className="px-6 pb-4 -mt-2">
-            <p className="text-[10px] text-slate-500">
+            <p className="text-[10px] text-pl-muted">
               Preview generated for pressure range {formatNum(previewMeta.pressure_range_psia?.[0], 0)} – {formatNum(previewMeta.pressure_range_psia?.[1], 0)} psia
               {previewMeta.pb_psia && ` · Pb = ${formatNum(previewMeta.pb_psia, 0)} psia`}
               {previewWarnings.length > 0 && ` · ${previewWarnings.length} engine note${previewWarnings.length > 1 ? 's' : ''}`}
@@ -1023,15 +1024,15 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
       )}
 
       {/* ─── Property Visualizer ─── */}
-      <Card className="bg-white border-slate-200 shadow-lg">
-        <CardHeader className="border-b border-slate-200 bg-slate-50 p-4">
+      <Card data-canvas="chart" className="bg-pl-chart-surface">
+        <CardHeader className="border-b border-pl-border p-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <CardTitle className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+            <CardTitle className="text-sm font-bold text-pl-text uppercase tracking-wider">
               Property Visualizer
             </CardTitle>
-            <Tabs value={activePlot} onValueChange={setActivePlot} className="w-[300px]">
+            <Tabs value={activePlot} onValueChange={setActivePlot} className="w-full sm:w-[300px]">
               <TabsList
-                className={`grid w-full bg-slate-100 border border-slate-300 ${
+                className={`grid w-full ${
                   isGas ? 'grid-cols-2' : 'grid-cols-3'
                 }`}
               >
@@ -1039,13 +1040,13 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
                   <>
                     <TabsTrigger
                       value="z"
-                      className="text-xs data-[state=active]:bg-lime-600 data-[state=active]:text-slate-950"
+                      className="text-xs"
                     >
                       z
                     </TabsTrigger>
                     <TabsTrigger
                       value="bg"
-                      className="text-xs data-[state=active]:bg-sky-600 data-[state=active]:text-white"
+                      className="text-xs"
                     >
                       Bg
                     </TabsTrigger>
@@ -1054,19 +1055,19 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
                   <>
                     <TabsTrigger
                       value="bo"
-                      className="text-xs data-[state=active]:bg-lime-600 data-[state=active]:text-slate-950"
+                      className="text-xs"
                     >
                       Bo
                     </TabsTrigger>
                     <TabsTrigger
                       value="rs"
-                      className="text-xs data-[state=active]:bg-sky-600 data-[state=active]:text-white"
+                      className="text-xs"
                     >
                       Rs
                     </TabsTrigger>
                     <TabsTrigger
                       value="muo"
-                      className="text-xs data-[state=active]:bg-rose-600 data-[state=active]:text-white"
+                      className="text-xs"
                     >
                       Visc.
                     </TabsTrigger>
@@ -1147,9 +1148,9 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
               <ChartLogo style={MBAL_LOGO_STYLE} />
             </div>
           ) : (
-            <div className="h-[350px] flex items-center justify-center text-slate-500 bg-white">
+            <div className="h-[350px] flex items-center justify-center text-pl-muted bg-white">
               <div className="text-center">
-                <Info className="h-5 w-5 mx-auto mb-2 text-slate-400" />
+                <Info className="h-5 w-5 mx-auto mb-2 text-pl-muted" />
                 <p className="text-sm">No preview yet. Click Recalculate to generate.</p>
               </div>
             </div>
@@ -1166,14 +1167,14 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
 
 const InputGroup = ({ label, id, ...props }) => (
   <div className="space-y-1.5">
-    <Label htmlFor={id} className="text-xs text-slate-400">
+    <Label htmlFor={id} className="text-xs text-pl-muted">
       {label}
     </Label>
     <Input
       id={id}
       {...props}
       type={props.type || 'number'}
-      className="h-9 bg-slate-950 border-slate-700 text-slate-200 focus:border-lime-500 focus:ring-lime-500"
+      className="h-9"
     />
   </div>
 );
@@ -1187,10 +1188,11 @@ const CorrelationSelect = ({ label, value, options, onChange }) => {
 
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs text-slate-400">{label}</Label>
+      <Label className="text-xs text-pl-muted">{label}</Label>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="bg-slate-950 border-slate-700">
-          <SelectValue />
+        <SelectTrigger>
+          {/* the label only; the description shows under the field */}
+          <SelectValue>{selectedOption?.label}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           {options.map((o) => (
@@ -1198,7 +1200,7 @@ const CorrelationSelect = ({ label, value, options, onChange }) => {
               <div className="flex flex-col items-start gap-0.5 py-0.5">
                 <span>{o.label}</span>
                 {o.description && (
-                  <span className="text-[10px] text-slate-500 font-normal leading-tight">
+                  <span className="text-[10px] text-pl-muted font-normal leading-tight">
                     {o.description}
                   </span>
                 )}
@@ -1208,14 +1210,14 @@ const CorrelationSelect = ({ label, value, options, onChange }) => {
         </SelectContent>
       </Select>
       {selectedOption?.description && (
-        <p className="text-[10px] text-slate-500 italic leading-snug pt-0.5">
+        <p className="text-[10px] text-pl-muted italic leading-snug pt-0.5">
           {selectedOption.description}
         </p>
       )}
       {validityHint && (
-        <div className="flex items-start gap-1.5 mt-1 p-2 rounded bg-slate-950/60 border border-slate-800/80">
-          <Info className="w-3 h-3 mt-0.5 text-sky-400 flex-shrink-0" />
-          <p className="text-[10px] text-slate-400 leading-snug">{validityHint}</p>
+        <div className="flex items-start gap-1.5 mt-1 p-2 rounded bg-pl-sunken border border-pl-border">
+          <Info className="w-3 h-3 mt-0.5 text-pl-info-text flex-shrink-0" />
+          <p className="text-[10px] text-pl-muted leading-snug">{validityHint}</p>
         </div>
       )}
     </div>
@@ -1259,12 +1261,12 @@ const PvtPrefillCard = ({ caseData, form, isGas, onGenerated }) => {
   };
 
   return (
-    <Card className="bg-slate-800/50 border-slate-700 shadow-lg">
+    <Card>
       <CardHeader className="p-4 pb-2">
-        <CardTitle className="text-sm font-bold text-slate-200 uppercase tracking-wider">
+        <CardTitle className="text-sm font-bold text-pl-text uppercase tracking-wider">
           Prefill from correlations
         </CardTitle>
-        <p className="text-[11px] text-slate-500 mt-0.5">
+        <p className="text-[11px] text-pl-muted mt-0.5">
           Generates the table with the Fluid Systems Studio black-oil engine at this case&apos;s temperature and
           gravity, so you start from a consistent grid instead of an empty editor. Generated values are correlation
           estimates; overwrite them with measured lab data wherever you have it.
@@ -1274,28 +1276,28 @@ const PvtPrefillCard = ({ caseData, form, isGas, onGenerated }) => {
         <div className="flex flex-wrap items-end gap-3">
           {!isGas && (
             <div className="space-y-1">
-              <Label className="text-[11px] text-slate-400">Solution GOR (scf/STB)</Label>
+              <Label className="text-[11px] text-pl-muted">Solution GOR (scf/STB)</Label>
               <Input
                 value={gor}
                 onChange={(e) => setGor(e.target.value)}
                 placeholder="derive from Pb"
-                className="h-8 w-40 bg-slate-900 border-slate-600 font-mono text-xs"
+                className="h-8 w-40 font-mono text-xs"
               />
             </div>
           )}
           <div className="space-y-1">
-            <Label className="text-[11px] text-slate-400">Max table pressure (psia)</Label>
+            <Label className="text-[11px] text-pl-muted">Max table pressure (psia)</Label>
             <Input
               value={maxP}
               onChange={(e) => setMaxP(e.target.value)}
-              className="h-8 w-40 bg-slate-900 border-slate-600 font-mono text-xs"
+              className="h-8 w-40 font-mono text-xs"
             />
           </div>
-          <Button size="sm" onClick={generate} className="bg-sky-600 hover:bg-sky-500 text-white h-8">
+          <Button size="sm" onClick={generate} className="h-8">
             Generate table
           </Button>
         </div>
-        {error && <p className="text-xs text-rose-400 mt-2">{error}</p>}
+        {error && <p className="text-xs text-pl-danger-text mt-2">{error}</p>}
       </CardContent>
     </Card>
   );
@@ -1318,23 +1320,23 @@ const LabTableEditor = ({
   const hasErrors = errors.length > 0;
 
   return (
-    <Card className="bg-slate-800/50 border-slate-700 shadow-lg">
-      <CardHeader className="border-b border-slate-800 bg-slate-900/50 p-4">
+    <Card>
+      <CardHeader className="border-b border-pl-border p-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div className="flex items-center gap-2">
-            <FlaskConical className="w-4 h-4 text-sky-400" />
+            <FlaskConical className="w-4 h-4 text-pl-muted" />
             <div>
-              <CardTitle className="text-sm font-bold text-slate-200 uppercase tracking-wider">
+              <CardTitle className="text-sm font-bold text-pl-text uppercase tracking-wider">
                 PVT Lab Table
               </CardTitle>
-              <p className="text-[11px] text-slate-500 mt-0.5">
+              <p className="text-[11px] text-pl-muted mt-0.5">
                 {rows.length} {rows.length === 1 ? 'row' : 'rows'} ·{' '}
                 {hasErrors ? (
-                  <span className="text-rose-400">
+                  <span className="text-pl-danger-text">
                     {errors.length} validation issue{errors.length > 1 ? 's' : ''}
                   </span>
                 ) : (
-                  <span className="text-green-400">valid</span>
+                  <span className="text-pl-success-text">valid</span>
                 )}
               </p>
             </div>
@@ -1343,7 +1345,6 @@ const LabTableEditor = ({
             <Button
               onClick={onRowAdd}
               size="sm"
-              className="bg-sky-600 hover:bg-sky-500 text-white"
             >
               <Plus className="w-3 h-3 mr-1" />
               Add row
@@ -1353,7 +1354,6 @@ const LabTableEditor = ({
                 onClick={onClear}
                 size="sm"
                 variant="outline"
-                className="border-slate-700 text-slate-300 hover:bg-slate-800"
               >
                 Clear all
               </Button>
@@ -1363,16 +1363,16 @@ const LabTableEditor = ({
       </CardHeader>
       <CardContent className="p-0">
         {hasErrors && (
-          <div className="px-4 py-2 bg-rose-950/30 border-b border-rose-900/40">
+          <div className="px-4 py-2 bg-pl-danger-bg border-b border-pl-danger/40">
             <ul className="space-y-0.5">
               {errors.slice(0, 3).map((e, i) => (
-                <li key={i} className="text-[11px] text-rose-300 leading-snug flex items-start gap-1.5">
+                <li key={i} className="text-[11px] text-pl-danger-text leading-snug flex items-start gap-1.5">
                   <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
                   {e}
                 </li>
               ))}
               {errors.length > 3 && (
-                <li className="text-[10px] text-rose-400/70 italic pl-5">
+                <li className="text-[10px] text-pl-danger-text italic pl-5">
                   …and {errors.length - 3} more.
                 </li>
               )}
@@ -1382,25 +1382,25 @@ const LabTableEditor = ({
 
         {rows.length === 0 ? (
           <div className="py-12 text-center">
-            <FlaskConical className="w-8 h-8 mx-auto mb-2 text-slate-600" />
-            <p className="text-sm text-slate-400 mb-1">No lab data yet.</p>
-            <p className="text-[11px] text-slate-500 mb-4">
+            <FlaskConical className="w-8 h-8 mx-auto mb-2 text-pl-muted" />
+            <p className="text-sm text-pl-muted mb-1">No lab data yet.</p>
+            <p className="text-[11px] text-pl-muted mb-4">
               Click <span className="font-semibold">Add row</span> to enter PVT measurements.
             </p>
           </div>
         ) : (
           <ScrollArea className="max-h-[400px] w-full">
             <Table>
-              <TableHeader className="bg-slate-950 sticky top-0 z-10">
-                <TableRow className="border-slate-800">
+              <TableHeader className="bg-pl-sunken sticky top-0 z-10">
+                <TableRow>
                   {columns.map((col) => (
                     <TableHead
                       key={col.key}
-                      className="text-xs text-slate-400 font-semibold py-2"
+                      className="text-xs text-pl-muted font-semibold py-2"
                     >
                       {col.label}
-                      {col.required && <span className="text-rose-400 ml-0.5">*</span>}
-                      <span className="text-[10px] block font-normal text-slate-500">
+                      {col.required && <span className="text-pl-danger-text ml-0.5">*</span>}
+                      <span className="text-[10px] block font-normal text-pl-muted">
                         ({col.unit})
                       </span>
                     </TableHead>
@@ -1410,7 +1410,7 @@ const LabTableEditor = ({
               </TableHeader>
               <TableBody>
                 {rows.map((row, idx) => (
-                  <TableRow key={idx} className="border-slate-800/50 hover:bg-slate-800/30">
+                  <TableRow key={idx} className="border-pl-border hover:bg-pl-sunken">
                     {columns.map((col) => (
                       <TableCell key={col.key} className="py-1 px-2">
                         <Input
@@ -1419,7 +1419,7 @@ const LabTableEditor = ({
                           value={row[col.key] ?? ''}
                           onChange={(e) => onRowUpdate(idx, col.key, e.target.value)}
                           placeholder={col.required ? '—' : 'optional'}
-                          className="h-8 text-xs bg-slate-950 border-slate-700 text-slate-200 font-mono"
+                          className="h-8 text-xs font-mono"
                         />
                       </TableCell>
                     ))}
@@ -1428,7 +1428,7 @@ const LabTableEditor = ({
                         onClick={() => onRowDelete(idx)}
                         size="sm"
                         variant="ghost"
-                        className="h-7 w-7 p-0 text-slate-500 hover:text-rose-400 hover:bg-rose-950/30"
+                        className="h-7 w-7 p-0 text-pl-muted hover:text-pl-danger-text hover:bg-pl-danger-bg"
                         aria-label="Delete row"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -1441,9 +1441,9 @@ const LabTableEditor = ({
           </ScrollArea>
         )}
 
-        <div className="px-4 py-3 bg-slate-950/40 border-t border-slate-800">
-          <p className="text-[10px] text-slate-500 leading-snug">
-            <Info className="inline w-3 h-3 mr-1 -mt-0.5 text-sky-400" />
+        <div className="px-4 py-3 bg-pl-sunken border-t border-pl-border">
+          <p className="text-[10px] text-pl-muted leading-snug">
+            <Info className="inline w-3 h-3 mr-1 -mt-0.5 text-pl-info-text" />
             Pressure is required for every row. Other columns are optional —
             the engine uses whichever values you supply and falls through to
             correlations for missing fields. Rows are sorted ascending by

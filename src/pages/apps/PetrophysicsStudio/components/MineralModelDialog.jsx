@@ -17,8 +17,8 @@ import {
   defaultMineralModel, publishedEndpoint, modelProblem, ENDPOINT_FIELDS, MINERAL_UNSUITED, mineralSummaryLine, MINERAL_COLORS,
 } from '../services/mineralModel';
 
-const cellCls = 'w-20 rounded bg-slate-950 border border-slate-700 text-slate-200 px-1 py-0.5 text-xs font-mono';
-const selCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs';
+const cellCls = 'w-20 rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5 text-xs font-mono';
+const selCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
 const fmt = (v, d = 3) => (Number.isFinite(v) ? Number(v).toFixed(d) : '—');
 
 export default function MineralModelDialog({
@@ -46,10 +46,10 @@ export default function MineralModelDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl bg-slate-900 border-slate-700 text-slate-200" data-testid="petro-mineral-dialog">
+      <DialogContent className="max-w-3xl" data-testid="petro-mineral-dialog">
         <DialogHeader>
           <DialogTitle>Mineral model</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-pl-muted">
             Density, neutron and PEF solved together for three mineral fractions and porosity with a fixed fluid,
             one linear system per sample (U = Pe × ρe so the photoelectric term mixes by volume). A sample whose
             fractions leave zero to one, or a mineral set the tools cannot separate, is refused and flagged, never
@@ -66,16 +66,16 @@ export default function MineralModelDialog({
                 </select>
               </label>
             ))}
-            <span className="text-slate-500" data-testid="petro-mineral-tools">Tools: {toolLine}</span>
+            <span className="text-pl-muted" data-testid="petro-mineral-tools">Tools: {toolLine}</span>
           </div>
 
-          <div className="rounded border border-slate-800 overflow-auto max-h-56">
+          <div className="rounded border border-pl-border overflow-auto max-h-56">
             <table className="min-w-full text-xs" data-testid="petro-mineral-table">
-              <thead className="sticky top-0 bg-slate-900">
+              <thead className="sticky top-0 bg-pl-surface">
                 <tr>
-                  <th className="text-left px-2 py-1 text-slate-400 font-normal">Endpoint</th>
-                  {ENDPOINT_FIELDS.map((f) => <th key={f.key} className="text-left px-2 py-1 text-slate-400 font-normal">{f.label}</th>)}
-                  <th className="text-left px-2 py-1 text-slate-400 font-normal">U (b/cc)</th>
+                  <th className="text-left px-2 py-1 text-pl-muted font-normal">Endpoint</th>
+                  {ENDPOINT_FIELDS.map((f) => <th key={f.key} className="text-left px-2 py-1 text-pl-muted font-normal">{f.label}</th>)}
+                  <th className="text-left px-2 py-1 text-pl-muted font-normal">U (b/cc)</th>
                   <th />
                 </tr>
               </thead>
@@ -84,7 +84,7 @@ export default function MineralModelDialog({
                   const e = draft.endpoints[k];
                   const inPlay = draft.minerals.includes(k);
                   return (
-                    <tr key={k} className={inPlay ? 'bg-slate-800/40' : ''} data-testid={`petro-mineral-row-${k}`}>
+                    <tr key={k} className={inPlay ? 'bg-pl-sunken' : ''} data-testid={`petro-mineral-row-${k}`}>
                       <td className="px-2 py-0.5 whitespace-nowrap">
                         <span className="inline-block w-2 h-2 rounded-sm mr-1 align-middle" style={{ background: MINERAL_COLORS[k] || '#94a3b8' }} />
                         {e.label || k}
@@ -94,10 +94,10 @@ export default function MineralModelDialog({
                           <input className={cellCls} data-testid={`petro-mineral-${k}-${f.key}`} value={e[f.key]} onChange={(ev) => setEndpoint(k, f.key, ev.target.value)} />
                         </td>
                       ))}
-                      <td className="px-2 py-0.5 text-slate-400 font-mono">{fmt(uOf(Number(e.pe), Number(e.rho)), 3)}</td>
+                      <td className="px-2 py-0.5 text-pl-muted font-mono">{fmt(uOf(Number(e.pe), Number(e.rho)), 3)}</td>
                       <td className="px-2 py-0.5">
                         {changedFromPublished(k) && (
-                          <button type="button" className="text-cyan-300 hover:underline" onClick={() => resetRow(k)}>reset</button>
+                          <button type="button" className="text-pl-primary-text hover:underline" onClick={() => resetRow(k)}>reset</button>
                         )}
                       </td>
                     </tr>
@@ -107,24 +107,24 @@ export default function MineralModelDialog({
             </table>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <span className="text-slate-400">Fluid</span>
+            <span className="text-pl-muted">Fluid</span>
             <label className="flex items-center gap-1">ρ <input className={cellCls} data-testid="petro-mineral-fluid-rho" value={draft.fluid.rho} onChange={(e) => setFluid('rho', e.target.value)} /></label>
             <label className="flex items-center gap-1">φN <input className={cellCls} data-testid="petro-mineral-fluid-nphi" value={draft.fluid.nphi} onChange={(e) => setFluid('nphi', e.target.value)} /></label>
             <label className="flex items-center gap-1">U <input className={cellCls} data-testid="petro-mineral-fluid-u" value={draft.fluid.u} onChange={(e) => setFluid('u', e.target.value)} /></label>
-            <button type="button" className="text-cyan-300 hover:underline" data-testid="petro-mineral-reset" onClick={resetAll}>Reset to published</button>
-            <span className="text-[10px] text-slate-500">Schlumberger Log Interpretation Charts mineral table; Doveton 1994. Neutron endpoints in limestone units. Clay is yours to edit per well.</span>
+            <button type="button" className="text-pl-primary-text hover:underline" data-testid="petro-mineral-reset" onClick={resetAll}>Reset to published</button>
+            <span className="text-[10px] text-pl-muted">Schlumberger Log Interpretation Charts mineral table; Doveton 1994. Neutron endpoints in limestone units. Clay is yours to edit per well.</span>
           </div>
 
-          {problem && <p className="text-amber-300/90" data-testid="petro-mineral-problem">{problem}</p>}
+          {problem && <p className="text-pl-warning-text" data-testid="petro-mineral-problem">{problem}</p>}
 
           <div className="flex items-center gap-2">
             <Button size="sm" data-testid="petro-mineral-run" disabled={!!problem} onClick={() => onRun(draft)}>Run</Button>
             {result && (
-              <span className="text-slate-300" data-testid="petro-mineral-summary">{mineralSummaryLine(result)}</span>
+              <span className="text-pl-text" data-testid="petro-mineral-summary">{mineralSummaryLine(result)}</span>
             )}
           </div>
           {result && (
-            <p className="text-[10px] text-slate-500">
+            <p className="text-[10px] text-pl-muted">
               Flags: {Object.entries(MINERAL_FLAGS).map(([k, v]) => `${k} ${v}`).join(', ')}. The residual track is the excursion outside zero to one; a
               determined system has no fit residual, and the tool-space misfit arrives with the weighted stage two.
               {params?.phiSource === 'mineral' ? ' PHIT is taken from this model (φt source mineral).' : ' PHIT still comes from your φt source; pick mineral in Parameters to use this porosity.'}
@@ -132,16 +132,16 @@ export default function MineralModelDialog({
           )}
 
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-0.5">Not suited to</div>
-            <ul className="list-disc pl-4 text-[10px] text-slate-400 space-y-0.5" data-testid="petro-mineral-unsuited">
+            <div className="text-[10px] uppercase tracking-wider text-pl-muted mb-0.5">Not suited to</div>
+            <ul className="list-disc pl-4 text-[10px] text-pl-muted space-y-0.5" data-testid="petro-mineral-unsuited">
               {MINERAL_UNSUITED.map((t) => <li key={t}>{t}</li>)}
             </ul>
           </div>
         </div>
 
         <DialogFooter className="gap-2">
-          <Button variant="outline" size="sm" className="border-slate-700 text-slate-300" onClick={() => onOpenChange(false)}>Close</Button>
-          <Button variant="outline" size="sm" className="border-slate-700 text-slate-300" data-testid="petro-mineral-apply" disabled={!result} onClick={() => { onApply(); onStatus?.('The Mineral model layout is active.'); }}>Apply to tracks</Button>
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button variant="outline" size="sm" data-testid="petro-mineral-apply" disabled={!result} onClick={() => { onApply(); onStatus?.('The Mineral model layout is active.'); }}>Apply to tracks</Button>
           <Button size="sm" data-testid="petro-mineral-publish" disabled={!result || !canPublish || publishing} onClick={onPublish}>Publish</Button>
         </DialogFooter>
       </DialogContent>

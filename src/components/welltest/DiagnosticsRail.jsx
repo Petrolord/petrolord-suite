@@ -5,9 +5,9 @@ import { unitLabel, fromOilfield } from '@/utils/welltest/units';
 import { SectionLabel, fmt, fmtU } from './primitives';
 
 const Row = ({ label, value }) => (
-  <div className="flex justify-between text-xs py-1 border-b border-slate-800/60 last:border-0">
-    <span className="text-slate-500">{label}</span>
-    <span className="text-slate-200 font-medium">{value}</span>
+  <div className="flex justify-between text-xs py-1 border-b border-pl-border last:border-0">
+    <span className="text-pl-muted">{label}</span>
+    <span className="text-pl-text font-medium">{value}</span>
   </div>
 );
 
@@ -38,7 +38,7 @@ const DiagnosticsRail = ({ activeTab }) => {
           <SectionLabel>Regimes</SectionLabel>
           {regimes.length
             ? regimes.map((r, i) => <Row key={i} label={r.label} value={`${fmt.sig3(r.xStart)}-${fmt.sig3(r.xEnd)} hr`} />)
-            : <p className="text-[11px] text-slate-500">None detected yet.</p>}
+            : <p className="text-[11px] text-pl-muted">None detected yet.</p>}
         </section>
       )}
 
@@ -66,7 +66,7 @@ const DiagnosticsRail = ({ activeTab }) => {
 
       <section>
         <SectionLabel>Derived</SectionLabel>
-        <p className="text-[10px] text-slate-500 -mt-1 mb-1" data-testid="wts-derived-source">
+        <p className="text-[10px] text-pl-muted -mt-1 mb-1" data-testid="wts-derived-source">
           {derivedKpis?.source === 'match' ? 'From the working match' : derivedKpis?.source === 'semilog' ? 'From the semilog line (match not yet adjusted)' : 'Needs a semilog line or a match'}
         </p>
         <Row label="kh (md·ft)" value={fmt.sig3(derivedKpis?.kh)} />

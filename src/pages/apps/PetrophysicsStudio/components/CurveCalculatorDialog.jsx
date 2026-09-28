@@ -14,7 +14,7 @@ import { evalCurve, curveStats, normalizeMnemonic, CALC_EXAMPLES, CALC_FUNCTIONS
 import { nextFreeName } from '@/lib/curveNames';
 import { PIPELINE_VERSION } from '../engine/pipeline';
 
-const inputCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs';
+const inputCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
 const fmt = (v, d = 4) => (Number.isFinite(v) ? String(Number(v.toFixed(d))) : '—');
 
 export default function CurveCalculatorDialog({
@@ -96,10 +96,10 @@ export default function CurveCalculatorDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl bg-slate-900 border-slate-700 text-slate-200" data-testid="petro-calc-dialog">
+      <DialogContent className="max-w-2xl" data-testid="petro-calc-dialog">
         <DialogHeader>
           <DialogTitle>Curve calculator</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-pl-muted">
             A new curve from an expression over this well&apos;s curves. Saved as a new registry row with
             the expression in its provenance; nothing existing is changed.
           </DialogDescription>
@@ -123,7 +123,7 @@ export default function CurveCalculatorDialog({
               </select>
             </label>
           </div>
-          {nameNote && <p className="text-[10px] text-amber-300" data-testid="petro-calc-name-note">{nameNote}</p>}
+          {nameNote && <p className="text-[10px] text-pl-warning-text" data-testid="petro-calc-name-note">{nameNote}</p>}
           <textarea
             className={`${inputCls} w-full h-16 font-mono`}
             value={expr}
@@ -132,38 +132,37 @@ export default function CurveCalculatorDialog({
             onChange={(e) => setExpr(e.target.value)}
           />
           <div className="flex flex-wrap gap-1 items-center">
-            <span className="text-slate-500">Curves</span>
+            <span className="text-pl-muted">Curves</span>
             {available.map((k) => (
-              <button key={k} type="button" className="px-1.5 py-0.5 rounded border border-slate-700 text-slate-300 hover:bg-slate-800" onClick={() => insert(k)}>{k}</button>
+              <button key={k} type="button" className="px-1.5 py-0.5 rounded border border-pl-border text-pl-text hover:bg-pl-sunken" onClick={() => insert(k)}>{k}</button>
             ))}
           </div>
           <div className="flex flex-wrap gap-1 items-center">
-            <span className="text-slate-500">Functions</span>
+            <span className="text-pl-muted">Functions</span>
             {CALC_FUNCTIONS.map((f) => (
-              <button key={f} type="button" className="px-1.5 py-0.5 rounded border border-slate-800 text-slate-400 hover:bg-slate-800" onClick={() => insert(`${f}(`)}>{f}</button>
+              <button key={f} type="button" className="px-1.5 py-0.5 rounded border border-pl-border text-pl-muted hover:bg-pl-sunken" onClick={() => insert(`${f}(`)}>{f}</button>
             ))}
-            <span className="text-slate-600">· + - * / ^ ( ) &lt; &lt;= &gt; &gt;= == != &amp;&amp; || ! pi e</span>
+            <span className="text-pl-muted">· + - * / ^ ( ) &lt; &lt;= &gt; &gt;= == != &amp;&amp; || ! pi e</span>
           </div>
           {result.error ? (
-            <p className="text-red-300" data-testid="petro-calc-error">{result.error}</p>
+            <p className="text-pl-danger-text" data-testid="petro-calc-error">{result.error}</p>
           ) : result.stats ? (
-            <p className="text-slate-300" data-testid="petro-calc-preview">
+            <p className="text-pl-text" data-testid="petro-calc-preview">
               {result.stats.valid} of {result.stats.total} samples valid · min {fmt(result.stats.min)} · mean {fmt(result.stats.mean)} · max {fmt(result.stats.max)}
               {result.ids?.length ? ` · uses ${result.ids.join(', ')}` : ''}
             </p>
           ) : (
-            <p className="text-slate-500">Type an expression, or pick an example.</p>
+            <p className="text-pl-muted">Type an expression, or pick an example.</p>
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" size="sm" className="border-slate-700 text-slate-300" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Close</Button>
           <Button
             size="sm"
             data-testid="petro-calc-save"
             disabled={!canSave || busy || !result.data || !finalName}
             title={canSave ? 'Save the curve to this well' : 'Org-shared wells are read-only'}
-            className="bg-cyan-700 hover:bg-cyan-600 text-white"
             onClick={save}
           >
             {busy ? 'Saving…' : `Save ${finalName || 'curve'}`}

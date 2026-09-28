@@ -48,7 +48,7 @@ const MatchPanel = () => {
       <section>
         <SectionLabel>Model</SectionLabel>
         <Select value={matchInputs.modelId} onValueChange={(v) => setMatchField('modelId', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             {MODEL_CATALOG.map((m) => (
               <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
@@ -56,7 +56,7 @@ const MatchPanel = () => {
           </SelectContent>
         </Select>
         {model && (
-          <p className="text-[11px] text-slate-500 mt-2">{model.wellbore}. {model.boundary}.</p>
+          <p className="text-[11px] text-pl-muted mt-2">{model.wellbore}. {model.boundary}.</p>
         )}
       </section>
 
@@ -66,11 +66,11 @@ const MatchPanel = () => {
           {model.parameters.map((meta) => (
             <div key={meta.key} className="space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <Label className="text-xs text-slate-400">{meta.label} ({displayUnit(meta)})</Label>
+                <Label className="text-xs text-pl-muted">{meta.label} ({displayUnit(meta)})</Label>
                 <Input
                   value={displayInputString(kindForCatalogUnit(meta.unit), matchInputs[meta.key] ?? '', unitSystem)}
                   onChange={(e) => setMatchField(meta.key, storeInputString(kindForCatalogUnit(meta.unit), e.target.value, unitSystem))}
-                  className="h-7 w-24 text-right bg-slate-800 border-slate-700"
+                  className="h-7 w-24 text-right"
                 />
               </div>
               <Slider
@@ -81,7 +81,7 @@ const MatchPanel = () => {
             </div>
           ))}
         </div>
-        <p className="text-[11px] text-slate-500 mt-3">
+        <p className="text-[11px] text-pl-muted mt-3">
           Drag to match the model curves onto the data, then refine with the regression.
         </p>
       </section>
@@ -96,7 +96,7 @@ const MatchPanel = () => {
           <Wand2 className="w-4 h-4 mr-2" />
           {isFitting ? 'Fitting…' : 'Auto-fit model'}
         </Button>
-        <p className="text-[11px] text-slate-500 mt-2">
+        <p className="text-[11px] text-pl-muted mt-2">
           Levenberg-Marquardt on pressure and derivative simultaneously, started from the current manual match.
         </p>
       </section>

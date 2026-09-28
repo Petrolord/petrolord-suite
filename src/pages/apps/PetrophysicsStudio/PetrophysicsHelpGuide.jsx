@@ -12,6 +12,7 @@
 // Guard: __tests__/helpGuide.test.jsx.
 
 import React from 'react';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { CURVE_ALIASES } from './services/curveMap';
 import { MINERAL_UNSUITED } from './services/mineralModel';
 import {
@@ -61,7 +62,10 @@ const ALIAS_USE = {
   PEF: 'Recognised for charting; not consumed by the pipeline',
 };
 
+// Design system rollout W1C: the guide shares the Studio's theme scope, so
+// the user's light or dark choice holds between the app and its guide.
 const PetrophysicsHelpGuide = () => (
+  <ThemedApp className="min-h-screen" data-testid="petro-help-theme-scope">
   <HelpGuideShell
     title="Petrophysics Studio Help Guide"
     subtitle="Deterministic log analysis on the shared well registry"
@@ -532,7 +536,7 @@ const PetrophysicsHelpGuide = () => (
         Change the <Code>Scope</Code> selector at the top of the parameter panel from Global to a
         zone. The panel now shows that zone&apos;s effective values; edit any of them and press
         <Code>Apply ZONE overrides</Code>. Only the fields that differ from global are stored, as a
-        patch, and a cyan dot marks each one. Setting a field back to the global value removes its
+        patch, and a dot marks each one. Setting a field back to the global value removes its
         override, and <Code>Clear ZONE overrides</Code> removes them all. Zone cards show an
         override badge listing the overridden keys.
       </Para>
@@ -823,7 +827,7 @@ const PetrophysicsHelpGuide = () => (
         change is recorded too); with no run there is no PHIT rather than a fallback.
       </Para>
       <SubHeading>Not suited to</SubHeading>
-      <ul className="list-disc pl-5 text-sm text-slate-300 space-y-1" data-testid="petro-help-mineral-unsuited">
+      <ul className="list-disc pl-5 text-sm text-pl-text space-y-1" data-testid="petro-help-mineral-unsuited">
         {MINERAL_UNSUITED.map((t) => <li key={t}>{t}</li>)}
       </ul>
     </GuideSection>
@@ -1177,6 +1181,7 @@ const PetrophysicsHelpGuide = () => (
       />
     </GuideSection>
   </HelpGuideShell>
+  </ThemedApp>
 );
 
 export default PetrophysicsHelpGuide;

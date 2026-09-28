@@ -5,7 +5,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 
-const inputCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs w-full';
+const inputCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs w-full';
 const NUM_FIELDS = [
   ['depth_top', 'Depth top'], ['depth_bottom', 'Depth bottom'],
   ['value_left', 'Scale left'], ['value_right', 'Scale right'],
@@ -21,26 +21,26 @@ export default function ProposalCard({ proposal, meta, onChange, onAccept, onDis
   };
   const pct = proposal.confidence == null ? null : Math.round(proposal.confidence * 100);
   return (
-    <div className="rounded border border-violet-700/60 bg-violet-950/30 p-2 space-y-2 text-xs" data-testid="petro-digitizer-proposal">
+    <div className="rounded border border-pl-info/40 bg-pl-info-bg p-2 space-y-2 text-xs" data-testid="petro-digitizer-proposal">
       <div className="flex items-center justify-between">
-        <div className="text-violet-200 font-medium">
+        <div className="text-pl-info-text font-medium">
           Read from the scan{meta?.model ? ` by ${meta.model}` : ''}{pct != null ? ` (confidence ${pct}%)` : ''}
         </div>
-        <div className="text-slate-400">A proposal to check, not a trace.</div>
+        <div className="text-pl-muted">A proposal to check, not a trace.</div>
       </div>
       <div className="grid grid-cols-4 gap-2">
         <label className="space-y-0.5">
-          <div className="text-slate-400">Curve</div>
+          <div className="text-pl-muted">Curve</div>
           <input className={inputCls} value={proposal.mnemonic ?? ''} data-testid="petro-digitizer-proposal-mnemonic"
             onChange={(e) => set('mnemonic', e.target.value.toUpperCase())} />
         </label>
         <label className="space-y-0.5">
-          <div className="text-slate-400">Unit</div>
+          <div className="text-pl-muted">Unit</div>
           <input className={inputCls} value={proposal.unit ?? ''} data-testid="petro-digitizer-proposal-unit"
             onChange={(e) => set('unit', e.target.value)} />
         </label>
         <label className="space-y-0.5">
-          <div className="text-slate-400">Depth unit</div>
+          <div className="text-pl-muted">Depth unit</div>
           <select className={inputCls} value={proposal.depth_unit ?? ''} data-testid="petro-digitizer-proposal-depth-unit"
             onChange={(e) => set('depth_unit', e.target.value || null)}>
             <option value="">not read</option>
@@ -49,17 +49,17 @@ export default function ProposalCard({ proposal, meta, onChange, onAccept, onDis
           </select>
         </label>
         <label className="space-y-0.5">
-          <div className="text-slate-400">Curve colour</div>
+          <div className="text-pl-muted">Curve colour</div>
           <div className="flex items-center gap-1">
             <input type="color" value={proposal.curve_color_hex || '#000000'} data-testid="petro-digitizer-proposal-color"
-              className="h-6 w-8 bg-transparent border border-slate-700 rounded"
+              className="h-6 w-8 bg-transparent border border-pl-border rounded"
               onChange={(e) => set('curve_color_hex', e.target.value)} />
-            <span className="text-slate-500">{proposal.curve_color_hex || 'not read'}</span>
+            <span className="text-pl-muted">{proposal.curve_color_hex || 'not read'}</span>
           </div>
         </label>
         {NUM_FIELDS.map(([key, label]) => (
           <label key={key} className="space-y-0.5">
-            <div className="text-slate-400">{label}</div>
+            <div className="text-pl-muted">{label}</div>
             <input className={inputCls} value={proposal[key] ?? ''} inputMode="decimal"
               data-testid={`petro-digitizer-proposal-${key.replace('_', '-')}`}
               onChange={(e) => set(key, e.target.value === '' ? null : (num(e.target.value) ?? e.target.value))} />
@@ -67,16 +67,16 @@ export default function ProposalCard({ proposal, meta, onChange, onAccept, onDis
         ))}
       </div>
       <div className="flex items-center justify-between">
-        <label className="inline-flex items-center gap-1 text-slate-300">
+        <label className="inline-flex items-center gap-1 text-pl-text">
           <input type="checkbox" checked={!!proposal.value_log} data-testid="petro-digitizer-proposal-log"
             onChange={(e) => set('value_log', e.target.checked)} /> logarithmic scale
         </label>
-        {proposal.notes && <span className="text-slate-400 italic truncate max-w-[50%]" title={proposal.notes}>{proposal.notes}</span>}
+        {proposal.notes && <span className="text-pl-muted italic truncate max-w-[50%]" title={proposal.notes}>{proposal.notes}</span>}
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" className="h-7 border-slate-700 text-slate-300" data-testid="petro-digitizer-proposal-dismiss" onClick={onDismiss}>
+          <Button size="sm" variant="outline" className="h-7" data-testid="petro-digitizer-proposal-dismiss" onClick={onDismiss}>
             Dismiss
           </Button>
-          <Button size="sm" className="h-7 bg-violet-600 hover:bg-violet-500 text-white" data-testid="petro-digitizer-proposal-accept" onClick={onAccept}>
+          <Button size="sm" className="h-7" data-testid="petro-digitizer-proposal-accept" onClick={onAccept}>
             Accept into the form
           </Button>
         </div>
