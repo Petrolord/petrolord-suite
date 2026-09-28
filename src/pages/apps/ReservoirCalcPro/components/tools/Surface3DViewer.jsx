@@ -59,7 +59,7 @@ const TB = ({ active, onClick, title, children }) => (
         onClick={onClick}
         title={title}
         className={`h-6 w-6 rounded-sm flex items-center justify-center transition-colors ${
-            active ? 'bg-emerald-600/80 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/60'
+            active ? 'bg-pl-primary text-pl-primary-fg' : 'text-pl-muted hover:text-pl-text hover:bg-pl-sunken'
         }`}
     >
         {children}
@@ -350,35 +350,35 @@ const Surface3DViewer = ({
     }, [geom, scale, contactsKey, wire, drape, showContacts, drapeGeom]); // eslint-disable-line react-hooks/exhaustive-deps
 
     if (!geom) {
-        return <div className="w-full h-full flex items-center justify-center text-slate-600 text-sm">No surface data to render in 3D.</div>;
+        return <div className="w-full h-full flex items-center justify-center text-pl-muted text-sm">No surface data to render in 3D.</div>;
     }
 
     const unitLabel = valueUnit || depthUnit;
     return (
-        <div className="w-full h-full relative bg-slate-950 overflow-hidden select-none">
+        <div className="w-full h-full relative bg-pl-sunken overflow-hidden select-none">
             <canvas ref={canvasRef} className="w-full h-full block cursor-grab active:cursor-grabbing touch-none" />
 
             {/* Toolbar: title + render toggles + colour scale */}
             <div className="absolute top-2 left-2 z-20 flex flex-col gap-1 items-start">
                 {title && (
-                    <div className="pointer-events-none bg-slate-950/60 backdrop-blur px-2 py-0.5 rounded text-[10px] text-emerald-400 font-semibold border border-slate-800">
+                    <div className="pointer-events-none bg-pl-sunken px-2 py-0.5 rounded text-[10px] text-pl-success-text font-semibold border border-pl-border">
                         {title}
                     </div>
                 )}
-                <div className="flex items-center gap-1 bg-slate-900/85 backdrop-blur border border-slate-700 rounded-md px-1 py-0.5 shadow-lg">
+                <div className="flex items-center gap-1 bg-pl-surface border border-pl-border rounded-md px-1 py-0.5 shadow-lg">
                     <TB active={!wire} onClick={() => setWire(false)} title="Solid shaded surface"><Layers className="w-3 h-3" /></TB>
                     <TB active={wire} onClick={() => setWire(true)} title="Wireframe mesh"><Grid3x3 className="w-3 h-3" /></TB>
-                    <div className="w-px h-4 bg-slate-700 mx-0.5" />
+                    <div className="w-px h-4 bg-pl-border mx-0.5" />
                     <TB active={drape} onClick={() => setDrape((v) => !v)} title="Draped contour lines"><Waves className="w-3 h-3" /></TB>
                     {contacts && (
                         <TB active={showContacts} onClick={() => setShowContacts((v) => !v)} title="Fluid-contact planes"><Droplets className="w-3 h-3" /></TB>
                     )}
-                    <div className="w-px h-4 bg-slate-700 mx-0.5" />
+                    <div className="w-px h-4 bg-pl-border mx-0.5" />
                     <select
                         value={scale}
                         onChange={(e) => setScale(e.target.value)}
                         title="Colour scale"
-                        className="h-6 bg-slate-800 border border-slate-700 rounded text-[10px] text-slate-200 px-1 focus:outline-none"
+                        className="h-6 bg-pl-sunken border border-pl-border rounded text-[10px] text-pl-text px-1 focus:outline-none"
                     >
                         {SCALE_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
@@ -386,35 +386,35 @@ const Surface3DViewer = ({
             </div>
 
             {/* Colour legend */}
-            <div className={`absolute ${compact ? 'bottom-14 right-3' : 'top-3 right-3'} z-10 bg-slate-950/60 backdrop-blur rounded border border-slate-800 p-2 w-28 pointer-events-none`}>
-                <div className="text-[9px] text-slate-400 mb-1 uppercase tracking-wide">{isSurface ? 'Depth' : 'Value'} ({unitLabel})</div>
+            <div className={`absolute ${compact ? 'bottom-14 right-3' : 'top-3 right-3'} z-10 bg-pl-sunken rounded border border-pl-border p-2 w-28 pointer-events-none`}>
+                <div className="text-[9px] text-pl-muted mb-1 uppercase tracking-wide">{isSurface ? 'Depth' : 'Value'} ({unitLabel})</div>
                 <div className="h-2 rounded" style={{ background: `linear-gradient(to right, ${cmapCss(scale)})` }} />
-                <div className="flex justify-between text-[9px] text-slate-400 mt-0.5 font-mono">
+                <div className="flex justify-between text-[9px] text-pl-muted mt-0.5 font-mono">
                     <span>{Math.round(geom.zmin)}</span>
                     <span>{Math.round(geom.zmax)}</span>
                 </div>
             </div>
 
             {/* Controls */}
-            <div className="absolute bottom-3 left-3 z-10 flex items-center gap-2 bg-slate-950/60 backdrop-blur rounded border border-slate-800 px-2 py-1">
-                <Mountain className="w-3.5 h-3.5 text-slate-400" />
-                <span className="text-[9px] text-slate-400">V.E.</span>
+            <div className="absolute bottom-3 left-3 z-10 flex items-center gap-2 bg-pl-sunken rounded border border-pl-border px-2 py-1">
+                <Mountain className="w-3.5 h-3.5 text-pl-muted" />
+                <span className="text-[9px] text-pl-muted">V.E.</span>
                 <input
                     type="range" min="0.2" max="40" step="0.1" value={ve}
                     onChange={(e) => setVe(parseFloat(e.target.value))}
-                    className="w-24 accent-emerald-500 cursor-pointer"
+                    className="w-24 accent-pl-primary cursor-pointer"
                 />
-                <span className="text-[9px] font-mono text-slate-300 w-8">{ve.toFixed(1)}×</span>
+                <span className="text-[9px] font-mono text-pl-text w-8">{ve.toFixed(1)}×</span>
                 <button
                     onClick={() => { cameraRef.current = { az: -0.6, el: 0.5, dist: 3.2 }; setVe(defaultVE); redrawRef.current(); }}
-                    className="text-slate-400 hover:text-white" title="Reset view (drag to rotate, scroll to zoom, double-click to reset)"
+                    className="text-pl-muted hover:text-pl-text" title="Reset view (drag to rotate, scroll to zoom, double-click to reset)"
                 >
                     <RotateCcw className="w-3.5 h-3.5" />
                 </button>
             </div>
 
             {!compact && (
-                <div className="absolute bottom-3 right-3 z-10 pointer-events-none text-[9px] text-slate-500 bg-slate-950/50 px-2 py-0.5 rounded">
+                <div className="absolute bottom-3 right-3 z-10 pointer-events-none text-[9px] text-pl-muted bg-pl-sunken px-2 py-0.5 rounded">
                     drag to rotate • scroll to zoom • double-click to reset
                 </div>
             )}

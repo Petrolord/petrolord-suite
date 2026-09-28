@@ -47,8 +47,8 @@ const MapViewer = ({ mapData, onClose, isOpen }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="bg-slate-950 border-slate-800 text-slate-100 max-w-6xl h-[90vh] flex flex-col p-0">
-                <DialogHeader className="p-4 border-b border-slate-800 bg-slate-900 flex flex-row items-center justify-between space-y-0">
+            <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0">
+                <DialogHeader className="p-4 border-b border-pl-border bg-pl-surface flex flex-row items-center justify-between space-y-0">
                     <div className="flex items-center gap-3">
                         <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0 rounded-full">
                             <ArrowLeft className="h-4 w-4" />
@@ -68,10 +68,10 @@ const MapViewer = ({ mapData, onClose, isOpen }) => {
                     </div>
                 </DialogHeader>
 
-                <div className="flex-1 relative overflow-hidden bg-slate-950">
+                <div className="flex-1 relative overflow-hidden bg-pl-bg" data-canvas="dark">
                     {loading ? (
                         <div className="absolute inset-0 flex items-center justify-center">
-                            <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+                            <Loader2 className="w-12 h-12 text-pl-primary-text animate-spin" />
                         </div>
                     ) : fullData ? (
                         fullData.type === '3d' ? (
@@ -95,7 +95,7 @@ const MapViewer = ({ mapData, onClose, isOpen }) => {
                             />
                         )
                     ) : (
-                         <div className="absolute inset-0 flex items-center justify-center text-slate-500">
+                         <div className="absolute inset-0 flex items-center justify-center text-pl-muted">
                             Failed to render map.
                         </div>
                     )}

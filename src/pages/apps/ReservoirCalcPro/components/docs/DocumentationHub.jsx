@@ -108,16 +108,16 @@ const DocumentationHub = ({ open, onOpenChange }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl h-[85vh] bg-slate-950 border-slate-800 p-0 flex overflow-hidden">
+      <DialogContent className="max-w-6xl h-[85vh] p-0 flex overflow-hidden">
         {/* Sidebar */}
-        <div className="w-64 border-r border-slate-800 flex flex-col bg-slate-900/50">
-          <div className="p-4 border-b border-slate-800">
-            <h2 className="text-lg font-bold text-white mb-2">Documentation</h2>
+        <div className="w-64 border-r border-pl-border flex flex-col bg-pl-surface">
+          <div className="p-4 border-b border-pl-border">
+            <h2 className="text-lg font-bold text-pl-text mb-2">Documentation</h2>
             <div className="relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-500" />
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-pl-muted" />
               <Input
                 placeholder="Search docs..."
-                className="pl-8 h-9 bg-slate-900 border-slate-700 text-xs"
+                className="pl-8 h-9 text-xs"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -126,21 +126,22 @@ const DocumentationHub = ({ open, onOpenChange }) => {
           <ScrollArea className="flex-1">
             <div className="p-2 space-y-3">
               {grouped.length === 0 ? (
-                <p className="px-2 py-4 text-xs text-slate-500">
+                <p className="px-2 py-4 text-xs text-pl-muted">
                   Nothing matches that search. Try a term like contacts, units, tornado or export.
                 </p>
               ) : null}
               {grouped.map(({ cat, items }) => (
                 <div key={cat}>
-                  <div className="px-2 pb-1 text-[10px] uppercase tracking-wider text-slate-500">{cat}</div>
+                  <div className="px-2 pb-1 text-[10px] uppercase tracking-wider text-pl-muted">{cat}</div>
                   <div className="space-y-1">
                     {items.map((section) => (
                       <Button
                         key={section.id}
                         data-testid={`rcp-doc-${section.id}`}
                         variant={activeSection === section.id ? 'secondary' : 'ghost'}
-                        className={`w-full justify-start text-sm ${activeSection === section.id ? 'bg-blue-900/20 text-blue-400' : 'text-slate-400 hover:text-white'}`}
+                        className={`w-full justify-start text-sm ${activeSection === section.id ? 'bg-pl-primary/10 text-pl-primary-text' : 'text-pl-muted hover:text-pl-text'}`}
                         onClick={() => setActiveSection(section.id)}
+                        aria-current={activeSection === section.id ? 'page' : undefined}
                       >
                         <section.icon className="w-4 h-4 mr-2 shrink-0" />
                         <span className="truncate">{section.label}</span>
@@ -154,14 +155,14 @@ const DocumentationHub = ({ open, onOpenChange }) => {
         </div>
 
         {/* Content */}
-        <div className="flex-1 flex flex-col min-w-0 bg-slate-950">
-          <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/30">
-            <div className="flex items-center text-sm text-slate-400 min-w-0">
-              <span className="hover:text-white cursor-pointer shrink-0" onClick={() => setActiveSection('getting-started')}>Docs</span>
+        <div className="flex-1 flex flex-col min-w-0 bg-pl-sunken">
+          <div className="p-4 border-b border-pl-border flex justify-between items-center bg-pl-surface">
+            <div className="flex items-center text-sm text-pl-muted min-w-0">
+              <span className="hover:text-pl-text cursor-pointer shrink-0" onClick={() => setActiveSection('getting-started')}>Docs</span>
               <span className="mx-2 shrink-0">/</span>
-              <span className="text-slate-500 shrink-0">{active.category}</span>
+              <span className="text-pl-muted shrink-0">{active.category}</span>
               <span className="mx-2 shrink-0">/</span>
-              <span className="text-white font-medium truncate">{active.label}</span>
+              <span className="text-pl-text font-medium truncate">{active.label}</span>
             </div>
             <Button variant="outline" size="sm" onClick={() => window.print()} className="hidden md:flex shrink-0">
               Print Guide

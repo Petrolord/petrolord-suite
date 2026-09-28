@@ -40,9 +40,9 @@ export default function ContactSweepChart() {
   const cLabel = `${gas ? 'GWC' : 'OWC'}, TVDSS ${sweep.contactUnit}`;
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-lg p-4" data-testid="rcp-contact-sweep">
-      <h3 className="text-sm font-bold text-white mb-1">{gas ? 'GIIP' : 'STOIIP'} against the contact</h3>
-      <p className="text-[11px] text-slate-400 mb-2">
+    <div className="bg-pl-surface border border-pl-border rounded-lg p-4" data-testid="rcp-contact-sweep">
+      <h3 className="text-sm font-bold text-pl-text mb-1">{gas ? 'GIIP' : 'STOIIP'} against the contact</h3>
+      <p className="text-[11px] text-pl-muted mb-2">
         Every other input held. Read how much the volume moves if the contact is shallower or deeper than entered.
       </p>
       <ChartFrame height={240} exportFilename="rcp-volume-vs-contact">

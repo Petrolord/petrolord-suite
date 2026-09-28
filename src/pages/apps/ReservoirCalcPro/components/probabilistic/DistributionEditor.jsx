@@ -41,11 +41,11 @@ const DistributionEditor = ({ label, parameterKey, distribution, onChange, unit 
     };
 
     return (
-        <Card className="p-3 bg-slate-900 border-slate-800 flex flex-col gap-3">
+        <Card className="p-3 flex flex-col gap-3">
             <div className="flex items-center justify-between">
-                <Label className="text-xs font-bold text-slate-200">{label} <span className="text-slate-500 font-normal">({unit})</span></Label>
+                <Label className="text-xs font-bold text-pl-text">{label} <span className="text-pl-muted font-normal">({unit})</span></Label>
                 <Select value={distribution.type} onValueChange={handleTypeChange}>
-                    <SelectTrigger className="h-6 w-[100px] text-[10px] bg-slate-950 border-slate-700"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-6 w-[100px] text-[10px]"><SelectValue /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="triangular">Triangular</SelectItem>
                         <SelectItem value="normal">Normal</SelectItem>
@@ -59,30 +59,30 @@ const DistributionEditor = ({ label, parameterKey, distribution, onChange, unit 
             <div className="grid grid-cols-3 gap-2">
                 {distribution.type === 'triangular' && (
                     <>
-                        <div className="space-y-1"><Label className="text-[10px] text-slate-400">Min</Label><NumberField className="h-6 text-xs bg-slate-950" value={distribution.min} onCommit={v=>handleParamChange('min', v)}/></div>
-                        <div className="space-y-1"><Label className="text-[10px] text-slate-400">Mode</Label><NumberField className="h-6 text-xs bg-slate-950" value={distribution.mode} onCommit={v=>handleParamChange('mode', v)}/></div>
-                        <div className="space-y-1"><Label className="text-[10px] text-slate-400">Max</Label><NumberField className="h-6 text-xs bg-slate-950" value={distribution.max} onCommit={v=>handleParamChange('max', v)}/></div>
+                        <div className="space-y-1"><Label className="text-[10px] text-pl-muted">Min</Label><NumberField className="h-6 text-xs" value={distribution.min} onCommit={v=>handleParamChange('min', v)}/></div>
+                        <div className="space-y-1"><Label className="text-[10px] text-pl-muted">Mode</Label><NumberField className="h-6 text-xs" value={distribution.mode} onCommit={v=>handleParamChange('mode', v)}/></div>
+                        <div className="space-y-1"><Label className="text-[10px] text-pl-muted">Max</Label><NumberField className="h-6 text-xs" value={distribution.max} onCommit={v=>handleParamChange('max', v)}/></div>
                     </>
                 )}
                 {(distribution.type === 'normal' || distribution.type === 'lognormal') && (
                     <>
-                        <div className="col-span-1 space-y-1"><Label className="text-[10px] text-slate-400">Mean</Label><NumberField className="h-6 text-xs bg-slate-950" value={distribution.mean} onCommit={v=>handleParamChange('mean', v)}/></div>
-                        <div className="col-span-1 space-y-1"><Label className="text-[10px] text-slate-400">StdDev</Label><NumberField className="h-6 text-xs bg-slate-950" value={distribution.stdDev} onCommit={v=>handleParamChange('stdDev', v)}/></div>
+                        <div className="col-span-1 space-y-1"><Label className="text-[10px] text-pl-muted">Mean</Label><NumberField className="h-6 text-xs" value={distribution.mean} onCommit={v=>handleParamChange('mean', v)}/></div>
+                        <div className="col-span-1 space-y-1"><Label className="text-[10px] text-pl-muted">StdDev</Label><NumberField className="h-6 text-xs" value={distribution.stdDev} onCommit={v=>handleParamChange('stdDev', v)}/></div>
                     </>
                 )}
                 {distribution.type === 'uniform' && (
                     <>
-                        <div className="col-span-1.5 space-y-1"><Label className="text-[10px] text-slate-400">Min</Label><NumberField className="h-6 text-xs bg-slate-950" value={distribution.min} onCommit={v=>handleParamChange('min', v)}/></div>
-                        <div className="col-span-1.5 space-y-1"><Label className="text-[10px] text-slate-400">Max</Label><NumberField className="h-6 text-xs bg-slate-950" value={distribution.max} onCommit={v=>handleParamChange('max', v)}/></div>
+                        <div className="col-span-1.5 space-y-1"><Label className="text-[10px] text-pl-muted">Min</Label><NumberField className="h-6 text-xs" value={distribution.min} onCommit={v=>handleParamChange('min', v)}/></div>
+                        <div className="col-span-1.5 space-y-1"><Label className="text-[10px] text-pl-muted">Max</Label><NumberField className="h-6 text-xs" value={distribution.max} onCommit={v=>handleParamChange('max', v)}/></div>
                     </>
                 )}
                 {distribution.type === 'constant' && (
-                    <div className="col-span-3 space-y-1"><Label className="text-[10px] text-slate-400">Value</Label><NumberField className="h-6 text-xs bg-slate-950" value={distribution.value} onCommit={v=>handleParamChange('value', v)}/></div>
+                    <div className="col-span-3 space-y-1"><Label className="text-[10px] text-pl-muted">Value</Label><NumberField className="h-6 text-xs" value={distribution.value} onCommit={v=>handleParamChange('value', v)}/></div>
                 )}
             </div>
 
             {distribution.type !== 'constant' && previewData.length > 1 && (
-                <div className="rounded-lg overflow-hidden border border-slate-800">
+                <div className="rounded-lg overflow-hidden border border-pl-border">
                     <ChartFrame height={90}>
                         <AreaChart data={previewData} margin={{ top: 8, right: 10, bottom: 0, left: 10 }}>
                             <CartesianGrid {...GRID_STYLE} vertical={false} />

@@ -6,9 +6,9 @@ import ScenarioRail from './ScenarioRail';
 import { SectionLabel, fmt } from './primitives';
 
 const Row = ({ label, value }) => (
-  <div className="flex justify-between text-xs py-1 border-b border-slate-800/60 last:border-0">
-    <span className="text-slate-500">{label}</span>
-    <span className="text-slate-200 font-medium">{value}</span>
+  <div className="flex justify-between text-xs py-1 border-b border-pl-border last:border-0">
+    <span className="text-pl-muted">{label}</span>
+    <span className="text-pl-text font-medium font-pl-mono tabular-nums">{value}</span>
   </div>
 );
 
@@ -75,7 +75,7 @@ const DiagnosticsRail = ({ activeTab }) => {
         </section>
       )}
 
-      {activeTab !== 'scenarios' && <Separator className="bg-slate-800" />}
+      {activeTab !== 'scenarios' && <Separator />}
       <ScenarioRail />
     </div>
   );

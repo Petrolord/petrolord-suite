@@ -51,8 +51,8 @@ const LabDataResults = ({ selectedId }) => {
 
   if (!selected) {
     return (
-      <Card className="bg-slate-900 border-slate-800">
-        <CardContent className="py-10 text-center text-sm text-slate-400">
+      <Card>
+        <CardContent className="py-10 text-center text-sm text-pl-muted">
           Select or add a core sample in the left rail. Each sample carries its own kr and Pc tables; the Capillary
           tab consumes the Pc data through the J-function.
         </CardContent>
@@ -77,13 +77,13 @@ const LabDataResults = ({ selectedId }) => {
               <ArrowRightCircle className="w-4 h-4 mr-1.5" /> Use fit on the Curves tab
             </Button>
             {!fit.converged && (
-              <p className="text-xs text-amber-400">The fit stopped at the iteration cap; treat the numbers as approximate.</p>
+              <p className="text-xs text-pl-warning-text">The fit stopped at the iteration cap; treat the numbers as approximate.</p>
             )}
           </div>
         </>
       ) : (
-        <Card className="bg-slate-900 border-slate-800">
-          <CardContent className="py-4 text-sm text-slate-400">
+        <Card>
+          <CardContent className="py-4 text-sm text-pl-muted">
             {selected.krFitError
               ?? 'Import a kr table (at least 3 rows) to fit Corey exponents for this sample.'}
           </CardContent>
@@ -91,7 +91,7 @@ const LabDataResults = ({ selectedId }) => {
       )}
 
       {(selected.krRows?.length ?? 0) >= 3 && (
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Lab kr with Corey fit: {selected.name}</CardTitle>
           </CardHeader>
@@ -129,7 +129,7 @@ const LabDataResults = ({ selectedId }) => {
       )}
 
       {normalizedOverlay.length >= 2 && (
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Normalized curves across samples</CardTitle>
           </CardHeader>
@@ -160,7 +160,7 @@ const LabDataResults = ({ selectedId }) => {
                 ))}
               </ComposedChart>
             </ChartFrame>
-            <p className="text-[11px] text-slate-500 px-4 pb-3">
+            <p className="text-[11px] text-pl-muted px-4 pb-3">
               Endpoint-normalized shapes. Samples from the same rock type should overlay; systematic spread means
               the Corey exponents genuinely differ and one averaged set will smear real character. Averaging stays
               a human decision: fit each sample, compare the exponents here, then type your chosen set on the

@@ -103,11 +103,11 @@ const ProjectManager = ({ onClose }) => {
     };
 
     return (
-        <div className="h-full flex flex-col bg-slate-950 rounded-lg border border-slate-800 overflow-hidden">
-            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900">
+        <div className="h-full flex flex-col bg-pl-sunken rounded-lg border border-pl-border overflow-hidden">
+            <div className="p-4 border-b border-pl-border flex justify-between items-center bg-pl-surface">
                 <div className="flex items-center gap-2">
-                    <FolderOpen className="w-5 h-5 text-blue-400" />
-                    <h2 className="font-bold text-white">Project Manager</h2>
+                    <FolderOpen className="w-5 h-5 text-pl-muted" />
+                    <h2 className="font-bold text-pl-text">Project Manager</h2>
                 </div>
                 <div className="flex gap-2">
                     <label>
@@ -118,7 +118,7 @@ const ProjectManager = ({ onClose }) => {
                     </label>
                     <Button
                         size="sm"
-                        className="gap-2 h-8 text-xs bg-blue-600 hover:bg-blue-700"
+                        className="gap-2 h-8 text-xs"
                         onClick={() => {
                             if (state.isDirty && !window.confirm("Start a new project? Unsaved changes will be lost.")) return;
                             createNewProject();
@@ -133,19 +133,19 @@ const ProjectManager = ({ onClose }) => {
 
             <div className="flex flex-1 overflow-hidden">
                 {/* LEFT SIDEBAR: LIST */}
-                <div className={`w-full md:w-1/3 border-r border-slate-800 flex flex-col ${view === 'details' ? 'hidden md:flex' : 'flex'}`}>
-                    <div className="p-3 border-b border-slate-800 space-y-2 bg-slate-900/50">
+                <div className={`w-full md:w-1/3 border-r border-pl-border flex flex-col ${view === 'details' ? 'hidden md:flex' : 'flex'}`}>
+                    <div className="p-3 border-b border-pl-border space-y-2 bg-pl-surface">
                         <div className="relative">
-                            <Search className="absolute left-2 top-2.5 w-4 h-4 text-slate-500" />
+                            <Search className="absolute left-2 top-2.5 w-4 h-4 text-pl-muted" />
                             <Input 
                                 placeholder="Search projects..." 
-                                className="pl-8 h-9 bg-slate-950 border-slate-700 text-sm"
+                                className="pl-8 h-9 text-sm"
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                             />
                         </div>
                         <Select value={sortOrder} onValueChange={setSortOrder}>
-                            <SelectTrigger className="h-8 text-xs bg-slate-950 border-slate-700">
+                            <SelectTrigger className="h-8 text-xs">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -159,7 +159,7 @@ const ProjectManager = ({ onClose }) => {
                     <ScrollArea className="flex-1">
                         <div className="p-2 space-y-1">
                             {filteredProjects.length === 0 && (
-                                <div className="text-center p-4 text-slate-500 text-sm">
+                                <div className="text-center p-4 text-pl-muted text-sm">
                                     No projects found.
                                 </div>
                             )}
@@ -169,15 +169,15 @@ const ProjectManager = ({ onClose }) => {
                                     onClick={() => handleSelectProject(p)}
                                     className={`p-3 rounded-md cursor-pointer transition-colors text-left ${
                                         selectedProject?.id === p.id 
-                                        ? 'bg-blue-900/20 border border-blue-500/30' 
-                                        : 'hover:bg-slate-900 border border-transparent'
+                                        ? 'bg-pl-surface border border-pl-primary' 
+                                        : 'hover:bg-pl-surface border border-transparent'
                                     }`}
                                 >
                                     <div className="flex justify-between items-start mb-1">
-                                        <span className="font-medium text-sm text-slate-200 truncate pr-2">{p.name}</span>
+                                        <span className="font-medium text-sm text-pl-text truncate pr-2">{p.name}</span>
                                         <Badge variant="secondary" className="text-[10px] h-4 px-1">v{p.version}</Badge>
                                     </div>
-                                    <div className="flex items-center gap-1 text-xs text-slate-500">
+                                    <div className="flex items-center gap-1 text-xs text-pl-muted">
                                         <Calendar className="w-3 h-3" />
                                         {new Date(p.updated_at).toLocaleDateString()}
                                     </div>
@@ -188,48 +188,48 @@ const ProjectManager = ({ onClose }) => {
                 </div>
 
                 {/* RIGHT CONTENT: DETAILS */}
-                <div className={`flex-1 bg-slate-950 flex flex-col ${view === 'list' ? 'hidden md:flex' : 'flex'}`}>
+                <div className={`flex-1 bg-pl-sunken flex flex-col ${view === 'list' ? 'hidden md:flex' : 'flex'}`}>
                     {selectedProject ? (
                         <div className="flex-1 flex flex-col h-full">
                              {/* Mobile Back Button */}
-                            <div className="md:hidden p-2 border-b border-slate-800">
+                            <div className="md:hidden p-2 border-b border-pl-border">
                                 <Button variant="ghost" size="sm" onClick={() => setView('list')}>← Back to List</Button>
                             </div>
 
                             <div className="p-6 flex-1 overflow-y-auto">
                                 <div className="flex justify-between items-start mb-6">
                                     <div>
-                                        <h1 className="text-2xl font-bold text-white mb-2">{selectedProject.name}</h1>
-                                        <div className="flex gap-3 text-sm text-slate-400">
+                                        <h1 className="text-2xl font-bold text-pl-text mb-2">{selectedProject.name}</h1>
+                                        <div className="flex gap-3 text-sm text-pl-muted">
                                             <span className="flex items-center gap-1"><Clock className="w-4 h-4"/> Modified: {new Date(selectedProject.updated_at).toLocaleString()}</span>
                                             <span className="flex items-center gap-1"><Calendar className="w-4 h-4"/> Created: {new Date(selectedProject.created_at).toLocaleDateString()}</span>
                                         </div>
                                     </div>
-                                    <Badge className="bg-blue-600">Version {selectedProject.version}</Badge>
+                                    <Badge variant="neutral">Version {selectedProject.version}</Badge>
                                 </div>
 
                                 <div className="grid gap-6">
-                                    <Card className="bg-slate-900 border-slate-800">
+                                    <Card>
                                         <CardHeader className="pb-2">
-                                            <CardTitle className="text-sm uppercase text-slate-500">Description</CardTitle>
+                                            <CardTitle className="text-sm uppercase text-pl-muted">Description</CardTitle>
                                         </CardHeader>
                                         <CardContent>
-                                            <p className="text-slate-300 text-sm leading-relaxed">
+                                            <p className="text-pl-text text-sm leading-relaxed">
                                                 {selectedProject.description || "No description provided."}
                                             </p>
                                         </CardContent>
                                     </Card>
 
                                     <div className="grid grid-cols-2 gap-4">
-                                        <Card className="bg-slate-900 border-slate-800">
+                                        <Card>
                                             <CardContent className="p-4">
-                                                <div className="text-xs text-slate-500 uppercase mb-1">Fluid Type</div>
+                                                <div className="text-xs text-pl-muted uppercase mb-1">Fluid Type</div>
                                                 <div className="font-medium capitalize">{selectedProject.inputs?.deterministic?.fluidType || 'Not set'}</div>
                                             </CardContent>
                                         </Card>
-                                        <Card className="bg-slate-900 border-slate-800">
+                                        <Card>
                                             <CardContent className="p-4">
-                                                <div className="text-xs text-slate-500 uppercase mb-1">Assets</div>
+                                                <div className="text-xs text-pl-muted uppercase mb-1">Assets</div>
                                                 <div className="font-medium">
                                                     {selectedProject.inputs?.surfaces?.length || 0} Surfaces, {selectedProject.inputs?.polygons?.length || 0} Polygons
                                                 </div>
@@ -239,7 +239,7 @@ const ProjectManager = ({ onClose }) => {
                                 </div>
                             </div>
 
-                            <div className="p-4 border-t border-slate-800 bg-slate-900 flex justify-between items-center">
+                            <div className="p-4 border-t border-pl-border bg-pl-surface flex justify-between items-center">
                                 <div className="flex gap-2">
                                     <Button variant="destructive" size="sm" onClick={handleDelete}>
                                         <Trash2 className="w-4 h-4 mr-2" /> Delete
@@ -248,17 +248,17 @@ const ProjectManager = ({ onClose }) => {
                                         <Download className="w-4 h-4 mr-2" /> Export JSON
                                     </Button>
                                 </div>
-                                <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={handleLoad}>
+                                <Button onClick={handleLoad}>
                                     Load Project
                                 </Button>
                             </div>
                         </div>
                     ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-slate-500 p-8 text-center">
-                            <div className="w-16 h-16 bg-slate-900 rounded-full flex items-center justify-center mb-4">
+                        <div className="flex-1 flex flex-col items-center justify-center text-pl-muted p-8 text-center">
+                            <div className="w-16 h-16 bg-pl-surface rounded-full flex items-center justify-center mb-4">
                                 <FolderOpen className="w-8 h-8 opacity-50" />
                             </div>
-                            <h3 className="text-lg font-medium text-slate-300">No Project Selected</h3>
+                            <h3 className="text-lg font-medium text-pl-text">No Project Selected</h3>
                             <p className="text-sm max-w-xs mx-auto mt-2">Select a project from the list to view details, load, or manage it.</p>
                         </div>
                     )}

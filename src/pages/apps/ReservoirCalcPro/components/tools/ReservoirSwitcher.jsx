@@ -60,12 +60,12 @@ const ReservoirSwitcher = () => {
 
     return (
         <div className="flex items-center gap-1">
-            <Layers className="w-3.5 h-3.5 text-blue-400 hidden md:block" />
+            <Layers className="w-3.5 h-3.5 text-pl-muted hidden md:block" />
             <Select
                 value={activeId}
                 onValueChange={(id) => { if (id !== '__current') switchReservoir(id); }}
             >
-                <SelectTrigger className="h-8 w-[150px] text-xs bg-slate-800 border-slate-700 text-slate-200">
+                <SelectTrigger className="h-8 w-[150px] text-xs">
                     <SelectValue placeholder="Reservoir" />
                 </SelectTrigger>
                 <SelectContent>
@@ -74,18 +74,18 @@ const ReservoirSwitcher = () => {
                     ))}
                 </SelectContent>
             </Select>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-white" onClick={openAdd} title="Add reservoir">
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-pl-muted hover:text-pl-text" onClick={openAdd} title="Add reservoir">
                 <Plus className="w-3.5 h-3.5" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-white hidden md:flex" onClick={openRename} title="Rename reservoir">
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-pl-muted hover:text-pl-text hidden md:flex" onClick={openRename} title="Rename reservoir">
                 <Pencil className="w-3.5 h-3.5" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-400 hidden md:flex" onClick={handleDelete} title="Delete reservoir">
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-pl-muted hover:text-pl-danger-text hidden md:flex" onClick={handleDelete} title="Delete reservoir">
                 <Trash2 className="w-3.5 h-3.5" />
             </Button>
 
             <Dialog open={dialog !== null} onOpenChange={(o) => { if (!o) setDialog(null); }}>
-                <DialogContent className="bg-slate-900 border-slate-800 text-white sm:max-w-[380px]">
+                <DialogContent className="sm:max-w-[380px]">
                     <DialogHeader>
                         <DialogTitle className="text-base">{dialog === 'add' ? 'Add Reservoir' : 'Rename Reservoir'}</DialogTitle>
                     </DialogHeader>
@@ -96,15 +96,15 @@ const ReservoirSwitcher = () => {
                             onChange={e => setName(e.target.value)}
                             onKeyDown={e => { if (e.key === 'Enter') confirmDialog(); }}
                             autoFocus
-                            className="bg-slate-950 border-slate-700"
+                           
                         />
                         {dialog === 'add' && (
-                            <p className="text-[11px] text-slate-500">The current reservoir is kept in this project. The new one starts with default inputs.</p>
+                            <p className="text-[11px] text-pl-muted">The current reservoir is kept in this project. The new one starts with default inputs.</p>
                         )}
                     </div>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setDialog(null)}>Cancel</Button>
-                        <Button onClick={confirmDialog} className="bg-blue-600 hover:bg-blue-700">{dialog === 'add' ? 'Add' : 'Rename'}</Button>
+                        <Button onClick={confirmDialog}>{dialog === 'add' ? 'Add' : 'Rename'}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

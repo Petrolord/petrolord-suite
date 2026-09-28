@@ -17,8 +17,9 @@ import { useReservoirCalc } from '../contexts/ReservoirCalcContext';
 import {
   zoneCatalog, registryPatchForZone, areaPatchForSurface, aoiFromBoundary, isBoundaryLayer, describePatch,
 } from '../services/registryDoor';
+import { COMPACT_FIELD_THEMED } from '@/components/ui/native-select';
 
-const selCls = 'w-full rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
+const selCls = COMPACT_FIELD_THEMED;
 
 export default function RegistryPanel() {
   const { state, backend, appPaths, updateInputs, addAOI, logEvent } = useReservoirCalc();
@@ -89,15 +90,15 @@ export default function RegistryPanel() {
 
   return (
     <div className="space-y-3 text-xs" data-testid="rcp-registry-panel">
-      <div className="bg-cyan-900/20 border border-cyan-800 p-2 rounded text-[10px] text-cyan-300 leading-tight flex items-start gap-1">
+      <div className="bg-pl-info-bg border border-pl-info/40 p-2 rounded text-[10px] text-pl-info-text leading-tight flex items-start gap-1">
         <Database className="w-3 h-3 mt-0.5 shrink-0" />
         <span>From the shared Geoscience registry: zone averages published by Petrophysics Studio, surfaces from Mapping and Earth Modeling, boundary polygons drawn in Mapping. Nothing is applied until you press Apply; the audit trail records the source.</span>
       </div>
 
       <div className="space-y-1">
-        <Label className="text-xs font-bold text-slate-300">Petrophysics from a registry zone</Label>
+        <Label className="text-xs font-bold text-pl-text">Petrophysics from a registry zone</Label>
         {wells === null ? (
-          <div className="text-slate-500 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Loading wells</div>
+          <div className="text-pl-muted flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Loading wells</div>
         ) : (
           <select className={selCls} data-testid="rcp-reg-zone" value={zone} onChange={(e) => setZone(e.target.value)}>
             <option value="">zone…</option>
@@ -105,24 +106,24 @@ export default function RegistryPanel() {
           </select>
         )}
         {preview && !preview.error && (
-          <div className="text-slate-300" data-testid="rcp-reg-preview">{describePatch(preview.patch, state.unitSystem)} from {preview.wellNames.join(', ')}</div>
+          <div className="text-pl-text" data-testid="rcp-reg-preview">{describePatch(preview.patch, state.unitSystem)} from {preview.wellNames.join(', ')}</div>
         )}
         {zone && wells && (
           <div className="flex flex-wrap gap-1">
             {wells.filter((w) => (w.zones || []).some((z) => z.name === zone)).map((w) => (
               <Link key={w.id} to={wellDataManagerHref(w.id, 'tops', appPath(WELL_DATA_MANAGER_ID, appPaths))} data-testid={`rcp-reg-well-${w.name}`} title={`Open ${w.name} in Well Data Manager`}
-                className="inline-flex items-center gap-0.5 rounded border border-slate-700 px-1 py-0.5 text-[10px] text-slate-300 hover:bg-slate-800">
+                className="inline-flex items-center gap-0.5 rounded border border-pl-border px-1 py-0.5 text-[10px] text-pl-text hover:bg-pl-sunken">
                 <ExternalLink className="w-2.5 h-2.5" /> {w.name}
               </Link>
             ))}
           </div>
         )}
-        {preview?.error && <div className="text-amber-400">{preview.error}</div>}
+        {preview?.error && <div className="text-pl-warning-text">{preview.error}</div>}
         <Button size="sm" className="h-7 text-xs w-full" data-testid="rcp-reg-apply-zone" disabled={!preview || !!preview.error} onClick={applyZone}>Apply zone averages</Button>
       </div>
 
       <div className="space-y-1">
-        <Label className="text-xs font-bold text-slate-300">Area from a registry surface</Label>
+        <Label className="text-xs font-bold text-pl-text">Area from a registry surface</Label>
         <select className={selCls} data-testid="rcp-reg-surface" value={surfaceId} onChange={(e) => setSurfaceId(e.target.value)}>
           <option value="">surface…</option>
           {surfaces.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.nx}x{s.ny})</option>)}
@@ -131,7 +132,7 @@ export default function RegistryPanel() {
       </div>
 
       <div className="space-y-1">
-        <Label className="text-xs font-bold text-slate-300">Boundary polygon as an AOI</Label>
+        <Label className="text-xs font-bold text-pl-text">Boundary polygon as an AOI</Label>
         <select className={selCls} data-testid="rcp-reg-boundary" value={boundaryId} onChange={(e) => setBoundaryId(e.target.value)}>
           <option value="">boundary…</option>
           {boundaries.map((b) => <option key={b.id} value={b.id}>{b.name} ({b.kind})</option>)}
@@ -139,9 +140,9 @@ export default function RegistryPanel() {
         <Button size="sm" variant="outline" className="h-7 text-xs w-full" data-testid="rcp-reg-add-aoi" disabled={!boundaryId || busy} onClick={addBoundary}>Add as AOI</Button>
       </div>
 
-      {note && <div className="text-[11px] text-slate-400" data-testid="rcp-reg-note">{note}</div>}
+      {note && <div className="text-[11px] text-pl-muted" data-testid="rcp-reg-note">{note}</div>}
       {state.inputs?.registryProvenance && (
-        <div className="text-[10px] text-slate-500">
+        <div className="text-[10px] text-pl-muted">
           {state.inputs.registryProvenance.zone && <div>Petrophysics from zone {state.inputs.registryProvenance.zone.zone} ({(state.inputs.registryProvenance.zone.wells || []).join(', ')})</div>}
           {state.inputs.registryProvenance.area && <div>Area from {state.inputs.registryProvenance.area.surface}</div>}
         </div>

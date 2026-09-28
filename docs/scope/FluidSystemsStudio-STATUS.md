@@ -9,6 +9,16 @@ Reservoir module, tile Active. Engine `src/utils/fluidStudioCalculations.js`
 orchestrates the audited black-oil primitives in `src/pages/apps/pvtCalculations.js`.
 Everything is pure, synchronous, in-browser — no edge function.
 
+Design system: rollout batch 1D (2026-09-28, branch `feat/ds-w1d`). The
+page wraps itself in `<ThemedApp>` (test id `fluid-theme-scope`): grey
+panel light by default, dark by the header toggle, remembered per user.
+The `fluidstudio/` cards use theme roles only; the validation tier badges
+map to status roles (oracle gated success, lab tuned info, screening
+warning, published method neutral); charts keep the white chart standard.
+Cold-load prefix in `src/design/rollout/w1d.js`. Test:
+`src/pages/apps/__tests__/FluidSystemsStudio.theme.test.jsx`. No engine
+or calculation change.
+
 ## Shipped (pre-program, "Phase 1"+)
 
 - Stream A black-oil PVT: Standing / Vasquez-Beggs / Glaso Rs & Bo; Beggs-Robinson /

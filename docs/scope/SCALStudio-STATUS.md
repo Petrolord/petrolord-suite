@@ -12,6 +12,15 @@
 > multi-sample averaging, saturation-height, handoffs).
 > Last updated: 2026-07-18 · **SCAL PROGRAM COMPLETE (SC1-SC6)**.
 
+Design system: rollout batch 1D (2026-09-28, branch `feat/ds-w1d`). The
+page wraps itself in `<ThemedApp>` (test id `scal-theme-scope`): grey panel
+light by default, dark by the header toggle, remembered per user. The
+`scalstudio/` panels use theme roles only (the selected core sample is the
+primary tint); charts keep the white chart standard. Cold-load prefix in
+`src/design/rollout/w1d.js`. Test:
+`src/pages/apps/__tests__/ScalStudio.theme.test.jsx`. No engine or
+calculation change.
+
 ## Phase ledger
 
 | Phase | Scope | Status |

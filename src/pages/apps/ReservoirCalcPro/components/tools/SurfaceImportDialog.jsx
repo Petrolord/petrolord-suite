@@ -353,30 +353,30 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
         if (step === 1) {
             return (
                 <div className="space-y-4 py-4">
-                    <div className="border-2 border-dashed border-slate-700 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer relative">
+                    <div className="border-2 border-dashed border-pl-border rounded-lg p-8 text-center hover:border-pl-primary transition-colors cursor-pointer relative">
                         <input 
                             type="file" 
                             className="absolute inset-0 opacity-0 cursor-pointer" 
                             onChange={handleFileChange}
                             accept=".txt,.csv,.dat,.xyz,.asc,.grd,.json,.geojson,.zmap,.dat"
                         />
-                        <UploadCloud className="w-12 h-12 mx-auto text-slate-500 mb-2" />
-                        <p className="text-sm text-slate-300 font-medium">Click to upload or drag and drop</p>
-                        <p className="text-xs text-slate-500 mt-1">Supported: XYZ, CSV, CPS-3</p>
+                        <UploadCloud className="w-12 h-12 mx-auto text-pl-muted mb-2" />
+                        <p className="text-sm text-pl-text font-medium">Click to upload or drag and drop</p>
+                        <p className="text-xs text-pl-muted mt-1">Supported: XYZ, CSV, CPS-3</p>
                     </div>
                     
                     {importData.file && (
-                        <div className="flex items-center p-2 bg-slate-800 rounded border border-slate-700">
-                            <FileText className="w-4 h-4 text-blue-400 mr-2" />
+                        <div className="flex items-center p-2 bg-pl-sunken rounded border border-pl-border">
+                            <FileText className="w-4 h-4 text-pl-muted mr-2" />
                             <span className="text-sm truncate flex-1">{importData.file.name}</span>
-                            <Check className="w-4 h-4 text-emerald-500" />
+                            <Check className="w-4 h-4 text-pl-success-text" />
                         </div>
                     )}
 
                     {/* Surfaces published by Seismolord (seismic_exported_surfaces) */}
                     {seismolordSurfaces && seismolordSurfaces.length > 0 && (
-                        <div className="rounded-lg border border-cyan-900/60 bg-cyan-950/20 p-3">
-                            <div className="flex items-center text-sm text-cyan-300 font-medium mb-2">
+                        <div className="rounded-lg border border-pl-border bg-pl-sunken p-3">
+                            <div className="flex items-center text-sm text-pl-text font-medium mb-2">
                                 <Waves className="w-4 h-4 mr-2" />
                                 From Seismolord
                             </div>
@@ -384,15 +384,15 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
                                 {seismolordSurfaces.map((s) => (
                                     <li key={s.id} className="flex items-center justify-between gap-2 text-sm">
                                         <div className="min-w-0">
-                                            <span className="text-slate-200 truncate block">{s.name}</span>
-                                            <span className="text-[11px] text-slate-500">
+                                            <span className="text-pl-text truncate block">{s.name}</span>
+                                            <span className="text-[11px] text-pl-muted">
                                                 {s.domain === 'depth_ft' ? 'depth ft' : 'TWT ms'} ·{' '}
                                                 {new Date(s.created_at).toLocaleString()}
                                             </span>
                                         </div>
                                         <Button
                                             size="sm" variant="outline"
-                                            className="shrink-0 border-cyan-700/60 text-cyan-300"
+                                            className="shrink-0"
                                             disabled={fetchingHandoffId === s.id}
                                             onClick={() => loadSeismolordSurface(s)}
                                         >
@@ -408,8 +408,8 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
 
                     {/* Surfaces published by Mapping & Surface Studio (geo_surfaces) */}
                     {mappingSurfaces && mappingSurfaces.length > 0 && (
-                        <div className="rounded-lg border border-amber-900/60 bg-amber-950/20 p-3">
-                            <div className="flex items-center text-sm text-amber-300 font-medium mb-2">
+                        <div className="rounded-lg border border-pl-border bg-pl-sunken p-3">
+                            <div className="flex items-center text-sm text-pl-text font-medium mb-2">
                                 <Layers className="w-4 h-4 mr-2" />
                                 From Mapping &amp; Surface Studio
                             </div>
@@ -417,14 +417,14 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
                                 {mappingSurfaces.map((s) => (
                                     <li key={s.id} className="flex items-center justify-between gap-2 text-sm">
                                         <div className="min-w-0">
-                                            <span className="text-slate-200 truncate block">{s.name}</span>
-                                            <span className="text-[11px] text-slate-500">
+                                            <span className="text-pl-text truncate block">{s.name}</span>
+                                            <span className="text-[11px] text-pl-muted">
                                                 {s.kind} · {s.nx}×{s.ny} · {new Date(s.created_at).toLocaleString()}
                                             </span>
                                         </div>
                                         <Button
                                             size="sm" variant="outline"
-                                            className="shrink-0 border-amber-700/60 text-amber-300"
+                                            className="shrink-0"
                                             disabled={fetchingHandoffId === s.id}
                                             data-testid={`rcp-registry-use-${s.name}`}
                                             onClick={() => loadMappingSurface(s)}
@@ -441,14 +441,14 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
 
                     {/* Hard error — the upload can't be used. Explains why, in plain terms. */}
                     {error && (
-                        <div className="rounded-lg border border-red-800/60 bg-red-950/40 p-3">
+                        <div className="rounded-lg border border-pl-danger/40 bg-pl-danger-bg p-3">
                             <div className="flex items-start gap-2">
-                                <XCircle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
+                                <XCircle className="w-4 h-4 text-pl-danger-text mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0">
-                                    <p className="text-sm font-semibold text-red-300">{error.title}</p>
-                                    <p className="text-xs text-red-200/80 mt-0.5">{error.message}</p>
+                                    <p className="text-sm font-semibold text-pl-danger-text">{error.title}</p>
+                                    <p className="text-xs text-pl-danger-text mt-0.5">{error.message}</p>
                                     {error.guidance?.length > 0 && (
-                                        <ul className="mt-2 space-y-1 text-[11px] text-red-200/70 list-disc pl-4">
+                                        <ul className="mt-2 space-y-1 text-[11px] text-pl-danger-text list-disc pl-4">
                                             {error.guidance.map((g, i) => <li key={i}>{g}</li>)}
                                         </ul>
                                     )}
@@ -459,15 +459,15 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
 
                     {/* Soft warnings — parsed OK but the surface looks suspect. */}
                     {pending && (
-                        <div className="rounded-lg border border-amber-700/60 bg-amber-950/30 p-3">
+                        <div className="rounded-lg border border-pl-warning/40 bg-pl-warning-bg p-3">
                             <div className="flex items-start gap-2">
-                                <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                                <AlertTriangle className="w-4 h-4 text-pl-warning-text mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0">
-                                    <p className="text-sm font-semibold text-amber-300">Check this surface before importing</p>
-                                    <ul className="mt-1.5 space-y-1 text-[11px] text-amber-200/80 list-disc pl-4">
+                                    <p className="text-sm font-semibold text-pl-warning-text">Check this surface before importing</p>
+                                    <ul className="mt-1.5 space-y-1 text-[11px] text-pl-warning-text list-disc pl-4">
                                         {pending.warnings.map((w, i) => <li key={i}>{w}</li>)}
                                     </ul>
-                                    <p className="text-[11px] text-amber-200/60 mt-2">
+                                    <p className="text-[11px] text-pl-warning-text mt-2">
                                         You can import it anyway, or pick a different file.
                                     </p>
                                 </div>
@@ -515,18 +515,18 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
                             </Tabs>
                         </div>
                     </div>
-                    <p className="text-[11px] text-slate-500 -mt-1">
+                    <p className="text-[11px] text-pl-muted -mt-1">
                         Used to convert areas &amp; depths to physical volumes. XY&nbsp;=&nbsp;Z unit; contacts (OWC/GOC) must use the same convention.
                     </p>
 
                     <div className="space-y-2">
-                        <Label>Coordinate Reference System <span className="text-slate-500 font-normal">(optional)</span></Label>
+                        <Label>Coordinate Reference System <span className="text-pl-muted font-normal">(optional)</span></Label>
                         <Input
                             value={importData.crs}
                             onChange={e => setImportData({ ...importData, crs: e.target.value })}
                             placeholder="e.g. EPSG:32631 (WGS 84 / UTM 31N)"
                         />
-                        <p className="text-[11px] text-slate-500 -mt-1">
+                        <p className="text-[11px] text-pl-muted -mt-1">
                             Auto-detected from GeoJSON/gridded files when present. Recorded for provenance &amp; cross-app hand-off; leave blank for a local grid.
                         </p>
                     </div>
@@ -538,7 +538,7 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="bg-slate-900 border-slate-800 text-white sm:max-w-[425px] max-h-[92vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-[425px] max-h-[92vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Import Surface</DialogTitle>
                 </DialogHeader>
@@ -551,7 +551,7 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
                         <Button
                             data-testid="rcp-import-anyway"
                             onClick={() => finalizeImport(pending.surface)}
-                            className="bg-amber-600 hover:bg-amber-700"
+                            className="bg-pl-warning text-pl-warning-fg hover:bg-pl-warning/90"
                         >
                             Import Anyway
                         </Button>
@@ -560,7 +560,6 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
                             data-testid="rcp-import-confirm"
                             onClick={parseData}
                             disabled={!importData.file || !importData.name || isParsing}
-                            className="bg-blue-600 hover:bg-blue-700"
                         >
                             {isParsing ? "Importing..." : "Import Surface"}
                         </Button>

@@ -28,7 +28,7 @@ const TARGET_LABELS = {
 
 const Field = ({ id, label, unit, value, onChange, placeholder }) => (
   <div>
-    <Label htmlFor={id} className="text-xs text-slate-400">{label}</Label>
+    <Label htmlFor={id} className="text-xs text-pl-muted">{label}</Label>
     <div className="flex items-center mt-1">
       <Input
         id={id}
@@ -37,9 +37,9 @@ const Field = ({ id, label, unit, value, onChange, placeholder }) => (
         value={value ?? ''}
         onChange={(e) => onChange(e.target.value === '' ? null : e.target.value)}
         placeholder={placeholder}
-        className="bg-slate-800 border-slate-600 text-white h-8 text-sm"
+        className="h-8 text-sm"
       />
-      {unit && <span className="ml-2 text-xs text-slate-400 whitespace-nowrap">{unit}</span>}
+      {unit && <span className="ml-2 text-xs text-pl-muted whitespace-nowrap">{unit}</span>}
     </div>
   </div>
 );
@@ -92,11 +92,11 @@ const LabTuningCard = ({ composition, stages, onUpdateTuning }) => {
   };
 
   return (
-    <Card className="bg-slate-800/50 border-slate-700 text-white">
+    <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="flex items-center text-base">
-            <SlidersHorizontal className="w-4 h-4 mr-2 text-cyan-300" />
+            <SlidersHorizontal className="w-4 h-4 mr-2 text-pl-muted" />
             Lab tuning
           </CardTitle>
           {applied
@@ -108,7 +108,7 @@ const LabTuningCard = ({ composition, stages, onUpdateTuning }) => {
               />
             )}
         </div>
-        <p className="text-xs text-slate-400 mt-1">
+        <p className="text-xs text-pl-muted mt-1">
           Regresses the C7+ fraction (Tc, Pc, methane interaction and volume shift, all bounded)
           to your measured values. Separator measurements are read against the Separator Train
           stages with the flash temperature and pressure as reservoir conditions.
@@ -124,17 +124,17 @@ const LabTuningCard = ({ composition, stages, onUpdateTuning }) => {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <Button size="sm" onClick={runTune} disabled={busy} className="bg-cyan-700 hover:bg-cyan-600">
+          <Button size="sm" onClick={runTune} disabled={busy}>
             {busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <SlidersHorizontal className="w-4 h-4 mr-2" />}
             {busy ? 'Tuning...' : 'Tune to lab data'}
           </Button>
           {applied && (
-            <Button size="sm" variant="outline" onClick={resetTune} className="border-slate-600 text-slate-300">
+            <Button size="sm" variant="outline" onClick={resetTune}>
               <RotateCcw className="w-4 h-4 mr-2" />Reset to untuned
             </Button>
           )}
           {error && (
-            <span className="text-xs text-amber-300 flex items-center gap-1">
+            <span className="text-xs text-pl-warning-text flex items-center gap-1">
               <AlertTriangle className="w-4 h-4 shrink-0" />{error}
             </span>
           )}
@@ -145,7 +145,7 @@ const LabTuningCard = ({ composition, stages, onUpdateTuning }) => {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-slate-400 text-xs border-b border-slate-700">
+                  <tr className="text-pl-muted text-xs border-b border-pl-border">
                     <th className="text-left py-1 pr-2">Target</th>
                     <th className="text-right py-1 px-2">Measured</th>
                     <th className="text-right py-1 px-2">Untuned</th>
@@ -155,12 +155,12 @@ const LabTuningCard = ({ composition, stages, onUpdateTuning }) => {
                 </thead>
                 <tbody>
                   {lastFit.report.map((r) => (
-                    <tr key={r.name} className="border-b border-slate-700/50">
-                      <td className="py-1 pr-2 text-slate-300">{TARGET_LABELS[r.name] || r.name} <span className="text-slate-500">({r.unit})</span></td>
+                    <tr key={r.name} className="border-b border-pl-border">
+                      <td className="py-1 pr-2 text-pl-text">{TARGET_LABELS[r.name] || r.name} <span className="text-pl-muted">({r.unit})</span></td>
                       <td className="text-right py-1 px-2">{fmt(r.measured, r.name === 'bo' ? 3 : 1)}</td>
-                      <td className="text-right py-1 px-2 text-slate-400">{fmt(r.untuned, r.name === 'bo' ? 3 : 1)}</td>
-                      <td className="text-right py-1 px-2 text-cyan-200">{fmt(r.tuned, r.name === 'bo' ? 3 : 1)}</td>
-                      <td className="text-right py-1 pl-2 text-cyan-200">
+                      <td className="text-right py-1 px-2 text-pl-muted">{fmt(r.untuned, r.name === 'bo' ? 3 : 1)}</td>
+                      <td className="text-right py-1 px-2 font-semibold text-pl-text">{fmt(r.tuned, r.name === 'bo' ? 3 : 1)}</td>
+                      <td className="text-right py-1 pl-2 font-semibold text-pl-text">
                         {r.name === 'stoApi' ? `${fmt(r.tunedErr, 2)} API` : `${fmt(r.tunedErr, 2)}%`}
                       </td>
                     </tr>
@@ -169,13 +169,13 @@ const LabTuningCard = ({ composition, stages, onUpdateTuning }) => {
               </table>
             </div>
             {!lastFit.converged && (
-              <p className="text-xs text-amber-300 flex items-start gap-1">
+              <p className="text-xs text-pl-warning-text flex items-start gap-1">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
                 The regression stopped at its iteration limit. The values above are the best point found; rerun after adjusting weights or checking the measured values.
               </p>
             )}
             {lastFit.boundsHit?.length > 0 && (
-              <p className="text-xs text-amber-300 flex items-start gap-1">
+              <p className="text-xs text-pl-warning-text flex items-start gap-1">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
                 Parameter{lastFit.boundsHit.length > 1 ? 's' : ''} {lastFit.boundsHit.join(', ')} stopped at the regression bound. The lab values may be inconsistent with this composition; double-check the entered measurements.
               </p>
@@ -184,7 +184,7 @@ const LabTuningCard = ({ composition, stages, onUpdateTuning }) => {
         )}
 
         {applied && (
-          <div className="text-xs text-slate-400">
+          <div className="text-xs text-pl-muted">
             Applied knobs: Tc ×{fmt(applied.fTc, 4)}, Pc ×{fmt(applied.fPc, 4)},
             k(C1-C7+) {fmt(applied.kC1, 4)}{start ? ` (untuned ${fmt(start.kC1, 4)})` : ''},
             shift {fmt(applied.sPlus, 4)}{start ? ` (untuned ${fmt(start.sPlus, 4)})` : ''}.

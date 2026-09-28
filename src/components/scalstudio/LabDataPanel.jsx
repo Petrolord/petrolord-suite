@@ -67,19 +67,19 @@ const LabDataPanel = ({ selectedId, onSelect }) => {
             <div
               key={s.id}
               className={`flex items-center justify-between rounded-md border px-2.5 py-1.5 cursor-pointer ${
-                s.id === selectedId ? 'border-violet-500 bg-violet-500/10' : 'border-slate-700 bg-slate-800/60 hover:border-slate-500'
+                s.id === selectedId ? 'border-pl-primary bg-pl-primary/10' : 'border-pl-border bg-pl-sunken hover:border-pl-border-strong'
               }`}
               onClick={() => onSelect(s.id)}
             >
-              <div className="text-xs text-slate-200 truncate">
+              <div className="text-xs text-pl-text truncate">
                 {s.name}
-                <span className="text-slate-500 ml-1.5">
+                <span className="text-pl-muted ml-1.5">
                   {s.krRows?.length ? `kr ${s.krRows.length}` : ''}{s.krRows?.length && s.pcRows?.length ? ' · ' : ''}{s.pcRows?.length ? `Pc ${s.pcRows.length}` : ''}
                 </span>
               </div>
               <button
                 onClick={(e) => { e.stopPropagation(); removeSample(s.id); if (s.id === selectedId) onSelect(null); }}
-                className="text-slate-500 hover:text-rose-400"
+                className="text-pl-muted hover:text-pl-danger-text"
                 aria-label={`Delete ${s.name}`}
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -87,7 +87,7 @@ const LabDataPanel = ({ selectedId, onSelect }) => {
             </div>
           ))}
           {samples.length === 0 && (
-            <p className="text-xs text-slate-500">No samples yet. Add one, or load the synthetic demo pair.</p>
+            <p className="text-xs text-pl-muted">No samples yet. Add one, or load the synthetic demo pair.</p>
           )}
         </div>
         <div className="flex gap-2 mt-3">
@@ -113,9 +113,9 @@ const LabDataPanel = ({ selectedId, onSelect }) => {
             <SectionLabel>Sample properties</SectionLabel>
             <Field label="Name" value={selected.name} onChange={(v) => updateSample(selected.id, { name: v })} />
             <div className="space-y-1">
-              <Label className="text-xs text-slate-400">Lab measurement system</Label>
+              <Label className="text-xs text-pl-muted">Lab measurement system</Label>
               <Select onValueChange={applyPreset}>
-                <SelectTrigger className="h-9 bg-slate-800 border-slate-700">
+                <SelectTrigger className="h-9">
                   <SelectValue placeholder="Apply a preset (optional)" />
                 </SelectTrigger>
                 <SelectContent>
@@ -156,7 +156,7 @@ const LabDataPanel = ({ selectedId, onSelect }) => {
                 <Download className="w-3 h-3 mr-1" /> Pc template
               </Button>
             </div>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-pl-muted">
               kr columns: Sw, krw, kro. Pc columns: Sw, Pc_psi. Rows with non-numeric cells are skipped and named
               in the notification.
             </p>

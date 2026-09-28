@@ -18,14 +18,14 @@ import EosPvtTableCard from '@/components/fluidstudio/EosPvtTableCard';
 import PhaseEnvelopeCard from '@/components/fluidstudio/PhaseEnvelopeCard';
 
 const KPICard = ({ title, value, unit, icon: Icon }) => (
-  <Card className="bg-slate-800/50 border-slate-700 text-white">
+  <Card>
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      <CardTitle className="text-sm font-medium text-slate-300 min-w-0">{title}</CardTitle>
-      <Icon className="h-4 w-4 shrink-0 text-cyan-300" />
+      <CardTitle className="text-sm font-medium text-pl-text min-w-0">{title}</CardTitle>
+      <Icon className="h-4 w-4 shrink-0 text-pl-muted" />
     </CardHeader>
     <CardContent>
       <div className="text-2xl font-bold tabular-nums whitespace-nowrap">{value}</div>
-      <p className="text-xs text-slate-400">{unit}</p>
+      <p className="text-xs text-pl-muted">{unit}</p>
     </CardContent>
   </Card>
 );
@@ -62,17 +62,17 @@ const IntegrationSuite = ({ backbone }) => {
   };
 
   return (
-    <Card className="bg-slate-800/50 border-slate-700 text-white mt-6">
+    <Card className="mt-6">
       <CardHeader>
-        <CardTitle className="flex items-center"><Share2 className="mr-2 text-cyan-300" /> Integration Suite</CardTitle>
+        <CardTitle className="flex items-center"><Share2 className="mr-2 text-pl-muted" /> Integration Suite</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-slate-300">
+        <p className="text-pl-text">
           Send this fluid backbone to other Petrolord applications.
           {backbone?.source === 'eos' && ' The backbone carries the compositional surface numbers: stock tank API, surface gas gravity, separator-flash GOR and the EOS black-oil table.'}
         </p>
         <div className="flex flex-col sm:flex-row gap-4">
-          <Button onClick={sendToLineSizing} disabled={!ready} className="flex-1 bg-teal-600 hover:bg-teal-700 disabled:opacity-40">
+          <Button onClick={sendToLineSizing} disabled={!ready} className="flex-1 disabled:opacity-40">
             <Zap className="w-4 h-4 mr-2" /> Send to Line Sizing Studio
           </Button>
         </div>
@@ -95,7 +95,7 @@ const FluidStudioResults = ({ results, eos, composition, sepStages, onUpdateTuni
   return (
     <div className="space-y-4">
       {warnings.length > 0 && (
-        <div className="rounded-lg border border-amber-600/40 bg-amber-500/10 text-amber-200 px-4 py-3 text-sm flex gap-3">
+        <div className="rounded-lg border border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text px-4 py-3 text-sm flex gap-3">
           <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
           <ul className="space-y-1 list-disc list-inside">
             {warnings.map((w) => <li key={w}>{w}</li>)}
@@ -116,7 +116,7 @@ const FluidStudioResults = ({ results, eos, composition, sepStages, onUpdateTuni
 
       <Tabs defaultValue="pvt" className="w-full">
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <TabsList className="bg-slate-800 flex-wrap h-auto">
+          <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="pvt">PVT Analysis</TabsTrigger>
             {eos && <TabsTrigger value="compositional">Compositional</TabsTrigger>}
             <TabsTrigger value="separators">Separator Train</TabsTrigger>
@@ -124,7 +124,7 @@ const FluidStudioResults = ({ results, eos, composition, sepStages, onUpdateTuni
             {flowAssurance && <TabsTrigger value="flow-assurance">Flow Assurance</TabsTrigger>}
             {batchSummary && <TabsTrigger value="batch">Batch Sweep</TabsTrigger>}
           </TabsList>
-          <Button variant="outline" size="sm" onClick={() => exportPvtCsv(pvt.table)} className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20">
+          <Button variant="outline" size="sm" onClick={() => exportPvtCsv(pvt.table)}>
             <Download className="w-4 h-4 mr-2" /> Export PVT CSV
           </Button>
         </div>

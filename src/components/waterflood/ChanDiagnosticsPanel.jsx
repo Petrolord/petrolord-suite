@@ -16,10 +16,10 @@ const fmt = (v) => (typeof v === 'number' ? v.toLocaleString(undefined, { maximu
 
 // Tone per Chan mechanism classification.
 const TONE = {
-  channeling: 'bg-red-500/10 border-red-500/30 text-red-200',
-  coning: 'bg-sky-500/10 border-sky-500/30 text-sky-200',
-  transitional: 'bg-amber-500/10 border-amber-500/30 text-amber-200',
-  indeterminate: 'bg-slate-500/10 border-slate-500/30 text-slate-300',
+  channeling: 'bg-pl-danger-bg border-pl-danger/40 text-pl-danger-text',
+  coning: 'bg-pl-info-bg border-pl-info/40 text-pl-info-text',
+  transitional: 'bg-pl-warning-bg border-pl-warning/40 text-pl-warning-text',
+  indeterminate: 'bg-pl-sunken border-pl-border text-pl-text',
 };
 
 const ChanDiagnosticsPanel = ({ chan }) => {
@@ -49,10 +49,10 @@ const ChanDiagnosticsPanel = ({ chan }) => {
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
-      className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6"
+      className="bg-pl-surface border border-pl-border rounded-xl p-6 shadow-pl-sm"
     >
-      <h2 className="text-2xl font-bold text-white mb-1">Chan Water-Control Diagnostics</h2>
-      <p className="text-cyan-200/80 text-sm mb-4">
+      <h2 className="text-2xl font-bold text-pl-text mb-1">Chan Water-Control Diagnostics</h2>
+      <p className="text-pl-muted text-sm mb-4">
         Log–log water–oil ratio (WOR) and its time derivative WOR′ vs time. The shape of WOR′ indicates the excess-water mechanism.
       </p>
 
@@ -62,7 +62,7 @@ const ChanDiagnosticsPanel = ({ chan }) => {
             key={o.producer}
             size="sm"
             variant={o.producer === selected.producer ? 'default' : 'outline'}
-            className={o.producer === selected.producer ? 'bg-lime-600 hover:bg-lime-700' : 'border-white/20 text-cyan-100'}
+            aria-pressed={o.producer === selected.producer}
             onClick={() => setSelectedKey(o.producer)}
           >
             {o.producer}
@@ -70,7 +70,7 @@ const ChanDiagnosticsPanel = ({ chan }) => {
         ))}
       </div>
 
-      <div className="bg-white rounded-lg p-4">
+      <div data-canvas="chart" className="bg-white rounded-lg p-4">
         <ChartFrame height={340}>
           <LineChart data={data} margin={CHART_MARGINS.legend}>
             <CartesianGrid {...GRID_STYLE} />
@@ -99,7 +99,7 @@ const ChanDiagnosticsPanel = ({ chan }) => {
         </p>
         <p className="text-sm opacity-80 mt-1">
           Late-time WOR′ log–log slope ={' '}
-          <span className="font-mono">{selected.lateSlope != null ? selected.lateSlope.toFixed(2) : 'n/a'}</span>
+          <span className="font-pl-mono tabular-nums">{selected.lateSlope != null ? selected.lateSlope.toFixed(2) : 'n/a'}</span>
           {' '}(≥ 0.4 channeling-like, ≤ 0 coning/normal-like). This is an indicative reading of the
           derivative trend — confirm the mechanism with completion, geology and pressure data.
         </p>

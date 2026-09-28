@@ -46,10 +46,10 @@ const UnitInput = ({ label, field, canonicalValue, displayUnit, unitSystem, onVa
                     onChange={e => handleChange(e.target.value)}
                     onFocus={() => setFocused(true)}
                     onBlur={() => setFocused(false)}
-                    className="h-8 bg-slate-900 flex-1"
+                    className="h-8 flex-1"
                 />
                 <Select value={displayUnit} onValueChange={onUnitChange}>
-                    <SelectTrigger className="h-8 w-[110px] text-[10px] bg-slate-950 border-slate-700 flex-shrink-0">
+                    <SelectTrigger className="h-8 w-[110px] text-[10px] flex-shrink-0">
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -59,7 +59,7 @@ const UnitInput = ({ label, field, canonicalValue, displayUnit, unitSystem, onVa
                     </SelectContent>
                 </Select>
             </div>
-            {hint && <p className="text-[10px] text-slate-500">{hint}</p>}
+            {hint && <p className="text-[10px] text-pl-muted">{hint}</p>}
         </div>
     );
 };

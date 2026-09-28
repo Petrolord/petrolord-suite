@@ -71,7 +71,7 @@ const SlideFrame = ({ fileName = 'reservoircalc-slide', extraActions = null, chi
             a.href = canvas.toDataURL('image/png');
             a.download = `${fileName}.png`;
             a.click();
-            toast({ title: 'Slide saved', description: 'A 2560×1440 PNG was downloaded.', className: 'bg-emerald-900 text-white border-emerald-800' });
+            toast({ title: 'Slide saved', description: 'A 2560×1440 PNG was downloaded.' });
         } catch (e) {
             toast({ variant: 'destructive', title: 'Export failed', description: e?.message || 'Could not render the slide.' });
         } finally {
@@ -88,7 +88,7 @@ const SlideFrame = ({ fileName = 'reservoircalc-slide', extraActions = null, chi
                 await navigator.clipboard.write([new window.ClipboardItem({ 'image/png': blob })]);
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2200);
-                toast({ title: 'Copied to clipboard', description: 'Paste it into your slide with Ctrl / ⌘ + V.', className: 'bg-emerald-900 text-white border-emerald-800' });
+                toast({ title: 'Copied to clipboard', description: 'Paste it into your slide with Ctrl / ⌘ + V.' });
             } else {
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
@@ -105,20 +105,20 @@ const SlideFrame = ({ fileName = 'reservoircalc-slide', extraActions = null, chi
     };
 
     return (
-        <div className="flex h-full w-full flex-col bg-slate-200/80">
+        <div className="flex h-full w-full flex-col bg-pl-sunken">
             {/* Capture toolbar (excluded from the screenshot) */}
-            <div className="flex items-center justify-between gap-3 border-b border-slate-300 bg-white/80 px-4 py-2 backdrop-blur">
-                <div className="hidden items-center gap-2 text-[11px] font-medium text-slate-500 sm:flex">
-                    <span className="rounded bg-slate-900 px-1.5 py-0.5 text-[10px] font-bold text-white">16:9</span>
+            <div className="flex items-center justify-between gap-3 border-b border-pl-border bg-pl-surface px-4 py-2">
+                <div className="hidden items-center gap-2 text-[11px] font-medium text-pl-muted sm:flex">
+                    <span className="rounded bg-pl-text px-1.5 py-0.5 text-[10px] font-bold text-pl-surface">16:9</span>
                     Presentation slide — screenshot-ready for PowerPoint &amp; Keynote
                 </div>
                 <div className="flex items-center gap-2">
                     {extraActions}
-                    <Button size="sm" variant="outline" className="h-8 gap-2 border-slate-300 bg-white text-slate-700 hover:bg-slate-100" onClick={handleCopy} disabled={busy}>
-                        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+                    <Button size="sm" variant="outline" className="h-8 gap-2" onClick={handleCopy} disabled={busy}>
+                        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : copied ? <Check className="h-4 w-4 text-pl-success-text" /> : <Copy className="h-4 w-4" />}
                         {copied ? 'Copied' : 'Copy image'}
                     </Button>
-                    <Button size="sm" className="h-8 gap-2 bg-emerald-600 text-white hover:bg-emerald-700" onClick={handleDownload} disabled={busy}>
+                    <Button size="sm" className="h-8 gap-2" onClick={handleDownload} disabled={busy}>
                         <Download className="h-4 w-4" /> Download PNG
                     </Button>
                 </div>
@@ -126,7 +126,7 @@ const SlideFrame = ({ fileName = 'reservoircalc-slide', extraActions = null, chi
 
             {/* Fit-to-screen preview */}
             <div ref={wrapRef} className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-6">
-                <div style={{ width: SLIDE_W * scale, height: SLIDE_H * scale }} className="shrink-0 overflow-hidden rounded-xl shadow-2xl ring-1 ring-black/10">
+                <div style={{ width: SLIDE_W * scale, height: SLIDE_H * scale }} className="shrink-0 overflow-hidden rounded-xl shadow-2xl ring-1 ring-black/10" data-canvas="chart">
                     {/* Transform on the wrapper keeps the captured node itself at 1:1 */}
                     <div ref={scaleRef} style={{ width: SLIDE_W, height: SLIDE_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
                         <div ref={slideRef} style={{ width: SLIDE_W, height: SLIDE_H }} className="relative bg-white text-slate-900">

@@ -74,27 +74,27 @@ const SurveillancePanel = () => {
         <SectionLabel>Field history</SectionLabel>
         <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={onFile} />
         <div className="space-y-2">
-          <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} className="w-full bg-slate-800 border-slate-700">
+          <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} className="w-full">
             <Upload className="w-4 h-4 mr-1" /> Import CSV
           </Button>
           <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" size="sm" onClick={loadSample} className="bg-slate-800 border-slate-700">
+            <Button variant="outline" size="sm" onClick={loadSample}>
               <Beaker className="w-4 h-4 mr-1" /> Sample
             </Button>
-            <Button variant="outline" size="sm" onClick={downloadTemplate} className="bg-slate-800 border-slate-700">
+            <Button variant="outline" size="sm" onClick={downloadTemplate}>
               <Download className="w-4 h-4 mr-1" /> Template
             </Button>
           </div>
           {surveillanceRows.length > 0 && (
-            <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
+            <div className="flex items-center justify-between text-xs text-pl-muted pt-1">
               <span>{surveillanceRows.length.toLocaleString()} rows loaded</span>
-              <Button variant="ghost" size="sm" className="h-6 px-2 text-slate-500 hover:text-red-400" onClick={() => setSurveillanceRows([])}>
+              <Button variant="ghost" size="sm" className="h-6 px-2 text-pl-muted hover:text-pl-danger-text" onClick={() => setSurveillanceRows([])}>
                 <Trash2 className="w-3 h-3 mr-1" /> Clear
               </Button>
             </div>
           )}
         </div>
-        <Label className="text-[11px] text-slate-500 leading-snug block mt-2">
+        <Label className="text-[11px] text-pl-muted leading-snug block mt-2">
           Columns: date, well, oil_bbl, water_bbl, gas_mcf, inj_bbl, and optionally whp_psi (enables Hall plot
           injectivity diagnostics). Wells with non-zero inj_bbl classify as injectors.
         </Label>
@@ -113,7 +113,7 @@ const SurveillancePanel = () => {
         <div className="grid grid-cols-2 gap-3">
           {FLUID_FIELDS.map((f) => <Field key={f.k} label={f.label} value={surveillanceConfig[f.k]} onChange={(v) => setSurveillanceField(f.k, v)} />)}
         </div>
-        <Label className="text-[11px] text-slate-500 leading-snug block mt-2">
+        <Label className="text-[11px] text-pl-muted leading-snug block mt-2">
           Bg and Rs feed free-gas voidage in the reservoir-barrel VRR. Set Bg to 0 for liquid-only voidage.
         </Label>
       </section>

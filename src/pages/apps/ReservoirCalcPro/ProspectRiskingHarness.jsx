@@ -7,6 +7,8 @@
 import React, { useMemo } from 'react';
 import ProspectRiskingPanel from './components/tools/ProspectRiskingPanel';
 import { makeInMemoryProspectsBackend } from './services/prospectsService';
+import { ThemedApp } from '@/design/ThemeProvider';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export default function ProspectRiskingHarness() {
   const backend = useMemo(() => makeInMemoryProspectsBackend([
@@ -14,10 +16,11 @@ export default function ProspectRiskingHarness() {
   ]), []);
   const unrisked = useMemo(() => ({ mean: 40, p90: 12, p50: 33, p10: 78 }), []);
   return (
-    <div className="min-h-screen bg-slate-950 p-6">
+    <ThemedApp className="min-h-screen p-6">
       <div className="max-w-3xl mx-auto">
+        <div className="mb-2 flex justify-end"><ThemeToggle /></div>
         <ProspectRiskingPanel backend={backend} unrisked={unrisked} />
       </div>
-    </div>
+    </ThemedApp>
   );
 }
