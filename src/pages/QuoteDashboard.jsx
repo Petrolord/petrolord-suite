@@ -431,7 +431,7 @@ function QuoteDashboardPage() {
                                 </Button>
                               ) : (
                                 <a href={quote.paystack_link} target="_blank" rel="noreferrer" className="w-full block">
-                                  <Button className="w-full h-12 text-lg">
+                                  <Button className="w-full h-auto min-h-[3rem] py-2 text-lg whitespace-normal">
                                       <CreditCard className="w-5 h-5 mr-2"/> {quote.pricing_breakdown?.ngn_total
                                         ? `Pay ₦${Number(quote.pricing_breakdown.ngn_total).toLocaleString('en-US')} with Paystack`
                                         : 'Pay with Paystack (NGN)'}

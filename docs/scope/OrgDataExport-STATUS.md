@@ -4,6 +4,18 @@ Offboarding pipeline (export → grace-period deletion → certificate).
 Program rationale: clients are more comfortable staying (and paying) when
 they know they can leave at any time with everything they own.
 
+## 2026-09-28: Data export page on the design system (rollout 3F)
+
+`/dashboard/data-export` wraps itself in `ThemedApp` with the shared account
+header and a light/dark toggle. The page's own Backup and Restore panels
+(`src/components/portability/BackupPanel.jsx`, `RestorePanel.jsx`, whose
+only consumer is this page) moved straight to theme roles; the package
+dialogs were already scope-aware (W0C). Job status is a status badge
+(completed, processing, failed); the closure card uses the danger role. No
+export, closure or signing call changed. Test:
+`src/pages/__tests__/W3fAdminPages.theme.test.jsx`; `BackupPanel.test.jsx`
+passes unchanged.
+
 ## Phase 3 SHIPPED (deletion certificate, branch feat/org-deletion-certificate, 2026-08-05)
 
 | Piece | Where |

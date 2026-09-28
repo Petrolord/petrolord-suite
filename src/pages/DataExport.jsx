@@ -340,7 +340,7 @@ function DataExportPage() {
                       <TableCell className="text-sm text-pl-text font-pl-mono tabular-nums">
                         {job.total_rows != null ? job.total_rows.toLocaleString() : '-'}
                       </TableCell>
-                      <TableCell className="text-sm text-pl-text font-pl-mono tabular-nums">
+                      <TableCell className="text-sm text-pl-text font-pl-mono tabular-nums whitespace-nowrap">
                         {job.blob_count != null ? `${job.blob_count} (${formatBytes(job.blob_bytes)})` : '-'}
                       </TableCell>
                       <TableCell className="text-sm text-pl-muted whitespace-nowrap">
