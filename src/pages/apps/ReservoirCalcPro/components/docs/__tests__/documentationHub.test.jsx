@@ -121,4 +121,13 @@ describe('ReservoirCalc Pro documentation', () => {
       expect(hub).toContain(`from './${name}'`);
     }
   });
+
+  test('the article container uses role classes (no typography plugin, so prose did nothing)', () => {
+    const hub = fs.readFileSync(path.join(DOCS_DIR, 'DocumentationHub.jsx'), 'utf8');
+    const classes = [...hub.matchAll(/className="([^"]*)"/g)].map((m) => m[1]).join(' ');
+    // negative control: the detector sees a planted prose class
+    expect(/(^|\s)prose(-invert)?(\s|$)/.test('p-4 prose prose-invert')).toBe(true);
+    expect(classes).not.toMatch(/(^|\s)prose(-invert)?(\s|$)/);
+    expect(hub).toMatch(/data-testid="rcp-docs-article"/);
+  });
 });

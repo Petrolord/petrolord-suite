@@ -1,6 +1,6 @@
 // Shared primitives for the ReservoirCalc Pro documentation articles.
 //
-// Articles render inside DocumentationHub's `prose prose-invert` container and
+// Articles render inside DocumentationHub's article container (role classes) and
 // receive no props, so each is a zero-prop default export built from these.
 //
 // Copy rule: no em dashes and no "X, not Y" contrastives in user-facing text.
