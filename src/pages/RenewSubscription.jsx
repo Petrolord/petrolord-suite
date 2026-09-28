@@ -1,77 +1,67 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
 import { getUserOrgRow } from '@/lib/orgContext';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/components/ui/use-toast';
-import { CheckCircle2, ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { AccountScope } from '@/components/account/accountChrome';
+import { loadRenewalSelection } from '@/lib/renewalSelection';
 
+// Renewals go through the normal quote-and-pay flow (owner decision
+// 2026-09-28). This page reads what the organisation holds today and hands it
+// to the upgrade page (QuoteBuilder) as a pre-selection. The quote builder and
+// generate-quote price it like any new order, and payment is the usual
+// Paystack checkout from the quote. This page shows no price and takes no
+// payment itself.
 function RenewSubscriptionPage() {
-  const { moduleId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  
-  const [moduleData, setModuleData] = useState(null);
+
+  const [selection, setSelection] = useState(null);
+  const [expiry, setExpiry] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState(false);
-  const [duration, setDuration] = useState('12');
+  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
-      if(user) fetchModule();
-  }, [user, moduleId]);
-
-  const fetchModule = async () => {
-      const orgUser = await getUserOrgRow(user.id);
-      if(orgUser) {
-          const { data } = await supabase.from('purchased_modules')
-            .select('*')
-            .eq('organization_id', orgUser.organization_id)
-            .eq('module_id', moduleId)
-            .single();
-          setModuleData(data);
-      }
-      setLoading(false);
-  };
-
-  const handleRenewal = async () => {
-      setProcessing(true);
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
       try {
-          // Simulate Payment Process
-          // In real app, this would open Paystack modal
-          await new Promise(r => setTimeout(r, 1500)); 
-          
-          const orgUser = await getUserOrgRow(user.id);
-
-          const { error } = await supabase.functions.invoke('renew-subscription', {
-              body: {
-                  module_id: moduleId,
-                  organization_id: orgUser.organization_id,
-                  duration_months: parseInt(duration),
-                  payment_reference: `REF-${Date.now()}` // Mock ref
-              }
-          });
-
-          if(error) throw error;
-
-          toast({ title: "Success", description: "Subscription renewed successfully!", className: "bg-green-600 text-white" });
-          navigate('/dashboard/subscriptions');
-
+        const orgUser = await getUserOrgRow(user.id);
+        if (!orgUser?.organization_id) {
+          if (!cancelled) setSelection({ modules: [], apps: [], billingTerm: null });
+          return;
+        }
+        const sel = await loadRenewalSelection(supabase, orgUser.organization_id);
+        const { data: rows } = await supabase.from('purchased_modules')
+          .select('expiry_date')
+          .eq('organization_id', orgUser.organization_id)
+          .eq('status', 'active');
+        const dates = (rows || []).map(r => r.expiry_date).filter(Boolean).sort();
+        if (!cancelled) {
+          setSelection(sel);
+          setExpiry(dates[0] || null);
+        }
       } catch (e) {
-          toast({ title: "Failed", description: e.message, variant: "destructive" });
+        if (!cancelled) setLoadError(e.message || 'Could not load your current subscription.');
       } finally {
-          setProcessing(false);
+        if (!cancelled) setLoading(false);
       }
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
+
+  const goToQuote = () => {
+    navigate('/dashboard/upgrade', { state: { renewal: selection || { modules: [], apps: [], billingTerm: null } } });
   };
 
-  if(loading) return <div className="p-8 text-pl-muted">Loading...</div>;
-  if(!moduleData) return <div className="p-8 text-pl-muted">Module not found.</div>;
+  const moduleCount = selection?.modules.length || 0;
+  const appCount = selection?.apps.length || 0;
+  const seatCount = (selection?.apps || []).reduce((n, a) => n + (a.seats || 1), 0);
+  const holdsSomething = moduleCount + appCount > 0;
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
@@ -87,36 +77,44 @@ function RenewSubscriptionPage() {
                     </button>
                     <ThemeToggle />
                 </div>
-                <CardTitle>Renew Subscription: {moduleData.module_name}</CardTitle>
+                <CardTitle>Renew Subscription</CardTitle>
+                <CardDescription>
+                    Renewals are priced and paid through the quote builder, using the same prices as a new order.
+                </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-                <div className="bg-pl-sunken p-4 rounded-md border border-pl-border">
-                    <p className="text-sm text-pl-muted">Current Expiry</p>
-                    <p className="text-xl font-pl-mono tabular-nums text-pl-text">{new Date(moduleData.expiry_date).toLocaleDateString()}</p>
-                </div>
-
-                <div className="space-y-2">
-                    <Label>Renewal Duration</Label>
-                    <Select value={duration} onValueChange={setDuration}>
-                        <SelectTrigger>
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="12">12 Months (Standard)</SelectItem>
-                            <SelectItem value="24">24 Months (10% Discount)</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-
-                <div className="flex justify-between items-center py-2 border-t border-pl-border mt-4 text-pl-text">
-                    <span>Estimated Cost</span>
-                    <span className="text-xl font-bold font-pl-mono tabular-nums">$15,000.00</span>
-                </div>
+            <CardContent className="space-y-4">
+                {loading ? (
+                    <p className="text-sm text-pl-muted">Loading your current subscription...</p>
+                ) : loadError ? (
+                    <p className="text-sm text-pl-muted">
+                        {loadError} You can still continue and select your modules in the quote builder.
+                    </p>
+                ) : holdsSomething ? (
+                    <>
+                        <div className="bg-pl-sunken p-4 rounded-md border border-pl-border text-pl-text">
+                            <p className="text-sm text-pl-muted">What your organisation holds today</p>
+                            <p className="mt-1 font-pl-mono tabular-nums" data-testid="renewal-holdings">
+                                {moduleCount} module licence{moduleCount === 1 ? '' : 's'}, {appCount} app{appCount === 1 ? '' : 's'}, {seatCount} seat{seatCount === 1 ? '' : 's'}
+                            </p>
+                            {expiry && (
+                                <p className="mt-1 text-sm text-pl-muted">
+                                    Earliest expiry: <span className="font-pl-mono tabular-nums">{new Date(expiry).toLocaleDateString()}</span>
+                                </p>
+                            )}
+                        </div>
+                        <p className="text-sm text-pl-muted">
+                            These are selected for you in the quote builder. You can change them and choose a billing period before you generate the quote and pay.
+                        </p>
+                    </>
+                ) : (
+                    <p className="text-sm text-pl-muted">
+                        We could not find an active subscription for your organisation. Continue to the quote builder and select the modules you want.
+                    </p>
+                )}
             </CardContent>
             <CardFooter>
-                <Button className="w-full" onClick={handleRenewal} disabled={processing}>
-                    {processing ? <Loader2 className="w-4 h-4 animate-spin mr-2"/> : <CheckCircle2 className="w-4 h-4 mr-2"/>}
-                    Confirm & Pay
+                <Button className="w-full" onClick={goToQuote} disabled={loading}>
+                    Continue to quote and payment <ArrowRight className="w-4 h-4 ml-2" aria-hidden="true"/>
                 </Button>
             </CardFooter>
         </Card>

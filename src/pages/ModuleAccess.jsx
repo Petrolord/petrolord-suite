@@ -9,11 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
-import { appCategories } from '@/data/applications';
+import { moduleAvailability, moduleLicenceName } from '@/lib/moduleAvailability';
 import { AccountScope, AccountPage, AccountHeader, accountEmpty } from '@/components/account/accountChrome';
-
-// Helper for normalizing IDs
-const normalizeId = (id) => id ? id.toLowerCase().trim().replace(/&/g, 'and').replace(/\s+/g, '-') : '';
 
 function ModuleAccessPage() {
   const navigate = useNavigate();
@@ -21,6 +18,7 @@ function ModuleAccessPage() {
   const { organization } = useAuth();
   
   const [activeLicenses, setActiveLicenses] = useState([]);
+  const [moduleRows, setModuleRows] = useState([]); // live modules table: id, slug, name
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
 
@@ -54,6 +52,10 @@ function ModuleAccessPage() {
       const { data: masterApps } = await supabase
         .from('master_apps')
         .select('id, app_name, slug, module_id');
+
+      // 3b. Live module list (slug and UUID) for the availability overview.
+      const { data: mods } = await supabase.from('modules').select('id, slug, name');
+      setModuleRows(mods || []);
 
       // Map UUIDs to Names/Slugs for robust matching
       const idToName = {};
@@ -108,13 +110,14 @@ function ModuleAccessPage() {
         if (p.app_uuid && idToName[p.app_uuid]) name = idToName[p.app_uuid];
         else if (p.app_id && idToName[p.app_id]) name = idToName[p.app_id]; 
         else {
-            // Try matching categories from static data
-            const cat = appCategories.find(c => c.id === normalizeId(p.module_id));
-            if (cat) name = `Module: ${cat.name}`;
+            // Module-level row: name it from the Suite catalogue
+            const modName = moduleLicenceName(p, mods || []);
+            if (modName) name = `Module: ${modName}`;
         }
 
         return {
             ...p,
+            parent_module_uuid: uuidToModuleId[p.app_uuid] || uuidToModuleId[p.app_id] || null,
             display_name: name,
             seats_used: used,
             // Fallback for allocated seats if null (unlimited)
@@ -246,16 +249,10 @@ function ModuleAccessPage() {
                         <CardDescription>Status of core modules based on your active subscriptions.</CardDescription>
                     </CardHeader>
                     <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
-                        {appCategories.filter(c => c.id !== 'hse').map(cat => {
-                            // Check if any license belongs to this module (UUID or Slug match)
-                            const active = activeLicenses.some(l =>
-                                (l.module_id && l.module_id.toLowerCase() === cat.id) ||
-                                (l.module_name && l.module_name.toLowerCase() === cat.name.toLowerCase()) ||
-                                (l.module_uuid && l.module_uuid === cat.id) // Assuming cat.id might track to UUID in some contexts, mostly it's slug
-                            );
-
+                        {moduleAvailability(activeLicenses, moduleRows).map(cat => {
+                            const { active } = cat;
                             return (
-                                <div key={cat.id} className={`p-3 rounded-md border flex items-center justify-between gap-2 ${active ? 'bg-pl-success-bg border-pl-success/40 text-pl-success-text' : 'bg-pl-sunken border-pl-border text-pl-muted'}`}>
+                                <div key={cat.slug} data-testid={`availability-${cat.slug}`} className={`p-3 rounded-md border flex items-center justify-between gap-2 ${active ? 'bg-pl-success-bg border-pl-success/40 text-pl-success-text' : 'bg-pl-sunken border-pl-border text-pl-muted'}`}>
                                     <span className="font-medium text-sm">{cat.name}</span>
                                     {active
                                         ? <ShieldCheck className="w-4 h-4" aria-label="Active"/>

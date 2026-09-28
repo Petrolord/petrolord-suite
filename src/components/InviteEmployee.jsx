@@ -52,7 +52,6 @@ const InviteEmployee = ({ orgId, onSuccess }) => {
                 toast({
                     title: "Invitation Sent",
                     description: `Invite emailed to ${formData.email}`,
-                    className: "bg-green-600 text-white"
                 });
             } else if (data?.invite_link) {
                 // Email delivery failed but the invite exists: hand the admin
