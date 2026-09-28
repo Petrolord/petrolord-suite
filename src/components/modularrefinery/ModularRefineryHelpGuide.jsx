@@ -12,14 +12,14 @@ const helpContent = [
     icon: BookOpen,
     title: 'What this tool answers',
     content:
-      'Whether a modular refinery of a given size, on a given crude, in a given market, is worth building. It takes a configuration and a capacity, works out what the barrel becomes and what that is worth, scales the capital, values the project, and puts the crude supply question beside the answer rather than in an appendix.',
+      'Whether a modular refinery of a given size, on a given crude, in a given market, is worth building. It takes a configuration and a capacity, works out what the barrel becomes and what that is worth, scales the capital, values the project, and puts the crude supply question beside the answer where it cannot be missed.',
   },
   {
     id: 'projects',
     icon: FolderOpen,
     title: 'Saved studies',
     content:
-      'Create a study from the selector at the top; everything auto-saves. Results are recomputed from the inputs rather than stored, so a reopened study cannot show an answer that no longer follows from what is in it.',
+      'Create a study from the selector at the top; everything auto-saves. Results are recomputed from the inputs and are not stored, so a reopened study cannot show an answer that no longer follows from what is in it.',
   },
   {
     id: 'scale',
@@ -33,21 +33,21 @@ const helpContent = [
     icon: Scale,
     title: 'The exponents are yours to set',
     content:
-      'Both scaling exponents are inputs rather than constants buried in the code, because a real study uses vendor quotations rather than a rule of thumb, and because a value that influential should be visible. Replace the reference cost and capacity with a quotation and the curves become yours.',
+      'Both scaling exponents are inputs, so no constant is buried in the code. A real study uses vendor quotations in place of a rule of thumb, and a value that influential should be visible. Replace the reference cost and capacity with a quotation and the curves become yours.',
   },
   {
     id: 'configuration',
     icon: Layers,
     title: 'Configurations and yields',
     content:
-      'Topping separates the barrel and sells what comes out. Hydroskimming adds reforming and hydrotreating, so you make on-specification gasoline and low-sulfur diesel, which is usually what a local market actually wants. Conversion adds cracking, so residue becomes transport fuel instead of fuel oil: more capital, and a far better slate on a heavy crude. The yields shipped with each are screening defaults so you do not start from an empty table; a real study takes them from the crude\'s own assay, which is exactly what the Crude Assay Studio computes from a TBP curve and a cut set.',
+      'Topping separates the barrel and sells what comes out. Hydroskimming adds reforming and hydrotreating, so you make on-specification gasoline and low-sulfur diesel, which is usually what a local market actually wants. Conversion adds cracking, so residue becomes transport fuel where it would otherwise be fuel oil: more capital, and a far better slate on a heavy crude. The yields shipped with each are screening defaults so you do not start from an empty table; a real study takes them from the crude\'s own assay, which is exactly what the Crude Assay Studio computes from a TBP curve and a cut set.',
   },
   {
     id: 'supply',
     icon: Fuel,
     title: 'Crude supply, the constraint that actually decides these projects',
     content:
-      'A modular refinery in a producing country is rarely defeated by its engineering. It is defeated by not being able to buy crude at a price and a reliability it can plan around. So supply is a scenario on utilisation and on the crude premium, and it sits on the input panel beside the capacity. The three scenarios are named futures rather than probabilities: attaching an invented likelihood to each would not be honest. If you have a real distribution, that belongs in a Monte Carlo, not in a dropdown.',
+      'A modular refinery in a producing country is rarely defeated by its engineering. It is defeated by not being able to buy crude at a price and a reliability it can plan around. So supply is a scenario on utilisation and on the crude premium, and it sits on the input panel beside the capacity. The three scenarios are named futures with no probabilities: attaching an invented likelihood to each would not be honest. If you have a real distribution, that belongs in a Monte Carlo. A dropdown cannot hold it.',
   },
   {
     id: 'economics',
@@ -61,14 +61,14 @@ const helpContent = [
     icon: FileCheck,
     title: 'The licensing tracker',
     content:
-      'Establish, construct, operate: the sequence a refinery project moves through, with what each stage typically needs. It is a tracking aid and not legal advice. The sequence is the shape of the process; what any stage requires in a given year is set by the regulator and changes, so the regulator\'s current requirements govern. The app will tell you if you have ticked a later stage without an earlier one, because that is a data-entry slip rather than a shortcut.',
+      'Establish, construct, operate: the sequence a refinery project moves through, with what each stage typically needs. It is a tracking aid and not legal advice. The sequence is the shape of the process; what any stage requires in a given year is set by the regulator and changes, so the regulator\'s current requirements govern. The app will tell you if you have ticked a later stage without an earlier one, because that is a data-entry slip.',
   },
   {
     id: 'limits',
     icon: AlertTriangle,
     title: 'Limits',
     content:
-      'This is a feasibility screen, and it does no design work. Yields are fixed vectors rather than functions of operating severity. Capital is scaled from a reference point rather than estimated bottom-up, so it is only as good as that reference. Working capital, financing structure and depreciation detail are not modelled. The screening engine applies a flat income tax, with a loss in any year (the construction years, above all) carried forward against later profit. No royalty is charged, because a royalty is a charge on producing petroleum and a refinery buys its crude. Product prices are yours to supply and are the single largest sensitivity in the answer. And a study whose yields do not account for the whole barrel is reported as such rather than normalised, because the gap is usually a modelling error worth finding.',
+      'This is a feasibility screen, and it does no design work. Yields are fixed vectors and do not vary with operating severity. Capital is scaled from a reference point and is not estimated bottom-up, so it is only as good as that reference. Working capital, financing structure and depreciation detail are not modelled. The screening engine applies a flat income tax, with a loss in any year (the construction years, above all) carried forward against later profit. No royalty is charged, because a royalty is a charge on producing petroleum and a refinery buys its crude. Product prices are yours to supply and are the single largest sensitivity in the answer. And a study whose yields do not account for the whole barrel is reported as such and is not normalised, because the gap is usually a modelling error worth finding.',
   },
 ];
 

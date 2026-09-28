@@ -59,7 +59,7 @@ const LoadingPanel = () => {
                 : `Unloaded, with ${fmt(result.loading.marginPct)} percent of margin at the controlling depth.`}
             </p>
             <p className="text-[11px] text-pl-muted mt-1">
-              The controlling station is {fmt(c.depthFt)} ft, not the wellhead. Critical rate rises
+              The controlling station is at {fmt(c.depthFt)} ft, and the wellhead does not decide it. Critical rate rises
               with pressure, so the deepest point decides, and it is where liquid collects.
             </p>
           </div>
@@ -136,7 +136,7 @@ const LoadingPanel = () => {
                 Velocity goes as one over area, so a smaller string lifts liquid at a lower rate.
                 This is the commonest and cheapest fix for a loading well. Screened at the
                 controlling station; a real re-completion changes the pressure profile too, so
-                treat the list as a shortlist rather than a promise.
+                treat the list as a shortlist. It is not a promise.
               </span>
             </CardTitle>
           </CardHeader>

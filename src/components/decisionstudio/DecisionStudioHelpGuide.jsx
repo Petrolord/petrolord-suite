@@ -15,7 +15,7 @@ const helpContent = [
     icon: BookOpen,
     title: 'What Decision Studio is',
     content:
-      'This is the executive layer over the rest of the module. It does not model anything of its own. It gathers the work you have already saved elsewhere in the Suite, a probabilistic economics run, a decision tree, a capital portfolio, puts them side by side, and produces a one page decision brief. The point is that the brief and the analysis behind it cannot drift apart, because the brief is assembled from the saved analyses themselves rather than retyped from them.',
+      'This is the executive layer over the rest of the module. It does not model anything of its own. It gathers the work you have already saved elsewhere in the Suite, a probabilistic economics run, a decision tree, a capital portfolio, puts them side by side, and produces a one page decision brief. The point is that the brief and the analysis behind it cannot drift apart, because the brief is assembled from the saved analyses themselves. Nothing is retyped from them.',
   },
   {
     id: 'inputs',
@@ -29,7 +29,7 @@ const helpContent = [
     icon: BarChart3,
     title: 'Comparing cases',
     content:
-      'Saved economics runs can be overlaid as cumulative NPV curves, one line per case. Reading them together is more informative than reading their P50s: two cases with the same P50 and different spreads are different propositions, and where the curves meet the dashed zero NPV line, the case whose curve sits highest has the greatest chance of losing money. Curves come from the stored simulation results, so what you see is the run as it was made, not a fresh approximation of it.',
+      'Saved economics runs can be overlaid as cumulative NPV curves, one line per case. Reading them together is more informative than reading their P50s: two cases with the same P50 and different spreads are different propositions, and where the curves meet the dashed zero NPV line, the case whose curve sits highest has the greatest chance of losing money. Curves come from the stored simulation results, so what you see is the run as it was made. It is not a fresh approximation of it.',
   },
   {
     id: 'recompute',
@@ -57,7 +57,7 @@ const helpContent = [
     icon: AlertTriangle,
     title: 'Assumptions and limits',
     content:
-      'Decision Studio inherits the assumptions of whatever you feed it and states them rather than fixing them. It has nothing to say about anything you did not analyse: a brief built on one economics case shows one economics case. The recommendation line is yours, and the tool does not write it. The right use is to make the reasoning behind a decision auditable, with the decision itself left to you.',
+      'Decision Studio inherits the assumptions of whatever you feed it. It states them and does not fix them. It has nothing to say about anything you did not analyse: a brief built on one economics case shows one economics case. The recommendation line is yours, and the tool does not write it. The right use is to make the reasoning behind a decision auditable, with the decision itself left to you.',
   },
 ];
 

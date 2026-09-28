@@ -26,7 +26,7 @@ export default function ProposalCard({ proposal, meta, onChange, onAccept, onDis
         <div className="text-pl-info-text font-medium">
           Read from the scan{meta?.model ? ` by ${meta.model}` : ''}{pct != null ? ` (confidence ${pct}%)` : ''}
         </div>
-        <div className="text-pl-muted">A proposal to check, not a trace.</div>
+        <div className="text-pl-muted">A proposal to check before it becomes a trace.</div>
       </div>
       <div className="grid grid-cols-4 gap-2">
         <label className="space-y-0.5">

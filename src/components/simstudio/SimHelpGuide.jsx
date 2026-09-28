@@ -11,7 +11,7 @@ const helpContent = [
     icon: BookOpen,
     title: 'What this studio does',
     content:
-      'Runs full black-oil reservoir simulations on OPM Flow, the leading open-source, Eclipse-deck-compatible simulator (opm-project.org). You bring an industry-standard input deck (or start from an SPE benchmark template); the platform queues it on a managed simulation worker, runs it, and charts the results. The simulator is the real engine used in published SPE comparative solution studies, not a toy.',
+      'Runs full black-oil reservoir simulations on OPM Flow, the leading open-source, Eclipse-deck-compatible simulator (opm-project.org). You bring an industry-standard input deck (or start from an SPE benchmark template); the platform queues it on a managed simulation worker, runs it, and charts the results. The simulator is the real engine used in published SPE comparative solution studies.',
   },
   {
     id: 'cases',
@@ -81,7 +81,7 @@ const helpContent = [
     icon: AlertTriangle,
     title: 'Scope and honesty',
     content:
-      'This is screening-scale simulation: the worker is sized for models up to roughly 200,000 cells. Restart files and compositional runs are not included yet. The 3D view is a preview of the built grid, not a results viewer, so simulated properties are not painted onto the cells. What you see is exactly what the simulator computed; failed runs stay failed, with the reason.',
+      'This is screening-scale simulation: the worker is sized for models up to roughly 200,000 cells. Restart files and compositional runs are not included yet. The 3D view is a preview of the built grid and no results viewer, so simulated properties are not painted onto the cells. What you see is exactly what the simulator computed; failed runs stay failed, with the reason.',
   },
 ];
 

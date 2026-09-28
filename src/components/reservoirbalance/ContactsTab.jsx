@@ -138,7 +138,7 @@ const ContactsTab = () => {
           </CardTitle>
           <CardDescription>
             Piston-front estimates: the {waterLabel} rises by the net influx of the last run and the GOC descends by
-            its gas-cap expansion, spread over these areas. A screening view, not a substitute for surveillance logs.
+            its gas-cap expansion, spread over these areas. A screening view that does not replace surveillance logs.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

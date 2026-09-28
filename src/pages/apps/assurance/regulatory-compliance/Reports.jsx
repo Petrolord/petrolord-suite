@@ -190,7 +190,7 @@ export default function Reports() {
           </div>
           <p className="text-xs text-[hsl(var(--muted-foreground))] mt-3">
             Statuses are derived from each obligation&apos;s own dates and lead
-            time, not from a stored word, so this chart and the register
+            time. No stored word is used, so this chart and the register
             always agree.
           </p>
         </CardContent>

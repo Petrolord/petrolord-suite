@@ -95,7 +95,7 @@ export const SchemaNotice = () => (
     This database does not have the AS6 change management schema yet, so
     the current-situation field and the implementation and closure
     signatures are unavailable, and the expiry rule for temporary changes
-    is enforced by this app rather than by the database. Everything else
+    is enforced by this app. The database does not enforce it. Everything else
     works. Ask your administrator to apply migration 20260917400000.
   </div>
 );

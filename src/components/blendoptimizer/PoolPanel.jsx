@@ -85,7 +85,7 @@ const PoolPanel = () => {
           </SelectContent>
         </Select>
         <p className="text-[11px] text-pl-warning-text mt-2">
-          Templates are starting points, not a compliance oracle. Fuel specifications are set by
+          Templates are starting points and make no compliance claim. Fuel specifications are set by
           regulation and they change: confirm every limit against the regulation in force. Each one
           is editable below.
         </p>
@@ -124,9 +124,9 @@ const PoolPanel = () => {
         </Button>
       </div>
       <p className="text-[11px] text-pl-muted">
-        The pool loaded here is an illustrative gasoline pool, not anyone&apos;s actual streams.
+        The pool loaded here is an illustrative gasoline pool and describes nobody&apos;s actual streams.
         Leave a property blank where you do not have it: a specification the pool cannot support is
-        reported as not applied rather than assumed. Every component needs a cost. Leave Max blank
+        reported as not applied and is never assumed. Every component needs a cost. Leave Max blank
         for no limit; a Max of 0 means none is available.
       </p>
       {inputs.components.map((c) => <ComponentCard key={c.id} component={c} />)}

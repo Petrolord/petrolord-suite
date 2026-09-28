@@ -55,7 +55,7 @@ const CooldownPanel = () => {
               <Field label="Target temperature (F)" hint="Usually the hydrate temperature at line pressure">
                 <NumberInput section="cooldown" name="targetTempF" />
               </Field>
-              <Field label="Contents density (lb/ft3)" hint="What settles out, not the flowing mixture">
+              <Field label="Contents density (lb/ft3)" hint="What settles out, excluding the flowing mixture">
                 <NumberInput section="cooldown" name="contentsDensityLbFt3" />
               </Field>
               <Field label="Contents Cp (Btu/lb-F)">

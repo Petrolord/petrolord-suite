@@ -73,8 +73,8 @@ const YieldsPanel = () => {
           <div className="mt-2 flex items-start gap-2 rounded border border-pl-warning/40 bg-pl-warning-bg p-3">
             <AlertTriangle className="w-4 h-4 text-pl-warning-text mt-0.5 shrink-0" />
             <p className="text-xs text-pl-warning-text">
-              The cuts total {fmt(yields.totalVolPercent, 1)} percent, not 100. The cut set does not
-              cover the whole curve. The yields are reported as they compute rather than scaled up to
+              The cuts total {fmt(yields.totalVolPercent, 1)} percent against 100. The cut set does not
+              cover the whole curve. The yields are reported as they compute and are not scaled up to
               close, because scaling would hide the gap.
             </p>
           </div>

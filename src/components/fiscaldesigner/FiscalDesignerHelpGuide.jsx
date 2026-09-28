@@ -39,7 +39,7 @@ const helpContent = [
     icon: Percent,
     title: 'The R factor and sliding scales',
     content:
-      'The R factor is cumulative revenue divided by cumulative cost, so it rises as a project pays back. Tiered splits hand the government a larger portion of profit oil once the contractor has been made whole, which is how most modern production sharing terms manage the front-end risk. Sliding scale royalty works the same way against production rate rather than payback. In both cases the tier that applies is chosen each year from that year s value, so watch how the take profile moves through the field life rather than judging a regime on its headline top rate.',
+      'The R factor is cumulative revenue divided by cumulative cost, so it rises as a project pays back. Tiered splits hand the government a larger portion of profit oil once the contractor has been made whole, which is how most modern production sharing terms manage the front-end risk. Sliding scale royalty works the same way against production rate in place of payback. In both cases the tier that applies is chosen each year from that year s value, so judge a regime by how the take profile moves through the field life. Its headline top rate alone says little.',
   },
   {
     id: 'read',
@@ -60,7 +60,7 @@ const helpContent = [
     icon: Scale,
     title: 'The ledger identity you can check',
     content:
-      'On every regime and in every year, contractor net cash flow plus government cash flow equals revenue minus costs. That identity is enforced by tests rather than assumed, and it is the fastest check on any fiscal model: money that is neither paid to the contractor nor collected by the government has been lost by the arithmetic. If you build a regime whose totals do not reconcile, that is worth reporting.',
+      'On every regime and in every year, contractor net cash flow plus government cash flow equals revenue minus costs. That identity is enforced by tests and is not simply assumed, and it is the fastest check on any fiscal model: money that is neither paid to the contractor nor collected by the government has been lost by the arithmetic. If you build a regime whose totals do not reconcile, that is worth reporting.',
   },
   {
     id: 'conventions',
@@ -74,7 +74,7 @@ const helpContent = [
     icon: AlertTriangle,
     title: 'Assumptions and limits',
     content:
-      'This is a screening model on a 25 year life with a generated production profile, not a full fiscal engine. It does not carry the PIA 2021 and Nigeria Tax Act 2025 framework switch, hydrocarbon tax alongside companies income tax, production allowances with cap tracking, or capital allowance carryforward. All of those live in Petroleum Economics Studio. Design terms here, then take the regime you settled on there to value the project properly.',
+      'This is a screening model on a 25 year life with a generated production profile. It is not a full fiscal engine. It does not carry the PIA 2021 and Nigeria Tax Act 2025 framework switch, hydrocarbon tax alongside companies income tax, production allowances with cap tracking, or capital allowance carryforward. All of those live in Petroleum Economics Studio. Design terms here, then take the regime you settled on there to value the project properly.',
   },
 ];
 

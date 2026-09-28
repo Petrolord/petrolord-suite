@@ -712,8 +712,8 @@ const PZPlot = ({ rows, result, caseName, ramagost }) => {
             {apparentOgipBcf != null && (
               <div className="text-[10px] text-pl-muted italic mt-1">
                 {apparentOgipBcf > ogipBcf * 1.02
-                  ? '↑ p/z overestimates — aquifer support present'
-                  : 'p/z agrees with MBAL — likely depletion drive'}
+                  ? '↑ p/z overestimates: aquifer support present'
+                  : 'p/z agrees with MBAL: likely depletion drive'}
               </div>
             )}
           </div>

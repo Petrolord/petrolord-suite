@@ -41,7 +41,7 @@ describe('FlowMeteringDesigner page', () => {
 
     expect((await screen.findAllByText(/Flow through the plate you have/i)).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Discharge coefficient/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/not a constant 0\.61/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/no constant 0\.61/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/The plate a target flow needs/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Upstream straight run/i).length).toBeGreaterThan(0);
 
@@ -67,7 +67,7 @@ describe('FlowMeteringDesigner page', () => {
     // The budget used to take a TYPED 0.5 percent while the transmitter
     // card beside it computed 0.15 percent from the same reading and span.
     expect(screen.getAllByText(/Differential term/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/from the transmitter, not typed/i)).toBeInTheDocument();
+    expect(screen.getByText(/from the transmitter, with no typed figure/i)).toBeInTheDocument();
     expect(screen.getByText(/percent of a 200 in H2O span read at 100 in H2O/i)).toBeInTheDocument();
     // and the runner-up is shown, so a photo finish is visible
     expect(screen.getAllByText(/Runner up/i).length).toBeGreaterThan(0);

@@ -145,7 +145,7 @@ const WellControlHelpGuideContent = () => {
                 definitive trajectory and the shared hole/casing geometry that the other
                 drilling studios use, so the numbers always describe the same well.
               </Para>
-              <Callout tone="danger" title="Planning tool, not certification">
+              <Callout tone="danger" title="A planning tool without certification">
                 This is a PLANNING tool in the kill-sheet tradition, built for a surface BOP
                 stack. It is not a substitute for the rig's official kill sheet, for
                 transient kill simulation, or for well control training and certification.
@@ -219,7 +219,7 @@ const WellControlHelpGuideContent = () => {
               </Para>
               <Callout tone="warn" title="Single-bubble assumption">
                 Real gas kicks disperse and migrate; the single-bubble isothermal model is
-                the standard conservative planning convention, not a transient simulation.
+                the standard conservative planning convention. It is not a transient simulation.
               </Callout>
             </Section>
 

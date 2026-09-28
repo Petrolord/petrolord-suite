@@ -514,7 +514,7 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
             setParseWarnings(warnings);
             setColMap(cm);
             toast({
-              title: 'CSV parsed, not saved yet',
+              title: 'CSV parsed and not saved yet',
               description: `${rows.length} rows mapped. Click "Save to case" below to write them to the case before running MBAL.`,
               duration: 8000,
             });
@@ -719,7 +719,7 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
                       Pending: {pendingFileName}
                     </p>
                     <p className="text-xs text-pl-muted">
-                      {pendingRows.length} rows parsed. {validationErrors.length === 0 ? 'Ready to save.' : `${validationErrors.length} validation error(s) — fix and re-upload.`}
+                      {pendingRows.length} rows parsed. {validationErrors.length === 0 ? 'Ready to save.' : `${validationErrors.length} validation error(s). Fix and re-upload.`}
                     </p>
                   </div>
                 </div>

@@ -78,7 +78,7 @@ const EfficiencyInputs = () => {
       </div>
 
       <Group title="Steam traps"
-        note="The discharge coefficient depends on the orifice and on how the trap failed, so it is required rather than defaulted.">
+        note="The discharge coefficient depends on the orifice and on how the trap failed, so it is required and has no default.">
         <Cell label="Failed traps" value={inputs.steam.trapCount} onChange={(v) => setSection('steam', { trapCount: v })} />
         <Cell label="Orifice" unit="mm" value={inputs.steam.orificeDiameterMm} onChange={(v) => setSection('steam', { orificeDiameterMm: v })} />
         <Cell label="Pressure" unit="bar a" value={inputs.steam.upstreamPressureBarA} onChange={(v) => setSection('steam', { upstreamPressureBarA: v })} />

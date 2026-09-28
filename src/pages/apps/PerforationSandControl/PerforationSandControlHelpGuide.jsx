@@ -189,8 +189,7 @@ const PerforationSandControlHelpGuideContent = () => {
                 The sieve table uses the sand control convention: cumulative weight percent
                 RETAINED against grain size, so D10 is a coarse size and D90 a fine one. D-values
                 interpolate log-linearly between your measured points and are never extrapolated
-                beyond them: a percentile the curve does not reach reads as missing rather than
-                invented. Uniformity is C_u = D40/D90, and fines are the fraction finer than 44
+                beyond them: a percentile the curve does not reach reads as missing and is never invented. Uniformity is C_u = D40/D90, and fines are the fraction finer than 44
                 microns (325 mesh).
               </Para>
               <Callout tone="info" title="At least 4 points">
@@ -224,7 +223,7 @@ const PerforationSandControlHelpGuideContent = () => {
               <SubHeading>Underbalance</SubHeading>
               <Para>
                 The underbalance card gives a planning BAND by permeability class and fluid, from
-                the published field guidance family. It is deliberately a range, not a point: the
+                the published field guidance family. It is deliberately a range with no single point: the
                 exact published correlations activate when the owner supplies the papers, and the
                 sanding tab caps how much underbalance the rock takes.
               </Para>
@@ -257,11 +256,11 @@ const PerforationSandControlHelpGuideContent = () => {
                 cavity geometry: a perforation tunnel at its worst-case azimuth uses the larger of
                 overburden and SHmax, an openhole or standalone screen uses the horizontal pair.
               </Para>
-              <Callout tone="warn" title="A screen, not a sand-rate model">
+              <Callout tone="warn" title="A screen with no sand-rate model">
                 This is screening grade by construction. The strength boost factor defaults to 1
                 and is the knob a thick-walled-cylinder calibration adjusts; transient effects,
                 water breakthrough and depletion trajectories are out of scope. A negative margin
-                means sanding is indicated at any drawdown: plan sand control, not avoidance.
+                means sanding is indicated at any drawdown: plan sand control, because avoidance will not work.
               </Callout>
               <Para>
                 The curves come from the published gm-1.0.0 SHMIN/SHMAX/UCS logs and the pp-1.0.0

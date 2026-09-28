@@ -53,7 +53,7 @@ const GasInflowFields = () => {
             <Field label="Non-Darcy D (1/(Mscf/d))"><NumberInput section="gasInflow" name="dNonDarcy" step="0.00001" /></Field>
           </div>
           <p className="text-[11px] text-pl-muted">
-            The pseudo-pressure route runs on real-gas m(p) rather than pressure squared, so it
+            The pseudo-pressure route runs on real-gas m(p), with no pressure-squared shortcut, so it
             stays honest at high pressure where the squared form drifts.
           </p>
         </>

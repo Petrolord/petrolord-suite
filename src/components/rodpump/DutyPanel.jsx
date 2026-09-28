@@ -32,13 +32,13 @@ const DutyPanel = () => (
       <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Pump</p>
       <Field
         label="Gas anchor efficiency (%)"
-        hint="Free gas the anchor sends up the annulus instead of into the barrel. A vendor or measured number: no separator efficiency is correlated here."
+        hint="Free gas the anchor sends up the annulus so it never enters the barrel. A vendor or measured number: no separator efficiency is correlated here."
       >
         <NumberInput section="duty" name="separatorEfficiencyPct" />
       </Field>
       <Field
         label="Volumetric efficiency (%)"
-        hint="Slippage past the plunger and shrinkage on the way to the tank. Measured, not modelled."
+        hint="Slippage past the plunger and shrinkage on the way to the tank. Measured values only, with no model."
       >
         <NumberInput section="duty" name="pumpEfficiencyPct" />
       </Field>

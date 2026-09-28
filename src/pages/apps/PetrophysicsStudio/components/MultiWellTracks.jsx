@@ -113,7 +113,7 @@ export default function MultiWellTracks({ wells, view: viewProp, onViewChange, t
       if (well.shift === null) {
         ctx.font = '9px sans-serif';
         ctx.fillStyle = TOP_TEXT;
-        ctx.fillText('no datum top — unflattened', cx0 + colW / 2, 26, colW - 8);
+        ctx.fillText('no datum top, unflattened', cx0 + colW / 2, 26, colW - 8);
       }
 
       const depth = well.curves.DEPT;

@@ -80,8 +80,8 @@ export default function VelocityModelEditor({
         </Button>
         <span className="text-xs text-pl-muted">
           {velocityModel
-            ? `${describeVelocity(velocityModel)} — drives depth maps and depth exports`
-            : 'not set — depth maps and model-based exports unavailable'}
+            ? `${describeVelocity(velocityModel)}: drives depth maps and depth exports`
+            : 'not set, so depth maps and model-based exports are unavailable'}
         </span>
       </div>
       {velMode === 'layercake' && (
@@ -164,7 +164,7 @@ export default function VelocityModelEditor({
           onClick={() => setCalOpen((v) => !v)}
           disabled={!velocityForDisplay || !(wells || []).length || !horizons.length}
           title={!velocityForDisplay
-            ? 'Save a velocity model first — calibration adjusts the current model'
+            ? 'Save a velocity model first. Calibration adjusts the current model.'
             : !(wells || []).length
               ? 'Toggle wells with tops visible in the explorer first'
               : 'Fit the velocity model so converted horizon depths match the well tops'}

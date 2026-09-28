@@ -18,28 +18,28 @@ const helpContent = [
     icon: Scale,
     title: 'The screening layer',
     content:
-      'Six methods: gas lift, ESP, rod pump, plunger lift, progressing cavity and jet pump. Every deduction is a rule of thumb spelled out so it can be argued with rather than hidden inside a score, and the reasons are the output that matters more than the number. The score exists to rank, not to measure: anything within fifteen points of the leader that also clears fifty is marked worth designing, because a screening score is not precise enough to separate close candidates and pretending otherwise is the whole problem with scoring.',
+      'Six methods: gas lift, ESP, rod pump, plunger lift, progressing cavity and jet pump. Every deduction is a rule of thumb spelled out so it can be argued with and is never hidden inside a score, and the reasons are the output that matters more than the number. The score exists to rank. It does not measure: anything within fifteen points of the leader that also clears fifty is marked worth designing, because a screening score is not precise enough to separate close candidates and pretending otherwise is the whole problem with scoring.',
   },
   {
     id: 'design',
     icon: Cpu,
     title: 'The design layer',
     content:
-      'For gas lift, ESP, rod pump and plunger lift the advisor runs the real thing: the same validated engines the four studios use. An ESP gets a reference stage picked for its in-situ duty and a motor picked for the shaft load that produces. Gas lift gets the deepest injection point the available surface pressure can actually reach, then the well solved lifted at that point. A rod pump walks a ladder of six equipment combinations and takes the smallest that meets the target without overloading the rods. A plunger is judged on the gas-liquid ratio a cycle really needs, computed rather than screened. All four run against ONE well description, which is what makes comparing them mean anything.',
+      'For gas lift, ESP, rod pump and plunger lift the advisor runs the real thing: the same validated engines the four studios use. An ESP gets a reference stage picked for its in-situ duty and a motor picked for the shaft load that produces. Gas lift gets the deepest injection point the available surface pressure can actually reach, then the well solved lifted at that point. A rod pump walks a ladder of six equipment combinations and takes the smallest that meets the target without overloading the rods. A plunger is judged on the gas-liquid ratio a cycle really needs, computed and not merely screened. All four run against ONE well description, which is what makes comparing them mean anything.',
   },
   {
     id: 'screening-grade',
     icon: AlertTriangle,
     title: 'Why this is screening grade',
     content:
-      'Every method needs equipment chosen before it can be designed, and the advisor chooses from a short ladder rather than asking you for forty numbers. That is a deliberate trade: what this pass is good for is telling you which methods can work on this well at all, and roughly what each would cost you in equipment. It is not a design. Every result names exactly what equipment it used and carries a link into the studio that designs the thing properly, with the well already loaded.',
+      'Every method needs equipment chosen before it can be designed, and the advisor chooses from a short ladder so it does not ask you for forty numbers. That is a deliberate trade: what this pass is good for is telling you which methods can work on this well at all, and roughly what each would cost you in equipment. It is not a design. Every result names exactly what equipment it used and carries a link into the studio that designs the thing properly, with the well already loaded.',
   },
   {
     id: 'disagree',
     icon: GitCompare,
     title: 'When the two disagree',
     content:
-      'This is the most useful thing the advisor produces. A method the matrix likes that the engine refuses is a rule of thumb meeting a well it does not fit; a method the matrix was lukewarm about that designs cleanly is worth a second look. Both are called out by name rather than quietly resolved. When they conflict the design wins, for the simple reason that it solved the well and the matrix applied a rule. That is the same discipline the Gas Well Performance Studio uses when the plunger-lift rule of thumb disagrees with the computed gas requirement.',
+      'This is the most useful thing the advisor produces. A method the matrix likes that the engine refuses is a rule of thumb meeting a well it does not fit; a method the matrix was lukewarm about that designs cleanly is worth a second look. Both are called out by name. Neither is quietly resolved. When they conflict the design wins, for the simple reason that it solved the well and the matrix applied a rule. That is the same discipline the Gas Well Performance Studio uses when the plunger-lift rule of thumb disagrees with the computed gas requirement.',
   },
   {
     id: 'noengine',
@@ -60,14 +60,14 @@ const helpContent = [
     icon: ExternalLink,
     title: 'Handing off to a studio',
     content:
-      'Each method that has an engine carries a link to the studio that designs it. The link takes the linked well with it, so the studio opens already pointed at the same well rather than making you find it again. From there you are in a full design tool: the Gas Lift Design Studio spaces valves and sets dome charges, the ESP Design Studio stages against a vendor curve, the Rod Pump Design Studio solves the wave equation and checks the rods against modified Goodman, and the Gas Well Performance Studio designs the plunger cycle.',
+      'Each method that has an engine carries a link to the studio that designs it. The link takes the linked well with it, so the studio opens already pointed at the same well, so you do not have to find it again. From there you are in a full design tool: the Gas Lift Design Studio spaces valves and sets dome charges, the ESP Design Studio stages against a vendor curve, the Rod Pump Design Studio solves the wave equation and checks the rods against modified Goodman, and the Gas Well Performance Studio designs the plunger cycle.',
   },
   {
     id: 'refusals',
     icon: AlertTriangle,
     title: 'What the advisor refuses to do',
     content:
-      'A target at or above the inflow’s absolute open flow is refused outright, because no lift method makes a well produce more than it can deliver and any answer to that question would be a lie. A rod pump design that runs cleanly but delivers a third of the target is reported as a shortfall, not as a success — reporting it as workable would be the single most misleading thing this advisor could do. A gas well record is refused, because this pass designs lift for an oil well. And a method with no engine is never presented as though it had been designed.',
+      'A target at or above the inflow’s absolute open flow is refused outright, because no lift method makes a well produce more than it can deliver and any answer to that question would be a lie. A rod pump design that runs cleanly but delivers a third of the target is reported as a shortfall. Reporting it as workable would be the single most misleading thing this advisor could do. A gas well record is refused, because this pass designs lift for an oil well. And a method with no engine is never presented as though it had been designed.',
   },
 ];
 

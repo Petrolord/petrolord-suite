@@ -108,10 +108,12 @@ const DocumentationHub = ({ open, onOpenChange }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl h-[85vh] p-0 flex overflow-hidden">
-        {/* Sidebar */}
-        <div className="w-64 border-r border-pl-border flex flex-col bg-pl-surface">
-          <div className="p-4 border-b border-pl-border">
+      <DialogContent className="max-w-6xl h-[85vh] p-0 flex flex-col md:flex-row overflow-hidden">
+        {/* Sidebar. On a phone it stacks above the article (a 256px rail
+            left the article about 120px wide at 390); its header then sits
+            under the close X, hence pr-12 below md. */}
+        <div data-testid="rcp-docs-sidebar" className="w-full max-h-[40%] md:max-h-none md:w-64 shrink-0 border-b md:border-b-0 md:border-r border-pl-border flex flex-col bg-pl-surface">
+          <div className="p-4 pr-12 md:pr-4 border-b border-pl-border">
             <h2 className="text-lg font-bold text-pl-text mb-2">Documentation</h2>
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-pl-muted" />
@@ -155,8 +157,10 @@ const DocumentationHub = ({ open, onOpenChange }) => {
         </div>
 
         {/* Content */}
-        <div className="flex-1 flex flex-col min-w-0 bg-pl-sunken">
-          <div className="p-4 border-b border-pl-border flex justify-between items-center bg-pl-surface">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-pl-sunken">
+          {/* pr-12 keeps the header clear of the dialog's close X, which the
+              ui Dialog pins at right-4 top-4 over this row. */}
+          <div data-testid="rcp-docs-header" className="p-4 pr-12 gap-3 border-b border-pl-border flex justify-between items-center bg-pl-surface">
             <div className="flex items-center text-sm text-pl-muted min-w-0">
               <span className="hover:text-pl-text cursor-pointer shrink-0" onClick={() => setActiveSection('getting-started')}>Docs</span>
               <span className="mx-2 shrink-0">/</span>

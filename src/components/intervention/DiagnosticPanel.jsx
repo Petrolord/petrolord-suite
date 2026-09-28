@@ -201,7 +201,7 @@ const DiagnosticPanel = () => {
               Both curves are shown because the ratio alone cannot separate coning from channelling:
               both climb. It is the derivative that carries the distinction, climbing steeply for
               channelling and falling for coning. This is a reading of the same two things Chan
-              reads, not a reproduction of the published type curves; take a decision that turns on
+              reads. It does not reproduce the published type curves, so take a decision that turns on
               it to the plots.
             </p>
           </>

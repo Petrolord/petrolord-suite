@@ -120,7 +120,7 @@ const DataQualityStudioHelpGuideContent = () => (
 
     <GuideSection id="completeness">
       <SectionHeading icon={Layers}>Completeness</SectionHeading>
-      <Para>Missing is a blank, null or NaN. Infinity is an invalid value and is refused, never counted as missing.</Para>
+      <Para>Missing is a blank, null or NaN. Infinity is an invalid value and is refused. It is never counted as missing.</Para>
       <Formula>completeness = present / n</Formula>
       <Para>
         Each run of consecutive missing samples is one flag, <Code>missing-run</Code>. Coverage is optional: give the
@@ -280,7 +280,7 @@ const DataQualityStudioHelpGuideContent = () => (
       />
       <Para>
         Coverage holes, Mahalanobis rows and control chart signals are listed with their reasons and left out of the
-        score. A dimension nothing checked is left out rather than scored as perfect. No grade bands are given: what
+        score. A dimension nothing checked is left out and is not scored as perfect. No grade bands are given: what
         counts as good enough is your organization&apos;s call.
       </Para>
     </GuideSection>

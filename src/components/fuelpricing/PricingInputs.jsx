@@ -76,8 +76,7 @@ const PricingInputs = () => {
           <Cell label="Exchange rate" unit="local/$" value={inputs.fxRate} onChange={(v) => setField('fxRate', v)} />
         </div>
         <p className="text-[10px] text-pl-muted mt-1">
-          Density comes from the certificate of quality. The figure filled in with the product is
-          typical for it, not measured for this cargo.
+          Density comes from the certificate of quality. The figure filled in with the product is typical for it and was not measured for this cargo.
         </p>
       </div>
 
@@ -90,7 +89,7 @@ const PricingInputs = () => {
         <p className="text-[10px] text-pl-muted mb-1">
           {landed.complete
             ? 'Every rate supplied.'
-            : `${landed.missingRates.length} rate(s) still required. Until they are supplied the landed cost is a floor, not a cost.`}
+            : `${landed.missingRates.length} rate(s) still required. Until they are supplied the landed cost is only a floor.`}
         </p>
         <div className="divide-y divide-pl-border">
           {inputs.charges.map((row) => (

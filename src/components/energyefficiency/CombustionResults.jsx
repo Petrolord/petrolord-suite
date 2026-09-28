@@ -83,7 +83,7 @@ const CombustionResults = () => {
               )}
             </div>
             <p className="text-[11px] text-pl-muted mb-2">
-              The indirect method is used rather than the direct one because it says where the
+              The indirect method is used here because, unlike the direct one, it says where the
               energy went, and that is the difference between a number and an action.
             </p>
             <ChartFrame height={240} exportFilename="stack-losses">

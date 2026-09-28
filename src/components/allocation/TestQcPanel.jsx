@@ -167,8 +167,7 @@ const TestQcPanel = () => {
 
         <p className="mt-3 text-[11px] text-pl-muted">
           A rejected test carries no well in the allocation, and the next valid test before it takes
-          over. If every test for a well is rejected, that well takes no allocation and the run says
-          so rather than inventing a rate for it.
+          over. If every test for a well is rejected, that well takes no allocation and the run says so and invents no rate for it.
         </p>
       </CardContent>
     </Card>

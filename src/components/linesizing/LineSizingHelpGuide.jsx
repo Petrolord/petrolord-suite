@@ -11,7 +11,7 @@ const helpContent = [
     icon: BookOpen,
     title: 'What this studio does',
     content:
-      'It sizes a single surface line: liquid, gas or multiphase. You state the fluid, the duty and the route, and it answers with the pressure drop of the size you picked, and then with the same line evaluated at every pipe size in the schedule table, so choosing a diameter is reading a table with limits marked rather than trusting one number. The size it marks RECOMMENDED is the smallest bore that passes every limit you stated, which is not always the first passing row you meet reading down the table, because the table runs by nominal size and a heavier schedule of the same nominal size is a smaller bore than the lighter one above it. It is deliberately a single-line tool: solving a whole gathering network, where the wells and the lines set each other\'s pressures, is the Production Network Studio\'s job.',
+      'It sizes a single surface line: liquid, gas or multiphase. You state the fluid, the duty and the route, and it answers with the pressure drop of the size you picked, and then with the same line evaluated at every pipe size in the schedule table, so choosing a diameter is reading a table with limits marked. You do not have to trust one number. The size it marks RECOMMENDED is the smallest bore that passes every limit you stated, which is not always the first passing row you meet reading down the table, because the table runs by nominal size and a heavier schedule of the same nominal size is a smaller bore than the lighter one above it. It is deliberately a single-line tool: solving a whole gathering network, where the wells and the lines set each other\'s pressures, is the Production Network Studio\'s job.',
   },
   {
     id: 'liquid',
@@ -25,28 +25,28 @@ const helpContent = [
     icon: Wind,
     title: 'Gas lines and choosing an equation',
     content:
-      'Weymouth, Panhandle A, Panhandle B and the General Flow equation, in their published forms with the standard elevation adjustment. They are different empirical fits, not one truth: Weymouth is conservative and suits short high-pressure gathering lines, the Panhandle pair were fitted to long transmission lines and flatter short ones, and the General Flow equation computes friction explicitly from Colebrook instead of baking it into the exponent. The efficiency factor E is where line condition lives; a clean new line runs near 1.0 and an old wet one nearer 0.85. The z-factor can come from the validated Dranchuk-Abou-Kassem correlation at your conditions or be typed directly.',
+      'Weymouth, Panhandle A, Panhandle B and the General Flow equation, in their published forms with the standard elevation adjustment. They are different empirical fits and none of them is the one truth: Weymouth is conservative and suits short high-pressure gathering lines, the Panhandle pair were fitted to long transmission lines and flatter short ones, and the General Flow equation computes friction explicitly from Colebrook and does not bake it into the exponent. The efficiency factor E is where line condition lives; a clean new line runs near 1.0 and an old wet one nearer 0.85. The z-factor can come from the validated Dranchuk-Abou-Kassem correlation at your conditions or be typed directly.',
   },
   {
     id: 'multiphase',
     icon: Waves,
     title: 'Multiphase lines',
     content:
-      'The Beggs and Brill correlation, the same golden-tested implementation the Nodal Analysis Studio runs, applied at the line\'s own inclination. The line is marched in steps rather than evaluated once at the inlet, because the gradient is not constant along a line that carries gas: the pressure falls, the gas expands, the mixture runs faster and the gradient steepens. A short line barely notices the difference and a long gassy one changes by several percent, and a line whose pressure reaches atmospheric partway along is reported as a line that does not deliver, naming the distance, instead of being given an arrival pressure it cannot reach. The card shows how many steps the march used. Alongside the pressure drop it reports the flow pattern and the liquid holdup at the inlet, and both matter: an intermittent pattern is a slugging warning for the receiving vessel, and the holdup is exactly the liquid a pig will push ahead of itself, which is why the Pigging tab can read it directly.',
+      'The Beggs and Brill correlation, the same golden-tested implementation the Nodal Analysis Studio runs, applied at the line\'s own inclination. The line is marched in steps and is not evaluated once at the inlet, because the gradient is not constant along a line that carries gas: the pressure falls, the gas expands, the mixture runs faster and the gradient steepens. A short line barely notices the difference and a long gassy one changes by several percent, and a line whose pressure reaches atmospheric partway along is reported as a line that does not deliver, naming the distance. It is not given an arrival pressure it cannot reach. The card shows how many steps the march used. Alongside the pressure drop it reports the flow pattern and the liquid holdup at the inlet, and both matter: an intermittent pattern is a slugging warning for the receiving vessel, and the holdup is exactly the liquid a pig will push ahead of itself, which is why the Pigging tab can read it directly.',
   },
   {
     id: 'erosional',
     icon: AlertTriangle,
     title: 'The erosional limit',
     content:
-      'API RP 14E limits velocity to C over the square root of the mixture density. C is an input, not a constant, because RP 14E itself says its published values are conservative and allows higher where the fluid is clean and corrosion is controlled. Continuous service is customarily 100, intermittent 125, and clean inhibited service higher still. Every sizing table row carries its own erosional check.',
+      'API RP 14E limits velocity to C over the square root of the mixture density. C is an input and is not fixed as a constant, because RP 14E itself says its published values are conservative and allows higher where the fluid is clean and corrosion is controlled. Continuous service is customarily 100, intermittent 125, and clean inhibited service higher still. Every sizing table row carries its own erosional check.',
   },
   {
     id: 'profile',
     icon: Mountain,
     title: 'The elevation profile',
     content:
-      'A line over hills is not the flat line with the same endpoints: the gradient changes with every inclination, and on a multiphase line the holdup changes with it. The Profile tab marches the line segment by segment in the physics of the active service and draws the pressure against distance, so a pinch in the middle of the route shows up where it is instead of vanishing into an average.',
+      'A line over hills is not the flat line with the same endpoints: the gradient changes with every inclination, and on a multiphase line the holdup changes with it. The Profile tab marches the line segment by segment in the physics of the active service and draws the pressure against distance, so a pinch in the middle of the route shows up where it is and does not vanish into an average.',
   },
   {
     id: 'wall',

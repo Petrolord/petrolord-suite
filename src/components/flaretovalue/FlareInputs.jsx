@@ -49,7 +49,7 @@ const FlareInputs = () => {
       </Group>
 
       <Group title="The parcel"
-        note="A flare's destruction efficiency is most of its footprint and it is contested, so it is required rather than assumed. So is the methane potential, and the assessment report it came from is yours to pick. The combustion efficiency (the share oxidised to CO2) is optional; left blank, the destruction efficiency stands in for it and the results say so.">
+        note="A flare's destruction efficiency is most of its footprint and it is contested, so it is required and never assumed. So is the methane potential, and the assessment report it came from is yours to pick. The combustion efficiency (the share oxidised to CO2) is optional; left blank, the destruction efficiency stands in for it and the results say so.">
         <Cell label="Volume" unit="MMscfd" value={inputs.parcel.volumeMMscfd} onChange={(v) => setSection('parcel', { volumeMMscfd: v })} />
         <Cell label="On stream" unit="days/yr" value={inputs.parcel.onstreamDays} onChange={(v) => setSection('parcel', { onstreamDays: v })} />
         <Cell label="Flare destruction efficiency" unit="fraction" value={inputs.parcel.flareDestructionEfficiency} placeholder="required" onChange={(v) => setSection('parcel', { flareDestructionEfficiency: v })} />

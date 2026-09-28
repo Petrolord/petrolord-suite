@@ -150,7 +150,7 @@ const StimulationDesignerHelpGuideContent = () => {
               </Para>
               <Callout tone="warn" title="Planning level, honestly labeled">
                 The frac models are the classical 2D PKN and KGD width equations with a Newtonian
-                fluid: the right tool for sizing and screening, not a pseudo-3D simulator. Proppant
+                fluid: the right tool for sizing and screening. It is not a pseudo-3D simulator. Proppant
                 pack permeabilities are nominal published-typical values and the vendor conductivity
                 cells govern a real job. The acidizing cards are volumetric planning models with
                 the chemistry left to the lab.
@@ -161,8 +161,8 @@ const StimulationDesignerHelpGuideContent = () => {
               <SectionHeading icon={Zap}>Quick Start (10 min)</SectionHeading>
               <Step n={1} title="Pick the wellbore and create a case">
                 Choose a site and wellbore with a definitive design. The closure and reservoir
-                pressure cards fill from the published curves; missing curves are named, never
-                guessed.
+                pressure cards fill from the published curves; missing curves are named and are
+                not guessed.
               </Step>
               <Step n={2} title="Set the geometry target">
                 Enter rock (E, nu), fluid viscosity, pump rate, fracture height and the target

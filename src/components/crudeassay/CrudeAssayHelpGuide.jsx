@@ -19,14 +19,14 @@ const helpContent = [
     icon: FolderOpen,
     title: 'Saved studies',
     content:
-      'Create a study from the selector at the top. Your assays, cut points and prices auto-save about ten seconds after each change, and the indicator shows the last save. Results are recomputed from the inputs rather than stored, so a reopened study cannot show numbers that no longer follow from what is in it.',
+      'Create a study from the selector at the top. Your assays, cut points and prices auto-save about ten seconds after each change, and the indicator shows the last save. Results are recomputed from the inputs and are not stored, so a reopened study cannot show numbers that no longer follow from what is in it.',
   },
   {
     id: 'assays',
     icon: Beaker,
     title: 'Entering an assay',
     content:
-      'Each crude carries its gravity, sulfur, TAN, viscosity, nitrogen and metals, and a TBP distillation curve as volume percent distilled against temperature. Crude assays are reported as TBP distillations (D2892 and D5236), which is what this app takes. The two crudes it opens with are illustrative starting figures rather than published assay sheets; replace them with the seller\'s assay before the numbers mean anything about a real cargo.',
+      'Each crude carries its gravity, sulfur, TAN, viscosity, nitrogen and metals, and a TBP distillation curve as volume percent distilled against temperature. Crude assays are reported as TBP distillations (D2892 and D5236), which is what this app takes. The two crudes it opens with are illustrative starting figures. They are not published assay sheets; replace them with the seller\'s assay before the numbers mean anything about a real cargo.',
   },
   {
     id: 'blending',
@@ -40,7 +40,7 @@ const helpContent = [
     icon: Droplets,
     title: 'Viscosity and the blending index',
     content:
-      'Viscosity is wildly non-linear in composition: a 50/50 blend of a 10 cSt and a 1000 cSt oil is nowhere near 505 cSt, it is closer to 100. The app uses the Refutas index, which linearises the double logarithm of viscosity so the blend can be taken as a weighted mean and inverted. The index is blended on mass fraction, which is the classic Refutas formulation. If any component viscosity is missing or below about 0.2 cSt, where the index is undefined, the app reports no blended viscosity rather than quietly blending the rest.',
+      'Viscosity is wildly non-linear in composition: a 50/50 blend of a 10 cSt and a 1000 cSt oil is nowhere near 505 cSt, it is closer to 100. The app uses the Refutas index, which linearises the double logarithm of viscosity so the blend can be taken as a weighted mean and inverted. The index is blended on mass fraction, which is the classic Refutas formulation. If any component viscosity is missing or below about 0.2 cSt, where the index is undefined, the app reports no blended viscosity. It does not quietly blend the rest.',
   },
   {
     id: 'stability',
@@ -54,21 +54,21 @@ const helpContent = [
     icon: LineChart,
     title: 'Cut yields',
     content:
-      'A cut\'s yield is the volume between its boiling bounds, read off the distillation curve. The cut points are yours to set, because every refinery draws them where its own units want them. The blend\'s curve is built by mixing the component yields at each temperature, which is the quantity that is additive; averaging the components\' temperatures would mean nothing. If your cut set does not cover the whole curve the app says the yields do not close to 100 rather than scaling them up, because scaling would hide the gap. The curve is never extended past its measured points: below a first point at 0 percent nothing has distilled and above a last point at 100 percent everything has, and anywhere else outside the curve a cut has no yield and is named as such. Start each curve at 0 percent and end it at 100 so every cut can be read.',
+      'A cut\'s yield is the volume between its boiling bounds, read off the distillation curve. The cut points are yours to set, because every refinery draws them where its own units want them. The blend\'s curve is built by mixing the component yields at each temperature, which is the quantity that is additive; averaging the components\' temperatures would mean nothing. If your cut set does not cover the whole curve the app says the yields do not close to 100. It does not scale them up, because scaling would hide the gap. The curve is never extended past its measured points: below a first point at 0 percent nothing has distilled and above a last point at 100 percent everything has, and anywhere else outside the curve a cut has no yield and is named as such. Start each curve at 0 percent and end it at 100 so every cut can be read.',
   },
   {
     id: 'netback',
     icon: DollarSign,
     title: 'Netback and the differential',
     content:
-      'The value of a barrel is its own yields times the price of each cut, less losses, processing and freight. That follows the assay rather than a rule of thumb about gravity and sulfur, which is the point of doing it this way. Every term is shown separately because the argument with a seller is always about one of them. A blank processing, freight or loss box is taken as zero, and the app lists which ones it took that way. A cut with no price is named rather than counted as free: a missing price silently treated as zero understates the crude and loses the argument for the wrong reason. Enter a marker netback to see the differential.',
+      'The value of a barrel is its own yields times the price of each cut, less losses, processing and freight. That follows the assay itself. A rule of thumb about gravity and sulfur would miss the point of doing it this way. Every term is shown separately because the argument with a seller is always about one of them. A blank processing, freight or loss box is taken as zero, and the app lists which ones it took that way. A cut with no price is named and is not counted as free: a missing price silently treated as zero understates the crude and loses the argument for the wrong reason. Enter a marker netback to see the differential.',
   },
   {
     id: 'limits',
     icon: AlertTriangle,
     title: 'Limits',
     content:
-      'This is a screening tool for evaluation and blending decisions, not a refinery model: it distils the barrel and values the cuts, and it does not simulate conversion units, so the yields are straight-run. Volumes are assumed to mix without shrinkage, which is a good assumption for crudes of similar character and a poorer one at wide gravity contrast. Pour point is not blended, and D86 to TBP conversion is not offered, because both rest on published correlation tables this package will not reproduce from memory; a crude assay is a TBP distillation in the first place. The stability screen is a screen. Confirm marginal blends in a lab.',
+      'This is a screening tool for evaluation and blending decisions. It is not a refinery model: it distils the barrel and values the cuts, and it does not simulate conversion units, so the yields are straight-run. Volumes are assumed to mix without shrinkage, which is a good assumption for crudes of similar character and a poorer one at wide gravity contrast. Pour point is not blended, and D86 to TBP conversion is not offered, because both rest on published correlation tables this package will not reproduce from memory; a crude assay is a TBP distillation in the first place. The stability screen is a screen. Confirm marginal blends in a lab.',
   },
 ];
 

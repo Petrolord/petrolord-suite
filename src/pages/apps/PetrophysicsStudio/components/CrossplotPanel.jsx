@@ -286,7 +286,7 @@ export default function CrossplotPanel({
     onSelectionChange?.(picked.size ? picked : null);
     setSelecting(false);
     setSelDraft([]);
-    onStatus(picked.size ? `Selected ${picked.size} samples — highlighted on the tracks.` : 'No samples inside the polygon.');
+    onStatus(picked.size ? `Selected ${picked.size} samples, highlighted on the tracks.` : 'No samples inside the polygon.');
   };
 
   const closePolygon = () => {

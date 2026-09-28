@@ -1146,7 +1146,7 @@ function MapView({
         && p.ampLayer.grid === p.active.grid ? p.ampLayer : null;
       const ampM = ampL ? AMP_MODES.find((m) => m.key === ampL.mode) : null;
       const label = ampM
-        ? `${p.active.name} — ${ampM.label}${ampM.windowed ? ` ±${ampL.window}` : ''}`
+        ? `${p.active.name}: ${ampM.label}${ampM.windowed ? ` ±${ampL.window}` : ''}`
         : p.vs
           ? `${p.vs.name} − ${p.active.name} (isochron)`
           : p.active.name || 'Horizon';
@@ -1667,10 +1667,10 @@ function MapView({
           }}
           disabled={(horizons || []).length < 2 || Boolean(activeSurface)}
           title={activeSurface
-            ? 'Isochron mode maps horizon pairs — pick a horizon layer first'
+            ? 'Isochron mode maps horizon pairs. Pick a horizon layer first.'
             : 'Isochron mode: map the TWT interval Δ = vs − horizon (needs two visible horizons)'}
         >
-          <option value="">— (structure)</option>
+          <option value="">(structure)</option>
           {(horizons || []).filter((h) => h.id !== active?.id).map((h) => (
             <option key={h.id} value={h.id}>{h.name}</option>
           ))}
@@ -1724,10 +1724,10 @@ function MapView({
           title={activeSurface
             ? 'A stored surface keeps its own domain and unit'
             : effAttr !== 'structure'
-              ? 'Amplitude maps have no display domain — switch the attribute back to Structure'
+              ? 'Amplitude maps have no display domain. Switch the attribute back to Structure.'
               : velocity
                 ? 'Display domain (depth via the volume velocity model)'
-                : 'Depth display needs a velocity model — set one in the viewer controls'}
+                : 'Depth display needs a velocity model. Set one in the viewer controls.'}
         >
           <option value="twt">TWT ms</option>
           <option value="depth_m">Depth m</option>
@@ -1847,7 +1847,7 @@ function MapView({
               scheduleDraw();
             }}
             disabled={!hasData}
-            title="Draw a traverse line: click vertices along the path, double-click to finish — the section along it opens in the Traverse window (drawing again replaces it)"
+            title="Draw a traverse line: click vertices along the path, double-click to finish. The section along it opens in the Traverse window (drawing again replaces it)"
           >
             <Route className="w-4 h-4" />
           </Button>
@@ -1877,7 +1877,7 @@ function MapView({
             }}
             disabled={!active || Boolean(vs)}
             title={vs
-              ? 'Erase is unavailable on an isochron map — switch vs back to structure first'
+              ? 'Erase is unavailable on an isochron map. Switch vs back to structure first.'
               : 'Erase the mapped horizon’s picks in a region: drag a rectangle, or click polygon vertices and double-click to close'}
           >
             <Eraser className="w-4 h-4" />

@@ -360,7 +360,7 @@ export default function ImportPanel({
           <div className="rounded-lg border border-pl-warning/50 bg-pl-warning-bg p-3 space-y-2">
             <div className="flex items-center text-sm text-pl-warning-text">
               <AlertTriangle className="w-4 h-4 mr-2 shrink-0" />
-              Interrupted imports — resume with the ORIGINAL file (verified
+              Interrupted imports: resume with the ORIGINAL file (verified
               by fingerprint), or discard the partial data.
             </div>
             {interrupted.map((v) => {
@@ -432,7 +432,7 @@ export default function ImportPanel({
           </Button>
           {file && (
             <span className="ml-3 text-sm text-pl-muted">
-              {(file.size / (1024 * 1024)).toFixed(1)} MB — processed in windows, never fully loaded
+              {(file.size / (1024 * 1024)).toFixed(1)} MB, processed in windows and not loaded whole
             </span>
           )}
         </div>
@@ -573,7 +573,7 @@ export default function ImportPanel({
               )}
               {scan.sampled && (
                 <div className="col-span-full text-pl-muted">
-                  Preview from sampled headers — every trace is validated during import.
+                  Preview from sampled headers. Every trace is validated during import.
                 </div>
               )}
             </div>
@@ -689,7 +689,7 @@ export default function ImportPanel({
                 className="text-sm text-pl-primary-text hover:underline"
                 onClick={() => setShowHeader((s) => !s)}
               >
-                {showHeader ? 'Hide' : 'Show'} textual header (display only — it may lie)
+                {showHeader ? 'Hide' : 'Show'} textual header (display only, it may lie)
               </button>
               {showHeader && (
                 <pre className="mt-2 bg-pl-sunken/80 border border-pl-border rounded-lg p-3 text-xs text-pl-muted overflow-x-auto">
@@ -702,7 +702,7 @@ export default function ImportPanel({
 
         {phase === 'ingesting' && resuming && (
           <div className="text-sm text-pl-muted">
-            Resuming “{resuming.name}” — the file is re-verified and
+            Resuming “{resuming.name}”. The file is re-verified and
             re-transcoded under the original mapping; bricks that already
             uploaded are skipped, so only the missing remainder transfers.
           </div>
@@ -712,7 +712,7 @@ export default function ImportPanel({
             <div className="flex items-center text-pl-text text-sm">
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               {PHASE_LABEL[progress.phase] || progress.phase}
-              {' — '}
+              {': '}
               {fmtInt(progress.done)}{progress.total ? ` / ${fmtInt(progress.total)}` : ''}
             </div>
             {progress.total && (

@@ -11,21 +11,21 @@ export const helpContent = [
     icon: BookOpen,
     title: 'What this studio does',
     content:
-      'It sizes a pressure safety valve to API 520 for the scenario you state, chains the API 521 fire case from vessel geometry to orifice, screens the flare knockout drum, answers the radiation question both ways, and marches a vessel blowdown. Every number is a published equation with its factors visible; where the standard publishes a chart instead of an equation, the factor is an input with its reference named, because reading a curve for you and getting it silently wrong would be worse than asking.',
+      'It sizes a pressure safety valve to API 520 for the scenario you state, chains the API 521 fire case from vessel geometry to orifice, screens the flare knockout drum, answers the radiation question both ways, and marches a vessel blowdown. Every number is a published equation with its factors visible; where the standard publishes a chart and no equation, the factor is an input with its reference named, because reading a curve for you and getting it silently wrong would be worse than asking.',
   },
   {
     id: 'gas',
     icon: Gauge,
     title: 'Gas sizing and the critical ratio',
     content:
-      'A relief valve nozzle chokes when the back pressure is below the critical ratio, which comes from the heat capacity ratio alone. Below it, the flow is fixed by the upstream pressure and the standard C coefficient; above it, the F2 subcritical equation applies and the back pressure enters the sizing itself. The studio decides which branch you are on rather than asking you to know, and the two branches meet at the ratio, which is how you can tell neither is transcribed wrongly. The balanced-bellows back-pressure factor Kb is a published chart, so above 30 percent back pressure the studio warns and expects the chart value typed.',
+      'A relief valve nozzle chokes when the back pressure is below the critical ratio, which comes from the heat capacity ratio alone. Below it, the flow is fixed by the upstream pressure and the standard C coefficient; above it, the F2 subcritical equation applies and the back pressure enters the sizing itself. The studio decides which branch you are on so you do not need to know, and the two branches meet at the ratio, which is how you can tell neither is transcribed wrongly. The balanced-bellows back-pressure factor Kb is a published chart, so above 30 percent back pressure the studio warns and expects the chart value typed.',
   },
   {
     id: 'liquid',
     icon: Droplets,
     title: 'Liquid sizing and viscosity',
     content:
-      'The certified-valve liquid equation with the published viscosity correction. Kv depends on the Reynolds number, which depends on the orifice area, which depends on Kv, so the studio iterates the loop to its fixed point instead of guessing once. When Kv falls below about half, the service is far off the certified test envelope and the studio says so.',
+      'The certified-valve liquid equation with the published viscosity correction. Kv depends on the Reynolds number, which depends on the orifice area, which depends on Kv, so the studio iterates the loop to its fixed point. It does not guess once. When Kv falls below about half, the service is far off the certified test envelope and the studio says so.',
   },
   {
     id: 'fire',
@@ -53,12 +53,12 @@ export const helpContent = [
     icon: Timer,
     title: 'Blowdown',
     content:
-      'An adiabatic march of a vessel discharging through a fixed orifice in critical flow: pressure and temperature against time, with the customary 15-minute marker drawn on the curve so the API 521 depressuring question is read rather than asserted. The discharge coefficient you type is the only one acting, the march subdivides its own step when a step would empty the vessel, and it lands on the end pressure you state rather than stepping past it. Where the end pressure is low enough that the orifice stops being choked, the studio says so, because the time below that point is optimistic. The adiabatic assumption is the cold bound; a real vessel picks up heat from its own steel and chills less, but the low-temperature metallurgy question starts from this curve.',
+      'An adiabatic march of a vessel discharging through a fixed orifice in critical flow: pressure and temperature against time, with the customary 15-minute marker drawn on the curve so the API 521 depressuring question is read off the curve. The discharge coefficient you type is the only one acting, the march subdivides its own step when a step would empty the vessel, and it lands on the end pressure you state without stepping past it. Where the end pressure is low enough that the orifice stops being choked, the studio says so, because the time below that point is optimistic. The adiabatic assumption is the cold bound; a real vessel picks up heat from its own steel and chills less, but the low-temperature metallurgy question starts from this curve.',
   },
   {
     id: 'honesty',
     icon: AlertTriangle,
-    title: 'What is typed rather than computed',
+    title: 'What is typed and what is computed',
     content:
       'The balanced-bellows factors Kb and Kw, the steam superheat factor KSH, and the fire environment factor for insulation credit are published as charts and tables in API 520 and 521. This studio does not reproduce plotted curves from memory: those factors are inputs with their references named, defaulting to the values the standard gives for the simple case, and the studio warns where the simple default stops being safe.',
   },

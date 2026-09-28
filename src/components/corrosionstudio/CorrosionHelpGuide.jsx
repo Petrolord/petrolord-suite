@@ -30,14 +30,14 @@ const helpContent = [
     icon: BookOpen,
     title: 'What this studio does',
     content:
-      'Screens CO2 corrosion of carbon steel at line conditions, compares the H2S partial pressure against a screening threshold, and turns the rate into a remaining life against a corrosion allowance. It is a screening model, not a prediction: it tells you which lines need attention and roughly how much, and where the uncertainty is large enough that an inhibitor programme or a metallurgy decision needs real data behind it. Where it cannot answer it refuses, and a blank input box is refused rather than filled in with a comfortable number.',
+      'Screens CO2 corrosion of carbon steel at line conditions, compares the H2S partial pressure against a screening threshold, and turns the rate into a remaining life against a corrosion allowance. It is a screening model and makes no prediction: it tells you which lines need attention and roughly how much, and where the uncertainty is large enough that an inhibitor programme or a metallurgy decision needs real data behind it. Where it cannot answer it refuses, and a blank input box is refused and is not filled in with a comfortable number.',
   },
   {
     id: 'velocity',
     icon: Waves,
     title: 'Why velocity is in the model at all',
     content:
-      'CO2 corrosion is fed by mass transfer: the carbonic acid has to reach the wall and the iron has to leave it. So the rate is two resistances in series, the chemical reaction and the transport, and the slower one governs. That is why the same fluid in a bigger line corrodes less at the same rate, and why a velocity sweep saturates rather than rising forever. A model with only a flat multiplier cannot say either of those things, and the Rate against velocity chart is the difference.',
+      'CO2 corrosion is fed by mass transfer: the carbonic acid has to reach the wall and the iron has to leave it. So the rate is two resistances in series, the chemical reaction and the transport, and the slower one governs. That is why the same fluid in a bigger line corrodes less at the same rate, and why a velocity sweep saturates and does not rise forever. A model with only a flat multiplier cannot say either of those things, and the Rate against velocity chart is the difference.',
   },
   {
     id: 'temperature',
@@ -51,28 +51,28 @@ const helpContent = [
     icon: ShieldCheck,
     title: 'Efficiency is not availability',
     content:
-      'An inhibitor datasheet quotes an efficiency, typically ninety-something percent. What eats the wall is the time average, and the uninhibited rate applies for every hour the inhibitor is not on spec, not injecting, or being displaced by a slug. A 95 percent inhibitor at 80 percent availability delivers 76 percent protection, which is nearly five times the metal loss of the number on the datasheet. The studio asks for both and shows the effective figure, because that gap is where corrosion failures live.',
+      'An inhibitor datasheet quotes an efficiency, typically ninety-something percent. What eats the wall is the time average, and the uninhibited rate applies for every hour the inhibitor is off spec, stopped, or being displaced by a slug. A 95 percent inhibitor at 80 percent availability delivers 76 percent protection, which is nearly five times the metal loss of the number on the datasheet. The studio asks for both and shows the effective figure, because that gap is where corrosion failures live.',
   },
   {
     id: 'shear',
     icon: Droplets,
     title: 'Wall shear and whether the film survives',
     content:
-      'An inhibitor works by holding a film on the steel, and the film has to survive the shear of the flow. Past a threshold the film is stripped and the efficiency on the datasheet stops describing the line. The studio used to say that and then apply the datasheet efficiency anyway, so at 60 ft/s it printed 1.90 mm/yr beside a sentence that implied 13.08. It no longer does: when the shear passes the threshold the inhibitor credit is REMOVED from the rate, the rate the datasheet credit would have given is printed next to it so the cost of the verdict is visible, and the velocity sweep marks the velocity where the step happens. The threshold used is 100 pascals and it is not sourced in the engine, so treat the step as a flag rather than a cliff edge at exactly that number.',
+      'An inhibitor works by holding a film on the steel, and the film has to survive the shear of the flow. Past a threshold the film is stripped and the efficiency on the datasheet stops describing the line. The studio used to say that and then apply the datasheet efficiency anyway, so at 60 ft/s it printed 1.90 mm/yr beside a sentence that implied 13.08. It no longer does: when the shear passes the threshold the inhibitor credit is REMOVED from the rate, the rate the datasheet credit would have given is printed next to it so the cost of the verdict is visible, and the velocity sweep marks the velocity where the step happens. The threshold used is 100 pascals and it is not sourced in the engine, so treat the step as a flag and do not read it as a cliff edge at exactly that number.',
   },
   {
     id: 'sour',
     icon: AlertTriangle,
     title: 'Sour service and which film governs',
     content:
-      'This studio does not classify sour service severity and does not recommend materials. It used to. It drew severity regions from the H2S partial pressure and the in-situ pH, labelled them with a standard name, and printed material guidance against each region. That curve was written in the engine rather than read from the standard, and it has been withdrawn rather than adjusted, because a curve carrying a standard name and telling an engineer what steel to buy is not something to improve. Nothing replaces it. What is left is a plain comparison: is the H2S partial pressure above the screening threshold or below it. The threshold value itself is not sourced in the engine either, so use it to decide whether the question arises and then take the question to the standard. Separately the studio reports the H2S to CO2 ratio and which film it expects to govern. Past about one to twenty it calls the surface sulphide dominated and STOPS GRADING the rate: no category and no remaining life, only a stated upper bound. Between about one to five hundred and one to twenty it calls the film mixed and the CO2 rate an upper bound. Both of those ratios are unsourced too.',
+      'This studio does not classify sour service severity and does not recommend materials. It used to. It drew severity regions from the H2S partial pressure and the in-situ pH, labelled them with a standard name, and printed material guidance against each region. That curve was written in the engine and was never read from the standard. It has been withdrawn outright with no adjustment, because a curve carrying a standard name and telling an engineer what steel to buy is not something to improve. Nothing replaces it. What is left is a plain comparison: is the H2S partial pressure above the screening threshold or below it. The threshold value itself is not sourced in the engine either, so use it to decide whether the question arises and then take the question to the standard. Separately the studio reports the H2S to CO2 ratio and which film it expects to govern. Past about one to twenty it calls the surface sulphide dominated and STOPS GRADING the rate: no category and no remaining life, only a stated upper bound. Between about one to five hundred and one to twenty it calls the film mixed and the CO2 rate an upper bound. Both of those ratios are unsourced too.',
   },
   {
     id: 'life',
     icon: Timer,
     title: 'Allowance, life, and what to fix',
     content:
-      'The rate becomes useful when it is divided into a corrosion allowance. The studio reports the remaining life against the rate the mitigation actually delivers, the allowance a stated design life would need, and the shortfall if there is one. The practical value is in the comparison: when it is the inhibitor availability failing the design life rather than the chemistry, fixing the injection system is far cheaper than upgrading the metallurgy, and the studio makes that visible. Read the word integrity narrowly here. The studio divides an allowance by a rate and stops. There is no inspection interval, no minimum thickness, no retirement thickness and no fitness-for-service assessment, because producing any of those means adopting a standard the engine does not carry. A zero rate no longer returns an unbounded life with a passing verdict either: the studio asks you why the rate is zero first, because an oil-wet assumption, a stream with no CO2 and a perfect inhibitor all land there.',
+      'The rate becomes useful when it is divided into a corrosion allowance. The studio reports the remaining life against the rate the mitigation actually delivers, the allowance a stated design life would need, and the shortfall if there is one. The practical value is in the comparison: when the inhibitor availability fails the design life and the chemistry does not, fixing the injection system is far cheaper than upgrading the metallurgy, and the studio makes that visible. Read the word integrity narrowly here. The studio divides an allowance by a rate and stops. There is no inspection interval, no minimum thickness, no retirement thickness and no fitness-for-service assessment, because producing any of those means adopting a standard the engine does not carry. A zero rate no longer returns an unbounded life with a passing verdict either: the studio asks you why the rate is zero first, because an oil-wet assumption, a stream with no CO2 and a perfect inhibitor all land there.',
   },
   {
     id: 'refusals',

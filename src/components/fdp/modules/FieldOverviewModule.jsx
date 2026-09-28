@@ -25,7 +25,7 @@ const FieldOverviewModule = () => {
         actions.updateSubsurface({ ...state.subsurface, ...exampleSubsurface() });
         toast({
             title: 'Example loaded',
-            description: `${EXAMPLE_LABEL}. These are illustrative figures, not your project's.`,
+            description: `${EXAMPLE_LABEL}. These are illustrative figures and do not describe your project.`,
         });
     };
 

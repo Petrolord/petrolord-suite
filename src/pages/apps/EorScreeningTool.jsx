@@ -153,7 +153,7 @@ function EorScreeningContent() {
               <p className="text-[11px] text-pl-muted flex gap-1.5">
                 <Info size={13} className="shrink-0 mt-0.5" />
                 Screening shortlists candidate methods; it does not design or predict recovery.
-                Blank inputs leave criteria unscored rather than assumed.
+                Blank inputs leave criteria unscored with no assumed value.
               </p>
             </CardContent>
           </Card>

@@ -288,7 +288,7 @@ export default function PetroWorkstation({
       .sort((a, b) => a.top_md_m - b.top_md_m);
     for (let i = 1; i < zs.length; i++) {
       if (zs[i].top_md_m <= zs[i - 1].base_md_m) {
-        return `zones ${zs[i - 1].name} and ${zs[i].name} overlap — the shallower zone's overrides win in the overlap`;
+        return `zones ${zs[i - 1].name} and ${zs[i].name} overlap: the shallower zone's overrides win in the overlap`;
       }
     }
     return null;
@@ -743,7 +743,7 @@ export default function PetroWorkstation({
       if (recut) await refreshZones(wellId);
       const parts = [`Moved ${top.name} to ${depthLabel(mdM, depthUnit)}.`];
       if (recut) parts.push(`Re-cut ${recut} zone${recut === 1 ? '' : 's'} (${moves.map((m) => m.zone.name).join(', ')}).`);
-      for (const b of blocked) parts.push(`${b.reason} — left as it was.`);
+      for (const b of blocked) parts.push(`${b.reason}: left as it was.`);
       setStatus(parts.join(' '));
     } catch (e) {
       setStatus(e.message);

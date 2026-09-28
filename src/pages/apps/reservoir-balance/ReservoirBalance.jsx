@@ -325,7 +325,7 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
       <CaseSummary onEdit={() => setEditCaseOpen(true)} />
       {caseData && (
         <p className="text-[11px] text-pl-muted leading-relaxed">
-          Edits on every tab save straight to the case database when you apply them. Results always come from a fresh engine run, never from stored numbers.
+          Edits on every tab save straight to the case database when you apply them. Results always come from a fresh engine run and never from stored numbers.
         </p>
       )}
     </div>

@@ -38,7 +38,7 @@ const rows = [
   {
     key: 'wctPct',
     label: 'Water cut (%)',
-    hint: 'What the well is making now, not a property of the well: it belongs to this design rather than to the shared well model.',
+    hint: 'What the well is making now. It is not a property of the well: it belongs to this design and stays out of the shared well model.',
   },
   {
     key: 'whp',

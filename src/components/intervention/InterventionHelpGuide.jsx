@@ -32,14 +32,14 @@ const helpContent = [
     icon: AlertTriangle,
     title: 'Where the reading is weak, said out loud',
     content:
-      'The boundary between ordinary displacement and channelling is the soft part, and it is worth knowing why. For ANY power-law history the ratio and its derivative have the same log-log slope, because differentiating a t^m against log time just multiplies it by m. So the two pictures cannot be separated by comparing their slopes to each other; the only thing that separates them is how STEEP the climb is, and steady arrival sits around a slope of one. A reading close to that boundary is reported as close to it rather than resolved, and the confidence drops accordingly. The coning end has no such problem.',
+      'The boundary between ordinary displacement and channelling is the soft part, and it is worth knowing why. For ANY power-law history the ratio and its derivative have the same log-log slope, because differentiating a t^m against log time just multiplies it by m. So the two pictures cannot be separated by comparing their slopes to each other; the only thing that separates them is how STEEP the climb is, and steady arrival sits around a slope of one. A reading close to that boundary is reported as close to it and left unresolved, and the confidence drops accordingly. The coning end has no such problem.',
   },
   {
     id: 'derivative',
     icon: Sigma,
     title: 'The derivative, and the points that are thrown away',
     content:
-      'The derivative is the Bourdet three-point weighted difference from the well test module, the same validated implementation, not a second one, because a daily production history is exactly the noisy log-time series it was designed for. Three things are discarded before it runs. Shut-in days, because a day with no oil has nothing to say about the water mechanism and an infinite ratio poisons the derivative either side of it. Outliers, counted rather than removed silently. And the FIRST AND LAST few derivative points: Bourdet needs a neighbour at least a fixed log distance away on both sides, and at the ends of a series there is only one, so it falls back to a one-sided slope that on a curving response is badly biased. On the gated test case the very first point reads a derivative four times too large, and keeping it drags the measured exponent from 1.56 down to 1.32, which would put a genuinely steep channelling history right on the classifier boundary.',
+      'The derivative is the Bourdet three-point weighted difference from the well test module, the same validated implementation with no second copy, because a daily production history is exactly the noisy log-time series it was designed for. Three things are discarded before it runs. Shut-in days, because a day with no oil has nothing to say about the water mechanism and an infinite ratio poisons the derivative either side of it. Outliers, counted and reported, with none removed silently. And the FIRST AND LAST few derivative points: Bourdet needs a neighbour at least a fixed log distance away on both sides, and at the ends of a series there is only one, so it falls back to a one-sided slope that on a curving response is badly biased. On the gated test case the very first point reads a derivative four times too large, and keeping it drags the measured exponent from 1.56 down to 1.32, which would put a genuinely steep channelling history right on the classifier boundary.',
   },
   {
     id: 'uplift',
@@ -53,7 +53,7 @@ const helpContent = [
     icon: DollarSign,
     title: 'The economics, and the number with no default',
     content:
-      'The cash flow is the Suite\'s canonical screening economics engine, imported rather than rewritten, so an intervention here discounts the same way every other screening number in the platform does, mid-year, by documented convention. The uplift DECLINES, and the decline rate is a required input with no default. That is deliberate: an intervention modelled as a permanent step change is an intervention that always pays, and it is the commonest way a workover case gets oversold. There is no defensible default because the answer depends on what was done and to what. For full fiscal terms rather than a screening number, take the case to the Petroleum Economics Studio.',
+      'The cash flow is the Suite\'s canonical screening economics engine, imported as is with no rewrite, so an intervention here discounts the same way every other screening number in the platform does, mid-year, by documented convention. The uplift DECLINES, and the decline rate is a required input with no default. That is deliberate: an intervention modelled as a permanent step change is an intervention that always pays, and it is the commonest way a workover case gets oversold. There is no defensible default because the answer depends on what was done and to what. For full fiscal terms beyond a screening number, take the case to the Petroleum Economics Studio.',
   },
   {
     id: 'spine',
@@ -67,7 +67,7 @@ const helpContent = [
     icon: AlertTriangle,
     title: 'What this studio refuses to do',
     content:
-      'It will not recommend a water shutoff without a diagnosis, on any water cut. It will not size a treatment the diagnostic has ruled out, because sizing a bad idea to four decimal places does not improve it. It will not accept a target skin below what the geometry allows: at that point the productivity index goes infinite, which is the equation running out rather than an aggressive design, and a screening tool that returned a spectacular uplift there would be worse than useless. It will not value an uplift without a stated decline. And it does not infer skin from production data, because skin is a pressure transient measurement and nothing else gives you one.',
+      'It will not recommend a water shutoff without a diagnosis, on any water cut. It will not size a treatment the diagnostic has ruled out, because sizing a bad idea to four decimal places does not improve it. It will not accept a target skin below what the geometry allows: at that point the productivity index goes infinite, which is the equation running out and is no aggressive design, and a screening tool that returned a spectacular uplift there would be worse than useless. It will not value an uplift without a stated decline. And it does not infer skin from production data, because skin is a pressure transient measurement and nothing else gives you one.',
   },
 ];
 

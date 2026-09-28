@@ -60,7 +60,7 @@ const StageDetailPanel = () => {
           label="Published range"
           value={`${fmt(curve.qMin)} to ${fmt(curve.qMax)} bbl/d`}
           hint={stage.inRange
-            ? 'The duty is inside it, so head and efficiency are read, not extrapolated.'
+            ? 'The duty is inside it, so head and efficiency are read directly with no extrapolation.'
             : 'The duty is outside it: head and efficiency here are an extrapolation.'}
         />
         <Row

@@ -35,7 +35,7 @@ const WTSHelpContent = () => (
       per log cycle. The Sample button loads a synthetic homogeneous buildup so you can explore the workflow.
     </P>
     <P>
-      Fluid properties can also arrive from Fluid Systems Studio rather than being typed in. A PVT handoff fills the
+      Fluid properties can also arrive from Fluid Systems Studio, so you need not type them in. A PVT handoff fills the
       formation volume factor and viscosity from the fluid model you built there and tells you it has done so. Total
       compressibility is deliberately left for you to review, because ct depends on the rock and the saturations as
       well as the fluid.
@@ -100,7 +100,7 @@ const WTSHelpContent = () => (
       fractures, then the derivative doubles when the fault is felt. It needs a long, clean test to be worth
       choosing, because a dip and a doubling that overlap in time are difficult to separate. If the two features are
       not clearly apart on the derivative, match the simpler dual porosity model and treat the late rise as
-      unresolved rather than reaching for the extra parameter.
+      unresolved. Do not reach for the extra parameter.
     </P>
     <P>
       Horizontal well: three regimes in sequence. Early radial flow in the vertical plane (plateau at

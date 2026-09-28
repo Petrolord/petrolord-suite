@@ -398,7 +398,7 @@ const QuoteBuilder = () => {
     // item so the summary panel can reconcile to the total — no hidden fees.
     // 1) Base platform fee (always present, even with no apps selected).
     breakdown.push({
-      item: `Base Platform Fee — ${tier.name}`,
+      item: `Base Platform Fee: ${tier.name}`,
       cost: baseFee,
       type: 'base',
       note: feeWaived ? 'Waived with a module licence or an annual term' : (tier.multiplier !== 1 ? `${BASE_PLATFORM_FEE} × ${tier.multiplier} tier` : 'Platform access & support')
@@ -428,8 +428,8 @@ const QuoteBuilder = () => {
             seatsCost += line.seatCost;
             const note = line.includedWith ? `Included with ${masterApps.find(a => a.slug === line.includedWith)?.name || line.includedWith}`
               : line.covered ? 'Included in the module licence' : undefined;
-            breakdown.push({ item: `${app.name} — license`, price: app.price, cost: line.licence, type: 'app', id: appId, seats: nSeats, note });
-            breakdown.push({ item: `${app.name} — ${nSeats} seat${nSeats === 1 ? '' : 's'}${isEssentialsApp(app.slug) ? ' (Essentials)' : ''}`, cost: line.seatCost, type: 'seats', id: appId, indent: true });
+            breakdown.push({ item: `${app.name} license`, price: app.price, cost: line.licence, type: 'app', id: appId, seats: nSeats, note });
+            breakdown.push({ item: `${app.name}: ${nSeats} seat${nSeats === 1 ? '' : 's'}${isEssentialsApp(app.slug) ? ' (Essentials)' : ''}`, cost: line.seatCost, type: 'seats', id: appId, indent: true });
         }
     });
 
@@ -437,7 +437,7 @@ const QuoteBuilder = () => {
     const storageCost = Math.max(0, storageGB - 10) * STORAGE_GB_PRICE;
     // 3) Cloud storage (always shown; first 10 GB free).
     breakdown.push({
-      item: `Cloud Storage — ${storageGB} GB`,
+      item: `Cloud Storage: ${storageGB} GB`,
       cost: storageCost,
       type: 'storage',
       note: storageGB > 10 ? `${storageGB - 10} GB billable × $${STORAGE_GB_PRICE} (first 10 GB free)` : 'Within free allowance'

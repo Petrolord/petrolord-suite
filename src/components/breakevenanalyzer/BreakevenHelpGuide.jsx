@@ -24,7 +24,7 @@ export const BREAKEVEN_HELP_CONTENT = [
     icon: FolderOpen,
     title: 'Saved studies and auto-save',
     content:
-      'Use the Saved study selector at the top of the left rail to create a study. Once one is open, your inputs and the uploaded production profile auto-save about ten seconds after each change, and the save indicator shows when the last save happened. Click the indicator to save immediately. Results are recomputed from the inputs rather than stored, so reopening a study shows you the inputs exactly as you left them and waits for you to press Run.',
+      'Use the Saved study selector at the top of the left rail to create a study. Once one is open, your inputs and the uploaded production profile auto-save about ten seconds after each change, and the save indicator shows when the last save happened. Click the indicator to save immediately. Results are recomputed from the inputs each time and are not stored, so reopening a study shows you the inputs exactly as you left them and waits for you to press Run.',
   },
   {
     id: 'data',
@@ -38,14 +38,14 @@ export const BREAKEVEN_HELP_CONTENT = [
     icon: BarChart2,
     title: 'Step 2: State your uncertainties as percentiles',
     content:
-      'Each probabilistic variable is entered as its 10th, 50th and 90th percentile. These are percentiles of your belief about the value, not the smallest and largest numbers you can imagine. The 10th percentile means a one in ten chance of coming in below that value, so ten percent of outcomes should fall outside each end. The Suite reserves P-labels for outcomes where more is better, such as NPV or reserves, so a cost, an efficiency and a breakeven price are always described by their percentiles. The three shipped variables (total CAPEX, annual OPEX and production efficiency) are the ones that move a breakeven price most, and you can add your own.',
+      'Each probabilistic variable is entered as its 10th, 50th and 90th percentile. These are percentiles of your belief about the value. They are not the smallest and largest numbers you can imagine. The 10th percentile means a one in ten chance of coming in below that value, so ten percent of outcomes should fall outside each end. The Suite reserves P-labels for outcomes where more is better, such as NPV or reserves, so a cost, an efficiency and a breakeven price are always described by their percentiles. The three shipped variables (total CAPEX, annual OPEX and production efficiency) are the ones that move a breakeven price most, and you can add your own.',
   },
   {
     id: 'fitting',
     icon: Dice5,
     title: 'How the percentiles become a distribution',
     content:
-      'The three percentiles are fitted to a triangular distribution whose cumulative curve passes through all three points. That fit matters. A common shortcut is to feed the 10th, 50th and 90th percentiles straight in as the minimum, mode and maximum of a triangular, which quietly declares that nothing can land below your 10th percentile or above your 90th and deletes the outer twenty percent of the distribution, understating every downside. A triangular cannot pass through any three percentiles you like: the median has to sit between roughly 38 and 62 percent of the way from the 10th percentile to the 90th. Outside that band the fit clamps to the most skewed triangular available and says so rather than pretending.',
+      'The three percentiles are fitted to a triangular distribution whose cumulative curve passes through all three points. That fit matters. A common shortcut is to feed the 10th, 50th and 90th percentiles straight in as the minimum, mode and maximum of a triangular, which quietly declares that nothing can land below your 10th percentile or above your 90th and deletes the outer twenty percent of the distribution, understating every downside. A triangular cannot pass through any three percentiles you like: the median has to sit between roughly 38 and 62 percent of the way from the 10th percentile to the 90th. Outside that band the fit clamps to the most skewed triangular available and says so openly.',
   },
   {
     id: 'seed',
@@ -73,14 +73,14 @@ export const BREAKEVEN_HELP_CONTENT = [
     icon: Download,
     title: 'Exporting the run',
     content:
-      'Export writes a CSV carrying the percentile summary, the seed and the full per-iteration sample. The sample is included on purpose: a percentile nobody can check is a claim rather than a result, and anyone reviewing your work can re-derive the numbers from the file.',
+      'Export writes a CSV carrying the percentile summary, the seed and the full per-iteration sample. The sample is included on purpose: a percentile nobody can check is a claim and not yet a result, and anyone reviewing your work can re-derive the numbers from the file.',
   },
   {
     id: 'limits',
     icon: AlertTriangle,
     title: 'Assumptions and limits',
     content:
-      'Variables are sampled independently. Real CAPEX and OPEX overruns tend to arrive together, so a correlated run would show a slightly wider downside than this one does. A cost percentile below zero, or an efficiency percentile outside 0 to 100, is refused. When the triangle fitted to your percentiles runs past one of those limits, a draw beyond it is held at the limit and the interpretation says how many were. When no triangle can match your median, the fit is adjusted, and the deterministic base case and the tornado then use the adjusted triangle\'s own percentiles, so every number on the screen describes the same belief the sample is drawn from. Price is solved rather than sampled, which is the point of a breakeven, so this tool says nothing about price risk itself. The fiscal treatment is the screening tier described above. Production is taken as given from your uploaded profile, so uncertainty in the forecast itself belongs upstream in the decline analysis, other than the production efficiency multiplier applied here.',
+      'Variables are sampled independently. Real CAPEX and OPEX overruns tend to arrive together, so a correlated run would show a slightly wider downside than this one does. A cost percentile below zero, or an efficiency percentile outside 0 to 100, is refused. When the triangle fitted to your percentiles runs past one of those limits, a draw beyond it is held at the limit and the interpretation says how many were. When no triangle can match your median, the fit is adjusted, and the deterministic base case and the tornado then use the adjusted triangle\'s own percentiles, so every number on the screen describes the same belief the sample is drawn from. Price is solved and not sampled, which is the point of a breakeven, so this tool says nothing about price risk itself. The fiscal treatment is the screening tier described above. Production is taken as given from your uploaded profile, so uncertainty in the forecast itself belongs upstream in the decline analysis, other than the production efficiency multiplier applied here.',
   },
 ];
 

@@ -299,7 +299,7 @@ const CrossSection = forwardRef(function CrossSection({
       ctx.fillText(`${w.name}${w.is_own ? '' : ' (shared)'}`, box.x0 + box.w / 2, 13, box.w - 8);
       const notes = [];
       if (datum.mode === 'flatten' && !c.hasDatumTop) notes.push('no datum top: true depth');
-      if (datum.mode === 'stretch' && flattening[i]?.partial) notes.push(c.hasDatumTop ? 'one surface: shifted, not stretched' : 'neither surface: true depth');
+      if (datum.mode === 'stretch' && flattening[i]?.partial) notes.push(c.hasDatumTop ? 'one surface: shifted without stretching' : 'neither surface: true depth');
       if (c.fallback) notes.push(`${DEPTH_REF_LABEL[depthRef]} not monotonic: MD shown`);
       if (notes.length) {
         ctx.font = '9px sans-serif';

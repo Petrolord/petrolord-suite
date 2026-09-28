@@ -10,7 +10,7 @@ const helpContent = [
   {
     id: 'what',
     icon: BookOpen,
-    title: 'A roll-up, not a new data silo',
+    title: 'A roll-up with no new data silo',
     content:
       'Every other app in this module computes carbon beside money from the same volumes. This one assembles those figures into an inventory, an intensity and a ranking of what to do about it. It is deliberately not a separate ESG system fed by its own spreadsheets once a year, because that is exactly the arrangement that makes the carbon number disagree with the operating number.',
   },
@@ -38,9 +38,9 @@ const helpContent = [
   {
     id: 'factors',
     icon: Scale,
-    title: 'Factors are registered, not shipped',
+    title: 'Every factor is a registered record',
     content:
-      'The API Compendium and the IPCC guidelines are published documents that get revised, and a factor without its source and version is not an auditable number. So a factor here is a record - value, unit, source, version, vintage - rather than a bare number. An unsourced factor is accepted, because refusing outright would make a first pass impossible, but it is flagged and it makes the inventory unreportable until it is fixed.',
+      'The API Compendium and the IPCC guidelines are published documents that get revised, and a factor without its source and version is not an auditable number. So a factor here is a record - value, unit, source, version, vintage - and a bare number is not enough. An unsourced factor is accepted, because refusing outright would make a first pass impossible, but it is flagged and it makes the inventory unreportable until it is fixed.',
   },
   {
     id: 'gwp',
@@ -54,7 +54,7 @@ const helpContent = [
     icon: Flame,
     title: 'Where the atom balance beats the factor',
     content:
-      'Combustion CO2 is not an empirical factor at all: every carbon atom that goes into a burner comes out as CO2. A published fuel-based emission factor is a proxy for exactly that arithmetic, carrying whatever assumptions its author made about the fuel. So where the fuel analysis is known this computes CO2 from the carbon and says it did, and reserves factors for the things that really are empirical. Carbon that escapes combustion is counted as methane, which per atom is a far worse greenhouse gas - which is why a flare\'s destruction efficiency is asked for rather than assumed. It is the whole answer for a flare, and it is contested, so a blank box is refused. Because escaped carbon is counted as methane only, use the fossil methane potential for it (AR6 gives 29.8 fossil and 27.0 non-fossil over 100 years).',
+      'Combustion CO2 is not an empirical factor at all: every carbon atom that goes into a burner comes out as CO2. A published fuel-based emission factor is a proxy for exactly that arithmetic, carrying whatever assumptions its author made about the fuel. So where the fuel analysis is known this computes CO2 from the carbon and says it did, and reserves factors for the things that really are empirical. Carbon that escapes combustion is counted as methane, which per atom is a far worse greenhouse gas - which is why the studio asks for a flare\'s destruction efficiency and does not assume one. It is the whole answer for a flare, and it is contested, so a blank box is refused. Because escaped carbon is counted as methane only, use the fossil methane potential for it (AR6 gives 29.8 fossil and 27.0 non-fossil over 100 years).',
   },
   {
     id: 'intensity',
@@ -80,7 +80,7 @@ const helpContent = [
   {
     id: 'path',
     icon: TrendingDown,
-    title: 'The gap is named, not drawn as a wedge',
+    title: 'The gap is named, with no wedge drawn for it',
     content:
       'Each measure counts only from the year it starts, so the trajectory is what the identified measures actually deliver. Where that falls short of the target, the difference is reported as unabated with no measure identified, and the first year of shortfall is named. A measure with no start year is listed as not on the path. The target and the path both rest on the inventory total, so while the inventory is not reportable the page says they are built on a partial one. A wedge is drawn only for an identified measure, because a plan needs a named measure behind every wedge; a wedge labelled further measures is how decarbonisation roadmaps stop meaning anything.',
   },

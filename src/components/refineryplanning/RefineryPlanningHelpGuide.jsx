@@ -12,14 +12,14 @@ const helpContent = [
     icon: BookOpen,
     title: 'What this tool is for, and why it is one tool',
     content:
-      'The plan, the schedule and the actuals in one place, on one data model. Everywhere else these are separate products: the month is planned in one system, executed against another, and reconciled by hand in a spreadsheet weeks later, by which time the month is over and nobody can act on what it says. Here a plan event, a scheduled event and a recorded actual are the same shape, so the variance is a subtraction rather than a project.',
+      'The plan, the schedule and the actuals in one place, on one data model. Everywhere else these are separate products: the month is planned in one system, executed against another, and reconciled by hand in a spreadsheet weeks later, by which time the month is over and nobody can act on what it says. Here a plan event, a scheduled event and a recorded actual are the same shape, so the variance is a simple subtraction and no longer a project.',
   },
   {
     id: 'projects',
     icon: FolderOpen,
     title: 'Saved plans',
     content:
-      'Create a plan from the selector at the top. The configuration, the period and the actuals you record auto-save. The plan itself, the schedule and the reconciliation are recomputed from those rather than stored, so a reopened plan cannot show numbers that no longer follow from its configuration.',
+      'Create a plan from the selector at the top. The configuration, the period and the actuals you record auto-save. The plan itself, the schedule and the reconciliation are recomputed from those and are not stored, so a reopened plan cannot show numbers that no longer follow from its configuration.',
   },
   {
     id: 'plan',
@@ -31,23 +31,23 @@ const helpContent = [
   {
     id: 'yields',
     icon: Layers,
-    title: 'Yields are data, not predictions',
+    title: 'Yields are data you supply',
     content:
-      'A refinery\'s yields come from its own assays and unit models, and every planning system in the industry carries them as inputs. This one does the same rather than pretending to predict them. The Crude Assay Studio is where a crude\'s straight-run yields are worked out; unit yields come from your unit models or your own history.',
+      'A refinery\'s yields come from its own assays and unit models, and every planning system in the industry carries them as inputs. This one does the same and does not pretend to predict them. The Crude Assay Studio is where a crude\'s straight-run yields are worked out; unit yields come from your unit models or your own history.',
   },
   {
     id: 'balance',
     icon: GitCompare,
     title: 'The material balance, and why it is an inequality',
     content:
-      'For every stream: what is made, less what units consume, less what goes into products, must be at least zero. At least, rather than exactly. A refinery can leave a stream unplaced, to fuel or to storage or sold as is, and forcing an equality would make the plan infeasible for the wrong reason. What is left over is reported as surplus, which is a real planning output: it is the stream nobody found a home for.',
+      'For every stream: what is made, less what units consume, less what goes into products, must be at least zero. The test is at least zero, and it is not an equality. A refinery can leave a stream unplaced, to fuel or to storage or sold as is, and forcing an equality would make the plan infeasible for the wrong reason. What is left over is reported as surplus, which is a real planning output: it is the stream nobody found a home for.',
   },
   {
     id: 'marginal',
     icon: Coins,
     title: 'What another barrel of a stream is worth',
     content:
-      'The marginal value of each stream comes out of the same solve. It is the reason to run an LP rather than fill in a spreadsheet: it prices a debottleneck before anyone spends on one, and it tells you what a barrel of somebody else\'s intermediate would be worth to you. A stream worth nothing at the margin is one nobody has a home for. The sign convention is handled for you: this is what a barrel arriving from outside would add, not the derivative the solver returns.',
+      'The marginal value of each stream comes out of the same solve. It is the reason to run an LP in place of a spreadsheet: it prices a debottleneck before anyone spends on one, and it tells you what a barrel of somebody else\'s intermediate would be worth to you. A stream worth nothing at the margin is one nobody has a home for. The sign convention is handled for you: this is what a barrel arriving from outside would add. It is not the raw derivative the solver returns.',
   },
   {
     id: 'schedule',
@@ -61,14 +61,14 @@ const helpContent = [
     icon: GitCompare,
     title: 'Reading the variance',
     content:
-      'Volume variance is the difference in quantity valued at the planned unit value. Price variance is the difference in unit value on the quantity actually moved. They sum to the total exactly, and that exactness is what makes the split worth reporting: a decomposition with a residual is a reconciliation, not an attribution. A movement that appears in one ledger and not the other is listed as unmatched rather than folded into a price effect, because an unplanned cargo is not the price of anything. And a unit below plan is reported as a gap rather than labelled downtime, because the app does not know why.',
+      'Volume variance is the difference in quantity valued at the planned unit value. Price variance is the difference in unit value on the quantity actually moved. They sum to the total exactly, and that exactness is what makes the split worth reporting: a decomposition with a residual is a reconciliation and falls short of an attribution. A movement that appears in one ledger and not the other is listed as unmatched and is not folded into a price effect, because an unplanned cargo is not the price of anything. And a unit below plan is reported as a gap and is not labelled downtime, because the app does not know why.',
   },
   {
     id: 'limits',
     icon: AlertTriangle,
     title: 'Limits',
     content:
-      'This is a configuration-level plan, not a unit simulator: yields are fixed vectors rather than functions of severity, so it will not tell you what happens if you push the reformer harder. Quality is not carried through the plan, so a stream that meets a specification here may not in reality; that is the blending optimiser\'s job. Blending and pooling constraints are absent for the same reason. The schedule is a shape, not a berth plan. And the plan optimises one period at a time, with no inventory carried between periods.',
+      'This is a configuration-level plan. It is not a unit simulator: yields are fixed vectors and do not vary with severity, so it will not tell you what happens if you push the reformer harder. Quality is not carried through the plan, so a stream that meets a specification here may not in reality; that is the blending optimiser\'s job. Blending and pooling constraints are absent for the same reason. The schedule is a shape. It is not a berth plan. And the plan optimises one period at a time, with no inventory carried between periods.',
   },
 ];
 

@@ -345,7 +345,7 @@ export default function SeismicExplorer({ tree, actions }) {
                         icon={Folder}
                         label={pr.name}
                         meta={String(inProject.length || '')}
-                        title="Project (explorer grouping) — volumes inside are unchanged"
+                        title="Project (explorer grouping). Volumes inside are unchanged"
                         menu={(
                           <>
                             <ContextMenuItem
@@ -359,7 +359,7 @@ export default function SeismicExplorer({ tree, actions }) {
                       />
                       {inProject.map((v) => renderRoot(v, 1))}
                       {!inProject.length && (
-                        <Hint>Empty project — use a volume&apos;s &quot;Move to project&quot;.</Hint>
+                        <Hint>Empty project. Use a volume&apos;s &quot;Move to project&quot;.</Hint>
                       )}
                     </React.Fragment>
                   );

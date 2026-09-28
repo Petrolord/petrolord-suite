@@ -246,7 +246,7 @@ const CashFlowProfile = ({ results }) => {
           />
           {sunkYears.length > 0 && (
             <ReferenceArea yAxisId="left" x1={sunkYears[0]} x2={sunkYears[sunkYears.length - 1]} fill="#94a3b8" fillOpacity={0.15}
-              label={{ value: 'History: sunk, not valued', position: 'insideTop', fontSize: 10, fill: '#475569' }} />
+              label={{ value: 'History: sunk and unvalued', position: 'insideTop', fontSize: 10, fill: '#475569' }} />
           )}
           <RTooltip
             contentStyle={TOOLTIP_STYLE}

@@ -432,7 +432,7 @@ export default function DocumentDetail() {
                 <p className="md:col-span-3 text-xs text-[hsl(var(--muted-foreground))]">
                   {reissue ? 'Re-issuing replaces the issue date and the next review date. ' : ''}
                   {projectedReview
-                    ? `The next review will fall on ${showDate(projectedReview)}, counted from the issue date rather than from today.`
+                    ? `The next review will fall on ${showDate(projectedReview)}, counted from the issue date, whatever today's date is.`
                     : 'Set an issue date and a review period to give this document a review date.'}
                 </p>
               </form>

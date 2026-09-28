@@ -45,7 +45,7 @@ export const SlugInputs = () => {
           <Field label="Fill fraction"><NumberInput section="slug" name="fingerFill" step="0.05" /></Field>
           <p className="text-[11px] text-pl-muted">
             Pipe is cheaper than vessel per unit volume and needs no vessel code stamp, which is why
-            large slugs are caught in a harp of parallel fingers rather than one enormous drum.
+            large slugs are caught in a harp of parallel fingers. One enormous drum would cost far more.
           </p>
         </>
       )}

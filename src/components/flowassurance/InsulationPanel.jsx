@@ -74,7 +74,7 @@ const InsulationPanel = () => {
                 />
               </div>
               <p className="text-[11px] text-pl-muted">
-                The pressure and the temperature are marched TOGETHER, not overlaid: every gradient
+                The pressure and the temperature are marched TOGETHER in one pass: every gradient
                 is evaluated at the local pressure and the local temperature, so viscosity and gas
                 solubility see the temperature the line is actually at.
               </p>
@@ -134,7 +134,7 @@ const InsulationPanel = () => {
               ) : (
                 <p className="text-[11px] text-pl-warning-text">
                   No insulation level in this range gets the arrival out of the hydrate region.
-                  That is a heating or a dosing problem, not an insulation one.
+                  That is a heating or a dosing problem. More insulation will not solve it.
                 </p>
               )}
               <ChartFrame height={340} exportFilename="flow-assurance-insulation-sweep">

@@ -315,7 +315,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
   };
 
   const startDraw = () => {
-    if (!built) { setStatus('Build the model first — the map is the drawing surface.'); return; }
+    if (!built) { setStatus('Build the model first. The map is the drawing surface.'); return; }
     setView('map');
     setDrawing(true);
     setPending([]);
@@ -328,7 +328,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
       setDrawing(false);
       setPending([]);
       setDef({ ...definition, faultPolygons });
-      setStatus('Fault polygon added — rebuild to apply blocks.');
+      setStatus('Fault polygon added. Rebuild to apply blocks.');
     } catch (e) { setStatus(e.message); }
   };
   const cancelDraw = () => { setDrawing(false); setPending([]); };
@@ -362,7 +362,7 @@ export default function EarthWorkstation({ sample = false, backend, appPaths = {
   const loadProject = (p) => {
     setDefinition(normalizeDefinition(p.definition));
     setBuilt(null);
-    setStatus(`Loaded model "${p.name}" — Build to compute.`);
+    setStatus(`Loaded model "${p.name}". Build to compute.`);
   };
 
   const ribbon = (

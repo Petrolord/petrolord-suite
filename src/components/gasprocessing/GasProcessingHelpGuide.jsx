@@ -25,7 +25,7 @@ const helpContent = [
     icon: Beaker,
     title: 'TEG dehydration',
     content:
-      'The water balance is arithmetic: removed water is inlet minus spec times the gas rate. The circulation RATIO is a design choice, customarily two to five gallons of TEG per pound of water, and it stays your choice. The reboiler duty is assembled from named parts: sensible heat to lift the glycol to reboiler temperature, the heat to boil the absorbed water overhead, and a stated reflux fraction, so you can see which part dominates instead of trusting one number. Stage-wise performance uses the Kremser relation with the absorption factor as an input, since the TEG-water equilibrium constant itself is chart data.',
+      'The water balance is arithmetic: removed water is inlet minus spec times the gas rate. The circulation RATIO is a design choice, customarily two to five gallons of TEG per pound of water, and it stays your choice. The reboiler duty is assembled from named parts: sensible heat to lift the glycol to reboiler temperature, the heat to boil the absorbed water overhead, and a stated reflux fraction, so you can see which part dominates and do not have to trust one number. Stage-wise performance uses the Kremser relation with the absorption factor as an input, since the TEG-water equilibrium constant itself is chart data.',
   },
   {
     id: 'amine',
@@ -39,12 +39,12 @@ const helpContent = [
     icon: Layers,
     title: 'Dew point and the JT drop',
     content:
-      'The Joule-Thomson coefficient here is not the usual rule of thumb: it is derived from the same validated z-factor correlation the rest of the platform uses, differentiated with temperature. That it lands on the classic seven degrees per hundred psi for lean gas is the check, not the assumption. The march across the drop then gives the cold-spot temperature, and the water content the cold gas can still hold tells you what condenses there. Hydrate margin at that spot is the Flow Assurance Studio\'s question.',
+      'The Joule-Thomson coefficient here is not the usual rule of thumb: it is derived from the same validated z-factor correlation the rest of the platform uses, differentiated with temperature. That it lands on the classic seven degrees per hundred psi for lean gas is the check. It was never assumed. The march across the drop then gives the cold-spot temperature, and the water content the cold gas can still hold tells you what condenses there. Hydrate margin at that spot is the Flow Assurance Studio\'s question.',
   },
   {
     id: 'honesty',
     icon: AlertTriangle,
-    title: 'What is typed rather than computed',
+    title: 'What is typed and what is computed',
     content:
       'The TEG circulation ratio, the absorption factor, the contactor K value, the BTEX absorbed fraction, the amine duty factor and the rich-loading limit are design choices or chart values. They are inputs with their customary ranges beside them. The McKetta-Wehe chart and the TEG equilibrium charts stay armed literature gates: the studio will not read a plotted curve for you and get it silently wrong.',
   },

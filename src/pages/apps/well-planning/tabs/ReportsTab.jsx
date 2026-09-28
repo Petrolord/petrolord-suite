@@ -121,7 +121,7 @@ const ReportsTab = () => {
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <p className="text-xs text-pl-muted">
-        Reports render from the design's saved trajectory ({stations ? `${stations.length} stations` : 'none — save the design first'})
+        Reports render from the design's saved trajectory ({stations ? `${stations.length} stations` : 'none. Save the design first'})
         {magRef ? ` with ISCWSA MWD Rev4 uncertainty (${magRef.source === 'cache' ? 'cached' : 'live'} geomagnetics)` : '; no geomagnetic reference, so EOU overlays are omitted'}.
       </p>
 
@@ -132,7 +132,7 @@ const ReportsTab = () => {
         </div>
         <p className="text-xs text-pl-muted">
           A4 landscape: well header block, plan and section views with 2σ EOU overlays,
-          key stations, targets. Vector graphics — crisp at print scale.
+          key stations, targets. Vector graphics, crisp at print scale.
         </p>
         <Button onClick={handleWallPlot} disabled={!stations || busy != null}
           className="h-8 w-fit text-xs" data-testid="report-wallplot">
@@ -189,7 +189,7 @@ const ReportsTab = () => {
           </div>
         ) : (
           <p className="text-[10px] text-pl-muted">
-            No saved runs for this design — run and save a scan on the Anti-Collision tab first.
+            No saved runs for this design. Run and save a scan on the Anti-Collision tab first.
           </p>
         )}
       </div>

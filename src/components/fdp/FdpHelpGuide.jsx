@@ -59,7 +59,7 @@ const helpContent = [
     icon: FileText,
     title: 'Generating the document',
     content:
-      'The Documents tab compiles what you have entered into an FDP document and exports it. It reports what is present and what is missing rather than filling gaps, so a thin section comes out thin. The Plan status panel on the right lists what is still empty, checked against the plan itself.',
+      'The Documents tab compiles what you have entered into an FDP document and exports it. It reports what is present and what is missing and leaves gaps unfilled, so a thin section comes out thin. The Plan status panel on the right lists what is still empty, checked against the plan itself.',
   },
   {
     id: 'schedule',

@@ -446,7 +446,7 @@ export default function SyntheticsPanel({
   const locateWell = (well, sonicLog) => {
     const stations = normalizeStations({ deviation: well.deviation, tdMdM: well.td_md_m });
     if (!stations) {
-      throw new Error(`Well "${well.name}" has no deviation survey and no TD — `
+      throw new Error(`Well "${well.name}" has no deviation survey and no TD, so `
         + 'a synthetic cannot be placed in depth.');
     }
     const path = computeWellPath(stations, {
@@ -486,7 +486,7 @@ export default function SyntheticsPanel({
     const depthLog = wellLogs.find((l) => kindOf(l) === 'depth');
     if (!depthLog) {
       throw new Error(`Log ${sonicLog.mnemonic} has an irregular depth grid and the well `
-        + 'has no depth curve to resolve it — re-import the LAS file.');
+        + 'has no depth curve to resolve it. Re-import the LAS file.');
     }
     return downloadCurve(depthLog);
   };
@@ -496,7 +496,7 @@ export default function SyntheticsPanel({
     setError(null);
     setSuggestion(null);
     try {
-      if (!dtMs || !geom) throw new Error('Load a seismic volume first — the synthetic samples onto its time grid.');
+      if (!dtMs || !geom) throw new Error('Load a seismic volume first. The synthetic samples onto its time grid.');
       const well = wells.find((w) => w.id === wellId);
       const sonicLog = wellLogs.find((l) => l.id === sonicId);
       if (!well || !sonicLog) throw new Error('Pick a well with a sonic (DT) curve first.');
@@ -538,7 +538,7 @@ export default function SyntheticsPanel({
           note = `Seismic corridor unavailable: ${e.message}`;
         }
       } else if (!ilxl) {
-        note = 'The well is outside this survey — synthetic only, no seismic corridor.';
+        note = 'The well is outside this survey: synthetic only, with no seismic corridor.';
       }
 
       const tops = (well.tops || []).map((t) => ({
@@ -591,7 +591,7 @@ export default function SyntheticsPanel({
       if (!well || !sonicLog) throw new Error('Pick a well with a sonic (DT) curve first.');
       if (!getTraces) throw new Error('No seismic volume is loaded to extract from.');
       const { ilxl } = locateWell(well, sonicLog);
-      if (!ilxl) throw new Error('The well is outside this survey — nothing to extract from.');
+      if (!ilxl) throw new Error('The well is outside this survey, so there is nothing to extract from.');
       const traces = await getTraces(ilxl.il, ilxl.xl, CORRIDOR_HALF);
       setExtracted(extractStatisticalWavelet(traces, dtMs));
       setWaveletMode('extracted');
@@ -830,7 +830,7 @@ export default function SyntheticsPanel({
     setCommitBusy(true);
     setError(null);
     try {
-      if (!velocity) throw new Error('Set a velocity model first — anchors calibrate the existing model.');
+      if (!velocity) throw new Error('Set a velocity model first. Anchors calibrate the existing model.');
       const cell = view.ilxl && geom
         ? view.ilxl.il * geom.nXl + view.ilxl.xl : 0;
       const ties = warpToTiePoints(tie.warp, buildTwtToTvdss(), {
@@ -852,7 +852,7 @@ export default function SyntheticsPanel({
   if (!geom || !dtUs) {
     return (
       <p className="text-xs text-pl-muted p-2" data-testid="synth-empty">
-        Load a seismic volume first — the synthetic is sampled onto its time grid
+        Load a seismic volume first. The synthetic is sampled onto its time grid
         and compared against its traces at the well.
       </p>
     );
@@ -860,7 +860,7 @@ export default function SyntheticsPanel({
   if (!logsLoading && !sonicWells.length) {
     return (
       <p className="text-xs text-pl-muted p-2" data-testid="synth-empty">
-        No well has a sonic (DT) curve — import LAS logs in Well Data Manager;
+        No well has a sonic (DT) curve. Import LAS logs in Well Data Manager;
         they appear here through the shared registry.
       </p>
     );
@@ -947,7 +947,7 @@ export default function SyntheticsPanel({
               className={`rounded px-1.5 py-0.5 border ${view.result.timeSource === 'checkshots'
                 ? 'border-pl-success text-pl-success-text' : 'border-pl-info text-pl-info-text'}`}
               data-testid="synth-provenance"
-              title="Time-depth source resolved by makeTvdssToTwt — never mixed"
+              title="Time-depth source resolved by makeTvdssToTwt. Sources are never mixed"
             >
               {`T(z): ${view.result.timeSource === 'checkshots'
                 ? (view.derivedCheckshots ? 'checkshots (tie-derived)' : 'checkshots')
@@ -955,7 +955,7 @@ export default function SyntheticsPanel({
             </span>
             {view.constantDensity && (
               <span className="text-pl-warning-text" data-testid="synth-density-note">
-                constant density 2.3 g/cc (no RHOB picked) — RCs reflect velocity contrast only
+                constant density 2.3 g/cc (no RHOB picked), so RCs reflect velocity contrast only
               </span>
             )}
             {view.note && <span className="text-pl-muted" data-testid="synth-note">{view.note}</span>}
@@ -993,7 +993,7 @@ export default function SyntheticsPanel({
             <span className="text-pl-muted">
               {anchors.length
                 ? 'anchors are display-side until committed below'
-                : 'display-only — the velocity model is not changed'}
+                : 'display-only: the velocity model is not changed'}
             </span>
           </div>
 

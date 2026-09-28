@@ -101,7 +101,7 @@ const ResultsPanel = () => {
                 )
               ])}
               unit="psia"
-              hint="Solved, not entered"
+              hint="Solved by the network"
             />
           </div>
 
@@ -231,7 +231,7 @@ const ResultsPanel = () => {
           <Row
             label="Mass in equals mass out"
             value={`${(result.conservation.relative * 100).toExponential(1)} % apart`}
-            hint="Checked on the answer rather than trusted from the method"
+            hint="Checked on the answer itself"
           />
           <Row
             label="Mixture passes"

@@ -46,7 +46,7 @@ const COVERAGE = {
     // The Integration panel cards report success but transmit nothing.
     /does not transmit anything yet/i,
     // Fits are keyed by stream, so switching wells silently reattributes them.
-    /belongs to the stream rather than to the well/i,
+    /belongs to the stream and does not follow the well/i,
   ],
   'Waterflood Design Studio': [
     /SCAL Studio/i,

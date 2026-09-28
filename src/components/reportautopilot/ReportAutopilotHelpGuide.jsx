@@ -23,7 +23,7 @@ const helpContent = [
     icon: Bot,
     title: 'The words are written by a language model',
     content:
-      'Every section is written by an OpenAI model from the brief you gave it. The same brief will not produce the same words twice, so two runs of the same report differ in wording. That is the nature of the tool and the reason the app is not a system of record: keep the report you approved, not the button that made it.',
+      'Every section is written by an OpenAI model from the brief you gave it. The same brief will not produce the same words twice, so two runs of the same report differ in wording. That is the nature of the tool and the reason the app is not a system of record: keep the report you approved. The button that made it is no record.',
   },
   {
     id: 'figures',

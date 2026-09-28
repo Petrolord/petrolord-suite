@@ -143,7 +143,7 @@ describe('the page', () => {
     mount();
     await openTab(/^CNG$/);
     expect(await screen.findByText('The trailer float')).toBeInTheDocument();
-    expect(screen.getByText(/rather than a second one that could disagree/i)).toBeInTheDocument();
+    expect(screen.getByText(/A second model could disagree with it/i)).toBeInTheDocument();
   });
 
   it('derives the new fuel consumption and says it derived it', async () => {

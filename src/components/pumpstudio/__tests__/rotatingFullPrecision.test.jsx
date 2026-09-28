@@ -87,7 +87,7 @@ describe('Pump Station Designer', () => {
     expect(statValue('Duty flow after')).toBe(formatFull(ce.after.qGpm));
     expect(statValue('Duty flow before')).toBe(formatFull(ce.before.qGpm));
     expect(statValue('Old duty, moved onto the new curve')).toBe(formatFull(ce.onCurve.qGpm));
-    expect(screen.getByText(`${formatFull(ce.onCurve.headFt)} ft. On the pump curve, not on the system curve.`)).toBeInTheDocument();
+    expect(screen.getByText(`${formatFull(ce.onCurve.headFt)} ft, read on the pump curve.`)).toBeInTheDocument();
   });
 });
 

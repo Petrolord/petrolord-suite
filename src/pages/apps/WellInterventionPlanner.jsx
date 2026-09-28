@@ -114,7 +114,7 @@ const InterventionContent = () => {
         <title>Well Intervention Planner | Petrolord Suite</title>
         <meta
           name="description"
-          content="Diagnose what is wrong with a well from its own production history, screen the treatments against that diagnosis rather than against a checklist, and size the survivors by solving the well before and after. A water shutoff is ruled out on a coning well with the reason, because the cone re-forms above whatever is plugged. Uplift is a nodal re-solve, so the tubing takes back part of what the inflow gained, and the economics are the Suite's canonical screening engine with a decline that has to be stated."
+          content="Diagnose what is wrong with a well from its own production history, screen the treatments against that diagnosis in place of a checklist, and size the survivors by solving the well before and after. A water shutoff is ruled out on a coning well with the reason, because the cone re-forms above whatever is plugged. Uplift is a nodal re-solve, so the tubing takes back part of what the inflow gained, and the economics are the Suite's canonical screening engine with a decline that has to be stated."
         />
       </Helmet>
       <StudioLayout

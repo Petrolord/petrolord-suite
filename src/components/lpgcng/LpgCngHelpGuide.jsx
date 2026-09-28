@@ -12,7 +12,7 @@ const helpContent = [
     icon: BookOpen,
     title: 'Two fuels, one commercial question',
     content:
-      'LPG and CNG look like different businesses and they share more structure than they appear to. Both ask what it takes to put the fuel in front of a customer and whether the customer saves money by switching. A cylinder in circulation and a CNG trailer shuttling to a daughter station are the same problem, so there is one fleet model here rather than two. A bottling carousel and a dispensing forecourt are both queues, so this calls the same queue model the Terminal & Depot Studio uses for a loading rack, rather than writing a third one that could disagree with the other two.',
+      'LPG and CNG look like different businesses and they share more structure than they appear to. Both ask what it takes to put the fuel in front of a customer and whether the customer saves money by switching. A cylinder in circulation and a CNG trailer shuttling to a daughter station are the same problem, so there is one fleet model here for both. A bottling carousel and a dispensing forecourt are both queues, so this calls the same queue model the Terminal & Depot Studio uses for a loading rack. Writing a third one could let it disagree with the other two.',
   },
   {
     id: 'projects',
@@ -26,42 +26,42 @@ const helpContent = [
     icon: AlertTriangle,
     title: 'The fill limit this app will not supply',
     content:
-      'A pressure vessel in LPG service is never filled liquid-full. Liquid LPG expands with temperature, and a vessel with no vapour space ruptures hydraulically. The maximum fill ratio is set by the code in force for the product and the vessel, so this app implements the arithmetic and refuses to supply the limit: a default here would be a number somebody trusted. Enter the ratio your code requires, and say which way it is stated: as a share of the vessel\'s liquid volume (for example 0.85), or as a filling density on the vessel\'s water capacity by weight (for example 0.42). Read as a volume, a filling density roughly halves the usable stock. A blank lead time or safety stock leaves the reorder point unstated rather than zero. The vapour space is then reported as a figure in its own right rather than left as a subtraction, because it is the reason the vessel does not fail and is never spare capacity.',
+      'A pressure vessel in LPG service is never filled liquid-full. Liquid LPG expands with temperature, and a vessel with no vapour space ruptures hydraulically. The maximum fill ratio is set by the code in force for the product and the vessel, so this app implements the arithmetic and refuses to supply the limit: a default here would be a number somebody trusted. Enter the ratio your code requires, and say which way it is stated: as a share of the vessel\'s liquid volume (for example 0.85), or as a filling density on the vessel\'s water capacity by weight (for example 0.42). Read as a volume, a filling density roughly halves the usable stock. A blank lead time or safety stock leaves the reorder point unstated. It does not become zero. The vapour space is then reported as a figure in its own right and is not left as a subtraction, because it is the reason the vessel does not fail and is never spare capacity.',
   },
   {
     id: 'blend',
     icon: Flame,
     title: 'Every property says how it mixes',
     content:
-      'Liquid density mixes on volume. Latent heat per kilogram mixes on mass. Molar mass mixes on moles. Using the wrong basis is a quiet error of several percent that looks entirely plausible, so each property is labelled with the basis it was computed on. Where a property is missing on any component it is reported as missing for the whole blend rather than averaged over the components that have it, because a confident number built from half the blend is worse than an honest gap. Typical component properties are offered as a starting point with their ranges; the certificate of quality is the authority.',
+      'Liquid density mixes on volume. Latent heat per kilogram mixes on mass. Molar mass mixes on moles. Using the wrong basis is a quiet error of several percent that looks entirely plausible, so each property is labelled with the basis it was computed on. Where a property is missing on any component it is reported as missing for the whole blend. It is not averaged over the components that have it, because a confident number built from half the blend is worse than an honest gap. Typical component properties are offered as a starting point with their ranges; the certificate of quality is the authority.',
   },
   {
     id: 'vaporizer',
     icon: Flame,
-    title: 'Three terms in a vaporizer, not one',
+    title: 'Three terms in a vaporizer',
     content:
-      'The boiling point to enter is the one at the vaporizer\'s operating pressure. LPG in a vaporizer is under pressure and boils near the storage temperature, far above its atmospheric boiling point. A liquid entering above the boiling point it is given is not liquid, so the app refuses it rather than report a negative warming term that cuts the duty. Warm the liquid to its boiling point, boil it, then superheat the vapour clear of the dew point so it does not re-condense in the line. Skipping the third is how a vaporizer that is correctly sized on paper drops liquid into a burner. The terms are kept apart because they answer different questions, and a duty computed without one of them is called a floor rather than a duty.',
+      'The boiling point to enter is the one at the vaporizer\'s operating pressure. LPG in a vaporizer is under pressure and boils near the storage temperature, far above its atmospheric boiling point. A liquid entering above the boiling point it is given is not liquid, so the app refuses it. It will not report a negative warming term that cuts the duty. Warm the liquid to its boiling point, boil it, then superheat the vapour clear of the dew point so it does not re-condense in the line. Skipping the third is how a vaporizer that is correctly sized on paper drops liquid into a burner. The terms are kept apart because they answer different questions, and a duty computed without one of them is called a floor. It is not called a duty.',
   },
   {
     id: 'float',
     icon: Recycle,
     title: "The cylinder float is Little's Law",
     content:
-      'The number of assets in a system equals the rate they flow through it times the time each one spends in it. For a cylinder fleet that is cylinders sold per day times days round the cycle. Operators usually guess this number and usually guess it low, because the cylinders sitting at customers\' houses are invisible and are most of the fleet. The cycle is broken down so the dominant stage is obvious, which is nearly always the time at the customer and is the only term the operator can actually negotiate. The fleet rounds up, because half a cylinder does not exist, and spares are added on top of the circulating fleet rather than counted inside it.',
+      'The number of assets in a system equals the rate they flow through it times the time each one spends in it. For a cylinder fleet that is cylinders sold per day times days round the cycle. Operators usually guess this number and usually guess it low, because the cylinders sitting at customers\' houses are invisible and are most of the fleet. The cycle is broken down so the dominant stage is obvious, which is nearly always the time at the customer and is the only term the operator can actually negotiate. The fleet rounds up, because half a cylinder does not exist, and spares are added on top of the circulating fleet. They are not counted inside it.',
   },
   {
     id: 'realgas',
     icon: Gauge,
     title: 'CNG at 250 bar is not an ideal gas',
     content:
-      'The compressibility factor at storage pressure is nowhere near one, so a bank holds appreciably more gas than the ideal gas law says, and a cascade sized on ideal gas is wrong by about a fifth in a direction nobody notices until the station is built. This uses the same Dranchuk and Abou-Kassem correlation the Facilities compression app uses rather than a second implementation, shows the factor it used so it can be checked against your own data, and says explicitly when the correlation is being asked to work outside the range it was fitted over. Every pressure in the CNG section is absolute, bar(a): add about one bar to a gauge reading.',
+      'The compressibility factor at storage pressure is nowhere near one, so a bank holds appreciably more gas than the ideal gas law says, and a cascade sized on ideal gas is wrong by about a fifth in a direction nobody notices until the station is built. This uses the same Dranchuk and Abou-Kassem correlation the Facilities compression app uses, with no second implementation, shows the factor it used so it can be checked against your own data, and says explicitly when the correlation is being asked to work outside the range it was fitted over. Every pressure in the CNG section is absolute, bar(a): add about one bar to a gauge reading.',
   },
   {
     id: 'cascade',
     icon: Wind,
     title: 'Why a cascade has banks',
     content:
-      'A bank can only push gas into a vehicle while its pressure exceeds the vehicle\'s. Each vehicle is connected to the lowest bank first and the two equalise, then the next bank up takes it higher, until it reaches its target. Once a bank and the vehicle equalise the bank is finished for that vehicle, which is exactly why a station runs several banks at different pressures instead of one large one: a low bank that has fallen below the target still does useful work, taking the next vehicle from empty up to its own pressure. The count stops at the first vehicle the banks cannot bring to its target, and the app says how far that vehicle would get; a part fill is not counted as a fill. The gas still in the banks is reported as inventory the compressor has to bring back up. The model is isothermal: a fast fill heats the gas and settles lower, so treat the count as a ceiling.',
+      'A bank can only push gas into a vehicle while its pressure exceeds the vehicle\'s. Each vehicle is connected to the lowest bank first and the two equalise, then the next bank up takes it higher, until it reaches its target. Once a bank and the vehicle equalise the bank is finished for that vehicle, which is exactly why a station runs several banks at different pressures and not one large one: a low bank that has fallen below the target still does useful work, taking the next vehicle from empty up to its own pressure. The count stops at the first vehicle the banks cannot bring to its target, and the app says how far that vehicle would get; a part fill is not counted as a fill. The gas still in the banks is reported as inventory the compressor has to bring back up. The model is isothermal: a fast fill heats the gas and settles lower, so treat the count as a ceiling.',
   },
   {
     id: 'compression',
@@ -75,14 +75,14 @@ const helpContent = [
     icon: Car,
     title: 'The customer\'s decision',
     content:
-      'Petrol is sold by the litre and CNG by the kilogram, so comparing prices per unit sold is meaningless. The comparison is per kilometre, which is what the customer actually buys. Where the vehicle\'s consumption on the new fuel has been measured, that is used. Where it has not, it is derived from energy equivalence and an explicit efficiency ratio, stated as an assumption on screen rather than hidden as a constant, because a converted engine is not necessarily as efficient on the new fuel and that ratio moves the answer more than the fuel price does. Simple payback is reported because it is the number this decision is actually made on, and it is labelled undiscounted; anything needing a discount rate belongs in the sanctioned economics engine, not here.',
+      'Petrol is sold by the litre and CNG by the kilogram, so comparing prices per unit sold is meaningless. The comparison is per kilometre, which is what the customer actually buys. Where the vehicle\'s consumption on the new fuel has been measured, that is used. Where it has not, it is derived from energy equivalence and an explicit efficiency ratio, stated as an assumption on screen. It is not hidden as a constant, because a converted engine is not necessarily as efficient on the new fuel and that ratio moves the answer more than the fuel price does. Simple payback is reported because it is the number this decision is actually made on, and it is labelled undiscounted; anything needing a discount rate belongs in the sanctioned economics engine.',
   },
   {
     id: 'carbon',
     icon: Leaf,
     title: 'Cheaper and cleaner are separate questions',
     content:
-      'A fuel that costs less per kilometre can still emit more per kilometre. This computes the two separately and will happily report a switch that saves money and adds carbon, because that is a real result and hiding it would make the studio an advocacy tool rather than an analysis one. Both emission factors are required: without them the carbon figure is absent and says so, rather than defaulting to zero.',
+      'A fuel that costs less per kilometre can still emit more per kilometre. This computes the two separately and will happily report a switch that saves money and adds carbon, because that is a real result and hiding it would turn the studio from an analysis tool into an advocacy one. Both emission factors are required: without them the carbon figure is absent and says so. It does not default to zero.',
   },
 ];
 

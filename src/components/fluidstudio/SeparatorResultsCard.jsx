@@ -86,7 +86,7 @@ const SeparatorResultsCard = ({ separator }) => {
           <TotIt label="Bo (multistage, approx)" value={`${fmt(totals.bo_multistage_approx, 3)} rb/STB`} />
         </div>
         <p className="text-xs text-pl-muted">
-          Stock-tank oil basis {fmt(totals.stock_tank_oil_rate, 0)} STB/d (reporting basis for gas rates, not a deliverability estimate).
+          Stock-tank oil basis {fmt(totals.stock_tank_oil_rate, 0)} STB/d (reporting basis for gas rates; it is not a deliverability estimate).
           Multistage Bo is an approximation illustrating the staging benefit; per-stage oil volumes are not reported from black-oil correlations.
         </p>
       </CardContent>

@@ -201,7 +201,7 @@ const EpeHelpGuide = () => {
                 against an independent calculation typed from those texts.
               </Para>
               <Para>
-                Abandonment costs and end-of-life handling are covered: the Run Console has a Field Life section where you can set an abandonment cost (applied as a post-tax outflow in a chosen year, not tax-deducted and not depreciated) and an economic limit toggle that trims trailing years whose revenue no longer covers opex.
+                Abandonment costs and end-of-life handling are covered: the Run Console has a Field Life section where you can set an abandonment cost (applied as a post-tax outflow in a chosen year, and neither tax-deducted nor depreciated) and an economic limit toggle that trims trailing years whose revenue no longer covers opex.
               </Para>
 
               <Callout tone="info" title="Not a black box">
@@ -528,7 +528,7 @@ const EpeHelpGuide = () => {
               <SectionHeading icon={Dices}>Risk and Monte Carlo</SectionHeading>
 
               <Para>
-                Monte Carlo simulation turns a single deterministic NPV into a probability distribution. Instead of asking "what is the NPV?", it answers "how likely is the NPV to be above zero, and what is the realistic range?"
+                Monte Carlo simulation turns a single deterministic NPV into a probability distribution. Beyond asking "what is the NPV?", it answers "how likely is the NPV to be above zero, and what is the realistic range?"
               </Para>
 
               <SubHeading>How to run it</SubHeading>

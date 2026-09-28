@@ -215,7 +215,7 @@ const PetrophysicsHelpGuide = () => (
       </Para>
       <Callout tone="warn" title="No depth curve">
         A well whose logs carry no DEPT, DEPTH or MD curve cannot be interpreted. The center shows
-        an empty state instead of tracks. Import an LAS file with a depth curve in Well Data
+        an empty state with no tracks. Import an LAS file with a depth curve in Well Data
         Manager and the well opens here ready to go.
       </Callout>
     </GuideSection>
@@ -330,7 +330,7 @@ const PetrophysicsHelpGuide = () => (
           ['Fills: threshold', 'Shade one curve above or below a threshold. The threshold can be bound to a parameter (cutPhi, cutVsh, cutSw, grClean, grClay) so it follows the parameter set, or a fixed value such as 75 API. Tick other side to colour the far side too: this is the GR cut-off fill, sand one colour below the number you choose and shale another above it.'],
           ['Fills: crossover', 'Shade between two curves of the same track, one colour for each sign of the crossing. On the Density-Neutron track, with RHOB 1.95 to 2.95 and NPHI 0.45 to -0.15, density left of neutron is gas or light hydrocarbon (yellow by default) and neutron left of density is shale or wet rock (gray by default).'],
           ['Fills: ramp', 'Colour the track by the value of one curve between stops you set, each with its own colour, filled to the left edge, the right edge or across the whole track. The lithology preset runs from pale yellow at 15 API to dark brown at 150 API; add stops for intermediate shades. A small colour bar under the track header shows the ramp.'],
-          ['Fill colour and opacity', 'Every fill row has colour pickers and an opacity slider, so the defaults are a starting point, not a rule.'],
+          ['Fill colour and opacity', 'Every fill row has colour pickers and an opacity slider, so the defaults are only a starting point.'],
         ]}
       />
       <Para>
@@ -618,7 +618,7 @@ const PetrophysicsHelpGuide = () => (
         (Rw is the fitted a·Rw divided by your a). Hingle fits a through-origin line at your current
         m and <Code>Apply Rw</Code> writes only Rw. Either way the status bar quotes the values and
         the sample count. Both fits require finite φe and Rt in the window; an empty window is
-        reported rather than fitted.
+        reported with no fit.
       </Para>
       <SubHeading>Facies polygons</SubHeading>
       <Para>
@@ -785,8 +785,8 @@ const PetrophysicsHelpGuide = () => (
         to formation temperature by Arps) and 0.1 ohm·m at formation temperature. Thirty-one
         readings off the chart on 2026-09-10 showed the fit 36 to 92 percent low for fresher waters
         and 13 to 24 percent high near NaCl saturation, so outside that band the Studio refuses
-        rather than extrapolates and says which limit was crossed. Inside the band the fit is an
-        approximation of the chart, not a reproduction: five label-anchored 75 °F readings between
+        to extrapolate and says which limit was crossed. Inside the band the fit is an
+        approximation of the chart and does not reproduce it exactly: five label-anchored 75 °F readings between
         Rwe 0.02 and 0.06 put it within 10 percent (+9 percent at 0.02, within 4 percent above 0.04),
         where the uncorrected Rwe would be 23 to 57 percent low; that 10 percent is the declared
         residual the engine gate holds it to, the same standard as the salinity route. Only 75 °F
@@ -814,7 +814,7 @@ const PetrophysicsHelpGuide = () => (
       </Para>
       <Para>
         A sample is accepted only when every fraction and the porosity sit between zero and one; a
-        sample that leaves that range is refused and flagged, never clamped, and the residual track
+        sample that leaves that range is refused and flagged (it is never clamped), and the residual track
         shows by how much (the excursion). A mineral set the three tools cannot separate is refused as
         singular. A determined system has no fit residual, so the residual here is that excursion; the
         tool-space misfit arrives with the planned weighted stage two. Apply to tracks adds the Mineral
@@ -823,7 +823,7 @@ const PetrophysicsHelpGuide = () => (
         and MM_FLAG to the registry, each carrying the whole endpoint table, the fluid and the counts.
         The model persists with the interpretation, every run is a provenance entry, and the solved
         porosity feeds the pipeline only if you pick φt source <Code>mineral</Code> in Parameters (that
-        change is recorded too); with no run there is no PHIT rather than a fallback.
+        change is recorded too); with no run there is no PHIT and no fallback.
       </Para>
       <SubHeading>Not suited to</SubHeading>
       <ul className="list-disc pl-5 text-sm text-pl-text space-y-1" data-testid="petro-help-mineral-unsuited">
@@ -908,8 +908,8 @@ const PetrophysicsHelpGuide = () => (
       </Para>
       <SubHeading>Probabilistic cases</SubHeading>
       <Para>
-        <Code>Probabilistic…</Code> in the ribbon varies parameters with distributions instead of
-        two hand-picked cases. Tick the parameters to vary (the defaults are the ones the low and high
+        <Code>Probabilistic…</Code> in the ribbon varies parameters with distributions, so it goes
+        beyond two hand-picked cases. Tick the parameters to vary (the defaults are the ones the low and high
         cases move, with those two values as the 10th and 90th percentiles and the current value as
         the median), choose a distribution for each (triangular from three percentiles, uniform,
         normal or lognormal), pick the number of realisations and a seed, and run. The run happens in
@@ -930,7 +930,7 @@ const PetrophysicsHelpGuide = () => (
         carries a P-label, because the rule breaks where more is worse: the 90th percentile of Sw is
         the high, pessimistic water saturation, so it is written <Code>90th percentile of Sw</Code>
         and, on the band tracks, <Code>Low case Sw (high value)</Code>. The best case is the median of
-        the realisations, not the deterministic mid curve.
+        the realisations. The deterministic mid curve is a separate result.
       </Para>
       <SubHeading>Calculator: a new curve from an expression</SubHeading>
       <Para>
@@ -983,7 +983,7 @@ const PetrophysicsHelpGuide = () => (
       </Para>
       <Para>
         A digitized curve is always a new curve: it is saved as <Code>MNEMONIC_DIG</Code>, then
-        <Code>_DIG:2</Code> and so on, never over an existing log, and its provenance records the
+        <Code>_DIG:2</Code> and so on. It never overwrites an existing log, and its provenance records the
         mode, the box, the colour, the number of edited points and any AI reading you accepted.
         Digitized curves appear in the explorer picker as candidates for their input but are never
         mapped automatically; choose one explicitly when you mean it. After a save the scan and
@@ -1055,8 +1055,8 @@ const PetrophysicsHelpGuide = () => (
     <GuideSection id="validation">
       <SectionHeading icon={BadgeCheck}>Validation basis</SectionHeading>
       <Para>
-        The engine is validated against an independent oracle written from the literature, never
-        from the app code, on an analytic type well whose Archie round trip is exact. Every method
+        The engine is validated against an independent oracle written from the literature with no
+        reference to the app code, on an analytic type well whose Archie round trip is exact. Every method
         reproduces the oracle to 1e-12. The shaly-sand models are anchored to reduce exactly to
         Archie when their clay terms vanish (Qv = 0, Swb = 0, Vsh = 0). The Hingle fit on the type
         well&apos;s water leg returns the construction Rw exactly, and the LAS writer is gated on a
@@ -1101,7 +1101,7 @@ const PetrophysicsHelpGuide = () => (
       </Para>
       <SubHeading>My low case Sw is the high number</SubHeading>
       <Para>
-        That is the convention, not a bug. P90 means a 90 percent probability that the actual
+        That is the convention and it is working as intended. P90 means a 90 percent probability that the actual
         quantity meets or exceeds the value, so it is the low estimate of an outcome such as net pay.
         Water saturation works the other way round, which is why parameters carry percentiles instead
         of P-labels: the low case of Sw is its 90th percentile, the high value, and the track header
@@ -1129,7 +1129,7 @@ const PetrophysicsHelpGuide = () => (
       <SubHeading>The Waxman-Smits result moved a lot when I switched from Archie</SubHeading>
       <Para>
         The m and n fields became m* and n*, the shaly-rock exponents, and Qv and Rw ref T came
-        into play. Enter values for the shaly rock rather than reusing clean-sand m and n.
+        into play. Enter values for the shaly rock. Do not reuse clean-sand m and n.
       </Para>
       <SubHeading>Two zones overlap</SubHeading>
       <Para>

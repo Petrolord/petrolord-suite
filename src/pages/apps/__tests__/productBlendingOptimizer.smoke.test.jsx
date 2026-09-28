@@ -63,7 +63,7 @@ describe('the page', () => {
     mount();
     // Fuel specifications are set by regulation and they change. The app must
     // never be read as the requirement.
-    expect(await screen.findByText(/not a compliance oracle/i)).toBeInTheDocument();
+    expect(await screen.findByText(/make no compliance claim/i)).toBeInTheDocument();
     expect(screen.getByText(/regulation in force/i)).toBeInTheDocument();
   });
 

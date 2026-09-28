@@ -79,7 +79,7 @@ const BuildUpResults = () => {
         <h3 className="text-sm font-semibold text-pl-text mb-1">The landed cost, stage by stage</h3>
         <p className="text-[11px] text-pl-muted mb-2">
           A charge levied as a percentage of CIF depends on what CIF already is, so the order is
-          part of the answer. Ocean loss divides rather than adds: you pay for the loaded quantity
+          part of the answer. Ocean loss divides and does not add: you pay for the loaded quantity
           and you sell the outturn.
         </p>
         <NumericTable className="p-0" data-testid="landed-cost-table">
@@ -146,7 +146,7 @@ const BuildUpResults = () => {
       <div>
         <h3 className="text-sm font-semibold text-pl-text mb-1">Where the money in a litre goes</h3>
         <p className="text-[11px] text-pl-muted mb-2">
-          Elements with no recipient named are grouped as unattributed rather than assigned to
+          Elements with no recipient named are grouped as unattributed and are not assigned to
           anybody, because guessing is how this argument goes wrong in public.
         </p>
         <ChartFrame height={260} exportFilename="pump-price-waterfall">
@@ -168,10 +168,10 @@ const BuildUpResults = () => {
       <div>
         <h3 className="text-sm font-semibold text-pl-text mb-1">What the exchange rate does to the price</h3>
         <p className="text-[11px] text-pl-muted mb-2">
-          The chain is re-priced at each rate rather than scaled, because only part of the build-up
+          The chain is re-priced at each rate with no scaling, because only part of the build-up
           is in dollars. Where a cap is entered, the rate at which it stops covering the chain is
-          solved for; where the price never crosses the cap in the range, the app says so instead
-          of returning an endpoint.
+          solved for; where the price never crosses the cap in the range, the app says so and
+          returns no endpoint.
         </p>
         <ChartFrame height={260} exportFilename="fx-sensitivity">
           <LineChart data={sensitivity.points} margin={{ top: 12, right: 24, left: 16, bottom: 28 }}>

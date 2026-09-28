@@ -61,8 +61,7 @@ export default function WellsiteHelpGuide() {
         <Para>
           Wellsite Studio is the geological command centre for a live well. From the prognosis to TD it holds what the geologist saw
           (observations), what they thought it meant (interpretations), what happened on the rig (events) and what was called
-          (decisions) as one traceable record, and it generates the shift handover and the daily geological report from that record
-          rather than having them typed a second time.
+          (decisions) as one traceable record, and it generates the shift handover and the daily geological report from that record so nobody types them a second time.
         </Para>
         <Para>
           It is not a mudlogging acquisition system, a drilling or well-control system, or a decision maker. It detects, highlights,
@@ -114,7 +113,7 @@ export default function WellsiteHelpGuide() {
           A live well is anchored to a registry well from Well Data Manager (its name, KB and survey come from there). New well needs
           a connection; whoever starts it is its first administrator and adds the other members with their roles:
           {' '}{WS_ROLES.map((r) => r.name.toLowerCase()).join(', ')}. Which roles may approve (finalise a top, resolve a conflict) is
-          a setting per well, never a fixed title.
+          a setting per well and is never a fixed title.
         </Para>
         <Para>
           Members are kept on Config, under Members. An administrator of the well, or of the organisation, adds a person from the
@@ -161,8 +160,7 @@ export default function WellsiteHelpGuide() {
           MD. Beyond the last survey station the TVD is extrapolated along the last attitude and says so.
         </Para>
         <Para>
-          Every record carries UTC and the rig's offset; tours and the report day are computed from the rig offset, never from the
-          laptop's clock zone.
+          Every record carries UTC and the rig's offset; tours and the report day are computed from the rig offset and never from the laptop's clock zone.
         </Para>
       </GuideSection>
 
@@ -189,7 +187,7 @@ export default function WellsiteHelpGuide() {
           confirmed within the tolerance of its predicted arrival is highlighted as overdue for review; the app never says it was missed,
           because it cannot know.
         </Para>
-        <Table headers={['Stage', 'Meaning']} rows={SAMPLE_STAGES.map((s) => [s, s === 'scheduled' ? 'programmed, not yet cut' : s === 'due' ? 'predicted at surface' : `recorded by a person, with the time`])} />
+        <Table headers={['Stage', 'Meaning']} rows={SAMPLE_STAGES.map((s) => [s, s === 'scheduled' ? 'programmed and not yet cut' : s === 'due' ? 'predicted at surface' : `recorded by a person, with the time`])} />
         <Para>Mandatory stages (a well setting) cannot be skipped; the others can.</Para>
       </GuideSection>
 
@@ -316,8 +314,7 @@ export default function WellsiteHelpGuide() {
         <Para>
           Wellsite Studio writes to the shared registry only through Publish on Tops, by the owner of the registry well and with a
           connection: final official calls become registry tops, current cuttings descriptions become lithology intervals with the
-          components in their properties, and chosen photographs become core images. A republish replaces only the rows this app wrote
-          earlier, never a hand-typed row or another app's. Well Correlation, Petrophysics Studio and Stratigraphy Studio read them from there.
+          components in their properties, and chosen photographs become core images. A republish replaces only the rows this app wrote earlier. It never touches a hand-typed row or another app's. Well Correlation, Petrophysics Studio and Stratigraphy Studio read them from there.
         </Para>
       </GuideSection>
 
@@ -346,7 +343,7 @@ export default function WellsiteHelpGuide() {
           ['Event', 'Something that happened in the well or the operation. The timeline.'],
           ['Decision', 'A call or recommendation made by a person, with its basis. Versioned.'],
           ['Lag', 'Pump strokes from the bit to surface for the annular volume above a cut point; time follows the pump log.'],
-          ['Overdue', 'Past the predicted arrival by more than the tolerance; for review, never assumed missed.'],
+          ['Overdue', 'Past the predicted arrival by more than the tolerance; for review and never assumed missed.'],
           ['Prognosis', 'The pre-drill tops, offsets, casing points and geometry, as a numbered snapshot with its date.'],
           ['Conflict', 'Two competing versions of one thing; kept until an approver resolves them.'],
           ['Countersignature', 'The platform signature over a sign-off and the hash it attests, verifiable offline.'],

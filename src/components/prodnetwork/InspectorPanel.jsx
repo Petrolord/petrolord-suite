@@ -86,7 +86,7 @@ const WellInspector = ({ node }) => {
           </div>
         )}
         <p className="text-[11px] text-pl-muted">
-          What the well is flowing today, so it stays with the network rather than going into the
+          What the well is flowing today, so it stays with the network and does not go into the
           shared record. The wellhead pressure is NOT here: in a network nobody sets it, the
           network does.
         </p>
@@ -105,7 +105,7 @@ const WellInspector = ({ node }) => {
           showCompletion
           depthLabel="Perforation depth (ft TVD)"
           depthHint="The node depth. The tubing is marched between here and the wellhead."
-          fluidNote="The wellhead pressure this well ends up at is solved, not entered: it is whatever the header leaves it."
+          fluidNote="The wellhead pressure this well ends up at is solved. Nobody enters it: it is whatever the header leaves it."
         />
       </div>
     </div>
@@ -232,7 +232,7 @@ const BranchInspector = ({ branch }) => {
             </SelectContent>
           </Select>
         </Field>
-        <Field label="Design factor" hint="Yours, not ours">
+        <Field label="Design factor" hint="Your own value">
           <Num value={branch.designFactor} onChange={(v) => setBranch(branch.id, 'designFactor', v)} step="0.01" />
         </Field>
       </div>

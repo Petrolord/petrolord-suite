@@ -193,7 +193,7 @@ const ProfilePanel = () => {
           <div className="pl-5 space-y-1" data-testid="frozen-hours">
             <Note>
               {frozenHours.name} is {cons.frozen.includeHoursOn ? 'searched' : 'left out'}: a well on the same hours day after day
-              (24 on a producing well) is normal operation, not a stuck gauge.
+              (24 on a producing well) is normal operation. It does not mean a stuck gauge.
             </Note>
             <Toggle label={`Search ${frozenHours.name} for frozen runs too`} checked={!!cons.frozen.includeHoursOn}
               onChange={(v) => set(['consistency', 'frozen', 'includeHoursOn'], v)} testId="frozen-include-hours" />
@@ -265,7 +265,7 @@ const ProfilePanel = () => {
           <>
             <div className="flex flex-wrap items-end gap-3">
               <TextInput label="In-control target" unit={chartCh.unit} value={profile.charts.target} onChange={(v) => set(['charts', 'target'], v)} placeholder="required" testId="chart-target" source="EWMA and CUSUM need it; there is no default." />
-              <TextInput label="In-control sigma" unit={chartCh.unit} value={profile.charts.sigma} onChange={(v) => set(['charts', 'sigma'], v)} placeholder="required" testId="chart-sigma" source="From historical in-control data, never from the data being watched." />
+              <TextInput label="In-control sigma" unit={chartCh.unit} value={profile.charts.sigma} onChange={(v) => set(['charts', 'sigma'], v)} placeholder="required" testId="chart-sigma" source="From historical in-control data. The data being watched is not used." />
             </div>
             <Baseline
               values={chartCh.values}

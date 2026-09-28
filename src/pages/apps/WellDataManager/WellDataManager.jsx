@@ -18,7 +18,7 @@ export default function WellDataManager() {
         <title>Well Data Manager - Petrolord Suite</title>
         <meta
           name="description"
-          content="Shared subsurface well registry: well headers, deviation surveys, LAS log import with SI unit handling, formation tops, checkshots — private by default, shareable with your organization."
+          content="Shared subsurface well registry: well headers, deviation surveys, LAS log import with SI unit handling, formation tops, checkshots. Private by default, shareable with your organization."
         />
       </Helmet>
 

@@ -138,7 +138,7 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
       });
       setZones(zoneList);
       setStatus(model.vsSource === 'estimated'
-        ? `Loaded ${model.n} samples — no DTS, Vs estimated (Greenberg-Castagna).`
+        ? `Loaded ${model.n} samples. No DTS, so Vs is estimated (Greenberg-Castagna).`
         : `Loaded ${model.n} samples.`);
     } catch (e) {
       setStatus(e.message);
@@ -231,7 +231,7 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
       {model?.vsSource === 'estimated' && (
         <span
           data-testid="rp-vs-badge"
-          title="This well has no shear log — Vs is estimated with Greenberg-Castagna on the VSH sand/shale split"
+          title="This well has no shear log, so Vs is estimated with Greenberg-Castagna on the VSH sand/shale split"
           className="rounded px-1.5 py-0.5 bg-pl-warning-bg border border-pl-warning text-pl-warning-text text-[11px]"
         >
           Vs estimated

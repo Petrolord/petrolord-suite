@@ -135,7 +135,7 @@ const DeterministicSummaryTable = () => {
             {/* Branded footer — Petrolord mark below the last row of the report */}
             <div className="flex items-center justify-between gap-3 border-t border-pl-border bg-pl-sunken px-3 py-2.5">
                 <span className="text-[10px] text-pl-muted">
-                    Screening estimate — confirm against reservoir simulation before reserves booking.
+                    Screening estimate. Confirm against reservoir simulation before reserves booking.
                 </span>
                 <div className="flex items-center gap-1.5">
                     <img src="/petrolord-chart-watermark.png" alt="Petrolord" className="h-5 w-auto object-contain" />

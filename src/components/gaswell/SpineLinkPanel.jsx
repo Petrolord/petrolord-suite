@@ -66,8 +66,8 @@ const SpineLinkPanel = () => {
                 <Download className="w-3 h-3 mr-1" /> Use this test
               </Button>
               <p className="text-[11px] text-pl-muted">
-                The test rate is a measurement to compare the deliverability against, not an input
-                to it, so it is reported rather than written into the inflow.
+                The test rate is a measurement to compare the deliverability against. It is not an input
+                to it, so it is reported and is not written into the inflow.
               </p>
             </>
           ) : (

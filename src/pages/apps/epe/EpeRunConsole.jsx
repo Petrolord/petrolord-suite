@@ -1121,7 +1121,7 @@ const EpeRunConsole = () => {
             <p className="text-xs text-pl-muted mt-2">
               {config.abandonment_funding_mode === 'sinking_fund'
                 ? 'Equal annual contributions from the start year through the abandonment year. Contributions are tax-deductible and the fund pays the final spend, so there is no second cash hit at end of life.'
-                : 'Applied as a post-tax cash outflow in that year. It is not tax-deducted, not depreciated, and excluded from cost recovery.'}
+                : 'Applied as a post-tax cash outflow in that year. It is not tax-deducted or depreciated, and it is excluded from cost recovery.'}
             </p>
           </section>
 

@@ -207,7 +207,7 @@ const TorqueDragHelpGuideContent = () => {
               <Para>
                 Hole sections describe what the string rubs against: a cased interval uses the
                 casing inner diameter, an open hole interval uses the bit or hole size. The
-                sections belong to the wellbore, not the case, and are shared with future
+                sections belong to the wellbore (the case does not own them) and are shared with future
                 drilling apps (hydraulics reads the same geometry).
               </Para>
               <Table

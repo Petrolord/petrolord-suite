@@ -129,7 +129,7 @@ const AiEvaluationStudioHelpGuideContent = () => (
       </Para>
       <SubHeading>BM25</SubHeading>
       <Formula>score(d) = sum over distinct query terms t in d of idf(t) x tf (k1 + 1) / (tf + k1 (1 - b + b dl / avgdl))</Formula>
-      <Formula>idf(t) = ln(1 + (N - df + 0.5) / (df + 0.5))   (the Lucene idf, never negative)</Formula>
+      <Formula>idf(t) = ln(1 + (N - df + 0.5) / (df + 0.5))   (the Lucene idf, which is never negative)</Formula>
       <Para>
         tf is the term&apos;s count in the passage, dl the passage&apos;s token count after the stop list, avgdl the mean over the
         corpus, N the number of passages and df the number that contain the term. The defaults are k1 {D.K1} and b {D.B}; a blank box
@@ -223,7 +223,7 @@ const AiEvaluationStudioHelpGuideContent = () => (
         in a cited passage that was not retrieved, only in passages neither cited nor retrieved, or in no passage at all.
       </Para>
       <Callout tone="warn" title="Known limits of the claim reader">
-        &quot;The end of 2025&quot; is read as the number 2025, never as the date 2025-12-01, so system A&apos;s Q13 answer loses a
+        &quot;The end of 2025&quot; is read as the number 2025. It is not read as the date 2025-12-01, so system A&apos;s Q13 answer loses a
         claim it states correctly: a false negative of the claim grammar. A number can also match by coincidence (&quot;5 bbl&quot;
         is found in a passage that says &quot;5 months&quot;). And grounded is a weaker test than correct.
       </Callout>

@@ -98,7 +98,7 @@ const SurveyProgramEditor = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Survey program — {design?.name}</DialogTitle>
+          <DialogTitle>Survey program: {design?.name}</DialogTitle>
           <DialogDescription className="text-pl-muted">
             Instrument per MD interval ({mdUnit}). Intervals must tile the design from surface
             {Number.isFinite(tdMdM) ? ` to TD (${toUser(tdMdM).toFixed(0)} ${mdUnit})` : ''} with no gaps.

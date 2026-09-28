@@ -18,7 +18,7 @@ export default function WellCorrelation() {
         <title>Well Correlation - Petrolord Suite</title>
         <meta
           name="description"
-          content="Multi-well stratigraphic correlation on the shared well registry: cross-sections along a picked well path, datum flattening on any top, formation-top picking, drag-editing and propagation, and zone fills — tops written back to the registry for Seismolord and Mapping."
+          content="Multi-well stratigraphic correlation on the shared well registry: cross-sections along a picked well path, datum flattening on any top, formation-top picking, drag-editing and propagation, and zone fills, with tops written back to the registry for Seismolord and Mapping."
         />
       </Helmet>
 

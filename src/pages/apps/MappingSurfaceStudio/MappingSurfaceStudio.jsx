@@ -27,7 +27,7 @@ export default function MappingSurfaceStudio() {
         <title>Mapping &amp; Surface Studio - Petrolord Suite</title>
         <meta
           name="description"
-          content="Gridding and contouring on the shared subsurface registry: map well tops and zone attributes, import Seismolord horizons, do surface math (isochores), and publish surfaces to the registry for volumetrics — no filesystem round-trip."
+          content="Gridding and contouring on the shared subsurface registry: map well tops and zone attributes, import Seismolord horizons, do surface math (isochores), and publish surfaces to the registry for volumetrics with no filesystem round-trip."
         />
       </Helmet>
 

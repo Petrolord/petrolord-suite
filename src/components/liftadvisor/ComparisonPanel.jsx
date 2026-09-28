@@ -192,8 +192,7 @@ const ComparisonPanel = () => {
           )}
           {!designPass && (
             <p className="text-sm text-pl-muted py-4 text-center">
-              Until the designs run, the ordering below is the screening matrix alone: rules of
-              thumb, not a solved well.
+              Until the designs run, the ordering below is the screening matrix alone: rules of thumb with no solved well behind them.
             </p>
           )}
 

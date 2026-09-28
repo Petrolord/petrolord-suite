@@ -68,7 +68,7 @@ const DraftTypeField = () => {
   const { inputs, setSection } = useHeatExchanger();
   return (
     <Field label="Draft type"
-      hint="The fan handles ambient air in a forced-draft bay and the heated air leaving the bundle in an induced-draft one. The two differ by about 5 % on fan power, so the studio asks rather than taking a mean that belongs to neither.">
+      hint="The fan handles ambient air in a forced-draft bay and the heated air leaving the bundle in an induced-draft one. The two differ by about 5 % on fan power, so the studio asks. A mean of the two would belong to neither.">
       <Select value={inputs.air.draftType} onValueChange={(v) => setSection('air', 'draftType', v)}>
         <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
         <SelectContent>
@@ -139,7 +139,7 @@ export const CoolerResults = () => {
             An air cooler is cross-flow. This studio sizes it on the counter-current log mean with
             F = 1, so the bare-tube area above is a counter-current basis and a real cross-flow unit
             needs somewhat more surface. The hot-day rating below does not depend on this: it holds
-            the bundle&apos;s effectiveness rather than assuming an arrangement.
+            the bundle&apos;s effectiveness and assumes no arrangement.
           </InfoNote>
         </CardContent>
       </Card>
@@ -179,8 +179,7 @@ export const CoolerResults = () => {
                   fixes NTU and the capacity ratio, and therefore the effectiveness, whatever the
                   arrangement. The duty then follows from the inlet temperature difference alone,
                   and the process leaves warmer and the air rises less. This is the number that
-                  limits the plant in August, and it is why an air cooler is chosen on the hot day
-                  rather than the average one.
+                  limits the plant in August, and it is why an air cooler is chosen on the hot day. The average day would undersize it.
                 </p>
               </>
             )}

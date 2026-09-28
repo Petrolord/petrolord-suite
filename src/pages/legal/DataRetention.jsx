@@ -73,9 +73,9 @@ const DataRetention = () => {
                       to the organization, all files it stored on the platform, its export archives,
                       and the accounts of members who do not belong to any other organization on
                       Petrolord. Items owned by people who remain members of another organization are
-                      detached from the closed organization rather than deleted, because those items
+                      detached from the closed organization and are not deleted, because those items
                       belong to the individual. The deletion is verified programmatically: if any
-                      record survives, the operation is rolled back and retried rather than reported
+                      record survives, the operation is rolled back and retried. It is not reported
                       as complete.
                     </p>
                   </section>

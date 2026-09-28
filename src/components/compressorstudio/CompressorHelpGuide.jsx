@@ -11,7 +11,7 @@ const helpContent = [
     icon: BookOpen,
     title: 'What this studio does',
     content:
-      'Sizes a gas compression station to the GPSA Chapter 13 method: how many stages the duty needs, how much power each takes, how hot each discharge runs, how much interstage cooling that implies, whether the duty suits a reciprocating or a centrifugal machine, and what the driver will burn. It is a sizing and screening tool, not a substitute for a vendor performance run on a specific frame.',
+      'Sizes a gas compression station to the GPSA Chapter 13 method: how many stages the duty needs, how much power each takes, how hot each discharge runs, how much interstage cooling that implies, whether the duty suits a reciprocating or a centrifugal machine, and what the driver will burn. It is a sizing and screening tool. It does not replace a vendor performance run on a specific frame.',
   },
   {
     id: 'staging',
@@ -32,21 +32,21 @@ const helpContent = [
     icon: Thermometer,
     title: 'Compressibility across a stage',
     content:
-      'The gas is not ideal, and its compressibility changes materially between suction and discharge at pipeline pressures. The studio evaluates Z at both ends from the validated correlation and averages them, rather than taking the suction value and carrying it through, which overstates the head.',
+      'The gas is not ideal, and its compressibility changes materially between suction and discharge at pipeline pressures. The studio evaluates Z at both ends from the validated correlation and averages them. Taking the suction value and carrying it through would overstate the head.',
   },
   {
     id: 'cooling',
     icon: Wind,
     title: 'Intercooling and what it costs',
     content:
-      'Cooling between stages is what makes multi-stage compression worth the extra machinery: colder suction to the next stage means less work for the same ratio. The studio reports the cooling duty at every stage, because that is a real exchanger with a real cost, and the trade is genuinely between shaft power and heat-exchange surface. The power sweep shows the other half of it: power rises smoothly with discharge pressure while the stage count rises in steps, so the cheap discharge pressure is the one just below a step rather than just above it.',
+      'Cooling between stages is what makes multi-stage compression worth the extra machinery: colder suction to the next stage means less work for the same ratio. The studio reports the cooling duty at every stage, because that is a real exchanger with a real cost, and the trade is genuinely between shaft power and heat-exchange surface. The power sweep shows the other half of it: power rises smoothly with discharge pressure while the stage count rises in steps, so the cheap discharge pressure is the one just below a step, and the one just above it is the dear one.',
   },
   {
     id: 'machine',
     icon: Flame,
     title: 'Reciprocating or centrifugal, and the fuel',
     content:
-      'The screen uses the published selection criteria only: the actual inlet volume, the pressure ratio and the power. Centrifugals want volume and dislike high ratios per wheel; reciprocating machines take ratio easily and dislike large volumes. Where both are viable the studio says so rather than inventing a preference, because availability, footprint, maintenance philosophy and what the site already runs decide it. Driver fuel matters separately: on a gas plant it comes out of the very stream being compressed, so it belongs in the sales-gas balance and not just the utilities line.',
+      'The screen uses the published selection criteria only: the actual inlet volume, the pressure ratio and the power. Centrifugals want volume and dislike high ratios per wheel; reciprocating machines take ratio easily and dislike large volumes. Where both are viable the studio says so and invents no preference, because availability, footprint, maintenance philosophy and what the site already runs decide it. Driver fuel matters separately: on a gas plant it comes out of the very stream being compressed, so it belongs in the sales-gas balance and not just the utilities line.',
   },
   {
     id: 'limits',

@@ -73,7 +73,7 @@ const ScaleResults = () => {
         <p className="text-[11px] text-pl-muted mb-2">
           The six-tenths rule is why the industry believes small refineries cannot work: it says a
           bigger vessel is much cheaper per barrel. A modular plant does not scale that way, because
-          capacity is added by replicating trains rather than by building bigger. The gap between
+          capacity is added by replicating trains of the same size. The gap between
           these two curves is the entire argument, and it cuts both ways: the small plant loses far
           less to scale than the rule implies, and the big one gains far less.
         </p>
@@ -135,7 +135,7 @@ const ScaleResults = () => {
           {!slate.yieldsClose && (
             <p className="text-[11px] text-pl-warning-text mt-2">
               The yields total {(slate.yieldTotal * 100).toFixed(1)} percent, not 100. They do not
-              account for the whole barrel, and the app reports that rather than normalising it away.
+              account for the whole barrel, and the app reports that and does not normalise it away.
             </p>
           )}
         </div>

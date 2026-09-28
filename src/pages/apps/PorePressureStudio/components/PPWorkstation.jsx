@@ -138,7 +138,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       const logs = await backend.listLogs(wellId);
       const mapped = mapLogs(logs);
       if (!mapped.DEPT || !mapped.DT) {
-        throw new Error('This well has no depth + sonic pair — pore pressure needs a sonic log.');
+        throw new Error('This well has no depth + sonic pair. Pore pressure needs a sonic log.');
       }
       const [depth, dt] = await Promise.all([
         backend.downloadCurve(mapped.DEPT), backend.downloadCurve(mapped.DT),
@@ -151,7 +151,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         units: { DT: mapped.DT.unit, RHOB: mapped.RHOB?.unit },
         logIds: Object.values(mapped).filter(Boolean).map((l) => l.id),
       });
-      setStatus(`Loaded ${depth.length} samples${rho ? '' : ' — no density log, Gardner overburden'}.`);
+      setStatus(`Loaded ${depth.length} samples${rho ? '' : '. No density log, so the overburden uses Gardner'}.`);
     } catch (e) {
       setStatus(e.message);
       setCurves(null);
@@ -165,7 +165,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
     setSelectedId(null);
     setCurves(null);
     setPicks([]);
-    setStatus(`Velocity trend from ${model.name} — trend-grade prognosis (no local anomaly).`);
+    setStatus(`Velocity trend from ${model.name}: a trend-grade prognosis (no local anomaly).`);
   }, []);
 
   const input = useMemo(() => {
@@ -359,7 +359,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       {seismicModel && (
         <span
           data-testid="pp-trend-badge"
-          title="Analytic v0+k velocity model — constrains the regional trend only; it carries no local overpressure anomaly"
+          title="Analytic v0+k velocity model. It constrains the regional trend only; it carries no local overpressure anomaly"
           className="rounded px-1.5 py-0.5 bg-pl-warning-bg border border-pl-warning/40 text-pl-warning-text text-[11px]"
         >
           Trend-grade (seismic velocity)

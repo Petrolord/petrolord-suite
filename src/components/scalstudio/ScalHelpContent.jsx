@@ -60,7 +60,7 @@ const ScalHelpContent = () => (
     <P>
       JSON moves core samples between projects. Export writes the project payload out; import reads the samples from
       that file and merges them into the project you have open, leaving your curves, capillary settings and reservoir
-      rock inputs untouched. It is a way to carry lab work across projects, not a way to restore a whole project.
+      rock inputs untouched. It is a way to carry lab work across projects. It does not restore a whole project.
     </P>
     <P>
       Every chart in the studio has its own download button that saves the current view as a PNG for reports.
@@ -82,7 +82,7 @@ const ScalHelpContent = () => (
     <P>
       Published worked examples are also committed as literature goldens, covering a textbook Corey relative
       permeability construction and a J-function averaging case from the SPEE reserves literature. Where a gate is
-      waiting on the original source document it is recorded as pending rather than quietly passed, so the validation
+      waiting on the original source document it is recorded as pending and is not quietly passed, so the validation
       state is always the real one.
     </P>
   </div>

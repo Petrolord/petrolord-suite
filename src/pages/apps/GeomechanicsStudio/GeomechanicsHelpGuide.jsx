@@ -167,7 +167,7 @@ const GeomechanicsHelpGuideContent = () => {
                 Studio and the geoscience apps use). Sonic and density are matched through
                 the standard mnemonic aliases; published pore pressure and overburden are
                 recognized by their pp-1.0.0 provenance and are the preferred source, since
-                they were built with fitted compaction trends rather than assumptions.
+                they were built with fitted compaction trends and carry no assumed ones.
               </Para>
               <Callout tone="info" title="Order of preference">
                 Published pp-1.0.0 curves, then an in-app Eaton computation over DT, then a
@@ -182,7 +182,7 @@ const GeomechanicsHelpGuideContent = () => {
                 Horizontal stresses come from the uniaxial poroelastic relation with optional
                 tectonic strain terms, and are then clamped to the Andersonian frictional
                 limits set by the friction angle: the limits are treated as bounds on what
-                the crust can sustain, not as estimates. Clamped samples are counted and
+                the crust can sustain. They are not estimates. Clamped samples are counted and
                 reported. UCS comes from published sonic correlations (Horsrud for shale,
                 McNally for sandstone) or a constant.
               </Para>

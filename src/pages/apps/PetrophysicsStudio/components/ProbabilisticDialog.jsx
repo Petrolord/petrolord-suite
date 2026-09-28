@@ -144,7 +144,7 @@ export default function ProbabilisticDialog({
               </tbody>
             </table>
             <p className="px-2 py-1 text-[10px] text-pl-muted">
-              Triangular takes the parameter&apos;s 10th, 50th and 90th percentiles (fitted, not min/mode/max). Uniform takes min and max. Normal and lognormal take mean and standard deviation.
+              Triangular takes the parameter&apos;s 10th, 50th and 90th percentiles (fitted percentiles, which are not min/mode/max). Uniform takes min and max. Normal and lognormal take mean and standard deviation.
             </p>
           </div>
 

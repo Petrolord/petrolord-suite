@@ -47,7 +47,7 @@ export default function DeleteWellDialog({ well, backend, onOpenChange, onDone }
                 + `(curve data included) and ${counts.tops} top${counts.tops === 1 ? '' : 's'}.`
               : 'Counting dependent data…'}
             {well?.organization_id
-              ? ' The well is shared — organization members lose access too.' : ''}
+              ? ' The well is shared, so organization members lose access too.' : ''}
           </AlertDialogDescription>
         </AlertDialogHeader>
         {error && <div className="text-xs text-pl-danger-text">{error}</div>}

@@ -52,7 +52,7 @@ export default function MineralModelDialog({
           <DialogDescription className="text-pl-muted">
             Density, neutron and PEF solved together for three mineral fractions and porosity with a fixed fluid,
             one linear system per sample (U = Pe × ρe so the photoelectric term mixes by volume). A sample whose
-            fractions leave zero to one, or a mineral set the tools cannot separate, is refused and flagged, never
+            fractions leave zero to one, or a mineral set the tools cannot separate, is refused and flagged. It is not
             clamped. Porosity reaches the pipeline only if you pick φt source <span className="font-mono">mineral</span>.
           </DialogDescription>
         </DialogHeader>

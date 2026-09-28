@@ -169,7 +169,7 @@ const CngResults = () => {
         <h3 className="text-sm font-semibold text-pl-text mb-1">The trailer float</h3>
         <p className="text-[11px] text-pl-muted mb-2">
           A trailer shuttling to a daughter station is a fleet in a cycle, exactly like a cylinder,
-          so it runs through the same model rather than a second one that could disagree.
+          so it runs through the same model. A second model could disagree with it.
         </p>
         {trailerFleet.error ? <p className="text-sm text-pl-warning-text">{trailerFleet.error}</p> : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

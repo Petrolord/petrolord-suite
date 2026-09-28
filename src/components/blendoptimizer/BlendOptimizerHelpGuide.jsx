@@ -12,42 +12,42 @@ const helpContent = [
     icon: BookOpen,
     title: 'What this tool answers',
     content:
-      'Given the components in your pool, their costs and their qualities, what is the cheapest recipe that meets every specification. It is a continuous decision rather than a menu, so it is solved as a linear programme: the optimum sits on a vertex where some set of specifications binds exactly, and the solver finds that vertex and tells you which ones bind.',
+      'Given the components in your pool, their costs and their qualities, what is the cheapest recipe that meets every specification. It is a continuous decision and has no fixed menu of answers, so it is solved as a linear programme: the optimum sits on a vertex where some set of specifications binds exactly, and the solver finds that vertex and tells you which ones bind.',
   },
   {
     id: 'projects',
     icon: FolderOpen,
     title: 'Saved studies',
     content:
-      'Create a study from the selector at the top. Your pool, specifications and prices auto-save about ten seconds after each change. The recipe is recomputed from them rather than stored, so a reopened study cannot show a recipe that no longer follows from its inputs.',
+      'Create a study from the selector at the top. Your pool, specifications and prices auto-save about ten seconds after each change. The recipe is recomputed from them each time and is not stored, so a reopened study cannot show a recipe that no longer follows from its inputs.',
   },
   {
     id: 'basis',
     icon: Scale,
     title: 'Every specification declares how its property blends',
     content:
-      'This is the modelling decision and it is visible rather than buried. A volume-basis property mixes linearly on volume. A mass-basis property, which is anything in weight percent or ppm by mass such as sulfur, mixes on mass, and the mass weighting comes from the densities: use volume for sulfur and you will report a blend that is on-spec when it is not. An index-basis property does not mix linearly at all and is linearised through a stated index, blended, and inverted. All three are linear in the volumes, which is what keeps this a linear programme rather than something that needs a different solver.',
+      'This is the modelling decision and it is kept visible. A volume-basis property mixes linearly on volume. A mass-basis property, which is anything in weight percent or ppm by mass such as sulfur, mixes on mass, and the mass weighting comes from the densities: use volume for sulfur and you will report a blend that is on-spec when it is not. An index-basis property does not mix linearly at all and is linearised through a stated index, blended, and inverted. All three are linear in the volumes, which is what keeps this a linear programme that needs no different solver.',
   },
   {
     id: 'octane',
     icon: FileWarning,
     title: 'Octane, and what the app will not pretend about it',
     content:
-      'Octane does not truly blend linearly. A component\'s effective octane depends on the pool it sits in, which is why refiners carry measured blending octane numbers rather than neat ones. The published index methods are coefficient tables, and this package does not reproduce published tables from memory. So: if you have blending octane numbers, enter those and they are used as given. If you enter neat octane it is blended linearly and the result is labelled as the approximation it is. The same applies to cetane, and the ASTM D4737 cetane index, which computes cetane from density and distillation, is not implemented for the same reason.',
+      'Octane does not truly blend linearly. A component\'s effective octane depends on the pool it sits in, which is why refiners carry measured blending octane numbers in place of neat ones. The published index methods are coefficient tables, and this package does not reproduce published tables from memory. So: if you have blending octane numbers, enter those and they are used as given. If you enter neat octane it is blended linearly and the result is labelled as the approximation it is. The same applies to cetane, and the ASTM D4737 cetane index, which computes cetane from density and distillation, is not implemented for the same reason.',
   },
   {
     id: 'rvp',
     icon: Gauge,
     title: 'RVP and viscosity',
     content:
-      'RVP is blended through an index, because light ends dominate the vapour space: a splash of butane lifts a whole blend far more than its volume suggests, and treating it linearly will put you over the limit in a tank. The index exponent is a named, adjustable parameter rather than a constant buried in the code, because refiners tune it to their own pools and because a value that influential should be visible. Viscosity uses the Refutas index on mass, the same one the assay studio uses, so a viscosity means the same thing in both.',
+      'RVP is blended through an index, because light ends dominate the vapour space: a splash of butane lifts a whole blend far more than its volume suggests, and treating it linearly will put you over the limit in a tank. The index exponent is a named, adjustable parameter, visible on screen and kept out of the code, because refiners tune it to their own pools and because a value that influential should be visible. Viscosity uses the Refutas index on mass, the same one the assay studio uses, so a viscosity means the same thing in both.',
   },
   {
     id: 'reading',
     icon: Target,
     title: 'Reading the answer: binding, slack, and infeasible',
     content:
-      'A binding specification is one the optimum sits exactly on; it is what is stopping the blend getting cheaper. A slack one has room and is not currently costing you anything. And infeasible is a real answer, not a failure: it means no mixture of these components can meet these limits, so either a limit has to move or the pool needs a component that can reach it. The app says which rather than returning a recipe that misses.',
+      'A binding specification is one the optimum sits exactly on; it is what is stopping the blend getting cheaper. A slack one has room and is not currently costing you anything. And infeasible is a real answer. It is not a failure: it means no mixture of these components can meet these limits, so either a limit has to move or the pool needs a component that can reach it. The app says which, and it does not return a recipe that misses.',
   },
   {
     id: 'giveaway',
@@ -75,7 +75,7 @@ const helpContent = [
     icon: AlertTriangle,
     title: 'Limits',
     content:
-      'The blend is modelled as ideal: volumes are assumed to mix without shrinkage and there are no interaction terms between components beyond what the indices carry. A specification the pool cannot support, because not every component carries that property, is reported as not applied rather than assumed, so read that list. Distillation specifications beyond flash point are not modelled. And this optimises one blend at a time: scheduling a month of blends across tanks is the planning studio, not this one.',
+      'The blend is modelled as ideal: volumes are assumed to mix without shrinkage and there are no interaction terms between components beyond what the indices carry. A specification the pool cannot support, because not every component carries that property, is reported as not applied. It is not assumed, so read that list. Distillation specifications beyond flash point are not modelled. And this optimises one blend at a time: scheduling a month of blends across tanks belongs to the planning studio.',
   },
 ];
 

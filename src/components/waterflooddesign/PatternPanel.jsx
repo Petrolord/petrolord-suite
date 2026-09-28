@@ -69,7 +69,7 @@ const PatternPanel = () => {
       <section>
         <Label className="text-[11px] text-pl-muted leading-snug block">
           The displacement (rel-perm, fluids, dip, polymer) comes from the Displacement tab. Areal sweep uses the published
-          five-spot correlations; the forecast is a screening-level analytical composite, not a simulation.
+          five-spot correlations; the forecast is a screening-level analytical composite. It is not a simulation.
         </Label>
       </section>
     </div>

@@ -95,7 +95,7 @@ export default function TopsPanel({
                   className={`${inputCls} w-20 text-right font-mono`}
                   value={editingMd?.id === t.id ? editingMd.value : toDisplay(t.md_m, depthUnit).toFixed(2)}
                   data-testid={`petro-top-md-${t.name}`}
-                  title={`Depth of ${t.name} in ${depthUnit === 'ft' ? 'feet' : 'metres'} MD — press Enter to move it`}
+                  title={`Depth of ${t.name} in ${depthUnit === 'ft' ? 'feet' : 'metres'} MD. Press Enter to move it`}
                   onChange={(e) => setEditingMd({ id: t.id, value: e.target.value })}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') { e.currentTarget.blur(); }

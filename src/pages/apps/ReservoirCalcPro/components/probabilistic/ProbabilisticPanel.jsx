@@ -228,7 +228,7 @@ const ProbabilisticPanel = () => {
             if (consistencyMode && hasDeviation) {
                 // Advisory only: a deliberately shifted distribution is legitimate, and the
                 // MC output P50 need not match the deterministic base — so we proceed.
-                toast({ title: "Heads up", description: "Some input central values differ >5% from the deterministic base case — running anyway." });
+                toast({ title: "Heads up", description: "Some input central values differ >5% from the deterministic base case. Running anyway." });
             }
 
             formatted.ntg = { type: 'constant', value: base.ntg || 1.0 };
@@ -301,7 +301,7 @@ const ProbabilisticPanel = () => {
                         <div className="flex items-center justify-between p-3 bg-pl-sunken rounded border border-pl-border">
                             <div className="space-y-0.5">
                                 <Label className="text-xs font-bold text-pl-text">Base-Case Consistency Mode</Label>
-                                <p className="text-[10px] text-pl-muted">Recenter distribution P50s on the deterministic base case and flag large drift (advisory — never blocks a run).</p>
+                                <p className="text-[10px] text-pl-muted">Recenter distribution P50s on the deterministic base case and flag large drift (advisory only; it does not block a run).</p>
                             </div>
                             <Switch checked={consistencyMode} onCheckedChange={setConsistencyMode} />
                         </div>

@@ -146,7 +146,7 @@ const WellCostTimeHelpGuideContent = () => {
                 seeded Monte Carlo run that reports P10, P50 and P90 for both cost and duration.
               </Para>
               <Para>
-                It is a planning estimate built from your entered rates and durations, not a
+                It is a planning estimate built from your entered rates and durations. It is not a
                 market quotation. The arithmetic is validated against an independent oracle; the
                 numbers are only as good as the rates you feed them.
               </Para>
@@ -204,14 +204,14 @@ const WellCostTimeHelpGuideContent = () => {
               <Para>
                 The time-depth curve is piecewise linear: sloped while drilling, vertical while
                 flat. Drill activities must be continuous (each starts where the hole is), and
-                the app refuses a discontinuous program rather than guessing.
+                the app refuses a discontinuous program and does not guess.
               </Para>
               <SubHeading>NPT</SubHeading>
               <Para>
                 The NPT allowance stretches every duration by the same factor. That is the
                 honest planning convention: a single fraction of total time, visible in the
                 schedule totals. Discrete NPT events (a stuck pipe, weather) belong in the risk
-                model as uncertain durations, not hidden in the base schedule.
+                model as uncertain durations. Do not hide them in the base schedule.
               </Para>
             </Section>
 
@@ -254,7 +254,7 @@ const WellCostTimeHelpGuideContent = () => {
               <Callout tone="warn" title="Percentile convention">
                 For cost and duration this app uses the AFE convention: P10 is the LOW outcome
                 (10 percent of realizations cheaper or faster) and P90 the HIGH one. Volumetric
-                apps use the opposite exceedance labeling; read the axis, not the habit.
+                apps use the opposite exceedance labeling; read the axis and do not go by habit.
               </Callout>
               <Callout tone="warn" title="Contingency vs risk model">
                 The probabilistic total is the BASE cost. The risk model replaces the
@@ -264,7 +264,7 @@ const WellCostTimeHelpGuideContent = () => {
               <Para>
                 The tornado ranks drivers by Spearman rank correlation against total cost, with
                 the share of rank variance each driver explains. An invalid realization (say a
-                sampled rate at or below zero) is skipped and counted, never silently clamped.
+                sampled rate at or below zero) is skipped and counted. It is not silently clamped.
               </Para>
             </Section>
 

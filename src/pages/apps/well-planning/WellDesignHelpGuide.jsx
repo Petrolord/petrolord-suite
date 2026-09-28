@@ -209,7 +209,7 @@ const WellDesignHelpGuideContent = () => {
                 a registry formation top or a mapped surface with From registry. Target eastings and northings are
                 absolute site-CRS metres, the same frame as the wellhead: the plan view and the solvers convert them to
                 wellhead-relative offsets in the wellbore unit. A target farther than 50 km from the wellhead, or a
-                wellbore with no wellhead location, is called out on the Design tab and in Design methods instead of being
+                wellbore with no wellhead location, is called out on the Design tab and in Design methods. It is not
                 drawn or solved.
               </Step>
               <Step n={4} title="Solve the trajectory">
@@ -218,7 +218,7 @@ const WellDesignHelpGuideContent = () => {
               </Step>
               <Step n={5} title="Save">
                 Save writes the segments and the computed station cache. Publishing, exports, reports and anti-collision all
-                read the saved trajectory, never the live editor.
+                read the saved trajectory. None of them reads the live editor.
               </Step>
               <Step n={6} title="Prove and deliver">
                 Toggle EOU to see uncertainty. Run the Anti-Collision scan if the pad has neighbors and save the run. Publish
@@ -259,7 +259,7 @@ const WellDesignHelpGuideContent = () => {
               <Para>
                 A design is an ordered list of segments compiled to survey stations by the validated minimum-curvature
                 engine. Drag to reorder; the trajectory recompiles a moment after each edit, and compile problems are shown
-                in red, never swallowed.
+                in red and are not swallowed.
               </Para>
               <Table
                 headers={['Segment', 'Parameters', 'Behavior']}
@@ -293,7 +293,7 @@ const WellDesignHelpGuideContent = () => {
               <Para>
                 <Code>Station every</Code> is the survey listing interval in the wellbore unit (default 30 m or 100 ft):
                 a station is emitted every that many depth units along holds and curves, so a 2,500 ft hold lists 26 rows
-                at 100 ft or 251 at 10 ft. It changes only the listing density, never the trajectory. <Code>Max DLS</Code>{' '}
+                at 100 ft or 251 at 10 ft. It changes only the listing density. The trajectory stays the same. <Code>Max DLS</Code>{' '}
                 is the design constraint; violations flag in the KPI strip. <Code>KO Azi</Code> is
                 entered in the wellbore's azimuth reference (the label says which); the compile runs in grid north through
                 the cached chain. <Code>Survey program</Code> assigns instruments per interval for uncertainty.{' '}
@@ -344,7 +344,7 @@ const WellDesignHelpGuideContent = () => {
               </Para>
               <Para>
                 Horizontal wells are not all flat. A lateral planned to nose up or down along reservoir dip lands at 89
-                or 91 degrees rather than 90, so the landing inclination is a field of its own. Leave it blank and the
+                or 91 degrees and not at 90, so the landing inclination is a field of its own. Leave it blank and the
                 inclination comes from the heel-to-toe line: a toe 20 m deeper than the heel over 400 m of lateral lands
                 the well at about 87 degrees so it runs straight down that line. Type a value to force the attitude
                 instead. With no toe and a blank field the landing is flat at 90 degrees. Inclination and azimuth are
@@ -462,7 +462,7 @@ const WellDesignHelpGuideContent = () => {
                 text (CSV, TSV, TXT, DAT, PRN) or an Excel workbook (XLSX, XLSM, XLS). For text you choose the delimiter
                 (auto-detect, comma, tab, semicolon or whitespace); for a workbook you pick the sheet. A preview of the
                 first parsed rows shows the split before you map the MD, inclination and azimuth columns, and any other file
-                type is refused by name rather than read as text. Each run records its MD unit, azimuth reference and the
+                type is refused by name. It is not read as text. Each run records its MD unit, azimuth reference and the
                 file, sheet or delimiter it came from; stations are stored in metres with a grid-converted cache, so nothing
                 downstream re-guesses what the numbers meant.
               </Para>
@@ -508,7 +508,7 @@ const WellDesignHelpGuideContent = () => {
               <SectionHeading icon={Shield}>Anti-collision</SectionHeading>
               <Para>
                 The industry separation rule (SPE 187073) with the ISCWSA pedal-curve method. For each reference station the
-                engine finds the exact closest point on each offset (on the arcs, not just stations), projects both wells'
+                engine finds the exact closest point on each offset (on the arcs as well as at stations), projects both wells'
                 covariance onto the center-to-center line, and evaluates:
               </Para>
               <Para>

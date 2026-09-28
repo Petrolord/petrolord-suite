@@ -755,7 +755,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
             </table>
           ) : (
             <p className="text-xs text-pl-muted">
-              No deviation survey — this well is treated as vertical
+              No deviation survey, so this well is treated as vertical
               {well.td_md_m ? ` to TD ${fmt(well.td_md_m)} m` : ''}.
             </p>
           )

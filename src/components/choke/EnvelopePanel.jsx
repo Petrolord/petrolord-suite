@@ -62,7 +62,7 @@ const EnvelopePanel = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 items-end border-t border-pl-border pt-3">
               <Field
                 label={`Target oil rate (${rateUnit})`}
-                hint="Solved against the nodal point, not by inverting the correlation at a guessed wellhead pressure."
+                hint="Solved against the nodal point. The correlation is not inverted at a guessed wellhead pressure."
               >
                 <NumberInput section="envelope" name="targetQ" />
               </Field>

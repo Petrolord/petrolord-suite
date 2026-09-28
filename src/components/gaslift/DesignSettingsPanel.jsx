@@ -87,7 +87,7 @@ const DesignSettingsPanel = () => {
       <div className="flex items-center justify-between">
         <div>
           <Label className="text-xs text-pl-muted">Orifice at the bottom</Label>
-          <p className="text-[11px] text-pl-muted">The operating point is normally an orifice, not a charged valve.</p>
+          <p className="text-[11px] text-pl-muted">The operating point is normally an orifice (no charged valve).</p>
         </div>
         <Switch
           checked={design.bottomOrifice !== false}

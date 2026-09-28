@@ -45,14 +45,14 @@ const helpContent = [
     icon: Combine,
     title: 'Blending two streams',
     content:
-      "Enable blending to mix a second stream (Stream B) into Stream A by volume fraction. API is blended on a specific-gravity (density) basis rather than a linear API average, so the blended API is always physically correct and bounded between the two streams; GOR, gas SG, salinity and temperature are volume or mass weighted with clearly labelled proxies. The blend's bubble point is re-solved and the blended fluid flows through the same PVT and separator calculations. A screening Asphaltene Stability Index (ASI, 0 to 1) flags the classic risk of destabilising asphaltenes when a heavy crude meets a light paraffinic diluent: below 0.35 screens compatible, 0.35 to 0.60 marginal, above 0.60 high risk. ASI is an API-contrast heuristic, not a SARA/CII calculation. Confirm marginal or high-risk blends with an ASTM D7112 / D7157 bench test before commingling.",
+      "Enable blending to mix a second stream (Stream B) into Stream A by volume fraction. API is blended on a specific-gravity (density) basis. A linear API average would be wrong, so the blended API is always physically correct and bounded between the two streams; GOR, gas SG, salinity and temperature are volume or mass weighted with clearly labelled proxies. The blend's bubble point is re-solved and the blended fluid flows through the same PVT and separator calculations. A screening Asphaltene Stability Index (ASI, 0 to 1) flags the classic risk of destabilising asphaltenes when a heavy crude meets a light paraffinic diluent: below 0.35 screens compatible, 0.35 to 0.60 marginal, above 0.60 high risk. ASI is an API-contrast heuristic. It is not a SARA/CII calculation. Confirm marginal or high-risk blends with an ASTM D7112 / D7157 bench test before commingling.",
   },
   {
     id: 'flowassurance',
     icon: Snowflake,
     title: 'Flow assurance: hydrates & WAT',
     content:
-      "Paste a flowline pressure-temperature profile (one 'P_psia, T_F' pair per line) to screen for gas-hydrate risk. The engine draws the hydrate formation envelope with the Motiee (1991) gas-gravity correlation and checks each profile point: where the fluid is colder than the hydrate-formation temperature at that pressure (positive subcooling), it sits inside the hydrate region and is flagged red. Wax Appearance Temperature (WAT) is reported only if you supply a measured value or a wax content (a labelled screening estimate). It is never invented from API, because WAT is governed by wax content, not density. Asphaltene onset pressure (AOP) is shown as N/A because it needs SARA/compositional data. The hydrate correlation is a sweet-gas screening tool (valid for roughly 0.55 to 1.0 gas SG, within 5 to 8 °F, with no H2S/CO2/inhibitor or salt correction).",
+      "Paste a flowline pressure-temperature profile (one 'P_psia, T_F' pair per line) to screen for gas-hydrate risk. The engine draws the hydrate formation envelope with the Motiee (1991) gas-gravity correlation and checks each profile point: where the fluid is colder than the hydrate-formation temperature at that pressure (positive subcooling), it sits inside the hydrate region and is flagged red. Wax Appearance Temperature (WAT) is reported only if you supply a measured value or a wax content (a labelled screening estimate). It is never invented from API, because WAT is governed by wax content. Density does not set it. Asphaltene onset pressure (AOP) is shown as N/A because it needs SARA/compositional data. The hydrate correlation is a sweet-gas screening tool (valid for roughly 0.55 to 1.0 gas SG, within 5 to 8 °F, with no H2S/CO2/inhibitor or salt correction).",
   },
   {
     id: 'batch',
@@ -87,14 +87,14 @@ const helpContent = [
     icon: Share2,
     title: 'Sending fluids to other apps',
     content:
-      "The Integration Suite passes the computed fluid backbone (API, gas gravity, surface GOR, inlet temperature and the PVT table) to other Petrolord applications. 'Send to Pipeline Sizer' opens the Pipeline Sizer pre-loaded with these properties so you don't re-enter them. In compositional mode the backbone carries the EOS surface numbers and the EOS black-oil table instead of the correlation values. More handoffs will appear as connected apps come online.",
+      "The Integration Suite passes the computed fluid backbone (API, gas gravity, surface GOR, inlet temperature and the PVT table) to other Petrolord applications. 'Send to Pipeline Sizer' opens the Pipeline Sizer pre-loaded with these properties so you don't re-enter them. In compositional mode the backbone carries the EOS surface numbers and the EOS black-oil table in place of the correlation values. More handoffs will appear as connected apps come online.",
   },
   {
     id: 'limits',
     icon: AlertTriangle,
     title: 'Assumptions & limitations',
     content:
-      "This studio is a screening and pre-lab tool, not a substitute for a laboratory PVT or flow-assurance study. In black-oil mode each correlation carries its own validity range, the separator partition is empirical, the hydrate and asphaltene checks are screening indicators, and WAT/AOP are reported only when they can be defended. In compositional mode the equation of state is validated against an independent oracle and reference data; until you tune it to your lab report with the Lab tuning card, treat its absolute predictions as screening numbers, and treat the LBC viscosities as screening numbers in either case. The envelope trace truncates near the critical point where the stability test loses the boundary. Any approximation in play is surfaced as a warning banner, a tier badge, or a note on the relevant results tab. Validate critical decisions against lab data and rigorous simulation.",
+      "This studio is a screening and pre-lab tool. It does not substitute for a laboratory PVT or flow-assurance study. In black-oil mode each correlation carries its own validity range, the separator partition is empirical, the hydrate and asphaltene checks are screening indicators, and WAT/AOP are reported only when they can be defended. In compositional mode the equation of state is validated against an independent oracle and reference data; until you tune it to your lab report with the Lab tuning card, treat its absolute predictions as screening numbers, and treat the LBC viscosities as screening numbers in either case. The envelope trace truncates near the critical point where the stability test loses the boundary. Any approximation in play is surfaced as a warning banner, a tier badge, or a note on the relevant results tab. Validate critical decisions against lab data and rigorous simulation.",
   },
 ];
 

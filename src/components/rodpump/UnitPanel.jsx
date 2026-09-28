@@ -105,7 +105,7 @@ const UnitPanel = () => {
         </div>
         <Field
           label="Damping ratio"
-          hint="Fraction of critical for the string's fundamental. It stands for drag on the rods and the fluid they move through, so it is calibrated against a measured card rather than derived. Field strings sit between about 0.05 and 0.15."
+          hint="Fraction of critical for the string's fundamental. It stands for drag on the rods and the fluid they move through, so it is calibrated against a measured card. It is not derived. Field strings sit between about 0.05 and 0.15."
         >
           <NumberInput section="unit" name="dampingRatio" step="0.01" />
         </Field>

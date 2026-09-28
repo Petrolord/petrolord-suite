@@ -13,6 +13,7 @@ import path from 'path';
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
 
+import DocumentationHub from '../DocumentationHub';
 import GettingStartedGuide from '../GettingStartedGuide';
 import UIGuide from '../UIGuide';
 import InputMethodsGuide from '../InputMethodsGuide';
@@ -129,5 +130,27 @@ describe('ReservoirCalc Pro documentation', () => {
     expect(/(^|\s)prose(-invert)?(\s|$)/.test('p-4 prose prose-invert')).toBe(true);
     expect(classes).not.toMatch(/(^|\s)prose(-invert)?(\s|$)/);
     expect(hub).toMatch(/data-testid="rcp-docs-article"/);
+  });
+
+  test('the header row keeps Print Guide clear of the dialog close X', () => {
+    render(<DocumentationHub open onOpenChange={() => {}} />);
+    const close = screen.getByRole('button', { name: 'Close' });
+    // the ui Dialog pins the close X at right-4 top-4 (16px in, 16px wide)
+    expect(close.className).toMatch(/(^|\s)right-4(\s|$)/);
+    const header = screen.getByTestId('rcp-docs-header');
+    expect(header).toContainElement(screen.getByRole('button', { name: /print guide/i }));
+    // p-4 alone leaves Print Guide under the X; pr-12 (48px) clears it
+    const hasClearance = (cls) => /(^|\s)pr-(1[2-9]|[2-9]\d)(\s|$)/.test(cls);
+    expect(hasClearance('p-4 border-b flex')).toBe(false); // negative control
+    expect(hasClearance(header.className)).toBe(true);
+  });
+
+  test('on a phone the sidebar stacks above the article', () => {
+    render(<DocumentationHub open onOpenChange={() => {}} />);
+    const cls = screen.getByTestId('rcp-docs-sidebar').className.split(/\s+/);
+    // a fixed w-64 rail left the article about 120px wide at 390
+    expect(cls).toContain('w-full');
+    expect(cls).toContain('md:w-64');
+    expect(cls).not.toContain('w-64');
   });
 });

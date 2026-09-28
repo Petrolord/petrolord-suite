@@ -33,7 +33,7 @@ const PlungerPanel = () => {
             <Field label="Liquid gravity"><NumberInput section="plunger" name="liquidSg" step="0.01" /></Field>
             <Field label="Plunger weight (lb)"><NumberInput section="plunger" name="plungerWeightLb" step="0.1" /></Field>
             <Field label="Well GLR (scf/bbl)"><NumberInput section="plunger" name="wellGlrScfBbl" /></Field>
-            <Field label="Friction (psi)" hint="measured, not modelled">
+            <Field label="Friction (psi)" hint="measured values only, no model">
               <NumberInput section="plunger" name="frictionPsi" />
             </Field>
             <Field label="Rise velocity (ft/min)" hint="700 to 1000 is the usual target">

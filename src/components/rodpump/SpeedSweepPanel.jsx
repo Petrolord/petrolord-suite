@@ -165,7 +165,7 @@ const SpeedSweepPanel = () => {
             {refused.length > 0 && (
               <p className="text-[11px] text-pl-muted">
                 {refused.length} speed{refused.length === 1 ? '' : 's'} could not be designed and
-                are listed with the reason rather than dropped from the curve.
+                are listed with the reason. They are not dropped from the curve.
               </p>
             )}
           </>

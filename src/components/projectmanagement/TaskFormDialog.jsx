@@ -291,7 +291,7 @@ const TaskFormDialog = ({ open, onOpenChange, project, existingTask, parentTaskI
             <p className="text-xs text-pl-muted">
                 Earned value is the planned cost of the work done: a task with no planned cost
                 contributes nothing to it, and a project with no costed tasks reports no
-                performance index at all rather than a made-up one.
+                performance index at all. It does not make one up.
             </p>
 
             <div className="space-y-2">

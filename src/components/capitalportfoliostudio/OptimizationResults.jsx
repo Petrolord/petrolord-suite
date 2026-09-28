@@ -123,8 +123,8 @@ const OptimizationResults = ({ result }) => {
                 Risk metrics use an average pairwise correlation of {risk.correlation.toFixed(2)}
                 {' '}between projects. The loss probability and the P90 and P10 come from a seeded Monte Carlo
                 {' '}of each project's success and failure cases ({methodLabel}; screening basis).
-                {' '}Assuming independence instead would report a spread of
-                {' '}{formatCurrency(risk.independentStdDev, '')} rather than {formatCurrency(risk.stdDev, '')},
+                {' '}Assuming independence would report a spread of
+                {' '}{formatCurrency(risk.independentStdDev, '')} where the correlated spread is {formatCurrency(risk.stdDev, '')},
                 {' '}so treat that difference as the cost of the assumption.
               </>
             ) : (

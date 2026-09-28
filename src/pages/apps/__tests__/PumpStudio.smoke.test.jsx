@@ -42,7 +42,7 @@ describe('PumpStationDesigner page', () => {
     // The duty point is a solved intersection, and the app says so.
     expect((await screen.findAllByText(/Where the pump and the system meet/i)).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Duty flow/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/solved intersection, not an assumed duty/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/solved intersection with no assumed duty/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Operating region/i).length).toBeGreaterThan(0);
     // The curve chart with its marked crossing.
     expect(screen.getAllByText(/Pump against system/i).length).toBeGreaterThan(0);

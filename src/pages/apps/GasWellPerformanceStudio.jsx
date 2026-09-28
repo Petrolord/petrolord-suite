@@ -127,7 +127,7 @@ const GasWellContent = () => {
         <title>Gas Well Performance Studio | Petrolord Suite</title>
         <meta
           name="description"
-          content="Gas well deliverability, liquid loading and plunger lift on validated engines: the Turner and Coleman droplet balance derived rather than quoted, the critical rate profile down the whole string, the reservoir pressure at which the well will load, tubing screening, and plunger feasibility from a static force balance."
+          content="Gas well deliverability, liquid loading and plunger lift on validated engines: the Turner and Coleman droplet balance derived from first principles, the critical rate profile down the whole string, the reservoir pressure at which the well will load, tubing screening, and plunger feasibility from a static force balance."
         />
       </Helmet>
       <StudioLayout

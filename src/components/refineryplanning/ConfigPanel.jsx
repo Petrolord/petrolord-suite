@@ -58,8 +58,8 @@ const ConfigPanel = () => {
       <div>
         <h2 className="text-sm font-semibold text-pl-text mb-2">Crudes</h2>
         <p className="text-[11px] text-pl-muted mb-2">
-          Yields are volume fractions of the crude into each stream, and they are data rather than
-          something this app predicts. A refinery&apos;s own come from its assays; the Crude Assay
+          Yields are volume fractions of the crude into each stream, and they are data. This app does not
+          predict them. A refinery&apos;s own come from its assays; the Crude Assay
           Studio is where the straight-run ones are worked out.
         </p>
         {inputs.crudes.map((c) => (

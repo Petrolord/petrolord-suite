@@ -173,7 +173,7 @@ describe('no invented data in Regulatory Compliance', () => {
     // It said "That is why it reads On track rather than Compliant" on
     // Overdue, Expired and Draft obligations alike.
     const src = code(path.join(APP, 'ComplianceDetail.jsx'));
-    expect(src).toMatch(/status === STATUS\.ON_TRACK[\s\S]{0,120}rather than Compliant/);
+    expect(src).toMatch(/status === STATUS\.ON_TRACK[\s\S]{0,120}It does not yet read Compliant/);
     expect(src).not.toMatch(/hasAs3Schema \? 'On track rather than Compliant'/);
   });
 

@@ -95,7 +95,7 @@ const SlideFrame = ({ fileName = 'reservoircalc-slide', extraActions = null, chi
                 a.download = `${fileName}.png`;
                 a.click();
                 URL.revokeObjectURL(a.href);
-                toast({ title: 'Image downloaded', description: 'Clipboard access is unavailable in this browser — saved as PNG instead.' });
+                toast({ title: 'Image downloaded', description: 'Clipboard access is unavailable in this browser, so it was saved as a PNG.' });
             }
         } catch (e) {
             toast({ variant: 'destructive', title: 'Copy failed', description: e?.message || 'Could not copy the slide.' });
@@ -110,7 +110,7 @@ const SlideFrame = ({ fileName = 'reservoircalc-slide', extraActions = null, chi
             <div className="flex items-center justify-between gap-3 border-b border-pl-border bg-pl-surface px-4 py-2">
                 <div className="hidden items-center gap-2 text-[11px] font-medium text-pl-muted sm:flex">
                     <span className="rounded bg-pl-text px-1.5 py-0.5 text-[10px] font-bold text-pl-surface">16:9</span>
-                    Presentation slide — screenshot-ready for PowerPoint &amp; Keynote
+                    Presentation slide, screenshot-ready for PowerPoint &amp; Keynote
                 </div>
                 <div className="flex items-center gap-2">
                     {extraActions}

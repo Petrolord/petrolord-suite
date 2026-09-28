@@ -111,7 +111,7 @@ function VerifyDeletion() {
                 <Row label="Database records deleted" value={String(cert.summary.totalRows)} />
                 <Row label="Stored files removed" value={String(cert.summary.objectsRemoved)} />
                 <Row label="Member accounts deleted" value={String(cert.summary.accountsDeleted)} />
-                <Row label="Records detached, not deleted" value={String(cert.summary.rowsUnshared)} />
+                <Row label="Records detached and retained" value={String(cert.summary.rowsUnshared)} />
                 {result.download_url && (
                   <div className="pt-3">
                     <Button asChild variant="outline">

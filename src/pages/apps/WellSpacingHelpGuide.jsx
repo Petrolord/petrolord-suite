@@ -69,7 +69,7 @@ const WellSpacingHelpGuideContent = () => (
       </Para>
       <Callout tone="warn" title="Which is why the app does not nominate an optimum">
         An earlier version reported an Optimal Spacing Recommendation. That number turned out to be
-        arithmetic rather than engineering: it was whichever spacing happened to divide the
+        arithmetic with no engineering in it: it was whichever spacing happened to divide the
         reservoir area most evenly, because the leftover undrained remainder was the only thing
         distinguishing one case from another. It has been removed. The table is the output.
       </Callout>
@@ -131,7 +131,7 @@ const WellSpacingHelpGuideContent = () => (
         widths={[2.2, 1.5, 2.9]}
       />
       <Para>
-        Entering water saturation as 25 rather than 0.25 is now rejected with a message naming the
+        Entering water saturation as 25 when you mean 0.25 is now rejected with a message naming the
         field. It used to be accepted, which made the mobile pore volume negative and produced
         nonsense throughout the table with no warning at all.
       </Para>
@@ -161,7 +161,7 @@ const WellSpacingHelpGuideContent = () => (
       <Para>
         The well count is a whole number, so a spacing that does not divide the area evenly leaves a
         remainder undrained. That remainder is the entire reason the field recovery curve steps up
-        and down rather than running smoothly, and it is why the Coverage column sits beside it in
+        and down and does not run smoothly, and it is why the Coverage column sits beside it in
         the table. Bo turns reservoir barrels into the stock-tank barrels that are sold; it comes
         from the GOR, oil gravity, gas gravity and temperature you enter.
       </Para>
@@ -244,9 +244,9 @@ const WellSpacingHelpGuideContent = () => (
         cleanly into a development discussion.
       </Step>
       <Step n={4} title="Check whether the duration is truncating">
-        If most rows are marked as truncated, your project duration rather than your spacing is
-        setting the volume. Extend it or accept that you are comparing acceleration rather than
-        recovery.
+        If most rows are marked as truncated, your project duration is
+        setting the volume, and your spacing is not. Extend it or accept that you are comparing
+        acceleration more than recovery.
       </Step>
       <Step n={5} title="Re-run at a low and a high price">
         There is no built-in sensitivity analysis. Changing the price and recalculating is the
@@ -254,7 +254,7 @@ const WellSpacingHelpGuideContent = () => (
       </Step>
       <Callout tone="warn" title="On the sensitivity panel that used to be here">
         An earlier version displayed three sensitivity cards for oil price, well cost and recovery
-        factor. Those numbers were hard-coded arithmetic on the chosen spacing rather than a re-run
+        factor. Those numbers were hard-coded arithmetic on the chosen spacing with no re-run
         of the model, and the base row was labelled at a fixed 75 dollar oil price whatever you had
         entered. The panel has been removed. Re-running with different inputs is the replacement.
       </Callout>
@@ -265,8 +265,8 @@ const WellSpacingHelpGuideContent = () => (
       <SubHeading>Treating the highest NPV row as a recommendation</SubHeading>
       <Para>
         It is the widest well-covering spacing in the range you happened to type. Widen the range
-        and the answer moves. That is the clearest sign that the number is a property of your range
-        rather than of your reservoir.
+        and the answer moves. That is the clearest sign that the number is a property of your range.
+        It says nothing about your reservoir.
       </Para>
       <SubHeading>Dollars are in millions on screen</SubHeading>
       <Para>
