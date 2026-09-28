@@ -1,0 +1,70 @@
+{
+ "release": "PT1/PT8 2026-09-05 (#364-#382)",
+ "note": "A state-plane well (US survey feet) with Petrel-convention checkshots and typed tops.",
+ "wells": [
+  {
+   "id": "pt-well-1",
+   "user_id": "user-dev",
+   "organization_id": null,
+   "name": "GULF SP-2",
+   "uwi": "42-000-1",
+   "surface_x": 1968500.0,
+   "surface_y": 656200.0,
+   "kb_m": 30.48,
+   "td_md_m": 3048.0,
+   "crs": "EPSG:2274",
+   "xy_unit": "ftUS",
+   "crs_provenance": {
+    "declared_crs": "EPSG:2274",
+    "transform": "none"
+   },
+   "crs_note": null,
+   "units_note": "SI",
+   "status": "oil",
+   "deviation": [],
+   "checkshots": [
+    {
+     "tvdss_m": 274.32,
+     "twt_ms": 600,
+     "md_m": 304.8
+    },
+    {
+     "tvdss_m": 579.12,
+     "twt_ms": 1000,
+     "md_m": 609.6
+    }
+   ],
+   "checkshots_provenance": {
+    "units_in": {
+     "depth_ref": "md",
+     "time": "owt",
+     "depth_unit": "ft"
+    },
+    "source": "well-import",
+    "kb_m_used": 30.48,
+    "deviation_stations_used": 0,
+    "edited_at": "2026-09-05T10:00:00.000Z"
+   },
+   "created_at": "2026-09-05T10:00:00.000Z",
+   "updated_at": "2026-09-05T10:00:00.000Z"
+  }
+ ],
+ "tops": {
+  "pt-well-1": [
+   {
+    "id": "pt-top-1",
+    "name": "Top Frio",
+    "md_m": 1500.0,
+    "interpreter": "jd",
+    "surface_type": "formation_top",
+    "unit_id": null,
+    "confidence": "high",
+    "age_ma": null,
+    "notes": null
+   }
+  ]
+ },
+ "logs": {
+  "pt-well-1": []
+ }
+}
