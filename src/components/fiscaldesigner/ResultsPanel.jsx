@@ -145,8 +145,8 @@ const ResultsPanel = ({ results }) => {
                   <NumTh numeric>Payback (yrs)</NumTh>
                   <NumTh numeric title={GOVERNMENT_CASH_FLOW.definition}>{GOVERNMENT_CASH_FLOW.title} ($MM)</NumTh>
                   {full && <NumTh numeric data-testid="fiscal-total-tax-head">Total tax ($MM)</NumTh>}
-                  <NumTh numeric className="text-base text-pl-text" data-metric="headline" title={metricDefinition(TAKE)}>{metricLabel(TAKE)}, %</NumTh>
-                  <NumTh numeric className="text-xs font-normal" data-metric="secondary" title={metricDefinition(SHARE_OF_NR)}>{metricLabel(SHARE_OF_NR)}, %</NumTh>
+                  <NumTh numeric className="min-w-[9rem] text-base normal-case tracking-normal font-pl-sans text-pl-text" data-metric="headline" title={metricDefinition(TAKE)}>{metricLabel(TAKE)}, %</NumTh>
+                  <NumTh numeric className="min-w-[8rem] text-xs normal-case tracking-normal font-pl-sans font-normal" data-metric="secondary" title={metricDefinition(SHARE_OF_NR)}>{metricLabel(SHARE_OF_NR)}, %</NumTh>
                 </tr>
               </thead>
               <tbody>
@@ -163,7 +163,7 @@ const ResultsPanel = ({ results }) => {
                     <NumCell signed={false}>{s.paybackPeriod || 'N/A'}</NumCell>
                     <NumCell value={s.govTake} title={GOVERNMENT_CASH_FLOW.definition}>{show(s.govTake.toFixed(1), s.govTake, 4)}</NumCell>
                     {full && <NumCell value={totalTax(s.id)} signed={false} data-testid="fiscal-total-tax">{formatFull(totalTax(s.id), 4)}</NumCell>}
-                    <NumCell signed={false} className="text-lg font-semibold whitespace-normal min-w-[10rem]" data-metric="headline" title={metricDefinition(TAKE)}>
+                    <NumCell signed={false} className="text-lg font-semibold whitespace-normal min-w-[9rem]" data-metric="headline" title={metricDefinition(TAKE)}>
                       {takeText(s.governmentTakePct, s.governmentTakeState)}
                       <span
                         className="block text-[11px] font-pl-sans font-normal text-pl-muted"
