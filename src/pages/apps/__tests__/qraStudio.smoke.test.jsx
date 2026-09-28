@@ -25,6 +25,8 @@ jest.mock('@/lib/customSupabaseClient', () => ({
 
 jest.mock('@/contexts/SupabaseAuthContext', () => ({
   useAuth: () => ({ user: { id: 'u1' }, organization: { id: 'org-1' } }),
+  // ThemedApp (design system rollout w4f) reads AuthContext.
+  AuthContext: require('react').createContext(null),
 }));
 
 import QraStudio from '@/pages/apps/QraStudio';

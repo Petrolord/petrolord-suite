@@ -11,7 +11,7 @@ export const RatingInputs = () => {
     <div className="space-y-4">
       <Field label="Arrangement">
         <Select value={inputs.rating.arrangement} onValueChange={(v) => setSection('rating', 'arrangement', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="counter">Counter-current</SelectItem>
             <SelectItem value="shell1">1 shell pass, 2 tube passes</SelectItem>
@@ -23,7 +23,7 @@ export const RatingInputs = () => {
         <Field label="Installed area (ft2)"><NumberInput section="rating" name="areaFt2" /></Field>
         <Field label="U (Btu/hr ft2 F)"><NumberInput section="rating" name="uBtuHrFt2F" /></Field>
       </div>
-      <p className="text-[11px] text-slate-600">
+      <p className="text-[11px] text-pl-muted">
         Rating answers the other question. The Sizing tab asks what area a duty needs; this tab
         asks what duty an exchanger you already own will deliver on these streams.
       </p>
@@ -36,8 +36,8 @@ export const RatingResults = () => {
   if (thermal.error) return <ErrorNote>{thermal.error}</ErrorNote>;
   if (rating.error) return <ErrorNote>{rating.error}</ErrorNote>;
   return (
-    <Card className="bg-slate-900/60 border-slate-800">
-      <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">What this exchanger delivers</CardTitle></CardHeader>
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">What this exchanger delivers</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Stat label="NTU" value={fmt(rating.ntu, 2)} hint="UA over the smaller capacity rate" />
@@ -55,7 +55,7 @@ export const RatingResults = () => {
             hint="an infinitely large counter-current exchanger" />
           {Number.isFinite(rating.dutyVsDesign) && (
             <Stat label="Against the design duty" value={fmt(rating.dutyVsDesign * 100, 0)} unit="%"
-              accent={rating.dutyVsDesign >= 1 ? 'text-emerald-400' : 'text-amber-400'}
+              accent={rating.dutyVsDesign >= 1 ? 'text-pl-success-text' : 'text-pl-warning-text'}
               hint={rating.dutyVsDesign >= 1 ? 'meets the Sizing tab duty' : 'short of the Sizing tab duty'} />
           )}
         </div>
@@ -70,7 +70,7 @@ const DraftTypeField = () => {
     <Field label="Draft type"
       hint="The fan handles ambient air in a forced-draft bay and the heated air leaving the bundle in an induced-draft one. The two differ by about 5 % on fan power, so the studio asks rather than taking a mean that belongs to neither.">
       <Select value={inputs.air.draftType} onValueChange={(v) => setSection('air', 'draftType', v)}>
-        <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
         <SelectContent>
           <SelectItem value="forced">Forced draft (fan below the bundle)</SelectItem>
           <SelectItem value="induced">Induced draft (fan above the bundle)</SelectItem>
@@ -115,8 +115,8 @@ export const CoolerResults = () => {
   if (cooler.error) return <ErrorNote>{cooler.error}</ErrorNote>;
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Air cooler at the design ambient</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Air cooler at the design ambient</CardTitle></CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Stat label="LMTD" value={fmt(cooler.lmtdF, 1)} unit="F" />
@@ -145,8 +145,8 @@ export const CoolerResults = () => {
       </Card>
 
       {cooler.hotDay && (
-        <Card className="bg-slate-900/60 border-slate-800">
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">On a hot day</CardTitle></CardHeader>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">On a hot day</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             {cooler.hotDay.error ? <ErrorNote>{cooler.hotDay.error}</ErrorNote> : (
               <>
@@ -156,11 +156,11 @@ export const CoolerResults = () => {
                   <Stat label={cooler.hotDay.dutyFraction > 1 ? 'Capacity available' : 'Capacity retained'}
                     value={fmt(cooler.hotDay.dutyFraction * 100, 0)} unit="%"
                     accent={cooler.hotDay.dutyFraction > 1
-                      ? 'text-sky-400'
-                      : (cooler.hotDay.dutyFraction < 0.85 ? 'text-amber-400' : 'text-emerald-400')} />
+                      ? 'text-pl-info-text'
+                      : (cooler.hotDay.dutyFraction < 0.85 ? 'text-pl-warning-text' : 'text-pl-success-text')} />
                   <Stat label="Duty then" value={fmt(cooler.hotDay.qBtuHr / 1e6, 2)} unit="MMBtu/hr" />
                   <Stat label="Process leaves at" value={fmt(cooler.hotDay.processOutF, 1)} unit="F"
-                    accent={cooler.hotDay.designOutletReached ? 'text-emerald-400' : 'text-amber-400'}
+                    accent={cooler.hotDay.designOutletReached ? 'text-pl-success-text' : 'text-pl-warning-text'}
                     hint={cooler.hotDay.designOutletReached
                       ? 'the design outlet still holds'
                       : 'above the design outlet'} />
@@ -174,7 +174,7 @@ export const CoolerResults = () => {
                   <Stat label="UA held" value={fmt(cooler.hotDay.uaBtuHrF / 1000, 1)} unit="kBtu/hr F" />
                 </div>
                 {cooler.hotDay.note && <InfoNote>{cooler.hotDay.note}</InfoNote>}
-                <p className="text-[12px] text-slate-500">
+                <p className="text-[12px] text-pl-muted">
                   Same bundle, same fans, so the surface and the air mass are what stay fixed. That
                   fixes NTU and the capacity ratio, and therefore the effectiveness, whatever the
                   arrangement. The duty then follows from the inlet temperature difference alone,

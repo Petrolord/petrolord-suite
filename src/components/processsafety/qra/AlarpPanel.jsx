@@ -36,7 +36,7 @@ const Verdict = () => {
     <Panel title="ALARP verdict" testId="alarp-verdict">
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
-          <thead className="text-left text-slate-400">
+          <thead className="text-left text-pl-muted">
             <tr>
               <th className="py-1 pr-3">Risk</th>
               <th className="py-1 pr-3 text-right">Per year</th>
@@ -47,13 +47,13 @@ const Verdict = () => {
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.key} className="border-t border-slate-800">
-                <td className="py-1 pr-3 text-slate-300">{r.what}</td>
+              <tr key={r.key} className="border-t border-pl-border">
+                <td className="py-1 pr-3 text-pl-text">{r.what}</td>
                 {r.refusal ? <td colSpan={4} className="py-1"><Refusal result={r.refusal} /></td> : (
                   <>
-                    <td className="py-1 pr-3 text-right font-mono text-white">{formatSci(r.value, 4)}</td>
-                    <td className="py-1 pr-3 font-mono text-slate-300">{r.band && !r.band.error ? formatSci(r.band.basis.thresholds.unacceptableAbovePerYr) : ''}</td>
-                    <td className="py-1 pr-3 font-mono text-slate-300">{r.band && !r.band.error ? formatSci(r.band.basis.thresholds.broadlyAcceptableAtOrBelowPerYr) : ''}</td>
+                    <td className="py-1 pr-3 text-right font-mono text-pl-text">{formatSci(r.value, 4)}</td>
+                    <td className="py-1 pr-3 font-mono text-pl-text">{r.band && !r.band.error ? formatSci(r.band.basis.thresholds.unacceptableAbovePerYr) : ''}</td>
+                    <td className="py-1 pr-3 font-mono text-pl-text">{r.band && !r.band.error ? formatSci(r.band.basis.thresholds.broadlyAcceptableAtOrBelowPerYr) : ''}</td>
                     <td className="py-1">
                       {r.band?.error ? <Refusal result={r.band} /> : <StateBadge state={r.band?.band} testId={`verdict-${r.key}`} />}
                     </td>
@@ -61,9 +61,9 @@ const Verdict = () => {
                 )}
               </tr>
             ))}
-            <tr className="border-t border-slate-800">
-              <td className="py-1 pr-3 text-slate-300">F-N curve</td>
-              <td colSpan={3} className="py-1 pr-3 text-slate-400">against the chosen criterion</td>
+            <tr className="border-t border-pl-border">
+              <td className="py-1 pr-3 text-pl-text">F-N curve</td>
+              <td colSpan={3} className="py-1 pr-3 text-pl-muted">against the chosen criterion</td>
               <td className="py-1">{comparison && !comparison.error ? <StateBadge state={comparison.state} testId="verdict-fn" /> : <Refusal result={comparison} />}</td>
             </tr>
           </tbody>
@@ -71,13 +71,13 @@ const Verdict = () => {
       </div>
       <div className="grid grid-cols-1 gap-2 md:grid-cols-3" data-testid="band-legend">
         {Object.entries(BAND_TEXT).map(([band, text]) => (
-          <div key={band} className="rounded border border-slate-800 p-2 text-[11px] text-slate-300">
+          <div key={band} className="rounded border border-pl-border p-2 text-[11px] text-pl-text">
             <StateBadge state={band} />
             <p className="mt-1">{text}</p>
           </div>
         ))}
       </div>
-      <p className="text-sm text-slate-200" data-testid="alarp-reading">{reading}</p>
+      <p className="text-sm text-pl-text" data-testid="alarp-reading">{reading}</p>
       <Note>
         The bands are the engine&apos;s, judged against each risk&apos;s own criterion; the one line summary above is the
         studio&apos;s reading of them. A value exactly at a limit belongs to the lower band.
@@ -120,7 +120,7 @@ const CostBenefit = () => {
       </Grid>
 
       <div className="space-y-2">
-        <div className="text-xs text-slate-400">Other harms prevented (injury and ill health)</div>
+        <div className="text-xs text-pl-muted">Other harms prevented (injury and ill health)</div>
         {cb.otherHarms.map((h, k) => {
           const setH = (patch) => updateListItem('costBenefit', 'otherHarms', h.id, patch);
           const f = `otherHarms[${k}]`;
@@ -134,7 +134,7 @@ const CostBenefit = () => {
           );
         })}
         <Button
-          type="button" size="sm" variant="outline" className="border-slate-700 bg-slate-900 text-slate-200"
+          type="button" size="sm" variant="outline"
           onClick={() => addListItem('costBenefit', 'otherHarms', {
             id: newId('h'), name: '', expectedCasesPerYr: '', valuePerCase: '',
           })}
@@ -162,17 +162,17 @@ const CostBenefit = () => {
             </Grid>
             <div className="space-y-1" data-testid="cba-verdict">
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="text-slate-300">Verdict</span>
+                <span className="text-pl-text">Verdict</span>
                 <StateBadge state={result.verdict} testId="cba-state" />
-                {result.atBoundary ? <span className="text-xs text-amber-200">the cost is exactly DF x benefit</span> : null}
+                {result.atBoundary ? <span className="text-xs text-pl-warning-text">the cost is exactly DF x benefit</span> : null}
               </div>
-              <p className="text-xs text-slate-300">{VERDICT_TEXT[result.verdict]}</p>
+              <p className="text-xs text-pl-text">{VERDICT_TEXT[result.verdict]}</p>
               {result.otherHarms.length > 0 ? (
-                <p className="font-mono text-[11px] text-slate-400">
+                <p className="font-mono text-[11px] text-pl-muted">
                   {result.otherHarms.map((h) => `${h.name} ${formatMoney(h.benefitPerYr)} a year`).join('; ')}
                 </p>
               ) : null}
-              <p className="text-[11px] text-slate-400">{result.basis.discounting}.</p>
+              <p className="text-[11px] text-pl-muted">{result.basis.discounting}.</p>
             </div>
           </>
         ) : null}

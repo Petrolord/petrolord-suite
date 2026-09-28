@@ -26,7 +26,7 @@ const IconToolbar = ({ activeTool, setActiveTool, customIcons = [] }) => {
 
   return (
     <div>
-      <h3 className="text-sm font-semibold text-slate-400 mb-3 px-1">EQUIPMENT & PIPING</h3>
+      <h3 className="text-sm font-semibold text-pl-muted mb-3 px-1">EQUIPMENT & PIPING</h3>
       <div className="grid grid-cols-4 gap-2">
         <TooltipProvider>
           {allIcons.map((tool) => (
@@ -36,8 +36,9 @@ const IconToolbar = ({ activeTool, setActiveTool, customIcons = [] }) => {
                   onClick={() => handleToolClick(tool)}
                   className={cn(
                     "flex flex-col items-center justify-center p-2 rounded-lg aspect-square transition-all duration-200",
-                    "bg-slate-800/60 hover:bg-slate-700/80",
-                    activeTool && activeTool.name === tool.name ? 'bg-teal-500/80 ring-2 ring-teal-300' : 'text-slate-300'
+                    activeTool && activeTool.name === tool.name
+                      ? 'bg-pl-primary text-pl-primary-fg ring-2 ring-pl-focus'
+                      : 'bg-pl-sunken text-pl-text hover:bg-pl-border'
                   )}
                 >
                   {tool.isCustom ? (
@@ -45,7 +46,7 @@ const IconToolbar = ({ activeTool, setActiveTool, customIcons = [] }) => {
                   ) : (
                     <tool.icon className="w-6 h-6 mb-1" />
                   )}
-                  <span className="text-xs text-white truncate">{tool.name}</span>
+                  <span className="text-xs truncate">{tool.name}</span>
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right">

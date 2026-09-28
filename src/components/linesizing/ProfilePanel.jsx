@@ -20,7 +20,7 @@ const SegmentTable = () => {
     <div className="space-y-2">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-left text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
+          <tr className="text-left text-[11px] uppercase tracking-wider text-pl-muted border-b border-pl-border">
             <th className="py-1.5 pr-2">#</th>
             <th className="py-1.5 pr-2">Length (ft)</th>
             <th className="py-1.5 pr-2">Elevation change (ft)</th>
@@ -30,16 +30,16 @@ const SegmentTable = () => {
         <tbody>
           {inputs.profile.segments.map((seg, i) => (
             // eslint-disable-next-line react/no-array-index-key
-            <tr key={i} className="border-b border-slate-800/60">
-              <td className="py-1 pr-2 text-slate-500">{i + 1}</td>
+            <tr key={i} className="border-b border-pl-border">
+              <td className="py-1 pr-2 text-pl-muted">{i + 1}</td>
               <td className="py-1 pr-2">
-                <Input type="number" value={seg.lengthFt} onChange={(e) => setSegment(i, 'lengthFt', e.target.value)} className="h-8 bg-slate-800 border-slate-700" />
+                <Input type="number" value={seg.lengthFt} onChange={(e) => setSegment(i, 'lengthFt', e.target.value)} className="h-8" />
               </td>
               <td className="py-1 pr-2">
-                <Input type="number" value={seg.elevChangeFt} onChange={(e) => setSegment(i, 'elevChangeFt', e.target.value)} className="h-8 bg-slate-800 border-slate-700" />
+                <Input type="number" value={seg.elevChangeFt} onChange={(e) => setSegment(i, 'elevChangeFt', e.target.value)} className="h-8" />
               </td>
               <td className="py-1 text-right">
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-red-400" onClick={() => removeSegment(i)}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-pl-muted hover:text-pl-danger-text" onClick={() => removeSegment(i)}>
                   <Trash2 className="w-3.5 h-3.5" />
                 </Button>
               </td>
@@ -90,19 +90,19 @@ const ProfilePanel = () => {
   const { inputs, profile } = useLineSizing();
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Elevation profile</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Elevation profile</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Field label="Inlet pressure (psia)"><NumberInput section="profile" name="p1Psia" /></Field>
           </div>
           <SegmentTable />
-          <p className="text-[11px] text-slate-600">{modeNote[inputs.mode]}</p>
+          <p className="text-[11px] text-pl-muted">{modeNote[inputs.mode]}</p>
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900/60 border-slate-800">
-        <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Hydraulic gradient</CardTitle></CardHeader>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Hydraulic gradient</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           {profile.error ? <ErrorNote>{profile.error}</ErrorNote> : (
             <>

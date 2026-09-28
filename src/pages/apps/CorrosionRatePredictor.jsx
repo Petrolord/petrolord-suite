@@ -17,6 +17,7 @@ import {
 } from '@/components/corrosionstudio/CorrosionPanels';
 import CorrosionHelpContent from '@/components/corrosionstudio/CorrosionHelpGuide';
 import { fmt, Row } from '@/components/corrosionstudio/fields';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 const TABS = [
   { value: 'rate', label: 'Corrosion Rate' },
@@ -25,14 +26,14 @@ const TABS = [
 ];
 
 const SectionLabel = ({ children }) => (
-  <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest">{children}</h3>
+  <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
 );
 
 const Summary = () => {
   const { result } = useCorrosion();
   if (result.error) {
     return (
-      <div className="rounded-md border border-amber-700/50 bg-amber-950/30 px-3 py-2 text-sm text-amber-300">
+      <div className="rounded-md border border-pl-warning/40 bg-pl-warning-bg px-3 py-2 text-sm text-pl-warning-text">
         No screening: {result.error}
       </div>
     );
@@ -66,7 +67,7 @@ const Summary = () => {
         <Row label="Binding constraint" value={result.binding.what} />
       )}
       {result.withheld && (
-        <div className="mt-2 rounded-md border border-amber-700/50 bg-amber-950/30 px-3 py-2 text-[12px] text-amber-300">
+        <div className="mt-2 rounded-md border border-pl-warning/40 bg-pl-warning-bg px-3 py-2 text-[12px] text-pl-warning-text">
           Not graded: {result.withheld.why}
         </div>
       )}
@@ -153,7 +154,6 @@ const StudioContent = () => {
             backTo="/dashboard/facilities"
             backTitle="Back to Facilities Engineering"
             icon={ShieldAlert}
-            iconGradientClass="from-amber-600 to-red-700"
             title="Corrosion & Integrity Studio"
             tabs={TABS}
             activeTab={activeTab}
@@ -166,7 +166,7 @@ const StudioContent = () => {
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
             />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Corrosion & Integrity Guide"
               description="Why velocity belongs in the model, why hotter is not always worse, why availability beats efficiency, and what this studio will not tell you."
@@ -186,10 +186,15 @@ const StudioContent = () => {
   );
 };
 
+// Design system rollout batch 5A (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class in its own files is a
+// theme role.
 const CorrosionRatePredictor = () => (
-  <CorrosionStudioProvider>
-    <StudioContent />
-  </CorrosionStudioProvider>
+  <ThemedApp data-testid="corrosion-theme-scope">
+    <CorrosionStudioProvider>
+      <StudioContent />
+    </CorrosionStudioProvider>
+  </ThemedApp>
 );
 
 export default CorrosionRatePredictor;

@@ -27,13 +27,13 @@ const Pll = () => {
         {pll && !pll.error ? (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
-              <thead className="text-left text-slate-400">
+              <thead className="text-left text-pl-muted">
                 <tr><th className="py-1 pr-3">Scenario</th><th className="py-1 text-right">f x N (deaths per year)</th></tr>
               </thead>
-              <tbody className="font-mono text-slate-200">
+              <tbody className="font-mono text-pl-text">
                 {pll.contributions.map((c) => (
-                  <tr key={c.name} className="border-t border-slate-800">
-                    <td className="py-1 pr-3 font-sans text-slate-300">{c.name}</td>
+                  <tr key={c.name} className="border-t border-pl-border">
+                    <td className="py-1 pr-3 font-sans text-pl-text">{c.name}</td>
                     <td className="py-1 text-right">{formatSci(c.pllPerYr, 4)}</td>
                   </tr>
                 ))}
@@ -100,17 +100,17 @@ const FnCurve = () => {
         {comparison && !comparison.error ? (
           <div className="space-y-2" data-testid="fn-verdict">
             <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="text-slate-300">Against the criterion</span>
+              <span className="text-pl-text">Against the criterion</span>
               <StateBadge state={comparison.state} testId="fn-state" />
-              <span className="font-mono text-xs text-slate-400">
+              <span className="font-mono text-xs text-pl-muted">
                 worst ratio {formatSci(comparison.maxRatio, 3)}{comparison.worstAtFatalities !== null ? ` at N = ${formatSci(comparison.worstAtFatalities)}` : ''}
               </span>
             </div>
-            <p className="text-xs text-slate-300">{FN_STATE_TEXT[comparison.state]}</p>
+            <p className="text-xs text-pl-text">{FN_STATE_TEXT[comparison.state]}</p>
             {comparison.checks.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs" data-testid="fn-checks">
-                  <thead className="text-left text-slate-400">
+                  <thead className="text-left text-pl-muted">
                     <tr>
                       <th className="py-1 pr-3">N</th>
                       <th className="py-1 pr-3 text-right">Curve F (per year)</th>
@@ -120,9 +120,9 @@ const FnCurve = () => {
                       <th className="py-1">Above the line over N</th>
                     </tr>
                   </thead>
-                  <tbody className="font-mono text-slate-200">
+                  <tbody className="font-mono text-pl-text">
                     {comparison.checks.map((c) => (
-                      <tr key={c.fatalities} className="border-t border-slate-800">
+                      <tr key={c.fatalities} className="border-t border-pl-border">
                         <td className="py-1 pr-3">{formatSci(c.fatalities)}</td>
                         <td className="py-1 pr-3 text-right">{formatSci(c.curveFrequencyPerYr, 4)}</td>
                         <td className="py-1 pr-3 text-right">{formatSci(c.criterionFrequencyPerYr, 4)}</td>

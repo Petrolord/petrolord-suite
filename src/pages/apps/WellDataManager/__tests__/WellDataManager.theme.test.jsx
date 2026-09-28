@@ -104,10 +104,14 @@ describe('Well Data Manager themed states', () => {
       const edit = screen.queryByTestId(`wdm-edit-${tab.toLowerCase()}`);
       if (edit) {
         fireEvent.click(edit);
-        // the grid editor only: the paste panel re-renders without end under
-        // jsdom's synchronous act (a new fields array each render; reported
-        // to the lead, unchanged here)
         expectNoLegacyChrome();
+        // the paste panel too (it used to re-render without end; see
+        // pasteReplace.test.jsx)
+        const paste = screen.queryByTestId(`wdm-${tab.toLowerCase()}-paste-toggle`);
+        if (paste) {
+          fireEvent.click(paste);
+          expectNoLegacyChrome();
+        }
         fireEvent.click(screen.getByRole('button', { name: /^Cancel$/ }));
       }
       expectNoLegacyChrome();

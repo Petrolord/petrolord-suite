@@ -14,6 +14,7 @@ import { ValveStudioProvider, useValve } from '@/contexts/ValveStudioContext';
 import { ServiceInputs, SizingResults, ControlResults } from '@/components/valvestudio/ValvePanels';
 import ValveHelpContent from '@/components/valvestudio/ValveHelpGuide';
 import { fmt, Row } from '@/components/valvestudio/fields';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 const TABS = [
   { value: 'sizing', label: 'Sizing' },
@@ -21,7 +22,7 @@ const TABS = [
 ];
 
 const SectionLabel = ({ children }) => (
-  <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest">{children}</h3>
+  <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
 );
 
 const Summary = () => {
@@ -118,7 +119,6 @@ const StudioContent = () => {
             backTo="/dashboard/facilities"
             backTitle="Back to Facilities Engineering"
             icon={Sliders}
-            iconGradientClass="from-rose-600 to-pink-700"
             title="Control Valve & Choke Sizing"
             tabs={TABS}
             activeTab={activeTab}
@@ -131,7 +131,7 @@ const StudioContent = () => {
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
             />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Control Valve Guide"
               description="Why the choking boundary comes first, why cavitation is not flashing, and the failure a single Cv number never shows."
@@ -151,10 +151,15 @@ const StudioContent = () => {
   );
 };
 
+// Design system rollout batch 5A (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class in its own files is a
+// theme role.
 const ControlValveSizing = () => (
-  <ValveStudioProvider>
-    <StudioContent />
-  </ValveStudioProvider>
+  <ThemedApp data-testid="valve-theme-scope">
+    <ValveStudioProvider>
+      <StudioContent />
+    </ValveStudioProvider>
+  </ThemedApp>
 );
 
 export default ControlValveSizing;

@@ -296,3 +296,25 @@ check is shown as its own message instead of an empty verdict.
   applied migration) quote erosional rates that the one-barrel change
   makes stale at the eighth significant figure. Nothing graded moves.
   Recorded for a later recut, deliberately not touched here.
+
+## 2026-09-28: design system rollout W5A (light default, dark per user)
+
+The page wraps itself in `ThemedApp` (App.jsx is untouched), so the studio
+opens on the grey panel light theme and the header toggle switches to dark
+and back, stored per user. The route prefix `/dashboard/apps/facilities/facility-network-hydraulics` is registered in
+`src/design/rollout/w5a.js` for the themed cold-load loaders.
+
+- Chrome on roles: the kit header themes itself (the decorative icon
+  gradient prop went); the app's own cards, inputs, selects, tables and
+  notes moved to `pl-*` roles, with the dark overrides on the adapted
+  Card, Input and Select removed. Help guide icons lost their decorative
+  colour.
+- Status colour only for status: the RP 14E status, the velocity and pressure drop limits, the sweep verdict column and recommended row, the flow pattern and the wall thickness verdict use the status roles.
+- Numbers: `Stat` and `Row` values take the mono face when they are a
+  number (with an optional unit or percentage); worded values (a regime,
+  a verdict, a description) stay in the text face.
+- Charts: unchanged, on the white `ChartFrame` in both themes.
+- Tests: new `src/pages/apps/__tests__/PipelineLineSizingStudio.theme.test.jsx` (the
+  shared `describeAppTheme` checks, every header tab and the
+  documentation drawer). No calculation, engine or export change; the
+  existing suites pass unchanged.

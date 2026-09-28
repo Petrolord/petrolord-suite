@@ -24,7 +24,7 @@ export const VesselInputs = () => {
       <ExampleCaseNote />
       <Field label="Vessel type">
         <Select value={v.type} onValueChange={(val) => setSection('vessel', 'type', val)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="horizontal2">Horizontal, two phase</SelectItem>
             <SelectItem value="horizontal3">Horizontal, three phase</SelectItem>
@@ -34,7 +34,7 @@ export const VesselInputs = () => {
       </Field>
       <Field label="Mist extractor" hint="Sets the base K; the pressure derating is applied automatically.">
         <Select value={v.internalsId} onValueChange={(val) => setSection('vessel', 'internalsId', val)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             {internalsOptions.map((k) => (
               <SelectItem key={k.id} value={k.id}>{k.label} (K = {k.k})</SelectItem>
@@ -62,11 +62,11 @@ export const VesselInputs = () => {
         <Field label="L/D minimum"><NumberInput section="vessel" name="ldMin" step="0.5" /></Field>
         <Field label="L/D maximum"><NumberInput section="vessel" name="ldMax" step="0.5" /></Field>
       </div>
-      <p className="text-[11px] text-slate-600 -mt-2">
+      <p className="text-[11px] text-pl-muted -mt-2">
         Customary band for {v.type === 'vertical2' ? 'vertical' : 'horizontal'} vessels: {ldBand.min} to {ldBand.max}.
       </p>
 
-      <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold pt-2">Process</p>
+      <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold pt-2">Process</p>
       <div className="grid grid-cols-2 gap-2">
         <Field label="Gas (MMscfd)"><NumberInput section="process" name="qGasMMscfd" step="0.1" /></Field>
         <Field label="Pressure (psig)"><NumberInput section="process" name="pPsig" /></Field>
@@ -116,8 +116,8 @@ const ConditionsCard = () => {
   const { show } = useFullPrecision();
   if (conditions.error) return <ErrorNote>{conditions.error}</ErrorNote>;
   return (
-    <Card className="bg-slate-900/60 border-slate-800">
-      <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">At separator conditions</CardTitle></CardHeader>
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">At separator conditions</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Stat label="z-factor" value={fmt(conditions.z, 4)}
@@ -163,10 +163,10 @@ export const verdictOf = (row, preferred) => {
 };
 
 const verdictColour = (row, preferred) => {
-  if (row.error) return 'text-red-400';
-  if (preferred && preferred.diameterFt === row.diameterFt) return 'text-emerald-400';
-  if (!row.feasible) return 'text-red-400';
-  return row.inRange ? 'text-emerald-400' : 'text-amber-400';
+  if (row.error) return 'text-pl-danger-text';
+  if (preferred && preferred.diameterFt === row.diameterFt) return 'text-pl-success-text';
+  if (!row.feasible) return 'text-pl-danger-text';
+  return row.inRange ? 'text-pl-success-text' : 'text-pl-warning-text';
 };
 
 const SweepTable = () => {
@@ -178,7 +178,7 @@ const SweepTable = () => {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-left text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
+          <tr className="text-left text-[11px] uppercase tracking-wider text-pl-muted border-b border-pl-border">
             <th className="py-2 pr-3">Diameter (ft)</th>
             <th className="py-2 pr-3">{vertical ? 'Height (ft)' : 'Length (ft)'}</th>
             <th className="py-2 pr-3">L/D</th>
@@ -188,11 +188,11 @@ const SweepTable = () => {
         </thead>
         <tbody>
           {sweep.rows.map((r) => (
-            <tr key={r.diameterFt} className={`border-b border-slate-800/60 ${sweep.preferred?.diameterFt === r.diameterFt ? 'bg-emerald-900/20' : ''}`}>
-              <td className="py-1.5 pr-3 tabular-nums text-slate-300">{fmt(r.diameterFt, 1)}</td>
-              <td className="py-1.5 pr-3 tabular-nums">{r.error ? '--' : show(fmt(r.lengthFt, 1), r.lengthFt)}</td>
-              <td className="py-1.5 pr-3 tabular-nums">{r.error ? '--' : fmt(r.ldRatio, 2)}</td>
-              {!vertical && <td className="py-1.5 pr-3 text-slate-400">{r.error ? '--' : controllingText(r.controlling)}</td>}
+            <tr key={r.diameterFt} className={`border-b border-pl-border ${sweep.preferred?.diameterFt === r.diameterFt ? 'bg-pl-success-bg' : ''}`}>
+              <td className="py-1.5 pr-3 font-pl-mono tabular-nums text-pl-text">{fmt(r.diameterFt, 1)}</td>
+              <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{r.error ? '--' : show(fmt(r.lengthFt, 1), r.lengthFt)}</td>
+              <td className="py-1.5 pr-3 font-pl-mono tabular-nums">{r.error ? '--' : fmt(r.ldRatio, 2)}</td>
+              {!vertical && <td className="py-1.5 pr-3 text-pl-muted">{r.error ? '--' : controllingText(r.controlling)}</td>}
               <td className={`py-1.5 font-semibold ${verdictColour(r, sweep.preferred)}`}>
                 {verdictOf(r, sweep.preferred)}
               </td>
@@ -200,7 +200,7 @@ const SweepTable = () => {
           ))}
         </tbody>
       </table>
-      <p className="text-[11px] text-slate-600 mt-2">
+      <p className="text-[11px] text-pl-muted mt-2">
         Band used: slenderness between {fmt(sweep.ldMin, 1)} and {fmt(sweep.ldMax, 1)}. The customary
         band is 3 to 4 for a two-phase horizontal separator, 3 to 5 for a three-phase one and 2 to 4 for a vertical one.
         A vessel outside it still separates; it is just an awkward thing to build, ship and support.
@@ -216,14 +216,14 @@ const SelectedCard = () => {
   const threePhase = inputs.vessel.type === 'horizontal3';
   const vertical = inputs.vessel.type === 'vertical2';
   return (
-    <Card className="bg-slate-900/60 border-slate-800">
-      <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Selected vessel</CardTitle></CardHeader>
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Selected vessel</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Stat label="Diameter" value={fmt(selected.diameterFt, 1)} unit="ft" />
           <Stat label={vertical ? 'Height' : 'Length'} value={show(fmt(selected.lengthFt, 1), selected.lengthFt)} unit="ft" />
           <Stat label="L/D" value={fmt(selected.ldRatio, 2)}
-            accent={selected.inRange ? 'text-emerald-400' : 'text-amber-400'} />
+            accent={selected.inRange ? 'text-pl-success-text' : 'text-pl-warning-text'} />
           <Stat label="Gas velocity" value={show(fmt(detail.gasVelocityFtS, 3), detail.gasVelocityFtS)} unit="ft/s"
             hint="in the vessel just sized" />
         </div>
@@ -240,7 +240,7 @@ const SelectedCard = () => {
               <Stat label="Liquid retention needs" value={fmt(detail.liquidRetentionLengthFt, 1)} unit="ft"
                 hint="oil and water share the length at the proportional interface" />
               <Stat label="Gas needs" value={fmt(detail.lengthGasFt, 1)} unit="ft" />
-              <Stat label="Controlling" value={controllingText(detail.controlling)} accent="text-emerald-400" />
+              <Stat label="Controlling" value={controllingText(detail.controlling)} accent="text-pl-text" />
               <Stat label="Interface" value={fmt(detail.waterShare * 100, 0)} unit="% water"
                 hint="of the liquid cross-section" />
             </div>
@@ -253,10 +253,10 @@ const SelectedCard = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Stat label="Water drop fall time" value={fmt(detail.dropChecks?.waterDropFallS, 0)} unit="s"
                 hint={`a ${fmt(detail.dropChecks?.waterDropletMicron, 0)} micron drop, against ${fmt(detail.dropChecks?.residenceOilS, 0)} s of oil residence in the sized vessel`}
-                accent={detail.dropChecks?.waterCarryover ? 'text-red-400' : 'text-emerald-400'} />
+                accent={detail.dropChecks?.waterCarryover ? 'text-pl-danger-text' : 'text-pl-success-text'} />
               <Stat label="Oil drop rise time" value={fmt(detail.dropChecks?.oilDropRiseS, 0)} unit="s"
                 hint={`a ${fmt(detail.dropChecks?.oilDropletMicron, 0)} micron drop, against ${fmt(detail.dropChecks?.residenceWaterS, 0)} s of water residence in the sized vessel`}
-                accent={detail.dropChecks?.oilCarryunder ? 'text-red-400' : 'text-emerald-400'} />
+                accent={detail.dropChecks?.oilCarryunder ? 'text-pl-danger-text' : 'text-pl-success-text'} />
             </div>
           </>
         )}
@@ -279,8 +279,8 @@ export const VesselResults = () => (
   <div className="space-y-4">
     <ConditionsCard />
     <SelectedCard />
-    <Card className="bg-slate-900/60 border-slate-800">
-      <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">The L/D family</CardTitle></CardHeader>
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">The L/D family</CardTitle></CardHeader>
       <CardContent><SweepTable /></CardContent>
     </Card>
   </div>

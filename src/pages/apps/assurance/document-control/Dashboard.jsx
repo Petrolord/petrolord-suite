@@ -138,7 +138,7 @@ export default function Dashboard() {
           <Card className="panel-elevation">
             <CardHeader><CardTitle className="text-lg">The library by status</CardTitle></CardHeader>
             <CardContent>
-              <div className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+              <div data-canvas="chart" className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie data={statusData} cx="50%" cy="45%" innerRadius={60} outerRadius={90}

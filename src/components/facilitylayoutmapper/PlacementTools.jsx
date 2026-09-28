@@ -70,18 +70,18 @@ const PlacementTools = ({ layers, onPlaceItem, activeTool, setActiveTool }) => {
   return (
     <div className="p-2 space-y-4">
       <Tabs defaultValue="coords" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 bg-slate-800">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="coords"><MapPin className="w-4 h-4 mr-1"/>Coords</TabsTrigger>
           <TabsTrigger value="bearing"><Compass className="w-4 h-4 mr-1"/>Bearing</TabsTrigger>
         </TabsList>
         <TabsContent value="coords">
             <div className="space-y-2 mt-2">
                 <Label htmlFor="lat">Latitude</Label>
-                <Input id="lat" type="number" placeholder="e.g., 29.7604" value={lat} onChange={e => setLat(e.target.value)} className="bg-slate-800 border-slate-600 text-white" />
+                <Input id="lat" type="number" placeholder="e.g., 29.7604" value={lat} onChange={e => setLat(e.target.value)} />
             </div>
             <div className="space-y-2">
                 <Label htmlFor="lng">Longitude</Label>
-                <Input id="lng" type="number" placeholder="e.g., -95.3698" value={lng} onChange={e => setLng(e.target.value)} className="bg-slate-800 border-slate-600 text-white" />
+                <Input id="lng" type="number" placeholder="e.g., -95.3698" value={lng} onChange={e => setLng(e.target.value)} />
             </div>
             <Button onClick={handlePlaceByCoords} className="w-full mt-4">Place Item</Button>
         </TabsContent>
@@ -89,32 +89,32 @@ const PlacementTools = ({ layers, onPlaceItem, activeTool, setActiveTool }) => {
             <div className="space-y-2 mt-2">
                 <Label>Reference Point</Label>
                 <Select value={referencePointId} onValueChange={setReferencePointId}>
-                    <SelectTrigger className="bg-slate-800 border-slate-600 text-white">
+                    <SelectTrigger>
                         <SelectValue placeholder="Select an item on map..." />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                    <SelectContent>
                         {iconLayers.length > 0 ? (
                            iconLayers.map(layer => (
                             <SelectItem key={layer.id} value={layer.id}>{layer.tag}</SelectItem>
                            ))
                         ) : (
-                            <div className="p-4 text-sm text-center text-slate-400">No items on map to reference.</div>
+                            <div className="p-4 text-sm text-center text-pl-muted">No items on map to reference.</div>
                         )}
                     </SelectContent>
                 </Select>
             </div>
              <div className="space-y-2">
                 <Label htmlFor="bearing">Bearing (°)</Label>
-                <Input id="bearing" type="number" placeholder="e.g., 45" value={bearing} onChange={e => setBearing(e.target.value)} className="bg-slate-800 border-slate-600 text-white" />
+                <Input id="bearing" type="number" placeholder="e.g., 45" value={bearing} onChange={e => setBearing(e.target.value)} />
             </div>
             <div className="space-y-2">
                 <Label htmlFor="distance">Distance (m)</Label>
-                <Input id="distance" type="number" placeholder="e.g., 1500" value={distance} onChange={e => setDistance(e.target.value)} className="bg-slate-800 border-slate-600 text-white" />
+                <Input id="distance" type="number" placeholder="e.g., 1500" value={distance} onChange={e => setDistance(e.target.value)} />
             </div>
             <Button onClick={handlePlaceByBearing} className="w-full mt-4">Place Item</Button>
         </TabsContent>
       </Tabs>
-      <div className="text-center text-xs text-slate-400 mt-2">Select an equipment from the toolbar above to place it.</div>
+      <div className="text-center text-xs text-pl-muted mt-2">Select an equipment from the toolbar above to place it.</div>
     </div>
   );
 };

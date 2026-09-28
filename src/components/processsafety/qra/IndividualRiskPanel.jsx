@@ -26,7 +26,7 @@ const LocationTable = () => {
     <Panel title="Location specific individual risk (LSIR)" testId="lsir-table">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[44rem] text-xs">
-          <thead className="text-left text-slate-400">
+          <thead className="text-left text-pl-muted">
             <tr>
               <th className="py-1 pr-2">Location</th>
               <th className="py-1 pr-2 text-right">LSIR (per year)</th>
@@ -40,24 +40,24 @@ const LocationTable = () => {
             {rows.map((r, j) => {
               if (r.lsir.error) {
                 return (
-                  <tr key={r.id} className="border-t border-slate-800">
-                    <td className="py-1 pr-2 text-slate-300">{r.label}</td>
+                  <tr key={r.id} className="border-t border-pl-border">
+                    <td className="py-1 pr-2 text-pl-text">{r.label}</td>
                     <td colSpan={5} className="py-1"><Refusal result={r.lsir} /></td>
                   </tr>
                 );
               }
               const top = [...r.lsir.contributions].sort((a, b) => b.contributionPerYr - a.contributionPerYr)[0];
               return (
-                <tr key={r.id} className="border-t border-slate-800" data-testid={`lsir-row-${j}`}>
-                  <td className="py-1 pr-2 text-slate-300">{r.label}</td>
-                  <td className="py-1 pr-2 text-right font-mono text-white" data-testid={`lsir-${j}`}>{formatSci(r.lsir.lsirPerYr, 4)}</td>
-                  <td className="py-1 pr-2 font-mono text-slate-300">{oneIn(r.lsir.lsirPerYr)}</td>
-                  <td className="py-1 pr-2 text-slate-300" data-testid={`contour-${j}`}>{contourText(r.contour)}</td>
+                <tr key={r.id} className="border-t border-pl-border" data-testid={`lsir-row-${j}`}>
+                  <td className="py-1 pr-2 text-pl-text">{r.label}</td>
+                  <td className="py-1 pr-2 text-right font-mono text-pl-text" data-testid={`lsir-${j}`}>{formatSci(r.lsir.lsirPerYr, 4)}</td>
+                  <td className="py-1 pr-2 font-mono text-pl-text">{oneIn(r.lsir.lsirPerYr)}</td>
+                  <td className="py-1 pr-2 text-pl-text" data-testid={`contour-${j}`}>{contourText(r.contour)}</td>
                   <td className="py-1 pr-2">
                     {r.band?.error ? <EngineError result={r.band} /> : <StateBadge state={r.band?.band} testId={`band-${j}`} />}
-                    {r.band?.atBoundary ? <div className="text-[10px] text-amber-200">at the {r.band.atBoundary} limit</div> : null}
+                    {r.band?.atBoundary ? <div className="text-[10px] text-pl-warning-text">at the {r.band.atBoundary} limit</div> : null}
                   </td>
-                  <td className="py-1 text-slate-300">
+                  <td className="py-1 text-pl-text">
                     {top && top.contributionPerYr > 0 ? `${top.name} (${formatPercent(top.fraction)})` : 'none'}
                   </td>
                 </tr>
@@ -109,12 +109,12 @@ const Irpa = () => {
           irpaBand.error ? <EngineError result={irpaBand} /> : (
             <div className="space-y-1" data-testid="irpa-verdict">
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="text-slate-300">ALARP band</span>
+                <span className="text-pl-text">ALARP band</span>
                 <StateBadge state={irpaBand.band} testId="irpa-band" />
-                {irpaBand.atBoundary ? <span className="text-xs text-amber-200">at the {irpaBand.atBoundary} limit</span> : null}
+                {irpaBand.atBoundary ? <span className="text-xs text-pl-warning-text">at the {irpaBand.atBoundary} limit</span> : null}
               </div>
-              <p className="text-xs text-slate-300">{BAND_TEXT[irpaBand.band]}</p>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-pl-text">{BAND_TEXT[irpaBand.band]}</p>
+              <p className="text-[11px] text-pl-muted">
                 {formatSci(irpaBand.ratioToUnacceptable, 3)} of the upper limit; {formatSci(irpaBand.ratioToBroadlyAcceptable, 3)} times
                 the lower limit. Source: {irpaBand.basis.source}.
               </p>
@@ -155,7 +155,7 @@ const BandChart = () => {
           {points.length > 0 ? <IrBandChart points={points} limits={limits} /> : (
             <Note>No location or IRPA is judged against this criterion.</Note>
           )}
-          <p className="text-[11px] text-slate-400">
+          <p className="text-[11px] text-pl-muted">
             Upper limit {formatSci(limits.unacceptableAbovePerYr)} per year, lower limit {formatSci(limits.broadlyAcceptableAtOrBelowPerYr)} per
             year ({limits.source}). Only the locations judged against this criterion are drawn, and the IRPA when it is.
           </p>
@@ -186,7 +186,7 @@ const Transect = () => {
           const set = (patch) => updateListItem('transect', 'rows', row.id, patch);
           const r = rows[k];
           return (
-            <div key={row.id} className="rounded border border-slate-800 p-2" data-testid={`transect-row-${k}`}>
+            <div key={row.id} className="rounded border border-pl-border p-2" data-testid={`transect-row-${k}`}>
               <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_1fr_auto]">
                 <SelectField label="Scenario (its frequency from the register)" value={row.scenarioId} options={[{ id: '', label: 'Choose' }, ...scenarioOptions]} onChange={(v) => set({ scenarioId: v })} />
                 <SelectField label="Along the transect" value={row.mode} options={TRANSECT_MODES} onChange={(v) => set({ mode: v })} testId={`transect-row-${k}-mode`} />
@@ -205,7 +205,7 @@ const Transect = () => {
                 ) : null}
               </div>
               {r?.thermal ? (
-                <p className="mt-1 font-mono text-[11px] text-slate-400">
+                <p className="mt-1 font-mono text-[11px] text-pl-muted">
                   Pd: {r.probabilities.map((p) => formatSci(p, 3)).join(', ')}
                 </p>
               ) : null}
@@ -213,7 +213,7 @@ const Transect = () => {
           );
         })}
       </div>
-      <Button type="button" size="sm" variant="outline" onClick={add} className="border-slate-700 bg-slate-900 text-slate-200">
+      <Button type="button" size="sm" variant="outline" onClick={add}>
         <Plus className="mr-1 h-4 w-4" /> Add a scenario to the transect
       </Button>
       <Result result={result}>
@@ -222,12 +222,12 @@ const Transect = () => {
             <TransectChart distancesM={evaluation.transect.distancesM} lsirPerYr={result.lsirPerYr} levels={result.contours.map((c) => c.levelPerYr)} />
             <div className="overflow-x-auto">
               <table className="w-full text-xs" data-testid="contour-table">
-                <thead className="text-left text-slate-400">
+                <thead className="text-left text-pl-muted">
                   <tr><th className="py-1 pr-3">Contour (per year)</th><th className="py-1">Crossed at (m)</th></tr>
                 </thead>
-                <tbody className="font-mono text-slate-200">
+                <tbody className="font-mono text-pl-text">
                   {result.contours.map((c) => (
-                    <tr key={c.levelPerYr} className="border-t border-slate-800">
+                    <tr key={c.levelPerYr} className="border-t border-pl-border">
                       <td className="py-1 pr-3">{formatSci(c.levelPerYr, 1)}</td>
                       <td className="py-1" data-testid={`contour-crossing-${formatSci(c.levelPerYr, 1)}`}>
                         {c.crossingsM.length ? c.crossingsM.map((x) => formatSci(x, 4)).join(', ') : 'not crossed in the transect'}
