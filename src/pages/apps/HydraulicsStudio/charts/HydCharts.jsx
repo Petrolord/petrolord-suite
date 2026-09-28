@@ -18,7 +18,7 @@ const axisProps = {
 
 function Frame({ title, testId, children }) {
   return (
-    <div className="bg-white relative flex h-full w-full min-h-0 min-w-0 flex-col rounded-md overflow-hidden" data-testid={testId}>
+    <div className="bg-white relative flex h-full w-full min-h-0 min-w-0 flex-col rounded-md overflow-hidden" data-canvas="chart" data-testid={testId}>
       <div className="px-3 pt-2 text-[11px] font-semibold text-slate-700">{title}</div>
       <div className="min-h-0 flex-1">{children}</div>
       <ChartLogo style={{ height: 36 }} />

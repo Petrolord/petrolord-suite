@@ -45,7 +45,7 @@ const AddComponentDialog = ({ open, onOpenChange, onAdd }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-950 border-slate-800 text-white sm:max-w-[560px]">
+      <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
           <DialogTitle>Add Completion Component</DialogTitle>
         </DialogHeader>
@@ -54,16 +54,16 @@ const AddComponentDialog = ({ open, onOpenChange, onAdd }) => {
           <div className="flex items-center gap-3">
             <Label className="text-xs">Tubing size</Label>
             <Select value={String(sizeIn)} onValueChange={(v) => { setSizeIn(parseFloat(v)); setRowKey(null); }}>
-              <SelectTrigger className="h-8 w-32 bg-slate-900 border-slate-700 text-xs" data-testid="cd-add-size"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-slate-900 border-slate-700">
+              <SelectTrigger className="h-8 w-32 text-xs" data-testid="cd-add-size"><SelectValue /></SelectTrigger>
+              <SelectContent className="">
                 {TUBING_SIZES.map((s) => <SelectItem key={s} value={String(s)}>{s}&quot;</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
 
-          <div className="max-h-64 overflow-auto rounded border border-slate-800">
+          <div className="max-h-64 overflow-auto rounded border border-pl-border">
             <table className="w-full text-xs">
-              <thead className="sticky top-0 bg-slate-900 text-slate-400">
+              <thead className="sticky top-0 bg-pl-sunken text-pl-muted">
                 <tr>
                   <th className="px-2 py-1 text-left">Item</th>
                   <th className="px-2 py-1 text-right">OD (in)</th>
@@ -74,15 +74,15 @@ const AddComponentDialog = ({ open, onOpenChange, onAdd }) => {
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.name}
-                    className={`cursor-pointer border-t border-slate-800 ${rowKey === r.name ? 'bg-lime-500/10 text-lime-200' : 'text-slate-300 hover:bg-slate-800/60'}`}
+                    className={`cursor-pointer border-t border-pl-border ${rowKey === r.name ? 'bg-pl-primary/10 text-pl-primary-text' : 'text-pl-text hover:bg-pl-sunken'}`}
                     onClick={() => setRowKey(r.name)} data-testid={`cd-add-row-${r.type}`}>
                     <td className="px-2 py-1">{r.name}{r.eccentric ? ' (eccentric)' : ''}</td>
-                    <td className="px-2 py-1 text-right font-mono">{Number.isFinite(r.odIn) ? String(Number(r.odIn.toFixed(3))) : ''}</td>
-                    <td className="px-2 py-1 text-right font-mono">{Number.isFinite(r.idIn) ? String(Number(r.idIn.toFixed(3))) : ''}</td>
-                    <td className="px-2 py-1 text-right font-mono">{r.lengthM}</td>
+                    <td className="px-2 py-1 text-right font-pl-mono">{Number.isFinite(r.odIn) ? String(Number(r.odIn.toFixed(3))) : ''}</td>
+                    <td className="px-2 py-1 text-right font-pl-mono">{Number.isFinite(r.idIn) ? String(Number(r.idIn.toFixed(3))) : ''}</td>
+                    <td className="px-2 py-1 text-right font-pl-mono">{r.lengthM}</td>
                   </tr>
                 ))}
-                <tr className={`cursor-pointer border-t border-slate-800 ${rowKey === '__custom' ? 'bg-lime-500/10 text-lime-200' : 'text-slate-400 hover:bg-slate-800/60'}`}
+                <tr className={`cursor-pointer border-t border-pl-border ${rowKey === '__custom' ? 'bg-pl-primary/10 text-pl-primary-text' : 'text-pl-muted hover:bg-pl-sunken'}`}
                   onClick={() => setRowKey('__custom')} data-testid="cd-add-row-custom">
                   <td className="px-2 py-1 italic" colSpan={4}>Custom component (enter vendor dimensions)</td>
                 </tr>
@@ -95,29 +95,29 @@ const AddComponentDialog = ({ open, onOpenChange, onAdd }) => {
               <div className="col-span-4 space-y-1">
                 <Label className="text-xs">Name</Label>
                 <Input value={custom.name} onChange={(e) => setCustom({ ...custom, name: e.target.value })}
-                  className="h-8 bg-slate-900 border-slate-700 text-xs" data-testid="cd-add-custom-name" />
+                  className="h-8 text-xs" data-testid="cd-add-custom-name" />
               </div>
               {[['lengthM', 'Length (m)'], ['odIn', 'OD (in)'], ['idIn', 'ID (in)']].map(([k, label]) => (
                 <div key={k} className="space-y-1">
                   <Label className="text-xs">{label}</Label>
                   <Input type="number" step="0.01" value={custom[k]}
                     onChange={(e) => setCustom({ ...custom, [k]: e.target.value })}
-                    className="h-8 bg-slate-900 border-slate-700 text-xs" />
+                    className="h-8 text-xs" />
                 </div>
               ))}
             </div>
           )}
 
-          <p className="text-[10px] text-slate-500">
+          <p className="text-[10px] text-pl-muted">
             Catalog dimensions are nominal planning values. Verify against the vendor data sheet for the exact model run.
           </p>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="border-pl-border-strong text-pl-text hover:text-pl-text hover:bg-pl-sunken">
             Cancel
           </Button>
-          <Button onClick={handleAdd} disabled={!rowKey} className="bg-lime-600 hover:bg-lime-700 text-white" data-testid="cd-add-confirm">
+          <Button onClick={handleAdd} disabled={!rowKey} data-testid="cd-add-confirm">
             Add
           </Button>
         </DialogFooter>

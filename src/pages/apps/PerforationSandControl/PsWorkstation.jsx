@@ -8,6 +8,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useToast } from '@/components/ui/use-toast';
 import { Home, HelpCircle, Save, Copy } from 'lucide-react';
 import Explorer from '../TorqueDragStudio/components/Explorer';
@@ -26,10 +27,10 @@ const TABS = [
 ];
 
 const BANNER_CLASSES = {
-  PASS: 'bg-emerald-500/20 text-emerald-300',
-  WARN: 'bg-amber-500/20 text-amber-300',
-  FAIL: 'bg-red-500/20 text-red-300',
-  UNKNOWN: 'bg-slate-700 text-slate-300',
+  PASS: 'bg-pl-success-bg text-pl-success-text',
+  WARN: 'bg-pl-warning-bg text-pl-warning-text',
+  FAIL: 'bg-pl-danger-bg text-pl-danger-text',
+  UNKNOWN: 'bg-pl-sunken text-pl-muted',
 };
 
 export default function PsWorkstation({ backend }) {
@@ -271,15 +272,15 @@ export default function PsWorkstation({ backend }) {
   const banner = res?.kpis?.status ?? (runError ? 'UNKNOWN' : null);
 
   const ribbon = (
-    <div className="flex h-11 items-center gap-3 border-b border-slate-800 bg-slate-900/80 px-3">
-      <Link to="/dashboard/drilling" className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200">
+    <div className="flex h-11 items-center gap-3 border-b border-pl-border bg-pl-surface px-3">
+      <Link to="/dashboard/drilling" className="flex items-center gap-1 text-xs text-pl-muted hover:text-pl-text">
         <Home className="h-3.5 w-3.5" /> Drilling
       </Link>
-      <span className="text-sm font-semibold text-slate-100">Perforation &amp; Sand Control</span>
+      <span className="text-sm font-semibold text-pl-text">Perforation &amp; Sand Control</span>
       <div className="ml-2 flex gap-1">
         {TABS.map((t) => (
           <button key={t.id} type="button" onClick={() => setTab(t.id)} data-testid={`ps-tab-${t.id}`}
-            className={`rounded px-2.5 py-1 text-xs ${tab === t.id ? 'bg-lime-500/20 text-lime-300' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}`}>
+            className={`rounded px-2.5 py-1 text-xs ${tab === t.id ? 'bg-pl-primary/10 font-medium text-pl-primary-text' : 'text-pl-muted hover:bg-pl-sunken hover:text-pl-text'}`}>
             {t.label}
           </button>
         ))}
@@ -300,15 +301,16 @@ export default function PsWorkstation({ backend }) {
             <Save className="mr-1 h-3 w-3" /> Save case
           </Button>
         )}
-        <Link to="/dashboard/apps/drilling/perforation-sand-control/help" className="flex items-center gap-1 rounded bg-slate-800 px-2 py-1 text-[11px] text-cyan-300 hover:bg-slate-700">
+        <Link to="/dashboard/apps/drilling/perforation-sand-control/help" className="flex items-center gap-1 rounded border border-pl-border bg-pl-sunken px-2 py-1 text-[11px] text-pl-text hover:border-pl-primary hover:text-pl-primary-text">
           <HelpCircle className="h-3 w-3" /> Help
         </Link>
+        <ThemeToggle className="h-7 w-7" />
       </div>
     </div>
   );
 
   const statusBar = (
-    <div className="flex h-6 items-center gap-4 border-t border-slate-800 bg-slate-900/80 px-3 text-[10px] text-slate-500">
+    <div className="flex h-6 items-center gap-4 border-t border-pl-border bg-pl-surface px-3 text-[10px] text-pl-muted">
       <span>{ENGINE_VERSION}</span>
       <span data-testid="ps-status-wellbore">{wellbore ? `${wellbore.name} (${depthUnit})` : 'no wellbore'}</span>
       <span>{dirty ? 'unsaved changes' : 'saved'}</span>
@@ -317,13 +319,13 @@ export default function PsWorkstation({ backend }) {
   );
 
   const center = !caseDraft ? (
-    <div className="flex h-full items-center justify-center text-sm text-slate-500" data-testid="ps-empty">
+    <div className="flex h-full items-center justify-center text-sm text-pl-muted" data-testid="ps-empty">
       {wellboreId ? 'Create a perforation case from the explorer.' : 'Pick a site and wellbore.'}
     </div>
   ) : (
-    <div className="h-full min-h-0 overflow-auto bg-slate-950">
+    <div className="h-full min-h-0 overflow-auto bg-pl-bg">
       {runError && (
-        <div className="m-3 rounded border border-red-800 bg-red-950/40 p-2 text-xs text-red-300" data-testid="ps-run-error">
+        <div className="m-3 rounded border border-pl-danger/40 bg-pl-danger-bg p-2 text-xs text-pl-danger-text" data-testid="ps-run-error">
           {runError}
         </div>
       )}

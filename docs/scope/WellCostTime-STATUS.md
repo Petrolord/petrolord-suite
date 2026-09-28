@@ -113,3 +113,32 @@ CLAUDE.md single-implementation rule).
 
 - Numbers hand-checked, no defects in the engine output; AFE and program
   rows keep a minimum name width and wrap at 1366.
+
+## Design system rollout, batch 3C (2026-09-28)
+
+The estimator, its help guide and the dev harness (`/dev/well-cost`) now
+open on the Petrolord design system: light grey panel by default, dark as
+a per-user choice from the ribbon toggle (beside Help).
+
+- Scope: `ThemedApp` inside `WellCostTimeStudio.jsx`,
+  `WellCostTimeHelpGuide.jsx` and `WellCostTimeHarness.jsx`; App.jsx
+  unchanged. Cold-load prefix `/dashboard/apps/drilling/well-cost-time` in
+  `src/design/rollout/w3c.js` (covers `/help`).
+- Own classes moved to `pl-*` roles across the ribbon and the four tabs;
+  native selects use the themed field roles; the Full precision switch
+  themes itself (Wave 0A).
+- Money tables on `NumericTable`: the AFE rollup (total row with the strong
+  rule), the full-precision cumulative cost table and the Report estimate
+  summary. Test ids and printed text are unchanged.
+- Canvas: the time-depth, cumulative cost, histogram, S-curve and tornado
+  charts are white `data-canvas="chart"` in both themes.
+- Phone width: the workstation keeps its 1100 px minimum and scrolls
+  inside its own frame; the ribbon stays on one line and scrolls sideways.
+  No page-level sideways scroll at 390 px. Explorer and wellbore details
+  come from the shared drilling kit, already scope-aware since W0B (#756);
+  no shared file changed in this batch.
+- No calculation, Monte Carlo or export change. Existing suites (including
+  `wctFullPrecision`) pass unchanged; new
+  `__tests__/WellCostTimeStudio.theme.test.jsx` (the shared four checks for
+  the estimator and the help guide, every tab in light and dark with Full
+  precision on, a seeded Monte Carlo run, the harness scope).
