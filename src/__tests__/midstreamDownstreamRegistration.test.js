@@ -103,7 +103,6 @@ describe('pricing', () => {
   // The consumers that kept their own copy (GetQuote, the admin QuoteEditor)
   // were deleted in design batch 7B; modulePricing.test.js guards that no
   // file declares a second table.
-  });
 });
 
 describe('marketing, which follows the catalog rather than leading it', () => {
