@@ -10,6 +10,19 @@ Program: the first Reservoir "massive upgrade" (plan approved
 Supersedes: the single-page Fractional Flow Analyzer (deleted in W3;
 its displacement physics and charts live on in the Displacement tab).
 
+Design system: rollout batch 1D (2026-09-28, branch `feat/ds-w1d`). The
+page wraps itself in `<ThemedApp>` (test id `wds-theme-scope`): grey panel
+light by default, dark by the header toggle, remembered per user. Every
+class in the app's own files (`waterflooddesign/`, the Surveillance panels
+in `waterflood/`, and `waterflooddesign/primitives.jsx`, which SCAL and
+Fluid Systems also pull) is a theme role. Charts keep the white chart
+standard (`ChartCard` is a `ChartPanel`; the surveillance chart wrappers
+carry `data-canvas="chart"`). Surveillance alerts and diagnostics use the
+status roles; the decorative gradients and cyan and lime accents are gone.
+Cold-load prefixes (both routes) in `src/design/rollout/w1d.js`. Test:
+`src/pages/apps/__tests__/WaterfloodDesignStudio.theme.test.jsx`. No
+engine or calculation change.
+
 ## Phase status
 
 - **W1 — Studio shell kit + savedProjects factory. DONE 2026-07-17

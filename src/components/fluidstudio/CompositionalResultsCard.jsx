@@ -6,15 +6,15 @@ import FluidStudioTierBadge from '@/components/fluidstudio/FluidStudioTierBadge'
 const fmt = (v, d = 3) => (v == null || !Number.isFinite(v) ? 'n/a' : Number(v).toFixed(d));
 
 const PhaseStat = ({ label, value, unit }) => (
-  <div className="rounded-md bg-slate-800/60 border border-slate-700 px-3 py-2">
-    <p className="text-[11px] text-slate-400">{label}</p>
-    <p className="text-sm font-semibold text-white">{value}<span className="ml-1 text-xs font-normal text-slate-400">{unit}</span></p>
+  <div className="rounded-md bg-pl-sunken border border-pl-border px-3 py-2">
+    <p className="text-[11px] text-pl-muted">{label}</p>
+    <p className="text-sm font-semibold text-pl-text">{value}<span className="ml-1 text-xs font-normal text-pl-muted">{unit}</span></p>
   </div>
 );
 
 const PhaseColumn = ({ phase }) => (
   <div className="space-y-2">
-    <p className="text-sm font-semibold text-cyan-300">{phase.label}</p>
+    <p className="text-sm font-semibold text-pl-text">{phase.label}</p>
     <div className="grid grid-cols-2 gap-2">
       <PhaseStat label="Mole fraction" value={fmt(phase.moleFraction, 4)} unit="" />
       <PhaseStat label="Density" value={fmt(phase.density, 2)} unit="lb/ft³" />
@@ -38,10 +38,10 @@ const CompositionalResultsCard = ({ eos }) => {
 
   if (!flash) {
     return (
-      <Card className="bg-slate-800/50 border-slate-700 text-white">
-        <CardHeader><CardTitle className="flex items-center text-base"><FlaskConical className="w-4 h-4 mr-2 text-cyan-300" />Compositional flash</CardTitle></CardHeader>
+      <Card>
+        <CardHeader><CardTitle className="flex items-center text-base"><FlaskConical className="w-4 h-4 mr-2 text-pl-muted" />Compositional flash</CardTitle></CardHeader>
         <CardContent>
-          <ul className="text-sm text-amber-300 space-y-1 list-disc list-inside">
+          <ul className="text-sm text-pl-warning-text space-y-1 list-disc list-inside">
             {parsed.errors.map((e) => <li key={e}>{e}</li>)}
           </ul>
         </CardContent>
@@ -52,11 +52,11 @@ const CompositionalResultsCard = ({ eos }) => {
   const twoPhase = flash.phases === 2;
 
   return (
-    <Card className="bg-slate-800/50 border-slate-700 text-white">
+    <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="flex items-center text-base">
-            <FlaskConical className="w-4 h-4 mr-2 text-cyan-300" />
+            <FlaskConical className="w-4 h-4 mr-2 text-pl-muted" />
             Compositional flash at {fmt(parsed.pressurePsia, 0)} psia / {fmt(parsed.tempF, 0)} °F
           </CardTitle>
           <div className="flex gap-2">
@@ -69,7 +69,7 @@ const CompositionalResultsCard = ({ eos }) => {
           </div>
         </div>
         {parsed.warnings.length > 0 && (
-          <div className="mt-2 text-xs text-amber-300 flex gap-2 items-start">
+          <div className="mt-2 text-xs text-pl-warning-text flex gap-2 items-start">
             <AlertTriangle className="w-4 h-4 shrink-0" />
             <span>{parsed.warnings.join(' ')}</span>
           </div>
@@ -77,14 +77,14 @@ const CompositionalResultsCard = ({ eos }) => {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center gap-3">
-          <Layers className="w-4 h-4 text-cyan-300" />
-          <p className="text-sm text-slate-200">
+          <Layers className="w-4 h-4 text-pl-muted" />
+          <p className="text-sm text-pl-text">
             {twoPhase
               ? `Two phases. Vapor fraction ${fmt(flash.beta, 4)}.`
               : `${flash.feed.label}.`}
           </p>
           {twoPhase && (
-            <p className="text-sm text-slate-200">
+            <p className="text-sm text-pl-text">
               Gas and oil interfacial tension {fmt(flash.iftDynPerCm, 2)} dyn/cm
               <FluidStudioTierBadge
                 tier="published_method"
@@ -109,7 +109,7 @@ const CompositionalResultsCard = ({ eos }) => {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-slate-400 border-b border-slate-700">
+              <tr className="text-pl-muted border-b border-pl-border">
                 <th className="text-left py-1.5 pr-2 font-medium">Component</th>
                 <th className="text-right py-1.5 px-2 font-medium">z (feed)</th>
                 {twoPhase && <th className="text-right py-1.5 px-2 font-medium">x (liquid)</th>}
@@ -119,12 +119,12 @@ const CompositionalResultsCard = ({ eos }) => {
             </thead>
             <tbody>
               {flash.componentTable.map((r) => (
-                <tr key={r.key} className="border-b border-slate-800 text-slate-200">
-                  <td className="py-1 pr-2 font-mono text-xs">{r.key}<span className="ml-2 text-slate-500 font-sans">{r.name}</span></td>
-                  <td className="text-right py-1 px-2 font-mono text-xs">{fmt(r.z, 5)}</td>
-                  {twoPhase && <td className="text-right py-1 px-2 font-mono text-xs">{fmt(r.x, 5)}</td>}
-                  {twoPhase && <td className="text-right py-1 px-2 font-mono text-xs">{fmt(r.y, 5)}</td>}
-                  {twoPhase && <td className="text-right py-1 pl-2 font-mono text-xs">{fmt(r.K, 4)}</td>}
+                <tr key={r.key} className="border-b border-pl-border text-pl-text">
+                  <td className="py-1 pr-2 font-pl-mono tabular-nums text-xs">{r.key}<span className="ml-2 text-pl-muted font-pl-sans">{r.name}</span></td>
+                  <td className="text-right py-1 px-2 font-pl-mono tabular-nums text-xs">{fmt(r.z, 5)}</td>
+                  {twoPhase && <td className="text-right py-1 px-2 font-pl-mono tabular-nums text-xs">{fmt(r.x, 5)}</td>}
+                  {twoPhase && <td className="text-right py-1 px-2 font-pl-mono tabular-nums text-xs">{fmt(r.y, 5)}</td>}
+                  {twoPhase && <td className="text-right py-1 pl-2 font-pl-mono tabular-nums text-xs">{fmt(r.K, 4)}</td>}
                 </tr>
               ))}
             </tbody>
@@ -132,15 +132,15 @@ const CompositionalResultsCard = ({ eos }) => {
         </div>
 
         {characterization && (
-          <div className="rounded-md border border-slate-700 bg-slate-800/40 px-3 py-2 text-xs text-slate-300 space-y-1">
-            <p className="font-semibold text-slate-200 flex items-center gap-2">
+          <div className="rounded-md border border-pl-border bg-pl-sunken px-3 py-2 text-xs text-pl-text space-y-1">
+            <p className="font-semibold text-pl-text flex items-center gap-2">
               C7+ characterization
               <FluidStudioTierBadge
                 tier="published_method"
                 note="Single pseudo component from Kesler-Lee critical properties, Lee-Kesler acentric factor, Soreide boiling point, Jhaveri-Youngren volume shift and the Chueh-Prausnitz methane interaction. Each correlation is transcription-gated against the validation harness."
               />
             </p>
-            <p className="font-mono">
+            <p className="font-pl-mono tabular-nums">
               Tc {fmt(characterization.tcR - 459.67, 1)} °F · Pc {fmt(characterization.pcPsia, 0)} psia · ω {fmt(characterization.omega, 4)} · s {fmt(characterization.shift, 4)} · k(C1) {fmt(characterization.bipC1, 4)}
               {characterization.meta?.tbSource === 'soreide' ? ' · Tb from Soreide' : ' · Tb measured'}
             </p>

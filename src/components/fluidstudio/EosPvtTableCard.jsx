@@ -8,9 +8,9 @@ import { eosPvtTableCsv } from '@/utils/fluidstudio/eosAnalysis';
 const fmt = (v, d = 1) => (v == null || !Number.isFinite(v) ? 'n/a' : Number(v).toFixed(d));
 
 const Stat = ({ label, value, unit }) => (
-  <div className="rounded-md bg-slate-800/60 border border-slate-700 px-3 py-2">
-    <p className="text-[11px] text-slate-400">{label}</p>
-    <p className="text-sm font-semibold text-white">{value}<span className="ml-1 text-xs font-normal text-slate-400">{unit}</span></p>
+  <div className="rounded-md bg-pl-sunken border border-pl-border px-3 py-2">
+    <p className="text-[11px] text-pl-muted">{label}</p>
+    <p className="text-sm font-semibold text-pl-text">{value}<span className="ml-1 text-xs font-normal text-pl-muted">{unit}</span></p>
   </div>
 );
 
@@ -36,10 +36,10 @@ const EosPvtTableCard = ({ result, tuned = false }) => {
   if (!table) {
     if (!warnings?.length) return null;
     return (
-      <Card className="bg-slate-800/50 border-slate-700 text-white">
-        <CardHeader><CardTitle className="flex items-center text-base"><Table2 className="w-4 h-4 mr-2 text-cyan-300" />EOS black-oil table</CardTitle></CardHeader>
+      <Card>
+        <CardHeader><CardTitle className="flex items-center text-base"><Table2 className="w-4 h-4 mr-2 text-pl-muted" />EOS black-oil table</CardTitle></CardHeader>
         <CardContent>
-          <div className="text-sm text-amber-300 flex gap-2 items-start">
+          <div className="text-sm text-pl-warning-text flex gap-2 items-start">
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
             <ul className="space-y-1">{warnings.map((w) => <li key={w}>{w}</li>)}</ul>
           </div>
@@ -49,11 +49,11 @@ const EosPvtTableCard = ({ result, tuned = false }) => {
   }
 
   return (
-    <Card className="bg-slate-800/50 border-slate-700 text-white">
+    <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="flex items-center text-base">
-            <Table2 className="w-4 h-4 mr-2 text-cyan-300" />
+            <Table2 className="w-4 h-4 mr-2 text-pl-muted" />
             EOS black-oil table
           </CardTitle>
           <div className="flex gap-2 items-center">
@@ -63,16 +63,16 @@ const EosPvtTableCard = ({ result, tuned = false }) => {
               tier="published_method"
               note="Differential liberation composited with the separator flash by the standard Amyx and McCain adjustment: Bo = Bod x Bofb/Bodb and Rs = Rsfb minus (Rsdb minus Rsd) x Bofb/Bodb. The adjustment is exact at the bubble point and approximate toward atmospheric pressure, as in laboratory practice."
             />
-            <Button variant="outline" size="sm" onClick={() => exportCsv(table)} className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20">
+            <Button variant="outline" size="sm" onClick={() => exportCsv(table)}>
               <Download className="w-4 h-4 mr-2" /> Export CSV (MB schema)
             </Button>
           </div>
         </div>
-        <p className="text-xs text-slate-400 mt-1">
+        <p className="text-xs text-pl-muted mt-1">
           Differential liberation at the flash temperature, adjusted to your separator train. The CSV columns match the Material Balance Studio PVT lab-table schema so the export drops straight into that workflow.
         </p>
         {table.warnings.length > 0 && (
-          <div className="mt-2 text-xs text-amber-300 flex gap-2 items-start">
+          <div className="mt-2 text-xs text-pl-warning-text flex gap-2 items-start">
             <AlertTriangle className="w-4 h-4 shrink-0" />
             <ul className="space-y-0.5">{table.warnings.map((w) => <li key={w}>{w}</li>)}</ul>
           </div>
@@ -90,7 +90,7 @@ const EosPvtTableCard = ({ result, tuned = false }) => {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-slate-400 border-b border-slate-700">
+              <tr className="text-pl-muted border-b border-pl-border">
                 <th className="text-left py-1.5 pr-2 font-medium">P (psia)</th>
                 <th className="text-right py-1.5 px-2 font-medium">Rs (scf/STB)</th>
                 <th className="text-right py-1.5 px-2 font-medium">Bo (rb/STB)</th>
@@ -102,19 +102,19 @@ const EosPvtTableCard = ({ result, tuned = false }) => {
             </thead>
             <tbody>
               {table.rows.map((r) => (
-                <tr key={`${r.pressure}-${r.phase}`} className={`border-b border-slate-800 ${r.phase === 'saturated' ? 'text-cyan-200 font-semibold' : 'text-slate-200'}`}>
-                  <td className="py-1 pr-2 font-mono text-xs">{fmt(r.pressure, 0)}{r.phase === 'saturated' ? ' (Pb)' : ''}</td>
-                  <td className="text-right py-1 px-2 font-mono text-xs">{fmt(r.Rs, 1)}</td>
-                  <td className="text-right py-1 px-2 font-mono text-xs">{fmt(r.Bo, 4)}</td>
-                  <td className="text-right py-1 px-2 font-mono text-xs">{r.Bg != null ? Number(r.Bg).toFixed(6) : 'n/a'}</td>
-                  <td className="text-right py-1 px-2 font-mono text-xs">{fmt(r.Z, 4)}</td>
-                  <td className="text-right py-1 px-2 font-mono text-xs">{fmt(r.mu_o, 4)}</td>
-                  <td className="text-right py-1 pl-2 font-mono text-xs">{r.mu_g != null ? Number(r.mu_g).toFixed(5) : 'n/a'}</td>
+                <tr key={`${r.pressure}-${r.phase}`} className={`border-b border-pl-border ${r.phase === 'saturated' ? 'bg-pl-sunken text-pl-text font-semibold' : 'text-pl-text'}`}>
+                  <td className="py-1 pr-2 font-pl-mono tabular-nums text-xs">{fmt(r.pressure, 0)}{r.phase === 'saturated' ? ' (Pb)' : ''}</td>
+                  <td className="text-right py-1 px-2 font-pl-mono tabular-nums text-xs">{fmt(r.Rs, 1)}</td>
+                  <td className="text-right py-1 px-2 font-pl-mono tabular-nums text-xs">{fmt(r.Bo, 4)}</td>
+                  <td className="text-right py-1 px-2 font-pl-mono tabular-nums text-xs">{r.Bg != null ? Number(r.Bg).toFixed(6) : 'n/a'}</td>
+                  <td className="text-right py-1 px-2 font-pl-mono tabular-nums text-xs">{fmt(r.Z, 4)}</td>
+                  <td className="text-right py-1 px-2 font-pl-mono tabular-nums text-xs">{fmt(r.mu_o, 4)}</td>
+                  <td className="text-right py-1 pl-2 font-pl-mono tabular-nums text-xs">{r.mu_g != null ? Number(r.mu_g).toFixed(5) : 'n/a'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className="text-[11px] text-slate-500 mt-1">
+          <p className="text-[11px] text-pl-muted mt-1">
             Viscosities are untuned Lohrenz-Bray-Clark estimates (screening tier). The low-pressure tail of the composite Rs and Bo is approximate, as with laboratory separator adjustment.
           </p>
         </div>

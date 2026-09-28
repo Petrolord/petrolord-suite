@@ -54,20 +54,20 @@ const PatternPanel = () => {
           {OP_FIELDS.map((f) => <Field key={f.k} label={f.label} value={patternInputs[f.k]} onChange={(v) => setPatternField(f.k, v)} />)}
         </div>
         {dpHint != null && (
-          <Label className="text-[11px] text-slate-500 leading-snug block mt-2">
+          <Label className="text-[11px] text-pl-muted leading-snug block mt-2">
             Hint: the Layered Sweep tab's mid-stage Dykstra-Parsons coverage is {fmt.pct(dpHint)}; a coverage value can be used as EV.
           </Label>
         )}
       </section>
 
       <section>
-        <Button variant="outline" size="sm" onClick={loadSample} className="w-full bg-slate-800 border-slate-700">
+        <Button variant="outline" size="sm" onClick={loadSample} className="w-full">
           <Beaker className="w-4 h-4 mr-1" /> Sample pattern
         </Button>
       </section>
 
       <section>
-        <Label className="text-[11px] text-slate-500 leading-snug block">
+        <Label className="text-[11px] text-pl-muted leading-snug block">
           The displacement (rel-perm, fluids, dip, polymer) comes from the Displacement tab. Areal sweep uses the published
           five-spot correlations; the forecast is a screening-level analytical composite, not a simulation.
         </Label>

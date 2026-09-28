@@ -50,8 +50,8 @@ const CapillaryResults = () => {
 
   if (!jResolved.jSpec) {
     return (
-      <Card className="bg-slate-900 border-slate-800">
-        <CardContent className="py-10 text-center text-sm text-slate-400">
+      <Card>
+        <CardContent className="py-10 text-center text-sm text-pl-muted">
           {jResolved.error ?? 'Configure the J-function in the left rail.'}
         </CardContent>
       </Card>
@@ -70,13 +70,13 @@ const CapillaryResults = () => {
         <Kpi title="Swirr" value={fmt.f3(spec.Swirr)} />
       </div>
       {avgMeta?.fit && (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-pl-muted">
           Averaged refit quality r² (log space) {fmt.f3(avgMeta.fit.r2Log)}. A low value usually means the shared
           Swirr needs the override in the left rail.
         </p>
       )}
 
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Leverett J-function</CardTitle>
         </CardHeader>
@@ -114,7 +114,7 @@ const CapillaryResults = () => {
             </ComposedChart>
           </ChartFrame>
           {includedSamples.length > 1 && (
-            <p className="text-[11px] text-slate-500 px-4 pb-3">
+            <p className="text-[11px] text-pl-muted px-4 pb-3">
               Points from different samples should collapse onto one curve (the Leverett principle). A sample
               riding systematically above or below usually means its k or φ entry is wrong by a constant factor.
             </p>
@@ -122,7 +122,7 @@ const CapillaryResults = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Reservoir capillary pressure</CardTitle>
         </CardHeader>
@@ -151,7 +151,7 @@ const CapillaryResults = () => {
               </LineChart>
             </ChartFrame>
           ) : (
-            <p className="py-8 text-center text-sm text-slate-400">
+            <p className="py-8 text-center text-sm text-pl-muted">
               {reservoir.error ?? 'Set the reservoir rock properties to scale the J curve to Pc.'}
             </p>
           )}

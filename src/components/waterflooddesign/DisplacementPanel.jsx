@@ -61,15 +61,15 @@ const KrTableDialog = ({ onApply }) => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="w-full bg-slate-800 border-slate-700">
+        <Button variant="outline" size="sm" className="w-full">
           <Table2 className="w-4 h-4 mr-2" /> Paste kr table
         </Button>
       </DialogTrigger>
-      <DialogContent className="bg-slate-900 border-slate-700 text-slate-100">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Tabular relative permeability</DialogTitle>
         </DialogHeader>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-pl-muted">
           One row per saturation: Sw, krw, kro (comma, space or tab separated). A header row starting with "Sw" is ignored.
           krw must start at 0 and kro must end at 0.
         </p>
@@ -78,9 +78,9 @@ const KrTableDialog = ({ onApply }) => {
           onChange={(e) => setText(e.target.value)}
           rows={10}
           placeholder={'Sw, krw, kro\n0.20, 0.000, 1.000\n0.40, 0.045, 0.440\n0.60, 0.180, 0.110\n0.80, 0.400, 0.000'}
-          className="bg-slate-800 border-slate-700 font-mono text-xs"
+          className="font-pl-mono tabular-nums text-xs"
         />
-        {error && <div className="text-xs text-red-400">{error}</div>}
+        {error && <div className="text-xs text-pl-danger-text">{error}</div>}
         <DialogFooter>
           <Button onClick={apply}>Apply table</Button>
         </DialogFooter>
@@ -109,9 +109,9 @@ const DisplacementPanel = () => {
       <section>
         <SectionLabel>Relative permeability</SectionLabel>
         <Tabs value={d.krSource} onValueChange={(v) => setDisplacementField('krSource', v)}>
-          <TabsList className="h-8 bg-slate-800/50 border border-slate-700 p-0.5 w-full">
-            <TabsTrigger value="corey" className="h-7 text-xs flex-1 data-[state=active]:bg-slate-700">Corey</TabsTrigger>
-            <TabsTrigger value="table" className="h-7 text-xs flex-1 data-[state=active]:bg-slate-700">Tabular</TabsTrigger>
+          <TabsList className="h-8 p-0.5 w-full">
+            <TabsTrigger value="corey" className="h-7 text-xs flex-1">Corey</TabsTrigger>
+            <TabsTrigger value="table" className="h-7 text-xs flex-1">Tabular</TabsTrigger>
           </TabsList>
         </Tabs>
         <div className="mt-3 space-y-3">
@@ -124,7 +124,7 @@ const DisplacementPanel = () => {
           ) : (
             <div className="space-y-2">
               <KrTableDialog onApply={(table) => setDisplacementField('krTable', table)} />
-              <div className="text-xs text-slate-500">
+              <div className="text-xs text-pl-muted">
                 {d.krTable?.length
                   ? `${d.krTable.length} rows, Sw ${d.krTable[0].Sw} to ${d.krTable[d.krTable.length - 1].Sw}`
                   : 'No table loaded yet.'}
@@ -165,7 +165,7 @@ const DisplacementPanel = () => {
         {d.polymerOn && (
           <div className="space-y-2">
             <Field label="μw multiplier (viscosified water)" value={d.polymerMuMult} onChange={(v) => setDisplacementField('polymerMuMult', v)} />
-            <Label className="text-[11px] text-slate-500 leading-snug block">
+            <Label className="text-[11px] text-pl-muted leading-snug block">
               Screening only: shifts fw via water viscosity. No adsorption, permeability reduction or rheology.
             </Label>
           </div>
@@ -173,10 +173,10 @@ const DisplacementPanel = () => {
       </section>
 
       <section className="flex gap-2">
-        <Button variant="outline" size="sm" onClick={loadSample} className="flex-1 bg-slate-800 border-slate-700">
+        <Button variant="outline" size="sm" onClick={loadSample} className="flex-1">
           <Beaker className="w-4 h-4 mr-1" /> Sample
         </Button>
-        <Button variant="outline" size="sm" onClick={() => setDisplacementInputs(DEFAULT_DISPLACEMENT)} className="flex-1 bg-slate-800 border-slate-700">
+        <Button variant="outline" size="sm" onClick={() => setDisplacementInputs(DEFAULT_DISPLACEMENT)} className="flex-1">
           <RotateCcw className="w-4 h-4 mr-1" /> Reset
         </Button>
       </section>

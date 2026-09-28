@@ -91,10 +91,10 @@ const ExportTab = () => {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <Waves className="w-4 h-4 text-cyan-500" />
+            <Waves className="w-4 h-4 text-pl-muted" />
             Send to Waterflood Design Studio
           </CardTitle>
           <CardDescription>
@@ -109,7 +109,7 @@ const ExportTab = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader>
           <CardTitle className="text-base">CSV exports</CardTitle>
           <CardDescription>
@@ -130,7 +130,7 @@ const ExportTab = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader>
           <CardTitle className="text-base">Project JSON</CardTitle>
           <CardDescription>
@@ -149,7 +149,7 @@ const ExportTab = () => {
           <Button variant="outline" onClick={() => fileRef.current?.click()}>
             <Upload className="w-4 h-4 mr-1.5" /> Import samples from JSON
           </Button>
-          <p className="text-[11px] text-slate-500 flex items-center gap-1.5 basis-full">
+          <p className="text-[11px] text-pl-muted flex items-center gap-1.5 basis-full">
             <Info className="w-3.5 h-3.5" /> Chart PNGs download from the button on each chart.
           </p>
         </CardContent>

@@ -19,7 +19,7 @@ const SurveillanceResults = () => {
 
   if (!surveillanceRows.length) {
     return (
-      <div className="rounded-lg border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-400">
+      <div className="rounded-lg border border-pl-border bg-pl-surface px-4 py-3 text-sm text-pl-muted">
         Import a field injection/production history CSV in the left panel (or load the sample) to run surveillance:
         reservoir-barrel VRR, Hall plot injectivity, Chan water-control diagnostics, and injector-producer response.
       </div>
@@ -28,7 +28,7 @@ const SurveillanceResults = () => {
 
   if (result?.error) {
     return (
-      <div className="rounded-lg border border-red-500/40 bg-red-500/10 text-red-300 px-4 py-3 text-sm">
+      <div className="rounded-lg border border-pl-danger/40 bg-pl-danger-bg text-pl-danger-text px-4 py-3 text-sm">
         {result.error}
       </div>
     );

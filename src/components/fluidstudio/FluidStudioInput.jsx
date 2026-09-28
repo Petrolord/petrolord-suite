@@ -12,12 +12,12 @@ import CompositionInput from '@/components/fluidstudio/CompositionInput';
 
 const InputField = ({ label, id, value, onChange, unit, type = 'number', step = 'any', placeholder, hint }) => (
   <div>
-    <Label htmlFor={id} className="text-sm font-medium text-slate-300">{label}</Label>
+    <Label htmlFor={id} className="text-sm font-medium text-pl-text">{label}</Label>
     <div className="flex items-center mt-1">
-      <Input id={id} type={type} value={value ?? ''} onChange={onChange} step={step} placeholder={placeholder} className="bg-slate-800 border-slate-600 text-white" />
-      {unit && <span className="ml-2 text-sm text-slate-400">{unit}</span>}
+      <Input id={id} type={type} value={value ?? ''} onChange={onChange} step={step} placeholder={placeholder} />
+      {unit && <span className="ml-2 text-sm text-pl-muted">{unit}</span>}
     </div>
-    {hint && <p className="text-xs text-slate-500 mt-1">{hint}</p>}
+    {hint && <p className="text-xs text-pl-muted mt-1">{hint}</p>}
   </div>
 );
 
@@ -76,23 +76,23 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
 
   return (
     <div className="space-y-4 h-full flex flex-col">
-      <h2 className="text-2xl font-bold text-white mb-2">Analysis Setup</h2>
-      <p className="text-xs text-slate-400 -mt-2">Results recompute instantly as you type.</p>
+      <h2 className="text-2xl font-bold text-pl-text mb-2">Analysis Setup</h2>
+      <p className="text-xs text-pl-muted -mt-2">Results recompute instantly as you type.</p>
       <div>
-        <Label className="text-sm font-medium text-slate-300">Fluid model</Label>
+        <Label className="text-sm font-medium text-pl-text">Fluid model</Label>
         <Select value={fluidModel} onValueChange={setFluidModel}>
-          <SelectTrigger className="bg-slate-800 border-slate-600 text-white mt-1"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="black-oil">Black oil correlations (default)</SelectItem>
             <SelectItem value="eos">Compositional PR78 EOS (adds a Composition tab)</SelectItem>
           </SelectContent>
         </Select>
         {fluidModel === 'eos' && (
-          <p className="text-xs text-slate-500 mt-1">The compositional path runs beside the black oil analysis. Separators, blending and flow assurance stay on the black oil stream.</p>
+          <p className="text-xs text-pl-muted mt-1">The compositional path runs beside the black oil analysis. Separators, blending and flow assurance stay on the black oil stream.</p>
         )}
       </div>
       <Tabs defaultValue="stream-a" className="flex-grow flex flex-col">
-        <TabsList className="flex flex-wrap h-auto justify-start bg-slate-800">
+        <TabsList className="flex flex-wrap h-auto justify-start">
           <TabsTrigger value="stream-a">Stream A</TabsTrigger>
           {fluidModel === 'eos' && <TabsTrigger value="composition">Composition</TabsTrigger>}
           <TabsTrigger value="correlations">Correlations</TabsTrigger>
@@ -104,7 +104,7 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
         <div className="flex-grow mt-4 overflow-y-auto">
           <TabsContent value="stream-a">
             <div className="space-y-4 p-1">
-              <h3 className="text-lg font-semibold text-lime-300 flex items-center"><Beaker className="w-5 h-5 mr-2" />Stream A: black-oil properties</h3>
+              <h3 className="text-lg font-semibold text-pl-text flex items-center"><Beaker className="w-5 h-5 mr-2" />Stream A: black-oil properties</h3>
               <InputField label="API Gravity" id="api" value={streamA.api} onChange={(e) => handleStreamChange('api', e.target.value)} unit="°API" />
               <InputField label="Solution GOR (Rsb)" id="gor" value={streamA.gor} onChange={(e) => handleStreamChange('gor', e.target.value)} unit="scf/STB" />
               <InputField label="Gas Specific Gravity" id="gasSg" value={streamA.gasSg} onChange={(e) => handleStreamChange('gasSg', e.target.value)} unit="air=1" />
@@ -122,11 +122,11 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
 
           <TabsContent value="correlations">
             <div className="space-y-4 p-1">
-              <h3 className="text-lg font-semibold text-lime-300 flex items-center"><SlidersHorizontal className="w-5 h-5 mr-2" />PVT correlations</h3>
+              <h3 className="text-lg font-semibold text-pl-text flex items-center"><SlidersHorizontal className="w-5 h-5 mr-2" />PVT correlations</h3>
               <div>
-                <Label className="text-sm font-medium text-slate-300">Rs / Bo / Pb correlation</Label>
+                <Label className="text-sm font-medium text-pl-text">Rs / Bo / Pb correlation</Label>
                 <Select value={correlations.pb_rs_bo} onValueChange={(v) => handleCorrelationChange('pb_rs_bo', v)}>
-                  <SelectTrigger className="bg-slate-800 border-slate-600 text-white mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="standing">Standing (default)</SelectItem>
                     <SelectItem value="vasquez_beggs">Vasquez-Beggs</SelectItem>
@@ -135,29 +135,29 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
                 </Select>
               </div>
               <div>
-                <Label className="text-sm font-medium text-slate-300">Oil viscosity correlation</Label>
+                <Label className="text-sm font-medium text-pl-text">Oil viscosity correlation</Label>
                 <Select value={correlations.viscosity} onValueChange={(v) => handleCorrelationChange('viscosity', v)}>
-                  <SelectTrigger className="bg-slate-800 border-slate-600 text-white mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="beggs_robinson">Beggs-Robinson (default)</SelectItem>
                     <SelectItem value="beal_cook_spillman">Beal-Cook-Spillman (simplified)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <p className="text-xs text-slate-500">Standing + Beggs-Robinson are the audited defaults. Other options are selectable but flagged in the results if non-standard.</p>
+              <p className="text-xs text-pl-muted">Standing + Beggs-Robinson are the audited defaults. Other options are selectable but flagged in the results if non-standard.</p>
             </div>
           </TabsContent>
 
           <TabsContent value="separators">
             <div className="space-y-4 p-1">
-              <h3 className="text-lg font-semibold text-lime-300 flex items-center"><Atom className="w-5 h-5 mr-2" />Separator train</h3>
+              <h3 className="text-lg font-semibold text-pl-text flex items-center"><Atom className="w-5 h-5 mr-2" />Separator train</h3>
               <InputField label="Stock-tank oil basis" id="oilRate" value={inputs.feed?.oilRate} onChange={(e) => handleFeedChange(e.target.value)} unit="STB/d" hint="Reporting basis for stage gas rates." />
               {inputs.separatorTrain.stages.map((stage, index) => (
-                <div key={index} className={`p-3 rounded-lg border ${stage.enabled ? 'border-slate-600 bg-slate-800/50' : 'border-slate-700 bg-slate-800/20'}`}>
+                <div key={index} className={`p-3 rounded-lg border ${stage.enabled ? 'border-pl-border bg-pl-sunken' : 'border-dashed border-pl-border bg-pl-surface'}`}>
                   <div className="flex justify-between items-center mb-2">
-                    <h4 className="font-semibold text-white">Stage {index + 1}</h4>
-                    <Button size="sm" variant="ghost" onClick={() => toggleSeparatorStage(index)} className="text-slate-400 hover:text-white">
-                      {stage.enabled ? <MinusCircle className="w-4 h-4 text-red-500" /> : <PlusCircle className="w-4 h-4 text-green-500" />}
+                    <h4 className="font-semibold text-pl-text">Stage {index + 1}</h4>
+                    <Button size="sm" variant="ghost" onClick={() => toggleSeparatorStage(index)} className="text-pl-muted hover:text-pl-text">
+                      {stage.enabled ? <MinusCircle className="w-4 h-4 text-pl-muted" /> : <PlusCircle className="w-4 h-4 text-pl-muted" />}
                     </Button>
                   </div>
                   {stage.enabled && (
@@ -168,7 +168,7 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
                   )}
                 </div>
               ))}
-              <p className="text-xs text-slate-500">An implicit stock-tank stage (14.7 psia, 60 °F) is always added.</p>
+              <p className="text-xs text-pl-muted">An implicit stock-tank stage (14.7 psia, 60 °F) is always added.</p>
             </div>
           </TabsContent>
 
@@ -176,21 +176,21 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
             <div className="space-y-4 p-1">
               <div className="flex items-center gap-2">
                 <Switch id="blending-enabled" checked={!!blending.enabled} onCheckedChange={(c) => setBlending({ enabled: c })} />
-                <Label htmlFor="blending-enabled" className="text-lg font-semibold text-lime-300 flex items-center"><Combine className="w-5 h-5 mr-2" />Blend Stream B into A</Label>
+                <Label htmlFor="blending-enabled" className="text-lg font-semibold text-pl-text flex items-center"><Combine className="w-5 h-5 mr-2" />Blend Stream B into A</Label>
               </div>
               {blending.enabled && (
                 <>
                   <div>
-                    <Label className="text-sm text-slate-300">Blend ratio: A {100 - (blending.streamB_fraction ?? 0)}% / B {blending.streamB_fraction ?? 0}%</Label>
+                    <Label className="text-sm text-pl-text">Blend ratio: A {100 - (blending.streamB_fraction ?? 0)}% / B {blending.streamB_fraction ?? 0}%</Label>
                     <Slider className="mt-3" value={[blending.streamB_fraction ?? 0]} onValueChange={([v]) => setBlending({ streamB_fraction: v })} max={100} step={1} />
                   </div>
-                  <h4 className="text-sm font-semibold text-lime-300 pt-2">Stream B: black-oil properties</h4>
+                  <h4 className="text-sm font-semibold text-pl-text pt-2">Stream B: black-oil properties</h4>
                   <InputField label="API Gravity" id="b-api" value={streamB.api} onChange={(e) => handleStreamBChange('api', e.target.value)} unit="°API" />
                   <InputField label="Solution GOR (Rsb)" id="b-gor" value={streamB.gor} onChange={(e) => handleStreamBChange('gor', e.target.value)} unit="scf/STB" />
                   <InputField label="Gas Specific Gravity" id="b-gasSg" value={streamB.gasSg} onChange={(e) => handleStreamBChange('gasSg', e.target.value)} unit="air=1" />
                   <InputField label="Reservoir Temperature" id="b-temp" value={streamB.temp} onChange={(e) => handleStreamBChange('temp', e.target.value)} unit="°F" />
                   <InputField label="Water Salinity" id="b-salinity" value={streamB.salinity} onChange={(e) => handleStreamBChange('salinity', e.target.value)} unit="ppm" />
-                  <p className="text-xs text-slate-500">No Pb field; the blend&apos;s bubble point is re-solved and drives the PVT &amp; Separator tabs.</p>
+                  <p className="text-xs text-pl-muted">No Pb field; the blend&apos;s bubble point is re-solved and drives the PVT &amp; Separator tabs.</p>
                 </>
               )}
             </div>
@@ -200,14 +200,14 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
             <div className="space-y-4 p-1">
               <div className="flex items-center gap-2">
                 <Switch id="batch-enabled" checked={!!batch.enabled} onCheckedChange={(c) => setBatch({ enabled: c })} />
-                <Label htmlFor="batch-enabled" className="text-lg font-semibold text-lime-300 flex items-center"><SlidersHorizontal className="w-5 h-5 mr-2" />Batch sensitivity sweep</Label>
+                <Label htmlFor="batch-enabled" className="text-lg font-semibold text-pl-text flex items-center"><SlidersHorizontal className="w-5 h-5 mr-2" />Batch sensitivity sweep</Label>
               </div>
               {batch.enabled && (
                 <>
                   <div>
-                    <Label className="text-sm font-medium text-slate-300">Sweep variable (Stream A)</Label>
+                    <Label className="text-sm font-medium text-pl-text">Sweep variable (Stream A)</Label>
                     <Select value={batch.variable} onValueChange={(v) => setBatch({ variable: v })}>
-                      <SelectTrigger className="bg-slate-800 border-slate-600 text-white mt-1"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="api">API Gravity</SelectItem>
                         <SelectItem value="gor">Solution GOR</SelectItem>
@@ -221,7 +221,7 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
                     <InputField label="Max" id="batch-max" value={batch.max} onChange={(e) => setBatch({ max: e.target.value === '' ? null : Number(e.target.value) })} />
                     <InputField label="Steps" id="batch-steps" value={batch.steps} onChange={(e) => setBatch({ steps: e.target.value === '' ? null : Number(e.target.value) })} step="1" hint="≥2" />
                   </div>
-                  <p className="text-xs text-slate-500">Endpoints always included. Other inputs stay fixed at Stream A; WAT populates only when Flow Assurance supplies one.</p>
+                  <p className="text-xs text-pl-muted">Endpoints always included. Other inputs stay fixed at Stream A; WAT populates only when Flow Assurance supplies one.</p>
                 </>
               )}
             </div>
@@ -229,31 +229,31 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
 
           <TabsContent value="flow-assurance">
             <div className="space-y-4 p-1">
-              <h3 className="text-lg font-semibold text-lime-300 flex items-center"><Snowflake className="w-5 h-5 mr-2" />Flow assurance</h3>
-              <h4 className="text-sm font-semibold text-lime-300 flex items-center"><Route className="w-4 h-4 mr-2" />Flowline</h4>
+              <h3 className="text-lg font-semibold text-pl-text flex items-center"><Snowflake className="w-5 h-5 mr-2" />Flow assurance</h3>
+              <h4 className="text-sm font-semibold text-pl-text flex items-center"><Route className="w-4 h-4 mr-2" />Flowline</h4>
               <div className="grid grid-cols-2 gap-3">
                 <InputField label="Length" id="fl-length" value={fa.flowline?.length} onChange={(e) => handleFlowlineChange('length', e.target.value)} unit="ft" />
                 <InputField label="Diameter" id="fl-diameter" value={fa.flowline?.diameter} onChange={(e) => handleFlowlineChange('diameter', e.target.value)} unit="in" />
                 <InputField label="Outlet pressure" id="fl-outletP" value={fa.flowline?.outletPressure} onChange={(e) => handleFlowlineChange('outletPressure', e.target.value)} unit="psia" />
                 <InputField label="Ambient temp" id="fl-ambient" value={fa.flowline?.ambientTemp} onChange={(e) => handleFlowlineChange('ambientTemp', e.target.value)} unit="°F" />
               </div>
-              <p className="text-xs text-slate-500">Flowline geometry is carried for Phase-3 heat-loss/Nodal; hydrate screening consumes only gas SG + the P-T profile.</p>
+              <p className="text-xs text-pl-muted">Flowline geometry is carried for Phase-3 heat-loss/Nodal; hydrate screening consumes only gas SG + the P-T profile.</p>
 
-              <h4 className="text-sm font-semibold text-lime-300 pt-1">Wax / asphaltene</h4>
+              <h4 className="text-sm font-semibold text-pl-text pt-1">Wax / asphaltene</h4>
               <InputField label="Measured WAT (optional)" id="fa-wat" value={fa.measuredWat} onChange={(e) => handleFaScalar('measuredWat', e.target.value)} unit="°F" hint="Authoritative; overrides screening." />
               <InputField label="Wax content (optional)" id="fa-wax" value={fa.waxContent} onChange={(e) => handleFaScalar('waxContent', e.target.value)} unit="wt%" hint="Enables a labeled screening WAT." />
-              <p className="text-xs text-slate-500">AOP is not computable from black-oil inputs and is reported as N/A in results.</p>
+              <p className="text-xs text-pl-muted">AOP is not computable from black-oil inputs and is reported as N/A in results.</p>
 
               <div>
-                <Label htmlFor="pt-profile" className="text-sm font-medium text-slate-300">P-T profile</Label>
+                <Label htmlFor="pt-profile" className="text-sm font-medium text-pl-text">P-T profile</Label>
                 <Textarea
                   id="pt-profile"
                   value={inputs.ptProfile?.raw ?? ''}
                   onChange={(e) => handlePtRaw(e.target.value)}
                   placeholder={'P_psia, T_F  (one per line)\n3000, 180\n2500, 165\n2000, 140'}
-                  className="bg-slate-800 border-slate-600 text-white h-28 mt-1 font-mono text-sm"
+                  className="h-28 mt-1 font-pl-mono tabular-nums text-sm"
                 />
-                <p className="text-xs text-slate-500 mt-1">Paste the flowline pressure/temperature profile; crossings into the hydrate region are flagged in results.</p>
+                <p className="text-xs text-pl-muted mt-1">Paste the flowline pressure/temperature profile; crossings into the hydrate region are flagged in results.</p>
               </div>
             </div>
           </TabsContent>

@@ -33,6 +33,10 @@ import DiagnosticsRail from '@/components/waterflooddesign/DiagnosticsRail';
 import WDSHelpContent from '@/components/waterflooddesign/WDSHelpContent';
 import { SectionLabel } from '@/components/waterflooddesign/primitives';
 import { mapScalKrIntake } from '@/components/waterflooddesign/scalKrIntake';
+import { ThemedApp } from '@/design/ThemeProvider';
+
+// Design system rollout batch 1D (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class below is a theme role.
 
 const TABS = [
   { value: 'displacement', label: 'Displacement' },
@@ -109,7 +113,7 @@ const WaterfloodDesignContent = () => {
       {activeTab === 'uncertainty' && <UncertaintyPanel />}
       {activeTab === 'surveillance' && <SurveillancePanel />}
       {activeTab === 'scenarios' && (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-pl-muted">
           Snapshot scenarios from the right rail on any tab; this tab compares them. Inputs stay editable on the
           Displacement, Layered Sweep and Pattern tabs.
         </p>
@@ -150,7 +154,7 @@ const WaterfloodDesignContent = () => {
         headerActions={
           <>
             <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Waterflood Design Studio Guide"
               description="Displacement design, layered conformance, pattern forecasting, Monte Carlo uncertainty and scenario comparison."
@@ -172,8 +176,10 @@ const WaterfloodDesignContent = () => {
 
 export default function WaterfloodDesignStudio() {
   return (
-    <WaterfloodDesignProvider>
-      <WaterfloodDesignContent />
-    </WaterfloodDesignProvider>
+    <ThemedApp data-testid="wds-theme-scope">
+      <WaterfloodDesignProvider>
+        <WaterfloodDesignContent />
+      </WaterfloodDesignProvider>
+    </ThemedApp>
   );
 }

@@ -35,7 +35,7 @@ const UncertaintyResults = () => {
 
   if (!uncertaintyResult) {
     return (
-      <div className="rounded-lg border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-400">
+      <div className="rounded-lg border border-pl-border bg-pl-surface px-4 py-3 text-sm text-pl-muted">
         {isRunningUncertainty
           ? 'Monte Carlo run in progress. Results will appear here.'
           : 'Enable one or more uncertain parameters in the left panel and press Run. Each realization reruns the five-spot forecast with sampled inputs; results show the Np distribution and which inputs drive it.'}
@@ -52,7 +52,7 @@ const UncertaintyResults = () => {
   return (
     <div className="space-y-4 overflow-y-auto">
       {uncertaintyStale && (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-300 px-4 py-3 text-xs">
+        <div className="rounded-lg border border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text px-4 py-3 text-xs">
           Inputs or the uncertainty config changed after this run. The results below reflect the previous working case; press Run again to refresh.
         </div>
       )}
@@ -98,14 +98,14 @@ const UncertaintyResults = () => {
         </div>
       )}
 
-      <div className="rounded-lg border border-slate-800 bg-slate-900 px-4 py-3 text-xs text-slate-400 space-y-1">
+      <div className="rounded-lg border border-pl-border bg-pl-surface px-4 py-3 text-xs text-pl-muted space-y-1">
         <p>
           {validCount.toLocaleString()} valid realizations of {iterations.toLocaleString()} sampled
           ({rejectedCount.toLocaleString()} rejected{btNeverCount > 0 ? `; ${btNeverCount.toLocaleString()} never reached breakthrough` : ''}).
           Percentiles follow the petroleum convention: P90 is the low case.
         </p>
         {rejectionEntries.map(([reason, count]) => (
-          <p key={reason} className="text-slate-500">Rejected {count.toLocaleString()}: {reason}.</p>
+          <p key={reason} className="text-pl-muted">Rejected {count.toLocaleString()}: {reason}.</p>
         ))}
       </div>
     </div>

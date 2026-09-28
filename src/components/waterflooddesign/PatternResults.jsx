@@ -46,7 +46,7 @@ const PatternResults = () => {
 
   if (!patternResult || !patternResult.series.length) {
     return (
-      <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-300 px-4 py-3 text-sm">
+      <div className="rounded-lg border border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text px-4 py-3 text-sm">
         {patternResult?.warnings?.[0] || 'Enter valid displacement and pattern inputs to run the forecast.'}
       </div>
     );
@@ -131,12 +131,12 @@ const PatternResults = () => {
         </ChartCard>
       </div>
 
-      <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900 px-4 py-3">
-        <p className="text-xs text-slate-500 pr-4">
+      <div className="flex items-center justify-between rounded-lg border border-pl-border bg-pl-surface px-4 py-3">
+        <p className="text-xs text-pl-muted pr-4">
           For fiscal terms, taxes and portfolio views, export the annual oil profile and load it in NPV Scenario Builder
           (Economics owns valuation). Format: year, production_bbl.
         </p>
-        <Button variant="outline" size="sm" onClick={exportAnnualCsv} className="bg-slate-800 border-slate-700 shrink-0">
+        <Button variant="outline" size="sm" onClick={exportAnnualCsv} className="shrink-0">
           <Download size={14} className="mr-1" /> Annual CSV
         </Button>
       </div>

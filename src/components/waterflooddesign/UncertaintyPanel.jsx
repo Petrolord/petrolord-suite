@@ -37,9 +37,9 @@ const ParamRow = ({ def, cfg, base, disabled, onToggle, onPatch }) => {
   const enabled = !!cfg?.enabled;
   const type = cfg?.type || 'triangular';
   return (
-    <div className={`rounded-md border px-2.5 py-2 ${enabled ? 'border-slate-700 bg-slate-800/40' : 'border-slate-800'} ${disabled ? 'opacity-50' : ''}`}>
+    <div className={`rounded-md border px-2.5 py-2 ${enabled ? 'border-pl-border bg-pl-sunken' : 'border-pl-border'} ${disabled ? 'opacity-50' : ''}`}>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-slate-300">{def.label}</span>
+        <span className="text-xs text-pl-text">{def.label}</span>
         <Switch
           checked={enabled}
           disabled={disabled}
@@ -50,7 +50,7 @@ const ParamRow = ({ def, cfg, base, disabled, onToggle, onPatch }) => {
       {enabled && (
         <div className="mt-2 space-y-2">
           <Select value={type} onValueChange={(v) => onPatch(def.key, { type: v })}>
-            <SelectTrigger className="h-8 text-xs bg-slate-800 border-slate-700">
+            <SelectTrigger className="h-8 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -110,14 +110,14 @@ const UncertaintyPanel = () => {
         <SectionLabel>Monte Carlo run</SectionLabel>
         <div className="grid grid-cols-2 gap-3 items-end">
           <Field label="Iterations (100 to 20,000)" value={uncertaintyConfig.iterations} onChange={setUncertaintyIterations} />
-          <Button size="sm" onClick={runUncertainty} disabled={isRunningUncertainty} className="h-9 bg-cyan-700 hover:bg-cyan-600">
+          <Button size="sm" onClick={runUncertainty} disabled={isRunningUncertainty} className="h-9">
             <Play className="w-4 h-4 mr-1" /> {isRunningUncertainty ? 'Running…' : 'Run'}
           </Button>
         </div>
         {isRunningUncertainty && (
           <div className="mt-3">
             <Progress value={uncertaintyProgress * 100} className="h-2" />
-            <p className="text-[11px] text-slate-500 mt-1">{Math.round(uncertaintyProgress * 100)}% of realizations complete</p>
+            <p className="text-[11px] text-pl-muted mt-1">{Math.round(uncertaintyProgress * 100)}% of realizations complete</p>
           </div>
         )}
       </section>
@@ -139,7 +139,7 @@ const UncertaintyPanel = () => {
             ))}
           </div>
           {g.title === 'Displacement parameters' && tabularKr && (
-            <Label className="text-[11px] text-slate-500 leading-snug block mt-2">
+            <Label className="text-[11px] text-pl-muted leading-snug block mt-2">
               Rel-perm shape parameters cannot be varied while the Displacement tab uses a pasted kr table. Switch to Corey to enable them.
             </Label>
           )}
@@ -147,7 +147,7 @@ const UncertaintyPanel = () => {
       ))}
 
       <section>
-        <Label className="text-[11px] text-slate-500 leading-snug block">
+        <Label className="text-[11px] text-pl-muted leading-snug block">
           Each realization substitutes the sampled values into the working case and reruns the five-spot forecast.
           Enabling a parameter seeds a plus/minus 20% triangular spread around its working value; edit freely.
           {enabledCount === 0 ? ' Enable at least one parameter to run.' : ''}
