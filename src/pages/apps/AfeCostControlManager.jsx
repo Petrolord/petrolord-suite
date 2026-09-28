@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
-import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
-import { ArrowLeft, PlusCircle, Search, FileText, LayoutDashboard, Table2, Receipt, History, Users, Link2, FileBarChart, SlidersHorizontal } from 'lucide-react';
+import { PlusCircle, Search, FileText, LayoutDashboard, Table2, Receipt, History, Users, Link2, FileBarChart, SlidersHorizontal } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -22,6 +21,8 @@ import ReportingEngine from '@/components/afe/ReportingEngine';
 import IntegrationsTab from '@/components/afe/IntegrationsTab';
 import AfeHelpGuide from '@/components/afe/AfeHelpGuide';
 import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
+import { ThemedApp } from '@/design/ThemeProvider';
+import { AppHeader } from '@/components/ui/app-shell';
 
 const AfeCostControlManagerInner = () => {
   const { user } = useAuth();
@@ -101,43 +102,36 @@ const AfeCostControlManagerInner = () => {
   );
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-white">
+    <div className="flex min-h-screen flex-col text-pl-text">
       <Helmet><title>AFE Manager - Petrolord</title></Helmet>
-      
-      {/* Header */}
-      <header className="flex-shrink-0 p-4 border-b border-slate-800 bg-slate-900">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link to="/dashboard/economics">
-              <Button variant="outline" size="sm" className="border-slate-700 text-slate-300 hover:bg-slate-800">
-                <ArrowLeft className="w-4 h-4 mr-2" /> Back
-              </Button>
-            </Link>
-            <h1 className="text-xl font-bold flex items-center gap-2">
-              <FileText className="w-6 h-6 text-blue-400" />
-              AFE & Cost Control
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <FullPrecisionToggle app="afe-cost-control" className="mr-2" />
+
+      <AppHeader
+        title="AFE & Cost Control"
+        eyebrow="Economics"
+        subtitle="Budgets, commitments, invoices and partner billing"
+        icon={FileText}
+        backTo="/dashboard/economics"
+        actions={(
+          <>
+            <FullPrecisionToggle app="afe-cost-control" />
             <AfeHelpGuide />
-            <Button onClick={() => setIsWizardOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+            <Button size="sm" onClick={() => setIsWizardOpen(true)}>
               <PlusCircle className="w-4 h-4 mr-2" /> New AFE
             </Button>
-          </div>
-        </div>
-      </header>
+          </>
+        )}
+      />
 
       {/* Main Layout */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 flex-col md:flex-row md:overflow-hidden">
         {/* Sidebar List */}
-        <aside className="w-80 border-r border-slate-800 bg-slate-900 overflow-y-auto hidden md:block">
-          <div className="p-4 sticky top-0 bg-slate-900 z-10 space-y-2">
+        <aside className="max-h-80 w-full shrink-0 overflow-y-auto border-b border-pl-border bg-pl-surface md:max-h-none md:w-80 md:border-b-0 md:border-r">
+          <div className="p-4 sticky top-0 bg-pl-surface z-10 space-y-2">
             <div className="relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-500" />
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-pl-muted" />
               <Input 
                 placeholder="Search AFEs..." 
-                className="pl-8 bg-slate-800 border-slate-700"
+                className="pl-8"
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
               />
@@ -145,13 +139,13 @@ const AfeCostControlManagerInner = () => {
             <div className="flex gap-2">
                 <Popover>
                     <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="w-full border-slate-700 text-slate-400 hover:text-white">
+                        <Button variant="outline" size="sm" className="w-full">
                             <SlidersHorizontal className="w-3 h-3 mr-2" /> Filters
                         </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="bg-slate-900 border-slate-700 w-60">
+                    <PopoverContent className="w-60">
                         <div className="space-y-2">
-                            <Label className="text-xs font-semibold text-slate-400">Status</Label>
+                            <Label className="text-xs font-semibold text-pl-muted">Status</Label>
                             <div className="flex flex-col gap-2">
                                 {['All', 'Draft', 'Submitted', 'Approved', 'Closed'].map(s => (
                                     <div key={s} className="flex items-center space-x-2">
@@ -174,41 +168,42 @@ const AfeCostControlManagerInner = () => {
               <div 
                 key={afe.id}
                 onClick={() => handleSelectAfe(afe)}
+                aria-current={activeAfe?.id === afe.id ? 'true' : undefined}
                 className={`p-3 rounded-lg cursor-pointer transition-colors border ${
-                  activeAfe?.id === afe.id ? 'bg-blue-900/20 border-blue-500/50' : 'border-transparent hover:bg-slate-800'
+                  activeAfe?.id === afe.id ? 'bg-pl-primary/10 border-pl-primary' : 'border-transparent hover:bg-pl-sunken'
                 }`}
               >
                 <div className="flex justify-between items-start mb-1">
-                  <span className="font-bold text-sm text-white truncate">{afe.afe_number}</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${afe.status === 'Approved' ? 'bg-green-900/50 text-green-400' : 'bg-slate-800 text-slate-400'}`}>{afe.status}</span>
+                  <span className="font-bold text-sm text-pl-text truncate">{afe.afe_number}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded border ${afe.status === 'Approved' ? 'border-pl-success/40 bg-pl-success-bg text-pl-success-text' : 'border-pl-border bg-pl-sunken text-pl-muted'}`}>{afe.status}</span>
                 </div>
-                <p className="text-xs text-slate-400 truncate mb-2">{afe.afe_name}</p>
-                <p className="text-xs font-mono text-blue-300">${(Number(afe.budget)||0).toLocaleString()}</p>
+                <p className="text-xs text-pl-muted truncate mb-2">{afe.afe_name}</p>
+                <p className="text-xs font-pl-mono tabular-nums text-pl-text">${(Number(afe.budget)||0).toLocaleString()}</p>
               </div>
             ))}
-            {filteredAfes.length === 0 && <div className="text-center p-4 text-slate-500 text-sm">No AFEs found.</div>}
+            {filteredAfes.length === 0 && <div className="text-center p-4 text-pl-muted text-sm">No AFEs found.</div>}
           </div>
         </aside>
 
         {/* Content Area */}
-        <main className="flex-1 overflow-y-auto p-6 bg-slate-950">
+        <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
           {activeAfe ? (
             <div className="space-y-6 max-w-7xl mx-auto">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h2 className="text-2xl font-bold text-white">{[activeAfe.afe_number, activeAfe.afe_name].filter(Boolean).join(' - ')}</h2>
-                  <p className="text-slate-400 text-sm mt-1">
+              <div className="flex flex-wrap justify-between items-start gap-3">
+                <div className="min-w-0">
+                  <h2 className="text-2xl font-semibold text-pl-text">{[activeAfe.afe_number, activeAfe.afe_name].filter(Boolean).join(' - ')}</h2>
+                  <p className="text-pl-muted text-sm mt-1">
                     Project: {projects.find(p => p.id === activeAfe.project_id)?.name || 'Unlinked'} {activeAfe.class ? ` • Class: ${activeAfe.class}` : ''}
                   </p>
                 </div>
                 <div className="text-right">
-                  <div className="text-xs text-slate-500">Total Budget</div>
-                  <div className="text-xl font-mono font-bold text-blue-400">${(Number(activeAfe.budget)||0).toLocaleString()} {activeAfe.currency}</div>
+                  <div className="text-xs text-pl-muted">Total Budget</div>
+                  <div className="text-xl font-pl-mono tabular-nums font-semibold text-pl-text">${(Number(activeAfe.budget)||0).toLocaleString()} {activeAfe.currency}</div>
                 </div>
               </div>
 
               <Tabs defaultValue="dashboard" className="w-full">
-                <TabsList className="bg-slate-900 border border-slate-800">
+                <TabsList className="h-auto max-w-full flex-wrap justify-start">
                   <TabsTrigger value="dashboard"><LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard</TabsTrigger>
                   <TabsTrigger value="costs"><Table2 className="w-4 h-4 mr-2" /> Cost Breakdown</TabsTrigger>
                   <TabsTrigger value="invoices"><Receipt className="w-4 h-4 mr-2" /> Invoices</TabsTrigger>
@@ -248,7 +243,7 @@ const AfeCostControlManagerInner = () => {
               </Tabs>
             </div>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-slate-500">
+            <div className="h-full min-h-[240px] flex flex-col items-center justify-center text-center text-pl-muted">
               <FileText className="w-16 h-16 mb-4 opacity-20" />
               <p>Select an AFE from the sidebar or create a new one to get started.</p>
             </div>
@@ -268,9 +263,11 @@ const AfeCostControlManagerInner = () => {
 
 // W3 (D3): the Full precision switch prints CPI and SPI at 6 decimals.
 const AfeCostControlManager = () => (
-  <FullPrecisionProvider>
-    <AfeCostControlManagerInner />
-  </FullPrecisionProvider>
+  <ThemedApp className="min-h-screen" data-testid="afe-theme-scope">
+    <FullPrecisionProvider>
+      <AfeCostControlManagerInner />
+    </FullPrecisionProvider>
+  </ThemedApp>
 );
 
 export default AfeCostControlManager;

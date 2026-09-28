@@ -11,7 +11,7 @@ import TreeDiagram from '@/components/decisiontree/TreeDiagram';
 const DecisionTreePlot = ({ tree }) => {
   if (!tree) {
     return (
-      <div className="bg-white/5 p-4 rounded-lg h-[400px] flex items-center justify-center text-slate-400 text-sm text-center px-8">
+      <div className="bg-pl-warning-bg border border-pl-warning/40 text-pl-warning-text p-4 rounded-lg h-[400px] flex items-center justify-center text-sm text-center px-8">
         The diagram is withheld because the indicator numbers contradict the stated
         outcome chances. Decision Guidance below explains what they imply and how to
         make them agree.
@@ -19,9 +19,7 @@ const DecisionTreePlot = ({ tree }) => {
     );
   }
   return (
-    <div className="bg-white/5 p-2 rounded-lg">
-      <TreeDiagram annotated={tree} unit="$MM" />
-    </div>
+    <TreeDiagram annotated={tree} unit="$MM" />
   );
 };
 

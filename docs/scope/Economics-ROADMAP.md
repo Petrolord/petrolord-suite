@@ -407,3 +407,25 @@ Fixed on branch fix/economics-app-defects, with engines #244 (EPE 3.11.0).
   `new Date()`, which is UTC midnight, then `getFullYear()` in local time, so
   west of UTC every January moved to the previous year. The year now comes
   from the date text (`utils/breakeven/productionCsv.js`).
+
+## 2026-09-28: decision tools on the design system (rollout w2f)
+
+Probabilistic Breakeven Analyzer, Decision Studio, Value of Information
+Analyzer and Decision Tree Builder (with AFE Cost Control Manager, see
+`ProjectManagementAfeReportAutopilot-STATUS.md`) open on the grey panel
+light theme; dark is a per-user choice in the header toggle.
+
+- Each page wraps itself in `<ThemedApp>` and has an `AppHeader`; VOI and
+  Breakeven had no page title before. Their setup rail stacks above the
+  results on phones. Every route alias is in `src/design/rollout/w2f.js`.
+- Decision trees (`decisiontree/TreeDiagram.jsx`, shared by the Builder and
+  VOI, both in this batch) draw on a white `data-canvas="chart"` frame in
+  both themes, node and branch colours unchanged. Breakeven and Decision
+  Studio charts stay white; the Decision Studio S-curves sit in a
+  `ChartPanel`.
+- Money tables use `NumericTable`: the Decision Studio case comparison
+  (negative NPVs in danger text) and the Breakeven full-precision tornado.
+- Gradients, lime and sky accents are gone; status colour only for status
+  (VOI sum checks, withheld state, errors).
+- No calculation change (`decisionTree.js`, `voi.js`, breakeven engine
+  untouched). Theme tests in `src/pages/apps/__tests__/*.theme.test.jsx`.
