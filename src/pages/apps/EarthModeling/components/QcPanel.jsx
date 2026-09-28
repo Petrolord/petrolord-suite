@@ -9,9 +9,9 @@ import { fmtVolume, volumeUnitLabel, fmtDepth } from '../services/units';
 import { describeProvenance } from '../services/propertyKriging';
 import { hasFluids } from '../services/modelBuild';
 
-const th = 'px-2 py-1 text-left text-[10px] uppercase tracking-wider text-slate-500 font-medium';
-const td = 'px-2 py-1 text-xs text-slate-300 whitespace-nowrap';
-const card = 'rounded border border-slate-800 bg-slate-900/60';
+const th = 'px-2 py-1 text-left text-[10px] uppercase tracking-wider text-pl-muted font-medium';
+const td = 'px-2 py-1 text-xs text-pl-text whitespace-nowrap';
+const card = 'rounded border border-pl-border bg-pl-surface';
 
 
 export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', volumeUnits = 'metric' }) {
@@ -19,7 +19,7 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
   const vu = (col) => volumeUnitLabel(col, volumeUnits);
   if (!built) {
     return (
-      <div className="h-full flex items-center justify-center text-slate-500 text-sm" data-testid="em-qc-empty">
+      <div className="h-full flex items-center justify-center text-pl-muted text-sm" data-testid="em-qc-empty">
         Build the model to see QC and volumes.
       </div>
     );
@@ -31,12 +31,12 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
     <div className="h-full overflow-auto p-3 space-y-3" data-testid="em-qc">
       <div className="grid grid-cols-2 gap-3">
         <div className={card}>
-          <div className="px-2 py-1.5 text-xs font-semibold text-slate-200 border-b border-slate-800">Clamp report (stacking rule: depth-down monotonic)</div>
+          <div className="px-2 py-1.5 text-xs font-semibold text-pl-text border-b border-pl-border">Clamp report (stacking rule: depth-down monotonic)</div>
           <table className="w-full">
             <thead><tr><th className={th}>Surface</th><th className={th}>Clamped nodes</th></tr></thead>
             <tbody data-testid="em-clamps">
               {built.counts.map((c, i) => (
-                <tr key={i} className="border-t border-slate-800/60">
+                <tr key={i} className="border-t border-pl-border">
                   <td className={td}>{surfaceNames[i] || `Surface ${i + 1}`}</td>
                   <td className={td} data-testid={`em-clamp-${i}`}>{c}</td>
                 </tr>
@@ -45,12 +45,12 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
           </table>
         </div>
         <div className={card}>
-          <div className="px-2 py-1.5 text-xs font-semibold text-slate-200 border-b border-slate-800">Fault blocks</div>
+          <div className="px-2 py-1.5 text-xs font-semibold text-pl-text border-b border-pl-border">Fault blocks</div>
           <table className="w-full">
             <thead><tr><th className={th}>Block</th><th className={th}>Nodes</th></tr></thead>
             <tbody data-testid="em-census">
               {Object.entries(built.census).map(([lab, n]) => (
-                <tr key={lab} className="border-t border-slate-800/60">
+                <tr key={lab} className="border-t border-pl-border">
                   <td className={td}>{lab === '0' || lab === 0 ? 'Block 0 (outside polygons)' : `Block ${lab}`}</td>
                   <td className={td} data-testid={`em-census-${lab}`}>{n}</td>
                 </tr>
@@ -62,14 +62,14 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
 
       {built.adjustment && (
         <div className={card} data-testid="em-adjust-report">
-          <div className="px-2 py-1.5 text-xs font-semibold text-slate-200 border-b border-slate-800">
+          <div className="px-2 py-1.5 text-xs font-semibold text-pl-text border-b border-pl-border">
             Well adjustment: radius {fmtDepth(built.adjustment.radius, u, 0)} {u}
           </div>
           <table className="w-full">
             <thead><tr><th className={th}>Surface</th><th className={th}>Ties</th><th className={th}>Max residual before ({u})</th><th className={th}>After ({u})</th></tr></thead>
             <tbody>
               {built.adjustment.report.map((r) => (
-                <tr key={r.surface} className="border-t border-slate-800/60">
+                <tr key={r.surface} className="border-t border-pl-border">
                   <td className={td}>{surfaceNames[r.surface] || `Surface ${r.surface + 1}`}</td>
                   <td className={td}>{r.ties}</td>
                   <td className={td}>{fmtDepth(r.before, u, 2)}</td>
@@ -82,7 +82,7 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
       )}
 
       <div className={card}>
-        <div className="px-2 py-1.5 text-xs font-semibold text-slate-200 border-b border-slate-800">
+        <div className="px-2 py-1.5 text-xs font-semibold text-pl-text border-b border-pl-border">
           Well ties: residual = pick TVDSS minus surface ({u}); positive means the pick is deeper than the surface
         </div>
         <table className="w-full">
@@ -96,14 +96,14 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
           </thead>
           <tbody data-testid="em-ties">
             {built.ties.map((t) => (
-              <tr key={`${t.well}-${t.top}`} className="border-t border-slate-800/60">
+              <tr key={`${t.well}-${t.top}`} className="border-t border-pl-border">
                 <td className={td}>{t.well}</td>
                 <td className={td}>{t.top}</td>
                 <td className={td}>{fmtDepth(t.md, u, 1)}</td>
                 <td className={td}>{fmtDepth(t.tvdss, u, 2)}</td>
                 <td className={td}>{t.surfaceZ === null ? 'off grid' : fmtDepth(t.surfaceZ, u, 2)}</td>
                 {built.adjustment && <td className={td}>{t.residualBeforeM === undefined || t.residualBeforeM === null ? '—' : fmtDepth(t.residualBeforeM, u, 2)}</td>}
-                <td className={`${td} ${t.residualM !== null && Math.abs(t.residualM) > 10 ? 'text-amber-400' : ''}`}
+                <td className={`${td} ${t.residualM !== null && Math.abs(t.residualM) > 10 ? 'text-pl-warning-text' : ''}`}
                   data-testid={`em-tie-${t.well}-${t.top}`}>
                   {t.residualM === null ? '—' : fmtDepth(t.residualM, u, 2)}
                 </td>
@@ -115,11 +115,11 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
 
       {built.zones.map((zone) => (
         <div className={card} key={zone.name}>
-          <div className="px-2 py-1.5 text-xs font-semibold text-slate-200 border-b border-slate-800">
+          <div className="px-2 py-1.5 text-xs font-semibold text-pl-text border-b border-pl-border">
             {zone.name}: volumes and population provenance
           </div>
           {!hasFluids(zone.fluids) && (
-            <div className="px-2 py-1 text-[11px] text-amber-300 border-b border-slate-800/60" data-testid={`em-nocontact-${zone.name.replace(/\s+/g, '-').toLowerCase()}`}>
+            <div className="px-2 py-1 text-[11px] text-pl-warning-text border-b border-pl-border" data-testid={`em-nocontact-${zone.name.replace(/\s+/g, '-').toLowerCase()}`}>
               No OWC given: the whole zone counts as hydrocarbon. Enter the contacts in the dock for a true HCPV.
             </div>
           )}
@@ -139,7 +139,7 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
             </thead>
             <tbody data-testid={`em-vol-${zone.name.replace(/\s+/g, '-').toLowerCase()}`}>
               {blockKeys.filter((k) => zone.volumes[k]).map((k) => (
-                <tr key={k} className={`border-t border-slate-800/60 ${k === 'total' ? 'font-semibold text-slate-100' : ''}`}>
+                <tr key={k} className={`border-t border-pl-border ${k === 'total' ? 'font-semibold text-pl-text' : ''}`}>
                   <td className={td}>{k === 'total' ? 'TOTAL' : `Block ${k}`}</td>
                   <td className={td}>{zone.volumes[k].cells}</td>
                   <td className={td} data-testid={`em-vol-${zone.name.replace(/\s+/g, '-').toLowerCase()}-${k}-bulk`}>{fmtVolume(zone.volumes[k].bulk_m3, 'bulk_m3', volumeUnits)}</td>
@@ -159,16 +159,16 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
             </tbody>
           </table>
           {zone.range && (
-            <div className="px-2 py-1 text-[11px] text-slate-300 border-t border-slate-800/60" data-testid={`em-range-${zone.name.replace(/\s+/g, '-').toLowerCase()}`}>
+            <div className="px-2 py-1 text-[11px] text-pl-text border-t border-pl-border" data-testid={`em-range-${zone.name.replace(/\s+/g, '-').toLowerCase()}`}>
               Property range from the kriging variance (fully correlated): HCPV P90 {fmtVolume(zone.range.p90.hcpv_m3, 'hcpv_m3', volumeUnits)},
               P50 {fmtVolume(zone.range.p50.hcpv_m3, 'hcpv_m3', volumeUnits)}, P10 {fmtVolume(zone.range.p10.hcpv_m3, 'hcpv_m3', volumeUnits)} {vu('hcpv_m3')}
               {zone.range.p50.stoiip_m3 != null && <>; STOIIP P90 {fmtVolume(zone.range.p90.stoiip_m3, 'stoiip_m3', volumeUnits)}, P50 {fmtVolume(zone.range.p50.stoiip_m3, 'stoiip_m3', volumeUnits)}, P10 {fmtVolume(zone.range.p10.stoiip_m3, 'stoiip_m3', volumeUnits)} {vu('stoiip_m3')}</>}
             </div>
           )}
-          <div className="px-2 py-1.5 text-[11px] text-slate-500 border-t border-slate-800/60">
+          <div className="px-2 py-1.5 text-[11px] text-pl-muted border-t border-pl-border">
             {Object.entries(zone.provenance).map(([prop, rows]) => (
-              <span key={prop} className={`block ${rows.some((r) => r.fellBack) ? 'text-amber-300' : ''}`} data-testid={`em-prov-${zone.name.replace(/\s+/g, '-').toLowerCase()}-${prop}`}>
-                <span className="text-slate-400">{prop}:</span> {describeProvenance(rows)}
+              <span key={prop} className={`block ${rows.some((r) => r.fellBack) ? 'text-pl-warning-text' : ''}`} data-testid={`em-prov-${zone.name.replace(/\s+/g, '-').toLowerCase()}-${prop}`}>
+                <span className="text-pl-muted">{prop}:</span> {describeProvenance(rows)}
               </span>
             ))}
           </div>

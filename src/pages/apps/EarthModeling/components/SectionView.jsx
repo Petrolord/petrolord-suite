@@ -194,7 +194,8 @@ const SectionView = forwardRef(function SectionView({
 
   return (
     <div ref={wrapRef} className="w-full overflow-auto" data-testid="em-section-wrap">
-      <canvas ref={canvasRef} data-testid="em-section-canvas" className="rounded border border-slate-800" />
+      {/* design system (W4B): the section is painted for a dark ground and stays dark in both themes */}
+      <canvas ref={canvasRef} data-testid="em-section-canvas" data-canvas="dark" className="rounded border border-slate-800" />
     </div>
   );
 });
