@@ -5,6 +5,7 @@
 // Copy rule: no em dashes, no "X, not Y" contrastives.
 // Guard: __tests__/helpGuide.test.jsx.
 import React from 'react';
+import { ThemedApp } from '@/design/ThemeProvider';
 import {
   BookOpen, Zap, Database, Columns, Ruler, ArrowDownToLine, Crosshair, Layers, GitBranch,
   ImageDown, Link2, AlertTriangle, BookMarked,
@@ -34,7 +35,10 @@ export const HELP_SECTIONS = [
 ];
 
 export default function CorrelationHelpGuide() {
+  // Design system rollout W4A: the guide shares the app's theme scope, so
+  // the user's light or dark choice holds between the app and its guide.
   return (
+    <ThemedApp className="min-h-screen" data-testid="corr-help-theme-scope">
     <HelpGuideShell
       title="Well Correlation Help Guide"
       subtitle="Multi-well log sections, tops and zones on the shared Geoscience well registry"
@@ -197,5 +201,6 @@ export default function CorrelationHelpGuide() {
         ]} />
       </GuideSection>
     </HelpGuideShell>
+    </ThemedApp>
   );
 }

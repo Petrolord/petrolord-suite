@@ -10,6 +10,7 @@
 // the fake server so the next pull brings it in.
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { useSearchParams } from 'react-router-dom';
 import Dexie from 'dexie';
 import WellsiteWorkstation from './components/WellsiteWorkstation';
@@ -47,10 +48,10 @@ export default function WellsiteStudioHarness() {
     return () => { alive = false; };
   }, [backend, searchParams]);
   if (typeof window !== 'undefined') window.__wsBackend = backend; // Playwright reaches the fake transport through this
-  if (!ready) return <div className="p-4 text-xs text-slate-400">Seeding the harness well</div>;
+  if (!ready) return <ThemedApp className="h-screen w-full"><div className="p-4 text-xs text-pl-muted">Seeding the harness well</div></ThemedApp>;
   return (
-    <div className="h-screen w-full overflow-hidden">
+    <ThemedApp className="h-screen w-full overflow-hidden" data-testid="ws-theme-scope">
       <WellsiteWorkstation backend={backend} appPaths={DEV_APP_PATHS} />
-    </div>
+    </ThemedApp>
   );
 }

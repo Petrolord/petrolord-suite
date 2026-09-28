@@ -29,7 +29,7 @@ export default function DepthEntry({ value, onChange, kind, ctx, testIdPrefix = 
     const c = Number.isFinite(next.value) ? toCanonicalMd({ ...next, kind }, ctx) : null;
     onChange(next, c && c.ok ? c : null);
   };
-  const sel = 'bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-xs text-slate-100';
+  const sel = 'bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text';
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-1 flex-wrap">
@@ -51,10 +51,10 @@ export default function DepthEntry({ value, onChange, kind, ctx, testIdPrefix = 
         </select>
       </div>
       {errors.length > 0 && Number.isFinite(value.value) && (
-        <div className="text-[11px] text-amber-400" data-testid={`${testIdPrefix}-error`}>{errors[0]}</div>
+        <div className="text-[11px] text-pl-warning-text" data-testid={`${testIdPrefix}-error`}>{errors[0]}</div>
       )}
       {calc && calc.ok && !compact && (
-        <div className="text-[11px] text-slate-400" data-testid={`${testIdPrefix}-calc`}>
+        <div className="text-[11px] text-pl-muted" data-testid={`${testIdPrefix}-calc`}>
           Stored as {fmtDepth(calc.mdM, 'm')} MD below KB
           {' '}({fmtDepth(fromMetres(calc.mdM, 'ft'), 'ft')}); TVD {fmtDepth(calc.calculated.tvdM, 'm')}, subsea {fmtDepth(calc.calculated.tvdssM, 'm')}
           {' '}by {calc.calculated.method.replace(/_/g, ' ')}{calc.calculated.surveyVersion ? ` on survey ${calc.calculated.surveyVersion}` : ''}

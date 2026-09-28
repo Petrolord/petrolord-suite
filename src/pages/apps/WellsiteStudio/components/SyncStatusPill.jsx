@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { getSyncState, subscribeSyncState, syncHeadline } from '@/lib/wellsite/sync/syncStore';
 
-const TONE = { amber: 'border-amber-500/60 text-amber-300', red: 'border-red-500/60 text-red-300', cyan: 'border-cyan-500/60 text-cyan-300', slate: 'border-slate-700 text-slate-400' };
+const TONE = { amber: 'border-pl-warning/60 text-pl-warning-text', red: 'border-pl-danger/60 text-pl-danger-text', cyan: 'border-pl-primary text-pl-primary-text', slate: 'border-pl-border text-pl-muted' };
 
 export function useSyncState() {
   const [s, setS] = useState(getSyncState);

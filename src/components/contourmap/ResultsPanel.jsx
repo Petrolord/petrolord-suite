@@ -192,33 +192,33 @@ const ResultsPanel = ({ state, setState, imgCanvasRef, ovrCanvasRef, onManualDra
   };
 
   const renderGridPlot = () => {
-    if (!results?.grid) return <div className="text-center p-8 text-gray-400">Grid the contours to see the surface summary here. The map itself is drawn in Mapping & Surface Studio after publishing.</div>;
+    if (!results?.grid) return <div className="text-center p-8 text-pl-muted">Grid the contours to see the surface summary here. The map itself is drawn in Mapping & Surface Studio after publishing.</div>;
     const { spec, stats } = results;
     return (
-      <div className="w-full h-full p-4 text-sm text-slate-200 space-y-2" data-testid="digitizer-grid-tab">
+      <div className="w-full h-full p-4 text-sm text-pl-text space-y-2" data-testid="digitizer-grid-tab">
         <div className="text-base font-semibold">Gridded surface</div>
-        <table className="text-xs">
+        <table className="text-xs font-pl-mono tabular-nums">
           <tbody>
-            <tr><td className="pr-4 text-slate-400">Frame</td><td>{spec.nx} x {spec.ny} nodes, cell {spec.dx} map units, origin ({spec.x0.toFixed(1)}, {spec.y0.toFixed(1)})</td></tr>
-            <tr><td className="pr-4 text-slate-400">Live nodes</td><td>{stats.count} of {spec.nx * spec.ny}</td></tr>
-            <tr><td className="pr-4 text-slate-400">Elevation range</td><td>{stats.min?.toFixed(1)} to {stats.max?.toFixed(1)} (negative below datum)</td></tr>
-            <tr><td className="pr-4 text-slate-400">Control points</td><td>{results.controlCount} on {results.lines} contour lines</td></tr>
+            <tr><td className="pr-4 font-pl-sans text-pl-muted">Frame</td><td>{spec.nx} x {spec.ny} nodes, cell {spec.dx} map units, origin ({spec.x0.toFixed(1)}, {spec.y0.toFixed(1)})</td></tr>
+            <tr><td className="pr-4 font-pl-sans text-pl-muted">Live nodes</td><td>{stats.count} of {spec.nx * spec.ny}</td></tr>
+            <tr><td className="pr-4 font-pl-sans text-pl-muted">Elevation range</td><td>{stats.min?.toFixed(1)} to {stats.max?.toFixed(1)} (negative below datum)</td></tr>
+            <tr><td className="pr-4 font-pl-sans text-pl-muted">Control points</td><td>{results.controlCount} on {results.lines} contour lines</td></tr>
           </tbody>
         </table>
-        <p className="text-xs text-slate-400">Publish from the left panel to contour, edit and export this surface in Mapping & Surface Studio.</p>
+        <p className="text-xs text-pl-muted">Publish from the left panel to contour, edit and export this surface in Mapping & Surface Studio.</p>
       </div>
     );
   };
 
   return (
-    <div className="h-full flex flex-col bg-gray-800/30 rounded-xl border border-white/10">
+    <div className="h-full flex flex-col bg-pl-surface rounded-xl border border-pl-border">
       <Tabs defaultValue="map" className="w-full h-full flex flex-col">
-        <TabsList className="grid w-full grid-cols-2 bg-slate-800 rounded-t-xl">
+        <TabsList className="grid w-full grid-cols-2 rounded-t-xl">
           <TabsTrigger value="map"><Map className="w-4 h-4 mr-2" />Map View</TabsTrigger>
           <TabsTrigger value="grid"><GridIcon className="w-4 h-4 mr-2" />3D Grid</TabsTrigger>
         </TabsList>
         <TabsContent value="map" className="flex-grow p-2 mt-0 relative" ref={containerRef}>
-          <div className="w-full h-full bg-gray-900 rounded overflow-hidden relative flex items-center justify-center">
+          <div className="w-full h-full bg-pl-bg rounded-pl-canvas overflow-hidden relative flex items-center justify-center" data-canvas="dark" data-testid="digitizer-map-canvas">
             <canvas ref={imgCanvasRef} className="absolute" />
             <canvas 
               ref={ovrCanvasRef} 

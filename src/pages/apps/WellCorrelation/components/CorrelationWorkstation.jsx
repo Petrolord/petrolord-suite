@@ -19,6 +19,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { GitCompare, Loader2, Save, ImageDown, PanelRight, HelpCircle } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { parseWellsParam, mapTopHref } from '@/components/wells/appLinks';
 import { useWellCurvesCache } from '@/components/wells/useWellCurvesCache';
@@ -175,51 +176,52 @@ export default function CorrelationWorkstation({
   };
 
   const ribbon = (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
+    <div className="flex items-center gap-2 px-3 py-1.5 bg-pl-surface border-b border-pl-border">
       <ModuleHomeLink module="geoscience" testId="corr-home" />
-      <GitCompare className="w-4 h-4 text-cyan-400" />
-      <span className="text-sm font-semibold text-slate-100">Well Correlation</span>
-      <span className="text-[11px] text-slate-500">cross-sections on the shared well registry</span>
+      <GitCompare className="w-4 h-4 text-pl-primary-text" />
+      <span className="text-sm font-semibold text-pl-text">Well Correlation</span>
+      <span className="text-[11px] text-pl-muted">cross-sections on the shared well registry</span>
       <div className="ml-auto flex items-center gap-1">
         <Link to="/dashboard/apps/geoscience/well-correlation/help" data-testid="corr-help" title="Open the Well Correlation help guide"
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800">
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken">
           <HelpCircle className="w-3.5 h-3.5" /> Help
         </Link>
         <button type="button" data-testid="corr-export-png" disabled={!sectionWells.length}
           title="Download the section as a PNG image"
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
           onClick={exportPng}>
           <ImageDown className="w-3.5 h-3.5" /> PNG
         </button>
         <button type="button" data-testid="corr-save"
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken"
           onClick={saveSection}>
           <Save className="w-3.5 h-3.5" /> Save section
         </button>
         <button type="button" data-testid="corr-toggle-dock" title="Show or hide the controls"
-          className={`px-2 py-1 text-xs rounded border ${dockOpen ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400'}`}
+          className={`px-2 py-1 text-xs rounded border ${dockOpen ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted'}`}
           onClick={() => setDockOpen((v) => !v)}>
           <PanelRight className="w-3.5 h-3.5" />
         </button>
+        <ThemeToggle />
       </div>
     </div>
   );
 
   const statusBar = (
-    <div className="flex items-center gap-3 px-3 py-1 bg-slate-900 border-t border-slate-800 text-[11px] text-slate-400">
+    <div className="flex items-center gap-3 px-3 py-1 bg-pl-surface border-t border-pl-border text-[11px] text-pl-muted">
       <span data-testid="corr-status" className="truncate">{status}</span>
-      {loading > 0 && <Loader2 className="w-3 h-3 animate-spin text-slate-500" />}
+      {loading > 0 && <Loader2 className="w-3 h-3 animate-spin text-pl-muted" />}
       <span className="ml-auto whitespace-nowrap">{order.length} well{order.length === 1 ? '' : 's'} · {topNames.length} tops</span>
-      <span className="whitespace-nowrap text-slate-500" data-testid="corr-depth-status">
+      <span className="whitespace-nowrap text-pl-muted" data-testid="corr-depth-status">
         depth {depthUnit} · {DEPTH_REF_LABEL[depthRef]} · {template.name}
       </span>
     </div>
   );
 
   const center = !wells ? (
-    <div className="h-full flex items-center justify-center text-slate-500 text-sm"><Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading wells…</div>
+    <div className="h-full flex items-center justify-center text-pl-muted text-sm"><Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading wells…</div>
   ) : !sectionWells.length ? (
-    <div className="h-full flex items-center justify-center text-slate-500 text-sm" data-testid="corr-empty">
+    <div className="h-full flex items-center justify-center text-pl-muted text-sm" data-testid="corr-empty">
       {loading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading section…</> : 'Add wells to the section from the map on the left.'}
     </div>
   ) : (
@@ -261,7 +263,7 @@ export default function CorrelationWorkstation({
       )}
       center={center}
       dock={(
-        <ScrollArea className="h-full min-h-0 bg-slate-900/60 border-l border-slate-800/60">
+        <ScrollArea className="h-full min-h-0 bg-pl-surface border-l border-pl-border">
           <SectionControls
             topNames={topNames}
             datum={datum}

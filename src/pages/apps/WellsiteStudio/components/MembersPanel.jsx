@@ -39,18 +39,18 @@ export default function MembersPanel({ backend, well, members, user, onChanged, 
   };
 
   const nameOf = (m) => memberName(m, people, user);
-  const sel = 'bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100';
+  const sel = 'bg-pl-surface border border-pl-border-strong rounded px-2 py-1 text-xs text-pl-text';
   return (
     <section className="space-y-2" data-testid="ws-members">
-      <h2 className="text-sm font-semibold text-slate-100">Members</h2>
-      <p className="text-[11px] text-slate-400">Only members open this well and record on it. Roles decide who may approve (see the approver roles below). A member who leaves is made inactive, so their name stays on what they recorded.</p>
-      {!online && <div className="text-[11px] text-amber-400" data-testid="ws-members-offline">A connection is needed to change members.</div>}
-      {online && !canManage && <div className="text-[11px] text-amber-400" data-testid="ws-members-readonly">Only a well administrator or an organisation administrator changes members.</div>}
-      <table className="w-full text-xs text-slate-300">
-        <thead><tr className="text-left text-slate-500"><th className="py-1">Person</th><th>Role</th><th>Status</th><th /></tr></thead>
+      <h2 className="text-sm font-semibold text-pl-text">Members</h2>
+      <p className="text-[11px] text-pl-muted">Only members open this well and record on it. Roles decide who may approve (see the approver roles below). A member who leaves is made inactive, so their name stays on what they recorded.</p>
+      {!online && <div className="text-[11px] text-pl-warning-text" data-testid="ws-members-offline">A connection is needed to change members.</div>}
+      {online && !canManage && <div className="text-[11px] text-pl-warning-text" data-testid="ws-members-readonly">Only a well administrator or an organisation administrator changes members.</div>}
+      <table className="w-full text-xs text-pl-text">
+        <thead><tr className="text-left text-pl-muted"><th className="py-1">Person</th><th>Role</th><th>Status</th><th /></tr></thead>
         <tbody>
           {sorted.map((m) => (
-            <tr key={m.id} className="border-t border-slate-800" data-testid={`ws-member-${m.user_id}`}>
+            <tr key={m.id} className="border-t border-pl-border" data-testid={`ws-member-${m.user_id}`}>
               <td className="py-1">{nameOf(m)}{user && m.user_id === user.id ? ' (you)' : ''}</td>
               <td>
                 {canManage && online && m.status === 'active'
@@ -62,7 +62,7 @@ export default function MembersPanel({ backend, well, members, user, onChanged, 
                   )
                   : roleName(m.role)}
               </td>
-              <td className={m.status === 'active' ? 'text-emerald-400' : 'text-slate-500'}>{m.status}</td>
+              <td className={m.status === 'active' ? 'text-pl-success-text' : 'text-pl-muted'}>{m.status}</td>
               <td className="text-right">
                 {canManage && online && (m.status === 'active'
                   ? <Button size="sm" variant="outline" disabled={busy} data-testid={`ws-member-deactivate-${m.user_id}`} onClick={() => change(m.user_id, m.role, 'inactive', `${nameOf(m)} is no longer a member.`)}>Make inactive</Button>
@@ -74,13 +74,13 @@ export default function MembersPanel({ backend, well, members, user, onChanged, 
       </table>
       {canManage && online && (
         <div className="flex flex-wrap items-end gap-2 pt-1">
-          <label className="text-xs text-slate-300">Add a person from the organisation<br />
+          <label className="text-xs text-pl-text">Add a person from the organisation<br />
             <select className={sel} value={addId} onChange={(e) => setAddId(e.target.value)} data-testid="ws-member-add-person">
               <option value="">{people ? (addable.length ? 'choose a person' : 'everyone is already a member') : 'loading people'}</option>
               {addable.map((p) => <option key={p.user_id} value={p.user_id}>{p.name}{p.email && p.email !== p.name ? ` (${p.email})` : ''}</option>)}
             </select>
           </label>
-          <label className="text-xs text-slate-300">Role<br />
+          <label className="text-xs text-pl-text">Role<br />
             <select className={sel} value={addRole} onChange={(e) => setAddRole(e.target.value)} data-testid="ws-member-add-role">
               {WS_ROLES.map((r) => <option key={r.code} value={r.code}>{r.name}</option>)}
             </select>

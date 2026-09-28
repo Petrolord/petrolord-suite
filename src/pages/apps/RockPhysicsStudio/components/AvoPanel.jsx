@@ -50,13 +50,13 @@ function halfspaceFromWindow(model, from, to) {
   };
 }
 
-const INPUT_CLS = `w-20 bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-right
-  text-slate-100 focus:outline-none focus:border-cyan-600`;
+const INPUT_CLS = `w-20 bg-pl-surface border border-pl-border-strong rounded px-1.5 py-0.5 text-right
+  text-pl-text focus:outline-none focus:border-pl-focus`;
 
 function HalfspaceInputs({ side, hs, onChange, units }) {
   const isVel = (k) => k !== 'rho';
   return (
-    <div className="flex items-center gap-2 text-[12px] text-slate-300">
+    <div className="flex items-center gap-2 text-[12px] text-pl-text">
       <span className="w-12">{side}</span>
       {['vp', 'vs', 'rho'].map((k) => (
         <UnitInput
@@ -136,7 +136,7 @@ export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAUL
 
   return (
     <div className="h-full min-h-0 overflow-y-auto p-3 space-y-3" data-testid="rp-avo-panel">
-      <div className="flex flex-wrap items-center gap-3 text-[12px] text-slate-300">
+      <div className="flex flex-wrap items-center gap-3 text-[12px] text-pl-text">
         <div className="flex items-center gap-1">
           {['top', 'manual'].map((m) => (
             <button
@@ -144,7 +144,7 @@ export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAUL
               type="button"
               data-testid={`rp-avo-mode-${m}`}
               className={`px-2 py-0.5 rounded border text-xs
-                ${avo.mode === m ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
+                ${avo.mode === m ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border-strong text-pl-muted hover:text-pl-text'}`}
               onClick={() => patch({ mode: m })}
             >
               {m === 'top' ? 'From top' : 'Manual halfspaces'}
@@ -157,7 +157,7 @@ export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAUL
               data-testid="rp-avo-top-select"
               value={top?.id || ''}
               onChange={(e) => patch({ topId: e.target.value })}
-              className="bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-slate-100"
+              className="bg-pl-surface border border-pl-border-strong rounded px-1.5 py-0.5 text-pl-text"
             >
               {tops.map((t) => (
                 <option key={t.id} value={t.id}>{`${t.name} (${tidyDepth(t.md_m, zU)} ${zU})`}</option>
@@ -173,12 +173,12 @@ export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAUL
                 fromDisplay={depthFromDisplay}
                 digits={1}
                 onChange={(si) => patch({ windowM: Number.isFinite(si) ? si : 0 })}
-                className="w-16 bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-right text-slate-100"
+                className="w-16 bg-pl-surface border border-pl-border-strong rounded px-1.5 py-0.5 text-right text-pl-text"
                 title="Averaging window either side of the top"
               />
               {zU}
             </label>
-            {!tops.length && <span className="text-slate-500">no tops on this well</span>}
+            {!tops.length && <span className="text-pl-muted">no tops on this well</span>}
           </>
         )}
         <label className="flex items-center gap-1 ml-auto">
@@ -187,7 +187,7 @@ export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAUL
             type="number"
             value={avo.maxTheta}
             onChange={(e) => patch({ maxTheta: Math.max(5, Math.min(89, parseFloat(e.target.value) || 40)) })}
-            className="w-14 bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-right text-slate-100"
+            className="w-14 bg-pl-surface border border-pl-border-strong rounded px-1.5 py-0.5 text-right text-pl-text"
           />
           °
         </label>
@@ -195,7 +195,7 @@ export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAUL
 
       {avo.mode === 'manual' && (
         <div className="space-y-1">
-          <div className="flex items-center gap-2 text-[11px] text-slate-500">
+          <div className="flex items-center gap-2 text-[11px] text-pl-muted">
             <span className="w-12" />
             <span className="w-20 text-right">{velHead('Vp', vU)}</span>
             <span className="w-20 text-right">{velHead('Vs', vU)}</span>
@@ -207,9 +207,9 @@ export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAUL
       )}
 
       {avo.mode === 'top' && halfspaces && (
-        <table className="text-[12px] text-slate-200">
+        <table className="text-[12px] text-pl-text">
           <thead>
-            <tr className="text-slate-500 text-left">
+            <tr className="text-pl-muted text-left">
               <th className="font-normal pr-3">Halfspace</th>
               <th className="font-normal pr-3 text-right">{velHead('Vp', vU)}</th>
               <th className="font-normal pr-3 text-right">{velHead('Vs', vU)}</th>
@@ -217,14 +217,14 @@ export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAUL
             </tr>
           </thead>
           <tbody>
-            <tr className="border-t border-slate-800">
-              <td className="py-0.5 pr-3 text-slate-300">upper mean</td>
+            <tr className="border-t border-pl-border">
+              <td className="py-0.5 pr-3 text-pl-text">upper mean</td>
               <td className="py-0.5 pr-3 text-right" data-testid="rp-avo-upper-mean-vp">{fv(halfspaces.upper.vp)}</td>
               <td className="py-0.5 pr-3 text-right">{fv(halfspaces.upper.vs)}</td>
               <td className="py-0.5 text-right">{fd(halfspaces.upper.rho)}</td>
             </tr>
-            <tr className="border-t border-slate-800">
-              <td className="py-0.5 pr-3 text-slate-300">lower mean</td>
+            <tr className="border-t border-pl-border">
+              <td className="py-0.5 pr-3 text-pl-text">lower mean</td>
               <td className="py-0.5 pr-3 text-right" data-testid="rp-avo-lower-mean-vp">{fv(halfspaces.lower.vp)}</td>
               <td className="py-0.5 pr-3 text-right">{fv(halfspaces.lower.vs)}</td>
               <td className="py-0.5 text-right">{fd(halfspaces.lower.rho)}</td>
@@ -233,16 +233,16 @@ export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAUL
         </table>
       )}
 
-      {result?.error && <p className="text-[12px] text-amber-400" data-testid="rp-avo-error">{result.error}</p>}
+      {result?.error && <p className="text-[12px] text-pl-warning-text" data-testid="rp-avo-error">{result.error}</p>}
 
       {result && !result.error && (
         <>
-          <div className="flex items-center gap-4 text-[13px] text-slate-200">
+          <div className="flex items-center gap-4 text-[13px] text-pl-text">
             <span>A (intercept) <b data-testid="rp-avo-a">{f4(result.a)}</b></span>
             <span>B (gradient) <b data-testid="rp-avo-b">{f4(result.b)}</b></span>
             <span
               data-testid="rp-avo-class"
-              className="rounded px-1.5 py-0.5 border border-cyan-700 text-cyan-300 text-[12px]"
+              className="rounded px-1.5 py-0.5 border border-pl-border-strong bg-pl-sunken text-pl-text text-[12px]"
               title="Rutherford-Williams class from (A, B)"
             >
               Class {result.cls}
@@ -250,17 +250,17 @@ export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAUL
           </div>
 
           {result.alt && (
-            <div className="flex flex-wrap items-center gap-4 text-[12px] text-slate-300" data-testid="rp-avo-replaced">
-              <span className="text-slate-400">Lower rock with {result.alt.labelB} in place of {result.alt.labelA} (Scenario & rock):</span>
+            <div className="flex flex-wrap items-center gap-4 text-[12px] text-pl-text" data-testid="rp-avo-replaced">
+              <span className="text-pl-muted">Lower rock with {result.alt.labelB} in place of {result.alt.labelA} (Scenario & rock):</span>
               <span>A <b data-testid="rp-avo-a-b">{f4(result.alt.a)}</b></span>
               <span>B <b data-testid="rp-avo-b-b">{f4(result.alt.b)}</b></span>
-              <span className="rounded px-1.5 py-0.5 border border-amber-600 text-amber-300" data-testid="rp-avo-class-b">Class {result.alt.cls}</span>
+              <span className="rounded px-1.5 py-0.5 border border-pl-accent text-pl-accent-text" data-testid="rp-avo-class-b">Class {result.alt.cls}</span>
             </div>
           )}
-          {replaced?.error && <p className="text-[12px] text-amber-400">Fluid replacement: {replaced.error}</p>}
+          {replaced?.error && <p className="text-[12px] text-pl-warning-text">Fluid replacement: {replaced.error}</p>}
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-            <div className="bg-white rounded-lg p-3 relative" style={{ height: 360 }}>
+            <div className="bg-white rounded-lg p-3 relative" data-canvas="chart" style={{ height: 360 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={result.curve} margin={CHART_MARGINS.legend}>
                   <CartesianGrid {...GRID_STYLE} />
@@ -282,7 +282,7 @@ export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAUL
               <ChartLogo />
             </div>
 
-            <div className="bg-white rounded-lg p-3 relative" style={{ height: 360 }}>
+            <div className="bg-white rounded-lg p-3 relative" data-canvas="chart" style={{ height: 360 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <ScatterChart margin={CHART_MARGINS.standard}>
                   <CartesianGrid {...GRID_STYLE} />
