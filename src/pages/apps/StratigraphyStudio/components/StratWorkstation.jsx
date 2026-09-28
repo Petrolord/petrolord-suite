@@ -16,6 +16,7 @@ import AgesView from './AgesView';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { SCHEMES } from '@/lib/stratigraphy/vocabulary';
 import { useScheme } from '@/lib/stratigraphy/scheme';
 import { orderedUnits } from '@/lib/stratigraphy/column';
@@ -141,71 +142,72 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
   const unitTopName = (unitId) => tops.find((t) => t.unit_id === unitId)?.name || null;
 
   const ribbon = (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
+    <div className="flex items-center gap-2 px-3 py-1.5 bg-pl-surface border-b border-pl-border">
       <ModuleHomeLink module="geoscience" testId="strat-home" />
-      <Layers className="w-4 h-4 text-cyan-400" />
-      <span className="text-sm font-semibold text-slate-100">Stratigraphy Studio</span>
-      <span className="text-[11px] text-slate-500">the stratigraphic framework on the shared well registry</span>
+      <Layers className="w-4 h-4 text-pl-primary-text" />
+      <span className="text-sm font-semibold text-pl-text">Stratigraphy Studio</span>
+      <span className="text-[11px] text-pl-muted">the stratigraphic framework on the shared well registry</span>
       <div className="flex items-center gap-1 ml-4">
         {VIEWS.map((v) => (
           <button key={v.id} type="button" data-testid={`strat-view-${v.id}`}
-            className={`flex items-center gap-1 px-2 py-1 text-xs rounded border ${view === v.id ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400 hover:bg-slate-800'}`}
+            className={`flex items-center gap-1 px-2 py-1 text-xs rounded border ${view === v.id ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:bg-pl-sunken'}`}
             onClick={() => setView(v.id)}>
             <v.icon className="w-3.5 h-3.5" /> {v.label}
           </button>
         ))}
       </div>
       <div className="ml-auto flex items-center gap-2">
-        <label className="flex items-center gap-1 text-[11px] text-slate-400" title="Terminology shown on every app; stored codes stay Catuneanu">
+        <label className="flex items-center gap-1 text-[11px] text-pl-muted" title="Terminology shown on every app; stored codes stay Catuneanu">
           Terms
           <select value={scheme} onChange={(e) => setScheme(e.target.value)} data-testid="strat-scheme"
-            className="bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-xs text-slate-100">
+            className="bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text">
             {SCHEMES.map((s) => <option key={s} value={s}>{SCHEME_LABEL[s]}</option>)}
           </select>
         </label>
         <Link to="/dashboard/apps/geoscience/stratigraphy-studio/help" data-testid="strat-help" title="Open the Stratigraphy Studio help guide"
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800">
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken">
           <HelpCircle className="w-3.5 h-3.5" /> Help
         </Link>
         <button type="button" data-testid="strat-toggle-dock" title="Show or hide the legend"
-          className={`px-2 py-1 text-xs rounded border ${dockOpen ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400'}`}
+          className={`px-2 py-1 text-xs rounded border ${dockOpen ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted'}`}
           onClick={() => setDockOpen((v) => !v)}>
           <PanelRight className="w-3.5 h-3.5" />
         </button>
+        <ThemeToggle className="h-7 w-7" />
       </div>
     </div>
   );
 
   const explorer = (
-    <ScrollArea className="h-full min-h-0 bg-slate-900/60 border-r border-slate-800/60">
+    <ScrollArea className="h-full min-h-0 bg-pl-surface border-r border-pl-border">
       <div className="p-2 space-y-3 text-xs">
         <div>
-          <div className="text-slate-400 font-medium mb-1">Wells</div>
-          {!wells ? <Loader2 className="w-3 h-3 animate-spin text-slate-500" /> : !wells.length ? (
-            <div className="text-slate-500">No wells yet. Import them in <Link className="text-cyan-300" to={appPath(WELL_DATA_MANAGER_ID, appPaths)}>Well Data Manager</Link>.</div>
+          <div className="text-pl-muted font-medium mb-1">Wells</div>
+          {!wells ? <Loader2 className="w-3 h-3 animate-spin text-pl-muted" /> : !wells.length ? (
+            <div className="text-pl-muted">No wells yet. Import them in <Link className="text-pl-primary-text" to={appPath(WELL_DATA_MANAGER_ID, appPaths)}>Well Data Manager</Link>.</div>
           ) : wells.map((w) => (
             <button key={w.id} type="button" data-testid={`strat-well-${w.name}`}
-              className={`block w-full text-left px-2 py-1 rounded ${w.id === selectedId ? 'bg-cyan-500/15 text-cyan-200' : 'text-slate-300 hover:bg-slate-800'}`}
+              className={`block w-full text-left px-2 py-1 rounded ${w.id === selectedId ? 'bg-pl-primary/10 text-pl-primary-text' : 'text-pl-text hover:bg-pl-sunken'}`}
               onClick={() => selectWell(w.id)} title={w.is_own ? 'Your well' : 'Shared with you, read-only'}>
-              {w.name}{w.is_own ? '' : <span className="ml-1 text-slate-500">(shared)</span>}
+              {w.name}{w.is_own ? '' : <span className="ml-1 text-pl-muted">(shared)</span>}
             </button>
           ))}
         </div>
         <div>
-          <div className="text-slate-400 font-medium mb-1">Column</div>
-          {!ordered.length ? <div className="text-slate-500">No units yet.</div> : ordered.map((u) => (
-            <div key={u.id} className="flex items-center gap-1 text-slate-300" style={{ paddingLeft: u.depth * 10 }} data-testid={`strat-explorer-unit-${u.name}`}>
+          <div className="text-pl-muted font-medium mb-1">Column</div>
+          {!ordered.length ? <div className="text-pl-muted">No units yet.</div> : ordered.map((u) => (
+            <div key={u.id} className="flex items-center gap-1 text-pl-text" style={{ paddingLeft: u.depth * 10 }} data-testid={`strat-explorer-unit-${u.name}`}>
               <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: u.colour || '#94a3b8' }} />
               <span className="truncate">{u.name}</span>
-              <span className="text-slate-500">{u.rank}</span>
+              <span className="text-pl-muted">{u.rank}</span>
               {unitTopName(u.id) && (
-                <Link to={mapTopHref(unitTopName(u.id), [], appPath(MAPPING_ID, appPaths))} className="ml-auto text-cyan-300 hover:text-amber-300 text-[10px]" title={`Map the structure of ${unitTopName(u.id)} in Mapping & Surface Studio`} data-testid={`strat-map-unit-${u.name}`}>map</Link>
+                <Link to={mapTopHref(unitTopName(u.id), [], appPath(MAPPING_ID, appPaths))} className="ml-auto text-pl-primary-text hover:text-pl-primary-text-hover text-[10px]" title={`Map the structure of ${unitTopName(u.id)} in Mapping & Surface Studio`} data-testid={`strat-map-unit-${u.name}`}>map</Link>
               )}
             </div>
           ))}
         </div>
         {well && well.is_own && (
-          <Link to={wellDataManagerHref(well.id, 'Tops', appPath(WELL_DATA_MANAGER_ID, appPaths))} className="text-cyan-300 hover:text-amber-300" data-testid="strat-edit-well-data">
+          <Link to={wellDataManagerHref(well.id, 'Tops', appPath(WELL_DATA_MANAGER_ID, appPaths))} className="text-pl-primary-text hover:text-pl-primary-text-hover" data-testid="strat-edit-well-data">
             Edit {well.name} in Well Data Manager
           </Link>
         )}
@@ -213,7 +215,7 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
     </ScrollArea>
   );
 
-  const needWell = <div className="h-full flex items-center justify-center text-slate-500 text-sm" data-testid="strat-need-well">Pick a well on the left.</div>;
+  const needWell = <div className="h-full flex items-center justify-center text-pl-muted text-sm" data-testid="strat-need-well">Pick a well on the left.</div>;
   const saveProject = async (patch) => { const row = await backend.saveStratProject({ ...patch, scheme }); setProject(row); };
   const center = view === 'glossary' ? <ScrollArea className="h-full min-h-0"><Glossary scheme={scheme} /></ScrollArea>
     : view === 'tops' ? <ScrollArea className="h-full min-h-0"><TopsTyping well={well} tops={tops} units={units} scheme={scheme} onSaveTop={saveTop} onStatus={setStatus} /></ScrollArea>
@@ -224,11 +226,11 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
           : <div className="h-full min-h-0 overflow-auto"><ColumnEditor units={units} onSave={saveColumn} onStatus={setStatus} /></div>;
 
   const statusBar = (
-    <div className="flex items-center gap-3 px-3 py-1 bg-slate-900 border-t border-slate-800 text-[11px] text-slate-400">
+    <div className="flex items-center gap-3 px-3 py-1 bg-pl-surface border-t border-pl-border text-[11px] text-pl-muted">
       <span data-testid="strat-status" className="truncate">{status}</span>
-      {loading > 0 && <Loader2 className="w-3 h-3 animate-spin text-slate-500" />}
+      {loading > 0 && <Loader2 className="w-3 h-3 animate-spin text-pl-muted" />}
       <span className="ml-auto whitespace-nowrap">{(wells || []).length} well{(wells || []).length === 1 ? '' : 's'} · {units.length} unit{units.length === 1 ? '' : 's'}</span>
-      <span className="whitespace-nowrap text-slate-500" data-testid="strat-scheme-status">terms: {SCHEME_LABEL[scheme]}</span>
+      <span className="whitespace-nowrap text-pl-muted" data-testid="strat-scheme-status">terms: {SCHEME_LABEL[scheme]}</span>
     </div>
   );
 
@@ -240,7 +242,7 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
       ribbon={ribbon}
       explorer={explorer}
       center={center}
-      dock={<ScrollArea className="h-full min-h-0 bg-slate-900/60 border-l border-slate-800/60"><Glossary scheme={scheme} compact /></ScrollArea>}
+      dock={<ScrollArea className="h-full min-h-0 bg-pl-surface border-l border-pl-border"><Glossary scheme={scheme} compact /></ScrollArea>}
       dockOpen={dockOpen}
       onDockOpenChange={setDockOpen}
       statusBar={statusBar}

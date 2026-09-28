@@ -17,6 +17,7 @@ import { SURFACE_TYPES, SYSTEMS_TRACTS, MOTIFS, displayLabel } from '@/lib/strat
 import { INTERVAL_KINDS, LITHOLOGIES } from '@/lib/stratigraphy/lithology';
 import { TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
 import { RANKS } from '@/lib/stratigraphy/column';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 const APP_PATH = '/dashboard/apps/geoscience/stratigraphy-studio';
 
@@ -37,8 +38,11 @@ export const HELP_SECTIONS = [
   { id: 'glossary', icon: BookMarked, title: 'Glossary, both schemes' },
 ];
 
+// Design system rollout W4B: the guide shares the Studio's theme scope, so
+// the user's light or dark choice holds between the app and its guide.
 export default function StratigraphyHelpGuide() {
   return (
+    <ThemedApp className="min-h-screen" data-testid="strat-help-theme-scope">
     <HelpGuideShell
       title="Stratigraphy Studio Help Guide"
       subtitle="The stratigraphic framework on the shared Geoscience well registry"
@@ -267,5 +271,6 @@ export default function StratigraphyHelpGuide() {
         <Para>References: Catuneanu (2006) Principles of Sequence Stratigraphy; Catuneanu et al. (2009) Earth-Science Reviews 92; Van Wagoner et al. (1988, 1990); Mitchum et al. (1977); Wheeler (1958); the ICS International Chronostratigraphic Chart ({TIMESCALE_VERSION}, CC BY 4.0).</Para>
       </GuideSection>
     </HelpGuideShell>
+    </ThemedApp>
   );
 }

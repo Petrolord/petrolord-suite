@@ -25,7 +25,9 @@ export default function ColumnChart({ units }) {
   const ticks = [];
   for (let t = Math.ceil(top / step) * step; t <= base + 1e-9; t += step) ticks.push(+t.toFixed(6));
   return (
-    <div className="overflow-x-auto" data-testid="strat-column-chart">
+    // design system (W4B): the column is drawn for a dark ground, so it
+    // sits on a dark canvas in both themes; the drawing is unchanged
+    <div className="overflow-x-auto rounded bg-slate-950" data-canvas="dark" data-testid="strat-column-chart">
       <svg width={W} height={H} className="block">
         <text x={AXIS_W - 6} y={HEAD_H - 8} fontSize="9" fill="#94a3b8" textAnchor="end">Ma</text>
         {ticks.map((t) => (
