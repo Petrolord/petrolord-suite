@@ -88,6 +88,10 @@ export default function PasteReplacePanel({ kind, fields, labels, convention, on
   const [text, setText] = useState('');
   const [mapOverride, setMapOverride] = useState({});
   const [touched, setTouched] = useState(false);
+  // Keyed on the field NAMES, not the array identity: a caller passing a
+  // fresh literal each render (fields={['name','md']}) must not re-parse and
+  // re-emit onParsed, which sets the parent's state and re-renders forever.
+  const fieldsKey = fields.join('|');
   const state = useMemo(() => {
     const parsed = parseDelimited(text);
     const guessed = guessMapping(parsed.header, fields);
@@ -95,7 +99,7 @@ export default function PasteReplacePanel({ kind, fields, labels, convention, on
     if (!parsed.header) fields.forEach((f, i) => { if (map[f] < 0 && mapOverride[f] === undefined) map[f] = i; });
     const nCols = parsed.rows.reduce((m, r) => Math.max(m, r.length), parsed.header?.length || 0);
     return { parsed, map, nCols };
-  }, [text, fields, mapOverride]);
+  }, [text, fieldsKey, mapOverride]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onText = (v) => {
     setText(v);
