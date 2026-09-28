@@ -48,44 +48,6 @@ import React, { useState } from 'react';
         setLoading(false);
       };
 
-      const handleBatchCreate = async () => {
-        setLoading(true);
-        const usersToCreate = [
-          { email: 'ayodejiasaolu1@gmail.com', password: 'AyodejiPassword@2025', fullName: 'Ayodeji Asaolu' },
-          { email: 'ojooluwaseyi90@gmail.com', password: 'OjoPassword@2025', fullName: 'Ojo Oluwaseyi' },
-        ];
-
-        let createdCount = 0;
-        const results = [];
-
-        for (const user of usersToCreate) {
-          const { data, error } = await supabase.auth.admin.createUser({
-            email: user.email,
-            password: user.password,
-            email_confirm: true,
-            user_metadata: { full_name: user.fullName },
-          });
-
-          if (error) {
-            toast({
-              variant: 'destructive',
-              title: `Error creating ${user.email}`,
-              description: error.message,
-            });
-          } else {
-            results.push(user);
-            createdCount++;
-          }
-        }
-        
-        setCreatedUsers(prev => [...prev, ...results]);
-        toast({
-          title: 'Batch Creation Complete',
-          description: `${createdCount} of ${usersToCreate.length} users created successfully.`,
-        });
-
-        setLoading(false);
-      }
 
 
       return (
@@ -133,14 +95,6 @@ import React, { useState } from 'react';
                         </form>
                     </div>
 
-                    <div className="flex-1 flex flex-col items-center justify-center border-t md:border-t-0 md:border-l border-pl-border pt-8 md:pt-0 md:pl-8">
-                        <h2 className="text-xl font-semibold text-pl-text mb-4">Batch Create Users</h2>
-                        <p className="text-sm text-pl-muted mb-4 text-center break-words">Click to create accounts for:<br/> ayodejiasaolu1@gmail.com & ojooluwaseyi90@gmail.com</p>
-                         <Button onClick={handleBatchCreate} disabled={loading} variant="outline" className="w-full font-semibold">
-                            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
-                            Create 2 New Users
-                        </Button>
-                    </div>
                 </div>
 
                 {createdUsers.length > 0 && (
