@@ -49,7 +49,7 @@ export const RiskHeatmapMatrix = ({ risks = [], onCellClick, compact = false }) 
                               className={`
                                 ${compact ? 'w-12 h-12' : 'w-12 h-12 md:w-16 md:h-16'} rounded flex items-center justify-center text-lg font-bold transition-all
                                 ${getHeatmapCellClasses(likelihood, impact)}
-                                ${count === 0 ? 'opacity-40 cursor-not-allowed' : 'shadow-pl-sm ring-1 ring-pl-border cursor-pointer hover:scale-105 z-10 relative'}
+                                ${count === 0 ? 'opacity-60 cursor-not-allowed' : 'shadow-pl-sm ring-1 ring-pl-border cursor-pointer hover:scale-105 z-10 relative'}
                               `}
                             >
                               {count > 0 ? count : ''}

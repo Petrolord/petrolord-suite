@@ -76,8 +76,8 @@ export const ReportBuilder = () => {
   return (
     <div className="flex flex-col h-full bg-pl-bg">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 bg-pl-surface border-b border-pl-border">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-pl-surface border-b border-pl-border">
+        <div className="flex flex-wrap items-center gap-4">
           <Button variant="ghost" onClick={closeReport} className="text-pl-muted hover:text-pl-text px-2">
             <ArrowLeft className="w-4 h-4 mr-2" /> Exit Builder
           </Button>
@@ -86,7 +86,7 @@ export const ReportBuilder = () => {
             <p className="text-xs text-pl-muted">Configure your custom view</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => handleSave(false)}>
             <Save className="w-4 h-4 mr-2" /> Save Draft
           </Button>
@@ -96,14 +96,14 @@ export const ReportBuilder = () => {
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar Stepper */}
-        <div className="w-64 bg-pl-surface border-r border-pl-border p-4 space-y-2">
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+        {/* Sidebar Stepper (a wrapping row of steps on a phone) */}
+        <div className="md:w-64 bg-pl-surface border-b md:border-b-0 md:border-r border-pl-border p-2 md:p-4 flex flex-wrap md:block gap-1 md:space-y-2">
           {STEPS.map((step, idx) => (
             <button
               key={step.id}
               onClick={() => setCurrentStep(idx)}
-              className={`w-full flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-colors ${
+              className={`md:w-full flex items-center gap-3 p-2 md:p-3 rounded-lg text-sm font-medium transition-colors ${
                 idx === currentStep ? 'bg-pl-primary/10 text-pl-primary-text border border-pl-border' : 
                 idx < currentStep ? 'text-pl-text hover:bg-pl-sunken' : 'text-pl-muted hover:bg-pl-sunken'
               }`}
@@ -116,7 +116,7 @@ export const ReportBuilder = () => {
         </div>
 
         {/* Builder Area */}
-        <div className="flex-1 p-8 overflow-y-auto">
+        <div className="flex-1 p-4 md:p-8 overflow-y-auto">
           <div className="max-w-3xl mx-auto space-y-6">
             
             {currentStep === 0 && (

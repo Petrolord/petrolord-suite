@@ -33,8 +33,8 @@ export default function RegulatoryCompliancePageShell() {
   return (
     <ThemedApp className="flex flex-col h-full w-full bg-[hsl(var(--background))] overflow-hidden" data-testid="regulatory-theme-scope">
       {/* Top Application Header */}
-      <div className="bg-[hsl(var(--card))] border-b border-[hsl(var(--border))] px-6 py-4 flex items-center justify-between shrink-0 shadow-sm z-20 relative">
-        <div className="flex items-center gap-6">
+      <div className="bg-[hsl(var(--card))] border-b border-[hsl(var(--border))] px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3 shrink-0 shadow-sm z-20 relative">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-6 min-w-0">
           <Button 
             variant="ghost" 
             size="sm" 
@@ -44,7 +44,7 @@ export default function RegulatoryCompliancePageShell() {
             <ChevronLeft className="w-5 h-5 mr-1" />
             Back to Assurance
           </Button>
-          <div className="h-6 w-px bg-[hsl(var(--border))]"></div>
+          <div className="hidden sm:block h-6 w-px bg-[hsl(var(--border))]"></div>
           <div className="flex items-center gap-3">
             <div className="p-1.5 bg-pl-sunken rounded-md">
                <Shield className="w-5 h-5 text-pl-primary-text" />
@@ -56,7 +56,7 @@ export default function RegulatoryCompliancePageShell() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <AssuranceHelp appKey="regulatory" />
           <ThemeToggle />
           {/* The Search button that stood here had no handler, no state
@@ -70,7 +70,7 @@ export default function RegulatoryCompliancePageShell() {
 
       {/* Sticky Tab Navigation */}
       {!isFormView && (
-        <div className="bg-[hsl(var(--card))]/95 backdrop-blur-md border-b border-[hsl(var(--border))] px-6 flex items-center gap-8 shrink-0 z-10">
+        <div className="bg-[hsl(var(--card))]/95 backdrop-blur-md border-b border-[hsl(var(--border))] px-4 sm:px-6 flex items-center gap-6 sm:gap-8 shrink-0 z-10 overflow-x-auto">
           {navItems.map(item => {
             const isActive = currentPath === item.path || (item.path !== '/dashboard/apps/assurance/regulatory-compliance' && currentPath.startsWith(item.path));
             return (
