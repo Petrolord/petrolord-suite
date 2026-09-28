@@ -14,6 +14,8 @@ import { REPORT_TEMPLATES, selectedSectionsFor } from '@/data/reportAutopilotTem
 import { buildDocxBlob, docxFileName } from '@/utils/reportAutopilotDocx';
 import { saveAs } from 'file-saver';
 import ReportAutopilotHelpGuide from '@/components/reportautopilot/ReportAutopilotHelpGuide';
+import { ThemedApp } from '@/design/ThemeProvider';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 window.addEventListener("error", e => console.error("GlobalError:", e.error || e.message));
 window.addEventListener("unhandledrejection", e => {
@@ -22,7 +24,7 @@ window.addEventListener("unhandledrejection", e => {
 
 function ErrorPanel({err}) {
   return (
-    <div style={{padding:"16px",background:"#2b1d1d",border:"1px solid #a33",color:"#f3caca",borderRadius:"8px"}}>
+    <div className="rounded-lg border border-pl-danger bg-pl-danger-bg p-4 text-pl-danger-text">
       <b>Technical Report Autopilot crashed</b>
       <div style={{marginTop:"8px",whiteSpace:"pre-wrap"}}>{String(err)}</div>
     </div>
@@ -40,21 +42,21 @@ function ErrorPanel({err}) {
  */
 export function ServiceUnavailablePanel({ detail }) {
   return (
-    <div className="max-w-2xl mx-auto mt-10 rounded-lg border border-amber-800/60 bg-amber-950/30 p-6">
-      <h2 className="text-lg font-semibold text-amber-200">Report generation is unavailable</h2>
-      <p className="mt-3 text-sm text-amber-100/80">
+    <div className="max-w-2xl mx-auto mt-10 rounded-lg border border-pl-warning bg-pl-warning-bg p-6">
+      <h2 className="text-lg font-semibold text-pl-warning-text">Report generation is unavailable</h2>
+      <p className="mt-3 text-sm text-pl-text">
         The report writer is not responding. Nothing you entered caused this, and there is
         no setting that will work around it.
       </p>
-      <p className="mt-3 text-sm text-amber-100/80">
+      <p className="mt-3 text-sm text-pl-text">
         Everything else in the app still works: you can build up a report brief and save it as a
         project, and it will be there when generation is restored. Exporting a document is not
         possible in the meantime.
       </p>
       {detail && (
         <details className="mt-4">
-          <summary className="text-xs text-amber-200/70 cursor-pointer">Technical detail</summary>
-          <pre className="mt-2 whitespace-pre-wrap text-[11px] text-amber-100/60">{String(detail)}</pre>
+          <summary className="text-xs text-pl-warning-text cursor-pointer">Technical detail</summary>
+          <pre className="mt-2 whitespace-pre-wrap text-[11px] text-pl-muted">{String(detail)}</pre>
         </details>
       )}
     </div>
@@ -266,10 +268,10 @@ function TechnicalReportAutopilotPageInner() {
   };
 
   if (loading) return (
-    <div className="flex items-center justify-center h-full bg-gradient-to-b from-slate-900 to-gray-900 text-white">
+    <div className="flex items-center justify-center h-full bg-pl-bg text-pl-text">
       <div className="text-center">
-        <Loader2 className="animate-spin rounded-full h-16 w-16 text-lime-400 mx-auto" />
-        <p className="text-white mt-4 text-lg">Loading Autopilot...</p>
+        <Loader2 className="animate-spin rounded-full h-16 w-16 text-pl-primary-text mx-auto" />
+        <p className="text-pl-text mt-4 text-lg">Loading Autopilot...</p>
       </div>
     </div>
   );
@@ -277,7 +279,7 @@ function TechnicalReportAutopilotPageInner() {
   // saveable; only generation and export are gone.
   const serviceDown = isServiceUnavailable(error);
   if (error && !serviceDown) {
-    return <div className="p-4 bg-gradient-to-b from-slate-900 to-gray-900"><ErrorPanel err={error}/></div>;
+    return <div className="p-4 bg-pl-bg"><ErrorPanel err={error}/></div>;
   }
 
   return (
@@ -286,25 +288,26 @@ function TechnicalReportAutopilotPageInner() {
         <title>Technical Report Autopilot - Petrolord</title>
         <meta name="description" content="AI-powered generation of technical reports and documents for the energy sector." />
       </Helmet>
-      <div className="flex flex-col h-full bg-gradient-to-b from-slate-900 to-gray-900 text-white">
-        <header className="flex items-center justify-between p-4 border-b border-white/10 bg-slate-900/50 backdrop-blur-sm">
+      <div className="flex flex-col h-full bg-pl-bg text-pl-text">
+        <header className="flex flex-wrap items-center justify-between gap-2 p-4 border-b border-pl-border bg-pl-surface">
           <div className="flex items-center gap-4">
             {/* EC6-1: Back went to /dashboard/automation, a route App.jsx has
                 never carried, so it landed on the not-found page. */}
             <Button variant="outline" size="sm" onClick={() => navigate('/dashboard/economics')}>
               <ArrowLeft className="w-4 h-4 mr-2" /> Back
             </Button>
-            <h1 className="text-lg font-semibold text-white">Technical Report Autopilot</h1>
+            <h1 className="text-lg font-semibold text-pl-text">Technical Report Autopilot</h1>
           </div>
           <div className="flex items-center gap-2">
             <ReportAutopilotHelpGuide />
             <Button size="sm" onClick={handleSaveProject}>
               <Save className="w-4 h-4 mr-2" /> Save Project
             </Button>
+            <ThemeToggle />
           </div>
         </header>
         <div className="flex flex-grow overflow-hidden">
-          <div className="w-full md:w-2/5 xl:w-1/3 p-4 bg-slate-900/50 backdrop-blur-lg border-r border-white/10 overflow-y-auto">
+          <div className="w-full md:w-2/5 xl:w-1/3 p-4 bg-pl-surface border-r border-pl-border overflow-y-auto">
             <InputPanel 
               onGenerate={handleGenerate} 
               loading={loading || serviceDown}
@@ -325,9 +328,9 @@ function TechnicalReportAutopilotPageInner() {
             {loading && !reportData &&(
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
-                  <Loader2 className="animate-spin rounded-full h-16 w-16 text-lime-400 mx-auto" />
-                  <p className="text-white mt-4 text-lg">Generating Technical Report...</p>
-                  <p className="text-lime-300">Please wait while our AI drafts your document.</p>
+                  <Loader2 className="animate-spin rounded-full h-16 w-16 text-pl-primary-text mx-auto" />
+                  <p className="text-pl-text mt-4 text-lg">Generating Technical Report...</p>
+                  <p className="text-pl-muted">Please wait while our AI drafts your document.</p>
                 </div>
               </div>
             )}
@@ -352,6 +355,13 @@ function TechnicalReportAutopilotPageInner() {
   );
 };
 
+// Design system rollout batch 4D: the app opens light and follows the
+// user's theme from the header toggle. Only the screen chrome is themed; the
+// exported DOCX is built exactly as before.
 export default function TechnicalReportAutopilotPage(){
-  return <ErrorBoundary><TechnicalReportAutopilotPageInner/></ErrorBoundary>;
+  return (
+    <ThemedApp className="h-full" data-testid="trp-theme-scope">
+      <ErrorBoundary><TechnicalReportAutopilotPageInner/></ErrorBoundary>
+    </ThemedApp>
+  );
 }
