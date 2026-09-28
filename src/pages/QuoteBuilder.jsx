@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -549,8 +549,11 @@ const QuoteBuilder = () => {
     setBridgeError(null);
   };
 
-  const handleCheckPromoCode = async () => {
-    const code = promoCode.trim();
+  // `codeOverride` lets the ?promo= share link run this same check with the
+  // code from the URL before the promoCode state update has rendered. The
+  // Apply button passes a click event, which is ignored.
+  const handleCheckPromoCode = async (codeOverride) => {
+    const code = (typeof codeOverride === 'string' ? codeOverride : promoCode).trim();
     if (!code) return;
     setPromoChecking(true);
     setPromoError(null);
@@ -573,6 +576,20 @@ const QuoteBuilder = () => {
       setPromoChecking(false);
     }
   };
+
+  // Promo share links (/dashboard/upgrade?promo=CODE, from the admin Promo
+  // codes page) pre-fill the box and run the same check as the Apply button,
+  // once per page load.
+  const promoFromLinkHandled = useRef(false);
+  useEffect(() => {
+    if (promoFromLinkHandled.current) return;
+    promoFromLinkHandled.current = true;
+    const linkCode = (new URLSearchParams(location.search).get('promo') || '').trim();
+    if (!linkCode) return;
+    setPromoCode(linkCode);
+    handleCheckPromoCode(linkCode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleClearPromoCode = () => {
     setPromoCode('');
