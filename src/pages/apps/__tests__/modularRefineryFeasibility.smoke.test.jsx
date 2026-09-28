@@ -81,7 +81,7 @@ describe('the page', () => {
 
   it('calls the supply cases scenarios, not probabilities', async () => {
     mount();
-    expect(await screen.findByText(/named futures, not probabilities/i)).toBeInTheDocument();
+    expect(await screen.findByText(/named futures with no probabilities/i)).toBeInTheDocument();
   });
 
   it('says the yields are screening defaults from the assay studio', async () => {

@@ -28,7 +28,7 @@ describe('CompletionDesignHelpGuide', () => {
     renderGuide();
     expect(screen.getAllByText(/nominal planning/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/geometric access only/i)).toBeInTheDocument();
-    expect(screen.getByText(/A screen, not a match/)).toBeInTheDocument();
+    expect(screen.getByText(/An outflow screen only/)).toBeInTheDocument();
     expect(screen.getAllByText(/API 5CT/).length).toBeGreaterThan(0);
     expect(screen.getByText(/8.525/)).toBeInTheDocument();
   });

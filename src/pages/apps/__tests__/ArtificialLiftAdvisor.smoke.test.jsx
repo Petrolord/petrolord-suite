@@ -55,7 +55,7 @@ describe('ArtificialLiftAdvisor page', () => {
     expect(screen.getAllByText(/no validated engine/i).length).toBeGreaterThan(0);
 
     // Until the designs run, the ordering is the matrix alone and says so.
-    expect(screen.getByText(/rules of thumb, not a solved well/i)).toBeInTheDocument();
+    expect(screen.getByText(/rules of thumb with no solved well/i)).toBeInTheDocument();
     expect(screen.getByText(/Design them all/i)).toBeInTheDocument();
 
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Well Model' }));

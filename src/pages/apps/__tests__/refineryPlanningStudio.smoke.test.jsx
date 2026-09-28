@@ -66,7 +66,7 @@ describe('the page', () => {
 
   it('says yields are data rather than something it predicts', async () => {
     mount();
-    expect(await screen.findByText(/data rather than something this app predicts/i)).toBeInTheDocument();
+    expect(await screen.findByText(/This app does not\s+predict them/i)).toBeInTheDocument();
   });
 
   it('prices each stream at the margin, and explains the number', async () => {

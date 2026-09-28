@@ -47,7 +47,7 @@ describe('PetrophysicsHelpGuide', () => {
     // PT11d: the deterministic solver exists; the probabilistic one is the stated gap
     expect(text).not.toMatch(/no probabilistic multi-mineral solver/i);
     expect(text).toMatch(/there is no probabilistic solver yet/i);
-    expect(text).toMatch(/refused and flagged, never clamped/i);
+    expect(text).toMatch(/refused and flagged \(it is never clamped\)/i);
     expect(text).toMatch(/Not suited to/);
     expect(text).toMatch(/Gas-bearing intervals/);
     // PT11a: the SP route applies the fit and shows the chain

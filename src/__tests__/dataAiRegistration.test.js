@@ -685,7 +685,7 @@ describe('D5: the AI Evaluation Studio', () => {
     const fn = fs.readFileSync(path.resolve(ROOT, '../supabase/functions/ai-eval-assist/index.ts'), 'utf8');
     expect(fn).toMatch(/Deploy is HELD for the owner/);
     const page = read('components/dataai/evaluate/AnswersPanel.jsx');
-    expect(page).toContain('Model output, not graded');
+    expect(page).toContain('Model output (ungraded)');
     // a saved run and the report never carry the helper's output
     ['utils/dataAi/evalStudy.js', 'utils/dataAi/evalReport.js'].forEach((f) => {
       const code = read(f).split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');

@@ -220,7 +220,7 @@ describe('the optional language-model helper', () => {
     openTab('Answers and groundedness');
     fireEvent.click(await screen.findByTestId('assist-ask'));
     const res = await screen.findByTestId('assist-result');
-    expect(res).toHaveTextContent('Model output, not graded');
+    expect(res).toHaveTextContent('Model output (ungraded)');
     expect(screen.getByTestId('assist-grounded')).toHaveTextContent('Deterministic check: 2 of 3 claims supported');
     expect(screen.getByTestId('assist-claims')).toHaveTextContent('the number 9,999 is not in the cited passage EKD-018; it appears in no passage of the corpus');
     expect(res).toHaveTextContent('Model gpt-6-luna (reasoning effort low); 3 of 200 calls today for your organization, 2 of your 40.');

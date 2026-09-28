@@ -378,7 +378,7 @@ describe('Data & AI result states stay on roles, charts stay white', () => {
     await openTab(/Answers and groundedness/);
     fireEvent.click(await screen.findByTestId('assist-ask'));
     const res = await screen.findByTestId('assist-result');
-    expect(within(res).getByText('Model output, not graded')).toHaveClass('text-pl-warning-text');
+    expect(within(res).getByText('Model output (ungraded)')).toHaveClass('text-pl-warning-text');
     expect(res.className).toMatch(/bg-pl-warning-bg/);
     fireEvent.click(screen.getByTestId('run-answers'));
     await screen.findByTestId('answers-summary');
