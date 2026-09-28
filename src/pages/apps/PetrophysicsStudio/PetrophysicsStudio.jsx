@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Helmet } from 'react-helmet';
+import { ThemedApp } from '@/design/ThemeProvider';
 import PetroWorkstation from './components/PetroWorkstation';
 import { makeRegistryBackend } from './services/registryBackend';
 
@@ -8,6 +9,9 @@ import { makeRegistryBackend } from './services/registryBackend';
 // shallow petrophysics tiles. Full-viewport workstation (the
 // Seismolord/WDM idiom); PetroWorkstation owns all state and this page
 // only mounts it on the real geo_wells backend.
+// Design system rollout W1C: the page opts in to the Petrolord theme (light
+// by default, dark per user through the ribbon toggle). The log tracks,
+// crossplots and histograms stay white chart paper (data-canvas="chart").
 export default function PetrophysicsStudio() {
   const backend = useMemo(() => makeRegistryBackend(), []);
   return (
@@ -20,9 +24,9 @@ export default function PetrophysicsStudio() {
         />
       </Helmet>
 
-      <div className="h-screen w-full overflow-hidden">
+      <ThemedApp className="h-screen w-full overflow-hidden" data-testid="petro-theme-scope">
         <PetroWorkstation backend={backend} />
-      </div>
+      </ThemedApp>
     </>
   );
 }

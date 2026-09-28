@@ -9,7 +9,7 @@ import { Trash2, Plus, Loader2, UploadCloud, Crosshair, Layers } from 'lucide-re
 import { toDisplay, fromDisplay, depthLabel } from '../viewer/depthModes';
 import { validateZoneWindow, planZoneFromTops, planZonesBetweenConsecutiveTops } from '../services/zonePlanner';
 
-const inputCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs';
+const inputCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
 const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v) ? '—' : Number(v).toFixed(d));
 
 /** @param {'m'|'ft'} [p.depthUnit] display unit for depths typed and shown
@@ -64,20 +64,20 @@ export default function ZoneManager({
 
   return (
     <div className="p-2 space-y-2 text-xs" data-testid="petro-zones">
-      <div className="text-[10px] uppercase tracking-wider text-slate-500">
+      <div className="text-[10px] uppercase tracking-wider text-pl-muted">
         Zones {busy && <Loader2 className="w-3 h-3 animate-spin inline ml-1" />}
       </div>
 
       {zones.map((z) => {
         const s = summaries?.[z.id];
         return (
-          <div key={z.id} className="rounded border border-slate-800 p-1.5" data-testid="petro-zone-card" data-zone-name={z.name}>
+          <div key={z.id} className="rounded border border-pl-border p-1.5" data-testid="petro-zone-card" data-zone-name={z.name}>
             <div className="flex items-center gap-1">
-              <span className="text-slate-200 font-medium">{z.name}</span>
-              <span className="text-slate-500">{fmt(toDisplay(z.top_md_m, depthUnit), 1)}–{fmt(toDisplay(z.base_md_m, depthUnit), 1)} {u}</span>
+              <span className="text-pl-text font-medium">{z.name}</span>
+              <span className="text-pl-muted">{fmt(toDisplay(z.top_md_m, depthUnit), 1)}–{fmt(toDisplay(z.base_md_m, depthUnit), 1)} {u}</span>
               {Object.keys(zoneParams[z.id] || {}).length > 0 && (
                 <span
-                  className="rounded px-1 text-[10px] bg-cyan-500/15 text-cyan-300"
+                  className="rounded px-1 text-[10px] bg-pl-primary/10 text-pl-primary-text"
                   title={`Parameter overrides: ${Object.keys(zoneParams[z.id]).join(', ')}`}
                   data-testid={`petro-zone-overrides-${z.name}`}
                 >
@@ -90,7 +90,7 @@ export default function ZoneManager({
                     type="button"
                     title={s ? `Publish ${z.name} summary to the registry` : 'Compute curves first'}
                     disabled={!s}
-                    className="text-slate-500 hover:text-emerald-400 disabled:opacity-30"
+                    className="text-pl-muted hover:text-pl-primary-text disabled:opacity-30"
                     data-testid={`petro-zone-publish-${z.name}`}
                     onClick={() => onPublish(z)}
                   >
@@ -99,7 +99,7 @@ export default function ZoneManager({
                   <button
                     type="button"
                     title={`Delete zone ${z.name}`}
-                    className="text-slate-500 hover:text-red-400"
+                    className="text-pl-muted hover:text-pl-danger-text"
                     data-testid={`petro-zone-delete-${z.name}`}
                     onClick={() => onDelete(z)}
                   >
@@ -109,8 +109,8 @@ export default function ZoneManager({
               )}
             </div>
             {s ? (
-              <div className="grid grid-cols-3 gap-x-2 mt-1 text-[11px] text-slate-400" data-testid={`petro-zone-summary-${z.name}`}>
-                <span>net <b className="text-slate-200" data-testid={`petro-zone-net-${z.name}`}>{fmt(toDisplay(s.net_m, depthUnit), 1)}</b> {u}</span>
+              <div className="grid grid-cols-3 gap-x-2 mt-1 text-[11px] text-pl-muted" data-testid={`petro-zone-summary-${z.name}`}>
+                <span>net <b className="text-pl-text" data-testid={`petro-zone-net-${z.name}`}>{fmt(toDisplay(s.net_m, depthUnit), 1)}</b> {u}</span>
                 <span>gross {fmt(toDisplay(s.gross_m, depthUnit), 1)} {u}</span>
                 <span>NTG {fmt(s.ntg, 3)}</span>
                 <span>φ {fmt(s.phi_avg, 3)}</span>
@@ -123,36 +123,36 @@ export default function ZoneManager({
                       ? 'Thickness-weighted geometric mean of KPERM over the pay samples'
                       : 'No pay sample in this zone carries a positive permeability'}
                   >
-                    k gm <b className="text-slate-200">{fmt(s.k_gm_md, 1)}</b> mD
+                    k gm <b className="text-pl-text">{fmt(s.k_gm_md, 1)}</b> mD
                   </span>
                 )}
               </div>
             ) : (
-              <div className="mt-1 text-[11px] text-slate-600">no computed curves yet</div>
+              <div className="mt-1 text-[11px] text-pl-muted">no computed curves yet</div>
             )}
             {probZones?.[z.id] && (
-              <div className="mt-0.5 text-[11px] text-slate-400" data-testid={`petro-zone-prob-${z.name}`}
+              <div className="mt-0.5 text-[11px] text-pl-muted" data-testid={`petro-zone-prob-${z.name}`}
                 title="Net pay cases from the probabilistic run. P90 means a 90% probability the actual quantity meets or exceeds this value, per SPE PRMS.">
-                net P90 <b className="text-slate-200">{fmt(toDisplay(probZones[z.id].outcomes.net_m.p90, depthUnit), 1)}</b>
-                {' · '}P50 <b className="text-slate-200">{fmt(toDisplay(probZones[z.id].outcomes.net_m.p50, depthUnit), 1)}</b>
-                {' · '}P10 <b className="text-slate-200">{fmt(toDisplay(probZones[z.id].outcomes.net_m.p10, depthUnit), 1)}</b> {u}
+                net P90 <b className="text-pl-text">{fmt(toDisplay(probZones[z.id].outcomes.net_m.p90, depthUnit), 1)}</b>
+                {' · '}P50 <b className="text-pl-text">{fmt(toDisplay(probZones[z.id].outcomes.net_m.p50, depthUnit), 1)}</b>
+                {' · '}P10 <b className="text-pl-text">{fmt(toDisplay(probZones[z.id].outcomes.net_m.p10, depthUnit), 1)}</b> {u}
               </div>
             )}
             {Object.keys(z.properties || {}).length > 0 && (
-              <div className="mt-1 text-[10px] text-emerald-400/80">published summary on record</div>
+              <div className="mt-1 text-[10px] text-pl-success-text">published summary on record</div>
             )}
           </div>
         );
       })}
-      {!zones.length && <p className="text-slate-600">No zones on this well yet.</p>}
+      {!zones.length && <p className="text-pl-muted">No zones on this well yet.</p>}
 
       {isOwn && (
-        <div className="rounded border border-slate-800/60 p-1.5 space-y-1">
+        <div className="rounded border border-pl-border p-1.5 space-y-1">
           <div className="flex items-center gap-1 text-[10px]">
-            <span className="text-slate-500 mr-1">New zone</span>
+            <span className="text-pl-muted mr-1">New zone</span>
             {[['typed', 'Typed'], ['tops', 'Between tops'], ['pick', 'Pick on track']].map(([k, label]) => (
               <button key={k} type="button" data-testid={`petro-zone-mode-${k}`}
-                className={`px-1.5 py-0.5 rounded border ${mode === k ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400 hover:bg-slate-800'}`}
+                className={`px-1.5 py-0.5 rounded border ${mode === k ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:bg-pl-sunken'}`}
                 onClick={() => { setMode(k); setError(null); }}
               >
                 {label}
@@ -176,7 +176,7 @@ export default function ZoneManager({
                 type="button"
                 data-testid="petro-zone-add"
                 className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded border
-                  border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10"
+                  border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10"
                 onClick={add}
               >
                 <Plus className="w-3 h-3" /> Add
@@ -185,7 +185,7 @@ export default function ZoneManager({
           )}
           {mode === 'tops' && (
             sortedTops.length < 2 ? (
-              <p className="text-slate-600">This well needs at least two tops. Pick them on the track or upload them in Well Data Manager.</p>
+              <p className="text-pl-muted">This well needs at least two tops. Pick them on the track or upload them in Well Data Manager.</p>
             ) : (
               <>
                 <div className="flex items-center gap-1 flex-wrap">
@@ -194,20 +194,20 @@ export default function ZoneManager({
                     <option value="">Top…</option>
                     {sortedTops.map((t) => <option key={t.id} value={t.id}>{t.name} {depthLabel(t.md_m, depthUnit)}</option>)}
                   </select>
-                  <span className="text-slate-500">to</span>
+                  <span className="text-pl-muted">to</span>
                   <select className={inputCls} value={pair.to} data-testid="petro-zone-to-top"
                     onChange={(e) => setPair((p) => ({ ...p, to: e.target.value }))}>
                     <option value="">Base…</option>
                     {sortedTops.map((t) => <option key={t.id} value={t.id}>{t.name} {depthLabel(t.md_m, depthUnit)}</option>)}
                   </select>
                   <button type="button" data-testid="petro-zone-add-from-tops" disabled={!pair.from || !pair.to}
-                    className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-50"
+                    className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10 disabled:opacity-50"
                     onClick={addFromTops}>
                     <Plus className="w-3 h-3" /> Add
                   </button>
                 </div>
                 <button type="button" data-testid="petro-zone-fill-between-tops" disabled={busy}
-                  className="flex items-center gap-1 px-2 py-0.5 rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+                  className="flex items-center gap-1 px-2 py-0.5 rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-50"
                   title={plan.zones.length ? `Creates ${plan.zones.length} zone(s): ${plan.zones.map((z) => z.name).join(', ')}` : 'Every consecutive pair already has a zone'}
                   onClick={addAllBetweenTops}>
                   <Layers className="w-3 h-3" /> Zones between consecutive tops ({plan.zones.length})
@@ -217,20 +217,20 @@ export default function ZoneManager({
           )}
           {mode === 'pick' && (
             <div className="space-y-1">
-              <p className="text-slate-500">Click the zone top on the track, then its base; a name box opens (the nearest top above is suggested). Esc leaves the mode.</p>
+              <p className="text-pl-muted">Click the zone top on the track, then its base; a name box opens (the nearest top above is suggested). Esc leaves the mode.</p>
               <button type="button" data-testid="petro-zone-pick"
                 className={`flex items-center gap-1 px-2 py-0.5 rounded border ${pickActive
-                  ? 'border-cyan-500/60 text-cyan-300 bg-cyan-500/10' : 'border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10'}`}
+                  ? 'border-pl-primary text-pl-primary-text bg-pl-primary/10' : 'border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10'}`}
                 onClick={onStartPick}>
                 <Crosshair className="w-3 h-3" /> {pickActive ? 'Picking… (Esc to stop)' : 'Pick on track'}
               </button>
             </div>
           )}
-          {error && <div className="text-red-400" data-testid="petro-zone-error">{error}</div>}
+          {error && <div className="text-pl-danger-text" data-testid="petro-zone-error">{error}</div>}
         </div>
       )}
       {!isOwn && (
-        <p className="text-[10px] text-slate-600">
+        <p className="text-[10px] text-pl-muted">
           Org-shared well — zones are read-only for you.
         </p>
       )}

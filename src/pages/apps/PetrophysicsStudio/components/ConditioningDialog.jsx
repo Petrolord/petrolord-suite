@@ -18,8 +18,8 @@ import {
 import { applyNormalization } from '../engine/normalize';
 import { PIPELINE_VERSION } from '../engine/pipeline';
 
-const inputCls = 'w-20 rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs';
-const selCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs';
+const inputCls = 'w-20 rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
+const selCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
 const num = (v) => Number(v);
 
 const OPS = [
@@ -152,7 +152,7 @@ export default function ConditioningDialog({
   };
 
   const field = (key, label) => (
-    <label className="flex items-center gap-1 text-slate-400">{label}
+    <label className="flex items-center gap-1 text-pl-muted">{label}
       <input className={inputCls} data-testid={`petro-cond-${key}`} value={p[key]}
         onChange={(e) => setP((s) => ({ ...s, [key]: e.target.value }))} />
     </label>
@@ -160,10 +160,10 @@ export default function ConditioningDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg bg-slate-900 border-slate-700 text-slate-200" data-testid="petro-cond-dialog">
+      <DialogContent className="max-w-lg" data-testid="petro-cond-dialog">
         <DialogHeader>
           <DialogTitle>Condition a curve</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-pl-muted">
             Saves a NEW {srcKey}_CND curve with operation provenance. Raw curves are never changed,
             and nothing is substituted silently: pick the conditioned curve in the explorer to use it.
           </DialogDescription>
@@ -171,14 +171,14 @@ export default function ConditioningDialog({
 
         <div className="space-y-2 text-xs">
           <div className="flex items-center gap-2 flex-wrap">
-            <label className="flex items-center gap-1 text-slate-400">Curve
+            <label className="flex items-center gap-1 text-pl-muted">Curve
               <select className={selCls} data-testid="petro-cond-source" value={srcKey}
                 onChange={(e) => setSrcKey(e.target.value)}
               >
                 {sources.map((k) => <option key={k} value={k}>{k}</option>)}
               </select>
             </label>
-            <label className="flex items-center gap-1 text-slate-400">Operation
+            <label className="flex items-center gap-1 text-pl-muted">Operation
               <select className={selCls} data-testid="petro-cond-op" value={op}
                 onChange={(e) => setOp(e.target.value)}
               >
@@ -196,7 +196,7 @@ export default function ConditioningDialog({
                 {field('bitSize', 'Bit size')}
                 {field('washoutOver', 'Washout over')}
                 {field('drhoMax', '|DRHO| max')}
-                <label className="flex items-center gap-1 text-slate-400">Repair
+                <label className="flex items-center gap-1 text-pl-muted">Repair
                   <select className={selCls} value={p.mode} onChange={(e) => setP((s) => ({ ...s, mode: e.target.value }))}>
                     <option value="null">null out</option>
                     <option value="interp">bridge short gaps</option>
@@ -210,35 +210,34 @@ export default function ConditioningDialog({
                 {field('shift', 'Shift')}
                 {field('scale', 'Scale')}
                 {lastNormFit && (
-                  <span className="text-slate-500">prefilled from the histogram fit</span>
+                  <span className="text-pl-muted">prefilled from the histogram fit</span>
                 )}
               </>
             )}
           </div>
           {op === 'depth-shift' && (
-            <p className="text-[10px] text-slate-500">
+            <p className="text-[10px] text-pl-muted">
               Constant block shift. For stretch and squeeze through tie points open the Depth shift view
               from the ribbon; it saves a separate <span className="font-mono">_DS</span> curve.
             </p>
           )}
 
           {preview && (preview.error ? (
-            <p className="text-amber-400/90" data-testid="petro-cond-preview">{preview.error}</p>
+            <p className="text-pl-warning-text" data-testid="petro-cond-preview">{preview.error}</p>
           ) : (
-            <p className="text-slate-400" data-testid="petro-cond-preview">
-              Preview: <b className="text-slate-200">{preview.changed}</b> samples changed,{' '}
-              <b className="text-slate-200">{preview.nulled}</b> nulled.
+            <p className="text-pl-muted" data-testid="petro-cond-preview">
+              Preview: <b className="text-pl-text">{preview.changed}</b> samples changed,{' '}
+              <b className="text-pl-text">{preview.nulled}</b> nulled.
             </p>
           ))}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" size="sm" className="border-slate-700 text-slate-300" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
             size="sm"
-            className="bg-cyan-600 hover:bg-cyan-500 text-white"
             disabled={busy || !srcData || !!preview?.error}
             data-testid="petro-cond-save"
             onClick={save}

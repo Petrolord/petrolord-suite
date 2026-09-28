@@ -13,7 +13,7 @@ import HistogramChart from './HistogramChart';
 import { histogram, cumulative, maskForWindow, passingFraction } from '../viewer/stats';
 import { percentile, fitNormalization, applyNormalization } from '../engine/normalize';
 
-const inputCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs';
+const inputCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
 const OVERLAY_COLORS = ['#7c3aed', '#dc2626', '#0891b2', '#ca8a04'];
 
 // which parameters bind as draggable cutoffs per curve, and which side
@@ -139,19 +139,19 @@ export default function HistogramPanel({
 
   return (
     <div className="h-full min-h-0 flex flex-col" data-testid="petro-histogram">
-      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-slate-800/60 text-xs flex-wrap">
-        <label className="flex items-center gap-1 text-slate-500">Curve
+      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-pl-border text-xs flex-wrap">
+        <label className="flex items-center gap-1 text-pl-muted">Curve
           <select className={inputCls} data-testid="petro-hist-curve" value={curveKey}
             onChange={(e) => { setCurveKey(e.target.value); setFit(null); }}
           >
             {available.map((k) => <option key={k} value={k}>{k}</option>)}
           </select>
         </label>
-        <label className="flex items-center gap-1 text-slate-500">Bins
+        <label className="flex items-center gap-1 text-pl-muted">Bins
           <input className={`${inputCls} w-14`} data-testid="petro-hist-bins" value={String(bins)}
             onChange={(e) => { const b = Number(e.target.value); if (Number.isFinite(b) && b >= 5 && b <= 200) setBins(b); }} />
         </label>
-        <label className="flex items-center gap-1 text-slate-500">Interval
+        <label className="flex items-center gap-1 text-pl-muted">Interval
           <select className={inputCls} data-testid="petro-hist-filter" value={filter}
             onChange={(e) => setFilter(e.target.value)}
           >
@@ -160,19 +160,19 @@ export default function HistogramPanel({
           </select>
         </label>
         {passing !== null && Number.isFinite(passing) && (
-          <span className="text-slate-400" data-testid="petro-hist-passing">
-            passing cutoff: <b className="text-slate-200">{(passing * 100).toFixed(1)}%</b>
+          <span className="text-pl-muted" data-testid="petro-hist-passing">
+            passing cutoff: <b className="text-pl-text">{(passing * 100).toFixed(1)}%</b>
           </span>
         )}
         {pcts.length > 0 && (
-          <span className="text-slate-500" data-testid="petro-hist-pcts">
+          <span className="text-pl-muted" data-testid="petro-hist-pcts">
             {pcts.map((x) => `${parameterPercentileLabel(null, x.p)} ${Number(x.value.toPrecision(4))}`).join(' · ')}
           </span>
         )}
 
         <div className="ml-auto flex items-center gap-1.5 flex-wrap">
           {otherWells.map((w) => (
-            <label key={w.id} className="flex items-center gap-1 text-slate-400">
+            <label key={w.id} className="flex items-center gap-1 text-pl-muted">
               <input
                 type="checkbox"
                 data-testid={`petro-hist-overlay-${w.name}`}
@@ -200,13 +200,13 @@ export default function HistogramPanel({
                 <option value="mean-std">mean-std</option>
               </select>
               <button type="button" data-testid="petro-hist-fit" disabled={!normTarget}
-                className="px-2 py-0.5 rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-40"
+                className="px-2 py-0.5 rounded border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10 disabled:opacity-40"
                 onClick={runFit}
               >
                 Fit
               </button>
               {fit && (
-                <span className="text-slate-300" data-testid="petro-hist-fit-result">
+                <span className="text-pl-text" data-testid="petro-hist-fit-result">
                   shift {fit.result.shift.toFixed(3)} · scale {fit.result.scale.toFixed(4)}
                 </span>
               )}
@@ -230,7 +230,7 @@ export default function HistogramPanel({
             }}
           />
         ) : (
-          <p className="p-4 text-xs text-slate-500">No finite samples for {curveKey} in this interval.</p>
+          <p className="p-4 text-xs text-pl-muted">No finite samples for {curveKey} in this interval.</p>
         )}
       </div>
     </div>

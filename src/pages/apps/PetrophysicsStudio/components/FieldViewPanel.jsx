@@ -16,7 +16,7 @@ import { depthLabel } from '../viewer/depthModes';
 import { activeTemplate } from '../layout/layoutSchema';
 import { resolveTracks } from '../layout/resolveTracks';
 
-const inputCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs';
+const inputCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
 const MAX_WELLS = 8;
 const FIELD_SOURCES = new Set(['input:GR', 'output:PHIE', 'output:PHIT', 'output:SW', 'output:PAY']);
 const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v) ? '—' : Number(v).toFixed(d));
@@ -140,10 +140,10 @@ export default function FieldViewPanel({
 
   return (
     <div className="h-full min-h-0 flex flex-col" data-testid="petro-field">
-      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-slate-800/60 text-xs flex-wrap">
-        <span className="text-slate-500">Wells</span>
+      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-pl-border text-xs flex-wrap">
+        <span className="text-pl-muted">Wells</span>
         {wells.map((w) => (
-          <label key={w.id} className="flex items-center gap-1 text-slate-400">
+          <label key={w.id} className="flex items-center gap-1 text-pl-muted">
             <input
               type="checkbox"
               data-testid={`petro-field-pick-${w.name}`}
@@ -153,7 +153,7 @@ export default function FieldViewPanel({
             {w.name}
           </label>
         ))}
-        <label className="ml-auto flex items-center gap-1 text-slate-500">Datum
+        <label className="ml-auto flex items-center gap-1 text-pl-muted">Datum
           <select className={inputCls} data-testid="petro-field-datum" value={datumTop}
             onChange={(e) => setDatumTop(e.target.value)}
           >
@@ -161,30 +161,30 @@ export default function FieldViewPanel({
             {topNames.map((n) => <option key={n} value={n}>Flatten on {n}</option>)}
           </select>
         {onShowAllTops && (
-          <label className="flex items-center gap-1 text-xs text-slate-400 ml-2">
+          <label className="flex items-center gap-1 text-xs text-pl-muted ml-2">
             <input type="checkbox" checked={topStyles?.showAll !== false} onChange={(e) => onShowAllTops(e.target.checked)} data-testid="petro-field-tops" />
             Tops
           </label>
         )}
         </label>
-        {busy && <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-500" />}
+        {busy && <Loader2 className="w-3.5 h-3.5 animate-spin text-pl-muted" />}
       </div>
 
       <div className="flex-1 min-h-0">
         {tracksWells.length ? (
           <MultiWellTracks topStyles={topStyles} wells={tracksWells} />
         ) : (
-          <div className="h-full flex items-center justify-center text-slate-500 text-sm">
+          <div className="h-full flex items-center justify-center text-pl-muted text-sm">
             Pick wells above to compare them side by side.
           </div>
         )}
       </div>
 
       {summaryRows.length > 0 && (
-        <div className="max-h-40 overflow-auto border-t border-slate-800/60" data-testid="petro-field-summary">
-          <table className="w-full text-[11px] text-slate-300">
+        <div className="max-h-40 overflow-auto border-t border-pl-border" data-testid="petro-field-summary">
+          <table className="w-full text-[11px] text-pl-text">
             <thead>
-              <tr className="text-slate-500">
+              <tr className="text-pl-muted">
                 <th className="text-left px-2 py-1">Zone</th>
                 {fieldWells.map((w) => (
                   <th key={w.id} className="text-left px-2 py-1">{w.name}</th>
@@ -193,8 +193,8 @@ export default function FieldViewPanel({
             </thead>
             <tbody>
               {summaryRows.map((row) => (
-                <tr key={row.key} className="border-t border-slate-800/40" data-testid={`petro-field-zone-${row.display}`}>
-                  <td className="px-2 py-1 text-slate-200">{row.display}</td>
+                <tr key={row.key} className="border-t border-pl-border" data-testid={`petro-field-zone-${row.display}`}>
+                  <td className="px-2 py-1 text-pl-text">{row.display}</td>
                   {row.cells.map((s, i) => (
                     <td key={fieldWells[i].id} className="px-2 py-1">
                       {s

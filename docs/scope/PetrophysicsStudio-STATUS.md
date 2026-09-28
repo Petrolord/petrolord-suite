@@ -737,3 +737,38 @@ the copy in hand, the chart's printed temperature range, six SP-2 chart
 readings for `chart_points.json` (the acceptance gate for PT11a), and
 whether Studio preferences should move to a table for cross-device use.
 Stage two of the solver (PT11e) waits for a customer request.
+
+## 2026-09-28: design system rollout W1C (light default, dark per user)
+
+The Studio, its dev harness and its help guide each wrap themselves in
+`ThemedApp` (App.jsx is untouched), so the app opens on the grey panel
+light theme and the ribbon's new toggle (at the right, beside Help and
+"Parameters & zones") switches to dark and back, stored per user. The
+route prefix `/dashboard/apps/geoscience/petrophysics-studio` (the help
+guide is a sub-path) is registered in `src/design/rollout/w1c.js` for
+the themed cold-load loaders.
+
+- Chrome on roles: the ribbon, explorer, dock panels, status bar, the
+  views' toolbars and all eleven dialogs moved from slate, cyan and
+  emerald to `pl-*` roles. Selected view buttons and
+  chips use the primary tint; the publish buttons lost their decorative
+  emerald; warnings, errors, the low and high case words and "saved"
+  messages use the status roles. The AI scan proposal is an info
+  callout. Overrides on `DialogContent` and on primary and outline
+  `Button`s were removed so the themed defaults apply.
+- Plots unchanged: the log tracks, field view tracks, crossplots,
+  depth density plot and histograms keep their canvas palettes and sit
+  in `data-canvas="chart"` (white paper in both themes, their hover
+  tooltips too). The depth navigator stays the light canvas. Curve, fill,
+  zone, top and mineral colours are data and are unchanged.
+- Layout fixes found in the screenshot walk: the dock content now takes
+  the dock width, so an open track row in the track layout editor (the
+  shared LayoutPanel curve row, wider than a 280px dock) scrolls sideways
+  on its own and no longer pushes every parameter field out of view (it
+  did in the legacy look too); below about 1300px the ribbon's tool
+  group wraps onto a second row, so Save no longer runs off the right edge.
+- Tests: new `__tests__/PetrophysicsStudio.theme.test.jsx` (the shared
+  `describeAppTheme` checks on the real workstation, plus a loaded well in
+  light and dark, every view, ten dialogs and the help guide). The e2e
+  selected-well check now reads `text-pl-primary-text`. No calculation,
+  LAS, export or plotting change.

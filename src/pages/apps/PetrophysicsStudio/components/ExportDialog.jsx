@@ -135,39 +135,39 @@ export default function ExportDialog({
       onStatus={onStatus}
     />
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-slate-900 border-slate-700 text-slate-200" data-testid="petro-export-dialog">
+      <DialogContent className="max-w-md" data-testid="petro-export-dialog">
         <DialogHeader>
           <DialogTitle>Export deliverables</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-pl-muted">
             {wellName} at the parameters now applied.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="rounded border border-slate-800 bg-slate-950/40 px-2.5 py-2 space-y-1.5 text-xs" data-testid="petro-export-options">
+        <div className="rounded border border-pl-border bg-pl-sunken/60 px-2.5 py-2 space-y-1.5 text-xs" data-testid="petro-export-options">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="text-slate-500">Depths in</span>
+            <span className="text-pl-muted">Depths in</span>
             <button type="button" data-testid="petro-export-unit"
-              className="px-2 py-0.5 rounded border border-slate-700 text-slate-200 hover:bg-slate-800"
+              className="px-2 py-0.5 rounded border border-pl-border text-pl-text hover:bg-pl-sunken"
               onClick={() => setUnit((u) => (u === 'm' ? 'ft' : 'm'))} title="Unit of every depth column in the deliverables">
               {unit === 'ft' ? 'feet' : 'metres'}
             </button>
-            <span className="text-slate-500">Columns</span>
+            <span className="text-pl-muted">Columns</span>
             {['md', 'tvd', 'tvdss'].map((k) => (
-              <label key={k} className="flex items-center gap-1 text-slate-300">
+              <label key={k} className="flex items-center gap-1 text-pl-text">
                 <input type="checkbox" checked={!!cols[k]} data-testid={`petro-export-col-${k}`}
                   onChange={(e) => setCols((c) => ({ ...c, [k]: e.target.checked }))} />
                 {k.toUpperCase()}
               </label>
             ))}
-            <label className="flex items-center gap-1 text-slate-300">
+            <label className="flex items-center gap-1 text-pl-text">
               DEPT is
-              <select className="rounded bg-slate-950 border border-slate-700 text-slate-200 px-1 py-0.5" value={depthOpts.primary}
+              <select className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5" value={depthOpts.primary}
                 onChange={(e) => setPrimary(e.target.value)} data-testid="petro-export-primary">
                 {depthOpts.columns.map((k) => <option key={k} value={k}>{k.toUpperCase()}</option>)}
               </select>
             </label>
           </div>
-          {depthNote && <div className="text-[11px] text-slate-500" data-testid="petro-export-depth-note">{depthNote}</div>}
+          {depthNote && <div className="text-[11px] text-pl-muted" data-testid="petro-export-depth-note">{depthNote}</div>}
         </div>
 
         <div className="space-y-1.5">
@@ -177,23 +177,23 @@ export default function ExportDialog({
               type="button"
               data-testid={testid}
               disabled={!!busy}
-              className="w-full flex items-start gap-2.5 rounded border border-slate-700 px-3 py-2 text-left
-                hover:bg-slate-800 disabled:opacity-50"
+              className="w-full flex items-start gap-2.5 rounded border border-pl-border px-3 py-2 text-left
+                hover:bg-pl-sunken disabled:opacity-50"
               onClick={run(kind, build)}
             >
               {busy === kind
-                ? <Loader2 className="w-4 h-4 mt-0.5 animate-spin text-cyan-400" />
-                : <Icon className="w-4 h-4 mt-0.5 text-cyan-400" />}
+                ? <Loader2 className="w-4 h-4 mt-0.5 animate-spin text-pl-primary-text" />
+                : <Icon className="w-4 h-4 mt-0.5 text-pl-primary-text" />}
               <span>
-                <span className="block text-sm text-slate-200">{label}</span>
-                <span className="block text-[11px] text-slate-500">{note}</span>
+                <span className="block text-sm text-pl-text">{label}</span>
+                <span className="block text-[11px] text-pl-muted">{note}</span>
               </span>
             </button>
           ))}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" size="sm" className="border-slate-700 text-slate-300" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
             Close
           </Button>
         </DialogFooter>

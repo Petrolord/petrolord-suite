@@ -72,19 +72,19 @@ export default function InterpretationBar({
         data-testid="petro-interp"
         title="Interpretations: open, save as, rename, delete"
         className="flex items-center gap-1 px-2 py-1 text-xs rounded border
-          border-slate-700 text-slate-300 hover:bg-slate-800 max-w-[180px]"
+          border-pl-border text-pl-text hover:bg-pl-sunken max-w-[180px]"
         onClick={toggleMenu}
       >
-        <FolderOpen className="w-3.5 h-3.5 shrink-0 text-cyan-400" />
+        <FolderOpen className="w-3.5 h-3.5 shrink-0 text-pl-primary-text" />
         <span className="truncate" data-testid="petro-interp-name">{projectName || 'Unsaved'}</span>
         <ChevronDown className="w-3 h-3 shrink-0" />
       </button>
       {menuOpen && (
         <div
-          className="absolute z-30 mt-1 w-64 rounded border border-slate-700 bg-slate-900 shadow-xl text-xs"
+          className="absolute z-30 mt-1 w-64 rounded border border-pl-border bg-pl-surface shadow-xl text-xs"
           data-testid="petro-interp-menu"
         >
-          <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
+          <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-pl-muted border-b border-pl-border">
             Interpretations
           </div>
           <div className="max-h-48 overflow-auto">
@@ -93,43 +93,43 @@ export default function InterpretationBar({
                 key={p.id}
                 type="button"
                 data-testid={`petro-interp-open-${p.name}`}
-                className={`w-full text-left px-2.5 py-1.5 hover:bg-slate-800 flex items-center gap-2
-                  ${p.id === projectId ? 'text-cyan-300' : 'text-slate-300'}`}
+                className={`w-full text-left px-2.5 py-1.5 hover:bg-pl-sunken flex items-center gap-2
+                  ${p.id === projectId ? 'text-pl-primary-text' : 'text-pl-text'}`}
                 onClick={() => { setMenuOpen(false); onOpen(p.id); }}
               >
                 <span className="truncate">{p.name}</span>
-                {p.id === projectId && <span className="ml-auto text-[10px] text-slate-500">open</span>}
+                {p.id === projectId && <span className="ml-auto text-[10px] text-pl-muted">open</span>}
               </button>
             ))}
-            {!projects.length && <p className="px-2.5 py-2 text-slate-500">No saved interpretations yet.</p>}
+            {!projects.length && <p className="px-2.5 py-2 text-pl-muted">No saved interpretations yet.</p>}
           </div>
           {provenance.length > 0 && (
-            <div className="border-t border-slate-800" data-testid="petro-interp-provenance">
-              <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-slate-500">Provenance</div>
+            <div className="border-t border-pl-border" data-testid="petro-interp-provenance">
+              <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-pl-muted">Provenance</div>
               <ul className="max-h-32 overflow-auto px-2.5 pb-1.5 space-y-1">
                 {[...provenance].reverse().slice(0, 8).map((e, i) => (
-                  <li key={`${e.at}-${i}`} className="text-[10px] text-slate-400 leading-snug">
-                    <span className="text-slate-500">{String(e.at || '').slice(0, 10)}</span> {e.note || `${e.key}: ${e.from} to ${e.to}`}
+                  <li key={`${e.at}-${i}`} className="text-[10px] text-pl-muted leading-snug">
+                    <span className="text-pl-muted">{String(e.at || '').slice(0, 10)}</span> {e.note || `${e.key}: ${e.from} to ${e.to}`}
                   </li>
                 ))}
               </ul>
             </div>
           )}
-          <div className="border-t border-slate-800 p-1 flex gap-1">
+          <div className="border-t border-pl-border p-1 flex gap-1">
             <button type="button" data-testid="petro-interp-saveas"
-              className="flex-1 px-2 py-1 rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10"
+              className="flex-1 px-2 py-1 rounded border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10"
               onClick={saveAs}
             >
               Save as…
             </button>
             <button type="button" data-testid="petro-interp-rename" disabled={!projectId}
-              className="flex-1 px-2 py-1 rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+              className="flex-1 px-2 py-1 rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
               onClick={rename}
             >
               Rename
             </button>
             <button type="button" data-testid="petro-interp-delete" disabled={!projectId}
-              className="flex-1 px-2 py-1 rounded border border-red-900/60 text-red-300 hover:bg-red-500/10 disabled:opacity-40"
+              className="flex-1 px-2 py-1 rounded border border-pl-danger/40 text-pl-danger-text hover:bg-pl-danger-bg disabled:opacity-40"
               onClick={remove}
             >
               Delete

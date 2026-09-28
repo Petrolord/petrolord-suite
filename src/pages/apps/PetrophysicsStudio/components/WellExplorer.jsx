@@ -16,8 +16,8 @@ export default function WellExplorer({
   wellCorrelationPath = '/dashboard/apps/geoscience/well-correlation',
 }) {
   return (
-    <div className="h-full min-h-0 flex flex-col bg-slate-900/60" data-testid="petro-explorer">
-      <div className="px-2.5 py-1.5 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-800/60">
+    <div className="h-full min-h-0 flex flex-col bg-pl-surface" data-testid="petro-explorer">
+      <div className="px-2.5 py-1.5 text-[11px] uppercase tracking-wider text-pl-muted border-b border-pl-border">
         Registry wells <span data-testid="petro-well-count">{wells.length}</span>
       </div>
       <ScrollArea className="flex-1 min-h-0">
@@ -33,27 +33,27 @@ export default function WellExplorer({
                 data-well-name={w.name}
                 className={`flex items-center gap-1.5 pl-2.5 pr-2 py-[3px] text-[13px] cursor-pointer
                   select-none min-w-0
-                  ${selected ? 'bg-cyan-500/10 text-cyan-200' : 'text-slate-300 hover:bg-slate-800/70'}`}
+                  ${selected ? 'bg-pl-primary/10 text-pl-primary-text' : 'text-pl-text hover:bg-pl-sunken'}`}
                 onClick={() => onSelect(w.id)}
                 onKeyDown={(e) => { if (e.key === 'Enter') onSelect(w.id); }}
               >
-                <CircleDot className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                <CircleDot className="w-3.5 h-3.5 shrink-0 text-pl-muted" />
                 <span className="truncate">{w.name}</span>
                 <span
                   title={shared ? `Shared with the organization${w.is_own ? '' : ' (read-only for you)'}` : 'Private'}
                   className={`ml-1 inline-flex items-center gap-0.5 rounded px-1 text-[10px]
-                    ${shared ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-700/60 text-slate-400'}`}
+                    ${shared ? 'bg-pl-primary/10 text-pl-primary-text' : 'bg-pl-sunken text-pl-muted'}`}
                 >
                   {shared ? <Building2 className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
                 </span>
-                {w.id === loadingId && <Loader2 className="ml-auto w-3.5 h-3.5 animate-spin text-slate-500" />}
+                {w.id === loadingId && <Loader2 className="ml-auto w-3.5 h-3.5 animate-spin text-pl-muted" />}
               </div>
               {selected && curveInventory && (
                 <div className="pl-7 pb-1" data-testid="petro-curve-inventory">
                   {w.is_own && (
                     <Link
                       to={`${wellDataManagerPath}?well=${w.id}&tab=checkshots`}
-                      className="inline-flex items-center gap-1 text-[10px] text-cyan-400 hover:underline pb-1"
+                      className="inline-flex items-center gap-1 text-[10px] text-pl-primary-text hover:underline pb-1"
                       data-testid="petro-edit-well-data"
                       title="Open this well in Well Data Manager to edit its header, survey, checkshots and tops"
                       onClick={(e) => e.stopPropagation()}
@@ -63,7 +63,7 @@ export default function WellExplorer({
                   )}
                   <Link
                     to={`${wellCorrelationPath}?wells=${encodeURIComponent(w.id)}`}
-                    className="inline-flex items-center gap-1 text-[10px] text-cyan-400 hover:underline pb-1 ml-2"
+                    className="inline-flex items-center gap-1 text-[10px] text-pl-primary-text hover:underline pb-1 ml-2"
                     data-testid="petro-open-correlation"
                     title="Open this well on a cross-section in Well Correlation"
                     onClick={(e) => e.stopPropagation()}
@@ -74,9 +74,9 @@ export default function WellExplorer({
                     const mapped = Object.fromEntries(curveInventory.map(({ key, log }) => [key, log]));
                     const others = allLogs ? unmappedLogs(allLogs, mapped) : [];
                     return others.length ? (
-                      <div className="text-[10px] text-slate-500 pb-1" data-testid="petro-other-curves"
+                      <div className="text-[10px] text-pl-muted pb-1" data-testid="petro-other-curves"
                         title="Curves no pipeline input took. Put any of them on a track from Track layout (curve address log:<MNEMONIC>), or bind one to an input with the pickers below where offered.">
-                        Also in this well: <span className="text-slate-400">{others.map((l) => l.mnemonic).join(', ')}</span>
+                        Also in this well: <span className="text-pl-muted">{others.map((l) => l.mnemonic).join(', ')}</span>
                       </div>
                     ) : null;
                   })()}
@@ -85,16 +85,16 @@ export default function WellExplorer({
                     return (
                       <div key={key} className="flex items-center gap-1.5 text-[11px] py-px">
                         {log
-                          ? <Check className="w-3 h-3 text-emerald-400" />
-                          : <Minus className="w-3 h-3 text-slate-600" />}
-                        <span className={log ? 'text-slate-300' : 'text-slate-600'}>
+                          ? <Check className="w-3 h-3 text-pl-success-text" />
+                          : <Minus className="w-3 h-3 text-pl-muted" />}
+                        <span className={log ? 'text-pl-text' : 'text-pl-muted'}>
                           {key}
                         </span>
                         {candidates.length > 1 ? (
                           // PS8: explicit input pick — conditioned curves
                           // are never substituted silently
                           <select
-                            className="rounded bg-slate-950 border border-slate-700 text-slate-300 px-1 text-[10px]"
+                            className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 text-[10px]"
                             data-testid={`petro-pick-${key}`}
                             value={log?.id || ''}
                             onClick={(e) => e.stopPropagation()}
@@ -105,7 +105,7 @@ export default function WellExplorer({
                             ))}
                           </select>
                         ) : (
-                          <span className={log ? 'text-slate-300' : 'text-slate-600'}>
+                          <span className={log ? 'text-pl-text' : 'text-pl-muted'}>
                             {log ? ` · ${log.mnemonic}${log.unit ? ` (${log.unit})` : ''}` : ' — not in this well'}
                           </span>
                         )}
@@ -118,7 +118,7 @@ export default function WellExplorer({
           );
         })}
         {!wells.length && (
-          <p className="px-3 py-2 text-xs text-slate-600 leading-snug">
+          <p className="px-3 py-2 text-xs text-pl-muted leading-snug">
             No wells in the registry yet. Import them in Well Data Manager first.
           </p>
         )}

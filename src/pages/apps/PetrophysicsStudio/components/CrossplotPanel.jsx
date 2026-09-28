@@ -68,7 +68,7 @@ const mapFn = (t) => {
   return `rgb(${r},${g},${b})`;
 };
 
-const inputCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs';
+const inputCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
 
 /**
  * PT10b props: `logs` (raw registry curves by mnemonic), `well` (the
@@ -463,7 +463,7 @@ export default function CrossplotPanel({
       type="button"
       data-testid={testid}
       disabled={disabled}
-      className={`px-2 py-0.5 rounded border disabled:opacity-40 ${plot === key ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400'}`}
+      className={`px-2 py-0.5 rounded border disabled:opacity-40 ${plot === key ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted'}`}
       onClick={() => setPlot(key)}
     >
       {label}
@@ -472,7 +472,7 @@ export default function CrossplotPanel({
 
   return (
     <div className="h-full min-h-0 flex flex-col" data-testid="petro-crossplot">
-      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-slate-800/60 text-xs">
+      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-pl-border text-xs">
         {plotBtn('nd', 'Density–Neutron', 'petro-plot-nd')}
         {plotBtn('pickett', 'Pickett', 'petro-plot-pickett')}
         {plotBtn('buckles', 'Buckles', 'petro-plot-buckles', !bucklesSamples.length)}
@@ -480,7 +480,7 @@ export default function CrossplotPanel({
         {plotBtn('density', 'Depth density', 'petro-plot-density', !curves?.DEPT)}
 
         {plot !== 'density' && (
-        <label className="ml-2 flex items-center gap-1 text-slate-500">
+        <label className="ml-2 flex items-center gap-1 text-pl-muted">
           Color by
           <select
             className={inputCls}
@@ -499,7 +499,7 @@ export default function CrossplotPanel({
           type="button"
           data-testid="petro-crossplot-png"
           title="Download this plot as a PNG image"
-          className="flex items-center gap-1 px-2 py-0.5 rounded border border-slate-700 text-slate-300 hover:bg-slate-800"
+          className="flex items-center gap-1 px-2 py-0.5 rounded border border-pl-border text-pl-text hover:bg-pl-sunken"
           onClick={exportPng}
         >
           <ImageDown className="w-3 h-3" /> PNG
@@ -508,7 +508,7 @@ export default function CrossplotPanel({
           <button
             type="button"
             data-testid="petro-zoom-reset"
-            className="px-2 py-0.5 rounded border border-slate-700 text-slate-400 hover:text-slate-200"
+            className="px-2 py-0.5 rounded border border-pl-border text-pl-muted hover:text-pl-text"
             onClick={() => setDom(plot)(null)}
           >
             Reset zoom
@@ -516,15 +516,15 @@ export default function CrossplotPanel({
         )}
         {plot === 'density' ? null : selecting ? (
           <>
-            <span className="text-slate-500">{selDraft.length} pts</span>
+            <span className="text-pl-muted">{selDraft.length} pts</span>
             <button type="button" data-testid="petro-select-apply"
-              className="px-2 py-0.5 rounded border border-emerald-700/60 text-emerald-300 hover:bg-emerald-500/10"
+              className="px-2 py-0.5 rounded border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10"
               onClick={applySelection}
             >
               Apply selection
             </button>
             <button type="button"
-              className="px-2 py-0.5 rounded border border-slate-700 text-slate-400"
+              className="px-2 py-0.5 rounded border border-pl-border text-pl-muted"
               onClick={() => { setSelecting(false); setSelDraft([]); }}
             >
               Cancel
@@ -532,7 +532,7 @@ export default function CrossplotPanel({
           </>
         ) : (
           <button type="button" data-testid="petro-select-start"
-            className="px-2 py-0.5 rounded border border-slate-700 text-slate-400 hover:text-slate-200"
+            className="px-2 py-0.5 rounded border border-pl-border text-pl-muted hover:text-pl-text"
             title="Draw a polygon to highlight those samples on the tracks"
             onClick={() => { setSelecting(true); setDrawing(false); setDraft([]); }}
           >
@@ -541,7 +541,7 @@ export default function CrossplotPanel({
         )}
         {selection && !selecting && plot !== 'density' && (
           <button type="button" data-testid="petro-select-clear"
-            className="px-2 py-0.5 rounded border border-slate-700 text-slate-400 hover:text-slate-200"
+            className="px-2 py-0.5 rounded border border-pl-border text-pl-muted hover:text-pl-text"
             onClick={() => onSelectionChange?.(null)}
           >
             Clear selection
@@ -551,15 +551,15 @@ export default function CrossplotPanel({
         {plot === 'nd' && (
           <div className="ml-auto flex items-center gap-1.5">
             {facies.map((f, i) => (
-              <span key={f.id} className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 border border-slate-700"
+              <span key={f.id} className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 border border-pl-border"
                 data-testid={`petro-facies-chip-${f.name}`}
               >
                 <span className="w-2 h-2 rounded-full" style={{ background: f.color }} />
-                <span className="text-slate-300">{f.name}</span>
-                <span className="text-slate-500" data-testid={`petro-facies-count-${f.name}`}>{faciesCounts[i] || 0}</span>
+                <span className="text-pl-text">{f.name}</span>
+                <span className="text-pl-muted" data-testid={`petro-facies-count-${f.name}`}>{faciesCounts[i] || 0}</span>
                 <button
                   type="button"
-                  className="text-slate-500 hover:text-red-400"
+                  className="text-pl-muted hover:text-pl-danger-text"
                   title={`Delete facies ${f.name}`}
                   data-testid={`petro-facies-delete-${f.name}`}
                   onClick={() => onFaciesChange(facies.filter((x) => x.id !== f.id))}
@@ -573,15 +573,15 @@ export default function CrossplotPanel({
                 <input className={`${inputCls} w-28`} placeholder="Facies name" value={faciesName}
                   data-testid="petro-facies-name"
                   onChange={(e) => setFaciesName(e.target.value)} />
-                <span className="text-slate-500">{draft.length} pts</span>
+                <span className="text-pl-muted">{draft.length} pts</span>
                 <button type="button" data-testid="petro-facies-close"
-                  className="px-2 py-0.5 rounded border border-emerald-700/60 text-emerald-300 hover:bg-emerald-500/10"
+                  className="px-2 py-0.5 rounded border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10"
                   onClick={closePolygon}
                 >
                   Close polygon
                 </button>
                 <button type="button"
-                  className="px-2 py-0.5 rounded border border-slate-700 text-slate-400"
+                  className="px-2 py-0.5 rounded border border-pl-border text-pl-muted"
                   onClick={() => { setDrawing(false); setDraft([]); }}
                 >
                   Cancel
@@ -589,7 +589,7 @@ export default function CrossplotPanel({
               </>
             ) : (
               <button type="button" data-testid="petro-facies-draw"
-                className="px-2 py-0.5 rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10"
+                className="px-2 py-0.5 rounded border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10"
                 onClick={() => setDrawing(true)}
               >
                 Draw facies…
@@ -600,7 +600,7 @@ export default function CrossplotPanel({
 
         {plot === 'hingle' && (
           <div className="ml-auto flex items-center gap-1.5">
-            <span className="text-slate-500">Water zone (m MD)</span>
+            <span className="text-pl-muted">Water zone (m MD)</span>
             <input className={`${inputCls} w-16`} placeholder="top" value={fitWin.top}
               data-testid="petro-hingle-top"
               onChange={(e) => setFitWin((w) => ({ ...w, top: e.target.value }))} />
@@ -608,18 +608,18 @@ export default function CrossplotPanel({
               data-testid="petro-hingle-base"
               onChange={(e) => setFitWin((w) => ({ ...w, base: e.target.value }))} />
             <button type="button" data-testid="petro-hingle-fit"
-              className="px-2 py-0.5 rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10"
+              className="px-2 py-0.5 rounded border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10"
               onClick={runHingleFit}
             >
               Fit water line
             </button>
             {hFit && (
               <>
-                <span className="text-slate-300" data-testid="petro-hingle-result">
+                <span className="text-pl-text" data-testid="petro-hingle-result">
                   Rw = {hFit.rw.toFixed(6)} at m = {params.m} · {hFit.nPoints} pts
                 </span>
                 <button type="button" data-testid="petro-hingle-apply"
-                  className="px-2 py-0.5 rounded border border-emerald-700/60 text-emerald-300 hover:bg-emerald-500/10"
+                  className="px-2 py-0.5 rounded border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10"
                   onClick={() => {
                     onApplyParams({ rw: Number(hFit.rw.toFixed(6)) });
                     onStatus(`Applied Rw = ${hFit.rw.toFixed(6)} from the Hingle fit.`);
@@ -650,27 +650,27 @@ export default function CrossplotPanel({
               <option value="tvd" disabled={!hasSurvey}>TVD</option>
               <option value="tvdss" disabled={!hasSurvey}>TVDSS</option>
             </select>
-            <span className="text-slate-500">Range</span>
+            <span className="text-pl-muted">Range</span>
             <input className={`${inputCls} w-16`} data-testid="petro-density-top" placeholder="top" value={density.top} title={`Top (${depthUnit})`}
               onChange={(e) => setDens({ top: e.target.value })} />
             <input className={`${inputCls} w-16`} data-testid="petro-density-base" placeholder="base" value={density.base} title={`Base (${depthUnit})`}
               onChange={(e) => setDens({ base: e.target.value })} />
-            <span className="text-slate-500">{depthUnit}</span>
-            <span className="text-slate-500 ml-1">X bins</span>
+            <span className="text-pl-muted">{depthUnit}</span>
+            <span className="text-pl-muted ml-1">X bins</span>
             <input className={`${inputCls} w-12`} data-testid="petro-density-xbins" value={String(density.xBins)}
               onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v) && v >= 2 && v <= 1000) setDens({ xBins: Math.round(v) }); }} />
-            <span className="text-slate-500 ml-1">Depth bin</span>
+            <span className="text-pl-muted ml-1">Depth bin</span>
             <input className={`${inputCls} w-14`} data-testid="petro-density-depthbin" title={`Depth bin (${depthUnit})`}
               value={String(Number(toDisplay(densityBinM, depthUnit).toFixed(depthUnit === 'ft' ? 1 : 2)))}
               onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v) && v > 0) setDens({ depthBinM: fromDisplay(v, depthUnit) }); }} />
-            <span className="text-slate-500">{depthUnit}</span>
+            <span className="text-pl-muted">{depthUnit}</span>
             <select className={`${inputCls} ml-1`} data-testid="petro-density-overlay" value={density.overlayId} title="Outline a second well's populated region on the same bins"
               onChange={(e) => setDens({ overlayId: e.target.value })}>
               <option value="">No overlay well</option>
               {wells.filter((w) => w.id !== currentWellId).map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
             <button type="button" data-testid="petro-density-wide" aria-pressed={density.wide}
-              className={`px-2 py-0.5 rounded border ${density.wide ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
+              className={`px-2 py-0.5 rounded border ${density.wide ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:text-pl-text'}`}
               onClick={() => setDens({ wide: !density.wide })}>
               Wide
             </button>
@@ -679,13 +679,13 @@ export default function CrossplotPanel({
 
         {zones.length > 0 && (
           <div className="flex items-center gap-1 flex-wrap max-w-[45%]" data-testid="petro-xplot-zones">
-            <span className="text-slate-500">Zones</span>
+            <span className="text-pl-muted">Zones</span>
             <button
               type="button"
               data-testid="petro-xplot-zone-all"
               title="Show every sample, including depths outside all zones"
               className={`px-1.5 py-0.5 rounded border ${zoneFilter.filtering
-                ? 'border-slate-700 text-slate-400 hover:text-slate-200' : 'border-cyan-500/60 text-cyan-300'}`}
+                ? 'border-pl-border text-pl-muted hover:text-pl-text' : 'border-pl-primary bg-pl-primary/10 text-pl-primary-text'}`}
               onClick={() => setZoneIds([])}
             >
               All zones
@@ -701,7 +701,7 @@ export default function CrossplotPanel({
                   aria-pressed={on}
                   title={`${z.name}: ${z.top_md_m} to ${z.base_md_m} m MD`}
                   className={`flex items-center gap-1 px-1.5 py-0.5 rounded border ${on
-                    ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
+                    ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:text-pl-text'}`}
                   onClick={() => toggleZone(z.id)}
                 >
                   {swatch && <span className="w-2 h-2 rounded-sm" style={{ background: swatch }} />}
@@ -714,7 +714,7 @@ export default function CrossplotPanel({
 
         {plot === 'pickett' && (
           <div className="ml-auto flex items-center gap-1.5">
-            <span className="text-slate-500">Water zone (m MD)</span>
+            <span className="text-pl-muted">Water zone (m MD)</span>
             <input className={`${inputCls} w-16`} placeholder="top" value={fitWin.top}
               data-testid="petro-pickett-top"
               onChange={(e) => setFitWin((w) => ({ ...w, top: e.target.value }))} />
@@ -722,18 +722,18 @@ export default function CrossplotPanel({
               data-testid="petro-pickett-base"
               onChange={(e) => setFitWin((w) => ({ ...w, base: e.target.value }))} />
             <button type="button" data-testid="petro-pickett-fit"
-              className="px-2 py-0.5 rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10"
+              className="px-2 py-0.5 rounded border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10"
               onClick={runFit}
             >
               Fit water line
             </button>
             {fit && (
               <>
-                <span className="text-slate-300" data-testid="petro-pickett-result">
+                <span className="text-pl-text" data-testid="petro-pickett-result">
                   m = {fit.m.toFixed(3)} · a·Rw = {fit.aRw.toFixed(4)} · {fit.nPoints} pts
                 </span>
                 <button type="button" data-testid="petro-pickett-apply"
-                  className="px-2 py-0.5 rounded border border-emerald-700/60 text-emerald-300 hover:bg-emerald-500/10"
+                  className="px-2 py-0.5 rounded border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10"
                   onClick={applyFit}
                 >
                   Apply to parameters
@@ -765,7 +765,7 @@ export default function CrossplotPanel({
               onDomainsChange={setDom('nd')}
             />
           ) : (
-            <p className="p-4 text-xs text-slate-500">
+            <p className="p-4 text-xs text-pl-muted">
               {ndSamples.length ? noSamplesMsg : 'Needs NPHI and RHOB curves.'}
             </p>
           )
@@ -788,7 +788,7 @@ export default function CrossplotPanel({
               onDomainsChange={setDom('pickett')}
             />
           ) : (
-            <p className="p-4 text-xs text-slate-500">
+            <p className="p-4 text-xs text-pl-muted">
               {pickettSamples.length ? noSamplesMsg : 'Needs RT and a computed φe.'}
             </p>
           )
@@ -809,7 +809,7 @@ export default function CrossplotPanel({
               onDomainsChange={setDom('buckles')}
             />
           ) : (
-            <p className="p-4 text-xs text-slate-500">
+            <p className="p-4 text-xs text-pl-muted">
               {bucklesSamples.length ? noSamplesMsg : 'Needs computed φe and Sw.'}
             </p>
           )
@@ -830,7 +830,7 @@ export default function CrossplotPanel({
               />
             </div>
           ) : (
-            <p className="p-4 text-xs text-slate-500" data-testid="petro-density-empty">
+            <p className="p-4 text-xs text-pl-muted" data-testid="petro-density-empty">
               {!resolveAddr(density.curve, curves, outputs, logs)
                 ? `${densityKey} is not on this well or not computed. Pick another curve.`
                 : densityGrid?.unplaced
@@ -855,7 +855,7 @@ export default function CrossplotPanel({
               onDomainsChange={setDom('hingle')}
             />
           ) : (
-            <p className="p-4 text-xs text-slate-500">
+            <p className="p-4 text-xs text-pl-muted">
               {hingleSamples.length ? noSamplesMsg : 'Needs RT and a computed φe.'}
             </p>
           )
