@@ -13,6 +13,9 @@ import InputPanel from '@/components/voianalyzer/InputPanel';
 import ResultsPanel from '@/components/voianalyzer/ResultsPanel';
 import EmptyState from '@/components/voianalyzer/EmptyState';
 import VoiHelpGuide from '@/components/voianalyzer/VoiHelpGuide';
+import { GitMerge } from 'lucide-react';
+import { ThemedApp } from '@/design/ThemeProvider';
+import { AppHeader } from '@/components/ui/app-shell';
 
 const TABLE = 'saved_voi_projects';
 export const service = createSavedProjectsService(TABLE, {
@@ -109,15 +112,22 @@ const ValueOfInformationAnalyzer = () => {
   }, [toast]);
 
   return (
-    <>
+    <ThemedApp className="flex min-h-screen flex-col" data-testid="voi-theme-scope">
       <Helmet>
         <title>Value of Information Analyzer - Petrolord Suite</title>
         <meta name="description" content="Advanced Value of Information (VOI) analysis for oil and gas projects." />
       </Helmet>
       <StudioNotifications notifications={notifications} onDismiss={removeNotification} />
-      <div className="flex h-full">
-        <div className="w-full md:w-1/3 xl:w-1/4 p-6 bg-slate-900/50 backdrop-blur-lg border-r border-white/10 overflow-y-auto">
-          <div className="mb-6 pb-4 border-b border-white/10 space-y-3">
+      <AppHeader
+        title="Value of Information Analyzer"
+        eyebrow="Economics"
+        subtitle="What new data is worth before a decision. Values in $MM."
+        icon={GitMerge}
+        backTo="/dashboard/economics"
+      />
+      <div className="flex flex-1 flex-col md:flex-row">
+        <div className="w-full shrink-0 overflow-y-auto border-b border-pl-border bg-pl-surface p-4 sm:p-6 md:w-1/3 md:border-b-0 md:border-r xl:w-1/4">
+          <div className="mb-6 pb-4 border-b border-pl-border space-y-3">
             <StudioProjectManager
               label="Saved study"
               projects={persistence.projects}
@@ -145,16 +155,16 @@ const ValueOfInformationAnalyzer = () => {
             setInputs={setInputs}
           />
         </div>
-        <div className="flex-1 p-6 overflow-y-auto">
+        <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
           {!results && !loading && (
             <EmptyState onAnalyze={() => handleAnalyze(inputs)} />
           )}
           {loading && (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-lime-400 mx-auto"></div>
-                <p className="text-white mt-4 text-lg">Running Decision Tree Analysis...</p>
-                <p className="text-lime-300">Please wait while we calculate EMV and VOI.</p>
+                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-pl-primary mx-auto"></div>
+                <p className="text-pl-text mt-4 text-lg">Running Decision Tree Analysis...</p>
+                <p className="text-pl-muted">Please wait while we calculate EMV and VOI.</p>
               </div>
             </div>
           )}
@@ -170,7 +180,7 @@ const ValueOfInformationAnalyzer = () => {
           )}
         </div>
       </div>
-    </>
+    </ThemedApp>
   );
 };
 

@@ -6,6 +6,9 @@
 // squeeze the depth scale while the diameters stay put, so a deep well
 // with thin strings can still be read. MD metres in, display unit on
 // labels. No fake cement: cement placement lives in Cementing Studio.
+// Design system: the schematic is a drawing surface on the chart standard,
+// so its root is a data-canvas="chart" region and stays white in both
+// themes (its toolbar and footer are part of the drawing).
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Minus, Plus, Maximize2 } from 'lucide-react';
@@ -72,7 +75,7 @@ const WellboreVisualization = ({
 
   if (!allSections.length) {
     return (
-      <div className="flex items-center justify-center h-full text-xs text-slate-500 bg-white" data-testid="ct-viz-empty">
+      <div data-canvas="chart" className="flex items-center justify-center h-full text-xs text-slate-500 bg-white" data-testid="ct-viz-empty">
         {emptyText}
       </div>
     );
@@ -99,7 +102,7 @@ const WellboreVisualization = ({
 
   const narrow = width < 260;
   return (
-    <div ref={boxRef} className="w-full h-full relative bg-white overflow-hidden flex flex-col" data-testid="ct-viz">
+    <div ref={boxRef} data-canvas="chart" className="w-full h-full relative bg-white overflow-hidden flex flex-col" data-testid="ct-viz">
       <div className={`shrink-0 flex items-center justify-end gap-1 border-b border-slate-200 bg-slate-50 px-1.5 ${compact ? 'text-[10px]' : 'text-xs'} text-slate-600`} style={{ height: TOOLBAR_H }} title="Vertical exaggeration: stretch or squeeze the depth scale; diameters stay to scale">
         {!narrow && <span className="text-slate-500 mr-auto">Vertical scale</span>}
         <button type="button" data-testid="ct-viz-squeeze" className="rounded border border-slate-300 px-1 hover:bg-slate-100 disabled:opacity-40" disabled={vex <= VEX_MIN} onClick={() => bump(-VEX_STEP)} title="Squeeze"><Minus className="w-3 h-3" /></button>

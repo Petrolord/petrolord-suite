@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { NumericTable, NumTh, NumRow, NumCell } from '@/components/ui/numeric-table';
+import { NativeSelect } from '@/components/ui/native-select';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -154,16 +155,17 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
   const categories = ['All', ...new Set(costItems.map(i => i.category || 'Uncategorized'))];
 
   return (
-    <div className="space-y-4 bg-slate-900/50 p-4 rounded border border-slate-800">
+    <div className="space-y-4 rounded-lg border border-pl-border bg-pl-surface p-4 shadow-pl-sm">
       <div className="flex flex-wrap justify-between items-center gap-4">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Category">
             {categories.map(cat => (
                 <Button 
                     key={cat} 
                     variant={activeCategory === cat ? "secondary" : "ghost"} 
                     size="sm"
                     onClick={() => setActiveCategory(cat)}
-                    className="text-xs"
+                    aria-pressed={activeCategory === cat}
+                    className={activeCategory === cat ? 'text-xs ring-1 ring-pl-primary' : 'text-xs'}
                 >
                     {cat}
                 </Button>
@@ -173,28 +175,27 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
             <Button variant="outline" size="sm" onClick={handleExport}>
                 <Download className="w-4 h-4 mr-2" /> Excel
             </Button>
-            <Button onClick={() => handleOpenDialog()} size="sm" className="bg-blue-600 hover:bg-blue-700">
+            <Button onClick={() => handleOpenDialog()} size="sm">
                 <PlusCircle className="w-4 h-4 mr-2" /> Add Item
             </Button>
         </div>
       </div>
 
-      <div className="rounded-md border border-slate-800 overflow-hidden">
-        <Table>
-          <TableHeader className="bg-slate-950">
-            <TableRow>
-              <TableHead className="text-slate-300 w-[80px]">WBS</TableHead>
-              <TableHead className="text-slate-300">Description</TableHead>
-              <TableHead className="text-slate-300">Vendor</TableHead>
-              <TableHead className="text-right text-slate-300">Budget</TableHead>
-              <TableHead className="text-right text-slate-300">Actuals</TableHead>
-              <TableHead className="text-right text-slate-300">Forecast (EAC)</TableHead>
-              <TableHead className="text-right text-slate-300">Variance</TableHead>
-              <TableHead className="text-center text-slate-300 w-[100px]">Progress</TableHead>
-              <TableHead className="w-[50px]"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      <NumericTable className="p-0" data-testid="afe-cost-table">
+          <thead>
+            <tr>
+              <NumTh className="w-[80px]">WBS</NumTh>
+              <NumTh>Description</NumTh>
+              <NumTh>Vendor</NumTh>
+              <NumTh numeric>Budget</NumTh>
+              <NumTh numeric>Actuals</NumTh>
+              <NumTh numeric>Forecast (EAC)</NumTh>
+              <NumTh numeric>Variance</NumTh>
+              <NumTh className="w-[100px] text-center">Progress</NumTh>
+              <NumTh className="relative w-[50px]"><span className="sr-only">Actions</span></NumTh>
+            </tr>
+          </thead>
+          <tbody>
             {filteredItems.map(item => {
                 // The one EAC rule (engine itemForecastCheck), and variance is
                 // budget less it. EC5-1 (engines #194): the check also says
@@ -206,107 +207,106 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
                 const progress = Number(item.progress) || 0;
                 
                 return (
-                  <TableRow key={item.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
-                    <TableCell className="font-mono text-xs text-slate-400">{item.wbs_code || item.code}</TableCell>
-                    <TableCell>
-                        <div className="font-medium text-slate-200">{item.description}</div>
-                        <div className="text-[10px] text-slate-500">{item.category}</div>
-                    </TableCell>
-                    <TableCell className="text-slate-400 text-sm">{item.vendor || '-'}</TableCell>
-                    <TableCell className="text-right text-blue-400 font-mono">{currencyFormatter(item.budget)}</TableCell>
-                    <TableCell className="text-right text-slate-300 font-mono">{currencyFormatter(item.actual)}</TableCell>
-                    <TableCell className="text-right text-amber-400 font-mono">
+                  <NumRow key={item.id}>
+                    <td className="border-b border-pl-border px-3 py-2 font-pl-mono text-xs text-pl-muted">{item.wbs_code || item.code}</td>
+                    <td className="min-w-[10rem] border-b border-pl-border px-3 py-2">
+                        <div className="font-medium text-pl-text">{item.description}</div>
+                        <div className="text-[10px] text-pl-muted">{item.category}</div>
+                    </td>
+                    <td className="border-b border-pl-border px-3 py-2 text-sm text-pl-muted">{item.vendor || '-'}</td>
+                    <NumCell value={Number(item.budget)}>{currencyFormatter(item.budget)}</NumCell>
+                    <NumCell value={Number(item.actual)}>{currencyFormatter(item.actual)}</NumCell>
+                    <NumCell value={forecast}>
                       {currencyFormatter(forecast)}
                       {check.forecastBelowCommitted && (
-                        <span className="block text-[10px] font-sans text-amber-300" data-testid={`below-committed-${item.id}`}>
+                        <span className="block whitespace-normal text-[10px] font-pl-sans text-pl-warning-text" data-testid={`below-committed-${item.id}`}>
                           {currencyFormatter(check.forecastBelowCommittedBy)} below spent and committed
                         </span>
                       )}
                       {check.forecastIgnored === 'negative' && (
-                        <span className="block text-[10px] font-sans text-red-300" data-testid={`forecast-ignored-${item.id}`}>
+                        <span className="block whitespace-normal text-[10px] font-pl-sans text-pl-danger-text" data-testid={`forecast-ignored-${item.id}`}>
                           negative forecast ignored, standard rule used
                         </span>
                       )}
-                    </TableCell>
-                    <TableCell className={`text-right font-mono font-bold ${variance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    </NumCell>
+                    <NumCell value={variance} className="font-semibold">
                       {currencyFormatter(variance)}
-                    </TableCell>
-                    <TableCell>
+                    </NumCell>
+                    <td className="border-b border-pl-border px-3 py-2">
                         <div className="flex flex-col gap-1">
                             <Progress value={progress} className="h-1.5" />
-                            <span className="text-[10px] text-slate-400 text-center">{progress}%</span>
+                            <span className="text-[10px] text-pl-muted text-center">{progress}%</span>
                         </div>
-                    </TableCell>
-                    <TableCell className="text-right">
+                    </td>
+                    <td className="border-b border-pl-border px-3 py-2 text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0"><MoreHorizontal className="w-4 h-4" /></Button>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="Item actions"><MoreHorizontal className="w-4 h-4" /></Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-slate-900 border-slate-700 text-white">
+                        <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => handleOpenDialog(item)}><Edit className="w-3 h-3 mr-2" /> Edit</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDelete(item.id)} className="text-red-400"><Trash2 className="w-3 h-3 mr-2" /> Delete</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDelete(item.id)} className="text-pl-danger-text"><Trash2 className="w-3 h-3 mr-2" /> Delete</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </NumRow>
                 );
             })}
             {filteredItems.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-slate-500">No items found.</TableCell>
-              </TableRow>
+              <tr>
+                <td colSpan={9} className="text-center py-8 text-pl-muted">No items found.</td>
+              </tr>
             )}
-          </TableBody>
-        </Table>
-      </div>
+          </tbody>
+      </NumericTable>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-2xl">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingItem ? 'Edit Cost Item' : 'New Cost Item'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <Label>Category</Label>
-                <select 
-                  className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-sm"
+                <NativeSelect
+                  aria-label="Category"
                   value={formData.category}
                   onChange={e => setFormData({...formData, category: e.target.value})}
                 >
                   {['Drilling','Completion','Facilities','Subsurface','Logistics','HSE','Contingency'].map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+                </NativeSelect>
               </div>
               <div>
                 <Label>WBS Code</Label>
-                <Input value={formData.wbs_code} onChange={e => setFormData({...formData, wbs_code: e.target.value})} className="bg-slate-800 border-slate-700" />
+                <Input value={formData.wbs_code} onChange={e => setFormData({...formData, wbs_code: e.target.value})} />
               </div>
             </div>
             <div>
               <Label>Description</Label>
-              <Input value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="bg-slate-800 border-slate-700" required />
+              <Input value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} required />
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
                 <Label>Budget</Label>
-                <Input type="number" value={formData.budget} onChange={e => setFormData({...formData, budget: parseFloat(e.target.value)})} className="bg-slate-800 border-slate-700" required />
+                <Input type="number" value={formData.budget} onChange={e => setFormData({...formData, budget: parseFloat(e.target.value)})} required />
               </div>
               <div>
                 <Label>Forecast (EAC)</Label>
-                <Input type="number" min="0" value={formData.forecast} placeholder="Blank uses the standard rule" onChange={e => setFormData({...formData, forecast: e.target.value})} className="bg-slate-800 border-slate-700" />
+                <Input type="number" min="0" value={formData.forecast} placeholder="Blank uses the standard rule" onChange={e => setFormData({...formData, forecast: e.target.value})} />
               </div>
               <div>
                 <Label>% Progress</Label>
-                <Input type="number" min="0" max="100" value={Number.isNaN(formData.progress) ? '' : formData.progress} onChange={e => setFormData({...formData, progress: parseFloat(e.target.value)})} className="bg-slate-800 border-slate-700" />
-                {progressError && <p role="alert" className="mt-1 text-xs text-red-300">{progressError}</p>}
+                <Input type="number" min="0" max="100" value={Number.isNaN(formData.progress) ? '' : formData.progress} onChange={e => setFormData({...formData, progress: parseFloat(e.target.value)})} />
+                {progressError && <p role="alert" className="mt-1 text-xs text-pl-danger-text">{progressError}</p>}
               </div>
             </div>
             <div>
                 <Label>Vendor (Optional)</Label>
-                <Input value={formData.vendor} onChange={e => setFormData({...formData, vendor: e.target.value})} className="bg-slate-800 border-slate-700" />
+                <Input value={formData.vendor} onChange={e => setFormData({...formData, vendor: e.target.value})} />
             </div>
             <DialogFooter>
-              <Button type="submit" className="bg-blue-600" disabled={Boolean(progressError)}><Save className="w-4 h-4 mr-2" /> Save Item</Button>
+              <Button type="submit" disabled={Boolean(progressError)}><Save className="w-4 h-4 mr-2" /> Save Item</Button>
             </DialogFooter>
           </form>
         </DialogContent>

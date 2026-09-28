@@ -9,7 +9,9 @@ import { formatFull, MONEY_MM_DECIMALS } from '@/lib/fullPrecision';
 // the optimal path draw solid emerald; pruned decision branches draw dashed
 // grey. Rendered on the white chart surface with the ChartLogo watermark,
 // matching the Suite chart standard (this is bespoke SVG, not recharts, so
-// the frame is drawn directly rather than through ChartFrame).
+// the frame is drawn directly rather than through ChartFrame). The frame is
+// data-canvas="chart": white in both design-system themes (batch 2F; both
+// consumers, Decision Tree Builder and the VOI Analyzer, are themed).
 
 const NODE_R = 9;
 // VOI T1: wider columns so a branch label fits between parent and child
@@ -80,7 +82,7 @@ const TreeDiagram = ({ annotated, unit = '$MM' }) => {
   const fs = CHART_TYPOGRAPHY.axisFontSize;
 
   return (
-    <div className="relative bg-white rounded-lg overflow-x-auto" style={{ paddingBottom: 56 }}>
+    <div data-canvas="chart" className="relative overflow-x-auto rounded-lg border border-pl-border bg-pl-chart-surface" style={{ paddingBottom: 56 }}>
       <svg width={width} height={height} role="img" aria-label="Decision tree diagram">
         {/* edges first */}
         {layout.edges.map((e, i) => {

@@ -8,8 +8,8 @@ import { fmtSF, nToKN } from '../../services/ctRun';
 const TubingDesignSummary = ({ tubingResult }) => {
   if (!tubingResult || !tubingResult.cases.length) {
     return (
-      <Card className="bg-slate-900 border-slate-800">
-        <CardContent className="p-3 text-center text-xs text-slate-500">
+      <Card>
+        <CardContent className="p-3 text-center text-xs text-pl-muted">
           Add tubing load cases (and a packer) to see the force system.
         </CardContent>
       </Card>
@@ -31,10 +31,10 @@ const TubingDesignSummary = ({ tubingResult }) => {
   }
 
   const StatusIcon = status === 'PASS' ? CheckCircle2 : status === 'WARNING' ? AlertTriangle : XCircle;
-  const statusColor = status === 'PASS' ? 'text-emerald-400' : status === 'WARNING' ? 'text-amber-400' : 'text-red-400';
+  const statusColor = status === 'PASS' ? 'text-pl-success-text' : status === 'WARNING' ? 'text-pl-warning-text' : 'text-pl-danger-text';
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardContent className="p-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-6">
@@ -42,30 +42,30 @@ const TubingDesignSummary = ({ tubingResult }) => {
               <StatusIcon className="w-4 h-4 mr-1.5" />
               <span className="font-bold text-sm">{status}</span>
             </div>
-            <div className="text-[10px] text-slate-500">
+            <div className="text-[10px] text-pl-muted">
               Worst packer force
-              <span data-testid="ct-tubing-total-force" className="text-slate-200 font-mono font-bold block text-xs">
+              <span data-testid="ct-tubing-total-force" className="text-pl-text font-pl-mono tabular-nums font-bold block text-xs">
                 {worstForce != null ? `${nToKN(worstForce).toFixed(1)} kN` : '—'}
               </span>
             </div>
-            <div className="text-[10px] text-slate-500">
+            <div className="text-[10px] text-pl-muted">
               Min packer SF
-              <span data-testid="ct-packer-sf" className="text-slate-200 font-mono font-bold block text-xs">
+              <span data-testid="ct-packer-sf" className="text-pl-text font-pl-mono tabular-nums font-bold block text-xs">
                 {fmtSF(worstPackerSF)}
               </span>
             </div>
-            <div className="text-[10px] text-slate-500">
+            <div className="text-[10px] text-pl-muted">
               Buckling flags
-              <span className="text-slate-200 font-mono font-bold block text-xs">{buckled} / {tubingResult.cases.length}</span>
+              <span className="text-pl-text font-pl-mono tabular-nums font-bold block text-xs">{buckled} / {tubingResult.cases.length}</span>
             </div>
           </div>
 
           {tubingResult.erosional && (
-            <div className="flex items-center text-cyan-400 text-[10px]">
+            <div className="flex items-center text-pl-muted text-[10px]">
               <Wind className="w-3 h-3 mr-1" />
               <span>
                 Erosional velocity
-                <span data-testid="ct-erosional-ve" className="font-bold font-mono block text-xs">
+                <span data-testid="ct-erosional-ve" className="font-bold font-pl-mono tabular-nums block text-xs text-pl-text">
                   {tubingResult.erosional.veMs.toFixed(1)} m/s
                 </span>
               </span>

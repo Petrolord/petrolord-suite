@@ -16,8 +16,8 @@ import { Card, CardContent } from '@/components/ui/card';
 const PackerPanelBlock = () => (
   <>
     <PackerConfigPanel />
-    <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-[10px] text-slate-500 space-y-1">
-      <p className="text-slate-400 font-bold text-xs">How the deltas are built</p>
+    <div className="bg-pl-surface border border-pl-border rounded-lg p-3 text-[10px] text-pl-muted space-y-1">
+      <p className="text-pl-muted font-bold text-xs">How the deltas are built</p>
       <p>The landed condition is packer fluid balanced inside and out. Each operating case rebuilds the internal column (surface pressure + fluid gradient at the packer TVD) and takes the change from that baseline.</p>
     </div>
   </>
@@ -42,32 +42,32 @@ const TubingDesignTab = () => {
   const failures = tubingCases.filter((c) => c.status !== 'PASS');
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-slate-100 overflow-hidden m-0 p-0">
+    <div className="flex flex-col h-full bg-pl-bg text-pl-text overflow-hidden m-0 p-0">
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-1.5 border-b border-slate-800 bg-slate-900/50 shrink-0 h-10 mt-0">
-        <span className="text-[10px] text-slate-500">
+      <div className="flex items-center justify-between px-4 py-1.5 border-b border-pl-border bg-pl-surface shrink-0 h-10 mt-0">
+        <span className="text-[10px] text-pl-muted">
           Lubinski force system: piston + ballooning + thermal at the packer, Dawson-Paslay buckling, PBR stroke check
         </span>
         <Tabs value={viewMode} onValueChange={setViewMode} className="h-7">
-          <TabsList className="h-7 bg-slate-900 border border-slate-800 p-0">
-            <TabsTrigger value="forces" className="h-full text-xs px-3 data-[state=active]:bg-slate-800">Forces</TabsTrigger>
-            <TabsTrigger value="results" className="h-full text-xs px-3 data-[state=active]:bg-slate-800">Tables</TabsTrigger>
-            <TabsTrigger value="erosional" className="h-full text-xs px-3 data-[state=active]:bg-slate-800">Erosional</TabsTrigger>
+          <TabsList className="h-7 border p-0">
+            <TabsTrigger value="forces" className="h-full text-xs px-3">Forces</TabsTrigger>
+            <TabsTrigger value="results" className="h-full text-xs px-3">Tables</TabsTrigger>
+            <TabsTrigger value="erosional" className="h-full text-xs px-3">Erosional</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left: strings + sections + components */}
-        <div className="w-[300px] flex flex-col border-r border-slate-800 bg-slate-950/50 py-0">
+        <div className="w-[300px] flex flex-col border-r border-pl-border bg-pl-sunken py-0">
           <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-4">
             <TubingStringList selectedId={selectedStringId} onSelect={setSelectedStringId} />
             <div className="space-y-4">
               <TubingSectionsTable stringId={selectedStringId} />
               {/* D7: completion component architecture moved to Completion Design Studio */}
-              <div className="rounded-md border border-slate-800 bg-slate-900/50 p-2 text-[11px] text-slate-400">
+              <div className="rounded-md border border-pl-border bg-pl-surface p-2 text-[11px] text-pl-muted">
                 Completion string architecture (jewelry, clearances, BOM) lives in{' '}
-                <Link to="/dashboard/apps/drilling/completion-design-studio" className="text-cyan-400 hover:underline">
+                <Link to="/dashboard/apps/drilling/completion-design-studio" className="text-pl-primary-text hover:text-pl-primary-text-hover hover:underline">
                   Completion Design Studio
                 </Link>. The packer that drives the force analysis stays on the packer panel here.
               </div>
@@ -76,15 +76,15 @@ const TubingDesignTab = () => {
         </div>
 
         {/* Center */}
-        <div className="flex-1 flex flex-col min-w-0 bg-slate-950 overflow-hidden">
-          <div className="px-4 py-1 border-b border-slate-800 bg-slate-900/20">
+        <div className="flex-1 flex flex-col min-w-0 bg-pl-bg overflow-hidden">
+          <div className="px-4 py-1 border-b border-pl-border bg-pl-surface">
             <TubingDesignSummary tubingResult={tubingResult} />
           </div>
 
           {failures.length > 0 && (
-            <div className="px-4 py-1 bg-slate-900/50 border-b border-slate-800 flex flex-wrap gap-2">
+            <div className="px-4 py-1 bg-pl-surface border-b border-pl-border flex flex-wrap gap-2">
               {failures.map((c) => (
-                <div key={c.loadCaseId} className={`flex items-center text-[10px] px-2 py-0.5 rounded border ${c.status === 'FAIL' ? 'bg-red-900/20 border-red-800 text-red-200' : 'bg-amber-900/20 border-amber-800 text-amber-200'}`}>
+                <div key={c.loadCaseId} className={`flex items-center text-[10px] px-2 py-0.5 rounded border ${c.status === 'FAIL' ? 'bg-pl-danger-bg border-pl-danger/40 text-pl-danger-text' : 'bg-pl-warning-bg border-pl-warning/40 text-pl-warning-text'}`}>
                   <ShieldAlert className="w-3 h-3 mr-1.5" />
                   {c.name}: {c.status === 'FAIL'
                     ? (c.loads.packer.strokeOk === false ? 'seal stroke exceeded' : 'packer rating exceeded')
@@ -100,7 +100,7 @@ const TubingDesignTab = () => {
             </div>
             {viewMode === 'forces' && (
               <div className="grid grid-cols-12 gap-4 h-full pt-4 pb-4">
-                <div className="col-span-4 h-full border border-slate-800 rounded-lg overflow-hidden bg-white">
+                <div data-canvas="chart" className="col-span-4 h-full border border-pl-border rounded-lg overflow-hidden bg-white">
                   <TubingVisualizer activeString={activeString} packer={caseDoc?.packer} depthUnit={depthUnit} />
                 </div>
                 <div className="col-span-8 h-full min-h-[300px]">
@@ -111,13 +111,13 @@ const TubingDesignTab = () => {
 
             {viewMode === 'results' && (
               <div className="space-y-6 pt-4 pb-4">
-                <div className="border border-slate-800 rounded-lg overflow-hidden bg-slate-900/50">
-                  <div className="bg-slate-900 px-4 py-2 border-b border-slate-800 font-bold text-xs text-slate-300">Force System per Operating Case</div>
+                <div className="border border-pl-border rounded-lg overflow-hidden bg-pl-surface">
+                  <div className="bg-pl-sunken px-4 py-2 border-b border-pl-border font-bold text-xs text-pl-text">Force System per Operating Case</div>
                   <TubingDetailedResultsTable cases={tubingCases} />
                 </div>
 
-                <div className="border border-slate-800 rounded-lg overflow-hidden bg-slate-900/50">
-                  <div className="bg-slate-900 px-4 py-2 border-b border-slate-800 font-bold text-xs text-slate-300">Packer Loads</div>
+                <div className="border border-pl-border rounded-lg overflow-hidden bg-pl-surface">
+                  <div className="bg-pl-sunken px-4 py-2 border-b border-pl-border font-bold text-xs text-pl-text">Packer Loads</div>
                   <PackerLoadsTable cases={tubingCases} ratingN={caseDoc?.packer?.ratingN} />
                 </div>
               </div>
@@ -125,44 +125,44 @@ const TubingDesignTab = () => {
 
             {viewMode === 'erosional' && (
               <div className="grid grid-cols-2 gap-4 pt-4 pb-4">
-                <Card className="bg-slate-900/50 border-slate-800">
+                <Card>
                   <CardContent className="p-4 space-y-3">
-                    <h4 className="text-xs font-bold text-slate-300 flex items-center">
-                      <Wind className="w-3.5 h-3.5 mr-2 text-cyan-400" /> API RP 14E Erosional Velocity
+                    <h4 className="text-xs font-bold text-pl-text flex items-center">
+                      <Wind className="w-3.5 h-3.5 mr-2 text-pl-muted" /> API RP 14E Erosional Velocity
                     </h4>
                     {tubingResult?.erosional ? (
                       <>
                         <div className="grid grid-cols-2 gap-3">
-                          <div className="bg-slate-950/50 p-3 rounded border border-slate-800">
-                            <span className="text-[10px] text-slate-500 block">Ve = C/√ρ (C = {tubingResult.erosional.cFactor})</span>
-                            <span className="text-lg font-mono font-bold text-cyan-400">
+                          <div className="bg-pl-sunken p-3 rounded border border-pl-border">
+                            <span className="text-[10px] text-pl-muted block">Ve = C/√ρ (C = {tubingResult.erosional.cFactor})</span>
+                            <span className="text-lg font-pl-mono tabular-nums font-bold text-pl-text">
                               {tubingResult.erosional.veMs.toFixed(1)} m/s
                             </span>
                           </div>
-                          <div className="bg-slate-950/50 p-3 rounded border border-slate-800">
-                            <span className="text-[10px] text-slate-500 block">Mixture density</span>
-                            <span className="text-lg font-mono text-slate-200">
+                          <div className="bg-pl-sunken p-3 rounded border border-pl-border">
+                            <span className="text-[10px] text-pl-muted block">Mixture density</span>
+                            <span className="text-lg font-pl-mono tabular-nums text-pl-text">
                               {tubingResult.erosional.mixtureKgM3} kg/m³
                             </span>
                           </div>
                         </div>
-                        <p className="text-[10px] text-slate-500">
+                        <p className="text-[10px] text-pl-muted">
                           Keep the in-tubing mixture velocity below Ve for continuous service (C = 100 for solids-free continuous flow per API RP 14E). Set the mixture density on the Well &amp; Loads tab.
                         </p>
                       </>
                     ) : (
-                      <p className="text-xs text-slate-500">Define a tubing string and packer to compute the check.</p>
+                      <p className="text-xs text-pl-muted">Define a tubing string and packer to compute the check.</p>
                     )}
                   </CardContent>
                 </Card>
 
-                <Card className="bg-slate-900/50 border-slate-800">
+                <Card>
                   <CardContent className="p-4 space-y-3">
-                    <h4 className="text-xs font-bold text-slate-300">Flow Performance</h4>
-                    <p className="text-xs text-slate-400">
+                    <h4 className="text-xs font-bold text-pl-text">Flow Performance</h4>
+                    <p className="text-xs text-pl-muted">
                       Tubing flow capacity, IPR/VLP matching and pressure traverses live in Nodal Analysis Studio, which shares the validated correlation set for the whole Suite.
                     </p>
-                    <Link to="/dashboard/apps/production/nodal-analysis-studio" className="inline-flex items-center text-xs text-lime-400 hover:text-lime-300">
+                    <Link to="/dashboard/apps/production/nodal-analysis-studio" className="inline-flex items-center text-xs text-pl-primary-text hover:text-pl-primary-text-hover">
                       Open Nodal Analysis Studio <ExternalLink className="w-3 h-3 ml-1" />
                     </Link>
                   </CardContent>
@@ -175,7 +175,7 @@ const TubingDesignTab = () => {
         {/* Right: packer config. CT-T1-004: inside the page's own two side
             panels this third column left the results about 160 px at 1366;
             below 2xl the packer panel moves into the centre flow instead. */}
-        <div className="hidden 2xl:flex w-[300px] border-l border-slate-800 bg-slate-950/50 flex-col overflow-y-auto custom-scrollbar py-0">
+        <div className="hidden 2xl:flex w-[300px] border-l border-pl-border bg-pl-sunken flex-col overflow-y-auto custom-scrollbar py-0">
           <div className="p-4 space-y-4">
             <PackerPanelBlock />
           </div>

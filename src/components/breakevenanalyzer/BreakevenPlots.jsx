@@ -75,9 +75,9 @@ const BreakevenPlots = ({ cdfData, histogramData, tornadoData, kpis }) => {
   const openBars = tornado.filter((d) => d.open).map((d) => d.variable);
 
   return (
-    <div className="bg-white/5 p-4 rounded-lg">
+    <div>
       <Tabs defaultValue="cdf" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-slate-800">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="cdf">S-Curve (CDF)</TabsTrigger>
           <TabsTrigger value="histogram">Histogram</TabsTrigger>
           <TabsTrigger value="tornado">Tornado Chart</TabsTrigger>
@@ -122,7 +122,7 @@ const BreakevenPlots = ({ cdfData, histogramData, tornadoData, kpis }) => {
               />
             </ComposedChart>
           </ChartFrame>
-          <p className="text-[12px] text-slate-500 mt-2">
+          <p className="text-[12px] text-pl-muted mt-2">
             Read it as: the chance that the true breakeven price is below any given value. The
             steeper the curve, the tighter the answer.
           </p>
@@ -193,13 +193,13 @@ const BreakevenPlots = ({ cdfData, histogramData, tornadoData, kpis }) => {
               </Bar>
             </BarChart>
           </ChartFrame>
-          <p className="text-[12px] text-slate-500 mt-2">
+          <p className="text-[12px] text-pl-muted mt-2">
             Both ends of each swing are drawn, measured from the deterministic base case. A bar
             that reaches further to the right is an uncertainty that can hurt the project more
             than the others.
           </p>
           {openBars.length > 0 && (
-            <p className="text-[12px] text-amber-300 mt-1" data-testid="breakeven-open-bars">
+            <p className="text-[12px] text-pl-warning-text mt-1" data-testid="breakeven-open-bars">
               {openBars.join(' and ')} {openBars.length === 1 ? 'has' : 'have'} no breakeven below $500 a barrel
               at one end of {openBars.length === 1 ? 'its' : 'their'} range. That side is left open, and
               the bar is listed first because that end can put the project out of reach at any price.
