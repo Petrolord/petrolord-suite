@@ -101,7 +101,8 @@ describe('pricing', () => {
   });
 
   it('the consumers import that table rather than keeping their own', () => {
-    ['pages/GetQuote.jsx', 'components/admin/organizations/quotes/QuoteEditor.jsx']
+    // (the old GetQuote configurator was deleted in design batch 7B)
+    ['components/admin/organizations/quotes/QuoteEditor.jsx']
       .forEach((rel) => {
         const src = read(rel);
         expect(src).toMatch(/from '@\/data\/pricingModels'/);

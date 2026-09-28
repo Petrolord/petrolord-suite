@@ -1,11 +1,10 @@
 /**
  * Get a quote goes to the working quote-and-pay flow.
  *
- * The old configurator (src/pages/GetQuote.jsx) builds its module list from
- * appCategories in src/data/applications.js, which is an empty list, so it
- * showed no modules and Next stayed disabled: a customer could not get a
- * quote there. The first test pins that, using the real applications.js,
- * so nobody re-points a route at the old page by accident.
+ * The old configurator (src/pages/GetQuote.jsx) built its module list from
+ * an empty catalogue, so a customer could not get a quote there. It was
+ * unreachable after the redirect and was deleted in design batch 7B; the
+ * first test pins that it stays gone.
  *
  * The working flow is the upgrade page (QuoteBuilder at /dashboard/upgrade),
  * which reads the live catalogue and generate-quote prices server side. The
@@ -37,17 +36,9 @@ function Landing() {
   );
 }
 
-describe('the old configurator is a dead end with the real catalogue', () => {
-  it('shows no modules and cannot move past step 1', async () => {
-    const { appCategories } = jest.requireActual('@/data/applications');
-    expect(appCategories).toEqual([]);
-
-    const GetQuote = require('@/pages/GetQuote').default;
-    const { renderAccountPage } = require('./accountTestKit');
-    renderAccountPage(GetQuote);
-    await screen.findByText('Select Modules');
-    expect(screen.queryAllByText(/Starts at/)).toHaveLength(0);
-    expect(screen.getByRole('button', { name: /Next/ })).toBeDisabled();
+describe('the old configurator', () => {
+  it('is gone, so no route can point at it again', () => {
+    expect(fs.existsSync(path.join(__dirname, '..', 'GetQuote.jsx'))).toBe(false);
   });
 });
 

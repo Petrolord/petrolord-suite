@@ -54,12 +54,6 @@ describe('the shared table', () => {
 });
 
 describe('nobody keeps a second copy', () => {
-  it('GetQuote imports the table instead of declaring one', () => {
-    const src = read('src/pages/GetQuote.jsx');
-    expect(src).toMatch(/import \{[^}]*MODULE_PRICING[^}]*\} from '@\/data\/pricingModels'/);
-    expect(src).not.toMatch(/const MODULE_PRICING\s*=\s*\{/);
-  });
-
   it('QuoteEditor derives its list from the table', () => {
     const src = read('src/components/admin/organizations/quotes/QuoteEditor.jsx');
     expect(src).toMatch(/import \{[^}]*MODULE_PRICING[^}]*\} from '@\/data\/pricingModels'/);
