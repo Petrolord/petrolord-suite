@@ -40,10 +40,10 @@ const ScenarioForm = ({ initialData, concepts, onSave, onCancel }) => {
     };
 
     return (
-        <Card className="bg-slate-900 border-slate-800 max-w-2xl mx-auto">
+        <Card className="max-w-2xl mx-auto">
             <CardHeader>
-                <CardTitle className="text-white flex items-center">
-                    <TrendingUp className="w-5 h-5 mr-2 text-green-400" />
+                <CardTitle className="text-pl-text flex items-center">
+                    <TrendingUp className="w-5 h-5 mr-2 text-pl-muted" />
                     {initialData ? 'Edit Scenario' : 'New Economic Scenario'}
                 </CardTitle>
             </CardHeader>
@@ -56,7 +56,6 @@ const ScenarioForm = ({ initialData, concepts, onSave, onCancel }) => {
                             onChange={(e) => handleChange('name', e.target.value)} 
                             placeholder="e.g., Base Case - $70 Oil"
                             required
-                            className="bg-slate-800 border-slate-700"
                         />
                     </div>
 
@@ -67,7 +66,7 @@ const ScenarioForm = ({ initialData, concepts, onSave, onCancel }) => {
                                 value={formData.conceptId !== undefined && formData.conceptId !== null ? String(formData.conceptId) : ''}
                                 onValueChange={(v) => handleChange('conceptId', concepts.find(c => String(c.id) === v)?.id ?? v)}
                             >
-                                <SelectTrigger className="bg-slate-800 border-slate-700">
+                                <SelectTrigger>
                                     <SelectValue placeholder="Select Concept" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -83,7 +82,7 @@ const ScenarioForm = ({ initialData, concepts, onSave, onCancel }) => {
                                 value={formData.type} 
                                 onValueChange={(v) => handleChange('type', v)}
                             >
-                                <SelectTrigger className="bg-slate-800 border-slate-700">
+                                <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -96,14 +95,13 @@ const ScenarioForm = ({ initialData, concepts, onSave, onCancel }) => {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-800/50 p-4 rounded border border-slate-700">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-pl-sunken p-4 rounded border border-pl-border">
                         <div className="space-y-2">
                             <Label>Oil Price Assumption ($/bbl)</Label>
                             <Input 
                                 type="number"
                                 value={formData.oilPrice} 
                                 onChange={(e) => handleChange('oilPrice', parseFloat(e.target.value))} 
-                                className="bg-slate-900 border-slate-700"
                             />
                         </div>
                         <div className="space-y-2">
@@ -112,7 +110,6 @@ const ScenarioForm = ({ initialData, concepts, onSave, onCancel }) => {
                                 type="number"
                                 value={formData.discountRate} 
                                 onChange={(e) => handleChange('discountRate', parseFloat(e.target.value))} 
-                                className="bg-slate-900 border-slate-700"
                             />
                         </div>
                     </div>
@@ -123,15 +120,14 @@ const ScenarioForm = ({ initialData, concepts, onSave, onCancel }) => {
                             value={formData.description} 
                             onChange={(e) => handleChange('description', e.target.value)} 
                             placeholder="Details about assumptions..."
-                            className="bg-slate-800 border-slate-700"
                         />
                     </div>
 
                     <div className="flex justify-end gap-2 pt-4">
-                        <Button type="button" variant="ghost" onClick={onCancel} className="text-slate-400 hover:text-white">
+                        <Button type="button" variant="ghost" onClick={onCancel} className="text-pl-muted hover:text-pl-text">
                             <X className="w-4 h-4 mr-2" /> Cancel
                         </Button>
-                        <Button type="submit" className="bg-green-600 hover:bg-green-700 text-white">
+                        <Button type="submit">
                             <Save className="w-4 h-4 mr-2" /> Save Scenario
                         </Button>
                     </div>
