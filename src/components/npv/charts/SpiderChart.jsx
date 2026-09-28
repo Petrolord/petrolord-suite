@@ -67,7 +67,7 @@ const SpiderChart = ({ sensitivityData, height = 320 }) => {
           ))}
         </LineChart>
       </ChartFrame>
-      <p className="text-[12px] text-slate-500 mt-2">
+      <p className="text-[12px] text-pl-muted mt-2">
         The steeper a line, the more the NPV moves with that parameter. Each line is drawn
         through three computed points, at minus 30 percent, base and plus 30 percent, and
         interpolated in between, so read the slope rather than any single intermediate value.

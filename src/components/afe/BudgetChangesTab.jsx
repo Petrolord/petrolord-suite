@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { NumericTable, NumTh, NumRow, NumCell } from '@/components/ui/numeric-table';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -45,77 +45,77 @@ const BudgetChangesTab = ({ afeId, changes, currentBudget, onRefresh }) => {
   };
 
   return (
-    <div className="space-y-4 bg-slate-900/50 p-4 rounded border border-slate-800">
-      <div className="flex justify-between items-center">
+    <div className="space-y-4 rounded-lg border border-pl-border bg-pl-surface p-4 shadow-pl-sm">
+      <div className="flex flex-wrap justify-between items-center gap-3">
         <div>
-          <h3 className="text-lg font-bold text-white">Change Control Log</h3>
-          <p className="text-xs text-slate-400">Current Approved Budget: <span className="text-lime-400 font-mono">${currentBudget.toLocaleString()}</span></p>
+          <h3 className="text-lg font-semibold text-pl-text">Change Control Log</h3>
+          <p className="text-xs text-pl-muted">Current Approved Budget: <span className="font-pl-mono tabular-nums text-pl-text">${currentBudget.toLocaleString()}</span></p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)} className="bg-purple-600 hover:bg-purple-700">
+        <Button onClick={() => setIsDialogOpen(true)}>
           <History className="w-4 h-4 mr-2" /> Request Change
         </Button>
       </div>
 
-      <Table>
-        <TableHeader className="bg-slate-900">
-          <TableRow>
-            <TableHead className="text-slate-300">Date</TableHead>
-            <TableHead className="text-slate-300">Description</TableHead>
-            <TableHead className="text-slate-300">Reason</TableHead>
-            <TableHead className="text-right text-slate-300">Amount</TableHead>
-            <TableHead className="text-center text-slate-300">Status</TableHead>
-            <TableHead className="text-center text-slate-300">Action</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
+      <NumericTable className="p-0" data-testid="afe-changes-table">
+        <thead>
+          <tr>
+            <NumTh>Date</NumTh>
+            <NumTh>Description</NumTh>
+            <NumTh>Reason</NumTh>
+            <NumTh numeric>Amount</NumTh>
+            <NumTh className="text-center">Status</NumTh>
+            <NumTh className="text-center">Action</NumTh>
+          </tr>
+        </thead>
+        <tbody>
           {changes.map(change => (
-            <TableRow key={change.id} className="border-b border-slate-800/50">
-              <TableCell className="text-slate-400">{new Date(change.created_at).toLocaleDateString()}</TableCell>
-              <TableCell className="text-white">{change.description}</TableCell>
-              <TableCell className="text-slate-400 text-sm">{change.reason}</TableCell>
-              <TableCell className={`text-right font-mono ${change.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            <NumRow key={change.id}>
+              <td className="border-b border-pl-border px-3 py-2 whitespace-nowrap font-pl-mono text-xs tabular-nums text-pl-muted">{new Date(change.created_at).toLocaleDateString()}</td>
+              <td className="border-b border-pl-border px-3 py-2 text-pl-text">{change.description}</td>
+              <td className="border-b border-pl-border px-3 py-2 text-sm text-pl-muted">{change.reason}</td>
+              <NumCell value={Number(change.amount)}>
                 {change.amount > 0 ? '+' : ''}{Number(change.amount).toLocaleString()}
-              </TableCell>
-              <TableCell className="text-center">
-                <Badge variant="outline" className={
-                  change.status === 'Approved' ? 'text-green-400 border-green-500/50' : 
-                  change.status === 'Rejected' ? 'text-red-400 border-red-500/50' : 'text-yellow-400 border-yellow-500/50'
+              </NumCell>
+              <td className="border-b border-pl-border px-3 py-2 text-center">
+                <Badge variant={
+                  change.status === 'Approved' ? 'success' :
+                  change.status === 'Rejected' ? 'danger' : 'warning'
                 }>{change.status}</Badge>
-              </TableCell>
-              <TableCell className="text-center">
+              </td>
+              <td className="border-b border-pl-border px-3 py-2 text-center">
                 {change.status === 'Pending' && (
                   <div className="flex justify-center gap-2">
-                    <Button size="icon" variant="ghost" onClick={() => handleAction(change, 'Approved')} className="text-green-500 hover:bg-green-900/20"><CheckCircle className="w-4 h-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => handleAction(change, 'Rejected')} className="text-red-500 hover:bg-red-900/20"><XCircle className="w-4 h-4" /></Button>
+                    <Button size="icon" variant="ghost" aria-label="Approve change" title="Approve" onClick={() => handleAction(change, 'Approved')} className="text-pl-success-text hover:bg-pl-success-bg"><CheckCircle className="w-4 h-4" /></Button>
+                    <Button size="icon" variant="ghost" aria-label="Reject change" title="Reject" onClick={() => handleAction(change, 'Rejected')} className="text-pl-danger-text hover:bg-pl-danger-bg"><XCircle className="w-4 h-4" /></Button>
                   </div>
                 )}
-              </TableCell>
-            </TableRow>
+              </td>
+            </NumRow>
           ))}
           {changes.length === 0 && (
-            <TableRow><TableCell colSpan={6} className="text-center py-8 text-slate-500">No changes recorded.</TableCell></TableRow>
+            <tr><td colSpan={6} className="text-center py-8 text-pl-muted">No changes recorded.</td></tr>
           )}
-        </TableBody>
-      </Table>
+        </tbody>
+      </NumericTable>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="bg-slate-900 border-slate-700 text-white">
+        <DialogContent>
           <DialogHeader><DialogTitle>Request Budget Change</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label>Description</Label>
-              <Input value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="bg-slate-800 border-slate-700" required />
+              <Input value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} required />
             </div>
             <div>
               <Label>Amount ($)</Label>
-              <Input type="number" value={formData.amount} onChange={e => setFormData({...formData, amount: parseFloat(e.target.value)})} className="bg-slate-800 border-slate-700" required placeholder="+ for increase, - for decrease" />
+              <Input type="number" value={formData.amount} onChange={e => setFormData({...formData, amount: parseFloat(e.target.value)})} required placeholder="+ for increase, - for decrease" />
             </div>
             <div>
               <Label>Reason / Justification</Label>
-              <Input value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})} className="bg-slate-800 border-slate-700" required />
+              <Input value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})} required />
             </div>
             <DialogFooter>
-              <Button type="submit" className="bg-purple-600">Submit Request</Button>
+              <Button type="submit">Submit Request</Button>
             </DialogFooter>
           </form>
         </DialogContent>

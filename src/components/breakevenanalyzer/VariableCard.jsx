@@ -10,15 +10,15 @@ const VariableCard = ({ variable, onChange, onRemove }) => {
   const [isOpen, setIsOpen] = useState(true);
 
   return (
-    <div className="bg-white/10 border border-white/20 rounded-lg overflow-hidden">
-      <div className="flex justify-between items-center p-3 bg-white/5">
+    <div className="bg-pl-surface border border-pl-border rounded-lg overflow-hidden">
+      <div className="flex justify-between items-center p-3 bg-pl-sunken/60">
         <button type="button" onClick={() => setIsOpen(!isOpen)} className="flex-grow flex items-center space-x-2 text-left">
           <motion.div animate={{ rotate: isOpen ? 0 : -90 }}>
-            <ChevronDown className="w-5 h-5 text-lime-300" />
+            <ChevronDown className="w-5 h-5 text-pl-muted" />
           </motion.div>
-          <span className="font-semibold text-white">{variable.name}</span>
+          <span className="font-semibold text-pl-text">{variable.name}</span>
         </button>
-        <Button variant="ghost" size="icon" onClick={() => onRemove(variable.id)} className="text-red-400 hover:bg-red-500/20 hover:text-red-300">
+        <Button variant="ghost" size="icon" onClick={() => onRemove(variable.id)} className="text-pl-danger-text hover:bg-pl-danger-bg">
           <X className="w-4 h-4" />
         </Button>
       </div>
@@ -32,16 +32,16 @@ const VariableCard = ({ variable, onChange, onRemove }) => {
           >
             <div className="p-3 grid grid-cols-3 gap-2">
               <div>
-                <Label className="text-lime-300 text-xs">{VARIABLE_PERCENTILE_LABELS.p10}</Label>
-                <Input type="number" value={variable.p10} onChange={(e) => onChange(variable.id, 'p10', Number(e.target.value))} className="bg-white/5 border-white/20 px-2 tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+                <Label className="text-xs">{VARIABLE_PERCENTILE_LABELS.p10}</Label>
+                <Input type="number" value={variable.p10} onChange={(e) => onChange(variable.id, 'p10', Number(e.target.value))} className="px-2 tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
               </div>
               <div>
-                <Label className="text-lime-300 text-xs">{VARIABLE_PERCENTILE_LABELS.p50}</Label>
-                <Input type="number" value={variable.p50} onChange={(e) => onChange(variable.id, 'p50', Number(e.target.value))} className="bg-white/5 border-white/20 px-2 tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+                <Label className="text-xs">{VARIABLE_PERCENTILE_LABELS.p50}</Label>
+                <Input type="number" value={variable.p50} onChange={(e) => onChange(variable.id, 'p50', Number(e.target.value))} className="px-2 tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
               </div>
               <div>
-                <Label className="text-lime-300 text-xs">{VARIABLE_PERCENTILE_LABELS.p90}</Label>
-                <Input type="number" value={variable.p90} onChange={(e) => onChange(variable.id, 'p90', Number(e.target.value))} className="bg-white/5 border-white/20 px-2 tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+                <Label className="text-xs">{VARIABLE_PERCENTILE_LABELS.p90}</Label>
+                <Input type="number" value={variable.p90} onChange={(e) => onChange(variable.id, 'p90', Number(e.target.value))} className="px-2 tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
               </div>
             </div>
           </motion.div>

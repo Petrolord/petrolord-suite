@@ -52,8 +52,8 @@ const PortfolioForm = ({ portfolio, onSave, onCancel }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div><Label htmlFor="name">Portfolio Name</Label><Input id="name" name="name" value={formData.name} onChange={handleChange} className="bg-white/5 border-white/20" required /></div>
-      <div><Label htmlFor="capex_limit">CAPEX Limit ($MM)</Label><Input id="capex_limit" name="capex_limit" type="number" value={formData.capex_limit} onChange={handleChange} className="bg-white/5 border-white/20" required /></div>
+      <div><Label htmlFor="name">Portfolio Name</Label><Input id="name" name="name" value={formData.name} onChange={handleChange} required /></div>
+      <div><Label htmlFor="capex_limit">CAPEX Limit ($MM)</Label><Input id="capex_limit" name="capex_limit" type="number" value={formData.capex_limit} onChange={handleChange} required /></div>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
         <Button type="submit">{portfolio?.id ? 'Update' : 'Create'} Portfolio</Button>

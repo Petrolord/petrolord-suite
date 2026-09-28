@@ -8,8 +8,8 @@ import { fmtSF } from '../../services/ctRun';
 const DesignSummary = ({ stringResult }) => {
   if (!stringResult || !stringResult.cases.length) {
     return (
-      <Card className="bg-slate-900 border-slate-800">
-        <CardContent className="p-4 text-center text-xs text-slate-500">
+      <Card>
+        <CardContent className="p-4 text-center text-xs text-pl-muted">
           Add casing load cases to see results.
         </CardContent>
       </Card>
@@ -33,27 +33,27 @@ const DesignSummary = ({ stringResult }) => {
   }
 
   const StatusIcon = status === 'PASS' ? CheckCircle2 : status === 'WARNING' ? AlertTriangle : XCircle;
-  const statusColor = status === 'PASS' ? 'text-emerald-400' : status === 'WARNING' ? 'text-amber-400' : 'text-red-400';
-  const borderColor = status === 'PASS' ? 'border-emerald-500/20' : status === 'WARNING' ? 'border-amber-500/20' : 'border-red-500/20';
-  const bgColor = status === 'PASS' ? 'bg-emerald-500/5' : status === 'WARNING' ? 'bg-amber-500/5' : 'bg-red-500/5';
+  const statusColor = status === 'PASS' ? 'text-pl-success-text' : status === 'WARNING' ? 'text-pl-warning-text' : 'text-pl-danger-text';
+  const borderColor = status === 'PASS' ? 'border-pl-success/40' : status === 'WARNING' ? 'border-pl-warning/40' : 'border-pl-danger/40';
+  const bgColor = status === 'PASS' ? 'bg-pl-success-bg' : status === 'WARNING' ? 'bg-pl-warning-bg' : 'bg-pl-danger-bg';
 
   const cell = (label, key, threshold) => (
-    <div className="bg-slate-950/50 p-2 rounded border border-slate-800 text-center">
-      <span className="text-[10px] text-slate-500 block">{label}</span>
-      <span className={`text-sm font-mono font-bold ${worst[key] != null && worst[key] < threshold ? 'text-red-400' : 'text-white'}`}>
+    <div className="bg-pl-sunken p-2 rounded border border-pl-border text-center">
+      <span className="text-[10px] text-pl-muted block">{label}</span>
+      <span className={`text-sm font-pl-mono tabular-nums font-bold ${worst[key] != null && worst[key] < threshold ? 'text-pl-danger-text' : 'text-pl-text'}`}>
         {fmtSF(worst[key])}
       </span>
       {worstCase[key] && (
-        <span className="text-[9px] text-slate-600 block truncate" title={worstCase[key]}>{worstCase[key]}</span>
+        <span className="text-[9px] text-pl-muted block truncate" title={worstCase[key]}>{worstCase[key]}</span>
       )}
     </div>
   );
 
   return (
-    <Card className={`bg-slate-900 border-slate-800 ${borderColor}`}>
+    <Card className={borderColor}>
       <CardContent className={`p-4 ${bgColor}`}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold text-slate-200">String Summary (all cases)</h3>
+          <h3 className="text-sm font-bold text-pl-text">String Summary (all cases)</h3>
           <div className={`flex items-center ${statusColor}`} data-testid="ct-string-status">
             <StatusIcon className="w-5 h-5 mr-2" />
             <span className="font-bold">{status}</span>

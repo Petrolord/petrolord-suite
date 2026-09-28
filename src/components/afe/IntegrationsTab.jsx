@@ -10,13 +10,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Link2 } from 'lucide-react';
 
 const IntegrationsTab = ({ afe }) => (
-  <Card className="bg-slate-900 border-slate-800">
+  <Card>
     <CardContent className="p-8 flex flex-col items-center text-center gap-3">
-      <div className="p-3 bg-slate-800 rounded-lg">
-        <Link2 className="w-6 h-6 text-slate-400" />
+      <div className="p-3 bg-pl-sunken rounded-lg">
+        <Link2 className="w-6 h-6 text-pl-muted" />
       </div>
-      <h3 className="text-lg font-bold text-white">No integrations are connected</h3>
-      <p className="text-sm text-slate-400 max-w-xl">
+      <h3 className="text-lg font-semibold text-pl-text">No integrations are connected</h3>
+      <p className="text-sm text-pl-muted max-w-xl">
         No integrations are connected for AFE {afe?.afe_number || 'this AFE'}. Nothing here syncs with
         schedules, technical apps or drilling reports. Enter cost items, invoices and budget changes in
         their own tabs.

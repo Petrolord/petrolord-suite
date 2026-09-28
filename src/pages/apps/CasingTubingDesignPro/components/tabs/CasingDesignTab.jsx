@@ -39,17 +39,17 @@ const CasingDesignTab = () => {
   const caseResult = stringResult?.cases?.find((c) => c.loadCaseId === activeLoadCaseId) || null;
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-slate-100 overflow-hidden m-0 p-0">
+    <div className="flex flex-col h-full bg-pl-bg text-pl-text overflow-hidden m-0 p-0">
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-6 py-1.5 border-b border-slate-800 bg-slate-900/50 shrink-0 h-10 mt-0">
+      <div className="flex items-center justify-between px-6 py-1.5 border-b border-pl-border bg-pl-surface shrink-0 h-10 mt-0">
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
-            <span className="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Active Load Case</span>
+            <span className="text-[10px] uppercase text-pl-muted font-bold tracking-wider">Active Load Case</span>
             <Select value={activeLoadCaseId || ''} onValueChange={setActiveLoadCaseId}>
-              <SelectTrigger data-testid="ct-load-case-picker" className="w-[220px] h-7 bg-slate-900 border-slate-700 text-xs">
+              <SelectTrigger data-testid="ct-load-case-picker" className="w-[220px] h-7 text-xs">
                 <SelectValue placeholder="Select Load Case" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-900 border-slate-700">
+              <SelectContent>
                 {casingLoadCases.map((lc) => (
                   <SelectItem key={lc.id} value={lc.id}>{lc.name}</SelectItem>
                 ))}
@@ -57,18 +57,18 @@ const CasingDesignTab = () => {
             </Select>
           </div>
 
-          <div className="h-6 w-px bg-slate-800 mx-2" />
+          <div className="h-6 w-px bg-pl-border mx-2" />
 
-          <div className="flex items-center space-x-2 text-xs text-slate-400">
-            <span className="font-semibold text-slate-500">Design Factors:</span>
-            <span className="bg-slate-800 px-2 py-0.5 rounded border border-slate-700" title="Burst">B: {safetyFactors.burst}</span>
-            <span className="bg-slate-800 px-2 py-0.5 rounded border border-slate-700" title="Collapse">C: {safetyFactors.collapse}</span>
-            <span className="bg-slate-800 px-2 py-0.5 rounded border border-slate-700" title="Tension">T: {safetyFactors.tension}</span>
-            <span className="bg-slate-800 px-2 py-0.5 rounded border border-slate-700" title="Triaxial">VME: {safetyFactors.triaxial}</span>
+          <div className="flex items-center space-x-2 text-xs text-pl-muted">
+            <span className="font-semibold text-pl-muted">Design Factors:</span>
+            <span className="bg-pl-sunken px-2 py-0.5 rounded border border-pl-border" title="Burst">B: {safetyFactors.burst}</span>
+            <span className="bg-pl-sunken px-2 py-0.5 rounded border border-pl-border" title="Collapse">C: {safetyFactors.collapse}</span>
+            <span className="bg-pl-sunken px-2 py-0.5 rounded border border-pl-border" title="Tension">T: {safetyFactors.tension}</span>
+            <span className="bg-pl-sunken px-2 py-0.5 rounded border border-pl-border" title="Triaxial">VME: {safetyFactors.triaxial}</span>
           </div>
         </div>
 
-        <span className="text-[10px] text-slate-500">
+        <span className="text-[10px] text-pl-muted">
           Ratings: API Barlow burst / 5C3 four-regime collapse with axial derate / Lamé-VME triaxial
         </span>
       </div>
@@ -76,9 +76,9 @@ const CasingDesignTab = () => {
       {/* Main Workspace */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left: String Manager */}
-        <div className="w-1/4 border-r border-slate-800 bg-slate-900/20 flex flex-col min-w-[300px]">
-          <div className="p-2 border-b border-slate-800">
-            <h3 className="text-xs font-semibold text-white px-2">Casing Strings</h3>
+        <div className="w-1/4 border-r border-pl-border bg-pl-surface flex flex-col min-w-[300px]">
+          <div className="p-2 border-b border-pl-border">
+            <h3 className="text-xs font-semibold text-pl-text px-2">Casing Strings</h3>
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
             <CasingStringList selectedId={selectedStringId} onSelect={setSelectedStringId} />
@@ -86,21 +86,21 @@ const CasingDesignTab = () => {
         </div>
 
         {/* Center: Editor & Results */}
-        <div className="w-2/5 border-r border-slate-800 flex flex-col bg-slate-950 min-w-[420px]">
+        <div className="w-2/5 border-r border-pl-border flex flex-col bg-pl-bg min-w-[420px]">
           <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-6">
             <div>
-              <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center">
-                <Layers className="w-4 h-4 mr-2 text-blue-400" />
+              <h3 className="text-sm font-semibold text-pl-text mb-3 flex items-center">
+                <Layers className="w-4 h-4 mr-2 text-pl-muted" />
                 Section Configuration {activeString && ` - ${activeString.name}`}
               </h3>
               <CasingSectionsTable stringId={selectedStringId} />
             </div>
 
-            <Separator className="bg-slate-800" />
+            <Separator />
 
             <div>
-              <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center">
-                <Activity className="w-4 h-4 mr-2 text-lime-400" />
+              <h3 className="text-sm font-semibold text-pl-text mb-3 flex items-center">
+                <Activity className="w-4 h-4 mr-2 text-pl-muted" />
                 Results: {caseResult ? caseResult.name : 'select a load case'}
               </h3>
               <DesignResultsTable caseResult={caseResult} depthUnit={depthUnit} />
@@ -109,13 +109,13 @@ const CasingDesignTab = () => {
         </div>
 
         {/* Right: Summary & Viz */}
-        <div className="flex-1 bg-slate-900/30 flex flex-col min-w-[300px]">
+        <div className="flex-1 bg-pl-surface flex flex-col min-w-[300px]">
           <div className="p-4 flex flex-col h-full space-y-4">
             <DesignSummary stringResult={stringResult} />
 
-            <Card className="flex-1 bg-slate-900 border-slate-800 flex flex-col overflow-hidden">
-              <CardHeader className="py-2 px-4 border-b border-slate-800 bg-slate-950/50">
-                <CardTitle className="text-xs font-bold text-slate-400 uppercase tracking-wider">String Schematic</CardTitle>
+            <Card className="flex-1 flex flex-col overflow-hidden">
+              <CardHeader className="py-2 px-4 border-b border-pl-border bg-pl-sunken">
+                <CardTitle className="text-xs font-bold text-pl-muted uppercase tracking-wider">String Schematic</CardTitle>
               </CardHeader>
               <CardContent className="flex-1 p-0 relative">
                 <CasingVisualizer activeString={activeString} depthUnit={depthUnit} />

@@ -22,7 +22,7 @@ const CasingSectionsTable = ({ stringId }) => {
 
   const activeString = (caseDoc?.strings?.casingStrings || []).find((s) => s.id === stringId);
   if (!activeString) {
-    return <div className="text-xs text-slate-500 italic p-4">Select a casing string to view sections.</div>;
+    return <div className="text-xs text-pl-muted italic p-4">Select a casing string to view sections.</div>;
   }
 
   const patchSection = (secId, patch) => {
@@ -81,17 +81,17 @@ const CasingSectionsTable = ({ stringId }) => {
 
   return (
     <div className="space-y-2">
-      <div className="rounded-md border border-slate-800 bg-slate-900/50 overflow-x-auto">
+      <div className="rounded-md border border-pl-border bg-pl-surface overflow-x-auto">
         <Table>
-          <TableHeader className="bg-slate-900">
-            <TableRow className="border-slate-800 hover:bg-transparent">
-              <TableHead className="h-8 text-[10px] font-bold text-slate-400">Section</TableHead>
-              <TableHead className="h-8 text-[10px] font-bold text-slate-400 text-right">Top MD ({unit})</TableHead>
-              <TableHead className="h-8 text-[10px] font-bold text-slate-400 text-right">Bottom MD ({unit})</TableHead>
-              <TableHead className="h-8 text-[10px] font-bold text-slate-400">Tubular</TableHead>
-              <TableHead className="h-8 text-[10px] font-bold text-slate-400 text-right">Burst (psi)</TableHead>
-              <TableHead className="h-8 text-[10px] font-bold text-slate-400 text-right">Collapse (psi)</TableHead>
-              <TableHead className="h-8 text-[10px] font-bold text-slate-400 w-12"></TableHead>
+          <TableHeader>
+            <TableRow className="border-pl-border hover:bg-transparent">
+              <TableHead className="h-8 text-[10px] font-bold text-pl-muted">Section</TableHead>
+              <TableHead className="h-8 text-[10px] font-bold text-pl-muted text-right">Top MD ({unit})</TableHead>
+              <TableHead className="h-8 text-[10px] font-bold text-pl-muted text-right">Bottom MD ({unit})</TableHead>
+              <TableHead className="h-8 text-[10px] font-bold text-pl-muted">Tubular</TableHead>
+              <TableHead className="h-8 text-[10px] font-bold text-pl-muted text-right">Burst (psi)</TableHead>
+              <TableHead className="h-8 text-[10px] font-bold text-pl-muted text-right">Collapse (psi)</TableHead>
+              <TableHead className="h-8 text-[10px] font-bold text-pl-muted w-12"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -99,14 +99,14 @@ const CasingSectionsTable = ({ stringId }) => {
               const row = findCatalogRow('casing', sec.odIn, sec.weightLbFt);
               const ratings = row ? catalogRatings(row, sec.grade, sec.connection) : null;
               return (
-                <TableRow key={sec.id} className="border-slate-800 hover:bg-slate-800/50 h-9">
-                  <TableCell className="py-1 text-xs font-medium text-slate-200">{sec.name}</TableCell>
+                <TableRow key={sec.id} className="border-pl-border hover:bg-pl-sunken h-9">
+                  <TableCell className="py-1 text-xs font-medium text-pl-text">{sec.name}</TableCell>
                   <TableCell className="py-1 text-right w-24">
                     <Input
                       type="number"
                       value={Math.round(depthDisp(sec.topMdM, depthUnit))}
                       onChange={(e) => patchSection(sec.id, { topMdM: depthStore(parseFloat(e.target.value) || 0, depthUnit) })}
-                      className="h-6 min-w-[72px] bg-slate-950 border-slate-800 text-[11px] font-mono text-right px-1"
+                      className="h-6 min-w-[72px] text-[11px] font-pl-mono tabular-nums text-right px-1"
                     />
                   </TableCell>
                   <TableCell className="py-1 text-right w-24">
@@ -114,27 +114,27 @@ const CasingSectionsTable = ({ stringId }) => {
                       type="number"
                       value={Math.round(depthDisp(sec.bottomMdM, depthUnit))}
                       onChange={(e) => patchSection(sec.id, { bottomMdM: depthStore(parseFloat(e.target.value) || 0, depthUnit) })}
-                      className="h-6 min-w-[72px] bg-slate-950 border-slate-800 text-[11px] font-mono text-right px-1"
+                      className="h-6 min-w-[72px] text-[11px] font-pl-mono tabular-nums text-right px-1"
                     />
                   </TableCell>
                   <TableCell className="py-1">
                     <button
                       type="button"
-                      className="text-[11px] font-mono text-lime-400 hover:text-lime-300 hover:underline"
+                      className="text-[11px] font-pl-mono tabular-nums text-pl-primary-text hover:text-pl-primary-text-hover hover:underline"
                       onClick={() => setCatalogFor(sec.id)}
                       title="Pick from catalog"
                     >
                       {sec.odIn}&quot; {sec.weightLbFt}# {sec.grade} {sec.connection}
                     </button>
                   </TableCell>
-                  <TableCell className="py-1 text-xs font-mono text-emerald-400 text-right">
+                  <TableCell className="py-1 text-xs font-pl-mono tabular-nums text-pl-text text-right">
                     {ratings ? Math.round(paToPsi(ratings.burstPa)).toLocaleString() : '—'}
                   </TableCell>
-                  <TableCell className="py-1 text-xs font-mono text-amber-400 text-right">
+                  <TableCell className="py-1 text-xs font-pl-mono tabular-nums text-pl-text text-right">
                     {ratings ? Math.round(paToPsi(ratings.collapsePa)).toLocaleString() : '—'}
                   </TableCell>
                   <TableCell className="py-1 text-right">
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:text-red-400" onClick={() => deleteSection(sec.id)}>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-pl-muted hover:text-pl-danger-text" onClick={() => deleteSection(sec.id)}>
                       <Trash className="w-3 h-3" />
                     </Button>
                   </TableCell>
@@ -147,7 +147,7 @@ const CasingSectionsTable = ({ stringId }) => {
       <Button
         variant="outline"
         size="sm"
-        className="h-7 text-xs border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white"
+        className="h-7 text-xs"
         onClick={() => setCatalogFor('new')}
       >
         <Database className="w-3.5 h-3.5 mr-2" /> Add Section from Catalog

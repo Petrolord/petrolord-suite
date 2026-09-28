@@ -11,7 +11,7 @@ const db = createStore({ portfolio_projects: [], portfolios: [], epe_mc_runs: []
 export default function CapitalPortfolioHarness() {
   return (
     <InMemorySupabase db={db}>
-      <DevAuth><div className="min-h-screen bg-slate-950 text-slate-100"><CapitalPortfolioStudio /></div></DevAuth>
+      <DevAuth><CapitalPortfolioStudio /></DevAuth>
     </InMemorySupabase>
   );
 }
