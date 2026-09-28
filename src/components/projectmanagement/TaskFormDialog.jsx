@@ -178,13 +178,13 @@ const TaskFormDialog = ({ open, onOpenChange, project, existingTask, parentTaskI
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border-slate-700 text-white sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {type === 'milestone' ? <Flag className="w-5 h-5 text-purple-400" /> : <ListTodo className="w-5 h-5 text-blue-400" />}
+            {type === 'milestone' ? <Flag className="w-5 h-5 text-pl-muted" /> : <ListTodo className="w-5 h-5 text-pl-muted" />}
             {isEditMode ? `Edit ${type === 'milestone' ? 'Milestone' : 'Task'}` : `Add New ${type === 'milestone' ? 'Milestone' : 'Task'}`}
           </DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-pl-muted">
             Fill in the details below. Required fields are marked with an asterisk (*).
           </DialogDescription>
         </DialogHeader>
@@ -193,15 +193,15 @@ const TaskFormDialog = ({ open, onOpenChange, project, existingTask, parentTaskI
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2 col-span-2 md:col-span-1">
                     <Label>Name *</Label>
-                    <Input placeholder="e.g. Phase 1 Review" value={name} onChange={e => setName(e.target.value)} className="bg-slate-800 border-slate-700 text-white" required />
+                    <Input placeholder="e.g. Phase 1 Review" value={name} onChange={e => setName(e.target.value)} className="bg-pl-sunken border-pl-border text-pl-text" required />
                 </div>
                 <div className="space-y-2">
                     <Label>Type</Label>
                     <Select value={type} onValueChange={setType} disabled={isEditMode}>
-                        <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                        <SelectTrigger>
                             <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                        <SelectContent>
                             <SelectItem value="task">Task</SelectItem>
                             <SelectItem value="milestone">Milestone</SelectItem>
                         </SelectContent>
@@ -212,26 +212,26 @@ const TaskFormDialog = ({ open, onOpenChange, project, existingTask, parentTaskI
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <Label>Start Date *</Label>
-                    <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-slate-800 border-slate-700 text-white [color-scheme:dark]" required />
+                    <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-pl-sunken border-pl-border text-pl-text [color-scheme:dark]" required />
                 </div>
                 <div className="space-y-2">
                     <Label>End Date *</Label>
-                    <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-slate-800 border-slate-700 text-white [color-scheme:dark]" required />
+                    <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-pl-sunken border-pl-border text-pl-text [color-scheme:dark]" required />
                 </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <Label>Owner/Assignee</Label>
-                    <Input placeholder="e.g. John Doe" value={owner} onChange={e => setOwner(e.target.value)} className="bg-slate-800 border-slate-700 text-white" />
+                    <Input placeholder="e.g. John Doe" value={owner} onChange={e => setOwner(e.target.value)} className="bg-pl-sunken border-pl-border text-pl-text" />
                 </div>
                 <div className="space-y-2">
                     <Label>Priority</Label>
                     <Select value={priority} onValueChange={setPriority}>
-                        <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                        <SelectTrigger>
                             <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                        <SelectContent>
                             <SelectItem value="Low">Low</SelectItem>
                             <SelectItem value="Medium">Medium</SelectItem>
                             <SelectItem value="High">High</SelectItem>
@@ -245,10 +245,10 @@ const TaskFormDialog = ({ open, onOpenChange, project, existingTask, parentTaskI
                 <div className="space-y-2">
                     <Label>Status</Label>
                     <Select value={status} onValueChange={setStatus}>
-                        <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                        <SelectTrigger>
                             <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                        <SelectContent>
                             <SelectItem value="To Do">To Do</SelectItem>
                             <SelectItem value="In Progress">In Progress</SelectItem>
                             <SelectItem value="Review">Review</SelectItem>
@@ -258,7 +258,7 @@ const TaskFormDialog = ({ open, onOpenChange, project, existingTask, parentTaskI
                 </div>
                 <div className="space-y-2">
                     <Label>Progress (%)</Label>
-                    <Input type="number" min="0" max="100" value={percentComplete} onChange={e => setPercentComplete(parseInt(e.target.value) || 0)} className="bg-slate-800 border-slate-700 text-white" />
+                    <Input type="number" min="0" max="100" value={percentComplete} onChange={e => setPercentComplete(parseInt(e.target.value) || 0)} className="bg-pl-sunken border-pl-border text-pl-text" />
                 </div>
             </div>
 
@@ -272,7 +272,7 @@ const TaskFormDialog = ({ open, onOpenChange, project, existingTask, parentTaskI
                         placeholder="Leave blank if not costed"
                         value={plannedCost}
                         onChange={e => setPlannedCost(e.target.value)}
-                        className="bg-slate-800 border-slate-700 text-white"
+                       
                     />
                 </div>
                 <div className="space-y-2">
@@ -284,11 +284,11 @@ const TaskFormDialog = ({ open, onOpenChange, project, existingTask, parentTaskI
                         placeholder="Leave blank if nothing booked"
                         value={actualCost}
                         onChange={e => setActualCost(e.target.value)}
-                        className="bg-slate-800 border-slate-700 text-white"
+                       
                     />
                 </div>
             </div>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-pl-muted">
                 Earned value is the planned cost of the work done: a task with no planned cost
                 contributes nothing to it, and a project with no costed tasks reports no
                 performance index at all rather than a made-up one.
@@ -297,10 +297,10 @@ const TaskFormDialog = ({ open, onOpenChange, project, existingTask, parentTaskI
             <div className="space-y-2">
                 <Label>Parent Task / Dependency</Label>
                 <Select value={selectedParent} onValueChange={setSelectedParent}>
-                    <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                    <SelectTrigger>
                         <SelectValue placeholder="None" />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                    <SelectContent>
                         <SelectItem value="none">None</SelectItem>
                         {tasks.filter(t => t.id !== existingTask?.id && t.type === 'task').map(t => (
                             <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
@@ -315,13 +315,13 @@ const TaskFormDialog = ({ open, onOpenChange, project, existingTask, parentTaskI
                     placeholder="Add notes or descriptions..." 
                     value={description} 
                     onChange={e => setDescription(e.target.value)} 
-                    className="bg-slate-800 border-slate-700 text-white min-h-[80px]" 
+                    className="min-h-[80px]" 
                 />
             </div>
 
             <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-                <Button type="submit" disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white">
+                <Button type="submit" disabled={loading}>
                     {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                     Save {type === 'milestone' ? 'Milestone' : 'Task'}
                 </Button>

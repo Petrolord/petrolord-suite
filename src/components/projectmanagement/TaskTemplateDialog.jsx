@@ -93,13 +93,13 @@ const TaskTemplateDialog = ({ open, onOpenChange, projectId, onTasksAdded }) => 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border-slate-700 text-white sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Briefcase className="w-5 h-5 text-blue-400" />
+            <Briefcase className="w-5 h-5 text-pl-muted" />
             Import Task Template
           </DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-pl-muted">
             Select a standard work pack to bulk-create tasks for your project.
           </DialogDescription>
         </DialogHeader>
@@ -107,12 +107,12 @@ const TaskTemplateDialog = ({ open, onOpenChange, projectId, onTasksAdded }) => 
         <div className="space-y-4 py-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">Select Template</label>
+                <label className="text-sm font-medium text-pl-text">Select Template</label>
                 <Select value={selectedTemplateId} onValueChange={handleTemplateChange}>
-                    <SelectTrigger className="bg-slate-800 border-slate-700">
+                    <SelectTrigger>
                     <SelectValue placeholder="Choose a pack..." />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                    <SelectContent>
                     {TASK_TEMPLATES.map(t => (
                         <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                     ))}
@@ -120,39 +120,38 @@ const TaskTemplateDialog = ({ open, onOpenChange, projectId, onTasksAdded }) => 
                 </Select>
             </div>
             <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">Start Date</label>
+                <label className="text-sm font-medium text-pl-text">Start Date</label>
                 <div className="relative">
-                    <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+                    <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-pl-muted" />
                     <input 
                         type="date" 
                         value={startDate}
                         onChange={(e) => setStartDate(e.target.value)}
-                        className="w-full h-10 pl-9 rounded-md border border-slate-700 bg-slate-800 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full h-10 pl-9 rounded-md border border-pl-border-strong bg-pl-surface text-sm text-pl-text focus:outline-none focus:ring-2 focus:ring-pl-focus"
                     />
                 </div>
             </div>
           </div>
 
           {activeTemplate && (
-            <div className="border border-slate-700 rounded-md overflow-hidden bg-slate-950/50">
-              <div className="p-2 bg-slate-800/50 border-b border-slate-700 text-xs font-semibold text-slate-400 flex justify-between">
+            <div className="border border-pl-border rounded-md overflow-hidden bg-pl-surface">
+              <div className="p-2 bg-pl-sunken border-b border-pl-border text-xs font-semibold text-pl-muted flex justify-between">
                 <span>Tasks to Import</span>
                 <span>Duration: {activeTemplate.tasks.reduce((acc, t) => acc + t.duration, 0)} days approx</span>
               </div>
               <ScrollArea className="h-[300px]">
                 <div className="p-2 space-y-1">
                     {activeTemplate.tasks.map((task, idx) => (
-                        <div key={idx} className="flex items-center space-x-2 p-2 hover:bg-slate-800/50 rounded group">
+                        <div key={idx} className="flex items-center space-x-2 p-2 hover:bg-pl-sunken/60 rounded group">
                             <Checkbox 
                                 id={`task-${idx}`} 
                                 checked={!!selectedTasks[idx]}
                                 onCheckedChange={() => toggleTask(idx)}
-                                className="border-slate-600 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                             />
                             <label htmlFor={`task-${idx}`} className="text-sm flex-1 cursor-pointer flex justify-between">
-                                <span className={selectedTasks[idx] ? 'text-slate-200' : 'text-slate-500'}>{task.name}</span>
-                                <span className="text-xs text-slate-500 flex items-center gap-2">
-                                    <Badge variant="outline" className="text-[10px] h-4 px-1 border-slate-700 text-slate-500">{task.workstream}</Badge>
+                                <span className={selectedTasks[idx] ? 'text-pl-text' : 'text-pl-muted'}>{task.name}</span>
+                                <span className="text-xs text-pl-muted flex items-center gap-2">
+                                    <Badge variant="neutral" className="text-[10px] h-4 px-1">{task.workstream}</Badge>
                                     {task.duration}d
                                 </span>
                             </label>
@@ -166,7 +165,7 @@ const TaskTemplateDialog = ({ open, onOpenChange, projectId, onTasksAdded }) => 
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isSubmitting}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={!selectedTemplateId || isSubmitting} className="bg-blue-600 hover:bg-blue-700">
+          <Button onClick={handleSubmit} disabled={!selectedTemplateId || isSubmitting}>
             {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
             Import Tasks
           </Button>

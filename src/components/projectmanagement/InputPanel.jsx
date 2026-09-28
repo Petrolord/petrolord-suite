@@ -11,6 +11,7 @@ import { FolderPlus, ListTodo, PlusCircle, AlertTriangle, UserPlus, DollarSign, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { NativeSelect } from '@/components/ui/native-select';
 
 import TaskTemplateDialog from './TaskTemplateDialog';
 import ProgressUpdateForm from './ProgressUpdateForm';
@@ -113,28 +114,28 @@ const InputPanel = ({ projects, activeProject, tasks, onSelectProject, onProject
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <Label htmlFor="project-select" className="text-lime-300">Select Project</Label>
-        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 rounded-full hover:bg-white/10 text-slate-400" onClick={() => setHelpOpen(true)}>
+        <Label htmlFor="project-select">Select Project</Label>
+        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 rounded-full text-pl-muted" aria-label="Help" onClick={() => setHelpOpen(true)}>
             <HelpCircle className="w-4 h-4" />
         </Button>
       </div>
-      <select
+      <NativeSelect
         id="project-select"
         value={activeProject?.id || ''}
         onChange={(e) => onSelectProject(e.target.value)}
-        className="w-full bg-white border border-slate-300 rounded-md p-2 text-black text-sm"
+        className="w-full"
       >
         <option value="">-- Select a Project --</option>
         {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-      </select>
+      </NativeSelect>
 
       {activeProject && (
-          <div className="bg-white/5 p-3 rounded border border-white/10 space-y-3">
+          <div className="bg-pl-sunken p-3 rounded-md border border-pl-border space-y-3">
              <div className="grid grid-cols-2 gap-2">
-                <Button onClick={() => setUpdateOpen(true)} className="w-full bg-blue-600 hover:bg-blue-700 text-white h-8 text-xs">
+                <Button onClick={() => setUpdateOpen(true)} className="w-full h-8 text-xs">
                     <TrendingUp className="w-3 h-3 mr-1" /> Update
                 </Button>
-                <Button onClick={() => setRiskOpen(true)} className="w-full bg-amber-600 hover:bg-amber-700 text-white h-8 text-xs">
+                <Button onClick={() => setRiskOpen(true)} variant="outline" className="w-full h-8 text-xs">
                     <AlertTriangle className="w-3 h-3 mr-1" /> Risk
                 </Button>
              </div>
@@ -142,36 +143,36 @@ const InputPanel = ({ projects, activeProject, tasks, onSelectProject, onProject
       )}
 
       <div className="grid grid-cols-1 gap-2">
-          <Button onClick={() => setExplorationWizardOpen(true)} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white h-9 text-xs"><Globe className="w-3 h-3 mr-2" /> New Exploration Project</Button>
-          <Button onClick={() => setAppraisalWizardOpen(true)} className="w-full bg-amber-600 hover:bg-amber-700 text-white h-9 text-xs"><Activity className="w-3 h-3 mr-2" /> New Appraisal Project</Button>
-          <Button onClick={() => setFieldDevWizardOpen(true)} className="w-full bg-cyan-600 hover:bg-cyan-700 text-white h-9 text-xs"><Factory className="w-3 h-3 mr-2" /> New Field Dev Project</Button>
-          <Button onClick={() => setBrownfieldWizardOpen(true)} className="w-full bg-orange-600 hover:bg-orange-700 text-white h-9 text-xs"><Wrench className="w-3 h-3 mr-2" /> New Brownfield Project</Button>
-          <Button onClick={() => setDecomWizardOpen(true)} className="w-full bg-red-600 hover:bg-red-700 text-white h-9 text-xs"><Trash2 className="w-3 h-3 mr-2" /> New Decom Project</Button>
+          <Button onClick={() => setExplorationWizardOpen(true)} variant="outline" className="w-full justify-start h-9 text-xs"><Globe className="w-3 h-3 mr-2" /> New Exploration Project</Button>
+          <Button onClick={() => setAppraisalWizardOpen(true)} variant="outline" className="w-full justify-start h-9 text-xs"><Activity className="w-3 h-3 mr-2" /> New Appraisal Project</Button>
+          <Button onClick={() => setFieldDevWizardOpen(true)} variant="outline" className="w-full justify-start h-9 text-xs"><Factory className="w-3 h-3 mr-2" /> New Field Dev Project</Button>
+          <Button onClick={() => setBrownfieldWizardOpen(true)} variant="outline" className="w-full justify-start h-9 text-xs"><Wrench className="w-3 h-3 mr-2" /> New Brownfield Project</Button>
+          <Button onClick={() => setDecomWizardOpen(true)} variant="outline" className="w-full justify-start h-9 text-xs"><Trash2 className="w-3 h-3 mr-2" /> New Decom Project</Button>
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="w-full border-dashed border-slate-600 text-slate-400 hover:text-white h-9 text-xs">
+                <Button variant="outline" className="w-full justify-start border-dashed text-pl-muted h-9 text-xs">
                     <MoreHorizontal className="w-3 h-3 mr-2" /> Smaller Projects...
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="bg-slate-900 border-slate-700 text-white w-56">
-                <DropdownMenuItem onClick={() => setWellIntWizardOpen(true)} className="hover:bg-slate-800 cursor-pointer">Well Intervention</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFacUpgradeWizardOpen(true)} className="hover:bg-slate-800 cursor-pointer">Facility Upgrade</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setOptimWizardOpen(true)} className="hover:bg-slate-800 cursor-pointer">Optimization</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setWorkoverWizardOpen(true)} className="hover:bg-slate-800 cursor-pointer">Workover</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setRandDWizardOpen(true)} className="hover:bg-slate-800 cursor-pointer">R&D Project</DropdownMenuItem>
+            <DropdownMenuContent className="w-56">
+                <DropdownMenuItem onClick={() => setWellIntWizardOpen(true)} className="cursor-pointer">Well Intervention</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFacUpgradeWizardOpen(true)} className="cursor-pointer">Facility Upgrade</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setOptimWizardOpen(true)} className="cursor-pointer">Optimization</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setWorkoverWizardOpen(true)} className="cursor-pointer">Workover</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setRandDWizardOpen(true)} className="cursor-pointer">R&D Project</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
           <Dialog open={isCreateProjectOpen} onOpenChange={setCreateProjectOpen}>
             <DialogTrigger asChild>
-              <Button variant="ghost" className="w-full text-[10px] text-slate-500 hover:text-slate-300 h-6">Generic Project (Legacy)</Button>
+              <Button variant="ghost" className="w-full text-[10px] text-pl-muted hover:text-pl-text h-6">Generic Project (Legacy)</Button>
             </DialogTrigger>
-            <DialogContent className="bg-slate-900 border-slate-700 text-white">
+            <DialogContent>
               <DialogHeader><DialogTitle>Create Generic Project</DialogTitle></DialogHeader>
               <form onSubmit={handleCreateProject} className="space-y-4 mt-2">
-                <Input id="project-name-input" name="project-name-input" placeholder="Project Name" className="bg-slate-950 border-slate-700" required />
-                <DialogFooter><Button type="submit" className="w-full bg-lime-600 hover:bg-lime-700">Create</Button></DialogFooter>
+                <Input id="project-name-input" name="project-name-input" placeholder="Project Name" required />
+                <DialogFooter><Button type="submit" className="w-full">Create</Button></DialogFooter>
               </form>
             </DialogContent>
           </Dialog>
@@ -191,10 +192,10 @@ const InputPanel = ({ projects, activeProject, tasks, onSelectProject, onProject
 
       <CollapsibleSection title="Tasks & Milestones" icon={<ListTodo />} defaultOpen>
         <div className="space-y-3">
-            <Button onClick={() => handleOpenTaskDialog('milestone')} className="w-full h-9 bg-purple-600 hover:bg-purple-700 text-white">
+            <Button onClick={() => handleOpenTaskDialog('milestone')} variant="outline" className="w-full h-9">
                 <Flag className="w-4 h-4 mr-2" /> Add Milestone
             </Button>
-            <Button onClick={() => handleOpenTaskDialog('task')} className="w-full h-9 bg-blue-600 hover:bg-blue-700 text-white">
+            <Button onClick={() => handleOpenTaskDialog('task')} className="w-full h-9">
                 <PlusCircle className="w-4 h-4 mr-2" /> Add Task
             </Button>
         </div>

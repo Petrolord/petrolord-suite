@@ -1,6 +1,7 @@
 import React from 'react';
 import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine, Label } from 'recharts';
-import { useTheme } from 'next-themes';
+import ChartLogo from '@/components/charts/ChartLogo';
+import { CHART_COLORS } from '@/utils/chartTheme';
 
 const CATEGORY_COLORS = {
   'Subsurface': '#3b82f6', // Blue
@@ -11,9 +12,8 @@ const CATEGORY_COLORS = {
   'Other': '#94a3b8'       // Slate
 };
 
+// The matrix sits on the white chart standard in both themes (data-canvas="chart").
 const RiskMatrix = ({ risks, onRiskClick }) => {
-  const { theme } = useTheme();
-  const isDark = true; // Force dark mode look for this dashboard usually
 
   // Transform data for chart
   const data = risks.map(r => ({
@@ -28,9 +28,9 @@ const RiskMatrix = ({ risks, onRiskClick }) => {
     if (active && payload && payload.length) {
       const risk = payload[0].payload;
       return (
-        <div className="bg-slate-900 border border-slate-700 p-3 rounded shadow-xl z-50 max-w-[250px]">
-          <p className="text-sm font-bold text-white mb-1">{risk.title || risk.description?.substring(0, 30)}</p>
-          <div className="text-xs text-slate-300 space-y-1">
+        <div className="bg-white border border-slate-300 p-3 rounded shadow-xl z-50 max-w-[250px]">
+          <p className="text-sm font-bold text-slate-900 mb-1">{risk.title || risk.description?.substring(0, 30)}</p>
+          <div className="text-xs text-slate-700 space-y-1">
             <p><span className="text-slate-500">Score:</span> {risk.risk_score}</p>
             <p><span className="text-slate-500">Category:</span> <span style={{color: risk.fill}}>{risk.category}</span></p>
             <p><span className="text-slate-500">Owner:</span> {risk.owner || 'Unassigned'}</p>
@@ -42,12 +42,12 @@ const RiskMatrix = ({ risks, onRiskClick }) => {
   };
 
   return (
-    <div className="w-full h-[400px] bg-slate-900/50 border border-slate-800 rounded-lg p-4 relative select-none">
-      <div className="absolute top-4 right-4 flex flex-col gap-2 text-[10px] bg-slate-900/80 p-2 rounded border border-slate-800 z-10">
+    <div data-canvas="chart" className="w-full h-[400px] bg-white border border-slate-200 rounded-lg p-4 relative select-none">
+      <div className="absolute top-4 right-4 flex flex-col gap-2 text-[10px] bg-white/90 p-2 rounded border border-slate-200 z-10">
         {Object.entries(CATEGORY_COLORS).map(([cat, color]) => (
             <div key={cat} className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }}></div>
-                <span className="text-slate-300">{cat}</span>
+                <span className="text-slate-700">{cat}</span>
             </div>
         ))}
       </div>
@@ -76,8 +76,9 @@ const RiskMatrix = ({ risks, onRiskClick }) => {
             name="Impact" 
             domain={[0.5, 5.5]} 
             tickCount={6} 
-            stroke="#94a3b8"
-            label={{ value: 'Impact', position: 'bottom', fill: '#94a3b8' }}
+            stroke={CHART_COLORS.axisLine}
+            tick={{ fill: CHART_COLORS.axisText }}
+            label={{ value: 'Impact', position: 'bottom', fill: CHART_COLORS.axisLabel }}
           />
           <YAxis 
             type="number" 
@@ -85,8 +86,9 @@ const RiskMatrix = ({ risks, onRiskClick }) => {
             name="Probability" 
             domain={[0.5, 5.5]} 
             tickCount={6} 
-            stroke="#94a3b8"
-            label={{ value: 'Probability', angle: -90, position: 'left', fill: '#94a3b8' }}
+            stroke={CHART_COLORS.axisLine}
+            tick={{ fill: CHART_COLORS.axisText }}
+            label={{ value: 'Probability', angle: -90, position: 'left', fill: CHART_COLORS.axisLabel }}
           />
           <ZAxis type="number" dataKey="z" range={[100, 500]} name="Score" />
           <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }} />
@@ -97,6 +99,7 @@ const RiskMatrix = ({ risks, onRiskClick }) => {
           </Scatter>
         </ScatterChart>
       </ResponsiveContainer>
+      <ChartLogo />
     </div>
   );
 };

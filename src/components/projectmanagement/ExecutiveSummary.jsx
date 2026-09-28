@@ -4,19 +4,19 @@ import { AlertTriangle, DollarSign, Activity, PieChart } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { calculateEVM } from '@/utils/projectManagementCalculations';
 
-const MetricCard = ({ title, value, subtext, icon: Icon, colorClass, testId }) => (
-  <Card className="bg-slate-900 border-slate-800">
+const MetricCard = ({ title, value, subtext, icon: Icon, testId }) => (
+  <Card>
     <CardContent className="p-6">
       <div className="flex justify-between items-start">
         <div>
-          <p className="text-sm font-medium text-slate-400">{title}</p>
-          <h3 className="text-2xl font-bold text-white mt-2" data-testid={testId}>{value}</h3>
+          <p className="text-sm font-medium text-pl-muted">{title}</p>
+          <h3 className="text-2xl font-bold font-pl-mono tabular-nums text-pl-text mt-2" data-testid={testId}>{value}</h3>
         </div>
-        <div className={`p-2 rounded-lg bg-slate-800 ${colorClass}`}>
+        <div className="p-2 rounded-lg bg-pl-sunken text-pl-muted">
           <Icon className="w-5 h-5" />
         </div>
       </div>
-      <div className="mt-4 text-xs text-slate-500">{subtext}</div>
+      <div className="mt-4 text-xs text-pl-muted">{subtext}</div>
     </CardContent>
   </Card>
 );
@@ -93,7 +93,6 @@ const ExecutiveSummary = ({ projects }) => {
             value={formatCurrency(metrics.totalBudget)} 
             subtext={`${projects.length} project${projects.length === 1 ? '' : 's'}`}
             icon={DollarSign}
-            colorClass="text-emerald-400"
         />
         <MetricCard 
             title="Schedule Performance" 
@@ -101,7 +100,6 @@ const ExecutiveSummary = ({ projects }) => {
             testId="pm-portfolio-spi"
             subtext={metrics.spi == null ? 'No dated, costed tasks yet' : 'SPI, earned over planned value, as of today'}
             icon={Activity}
-            colorClass="text-blue-400"
         />
         <MetricCard 
             title="Cost Performance" 
@@ -109,7 +107,6 @@ const ExecutiveSummary = ({ projects }) => {
             testId="pm-portfolio-cpi"
             subtext={metrics.cpi == null ? 'No actual cost booked yet' : 'CPI, earned value over actual cost'}
             icon={PieChart}
-            colorClass="text-purple-400"
         />
         <MetricCard 
             title="Critical Risks" 
@@ -117,33 +114,32 @@ const ExecutiveSummary = ({ projects }) => {
             testId="pm-portfolio-risks"
             subtext={`Open risks scoring ${CRITICAL_RISK_SCORE} or more`}
             icon={AlertTriangle}
-            colorClass="text-red-400"
         />
         
         {/* Mini RAG Breakdown included in layout via CSS grid spanning or just simple summary below */}
-        <div className="col-span-1 md:col-span-2 lg:col-span-4 bg-slate-900/50 border border-slate-800 rounded-lg p-4 flex items-center justify-between">
-            <span className="text-sm font-medium text-slate-400" title="On track: CPI and SPI both 0.95 or better. Critical: either below 0.90.">Project health (CPI and SPI):</span>
-            <div className="flex gap-6">
+        <div className="col-span-1 md:col-span-2 lg:col-span-4 bg-pl-surface border border-pl-border rounded-lg p-4 flex flex-wrap items-center justify-between gap-3">
+            <span className="text-sm font-medium text-pl-muted" title="On track: CPI and SPI both 0.95 or better. Critical: either below 0.90.">Project health (CPI and SPI):</span>
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
                 <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-green-500" />
-                    <span className="text-white font-bold">{metrics.health.onTrack}</span>
-                    <span className="text-slate-500 text-sm">On Track</span>
+                    <div className="w-3 h-3 rounded-full bg-pl-success" aria-hidden="true" />
+                    <span className="text-pl-text font-bold font-pl-mono tabular-nums">{metrics.health.onTrack}</span>
+                    <span className="text-pl-muted text-sm">On Track</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                    <span className="text-white font-bold">{metrics.health.atRisk}</span>
-                    <span className="text-slate-500 text-sm">At Risk</span>
+                    <div className="w-3 h-3 rounded-full bg-pl-warning" aria-hidden="true" />
+                    <span className="text-pl-text font-bold font-pl-mono tabular-nums">{metrics.health.atRisk}</span>
+                    <span className="text-pl-muted text-sm">At Risk</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-red-500" />
-                    <span className="text-white font-bold">{metrics.health.critical}</span>
-                    <span className="text-slate-500 text-sm">Critical</span>
+                    <div className="w-3 h-3 rounded-full bg-pl-danger" aria-hidden="true" />
+                    <span className="text-pl-text font-bold font-pl-mono tabular-nums">{metrics.health.critical}</span>
+                    <span className="text-pl-muted text-sm">Critical</span>
                 </div>
                 {metrics.health.unmeasured > 0 && (
                     <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-slate-600" />
-                        <span className="text-white font-bold">{metrics.health.unmeasured}</span>
-                        <span className="text-slate-500 text-sm">Not measured</span>
+                        <div className="w-3 h-3 rounded-full bg-pl-border-strong" aria-hidden="true" />
+                        <span className="text-pl-text font-bold font-pl-mono tabular-nums">{metrics.health.unmeasured}</span>
+                        <span className="text-pl-muted text-sm">Not measured</span>
                     </div>
                 )}
             </div>

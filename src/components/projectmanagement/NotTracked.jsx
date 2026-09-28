@@ -17,22 +17,22 @@ import { CircleDashed } from 'lucide-react';
  * The tasks on the project are where the real progress lives.
  */
 const NotTracked = ({ title, icon: Icon = CircleDashed, tracks = [] }) => (
-    <Card className="bg-slate-900 border-slate-800 h-full">
+    <Card className="h-full">
         <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-slate-300 flex items-center gap-2">
-                <Icon className="w-4 h-4 text-slate-500" />
+            <CardTitle className="text-sm text-pl-text flex items-center gap-2">
+                <Icon className="w-4 h-4 text-pl-muted" />
                 {title}
             </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-pl-muted">
                 Not tracked in this studio. Use the task list, with a category per phase, for the
                 progress that is really being measured.
             </p>
             {tracks.length > 0 ? (
                 <div className="space-y-1">
                     {tracks.map((t) => (
-                        <div key={t} className="text-xs text-slate-500 flex items-center gap-2">
+                        <div key={t} className="text-xs text-pl-muted flex items-center gap-2">
                             <CircleDashed className="w-3 h-3 shrink-0" />
                             <span>{t}</span>
                         </div>

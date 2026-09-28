@@ -46,8 +46,8 @@ const StageTracker = ({ currentStage, template, tasks }) => {
   const currentIndex = found !== -1 ? found : 0;
 
   return (
-    <div className="w-full bg-slate-950/50 border-b border-white/10 p-4 mb-4">
-      <div className="flex items-center justify-between max-w-4xl mx-auto">
+    <div className="w-full overflow-x-auto rounded-lg bg-pl-surface border border-pl-border p-4 mb-4">
+      <div className="flex items-center justify-between max-w-4xl min-w-[560px] mx-auto px-6">
         {stages.map((stage, index) => {
           const isCompleted = index < currentIndex;
           const isCurrent = index === currentIndex;
@@ -58,17 +58,17 @@ const StageTracker = ({ currentStage, template, tasks }) => {
               <div className="flex flex-col items-center relative z-10">
                 <div className={cn(
                   "w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors duration-300",
-                  isCompleted ? "bg-lime-500 border-lime-500 text-black" :
-                  isCurrent ? "bg-slate-900 border-lime-400 text-lime-400 animate-pulse" :
-                  "bg-slate-900 border-slate-600 text-slate-600"
+                  isCompleted ? "bg-pl-primary border-pl-primary text-pl-primary-fg" :
+                  isCurrent ? "bg-pl-surface border-pl-primary text-pl-primary-text" :
+                  "bg-pl-surface border-pl-border-strong text-pl-muted"
                 )}>
                   {isCompleted ? <CheckCircle2 className="w-5 h-5" /> : 
-                   isCurrent ? <Circle className="w-5 h-5 fill-lime-400/20" /> :
+                   isCurrent ? <Circle className="w-5 h-5 fill-pl-primary/20" /> :
                    <Circle className="w-5 h-5" />}
                 </div>
                 <span className={cn(
                   "text-xs font-medium mt-2 absolute -bottom-6 whitespace-nowrap",
-                  isCurrent ? "text-lime-400" : isCompleted ? "text-lime-500" : "text-slate-500"
+                  isCurrent ? "text-pl-primary-text font-semibold" : isCompleted ? "text-pl-text" : "text-pl-muted"
                 )}>
                   {stage.label}
                 </span>
@@ -77,7 +77,7 @@ const StageTracker = ({ currentStage, template, tasks }) => {
               {index < stages.length - 1 && (
                 <div className={cn(
                   "h-0.5 w-full mx-2 flex-1 transition-colors duration-300",
-                  isCompleted ? "bg-lime-500" : "bg-slate-700"
+                  isCompleted ? "bg-pl-primary" : "bg-pl-border"
                 )} />
               )}
             </div>

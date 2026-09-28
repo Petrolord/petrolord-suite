@@ -42,7 +42,7 @@ const ProjectDashboard = ({ projectData, onDataChange }) => {
         </div>
 
         <Tabs defaultValue="wbs" className="w-full flex-1 flex flex-col">
-            <TabsList className="grid w-full grid-cols-8 bg-slate-800">
+            <TabsList className="flex h-auto w-full flex-wrap justify-start">
               <TabsTrigger value="wbs"><ClipboardList className="w-4 h-4 mr-2"/>WBS</TabsTrigger>
               <TabsTrigger value="kanban"><KanbanSquare className="w-4 h-4 mr-2"/>Kanban</TabsTrigger>
               <TabsTrigger value="gantt"><GanttChartSquare className="w-4 h-4 mr-2"/>Gantt</TabsTrigger>
@@ -54,7 +54,7 @@ const ProjectDashboard = ({ projectData, onDataChange }) => {
             </TabsList>
 
             <div className="flex-1 mt-4 min-h-[500px]">
-                <TabsContent value="wbs" className="bg-white/5 rounded-lg p-4 border border-white/10 h-full">
+                <TabsContent value="wbs" className="bg-pl-surface rounded-lg p-4 border border-pl-border h-full">
                     <WBSView tasks={rawTasks} onDataChange={onDataChange} projectName={name} />
                 </TabsContent>
                 <TabsContent value="kanban" className="h-full">

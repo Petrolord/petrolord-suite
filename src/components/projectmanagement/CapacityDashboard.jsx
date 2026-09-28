@@ -1,7 +1,13 @@
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ChartPanel } from '@/components/ui/chart-panel';
+import ChartLogo from '@/components/charts/ChartLogo';
+import { CHART_COLORS, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS } from '@/utils/chartTheme';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, ComposedChart, Line } from 'recharts';
 import { format, addDays, startOfWeek, isSameDay } from 'date-fns';
+
+// Charts sit on the white chart standard in both themes.
+const AXIS = { stroke: CHART_COLORS.axisLine, tick: { fill: CHART_COLORS.axisText } };
 
 const CapacityDashboard = ({ resources = [], assignments = [], tasks = [] }) => {
   
@@ -67,21 +73,18 @@ const CapacityDashboard = ({ resources = [], assignments = [], tasks = [] }) => 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Resource Utilization Bar Chart */}
-      <Card className="bg-slate-900 border-slate-800 lg:col-span-2">
-        <CardHeader>
-          <CardTitle className="text-sm font-medium text-slate-300">Resource Utilization (Next 4 Weeks)</CardTitle>
-        </CardHeader>
-        <CardContent className="h-[350px]">
+      <ChartPanel title="Resource Utilization (Next 4 Weeks)" className="lg:col-span-2">
+        <div className="relative h-[350px]">
             <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={utilizationChartData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
-                    <XAxis type="number" domain={[0, 150]} stroke="#94a3b8" fontSize={12} />
-                    <YAxis dataKey="name" type="category" width={120} stroke="#94a3b8" fontSize={12} />
+                    <CartesianGrid strokeDasharray="3 3" {...GRID_STYLE} horizontal={false} />
+                    <XAxis type="number" domain={[0, 150]} {...AXIS} fontSize={12} />
+                    <YAxis dataKey="name" type="category" width={120} {...AXIS} fontSize={12} />
                     <Tooltip 
-                        contentStyle={{ backgroundColor: '#1e293b', border: 'none', color: '#fff' }}
-                        cursor={{ fill: '#334155', opacity: 0.2 }}
+                        contentStyle={TOOLTIP_STYLE}
+                        cursor={{ fill: CHART_COLORS.grid, opacity: 0.5 }}
                     />
-                    <Legend />
+                    <Legend {...LEGEND_PROPS} />
                     <Bar dataKey="utilization" name="Avg % Utilization" barSize={20} radius={[0, 4, 4, 0]}>
                         {utilizationChartData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.utilization > 100 ? '#ef4444' : entry.utilization > 80 ? '#f59e0b' : '#3b82f6'} />
@@ -90,51 +93,50 @@ const CapacityDashboard = ({ resources = [], assignments = [], tasks = [] }) => 
                     <Bar dataKey="capacity" name="Capacity Limit" barSize={2} fill="#94a3b8" />
                 </BarChart>
             </ResponsiveContainer>
-        </CardContent>
-      </Card>
+            <ChartLogo />
+        </div>
+      </ChartPanel>
 
       {/* Discipline Breakdown */}
-      <Card className="bg-slate-900 border-slate-800">
-        <CardHeader>
-          <CardTitle className="text-sm font-medium text-slate-300">Discipline Load</CardTitle>
-        </CardHeader>
-        <CardContent className="h-[300px]">
+      <ChartPanel title="Discipline Load">
+        <div className="relative h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={disciplineData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} interval={0} angle={-45} textAnchor="end" height={60} />
-                    <YAxis yAxisId="left" stroke="#94a3b8" fontSize={12} />
-                    <YAxis yAxisId="right" orientation="right" stroke="#94a3b8" fontSize={12} />
-                    <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', color: '#fff' }} />
-                    <Legend />
+                    <CartesianGrid {...GRID_STYLE} />
+                    <XAxis dataKey="name" {...AXIS} fontSize={10} interval={0} angle={-45} textAnchor="end" height={60} />
+                    <YAxis yAxisId="left" {...AXIS} fontSize={12} />
+                    <YAxis yAxisId="right" orientation="right" {...AXIS} fontSize={12} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} />
+                    <Legend {...LEGEND_PROPS} />
                     <Bar yAxisId="left" dataKey="avgUtilization" name="Avg Utilization %" fill="#8b5cf6" barSize={30} />
                     <Line yAxisId="right" type="monotone" dataKey="headcount" name="Headcount" stroke="#10b981" strokeWidth={2} />
                 </ComposedChart>
             </ResponsiveContainer>
-        </CardContent>
-      </Card>
+            <ChartLogo />
+        </div>
+      </ChartPanel>
 
       {/* Over-allocation Alert */}
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-medium text-slate-300">Critical Alerts</CardTitle>
+          <CardTitle className="text-sm font-medium text-pl-text">Critical Alerts</CardTitle>
         </CardHeader>
         <CardContent>
             <div className="space-y-3 max-h-[260px] overflow-y-auto">
                 {utilizationChartData.filter(u => u.utilization > 100).map((u, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 bg-red-900/20 border border-red-900/50 rounded-lg">
+                    <div key={i} className="flex items-center justify-between p-3 bg-pl-danger-bg border border-pl-danger/40 rounded-lg">
                         <div>
-                            <div className="font-bold text-red-400">{u.name}</div>
-                            <div className="text-xs text-red-300/70">{u.discipline}</div>
+                            <div className="font-bold text-pl-danger-text">{u.name}</div>
+                            <div className="text-xs text-pl-danger-text">{u.discipline}</div>
                         </div>
                         <div className="text-right">
-                            <div className="text-lg font-bold text-white">{u.utilization}%</div>
-                            <div className="text-xs text-slate-400">Utilization</div>
+                            <div className="text-lg font-bold font-pl-mono tabular-nums text-pl-danger-text">{u.utilization}%</div>
+                            <div className="text-xs text-pl-muted">Utilization</div>
                         </div>
                     </div>
                 ))}
                 {utilizationChartData.filter(u => u.utilization > 100).length === 0 && (
-                    <div className="text-center text-slate-500 py-10">
+                    <div className="text-center text-pl-muted py-10">
                         No over-allocated resources detected.
                     </div>
                 )}

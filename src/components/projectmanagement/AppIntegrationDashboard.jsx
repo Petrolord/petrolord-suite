@@ -35,9 +35,9 @@ const AppIntegrationDashboard = ({ project }) => {
 
   return (
     <div className="h-full flex flex-col gap-6 overflow-hidden">
-        <div className="flex justify-between items-center">
-            <h2 className="text-lg font-bold text-white">App Integrations</h2>
-            <Button size="sm" variant="ghost" onClick={handleRefresh} className="text-slate-400 hover:text-white">
+        <div className="flex flex-wrap justify-between items-center gap-2">
+            <h2 className="text-lg font-bold text-pl-text">App Integrations</h2>
+            <Button size="sm" variant="ghost" onClick={handleRefresh} className="text-pl-muted hover:text-pl-text">
                 <RefreshCw className="w-4 h-4 mr-2" /> Refresh Data
             </Button>
         </div>
@@ -56,24 +56,24 @@ const AppIntegrationDashboard = ({ project }) => {
 
             {/* Right Column: Deliverables & Logs */}
             <div className="flex flex-col gap-6 h-full overflow-hidden">
-                <div className="flex-1 bg-slate-900/30 border border-slate-800 rounded-lg p-4 overflow-hidden flex flex-col">
+                <div className="flex-1 bg-pl-surface border border-pl-border rounded-lg p-4 overflow-hidden flex flex-col">
                     <DeliverableManager project={project} deliverables={deliverables} onUpdate={handleRefresh} />
                 </div>
 
-                <div className="h-[30%] bg-slate-900/30 border border-slate-800 rounded-lg p-4 overflow-hidden flex flex-col">
-                    <h3 className="text-sm font-bold text-slate-300 mb-3">Integration Activity Log</h3>
+                <div className="h-[30%] bg-pl-surface border border-pl-border rounded-lg p-4 overflow-hidden flex flex-col">
+                    <h3 className="text-sm font-bold text-pl-text mb-3">Integration Activity Log</h3>
                     <ScrollArea className="flex-1">
                         <div className="space-y-2">
                             {logs.map(log => (
-                                <div key={log.id} className="text-xs border-l-2 border-slate-700 pl-2 py-1">
-                                    <div className="flex justify-between text-slate-400">
-                                        <span className="font-semibold text-slate-300">{log.app_name}</span>
+                                <div key={log.id} className="text-xs border-l-2 border-pl-border pl-2 py-1">
+                                    <div className="flex justify-between text-pl-muted">
+                                        <span className="font-semibold text-pl-text">{log.app_name}</span>
                                         <span>{new Date(log.timestamp).toLocaleTimeString()}</span>
                                     </div>
-                                    <div className="text-slate-500">{log.action} - <span className={log.status === 'Success' ? 'text-green-500' : 'text-red-500'}>{log.status}</span></div>
+                                    <div className="text-pl-muted">{log.action} - <span className={log.status === 'Success' ? 'text-pl-success-text' : 'text-pl-danger-text'}>{log.status}</span></div>
                                 </div>
                             ))}
-                            {logs.length === 0 && <p className="text-xs text-slate-500 italic">No recent activity.</p>}
+                            {logs.length === 0 && <p className="text-xs text-pl-muted italic">No recent activity.</p>}
                         </div>
                     </ScrollArea>
                 </div>

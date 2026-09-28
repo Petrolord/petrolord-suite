@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
-import { ArrowLeft, Save, Milestone, LayoutDashboard } from 'lucide-react';
+import { Save, Milestone, LayoutDashboard } from 'lucide-react';
 
 import InputPanel from '@/components/projectmanagement/InputPanel';
 import ProjectDashboard from '@/components/projectmanagement/ProjectDashboard';
@@ -22,6 +22,8 @@ import {
 import EmptyState from '@/components/projectmanagement/EmptyState';
 import { calculateEVM, formatTasksForGantt } from '@/utils/projectManagementCalculations';
 import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
+import { ThemedApp } from '@/design/ThemeProvider';
+import { AppHeader } from '@/components/ui/app-shell';
 
 /** Today as a local calendar date, the as-of date the dashboard measures to. */
 const todayIsoDate = () => {
@@ -203,24 +205,18 @@ const ProjectManagementProInner = () => {
   return (
     <>
       <Helmet><title>Project Management Pro - Petrolord Suite</title></Helmet>
-      <div className="flex flex-col h-full bg-slate-900 text-white">
-        <header className="flex-shrink-0 p-4 border-b border-white/10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link to="/dashboard/economics">
-                <Button variant="outline" size="sm" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20"><ArrowLeft className="w-4 h-4 mr-2" /> Back</Button>
-              </Link>
-              <div className="flex items-center gap-3">
-                <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-2 rounded-lg"><Milestone className="w-6 h-6 text-white" /></div>
-                <div>
-                  <h1 className="text-xl font-bold">Project Management Pro</h1>
-                  {activeProject ? <div className="flex items-center gap-2"><p className="text-sm text-lime-300">{activeProject.name}</p><span className="text-xs text-slate-400 px-1.5 py-0.5 bg-white/5 rounded border border-white/10">{activeProject.project_type}</span></div> : <p className="text-sm text-slate-400">Enterprise Portfolio View</p>}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
+      <div className="flex h-full min-h-screen flex-col text-pl-text">
+        <AppHeader
+          title="Project Management Pro"
+          eyebrow="Economics"
+          subtitle={activeProject ? `${activeProject.name} · ${activeProject.project_type}` : 'Enterprise Portfolio View'}
+          icon={Milestone}
+          backTo="/dashboard/economics"
+          backLabel="Back"
+          actions={(
+            <>
               {activeProject && (
-                <div className="flex items-center gap-2 text-xs text-slate-400 mr-2">
+                <div className="flex items-center gap-2 text-xs text-pl-muted">
                   <label htmlFor="pmp-as-of" className="font-medium">As of</label>
                   <input
                     id="pmp-as-of"
@@ -228,24 +224,24 @@ const ProjectManagementProInner = () => {
                     data-testid="pmp-as-of"
                     value={asOfInput}
                     onChange={(e) => setAsOfInput(e.target.value)}
-                    className="h-8 rounded border border-slate-700 bg-slate-900 px-2 text-slate-200"
+                    className="h-8 rounded-md border border-pl-border-strong bg-pl-surface px-2 text-pl-text"
                     title="Planned value and SPI are measured at this date"
                   />
                 </div>
               )}
-              <FullPrecisionToggle app="project-management-pro" className="mr-2" />
-                <Button variant="ghost" size="sm" onClick={handleShowPortfolio} className={`text-slate-300 hover:text-white ${isPortfolioView ? 'bg-slate-800' : ''}`}><LayoutDashboard className="w-4 h-4 mr-2" /> Portfolio</Button>
-              {!isPortfolioView && <Button onClick={handleSaveProject} disabled={!activeProject} size="sm" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20" variant="outline"><Save className="w-4 h-4 mr-2" /> Save Project</Button>}
-            </div>
-          </div>
-        </header>
+              <FullPrecisionToggle app="project-management-pro" />
+              <Button variant="ghost" size="sm" onClick={handleShowPortfolio} aria-pressed={isPortfolioView} className={isPortfolioView ? 'bg-pl-sunken text-pl-text' : 'text-pl-muted'}><LayoutDashboard className="w-4 h-4 mr-2" /> Portfolio</Button>
+              {!isPortfolioView && <Button onClick={handleSaveProject} disabled={!activeProject} size="sm" variant="outline"><Save className="w-4 h-4 mr-2" /> Save Project</Button>}
+            </>
+          )}
+        />
 
-        <div className="flex-1 flex overflow-hidden">
-          <aside className="w-1/4 xl:w-1/5 p-4 border-r border-white/10 overflow-y-auto">
+        <div className="flex flex-1 flex-col lg:flex-row lg:overflow-hidden">
+          <aside className="w-full border-b border-pl-border bg-pl-surface p-4 lg:w-1/4 lg:overflow-y-auto lg:border-b-0 lg:border-r xl:w-1/5">
             <InputPanel projects={projects} activeProject={activeProject} tasks={tasks} onSelectProject={handleSelectProject} onProjectCreated={fetchProjects} onDataChange={refreshProjectData} setLoading={setLoading} evmKpis={evm} />
           </aside>
-          <main className="flex-1 p-6 overflow-y-auto">
-            {loading ? <div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-lime-400"></div></div> : isPortfolioView ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full"><PortfolioDashboard projects={projects} onSelectProject={handleSelectProject} /></motion.div> : activeProject ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full">{renderDashboard()}</motion.div> : <EmptyState />}
+          <main className="min-w-0 flex-1 p-4 sm:p-6 lg:overflow-y-auto">
+            {loading ? <div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-pl-primary"></div></div> : isPortfolioView ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full"><PortfolioDashboard projects={projects} onSelectProject={handleSelectProject} /></motion.div> : activeProject ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full">{renderDashboard()}</motion.div> : <EmptyState />}
           </main>
         </div>
       </div>
@@ -255,10 +251,14 @@ const ProjectManagementProInner = () => {
 
 // W3 (D3): the Full precision switch prints SPI at 6 decimals and planned
 // value to the cent, without digit grouping.
+// Design system rollout 6C: the app wraps itself in the Petrolord theme
+// scope (light by default, dark per user through the header toggle).
 const ProjectManagementPro = () => (
-  <FullPrecisionProvider>
-    <ProjectManagementProInner />
-  </FullPrecisionProvider>
+  <ThemedApp className="h-full min-h-screen" data-testid="pmp-theme-scope">
+    <FullPrecisionProvider>
+      <ProjectManagementProInner />
+    </FullPrecisionProvider>
+  </ThemedApp>
 );
 
 export default ProjectManagementPro;

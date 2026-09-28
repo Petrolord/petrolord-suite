@@ -10,9 +10,9 @@ const SnapshotCard = ({ project, latestUpdate, kpis, riskCount }) => {
   if (!project) return null;
 
   const statusColor = {
-    'Green': 'text-green-500 border-green-500/50 bg-green-500/10',
-    'Amber': 'text-amber-500 border-amber-500/50 bg-amber-500/10',
-    'Red': 'text-red-500 border-red-500/50 bg-red-500/10',
+    'Green': 'text-pl-success-text border-pl-success/40 bg-pl-success-bg',
+    'Amber': 'text-pl-warning-text border-pl-warning/40 bg-pl-warning-bg',
+    'Red': 'text-pl-danger-text border-pl-danger/40 bg-pl-danger-bg',
   };
 
   const currentStatus = latestUpdate?.status || 'Green'; // Default to Green if no updates
@@ -39,8 +39,8 @@ const SnapshotCard = ({ project, latestUpdate, kpis, riskCount }) => {
   const sv = numberOrNull(kpis?.sv);
   const money = (v) => (v === null ? 'No cost data' : `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`);
   const trendIcon = spi === null
-    ? <Activity className="w-4 h-4 text-slate-500" />
-    : (spi >= 1 ? <ArrowUpRight className="w-4 h-4 text-green-400" /> : <ArrowDownRight className="w-4 h-4 text-red-400" />);
+    ? <Activity className="w-4 h-4 text-pl-muted" />
+    : (spi >= 1 ? <ArrowUpRight className="w-4 h-4 text-pl-success-text" /> : <ArrowDownRight className="w-4 h-4 text-pl-danger-text" />);
   // EC6-1: SPI is time-phased now, so it really does say early or late. When
   // it cannot be computed the card says which of the two reasons applies
   // rather than inventing a verdict.
@@ -49,29 +49,29 @@ const SnapshotCard = ({ project, latestUpdate, kpis, riskCount }) => {
     : (spi >= 1 ? 'Ahead/On Schedule' : 'Behind Schedule');
 
   return (
-    <Card className="bg-slate-900 border-slate-800 mb-4 shadow-lg">
+    <Card className="mb-4">
       <CardContent className="p-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 divide-y md:divide-y-0 md:divide-x divide-slate-800">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 divide-y md:divide-y-0 md:divide-x divide-pl-border">
           
           {/* Overall Status */}
           <div className="flex flex-col justify-between pr-4">
             <div className="flex justify-between items-start mb-2">
-              <span className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Project Health</span>
+              <span className="text-pl-muted text-xs font-semibold uppercase tracking-wider">Project Health</span>
               <Badge variant="outline" className={`${statusColor[currentStatus]} capitalize`}>
                 {currentStatus}
               </Badge>
             </div>
             <div className="mt-1">
                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-white">
+                  <span className={`font-bold text-pl-text ${percentComplete === null || Number.isNaN(percentComplete) ? 'text-xl' : 'text-3xl font-pl-mono tabular-nums'}`}>
                     {percentComplete === null || Number.isNaN(percentComplete) ? 'Not measured' : `${Math.round(percentComplete)}%`}
                   </span>
-                  <span className="text-sm text-slate-500">
+                  <span className="text-sm text-pl-muted">
                     {percentComplete === null || Number.isNaN(percentComplete) ? '' : 'Complete'}
                   </span>
                </div>
-               <div className="w-full bg-slate-800 h-1.5 mt-2 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500" style={{ width: `${Math.min(percentComplete || 0, 100)}%` }} />
+               <div className="w-full bg-pl-sunken h-1.5 mt-2 rounded-full overflow-hidden">
+                  <div className="h-full bg-pl-primary" style={{ width: `${Math.min(percentComplete || 0, 100)}%` }} />
                </div>
             </div>
           </div>
@@ -79,15 +79,15 @@ const SnapshotCard = ({ project, latestUpdate, kpis, riskCount }) => {
           {/* Schedule Performance */}
           <div className="flex flex-col justify-between px-4">
              <div className="flex justify-between items-start mb-2">
-              <span className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Schedule</span>
-              <Activity className="w-4 h-4 text-blue-400" />
+              <span className="text-pl-muted text-xs font-semibold uppercase tracking-wider">Schedule</span>
+              <Activity className="w-4 h-4 text-pl-muted" />
             </div>
             <div>
                 <div className="flex items-center gap-2 mb-1">
                     {trendIcon}
-                    <span className={`text-lg font-semibold ${spi === null ? 'text-slate-400' : (spi >= 1 ? 'text-green-400' : 'text-red-400')}`}>{trendText}</span>
+                    <span className={`text-lg font-semibold ${spi === null ? 'text-pl-muted' : (spi >= 1 ? 'text-pl-success-text' : 'text-pl-danger-text')}`}>{trendText}</span>
                 </div>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-pl-muted">
                     SPI: {spi === null ? 'n/a' : (full ? formatFull(spi, 6) : spi.toFixed(2))} • Variance: {money(sv)}
                     {full && (
                       <span data-testid="snapshot-pv">
@@ -95,7 +95,7 @@ const SnapshotCard = ({ project, latestUpdate, kpis, riskCount }) => {
                       </span>
                     )}
                 </p>
-                <p className="text-[10px] text-slate-600 mt-1">
+                <p className="text-[10px] text-pl-muted mt-1">
                     {spi === null
                         ? (kpis?.spiBasis || 'Nothing to measure a schedule against yet.')
                         : `Earned value over the budget due by today${completionRatio === null ? '' : `; ${Math.round(completionRatio * 100)}% of the whole budget is earned`}.`}
@@ -106,14 +106,14 @@ const SnapshotCard = ({ project, latestUpdate, kpis, riskCount }) => {
           {/* Financial Performance */}
           <div className="flex flex-col justify-between px-4">
              <div className="flex justify-between items-start mb-2">
-              <span className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Budget</span>
-              <TrendingUp className="w-4 h-4 text-lime-400" />
+              <span className="text-pl-muted text-xs font-semibold uppercase tracking-wider">Budget</span>
+              <TrendingUp className="w-4 h-4 text-pl-muted" />
             </div>
             <div>
-                <div className="text-lg font-semibold text-white">{money(ev)}</div>
-                <p className="text-xs text-slate-500">Earned Value (EV)</p>
+                <div className="text-lg font-semibold font-pl-mono tabular-nums text-pl-text">{money(ev)}</div>
+                <p className="text-xs text-pl-muted">Earned Value (EV)</p>
                 <div className="mt-1 text-xs">
-                    <span className={cpi === null ? 'text-slate-400' : (cpi >= 1 ? 'text-green-400' : 'text-red-400')}>
+                    <span className={cpi === null ? 'text-pl-muted' : (cpi >= 1 ? 'text-pl-success-text' : 'text-pl-danger-text')}>
                         CPI: {cpi === null ? 'n/a, no actual cost booked' : cpi.toFixed(2)}
                     </span>
                 </div>
@@ -123,17 +123,17 @@ const SnapshotCard = ({ project, latestUpdate, kpis, riskCount }) => {
           {/* Risks & Issues */}
           <div className="flex flex-col justify-between pl-4">
              <div className="flex justify-between items-start mb-2">
-              <span className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Risks & Issues</span>
-              <AlertTriangle className="w-4 h-4 text-amber-400" />
+              <span className="text-pl-muted text-xs font-semibold uppercase tracking-wider">Risks & Issues</span>
+              <AlertTriangle className="w-4 h-4 text-pl-muted" />
             </div>
             <div className="flex gap-4">
                <div className="text-center">
-                  <span className="block text-2xl font-bold text-white">{riskCount || 0}</span>
-                  <span className="text-[10px] text-slate-500 uppercase">Active Risks</span>
+                  <span className="block text-2xl font-bold font-pl-mono tabular-nums text-pl-text">{riskCount || 0}</span>
+                  <span className="text-[10px] text-pl-muted uppercase">Active Risks</span>
                </div>
-               <div className="text-center border-l border-slate-800 pl-4">
-                  <span className="block text-2xl font-bold text-white">{latestUpdate ? 1 : 0}</span>
-                  <span className="text-[10px] text-slate-500 uppercase">Recent Updates</span>
+               <div className="text-center border-l border-pl-border pl-4">
+                  <span className="block text-2xl font-bold font-pl-mono tabular-nums text-pl-text">{latestUpdate ? 1 : 0}</span>
+                  <span className="text-[10px] text-pl-muted uppercase">Recent Updates</span>
                </div>
             </div>
           </div>

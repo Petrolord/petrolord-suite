@@ -89,10 +89,10 @@ const IssueForm = ({ open, onOpenChange, project, existingIssue, onSaved, risks 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border-slate-700 text-white sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-red-400" />
+            <AlertCircle className="w-5 h-5 text-pl-muted" />
             {existingIssue ? 'Edit Issue' : 'Log New Issue'}
           </DialogTitle>
         </DialogHeader>
@@ -105,7 +105,7 @@ const IssueForm = ({ open, onOpenChange, project, existingIssue, onSaved, risks 
                     value={title} 
                     onChange={e => setTitle(e.target.value)} 
                     required 
-                    className="bg-slate-800 border-slate-700"
+                   
                 />
             </div>
 
@@ -116,16 +116,16 @@ const IssueForm = ({ open, onOpenChange, project, existingIssue, onSaved, risks 
                         type="date"
                         value={occurredDate} 
                         onChange={e => setOccurredDate(e.target.value)} 
-                        className="bg-slate-800 border-slate-700"
+                       
                     />
                 </div>
                 <div className="space-y-2">
                     <Label>Status</Label>
                     <Select value={status} onValueChange={setStatus}>
-                        <SelectTrigger className="bg-slate-800 border-slate-700">
+                        <SelectTrigger>
                             <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                        <SelectContent>
                             <SelectItem value="Open">Open</SelectItem>
                             <SelectItem value="In Progress">In Progress</SelectItem>
                             <SelectItem value="Resolved">Resolved</SelectItem>
@@ -140,7 +140,7 @@ const IssueForm = ({ open, onOpenChange, project, existingIssue, onSaved, risks 
                     placeholder="Details of the issue..." 
                     value={description} 
                     onChange={e => setDescription(e.target.value)} 
-                    className="bg-slate-800 border-slate-700 min-h-[80px]"
+                    className="min-h-[80px]"
                 />
             </div>
 
@@ -150,16 +150,16 @@ const IssueForm = ({ open, onOpenChange, project, existingIssue, onSaved, risks 
                     <Input 
                         value={owner} 
                         onChange={e => setOwner(e.target.value)} 
-                        className="bg-slate-800 border-slate-700"
+                       
                     />
                 </div>
                 <div className="space-y-2">
                     <Label>Linked Risk (Optional)</Label>
                     <Select value={linkedRiskId} onValueChange={setLinkedRiskId}>
-                        <SelectTrigger className="bg-slate-800 border-slate-700">
+                        <SelectTrigger>
                             <SelectValue placeholder="Select existing risk..." />
                         </SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                        <SelectContent>
                             {risks.map(r => (
                                 <SelectItem key={r.id} value={r.id}>{r.title}</SelectItem>
                             ))}
@@ -174,13 +174,13 @@ const IssueForm = ({ open, onOpenChange, project, existingIssue, onSaved, risks 
                     placeholder="How was this resolved?" 
                     value={resolution} 
                     onChange={e => setResolution(e.target.value)} 
-                    className="bg-slate-800 border-slate-700 min-h-[60px]"
+                    className="min-h-[60px]"
                 />
             </div>
 
             <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-                <Button type="submit" disabled={loading} className="bg-red-600 hover:bg-red-700">
+                <Button type="submit" disabled={loading}>
                     {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                     Save Issue
                 </Button>

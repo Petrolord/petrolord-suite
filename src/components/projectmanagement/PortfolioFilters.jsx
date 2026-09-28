@@ -54,9 +54,9 @@ const PortfolioFilters = ({ projects, onFilterChange }) => {
 
   const FilterGroup = ({ title, category, options }) => (
     <div className="space-y-2">
-      <h4 className="font-medium text-sm text-slate-300 mb-1">{title}</h4>
+      <h4 className="font-medium text-sm text-pl-text mb-1">{title}</h4>
       {options.length === 0 ? (
-        <p className="text-xs text-slate-500 italic">No options available</p>
+        <p className="text-xs text-pl-muted italic">No options available</p>
       ) : (
         <div className="grid grid-cols-1 gap-1">
           {options.map(opt => (
@@ -65,11 +65,10 @@ const PortfolioFilters = ({ projects, onFilterChange }) => {
                 id={`${category}-${opt}`} 
                 checked={filters[category].includes(opt)}
                 onCheckedChange={() => toggleFilter(category, opt)}
-                className="border-slate-600 data-[state=checked]:bg-blue-600"
               />
               <Label 
                 htmlFor={`${category}-${opt}`} 
-                className="text-sm text-slate-400 font-normal cursor-pointer hover:text-white"
+                className="text-sm text-pl-muted font-normal cursor-pointer hover:text-pl-text"
               >
                 {opt}
               </Label>
@@ -83,21 +82,21 @@ const PortfolioFilters = ({ projects, onFilterChange }) => {
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className={`border-dashed ${activeFilterCount > 0 ? 'border-blue-500 text-blue-400 bg-blue-500/10' : 'border-slate-600 text-slate-400 hover:text-white'}`}>
+        <Button variant="outline" size="sm" className={`border-dashed ${activeFilterCount > 0 ? 'border-pl-primary text-pl-primary-text' : 'text-pl-muted'}`}>
           <Filter className="w-4 h-4 mr-2" />
           Filters
           {activeFilterCount > 0 && (
-            <Badge variant="secondary" className="ml-2 h-5 px-1.5 bg-blue-600 text-white hover:bg-blue-700">
+            <Badge variant="selected" className="ml-2 h-5 px-1.5">
               {activeFilterCount}
             </Badge>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 bg-slate-900 border-slate-700 p-0" align="start">
-        <div className="p-4 flex justify-between items-center border-b border-slate-800">
-            <h3 className="font-semibold text-white">Filter Portfolio</h3>
+      <PopoverContent className="w-80 p-0" align="start">
+        <div className="p-4 flex justify-between items-center border-b border-pl-border">
+            <h3 className="font-semibold text-pl-text">Filter Portfolio</h3>
             {activeFilterCount > 0 && (
-                <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 px-2 text-xs text-slate-400 hover:text-white">
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 px-2 text-xs text-pl-muted hover:text-pl-text">
                     Clear all
                     <X className="w-3 h-3 ml-1" />
                 </Button>
@@ -106,18 +105,18 @@ const PortfolioFilters = ({ projects, onFilterChange }) => {
         <ScrollArea className="h-[400px] p-4">
             <div className="space-y-6">
                 <FilterGroup title="Status" category="status" options={statuses} />
-                <Separator className="bg-slate-800" />
+                <Separator />
                 <FilterGroup title="Project Type" category="project_type" options={types} />
-                <Separator className="bg-slate-800" />
+                <Separator />
                 <FilterGroup title="Stage" category="stage" options={stages} />
-                <Separator className="bg-slate-800" />
+                <Separator />
                 <FilterGroup title="Asset" category="asset" options={assets} />
-                <Separator className="bg-slate-800" />
+                <Separator />
                 <FilterGroup title="Country" category="country" options={countries} />
             </div>
         </ScrollArea>
-        <div className="p-4 border-t border-slate-800 bg-slate-900/50">
-            <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setIsOpen(false)}>
+        <div className="p-4 border-t border-pl-border bg-pl-sunken">
+            <Button className="w-full" onClick={() => setIsOpen(false)}>
                 <CheckCircle2 className="w-4 h-4 mr-2" />
                 Apply Filters
             </Button>

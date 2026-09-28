@@ -153,7 +153,8 @@ const AdvancedReportBuilder = ({ open, onOpenChange, projects, risks = [], resou
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="bg-slate-900 border-slate-700 text-white sm:max-w-[500px]">
+            {/* Interim (rollout 6C): a dark island until this file moves to theme roles; remove data-pl-theme then. */}
+            <DialogContent data-pl-theme="dark" className="bg-slate-900 border-slate-700 text-white sm:max-w-[500px]">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <FileText className="w-5 h-5 text-blue-400" />
