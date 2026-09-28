@@ -61,17 +61,17 @@ export default function RequestAccessModal({ appId, appName, moduleId, trigger, 
       <DialogTrigger asChild>
         {trigger || <Button variant="outline">Request Access</Button>}
       </DialogTrigger>
-      <DialogContent className="bg-slate-900 border-slate-800 text-white sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Request Access</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription>
             Submit a request to access <strong>{appName || appId}</strong>.
           </DialogDescription>
         </DialogHeader>
         
         {success ? (
             <div className="flex flex-col items-center justify-center py-6 space-y-4">
-                <CheckCircle2 className="w-16 h-16 text-green-500" />
+                <CheckCircle2 className="w-16 h-16 text-pl-success-text" />
                 <p className="text-lg font-medium">Request Sent Successfully!</p>
             </div>
         ) : (
@@ -81,7 +81,7 @@ export default function RequestAccessModal({ appId, appName, moduleId, trigger, 
                 <Textarea 
                     id="reason" 
                     placeholder="I need this for the XYZ Project..." 
-                    className="bg-slate-950 border-slate-700 h-24"
+                    className="h-24"
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                 />
@@ -93,7 +93,7 @@ export default function RequestAccessModal({ appId, appName, moduleId, trigger, 
             {!success && (
                 <>
                     <Button variant="ghost" onClick={() => setIsOpen(false)} disabled={loading}>Cancel</Button>
-                    <Button onClick={handleSubmit} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white">
+                    <Button onClick={handleSubmit} disabled={loading}>
                         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Submit Request
                     </Button>

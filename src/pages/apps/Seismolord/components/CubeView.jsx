@@ -1155,18 +1155,18 @@ function CubeView({
           onDoubleClick={onDoubleClick}
         />
         {!geom && (
-          <div className="absolute inset-0 flex items-center justify-center text-slate-500 text-sm">
+          <div className="absolute inset-0 flex items-center justify-center text-pl-muted text-sm">
             Select an ingested volume to open the 3D window.
           </div>
         )}
         {glError && (
-          <div className="absolute inset-x-0 bottom-0 bg-red-950/80 text-red-300 text-xs p-2 flex items-center gap-2">
+          <div className="absolute inset-x-0 bottom-0 bg-pl-danger-bg text-pl-danger-text text-xs p-2 flex items-center gap-2">
             <span className="min-w-0 flex-1">{glError}</span>
             {geom && rendererRef.current && (
               <button
                 type="button"
                 data-testid="cube-retry"
-                className="shrink-0 rounded border border-red-800 px-2 py-0.5 text-red-200 hover:bg-red-900/60"
+                className="shrink-0 rounded border border-pl-danger/60 px-2 py-0.5 text-pl-danger-text hover:bg-pl-danger/10"
                 onClick={() => { setGlError(null); setRetryTick((t) => t + 1); }}
               >
                 Retry

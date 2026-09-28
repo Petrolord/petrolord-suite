@@ -1919,13 +1919,13 @@ function MapView({
               onContextMenu={onContextMenu}
             />
             {!hasData && (
-              <div className="absolute inset-0 flex items-center justify-center text-slate-500 text-sm">
+              <div className="absolute inset-0 flex items-center justify-center text-pl-muted text-sm">
                 Select an ingested volume to open the map window.
               </div>
             )}
             {hasData && !hasLayers && !showTimeSlice && (
               <div className="absolute inset-x-0 top-0 flex items-center justify-center pt-8
-                pointer-events-none text-slate-500 text-sm"
+                pointer-events-none text-pl-muted text-sm"
               >
                 <MapIcon className="w-4 h-4 mr-2" />
                 Toggle a horizon, fault or the volume's time slice visible to map it.

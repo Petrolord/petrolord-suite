@@ -18,7 +18,7 @@ const ImpersonationBanner = () => {
   if (!isImpersonating) return null;
 
   return (
-    <div className="bg-amber-600 text-white px-4 py-2 flex items-center justify-between shadow-lg sticky top-0 z-50">
+    <div className="bg-pl-warning text-pl-warning-fg px-4 py-2 flex items-center justify-between shadow-pl-md sticky top-0 z-50">
       <div className="flex items-center gap-3">
         <ShieldAlert className="h-5 w-5 animate-pulse" />
         <div className="text-sm">
@@ -36,7 +36,7 @@ const ImpersonationBanner = () => {
         <Button 
           size="sm" 
           variant="secondary" 
-          className="bg-white text-amber-700 hover:bg-amber-50 font-bold border-none"
+          className="bg-pl-raised text-pl-warning-text hover:bg-pl-warning-bg font-bold border-none"
           onClick={() => exitImpersonation(actualUser?.id)}
         >
           <LogOut className="h-4 w-4 mr-2" /> Exit Impersonation
