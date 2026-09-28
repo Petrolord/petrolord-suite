@@ -7,11 +7,15 @@ import { Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ChartFrame from '@/components/charts/ChartFrame';
 import {
+  NumTh, NumRow, RowLabel, NumCell,
+} from '@/components/ui/numeric-table';
+import {
   CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS,
 } from '@/utils/chartTheme';
 import { useMaterialsSpares } from '@/contexts/MaterialsSparesContext';
 import { fillFromItem, fmtNum, fmtPct } from '@/utils/supplychain/materialsAdapters';
 import {
+  Ledger, TextCell,
   Basis, ItemFill, Note, NumField, Panel, ResultGate, RoundingField, SelectField, Stat,
 } from './common';
 
@@ -166,21 +170,21 @@ const DiscountResults = () => {
                 </ChartFrame>
               </div>
             ) : null}
-            <table className="w-full text-xs">
-              <thead className="text-left text-pl-muted"><tr><th className="p-1">Band</th><th className="p-1 text-right">Price</th><th className="p-1 text-right">EOQ</th><th className="p-1 text-right">Candidate</th><th className="p-1 text-right">Total cost</th><th className="p-1">Reason</th></tr></thead>
+            <Ledger>
+              <thead><tr><NumTh sticky>Band</NumTh><NumTh numeric>Price</NumTh><NumTh numeric>EOQ</NumTh><NumTh numeric>Candidate</NumTh><NumTh numeric>Total cost</NumTh><NumTh>Reason</NumTh></tr></thead>
               <tbody>
                 {r.candidates.map((c) => (
-                  <tr key={c.band} className="border-t border-pl-border text-pl-text" data-testid={`discount-row-${c.band}`}>
-                    <td className="p-1">{c.band}</td>
-                    <td className="p-1 text-right font-mono">{fmtNum(c.unitPrice, 2)}</td>
-                    <td className="p-1 text-right font-mono">{fmtNum(c.eoq, 2)}</td>
-                    <td className="p-1 text-right font-mono">{c.feasible ? fmtNum(c.quantity, 2) : 'none'}</td>
-                    <td className="p-1 text-right font-mono">{c.feasible ? fmtNum(c.totalCost, 2) : 'none'}</td>
-                    <td className="p-1 text-pl-muted">{c.reason}</td>
-                  </tr>
+                  <NumRow key={c.band} data-testid={`discount-row-${c.band}`}>
+                    <RowLabel>{c.band}</RowLabel>
+                    <NumCell>{fmtNum(c.unitPrice, 2)}</NumCell>
+                    <NumCell>{fmtNum(c.eoq, 2)}</NumCell>
+                    <NumCell>{c.feasible ? fmtNum(c.quantity, 2) : 'none'}</NumCell>
+                    <NumCell>{c.feasible ? fmtNum(c.totalCost, 2) : 'none'}</NumCell>
+                    <TextCell muted>{c.reason}</TextCell>
+                  </NumRow>
                 ))}
               </tbody>
-            </table>
+            </Ledger>
             <Basis reason={r.reason} basis={r.basis} testId="discount-basis" />
           </Panel>
         );

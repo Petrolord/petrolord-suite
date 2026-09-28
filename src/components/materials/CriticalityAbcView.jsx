@@ -7,11 +7,15 @@ import { Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ChartFrame from '@/components/charts/ChartFrame';
 import {
+  NumTh, NumRow, RowLabel, NumCell,
+} from '@/components/ui/numeric-table';
+import {
   CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS,
 } from '@/utils/chartTheme';
 import { useMaterialsSpares } from '@/contexts/MaterialsSparesContext';
 import { fmtNum, fmtPct } from '@/utils/supplychain/materialsAdapters';
 import {
+  Ledger, TextCell,
   Basis, EmptyRegister, NumField, Panel, ResultGate, SelectField, Stat, TextField,
 } from './common';
 
@@ -97,19 +101,19 @@ const CriticalityResults = () => {
                 </BarChart>
               </ChartFrame>
             </div>
-            <table className="w-full text-xs">
-              <thead className="text-left text-pl-muted"><tr><th className="p-1">Item</th><th className="p-1 text-right">Weighted score</th><th className="p-1">Class</th><th className="p-1">Reason</th></tr></thead>
+            <Ledger>
+              <thead><tr><NumTh sticky>Item</NumTh><NumTh numeric>Weighted score</NumTh><NumTh>Class</NumTh><NumTh>Reason</NumTh></tr></thead>
               <tbody>
                 {r.items.map((it) => (
-                  <tr key={it.id} className="border-t border-pl-border text-pl-text" data-testid={`crit-row-${it.id}`}>
-                    <td className="p-1 font-mono">{it.id}</td>
-                    <td className="p-1 text-right font-mono" data-testid={`crit-score-${it.id}`}>{fmtNum(it.weightedScore, 2)}</td>
-                    <td className="p-1 font-semibold" data-testid={`crit-class-${it.id}`}>{it.class}</td>
-                    <td className="p-1 text-pl-muted">{it.reason}</td>
-                  </tr>
+                  <NumRow key={it.id} data-testid={`crit-row-${it.id}`}>
+                    <RowLabel className="font-pl-mono">{it.id}</RowLabel>
+                    <NumCell data-testid={`crit-score-${it.id}`}>{fmtNum(it.weightedScore, 2)}</NumCell>
+                    <TextCell className="font-semibold" data-testid={`crit-class-${it.id}`}>{it.class}</TextCell>
+                    <TextCell muted>{it.reason}</TextCell>
+                  </NumRow>
                 ))}
               </tbody>
-            </table>
+            </Ledger>
             <Basis basis={r.basis} testId="criticality-basis" />
           </Panel>
         );
@@ -176,22 +180,22 @@ const AbcResults = () => {
                 </ComposedChart>
               </ChartFrame>
             </div>
-            <table className="w-full text-xs">
-              <thead className="text-left text-pl-muted"><tr><th className="p-1">Rank</th><th className="p-1">Item</th><th className="p-1 text-right">Annual value</th><th className="p-1 text-right">Share</th><th className="p-1 text-right">Cumulative</th><th className="p-1">Class</th><th className="p-1">Reason</th></tr></thead>
+            <Ledger>
+              <thead><tr><NumTh sticky>Rank</NumTh><NumTh>Item</NumTh><NumTh numeric>Annual value</NumTh><NumTh numeric>Share</NumTh><NumTh numeric>Cumulative</NumTh><NumTh>Class</NumTh><NumTh>Reason</NumTh></tr></thead>
               <tbody>
                 {r.items.map((it) => (
-                  <tr key={it.id} className="border-t border-pl-border text-pl-text" data-testid={`abc-row-${it.id}`}>
-                    <td className="p-1">{it.rank}</td>
-                    <td className="p-1 font-mono">{it.id}</td>
-                    <td className="p-1 text-right font-mono" data-testid={`abc-value-${it.id}`}>{fmtNum(it.annualValue, 2)}</td>
-                    <td className="p-1 text-right font-mono">{fmtPct(it.sharePct, 2)}</td>
-                    <td className="p-1 text-right font-mono" data-testid={`abc-cum-${it.id}`}>{fmtPct(it.cumulativePct, 2)}</td>
-                    <td className="p-1 font-semibold" data-testid={`abc-class-${it.id}`}>{it.class}</td>
-                    <td className="p-1 text-pl-muted">{it.reason}</td>
-                  </tr>
+                  <NumRow key={it.id} data-testid={`abc-row-${it.id}`}>
+                    <RowLabel>{it.rank}</RowLabel>
+                    <TextCell className="font-pl-mono">{it.id}</TextCell>
+                    <NumCell data-testid={`abc-value-${it.id}`}>{fmtNum(it.annualValue, 2)}</NumCell>
+                    <NumCell>{fmtPct(it.sharePct, 2)}</NumCell>
+                    <NumCell data-testid={`abc-cum-${it.id}`}>{fmtPct(it.cumulativePct, 2)}</NumCell>
+                    <TextCell className="font-semibold" data-testid={`abc-class-${it.id}`}>{it.class}</TextCell>
+                    <TextCell muted>{it.reason}</TextCell>
+                  </NumRow>
                 ))}
               </tbody>
-            </table>
+            </Ledger>
             <Basis basis={r.basis} testId="abc-basis" />
           </Panel>
         );

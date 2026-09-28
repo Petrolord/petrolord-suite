@@ -7,7 +7,12 @@ import {
   ITEM_FIELDS, parseRegisterText, registerToCsv,
 } from '@/utils/supplychain/materialsAdapters';
 import { downloadText } from '@/lib/fullPrecision';
-import { Note, Panel } from './common';
+import {
+  NumTh, NumRow, RowLabel, NumCell,
+} from '@/components/ui/numeric-table';
+import {
+  Ledger, Note, Panel, TextCell,
+} from './common';
 
 const HEAD = {
   annualUsage: 'Annual usage', unitCost: 'Unit cost', onHand: 'On hand', monthsSinceLastIssue: 'Months since last issue', monthlyUsage: 'Monthly usage',
@@ -82,28 +87,26 @@ const RegisterView = () => {
         {items.length === 0 ? (
           <Note tone="warn" testId="empty-register">The register is empty. Load the Ekene demo or paste your own register above.</Note>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead className="text-left text-pl-muted">
-                <tr>
-                  <th className="p-1">Id</th>
-                  <th className="p-1">Name</th>
-                  {ITEM_FIELDS.map((f) => <th key={f} className="p-1 text-right">{HEAD[f]}</th>)}
-                  {scoreKeys.map((k) => <th key={k} className="p-1 text-right">Score: {k}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((it) => (
-                  <tr key={it.id} className="border-t border-pl-border text-pl-text" data-testid={`register-row-${it.id}`}>
-                    <td className="p-1 font-mono">{it.id}</td>
-                    <td className="p-1">{it.name}</td>
-                    {ITEM_FIELDS.map((f) => <td key={f} className="p-1 text-right font-mono">{String(it[f] ?? '')}</td>)}
-                    {scoreKeys.map((k) => <td key={k} className="p-1 text-right font-mono">{String((it.scores || {})[k] ?? '')}</td>)}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Ledger data-testid="register-grid">
+            <thead>
+              <tr>
+                <NumTh sticky>Id</NumTh>
+                <NumTh>Name</NumTh>
+                {ITEM_FIELDS.map((f) => <NumTh key={f} numeric>{HEAD[f]}</NumTh>)}
+                {scoreKeys.map((k) => <NumTh key={k} numeric>Score: {k}</NumTh>)}
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((it) => (
+                <NumRow key={it.id} data-testid={`register-row-${it.id}`}>
+                  <RowLabel className="font-pl-mono">{it.id}</RowLabel>
+                  <TextCell>{it.name}</TextCell>
+                  {ITEM_FIELDS.map((f) => <NumCell key={f} value={it[f]} signed={false}>{String(it[f] ?? '')}</NumCell>)}
+                  {scoreKeys.map((k) => <NumCell key={k} value={(it.scores || {})[k]} signed={false}>{String((it.scores || {})[k] ?? '')}</NumCell>)}
+                </NumRow>
+              ))}
+            </tbody>
+          </Ledger>
         )}
       </Panel>
     </div>

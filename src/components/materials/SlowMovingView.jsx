@@ -7,11 +7,15 @@ import { Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ChartFrame from '@/components/charts/ChartFrame';
 import {
+  NumTh, NumRow, RowLabel, NumCell,
+} from '@/components/ui/numeric-table';
+import {
   CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS,
 } from '@/utils/chartTheme';
 import { useMaterialsSpares } from '@/contexts/MaterialsSparesContext';
 import { fmtNum } from '@/utils/supplychain/materialsAdapters';
 import {
+  Ledger, TextCell,
   Basis, EmptyRegister, NumField, Panel, ResultGate, Stat, TextField,
 } from './common';
 
@@ -70,22 +74,22 @@ const SlowResults = () => {
                 </BarChart>
               </ChartFrame>
             </div>
-            <table className="w-full text-xs">
-              <thead className="text-left text-pl-muted"><tr><th className="p-1">Item</th><th className="p-1">Band</th><th className="p-1 text-right">Stock value</th><th className="p-1 text-right">Write-down</th><th className="p-1 text-right">Cover (months)</th><th className="p-1 text-right">Excess units</th><th className="p-1">Reason</th></tr></thead>
+            <Ledger>
+              <thead><tr><NumTh sticky>Item</NumTh><NumTh>Band</NumTh><NumTh numeric>Stock value</NumTh><NumTh numeric>Write-down</NumTh><NumTh numeric>Cover (months)</NumTh><NumTh numeric>Excess units</NumTh><NumTh>Reason</NumTh></tr></thead>
               <tbody>
                 {r.items.map((it) => (
-                  <tr key={it.id} className="border-t border-pl-border text-pl-text" data-testid={`slow-row-${it.id}`}>
-                    <td className="p-1 font-mono">{it.id}</td>
-                    <td className="p-1" data-testid={`slow-band-${it.id}`}>{it.band}</td>
-                    <td className="p-1 text-right font-mono">{fmtNum(it.stockValue, 2)}</td>
-                    <td className="p-1 text-right font-mono" data-testid={`slow-wd-${it.id}`}>{fmtNum(it.writeDown, 2)}</td>
-                    <td className="p-1 text-right font-mono">{it.coverMonths === null ? 'no usage' : fmtNum(it.coverMonths, 2)}</td>
-                    <td className="p-1 text-right font-mono">{it.excess ? fmtNum(it.excessQuantity, 2) : 'none'}</td>
-                    <td className="p-1 text-pl-muted">{it.reason}</td>
-                  </tr>
+                  <NumRow key={it.id} data-testid={`slow-row-${it.id}`}>
+                    <RowLabel className="font-pl-mono">{it.id}</RowLabel>
+                    <TextCell data-testid={`slow-band-${it.id}`}>{it.band}</TextCell>
+                    <NumCell>{fmtNum(it.stockValue, 2)}</NumCell>
+                    <NumCell data-testid={`slow-wd-${it.id}`}>{fmtNum(it.writeDown, 2)}</NumCell>
+                    <NumCell>{it.coverMonths === null ? 'no usage' : fmtNum(it.coverMonths, 2)}</NumCell>
+                    <NumCell>{it.excess ? fmtNum(it.excessQuantity, 2) : 'none'}</NumCell>
+                    <TextCell muted>{it.reason}</TextCell>
+                  </NumRow>
                 ))}
               </tbody>
-            </table>
+            </Ledger>
             <Basis basis={r.basis} testId="slow-basis" />
           </Panel>
         );

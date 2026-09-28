@@ -6,6 +6,8 @@
 import React from 'react';
 import { AlertTriangle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { NumericTable, NUMERIC_TABLE } from '@/components/ui/numeric-table';
+import { cn } from '@/lib/utils';
 import { isRefusal } from '@/utils/supplychain/materialsAdapters';
 
 const inputClass = 'h-8 w-full rounded-md border border-pl-border-strong bg-pl-surface px-2 text-sm text-pl-text placeholder:text-pl-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus';
@@ -189,3 +191,13 @@ export const EmptyRegister = () => (
   <Note tone="warn" testId="empty-register">The register is empty. Load the Ekene demo or paste your own register on the Register tab.</Note>
 );
 
+
+/** A NumericTable inside a Panel: the panel is the card, so the table drops its own. */
+export const Ledger = ({ className, ...props }) => (
+  <NumericTable className={cn('border-0 bg-transparent p-0', className)} {...props} />
+);
+
+/** A text cell in a ledger row (names, classes, bands, reasons): left aligned, sans, wrapping. */
+export const TextCell = ({ muted = false, className, ...props }) => (
+  <td className={cn(NUMERIC_TABLE.cell, 'whitespace-normal text-left font-pl-sans', muted ? 'text-pl-muted' : 'text-pl-text', className)} {...props} />
+);
