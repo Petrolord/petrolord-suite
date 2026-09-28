@@ -3,25 +3,9 @@ import { cva } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 
-const alertVariants = cva(
-  "relative w-full rounded-lg border p-4 [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground",
-  {
-    variants: {
-      variant: {
-        default: "bg-background text-foreground",
-        destructive:
-          "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-    },
-  }
-)
-
-// Design system: theme-role variants used only inside an opted-in scope.
+// Design system roles.
 // The status variants carry meaning; pair them with a title or icon.
-const themedAlertVariants = cva(
+const alertVariants = cva(
   "relative w-full rounded-lg border p-4 [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4",
   {
     variants: {
@@ -41,12 +25,11 @@ const themedAlertVariants = cva(
 )
 
 const Alert = React.forwardRef(({ className, variant, ...props }, ref) => {
-  const variants = themedAlertVariants
   return (
     <div
       ref={ref}
       role="alert"
-      className={cn(variants({ variant }), className)}
+      className={cn(alertVariants({ variant }), className)}
       {...props}
     />
   )
@@ -71,4 +54,4 @@ const AlertDescription = React.forwardRef(({ className, ...props }, ref) => (
 ))
 AlertDescription.displayName = "AlertDescription"
 
-export { Alert, AlertTitle, AlertDescription, alertVariants, themedAlertVariants }
+export { Alert, AlertTitle, AlertDescription, alertVariants }

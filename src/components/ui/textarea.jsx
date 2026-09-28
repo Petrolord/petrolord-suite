@@ -1,7 +1,6 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
-import { FIELD_THEMED } from "@/components/ui/input"
 
 const Textarea = React.forwardRef(({ className, ...props }, ref) => {
   return (
@@ -12,8 +11,7 @@ const Textarea = React.forwardRef(({ className, ...props }, ref) => {
         // so every textarea without its own background was white with the
         // page's light text inherited: typed text all but invisible. It now
         // matches Input.
-        "flex min-h-[80px] w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-50 ring-offset-slate-900 placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-        FIELD_THEMED,
+        "flex min-h-[80px] w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 border-pl-border-strong bg-pl-surface text-pl-text ring-offset-pl-bg placeholder:text-pl-muted focus-visible:ring-pl-focus",
         className
       )}
       ref={ref}

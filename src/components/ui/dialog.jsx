@@ -5,15 +5,6 @@ import * as React from "react"
     import { cn } from "@/lib/utils"
     import { usePortalThemeProps } from "@/design/themeContext";
 
-// Design system: overlay classes merged over the legacy ones only inside an
-// opted-in <ThemedApp> scope (tailwind-merge swaps the colours). Portal
-// content carries data-pl-theme itself because it renders outside the scope.
-const THEMED = {
-  overlay: "bg-black/50",
-  content: "border-pl-border bg-pl-raised text-pl-text shadow-pl-lg",
-  title: "text-pl-text",
-  description: "text-pl-muted",
-};
 
     const Dialog = DialogPrimitive.Root
 
@@ -30,8 +21,7 @@ const THEMED = {
         ref={ref}
       {...portalProps}
         className={cn(
-          "fixed inset-0 z-50 bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-          THEMED.overlay, className
+          "fixed inset-0 z-50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 bg-black/50", className
         )}
         {...props} />
     );
@@ -47,8 +37,7 @@ const THEMED = {
           ref={ref}
       {...portalProps}
           className={cn(
-            "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border border-slate-700 bg-slate-900 p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
-            THEMED.content, className
+            "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg border-pl-border bg-pl-raised text-pl-text shadow-pl-lg", className
           )}
           {...props}>
           {children}
@@ -87,7 +76,7 @@ const THEMED = {
   return (
       <DialogPrimitive.Title
         ref={ref}
-        className={cn("text-lg font-semibold leading-none tracking-tight text-white", THEMED.title, className)}
+        className={cn("text-lg font-semibold leading-none tracking-tight text-pl-text", className)}
         {...props} />
     );
 })
@@ -97,7 +86,7 @@ const THEMED = {
   return (
       <DialogPrimitive.Description
         ref={ref}
-        className={cn("text-sm text-slate-400", THEMED.description, className)}
+        className={cn("text-sm text-pl-muted", className)}
         {...props} />
     );
 })

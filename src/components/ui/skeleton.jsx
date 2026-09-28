@@ -5,7 +5,7 @@ function Skeleton({
   className,
   ...props
 }) {
-  // Design system: a hairline tint inside an opted-in scope.
+  // Design system: a hairline tint.
   return (
     <div
       className={cn("animate-pulse rounded-md bg-pl-border/70", className)}

@@ -24,8 +24,7 @@ const AvatarImage = React.forwardRef(({ className, ...props }, ref) => (
 ));
 AvatarImage.displayName = AvatarPrimitive.Image.displayName;
 
-// Design system: theme roles inside an opted-in scope; outside one the
-// legacy string, byte for byte (pinned in uiLegacyDom.test.jsx).
+// Design system roles.
 const AvatarFallback = React.forwardRef(({ className, ...props }, ref) => {
   return (
     <AvatarPrimitive.Fallback

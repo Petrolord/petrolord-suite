@@ -4,8 +4,8 @@ import { cn } from '@/lib/utils';
 import { useDsTheme } from '@/design/themeContext';
 
 /**
- * Light / dark switch for an app header. Renders nothing outside an
- * opted-in <ThemedApp> scope, so it is safe to place in shared headers.
+ * Light / dark switch for an app header. Renders nothing outside a
+ * <ThemedApp> scope and inside a fixed scope (the dark ink rail).
  * The choice is remembered per user by the ThemeProvider.
  */
 const ThemeToggle = React.forwardRef(({ className, ...props }, ref) => {

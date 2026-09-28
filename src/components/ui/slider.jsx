@@ -3,8 +3,7 @@ import * as SliderPrimitive from "@radix-ui/react-slider"
 
 import { cn } from "@/lib/utils"
 
-// Design system: track, range and thumb on theme roles inside an opted-in
-// scope; the legacy lime slider outside one, byte for byte.
+// Design system: track, range and thumb on theme roles.
 const THEMED = {
   track: "relative h-2 w-full grow overflow-hidden rounded-full bg-pl-border",
   range: "absolute h-full bg-pl-primary",

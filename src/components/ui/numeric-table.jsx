@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 //     never the only signal); pass signed={false} for values where a minus
 //     is not bad news
 //   - a totals row has a strong rule above it
-// Theme roles only: use it inside an opted-in scope.
+// Theme roles only: use it inside a theme scope.
 
 export const NUMERIC_TABLE = {
   card: 'rounded-lg border border-pl-border bg-pl-surface p-3',

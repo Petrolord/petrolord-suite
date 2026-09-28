@@ -1,16 +1,12 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 
-const THEMED = {
-  card: "rounded-lg border border-pl-border bg-pl-surface text-pl-text shadow-pl-sm",
-  description: "text-sm text-pl-muted",
-};
 
 const Card = React.forwardRef(({ className, ...props }, ref) => {
   return (
     <div
       ref={ref}
-      className={cn(THEMED.card, className)}
+      className={cn("rounded-lg border border-pl-border bg-pl-surface text-pl-text shadow-pl-sm", className)}
       {...props}
     />
   );
@@ -35,7 +31,7 @@ const CardDescription = React.forwardRef(({ className, ...props }, ref) => {
   return (
     <p
       ref={ref}
-      className={cn(THEMED.description, className)}
+      className={cn("text-sm text-pl-muted", className)}
       {...props}
     />
   );

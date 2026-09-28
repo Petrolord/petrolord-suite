@@ -2,15 +2,6 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-// Design system: the legacy classes already read the shadcn variables, which
-// an opted-in scope re-points; the extra THEMED classes add the header well,
-// row hover and label style. Outside a scope the output is unchanged.
-const THEMED = {
-  header: "bg-pl-sunken",
-  row: "border-pl-border hover:bg-pl-sunken/60 data-[state=selected]:bg-pl-sunken",
-  head: "h-10 text-xs font-semibold uppercase tracking-wide text-pl-muted",
-  cell: "text-pl-text",
-}
 
 const Table = React.forwardRef(({ className, ...props }, ref) => (
   <div className="relative w-full overflow-auto">
@@ -23,7 +14,7 @@ const Table = React.forwardRef(({ className, ...props }, ref) => (
 Table.displayName = "Table"
 
 const TableHeader = React.forwardRef(({ className, ...props }, ref) => {
-  return <thead ref={ref} className={cn("[&_tr]:border-b", THEMED.header, className)} {...props} />
+  return <thead ref={ref} className={cn("[&_tr]:border-b bg-pl-sunken", className)} {...props} />
 })
 TableHeader.displayName = "TableHeader"
 
@@ -48,8 +39,7 @@ const TableRow = React.forwardRef(({ className, ...props }, ref) => {
     <tr
       ref={ref}
       className={cn(
-        "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
-        THEMED.row,
+        "border-b transition-colors border-pl-border hover:bg-pl-sunken/60 data-[state=selected]:bg-pl-sunken",
         className
       )}
       {...props} />
@@ -62,8 +52,7 @@ const TableHead = React.forwardRef(({ className, ...props }, ref) => {
     <th
       ref={ref}
       className={cn(
-        "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
-        THEMED.head,
+        "px-4 text-left align-middle [&:has([role=checkbox])]:pr-0 h-10 text-xs font-semibold uppercase tracking-wide text-pl-muted",
         className
       )}
       {...props} />
@@ -75,7 +64,7 @@ const TableCell = React.forwardRef(({ className, ...props }, ref) => {
   return (
     <td
       ref={ref}
-      className={cn("p-4 align-middle [&:has([role=checkbox])]:pr-0", THEMED.cell, className)}
+      className={cn("p-4 align-middle [&:has([role=checkbox])]:pr-0 text-pl-text", className)}
       {...props} />
   )
 })

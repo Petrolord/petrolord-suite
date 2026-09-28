@@ -7,7 +7,7 @@ import React from 'react';
       "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-white mb-1 block"
     );
 
-    // Design system: inside an opted-in scope the label takes the text role.
+    // Design system: the label takes the text role.
     const Label = React.forwardRef(({ className, ...props }, ref) => {
       return (
         <LabelPrimitive.Root

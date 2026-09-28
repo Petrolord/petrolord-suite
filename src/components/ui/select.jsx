@@ -5,16 +5,6 @@ import { Check, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { usePortalThemeProps } from "@/design/themeContext";
 
-// Design system: overlay classes merged over the legacy ones only inside an
-// opted-in <ThemedApp> scope (tailwind-merge swaps the colours). Portal
-// content carries data-pl-theme itself because it renders outside the scope.
-const THEMED = {
-  trigger: "border-pl-border-strong bg-pl-surface text-pl-text ring-offset-pl-bg placeholder:text-pl-muted focus:ring-pl-focus",
-  content: "border-pl-border bg-pl-raised text-pl-text shadow-pl-md",
-  label: "text-pl-muted",
-  item: "focus:bg-pl-sunken focus:text-pl-text data-[state=open]:bg-pl-sunken",
-  separator: "bg-pl-border",
-};
 
 const Select = SelectPrimitive.Root
 
@@ -27,8 +17,7 @@ const SelectTrigger = React.forwardRef(({ className, children, ...props }, ref) 
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      "flex h-10 w-full items-center justify-between gap-2 text-left [&>span]:line-clamp-1 rounded-md border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-white ring-offset-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:cursor-not-allowed disabled:opacity-50",
-      THEMED.trigger, className
+      "flex h-10 w-full items-center justify-between gap-2 text-left [&>span]:line-clamp-1 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50 border-pl-border-strong bg-pl-surface text-pl-text ring-offset-pl-bg placeholder:text-pl-muted focus:ring-pl-focus", className
     )}
     {...props}
   >
@@ -49,10 +38,10 @@ const SelectContent = React.forwardRef(({ className, children, position = "poppe
       ref={ref}
       {...portalProps}
       className={cn(
-        "relative z-50 min-w-[8rem] overflow-hidden rounded-md border border-slate-600 bg-slate-800 text-slate-50 shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+        "relative z-50 min-w-[8rem] overflow-hidden rounded-md border shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 border-pl-border bg-pl-raised text-pl-text shadow-pl-md",
         position === "popper" &&
           "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
-        THEMED.content, className
+         className
       )}
       position={position}
       {...props}
@@ -76,7 +65,7 @@ const SelectLabel = React.forwardRef(({ className, ...props }, ref) => {
   return (
   <SelectPrimitive.Label
     ref={ref}
-    className={cn("py-1.5 pl-8 pr-2 text-sm font-semibold text-slate-300", THEMED.label, className)}
+    className={cn("py-1.5 pl-8 pr-2 text-sm font-semibold text-pl-muted", className)}
     {...props}
   />
 );
@@ -88,8 +77,7 @@ const SelectItem = React.forwardRef(({ className, children, ...props }, ref) => 
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-slate-700 focus:text-cyan-300 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-      THEMED.item, className
+      "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 focus:bg-pl-sunken focus:text-pl-text data-[state=open]:bg-pl-sunken", className
     )}
     {...props}
   >
@@ -109,7 +97,7 @@ const SelectSeparator = React.forwardRef(({ className, ...props }, ref) => {
   return (
   <SelectPrimitive.Separator
     ref={ref}
-    className={cn("-mx-1 my-1 h-px bg-slate-700", THEMED.separator, className)}
+    className={cn("-mx-1 my-1 h-px bg-pl-border", className)}
     {...props}
   />
 );

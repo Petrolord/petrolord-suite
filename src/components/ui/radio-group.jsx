@@ -9,9 +9,7 @@ const RadioGroup = React.forwardRef(({ className, ...props }, ref) => {
 });
 RadioGroup.displayName = RadioGroupPrimitive.Root.displayName;
 
-// Design system: theme roles inside an opted-in scope (primary ring and dot
-// when chosen); outside one the legacy string, byte for byte (pinned in
-// uiLegacyDom.test.jsx).
+// Design system roles (primary ring and dot when chosen).
 const RadioGroupItem = React.forwardRef(({ className, ...props }, ref) => {
   return (
     <RadioGroupPrimitive.Item

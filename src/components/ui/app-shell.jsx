@@ -4,9 +4,8 @@ import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
-// Design system shell pieces for opted-in apps (inside <ThemedApp>). They
-// use theme roles only, so they belong inside a scope; the legacy consoles
-// keep their own headers until they migrate.
+// Design system shell pieces. They use theme roles only, so they belong
+// inside a theme scope (every /dashboard page sits in the dashboard scope).
 
 /**
  * App header bar: back link, title (with optional eyebrow and subtitle),

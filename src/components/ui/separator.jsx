@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 
 const Separator = React.forwardRef(
   ({ className, orientation = 'horizontal', decorative = true, ...props }, ref) => {
-    // Design system: the hairline role inside an opted-in scope.
+    // Design system: the hairline role.
     return (
       <SeparatorPrimitive.Root
         ref={ref}

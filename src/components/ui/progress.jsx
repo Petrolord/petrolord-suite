@@ -3,13 +3,12 @@ import * as ProgressPrimitive from "@radix-ui/react-progress"
 
 import { cn } from "@/lib/utils"
 
-// Design system: a hairline track and a solid primary bar inside an opted-in
-// scope (no gradient); the legacy lime bar outside one, byte for byte.
+// Design system: a hairline track and a solid primary bar (no gradient).
 const Progress = React.forwardRef(({ className, value, ...props }, ref) => {
   return (
     <ProgressPrimitive.Root
       ref={ref}
-      className={cn("relative h-4 w-full overflow-hidden rounded-full bg-secondary", "bg-pl-border", className)}
+      className={cn("relative h-4 w-full overflow-hidden rounded-full bg-pl-border", className)}
       {...props}
     >
       <ProgressPrimitive.Indicator

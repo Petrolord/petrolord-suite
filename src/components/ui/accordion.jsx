@@ -4,18 +4,12 @@ import { ChevronDown } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-// Design system: theme roles merged over the legacy classes only inside an
-// opted-in scope. The content panel carries no colour, so it needs none.
-const THEMED = {
-  item: "border-pl-border",
-  trigger: "text-pl-text rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus",
-}
 
 const Accordion = AccordionPrimitive.Root
 
 const AccordionItem = React.forwardRef(({ className, ...props }, ref) => {
   return (
-    <AccordionPrimitive.Item ref={ref} className={cn("border-b border-slate-700", THEMED.item, className)} {...props} />
+    <AccordionPrimitive.Item ref={ref} className={cn("border-b border-pl-border", className)} {...props} />
   )
 })
 AccordionItem.displayName = "AccordionItem"
@@ -26,8 +20,7 @@ const AccordionTrigger = React.forwardRef(({ className, children, ...props }, re
       <AccordionPrimitive.Trigger
         ref={ref}
         className={cn(
-          "flex flex-1 items-center justify-between py-4 font-medium transition-all hover:underline text-white [&[data-state=open]>svg]:rotate-180",
-          THEMED.trigger,
+          "flex flex-1 items-center justify-between py-4 font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180 text-pl-text rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus",
           className
         )}
         {...props}
