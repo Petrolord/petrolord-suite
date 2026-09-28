@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import { ThemedApp } from '@/design/ThemeProvider';
 import SyntheticsPanel from './components/SyntheticsPanel';
 import { surveyAffine } from './engine/surveyGeometry';
 import { makeTvdssToTwt } from './engine/wellSection';
@@ -126,7 +127,7 @@ export default function SeismolordSyntheticsHarness() {
   }, []);
 
   return (
-    <div style={{ background: '#0b1220', minHeight: '100vh', color: '#cbd5e1', padding: 16 }}>
+    <ThemedApp style={{ minHeight: '100vh', padding: 16 }}>
       <h1 style={{ fontSize: 18, marginBottom: 8 }}>
         Seismolord synthetics harness (known wedge, seismic delayed +8 ms)
       </h1>
@@ -146,6 +147,6 @@ export default function SeismolordSyntheticsHarness() {
           boundaries={null}
         />
       </div>
-    </div>
+    </ThemedApp>
   );
 }

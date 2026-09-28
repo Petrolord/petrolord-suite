@@ -21,9 +21,9 @@ export default function VelocityModelEditor({
   return (
     <div className="space-y-1.5">
       <div className="flex flex-wrap items-center gap-2">
-        <Label className="text-slate-400 text-xs">Velocity model</Label>
+        <Label className="text-pl-muted text-xs">Velocity model</Label>
         <select
-          className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+          className="rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs"
           value={velMode}
           onChange={(e) => {
             const mode = e.target.value;
@@ -41,26 +41,26 @@ export default function VelocityModelEditor({
         </select>
         {velMode === 'linear' && (
           <>
-            <span className="text-xs text-slate-500">V0</span>
+            <span className="text-xs text-pl-muted">V0</span>
             <input
               type="number"
-              className="w-24 rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+              className="w-24 rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs"
               value={velDraft.v0}
               onChange={(e) => setVelDraft((d) => ({ ...d, v0: e.target.value }))}
               placeholder="e.g. 2000"
               min="1"
               step="50"
             />
-            <span className="text-xs text-slate-500">m/s · k</span>
+            <span className="text-xs text-pl-muted">m/s · k</span>
             <input
               type="number"
-              className="w-20 rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+              className="w-20 rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs"
               value={velDraft.k}
               onChange={(e) => setVelDraft((d) => ({ ...d, k: e.target.value }))}
               placeholder="0"
               step="0.05"
             />
-            <span className="text-xs text-slate-500">1/s</span>
+            <span className="text-xs text-pl-muted">1/s</span>
           </>
         )}
         <Button
@@ -78,14 +78,14 @@ export default function VelocityModelEditor({
             : <Save className="w-4 h-4 mr-2" />}
           Save to volume
         </Button>
-        <span className="text-xs text-slate-500">
+        <span className="text-xs text-pl-muted">
           {velocityModel
             ? `${describeVelocity(velocityModel)} — drives depth maps and depth exports`
             : 'not set — depth maps and model-based exports unavailable'}
         </span>
       </div>
       {velMode === 'layercake' && (
-        <div className="space-y-1 pl-2 border-l border-slate-800">
+        <div className="space-y-1 pl-2 border-l border-pl-border">
           {velLayers.map((l, i) => {
             const last = i === velLayers.length - 1;
             const set = (patch) => setVelLayers((rows) =>
@@ -95,12 +95,12 @@ export default function VelocityModelEditor({
               // fine while the list is small and editable in place
               // eslint-disable-next-line react/no-array-index-key
               <div key={i} className="flex flex-wrap items-center gap-2">
-                <span className="text-xs text-slate-500 w-16">Layer {i + 1}</span>
+                <span className="text-xs text-pl-muted w-16">Layer {i + 1}</span>
                 {last ? (
-                  <span className="text-xs text-slate-500 w-44">below the last horizon</span>
+                  <span className="text-xs text-pl-muted w-44">below the last horizon</span>
                 ) : (
                   <select
-                    className="w-44 rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+                    className="w-44 rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs"
                     value={l.baseHorizonId}
                     onChange={(e) => set({ baseHorizonId: e.target.value })}
                   >
@@ -110,29 +110,29 @@ export default function VelocityModelEditor({
                     ))}
                   </select>
                 )}
-                <span className="text-xs text-slate-500">V0</span>
+                <span className="text-xs text-pl-muted">V0</span>
                 <input
                   type="number"
-                  className="w-24 rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+                  className="w-24 rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs"
                   value={l.v0}
                   onChange={(e) => set({ v0: e.target.value })}
                   placeholder="m/s at layer top"
                   min="1"
                   step="50"
                 />
-                <span className="text-xs text-slate-500">m/s · k</span>
+                <span className="text-xs text-pl-muted">m/s · k</span>
                 <input
                   type="number"
-                  className="w-20 rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+                  className="w-20 rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs"
                   value={l.k}
                   onChange={(e) => set({ k: e.target.value })}
                   placeholder="0"
                   step="0.05"
                 />
-                <span className="text-xs text-slate-500">1/s</span>
+                <span className="text-xs text-pl-muted">1/s</span>
                 <Button
                   variant="ghost" size="sm"
-                  className="h-6 px-1.5 text-slate-500 hover:text-red-400"
+                  className="h-6 px-1.5 text-pl-muted hover:text-pl-danger-text"
                   onClick={() => setVelLayers((rows) => rows.filter((_, j) => j !== i))}
                   title="Remove this layer"
                 >
@@ -151,7 +151,7 @@ export default function VelocityModelEditor({
           >
             Add layer
           </Button>
-          <span className="text-xs text-slate-500 ml-2">
+          <span className="text-xs text-pl-muted ml-2">
             layers save sorted by horizon time; where a boundary horizon has no
             pick, the layer above extends to the next one
           </span>
@@ -160,7 +160,7 @@ export default function VelocityModelEditor({
       <div className="flex flex-wrap items-center gap-2">
         <Button
           variant="outline" size="sm"
-          className={calOpen ? 'border-cyan-500/60 text-cyan-300' : ''}
+          className={calOpen ? 'border-pl-primary/60 text-pl-primary-text' : ''}
           onClick={() => setCalOpen((v) => !v)}
           disabled={!velocityForDisplay || !(wells || []).length || !horizons.length}
           title={!velocityForDisplay
@@ -174,7 +174,7 @@ export default function VelocityModelEditor({
         </Button>
       </div>
       {calOpen && velocityForDisplay && (
-        <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+        <div className="rounded-lg border border-pl-border bg-pl-sunken/60 p-3">
           <WellTiePanel
             wells={wells || []}
             horizons={horizons}

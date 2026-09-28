@@ -12,9 +12,9 @@ const LS_KEY = 'seismolord.ribbon.v1';
 
 export function RibbonGroup({ label, children }) {
   return (
-    <div className="flex flex-col justify-between px-2.5 border-r border-slate-800 last:border-r-0">
+    <div className="flex flex-col justify-between px-2.5 border-r border-pl-border last:border-r-0">
       <div className="flex items-center gap-1.5 flex-wrap py-1">{children}</div>
-      <div className="text-[10px] text-slate-500 text-center uppercase tracking-wider pb-0.5">
+      <div className="text-[10px] text-pl-muted text-center uppercase tracking-wider pb-0.5">
         {label}
       </div>
     </div>
@@ -25,11 +25,11 @@ export function RibbonGroup({ label, children }) {
 export function RibbonButton({
   icon: Icon, label, onClick, active, disabled, title, accent = 'cyan', busy, testId }) {
   const ACCENTS = {
-    cyan: 'border-cyan-500/60 bg-cyan-500/10 text-cyan-300',
-    yellow: 'border-yellow-500/60 bg-yellow-500/10 text-yellow-300',
-    orange: 'border-orange-500/60 bg-orange-500/10 text-orange-300',
-    red: 'border-red-500/60 bg-red-500/10 text-red-300',
-    emerald: 'border-emerald-500/60 bg-emerald-500/10 text-emerald-300',
+    cyan: 'border-pl-primary/60 bg-pl-primary/10 text-pl-primary-text',
+    yellow: 'border-pl-warning/60 bg-pl-warning-bg text-pl-warning-text',
+    orange: 'border-pl-warning/60 bg-pl-warning-bg text-pl-warning-text',
+    red: 'border-pl-danger/60 bg-pl-danger-bg text-pl-danger-text',
+    emerald: 'border-pl-success/60 bg-pl-success-bg text-pl-success-text',
   };
   return (
     <button data-testid={testId}
@@ -41,7 +41,7 @@ export function RibbonButton({
         rounded-md border text-[11px] leading-tight whitespace-nowrap
         disabled:opacity-40 disabled:cursor-not-allowed
         ${active ? ACCENTS[accent] || ACCENTS.cyan
-        : 'border-transparent text-slate-300 hover:bg-slate-800/80 hover:border-slate-700'}`}
+        : 'border-transparent text-pl-text hover:bg-pl-sunken/80 hover:border-pl-border'}`}
     >
       {Icon && <Icon className={`w-4.5 h-4.5 w-[18px] h-[18px] ${busy ? 'animate-spin' : ''}`} />}
       <span>{label}</span>
@@ -51,10 +51,10 @@ export function RibbonButton({
 
 export function RibbonSelect({ label, value, onChange, children, disabled, title, className, testId }) {
   return (
-    <label className="flex flex-col gap-0.5 text-[10px] text-slate-500" title={title}>
+    <label className="flex flex-col gap-0.5 text-[10px] text-pl-muted" title={title}>
       {label}
       <select
-        className={`rounded-md bg-slate-950 border border-slate-700 text-slate-200
+        className={`rounded-md bg-pl-surface border border-pl-border-strong text-pl-text
           px-1.5 py-1 text-xs disabled:opacity-40 ${className || ''}`}
         value={value}
         onChange={onChange}
@@ -69,14 +69,14 @@ export function RibbonSelect({ label, value, onChange, children, disabled, title
 
 export function RibbonSlider({ label, min, max, step, value, onChange, disabled, className }) {
   return (
-    <label className={`flex flex-col gap-1 text-[10px] text-slate-500 ${className || ''}`}>
+    <label className={`flex flex-col gap-1 text-[10px] text-pl-muted ${className || ''}`}>
       <span className="whitespace-nowrap">{label}</span>
       <input
         type="range"
         min={min} max={max} step={step} value={value}
         onChange={onChange}
         disabled={disabled}
-        className="w-full accent-cyan-500 disabled:opacity-40"
+        className="w-full accent-pl-primary disabled:opacity-40"
       />
     </label>
   );
@@ -105,7 +105,7 @@ export default function Ribbon({ tabs, corner, trailing }) {
   const activeTab = tabs.find((t) => t.key === active) || tabs[0];
 
   return (
-    <div className="border-b border-slate-800 bg-slate-900/80">
+    <div className="border-b border-pl-border bg-pl-sunken">
       <div className="flex items-center gap-0.5 px-2 pt-1">
         {corner}
         {tabs.map((t) => (
@@ -117,15 +117,15 @@ export default function Ribbon({ tabs, corner, trailing }) {
             onClick={() => setActive(t.key)}
             className={`px-3 py-1 text-[13px] rounded-t-md border-x border-t
               ${t.key === activeTab?.key
-              ? 'border-slate-700 bg-slate-900 text-cyan-300 font-medium'
-              : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+              ? 'border-pl-border bg-pl-surface text-pl-primary-text font-medium'
+              : 'border-transparent text-pl-muted hover:text-pl-text'}`}
           >
             {t.label}
           </button>
         ))}
         <div className="ml-auto flex items-center gap-1 pb-0.5">{trailing}</div>
       </div>
-      <div className="flex items-stretch overflow-x-auto border-t border-slate-800 bg-slate-900 px-1 min-h-[58px]">
+      <div className="flex items-stretch overflow-x-auto border-t border-pl-border bg-pl-surface px-1 min-h-[58px]">
         {activeTab?.content}
       </div>
     </div>

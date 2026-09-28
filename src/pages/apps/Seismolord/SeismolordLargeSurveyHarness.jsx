@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { ThemedApp } from '@/design/ThemeProvider';
 import SliceView from './components/SliceView';
 import { SliceWorkerClient } from './sources/sliceWorkerClient';
 import { createSliceWorker } from './services/sliceWorkerFactory';
@@ -225,7 +226,7 @@ export default function SeismolordLargeSurveyHarness() {
   if (typeof window !== 'undefined') window.__seisBench = apiRef.current;
 
   return (
-    <div className="h-screen w-screen bg-slate-950 text-slate-200 flex flex-col">
+    <ThemedApp className="h-screen w-screen flex flex-col">
       <div className="p-2 text-xs flex items-center gap-3" data-testid="bench-status">
         <span>{`mode ${MODE}`}</span>
         <span>{`budget ${Math.round(BUDGET / (1024 * 1024))} MB`}</span>
@@ -247,6 +248,6 @@ export default function SeismolordLargeSurveyHarness() {
           />
         )}
       </div>
-    </div>
+    </ThemedApp>
   );
 }

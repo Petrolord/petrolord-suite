@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ThemedApp } from '@/design/ThemeProvider';
 import WellTiePanel from './components/WellTiePanel';
 import { surveyAffine } from './engine/surveyGeometry';
 import { normalizeVelocity } from './engine/velocityModel';
@@ -57,7 +58,7 @@ export default function SeismolordWellTieHarness() {
   const [applied, setApplied] = useState(null);
 
   return (
-    <div style={{ background: '#0b1220', minHeight: '100vh', color: '#cbd5e1', padding: 16 }}>
+    <ThemedApp style={{ minHeight: '100vh', padding: 16 }}>
       <h1 style={{ fontSize: 18, marginBottom: 8 }}>Seismolord well-tie harness (known cake)</h1>
       <div style={{ fontSize: 12, marginBottom: 8 }}>
         applied: <span data-testid="harness-applied">{applied || '-'}</span>
@@ -75,6 +76,6 @@ export default function SeismolordWellTieHarness() {
           onApply={async (model, calibration) => setApplied(JSON.stringify({ model, calibration }))}
         />
       </div>
-    </div>
+    </ThemedApp>
   );
 }

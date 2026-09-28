@@ -43,12 +43,12 @@ const TOOL_ICONS = {
   deleteStick: Trash2,
 };
 
-const selectCls = 'w-full rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs disabled:opacity-50';
+const selectCls = 'w-full rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs disabled:opacity-50';
 
 function Block({ title, icon: Icon, children, testId }) {
   return (
-    <section className="border-b border-slate-800 px-2.5 py-2" data-testid={testId}>
-      <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+    <section className="border-b border-pl-border px-2.5 py-2" data-testid={testId}>
+      <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-pl-muted mb-1.5">
         <Icon className="w-3.5 h-3.5" />
         {title}
       </h3>
@@ -59,7 +59,7 @@ function Block({ title, icon: Icon, children, testId }) {
 
 function Field({ label, children }) {
   return (
-    <label className="grid grid-cols-[76px_1fr] items-center gap-1.5 py-0.5 text-[11px] text-slate-400">
+    <label className="grid grid-cols-[76px_1fr] items-center gap-1.5 py-0.5 text-[11px] text-pl-muted">
       <span>{label}</span>
       {children}
     </label>
@@ -70,11 +70,11 @@ function ToolButton({
   icon: Icon, label, active = false, onClick, disabled = false, title, tone = 'cyan', testId,
 }) {
   const on = {
-    cyan: 'bg-cyan-500/15 text-cyan-200 border-cyan-600/60',
-    yellow: 'bg-yellow-500/15 text-yellow-200 border-yellow-600/60',
-    orange: 'bg-orange-500/15 text-orange-200 border-orange-600/60',
-    red: 'bg-red-500/15 text-red-200 border-red-600/60',
-    emerald: 'bg-emerald-500/15 text-emerald-200 border-emerald-600/60',
+    cyan: 'bg-pl-primary/15 text-pl-primary-text border-pl-primary/60',
+    yellow: 'bg-pl-warning-bg text-pl-warning-text border-pl-warning/60',
+    orange: 'bg-pl-warning-bg text-pl-warning-text border-pl-warning/60',
+    red: 'bg-pl-danger-bg text-pl-danger-text border-pl-danger/60',
+    emerald: 'bg-pl-success-bg text-pl-success-text border-pl-success/60',
   }[tone];
   return (
     <button
@@ -86,7 +86,7 @@ function ToolButton({
       disabled={disabled}
       className={`flex items-center gap-1.5 rounded border px-1.5 py-1 text-[11px] text-left
         disabled:opacity-40 disabled:cursor-not-allowed ${active ? on
-        : 'border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-slate-100'}`}
+        : 'border-pl-border text-pl-text hover:bg-pl-sunken hover:text-pl-text'}`}
     >
       <Icon className="w-3.5 h-3.5 shrink-0" />
       <span className="truncate">{label}</span>
@@ -118,8 +118,8 @@ export default function InterpretationToolbox({
   };
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto text-slate-200" data-testid="sl-toolbox">
-      <div className="flex items-center gap-1 px-2.5 py-1.5 border-b border-slate-800">
+    <div className="h-full min-h-0 overflow-y-auto text-pl-text" data-testid="sl-toolbox">
+      <div className="flex items-center gap-1 px-2.5 py-1.5 border-b border-pl-border">
         <ToolButton
           icon={Undo2}
           label="Undo"
@@ -184,7 +184,7 @@ export default function InterpretationToolbox({
           />
         </div>
 
-        <p className="mt-2 mb-0.5 text-[10px] uppercase tracking-wider text-slate-500">Seeded auto-tracking</p>
+        <p className="mt-2 mb-0.5 text-[10px] uppercase tracking-wider text-pl-muted">Seeded auto-tracking</p>
         <Field label="Event">
           <select
             className={selectCls}
@@ -219,12 +219,12 @@ export default function InterpretationToolbox({
           </select>
         </Field>
         {hz.snapMode !== 'ncc' && (
-          <p className="text-[10px] text-slate-500 leading-snug">
+          <p className="text-[10px] text-pl-muted leading-snug">
             The threshold is used when tracking by correlation.
             {' '}
             <button
               type="button"
-              className="text-cyan-400 hover:underline"
+              className="text-pl-primary-text hover:underline"
               onClick={() => hz.setSnapMode('ncc')}
               disabled={!hz.hasVolume}
             >
@@ -256,16 +256,16 @@ export default function InterpretationToolbox({
           />
         </div>
         {hz.tracking && (
-          <p className="mt-1 flex items-center text-[11px] text-slate-300">
+          <p className="mt-1 flex items-center text-[11px] text-pl-text">
             <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
             {`${hz.tracking.tracked.toLocaleString()} / ${hz.tracking.total.toLocaleString()}`}
-            <button type="button" className="ml-2 text-red-400 hover:underline" onClick={hz.cancelTracking}>
+            <button type="button" className="ml-2 text-pl-danger-text hover:underline" onClick={hz.cancelTracking}>
               Cancel
             </button>
           </p>
         )}
 
-        <p className="mt-2 mb-0.5 text-[10px] uppercase tracking-wider text-slate-500">Eraser</p>
+        <p className="mt-2 mb-0.5 text-[10px] uppercase tracking-wider text-pl-muted">Eraser</p>
         <Field label="Brush">
           <select
             className={selectCls}
@@ -320,7 +320,7 @@ export default function InterpretationToolbox({
             />
           </Field>
         ) : (
-          <p className="text-[10px] text-slate-500 leading-snug">
+          <p className="text-[10px] text-pl-muted leading-snug">
             New sticks and edits go to this fault; Save writes them to it.
           </p>
         )}
@@ -341,13 +341,13 @@ export default function InterpretationToolbox({
           ))}
         </div>
         {faultOn && (
-          <p className="mt-1 text-[10px] text-slate-400 leading-snug">
+          <p className="mt-1 text-[10px] text-pl-muted leading-snug">
             {tool.hint}
             {' Alt+click deletes the nearest point.'}
           </p>
         )}
 
-        <p className="mt-2 text-[11px] text-slate-400" data-testid="sl-fault-readout">
+        <p className="mt-2 text-[11px] text-pl-muted" data-testid="sl-fault-readout">
           {sticks.length
             ? `Stick ${ft.selected + 1} of ${sticks.length} selected (${ft.selectedPoints} points); ${nPoints} points in all`
             : 'No sticks yet'}

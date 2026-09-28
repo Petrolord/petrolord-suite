@@ -22,7 +22,7 @@ import {
   ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem,
   ContextMenuSeparator, ContextMenuSub, ContextMenuSubTrigger,
   ContextMenuSubContent,
-} from '@/components/ui/context-menu';
+} from '@/components/workstation/themedContextMenu';
 import { SURFACE_EXPORT_FORMATS } from '../../services/surfacesService';
 import StorageMeter from '../StorageMeter';
 import WellDrawBadge, { wellRowTitle } from './WellDrawBadge';
@@ -34,19 +34,19 @@ import {
 function Section({ icon: Icon, title, count, actions, children, hint }) {
   const [open, setOpen] = useState(true);
   return (
-    <div className="border-b border-slate-800/60">
+    <div className="border-b border-pl-border/60">
       <div className="flex items-center gap-1 px-1.5 py-1">
         <button
           type="button"
           className="flex flex-1 min-w-0 items-center gap-1 text-[11px] font-semibold
-            uppercase tracking-wider text-slate-400 hover:text-slate-200"
+            uppercase tracking-wider text-pl-muted hover:text-pl-text"
           onClick={() => setOpen((o) => !o)}
         >
           {open ? <ChevronDown className="w-3.5 h-3.5 shrink-0" />
             : <ChevronRight className="w-3.5 h-3.5 shrink-0" />}
           <Icon className="w-3.5 h-3.5 shrink-0" />
           <span className="truncate">{title}</span>
-          <span className="text-slate-600 font-normal">{count}</span>
+          <span className="text-pl-muted font-normal">{count}</span>
         </button>
         <div className="flex items-center gap-0.5">{actions}</div>
       </div>
@@ -61,7 +61,7 @@ function Section({ icon: Icon, title, count, actions, children, hint }) {
 }
 
 const Hint = ({ children }) => (
-  <p className="px-3 py-1 text-xs text-slate-600 leading-snug">{children}</p>
+  <p className="px-3 py-1 text-xs text-pl-muted leading-snug">{children}</p>
 );
 
 function IconButton({ title, onClick, children }) {
@@ -70,7 +70,7 @@ function IconButton({ title, onClick, children }) {
       type="button"
       title={title}
       onClick={onClick}
-      className="p-1 rounded text-slate-400 hover:text-cyan-300 hover:bg-slate-800"
+      className="p-1 rounded text-pl-muted hover:text-pl-primary-text hover:bg-pl-sunken"
     >
       {children}
     </button>
@@ -91,7 +91,7 @@ function Row({
       style={depth ? { paddingLeft: `${10 + depth * 16}px` } : undefined}
       className={`group flex items-center gap-1.5 pl-2.5 pr-2 py-[3px] text-[13px]
         cursor-pointer select-none min-w-0
-        ${selected ? 'bg-cyan-500/10 text-cyan-200' : 'text-slate-300 hover:bg-slate-800/70'}`}
+        ${selected ? 'bg-pl-primary/10 text-pl-primary-text' : 'text-pl-text hover:bg-pl-sunken/70'}`}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onKeyDown={(e) => { if (e.key === 'Enter' && onClick) onClick(); }}
@@ -100,7 +100,7 @@ function Row({
         <button
           type="button"
           title={visible ? 'Hide' : 'Show'}
-          className={visible ? 'text-cyan-400' : 'text-slate-600 hover:text-slate-400'}
+          className={visible ? 'text-pl-primary-text' : 'text-pl-muted hover:text-pl-muted'}
           onClick={(e) => { e.stopPropagation(); onToggleVisible(); }}
         >
           {visible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
@@ -109,7 +109,7 @@ function Row({
       <Icon className="w-3.5 h-3.5 shrink-0" style={color ? { color } : undefined} />
       <span className="truncate">{label}</span>
       {badge}
-      <span className="ml-auto pl-2 text-[11px] text-slate-500 whitespace-nowrap">
+      <span className="ml-auto pl-2 text-[11px] text-pl-muted whitespace-nowrap">
         {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin inline" /> : meta}
       </span>
     </div>
@@ -162,16 +162,16 @@ export default function SeismicExplorer({ tree, actions }) {
   } = tree;
 
   return (
-    <div className="h-full min-h-0 flex flex-col bg-slate-900/40">
-      <div className="shrink-0 flex items-center gap-1 px-2 py-1.5 border-b border-slate-800">
+    <div className="h-full min-h-0 flex flex-col bg-pl-surface">
+      <div className="shrink-0 flex items-center gap-1 px-2 py-1.5 border-b border-pl-border">
         <Link
           to="/dashboard/geoscience"
           title="Back to Geoscience"
-          className="p-1 rounded text-slate-400 hover:text-cyan-300 hover:bg-slate-800"
+          className="p-1 rounded text-pl-muted hover:text-pl-primary-text hover:bg-pl-sunken"
         >
           <ArrowLeft className="w-4 h-4" />
         </Link>
-        <span className="text-sm font-semibold text-slate-200 truncate">Seismic Explorer</span>
+        <span className="text-sm font-semibold text-pl-text truncate">Seismic Explorer</span>
         <div className="ml-auto flex items-center gap-0.5">
           <IconButton title="Import SEG-Y volume…" onClick={actions.openImport}>
             <Upload className="w-4 h-4" />
@@ -223,7 +223,7 @@ export default function SeismicExplorer({ tree, actions }) {
                     className="shrink-0"
                   >
                     <Building2 className={`w-3 h-3 ${v.is_own === false
-                      ? 'text-sky-400' : 'text-emerald-400'}`} />
+                      ? 'text-pl-info-text' : 'text-pl-success-text'}`} />
                   </span>
                 ) : null}
                 selected={v.id === activeVolumeId}
@@ -283,7 +283,7 @@ export default function SeismicExplorer({ tree, actions }) {
                         </ContextMenuItem>
                         <ContextMenuSeparator />
                         <ContextMenuItem
-                          className="text-red-400 focus:text-red-300"
+                          className="text-pl-danger-text focus:text-pl-danger-text"
                           onSelect={() => actions.deleteVolume(v)}
                         >
                           Delete volume…
@@ -349,7 +349,7 @@ export default function SeismicExplorer({ tree, actions }) {
                         menu={(
                           <>
                             <ContextMenuItem
-                              className="text-red-400 focus:text-red-300"
+                              className="text-pl-danger-text focus:text-pl-danger-text"
                               onSelect={() => actions.deleteProject(pr)}
                             >
                               Delete project (volumes stay)…
@@ -393,7 +393,7 @@ export default function SeismicExplorer({ tree, actions }) {
                   className="shrink-0"
                 >
                   <Building2 className={`w-3 h-3 ${l.is_own === false
-                    ? 'text-sky-400' : 'text-emerald-400'}`} />
+                    ? 'text-pl-info-text' : 'text-pl-success-text'}`} />
                 </span>
               ) : null}
               title={`2D line · ${l.survey_meta?.ntraces || '?'} traces · the eye shows its navigation on the map; open it in the 2D Lines window`}
@@ -414,7 +414,7 @@ export default function SeismicExplorer({ tree, actions }) {
                       </ContextMenuItem>
                       <ContextMenuSeparator />
                       <ContextMenuItem
-                        className="text-red-400 focus:text-red-300"
+                        className="text-pl-danger-text focus:text-pl-danger-text"
                         onSelect={() => actions.deleteLine(l)}
                       >
                         Delete line…
@@ -455,7 +455,7 @@ export default function SeismicExplorer({ tree, actions }) {
               badge={editTargetId === h.id
                 ? (
                   <span title="Edit target" className="shrink-0">
-                    <Pencil className="w-3 h-3 text-yellow-400" />
+                    <Pencil className="w-3 h-3 text-pl-warning-text" />
                   </span>
                 )
                 : null}
@@ -496,7 +496,7 @@ export default function SeismicExplorer({ tree, actions }) {
                             <React.Fragment key={v.id}>
                               <ContextMenuItem onSelect={() => actions.toggleVersion(v)}>
                                 {`${visibleVersionIds?.has(v.id) ? 'Hide' : 'Show'} v${v.version}`}
-                                <span className="ml-auto pl-2 text-[10px] text-slate-500 truncate">
+                                <span className="ml-auto pl-2 text-[10px] text-pl-muted truncate">
                                   {v.interpreter || ''}
                                 </span>
                               </ContextMenuItem>
@@ -522,7 +522,7 @@ export default function SeismicExplorer({ tree, actions }) {
                       </ContextMenuItem>
                       <ContextMenuSeparator />
                       <ContextMenuItem
-                        className="text-red-400 focus:text-red-300"
+                        className="text-pl-danger-text focus:text-pl-danger-text"
                         onSelect={() => actions.deleteHorizon(h)}
                       >
                         Delete horizon…
@@ -570,7 +570,7 @@ export default function SeismicExplorer({ tree, actions }) {
                   className="shrink-0"
                 >
                   <Building2 className={`w-3 h-3 ${s.is_own === false
-                    ? 'text-sky-400' : 'text-emerald-400'}`} />
+                    ? 'text-pl-info-text' : 'text-pl-success-text'}`} />
                 </span>
               ) : null}
               title={`${s.z_domain === 'time' ? 'TWT'
@@ -611,7 +611,7 @@ export default function SeismicExplorer({ tree, actions }) {
                       </ContextMenuItem>
                       <ContextMenuSeparator />
                       <ContextMenuItem
-                        className="text-red-400 focus:text-red-300"
+                        className="text-pl-danger-text focus:text-pl-danger-text"
                         onSelect={() => actions.deleteSurface(s)}
                       >
                         Delete surface…
@@ -660,7 +660,7 @@ export default function SeismicExplorer({ tree, actions }) {
                   className="shrink-0"
                 >
                   <Building2 className={`w-3 h-3 ${c.is_own === false
-                    ? 'text-sky-400' : 'text-emerald-400'}`} />
+                    ? 'text-pl-info-text' : 'text-pl-success-text'}`} />
                 </span>
               ) : null}
               title={`${c.kind.replace('_', ' ')} · ${c.geometry_type} · `
@@ -680,7 +680,7 @@ export default function SeismicExplorer({ tree, actions }) {
                       </ContextMenuItem>
                       <ContextMenuSeparator />
                       <ContextMenuItem
-                        className="text-red-400 focus:text-red-300"
+                        className="text-pl-danger-text focus:text-pl-danger-text"
                         onSelect={() => actions.deleteCulture(c)}
                       >
                         Delete layer…
@@ -786,7 +786,7 @@ export default function SeismicExplorer({ tree, actions }) {
                         Edit sticks…
                       </ContextMenuItem>
                       <ContextMenuItem
-                        className="text-red-400 focus:text-red-300"
+                        className="text-pl-danger-text focus:text-pl-danger-text"
                         onSelect={() => actions.deleteFault(f)}
                       >
                         Delete fault…
@@ -847,7 +847,7 @@ export default function SeismicExplorer({ tree, actions }) {
                   <OpenInAppSubmenu wellIds={[w.id]} paths={appPaths} exclude={['seismolord']} testIdPrefix={`sl-well-${w.id}`} />
                   <ContextMenuSeparator />
                   <ContextMenuItem
-                    className="text-red-400 focus:text-red-300"
+                    className="text-pl-danger-text focus:text-pl-danger-text"
                     onSelect={() => actions.deleteWell(w)}
                   >
                     Delete well…
@@ -881,7 +881,7 @@ export default function SeismicExplorer({ tree, actions }) {
                   </ContextMenuItem>
                   <ContextMenuSeparator />
                   <ContextMenuItem
-                    className="text-red-400 focus:text-red-300"
+                    className="text-pl-danger-text focus:text-pl-danger-text"
                     onSelect={() => actions.deleteTraverse(t)}
                   >
                     Delete traverse…
@@ -900,7 +900,7 @@ export default function SeismicExplorer({ tree, actions }) {
         </Section>
       </ScrollArea>
       <StorageMeter
-        className="shrink-0 px-2 py-1.5 border-t border-slate-800"
+        className="shrink-0 px-2 py-1.5 border-t border-pl-border"
         refreshKey={`${volumes?.length || 0}:${lines2d?.length || 0}`}
       />
     </div>

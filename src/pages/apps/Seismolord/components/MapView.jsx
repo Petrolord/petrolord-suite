@@ -28,7 +28,7 @@ import {
 import {
   ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem,
   ContextMenuLabel, ContextMenuSeparator,
-} from '@/components/ui/context-menu';
+} from '@/components/workstation/themedContextMenu';
 import { ViewTransform } from '../viewer/viewTransform';
 import {
   drawAxes, drawScaleBar, drawNorthArrow, drawColorbar, surveySpacing, northScreenDir,
@@ -1611,7 +1611,7 @@ function MapView({
     <div
       ref={wrapRef}
       data-testid="map-view"
-      className={`flex flex-col ${isFullscreen ? 'h-screen bg-slate-950 p-2'
+      className={`flex flex-col ${isFullscreen ? 'h-screen bg-pl-bg p-2'
         : fillHeight ? 'h-full min-h-0' : ''}`}
     >
       <div className="flex flex-wrap items-center gap-1 mb-1">
@@ -1631,9 +1631,9 @@ function MapView({
           <Expand className="w-4 h-4" />
         </Button>
 
-        <span className="text-xs text-slate-400 ml-1">Layer</span>
+        <span className="text-xs text-pl-muted ml-1">Layer</span>
         <select
-          className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs max-w-[160px]"
+          className="rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs max-w-[160px]"
           value={activeSurface ? `surf:${activeSurface.id}` : active?.id || ''}
           onChange={(e) => setActiveId(e.target.value)}
           disabled={!(horizons || []).length && !(surfaces || []).length}
@@ -1657,9 +1657,9 @@ function MapView({
           )}
         </select>
 
-        <span className="text-xs text-slate-400">vs</span>
+        <span className="text-xs text-pl-muted">vs</span>
         <select
-          className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs max-w-[150px]"
+          className="rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs max-w-[150px]"
           value={vs?.id || ''}
           onChange={(e) => {
             setVsId(e.target.value);
@@ -1678,7 +1678,7 @@ function MapView({
 
         {onAmplitude && (
           <select
-            className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+            className="rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs"
             value={effAttr}
             onChange={(e) => {
               setAttr(e.target.value);
@@ -1694,7 +1694,7 @@ function MapView({
         )}
         {ampMode?.windowed && (
           <select
-            className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+            className="rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs"
             value={String(attrWindow)}
             onChange={(e) => setAttrWindow(Number(e.target.value))}
             title="Extraction half-window (samples around the pick)"
@@ -1706,7 +1706,7 @@ function MapView({
         )}
 
         <select
-          className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+          className="rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs"
           value={colormap}
           onChange={(e) => setColormap(e.target.value)}
           disabled={!hasData}
@@ -1716,7 +1716,7 @@ function MapView({
         </select>
 
         <select
-          className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+          className="rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs"
           value={effDomain}
           onChange={(e) => setDomain(e.target.value)}
           disabled={!hasData || !velocity || effAttr !== 'structure'
@@ -1837,7 +1837,7 @@ function MapView({
         {onTraverse && (
           <Button
             variant="outline" size="sm"
-            className={travTool ? 'border-cyan-500/60 text-cyan-300' : ''}
+            className={travTool ? 'border-pl-primary/60 text-pl-primary-text' : ''}
             onClick={() => {
               travRef.current = [];
               polyRef.current = [];
@@ -1855,7 +1855,7 @@ function MapView({
         {onTraverse && traverse && (
           <Button
             variant="outline" size="sm"
-            className="text-slate-400 hover:text-red-400"
+            className="text-pl-muted hover:text-pl-danger-text"
             onClick={() => onTraverse(null)}
             title="Remove the traverse line (clears the Traverse window)"
           >
@@ -1866,7 +1866,7 @@ function MapView({
         {onEraseRegion && (
           <Button
             variant="outline" size="sm"
-            className={eraseTool ? 'border-red-500/60 text-red-300' : ''}
+            className={eraseTool ? 'border-pl-danger/60 text-pl-danger-text' : ''}
             onClick={() => {
               polyRef.current = [];
               rectRef.current = null;
@@ -1901,7 +1901,9 @@ function MapView({
         <ContextMenuTrigger asChild>
           <div
             ref={viewportRef}
-            className={`relative rounded-lg border border-slate-800 bg-slate-950 overflow-hidden
+            // design system: the map canvas stays dark in both themes
+            data-canvas="dark"
+            className={`relative rounded-[0.5rem] border border-slate-800 bg-slate-950 overflow-hidden
               ${fillHeight ? 'flex-1 min-h-0' : ''}`}
             style={fillHeight ? undefined : { height }}
           >
@@ -1939,7 +1941,7 @@ function MapView({
               <>
                 {target && (
                   <>
-                    <ContextMenuLabel className="text-slate-400">
+                    <ContextMenuLabel className="text-pl-muted">
                       {direct ? target.name : `${target.name} (mapped horizon)`}
                     </ContextMenuLabel>
                     {onHorizonSettings && (
@@ -1972,10 +1974,10 @@ function MapView({
         </ContextMenuContent>
       </ContextMenu>
 
-      <div className="flex items-center gap-4 text-xs text-slate-400 font-mono mt-1 h-5">
-        {ampBusy && <span className="text-cyan-400">extracting amplitude…</span>}
+      <div className="flex items-center gap-4 text-xs text-pl-muted font-mono mt-1 h-5">
+        {ampBusy && <span className="text-pl-primary-text">extracting amplitude…</span>}
         <span ref={readoutValsRef} className="whitespace-pre" style={{ display: 'none' }} />
-        <span ref={readoutHintRef} className="text-slate-600">
+        <span ref={readoutHintRef} className="text-pl-muted">
           {eraseArmed
             ? 'erase: drag a rectangle · or click polygon vertices, dbl-click to close · Esc: cancel'
             : travArmed

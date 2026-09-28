@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { ThemedApp } from '@/design/ThemeProvider';
 import WellImport from '@/components/wells/WellImport';
 import MapView from './components/MapView';
 import { WELL_COLORS } from './components/workspace/interpretationColors';
@@ -64,7 +65,7 @@ export default function SeismolordWellsHarness() {
   const tdIj = end ? worldToIlxl(aff, end.x, end.y) : null;
 
   return (
-    <div style={{ background: '#0b1220', minHeight: '100vh', color: '#cbd5e1', padding: 16 }}>
+    <ThemedApp style={{ minHeight: '100vh', padding: 16 }}>
       <h1 style={{ fontSize: 18, marginBottom: 8 }}>Seismolord wells harness (rotated survey)</h1>
       <div style={{ display: 'flex', gap: 12, marginBottom: 8, fontSize: 12 }}>
         <span data-testid="harness-well-count">{wells.length}</span>
@@ -90,6 +91,6 @@ export default function SeismolordWellsHarness() {
           />
         </div>
       </div>
-    </div>
+    </ThemedApp>
   );
 }

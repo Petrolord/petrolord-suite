@@ -1361,7 +1361,7 @@ function SliceView({
   return (
     <div
       ref={wrapRef}
-      className={`flex flex-col ${isFullscreen ? 'h-screen bg-slate-950 p-2'
+      className={`flex flex-col ${isFullscreen ? 'h-screen bg-pl-bg p-2'
         : fillHeight ? 'h-full min-h-0' : ''}`}
       data-flatten={isSection && flatten?.offsets ? (flatten.name || 'on') : ''}
       data-terminations={overlays?.terminations?.length || 0}
@@ -1384,14 +1384,14 @@ function SliceView({
         </Button>
         <span
           ref={zoomPctRef}
-          className="text-xs text-slate-400 w-14 text-center tabular-nums"
+          className="text-xs text-pl-muted w-14 text-center tabular-nums"
         >
           100%
         </span>
 
-        <span className="text-xs text-slate-400 ml-1">V.exag</span>
+        <span className="text-xs text-pl-muted ml-1">V.exag</span>
         <select
-          className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+          className="rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs"
           value={String(hud.vexag)}
           onChange={(e) => setVexag(Number(e.target.value))}
           disabled={!slice}
@@ -1483,7 +1483,11 @@ function SliceView({
         ref={viewportRef}
         tabIndex={0}
         onKeyDown={onKeyDown}
-        className={`relative rounded-lg border border-slate-800 bg-slate-950 overflow-hidden
+        // design system: the seismic canvas stays dark in both themes; its
+        // colours and everything drawn inside are unchanged from main (the
+        // radius is pinned at the legacy 8px so the clip does not grow)
+        data-canvas="dark"
+        className={`relative rounded-[0.5rem] border border-slate-800 bg-slate-950 overflow-hidden
           outline-none focus:border-slate-600 ${fillHeight ? 'flex-1 min-h-0' : ''}`}
         style={fillHeight ? undefined : { height }}
       >
@@ -1534,15 +1538,15 @@ function SliceView({
       </div>
 
       {prefs.readout && (
-        <div className="flex items-center gap-4 text-xs text-slate-400 font-mono mt-1 h-5">
+        <div className="flex items-center gap-4 text-xs text-pl-muted font-mono mt-1 h-5">
           {/* both spans are ref-driven (setCursorReadout) so pointer moves
               never re-render the component */}
           <span ref={readoutValsRef} className="whitespace-pre" style={{ display: 'none' }} />
-          <span ref={readoutHintRef} className="text-slate-600">
+          <span ref={readoutHintRef} className="text-pl-muted">
             drag: pan · wheel: zoom · Shift+drag: zoom box · Shift+wheel / arrows: step slice
             · dbl-click: zoom in
           </span>
-          {hud.atMaxZoom && <span className="text-amber-500">max zoom</span>}
+          {hud.atMaxZoom && <span className="text-pl-warning-text">max zoom</span>}
         </div>
       )}
     </div>

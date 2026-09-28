@@ -357,8 +357,8 @@ export default function ImportPanel({
     <div className="space-y-4">
         <StorageMeter refreshKey={phase} />
         {interrupted.length > 0 && phase !== 'ingesting' && (
-          <div className="rounded-lg border border-amber-700/50 bg-amber-950/20 p-3 space-y-2">
-            <div className="flex items-center text-sm text-amber-300">
+          <div className="rounded-lg border border-pl-warning/50 bg-pl-warning-bg p-3 space-y-2">
+            <div className="flex items-center text-sm text-pl-warning-text">
               <AlertTriangle className="w-4 h-4 mr-2 shrink-0" />
               Interrupted imports — resume with the ORIGINAL file (verified
               by fingerprint), or discard the partial data.
@@ -367,8 +367,8 @@ export default function ImportPanel({
               const rec = v.survey_meta?.ingest;
               return (
                 <div key={v.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                  <span className="text-white">{v.name}</span>
-                  <span className="text-slate-500">
+                  <span className="text-pl-text">{v.name}</span>
+                  <span className="text-pl-muted">
                     {rec
                       ? `${rec.file_name} · ${(rec.file_size / (1024 * 1024)).toFixed(1)} MB`
                       : 'source file unknown (predates resume support)'}
@@ -391,7 +391,7 @@ export default function ImportPanel({
                   </Button>
                   <Button
                     size="sm" variant="outline"
-                    className="text-red-400 hover:text-red-300"
+                    className="text-pl-danger-text hover:text-pl-danger-text"
                     disabled={discardingId === v.id}
                     title="Delete the row and its partial bricks"
                     onClick={() => discardInterrupted(v)}
@@ -431,14 +431,14 @@ export default function ImportPanel({
             {file ? file.name : 'Choose SEG-Y file'}
           </Button>
           {file && (
-            <span className="ml-3 text-sm text-slate-400">
+            <span className="ml-3 text-sm text-pl-muted">
               {(file.size / (1024 * 1024)).toFixed(1)} MB — processed in windows, never fully loaded
             </span>
           )}
         </div>
 
         {phase === 'scanning' && (
-          <div className="flex items-center text-slate-300">
+          <div className="flex items-center text-pl-text">
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             Scanning headers…
           </div>
@@ -449,9 +449,9 @@ export default function ImportPanel({
             {/* Header mapping — the textual header lies; geometry is measured */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <Label className="text-slate-300">Header layout preset</Label>
+                <Label className="text-pl-text">Header layout preset</Label>
                 <select
-                  className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
+                  className="w-full mt-1 rounded-md bg-pl-surface border border-pl-border-strong text-pl-text p-2 text-sm"
                   value={`${mapping.ilByte}/${mapping.xlByte}`}
                   onChange={(e) => {
                     const preset = MAPPING_PRESETS.find(
@@ -471,19 +471,19 @@ export default function ImportPanel({
                 </select>
               </div>
               <div>
-                <Label className="text-slate-300">Inline byte</Label>
+                <Label className="text-pl-text">Inline byte</Label>
                 <Input
                   type="number" min="1" max="237" value={mapping.ilByte}
-                  className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
+                  className="mt-1 bg-pl-surface border-pl-border-strong text-pl-text"
                   onChange={(e) => onMappingChange({ ilByte: Number(e.target.value) })}
                   disabled={phase === 'ingesting'}
                 />
               </div>
               <div>
-                <Label className="text-slate-300">Crossline byte</Label>
+                <Label className="text-pl-text">Crossline byte</Label>
                 <Input
                   type="number" min="1" max="237" value={mapping.xlByte}
-                  className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
+                  className="mt-1 bg-pl-surface border-pl-border-strong text-pl-text"
                   onChange={(e) => onMappingChange({ xlByte: Number(e.target.value) })}
                   disabled={phase === 'ingesting'}
                 />
@@ -493,7 +493,7 @@ export default function ImportPanel({
             <div>
               <button
                 type="button"
-                className="text-sm text-cyan-400 hover:underline"
+                className="text-sm text-pl-primary-text hover:underline"
                 onClick={() => setShowBytes((s) => !s)}
               >
                 {showBytes ? 'Hide' : 'Show'} coordinate byte positions (X, Y, scalar)
@@ -501,31 +501,31 @@ export default function ImportPanel({
               {showBytes && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
                   <div>
-                    <Label className="text-slate-300">X byte</Label>
+                    <Label className="text-pl-text">X byte</Label>
                     <Input
                       type="number" min="1" max="237"
                       value={mapping.xByte ?? DEFAULT_MAPPING.xByte}
-                      className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
+                      className="mt-1 bg-pl-surface border-pl-border-strong text-pl-text"
                       onChange={(e) => onMappingChange({ xByte: Number(e.target.value) })}
                       disabled={phase === 'ingesting'}
                     />
                   </div>
                   <div>
-                    <Label className="text-slate-300">Y byte</Label>
+                    <Label className="text-pl-text">Y byte</Label>
                     <Input
                       type="number" min="1" max="237"
                       value={mapping.yByte ?? DEFAULT_MAPPING.yByte}
-                      className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
+                      className="mt-1 bg-pl-surface border-pl-border-strong text-pl-text"
                       onChange={(e) => onMappingChange({ yByte: Number(e.target.value) })}
                       disabled={phase === 'ingesting'}
                     />
                   </div>
                   <div>
-                    <Label className="text-slate-300">Scalar byte</Label>
+                    <Label className="text-pl-text">Scalar byte</Label>
                     <Input
                       type="number" min="1" max="239"
                       value={mapping.scalarByte ?? DEFAULT_MAPPING.scalarByte}
-                      className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
+                      className="mt-1 bg-pl-surface border-pl-border-strong text-pl-text"
                       onChange={(e) => onMappingChange({ scalarByte: Number(e.target.value) })}
                       disabled={phase === 'ingesting'}
                     />
@@ -535,44 +535,44 @@ export default function ImportPanel({
             </div>
 
             {/* Measured geometry */}
-            <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-4 text-sm text-slate-300 grid grid-cols-2 md:grid-cols-4 gap-y-2">
-              <div>Format: <span className="text-white">{scan.formatCode === 1 ? 'IBM float' : 'IEEE float'}</span></div>
-              <div>Traces: <span className="text-white">{fmtInt(scan.totalTraces)}</span></div>
-              <div>Samples: <span className="text-white">{fmtInt(scan.ns)}</span> @ {scan.dtUs / 1000} ms</div>
-              <div>Scalar: <span className="text-white">{scan.coordScalar}</span></div>
-              <div>Inlines: <span className="text-white">{scan.il.min}–{scan.il.max}</span> (step {scan.il.step})</div>
-              <div>Crosslines: <span className="text-white">{scan.xl.min}–{scan.xl.max}</span> (step {scan.xl.step})</div>
+            <div className="rounded-lg border border-pl-border bg-pl-sunken/60 p-4 text-sm text-pl-text grid grid-cols-2 md:grid-cols-4 gap-y-2">
+              <div>Format: <span className="text-pl-text">{scan.formatCode === 1 ? 'IBM float' : 'IEEE float'}</span></div>
+              <div>Traces: <span className="text-pl-text">{fmtInt(scan.totalTraces)}</span></div>
+              <div>Samples: <span className="text-pl-text">{fmtInt(scan.ns)}</span> @ {scan.dtUs / 1000} ms</div>
+              <div>Scalar: <span className="text-pl-text">{scan.coordScalar}</span></div>
+              <div>Inlines: <span className="text-pl-text">{scan.il.min}–{scan.il.max}</span> (step {scan.il.step})</div>
+              <div>Crosslines: <span className="text-pl-text">{scan.xl.min}–{scan.xl.max}</span> (step {scan.xl.step})</div>
               <div className="col-span-2">
-                First CDP: <span className="text-white">
+                First CDP: <span className="text-pl-text">
                   {scan.corners.first ? `${scan.corners.first.x}, ${scan.corners.first.y}` : '—'}
                 </span>
               </div>
               {scan.sourceCoords && (
                 <div className="col-span-2">
-                  First source XY: <span className="text-white">
+                  First source XY: <span className="text-pl-text">
                     {scan.sourceCoords.x}, {scan.sourceCoords.y}
                   </span>
-                  <span className="text-slate-500"> (bytes 73/77 cross-check)</span>
+                  <span className="text-pl-muted"> (bytes 73/77 cross-check)</span>
                 </div>
               )}
               <div className="col-span-2">
-                Header units words: <span className="text-white">
+                Header units words: <span className="text-pl-text">
                   {scan.coordUnits === 1 ? 'length' : scan.coordUnits === 2 ? 'arc-seconds' : 'unstated'}
                 </span>
-                <span className="text-slate-500"> (byte 89)</span>
+                <span className="text-pl-muted"> (byte 89)</span>
                 {', '}
-                <span className="text-white">
+                <span className="text-pl-text">
                   {scan.measurementSystem === 1 ? 'metres' : scan.measurementSystem === 2 ? 'feet' : 'unstated'}
                 </span>
-                <span className="text-slate-500"> (binary header)</span>
+                <span className="text-pl-muted"> (binary header)</span>
               </div>
               {scan.scalarStats?.varied && (
                 <div className="col-span-2">
-                  Scalars seen: <span className="text-white">{scan.scalarStats.distinct.join(', ')}</span>
+                  Scalars seen: <span className="text-pl-text">{scan.scalarStats.distinct.join(', ')}</span>
                 </div>
               )}
               {scan.sampled && (
-                <div className="col-span-full text-slate-400">
+                <div className="col-span-full text-pl-muted">
                   Preview from sampled headers — every trace is validated during import.
                 </div>
               )}
@@ -580,9 +580,9 @@ export default function ImportPanel({
 
             {/* CRS assignment: the Petrel step. Nothing imports without an
                 explicit declaration; hints prefill, never commit. */}
-            <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-4 space-y-3">
+            <div className="rounded-lg border border-pl-border bg-pl-sunken/60 p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-slate-200">Coordinate reference system of this file</Label>
+                <Label className="text-pl-text">Coordinate reference system of this file</Label>
                 <CrsBadge tag={crsTag} name={crsTag ? crsDisplayName(crsTag, project?.customDefs || {}) : null} />
               </div>
               <CrsPicker
@@ -593,11 +593,11 @@ export default function ImportPanel({
                 disabled={phase === 'ingesting'}
               />
               {crsHints.unitHints.length > 0 && (
-                <div className="text-xs text-slate-500">
+                <div className="text-xs text-pl-muted">
                   Header mentions units: {crsHints.unitHints.map((u) => `${u.unit} ("${u.match}")`).join(', ')}
                 </div>
               )}
-              <div className="text-sm text-slate-400">
+              <div className="text-sm text-pl-muted">
                 {projectSet ? (
                   <>
                     Stored in the Project CRS <CrsBadge tag={project.tag} name={project.name} className="mx-1" />
@@ -614,13 +614,13 @@ export default function ImportPanel({
                 )}
               </div>
               {sanity && sanity.ok && (
-                <div className="flex items-center text-sm text-emerald-400">
+                <div className="flex items-center text-sm text-pl-success-text">
                   <CheckCircle2 className="w-4 h-4 mr-2" />
                   Scanned coordinates are plausible for this system.
                 </div>
               )}
               {sanity && !sanity.ok && sanity.verdict === 'out-of-area' && (
-                <div className="rounded-lg border border-red-700/50 bg-red-950/20 p-3 text-sm text-red-300 space-y-2">
+                <div className="rounded-lg border border-pl-danger/50 bg-pl-danger-bg p-3 text-sm text-pl-danger-text space-y-2">
                   <div className="flex items-start">
                     <AlertTriangle className="w-4 h-4 mr-2 mt-0.5 shrink-0" />
                     <div>
@@ -635,7 +635,7 @@ export default function ImportPanel({
                         && ' Check the CRS choice and the X, Y and scalar byte positions.'}
                     </div>
                   </div>
-                  <label className="flex items-center gap-2 text-slate-300">
+                  <label className="flex items-center gap-2 text-pl-text">
                     <input
                       type="checkbox"
                       checked={sanityOverride}
@@ -648,7 +648,7 @@ export default function ImportPanel({
             </div>
 
             {scan.warnings.length > 0 && (
-              <div className="rounded-lg border border-amber-700/50 bg-amber-950/30 p-3 text-sm text-amber-300 space-y-1">
+              <div className="rounded-lg border border-pl-warning/50 bg-pl-warning-bg p-3 text-sm text-pl-warning-text space-y-1">
                 {scan.warnings.map((w) => (
                   <div key={w} className="flex items-start">
                     <AlertTriangle className="w-4 h-4 mr-2 mt-0.5 shrink-0" />{w}
@@ -658,9 +658,9 @@ export default function ImportPanel({
             )}
 
             {/* Preview table under current mapping */}
-            <div className="overflow-x-auto rounded-lg border border-slate-800">
-              <table className="w-full text-sm text-slate-300">
-                <thead className="bg-slate-950 text-slate-400">
+            <div className="overflow-x-auto rounded-lg border border-pl-border">
+              <table className="w-full text-sm text-pl-text">
+                <thead className="bg-pl-surface text-pl-muted">
                   <tr>
                     <th className="px-3 py-1.5 text-left">Trace</th>
                     <th className="px-3 py-1.5 text-left">Inline</th>
@@ -671,10 +671,10 @@ export default function ImportPanel({
                 </thead>
                 <tbody>
                   {scanData.preview.map((r) => (
-                    <tr key={r.trace} className="border-t border-slate-800">
+                    <tr key={r.trace} className="border-t border-pl-border">
                       <td className="px-3 py-1">{fmtInt(r.trace)}</td>
-                      <td className="px-3 py-1 text-white">{r.il}</td>
-                      <td className="px-3 py-1 text-white">{r.xl}</td>
+                      <td className="px-3 py-1 text-pl-text">{r.il}</td>
+                      <td className="px-3 py-1 text-pl-text">{r.xl}</td>
                       <td className="px-3 py-1">{r.x}</td>
                       <td className="px-3 py-1">{r.y}</td>
                     </tr>
@@ -686,13 +686,13 @@ export default function ImportPanel({
             <div>
               <button
                 type="button"
-                className="text-sm text-cyan-400 hover:underline"
+                className="text-sm text-pl-primary-text hover:underline"
                 onClick={() => setShowHeader((s) => !s)}
               >
                 {showHeader ? 'Hide' : 'Show'} textual header (display only — it may lie)
               </button>
               {showHeader && (
-                <pre className="mt-2 bg-slate-950/80 border border-slate-800 rounded-lg p-3 text-xs text-slate-400 overflow-x-auto">
+                <pre className="mt-2 bg-pl-sunken/80 border border-pl-border rounded-lg p-3 text-xs text-pl-muted overflow-x-auto">
                   {scanData.textLines.join('\n')}
                 </pre>
               )}
@@ -701,7 +701,7 @@ export default function ImportPanel({
         )}
 
         {phase === 'ingesting' && resuming && (
-          <div className="text-sm text-slate-400">
+          <div className="text-sm text-pl-muted">
             Resuming “{resuming.name}” — the file is re-verified and
             re-transcoded under the original mapping; bricks that already
             uploaded are skipped, so only the missing remainder transfers.
@@ -709,16 +709,16 @@ export default function ImportPanel({
         )}
         {phase === 'ingesting' && progress && (
           <div className="space-y-2">
-            <div className="flex items-center text-slate-300 text-sm">
+            <div className="flex items-center text-pl-text text-sm">
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               {PHASE_LABEL[progress.phase] || progress.phase}
               {' — '}
               {fmtInt(progress.done)}{progress.total ? ` / ${fmtInt(progress.total)}` : ''}
             </div>
             {progress.total && (
-              <div className="h-2 rounded bg-slate-800 overflow-hidden">
+              <div className="h-2 rounded bg-pl-sunken overflow-hidden">
                 <div
-                  className="h-full bg-cyan-500 transition-all"
+                  className="h-full bg-pl-primary transition-all"
                   style={{ width: `${Math.round((progress.done / progress.total) * 100)}%` }}
                 />
               </div>
@@ -727,35 +727,35 @@ export default function ImportPanel({
         )}
 
         {phase === 'background' && (
-          <div className="flex items-center text-emerald-400 text-sm">
+          <div className="flex items-center text-pl-success-text text-sm">
             <CheckCircle2 className="w-4 h-4 mr-2" />
             Import started. It continues in the background; progress is in the status bar.
           </div>
         )}
         {file && scan && useV4 && phase !== 'ingesting' && phase !== 'background' && (
-          <div className="text-xs text-slate-400 leading-relaxed" data-testid="import-expectation">
+          <div className="text-xs text-pl-muted leading-relaxed" data-testid="import-expectation">
             {importExpectation(file.size, typeof navigator !== 'undefined' ? navigator.deviceMemory : null).text}
           </div>
         )}
         {file && v4Support && !v4Support.ok && (
-          <div className="text-xs text-amber-300/90 leading-relaxed">
+          <div className="text-xs text-pl-warning-text leading-relaxed">
             The import will upload as it converts and this dialog stays open until it finishes,
             because {V4_FALLBACK_REASON[v4Support.reason] || 'this browser cannot run the background import'}.
           </div>
         )}
         {phase === 'done' && (
-          <div className="flex items-center text-emerald-400 text-sm">
+          <div className="flex items-center text-pl-success-text text-sm">
             <CheckCircle2 className="w-4 h-4 mr-2" />
             Volume ingested and registered.
           </div>
         )}
         {error && (
-          <div className="flex items-start text-red-400 text-sm">
+          <div className="flex items-start text-pl-danger-text text-sm">
             <XCircle className="w-4 h-4 mr-2 mt-0.5 shrink-0" />{error}
           </div>
         )}
 
-        <div className="flex items-center gap-3 text-sm text-slate-300">
+        <div className="flex items-center gap-3 text-sm text-pl-text">
           <label className="flex items-center gap-2" title={`${v4Support?.ok ? 'Uses the older import path: it uploads while converting, keeps this dialog open and makes no display copy. ' : ''}Bricks store as scaled 16-bit integers with per-brick scaling: half the storage and egress. Quantization error is bounded by 1/65534 of each brick's own amplitude range; display and every computation still run in float32. Attribute volumes need a float32 parent.`}>
             <input
               type="checkbox"
@@ -775,7 +775,7 @@ export default function ImportPanel({
               : !crsChosen ? 'Choose the coordinate reference system of this file first'
                 : sanityBlocks ? 'The coordinates are implausible for the chosen CRS. Fix the choice or confirm the override.'
                   : undefined}
-            className="bg-cyan-600 hover:bg-cyan-500 text-white"
+            className="bg-pl-primary hover:bg-pl-primary-hover text-pl-primary-fg"
           >
             <Play className="w-4 h-4 mr-2" />
             Start import
@@ -808,10 +808,10 @@ export default function ImportPanel({
 
   if (frameless) return inner;
   return (
-    <Card className="bg-slate-900/60 border-slate-700">
+    <Card>
       <CardHeader>
-        <CardTitle className="text-white flex items-center">
-          <Upload className="w-5 h-5 mr-2 text-cyan-400" />
+        <CardTitle className="text-pl-text flex items-center">
+          <Upload className="w-5 h-5 mr-2 text-pl-primary-text" />
           Import SEG-Y volume
         </CardTitle>
       </CardHeader>

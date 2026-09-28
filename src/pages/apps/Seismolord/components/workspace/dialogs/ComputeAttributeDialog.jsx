@@ -26,7 +26,7 @@ export function paramValue(raw, p) {
   return Number.isFinite(n) ? n : p.default;
 }
 
-const selCls = 'mt-1 w-full rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-2 py-1 text-sm';
+const selCls = 'mt-1 w-full rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-2 py-1 text-sm';
 
 export default function ComputeAttributeDialog({
   open, onOpenChange, volume, manifest, onComputed, initialAttribute = null,
@@ -99,15 +99,15 @@ export default function ComputeAttributeDialog({
     <Dialog open={open} onOpenChange={(o) => { if (!busy) onOpenChange(o); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center text-white">
-            <Activity className="w-5 h-5 mr-2 text-cyan-400" />
+          <DialogTitle className="flex items-center text-pl-text">
+            <Activity className="w-5 h-5 mr-2 text-pl-primary-text" />
             Compute attribute volume
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-3 text-sm">
           <div className="grid grid-cols-2 gap-2">
             <label className="block col-span-2">
-              <span className="text-xs text-slate-400">Attribute</span>
+              <span className="text-xs text-pl-muted">Attribute</span>
               <select
                 value={attr}
                 onChange={(e) => { setAttr(e.target.value); setParamValues({}); }}
@@ -125,7 +125,7 @@ export default function ComputeAttributeDialog({
             </label>
             {paramDefs.map(([key, p]) => (
               <label key={key} className="block">
-                <span className="text-xs text-slate-400">{p.label}</span>
+                <span className="text-xs text-pl-muted">{p.label}</span>
                 <input
                   type="number"
                   min={p.min}
@@ -140,7 +140,7 @@ export default function ComputeAttributeDialog({
               </label>
             ))}
             <label className="block col-span-2">
-              <span className="text-xs text-slate-400">Volume name</span>
+              <span className="text-xs text-pl-muted">Volume name</span>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -152,10 +152,10 @@ export default function ComputeAttributeDialog({
           </div>
 
           {blocked && (
-            <p className="text-xs text-amber-300/90" data-testid="sl-attr-blocked">{blocked}</p>
+            <p className="text-xs text-pl-warning-text" data-testid="sl-attr-blocked">{blocked}</p>
           )}
 
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-pl-muted">
             Derived from “{volume?.name}” on the identical lattice
             {sizeText ? ` (~${sizeText} of brick storage, counted against your quota)` : ''}.
             Stored amplitudes of the parent are never modified.
@@ -163,13 +163,13 @@ export default function ComputeAttributeDialog({
 
           {busy && (
             <div className="space-y-1">
-              <div className="h-1.5 rounded bg-slate-800 overflow-hidden">
+              <div className="h-1.5 rounded bg-pl-sunken overflow-hidden">
                 <div
-                  className="h-full bg-cyan-500 transition-all"
+                  className="h-full bg-pl-primary transition-all"
                   style={{ width: `${pct ?? 0}%` }}
                 />
               </div>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-pl-muted">
                 {progress?.phase === 'upload'
                   ? `Uploading… ${progress.done} bricks`
                   : progress?.total

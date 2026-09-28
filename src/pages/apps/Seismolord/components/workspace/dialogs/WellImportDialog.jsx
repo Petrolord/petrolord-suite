@@ -20,8 +20,8 @@ export default function WellImportDialog({ open, onOpenChange, onSave }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center text-white">
-            <CircleDot className="w-5 h-5 mr-2 text-amber-400" />
+          <DialogTitle className="flex items-center text-pl-text">
+            <CircleDot className="w-5 h-5 mr-2 text-pl-warning-text" />
             Import well
           </DialogTitle>
         </DialogHeader>

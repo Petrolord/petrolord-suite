@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { buildTiePoints, fitWellTie, calibrationProvenance } from '../engine/wellTie';
 import { describeVelocity } from '../engine/velocityModel';
 
-const inputCls = 'rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
+const inputCls = 'rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs';
 
 /**
  * @param {Object} p
@@ -97,7 +97,7 @@ export default function WellTiePanel({
 
   if (!velocityModel) {
     return (
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-pl-muted">
         Save a velocity model first — calibration adjusts the CURRENT model’s
         velocities to match the well tops.
       </p>
@@ -105,7 +105,7 @@ export default function WellTiePanel({
   }
   if (!topNames.length) {
     return (
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-pl-muted">
         No tops on the visible wells — import tops (Wells panel) and toggle
         those wells visible to calibrate against them.
       </p>
@@ -114,7 +114,7 @@ export default function WellTiePanel({
 
   return (
     <div className="space-y-2" data-testid="welltie">
-      <div className="text-xs text-slate-400">
+      <div className="text-xs text-pl-muted">
         Pair tops with horizons; the fit adjusts
         {velocityModel.kind === 'layercake' ? ' each sampled layer’s V0 ' : ' V0 '}
         so converted horizon depths match the tops (least squares).
@@ -122,7 +122,7 @@ export default function WellTiePanel({
       </div>
       <div className="flex flex-wrap items-center gap-3">
         {topNames.map((name) => (
-          <label key={name} className="text-xs text-slate-400 flex items-center gap-1">
+          <label key={name} className="text-xs text-pl-muted flex items-center gap-1">
             {name} ↔
             <select
               className={inputCls}
@@ -138,8 +138,8 @@ export default function WellTiePanel({
           </label>
         ))}
         {velocityModel.kind === 'linear' && (
-          <label className="text-xs text-slate-400 flex items-center gap-1">
-            <input type="checkbox" className="accent-cyan-500" checked={fitK}
+          <label className="text-xs text-pl-muted flex items-center gap-1">
+            <input type="checkbox" className="accent-pl-primary" checked={fitK}
               onChange={(e) => setFitK(e.target.checked)} data-testid="welltie-fitk" />
             fit k too
           </label>
@@ -152,20 +152,20 @@ export default function WellTiePanel({
         </Button>
       </div>
 
-      {error && <div className="text-xs text-red-400" data-testid="welltie-error">{error}</div>}
+      {error && <div className="text-xs text-pl-danger-text" data-testid="welltie-error">{error}</div>}
 
       {result && (
-        <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-2 space-y-2"
+        <div className="rounded-lg border border-pl-border bg-pl-sunken/60 p-2 space-y-2"
           data-testid="welltie-result"
         >
-          <div className="text-xs text-slate-200">
+          <div className="text-xs text-pl-text">
             Proposed: <span data-testid="welltie-model">{describeVelocity(result.model)}</span>
-            <span className="text-slate-500" data-testid="welltie-rms">
+            <span className="text-pl-muted" data-testid="welltie-rms">
               {` — RMS ${result.rmsBeforeM.toFixed(1)} m → ${result.rmsAfterM.toFixed(1)} m`}
               {` (${result.residuals.length} ties)`}
             </span>
             {result.fittedLayers.some((f) => !f) && (
-              <span className="text-amber-400">
+              <span className="text-pl-warning-text">
                 {' '}· layers {result.fittedLayers
                   .map((f, i) => (!f ? i + 1 : null)).filter(Boolean).join(', ')}
                 {' '}not sampled by any tie — their V0 kept
@@ -173,9 +173,9 @@ export default function WellTiePanel({
             )}
           </div>
           <div className="overflow-x-auto">
-            <table className="text-xs text-slate-300 font-mono">
+            <table className="text-xs text-pl-text font-mono">
               <thead>
-                <tr className="text-slate-500">
+                <tr className="text-pl-muted">
                   <th className="pr-4 text-left">well</th>
                   <th className="pr-4 text-left">top</th>
                   <th className="pr-4 text-right">TWT ms</th>
@@ -192,7 +192,7 @@ export default function WellTiePanel({
                     <td className="pr-4 text-right">{r.twtMs.toFixed(1)}</td>
                     <td className="pr-4 text-right">{r.zTopM.toFixed(1)}</td>
                     <td className="pr-4 text-right">{r.beforeM.toFixed(1)}</td>
-                    <td className={`pr-4 text-right ${Math.abs(r.afterM) > 10 ? 'text-amber-400' : ''}`}>
+                    <td className={`pr-4 text-right ${Math.abs(r.afterM) > 10 ? 'text-pl-warning-text' : ''}`}>
                       {r.afterM.toFixed(1)}
                     </td>
                   </tr>
@@ -201,7 +201,7 @@ export default function WellTiePanel({
             </table>
           </div>
           <div className="flex items-center gap-2">
-            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-500 text-white"
+            <Button size="sm" className="bg-pl-primary hover:bg-pl-primary-hover text-pl-primary-fg"
               onClick={apply} disabled={applying} data-testid="welltie-apply"
             >
               {applying ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
@@ -210,7 +210,7 @@ export default function WellTiePanel({
             <Button variant="outline" size="sm" onClick={() => setResult(null)} disabled={applying}>
               Discard
             </Button>
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-pl-muted">
               nothing changes until applied
             </span>
           </div>

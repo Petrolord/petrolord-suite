@@ -22,22 +22,22 @@ const LINE_WIDTHS = [
   { value: 3, label: 'Extra heavy' },
 ];
 
-const selectCls = 'rounded-md bg-slate-950 border border-slate-700 '
-  + 'text-slate-200 px-1.5 py-1 text-xs';
-const inputCls = 'rounded-md bg-slate-950 border border-slate-700 '
-  + 'text-slate-200 px-2 py-1 text-xs w-24';
+const selectCls = 'rounded-md bg-pl-surface border border-pl-border-strong '
+  + 'text-pl-text px-1.5 py-1 text-xs';
+const inputCls = 'rounded-md bg-pl-surface border border-pl-border-strong '
+  + 'text-pl-text px-2 py-1 text-xs w-24';
 
 const SectionTitle = ({ children }) => (
-  <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mt-4 mb-2">
+  <h4 className="text-[11px] font-semibold uppercase tracking-wider text-pl-muted mt-4 mb-2">
     {children}
   </h4>
 );
 
 const FieldRow = ({ label, children, hint }) => (
   <div className="flex items-center gap-3 py-1">
-    <span className="w-36 shrink-0 text-xs text-slate-400">{label}</span>
+    <span className="w-36 shrink-0 text-xs text-pl-muted">{label}</span>
     {children}
-    {hint && <span className="text-[11px] text-slate-600">{hint}</span>}
+    {hint && <span className="text-[11px] text-pl-muted">{hint}</span>}
   </div>
 );
 
@@ -66,14 +66,14 @@ export default function HorizonSettingsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center text-white">
+          <DialogTitle className="flex items-center text-pl-text">
             <Layers className="w-5 h-5 mr-2" style={{ color: display.color || '#22d3ee' }} />
             Horizon settings
-            {saving && <span className="ml-3 text-xs font-normal text-slate-500">saving…</span>}
+            {saving && <span className="ml-3 text-xs font-normal text-pl-muted">saving…</span>}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="text-sm text-slate-300">
+        <div className="text-sm text-pl-text">
           <SectionTitle>Horizon</SectionTitle>
           <FieldRow label="Name">
             <input
@@ -95,7 +95,7 @@ export default function HorizonSettingsDialog({
               Rename
             </Button>
           </FieldRow>
-          <p className="text-[11px] text-slate-500 pl-[9.75rem]">
+          <p className="text-[11px] text-pl-muted pl-[9.75rem]">
             {stats.coverage != null && `${Math.round(stats.coverage * 100)}% coverage`}
             {stats.tracked != null && ` · ${Number(stats.tracked).toLocaleString()} picks`}
             {stats.min_twt_ms != null
@@ -111,18 +111,18 @@ export default function HorizonSettingsDialog({
                   type="button"
                   title={c}
                   aria-label={`Color ${c}`}
-                  className="w-6 h-6 rounded border border-slate-600 flex items-center justify-center"
+                  className="w-6 h-6 rounded border border-pl-border-strong flex items-center justify-center"
                   style={{ background: c }}
                   onClick={() => onChange({ color: c })}
                 >
-                  {display.color === c && <Check className="w-3.5 h-3.5 text-slate-950" />}
+                  {display.color === c && <Check className="w-3.5 h-3.5 text-pl-accent-fg" />}
                 </button>
               ))}
               <input
                 type="color"
                 title="Custom color"
                 aria-label="Custom color"
-                className="w-8 h-6 rounded border border-slate-600 bg-transparent cursor-pointer"
+                className="w-8 h-6 rounded border border-pl-border-strong bg-transparent cursor-pointer"
                 value={display.color || '#22d3ee'}
                 onChange={(e) => onChange({ color: e.target.value })}
               />
@@ -147,12 +147,12 @@ export default function HorizonSettingsDialog({
               min="10"
               max="100"
               step="5"
-              className="w-40 accent-cyan-400"
+              className="w-40 accent-pl-primary"
               value={Math.round((display.lineOpacity ?? 1) * 100)}
               onChange={(e) => onChange({ lineOpacity: Number(e.target.value) / 100 })}
               aria-label="Line opacity"
             />
-            <span className="text-xs text-slate-400 w-10">
+            <span className="text-xs text-pl-muted w-10">
               {`${Math.round((display.lineOpacity ?? 1) * 100)}%`}
             </span>
           </FieldRow>
@@ -177,20 +177,20 @@ export default function HorizonSettingsDialog({
               min="10"
               max="100"
               step="5"
-              className="w-40 accent-cyan-400"
+              className="w-40 accent-pl-primary"
               value={Math.round((display.opacity ?? 1) * 100)}
               onChange={(e) => onChange({ opacity: Number(e.target.value) / 100 })}
               aria-label="Fill opacity"
             />
-            <span className="text-xs text-slate-400 w-10">
+            <span className="text-xs text-pl-muted w-10">
               {`${Math.round((display.opacity ?? 1) * 100)}%`}
             </span>
           </FieldRow>
           <FieldRow label="Contours">
-            <label className="flex items-center gap-2 text-xs text-slate-300">
+            <label className="flex items-center gap-2 text-xs text-pl-text">
               <input
                 type="checkbox"
-                className="accent-cyan-400"
+                className="accent-pl-primary"
                 checked={display.contours !== false}
                 onChange={(e) => onChange({ contours: e.target.checked })}
                 aria-label="Show contours"
@@ -246,7 +246,7 @@ export default function HorizonSettingsDialog({
               </>
             )}
           </FieldRow>
-          <p className="text-[11px] text-slate-500 mt-1">
+          <p className="text-[11px] text-pl-muted mt-1">
             Contour interval and color range are in the map's display unit
             (ms TWT, or m / ft when a depth domain is selected). Values
             outside a manual range clamp to its ends.

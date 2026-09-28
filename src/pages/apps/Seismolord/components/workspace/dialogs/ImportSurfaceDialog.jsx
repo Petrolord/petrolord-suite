@@ -418,33 +418,33 @@ export default function ImportSurfaceDialog({
     >
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center text-white">
-            <FileUp className="w-5 h-5 mr-2 text-cyan-400" />
+          <DialogTitle className="flex items-center text-pl-text">
+            <FileUp className="w-5 h-5 mr-2 text-pl-primary-text" />
             Import horizons, faults or surfaces
           </DialogTitle>
         </DialogHeader>
 
         {!volume && (
-          <p className="text-sm text-slate-400">Select a volume in the viewer first.</p>
+          <p className="text-sm text-pl-muted">Select a volume in the viewer first.</p>
         )}
         {volume && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-slate-300">File</Label>
+                <Label className="text-pl-text">File</Label>
                 <Input
                   ref={fileRef}
                   type="file"
                   data-testid="sl-import-file"
-                  className="mt-1 bg-slate-950 border-slate-700 text-slate-200 file:text-slate-300"
+                  className="mt-1 bg-pl-surface border-pl-border-strong text-pl-text file:text-pl-text"
                   onChange={onFile}
                 />
               </div>
               <div>
-                <Label className="text-slate-300">Import as</Label>
+                <Label className="text-pl-text">Import as</Label>
                 <select
                   data-testid="sl-import-kind"
-                  className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
+                  className="w-full mt-1 rounded-md bg-pl-surface border border-pl-border-strong text-pl-text p-2 text-sm"
                   value={kind}
                   onChange={(e) => onPickKind(e.target.value)}
                 >
@@ -456,13 +456,13 @@ export default function ImportSurfaceDialog({
             </div>
 
             {suggestion && (
-              <div className="text-xs text-slate-400" data-testid="sl-import-suggestion">
+              <div className="text-xs text-pl-muted" data-testid="sl-import-suggestion">
                 {suggestionDiffers ? (
-                  <span className="text-amber-300">
+                  <span className="text-pl-warning-text">
                     {`This file looks like ${suggestion.reason}. `}
                     <button
                       type="button"
-                      className="underline hover:text-amber-200"
+                      className="underline hover:text-pl-warning-text"
                       onClick={() => onPickKind(suggestion.kind)}
                     >
                       {`Import it as ${KIND_LABELS[suggestion.kind]}`}
@@ -475,12 +475,12 @@ export default function ImportSurfaceDialog({
             {text && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-slate-300" title="Detected from the content; choose a format to override the detection">
+                  <Label className="text-pl-text" title="Detected from the content; choose a format to override the detection">
                     Format
                   </Label>
                   <select
                     data-testid="sl-import-readas"
-                    className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
+                    className="w-full mt-1 rounded-md bg-pl-surface border border-pl-border-strong text-pl-text p-2 text-sm"
                     value={readAs}
                     onChange={(e) => { setReadAs(e.target.value); setMapping(null); setInclude(null); }}
                   >
@@ -503,7 +503,7 @@ export default function ImportSurfaceDialog({
             )}
 
             {read.error && (
-              <div className="flex items-start text-red-400 text-sm" data-testid="sl-import-read-error">
+              <div className="flex items-start text-pl-danger-text text-sm" data-testid="sl-import-read-error">
                 <XCircle className="w-4 h-4 mr-2 mt-0.5 shrink-0" />{read.error}
               </div>
             )}
@@ -514,7 +514,7 @@ export default function ImportSurfaceDialog({
             {preview && (
               <>
                 <div
-                  className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-sm text-slate-300"
+                  className="rounded-lg border border-pl-border bg-pl-sunken/60 p-3 text-sm text-pl-text"
                   data-testid="sl-import-preview"
                 >
                   {previewLine}
@@ -527,13 +527,13 @@ export default function ImportSurfaceDialog({
                   />
                 )}
                 {multi && (
-                  <div className="rounded-lg border border-cyan-800/50 bg-cyan-950/20 p-3 text-sm" data-testid="sl-import-multi">
-                    <p className="text-cyan-200">
+                  <div className="rounded-lg border border-pl-primary/50 bg-pl-primary/10 p-3 text-sm" data-testid="sl-import-multi">
+                    <p className="text-pl-primary-text">
                       {`This file holds ${horizonsInFile.length} horizons. Each ticked one is imported as its own horizon, named as in the file.`}
                     </p>
                     <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-1">
                       {horizonsInFile.map((h) => (
-                        <label key={h.name} className="flex items-center gap-2 text-slate-300">
+                        <label key={h.name} className="flex items-center gap-2 text-pl-text">
                           <input
                             type="checkbox"
                             checked={!include || include.has(h.name)}
@@ -545,34 +545,34 @@ export default function ImportSurfaceDialog({
                             }}
                           />
                           <span className="truncate">{h.name}</span>
-                          <span className="text-slate-500 text-xs">{`${h.rows.length.toLocaleString()} points`}</span>
+                          <span className="text-pl-muted text-xs">{`${h.rows.length.toLocaleString()} points`}</span>
                         </label>
                       ))}
                     </div>
                   </div>
                 )}
                 {kind === 'faults' && preview.faults.length > 1 && (
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-pl-muted">
                     {`${preview.faults.length} faults in the file (${preview.faults.map((f) => f.name).join(', ')}); each is saved as its own fault.`}
                   </p>
                 )}
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {!multi && !(kind === 'faults' && preview.faults.length > 1) && (
                     <div className={kind === 'surface' ? '' : 'col-span-2'}>
-                      <Label className="text-slate-300">Name</Label>
+                      <Label className="text-pl-text">Name</Label>
                       <Input
                         value={name}
                         data-testid="sl-import-name"
-                        className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
+                        className="mt-1 bg-pl-surface border-pl-border-strong text-pl-text"
                         onChange={(e) => setName(e.target.value)}
                       />
                     </div>
                   )}
                   {kind === 'surface' && (
                     <div>
-                      <Label className="text-slate-300">Domain</Label>
+                      <Label className="text-pl-text">Domain</Label>
                       <select
-                        className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
+                        className="w-full mt-1 rounded-md bg-pl-surface border border-pl-border-strong text-pl-text p-2 text-sm"
                         value={domain}
                         onChange={(e) => setDomain(e.target.value)}
                       >
@@ -582,9 +582,9 @@ export default function ImportSurfaceDialog({
                     </div>
                   )}
                   <div className="col-span-2 md:col-span-3">
-                    <Label className="text-slate-300">File CRS</Label>
+                    <Label className="text-pl-text">File CRS</Label>
                     <div className="mt-1 grid grid-cols-[auto,1fr] items-center gap-2">
-                      <label className="text-xs text-slate-400 flex items-center gap-1.5">
+                      <label className="text-xs text-pl-muted flex items-center gap-1.5">
                         <input
                           type="checkbox"
                           checked={!fileCrs}
@@ -601,25 +601,25 @@ export default function ImportSurfaceDialog({
                       )}
                     </div>
                     {needsConvert && (
-                      <div className="mt-1 text-xs text-cyan-300">
+                      <div className="mt-1 text-xs text-pl-primary-text">
                         The data will be converted from {declaredTag} into the volume frame ({volumeTag}) before it lands.
                       </div>
                     )}
                     {convertBlocked && (
-                      <div className="mt-1 text-xs text-amber-300">
+                      <div className="mt-1 text-xs text-pl-warning-text">
                         The volume has no usable CRS to convert into. Assign the volume CRS first, or import the file as being in the volume frame.
                       </div>
                     )}
                   </div>
                   <div>
                     <Label
-                      className="text-slate-300"
+                      className="text-pl-text"
                       title="Petrolord stores Z negative downward; Petrel files usually carry positive-down values"
                     >
                       Z sign
                     </Label>
                     <select
-                      className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
+                      className="w-full mt-1 rounded-md bg-pl-surface border border-pl-border-strong text-pl-text p-2 text-sm"
                       value={zSign}
                       onChange={(e) => setZSign(e.target.value)}
                     >
@@ -640,7 +640,7 @@ export default function ImportSurfaceDialog({
                 onClick={doImport}
                 data-testid="sl-import-go"
                 disabled={!preview || busy || (kind !== 'surface' && !manifest) || (multi && !chosen.length)}
-                className="bg-cyan-600 hover:bg-cyan-500 text-white"
+                className="bg-pl-primary hover:bg-pl-primary-hover text-pl-primary-fg"
               >
                 {busy
                   ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -648,13 +648,13 @@ export default function ImportSurfaceDialog({
                 {importLabel}
               </Button>
               {error && (
-                <div className="flex items-start text-red-400 text-sm" data-testid="sl-import-error">
+                <div className="flex items-start text-pl-danger-text text-sm" data-testid="sl-import-error">
                   <XCircle className="w-4 h-4 mr-2 mt-0.5 shrink-0" />{error}
                 </div>
               )}
             </div>
 
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-pl-muted">
               {kind === 'surface'
                 && 'Any file name or extension: the content decides. XYZ points on a regular '
                   + 'lattice, CPS-3, ZMAP+ or Irap classic. Scattered points are refused here (import them '

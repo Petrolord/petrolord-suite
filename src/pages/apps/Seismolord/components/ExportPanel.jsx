@@ -349,15 +349,15 @@ export default function ExportPanel({
   const inner = (
     <div className="space-y-4">
         {!volume && (
-          <p className="text-sm text-slate-400">Select a volume in the viewer first.</p>
+          <p className="text-sm text-pl-muted">Select a volume in the viewer first.</p>
         )}
         {volume && (
           <>
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
               <div className="col-span-2">
-                <Label className="text-slate-300">Horizon</Label>
+                <Label className="text-pl-text">Horizon</Label>
                 <select
-                  className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
+                  className="w-full mt-1 rounded-md bg-pl-surface border border-pl-border-strong text-pl-text p-2 text-sm"
                   value={horizonId}
                   onChange={(e) => setHorizonId(e.target.value)}
                 >
@@ -367,13 +367,13 @@ export default function ExportPanel({
               </div>
               <div>
                 <Label
-                  className="text-slate-300"
+                  className="text-pl-text"
                   title="Surface = structure gridded from the picks; Amplitude = seismic attribute along the horizon; Picks = the interpretation itself (one row per live pick)"
                 >
                   Export
                 </Label>
                 <select
-                  className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
+                  className="w-full mt-1 rounded-md bg-pl-surface border border-pl-border-strong text-pl-text p-2 text-sm"
                   value={objectKind}
                   onChange={(e) => setObjectKind(e.target.value)}
                 >
@@ -387,13 +387,13 @@ export default function ExportPanel({
               {isAmp && (
                 <div>
                   <Label
-                    className="text-slate-300"
+                    className="text-pl-text"
                     title="At-horizon attributes run around the pick; interval attributes run over every sample between this horizon and a second one; isofrequency reads the spectral amplitude at one frequency in a window about the pick"
                   >
                     Attribute
                   </Label>
                   <select
-                    className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
+                    className="w-full mt-1 rounded-md bg-pl-surface border border-pl-border-strong text-pl-text p-2 text-sm"
                     value={ampMode}
                     onChange={(e) => setAmpMode(e.target.value)}
                   >
@@ -416,11 +416,11 @@ export default function ExportPanel({
               )}
               {isAmp && (isInterval || isStratal) && (
                 <div>
-                  <Label className="text-slate-300" title={isStratal ? 'The slice sits a fraction of the way from this horizon to the one picked above' : 'The statistic runs from this horizon to the one picked above, whichever is shallower'}>
+                  <Label className="text-pl-text" title={isStratal ? 'The slice sits a fraction of the way from this horizon to the one picked above' : 'The statistic runs from this horizon to the one picked above, whichever is shallower'}>
                     Second horizon
                   </Label>
                   <select
-                    className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
+                    className="w-full mt-1 rounded-md bg-pl-surface border border-pl-border-strong text-pl-text p-2 text-sm"
                     value={horizonBId}
                     onChange={(e) => setHorizonBId(e.target.value)}
                   >
@@ -433,46 +433,46 @@ export default function ExportPanel({
               )}
               {isAmp && isStratal && (
                 <div>
-                  <Label className="text-slate-300" title="0 reads the amplitude on this horizon, 1 on the second horizon, 0.5 halfway between them at every trace (proportional slicing)">
+                  <Label className="text-pl-text" title="0 reads the amplitude on this horizon, 1 on the second horizon, 0.5 halfway between them at every trace (proportional slicing)">
                     Fraction towards the second horizon
                   </Label>
                   <Input
                     type="number" value={fraction} min="0" max="1" step="0.05"
                     data-testid="sl-export-fraction"
-                    className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
+                    className="mt-1 bg-pl-surface border-pl-border-strong text-pl-text"
                     onChange={(e) => setFraction(Math.min(1, Math.max(0, Number(e.target.value) || 0)))}
                   />
                 </div>
               )}
               {isAmp && isIso && (
                 <div>
-                  <Label className="text-slate-300" title="Spectral amplitude is read at this frequency (Hann-tapered window about the pick)">
+                  <Label className="text-pl-text" title="Spectral amplitude is read at this frequency (Hann-tapered window about the pick)">
                     Frequency (Hz)
                   </Label>
                   <Input
                     type="number" value={freqHz} min="1" step="1"
-                    className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
+                    className="mt-1 bg-pl-surface border-pl-border-strong text-pl-text"
                     onChange={(e) => setFreqHz(Number(e.target.value) || 30)}
                   />
                 </div>
               )}
               {isAmp && (ampMeta?.windowed || isIso) && (
                 <div>
-                  <Label className="text-slate-300" title="Half-width of the window, in samples either side of the pick">
+                  <Label className="text-pl-text" title="Half-width of the window, in samples either side of the pick">
                     Window (± samples)
                   </Label>
                   <Input
                     type="number" value={ampWindow} min={isIso ? '2' : '0'} step="1"
-                    className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
+                    className="mt-1 bg-pl-surface border-pl-border-strong text-pl-text"
                     onChange={(e) => setAmpWindow(Number(e.target.value))}
                   />
                 </div>
               )}
               {!isAmp && (
                 <div>
-                  <Label className="text-slate-300">Domain</Label>
+                  <Label className="text-pl-text">Domain</Label>
                   <select
-                    className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
+                    className="w-full mt-1 rounded-md bg-pl-surface border border-pl-border-strong text-pl-text p-2 text-sm"
                     value={domain}
                     onChange={(e) => setDomain(e.target.value)}
                   >
@@ -483,13 +483,13 @@ export default function ExportPanel({
               )}
               {!isAmp && (
                 <div>
-                  <Label className="text-slate-300">
+                  <Label className="text-pl-text">
                     {model ? 'Velocity (volume model)' : 'Velocity ft/s'}
                   </Label>
                   {model ? (
                     <div
-                      className="mt-1 rounded-md bg-slate-950 border border-slate-700
-                        text-slate-400 p-2 text-sm truncate"
+                      className="mt-1 rounded-md bg-pl-surface border border-pl-border-strong
+                        text-pl-muted p-2 text-sm truncate"
                       title="Set in the viewer's velocity model controls; clear it there to use a constant"
                     >
                       {describeVelocity(model)}
@@ -497,7 +497,7 @@ export default function ExportPanel({
                   ) : (
                     <Input
                       type="number" value={velocity} min="1000" step="100"
-                      className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
+                      className="mt-1 bg-pl-surface border-pl-border-strong text-pl-text"
                       onChange={(e) => setVelocity(Number(e.target.value))}
                       disabled={domain !== 'depth'}
                     />
@@ -506,19 +506,19 @@ export default function ExportPanel({
               )}
               {!isPicks && (
                 <div>
-                  <Label className="text-slate-300">Cell (m, 0=bin)</Label>
+                  <Label className="text-pl-text">Cell (m, 0=bin)</Label>
                   <Input
                     type="number" value={cell} min="0" step="5"
-                    className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
+                    className="mt-1 bg-pl-surface border-pl-border-strong text-pl-text"
                     onChange={(e) => setCell(Number(e.target.value))}
                   />
                 </div>
               )}
               <div>
-                <Label className="text-slate-300">Format</Label>
+                <Label className="text-pl-text">Format</Label>
                 {isPicks ? (
                   <select
-                    className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
+                    className="w-full mt-1 rounded-md bg-pl-surface border border-pl-border-strong text-pl-text p-2 text-sm"
                     value={pickFormat}
                     onChange={(e) => setPickFormat(e.target.value)}
                   >
@@ -528,7 +528,7 @@ export default function ExportPanel({
                   </select>
                 ) : (
                   <select
-                    className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
+                    className="w-full mt-1 rounded-md bg-pl-surface border border-pl-border-strong text-pl-text p-2 text-sm"
                     value={format}
                     onChange={(e) => setFormat(e.target.value)}
                   >
@@ -539,13 +539,13 @@ export default function ExportPanel({
               {isPicks && (
                 <div>
                   <Label
-                    className="text-slate-300"
+                    className="text-pl-text"
                     title="The suite convention is Z negative downward; Petrel's Charisma import conventionally expects positive-down values"
                   >
                     Z sign
                   </Label>
                   <select
-                    className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
+                    className="w-full mt-1 rounded-md bg-pl-surface border border-pl-border-strong text-pl-text p-2 text-sm"
                     value={zSign}
                     onChange={(e) => setZSign(e.target.value)}
                   >
@@ -560,7 +560,7 @@ export default function ExportPanel({
               <Button
                 onClick={() => runExport('download')}
                 disabled={!horizonId || running}
-                className="bg-cyan-600 hover:bg-cyan-500 text-white"
+                className="bg-pl-primary hover:bg-pl-primary-hover text-pl-primary-fg"
               >
                 {running
                   ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -572,7 +572,7 @@ export default function ExportPanel({
                   onClick={() => runExport('registry')}
                   disabled={!horizonId || running}
                   variant="outline"
-                  className="border-cyan-600/60 text-cyan-300 hover:bg-cyan-950/40"
+                  className="border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10"
                   title={isAmp
                     ? 'Extract the attribute and keep the map as a first-class attribute surface (explorer Surfaces section + Mapping & Surface Studio; map display only)'
                     : 'Grid the picks and keep the result as a first-class surface (explorer Surfaces section + Mapping & Surface Studio)'}
@@ -586,7 +586,7 @@ export default function ExportPanel({
                   onClick={() => runExport('rcp')}
                   disabled={!horizonId || running}
                   variant="outline"
-                  className="border-emerald-600/60 text-emerald-300 hover:bg-emerald-950/40"
+                  className="border-pl-success/60 text-pl-success-text hover:bg-pl-success-bg"
                 >
                   <Send className="w-4 h-4 mr-2" />
                   Send to ReservoirCalc Pro
@@ -604,14 +604,14 @@ export default function ExportPanel({
               )}
               {!isPicks && !isAmp && faults.length > 0 && (
                 <label
-                  className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer select-none"
+                  className="flex items-center gap-2 text-sm text-pl-text cursor-pointer select-none"
                   title="Interpolation will not cross faults that cut this horizon; nodes on the fault trace stay null"
                 >
                   <input
                     type="checkbox"
                     checked={faultAware}
                     onChange={(e) => setFaultAware(e.target.checked)}
-                    className="accent-cyan-500"
+                    className="accent-pl-primary"
                   />
                   Fault-aware ({faults.length} fault{faults.length > 1 ? 's' : ''})
                 </label>
@@ -619,35 +619,35 @@ export default function ExportPanel({
               {!isPicks && !isAmp && (
                 <div className="flex items-center gap-2">
                   <Label
-                    className="text-slate-300 text-sm"
+                    className="text-pl-text text-sm"
                     title="Nodes farther than this from any pick stay null — with fault blocking on, this bounds how far a block extrapolates toward the fault"
                   >
                     Max extrap. (m, 0=2×cell)
                   </Label>
                   <Input
                     type="number" value={maxExtra} min="0" step="10"
-                    className="w-24 bg-slate-950 border-slate-700 text-slate-200"
+                    className="w-24 bg-pl-surface border-pl-border-strong text-pl-text"
                     onChange={(e) => setMaxExtra(Number(e.target.value))}
                   />
                 </div>
               )}
               {!isPicks && !isAmp && (
                 <div className="flex items-center gap-2">
-                  <Label className="text-slate-300 text-sm">Contact (ft, optional)</Label>
+                  <Label className="text-pl-text text-sm">Contact (ft, optional)</Label>
                   <Input
                     type="number" value={contact} placeholder="-6200" step="10"
-                    className="w-28 bg-slate-950 border-slate-700 text-slate-200"
+                    className="w-28 bg-pl-surface border-pl-border-strong text-pl-text"
                     onChange={(e) => setContact(e.target.value)}
                     disabled={domain !== 'depth'}
                   />
-                  <span className="text-xs text-slate-500">for GRV readout</span>
+                  <span className="text-xs text-pl-muted">for GRV readout</span>
                 </div>
               )}
             </div>
 
             {!isPicks && !isAmp && faultAware && faults.length > 1 && (
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pl-1 text-sm text-slate-400">
-                <span className="text-xs text-slate-500">Faults included:</span>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pl-1 text-sm text-pl-muted">
+                <span className="text-xs text-pl-muted">Faults included:</span>
                 {faults.map((f) => (
                   <label key={f.id} className="flex items-center gap-1.5 cursor-pointer select-none">
                     <input
@@ -659,7 +659,7 @@ export default function ExportPanel({
                         else next.add(f.id);
                         return next;
                       })}
-                      className="accent-cyan-500"
+                      className="accent-pl-primary"
                     />
                     {f.name}
                   </label>
@@ -668,25 +668,25 @@ export default function ExportPanel({
             )}
 
             {result && (
-              <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-sm text-slate-300 grid grid-cols-2 md:grid-cols-4 gap-y-1">
-                <div>File: <span className="text-white">{result.fileName}</span></div>
+              <div className="rounded-lg border border-pl-border bg-pl-sunken/60 p-3 text-sm text-pl-text grid grid-cols-2 md:grid-cols-4 gap-y-1">
+                <div>File: <span className="text-pl-text">{result.fileName}</span></div>
                 <div>
                   {result.controlCount != null || result.isAmp ? 'Live nodes' : 'Picks'}:{' '}
-                  <span className="text-white">{result.live.toLocaleString()}</span>
+                  <span className="text-pl-text">{result.live.toLocaleString()}</span>
                 </div>
                 <div>
-                  {result.isAmp ? 'Amp range' : 'Z range'}: <span className="text-white">
+                  {result.isAmp ? 'Amp range' : 'Z range'}: <span className="text-pl-text">
                     {result.zMin?.toFixed(result.isAmp ? 4 : 1)} … {result.zMax?.toFixed(result.isAmp ? 4 : 1)}
                   </span>
                 </div>
                 {result.grv != null && (
-                  <div>GRV: <span className="text-emerald-300">
+                  <div>GRV: <span className="text-pl-success-text">
                     {result.grv.toLocaleString('en-US', { maximumFractionDigits: 0 })} acre-ft
                   </span>
                   </div>
                 )}
                 {result.faultInfo && (
-                  <div>Fault blocks: <span className="text-white">
+                  <div>Fault blocks: <span className="text-pl-text">
                     {result.faultInfo.blocks}
                   </span> ({result.faultInfo.traces} fault trace{result.faultInfo.traces > 1 ? 's' : ''})
                   </div>
@@ -694,11 +694,11 @@ export default function ExportPanel({
               </div>
             )}
             {error && (
-              <div className="flex items-start text-red-400 text-sm">
+              <div className="flex items-start text-pl-danger-text text-sm">
                 <XCircle className="w-4 h-4 mr-2 mt-0.5 shrink-0" />{error}
               </div>
             )}
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-pl-muted">
               {isAmp
                 ? 'Amplitude export extracts the seismic attribute along the horizon '
                   + '(parabolic value at the sub-sample pick, or a windowed statistic '
@@ -732,10 +732,10 @@ export default function ExportPanel({
 
   if (frameless) return inner;
   return (
-    <Card className="bg-slate-900/60 border-slate-700">
+    <Card>
       <CardHeader>
-        <CardTitle className="text-white flex items-center">
-          <Grid3X3 className="w-5 h-5 mr-2 text-cyan-400" />
+        <CardTitle className="text-pl-text flex items-center">
+          <Grid3X3 className="w-5 h-5 mr-2 text-pl-primary-text" />
           Grid &amp; export surface
         </CardTitle>
       </CardHeader>

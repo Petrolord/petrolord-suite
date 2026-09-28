@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { buildTestBricks } from './viewer/selfTest';
 import CubeView from './components/CubeView';
 
@@ -59,7 +60,7 @@ export default function SeismolordCubeViewHarness() {
   }, []);
 
   return (
-    <div style={{ padding: 12, background: '#0b1220', minHeight: '100vh' }}>
+    <ThemedApp style={{ padding: 12, minHeight: '100vh' }}>
       <div
         data-testid="harness-status"
         data-harness-status={ready ? 'ready' : 'loading'}
@@ -104,6 +105,6 @@ export default function SeismolordCubeViewHarness() {
           height={480}
         />
       </div>
-    </div>
+    </ThemedApp>
   );
 }

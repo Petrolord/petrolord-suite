@@ -9,9 +9,9 @@ import {
 } from 'lucide-react';
 import { PLAY_SPEEDS, surveyUnitLabel } from '../../lib/sliceNav';
 
-const inputCls = `rounded-md bg-slate-950 border border-slate-700 text-slate-200
+const inputCls = `rounded-md bg-pl-surface border border-pl-border-strong text-pl-text
   px-1.5 py-1 text-xs disabled:opacity-40`;
-const iconBtn = `p-1 rounded border border-slate-700 text-slate-300 hover:bg-slate-800
+const iconBtn = `p-1 rounded border border-pl-border text-pl-text hover:bg-pl-sunken
   disabled:opacity-40 disabled:cursor-not-allowed`;
 
 /**
@@ -50,7 +50,7 @@ export default function SlicePlayerControls({
   return (
     <div className="flex items-end gap-1.5" data-testid="sl-player">
       <label
-        className="flex flex-col gap-0.5 text-[10px] text-slate-500"
+        className="flex flex-col gap-0.5 text-[10px] text-pl-muted"
         title={`Step size: move every Nth ${orientation === 'time' ? 'sample' : 'line'} with the arrows, Shift+wheel, the step buttons and the player`}
       >
         {`Step (${stepWord})`}
@@ -68,7 +68,7 @@ export default function SlicePlayerControls({
         />
       </label>
       <label
-        className="flex flex-col gap-0.5 text-[10px] text-slate-500"
+        className="flex flex-col gap-0.5 text-[10px] text-pl-muted"
         title={orientation === 'time'
           ? 'Type a time in ms and press Enter to jump to that time slice'
           : `Type an ${unit} number and press Enter to jump straight to it`}
@@ -85,7 +85,7 @@ export default function SlicePlayerControls({
             onChange={(e) => { setGoText(e.target.value); setGoError(false); }}
             onKeyDown={(e) => { if (e.key === 'Enter') goTo(); }}
             aria-invalid={goError}
-            className={`${inputCls} w-16 ${goError ? 'border-red-500' : ''}`}
+            className={`${inputCls} w-16 ${goError ? 'border-pl-danger' : ''}`}
           />
           <button
             type="button"
@@ -99,7 +99,7 @@ export default function SlicePlayerControls({
           </button>
         </span>
       </label>
-      <div className="flex flex-col gap-0.5 text-[10px] text-slate-500">
+      <div className="flex flex-col gap-0.5 text-[10px] text-pl-muted">
         Player
         <span className="flex items-center gap-0.5">
           <button
@@ -114,7 +114,7 @@ export default function SlicePlayerControls({
           </button>
           <button
             type="button"
-            className={`${iconBtn} ${player.playing ? 'border-cyan-500 text-cyan-300' : ''}`}
+            className={`${iconBtn} ${player.playing ? 'border-pl-primary text-pl-primary-text' : ''}`}
             data-testid="sl-play"
             onClick={player.toggle}
             disabled={disabled}

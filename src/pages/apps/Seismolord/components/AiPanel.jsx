@@ -282,7 +282,7 @@ export default function AiPanel({ volume, manifest, docked }) {
         ? 'flex-1 min-h-0' : 'max-h-72'}`}
     >
             {chat.length === 0 && (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-pl-muted">
                 Try: “Summarise the open volume”, “List my horizons”,
                 “Autotrack a horizon at IL 16, XL 116, 110 ms named Top Dome”,
                 or “Grid Top Dome in depth with a −6200 ft contact and send it
@@ -293,17 +293,17 @@ export default function AiPanel({ volume, manifest, docked }) {
               <div
                 key={i}
                 className={`text-sm rounded-lg px-3 py-2 whitespace-pre-wrap ${
-                  m.who === 'user' ? 'bg-cyan-950/40 text-cyan-100 ml-8'
-                    : m.who === 'ai' ? 'bg-slate-950/70 text-slate-200 mr-8'
-                      : m.who === 'tool' ? 'text-slate-500 text-xs italic'
-                        : 'bg-red-950/40 text-red-300'
+                  m.who === 'user' ? 'bg-pl-primary/10 text-pl-primary-text ml-8'
+                    : m.who === 'ai' ? 'bg-pl-sunken/70 text-pl-text mr-8'
+                      : m.who === 'tool' ? 'text-pl-muted text-xs italic'
+                        : 'bg-pl-danger-bg text-pl-danger-text'
                 }`}
               >
                 {m.text}
               </div>
             ))}
             {busy && (
-              <div className="flex items-center text-slate-400 text-sm">
+              <div className="flex items-center text-pl-muted text-sm">
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 {status || 'Thinking…'}
               </div>
@@ -316,12 +316,12 @@ export default function AiPanel({ volume, manifest, docked }) {
       <Input
         value={input}
         placeholder={volume ? `Ask about ${volume.name}…` : 'Open a volume in the viewer first…'}
-        className="bg-slate-950 border-slate-700 text-slate-200"
+        className="bg-pl-surface border-pl-border-strong text-pl-text"
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
         disabled={busy}
       />
-      <Button onClick={send} disabled={busy || !input.trim()} className="bg-cyan-600 hover:bg-cyan-500 text-white">
+      <Button onClick={send} disabled={busy || !input.trim()} className="bg-pl-primary hover:bg-pl-primary-hover text-pl-primary-fg">
         <Send className="w-4 h-4" />
       </Button>
     </div>
@@ -330,7 +330,7 @@ export default function AiPanel({ volume, manifest, docked }) {
   if (docked) {
     return (
       <div className="h-full min-h-0 flex flex-col gap-3 p-3">
-        <p className="text-[11px] text-slate-500 shrink-0">
+        <p className="text-[11px] text-pl-muted shrink-0">
           asks before it acts on your data · tools run in your browser
         </p>
         {chatList}
@@ -340,19 +340,19 @@ export default function AiPanel({ volume, manifest, docked }) {
   }
 
   return (
-    <Card className="bg-slate-900/60 border-slate-700">
+    <Card>
       <CardHeader
         className="flex flex-row items-center justify-between space-y-0 cursor-pointer"
         onClick={() => setOpenPanel((o) => !o)}
       >
-        <CardTitle className="text-white flex items-center">
-          <Sparkles className="w-5 h-5 mr-2 text-cyan-400" />
+        <CardTitle className="text-pl-text flex items-center">
+          <Sparkles className="w-5 h-5 mr-2 text-pl-primary-text" />
           Interpretation copilot
-          <span className="ml-3 text-xs font-normal text-slate-500">
+          <span className="ml-3 text-xs font-normal text-pl-muted">
             asks before it acts on your data · tools run in your browser
           </span>
         </CardTitle>
-        {openPanel ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+        {openPanel ? <ChevronUp className="w-4 h-4 text-pl-muted" /> : <ChevronDown className="w-4 h-4 text-pl-muted" />}
       </CardHeader>
       {openPanel && (
         <CardContent className="space-y-3">

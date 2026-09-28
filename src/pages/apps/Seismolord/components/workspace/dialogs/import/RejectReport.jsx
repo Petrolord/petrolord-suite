@@ -20,12 +20,12 @@ export default function RejectReport({ rejects, count, read }) {
   const shown = rejects.slice(0, PREVIEW_ROWS);
   return (
     <div
-      className="rounded-lg border border-amber-700/50 bg-amber-950/20 text-sm"
+      className="rounded-lg border border-pl-warning/50 bg-pl-warning-bg text-sm"
       data-testid="sl-import-rejects"
     >
       <button
         type="button"
-        className="w-full flex items-center gap-2 px-3 py-2 text-left text-amber-300"
+        className="w-full flex items-center gap-2 px-3 py-2 text-left text-pl-warning-text"
         onClick={() => setOpen((o) => !o)}
       >
         {open ? <ChevronDown className="w-4 h-4 shrink-0" /> : <ChevronRight className="w-4 h-4 shrink-0" />}
@@ -37,9 +37,9 @@ export default function RejectReport({ rejects, count, read }) {
         </span>
       </button>
       {open && (
-        <div className="max-h-48 overflow-auto border-t border-amber-800/40">
+        <div className="max-h-48 overflow-auto border-t border-pl-warning/40">
           <table className="w-full text-xs">
-            <thead className="text-slate-400 sticky top-0 bg-slate-950">
+            <thead className="text-pl-muted sticky top-0 bg-pl-surface">
               <tr>
                 <th className="text-left font-medium px-2 py-1">Line</th>
                 <th className="text-left font-medium px-2 py-1">Column</th>
@@ -49,13 +49,13 @@ export default function RejectReport({ rejects, count, read }) {
             </thead>
             <tbody>
               {shown.map((r) => (
-                <tr key={`${r.line}-${r.column ?? ''}`} className="border-t border-slate-800/60 text-slate-300">
+                <tr key={`${r.line}-${r.column ?? ''}`} className="border-t border-pl-border/60 text-pl-text">
                   <td className="px-2 py-1 tabular-nums">{r.line}</td>
                   <td className="px-2 py-1 whitespace-nowrap">
                     {r.column != null ? `${r.column}${r.field ? ` (${r.field})` : ''}` : (r.field || '')}
                   </td>
                   <td className="px-2 py-1">{r.reason}</td>
-                  <td className="px-2 py-1 font-mono text-slate-500 truncate max-w-[16rem]" title={r.text}>
+                  <td className="px-2 py-1 font-mono text-pl-muted truncate max-w-[16rem]" title={r.text}>
                     {r.text}
                   </td>
                 </tr>
@@ -63,7 +63,7 @@ export default function RejectReport({ rejects, count, read }) {
             </tbody>
           </table>
           {count > shown.length && (
-            <p className="px-2 py-1 text-xs text-slate-500">
+            <p className="px-2 py-1 text-xs text-pl-muted">
               {`Showing the first ${shown.length} of ${count.toLocaleString()}.`}
             </p>
           )}

@@ -103,11 +103,11 @@ export default function AutoFaultPicker({
 
   return (
     <div className="space-y-2" data-testid="sl-auto-faults">
-      <Label className="text-slate-300 flex items-center">
-        <Sparkles className="w-4 h-4 mr-1 text-cyan-400" />
+      <Label className="text-pl-text flex items-center">
+        <Sparkles className="w-4 h-4 mr-1 text-pl-primary-text" />
         Pick faults automatically
       </Label>
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-pl-muted">
         A fault likelihood from dip-steered semblance, thinned to one cell and grouped into
         faults. It runs over an area of interest (lattice indices), up to
         {` ${(AOI_MAX_SAMPLES / 1e6).toFixed(0)} million samples at a time.`}
@@ -129,10 +129,10 @@ export default function AutoFaultPicker({
         </div>
       )}
       <div className="grid grid-cols-2 gap-2 text-xs">
-        <label className="text-slate-400">
+        <label className="text-pl-muted">
           Start from
           <select
-            className="mt-1 w-full rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-1"
+            className="mt-1 w-full rounded-md bg-pl-surface border border-pl-border-strong text-pl-text p-1"
             value={inputId}
             onChange={(e) => { setInputId(e.target.value); setDetected(null); }}
             disabled={disabled}
@@ -146,10 +146,10 @@ export default function AutoFaultPicker({
             ))}
           </select>
         </label>
-        <label className="text-slate-400">
+        <label className="text-pl-muted">
           Sensitivity
           <select
-            className="mt-1 w-full rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-1"
+            className="mt-1 w-full rounded-md bg-pl-surface border border-pl-border-strong text-pl-text p-1"
             value={sensitivity}
             onChange={(e) => { setSensitivity(e.target.value); setDetected(null); }}
             disabled={disabled}
@@ -162,7 +162,7 @@ export default function AutoFaultPicker({
         </label>
       </div>
       {input && sensitivity === 'auto' && (
-        <p className="text-xs text-amber-300/90">
+        <p className="text-xs text-pl-warning-text">
           A volume input does not show the data quality, so Auto means Standard. Choose High for noisy data.
         </p>
       )}
@@ -170,7 +170,7 @@ export default function AutoFaultPicker({
         <div className="grid grid-cols-6 gap-2 text-xs">
           {AOI_FIELDS.map(([k, lab]) => (
             <div key={k}>
-              <Label className="text-slate-400 text-xs">{lab}</Label>
+              <Label className="text-pl-muted text-xs">{lab}</Label>
               <Input
                 type="number"
                 value={aoi[k]}
@@ -183,7 +183,7 @@ export default function AutoFaultPicker({
         </div>
       )}
       <div className="flex items-center gap-3">
-        <span className={`text-xs ${tooBig ? 'text-rose-300' : 'text-slate-400'}`}>
+        <span className={`text-xs ${tooBig ? 'text-pl-danger-text' : 'text-pl-muted'}`}>
           {`${(samples / 1e6).toFixed(1)} million samples`}
         </span>
         <Button size="sm" onClick={detect} disabled={disabled || !aoi || tooBig} data-testid="t2h-detect">
@@ -192,14 +192,14 @@ export default function AutoFaultPicker({
         </Button>
       </div>
       {detected?.quality && (
-        <p className="text-xs text-slate-400" data-testid="sl-auto-faults-quality">
+        <p className="text-xs text-pl-muted" data-testid="sl-auto-faults-quality">
           {describeQuality(detected.quality)}
         </p>
       )}
       {detected && (
         <div className="space-y-1">
           {detected.faults.map((f) => (
-            <label key={f.name} className="text-xs text-slate-300 flex items-center gap-2">
+            <label key={f.name} className="text-xs text-pl-text flex items-center gap-2">
               <input
                 type="checkbox"
                 checked={keep.has(f.name)}

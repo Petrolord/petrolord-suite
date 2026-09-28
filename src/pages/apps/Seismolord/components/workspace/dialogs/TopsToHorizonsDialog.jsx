@@ -53,10 +53,10 @@ const STEPS = [
   { key: 'track', label: '4 Track' },
   { key: 'prognosis', label: '5 Prognosis' },
 ];
-const selectCls = 'rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-1 text-xs';
+const selectCls = 'rounded-md bg-pl-surface border border-pl-border-strong text-pl-text p-1 text-xs';
 
 const fmt = (v, d = 1) => (v == null || !Number.isFinite(v) ? '·' : v.toFixed(d));
-const scoreColour = (s) => (s >= 0.6 ? 'text-emerald-300' : s >= 0.3 ? 'text-amber-300' : 'text-rose-300');
+const scoreColour = (s) => (s >= 0.6 ? 'text-pl-success-text' : s >= 0.3 ? 'text-pl-warning-text' : 'text-pl-danger-text');
 
 /** A trace thumbnail: amplitude across, time down, the prediction dashed
  *  and the chosen event solid. */
@@ -70,7 +70,7 @@ function Thumb({ thumb, predSample, chosenSample }) {
   const pts = thumb.values.map((v, i) => `${(w / 2 + (v / max) * (w / 2 - 2)).toFixed(1)},${((i / (n - 1)) * h).toFixed(1)}`).join(' ');
   const y = (s) => ((s - thumb.s0) / (n - 1)) * h;
   return (
-    <svg width={w} height={h} className="bg-slate-950 rounded" aria-hidden="true">
+    <svg width={w} height={h} className="bg-slate-950 rounded" data-canvas="dark" aria-hidden="true">
       <line x1={w / 2} x2={w / 2} y1={0} y2={h} stroke="#334155" strokeWidth="0.5" />
       <polyline points={pts} fill="none" stroke="#94a3b8" strokeWidth="1" />
       {predSample != null && <line x1={0} x2={w} y1={y(predSample)} y2={y(predSample)} stroke="#f59e0b" strokeDasharray="3 2" strokeWidth="1" />}
@@ -240,13 +240,13 @@ export default function TopsToHorizonsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto" data-testid="sl-tops-to-horizons">
         <DialogHeader>
-          <DialogTitle className="flex items-center text-white">
-            <Waypoints className="w-5 h-5 mr-2 text-cyan-400" />
+          <DialogTitle className="flex items-center text-pl-text">
+            <Waypoints className="w-5 h-5 mr-2 text-pl-primary-text" />
             Tops to Horizons
           </DialogTitle>
         </DialogHeader>
         {!volume || !geom ? (
-          <p className="text-sm text-slate-400">Open a converted volume in the viewer first.</p>
+          <p className="text-sm text-pl-muted">Open a converted volume in the viewer first.</p>
         ) : (
           <div className="space-y-3">
             <div className="flex gap-1">
@@ -263,7 +263,7 @@ export default function TopsToHorizonsDialog({
                 </Button>
               ))}
               {busy && (
-                <span className="ml-auto flex items-center text-xs text-slate-300">
+                <span className="ml-auto flex items-center text-xs text-pl-text">
                   <Loader2 className="w-4 h-4 mr-1 animate-spin" />
                   {progressText || 'Working'}
                   <Button size="sm" variant="ghost" className="ml-2" onClick={() => jobRef.current?.cancel()}>
@@ -273,29 +273,29 @@ export default function TopsToHorizonsDialog({
                 </span>
               )}
             </div>
-            {error && <p className="text-sm text-rose-300" role="alert">{error}</p>}
+            {error && <p className="text-sm text-pl-danger-text" role="alert">{error}</p>}
 
             {step === 'wells' && (
               <div className="space-y-3">
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-pl-muted">
                   Every visible well with tops takes part. Wells with a sonic log are tied automatically;
                   the others use their checkshots, or the volume&apos;s velocity model with a wider uncertainty.
                 </p>
-                <table className="w-full text-xs text-slate-300">
-                  <thead><tr className="text-slate-500 text-left"><th>Well</th><th>Tops</th><th>Time from</th><th>Tie</th></tr></thead>
+                <table className="w-full text-xs text-pl-text">
+                  <thead><tr className="text-pl-muted text-left"><th>Well</th><th>Tops</th><th>Time from</th><th>Tie</th></tr></thead>
                   <tbody>
                     {wellInfo.map((w) => {
                       const tie = match?.ties.find((t) => t.name === w.name);
                       const skip = match?.skipped.find((s) => s.name === w.name);
                       return (
-                        <tr key={w.id} className="border-t border-slate-800">
+                        <tr key={w.id} className="border-t border-pl-border">
                           <td className="py-1">{w.name}</td>
                           <td>{w.tops}</td>
-                          <td>{w.source === 'none' ? <span className="text-rose-300">nothing</span> : w.source}</td>
+                          <td>{w.source === 'none' ? <span className="text-pl-danger-text">nothing</span> : w.source}</td>
                           <td>
-                            {skip && <span className="text-rose-300">{skip.reason}</span>}
+                            {skip && <span className="text-pl-danger-text">{skip.reason}</span>}
                             {tie && (
-                              <span className={tie.quality === 'good' ? 'text-emerald-300' : tie.quality === 'fair' ? 'text-amber-300' : 'text-rose-300'}>
+                              <span className={tie.quality === 'good' ? 'text-pl-success-text' : tie.quality === 'fair' ? 'text-pl-warning-text' : 'text-pl-danger-text'}>
                                 {`${tie.quality}: shift ${fmt(tie.shiftMs)} ms, phase ${fmt(tie.phaseDeg, 0)}°, r ${fmt(tie.corr, 2)}`}
                               </span>
                             )}
@@ -305,9 +305,9 @@ export default function TopsToHorizonsDialog({
                     })}
                   </tbody>
                 </table>
-                {!wells.length && <p className="text-sm text-amber-300">No wells are visible. Show wells with tops in the explorer first.</p>}
+                {!wells.length && <p className="text-sm text-pl-warning-text">No wells are visible. Show wells with tops in the explorer first.</p>}
                 <div className="flex items-center gap-3">
-                  <label className="text-xs text-slate-300 flex items-center gap-1">
+                  <label className="text-xs text-pl-text flex items-center gap-1">
                     <input type="checkbox" checked={autoTie} onChange={(e) => setAutoTie(e.target.checked)} />
                     Tie wells automatically
                   </label>
@@ -317,7 +317,7 @@ export default function TopsToHorizonsDialog({
                   </Button>
                 </div>
                 {match && (
-                  <p className="text-xs text-slate-400" data-testid="t2h-convention">
+                  <p className="text-xs text-pl-muted" data-testid="t2h-convention">
                     {`Field convention: ${match.convention.polarity} polarity, ${fmt(match.convention.phaseDeg, 0)}° phase`
                       + `${match.convention.voters ? ` from ${match.convention.voters} tied wells` : ' (assumed; no well was tied)'}`}
                     {match.convention.outliers?.length ? `. Disagreeing: ${match.convention.outliers.map((o) => `${o.name} (${o.reason})`).join(', ')}` : ''}
@@ -329,14 +329,14 @@ export default function TopsToHorizonsDialog({
 
             {step === 'review' && match && (
               <div className="space-y-2">
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-pl-muted">
                   Each cell is the event chosen for that top at that well: its kind, how far it sits from the
                   predicted time, and its score. Amber dashes are the prediction, cyan the choice. Click a cell to choose another event.
                 </p>
                 <div className="overflow-x-auto">
-                  <table className="text-xs text-slate-300" data-testid="t2h-board">
+                  <table className="text-xs text-pl-text" data-testid="t2h-board">
                     <thead>
-                      <tr className="text-slate-500 text-left">
+                      <tr className="text-pl-muted text-left">
                         <th className="pr-2">Top</th>
                         <th className="pr-2">Use</th>
                         {wellNames.map((n) => <th key={n} className="px-1">{n}</th>)}
@@ -344,10 +344,10 @@ export default function TopsToHorizonsDialog({
                     </thead>
                     <tbody>
                       {tops.map((t) => (
-                        <tr key={t.name} className="border-t border-slate-800 align-top">
+                        <tr key={t.name} className="border-t border-pl-border align-top">
                           <td className="pr-2 py-1">
-                            <div className="text-slate-100">{t.name}</div>
-                            <div className="text-slate-500">
+                            <div className="text-pl-text">{t.name}</div>
+                            <div className="text-pl-muted">
                               {t.role === 'conformable' ? `thin: rides on ${t.representative}` : KIND_LABEL[t.kind] || 'no event'}
                             </div>
                           </td>
@@ -367,9 +367,9 @@ export default function TopsToHorizonsDialog({
                             const at = t.atWells[wn];
                             const w = match.wells.find((x) => x.name === wn);
                             const topRow = w?.tops.find((q) => q.name === t.name);
-                            if (!topRow) return <td key={wn} className="px-1 text-slate-600">absent</td>;
+                            if (!topRow) return <td key={wn} className="px-1 text-pl-muted">absent</td>;
                             if (t.role === 'conformable') {
-                              return <td key={wn} className="px-1 text-slate-500">{`${fmt(t.offsetsMs?.[wn])} ms below`}</td>;
+                              return <td key={wn} className="px-1 text-pl-muted">{`${fmt(t.offsetsMs?.[wn])} ms below`}</td>;
                             }
                             const over = events[t.name]?.[wn];
                             const chosen = over ?? at?.choice?.sample ?? null;
@@ -378,16 +378,16 @@ export default function TopsToHorizonsDialog({
                               <td key={wn} className="px-1">
                                 <button
                                   type="button"
-                                  className="text-left hover:bg-slate-800 rounded p-0.5"
+                                  className="text-left hover:bg-pl-sunken rounded p-0.5"
                                   onClick={() => setCellOpen(isOpen ? null : { top: t.name, well: wn })}
                                 >
                                   <Thumb thumb={w.thumbs[t.name]} predSample={topRow.predSample} chosenSample={chosen} />
                                   {at?.choice || over != null ? (
-                                    <div className={over != null ? 'text-cyan-300' : scoreColour(at.choice.score)}>
+                                    <div className={over != null ? 'text-pl-primary-text' : scoreColour(at.choice.score)}>
                                       {over != null ? 'your choice' : `${fmt((at.choice.sample - topRow.predSample) * dtMs)} ms · ${fmt(at.choice.score, 2)}`}
                                     </div>
-                                  ) : <div className="text-rose-300">unmatched</div>}
-                                  {tunedAt(t.name, wn) && <div className="text-amber-300">tuned here</div>}
+                                  ) : <div className="text-pl-danger-text">unmatched</div>}
+                                  {tunedAt(t.name, wn) && <div className="text-pl-warning-text">tuned here</div>}
                                 </button>
                                 {isOpen && (
                                   <div className="mt-1 space-y-0.5">
@@ -399,7 +399,7 @@ export default function TopsToHorizonsDialog({
                                         <button
                                           key={`${ev.kind}${ev.sample}`}
                                           type="button"
-                                          className="block text-left text-slate-300 hover:text-white"
+                                          className="block text-left text-pl-text hover:text-pl-text"
                                           onClick={() => {
                                             setEvents((s) => ({ ...s, [t.name]: { ...(s[t.name] || {}), [wn]: ev.sample } }));
                                             setCellOpen(null);
@@ -411,7 +411,7 @@ export default function TopsToHorizonsDialog({
                                     {over != null && (
                                       <button
                                         type="button"
-                                        className="block text-left text-slate-400 hover:text-white"
+                                        className="block text-left text-pl-muted hover:text-pl-text"
                                         onClick={() => setEvents((s) => {
                                           const n = { ...s, [t.name]: { ...(s[t.name] || {}) } };
                                           delete n[t.name][wn];
@@ -440,11 +440,11 @@ export default function TopsToHorizonsDialog({
             {step === 'faults' && match && (
               <div className="space-y-3">
                 <div>
-                  <Label className="text-slate-300">Faults used as barriers</Label>
-                  {!faults.length && <p className="text-xs text-slate-500">This volume has no faults yet.</p>}
+                  <Label className="text-pl-text">Faults used as barriers</Label>
+                  {!faults.length && <p className="text-xs text-pl-muted">This volume has no faults yet.</p>}
                   <div className="flex flex-wrap gap-3 mt-1">
                     {faults.map((f) => (
-                      <label key={f.id} className="text-xs text-slate-300 flex items-center gap-1">
+                      <label key={f.id} className="text-xs text-pl-text flex items-center gap-1">
                         <input
                           type="checkbox"
                           checked={useFaultIds.has(f.id)}
@@ -455,12 +455,12 @@ export default function TopsToHorizonsDialog({
                           })}
                         />
                         {f.name}
-                        {f.params?.source === 'auto' && <span className="text-slate-500">(auto)</span>}
+                        {f.params?.source === 'auto' && <span className="text-pl-muted">(auto)</span>}
                       </label>
                     ))}
                   </div>
                 </div>
-                <div className="border-t border-slate-800 pt-3">
+                <div className="border-t border-pl-border pt-3">
                   <AutoFaultPicker
                     geom={geom}
                     dtMs={dtMs}
@@ -486,7 +486,7 @@ export default function TopsToHorizonsDialog({
 
             {step === 'track' && match && (
               <div className="space-y-3">
-                <div className="flex flex-wrap items-center gap-4 text-xs text-slate-300">
+                <div className="flex flex-wrap items-center gap-4 text-xs text-pl-text">
                   <label className="flex items-center gap-1">
                     <input type="checkbox" checked={jump} onChange={(e) => setJump(e.target.checked)} />
                     Carry horizons across faults into blocks no well reaches
@@ -502,9 +502,9 @@ export default function TopsToHorizonsDialog({
                 </div>
                 {track && (
                   <>
-                    <table className="w-full text-xs text-slate-300" data-testid="t2h-results">
+                    <table className="w-full text-xs text-pl-text" data-testid="t2h-results">
                       <thead>
-                        <tr className="text-slate-500 text-left">
+                        <tr className="text-pl-muted text-left">
                           <th>Horizon</th><th>Made as</th><th>Traces</th><th>Tuned</th><th>Across faults</th><th>Leave-one-out error</th><th>Misties (RMS)</th>
                         </tr>
                       </thead>
@@ -515,8 +515,8 @@ export default function TopsToHorizonsDialog({
                           const mis = track.misties.filter((r) => r.top === h.name && r.mistieMs != null);
                           const rms = mis.length ? Math.sqrt(mis.reduce((a, r) => a + r.mistieMs ** 2, 0) / mis.length) : null;
                           return (
-                            <tr key={h.name} className="border-t border-slate-800">
-                              <td className="py-1 text-slate-100">{h.name}</td>
+                            <tr key={h.name} className="border-t border-pl-border">
+                              <td className="py-1 text-pl-text">{h.name}</td>
                               <td>{h.role === 'conformable' ? `on ${h.representative} + isochron` : `${KIND_LABEL[h.kind]}, ${h.seeds.length} wells`}</td>
                               <td>{`${n} (${fmt((100 * n) / (geom.nIl * geom.nXl), 0)} %)`}</td>
                               <td>{h.stats.tuned ?? '·'}</td>
@@ -528,7 +528,7 @@ export default function TopsToHorizonsDialog({
                         })}
                       </tbody>
                     </table>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-pl-muted">
                       Confidence maps ride with each horizon: tuned cells and cells carried across a fault score lower, so the Map window shows where to look.
                     </p>
                     <div className="flex items-center gap-3">
@@ -550,9 +550,9 @@ export default function TopsToHorizonsDialog({
 
             {step === 'prognosis' && (
               <div className="space-y-2">
-                {!track ? <p className="text-sm text-slate-400">Track the framework first.</p> : (
+                {!track ? <p className="text-sm text-pl-muted">Track the framework first.</p> : (
                   <>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-pl-muted">
                       Where a well (planned or drilled) meets each horizon, with a band from the framework&apos;s own
                       leave-one-well-out error.
                     </p>
@@ -560,13 +560,13 @@ export default function TopsToHorizonsDialog({
                       <option value="">Choose a well</option>
                       {wells.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
                     </select>
-                    {prognosis?.error && <p className="text-sm text-amber-300">{prognosis.error}</p>}
+                    {prognosis?.error && <p className="text-sm text-pl-warning-text">{prognosis.error}</p>}
                     {prognosis?.rows && (
-                      <table className="w-full text-xs text-slate-300" data-testid="t2h-prognosis">
-                        <thead><tr className="text-slate-500 text-left"><th>Horizon</th><th>MD (m)</th><th>TVDSS (m)</th><th>Band (m)</th></tr></thead>
+                      <table className="w-full text-xs text-pl-text" data-testid="t2h-prognosis">
+                        <thead><tr className="text-pl-muted text-left"><th>Horizon</th><th>MD (m)</th><th>TVDSS (m)</th><th>Band (m)</th></tr></thead>
                         <tbody>
                           {prognosis.rows.map((r) => (
-                            <tr key={r.name} className="border-t border-slate-800">
+                            <tr key={r.name} className="border-t border-pl-border">
                               <td className="py-1">{r.name}</td>
                               <td>{fmt(r.md)}</td>
                               <td>{fmt(r.tvdss)}</td>
@@ -576,7 +576,7 @@ export default function TopsToHorizonsDialog({
                         </tbody>
                       </table>
                     )}
-                    {prognosis?.basis && <p className="text-xs text-slate-500">{`Time from: ${prognosis.basis}.`}</p>}
+                    {prognosis?.basis && <p className="text-xs text-pl-muted">{`Time from: ${prognosis.basis}.`}</p>}
                   </>
                 )}
               </div>
