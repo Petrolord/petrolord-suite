@@ -4,6 +4,7 @@ import { AlertTriangle, CheckCircle2, FileWarning } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell as BarCell } from 'recharts';
 import ChartFrame from '@/components/charts/ChartFrame';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
+import { cn } from '@/lib/utils';
 import { NumericTable, NumTh, NumRow, NumCell, NUMERIC_TABLE } from '@/components/ui/numeric-table';
 import { useCarbonAbatement } from '@/contexts/CarbonAbatementContext';
 
@@ -106,7 +107,7 @@ const InventoryResults = () => {
               const flagged = Boolean(l.blockedBy || !l.provenanceComplete);
               return (
                 <NumRow key={l.label} className={flagged ? 'bg-pl-warning-bg' : ''}>
-                  <td className={`${NUMERIC_TABLE.rowLabel} ${flagged ? 'bg-pl-warning-bg' : ''}`}>{l.label}</td>
+                  <td className={cn(NUMERIC_TABLE.rowLabel, flagged && 'bg-pl-warning-bg')}>{l.label}</td>
                   <NumCell signed={false} tone="text-pl-muted">{l.scope}</NumCell>
                   <td className="border-b border-pl-border px-3 py-2 text-xs text-pl-muted">{l.gas}</td>
                   <NumCell signed={false} tone="text-pl-muted">{l.gwp === null ? '-' : l.gwp}</NumCell>

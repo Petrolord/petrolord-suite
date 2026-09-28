@@ -7,6 +7,7 @@ import {
 import { CheckCircle2, Circle, AlertTriangle } from 'lucide-react';
 import ChartFrame from '@/components/charts/ChartFrame';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
+import { cn } from '@/lib/utils';
 import { NumericTable, NumTh, NumRow, NumCell, NUMERIC_TABLE, signedTone } from '@/components/ui/numeric-table';
 import { useModularRefinery } from '@/contexts/ModularRefineryContext';
 
@@ -157,7 +158,7 @@ const ScaleResults = () => {
                 const current = s.id === inputs.scenarioId;
                 return (
                   <NumRow key={s.id} className={current ? 'bg-pl-sunken' : ''} aria-current={current ? 'true' : undefined}>
-                    <td className={`${NUMERIC_TABLE.rowLabel} ${current ? 'bg-pl-sunken font-semibold' : ''}`}>{s.name}</td>
+                    <td className={cn(NUMERIC_TABLE.rowLabel, current && 'bg-pl-sunken font-semibold')}>{s.name}</td>
                     <NumCell value={s.grossMarginPerBbl}>{signedUsd(s.grossMarginPerBbl, 2)}</NumCell>
                     <NumCell signed={false}>
                       {s.simplePaybackYears === null ? 'never' : `${s.simplePaybackYears.toFixed(1)} yr`}
