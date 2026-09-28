@@ -13,14 +13,14 @@ export default function UnitsBar({ className = '' }) {
       title={title}
       value={units[key]}
       onChange={(e) => setUnit(key, e.target.value)}
-      className="bg-slate-800 border border-slate-700 rounded px-1 py-0.5 text-[11px] text-slate-200"
+      className="bg-pl-sunken border border-pl-border rounded px-1 py-0.5 text-[11px] text-pl-text"
     >
       {options.map((o) => <option key={o} value={o}>{render(o)}</option>)}
     </select>
   );
   return (
     <div className={`flex items-center gap-1 ${className}`} title="Display units; the model, the saved well and the exports' SI columns stay in metres and degrees C">
-      <span className="text-[11px] text-slate-500">Units</span>
+      <span className="text-[11px] text-pl-muted">Units</span>
       {sel('depth', DEPTH_UNITS, 'Depth and thickness display unit; defaults to your Geoscience depth setting', (o) => o)}
       {sel('temp', TEMP_UNITS, 'Temperature display unit', (o) => `°${o}`)}
     </div>

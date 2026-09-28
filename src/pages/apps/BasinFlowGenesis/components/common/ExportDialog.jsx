@@ -58,59 +58,59 @@ const ExportDialog = ({ isOpen, onClose, chartRefs = [] }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="bg-slate-900 border-slate-800 text-white max-w-sm">
+            <DialogContent className="max-w-sm">
                 <DialogHeader>
                     <DialogTitle>Export Results</DialogTitle>
-                    <DialogDescription className="text-slate-400">
+                    <DialogDescription className="text-pl-muted">
                         Choose formats and contents for your data export.
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="grid gap-4 py-4">
-                    <div className="flex items-center justify-between p-3 border border-slate-800 rounded bg-slate-950/50 cursor-pointer hover:border-indigo-500/50 transition-colors" onClick={() => setOptions(o => ({...o, pdf: !o.pdf}))}>
+                    <div className="flex items-center justify-between p-3 border border-pl-border rounded bg-pl-bg cursor-pointer hover:border-pl-primary/50 transition-colors" onClick={() => setOptions(o => ({...o, pdf: !o.pdf}))}>
                         <div className="flex items-center gap-3">
-                            <FileText className="w-5 h-5 text-red-400" />
+                            <FileText className="w-5 h-5 text-pl-danger-text" />
                             <div className="flex flex-col">
                                 <span className="text-sm font-medium">PDF Report</span>
-                                <span className="text-xs text-slate-500">Formatted report with plots</span>
+                                <span className="text-xs text-pl-muted">Formatted report with plots</span>
                             </div>
                         </div>
                         <Checkbox checked={options.pdf} onCheckedChange={(c) => setOptions(o => ({...o, pdf: c}))} />
                     </div>
 
-                    <div className="flex items-center justify-between p-3 border border-slate-800 rounded bg-slate-950/50 cursor-pointer hover:border-indigo-500/50 transition-colors" onClick={() => setOptions(o => ({...o, csv: !o.csv}))}>
+                    <div className="flex items-center justify-between p-3 border border-pl-border rounded bg-pl-bg cursor-pointer hover:border-pl-primary/50 transition-colors" onClick={() => setOptions(o => ({...o, csv: !o.csv}))}>
                         <div className="flex items-center gap-3">
-                            <Table className="w-5 h-5 text-green-400" />
+                            <Table className="w-5 h-5 text-pl-success-text" />
                             <div className="flex flex-col">
                                 <span className="text-sm font-medium">CSV Data</span>
-                                <span className="text-xs text-slate-500">Raw simulation time-steps</span>
+                                <span className="text-xs text-pl-muted">Raw simulation time-steps</span>
                             </div>
                         </div>
                         <Checkbox checked={options.csv} onCheckedChange={(c) => setOptions(o => ({...o, csv: c}))} />
                     </div>
 
-                    <div className="flex items-center justify-between p-3 border border-slate-800 rounded bg-slate-950/50 cursor-pointer hover:border-indigo-500/50 transition-colors" onClick={() => setOptions(o => ({...o, json: !o.json}))}>
+                    <div className="flex items-center justify-between p-3 border border-pl-border rounded bg-pl-bg cursor-pointer hover:border-pl-primary/50 transition-colors" onClick={() => setOptions(o => ({...o, json: !o.json}))}>
                         <div className="flex items-center gap-3">
-                            <FileJson className="w-5 h-5 text-yellow-400" />
+                            <FileJson className="w-5 h-5 text-pl-warning-text" />
                             <div className="flex flex-col">
                                 <span className="text-sm font-medium">JSON Project</span>
-                                <span className="text-xs text-slate-500">Full project state backup</span>
+                                <span className="text-xs text-pl-muted">Full project state backup</span>
                             </div>
                         </div>
                         <Checkbox checked={options.json} onCheckedChange={(c) => setOptions(o => ({...o, json: c}))} />
                     </div>
                     
                     {options.pdf && (
-                        <div className="flex items-center space-x-2 pt-2 border-t border-slate-800">
+                        <div className="flex items-center space-x-2 pt-2 border-t border-pl-border">
                             <Checkbox id="charts" checked={options.includeCharts} onCheckedChange={(c) => setOptions(o => ({...o, includeCharts: c}))} />
-                            <Label htmlFor="charts" className="text-xs text-slate-400">Include Charts in PDF</Label>
+                            <Label htmlFor="charts" className="text-xs text-pl-muted">Include Charts in PDF</Label>
                         </div>
                     )}
                 </div>
 
                 <DialogFooter>
                     <Button variant="ghost" onClick={onClose}>Cancel</Button>
-                    <Button onClick={handleExport} disabled={isExporting} className="bg-indigo-600 hover:bg-indigo-700">
+                    <Button onClick={handleExport} disabled={isExporting} >
                         {isExporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                         Download
                     </Button>

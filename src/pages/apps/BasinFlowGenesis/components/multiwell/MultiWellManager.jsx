@@ -24,9 +24,9 @@ import { useToast } from '@/components/ui/use-toast';
 
 const StatusBadge = ({ status }) => {
     const styles = {
-        'calibrated': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50',
-        'in-progress': 'bg-amber-500/20 text-amber-400 border-amber-500/50',
-        'not-started': 'bg-slate-500/20 text-slate-400 border-slate-500/50'
+        'calibrated': 'bg-pl-sunken text-pl-primary-text border-pl-primary/50',
+        'in-progress': 'bg-pl-warning-bg text-pl-warning-text border-pl-warning/40',
+        'not-started': 'bg-pl-border-strong text-pl-muted border-pl-border-strong'
     };
     
     const labels = {
@@ -180,18 +180,18 @@ const MultiWellManager = () => {
     );
 
     return (
-        <div className="h-full flex flex-col bg-slate-900 border-r border-slate-800 w-full">
-            <div className="p-4 border-b border-slate-800 space-y-4 shrink-0">
+        <div className="h-full flex flex-col bg-pl-surface border-r border-pl-border w-full">
+            <div className="p-4 border-b border-pl-border space-y-4 shrink-0">
                 <div className="flex justify-between items-center">
-                    <h3 className="text-sm font-semibold text-white">Project Wells</h3>
-                    <Button size="icon" variant="ghost" className="h-6 w-6 hover:bg-indigo-900/50 hover:text-indigo-400" onClick={() => setIsCreateOpen(true)}>
+                    <h3 className="text-sm font-semibold text-pl-text">Project Wells</h3>
+                    <Button size="icon" variant="ghost" className="h-6 w-6 hover:bg-pl-sunken hover:text-pl-primary-text" onClick={() => setIsCreateOpen(true)}>
                         <Plus className="w-4 h-4" />
                     </Button>
                 </div>
                 <div className="relative">
-                    <Search className="absolute left-2 top-1.5 h-3 w-3 text-slate-500" />
+                    <Search className="absolute left-2 top-1.5 h-3 w-3 text-pl-muted" />
                     <Input 
-                        className="h-8 pl-8 text-xs bg-slate-950 border-slate-800 focus-visible:ring-indigo-500/50" 
+                        className="h-8 pl-8 text-xs" 
                         placeholder="Search wells..." 
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -202,8 +202,8 @@ const MultiWellManager = () => {
             <ScrollArea className="flex-1">
                 <div className="p-2 space-y-2">
                     {filteredWells.length === 0 && (
-                        <div className="text-center p-8 text-xs text-slate-500 flex flex-col items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center"><Search className="w-4 h-4" /></div>
+                        <div className="text-center p-8 text-xs text-pl-muted flex flex-col items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-pl-sunken flex items-center justify-center"><Search className="w-4 h-4" /></div>
                             No wells found.
                         </div>
                     )}
@@ -216,8 +216,8 @@ const MultiWellManager = () => {
                             data-active={well.id === mwState.activeWellId ? 'true' : 'false'}
                             className={`group p-3 rounded-lg border cursor-pointer transition-all relative ${
                                 mwState.activeWellId === well.id 
-                                ? 'bg-indigo-950/40 border-indigo-500/50 shadow-sm shadow-indigo-900/20' 
-                                : 'bg-slate-950/30 border-slate-800 hover:border-slate-600 hover:bg-slate-900'
+                                ? 'bg-pl-sunken border-pl-primary/50 shadow-sm ' 
+                                : 'bg-pl-bg border-pl-border hover:border-pl-border-strong hover:bg-pl-sunken'
                             }`}
                         >
                             <div className="flex justify-between items-start mb-2 h-6">
@@ -226,25 +226,25 @@ const MultiWellManager = () => {
                                         <Input 
                                             value={editName} 
                                             onChange={e => setEditName(e.target.value)}
-                                            className="h-6 text-xs px-1 bg-slate-900 border-slate-700 focus-visible:ring-1"
+                                            className="h-6 text-xs px-1 focus-visible:ring-1"
                                             autoFocus
                                             onKeyDown={e => { if(e.key === 'Enter') saveEdit(e); if(e.key === 'Escape') cancelEdit(e); }}
                                         />
-                                        <Button size="icon" variant="ghost" className="h-6 w-6 text-emerald-400 hover:bg-emerald-900/20" onClick={saveEdit}>
+                                        <Button size="icon" variant="ghost" className="h-6 w-6 text-pl-primary-text hover:bg-pl-sunken" onClick={saveEdit}>
                                             <Check className="w-3 h-3" />
                                         </Button>
-                                        <Button size="icon" variant="ghost" className="h-6 w-6 text-slate-400 hover:bg-red-900/20" onClick={cancelEdit}>
+                                        <Button size="icon" variant="ghost" className="h-6 w-6 text-pl-muted hover:bg-pl-danger-bg" onClick={cancelEdit}>
                                             <X className="w-3 h-3" />
                                         </Button>
                                     </div>
                                 ) : (
                                     <>
-                                        <div className="font-medium text-sm text-white truncate flex-1 mr-2" title={well.name}>{well.name}</div>
+                                        <div className="font-medium text-sm text-pl-text truncate flex-1 mr-2" title={well.name}>{well.name}</div>
                                         <div className="flex opacity-0 group-hover:opacity-100 transition-opacity gap-0.5">
-                                            <Button size="icon" variant="ghost" className="h-5 w-5 text-slate-500 hover:text-indigo-400" onClick={(e) => startEditing(well, e)}>
+                                            <Button size="icon" variant="ghost" className="h-5 w-5 text-pl-muted hover:text-pl-primary-text" onClick={(e) => startEditing(well, e)}>
                                                 <Edit2 className="w-3 h-3" />
                                             </Button>
-                                            <Button size="icon" variant="ghost" className="h-5 w-5 text-slate-500 hover:text-red-400" onClick={(e) => handleDeleteClick(e, well.id)}>
+                                            <Button size="icon" variant="ghost" className="h-5 w-5 text-pl-muted hover:text-pl-danger-text" onClick={(e) => handleDeleteClick(e, well.id)}>
                                                 <Trash2 className="w-3 h-3" />
                                             </Button>
                                         </div>
@@ -252,7 +252,7 @@ const MultiWellManager = () => {
                                 )}
                             </div>
                             
-                            <div className="flex items-center justify-between text-[10px] text-slate-500 mb-2">
+                            <div className="flex items-center justify-between text-[10px] text-pl-muted mb-2">
                                 <div className="flex items-center gap-2">
                                     <StatusBadge status={well.status} />
                                 </div>
@@ -262,7 +262,7 @@ const MultiWellManager = () => {
                                 </span>
                             </div>
 
-                            <div className="text-[10px] text-slate-600 flex gap-3 border-t border-slate-800/50 pt-2 mt-1">
+                            <div className="text-[10px] text-pl-muted flex gap-3 border-t border-pl-border pt-2 mt-1">
                                 <span className="flex items-center"><MapPin className="w-2.5 h-2.5 mr-1" /> {well.location?.name || 'N/A'}</span>
                                 <span className="flex items-center">TD: {wellTd(well)}</span>
                             </div>
@@ -273,33 +273,33 @@ const MultiWellManager = () => {
 
             {/* New Well Dialog */}
             <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-                <DialogContent className="bg-slate-900 border-slate-800 text-white max-w-[90vw] sm:max-w-lg">
+                <DialogContent className="max-w-[90vw] sm:max-w-lg">
                     <DialogHeader>
                         <DialogTitle>Create New Well</DialogTitle>
-                        <DialogDescription className="text-slate-400">
+                        <DialogDescription className="text-pl-muted">
                             Initialize a new well model in your project.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label className="text-right text-slate-400">Name</Label>
+                            <Label className="text-right text-pl-muted">Name</Label>
                             <Input 
                                 value={newWellData.name}
                                 onChange={e => setNewWellData({...newWellData, name: e.target.value})}
-                                className="col-span-3 bg-slate-950 border-slate-800" 
+                                className="col-span-3" 
                                 placeholder="e.g. Exploration Well 01"
                             />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label className="text-right text-slate-400">Status</Label>
+                            <Label className="text-right text-pl-muted">Status</Label>
                             <Select 
                                 value={newWellData.status} 
                                 onValueChange={v => setNewWellData({...newWellData, status: v})}
                             >
-                                <SelectTrigger className="col-span-3 bg-slate-950 border-slate-800">
+                                <SelectTrigger className="col-span-3">
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent className="bg-slate-900 border-slate-800 text-white">
+                                <SelectContent>
                                     <SelectItem value="not-started">Not Started</SelectItem>
                                     <SelectItem value="in-progress">In Progress</SelectItem>
                                     <SelectItem value="calibrated">Calibrated</SelectItem>
@@ -307,61 +307,59 @@ const MultiWellManager = () => {
                             </Select>
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label className="text-right text-slate-400">Location</Label>
+                            <Label className="text-right text-pl-muted">Location</Label>
                             <Input 
                                 value={newWellData.location}
                                 onChange={e => setNewWellData({...newWellData, location: e.target.value})}
-                                className="col-span-3 bg-slate-950 border-slate-800" 
+                                className="col-span-3" 
                                 placeholder="e.g. Block 4, Offshore"
                             />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label className="text-right text-slate-400">Depth (m)</Label>
+                            <Label className="text-right text-pl-muted">Depth (m)</Label>
                             <div className="col-span-3 flex gap-2 items-center">
                                 <Input 
                                     type="number" placeholder="Min" 
                                     value={newWellData.depthMin}
                                     onChange={e => setNewWellData({...newWellData, depthMin: e.target.value})}
-                                    className="bg-slate-950 border-slate-800" 
                                 />
-                                <span className="text-slate-500">-</span>
+                                <span className="text-pl-muted">-</span>
                                 <Input 
                                     type="number" placeholder="Max" 
                                     value={newWellData.depthMax}
                                     onChange={e => setNewWellData({...newWellData, depthMax: e.target.value})}
-                                    className="bg-slate-950 border-slate-800" 
                                 />
                             </div>
                         </div>
                          <div className="grid grid-cols-4 items-center gap-4">
-                            <Label className="text-right text-slate-400">Description</Label>
+                            <Label className="text-right text-pl-muted">Description</Label>
                             <Input 
                                 value={newWellData.description}
                                 onChange={e => setNewWellData({...newWellData, description: e.target.value})}
-                                className="col-span-3 bg-slate-950 border-slate-800" 
+                                className="col-span-3" 
                                 placeholder="Optional notes..."
                             />
                         </div>
                     </div>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-                        <Button onClick={handleCreateWell} className="bg-indigo-600 hover:bg-indigo-700">Create Well</Button>
+                        <Button onClick={handleCreateWell} >Create Well</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
             {/* Delete Confirmation Dialog */}
             <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
-                <AlertDialogContent className="bg-slate-900 border-slate-800 text-white max-w-[90vw] sm:max-w-md">
+                <AlertDialogContent className="bg-pl-surface border-pl-border text-pl-text max-w-[90vw] sm:max-w-md">
                     <AlertDialogHeader>
                         <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                        <AlertDialogDescription className="text-slate-400">
+                        <AlertDialogDescription className="text-pl-muted">
                             This action cannot be undone. This will permanently delete the well and all associated data.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white">Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700 text-white border-0">Delete</AlertDialogAction>
+                        <AlertDialogCancel className="bg-transparent border-pl-border text-pl-text hover:bg-pl-sunken hover:text-pl-text">Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmDelete} className="bg-pl-danger hover:bg-pl-danger text-pl-text border-0">Delete</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

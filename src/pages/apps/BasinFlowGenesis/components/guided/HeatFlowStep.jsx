@@ -16,8 +16,8 @@ const HeatFlowStep = () => {
         <div className="h-full flex gap-6">
             <div className="flex-1 flex flex-col">
                 <div className="mb-6">
-                    <h2 className="text-2xl font-bold text-white mb-2">Heat Flow History</h2>
-                    <p className="text-slate-400">Select the thermal boundary condition at the base of the lithosphere.</p>
+                    <h2 className="text-2xl font-bold text-pl-text mb-2">Heat Flow History</h2>
+                    <p className="text-pl-muted">Select the thermal boundary condition at the base of the lithosphere.</p>
                 </div>
 
                 <RadioGroup 
@@ -30,26 +30,26 @@ const HeatFlowStep = () => {
                             <RadioGroupItem value={preset.id} id={preset.id} className="peer sr-only" />
                             <Label 
                                 htmlFor={preset.id}
-                                className="flex flex-col p-4 rounded-lg border-2 border-slate-800 bg-slate-900 cursor-pointer hover:bg-slate-800/50 peer-data-[state=checked]:border-emerald-500 peer-data-[state=checked]:bg-emerald-900/10 transition-all"
+                                className="flex flex-col p-4 rounded-lg border-2 border-pl-border bg-pl-surface cursor-pointer hover:bg-pl-sunken peer-data-[state=checked]:border-pl-primary peer-data-[state=checked]:bg-pl-sunken transition-all"
                             >
                                 <div className="flex justify-between items-center mb-2">
-                                    <div className="flex items-center gap-2 font-bold text-white">
-                                        <Thermometer className={`w-5 h-5 ${preset.type === 'constant' ? 'text-blue-400' : 'text-amber-400'}`} />
+                                    <div className="flex items-center gap-2 font-bold text-pl-text">
+                                        <Thermometer className={`w-5 h-5 ${preset.type === 'constant' ? 'text-pl-info-text' : 'text-pl-warning-text'}`} />
                                         {preset.name}
                                     </div>
-                                    <div className="text-sm font-mono text-slate-300 bg-slate-950 px-2 py-1 rounded border border-slate-800">
+                                    <div className="text-sm font-mono text-pl-text bg-pl-bg px-2 py-1 rounded border border-pl-border">
                                         {preset.range}
                                     </div>
                                 </div>
-                                <p className="text-sm text-slate-400">{preset.description}</p>
+                                <p className="text-sm text-pl-muted">{preset.description}</p>
                             </Label>
                         </div>
                     ))}
                 </RadioGroup>
             </div>
 
-            <div className="w-96 shrink-0 border-l border-slate-800 pl-6 flex flex-col">
-                <h3 className="text-xs font-bold text-slate-400 uppercase mb-4 flex items-center gap-2">
+            <div className="w-96 shrink-0 border-l border-pl-border pl-6 flex flex-col">
+                <h3 className="text-xs font-bold text-pl-muted uppercase mb-4 flex items-center gap-2">
                     <Activity className="w-4 h-4" /> Thermal History Preview
                 </h3>
                 
@@ -60,7 +60,7 @@ const HeatFlowStep = () => {
                         height={260}
                     />
                 ) : (
-                    <div className="flex-1 bg-slate-900/50 rounded-lg border border-slate-800 p-2 flex items-center justify-center text-slate-500">
+                    <div className="flex-1 bg-pl-surface rounded-lg border border-pl-border p-2 flex items-center justify-center text-pl-muted">
                         Choose a model to preview it.
                     </div>
                 )}

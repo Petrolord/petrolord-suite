@@ -4,8 +4,8 @@ import GlobalHistoryPanel from '../GlobalHistoryPanel';
 
 const LayerPropertyEditor = () => {
     return (
-        <div className="h-full flex flex-col lg:flex-row bg-slate-950">
-            <div className="w-full lg:w-96 shrink-0 h-full lg:border-r border-slate-800">
+        <div className="h-full flex flex-col lg:flex-row bg-pl-bg">
+            <div className="w-full lg:w-96 shrink-0 h-full lg:border-r border-pl-border">
                 <StratigraphyPanel />
             </div>
             <div className="flex-1 h-full overflow-hidden">

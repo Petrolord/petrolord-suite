@@ -7,7 +7,7 @@ import { fmtDepth, fmtTemp, depthLabel, tempLabel, tempSymbol } from '../service
 const ResultsSummaryTab = ({ results, units = { depth: 'm', temp: 'C' } }) => {
     const zU = units.depth; const tU = units.temp;
     if (!results?.data || !results?.meta) {
-        return <div className="h-full flex items-center justify-center text-slate-500">Run a simulation to see the summary.</div>;
+        return <div className="h-full flex items-center justify-center text-pl-muted">Run a simulation to see the summary.</div>;
     }
     const { data, meta } = results;
     
@@ -30,19 +30,19 @@ const ResultsSummaryTab = ({ results, units = { depth: 'm', temp: 'C' } }) => {
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full overflow-y-auto pb-10">
-            <Card className="bg-slate-900 border-slate-800">
+            <Card>
                 <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-slate-400">Key Findings</CardTitle>
+                    <CardTitle className="text-sm font-medium text-pl-muted">Key Findings</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-4">
                         <div className="flex items-start gap-3">
-                            <div className={`p-1.5 rounded-full ${sourceLayers.length > 0 ? 'bg-green-900/50 text-green-400' : 'bg-slate-800 text-slate-500'}`}>
+                            <div className={`p-1.5 rounded-full ${sourceLayers.length > 0 ? 'bg-pl-success-bg text-pl-success-text' : 'bg-pl-sunken text-pl-muted'}`}>
                                 <Droplet className="w-4 h-4" />
                             </div>
                             <div>
-                                <h4 className="text-sm font-medium text-white">Hydrocarbon Generation</h4>
-                                <p className="text-xs text-slate-400 mt-1">
+                                <h4 className="text-sm font-medium text-pl-text">Hydrocarbon Generation</h4>
+                                <p className="text-xs text-pl-muted mt-1">
                                     {sourceLayers.length > 0 
                                         ? `${sourceLayers.length} source ${sourceLayers.length === 1 ? 'layer passed' : 'layers passed'} 10% transformation.` 
                                         : "No significant generation detected."}
@@ -50,14 +50,14 @@ const ResultsSummaryTab = ({ results, units = { depth: 'm', temp: 'C' } }) => {
                             </div>
                         </div>
                          <div className="flex items-start gap-3">
-                            <div className="p-1.5 rounded-full bg-red-900/50 text-red-400">
+                            <div className="p-1.5 rounded-full bg-pl-danger-bg text-pl-danger-text">
                                 <Flame className="w-4 h-4" />
                             </div>
                             <div>
-                                <h4 className="text-sm font-medium text-white">Thermal Maximum</h4>
-                                <p className="text-xs text-slate-400 mt-1">
-                                    Basin reached a maximum temperature of <span className="text-white font-mono">{fmtTemp(maxTemp, tU)}{tempSymbol(tU)}</span>.
-                                    Max maturity: <span className="text-white font-mono">{maxMaturity.toFixed(2)} %Ro</span>.
+                                <h4 className="text-sm font-medium text-pl-text">Thermal Maximum</h4>
+                                <p className="text-xs text-pl-muted mt-1">
+                                    Basin reached a maximum temperature of <span className="text-pl-text font-mono">{fmtTemp(maxTemp, tU)}{tempSymbol(tU)}</span>.
+                                    Max maturity: <span className="text-pl-text font-mono">{maxMaturity.toFixed(2)} %Ro</span>.
                                 </p>
                             </div>
                         </div>
@@ -65,19 +65,19 @@ const ResultsSummaryTab = ({ results, units = { depth: 'm', temp: 'C' } }) => {
                 </CardContent>
             </Card>
 
-            <Card className="bg-slate-900 border-slate-800">
+            <Card>
                 <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-slate-400">Active Source Rocks</CardTitle>
+                    <CardTitle className="text-sm font-medium text-pl-muted">Active Source Rocks</CardTitle>
                 </CardHeader>
                 <CardContent>
                      {sourceLayers.length === 0 ? (
-                        <div className="text-xs text-slate-500 italic">No active source rocks identified in this scenario.</div>
+                        <div className="text-xs text-pl-muted italic">No active source rocks identified in this scenario.</div>
                      ) : (
                          <ul className="space-y-2">
                              {sourceLayers.map((layer, i) => (
-                                 <li key={i} className="flex justify-between items-center text-xs border-b border-slate-800 pb-2 last:border-0">
-                                     <span className="text-slate-200">{layer.name}</span>
-                                     <span className="text-green-400">Active</span>
+                                 <li key={i} className="flex justify-between items-center text-xs border-b border-pl-border pb-2 last:border-0">
+                                     <span className="text-pl-text">{layer.name}</span>
+                                     <span className="text-pl-success-text">Active</span>
                                  </li>
                              ))}
                          </ul>
@@ -85,14 +85,14 @@ const ResultsSummaryTab = ({ results, units = { depth: 'm', temp: 'C' } }) => {
                 </CardContent>
             </Card>
 
-            <Card className="bg-slate-900 border-slate-800 col-span-1 md:col-span-2">
+            <Card className="col-span-1 md:col-span-2">
                 <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-slate-400">Present day by layer</CardTitle>
+                    <CardTitle className="text-sm font-medium text-pl-muted">Present day by layer</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <table className="w-full text-xs text-slate-200" data-testid="bf-present-table">
+                    <table className="w-full text-xs text-pl-text" data-testid="bf-present-table">
                         <thead>
-                            <tr className="text-slate-500 text-left">
+                            <tr className="text-pl-muted text-left">
                                 <th className="font-normal">Layer</th>
                                 <th className="font-normal text-right">{depthLabel(zU, 'Top')}</th>
                                 <th className="font-normal text-right">{depthLabel(zU, 'Base')}</th>
@@ -102,7 +102,7 @@ const ResultsSummaryTab = ({ results, units = { depth: 'm', temp: 'C' } }) => {
                         </thead>
                         <tbody>
                             {present.map((row) => (
-                                <tr key={row.id} className="border-t border-slate-800">
+                                <tr key={row.id} className="border-t border-pl-border">
                                     <td className="py-1">{row.name}</td>
                                     <td className="py-1 text-right font-mono" data-testid={`bf-present-top-${row.id}`}>{fmtDepth(row.top, zU)}</td>
                                     <td className="py-1 text-right font-mono">{fmtDepth(row.bottom, zU)}</td>
@@ -114,14 +114,14 @@ const ResultsSummaryTab = ({ results, units = { depth: 'm', temp: 'C' } }) => {
                     </table>
                 </CardContent>
             </Card>
-            <Card className="bg-slate-900 border-slate-800 col-span-1 md:col-span-2">
+            <Card className="col-span-1 md:col-span-2">
                 <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-slate-400">Reading the result</CardTitle>
+                    <CardTitle className="text-sm font-medium text-pl-muted">Reading the result</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex gap-3 items-start p-3 bg-blue-900/10 border border-blue-900/30 rounded">
-                        <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                        <div className="text-xs text-slate-300">
+                    <div className="flex gap-3 items-start p-3 bg-pl-info-bg border border-pl-info/40 rounded">
+                        <CheckCircle2 className="w-4 h-4 text-pl-info-text shrink-0 mt-0.5" />
+                        <div className="text-xs text-pl-text">
                             {sourceLayers.length > 0
                                 ? `Compare the present-day Ro column with measured vitrinite data in the Calibration tab, then fit the heat flow.${criticalMoment != null ? ` Expulsion peaked at ${criticalMoment} Ma (the critical moment on the Timing tab); traps must be in place by then.` : ''}`
                                 : 'No source layer passed 10% transformation. Check the source rock TOC, HI and kerogen, the heat-flow history and the burial depth before reading charge from this model.'}

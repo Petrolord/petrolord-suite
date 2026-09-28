@@ -68,56 +68,56 @@ const ScenarioManager = () => {
     };
 
     return (
-        <div className="h-full p-6 bg-slate-950 overflow-y-auto">
+        <div className="h-full p-6 bg-pl-bg overflow-y-auto">
             <div className="max-w-4xl mx-auto">
                 <div className="flex items-center justify-between mb-6">
                     <div>
-                        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                            <GitBranch className="w-6 h-6 text-indigo-400" /> Scenario Manager
+                        <h2 className="text-2xl font-bold text-pl-text flex items-center gap-2">
+                            <GitBranch className="w-6 h-6 text-pl-primary-text" /> Scenario Manager
                         </h2>
-                        <p className="text-slate-400 text-sm">Create, manage, and compare simulation scenarios.</p>
+                        <p className="text-pl-muted text-sm">Create, manage, and compare simulation scenarios.</p>
                     </div>
-                    <Button onClick={handleCreateClick} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                    <Button onClick={handleCreateClick} >
                         <Plus className="w-4 h-4 mr-2" /> Save Current State
                     </Button>
                 </div>
 
-                <Card className="bg-slate-900 border-slate-800">
+                <Card>
                     <CardContent className="p-0">
                         <Table>
                             <TableHeader>
-                                <TableRow className="border-slate-800 hover:bg-transparent">
-                                    <TableHead className="text-slate-400">Name</TableHead>
-                                    <TableHead className="text-slate-400">Created</TableHead>
-                                    <TableHead className="text-slate-400">Description</TableHead>
-                                    <TableHead className="text-right text-slate-400">Actions</TableHead>
+                                <TableRow className="border-pl-border hover:bg-transparent">
+                                    <TableHead className="text-pl-muted">Name</TableHead>
+                                    <TableHead className="text-pl-muted">Created</TableHead>
+                                    <TableHead className="text-pl-muted">Description</TableHead>
+                                    <TableHead className="text-right text-pl-muted">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {scenarios.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={4} className="text-center py-8 text-slate-500">
+                                        <TableCell colSpan={4} className="text-center py-8 text-pl-muted">
                                             No scenarios saved yet.
                                         </TableCell>
                                     </TableRow>
                                 ) : (
                                     scenarios.map((s) => (
-                                        <TableRow key={s.id} className={`border-slate-800 ${activeScenarioId === s.id ? 'bg-indigo-900/10' : ''}`}>
-                                            <TableCell className="font-medium text-white">
+                                        <TableRow key={s.id} className={`border-pl-border ${activeScenarioId === s.id ? 'bg-pl-sunken' : ''}`}>
+                                            <TableCell className="font-medium text-pl-text">
                                                 {s.name}
-                                                {activeScenarioId === s.id && <span className="ml-2 text-[10px] text-indigo-400 bg-indigo-900/30 px-1.5 py-0.5 rounded">Active</span>}
+                                                {activeScenarioId === s.id && <span className="ml-2 text-[10px] text-pl-primary-text bg-pl-sunken px-1.5 py-0.5 rounded">Active</span>}
                                             </TableCell>
-                                            <TableCell className="text-slate-400 text-xs">
+                                            <TableCell className="text-pl-muted text-xs">
                                                 {new Date(s.timestamp).toLocaleString()}
                                             </TableCell>
-                                            <TableCell className="text-slate-400 text-sm max-w-xs truncate">
+                                            <TableCell className="text-pl-muted text-sm max-w-xs truncate">
                                                 {s.parameters?.description || '-'}
                                             </TableCell>
                                             <TableCell className="text-right space-x-2">
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-emerald-400" onClick={() => handleLoad(s.id)} title="Load">
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-pl-primary-text" onClick={() => handleLoad(s.id)} title="Load">
                                                     <Play className="w-4 h-4" />
                                                 </Button>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-red-400" onClick={() => handleDelete(s.id)} title="Delete">
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-pl-danger-text" onClick={() => handleDelete(s.id)} title="Delete">
                                                     <Trash2 className="w-4 h-4" />
                                                 </Button>
                                             </TableCell>
@@ -131,7 +131,7 @@ const ScenarioManager = () => {
             </div>
 
             <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-                <DialogContent className="bg-slate-900 border-slate-800 text-white">
+                <DialogContent>
                     <DialogHeader>
                         <DialogTitle>{editingScenario ? 'Edit Scenario' : 'Save Scenario'}</DialogTitle>
                     </DialogHeader>
@@ -141,7 +141,6 @@ const ScenarioManager = () => {
                             <Input 
                                 value={formData.name} 
                                 onChange={(e) => setFormData({...formData, name: e.target.value})}
-                                className="bg-slate-950 border-slate-700"
                             />
                         </div>
                         <div className="space-y-2">
@@ -149,14 +148,14 @@ const ScenarioManager = () => {
                             <Textarea 
                                 value={formData.description} 
                                 onChange={(e) => setFormData({...formData, description: e.target.value})}
-                                className="bg-slate-950 border-slate-700 h-20"
+                                className="h-20"
                                 placeholder="Notes about this run..."
                             />
                         </div>
                     </div>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setIsEditOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSave} className="bg-indigo-600 hover:bg-indigo-700">Save</Button>
+                        <Button onClick={handleSave} >Save</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

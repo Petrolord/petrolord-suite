@@ -45,10 +45,10 @@ const SimulationRunDialog = ({ isOpen, onClose, onComplete, onCancel }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={() => { if(status !== 'running') onClose(); }}>
-            <DialogContent className="bg-slate-900 border-slate-800 text-white max-w-md">
+            <DialogContent className="max-w-md">
                 <DialogHeader>
                     <DialogTitle>Basin Simulation</DialogTitle>
-                    <DialogDescription className="text-slate-400">
+                    <DialogDescription className="text-pl-muted">
                         Running 1D burial, thermal, and maturity history models.
                     </DialogDescription>
                 </DialogHeader>
@@ -58,36 +58,36 @@ const SimulationRunDialog = ({ isOpen, onClose, onComplete, onCancel }) => {
                     <div className="flex justify-center">
                         {status === 'running' && (
                             <div className="relative">
-                                <div className="absolute inset-0 bg-indigo-500 blur-xl opacity-20 rounded-full animate-pulse"></div>
-                                <Loader2 className="w-12 h-12 text-indigo-500 animate-spin relative z-10" />
+                                <div className="absolute inset-0 bg-pl-primary blur-xl opacity-20 rounded-full animate-pulse"></div>
+                                <Loader2 className="w-12 h-12 text-pl-primary-text animate-spin relative z-10" />
                             </div>
                         )}
                         {status === 'success' && (
-                            <div className="p-4 bg-emerald-900/30 rounded-full border border-emerald-500/30 animate-in zoom-in">
-                                <CheckCircle2 className="w-12 h-12 text-emerald-500" />
+                            <div className="p-4 bg-pl-sunken rounded-full border border-pl-primary/50 animate-in zoom-in">
+                                <CheckCircle2 className="w-12 h-12 text-pl-primary-text" />
                             </div>
                         )}
                         {status === 'error' && (
-                            <div className="p-4 bg-red-900/30 rounded-full border border-red-500/30 animate-in zoom-in">
-                                <AlertTriangle className="w-12 h-12 text-red-500" />
+                            <div className="p-4 bg-pl-danger-bg rounded-full border border-pl-danger/40 animate-in zoom-in">
+                                <AlertTriangle className="w-12 h-12 text-pl-danger-text" />
                             </div>
                         )}
                     </div>
 
                     {/* Progress Bar */}
                     <div className="space-y-2">
-                        <div className="flex justify-between text-xs text-slate-400">
+                        <div className="flex justify-between text-xs text-pl-muted">
                             <span data-testid="bf-sim-status">{status === 'running' ? 'Processing...' : status === 'success' ? 'Complete' : 'Failed'}</span>
                             <span>{Math.round(progress)}%</span>
                         </div>
-                        <Progress value={progress} className={status === 'error' ? "bg-red-900/20" : ""} indicatorClassName={status === 'success' ? "bg-emerald-500" : status === 'error' ? "bg-red-500" : "bg-indigo-500"} />
+                        <Progress value={progress} className={status === 'error' ? "bg-pl-danger-bg" : ""} indicatorClassName={status === 'success' ? "bg-pl-primary" : status === 'error' ? "bg-pl-danger" : "bg-pl-primary"} />
                     </div>
 
                     {/* Logs */}
-                    <div className="bg-slate-950 rounded border border-slate-800 p-3 h-32 overflow-y-auto text-xs font-mono text-slate-400">
+                    <div className="bg-pl-bg rounded border border-pl-border p-3 h-32 overflow-y-auto text-xs font-mono text-pl-muted">
                         {logs.map((log, i) => (
-                            <div key={i} className="mb-1 border-b border-slate-900/50 pb-1 last:border-0">
-                                <span className="text-slate-600 mr-2">[{new Date().toLocaleTimeString().split(' ')[0]}]</span>
+                            <div key={i} className="mb-1 border-b border-pl-border pb-1 last:border-0">
+                                <span className="text-pl-muted mr-2">[{new Date().toLocaleTimeString().split(' ')[0]}]</span>
                                 {log}
                             </div>
                         ))}
@@ -96,12 +96,12 @@ const SimulationRunDialog = ({ isOpen, onClose, onComplete, onCancel }) => {
 
                 <DialogFooter className="sm:justify-between">
                     {status === 'running' ? (
-                        <Button variant="ghost" onClick={onCancel} className="text-slate-400 hover:text-white">Run in Background</Button>
+                        <Button variant="ghost" onClick={onCancel} className="text-pl-muted hover:text-pl-text">Run in Background</Button>
                     ) : (
                         <div className="flex gap-2 w-full justify-end">
                             <Button variant="ghost" onClick={onClose} data-testid="bf-sim-close">Close</Button>
                             {status === 'success' && (
-                                <Button onClick={onClose} className="bg-emerald-600 hover:bg-emerald-700" data-testid="bf-sim-view">
+                                <Button onClick={onClose}  data-testid="bf-sim-view">
                                     <BarChart2 className="w-4 h-4 mr-2" /> View Results
                                 </Button>
                             )}

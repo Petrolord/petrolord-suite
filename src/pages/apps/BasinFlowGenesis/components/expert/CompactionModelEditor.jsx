@@ -12,14 +12,14 @@ const CompactionModelEditor = ({ layer, onUpdate }) => {
     };
 
     return (
-        <div className="space-y-3 p-3 bg-slate-950/50 rounded border border-slate-800/50">
-            <h4 className="text-xs font-semibold text-indigo-300 uppercase tracking-wider">Compaction Model</h4>
+        <div className="space-y-3 p-3 bg-pl-bg rounded border border-pl-border">
+            <h4 className="text-xs font-semibold text-pl-primary-text uppercase tracking-wider">Compaction Model</h4>
             
             <div className="grid grid-cols-2 gap-2">
                 <div className="col-span-2">
-                    <Label className="text-[10px] text-slate-500">Model Type</Label>
+                    <Label className="text-[10px] text-pl-muted">Model Type</Label>
                     <Select value={params.model} onValueChange={(v) => handleChange('model', v)}>
-                        <SelectTrigger className="h-7 text-xs bg-slate-900 border-slate-700"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="exponential">Exponential (Athy)</SelectItem>
                             <SelectItem value="linear">Linear</SelectItem>
@@ -29,27 +29,27 @@ const CompactionModelEditor = ({ layer, onUpdate }) => {
                 </div>
                 
                 <div>
-                    <Label className="text-[10px] text-slate-500">Surface Porosity (φ0)</Label>
+                    <Label className="text-[10px] text-pl-muted">Surface Porosity (φ0)</Label>
                     <Input 
                         type="number" step="0.01" min="0" max="1"
                         value={params.phi0}
                         onChange={(e) => handleChange('phi0', parseFloat(e.target.value))}
-                        className="h-7 bg-slate-900 border-slate-700 text-xs"
+                        className="h-7 text-xs"
                     />
                 </div>
                 
                 <div>
-                    <Label className="text-[10px] text-slate-500">Coeff. c (1/m)</Label>
+                    <Label className="text-[10px] text-pl-muted">Coeff. c (1/m)</Label>
                     <Input 
                         type="number" step="0.00001"
                         value={params.c}
                         onChange={(e) => handleChange('c', parseFloat(e.target.value))}
-                        className="h-7 bg-slate-900 border-slate-700 text-xs"
+                        className="h-7 text-xs"
                     />
                 </div>
             </div>
             
-            <div className="text-[10px] text-slate-500 italic mt-1">
+            <div className="text-[10px] text-pl-muted italic mt-1">
                 {params.model === 'exponential' && "φ(z) = φ0 * exp(-c * z)"}
                 {params.model === 'linear' && "φ(z) = φ0 - c * z"}
             </div>

@@ -25,11 +25,11 @@ const LayerCard = ({ layer, index, updateLayer, removeLayer }) => {
                     className="mb-2"
                     style={{ ...provided.draggableProps.style }}
                 >
-                    <Card className={`bg-slate-900 border-slate-800 hover:border-slate-700 transition-colors ${snapshot.isDragging ? 'border-indigo-500 ring-1 ring-indigo-500/50' : ''}`}>
+                    <Card className={`hover:border-pl-border-strong transition-colors ${snapshot.isDragging ? 'border-pl-primary ring-1 ring-pl-primary/50' : ''}`}>
                         <CardContent className="p-4">
                             <div className="flex items-start gap-3">
                                 <div 
-                                    className="mt-2 text-slate-500 cursor-grab active:cursor-grabbing outline-none"
+                                    className="mt-2 text-pl-muted cursor-grab active:cursor-grabbing outline-none"
                                     {...provided.dragHandleProps}
                                 >
                                     <GripVertical className="w-4 h-4" />
@@ -40,13 +40,13 @@ const LayerCard = ({ layer, index, updateLayer, removeLayer }) => {
                                         <Input 
                                             value={layer.name || ''} 
                                             onChange={(e) => updateLayer(layer.id, { name: e.target.value })}
-                                            className="h-8 w-1/2 bg-transparent border-none focus:bg-slate-950 p-0 font-semibold text-white"
+                                            className="h-8 w-1/2 bg-transparent border-none p-0 font-semibold"
                                             placeholder="Layer Name"
                                         />
                                         <Button 
                                             variant="ghost" 
                                             size="icon" 
-                                            className="h-6 w-6 text-slate-500 hover:text-red-400"
+                                            className="h-6 w-6 text-pl-muted hover:text-pl-danger-text"
                                             onClick={() => removeLayer(layer.id)}
                                         >
                                             <Trash2 className="w-3 h-3" />
@@ -55,45 +55,45 @@ const LayerCard = ({ layer, index, updateLayer, removeLayer }) => {
 
                                     <div className="grid grid-cols-3 gap-2 text-xs">
                                         <div>
-                                            <Label className="text-[10px] text-slate-400">Start Age (Ma)</Label>
+                                            <Label className="text-[10px] text-pl-muted">Start Age (Ma)</Label>
                                             <Input 
                                                 type="number" 
                                                 value={layer.ageStart || 0} 
                                                 onChange={(e) => updateLayer(layer.id, { ageStart: parseFloat(e.target.value) })}
-                                                className="h-7 bg-slate-950 text-xs"
+                                                className="h-7 text-xs"
                                             />
                                         </div>
                                         <div>
-                                            <Label className="text-[10px] text-slate-400">End Age (Ma)</Label>
+                                            <Label className="text-[10px] text-pl-muted">End Age (Ma)</Label>
                                             <Input 
                                                 type="number" 
                                                 value={layer.ageEnd || 0} 
                                                 onChange={(e) => updateLayer(layer.id, { ageEnd: parseFloat(e.target.value) })}
-                                                className="h-7 bg-slate-950 text-xs"
+                                                className="h-7 text-xs"
                                             />
                                         </div>
                                          <div>
-                                            <Label className="text-[10px] text-slate-400">Thick ({depthUnit})</Label>
+                                            <Label className="text-[10px] text-pl-muted">Thick ({depthUnit})</Label>
                                             <Input 
                                                 type="number" 
                                                 step="any"
                                                 value={tidy(depthToDisplay(layer.thickness || 0, depthUnit))} 
                                                 onChange={(e) => updateLayer(layer.id, { thickness: depthFromDisplay(parseFloat(e.target.value), depthUnit) })}
-                                                className="h-7 bg-slate-950 text-xs"
+                                                className="h-7 text-xs"
                                             />
                                         </div>
                                     </div>
 
                                     <div className="space-y-2">
                                         <div className="flex justify-between text-xs">
-                                            <span className="text-slate-400">Lithology</span>
-                                            <span className="text-slate-200 capitalize">{layer.lithology}</span>
+                                            <span className="text-pl-muted">Lithology</span>
+                                            <span className="text-pl-text capitalize">{layer.lithology}</span>
                                         </div>
                                         <Select 
                                             value={layer.lithology || 'shale'} 
                                             onValueChange={(val) => updateLayer(layer.id, { lithology: val })}
                                         >
-                                            <SelectTrigger className="h-7 bg-slate-950 text-xs border-slate-800">
+                                            <SelectTrigger className="h-7 text-xs">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -108,9 +108,9 @@ const LayerCard = ({ layer, index, updateLayer, removeLayer }) => {
 
                                     {/* Source Rock Indicator - Using safe navigation */}
                                     {layer.sourceRock?.isSource && (
-                                         <div className="flex items-center gap-2 p-2 bg-green-900/20 rounded border border-green-900/50">
-                                            <div className="w-2 h-2 rounded-full bg-green-500" />
-                                            <span className="text-xs text-green-400">Active Source Rock</span>
+                                         <div className="flex items-center gap-2 p-2 bg-pl-success-bg rounded border border-pl-success/40">
+                                            <div className="w-2 h-2 rounded-full bg-pl-success" />
+                                            <span className="text-xs text-pl-success-text">Active Source Rock</span>
                                          </div>
                                     )}
                                 </div>
@@ -131,25 +131,25 @@ const StratigraphyInputStep = () => {
         <div className="h-full flex flex-col space-y-4">
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-xl font-semibold text-white">Stratigraphic Column</h2>
-                    <p className="text-sm text-slate-400">Define the geological layers from top (youngest) to bottom (oldest).</p>
+                    <h2 className="text-xl font-semibold text-pl-text">Stratigraphic Column</h2>
+                    <p className="text-sm text-pl-muted">Define the geological layers from top (youngest) to bottom (oldest).</p>
                 </div>
-                <Button size="sm" onClick={addLayer} className="bg-blue-600 hover:bg-blue-700">
+                <Button size="sm" onClick={addLayer} >
                     <Plus className="w-4 h-4 mr-2" /> Add Layer
                 </Button>
             </div>
             
-            <Card className="bg-slate-950 border-slate-800 flex-1 overflow-hidden">
+            <Card className="flex-1 overflow-hidden">
                 <ScrollArea className="h-full p-4">
                     <Droppable droppableId="guided-stratigraphy-list">
                         {(provided, snapshot) => (
                             <div
                                 {...provided.droppableProps}
                                 ref={provided.innerRef}
-                                className={`min-h-[100px] space-y-2 ${snapshot.isDraggingOver ? 'bg-slate-900/50 rounded-lg transition-colors' : ''}`}
+                                className={`min-h-[100px] space-y-2 ${snapshot.isDraggingOver ? 'bg-pl-surface rounded-lg transition-colors' : ''}`}
                             >
                                 {(!layers || layers.length === 0) ? (
-                                    <div className="flex flex-col items-center justify-center h-40 text-slate-500 border-2 border-dashed border-slate-800 rounded-lg">
+                                    <div className="flex flex-col items-center justify-center h-40 text-pl-muted border-2 border-dashed border-pl-border rounded-lg">
                                         <AlertCircle className="w-8 h-8 mb-2 opacity-50" />
                                         <p className="text-sm">No layers defined</p>
                                     </div>
