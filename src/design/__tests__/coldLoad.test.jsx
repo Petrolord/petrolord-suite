@@ -1,8 +1,8 @@
 /**
  * Cold-load loaders on the themed paths paint the device's last theme
  * (petrolord.theme.v1.last), so a light user does not see a dark spinner
- * before a light app. Other paths keep the legacy loader (pinned in
- * uiLegacyDom.test.jsx). Since batch 7A every /dashboard path is themed
+ * before a light app. Paths with no scope (the homepage) paint the light
+ * loader (batch 7B retired the legacy loaders). Since batch 7A every /dashboard path is themed
  * (one scope in DashboardLayout); the themed paths outside /dashboard stay
  * in step with App.jsx.
  */
@@ -24,7 +24,7 @@ import {
   isThemedPath, isPublicLightPath, coldLoadTheme, THEMED_PAGE_PREFIXES, PUBLIC_PAGE_PREFIXES,
 } from '@/design/coldLoad';
 import { LAST_THEME_KEY } from '@/design/ThemeProvider';
-import { LEGACY_FIXTURE_PATH } from '@/design/testing/LegacyAppFixture';
+const OUTSIDE_PATH = '/legacy/unmigrated-page';
 
 afterEach(() => {
   cleanup();
@@ -54,7 +54,7 @@ describe('isThemedPath', () => {
   it.each([
     '/', '/nextgen', '/login-x', '/legal', '/dashboardx', '/dashboard-x', '/x/dashboard',
     '/admin', '/admin/organizationsx', '/profiles',
-    LEGACY_FIXTURE_PATH, `${LEGACY_FIXTURE_PATH}/help`, undefined, null, 42,
+    OUTSIDE_PATH, `${OUTSIDE_PATH}/help`, undefined, null, 42,
   ])('%s is not themed', (p) => expect(isThemedPath(p)).toBe(false));
 });
 
@@ -80,12 +80,14 @@ describe('the loaders', () => {
     expect(document.querySelector('.bg-slate-950')).toBeNull();
   });
 
-  it('elsewhere the legacy loaders stay, whatever the device key says', () => {
-    window.localStorage.setItem(LAST_THEME_KEY, 'light');
-    render(loading(<AuthGuard><p>app</p></AuthGuard>, LEGACY_FIXTURE_PATH));
-    expect(screen.queryByTestId('themed-loading')).toBeNull();
-    expect(document.querySelector('.bg-slate-900')).not.toBeNull();
-    expect(document.querySelector('[data-pl-theme]')).toBeNull();
+  it('elsewhere (the homepage) the loaders paint light, whatever the device key says', () => {
+    window.localStorage.setItem(LAST_THEME_KEY, 'dark');
+    render(loading(<AuthGuard><p>app</p></AuthGuard>, '/'));
+    expect(screen.getByTestId('themed-loading')).toHaveAttribute('data-pl-theme', 'light');
+    cleanup();
+    render(loading(<ProtectedRoute><p>app</p></ProtectedRoute>, OUTSIDE_PATH));
+    expect(screen.getByTestId('themed-loading')).toHaveAttribute('data-pl-theme', 'light');
+    expect(document.querySelector('.bg-slate-900, .bg-slate-950, .border-lime-400')).toBeNull();
   });
 
   it('the public and auth pages (7C) paint light whatever the device key says', () => {
@@ -99,7 +101,7 @@ describe('the loaders', () => {
     // the app paths still follow the device key
     expect(isPublicLightPath('/dashboard')).toBe(false);
     expect(coldLoadTheme('/dashboard')).toBe('dark');
-    // and the homepage keeps its legacy loader
+    // and the homepage opens no scope (its loaders fall back to light)
     expect(coldLoadTheme('/')).toBeNull();
   });
 

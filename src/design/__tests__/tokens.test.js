@@ -106,13 +106,20 @@ describe('theme.css', () => {
     expect(css).toMatch(/\[data-canvas="chart"\]\) \{\n  background-color: rgb\(var\(--pl-chart-surface\)\)/);
   });
 
-  it('leaves the legacy global dark variables in index.css as they were', () => {
+  it('index.css has no Dark Premium globals: its :root defaults are the light scope values (7B)', () => {
     const index = read('src/index.css');
-    expect(index).toMatch(/:root, \.dark \{/);
-    expect(index).toMatch(/--background: 210 25% 8%;/);
-    expect(index).toMatch(/--card: 219 25% 18%;/);
-    expect(index).toMatch(/--primary: 217 91% 60%;/);
+    const code = index.replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(code).not.toMatch(/\.dark \{|DM Sans|210 25% 8%/);
     expect(index).not.toMatch(/data-pl-theme/);
+    const rootBlock = index.slice(index.indexOf(':root {'), index.indexOf('}', index.indexOf(':root {')));
+    const vars = (block) => Object.fromEntries([...block.matchAll(/--([a-z0-9-]+):\s*([^;]+);/g)]
+      .filter(([, k]) => !k.startsWith('pl-')).map(([, k, v]) => [k, v.trim()]));
+    const light = css.slice(css.indexOf('[data-pl-theme="light"]'), css.indexOf('[data-pl-theme="dark"]'));
+    const want = vars(light.slice(light.indexOf('/* the shadcn variables')));
+    const have = vars(rootBlock);
+    expect(Object.keys(have).length).toBeGreaterThan(20);
+    expect(have).toEqual(Object.fromEntries(Object.keys(have).map((k) => [k, want[k]])));
+    expect(index).toMatch(/font-family: "Public Sans"/);
   });
 
   it('is imported once, after index.css, from main.jsx', () => {

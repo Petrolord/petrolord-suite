@@ -38,7 +38,6 @@ import { toast as sonnerToast } from 'sonner';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { FullPrecisionProvider, FullPrecisionToggle, FullPrecisionNote } from '@/components/fullprecision/FullPrecision';
-import { LEGACY_FIXTURE_PATH } from '@/design/testing/LegacyAppFixture';
 
 // Every scene renders outside any scope. The same scenes are reused by
 // scopeUiControls.test.jsx inside a scope.
@@ -146,12 +145,12 @@ export const SCENES = {
   comingSoon: () => <MemoryRouter><ComingSoon appName="Thing" /></MemoryRouter>,
   authGuardLoadingOther: () => (
     <AuthContext.Provider value={{ loading: true, user: null }}>
-      <MemoryRouter initialEntries={[LEGACY_FIXTURE_PATH]}><AuthGuard><p>app</p></AuthGuard></MemoryRouter>
+      <MemoryRouter initialEntries={['/']}><AuthGuard><p>app</p></AuthGuard></MemoryRouter>
     </AuthContext.Provider>
   ),
   protectedRouteLoading: () => (
     <AuthContext.Provider value={{ loading: true, user: null }}>
-      <MemoryRouter initialEntries={[LEGACY_FIXTURE_PATH]}><ProtectedRoute><p>app</p></ProtectedRoute></MemoryRouter>
+      <MemoryRouter initialEntries={['/']}><ProtectedRoute><p>app</p></ProtectedRoute></MemoryRouter>
     </AuthContext.Provider>
   ),
   toaster: () => <Toaster richColors closeButton />,
