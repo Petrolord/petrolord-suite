@@ -9,6 +9,14 @@ Petrolord/petrolord-engines, not here). Route
 `/dashboard/apps/reservoir/voidage-replacement-monitor`; tile is DB-driven
 (`master_apps`, Active since the R0 honest catalog).
 
+Design system: pilot 5 (2026-09-27, branch `feat/ds-pilot-vrr`). The route
+is wrapped in `<ThemedApp>`: light by default, dark by the header toggle,
+remembered per user in the browser. The Studio kit is theme-aware and inert
+outside a theme scope, so the other Studio-kit apps are unchanged until they
+opt in. Charts keep the white chart standard in both themes. Tests:
+`src/pages/apps/__tests__/VoidageReplacementMonitor.theme.test.jsx` and
+`src/components/studio/__tests__/studioKitOptIn.test.jsx`.
+
 ## The upgrade program (owner-directed, 2026-08-28)
 
 Owner: "needs serious upgrade — it doesn't even import." Benchmarked against
