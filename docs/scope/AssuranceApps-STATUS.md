@@ -1758,6 +1758,20 @@ differs only in VENDOR.json and VENDOR.manifest.
 - Help updated for all three. All 70 assurance suites pass (3731 tests)
   under UTC, Africa/Lagos and Pacific/Pago_Pago; the build passes.
 
+## 3p. Design system rollout w4f, 2026-09-28: Document Control, Peer Review, MOC, QA Plan
+
+The four registers open in the grey panel light theme with a header toggle
+to dark. Each wraps itself in `<ThemedApp>` inside its own shell
+(`DocControlShell`, `PeerReviewShell`, `MOCPageShell`; QA Plan once in
+`QAPlanPageShell` around its nested routes). They were built on the shadcn
+tokens, which the scope re-points, so their pages kept their classes. Two
+changes: the destructive confirm button text uses the destructive
+foreground token (was `text-white`), and the white dashboard and report
+chart wrappers carry `data-canvas="chart"`. Status badges keep reading
+their colour from the status tokens beside the status word. No shared
+assurance file changed. Theme test (every page, light and dark, seeded
+data): `src/pages/apps/assurance/__tests__/assuranceW4f.theme.test.jsx`.
+
 ## 4. How AS1 was verified
 
 No production write was made. Everything below ran on a scratch
