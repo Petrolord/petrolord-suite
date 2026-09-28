@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2, UserPlus, Trash2, Shield, Lock } from 'lucide-react';
+import { Loader2, UserPlus, Trash2, Shield, Lock, RefreshCw } from 'lucide-react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "@/components/ui/table";
@@ -16,6 +17,7 @@ import { AccountScope, AccountPage, AccountHeader, accountEmpty } from '@/compon
 function SubscriptionManagementPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -100,6 +102,11 @@ function SubscriptionManagementPage() {
         eyebrow="Billing"
         title="App & Seat Management"
         description="Manage licenses and user assignments per application."
+        actions={
+          <Button variant="outline" onClick={() => navigate('/dashboard/subscriptions/renew')}>
+            <RefreshCw className="w-4 h-4 mr-2" aria-hidden="true" /> Renew
+          </Button>
+        }
       />
 
       {loading ? (

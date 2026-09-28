@@ -33,6 +33,10 @@ import CooldownPanel from '@/components/flowassurance/CooldownPanel';
 import SummaryPanel from '@/components/flowassurance/SummaryPanel';
 import WarningsPanel from '@/components/flowassurance/WarningsPanel';
 import FlowAssuranceHelpContent from '@/components/flowassurance/FlowAssuranceHelpGuide';
+import { ThemedApp } from '@/design/ThemeProvider';
+
+// Design system rollout batch 2D (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class below is a theme role.
 
 const TABS = [
   { value: 'trace', label: 'Trace' },
@@ -42,7 +46,7 @@ const TABS = [
 ];
 
 const SectionLabel = ({ children }) => (
-  <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest">{children}</h3>
+  <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
 );
 
 const FlowAssuranceContent = () => {
@@ -155,7 +159,6 @@ const FlowAssuranceContent = () => {
             backTo="/dashboard/production"
             backTitle="Back to Production Operations"
             icon={Snowflake}
-            iconGradientClass="from-sky-600 to-cyan-700"
             title="Flow Assurance Studio"
             tabs={TABS}
             activeTab={activeTab}
@@ -168,7 +171,7 @@ const FlowAssuranceContent = () => {
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
             />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Flow Assurance Guide"
               description="How the trace is built, which half of it is solved, and where the hydrate question is actually asked."
@@ -191,8 +194,10 @@ const FlowAssuranceContent = () => {
 
 export default function FlowAssuranceStudio() {
   return (
-    <FlowAssuranceProvider>
-      <FlowAssuranceContent />
-    </FlowAssuranceProvider>
+    <ThemedApp data-testid="flowassurance-theme-scope">
+      <FlowAssuranceProvider>
+        <FlowAssuranceContent />
+      </FlowAssuranceProvider>
+    </ThemedApp>
   );
 }

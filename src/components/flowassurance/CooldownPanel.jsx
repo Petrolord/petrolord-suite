@@ -26,14 +26,14 @@ const CooldownPanel = () => {
   const cd = analysis?.cooldown;
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
-            <Timer className="w-4 h-4 text-violet-400" /> Cooldown after a shutdown
+            <Timer className="w-4 h-4 text-pl-muted" /> Cooldown after a shutdown
           </CardTitle>
           <div className="flex items-center gap-2">
-            <Label className="text-xs text-slate-400">Include</Label>
+            <Label className="text-xs text-pl-muted">Include</Label>
             <Switch
               checked={!!inputs.cooldown.enabled}
               onCheckedChange={(v) => setSection('cooldown', 'enabled', v)}
@@ -43,7 +43,7 @@ const CooldownPanel = () => {
       </CardHeader>
       <CardContent className="space-y-3">
         {!inputs.cooldown.enabled ? (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-pl-muted">
             Turn this on to get a no-touch time for the first pipe leg.
           </p>
         ) : (
@@ -63,7 +63,7 @@ const CooldownPanel = () => {
               </Field>
             </div>
 
-            {cd && !cd.ok && <p className="text-[11px] text-rose-400">{cd.error}</p>}
+            {cd && !cd.ok && <p className="text-[11px] text-pl-danger-text">{cd.error}</p>}
 
             {cd?.ok && (
               <>
@@ -72,7 +72,7 @@ const CooldownPanel = () => {
                     label="No-touch time"
                     value={Number.isFinite(cd.hours) ? fmt(cd.hours, 1) : 'Never'}
                     unit={Number.isFinite(cd.hours) ? 'hours' : ''}
-                    accent="text-violet-300"
+                    accent="text-pl-text"
                   />
                   <Stat
                     label="Time constant"
@@ -87,7 +87,7 @@ const CooldownPanel = () => {
                     hint="Where it settles"
                   />
                 </div>
-                {cd.note && <p className="text-[11px] text-slate-500">{cd.note}</p>}
+                {cd.note && <p className="text-[11px] text-pl-muted">{cd.note}</p>}
 
                 {cd.stations?.length > 1 && (
                   <ChartFrame height={300} exportFilename="flow-assurance-cooldown">

@@ -27,13 +27,13 @@ const DeliverabilityPanel = () => {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">
             <span className="flex items-center gap-2">
-              <Gauge className="w-4 h-4 text-sky-400" /> What this well delivers
+              <Gauge className="w-4 h-4 text-pl-muted" /> What this well delivers
             </span>
-            <span className="block text-xs font-normal text-slate-500 mt-0.5">
+            <span className="block text-xs font-normal text-pl-muted mt-0.5">
               The gas inflow meets the gas column at the node. Both halves are the validated nodal
               layer; the analysis puts this well's own numbers into them.
             </span>
@@ -45,7 +45,7 @@ const DeliverabilityPanel = () => {
               label="Deliverability"
               value={fmt(result.qMscfd)}
               unit="Mscf/d"
-              accent="text-emerald-400"
+              accent="text-pl-success-text"
               hint={`against ${fmt(result.whp)} psia at the wellhead`}
             />
             <Stat

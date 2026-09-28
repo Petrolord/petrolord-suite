@@ -175,3 +175,18 @@ the last sample was dropped.
 - System plot domains explicit (x to AOF, y above Pr); shared legend band
   and axis-label height on all charts; economic point KPI sub-line;
   harness `/dev/nodal-analysis-studio` on the in-memory Supabase.
+
+## 2026-09-28: design system rollout batch 2D (branch `feat/ds-w2d`)
+
+The page wraps itself in `<ThemedApp>` (test id `nodal-theme-scope`): grey
+panel light by default, dark by the header toggle, remembered per user.
+The `nodalstudio/` panels and the model status rail use theme roles only:
+the dark Card and Input overrides are gone, the system verdict, warnings
+and stale-sweep notes go through the status roles, KPI values use the mono
+face and the header gradient is removed. The IPR and VLP system plot,
+traverse, sensitivity, gas lift and choke charts keep the white
+`ChartFrame` standard in both themes (`LINE` colours unchanged). All three
+slugs (`nodal-analysis-studio`, `nodal-analysis-engine`,
+`nodal-performance-optimizer`) are in `src/design/rollout/w2d.js`. Test:
+`src/pages/apps/__tests__/NodalAnalysisStudio.theme.test.jsx`. No engine
+or calculation change.

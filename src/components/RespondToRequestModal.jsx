@@ -14,26 +14,29 @@ export default function RespondToRequestModal({ request, onSuccess, trigger }) {
   const [isOpen, setIsOpen] = useState(false);
   const [responseMsg, setResponseMsg] = useState('');
   const [loading, setLoading] = useState(false);
-  const [action, setAction] = useState(null); // 'approved' or 'rejected'
+  const [action, setAction] = useState(null); // 'approved' or 'rejected', for the spinner
 
-  const handleSubmit = async () => {
-    if (!action) return;
+  // Each button passes its own decision. The old handler read `action` from
+  // state inside a setTimeout scheduled in the same render that set it, so it
+  // still saw null and returned without sending anything.
+  const handleSubmit = async (decision) => {
+    if (decision !== 'approved' && decision !== 'rejected') return;
+    setAction(decision);
     setLoading(true);
     try {
         const { data, error } = await supabase.functions.invoke('respond-to-access-request', {
             body: {
                 request_id: request.id,
-                approval_status: action,
+                approval_status: decision,
                 admin_response: responseMsg
             }
         });
 
         if (error || data?.error) throw new Error(error?.message || data?.error);
 
-        toast({ 
-            title: `Request ${action === 'approved' ? 'Approved' : 'Rejected'}`, 
-            description: "Employee has been notified.", 
-            className: action === 'approved' ? "bg-green-600 text-white" : "bg-red-600 text-white"
+        toast({
+            title: `Request ${decision === 'approved' ? 'Approved' : 'Rejected'}`,
+            description: "Employee has been notified.",
         });
         
         if (onSuccess) onSuccess();
@@ -82,14 +85,14 @@ export default function RespondToRequestModal({ request, onSuccess, trigger }) {
                 <Button 
                     variant="outline" 
                     className="text-pl-danger-text hover:bg-pl-danger-bg hover:text-pl-danger-text"
-                    onClick={() => { setAction('rejected'); setTimeout(handleSubmit, 100); }} // immediate trigger for UX simplicity or confirm? assume confirm
+                    onClick={() => handleSubmit('rejected')}
                     disabled={loading}
                 >
                     {loading && action === 'rejected' ? <Loader2 className="w-4 h-4 animate-spin"/> : <XCircle className="w-4 h-4 mr-2"/>}
                     Reject
                 </Button>
                 <Button 
-                    onClick={() => { setAction('approved'); setTimeout(handleSubmit, 100); }}
+                    onClick={() => handleSubmit('approved')}
                     disabled={loading}
                 >
                     {loading && action === 'approved' ? <Loader2 className="w-4 h-4 animate-spin"/> : <CheckCircle className="w-4 h-4 mr-2"/>}

@@ -9,11 +9,11 @@ const SummaryPanel = () => {
 
   if (!analysis.ok || !result) {
     return (
-      <div className="rounded-md border border-amber-900/60 bg-amber-950/30 p-3 space-y-2">
-        <p className="text-xs font-semibold text-amber-300 flex items-center gap-1">
+      <div className="rounded-md border border-pl-warning/40 bg-pl-warning-bg p-3 space-y-2">
+        <p className="text-xs font-semibold text-pl-warning-text flex items-center gap-1">
           <AlertTriangle className="w-3.5 h-3.5" /> Analysis cannot run
         </p>
-        <ul className="text-[11px] text-amber-200/80 space-y-1 list-disc pl-4">
+        <ul className="text-[11px] text-pl-warning-text space-y-1 list-disc pl-4">
           {analysis.errors.map((e) => <li key={e}>{e}</li>)}
         </ul>
       </div>
@@ -64,12 +64,12 @@ const SummaryPanel = () => {
 
       <div className="pt-2">
         {result.warnings.length === 0 ? (
-          <p className="text-[11px] text-emerald-400 flex items-center gap-1">
+          <p className="text-[11px] text-pl-success-text flex items-center gap-1">
             <CheckCircle2 className="w-3.5 h-3.5" /> The bean is in control and the line is inside its limits.
           </p>
         ) : (
-          <div className="rounded-md border border-amber-900/60 bg-amber-950/30 p-2">
-            <p className="text-[11px] font-semibold text-amber-300">
+          <div className="rounded-md border border-pl-warning/40 bg-pl-warning-bg p-2">
+            <p className="text-[11px] font-semibold text-pl-warning-text">
               {result.warnings.length} thing{result.warnings.length === 1 ? '' : 's'} to look at
             </p>
           </div>

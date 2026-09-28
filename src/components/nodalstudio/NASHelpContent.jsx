@@ -3,12 +3,12 @@ import React from 'react';
 import { Activity, GitMerge, Waves, SlidersHorizontal, Wind, CircleDot, BookOpen } from 'lucide-react';
 
 const Section = ({ icon: Icon, title, children }) => (
-  <section className="bg-slate-900/50 p-4 rounded-lg border border-slate-800">
-    <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-200 mb-2">
-      <Icon className="w-4 h-4 text-cyan-400" />
+  <section className="bg-pl-surface p-4 rounded-lg border border-pl-border">
+    <h3 className="flex items-center gap-2 text-sm font-semibold text-pl-text mb-2">
+      <Icon className="w-4 h-4 text-pl-muted" />
       {title}
     </h3>
-    <div className="text-xs text-slate-400 leading-relaxed space-y-2">{children}</div>
+    <div className="text-xs text-pl-muted leading-relaxed space-y-2">{children}</div>
   </section>
 );
 

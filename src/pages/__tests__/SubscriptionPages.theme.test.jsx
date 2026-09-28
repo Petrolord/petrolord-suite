@@ -3,8 +3,10 @@
  * <ThemedApp>: Subscriptions (/dashboard/subscriptions), Renew
  * (/dashboard/subscriptions/renew/:moduleId), History and Usage analytics.
  * describeAppTheme checks each page; the extra cases open the seat details
- * with every seat status, the seat transfer dialog and the renewal term
- * select. The renew-subscription, seat and Paystack calls are not made.
+ * with every seat status and the seat transfer dialog. Renew hands the
+ * organisation's holdings to the quote builder (quote-and-pay flow, fixes
+ * 2026-09-28), so it has no term select or payment of its own. The seat and
+ * Paystack calls are not made.
  */
 import '@testing-library/jest-dom';
 import { screen, fireEvent } from '@testing-library/react';
@@ -51,7 +53,7 @@ const renderRenew = () => renderAccountPage(RenewSubscription, {
   pattern: '/dashboard/subscriptions/renew/:moduleId',
 });
 const subsReady = () => screen.findByText('Seismolord');
-const renewReady = () => screen.findByText(/Renew Subscription: Seismolord/);
+const renewReady = () => screen.findByTestId('renewal-holdings');
 
 describeAppTheme({
   name: 'Subscriptions',
@@ -110,14 +112,18 @@ describe('Subscription pages, details and dialogs', () => {
     expectNoLegacyChrome();
   });
 
-  it('the renewal term select opens inside the scope', async () => {
+  it('renew shows the holdings and the continue button inside the scope, with no price', async () => {
     renderRenew();
     await renewReady();
-    const trigger = screen.getByRole('combobox');
-    fireEvent.click(trigger);
-    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
-    const listbox = await screen.findByRole('listbox');
-    expect(listbox.closest('[data-pl-theme]')).toHaveAttribute('data-pl-theme', 'light');
+    const btn = screen.getByRole('button', { name: /Continue to quote and payment/ });
+    expect(btn.closest('[data-pl-theme]')).toHaveAttribute('data-pl-theme', 'light');
+    expect(document.body.textContent).not.toMatch(/\$/);
     expectNoLegacyChrome();
+  });
+
+  it('the subscriptions page offers Renew', async () => {
+    renderAccountPage(SubscriptionManagement);
+    await subsReady();
+    expect(screen.getByRole('button', { name: /Renew/ })).toBeInTheDocument();
   });
 });

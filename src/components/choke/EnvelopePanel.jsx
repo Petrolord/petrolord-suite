@@ -20,10 +20,10 @@ import { Field, NumberInput, fmt } from './fields';
 const COLOR = { rate: '#059669', pwh: '#2563eb', limit: '#d97706' };
 
 const StaleNote = ({ onRerun }) => (
-  <div className="flex items-center gap-2 text-[11px] text-amber-400 mb-2">
+  <div className="flex items-center gap-2 text-[11px] text-pl-warning-text mb-2">
     <RefreshCw className="w-3 h-3" />
     Inputs changed since this ran.
-    <button type="button" className="underline hover:text-amber-300" onClick={onRerun}>
+    <button type="button" className="underline hover:text-pl-text" onClick={onRerun}>
       Run again
     </button>
   </div>
@@ -42,10 +42,10 @@ const EnvelopePanel = () => {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-emerald-400" /> What every bean size makes
+            <TrendingUp className="w-4 h-4 text-pl-muted" /> What every bean size makes
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -59,7 +59,7 @@ const EnvelopePanel = () => {
           </div>
 
           {!isGas && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 items-end border-t border-slate-800 pt-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 items-end border-t border-pl-border pt-3">
               <Field
                 label={`Target oil rate (${rateUnit})`}
                 hint="Solved against the nodal point, not by inverting the correlation at a guessed wellhead pressure."
@@ -73,7 +73,7 @@ const EnvelopePanel = () => {
           )}
 
           {!envelope ? (
-            <p className="text-sm text-slate-500 py-6 text-center">
+            <p className="text-sm text-pl-muted py-6 text-center">
               Each bean size is a full nodal solve with the choke as the surface constraint, so this
               runs when you ask for it.
             </p>
@@ -81,7 +81,7 @@ const EnvelopePanel = () => {
             <>
               {envelopeStale && <StaleNote onRerun={runEnvelope} />}
               {envelope.limit ? (
-                <p className="text-[11px] text-amber-300">
+                <p className="text-[11px] text-pl-warning-text">
                   Flow stops being critical between {envelope.limit.lastCriticalS64}/64 and{' '}
                   {envelope.limit.firstSubcriticalS64}/64, at about{' '}
                   {fmt(envelope.limit.rateAtLimit)} {rateUnit}. Past there the bean has stopped
@@ -89,7 +89,7 @@ const EnvelopePanel = () => {
                   much less than the curve on its own suggests.
                 </p>
               ) : (
-                <p className="text-[11px] text-emerald-400">
+                <p className="text-[11px] text-pl-success-text">
                   Every bean in this range stays in critical flow.
                 </p>
               )}
@@ -166,7 +166,7 @@ const EnvelopePanel = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
+                    <tr className="text-[10px] uppercase tracking-wider text-pl-muted border-b border-pl-border bg-pl-sunken">
                       <th className="text-left font-semibold px-3 py-2">Bean</th>
                       <th className="text-right font-semibold px-3 py-2">Rate ({rateUnit})</th>
                       <th className="text-right font-semibold px-3 py-2">Wellhead (psia)</th>
@@ -176,19 +176,19 @@ const EnvelopePanel = () => {
                   </thead>
                   <tbody>
                     {envelope.points.map((p) => (
-                      <tr key={p.s64} className="border-b border-slate-800/60 last:border-0">
-                        <td className="px-3 py-2 text-slate-200">{p.s64}/64</td>
+                      <tr key={p.s64} className="border-b border-pl-border last:border-0">
+                        <td className="px-3 py-2 text-pl-text">{p.s64}/64</td>
                         {p.ok ? (
                           <>
-                            <td className="px-3 py-2 text-right tabular-nums text-slate-300">{fmt(p.q)}</td>
-                            <td className="px-3 py-2 text-right tabular-nums text-slate-300">{fmt(p.pwh)}</td>
-                            <td className="px-3 py-2 text-right tabular-nums text-slate-300">{fmt(p.ratio, 2)}</td>
-                            <td className={`px-3 py-2 text-[11px] ${p.critical ? 'text-emerald-400' : 'text-amber-300'}`}>
+                            <td className="px-3 py-2 text-right font-pl-mono tabular-nums text-pl-text">{fmt(p.q)}</td>
+                            <td className="px-3 py-2 text-right font-pl-mono tabular-nums text-pl-text">{fmt(p.pwh)}</td>
+                            <td className="px-3 py-2 text-right font-pl-mono tabular-nums text-pl-text">{fmt(p.ratio, 2)}</td>
+                            <td className={`px-3 py-2 text-[11px] ${p.critical ? 'text-pl-success-text' : 'text-pl-warning-text'}`}>
                               {p.critical ? (isGas ? 'sonic' : 'critical') : (isGas ? 'subsonic' : 'subcritical, correlation void')}
                             </td>
                           </>
                         ) : (
-                          <td colSpan={4} className="px-3 py-2 text-[11px] text-amber-300">{p.reason}</td>
+                          <td colSpan={4} className="px-3 py-2 text-[11px] text-pl-warning-text">{p.reason}</td>
                         )}
                       </tr>
                     ))}

@@ -23,9 +23,9 @@ const UpliftPanel = () => {
 
   if (!plan) {
     return (
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardContent className="py-10 text-center space-y-3">
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-pl-muted">
             The plan diagnoses the history, screens the treatments against that diagnosis, then
             solves the well before and after whatever survived. Each treatment is two full nodal
             solves, so it runs when you ask for it.
@@ -43,11 +43,11 @@ const UpliftPanel = () => {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-emerald-400" />
+              <TrendingUp className="w-4 h-4 text-pl-muted" />
               {isShutoff ? 'What the shutoff is worth' : 'What the stimulation is worth'}
             </CardTitle>
             <Button size="sm" onClick={runPlan} disabled={isRunning} className="h-7 text-xs">
@@ -57,17 +57,17 @@ const UpliftPanel = () => {
         </CardHeader>
         <CardContent className="space-y-3">
           {planStale && (
-            <div className="flex items-center gap-2 text-[11px] text-amber-400">
+            <div className="flex items-center gap-2 text-[11px] text-pl-warning-text">
               <RefreshCw className="w-3 h-3" />
               Inputs changed since this ran.
-              <button type="button" className="underline hover:text-amber-300" onClick={runPlan}>
+              <button type="button" className="underline hover:text-pl-text" onClick={runPlan}>
                 Run again
               </button>
             </div>
           )}
 
           {!sized && (
-            <p className="text-[12px] text-amber-300 flex items-start gap-1.5">
+            <p className="text-[12px] text-pl-warning-text flex items-start gap-1.5">
               <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
               <span>
                 Nothing was sized. Either the screening ruled this treatment out, or the well does
@@ -76,7 +76,7 @@ const UpliftPanel = () => {
             </p>
           )}
           {sized && !sized.ok && (
-            <p className="text-[12px] text-rose-400">{sized.error}</p>
+            <p className="text-[12px] text-pl-danger-text">{sized.error}</p>
           )}
 
           {sized?.ok && (
@@ -92,14 +92,14 @@ const UpliftPanel = () => {
                   label="Afterwards"
                   value={fmt(sized.after.qoStbd)}
                   unit="stb/d"
-                  accent="text-emerald-400"
+                  accent="text-pl-success-text"
                   hint={`at ${fmt(sized.after.pwfPsia)} psia`}
                 />
                 <Stat
                   label="Uplift"
                   value={fmt(sized.upliftStbd)}
                   unit="stb/d"
-                  accent="text-emerald-400"
+                  accent="text-pl-success-text"
                 />
                 {isShutoff ? (
                   <Stat
@@ -113,14 +113,14 @@ const UpliftPanel = () => {
                     label="Productivity index"
                     value={`x ${fmt(sized.piMultiplier, 2)}`}
                     hint={`the WELL only gains x ${fmt(sized.rateMultiplier, 2)}`}
-                    accent="text-amber-400"
+                    accent="text-pl-warning-text"
                   />
                 )}
               </div>
 
               {!isShutoff && (
-                <div className="rounded border border-amber-900/50 bg-amber-950/20 p-3">
-                  <p className="text-[12px] text-amber-200">
+                <div className="rounded border border-pl-warning/40 bg-pl-warning-bg p-3">
+                  <p className="text-[12px] text-pl-warning-text">
                     A spreadsheet that applied the productivity multiplier to the current rate would
                     have promised {fmt(sized.inflowOnlyStbd)} stb/d. The well actually gains{' '}
                     {fmt(sized.upliftStbd)}, because the extra rate has to go up the same tubing and
@@ -132,8 +132,8 @@ const UpliftPanel = () => {
               )}
 
               {isShutoff && (
-                <div className="rounded border border-cyan-900/50 bg-cyan-950/20 p-3">
-                  <p className="text-[12px] text-cyan-200">
+                <div className="rounded border border-pl-info/40 bg-pl-info-bg p-3">
+                  <p className="text-[12px] text-pl-info-text">
                     The inflow did not change at all. Every barrel of this gain came from the column
                     getting lighter: less water is less hydrostatic head, so the same wellhead
                     pressure leaves a bottomhole pressure {fmt(sized.pwfDropPsi)} psi lower and the
@@ -144,7 +144,7 @@ const UpliftPanel = () => {
               )}
 
               {!isShutoff && (
-                <div className="border-t border-slate-800 pt-3">
+                <div className="border-t border-pl-border pt-3">
                   <Row
                     label="Flow efficiency now"
                     value={fmt(sized.flowEfficiencyBefore * 100, 0) + '%'}
@@ -167,7 +167,7 @@ const UpliftPanel = () => {
       </Card>
 
       {sized?.ok && plan.economics?.ok && (
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">What it is worth in money</CardTitle>
           </CardHeader>
@@ -177,7 +177,7 @@ const UpliftPanel = () => {
                 label="NPV"
                 value={fmt(plan.economics.economics.metrics.npv, 2)}
                 unit="$MM"
-                accent={plan.economics.economics.metrics.npv > 0 ? 'text-emerald-400' : 'text-rose-400'}
+                accent={plan.economics.economics.metrics.npv > 0 ? 'text-pl-success-text' : 'text-pl-danger-text'}
               />
               <Stat
                 label="Incremental oil"
@@ -227,7 +227,7 @@ const UpliftPanel = () => {
               </ComposedChart>
             </ChartFrame>
 
-            <p className="text-[11px] text-slate-600">
+            <p className="text-[11px] text-pl-muted">
               The uplift DECLINES, and the rate it declines at is an input with no default. An
               intervention modelled as a permanent step change is an intervention that always pays,
               which is the commonest way a workover case is oversold. The discounting is the Suite's

@@ -14,15 +14,15 @@ const GasInflowFields = () => {
   const { inputs, setSection } = useGasWell();
   const g = inputs.gasInflow;
   return (
-    <div className="border-t border-slate-800 pt-3 space-y-3">
-      <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Gas inflow</p>
+    <div className="border-t border-pl-border pt-3 space-y-3">
+      <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Gas inflow</p>
       <Field
         label="Deliverability model"
         hint="Reservoir pressure, gas gravity and bottomhole temperature come from the sections above: a well described once is described once."
       >
         <Select value={g.model} onValueChange={(v) => setSection('gasInflow', 'model', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+          <SelectContent>
             <SelectItem value="backPressure">Back pressure (Rawlins and Schellhardt)</SelectItem>
             <SelectItem value="lit">Laminar-inertial-turbulent (Houpeurt)</SelectItem>
             <SelectItem value="darcy">Pseudo-pressure deliverability (Darcy)</SelectItem>
@@ -52,7 +52,7 @@ const GasInflowFields = () => {
             <Field label="Skin"><NumberInput section="gasInflow" name="skin" step="0.1" /></Field>
             <Field label="Non-Darcy D (1/(Mscf/d))"><NumberInput section="gasInflow" name="dNonDarcy" step="0.00001" /></Field>
           </div>
-          <p className="text-[11px] text-slate-600">
+          <p className="text-[11px] text-pl-muted">
             The pseudo-pressure route runs on real-gas m(p) rather than pressure squared, so it
             stays honest at high pressure where the squared form drifts.
           </p>
@@ -71,8 +71,8 @@ const WellModelPanel = () => {
         hint="The record carries both inflows, so switching phase does not lose what was already entered."
       >
         <Select value={inputs.well.phase} onValueChange={(v) => setSection('well', 'phase', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+          <SelectContent>
             <SelectItem value="gas">Gas well</SelectItem>
             <SelectItem value="oil">Oil well</SelectItem>
           </SelectContent>

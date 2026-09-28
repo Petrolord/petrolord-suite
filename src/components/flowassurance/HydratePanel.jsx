@@ -22,10 +22,10 @@ const HydratePanel = () => {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <Snowflake className="w-4 h-4 text-sky-400" /> Hydrate exposure
+            <Snowflake className="w-4 h-4 text-pl-muted" /> Hydrate exposure
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -34,7 +34,7 @@ const HydratePanel = () => {
               label="Worst subcooling"
               value={fmt(hydrate.maxSubcoolingF, 1)}
               unit="F"
-              accent={hydrate.inHydrate ? 'text-rose-400' : 'text-emerald-400'}
+              accent={hydrate.inHydrate ? 'text-pl-danger-text' : 'text-pl-success-text'}
               hint={hydrate.inHydrate ? 'Inside the region' : 'Clear of the region'}
             />
             <Stat
@@ -56,7 +56,7 @@ const HydratePanel = () => {
               hint={`${fmt(analysis.arrival?.pPsia)} psia`}
             />
           </div>
-          <p className="text-[11px] text-slate-600">
+          <p className="text-[11px] text-pl-muted">
             The worst station is ranked by SUBCOOLING, not by temperature. A cold low-pressure
             arrival can be perfectly safe while a warmer high-pressure spool is not, and ranking by
             temperature picks the wrong one.
@@ -64,24 +64,24 @@ const HydratePanel = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <Droplets className="w-4 h-4 text-cyan-400" /> Inhibitor
+            <Droplets className="w-4 h-4 text-pl-muted" /> Inhibitor
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {!inh && <p className="text-sm text-slate-500">The trace has not produced a subcooling yet.</p>}
+          {!inh && <p className="text-sm text-pl-muted">The trace has not produced a subcooling yet.</p>}
 
           {inh && !inh.required && (
-            <p className="text-sm text-emerald-400 flex items-start gap-1.5">
+            <p className="text-sm text-pl-success-text flex items-start gap-1.5">
               <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
               <span>{inh.note}</span>
             </p>
           )}
 
           {inh?.required && !inh.ok && (
-            <p className="text-sm text-rose-400 flex items-start gap-1.5">
+            <p className="text-sm text-pl-danger-text flex items-start gap-1.5">
               <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
               <span>{inh.error}</span>
             </p>
@@ -100,14 +100,14 @@ const HydratePanel = () => {
                   label="Concentration"
                   value={fmt(inh.weightPct, 1)}
                   unit="wt %"
-                  accent="text-cyan-300"
+                  accent="text-pl-text"
                   hint="In the produced water"
                 />
                 <Stat
                   label="Injection rate"
                   value={fmt(inh.rate.rateBpd, 1)}
                   unit="bbl/d"
-                  accent="text-cyan-300"
+                  accent="text-pl-text"
                   hint={`${fmt(inh.rate.rateGpd)} gal/d of ${fmt(inh.rate.inhibitor.densityLbGal, 1)} lb/gal stream`}
                 />
                 <Stat
@@ -118,8 +118,8 @@ const HydratePanel = () => {
                 />
               </div>
 
-              <div className="border-t border-slate-800 pt-3">
-                <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-2">
+              <div className="border-t border-pl-border pt-3">
+                <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold mb-2">
                   Both relations, and the gap
                 </p>
                 <Row
@@ -140,14 +140,14 @@ const HydratePanel = () => {
                     ? `${fmt(inh.depressionCheck.spreadF, 1)} F`
                     : '--'}
                   hint="How far this dose is being pushed"
-                  accent={(inh.depressionCheck.spreadF ?? 0) > 5 ? 'text-amber-400' : 'text-slate-100'}
+                  accent={(inh.depressionCheck.spreadF ?? 0) > 5 ? 'text-pl-warning-text' : 'text-pl-text'}
                 />
                 <Row
                   label="Basis used"
                   value={inh.depressionCheck.basis === 'hammerschmidt' ? 'Hammerschmidt' : 'Nielsen-Bucklin'}
                 />
                 {inh.depressionCheck.note && (
-                  <p className="text-[11px] text-amber-300 mt-2">{inh.depressionCheck.note}</p>
+                  <p className="text-[11px] text-pl-warning-text mt-2">{inh.depressionCheck.note}</p>
                 )}
               </div>
             </>
@@ -155,13 +155,13 @@ const HydratePanel = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Wax</CardTitle>
         </CardHeader>
         <CardContent>
           {!wax ? (
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-pl-muted">
               No wax appearance temperature was entered, so the wax question is not answered. There
               is no wax correlation in this studio on purpose: a WAT inferred from an API gravity
               would be a fiction dressed as an answer. Measure it, or take it from a fluid study.
@@ -178,7 +178,7 @@ const HydratePanel = () => {
               <Stat
                 label="Below WAT"
                 value={wax.crosses ? 'Yes' : 'No'}
-                accent={wax.crosses ? 'text-amber-400' : 'text-emerald-400'}
+                accent={wax.crosses ? 'text-pl-warning-text' : 'text-pl-success-text'}
                 hint={wax.crosses ? `First at ${fmt(wax.entry?.sFt)} ft` : 'Stays above'}
               />
             </div>

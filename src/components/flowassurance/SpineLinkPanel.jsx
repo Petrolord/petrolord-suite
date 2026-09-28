@@ -20,20 +20,20 @@ const SpineLinkPanel = () => {
   return (
     <div className="space-y-3">
       <div className="space-y-1">
-        <Label className="text-xs text-slate-400">Field</Label>
+        <Label className="text-xs text-pl-muted">Field</Label>
         <Select
           value={link.fieldId || ''}
           onValueChange={(v) => patchSection('link', { fieldId: v || null, wellId: null, wellName: '' })}
         >
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700">
+          <SelectTrigger className="h-9">
             <SelectValue placeholder="Not linked" />
           </SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+          <SelectContent>
             {fields.map((f) => (<SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>))}
           </SelectContent>
         </Select>
         {!fields.length && (
-          <p className="text-[11px] text-slate-600">
+          <p className="text-[11px] text-pl-muted">
             No fields on the spine yet. A study works fine without a link.
           </p>
         )}
@@ -41,12 +41,12 @@ const SpineLinkPanel = () => {
 
       {link.fieldId && (
         <div className="space-y-1">
-          <Label className="text-xs text-slate-400">Well</Label>
+          <Label className="text-xs text-pl-muted">Well</Label>
           <Select value={link.wellId || ''} onValueChange={linkWell}>
-            <SelectTrigger className="h-9 bg-slate-800 border-slate-700">
+            <SelectTrigger className="h-9">
               <SelectValue placeholder="Pick a well" />
             </SelectTrigger>
-            <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+            <SelectContent>
               {spineWells.map((w) => (<SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>))}
             </SelectContent>
           </Select>
