@@ -4,7 +4,7 @@ import React from 'react';
 import { X } from 'lucide-react';
 import { THEMED_TONE } from './studioTheme';
 
-// Design system: status roles inside a <ThemedApp> scope, legacy classes outside.
+// Design system: status roles.
 const THEMED_NOTE = { error: THEMED_TONE.danger, success: THEMED_TONE.good, warning: THEMED_TONE.warn };
 
 const StudioNotifications = ({ notifications = [], onDismiss }) => {

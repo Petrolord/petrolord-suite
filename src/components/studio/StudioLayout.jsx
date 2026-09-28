@@ -3,11 +3,9 @@
 // upgraded app shares one look: dark full-height frame, collapsible left/right
 // ScrollArea rails, h-14 header bar. Fully props-driven; no app context.
 //
-// Design system: inside an opted-in <ThemedApp> scope the frame uses theme
-// roles (light by default, dark by choice), and below the md breakpoint the
-// rails float over the page and start closed so the main area keeps the
-// phone's width. Outside a scope every class string is the legacy one, byte
-// for byte (src/components/studio/__tests__/studioKitOptIn.test.jsx).
+// Design system: the frame uses theme roles (light by default, dark by
+// choice), and below the md breakpoint the rails float over the page and
+// start closed so the main area keeps the phone's width.
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';

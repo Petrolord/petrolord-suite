@@ -24,7 +24,7 @@ import { analyzeFluidSystem, sampleFluidStudioData } from '@/utils/fluidStudioCa
 import { runEosFlash, runEosSeparator, runEosPvtTable } from '@/utils/fluidstudio/eosAnalysis';
 
 // Design system rollout batch 1D (docs/scope/DesignSystem-Rollout.md): the
-// page wraps itself in <ThemedApp>, so every class below is a theme role.
+// page sits in the dashboard scope, so every class below is a theme role.
 
 const FluidSystemsStudioContent = () => {
   const [inputs, setInputs] = useState(sampleFluidStudioData);

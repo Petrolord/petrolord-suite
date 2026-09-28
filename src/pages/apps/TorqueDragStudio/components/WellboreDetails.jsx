@@ -14,9 +14,7 @@ const FT = 0.3048;
 const disp = (m, unit) => (Number.isFinite(m) ? (unit === 'ft' ? m / FT : m) : NaN);
 const fmt = (m, unit, digits = 0) => (Number.isFinite(m) ? `${disp(m, unit).toFixed(digits)} ${unit}` : 'n/a');
 
-// Trajectory source tones on the status roles. Every studio that mounts
-// this block wraps itself in <ThemedApp> since rollout batch 3E, so the
-// legacy branch from W0B is gone.
+// Trajectory source tones on the status roles.
 const TONE = {
   definitive: 'border-pl-border text-pl-text',
   actual: 'border-pl-info/50 bg-pl-info-bg text-pl-info-text',

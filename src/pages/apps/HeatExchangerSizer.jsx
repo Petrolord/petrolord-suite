@@ -196,7 +196,7 @@ const StudioContent = () => {
 };
 
 // Design system rollout batch 5A (docs/scope/DesignSystem-Rollout.md): the
-// page wraps itself in <ThemedApp>, so every class in its own files is a
+// page sits in the dashboard scope, so every class in its own files is a
 // theme role.
 const HeatExchangerSizer = () => (
   <div data-testid="heatexchanger-theme-scope">

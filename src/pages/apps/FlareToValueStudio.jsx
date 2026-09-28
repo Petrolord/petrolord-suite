@@ -73,7 +73,7 @@ const Workspace = () => {
   );
 };
 
-// Design system rollout w5e: the page wraps itself in <ThemedApp>, so the
+// Design system rollout w5e: the page sits in the dashboard scope, so the
 // classes below are theme roles; the charts stay white (ChartFrame).
 const FlareToValueStudio = () => (
   <div className="flex min-h-screen flex-col" data-testid="flare-theme-scope">

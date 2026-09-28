@@ -2,7 +2,7 @@
 //
 // The class recipes every EPE page shares, written only with the theme roles
 // of src/design/tokens.js (bg-pl-*, text-pl-*, border-pl-*). They resolve
-// inside the <ThemedApp> scope that wraps the EPE routes in App.jsx, so the
+// inside the dashboard scope every EPE route sits in, so the
 // same string reads correctly in light and in dark. Keep hues out of this
 // file: status colour goes through the status roles only.
 //

@@ -466,7 +466,7 @@ export default function ReservoirBalance() {
   };
 
   // Design system rollout batch 1A (docs/scope/DesignSystem-Rollout.md):
-  // the page wraps itself in <ThemedApp>, so it opens light and the header
+  // the page sits in the dashboard scope, so it opens light and the header
   // toggle switches it to dark per user. Charts keep the white standard.
   return (
     <div data-testid="mbal-theme-scope">

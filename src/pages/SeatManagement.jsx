@@ -245,7 +245,7 @@ function SeatManagementPage() {
   );
 }
 
-// Design system rollout batch 1E: the page wraps itself in <ThemedApp>.
+// Design system rollout batch 1E: the page opens its theme scope through AccountScope inside the dashboard scope.
 export default function SeatManagement() {
   return (
     <AccountScope testId="seat-management-theme-scope">

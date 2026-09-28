@@ -17,8 +17,7 @@ import { describeWellModel } from '@/utils/production/wellModel';
 const WellModelSpinePanel = ({
   wellName, savedModel, isDirty, onLoad, onSave, busy,
 }) => {
-  // Design system (rollout W0B): roles inside an opted-in app; outside a
-  // <ThemedApp> scope tc() returns the legacy strings unchanged.
+  // Design system (rollout W0B): theme roles.
   const note = 'text-[11px] text-pl-muted';
   if (!wellName) {
     return (

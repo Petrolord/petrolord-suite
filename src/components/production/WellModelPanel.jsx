@@ -20,10 +20,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
-// Design system (rollout W0B): inside an opted-in app the panel drops its
-// dark console overrides so the adapted Input, Select and Textarea theme
-// themselves, and its own text uses roles. Outside a <ThemedApp> scope
-// tc() returns the legacy strings unchanged.
+// Design system (rollout W0B): the adapted Input, Select and Textarea theme
+// themselves, and the panel's own text uses roles.
 const Field = ({ label, hint, children }) => {
   return (
     <div className="space-y-1">

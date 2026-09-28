@@ -7,9 +7,8 @@
 // starts empty, and the code-number RPCs are stood in.
 //
 // Design-system rollout (Wave 0A): the harness adds no colours and no theme
-// scope of its own. Each app paints itself exactly as on its real route (an
-// unmigrated app on the body's legacy dark background, a migrated one inside
-// the ThemedApp it wraps itself in), so no rollout batch edits this file.
+// scope of its own: the dev routes sit in one theme scope in App.jsx
+// (batch 7A), so each app paints itself as on its real route.
 import React, { lazy, Suspense } from 'react';
 import {
   MemoryRouter, Routes, Route, useParams, UNSAFE_LocationContext, UNSAFE_RouteContext,

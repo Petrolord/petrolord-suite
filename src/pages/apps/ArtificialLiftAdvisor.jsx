@@ -26,7 +26,7 @@ import ComparisonPanel from '@/components/liftadvisor/ComparisonPanel';
 import LiftAdvisorHelpContent from '@/components/liftadvisor/LiftAdvisorHelpGuide';
 
 // Design system rollout batch 2C (docs/scope/DesignSystem-Rollout.md): the
-// page wraps itself in <ThemedApp>, so every class below is a theme role.
+// page sits in the dashboard scope, so every class below is a theme role.
 
 const TABS = [
   { value: 'compare', label: 'Compare' },

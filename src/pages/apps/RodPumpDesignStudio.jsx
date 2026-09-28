@@ -32,7 +32,7 @@ import RodWarningsPanel from '@/components/rodpump/WarningsPanel';
 import RodPumpHelpContent from '@/components/rodpump/RodPumpHelpGuide';
 
 // Design system rollout batch 2C (docs/scope/DesignSystem-Rollout.md): the
-// page wraps itself in <ThemedApp>, so every class below is a theme role.
+// page sits in the dashboard scope, so every class below is a theme role.
 
 const TABS = [
   { value: 'design', label: 'Design' },

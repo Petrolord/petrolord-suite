@@ -35,7 +35,7 @@ import { SectionLabel } from '@/components/waterflooddesign/primitives';
 import { mapScalKrIntake } from '@/components/waterflooddesign/scalKrIntake';
 
 // Design system rollout batch 1D (docs/scope/DesignSystem-Rollout.md): the
-// page wraps itself in <ThemedApp>, so every class below is a theme role.
+// page sits in the dashboard scope, so every class below is a theme role.
 
 const TABS = [
   { value: 'displacement', label: 'Displacement' },

@@ -21,7 +21,7 @@ import GasProcessingHelpContent from '@/components/gasprocessing/GasProcessingHe
 import { fmt, Row } from '@/components/gasprocessing/fields';
 
 // Design system rollout batch 5B (docs/scope/DesignSystem-Rollout.md): the
-// page wraps itself in <ThemedApp>, so every class below is a theme role.
+// page sits in the dashboard scope, so every class below is a theme role.
 
 const TABS = [
   { value: 'dehydration', label: 'Dehydration' },

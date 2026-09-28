@@ -5,9 +5,6 @@ import { Hammer, ArrowLeft, Construction } from 'lucide-react';
 
 const ComingSoon = ({ appName = "Application" }) => {
   const navigate = useNavigate();
-  // Design system: theme roles inside an opted-in app (a hub); the legacy
-  // screen byte for byte everywhere else.
-
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8">
       <div className="bg-pl-surface p-6 rounded-full mb-6 border-4 border-pl-border shadow-pl-md">

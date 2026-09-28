@@ -26,9 +26,7 @@ export function geometryStatusText(geometryRow) {
 }
 
 export default function GeometryNotice({ geometryRow, testPrefix = 'td', showTorqueDragLink = true }) {
-  // Design system: status roles only. Every studio that mounts the notice
-  // wraps itself in <ThemedApp> since rollout batch 3E, so the legacy
-  // branch from W0B is gone.
+  // Design system: status roles only (every studio sits in the dashboard scope).
   const source = geometrySourceOf(geometryRow);
   if (source === 'loading' || source === 'geometry' || !geometryRow?.note) return null;
   const none = source === 'none';

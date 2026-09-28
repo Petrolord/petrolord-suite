@@ -16,7 +16,7 @@ import TankHelpContent from '@/components/tankstudio/TankHelpGuide';
 import { fmt, Row } from '@/components/tankstudio/fields';
 
 // Design system rollout batch 5B (docs/scope/DesignSystem-Rollout.md): the
-// page wraps itself in <ThemedApp>, so every class below is a theme role.
+// page sits in the dashboard scope, so every class below is a theme role.
 
 const TABS = [
   { value: 'shell', label: 'Shell' },

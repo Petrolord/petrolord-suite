@@ -83,7 +83,7 @@ const Workspace = () => {
 };
 
 // Design system rollout batch 5C (docs/scope/DesignSystem-Rollout.md): the
-// page wraps itself in <ThemedApp>, so every class below is a theme role.
+// page sits in the dashboard scope, so every class below is a theme role.
 const EnergyEfficiencyStudio = () => (
   <div data-testid="energy-efficiency-theme-scope" className="h-full">
     <Helmet>

@@ -1,11 +1,10 @@
-// The theme of the opted-in app on screen, for the few pieces mounted at the
+// The theme of the scope on screen, for the few pieces mounted at the
 // app root outside every scope (the toaster). Owner revision of lead
 // decision 3 (2026-09-28): toasts match the page.
 //
 // Each outermost <ThemedApp> publishes its resolved theme while it is
 // mounted; the most recently mounted one wins, and when none is mounted the
-// value is null, so root pieces keep their legacy look on every page that
-// has not opted in. The value is mirrored on <html data-pl-active-theme> for
+// value is null (the homepage), where the toaster takes its paper style. The value is mirrored on <html data-pl-active-theme> for
 // debugging and for CSS that needs it; no stylesheet rule reads it today.
 import { useSyncExternalStore } from 'react';
 
@@ -55,7 +54,7 @@ function subscribe(listener) {
   return () => listeners.delete(listener);
 }
 
-/** 'light' | 'dark' while an opted-in app is mounted, otherwise null. */
+/** 'light' | 'dark' while a scope is mounted, otherwise null. */
 export function useActiveTheme() {
   return useSyncExternalStore(subscribe, current, () => null);
 }

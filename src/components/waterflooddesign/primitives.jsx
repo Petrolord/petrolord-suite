@@ -1,7 +1,5 @@
 // Small shared primitives for the Waterflood Design Studio panels (also
-// pulled by SCAL Studio and Fluid Systems Studio). Every consumer is in
-// design-system rollout batch 1D and wraps itself in <ThemedApp>, so the
-// classes here are theme roles with no legacy branch.
+// pulled by SCAL Studio and Fluid Systems Studio). Theme roles only.
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';

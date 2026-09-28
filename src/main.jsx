@@ -3,8 +3,8 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import './index.css'
-// Design system tokens; every rule is scoped under [data-pl-theme], so this
-// changes nothing until an app opts in with <ThemedApp>.
+// Design system tokens; every rule is scoped under [data-pl-theme] (the
+// dashboard scope, the public frame and the account scopes set it).
 import './design/theme.css'
 import { installPreloadRecovery } from '@/lib/pwa/preloadRecovery'
 

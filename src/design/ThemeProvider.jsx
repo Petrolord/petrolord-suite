@@ -1,12 +1,11 @@
-// Petrolord theme provider and the opt-in <ThemedApp> scope.
+// Petrolord theme provider and the <ThemedApp> scope.
 //
-// Owner decision 2026-09-27: application consoles move to a LIGHT default
-// with DARK as a per-user choice, rolled out app by app. Only an app wrapped
-// in <ThemedApp> gets the new theme; everything else keeps the legacy dark
-// console exactly as it is, because:
-//   - src/design/theme.css only has selectors under [data-pl-theme], and
-//   - the adapted @/components/ui/* pieces only switch to token classes when
-//     useDsTheme() finds a provider above them.
+// Owner decision 2026-09-27: application consoles are LIGHT by default with
+// DARK as a per-user choice. src/design/theme.css only has selectors under
+// [data-pl-theme], so every themed page sits in a scope: the dashboard scope
+// (DashboardScope), the public frame (PublicPage, PublicScope), AccountScope,
+// the /mobile shell and the dev harness scope. FixedTheme gives the dark ink
+// rail a fixed theme. The ui pieces render theme roles only (batch 7B).
 //
 // The choice is remembered per user in localStorage (keyed by the signed-in
 // user id, or "anon"), wrapped in try/catch because storage can be missing

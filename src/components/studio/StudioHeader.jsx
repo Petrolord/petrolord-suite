@@ -8,9 +8,7 @@ import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
-// Design system: inside an opted-in <ThemedApp> scope the header uses theme
-// roles and shows the light/dark toggle; outside one it renders exactly as
-// before.
+// Design system: the header uses theme roles and shows the light/dark toggle.
 
 const StudioHeader = ({
   backTo = '/dashboard/reservoir',

@@ -15,9 +15,9 @@ import KeyboardShortcuts from './components/common/KeyboardShortcuts';
 // the wp spine — validated Barlow/5C3 ratings, canonical load cases, and
 // the Lubinski tubing-packer force system. Engines are oracle-gated in
 // @petrolord/engines; the injected backend keeps the /dev harness pure.
-// Design system (rollout W3B): the studio wraps itself in <ThemedApp> here,
-// so the routed page and the /dev harness share one scope (grey panel light
-// by default, dark by the header toggle); every class below is a theme role.
+// Design system (rollout W3B): the studio sits in the dashboard scope (its
+// /dev harness in the dev scope), grey panel light by default and dark by
+// the header toggle; every class below is a theme role.
 export const CasingTubingDesignProContent = () => (
   <div data-testid="ct-theme-scope">
     <div className="flex flex-col h-screen w-full bg-pl-bg text-pl-text overflow-hidden">

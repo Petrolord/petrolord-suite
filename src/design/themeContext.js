@@ -5,9 +5,8 @@ import { createContext, useContext } from 'react';
 export const ThemeContext = createContext(null);
 
 /**
- * The theme of the nearest opted-in scope ({ theme, setTheme, toggleTheme }),
- * or null outside one. The adapted ui components treat null as "render the
- * legacy classes unchanged".
+ * The theme of the nearest scope ({ theme, setTheme, toggleTheme, fixed? }),
+ * or null outside one. ThemeToggle renders nothing without one.
  */
 export function useDsTheme() {
   return useContext(ThemeContext);

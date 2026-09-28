@@ -5,7 +5,7 @@ import { Save, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-// Design system: theme roles inside a <ThemedApp> scope, legacy classes outside.
+// Design system: theme roles.
 
 const StudioAutoSave = ({ isSaving, saveError, lastSaveTime, onSave, disabled = false }) => {
   const [timeAgo, setTimeAgo] = useState('Just now');

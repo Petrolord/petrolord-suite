@@ -1,5 +1,5 @@
 // Small shared primitives for the Well Test Analysis Studio panels.
-// Design system (rollout batch 1A): the app wraps itself in <ThemedApp>, so
+// Design system (rollout batch 1A): the app sits in the dashboard scope, so
 // every class here is a theme role; cards and inputs use the adapted ui
 // defaults. Chart colors stay tuned for the white Petrolord chart background.
 import React from 'react';
