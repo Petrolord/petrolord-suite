@@ -13,7 +13,8 @@
 //
 // Outside a scope tc() returns its first argument unchanged, so every app
 // that has not migrated renders byte for byte what it did before. Inside a
-// scope it returns the second argument when one is given, otherwise the
+// scope it returns the second argument when one is passed (even undefined,
+// which drops the class or attribute), otherwise the
 // entry for the legacy string in the component's table; a string with no
 // entry passes through unchanged. Write the themed strings out literally
 // (in the call or in the table) so Tailwind generates them.
@@ -25,8 +26,10 @@ const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 /** tc() for a known theme value; `ds` is useDsTheme()'s result (null outside a scope). */
 export function themeClassPicker(ds, table) {
   if (!ds) return identity;
-  return (legacy, themed) => {
-    if (themed !== undefined) return themed;
+  // Two arguments: the second wins inside a scope, even when it is
+  // undefined (tc(legacy, undefined) drops a class or attribute there).
+  return (legacy, ...themed) => {
+    if (themed.length) return themed[0];
     return table && hasOwn(table, legacy) ? table[legacy] : legacy;
   };
 }
