@@ -353,25 +353,25 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const isMember = true;
 
   const ribbon = (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-pl-surface border-b border-pl-border">
+    <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 bg-pl-surface border-b border-pl-border">
       <ModuleHomeLink module="geoscience" testId="ws-home" />
       <HardHat className="w-4 h-4 text-pl-primary-text" />
-      <span className="text-sm font-semibold text-pl-text">Wellsite Studio</span>
+      <span className="text-sm font-semibold text-pl-text whitespace-nowrap">Wellsite Studio</span>
       <span className="hidden 2xl:inline text-[11px] text-pl-muted">the geological record of a live well</span>
-      <div className="flex items-center gap-1 ml-4">
+      <div className="flex flex-wrap items-center gap-1 ml-4">
         {VIEWS.map((v) => (
           <button key={v.id} type="button" data-testid={`ws-nav-${v.id}`} disabled={!well && v.id !== 'live'}
-            className={`flex items-center gap-1 px-2 py-1 text-xs rounded border ${view === v.id ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:bg-pl-sunken'} disabled:opacity-40`}
+            className={`flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border ${view === v.id ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:bg-pl-sunken'} disabled:opacity-40`}
             onClick={() => setView(v.id)}>
             <v.icon className="w-3.5 h-3.5" /> {v.label}
           </button>
         ))}
-        <button type="button" data-testid="ws-nav-setup" className={`flex items-center gap-1 px-2 py-1 text-xs rounded border ${view === 'setup' ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:bg-pl-sunken'}`} onClick={() => setView('setup')}>
+        <button type="button" data-testid="ws-nav-setup" className={`flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border ${view === 'setup' ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:bg-pl-sunken'}`} onClick={() => setView('setup')}>
           <Plus className="w-3.5 h-3.5" /> New well
         </button>
       </div>
       <div className="ml-auto flex items-center gap-2">
-        <label className="flex items-center gap-1 text-[11px] text-pl-muted" title="Display unit; the record stores metres">
+        <label className="flex items-center gap-1 whitespace-nowrap text-[11px] text-pl-muted" title="Display unit; the record stores metres">
           Depth
           <select value={units.depth} onChange={(e) => setUnit(e.target.value)} data-testid="ws-unit" className="bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text">
             {DEPTH_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
