@@ -57,3 +57,19 @@ export function subscriptionWindow(paidAt: string | Date, term: unknown, explici
   const end = addMonths(start, months);
   return { months, billingPeriod, start, end, startDate: start.toISOString().slice(0, 10), endDate: end.toISOString().slice(0, 10) };
 }
+
+/**
+ * The subscriptions.end_date for a paid Suite quote. manual_verify_quote is the
+ * one place that sets entitlement end dates (renewals stack on a future end,
+ * top-ups never shorten) and returns the latest end it set as `expiry_date`.
+ * The subscription row ends on that date, never before the plain window end.
+ */
+export function provisionedEnd(windowEnd: Date, rpcResult: unknown): Date {
+  const raw = (rpcResult && typeof rpcResult === "object")
+    ? (rpcResult as Record<string, unknown>).expiry_date
+    : null;
+  if (raw == null || raw === "") return new Date(windowEnd.getTime());
+  const rpcEnd = new Date(String(raw));
+  if (Number.isNaN(rpcEnd.getTime())) return new Date(windowEnd.getTime());
+  return rpcEnd > windowEnd ? rpcEnd : new Date(windowEnd.getTime());
+}

@@ -4,15 +4,17 @@
 //   1. entitlements provisioned via manual_verify_quote() (purchased_modules + seats)
 //   2. quote marked payment_verified / ACCEPTED
 //   3. organizations.suite_status = 'ACTIVE'
-//   4. an active subscriptions row + a real expiry on purchased_modules
+//   4. an active subscriptions row (upsertSuiteSubscription); the expiry on
+//      purchased_modules is set by manual_verify_quote itself (2026-09-28)
 //
-// verify-paystack-payment inlines this (kept as-is so the live Paystack flow is
-// untouched). New rails (Stripe) call this helper so the two never drift.
+// Stripe (verify + webhook) and the Paystack webhook call provisionPaidQuote;
+// verify-paystack-payment keeps its inline flow but shares
+// upsertSuiteSubscription, so every rail writes the same rows.
 
 import { redeemBridgeForQuote } from "./nextgen-bridge.ts";
 import { redeemPromoForQuote } from "./promo-codes.ts";
 import { sendEmail } from "./email.ts";
-import { subscriptionWindow } from "./billing-term.ts";
+import { subscriptionWindow, provisionedEnd } from "./billing-term.ts";
 
 // Coerce the quote's jsonb `modules` (strings or objects) into text[] for
 // subscriptions.modules (a NOT NULL text[] column). Mirrors verify-paystack-payment.
@@ -64,6 +66,82 @@ export function suiteSubscriptionModules(modules: unknown): string[] {
   return out;
 }
 
+export interface SuiteSubscriptionOpts {
+  orgId: string;
+  // deno-lint-ignore no-explicit-any
+  quote: any;                   // quotes row: id, total_amount, currency, billing_term, billing_period, modules, apps, seats, user_seats
+  quoteTextId: string;
+  paidAt: string;               // ISO
+  provider: string;             // 'paystack' | 'stripe' | ...
+  reference: string;
+  rpcResult?: unknown;          // manual_verify_quote's result (carries expiry_date)
+  logPrefix?: string;
+}
+
+// The active Suite subscriptions row for a paid quote, identical on every rail
+// (Paystack verify page, Paystack webhook, Stripe). Keyed by (org, quote): a
+// second finalizer for the same quote updates the row, never adds another.
+// The end date is the one manual_verify_quote set on the entitlements (a
+// renewal stacks on the old end), so the subscription and the apps agree.
+// No purchased_modules update here: manual_verify_quote alone sets those end
+// dates (2026-09-28). HSE rides with the Suite subscription for the same window.
+// Best-effort: never throws.
+// deno-lint-ignore no-explicit-any
+export async function upsertSuiteSubscription(supabase: any, o: SuiteSubscriptionOpts): Promise<{ ok: boolean; endDate?: string }> {
+  const logPrefix = o.logPrefix || "[provision]";
+  try {
+    const quote = o.quote;
+    const term = quote.billing_term || "annual";
+    const userLimit = quote.user_seats || quote.seats || 1;
+    // The term paid for is the term granted (quarterly = 3 months): shared table.
+    const { billingPeriod, startDate, end } = subscriptionWindow(o.paidAt, term, quote.billing_period);
+    const endDate = provisionedEnd(end, o.rpcResult).toISOString().slice(0, 10);
+
+    const subRow = {
+      organization_id: o.orgId,
+      quote_id: quote.id, // subscriptions.quote_id is uuid -> quotes.id
+      modules: suiteSubscriptionModules(quote.modules),
+      user_limit: userLimit,
+      term,
+      billing_period: billingPeriod,
+      start_date: startDate,
+      end_date: endDate,
+      next_renewal_date: endDate,
+      renewal_status: "pending",
+      status: "active",
+      payment_status: "COMPLETED",
+      quote_details: {
+        quote_id: o.quoteTextId,
+        quote_uuid: quote.id,
+        total_amount: quote.total_amount,
+        currency: quote.currency || "USD",
+        billing_term: term,
+        apps: quote.apps ?? [],
+        modules: quote.modules ?? [],
+        seats: userLimit,
+        payment_method: o.provider,
+        provider_reference: o.reference,
+        ...(o.provider === "paystack" ? { paystack_reference: o.reference } : {}),
+      },
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: existingSub } = await supabase.from("subscriptions")
+      .select("id").eq("organization_id", o.orgId).eq("quote_id", quote.id).limit(1).maybeSingle();
+    if (existingSub?.id) {
+      await supabase.from("subscriptions").update(subRow).eq("id", existingSub.id);
+    } else {
+      await supabase.from("subscriptions").insert(subRow);
+    }
+
+    await grantHseWithSuite(supabase, o.orgId, userLimit, logPrefix);
+    return { ok: true, endDate };
+  } catch (subErr) {
+    console.error(`${logPrefix} subscription sync failed (non-fatal):`, (subErr as Error).message);
+    return { ok: false };
+  }
+}
+
 export interface ProvisionOpts {
   quoteTextId: string;          // e.g. "QT-2026-07-07-ABCDE" (quotes.quote_id)
   provider: string;             // 'stripe' | 'paystack' | 'bank_transfer'
@@ -108,9 +186,12 @@ export async function provisionPaidQuote(supabase: any, opts: ProvisionOpts): Pr
   const quoteUuid: string = quote.id;
 
   // 1. Provision entitlements (purchased_modules + seat caps).
-  const { error: rpcError } = await supabase.rpc("manual_verify_quote", {
+  // It also sets every end date for this quote's rows (renewals stack, top-ups
+  // never shorten, a re-run changes nothing), from the paid date given here.
+  const { data: rpcResult, error: rpcError } = await supabase.rpc("manual_verify_quote", {
     p_quote_id: opts.quoteTextId,
     p_organization_id: orgId,
+    p_paid_at: paidAt,
   });
   if (rpcError) {
     console.error("[provision] manual_verify_quote failed:", rpcError.message);
@@ -133,61 +214,11 @@ export async function provisionPaidQuote(supabase: any, opts: ProvisionOpts): Pr
   await redeemBridgeForQuote(supabase, opts.quoteTextId, opts.provider);
   await redeemPromoForQuote(supabase, opts.quoteTextId, opts.provider);
 
-  // 4. Active subscription row + real expiry. Best-effort: never undo the payment.
-  try {
-    const term = quote.billing_term || "annual";
-    const userLimit = quote.user_seats || quote.seats || 1;
-    // The term the customer paid for is the term they get (quarterly = 3 months,
-    // not a year): one shared table drives quoting, provisioning and renewals.
-    const { billingPeriod, end, startDate, endDate } = subscriptionWindow(paidAt, term, quote.billing_period);
-
-    const subRow = {
-      organization_id: orgId,
-      quote_id: quoteUuid,
-      modules: suiteSubscriptionModules(quote.modules),
-      user_limit: userLimit,
-      term,
-      billing_period: billingPeriod,
-      start_date: startDate,
-      end_date: endDate,
-      next_renewal_date: endDate,
-      renewal_status: "pending",
-      status: "active",
-      payment_status: "COMPLETED",
-      quote_details: {
-        quote_id: opts.quoteTextId,
-        quote_uuid: quoteUuid,
-        total_amount: quote.total_amount,
-        currency: quote.currency || "USD",
-        billing_term: term,
-        apps: quote.apps ?? [],
-        modules: quote.modules ?? [],
-        seats: userLimit,
-        payment_method: opts.provider,
-        provider_reference: opts.reference,
-      },
-      updated_at: new Date().toISOString(),
-    };
-
-    const { data: existingSub } = await supabase.from("subscriptions")
-      .select("id").eq("organization_id", orgId).eq("quote_id", quoteUuid).limit(1).maybeSingle();
-    if (existingSub?.id) {
-      await supabase.from("subscriptions").update(subRow).eq("id", existingSub.id);
-    } else {
-      await supabase.from("subscriptions").insert(subRow);
-    }
-
-    // Give the freshly provisioned entitlements a real end date (manual_verify_quote leaves NULL).
-    await supabase.from("purchased_modules")
-      .update({ expiry_date: end.toISOString() })
-      .eq("organization_id", orgId)
-      .eq("quote_id", quoteUuid);
-
-    // HSE rides with the Suite subscription for the same window.
-    await grantHseWithSuite(supabase, orgId, userLimit);
-  } catch (subErr) {
-    console.error("[provision] subscription/expiry sync failed (non-fatal):", (subErr as Error).message);
-  }
+  // 4. Active subscription row (end date = the one the RPC set) + HSE grant.
+  await upsertSuiteSubscription(supabase, {
+    orgId, quote, quoteTextId: opts.quoteTextId, paidAt,
+    provider: opts.provider, reference: opts.reference, rpcResult,
+  });
 
   // 5. Confirmation email (best-effort, provider-neutral copy).
   if (opts.sendEmail !== false && opts.customerEmail) {
