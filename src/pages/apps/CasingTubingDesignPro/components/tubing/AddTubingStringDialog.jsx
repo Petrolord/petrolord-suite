@@ -70,7 +70,7 @@ const AddTubingStringDialog = ({ open, onOpenChange }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-950 border-slate-800 text-white sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Add Tubing String</DialogTitle>
         </DialogHeader>
@@ -81,7 +81,6 @@ const AddTubingStringDialog = ({ open, onOpenChange }) => {
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="bg-slate-900 border-slate-700"
             />
           </div>
 
@@ -91,7 +90,6 @@ const AddTubingStringDialog = ({ open, onOpenChange }) => {
               type="number"
               value={form.topDisp}
               onChange={(e) => setForm({ ...form, topDisp: e.target.value })}
-              className="bg-slate-900 border-slate-700"
             />
           </div>
           <div className="space-y-2">
@@ -100,7 +98,6 @@ const AddTubingStringDialog = ({ open, onOpenChange }) => {
               type="number"
               value={form.bottomDisp ?? Math.round(depthDisp(packerMd, depthUnit))}
               onChange={(e) => setForm({ ...form, bottomDisp: e.target.value })}
-              className="bg-slate-900 border-slate-700"
             />
           </div>
 
@@ -114,8 +111,8 @@ const AddTubingStringDialog = ({ open, onOpenChange }) => {
                 setForm({ ...form, odIn, weightLbFt: first.weightLbFt });
               }}
             >
-              <SelectTrigger className="bg-slate-900 border-slate-700"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-slate-900 border-slate-700">
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
                 {odOptions.map((od) => (
                   <SelectItem key={od} value={String(od)}>{od}&quot;</SelectItem>
                 ))}
@@ -129,8 +126,8 @@ const AddTubingStringDialog = ({ open, onOpenChange }) => {
               value={String(form.weightLbFt)}
               onValueChange={(v) => setForm({ ...form, weightLbFt: parseFloat(v) })}
             >
-              <SelectTrigger className="bg-slate-900 border-slate-700"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-slate-900 border-slate-700">
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
                 {weightOptions.map((w) => (
                   <SelectItem key={w} value={String(w)}>{w}</SelectItem>
                 ))}
@@ -141,8 +138,8 @@ const AddTubingStringDialog = ({ open, onOpenChange }) => {
           <div className="space-y-2">
             <Label>Grade</Label>
             <Select value={form.grade} onValueChange={(v) => setForm({ ...form, grade: v })}>
-              <SelectTrigger className="bg-slate-900 border-slate-700"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-slate-900 border-slate-700">
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
                 {TUBING_GRADES.map((g) => (
                   <SelectItem key={g} value={g}>{g}</SelectItem>
                 ))}
@@ -153,8 +150,8 @@ const AddTubingStringDialog = ({ open, onOpenChange }) => {
           <div className="space-y-2">
             <Label>Connection</Label>
             <Select value={form.connection} onValueChange={(v) => setForm({ ...form, connection: v })}>
-              <SelectTrigger className="bg-slate-900 border-slate-700"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-slate-900 border-slate-700">
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
                 {TUBING_CONNECTIONS.map((c) => (
                   <SelectItem key={c} value={c}>{c}</SelectItem>
                 ))}
@@ -163,24 +160,24 @@ const AddTubingStringDialog = ({ open, onOpenChange }) => {
           </div>
 
           {ratings && (
-            <div className="col-span-2 grid grid-cols-2 gap-2 bg-slate-900/50 border border-slate-800 rounded p-3">
+            <div className="col-span-2 grid grid-cols-2 gap-2 bg-pl-sunken border border-pl-border rounded p-3">
               <div>
-                <span className="text-[10px] text-slate-500 block">API Burst</span>
-                <span className="text-xs font-mono text-emerald-400">{Math.round(paToPsi(ratings.burstPa)).toLocaleString()} psi</span>
+                <span className="text-[10px] text-pl-muted block">API Burst</span>
+                <span className="text-xs font-pl-mono tabular-nums text-pl-text">{Math.round(paToPsi(ratings.burstPa)).toLocaleString()} psi</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-500 block">5C3 Collapse ({ratings.collapseRegime})</span>
-                <span className="text-xs font-mono text-amber-400">{Math.round(paToPsi(ratings.collapsePa)).toLocaleString()} psi</span>
+                <span className="text-[10px] text-pl-muted block">5C3 Collapse ({ratings.collapseRegime})</span>
+                <span className="text-xs font-pl-mono tabular-nums text-pl-text">{Math.round(paToPsi(ratings.collapsePa)).toLocaleString()} psi</span>
               </div>
             </div>
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!row} className="bg-lime-600 hover:bg-lime-700 text-white">
+          <Button onClick={handleSubmit} disabled={!row}>
             Add Tubing
           </Button>
         </DialogFooter>

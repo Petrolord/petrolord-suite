@@ -177,3 +177,37 @@ registry backend (the log said "Trajectory loaded: undefined").
 e2e: two new tests (draft survives reload and Discard; white schematic,
 shoe label, x2 stretch). The suite clears browser storage before each
 test so one test's draft never restores into the next.
+
+## Design system rollout W3B (2026-09-28)
+
+The studio moved onto the Petrolord design system (grey panel light by
+default, dark by the header toggle, the choice kept per user).
+
+- `CasingTubingDesignProContent` wraps itself in `<ThemedApp>`
+  (`data-testid="ct-theme-scope"`), so the routed page and the
+  `/dev/casing-tubing` harness share one scope. The help guide wraps
+  itself too (`ct-help-theme-scope`) and gets `AppHeader` (back, eyebrow,
+  title, theme toggle). The studio banner carries the `ThemeToggle`.
+- Every app file moved to theme roles: dark overrides on the adapted Card,
+  Input, Select, Dialog, Sheet, Accordion and DropdownMenu removed; lime
+  buttons are the default primary `Button`; status colour only through the
+  status roles (PASS, WARNING and FAIL pills use the `Badge` status
+  variants); decorative icon, rating-column and heading colour removed;
+  numbers in the mono face.
+- The load-profile and tubing-forces charts (`CtCharts` frame) and the
+  well schematic (`WellboreVisualization`, its toolbar and footer included)
+  are `data-canvas="chart"` regions: white in both themes, pixels unchanged.
+- Colour meaning: the Min Collapse SF KPI shows success text when it meets
+  its design factor (it showed amber on a pass); danger below the factor is
+  unchanged. The PP and frac EMW columns lost their decorative amber and red.
+- Phone width: the side panels open collapsed below 768px, the banner
+  context row wraps, the tab bar scrolls inside itself. The studio stays a
+  desktop workstation; no page scrolls sideways at 390.
+- Shared: `TorqueDragStudio/components/WellboreDetails.jsx` was already
+  scope-aware (W0B #756); not edited here. Route prefix registered in
+  `src/design/rollout/w3b.js` (covers `/help`).
+- Tests: `__tests__/CasingTubingDesignPro.theme.test.jsx` (the standard
+  four for the studio and the guide, every tab, the bottom strip, the new
+  case, load case, add string and catalog dialogs, the help drawer, the
+  chart canvases). Existing suites and the two Playwright specs pass
+  unchanged. No engine or calculation change.

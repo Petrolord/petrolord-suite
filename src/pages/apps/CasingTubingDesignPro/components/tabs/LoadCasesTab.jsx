@@ -120,9 +120,8 @@ const TUBING_KINDS = [
 
 const kindMeta = (kind) => [...CASING_KINDS, ...TUBING_KINDS].find((k) => k.kind === kind) || null;
 
-const badgeClass = (target) => (target === 'tubing'
-  ? 'bg-purple-900/20 text-purple-300 border-purple-900/50'
-  : 'bg-blue-900/20 text-blue-300 border-blue-900/50');
+// Target tag: a neutral label (the icon and the word carry the meaning).
+const badgeClass = () => 'bg-pl-sunken text-pl-text border-pl-border';
 
 const LoadCasesTab = () => {
   const { caseDoc, saveLoadCase, deleteLoadCase } = useCasingTubingDesign();
@@ -157,12 +156,12 @@ const LoadCasesTab = () => {
 
   return (
     <div className="h-full flex flex-col space-y-6 p-1">
-      <div className="flex justify-between items-center bg-slate-900/50 p-4 rounded-lg border border-slate-800">
+      <div className="flex justify-between items-center bg-pl-surface p-4 rounded-lg border border-pl-border">
         <div>
-          <h3 className="text-lg font-medium text-white">Design Load Cases</h3>
-          <p className="text-sm text-slate-400">Canonical burst, collapse, axial and tubing operating scenarios. Every parameter feeds the engine directly.</p>
+          <h3 className="text-lg font-medium text-pl-text">Design Load Cases</h3>
+          <p className="text-sm text-pl-muted">Canonical burst, collapse, axial and tubing operating scenarios. Every parameter feeds the engine directly.</p>
         </div>
-        <Button data-testid="ct-add-load-case" onClick={openNew} className="bg-lime-600 hover:bg-lime-700 text-white shadow-lg shadow-lime-900/20">
+        <Button data-testid="ct-add-load-case" onClick={openNew} >
           <PlusCircle className="w-4 h-4 mr-2" /> Add Load Case
         </Button>
       </div>
@@ -170,21 +169,21 @@ const LoadCasesTab = () => {
       <ScrollArea className="flex-1">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-10">
           {loadCases.length === 0 && (
-            <div className="col-span-full flex flex-col items-center justify-center p-12 border-2 border-dashed border-slate-800 rounded-xl bg-slate-900/20">
-              <AlertCircle className="w-10 h-10 text-slate-600 mb-4" />
-              <p className="text-slate-500 font-medium">No load cases defined yet.</p>
-              <Button variant="link" onClick={openNew} className="text-blue-400">Create your first case</Button>
+            <div className="col-span-full flex flex-col items-center justify-center p-12 border-2 border-dashed border-pl-border rounded-xl bg-pl-surface">
+              <AlertCircle className="w-10 h-10 text-pl-muted mb-4" />
+              <p className="text-pl-muted font-medium">No load cases defined yet.</p>
+              <Button variant="link" onClick={openNew} className="text-pl-primary-text">Create your first case</Button>
             </div>
           )}
 
           {loadCases.map((lc) => {
             const m = kindMeta(lc.kind);
             return (
-              <Card key={lc.id} className="bg-slate-900 border-slate-800 hover:border-slate-700 transition-all hover:bg-slate-800/30 group">
-                <CardHeader className="pb-3 pt-4 px-4 border-b border-slate-800/50">
+              <Card key={lc.id} className="transition-all group">
+                <CardHeader className="pb-3 pt-4 px-4 border-b border-pl-border">
                   <div className="flex justify-between items-start">
                     <div>
-                      <CardTitle className="text-sm font-bold text-white flex items-center">
+                      <CardTitle className="text-sm font-bold text-pl-text flex items-center">
                         {lc.name}
                       </CardTitle>
                       <CardDescription className="text-xs mt-1.5 flex items-center space-x-2">
@@ -195,24 +194,24 @@ const LoadCasesTab = () => {
                       </CardDescription>
                     </div>
                     <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white hover:bg-slate-700" onClick={() => openEdit(lc)}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-pl-muted hover:text-pl-text hover:bg-pl-sunken" onClick={() => openEdit(lc)}>
                         <Edit2 className="w-3.5 h-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-red-400 hover:bg-slate-700" onClick={() => deleteLoadCase(lc.id)}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-pl-muted hover:text-pl-danger-text hover:bg-pl-sunken" onClick={() => deleteLoadCase(lc.id)}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-3 px-4 pb-4 text-xs space-y-2">
-                  <p className="text-[10px] text-slate-500">{m?.blurb}</p>
+                  <p className="text-[10px] text-pl-muted">{m?.blurb}</p>
                   {m && m.params.length > 0 && (
                     <div className="grid grid-cols-2 gap-2">
                       {m.params.map((p) => (
                         lc.params?.[p.key] != null && (
-                          <div key={p.key} className="bg-slate-950/50 p-2 rounded border border-slate-800/50">
-                            <span className="text-[10px] text-slate-500 block">{p.label}</span>
-                            <span className="text-slate-200 font-mono font-medium">
+                          <div key={p.key} className="bg-pl-sunken p-2 rounded border border-pl-border">
+                            <span className="text-[10px] text-pl-muted block">{p.label}</span>
+                            <span className="text-pl-text font-pl-mono tabular-nums font-medium">
                               {Number(lc.params[p.key]).toLocaleString()} {p.suffix !== '0-1' ? p.suffix : ''}
                             </span>
                           </div>
@@ -228,7 +227,7 @@ const LoadCasesTab = () => {
       </ScrollArea>
 
       <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
-        <DialogContent className="max-w-2xl bg-slate-950 border-slate-800 text-white">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{form?.id ? 'Edit Load Case' : 'New Load Case'}</DialogTitle>
           </DialogHeader>
@@ -238,7 +237,7 @@ const LoadCasesTab = () => {
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Name</Label>
-                  <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="bg-slate-900 border-slate-700 focus:border-lime-500" />
+                  <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
                 </div>
                 <div className="space-y-2">
                   <Label>Applies to</Label>
@@ -251,8 +250,8 @@ const LoadCasesTab = () => {
                       params: {},
                     })}
                   >
-                    <SelectTrigger className="bg-slate-900 border-slate-700"><SelectValue /></SelectTrigger>
-                    <SelectContent className="bg-slate-900 border-slate-700">
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
                       <SelectItem value="casing">Casing string</SelectItem>
                       <SelectItem value="tubing">Tubing / packer</SelectItem>
                     </SelectContent>
@@ -264,8 +263,8 @@ const LoadCasesTab = () => {
                     value={form.kind}
                     onValueChange={(v) => setForm({ ...form, kind: v, params: {} })}
                   >
-                    <SelectTrigger className="bg-slate-900 border-slate-700"><SelectValue /></SelectTrigger>
-                    <SelectContent className="bg-slate-900 border-slate-700">
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
                       {kinds.map((k) => <SelectItem key={k.kind} value={k.kind}>{k.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
@@ -273,16 +272,16 @@ const LoadCasesTab = () => {
               </div>
 
               {meta && (
-                <div className="p-4 border border-slate-800 bg-slate-900/30 rounded-md space-y-4">
-                  <p className="text-xs text-slate-400">{meta.blurb}</p>
+                <div className="p-4 border border-pl-border bg-pl-sunken rounded-md space-y-4">
+                  <p className="text-xs text-pl-muted">{meta.blurb}</p>
                   {meta.params.length === 0 ? (
-                    <p className="text-[10px] text-slate-500">This scenario has no extra parameters. It uses the case environment (mud, backup water) directly.</p>
+                    <p className="text-[10px] text-pl-muted">This scenario has no extra parameters. It uses the case environment (mud, backup water) directly.</p>
                   ) : (
                     <div className="grid grid-cols-2 gap-4">
                       {meta.params.map((p) => (
                         <div key={p.key} className="space-y-1">
-                          <Label className="text-xs text-slate-400">
-                            {p.label} {p.optional && <span className="text-slate-600">(optional)</span>}
+                          <Label className="text-xs text-pl-muted">
+                            {p.label} {p.optional && <span className="text-pl-muted">(optional)</span>}
                           </Label>
                           <div className="flex items-center space-x-2">
                             <Input
@@ -296,9 +295,9 @@ const LoadCasesTab = () => {
                                 else params[p.key] = v;
                                 setForm({ ...form, params });
                               }}
-                              className="bg-slate-900 border-slate-700 h-9 font-mono text-right"
+                              className="h-9 font-pl-mono tabular-nums text-right"
                             />
-                            <span className="text-[10px] text-slate-500 w-14">{p.suffix}</span>
+                            <span className="text-[10px] text-pl-muted w-14">{p.suffix}</span>
                           </div>
                         </div>
                       ))}
@@ -310,8 +309,8 @@ const LoadCasesTab = () => {
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditorOpen(false)} className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white">Cancel</Button>
-            <Button onClick={handleSave} className="bg-lime-600 hover:bg-lime-700 text-white">Save Case</Button>
+            <Button variant="outline" onClick={() => setIsEditorOpen(false)}>Cancel</Button>
+            <Button onClick={handleSave}>Save Case</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
