@@ -28,30 +28,31 @@ const TopNavigation = () => {
     const { name, mode } = state.meta;
 
     return (
-        <header className="h-16 bg-pl-surface border-b border-pl-border flex items-center justify-between px-4">
-            <div className="flex items-center space-x-4">
+        <header className="h-16 bg-pl-surface border-b border-pl-border flex items-center justify-between gap-1 sm:gap-2 px-1 sm:px-4">
+            <div className="flex min-w-0 items-center space-x-2 sm:space-x-4">
                 <Button 
                     variant="ghost" 
                     size="icon" 
+                    aria-label="Sections"
                     onClick={actions.toggleSidebar}
                     className="text-pl-muted hover:text-pl-text hover:bg-pl-sunken"
                 >
                     <Menu className="w-5 h-5" />
                 </Button>
 
-                <div className="flex items-center">
+                <div className="flex min-w-0 items-center">
                     <Button 
                         variant="ghost" 
                         size="sm" 
                         onClick={() => navigate('/dashboard')}
-                        className="text-pl-muted hover:text-pl-text mr-2"
+                        className="text-pl-muted hover:text-pl-text px-2 sm:mr-2"
                     >
-                        <ChevronLeft className="w-4 h-4 mr-1" />
-                        Hub
+                        <ChevronLeft className="w-4 h-4 sm:mr-1" aria-hidden="true" />
+                        <span className="sr-only sm:not-sr-only">Hub</span>
                     </Button>
-                    <div className="h-6 w-px bg-pl-border mx-2"></div>
-                    <div>
-                        <h1 className="text-pl-text font-semibold text-sm">{name}</h1>
+                    <div className="hidden sm:block h-6 w-px bg-pl-border mx-2"></div>
+                    <div className="hidden sm:block min-w-0">
+                        <h1 className="text-pl-text font-semibold text-sm truncate" title={name}>{name}</h1>
                         <div className="flex items-center space-x-2">
                             <span className="text-xs text-pl-muted">FDP Accelerator</span>
                             <span className="text-xs bg-pl-sunken text-pl-muted px-1.5 py-0.5 rounded border border-pl-border uppercase tracking-wide font-bold" style={{ fontSize: '0.65rem' }}>
@@ -62,7 +63,7 @@ const TopNavigation = () => {
                 </div>
             </div>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex min-w-0 items-center space-x-1 sm:space-x-2 overflow-x-auto">
                 <div className="hidden md:flex bg-pl-sunken rounded-lg p-1 border border-pl-border mr-4">
                     <button 
                         onClick={() => actions.setMode('guided')}
@@ -109,15 +110,16 @@ const TopNavigation = () => {
                     Export
                 </Button>
 
-                <FullPrecisionToggle app="fdp-accelerator" className="mr-2" />
+                <FullPrecisionToggle app="fdp-accelerator" className="sm:mr-2" />
                 <FdpHelpGuide />
                 <ThemeToggle />
 
-                <div className="h-6 w-px bg-pl-border mx-2"></div>
+                <div className="hidden sm:block h-6 w-px bg-pl-border mx-2"></div>
                 
                 <Button 
                     variant="ghost" 
                     size="icon" 
+                    aria-label="Plan status"
                     onClick={actions.toggleRightPanel}
                     className={`text-pl-muted hover:text-pl-text hover:bg-pl-sunken ${rightPanelOpen ? 'bg-pl-sunken text-pl-text' : ''}`}
                 >

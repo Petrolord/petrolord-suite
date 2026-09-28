@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useFDP } from '@/contexts/FDPContext';
 import SidebarNavigation from '../navigation/SidebarNavigation';
 import TopNavigation from '../navigation/TopNavigation';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import StudioNotifications from '@/components/studio/StudioNotifications';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Activity, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -56,7 +56,7 @@ const RightPanel = () => {
     const gasP50 = planReservesP50(state, 'Gas');
 
     return (
-        <div className="h-full flex flex-col bg-pl-surface border-l border-pl-border w-80">
+        <div className="h-full flex flex-col bg-pl-surface border-l border-pl-border w-80 max-w-full">
             <div className="p-4 border-b border-pl-border font-semibold text-pl-text flex items-center justify-between">
                 <span>Plan status</span>
                 <Activity className="w-4 h-4 text-pl-muted" />
@@ -124,6 +124,39 @@ const RightPanel = () => {
     );
 };
 
+// W7F: below md (768 px) the two rails no longer sit beside the content.
+// At 390 px the 256 px section rail and the 320 px Plan status rail left
+// the content a sliver, clipped at the edge. On a phone both rails open as
+// sheets from the existing header buttons instead.
+const PHONE_QUERY = '(max-width: 767px)';
+const useIsPhone = () => {
+    const get = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+        && window.matchMedia(PHONE_QUERY).matches;
+    const [isPhone, setIsPhone] = useState(get);
+    useEffect(() => {
+        if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+        const mq = window.matchMedia(PHONE_QUERY);
+        const on = () => setIsPhone(mq.matches);
+        on();
+        if (mq.addEventListener) { mq.addEventListener('change', on); return () => mq.removeEventListener('change', on); }
+        if (mq.addListener) { mq.addListener(on); return () => mq.removeListener(on); }
+        return undefined;
+    }, []);
+    return isPhone;
+};
+
+// Opens a phone sheet whenever the header button flips its desktop flag
+// (the button dispatches the same toggle on every width), skipping mount.
+const useSheetFromToggle = (flag) => {
+    const [open, setOpen] = useState(false);
+    const first = useRef(true);
+    useEffect(() => {
+        if (first.current) { first.current = false; return; }
+        setOpen(true);
+    }, [flag]);
+    return [open, setOpen];
+};
+
 const MainLayout = ({ children }) => {
     const { state, actions, persistence, notifications, removeNotification } = useFDP();
 
@@ -140,7 +173,12 @@ const MainLayout = ({ children }) => {
         actions.updateEconomics(economicsPayload);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [payloadKey]);
-    const { sidebarCollapsed, rightPanelOpen } = state.navigation;
+    const { sidebarCollapsed, rightPanelOpen, activeTab } = state.navigation;
+    const isPhone = useIsPhone();
+    const [navOpen, setNavOpen] = useSheetFromToggle(sidebarCollapsed);
+    const [statusOpen, setStatusOpen] = useSheetFromToggle(rightPanelOpen);
+    // picking a section closes the phone sheet
+    useEffect(() => { setNavOpen(false); }, [activeTab, setNavOpen]);
 
     return (
         <div className="h-screen w-full bg-pl-bg flex flex-col overflow-hidden text-pl-text font-sans">
@@ -149,6 +187,14 @@ const MainLayout = ({ children }) => {
             
             <div className="flex-1 flex overflow-hidden">
                 {/* Left Sidebar */}
+                {isPhone ? (
+                    <Sheet open={navOpen} onOpenChange={setNavOpen}>
+                        <SheetContent side="left" className="w-64 p-0" data-testid="fdp-phone-sections">
+                            <SheetTitle className="sr-only">Sections</SheetTitle>
+                            <SidebarNavigation forceExpanded />
+                        </SheetContent>
+                    </Sheet>
+                ) : (
                 <aside 
                     className={cn(
                         "bg-pl-surface border-r border-pl-border transition-all duration-300 ease-in-out flex-shrink-0 z-20",
@@ -157,6 +203,7 @@ const MainLayout = ({ children }) => {
                 >
                     <SidebarNavigation />
                 </aside>
+                )}
 
                 {/* Main Content Area */}
                 {/* FDP-T1-002: a plain scroller. Radix ScrollArea sizes its
@@ -164,13 +211,21 @@ const MainLayout = ({ children }) => {
                     whole column under the Plan status rail. */}
                 <main className="flex-1 min-w-0 flex flex-col overflow-hidden relative bg-pl-bg">
                     <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-                        <div className="p-6 min-h-full">
+                        <div className="p-3 sm:p-6 min-h-full">
                             {children}
                         </div>
                     </div>
                 </main>
 
                 {/* Right Panel */}
+                {isPhone ? (
+                    <Sheet open={statusOpen} onOpenChange={setStatusOpen}>
+                        <SheetContent side="right" className="w-80 max-w-[90vw] p-0" data-testid="fdp-phone-status">
+                            <SheetTitle className="sr-only">Plan status</SheetTitle>
+                            <RightPanel />
+                        </SheetContent>
+                    </Sheet>
+                ) : (
                 <aside 
                     className={cn(
                         "border-l border-pl-border bg-pl-surface transition-all duration-300 ease-in-out flex-shrink-0 z-10",
@@ -179,6 +234,7 @@ const MainLayout = ({ children }) => {
                 >
                     <RightPanel />
                 </aside>
+                )}
             </div>
             
             {/* Status Bar */}
