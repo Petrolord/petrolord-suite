@@ -44,7 +44,7 @@ const CasingStringList = ({ selectedId, onSelect }) => {
     <div className="space-y-3">
       <Button
         data-testid="ct-add-casing-string"
-        className="w-full bg-lime-600 hover:bg-lime-700 text-white shadow-sm border border-lime-500/50"
+        className="w-full"
         onClick={() => setIsAddDialogOpen(true)}
       >
         <Plus className="w-4 h-4 mr-2" /> Add Casing String
@@ -60,42 +60,42 @@ const CasingStringList = ({ selectedId, onSelect }) => {
               key={str.id}
               className={`cursor-pointer transition-all border-l-4 ${
                 selectedId === str.id
-                  ? 'bg-slate-800 border-l-lime-500 border-y-slate-700 border-r-slate-700 shadow-md'
-                  : 'bg-slate-900 border-l-slate-600 border-y-slate-800 border-r-slate-800 hover:bg-slate-800/50'
+                  ? 'bg-pl-sunken border-l-pl-primary border-y-pl-border border-r-pl-border shadow-pl-md'
+                  : 'bg-pl-surface border-l-pl-border border-y-pl-border border-r-pl-border hover:bg-pl-sunken'
               }`}
               onClick={() => onSelect(str.id)}
             >
               <div className="p-3 flex justify-between items-start">
                 <div>
                   <div className="flex items-center space-x-2">
-                    <h4 className={`text-sm font-bold ${selectedId === str.id ? 'text-white' : 'text-slate-300'}`}>
+                    <h4 className="text-sm font-bold text-pl-text">
                       {str.name}
                     </h4>
-                    <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-slate-600 text-slate-400">
+                    <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-pl-border text-pl-muted">
                       {str.sections?.length || 0} Sec
                     </Badge>
                   </div>
-                  <div className="text-[10px] text-slate-500 mt-1 font-mono">
+                  <div className="text-[10px] text-pl-muted mt-1 font-pl-mono tabular-nums">
                     {Math.round(depthDisp(top, depthUnit))}-{Math.round(depthDisp(bottom, depthUnit))}{unit} • {od}&quot; OD
                   </div>
                   <div className="mt-2 flex items-center space-x-2 text-[10px]">
                     {[...new Set(str.sections.map((s) => s.grade))].map((g) => (
-                      <span key={g} className="text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded">{g}</span>
+                      <span key={g} className="text-pl-muted bg-pl-sunken px-1.5 py-0.5 rounded">{g}</span>
                     ))}
                   </div>
                 </div>
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-slate-500 hover:text-white">
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-pl-muted hover:text-pl-text">
                       <MoreVertical className="w-3.5 h-3.5" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="bg-slate-900 border-slate-700 text-slate-300" align="end">
+                  <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={(e) => handleDuplicate(str, e)}>
                       <Copy className="w-3.5 h-3.5 mr-2" /> Duplicate
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="text-red-400 focus:text-red-300" onClick={(e) => handleDelete(str.id, e)}>
+                    <DropdownMenuItem className="text-pl-danger-text focus:text-pl-danger-text" onClick={(e) => handleDelete(str.id, e)}>
                       <Trash2 className="w-3.5 h-3.5 mr-2" /> Delete
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -106,7 +106,7 @@ const CasingStringList = ({ selectedId, onSelect }) => {
         })}
 
         {casingStrings.length === 0 && (
-          <div className="text-center p-6 border-2 border-dashed border-slate-800 rounded-lg text-slate-600 text-xs">
+          <div className="text-center p-6 border-2 border-dashed border-pl-border rounded-lg text-pl-muted text-xs">
             No casing strings defined.
           </div>
         )}

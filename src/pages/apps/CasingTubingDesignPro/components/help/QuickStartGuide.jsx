@@ -33,21 +33,21 @@ const QuickStartGuide = () => {
 
     return (
         <div className="space-y-4">
-            <h3 className="text-lg font-bold text-white mb-2">Getting Started</h3>
-            <p className="text-sm text-slate-400 mb-4">Follow these steps to complete a standard casing and tubing design workflow.</p>
+            <h3 className="text-lg font-bold text-pl-text mb-2">Getting Started</h3>
+            <p className="text-sm text-pl-muted mb-4">Follow these steps to complete a standard casing and tubing design workflow.</p>
             
             <div className="space-y-3">
                 {steps.map((step, idx) => (
-                    <Card key={idx} className="bg-slate-900 border-slate-800">
+                    <Card key={idx}>
                         <CardContent className="p-3">
                             <div className="flex items-start">
-                                <div className="flex-shrink-0 h-6 w-6 rounded-full bg-lime-900/30 text-lime-400 flex items-center justify-center text-xs font-bold mr-3 mt-0.5">
+                                <div className="flex-shrink-0 h-6 w-6 rounded-full bg-pl-primary/10 text-pl-primary-text flex items-center justify-center text-xs font-bold mr-3 mt-0.5">
                                     {idx + 1}
                                 </div>
                                 <div>
-                                    <h4 className="text-sm font-semibold text-slate-200">{step.title}</h4>
-                                    <p className="text-xs text-slate-400 mt-1 leading-relaxed">{step.description}</p>
-                                    <div className="mt-2 flex items-center text-[10px] text-blue-400 font-medium bg-blue-900/10 px-2 py-1 rounded w-fit">
+                                    <h4 className="text-sm font-semibold text-pl-text">{step.title}</h4>
+                                    <p className="text-xs text-pl-muted mt-1 leading-relaxed">{step.description}</p>
+                                    <div className="mt-2 flex items-center text-[10px] text-pl-text font-medium bg-pl-sunken px-2 py-1 rounded w-fit">
                                         <ArrowRight className="w-3 h-3 mr-1" /> {step.action}
                                     </div>
                                 </div>
@@ -57,11 +57,11 @@ const QuickStartGuide = () => {
                 ))}
             </div>
             
-            <div className="mt-6 bg-emerald-900/10 border border-emerald-900/30 p-4 rounded-lg">
-                <h4 className="text-sm font-bold text-emerald-400 flex items-center mb-2">
+            <div className="mt-6 bg-pl-success-bg border border-pl-success/40 p-4 rounded-lg">
+                <h4 className="text-sm font-bold text-pl-success-text flex items-center mb-2">
                     <CheckCircle2 className="w-4 h-4 mr-2" /> Pro Tip
                 </h4>
-                <p className="text-xs text-emerald-200/70">
+                <p className="text-xs text-pl-success-text">
                     Duplicate a saved case before big changes; each case keeps its own strings, load cases and results, so alternatives stay comparable.
                 </p>
             </div>

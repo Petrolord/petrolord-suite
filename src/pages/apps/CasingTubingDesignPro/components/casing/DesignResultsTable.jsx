@@ -12,65 +12,65 @@ const DesignResultsTable = ({ caseResult, depthUnit = 'm' }) => {
   if (!caseResult) return null;
   const unit = depthLabel(depthUnit);
 
-  const getStatusColor = (status) => {
-    if (status === 'PASS') return 'bg-emerald-900/30 text-emerald-400 border-emerald-800';
-    if (status === 'WARNING') return 'bg-amber-900/30 text-amber-400 border-amber-800';
-    return 'bg-red-900/30 text-red-400 border-red-800';
+  const statusVariant = (status) => {
+    if (status === 'PASS') return 'success';
+    if (status === 'WARNING') return 'warning';
+    return 'danger';
   };
 
   const sfColor = (val, threshold) => {
-    if (val == null || !Number.isFinite(val)) return 'text-slate-500';
-    if (val >= threshold * 1.1) return 'text-emerald-400';
-    if (val >= threshold) return 'text-amber-400';
-    return 'text-red-400 font-bold';
+    if (val == null || !Number.isFinite(val)) return 'text-pl-muted';
+    if (val >= threshold * 1.1) return 'text-pl-success-text';
+    if (val >= threshold) return 'text-pl-warning-text';
+    return 'text-pl-danger-text font-bold';
   };
 
   return (
-    <div className="rounded-md border border-slate-800 bg-slate-900/50 overflow-x-auto">
+    <div className="rounded-md border border-pl-border bg-pl-surface overflow-x-auto">
       <Table>
-        <TableHeader className="bg-slate-900">
-          <TableRow className="border-slate-800 hover:bg-transparent">
-            <TableHead className="h-8 text-[10px] font-bold text-slate-400">Section</TableHead>
-            <TableHead className="h-8 text-[10px] font-bold text-slate-400">Interval MD ({unit})</TableHead>
-            <TableHead className="h-8 text-[10px] font-bold text-slate-400 text-center">Burst SF</TableHead>
-            <TableHead className="h-8 text-[10px] font-bold text-slate-400 text-center">Collapse SF</TableHead>
-            <TableHead className="h-8 text-[10px] font-bold text-slate-400 text-center">Regime</TableHead>
-            <TableHead className="h-8 text-[10px] font-bold text-slate-400 text-center">Tension SF</TableHead>
-            <TableHead className="h-8 text-[10px] font-bold text-slate-400 text-center">Triaxial SF</TableHead>
-            <TableHead className="h-8 text-[10px] font-bold text-slate-400 text-center">Status</TableHead>
+        <TableHeader>
+          <TableRow className="border-pl-border hover:bg-transparent">
+            <TableHead className="h-8 text-[10px] font-bold text-pl-muted">Section</TableHead>
+            <TableHead className="h-8 text-[10px] font-bold text-pl-muted">Interval MD ({unit})</TableHead>
+            <TableHead className="h-8 text-[10px] font-bold text-pl-muted text-center">Burst SF</TableHead>
+            <TableHead className="h-8 text-[10px] font-bold text-pl-muted text-center">Collapse SF</TableHead>
+            <TableHead className="h-8 text-[10px] font-bold text-pl-muted text-center">Regime</TableHead>
+            <TableHead className="h-8 text-[10px] font-bold text-pl-muted text-center">Tension SF</TableHead>
+            <TableHead className="h-8 text-[10px] font-bold text-pl-muted text-center">Triaxial SF</TableHead>
+            <TableHead className="h-8 text-[10px] font-bold text-pl-muted text-center">Status</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {caseResult.sections.map((res) => (
-            <TableRow key={res.sectionId || res.name} className="border-slate-800 hover:bg-slate-800/50 h-8">
-              <TableCell className="py-1 text-xs font-medium text-slate-200">
+            <TableRow key={res.sectionId || res.name} className="border-pl-border hover:bg-pl-sunken h-8">
+              <TableCell className="py-1 text-xs font-medium text-pl-text">
                 {res.name}
-                <span className="text-slate-500 ml-2 font-mono text-[10px]">{res.odIn}&quot; {res.weightLbFt}# {res.grade}</span>
+                <span className="text-pl-muted ml-2 font-pl-mono tabular-nums text-[10px]">{res.odIn}&quot; {res.weightLbFt}# {res.grade}</span>
               </TableCell>
-              <TableCell className="py-1 text-xs font-mono text-slate-400">
+              <TableCell className="py-1 text-xs font-pl-mono tabular-nums text-pl-muted">
                 {Math.round(depthDisp(res.topMdM, depthUnit))} - {Math.round(depthDisp(res.bottomMdM, depthUnit))}
               </TableCell>
-              <TableCell className={`py-1 text-xs font-mono text-center ${sfColor(res.burstSF, 1.1)}`} data-testid={`ct-burst-sf-${res.name}`}>
+              <TableCell className={`py-1 text-xs font-pl-mono tabular-nums text-center ${sfColor(res.burstSF, 1.1)}`} data-testid={`ct-burst-sf-${res.name}`}>
                 {fmtSF(res.burstSF)}
                 {res.burstAtTvdM != null && (
-                  <span className="text-slate-600 block text-[9px]">@ {Math.round(depthDisp(res.burstAtTvdM, depthUnit))} {unit} TVD</span>
+                  <span className="text-pl-muted block text-[9px]">@ {Math.round(depthDisp(res.burstAtTvdM, depthUnit))} {unit} TVD</span>
                 )}
               </TableCell>
-              <TableCell className={`py-1 text-xs font-mono text-center ${sfColor(res.collapseSF, 1.0)}`} data-testid={`ct-collapse-sf-${res.name}`}>
+              <TableCell className={`py-1 text-xs font-pl-mono tabular-nums text-center ${sfColor(res.collapseSF, 1.0)}`} data-testid={`ct-collapse-sf-${res.name}`}>
                 {fmtSF(res.collapseSF)}
                 {res.collapseAtTvdM != null && (
-                  <span className="text-slate-600 block text-[9px]">@ {Math.round(depthDisp(res.collapseAtTvdM, depthUnit))} {unit} TVD</span>
+                  <span className="text-pl-muted block text-[9px]">@ {Math.round(depthDisp(res.collapseAtTvdM, depthUnit))} {unit} TVD</span>
                 )}
               </TableCell>
-              <TableCell className="py-1 text-[10px] text-center text-slate-500">{res.collapseRegime || '—'}</TableCell>
-              <TableCell className={`py-1 text-xs font-mono text-center ${sfColor(res.tensionSF, 1.6)}`}>
+              <TableCell className="py-1 text-[10px] text-center text-pl-muted">{res.collapseRegime || '—'}</TableCell>
+              <TableCell className={`py-1 text-xs font-pl-mono tabular-nums text-center ${sfColor(res.tensionSF, 1.6)}`}>
                 {fmtSF(res.tensionSF)}
               </TableCell>
-              <TableCell className={`py-1 text-xs font-mono text-center ${sfColor(res.triaxSF, 1.25)}`} data-testid={`ct-triaxial-sf-${res.name}`}>
+              <TableCell className={`py-1 text-xs font-pl-mono tabular-nums text-center ${sfColor(res.triaxSF, 1.25)}`} data-testid={`ct-triaxial-sf-${res.name}`}>
                 {fmtSF(res.triaxSF)}
               </TableCell>
               <TableCell className="py-1 text-center">
-                <Badge variant="outline" className={`text-[10px] h-5 px-1.5 ${getStatusColor(res.status)}`}>
+                <Badge variant={statusVariant(res.status)} className="text-[10px] h-5 px-1.5">
                   {res.status}
                 </Badge>
               </TableCell>

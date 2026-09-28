@@ -3,9 +3,8 @@
 
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
+import { AppHeader } from '@/components/ui/app-shell';
+import { ThemedApp } from '@/design/ThemeProvider';
 import {
   ArrowLeft, BookOpen, Zap, Database, Layers, Briefcase, Activity, Ruler,
   BadgeCheck, AlertTriangle, BookMarked, Cylinder,
@@ -25,22 +24,22 @@ const sections = [
 ];
 
 const SectionHeading = ({ icon: Icon, children }) => (
-  <h2 className="flex items-center gap-3 text-3xl font-bold text-white mb-4 mt-0 pt-2">
-    <Icon className="w-7 h-7 text-cyan-300" /> {children}
+  <h2 className="flex items-center gap-3 text-3xl font-bold text-pl-text mb-4 mt-0 pt-2">
+    <Icon className="w-7 h-7 text-pl-muted" /> {children}
   </h2>
 );
 const SubHeading = ({ children }) => (
-  <h3 className="text-xl font-semibold text-lime-200 mt-6 mb-2">{children}</h3>
+  <h3 className="text-xl font-semibold text-pl-text mt-6 mb-2">{children}</h3>
 );
 const Para = ({ children }) => (
-  <p className="text-slate-200 leading-relaxed mb-3">{children}</p>
+  <p className="text-pl-text leading-relaxed mb-3">{children}</p>
 );
 const Callout = ({ tone = 'info', title, children }) => {
   const tones = {
-    info: 'bg-cyan-900/30 border-cyan-500/40 text-cyan-100',
-    warn: 'bg-amber-900/30 border-amber-500/40 text-amber-100',
-    danger: 'bg-red-900/30 border-red-500/40 text-red-100',
-    success: 'bg-green-900/30 border-green-500/40 text-green-100',
+    info: 'bg-pl-info-bg border-pl-info/40 text-pl-info-text',
+    warn: 'bg-pl-warning-bg border-pl-warning/40 text-pl-warning-text',
+    danger: 'bg-pl-danger-bg border-pl-danger/40 text-pl-danger-text',
+    success: 'bg-pl-success-bg border-pl-success/40 text-pl-success-text',
   };
   return (
     <div className={`border-l-4 rounded p-4 my-4 ${tones[tone]}`}>
@@ -51,25 +50,25 @@ const Callout = ({ tone = 'info', title, children }) => {
 };
 const Step = ({ n, title, children }) => (
   <div className="flex gap-3 mb-4">
-    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-cyan-500 flex items-center justify-center text-white font-bold text-sm">
+    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-pl-primary flex items-center justify-center text-pl-primary-fg font-bold text-sm">
       {n}
     </div>
     <div className="flex-1">
-      <div className="font-semibold text-white mb-1">{title}</div>
-      <div className="text-slate-200 text-sm leading-relaxed">{children}</div>
+      <div className="font-semibold text-pl-text mb-1">{title}</div>
+      <div className="text-pl-text text-sm leading-relaxed">{children}</div>
     </div>
   </div>
 );
 const Table = ({ headers, rows }) => (
   <div className="my-3 overflow-x-auto">
-    <table className="min-w-full text-sm border border-white/10">
-      <thead className="bg-slate-800/60">
-        <tr>{headers.map((h) => <th key={h} className="px-3 py-2 text-left text-cyan-200 font-semibold border-b border-white/10">{h}</th>)}</tr>
+    <table className="min-w-full text-sm border border-pl-border">
+      <thead className="bg-pl-sunken">
+        <tr>{headers.map((h) => <th key={h} className="px-3 py-2 text-left text-pl-muted font-semibold border-b border-pl-border">{h}</th>)}</tr>
       </thead>
       <tbody>
         {rows.map((r, i) => (
-          <tr key={i} className={i % 2 ? 'bg-slate-800/20' : ''}>
-            {r.map((c, j) => <td key={j} className="px-3 py-2 text-slate-200 border-b border-white/5 align-top">{c}</td>)}
+          <tr key={i} className={i % 2 ? 'bg-pl-sunken' : ''}>
+            {r.map((c, j) => <td key={j} className="px-3 py-2 text-pl-text border-b border-pl-border align-top">{c}</td>)}
           </tr>
         ))}
       </tbody>
@@ -77,7 +76,7 @@ const Table = ({ headers, rows }) => (
   </div>
 );
 const Section = ({ id, children }) => (
-  <section id={`section-${id}`} className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-6 mb-6 scroll-mt-6">
+  <section id={`section-${id}`} className="bg-pl-surface border border-pl-border rounded-xl p-6 mb-6 scroll-mt-6">
     {children}
   </section>
 );
@@ -91,41 +90,30 @@ const CasingTubingHelpGuide = () => {
   };
 
   return (
-    <>
+    <ThemedApp data-testid="ct-help-theme-scope" className="min-h-screen">
       <Helmet>
         <title>Casing & Tubing Design Studio Help Guide - Petrolord Suite</title>
         <meta name="description" content="Guide to the Casing & Tubing Design Studio: API 5C3 ratings, load cases, tubing-packer forces." />
       </Helmet>
-      <div className="p-8">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mb-6">
-          <div className="mb-4">
-            <Link to="/dashboard/apps/drilling/casing-tubing-design-pro">
-              <Button variant="outline" className="text-white border-white/20 hover:bg-white/10">
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back to Casing & Tubing Design Studio
-              </Button>
-            </Link>
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="bg-gradient-to-r from-lime-600 to-cyan-600 p-3 rounded-xl">
-              <Layers className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-4xl font-bold text-white">Casing & Tubing Design Studio Help Guide</h1>
-              <p className="text-lime-200 text-lg">Rate the pipe, load the well, hold the seal</p>
-            </div>
-          </div>
-        </motion.div>
-
+      <AppHeader
+        backTo="/dashboard/apps/drilling/casing-tubing-design-pro"
+        backLabel="Back to Casing & Tubing Design Studio"
+        icon={Layers}
+        eyebrow="Drilling & Completions"
+        title="Casing & Tubing Design Studio Help Guide"
+        subtitle="Rate the pipe, load the well, hold the seal"
+      />
+      <div className="px-4 py-6 sm:px-8">
         <div className="grid grid-cols-12 gap-6">
           <aside className="col-span-12 lg:col-span-3">
-            <div className="sticky top-6 bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-4">
-              <div className="text-xs uppercase tracking-wider text-lime-300/70 mb-2 px-2">Contents</div>
+            <div className="lg:sticky lg:top-20 bg-pl-surface border border-pl-border rounded-xl p-4">
+              <div className="text-xs uppercase tracking-wider text-pl-muted mb-2 px-2">Contents</div>
               <nav className="space-y-1">
                 {sections.map((s) => {
                   const Icon = s.icon;
                   return (
                     <button key={s.id} type="button" onClick={() => scrollTo(s.id)}
-                      className={`w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm ${activeSection === s.id ? 'bg-lime-500/20 text-lime-200' : 'text-slate-300 hover:bg-white/10'}`}>
+                      className={`w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm ${activeSection === s.id ? 'bg-pl-primary/10 text-pl-primary-text' : 'text-pl-text hover:bg-pl-sunken'}`}>
                       <Icon className="h-4 w-4 shrink-0" /> {s.title}
                     </button>
                   );
@@ -318,7 +306,7 @@ const CasingTubingHelpGuide = () => {
             <Section id="pitfalls">
               <SectionHeading icon={AlertTriangle}>Pitfalls & FAQ</SectionHeading>
               <SubHeading>I left the page and my casing design was gone</SubHeading>
-              <p className="text-slate-300 leading-relaxed">
+              <p className="text-pl-text leading-relaxed">
                 Not any more. While a design case has unsaved edits, the Studio mirrors them to
                 this browser and restores them the next time the case opens, with an amber note
                 under the Save button and a Discard link. A reload or a closed tab also asks
@@ -326,7 +314,7 @@ const CasingTubingHelpGuide = () => {
                 devices and teammates see; the mirror is a safety net, not the record.
               </p>
               <SubHeading>Reading the schematic</SubHeading>
-              <p className="text-slate-300 leading-relaxed">
+              <p className="text-pl-text leading-relaxed">
                 The schematic (Casing Design, Tubing Design and the Visualizer tab) draws on white
                 with the Petrolord mark, diameters to scale across and measured depth down a
                 round-stepped axis in the wellbore&apos;s unit. Every casing string ends in a shoe
@@ -376,7 +364,7 @@ const CasingTubingHelpGuide = () => {
           </main>
         </div>
       </div>
-    </>
+    </ThemedApp>
   );
 };
 
