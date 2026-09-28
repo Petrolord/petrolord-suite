@@ -349,3 +349,36 @@ The W4A known issue is fixed at the root, in two places:
   both files at origin/main, and the panel alone at origin/main, hang
   ("Maximum update depth exceeded"; killed at the timeout). The theme test
   now also checks each editor's paste mode. No parsing or saved-data change.
+
+## 2026-09-28: App upgrade Step 1 (practitioner lens) done, Step 2 analysed
+
+First app of the comprehensive upgrade programme. Working doc with every
+check, finding, persona walk and the ranked Step 2 backlog:
+`docs/upgrade/WellDataManager-UPGRADE.md`. Branch `feat/wdm-u1`.
+
+- **Evidence kit.** Hostile import set (14 files + generator) in
+  `e2e/fixtures/wdm/hostile/`; saved-state registry rows from the G1 and
+  PT1 releases in `e2e/fixtures/wdm/saved/` (loaded with
+  `makeInMemoryBackend({ seedRows })`); chain test into Petrophysics
+  Studio and Well Correlation; `e2e/well-data-manager-upgrade.spec.js`
+  (three viewports, canvas geometry, 150k-row timing); harness
+  `?seedWells=<n>`.
+- **Fixed (19 findings, 6 of them S2).** LAS index policy
+  (`engine/lasIndex.js`): TVD/TVDSS/time-indexed files refused with the
+  reason; bottom-up files reversed so depth ascends (step, TD and merges
+  right again); TDEP and unit-suffixed depth names join the shared DEPT
+  alias family and any other index is saved as DEPT, so downstream apps
+  find the depth. LAS door: X/Y unit selector and labels (a feet CRS no
+  longer takes metres as feet), labelled header fields, XWELL/YWELL
+  offered, LAS 3.0 Tops block imported (`engine/lasTops.js`). Shared import
+  layer: "MD (ft)" in a tops or survey header sets the unit; negative-Z
+  checkshots explained. Workstation: log delete asks first; Tops tab shows
+  TVD and TVDSS and says when KB is unset; X/Y labels use `xy_unit`; the
+  map names its frames, warns on mixed CRSs and counts undrawn wells; a
+  cleared coordinate is no longer drawn at the origin; depth ticks never
+  repeat; the harness stores CRS fields.
+- **Open (14, none S1/S2):** metres-only display, no file export, no help
+  guide, 390-wide workstation, datum model (KB datum unnamed, SRD),
+  tops undo, legacy bottom-up curves, and smaller items; all ranked in the
+  upgrade doc's Step 2 backlog (batches A, B, C) for the owner to pick.
+- No schema change and no migration in this step.
