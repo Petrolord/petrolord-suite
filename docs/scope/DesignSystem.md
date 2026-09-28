@@ -16,9 +16,16 @@ Audit, pilots and open decisions: `docs/scope/DesignSystem-PLAN.md`.
 | `src/design/themeCss.js` | the CSS renderer the script and the test share |
 | `src/design/ThemeProvider.jsx` | `ThemedApp`, `ThemeProvider`, storage helpers |
 | `src/design/themeContext.js` | `useDsTheme`, `usePortalThemeProps` (no dependencies) |
+| `src/design/themeClass.js` | `useThemeClass`, the one opt-in helper for shared components (section 4) |
+| `src/design/activeTheme.js` | the theme of the opted-in app on screen, for the root toaster |
+| `src/design/coldLoad.jsx` | pilot paths, `coldLoadTheme`, `ThemedLoadingScreen` for the cold-load loaders |
 | `src/components/ui/theme-toggle.jsx` | `ThemeToggle` |
 | `src/components/ui/app-shell.jsx` | `AppHeader`, `PageContainer`, `PageSection`, `DisplayHeading` |
 | `src/components/ui/stat-tile.jsx` | `StatTile` |
+| `src/components/ui/segmented-control.jsx` | `SegmentedControl` |
+| `src/components/ui/native-select.jsx` | `NativeSelect`, `CompactInput`, `NATIVE_SELECT_THEMED`, `COMPACT_FIELD_THEMED` |
+| `src/components/ui/chart-panel.jsx` | `ChartPanel` |
+| `src/components/ui/numeric-table.jsx` | `NumericTable`, `NumTh`, `NumRow`, `RowLabel`, `NumCell`, `signedTone` |
 | `src/dev/DesignSystemHarness.jsx` | specimen at `/dev/design-system` (dev only) |
 
 Change a colour in `tokens.js`, re-run the script, run
@@ -45,6 +52,7 @@ Use roles, never hues. Tailwind classes are `bg-pl-<role>`,
 | `primary` / `primary-fg` | `#2F6B48` / white | `#7CC49A` / `#07140E` | main action |
 | `primary-hover` | `#245A3B` | `#94D2AD` | |
 | `primary-text` | `#2F6B48` | `#8FD0AA` | links, active icons |
+| `primary-text-hover` | `#1F4E33` | `#B3E2C6` | hover on links and text buttons |
 | `accent` / `accent-fg` | `#C8A24E` gold / ink | same | brand highlight fill |
 | `accent-text` | `#7A5A12` | `#E6D3A0` | eyebrows, gold words |
 | `success` `-fg` `-bg` `-text` | `#1E7A46` ... | `#6FD19A` ... | status only |
@@ -79,7 +87,9 @@ the theme too. `--chart-1..5` become the chartTheme series colours.
 - Spacing: the Tailwind 4px grid (`1` = 4px, `2` = 8px, `4` = 16px,
   `6` = 24px, `8` = 32px). Page gutter `px-4 sm:px-6`, section gap `space-y-8`.
 - Radii: 6, 8, 12, 16, pill. Inside a scope `--radius` is 12px, so
-  `rounded-lg` = 12, `rounded-md` = 10, `rounded-sm` = 8.
+  `rounded-lg` = 12, `rounded-md` = 10, `rounded-sm` = 8. Canvas frames
+  (seismic sections, maps, 3D viewers) use `rounded-pl-canvas`, which stays
+  8px inside a scope (and outside one).
 - Shadows: `shadow-pl-sm` (cards), `shadow-pl-md` (menus), `shadow-pl-lg`
   (dialogs). Theme-aware.
 
@@ -107,6 +117,15 @@ the theme too. `--chart-1..5` become the chartTheme series colours.
    `accent-text` for small eyebrow words. Lime is retired from app chrome.
 7. **Focus.** Keep the component focus rings (`ring-pl-focus`). The scope also
    draws a focus outline on any element without its own ring.
+8. **Toasts match the page** (owner revision of lead decision 3,
+   2026-09-28). The one root toaster takes the theme of the opted-in app on
+   screen; on every other page it keeps its legacy look. Apps call
+   `useToast()` or sonner as before; nothing to do per app.
+9. **Loaders.** On the pilot paths (`src/design/coldLoad.jsx`) the
+   AuthGuard, ProtectedRoute and root Suspense loaders paint the device's
+   last theme, so a light user does not see a dark spinner first. When an
+   app opts in, add its route to `THEMED_APP_PREFIXES`; the test
+   `coldLoad.test.jsx` fails if a `ThemedApp` route in App.jsx is missing.
 
 ## 4. How an app opts in
 
@@ -133,11 +152,16 @@ user yet) it paints the last theme this device resolved
 
 - The adapted primitives switch automatically: `Card`, `Tabs`, `Table`,
   `Input`, `Textarea`, `Label`, `Button` (adds `variant="accent"`), `Badge`
-  (adds status variants), `Select`, `Dialog`, `Popover`, `Tooltip`,
-  `DropdownMenu`, `StudioHeader` (shows the toggle).
+  (adds status variants, `neutral` and `selected`), `Select`, `Dialog`,
+  `Popover`, `Tooltip`, `DropdownMenu`, `Checkbox`, `Switch`, `Accordion`,
+  `ScrollArea`, `Sheet`, `Slider`, `Progress`, `Alert` (adds status
+  variants), `Separator`, `ContextMenu`, `AlertDialog`, `Skeleton`,
+  `Toggle`, `ToggleGroup`, `StudioHeader` (shows the toggle), and the
+  full-page `AccessDenied` and `ComingSoon` screens.
 - Put `<ThemeToggle />` in the header, or use `AppHeader`, which has it.
-- Portal content carries the scope attribute through `usePortalThemeProps()`;
-  use it on any custom portal.
+- Portal content (dialog, sheet and alert-dialog overlays and panels,
+  menus and submenus, selects, popovers, tooltips) carries the scope
+  attribute through `usePortalThemeProps()`; use it on any custom portal.
 - A dark canvas: `<div data-canvas="dark">...</div>`. Components inside it
   use the dark roles even when the app is light.
 
@@ -146,6 +170,32 @@ classes byte for byte and no rule in `theme.css` matches.
 
 Class overrides still win (tailwind-merge), so a pilot must remove its own
 `bg-slate-*`, `text-white` and similar classes for the theme to show.
+
+### Shared components opt in with `useThemeClass`
+
+A component used both by opted-in apps and by unmigrated ones (the ui kit,
+the Studio kit, workstation shells, shared forms) must render its legacy
+classes byte for byte outside a scope. The one helper for that is
+`useThemeClass` from `src/design/themeClass.js`:
+
+```jsx
+import { useThemeClass } from '@/design/themeClass';
+
+const tc = useThemeClass();
+<div className={tc('bg-slate-900 text-slate-200', 'bg-pl-surface text-pl-text')} />
+
+// or with a table of { legacy: themed }
+const tc = useThemeClass(THEMED);
+<div className={tc('bg-slate-900 text-slate-200')} />
+```
+
+Outside a scope `tc()` returns its first argument. Inside one it returns the
+second argument when one is passed (an explicit `undefined` drops the class
+or attribute), otherwise the table entry, otherwise the legacy string. Write
+themed strings out literally so Tailwind generates them. The Studio kit's
+`useStudioTheme()` returns the same picker (plus `ds`). Pin the legacy DOM
+of any shared component you adapt (see `uiLegacyDom.test.jsx` and
+`studioKitLegacyDom.test.jsx`).
 
 ## 5. Components
 
@@ -162,6 +212,17 @@ Class overrides still win (tailwind-merge), so a pilot must remove its own
 | `Tabs` | sunken rail, surface active tab |
 | `Badge` | `default secondary outline accent destructive` plus `success warning danger info` |
 | `ThemeToggle` | light/dark switch, `aria-pressed`, nothing outside a scope |
+| `AppHeader` actions | wrap under the title at phone width; put only a few buttons there |
+| `Checkbox`, `Switch` | primary when on; `Switch thumbClassName` styles the thumb |
+| `SegmentedControl` | mutually exclusive choices as `aria-pressed` buttons in a labelled group; `size="sm"` for toolbars |
+| `ToggleGroup`, `Toggle` | Radix toggles; "on" is the primary fill |
+| `NativeSelect`, `CompactInput` | native select matched to `Input`; compact field for dense editor tables (`NATIVE_SELECT_THEMED`, `COMPACT_FIELD_THEMED` for hand-written markup) |
+| `ChartPanel` | titled white chart card (`data-canvas="chart"`) around a `ChartFrame`; title, subtitle, actions |
+| `NumericTable` | ledger tables: sticky `RowLabel`, mono right-aligned `NumCell` with danger text for negatives (`signed={false}` to turn off), `total` rule, sideways scroll inside the card |
+| `Alert` | `default destructive` plus `success warning danger info` |
+| `Badge` `neutral`, `selected` | `neutral` for non-status tags and counts, `selected` for the chosen chip in a set |
+| `Sheet`, `AlertDialog`, `ContextMenu` | raised surface, shadow, scoped portals (submenus too) |
+| `Skeleton`, `Progress`, `Slider`, `ScrollArea`, `Separator` | hairline and primary roles |
 
 ## 6. Migration checklist (per app)
 
@@ -179,14 +240,17 @@ Class overrides still win (tailwind-merge), so a pilot must remove its own
    themes; no dark-background strokes.
 6. Dark canvases: wrap seismic, 3D and image views in `data-canvas="dark"`;
    check their overlays, legends and toolbars read in both themes.
-7. Custom portals and modals: spread `usePortalThemeProps()`.
+7. Custom portals and modals: spread `usePortalThemeProps()` (the ui
+   pieces already do). Drop local overrides of adapted pieces (checkbox,
+   switch, context menu, skeleton); they theme themselves now.
 8. Typography: Public Sans default, mono for numeric columns, serif only for
    the page title if used.
 9. Copy pass on every string touched (section 3, rule 5).
 10. Tests: app tests still pass; add a render test inside `ThemedApp` for the
     main page. If the app was the non-pilot proof in
-    `src/design/__tests__/optInScope.test.jsx`, move that proof to another
-    app.
+    `src/design/__tests__/optInScope.test.jsx` or `hubScope.test.jsx`
+    (Waterflood Design Studio since 2026-09-28), move that proof to another
+    app. Add the route to `THEMED_APP_PREFIXES` in `src/design/coldLoad.jsx`.
 11. Staging walk in light and dark (and the phone width), then update the
     app's `docs/scope/<App>-STATUS.md` and the pilot table in
     `DesignSystem-PLAN.md`.

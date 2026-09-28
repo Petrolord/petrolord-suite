@@ -195,8 +195,11 @@ themes.
    fill with ink text). In dark, primary becomes a light green `#7CC49A`.
    Confirm, or choose gold-filled primary buttons as on the homepages.
 3. **Toasts.** The Toaster is mounted once at the app root, outside any
-   scope, so toasts stay dark inside light pilots. Acceptable for phase 1;
-   theming them needs the Toaster to read the active pilot's theme.
+   scope, so toasts stayed dark inside light pilots. **Revised 2026-09-28:
+   toasts match the page.** Each outermost `ThemedApp` publishes its theme
+   (`src/design/activeTheme.js`) and the root sonner toaster follows it;
+   with no app opted in on screen it keeps its legacy look (follow-up PR,
+   `feat/ds-followup`).
 4. **Theme choice storage.** localStorage per user per browser, as briefed.
    A profile column would follow the user across devices but touches the
    shared users table (second-engineer review). Recommend staying on
@@ -210,6 +213,52 @@ themes.
    it. Tests in `src/design/__tests__/ThemeProvider.test.jsx`.
 
 ## 5. Status
+
+### Pilots (all five merged, 2026-09-28)
+
+| # | pilot | PR | notes |
+|---|---|---|---|
+| 1 | Module hubs and dashboard landing | #747 | `HubScope`, ink sidebar rail |
+| 2 | Decline Curve Analysis | #750 | on the Studio kit, white charts |
+| 3 | Petroleum Economics Studio (EPE) | #748 | recipe in `DesignSystem-example-EPE.md` |
+| 4 | Seismolord | #751 | dark canvases, shared shells and forms |
+| 5 | Voidage Replacement Monitor + Studio kit | #749 | kit themes itself inside a scope |
+
+### Follow-up (`feat/ds-followup`, 2026-09-28)
+The pilots' combined needs, built once in `src/design` and
+`src/components/ui`, all inert outside a scope (pinned DOM in
+`src/design/__tests__/uiLegacyDom.test.jsx`):
+- adapted checkbox, switch (thumb hook), accordion, scroll-area, sheet,
+  slider, progress, alert, separator, context-menu, alert-dialog, skeleton,
+  toggle and toggle-group; Badge `neutral` and `selected`
+- new `SegmentedControl`, `NativeSelect`/`CompactInput`, `ChartPanel`,
+  `NumericTable`, the `primary-text-hover` role, `rounded-pl-canvas`, and
+  `AppHeader` actions that wrap on phones
+- one opt-in helper, `useThemeClass` (`src/design/themeClass.js`); the
+  Studio kit's `useStudioTheme` returns the same picker
+- toasts follow the page (decision 3 revised); AccessDenied and ComingSoon
+  themed inside a scope; cold-load loaders on pilot paths paint the
+  device's last theme
+- pilot workarounds removed (EPE `epeCheckbox`, DCA `dsClasses.js`,
+  Seismolord `themedContextMenu.jsx`, the hub Skeleton override); VRR
+  wraps itself in `ThemedApp` and dropped its legacy branch; the
+  non-pilot proofs (`optInScope`, `hubScope`) mount Waterflood Design
+  Studio
+
+### Rollout waves (from the pilot 5 estimate)
+The pilot 5 survey sized the remaining Studio-kit apps as **15 small,
+6 medium and 11 large**; the main blockers were the unadapted
+`Accordion` and `Switch`, which the follow-up adapts. Plan:
+- **Wave A, the 15 small kit apps**: wrap the route (or the page, like DCA
+  and VRR) in `ThemedApp`, remove their own slate classes, add the route to
+  `coldLoad.jsx`. Several per PR, grouped by module.
+- **Wave B, the 6 medium kit apps**: one PR each; charts through
+  `ChartPanel`, ledgers through `NumericTable`.
+- **Wave C, the 11 large kit apps**: one PR each after A and B, with a
+  staging walk in both themes; ReservoirCalc Pro (the reserve pilot) leads.
+- Non-kit apps follow the EPE recipe, one per PR.
+Each wave keeps the non-pilot proof on an app that has not migrated yet
+(move it off Waterflood Design Studio when that app's wave comes).
 
 ### Pilot 1: module hubs and dashboard landing (2026-09-27, `feat/ds-pilot-hubs`)
 - Opt-in: a pathless layout route in `App.jsx` wraps exactly `/dashboard`
@@ -230,7 +279,9 @@ themes.
   `HubSearch`, `HubToolbar`, `HubSectionTitle`. `ApplicationsGrid` is on
   theme roles (it is only mounted in the hubs): status badges `info` Coming
   Soon, `secondary` In Development, `warning` Locked; keyboard-openable cards.
-- Dev harness `/dev/hubs/<landing|hub slug|vrr>` on the in-memory Supabase.
+- Dev harness `/dev/hubs/<landing|hub slug|wds>` on the in-memory Supabase
+  (`wds`, Waterflood Design Studio, is the unmigrated app since VRR became
+  pilot 5).
 
 - 2026-09-27: phase 1 built on `feat/design-system` (tokens, scoped themes,
   provider, adapted primitives, shell pieces, specimen, docs, tests). Pilots
@@ -243,7 +294,9 @@ themes.
   float over the page with their own close button and the header wraps.
   Another Studio-kit app now opts in by wrapping its route in `ThemedApp` and
   migrating its own panels. The non-pilot proof in `optInScope.test.jsx`
-  still mounts VRR outside a scope (VRR keeps its legacy branch for that);
+  still mounts VRR outside a scope (VRR keeps its legacy branch for that;
+  the follow-up moved the proof to Waterflood Design Studio and dropped
+  the branch);
   it can move to another app, for example Waterflood Design Studio.
 - 2026-09-28: pilot 2, Decline Curve Analysis, on `feat/ds-pilot-dca`. Built
   on the pilot 5 kit (`useStudioTheme()`); DCA's own panels migrated, charts
@@ -259,4 +312,5 @@ themes.
   shared CRS, well and culture import forms follow the theme only inside a
   scope (`useThemeClass`, `src/lib/themeClass.js`; snapshots from main in
   `sharedShellsOptIn.test.jsx` and `sharedFormsOptIn.test.jsx`).
-  `themedContextMenu.jsx` stands in until `ui/context-menu` is adapted.
+  `themedContextMenu.jsx` stood in until `ui/context-menu` was adapted
+  (removed in the follow-up).

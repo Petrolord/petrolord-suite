@@ -31,10 +31,11 @@ behaviour change, no DDL, no engine change.
 - Shared pieces (inert outside a scope, snapshots recorded on main):
   WorkspaceShell, ModuleHomeLink, HelpGuideLayout, CrsBadge, CrsPicker,
   ProjectCrsDialog, CultureImportDialog, WellImport, ColumnMapper,
-  PasteReplacePanel, OpenInAppMenu, and a new
-  `src/components/workstation/themedContextMenu.jsx` (ui/context-menu is
-  not adapted yet). `src/lib/themeClass.js` (`useThemeClass`) returns the
-  legacy class string unchanged outside a scope.
+  PasteReplacePanel, OpenInAppMenu. The stand-in
+  `themedContextMenu.jsx` was removed in the design-system follow-up
+  (2026-09-28): `ui/context-menu` themes itself, and the helper moved to
+  `src/design/themeClass.js` (`useThemeClass`), which returns the legacy
+  class string unchanged outside a scope.
 - Tests: `__tests__/designSystemPilot.test.jsx` (scope, toggle, stored
   choice, ribbon, explorer and its context menu portal, help guide);
   `src/components/workstation/__tests__/sharedShellsOptIn.test.jsx` and

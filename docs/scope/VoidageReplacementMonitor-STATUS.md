@@ -16,6 +16,10 @@ outside a theme scope, so the other Studio-kit apps are unchanged until they
 opt in. Charts keep the white chart standard in both themes. Tests:
 `src/pages/apps/__tests__/VoidageReplacementMonitor.theme.test.jsx` and
 `src/components/studio/__tests__/studioKitOptIn.test.jsx`.
+2026-09-28 design-system follow-up: VRR now wraps itself in `ThemedApp`
+(like DCA) and dropped its legacy class branch, which only existed so the
+non-pilot proofs could mount it; those proofs now mount Waterflood Design
+Studio.
 
 ## The upgrade program (owner-directed, 2026-08-28)
 

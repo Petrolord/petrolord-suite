@@ -36,7 +36,7 @@ written with theme roles:
 | `epeH2`, `epeH3`, `epeEyebrow` | section headings and small uppercase group labels |
 | `epeNum`, `epeNumCell`, `epeSigned(v)` | mono tabular numbers; right-aligned cells; danger text for a negative |
 | `epeSelect`, `epeCellInput` | native `<select>` matched to the themed Input; dense editor-table inputs |
-| `epeCheckbox`, `epeNativeCheck` | Radix Checkbox override (not yet adapted); native checkbox accent |
+| `epeNativeCheck` | native checkbox accent (the Radix `Checkbox` themes itself since the follow-up; `epeCheckbox` is gone) |
 | `epePill(active)` | segmented choices and results tabs (works as a `Button` className) |
 | `epeCallout(tone)`, `epeBadge(tone)` | status boxes and pills: info, success, warning, danger, neutral |
 | `epeTh`, `epeThNum`, `epeTd`, `epeTable` | hand-written tables |
@@ -136,10 +136,17 @@ The comparison tables use the adapted `Table` with the same cell classes.
   `AuthContext.Provider` around the layout route.
 - `Button asChild` around a `Link` gives one focusable element; a `Link`
   around a `Button` gives two.
-- The shadcn `Checkbox` inside a scope with `--radius: 12px` looks round
-  unless you set a small radius (`rounded-[4px]` in `epeCheckbox`).
+- The shadcn `Checkbox` inside a scope with `--radius: 12px` looked round;
+  the adapted `Checkbox` now sets a 4px corner itself.
 
 ## 7. Needs raised for the design-system lead
+
+All seven were built in the design-system follow-up (2026-09-28): the
+adapted `Checkbox`; `NativeSelect` and `CompactInput` (`epeSelect` and
+`epeCellInput` re-export them); `SegmentedControl`; `NumericTable`
+(`epeSigned` re-exports its `signedTone`); `ChartPanel`; the
+`primary-text-hover` role (EPE links use it); and `AppHeader` actions that
+wrap on phones. See `DesignSystem.md` section 5.
 
 1. Adapt `@/components/ui/checkbox` (EPE overrides it with `epeCheckbox`).
 2. A themed native `select` and a compact dense-table input style.
