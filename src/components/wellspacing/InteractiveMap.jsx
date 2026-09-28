@@ -96,7 +96,7 @@ const InteractiveMap = ({ latitude, longitude, onLocationSelect }) => {
   };
 
   return (
-    <div className="h-48 w-full bg-slate-900 relative z-0">
+    <div className="h-48 w-full overflow-hidden rounded-md border border-pl-border bg-pl-sunken relative z-0">
       <MapContainer
         center={center}
         zoom={zoom}
