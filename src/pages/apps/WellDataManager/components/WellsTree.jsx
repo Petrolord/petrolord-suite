@@ -5,7 +5,7 @@
 
 import React from 'react';
 import {
-  CircleDot, Search, Building2, Lock, Loader2, Trash2, Share2, Upload, Plus, Package, PackageOpen,
+  CircleDot, Search, Building2, Lock, Loader2, Trash2, Share2, Upload, Plus, Package, PackageOpen, Files,
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -82,7 +82,7 @@ function Row({ well, selected, busy, appPaths, unit, onSelect, onShareToggle, on
  */
 export default function WellsTree({
   wells, total, search, onSearch, selectedId, busyId, appPaths, unit = 'm',
-  onSelect, onShareToggle, onDelete, onImportLas, onAddWell, onExportPackage, onImportPackage,
+  onSelect, onShareToggle, onDelete, onImportLas, onAddWell, onExportPackage, onImportPackage, onBatchLas,
 }) {
   return (
     <div className="h-full min-h-0 flex flex-col bg-pl-surface" data-testid="wdm-tree">
@@ -99,6 +99,17 @@ export default function WellsTree({
               onChange={(e) => onSearch(e.target.value)}
             />
           </div>
+          {onBatchLas && (
+            <button
+              type="button"
+              data-testid="wdm-open-batch"
+              title="Import many LAS files at once, each matched to a well by UWI or name"
+              className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10 whitespace-nowrap"
+              onClick={onBatchLas}
+            >
+              <Files className="w-3.5 h-3.5" /> Batch LAS…
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-1">
           <button

@@ -18,6 +18,7 @@ import WellDetail from './WellDetail';
 import InventoryView from './InventoryView';
 import TopsSheetView from './TopsSheetView';
 import LasImportDialog from './LasImportDialog';
+import BatchLasDialog from './BatchLasDialog';
 import AddWellDialog from './AddWellDialog';
 import DeleteWellDialog from './DeleteWellDialog';
 import PackageExportDialog from '@/components/portability/PackageExportDialog';
@@ -40,6 +41,7 @@ export default function WellWorkstation({ backend, appPaths = {}, helpPath = '/d
   const [view, setView] = useState('map');        // 'map' | 'detail' | 'inventory' | 'tops'
   const [status, setStatus] = useState('Ready.');
   const [lasOpen, setLasOpen] = useState(false);
+  const [batchOpen, setBatchOpen] = useState(false); // WDM-U2-004
   const [packageOpen, setPackageOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -278,6 +280,7 @@ export default function WellWorkstation({ backend, appPaths = {}, helpPath = '/d
             onShareToggle={shareToggle}
             onDelete={setDeleting}
             onImportLas={() => setLasOpen(true)}
+            onBatchLas={() => setBatchOpen(true)}
             onAddWell={() => setAddOpen(true)}
             onExportPackage={() => setPackageOpen(true)}
             onImportPackage={() => setImportOpen(true)}
@@ -294,6 +297,13 @@ export default function WellWorkstation({ backend, appPaths = {}, helpPath = '/d
         initialTargetId={selectedId}
         unit={unit}
         onDone={onImported}
+      />
+      <BatchLasDialog
+        open={batchOpen}
+        onOpenChange={setBatchOpen}
+        backend={backend}
+        wells={list}
+        onDone={async ({ summary }) => { setStatus(summary); await refresh(); setDetailNonce((n) => n + 1); }}
       />
       <AddWellDialog
         open={addOpen}

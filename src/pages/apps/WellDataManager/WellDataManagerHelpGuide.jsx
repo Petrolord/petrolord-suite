@@ -10,7 +10,7 @@
 import React from 'react';
 import {
   BookOpen, Zap, Map, Ruler, Upload, GitMerge, Crosshair, Compass, Clock, ClipboardList, Download,
-  Share2, Link2, AlertTriangle, BookMarked, Layers,
+  Share2, Link2, AlertTriangle, BookMarked, Layers, Files,
 } from 'lucide-react';
 import {
   HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Code, Callout, Step, Table,
@@ -27,6 +27,7 @@ export const HELP_SECTIONS = [
   { id: 'header', icon: Ruler, title: 'Header: KB, TD, datum and TVDSS' },
   { id: 'units', icon: Ruler, title: 'Display units: metres or feet' },
   { id: 'las', icon: Upload, title: 'Importing LAS files' },
+  { id: 'batch', icon: Files, title: 'Batch LAS import' },
   { id: 'merge', icon: GitMerge, title: 'A LAS into an existing well' },
   { id: 'tops', icon: Crosshair, title: 'Tops' },
   { id: 'survey', icon: Compass, title: 'Deviation survey' },
@@ -149,6 +150,27 @@ export default function WellDataManagerHelpGuide({ backTo = APP_PATH }) {
           <Para>
             A Tops block imports as tops (a new well takes them all, an existing well keeps the names it has); core,
             lithology, facies and environment blocks import as interval logs. Other blocks are named in the preview.
+          </Para>
+        </GuideSection>
+
+        <GuideSection id="batch">
+          <SectionHeading icon={Files}>Batch LAS import</SectionHeading>
+          <Para>
+            Batch LAS (above the wells tree) reads many files, one after another in the background, and matches each to
+            a well: by UWI first (spaces and dashes ignored), then by the well name (case and spacing ignored). The
+            review table shows each file, the well it names, its curves, where it will load and why. Change any target
+            before importing.
+          </Para>
+          <Table headers={['The file', 'What the batch does']} rows={[
+            ['matches one of your wells', 'loads into it with the merge rules below; a curve name the well already has is kept alongside with a :2 suffix'],
+            ['matches a well shared with you read-only', 'skipped, with the reason'],
+            ['matches no well', 'creates a new well named from the file (or from the file name when the file has no WELL); it needs a surface X and Y, from the file or typed in the row'],
+            ['names the same new well as an earlier file', 'loads into that new well'],
+            ['refused by the LAS door, or the same file name twice', 'skipped, with the door\'s message'],
+          ]} />
+          <Para>
+            A file that fails while importing is reported and the batch carries on; files already imported stay. Stop
+            after this file ends the run cleanly. The summary lists every file as imported, skipped or failed.
           </Para>
         </GuideSection>
 
