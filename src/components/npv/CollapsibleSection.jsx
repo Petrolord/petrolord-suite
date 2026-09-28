@@ -8,6 +8,7 @@ const CollapsibleSection = ({ title, icon, children, defaultOpen = false }) => {
   return (
     <div className="bg-pl-surface border border-pl-border rounded-xl overflow-hidden shadow-pl-sm">
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between p-4 text-left"
       >
