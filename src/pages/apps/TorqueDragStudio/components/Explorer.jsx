@@ -19,7 +19,7 @@ export default function Explorer({
   const tc = useThemeClass();
   const heading = tc('text-slate-500', 'text-pl-muted');
   const row = tc('hover:bg-slate-800', 'hover:bg-pl-sunken');
-  const selected = tc('bg-slate-800 text-lime-300', 'bg-pl-sunken font-medium text-pl-primary-text');
+  const selected = tc('bg-slate-800 text-lime-300', 'bg-pl-primary/10 font-medium text-pl-primary-text');
   return (
     <div className={tc('flex h-full min-h-0 flex-col overflow-y-auto bg-slate-900/40 p-2 text-xs text-slate-300', 'flex h-full min-h-0 flex-col overflow-y-auto bg-pl-surface p-2 text-xs text-pl-text')}>
       <div className={`mb-1 text-[10px] font-semibold uppercase tracking-wide ${heading}`}>Sites</div>
