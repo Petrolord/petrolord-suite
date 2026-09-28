@@ -49,7 +49,7 @@ const ToggleBtn = ({ active, onClick, title, children }) => (
         onClick={onClick}
         title={title}
         className={`h-6 px-1.5 rounded-sm flex items-center gap-1 text-[10px] font-medium transition-colors ${
-            active ? 'bg-blue-600/80 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/60'
+            active ? 'bg-pl-primary text-pl-primary-fg' : 'text-pl-muted hover:text-pl-text hover:bg-pl-sunken'
         }`}
     >
         {children}
@@ -175,15 +175,15 @@ const ContourMapViewer = ({
 
     if (!gridData || !gridData.z || !gridData.x || !gridData.y) {
         return (
-            <div className="w-full h-full flex items-center justify-center bg-slate-950">
-                <Loader2 className="w-5 h-5 text-slate-700 animate-spin" />
+            <div className="w-full h-full flex items-center justify-center bg-pl-sunken">
+                <Loader2 className="w-5 h-5 text-pl-muted animate-spin" />
             </div>
         );
     }
 
     const zFlat = gridData.z.flat().filter((v) => v !== null && v !== undefined && !isNaN(v));
     if (zFlat.length === 0) {
-        return <div className="w-full h-full flex items-center justify-center text-amber-500/70 text-xs">No valid grid values to display</div>;
+        return <div className="w-full h-full flex items-center justify-center text-pl-warning-text text-xs">No valid grid values to display</div>;
     }
 
     const interp = getInterpolator(scale);
@@ -192,9 +192,9 @@ const ContourMapViewer = ({
     const fmtCoord = (v) => (Math.abs(v) >= 1000 ? v.toFixed(0) : v.toFixed(1));
 
     return (
-        <div className="w-full h-full relative bg-slate-950 overflow-hidden">
+        <div className="w-full h-full relative bg-pl-sunken overflow-hidden">
             {/* Toolbar (wraps in a narrow split pane instead of running into the 3D view) */}
-            <div className="absolute top-2 left-2 z-20 flex flex-wrap items-center gap-1 max-w-[calc(100%-1rem)] bg-slate-900/85 backdrop-blur border border-slate-700 rounded-md px-1 py-0.5 shadow-lg">
+            <div className="absolute top-2 left-2 z-20 flex flex-wrap items-center gap-1 max-w-[calc(100%-1rem)] bg-pl-surface border border-pl-border rounded-md px-1 py-0.5 shadow-lg">
                 <ToggleBtn active={showFill} onClick={() => setShowFill((v) => !v)} title="Colour fill">
                     <Layers className="w-3 h-3" /> Fill
                 </ToggleBtn>
@@ -204,26 +204,26 @@ const ContourMapViewer = ({
                 <ToggleBtn active={showLabels && showContours} onClick={() => setShowLabels((v) => !v)} title="Contour labels">
                     <Tag className="w-3 h-3" /> Labels
                 </ToggleBtn>
-                <div className="w-px h-4 bg-slate-700 mx-0.5" />
+                <div className="w-px h-4 bg-pl-border mx-0.5" />
                 <div className="flex items-center gap-0.5" title="Contour density">
-                    <Grid2x2 className="w-3 h-3 text-slate-400" />
+                    <Grid2x2 className="w-3 h-3 text-pl-muted" />
                     {Object.keys(DENSITY).map((d) => (
                         <button
                             key={d}
                             onClick={() => setDensity(d)}
-                            className={`h-6 px-1 rounded-sm text-[10px] ${density === d ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                            className={`h-6 px-1 rounded-sm text-[10px] ${density === d ? 'bg-pl-primary text-pl-primary-fg' : 'text-pl-muted hover:text-pl-text'}`}
                         >
                             {d[0]}
                         </button>
                     ))}
                 </div>
-                <div className="w-px h-4 bg-slate-700 mx-0.5" />
+                <div className="w-px h-4 bg-pl-border mx-0.5" />
                 <div className="flex items-center gap-1 pr-1" title="Colour scale">
-                    <Palette className="w-3 h-3 text-slate-400" />
+                    <Palette className="w-3 h-3 text-pl-muted" />
                     <select
                         value={scale}
                         onChange={(e) => setScale(e.target.value)}
-                        className="h-6 bg-slate-800 border border-slate-700 rounded text-[10px] text-slate-200 px-1 focus:outline-none"
+                        className="h-6 bg-pl-sunken border border-pl-border rounded text-[10px] text-pl-text px-1 focus:outline-none"
                     >
                         {COLOR_SCALES.map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
@@ -244,36 +244,36 @@ const ContourMapViewer = ({
 
             {/* Live coordinate / value inspector (Petrel-style probe) */}
             {hover && (
-                <div className="absolute top-2 right-2 z-10 bg-slate-950/80 backdrop-blur px-2 py-1.5 rounded border border-slate-700 pointer-events-none font-mono text-[10px] text-slate-300 space-y-0.5">
-                    <div><span className="text-slate-500">X </span>{fmtCoord(hover.x)}</div>
-                    <div><span className="text-slate-500">Y </span>{fmtCoord(hover.y)}</div>
-                    <div className="text-blue-300">
-                        <span className="text-slate-500">Z </span>
+                <div className="absolute top-2 right-2 z-10 bg-pl-sunken px-2 py-1.5 rounded border border-pl-border pointer-events-none font-mono text-[10px] text-pl-text space-y-0.5">
+                    <div><span className="text-pl-muted">X </span>{fmtCoord(hover.x)}</div>
+                    <div><span className="text-pl-muted">Y </span>{fmtCoord(hover.y)}</div>
+                    <div className="text-pl-info-text">
+                        <span className="text-pl-muted">Z </span>
                         {hover.value == null ? '—' : hover.value.toFixed(Math.abs(hover.value) >= 100 ? 1 : 3)} {unit}
                     </div>
                 </div>
             )}
 
             {/* Colour legend */}
-            <div className="absolute bottom-3 right-3 z-10 bg-slate-950/70 backdrop-blur px-2 py-1.5 rounded border border-slate-800 pointer-events-none">
+            <div className="absolute bottom-3 right-3 z-10 bg-pl-sunken px-2 py-1.5 rounded border border-pl-border pointer-events-none">
                 <div className="flex items-center gap-1.5">
-                    <span className="text-[9px] text-slate-400 font-mono">{legendNum(minZ)}</span>
+                    <span className="text-[9px] text-pl-muted font-mono">{legendNum(minZ)}</span>
                     <div
                         className="h-2 w-24 rounded"
                         style={{ background: `linear-gradient(to right, ${legendStops.join(',')})` }}
                     />
-                    <span className="text-[9px] text-slate-400 font-mono">{legendNum(maxZ)}</span>
+                    <span className="text-[9px] text-pl-muted font-mono">{legendNum(maxZ)}</span>
                 </div>
                 <div className="flex items-center justify-between mt-0.5">
-                    {unit && <span className="text-[8px] text-slate-500">{unit}</span>}
+                    {unit && <span className="text-[8px] text-pl-muted">{unit}</span>}
                     {showContours && contours.interval > 0 && (
-                        <span className="text-[8px] text-slate-500 ml-auto">CI {contours.interval}{unit ? ' ' + unit : ''}</span>
+                        <span className="text-[8px] text-pl-muted ml-auto">CI {contours.interval}{unit ? ' ' + unit : ''}</span>
                     )}
                 </div>
             </div>
 
             {drawingActive && (
-                <div className="absolute top-12 left-1/2 -translate-x-1/2 z-10 bg-emerald-950/80 backdrop-blur px-3 py-1 rounded-full border border-emerald-700 text-[10px] text-emerald-300 pointer-events-none">
+                <div className="absolute top-12 left-1/2 -translate-x-1/2 z-10 bg-pl-success-bg px-3 py-1 rounded-full border border-pl-success/40 text-[10px] text-pl-success-text pointer-events-none">
                     Drawing: click to add points ({drawing.currentPoints.length})
                 </div>
             )}

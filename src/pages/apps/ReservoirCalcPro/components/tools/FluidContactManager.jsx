@@ -59,11 +59,11 @@ const FluidContactManager = () => {
                     onFocus={() => { focusedRef.current = field; }}
                     onBlur={() => { focusedRef.current = null; handleCommit(field, local); }}
                     onKeyDown={(e) => handleKeyDown(e, field, local)}
-                    className="h-8 bg-slate-950 border-slate-700 pr-8 text-right font-mono text-xs"
+                    className="h-8 pr-8 text-right font-mono text-xs"
                     placeholder={`elevation (${unit})`}
                 />
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none opacity-50">
-                    <ArrowDown className="w-3 h-3 text-slate-500" />
+                    <ArrowDown className="w-3 h-3 text-pl-muted" />
                 </div>
             </div>
         </div>
@@ -71,18 +71,18 @@ const FluidContactManager = () => {
 
     return (
         <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
-                <Droplets className="w-3 h-3 text-blue-400" /> FLUID CONTACTS
-                <select className="ml-auto rounded bg-slate-950 border border-slate-700 text-slate-200 px-1 py-0.5 text-[10px]" data-testid="rcp-contact-unit"
+            <div className="flex items-center gap-2 text-xs font-bold text-pl-text">
+                <Droplets className="w-3 h-3 text-pl-muted" /> FLUID CONTACTS
+                <select className="ml-auto rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5 text-[10px]" data-testid="rcp-contact-unit"
                     value={unit} title="Contact depth unit (TVDSS elevation). Defaults to the account's Geoscience depth unit."
                     onChange={(e) => setInputUnit('contact', e.target.value)}>
                     {INPUT_UNIT_OPTIONS.contact.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
             </div>
-            <Card className="bg-slate-900/50 border-slate-800 p-2 space-y-2">
-                {(fluidType === 'oil' || fluidType === 'oil_gas') && contactInput('owc-input', 'owc', localOwc, setLocalOwc, 'text-blue-300', `OWC (Oil-Water), TVDSS ${unit}`)}
-                {(fluidType === 'gas' || fluidType === 'oil_gas') && contactInput('goc-input', 'goc', localGoc, setLocalGoc, 'text-red-300', `${fluidType === 'gas' ? 'GWC (Gas-Water)' : 'GOC (Gas-Oil)'}, TVDSS ${unit}`)}
-                <div className="text-[10px] text-slate-500 italic mt-1 px-1" data-testid="rcp-contact-note">
+            <Card className="p-2 space-y-2">
+                {(fluidType === 'oil' || fluidType === 'oil_gas') && contactInput('owc-input', 'owc', localOwc, setLocalOwc, 'text-pl-muted', `OWC (Oil-Water), TVDSS ${unit}`)}
+                {(fluidType === 'gas' || fluidType === 'oil_gas') && contactInput('goc-input', 'goc', localGoc, setLocalGoc, 'text-pl-muted', `${fluidType === 'gas' ? 'GWC (Gas-Water)' : 'GOC (Gas-Oil)'}, TVDSS ${unit}`)}
+                <div className="text-[10px] text-pl-muted italic mt-1 px-1" data-testid="rcp-contact-note">
                     Elevation below the datum (TVDSS): negative numbers, deeper is more negative, the same convention as the registry surfaces.
                 </div>
             </Card>

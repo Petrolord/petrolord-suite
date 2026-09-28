@@ -37,11 +37,11 @@ class ErrorBoundary extends React.Component {
     render() {
         if (this.state.hasError) {
             return (
-                <div className="flex flex-col items-center justify-center h-full w-full bg-slate-950 text-slate-400 p-6 text-center border border-red-900/30 rounded m-2">
-                    <AlertCircle className="w-8 h-8 mb-3 text-red-500" />
-                    <h3 className="text-sm font-medium text-red-400">Visualization Error</h3>
+                <div className="flex flex-col items-center justify-center h-full w-full bg-pl-sunken text-pl-muted p-6 text-center border border-pl-danger/40 rounded m-2">
+                    <AlertCircle className="w-8 h-8 mb-3 text-pl-danger-text" />
+                    <h3 className="text-sm font-medium text-pl-danger-text">Visualization Error</h3>
                     <p className="text-xs mt-1 mb-4 max-w-xs opacity-70">{this.state.error?.message || "Something went wrong rendering the view."}</p>
-                    <Button variant="outline" size="sm" onClick={() => this.setState({ hasError: false })} className="h-7 text-xs border-slate-700">
+                    <Button variant="outline" size="sm" onClick={() => this.setState({ hasError: false })} className="h-7 text-xs border-pl-border">
                         Retry
                     </Button>
                 </div>
@@ -188,26 +188,27 @@ const ExpertVisPanel = () => {
     return (
         <div 
             id="vis-panel-container" 
-            className={`flex flex-col w-full h-full bg-slate-950 border border-slate-800 rounded-lg overflow-hidden shadow-inner transition-all duration-300 ${isFullscreen ? 'fixed inset-0 z-50 rounded-none border-0' : ''}`}
+            className={`flex flex-col w-full h-full bg-pl-surface border border-pl-border rounded-lg overflow-hidden shadow-inner transition-all duration-300 ${isFullscreen ? 'fixed inset-0 z-50 rounded-none border-0' : ''}`}
         >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-800 h-12 shrink-0">
+            <div className="flex items-center justify-between px-4 py-2 bg-pl-surface border-b border-pl-border h-12 shrink-0">
                 <div className="flex items-center gap-4">
-                    <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-pl-text flex items-center gap-2">
                         Visualization
-                        {activeSurface && <span className="text-xs font-normal text-slate-500 px-2 py-0.5 bg-slate-800 rounded-full border border-slate-700 max-w-[150px] truncate">{activeSurface.name}</span>}
+                        {activeSurface && <span className="text-xs font-normal text-pl-muted px-2 py-0.5 bg-pl-sunken rounded-full border border-pl-border max-w-[150px] truncate">{activeSurface.name}</span>}
                     </h3>
                     
-                    <div className="h-6 w-px bg-slate-800 mx-2" />
+                    <div className="h-6 w-px bg-pl-border mx-2" />
                     
-                    <div className="flex bg-slate-800 rounded-md p-0.5 border border-slate-700">
+                    <div className="flex bg-pl-sunken rounded-md p-0.5 border border-pl-border">
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <Button 
                                         variant="ghost" size="sm" 
-                                        className={`h-7 w-8 p-0 rounded-sm ${viewMode === '2d' ? 'bg-slate-700 text-blue-400 shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                                        className={`h-7 w-8 p-0 rounded-sm ${viewMode === '2d' ? 'bg-pl-surface text-pl-primary-text shadow-pl-sm' : 'text-pl-muted hover:text-pl-text'}`}
                                         onClick={() => setViewMode('2d')}
+                                        aria-pressed={viewMode === '2d'} aria-label="2D map view"
                                     >
                                         <MapIcon className="w-4 h-4" />
                                     </Button>
@@ -219,8 +220,9 @@ const ExpertVisPanel = () => {
                                 <TooltipTrigger asChild>
                                     <Button 
                                         variant="ghost" size="sm" 
-                                        className={`h-7 w-8 p-0 rounded-sm ${viewMode === 'split' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                                        className={`h-7 w-8 p-0 rounded-sm ${viewMode === 'split' ? 'bg-pl-surface text-pl-primary-text shadow-pl-sm' : 'text-pl-muted hover:text-pl-text'}`}
                                         onClick={() => setViewMode('split')}
+                                        aria-pressed={viewMode === 'split'} aria-label="Split view"
                                     >
                                         <LayoutTemplate className="w-4 h-4" />
                                     </Button>
@@ -232,8 +234,9 @@ const ExpertVisPanel = () => {
                                 <TooltipTrigger asChild>
                                     <Button 
                                         variant="ghost" size="sm" 
-                                        className={`h-7 w-8 p-0 rounded-sm ${viewMode === '3d' ? 'bg-slate-700 text-emerald-400 shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                                        className={`h-7 w-8 p-0 rounded-sm ${viewMode === '3d' ? 'bg-pl-surface text-pl-primary-text shadow-pl-sm' : 'text-pl-muted hover:text-pl-text'}`}
                                         onClick={() => setViewMode('3d')}
+                                        aria-pressed={viewMode === '3d'} aria-label="3D model view"
                                     >
                                         <Box className="w-4 h-4" />
                                     </Button>
@@ -245,7 +248,7 @@ const ExpertVisPanel = () => {
 
                     <Button 
                         variant="ghost" size="sm" 
-                        className="h-7 w-7 p-0 text-slate-400 hover:text-white ml-1" 
+                        className="h-7 w-7 p-0 text-pl-muted hover:text-pl-text ml-1" 
                         onClick={toggleFullscreen}
                     >
                         {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -255,7 +258,7 @@ const ExpertVisPanel = () => {
                 <div className="flex items-center gap-2">
                     {layers.length > 1 && (
                         <Select value={activeLayerId} onValueChange={setActiveLayerId}>
-                            <SelectTrigger className="h-8 w-[170px] text-xs bg-slate-800 border-slate-700 text-slate-200">
+                            <SelectTrigger className="h-8 w-[170px] text-xs">
                                 <SelectValue placeholder="Layer" />
                             </SelectTrigger>
                             <SelectContent>
@@ -269,14 +272,14 @@ const ExpertVisPanel = () => {
                     )}
                     <Button
                         variant="ghost" size="sm"
-                        className="h-8 text-xs text-slate-400 hover:text-white hover:bg-slate-800"
+                        className="h-8 text-xs text-pl-muted hover:text-pl-text hover:bg-pl-sunken"
                         onClick={() => setIsGalleryOpen(true)}
                     >
                         <GalleryHorizontalEnd className="w-3.5 h-3.5 mr-1.5" /> Gallery
                     </Button>
                     <Button 
                         variant="outline" size="sm" 
-                        className="h-8 text-xs border-slate-700 bg-slate-800/50 hover:bg-slate-800 hover:text-emerald-400"
+                        className="h-8 text-xs"
                         onClick={handleSaveView}
                         disabled={!gridData}
                     >
@@ -286,18 +289,18 @@ const ExpertVisPanel = () => {
             </div>
 
             {/* Main Canvas */}
-            <div className="flex-1 relative w-full h-full bg-slate-950 overflow-hidden">
+            <div className="flex-1 relative w-full h-full bg-pl-bg overflow-hidden" data-canvas="dark">
                 <ErrorBoundary>
                     {!activeSurface && maps.length === 0 ? (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-600">
-                            <div className="w-16 h-16 rounded-full bg-slate-900 flex items-center justify-center mb-4 border border-slate-800">
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-pl-muted">
+                            <div className="w-16 h-16 rounded-full bg-pl-surface flex items-center justify-center mb-4 border border-pl-border">
                                 <Box className="w-8 h-8 opacity-50" />
                             </div>
                             <p className="text-sm font-medium">No Surface Selected</p>
                             <p className="text-xs mt-1 opacity-70">Import a surface (Surfaces tab) to visualize & draw AOIs</p>
                         </div>
                     ) : !gridData ? (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-amber-600/70">
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-pl-warning-text">
                             <AlertCircle className="w-8 h-8 mb-2" />
                             <p className="text-sm font-medium">Processing Data...</p>
                             <p className="text-xs mt-1 max-w-[200px] text-center opacity-80">
@@ -320,8 +323,8 @@ const ExpertVisPanel = () => {
 
                             {viewMode === 'split' && (
                                 <div className="w-full h-full flex flex-col md:flex-row">
-                                    <div className="flex-1 min-w-0 h-1/2 md:h-full border-b md:border-b-0 md:border-r border-slate-800 relative overflow-hidden">
-                                        <div className="absolute bottom-3 left-3 z-10 max-w-[40%] truncate pointer-events-none bg-slate-950/50 backdrop-blur px-2 py-0.5 rounded text-[10px] text-blue-400 font-medium border border-slate-800">{activeLayer.name}{isSurfaceLayer ? ' (draw AOIs here)' : ''}</div>
+                                    <div className="flex-1 min-w-0 h-1/2 md:h-full border-b md:border-b-0 md:border-r border-pl-border relative overflow-hidden">
+                                        <div className="absolute bottom-3 left-3 z-10 max-w-[40%] truncate pointer-events-none bg-pl-surface/80 px-2 py-0.5 rounded text-[10px] text-pl-text font-medium border border-pl-border">{activeLayer.name}{isSurfaceLayer ? ' (draw AOIs here)' : ''}</div>
                                         <ContourMapViewer gridData={gridData} {...aoiProps} />
                                     </div>
                                     <div className="flex-1 min-w-0 h-1/2 md:h-full relative overflow-hidden">

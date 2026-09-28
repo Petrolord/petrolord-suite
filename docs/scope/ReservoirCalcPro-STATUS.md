@@ -3,6 +3,31 @@
 App: `src/pages/apps/ReservoirCalcPro/` (Geoscience module). Contact-based
 volumetrics flagship; deterministic + Monte Carlo STOIIP/GIIP.
 
+## 2026-09-28: Design system rollout W1B
+
+The app is on the Petrolord design system (docs/scope/DesignSystem-Rollout.md,
+batch 1B). `ReservoirCalcPro.jsx` wraps itself in `ThemedApp`
+(`rcp-theme-scope`); the header has the light/dark `ThemeToggle`; both dev
+harnesses are wrapped too. Light (grey panel) by default, dark per user.
+Cold-load paths in `src/design/rollout/w1b.js` (the route and the legacy
+QuickVol alias).
+
+- All own colour classes moved to pl-* roles; decorative colour removed
+  (oil/gas tinting, accent headings and icons); status only through status
+  roles and Badge variants. Native selects and inputs use
+  `COMPACT_FIELD_THEMED`; toggle groups carry `aria-pressed`.
+- The map and 3D area and the gallery viewers are `data-canvas="dark"`
+  (canvas drawing unchanged). Histogram, CDF and tornado stay on the white
+  chart standard; the PDF capture wrappers and the slide preview are
+  `data-canvas="chart"`, so PNG and PDF output match in both themes.
+- No calculation, engine, report generator or slide template change.
+- Header fits at 390 wide (left group shrinks, actions and toggle stay).
+- Known, pre-existing (same without the scope): the deterministic slide
+  footer text overlaps the Input Quality card by a couple of pixels.
+- Test: `__tests__/ReservoirCalcPro.theme.test.jsx` (shared
+  `describeAppTheme` plus input tabs, sheets, dialogs, docs hub, results
+  modal and a Monte Carlo run in dark).
+
 ## 2026-09-26: Senior test T1 (Wave 1 #5)
 
 Report: docs/testing/ReservoirCalcPro-T1.md. Two S1 unit defects on

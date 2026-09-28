@@ -83,14 +83,14 @@ const RealizationCard = ({ title, realization, unit }) => {
         .filter((k) => Number.isFinite(realization.inputs[k]) && REALIZATION_FIELDS[k])
         .map((k) => ({ k, label: REALIZATION_FIELDS[k].label, val: realization.inputs[k].toFixed(REALIZATION_FIELDS[k].digits) }));
     return (
-        <div className="bg-slate-950 p-2 rounded border border-slate-800 space-y-1">
-            <div className="text-[10px] font-bold text-slate-400 border-b border-slate-800 pb-1 mb-1">{title} Variables</div>
-            <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[9px] text-slate-300">
+        <div className="bg-pl-sunken p-2 rounded border border-pl-border space-y-1">
+            <div className="text-[10px] font-bold text-pl-muted border-b border-pl-border pb-1 mb-1">{title} Variables</div>
+            <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[9px] text-pl-text">
                 {rows.map((r) => (
                     <div key={r.k} className="flex justify-between"><span>{r.label}:</span> <span className="font-mono">{r.val}</span></div>
                 ))}
             </div>
-            <div className="pt-1 mt-1 border-t border-slate-800 flex justify-between text-[10px] font-bold text-emerald-400">
+            <div className="pt-1 mt-1 border-t border-pl-border flex justify-between text-[10px] font-bold text-pl-text">
                 <span>Vol:</span> <span>{(realization.targetVol / 1e6).toFixed(2)} {unit}</span>
             </div>
         </div>
@@ -117,7 +117,7 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
     );
 
     if (!probResults || !probResults.stats) {
-        return <div className="flex items-center justify-center h-full text-slate-500">Run a simulation to see results.</div>;
+        return <div className="flex items-center justify-center h-full text-pl-muted">Run a simulation to see results.</div>;
     }
 
     const ft = inputs.fluidType || 'oil';
@@ -159,7 +159,7 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
                 { template: reportTemplate, fluidType: ft, reservoirName: state.reservoirName || 'Reservoir 1' },
             );
 
-            toast({ title: "Success", description: "Report downloaded successfully.", className: "bg-emerald-900 text-white border-emerald-800" });
+            toast({ title: "Success", description: "Report downloaded successfully." });
         } catch (e) {
             console.error(e);
             toast({ variant: "destructive", title: "Export Failed", description: "Could not generate PDF report. " + e.message });
@@ -169,33 +169,33 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
     };
 
     const containerClass = isCompact ? "flex flex-col gap-4 p-2" : "grid grid-cols-1 gap-6 p-4";
-    const cardClass = isCompact ? "p-3 bg-slate-900 border-slate-800 min-h-[250px]" : "p-4 bg-slate-900 border-slate-800 min-h-[400px]";
+    const cardClass = isCompact ? "p-3 min-h-[250px]" : "p-4 min-h-[400px]";
 
     return (
-        <div className="h-full flex flex-col bg-slate-950 text-slate-100 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+        <div className="h-full flex flex-col bg-pl-sunken text-pl-text overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
              {!isCompact && (
-                <div className="flex justify-between items-end p-4 border-b border-slate-800 sticky top-0 bg-slate-950/95 backdrop-blur z-10">
+                <div className="flex justify-between items-end p-4 border-b border-pl-border sticky top-0 bg-pl-sunken z-10">
                     <div>
-                        <h2 className="text-xl font-bold text-white">Probabilistic Simulation Results</h2>
+                        <h2 className="text-xl font-bold text-pl-text">Probabilistic Simulation Results</h2>
                         <div className="text-xs mt-1 flex items-center gap-3">
-                            <span className="text-emerald-400 font-bold bg-emerald-950 px-2 py-0.5 rounded border border-emerald-900">
+                            <span className="font-pl-mono font-bold text-pl-text bg-pl-sunken px-2 py-0.5 rounded border border-pl-border">
                                 {rawVolumes.length.toLocaleString()} Iterations
                             </span>
                             {probResults.diagnostics.warnings.length > 0 ? (
-                                <span className="text-amber-400 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> Warnings Present</span>
+                                <span className="text-pl-warning-text flex items-center gap-1"><AlertCircle className="w-3 h-3"/> Warnings Present</span>
                             ) : (
-                                <span className="text-blue-400 flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Fully Validated</span>
+                                <span className="text-pl-success-text flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Fully Validated</span>
                             )}
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
                         <Select value={reportTemplate} onValueChange={setReportTemplate}>
-                            <SelectTrigger className="h-9 w-[170px] text-xs bg-slate-900 border-slate-700 text-slate-200"><SelectValue /></SelectTrigger>
+                            <SelectTrigger className="h-9 w-[170px] text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 {REPORT_TEMPLATES.map((t) => <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>)}
                             </SelectContent>
                         </Select>
-                        <Button variant="default" size="sm" className="h-9 bg-blue-600 hover:bg-blue-700 text-white gap-2" onClick={handleExportPDF} disabled={isExporting}>
+                        <Button variant="default" size="sm" className="h-9 gap-2" onClick={handleExportPDF} disabled={isExporting}>
                             {isExporting ? <span className="animate-pulse">Exporting...</span> : <><Download className="w-4 h-4" /> Export PDF</>}
                         </Button>
                     </div>
@@ -205,7 +205,7 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
             {!isCompact && probResults.diagnostics.warnings.length > 0 && (
                 <div className="mx-4 mt-4 space-y-2">
                     {probResults.diagnostics.warnings.map((w, idx) => (
-                        <div key={idx} className="mb-diagnostic-warn flex items-center gap-2">
+                        <div key={idx} className="mb-diagnostic-warn flex items-center gap-2 rounded-lg border border-pl-warning/40 bg-pl-warning-bg px-3 py-2 text-xs text-pl-warning-text">
                             <AlertCircle className="w-4 h-4 flex-shrink-0" /> {w}
                         </div>
                     ))}
@@ -213,7 +213,7 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
             )}
             
             {!isCompact && baseVal > 0 && (
-                <div className={`mx-4 mt-4 flex items-start gap-2 text-xs rounded-lg border px-3 py-2 ${diffBaseP50 > 40 ? 'border-amber-800/50 bg-amber-950/20 text-amber-300' : 'border-slate-800 bg-slate-900/40 text-slate-400'}`}>
+                <div className={`mx-4 mt-4 flex items-start gap-2 text-xs rounded-lg border px-3 py-2 ${diffBaseP50 > 40 ? 'border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text' : 'border-pl-border bg-pl-surface text-pl-muted'}`}>
                     <Activity className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
                     <span>
                         Monte Carlo P50 is {diffBaseP50.toFixed(0)}% {stats.p50 >= baseVal ? 'above' : 'below'} the deterministic base case ({(baseVal / denom).toFixed(2)} {unitLabel}).
@@ -226,53 +226,52 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
             <div className={containerClass}>
                 <div className={`grid ${isCompact ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3'} gap-4`}>
                     {!isCompact && (
-                         <Card className="p-4 bg-slate-900 border-slate-800 text-center shadow-md">
-                            <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">P90 (Low estimate)</p>
+                         <Card className="p-4 text-center shadow-pl-sm">
+                            <p className="text-xs text-pl-muted uppercase font-bold tracking-wider mb-1">P90 (Low estimate)</p>
                             <div className="flex items-baseline justify-center gap-1">
-                                <span className="text-3xl font-bold text-white">{(stats.p90 / denom).toFixed(2)}</span>
-                                <span className="text-xs text-slate-500">{unitLabel}</span>
+                                <span className="text-3xl font-bold text-pl-text">{(stats.p90 / denom).toFixed(2)}</span>
+                                <span className="text-xs text-pl-muted">{unitLabel}</span>
                             </div>
                         </Card>
                     )}
-                    <Card className={`${isCompact ? 'p-3' : 'p-4'} bg-emerald-950/20 border-emerald-500/30 text-center shadow-lg relative overflow-hidden`}>
-                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-600 to-teal-400"></div>
-                        <p className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider mb-1">P50 (Best estimate)</p>
+                    <Card className={`${isCompact ? 'p-3' : 'p-4'} border-pl-primary text-center shadow-pl-sm relative overflow-hidden`}>
+                        <p className="text-[10px] text-pl-primary-text uppercase font-bold tracking-wider mb-1">P50 (Best estimate)</p>
                         <div className="flex items-baseline justify-center gap-1">
-                            <span className={`${isCompact ? 'text-3xl' : 'text-4xl'} font-black text-white`}>{(stats.p50 / denom).toFixed(2)}</span>
-                            <span className="text-xs text-emerald-400 font-bold">{unitLabel}</span>
+                            <span className={`${isCompact ? 'text-3xl' : 'text-4xl'} font-black text-pl-text`}>{(stats.p50 / denom).toFixed(2)}</span>
+                            <span className="text-xs text-pl-muted font-bold">{unitLabel}</span>
                         </div>
                         {isCompact && (
-                             <div className="flex justify-between mt-2 pt-2 border-t border-emerald-900/30 text-[10px]">
-                                 <div className="text-slate-400">P90: <span className="text-white">{(stats.p90 / denom).toFixed(1)}</span></div>
-                                 <div className="text-slate-400">P10: <span className="text-white">{(stats.p10 / denom).toFixed(1)}</span></div>
+                             <div className="flex justify-between mt-2 pt-2 border-t border-pl-border text-[10px]">
+                                 <div className="text-pl-muted">P90: <span className="text-pl-text">{(stats.p90 / denom).toFixed(1)}</span></div>
+                                 <div className="text-pl-muted">P10: <span className="text-pl-text">{(stats.p10 / denom).toFixed(1)}</span></div>
                              </div>
                         )}
                     </Card>
                     {!isCompact && (
-                        <Card className="p-4 bg-slate-900 border-slate-800 text-center shadow-md">
-                            <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">P10 (High estimate)</p>
+                        <Card className="p-4 text-center shadow-pl-sm">
+                            <p className="text-xs text-pl-muted uppercase font-bold tracking-wider mb-1">P10 (High estimate)</p>
                             <div className="flex items-baseline justify-center gap-1">
-                                <span className="text-3xl font-bold text-white">{(stats.p10 / denom).toFixed(2)}</span>
-                                <span className="text-sm text-slate-500">{unitLabel}</span>
+                                <span className="text-3xl font-bold text-pl-text">{(stats.p10 / denom).toFixed(2)}</span>
+                                <span className="text-sm text-pl-muted">{unitLabel}</span>
                             </div>
                         </Card>
                     )}
                 </div>
                 
                 {isCompact && (
-                    <Button variant="outline" size="sm" className="w-full border-dashed border-slate-700 text-slate-400 hover:text-white" onClick={() => setIsFullViewOpen(true)}>
+                    <Button variant="outline" size="sm" className="w-full border-dashed border-pl-border text-pl-muted hover:text-pl-text" onClick={() => setIsFullViewOpen(true)}>
                         <Expand className="w-3 h-3 mr-2" /> Expand All Charts & Diagnostics
                     </Button>
                 )}
 
                 <div className={`grid ${isCompact ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2'} gap-6`}>
                     <Card className={`${cardClass} flex flex-col`}>
-                        <div className="flex justify-between items-center mb-2 border-b border-slate-800 pb-2">
-                            <h3 className="text-xs font-bold text-slate-200 flex items-center gap-2">
-                                <ZoomIn className="w-3 h-3 text-blue-400" /> Volume Distribution ({unitLabel})
+                        <div className="flex justify-between items-center mb-2 border-b border-pl-border pb-2">
+                            <h3 className="text-xs font-bold text-pl-text flex items-center gap-2">
+                                <ZoomIn className="w-3 h-3 text-pl-muted" /> Volume Distribution ({unitLabel})
                             </h3>
                         </div>
-                        <div ref={histogramRef}>
+                        <div ref={histogramRef} data-canvas="chart">
                             <ChartFrame height={isCompact ? 200 : 280}>
                                 <BarChart data={chartData.histogram} margin={{ top: 12, right: 16, bottom: 8, left: 4 }}>
                                     <CartesianGrid {...GRID_STYLE} vertical={false} />
@@ -292,12 +291,12 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
                     </Card>
 
                     <Card className={`${cardClass} flex flex-col`}>
-                        <div className="flex justify-between items-center mb-2 border-b border-slate-800 pb-2">
-                            <h3 className="text-xs font-bold text-slate-200 flex items-center gap-2">
-                                <TrendingUp className="w-3 h-3 text-emerald-400" /> Cumulative Probability (Expectation Curve)
+                        <div className="flex justify-between items-center mb-2 border-b border-pl-border pb-2">
+                            <h3 className="text-xs font-bold text-pl-text flex items-center gap-2">
+                                <TrendingUp className="w-3 h-3 text-pl-muted" /> Cumulative Probability (Expectation Curve)
                             </h3>
                         </div>
-                        <div ref={cdfRef}>
+                        <div ref={cdfRef} data-canvas="chart">
                             <ChartFrame height={isCompact ? 200 : 280}>
                                 <LineChart data={chartData.cdf} margin={{ top: 12, right: 16, bottom: 8, left: 4 }}>
                                     <CartesianGrid {...GRID_STYLE} />
@@ -318,16 +317,16 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
                     </Card>
                 </div>
 
-                <Card className={`${isCompact ? 'p-3' : 'p-4'} bg-slate-900 border-slate-800 flex flex-col`}>
-                    <div className="flex justify-between items-center mb-2 border-b border-slate-800 pb-2">
-                        <h3 className="text-xs font-bold text-slate-200 flex items-center gap-2">
-                            <Activity className="w-3 h-3 text-purple-400" /> Sensitivity Tornado (P50 swing per parameter)
+                <Card className={`${isCompact ? 'p-3' : 'p-4'} flex flex-col`}>
+                    <div className="flex justify-between items-center mb-2 border-b border-pl-border pb-2">
+                        <h3 className="text-xs font-bold text-pl-text flex items-center gap-2">
+                            <Activity className="w-3 h-3 text-pl-muted" /> Sensitivity Tornado (P50 swing per parameter)
                         </h3>
                         {chartData.swings.length > 0 && (
-                            <span className="text-[10px] text-slate-500">bar ends = P50 when the parameter sits in its bottom / top decile</span>
+                            <span className="text-[10px] text-pl-muted">bar ends = P50 when the parameter sits in its bottom / top decile</span>
                         )}
                     </div>
-                    <div ref={tornadoRef}>
+                    <div ref={tornadoRef} data-canvas="chart">
                         {chartData.swings.length > 0 ? (
                             <ChartFrame height={Math.max(160, 44 + chartData.swings.length * 40)}>
                                 <TornadoChart
@@ -355,22 +354,22 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
                                 </BarChart>
                             </ChartFrame>
                         ) : (
-                            <div className="h-24 flex items-center justify-center text-slate-500 text-xs">Add at least one uncertainty variable to see sensitivity.</div>
+                            <div className="h-24 flex items-center justify-center text-pl-muted text-xs">Add at least one uncertainty variable to see sensitivity.</div>
                         )}
                     </div>
                 </Card>
 
                 {!isCompact && (
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                         <Card className="lg:col-span-3 p-4 bg-slate-900 border-slate-800 flex flex-col">
-                            <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-2">
-                                <h3 className="text-sm font-bold text-slate-200">Detailed Statistics</h3>
+                         <Card className="lg:col-span-3 p-4 flex flex-col">
+                            <div className="flex justify-between items-center mb-4 border-b border-pl-border pb-2">
+                                <h3 className="text-sm font-bold text-pl-text">Detailed Statistics</h3>
                             </div>
                             <ProbabilisticSummaryTable />
                          </Card>
                          
-                         <Card className="lg:col-span-1 p-4 bg-slate-900 border-slate-800 flex flex-col gap-2">
-                            <h3 className="text-sm font-bold text-slate-200 border-b border-slate-800 pb-2">Realization Tracker</h3>
+                         <Card className="lg:col-span-1 p-4 flex flex-col gap-2">
+                            <h3 className="text-sm font-bold text-pl-text border-b border-pl-border pb-2">Realization Tracker</h3>
                             <div className="flex-1 overflow-y-auto pr-1 space-y-2">
                                 <RealizationCard title="P90" realization={probResults.diagnostics.tracking.P90} unit={unitLabel} />
                                 <RealizationCard title="P50" realization={probResults.diagnostics.tracking.P50} unit={unitLabel} />

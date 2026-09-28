@@ -54,8 +54,8 @@ const SurfaceDataManager = ({ preselectSurfaceId = null }) => {
 
     return (
         <div className="space-y-4 h-full flex flex-col">
-            <div className="flex justify-between items-center pb-2 border-b border-slate-800">
-                <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+            <div className="flex justify-between items-center pb-2 border-b border-pl-border">
+                <h3 className="text-sm font-bold text-pl-text uppercase tracking-wider flex items-center gap-2">
                     <Layers className="w-4 h-4" /> Surfaces Library
                 </h3>
                 <Button size="sm" variant="outline" onClick={() => setImportOpen(true)} className="h-7 text-xs gap-1" data-testid="rcp-import-open">
@@ -65,7 +65,7 @@ const SurfaceDataManager = ({ preselectSurfaceId = null }) => {
 
             <div className="flex-1 overflow-y-auto space-y-3 pr-1">
                 {surfacesList.length === 0 && (
-                    <div className="text-center py-8 text-slate-500 text-xs italic border border-dashed border-slate-800 rounded">
+                    <div className="text-center py-8 text-pl-muted text-xs italic border border-dashed border-pl-border rounded">
                         No surfaces imported.<br/>Import CSV/XYZ to begin.
                     </div>
                 )}
@@ -75,38 +75,38 @@ const SurfaceDataManager = ({ preselectSurfaceId = null }) => {
                     const isBase = baseSurfaceId === surface.id;
 
                     return (
-                        <Card key={surface.id} className={`bg-slate-900 border-slate-800 ${isTop || isBase ? 'border-l-4 border-l-blue-500' : ''}`}>
+                        <Card key={surface.id} className={`${isTop || isBase ? 'border-l-4 border-l-pl-primary' : ''}`}>
                             <CardContent className="p-3">
                                 <div className="flex justify-between items-start mb-2">
                                     <div>
-                                        <div className="font-medium text-sm text-slate-200">{surface.name}</div>
-                                        <div className="text-[10px] text-slate-500">
+                                        <div className="font-medium text-sm text-pl-text">{surface.name}</div>
+                                        <div className="text-[10px] text-pl-muted">
                                             {surface.pointCount?.toLocaleString() || 0} pts • {surface.format || 'Grid'}
                                             {surface.crs ? ` • ${surface.crs}` : ''}
                                         </div>
                                         {surface.registryId && (
                                             <div className="flex gap-2 mt-1">
-                                                <Link to={mapSurfaceHref(surface.registryId, appPath(MAPPING_ID, appPaths))} data-testid={`rcp-open-mapping-${surface.name}`} title="Open this surface in Mapping & Surface Studio" className="text-[10px] text-cyan-300 hover:underline">Open in Mapping</Link>
-                                                <Link to={earthModelingSurfaceHref(surface.registryId, appPath(EARTH_MODELING_ID, appPaths))} data-testid={`rcp-open-earth-${surface.name}`} title="Stack this surface in Earth Modeling" className="text-[10px] text-cyan-300 hover:underline">Open in Earth Modeling</Link>
+                                                <Link to={mapSurfaceHref(surface.registryId, appPath(MAPPING_ID, appPaths))} data-testid={`rcp-open-mapping-${surface.name}`} title="Open this surface in Mapping & Surface Studio" className="text-[10px] text-pl-primary-text hover:text-pl-primary-text-hover hover:underline">Open in Mapping</Link>
+                                                <Link to={earthModelingSurfaceHref(surface.registryId, appPath(EARTH_MODELING_ID, appPaths))} data-testid={`rcp-open-earth-${surface.name}`} title="Stack this surface in Earth Modeling" className="text-[10px] text-pl-primary-text hover:text-pl-primary-text-hover hover:underline">Open in Earth Modeling</Link>
                                             </div>
                                         )}
                                     </div>
                                     <div className="flex gap-1">
-                                        {isTop && <Badge className="text-[10px] px-1 h-4 bg-blue-900 text-blue-200 hover:bg-blue-800">TOP</Badge>}
-                                        {isBase && <Badge className="text-[10px] px-1 h-4 bg-emerald-900 text-emerald-200 hover:bg-emerald-800">BASE</Badge>}
+                                        {isTop && <Badge variant="selected" className="text-[10px] px-1 h-4">TOP</Badge>}
+                                        {isBase && <Badge variant="selected" className="text-[10px] px-1 h-4">BASE</Badge>}
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-2 mt-3">
-                                    <div className="text-[10px] text-slate-400">
-                                        <div>Min Z: <span className="text-slate-200">{surface.minZ?.toFixed(1) || '-'}{surface.depthUnit ? ` ${surface.depthUnit}` : ''}</span></div>
-                                        <div>Max Z: <span className="text-slate-200">{surface.maxZ?.toFixed(1) || '-'}{surface.depthUnit ? ` ${surface.depthUnit}` : ''}</span></div>
+                                    <div className="text-[10px] text-pl-muted">
+                                        <div>Min Z: <span className="text-pl-text">{surface.minZ?.toFixed(1) || '-'}{surface.depthUnit ? ` ${surface.depthUnit}` : ''}</span></div>
+                                        <div>Max Z: <span className="text-pl-text">{surface.maxZ?.toFixed(1) || '-'}{surface.depthUnit ? ` ${surface.depthUnit}` : ''}</span></div>
                                     </div>
                                     <div className="flex justify-end items-end gap-1">
                                          <Button 
                                             size="icon" 
                                             variant="ghost" 
-                                            className="h-6 w-6 hover:bg-red-900/20 hover:text-red-400"
+                                            className="h-6 w-6 hover:bg-pl-danger-bg hover:text-pl-danger-text"
                                             onClick={() => deleteSurface(surface.id)}
                                         >
                                             <Trash2 className="w-3 h-3" />
@@ -114,7 +114,7 @@ const SurfaceDataManager = ({ preselectSurfaceId = null }) => {
                                     </div>
                                 </div>
                             </CardContent>
-                            <CardFooter className="p-2 bg-slate-950/30 flex gap-2">
+                            <CardFooter className="p-2 bg-pl-sunken flex gap-2">
                                 <Button 
                                     size="sm" 
                                     variant={isTop ? "secondary" : "outline"} 

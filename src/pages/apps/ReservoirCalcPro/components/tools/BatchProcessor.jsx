@@ -75,28 +75,28 @@ const BatchProcessor = () => {
     return (
         <div className="h-full flex flex-col gap-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="bg-slate-900 border-slate-800">
-                    <CardHeader><CardTitle className="text-white text-sm">1. Upload Data</CardTitle></CardHeader>
+                <Card>
+                    <CardHeader><CardTitle className="text-pl-text text-sm">1. Upload Data</CardTitle></CardHeader>
                     <CardContent>
-                        <div className="border-2 border-dashed border-slate-700 rounded-lg p-6 text-center hover:bg-slate-800/50 transition-colors relative">
+                        <div className="border-2 border-dashed border-pl-border rounded-lg p-6 text-center hover:bg-pl-sunken transition-colors relative">
                             <input type="file" accept=".csv" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileUpload} />
-                            <Upload className="w-8 h-8 text-slate-500 mx-auto mb-2" />
-                            <p className="text-sm text-slate-400">Drop CSV file here</p>
-                            <p className="text-xs text-slate-600 mt-1">Required cols: Area, Thickness, Porosity, Sw</p>
+                            <Upload className="w-8 h-8 text-pl-muted mx-auto mb-2" />
+                            <p className="text-sm text-pl-muted">Drop CSV file here</p>
+                            <p className="text-xs text-pl-muted mt-1">Required cols: Area, Thickness, Porosity, Sw</p>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="bg-slate-900 border-slate-800">
-                    <CardHeader><CardTitle className="text-white text-sm">2. Process</CardTitle></CardHeader>
+                <Card>
+                    <CardHeader><CardTitle className="text-pl-text text-sm">2. Process</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="flex justify-between text-sm text-slate-400">
+                        <div className="flex justify-between text-sm text-pl-muted">
                             <span>Records Loaded:</span>
-                            <span className="text-white font-bold">{data.length}</span>
+                            <span className="text-pl-text font-bold">{data.length}</span>
                         </div>
                         <Progress value={progress} className="h-2" />
                         <Button 
-                            className="w-full bg-blue-600 hover:bg-blue-700" 
+                            className="w-full" 
                             disabled={data.length === 0 || isProcessing}
                             onClick={runBatch}
                         >
@@ -105,15 +105,15 @@ const BatchProcessor = () => {
                     </CardContent>
                 </Card>
 
-                <Card className="bg-slate-900 border-slate-800">
-                    <CardHeader><CardTitle className="text-white text-sm">3. Export</CardTitle></CardHeader>
+                <Card>
+                    <CardHeader><CardTitle className="text-pl-text text-sm">3. Export</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="flex justify-between text-sm text-slate-400">
+                        <div className="flex justify-between text-sm text-pl-muted">
                             <span>Completed:</span>
-                            <span className="text-green-400 font-bold">{results.filter(r => r.status === 'Success').length}</span>
+                            <span className="text-pl-success-text font-bold">{results.filter(r => r.status === 'Success').length}</span>
                         </div>
                         <Button 
-                            className="w-full bg-emerald-600 hover:bg-emerald-700" 
+                            className="w-full" 
                             disabled={results.length === 0}
                             onClick={downloadResults}
                         >
@@ -123,40 +123,40 @@ const BatchProcessor = () => {
                 </Card>
             </div>
 
-            <Card className="bg-slate-900 border-slate-800 flex-1 overflow-hidden flex flex-col">
-                <CardHeader><CardTitle className="text-white">Data Preview</CardTitle></CardHeader>
+            <Card className="flex-1 overflow-hidden flex flex-col">
+                <CardHeader><CardTitle className="text-pl-text">Data Preview</CardTitle></CardHeader>
                 <CardContent className="flex-1 overflow-auto p-0">
                     <Table>
-                        <TableHeader className="bg-slate-950 sticky top-0">
-                            <TableRow className="border-slate-800 hover:bg-transparent">
-                                <TableHead className="text-slate-300">Status</TableHead>
-                                <TableHead className="text-slate-300">Area</TableHead>
-                                <TableHead className="text-slate-300">Thickness</TableHead>
-                                <TableHead className="text-slate-300">Porosity</TableHead>
-                                <TableHead className="text-slate-300">Sw</TableHead>
-                                <TableHead className="text-slate-300 text-right">STOOIP (MMbbl)</TableHead>
+                        <TableHeader className="bg-pl-sunken sticky top-0">
+                            <TableRow className="border-pl-border hover:bg-transparent">
+                                <TableHead className="text-pl-text">Status</TableHead>
+                                <TableHead className="text-pl-text">Area</TableHead>
+                                <TableHead className="text-pl-text">Thickness</TableHead>
+                                <TableHead className="text-pl-text">Porosity</TableHead>
+                                <TableHead className="text-pl-text">Sw</TableHead>
+                                <TableHead className="text-pl-text text-right">STOOIP (MMbbl)</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {(results.length > 0 ? results : data).map((row, i) => (
-                                <TableRow key={i} className="border-slate-800 hover:bg-slate-800/50">
+                                <TableRow key={i} className="border-pl-border hover:bg-pl-sunken">
                                     <TableCell>
-                                        {row.status === 'Success' && <CheckCircle className="w-4 h-4 text-green-500"/>}
-                                        {row.status === 'Error' && <AlertCircle className="w-4 h-4 text-red-500"/>}
-                                        {!row.status && <span className="text-slate-600">-</span>}
+                                        {row.status === 'Success' && <CheckCircle className="w-4 h-4 text-pl-success-text"/>}
+                                        {row.status === 'Error' && <AlertCircle className="w-4 h-4 text-pl-danger-text"/>}
+                                        {!row.status && <span className="text-pl-muted">-</span>}
                                     </TableCell>
-                                    <TableCell className="text-slate-300">{row.Area || row.area}</TableCell>
-                                    <TableCell className="text-slate-300">{row.Thickness || row.thickness}</TableCell>
-                                    <TableCell className="text-slate-300">{row.Porosity || row.porosity}</TableCell>
-                                    <TableCell className="text-slate-300">{row.Sw || row.sw}</TableCell>
-                                    <TableCell className="text-right font-mono text-emerald-400">
+                                    <TableCell className="text-pl-text">{row.Area || row.area}</TableCell>
+                                    <TableCell className="text-pl-text">{row.Thickness || row.thickness}</TableCell>
+                                    <TableCell className="text-pl-text">{row.Porosity || row.porosity}</TableCell>
+                                    <TableCell className="text-pl-text">{row.Sw || row.sw}</TableCell>
+                                    <TableCell className="text-right font-pl-mono tabular-nums text-pl-text">
                                         {row.stooip ? (row.stooip / 1000000).toFixed(2) : '-'}
                                     </TableCell>
                                 </TableRow>
                             ))}
                             {data.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center text-slate-500 py-8">
+                                    <TableCell colSpan={6} className="text-center text-pl-muted py-8">
                                         Upload a CSV file to begin.
                                     </TableCell>
                                 </TableRow>

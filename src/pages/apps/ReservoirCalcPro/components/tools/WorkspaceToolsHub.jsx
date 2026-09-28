@@ -34,10 +34,10 @@ const WorkspaceToolsHub = ({ initialTab = 'settings' }) => {
     const Active = (TABS.find((t) => t.id === active) || TABS[0]).Comp;
 
     return (
-        <div className="flex flex-col h-full bg-slate-950 text-slate-100">
-            <div className="flex items-center gap-1 px-3 py-2 border-b border-slate-800 bg-slate-900 shrink-0">
-                <Database className="w-4 h-4 text-blue-400 mr-1" />
-                <span className="text-sm font-semibold text-slate-200 mr-3">Workspace Tools</span>
+        <div className="flex flex-col h-full bg-pl-sunken text-pl-text">
+            <div className="flex items-center gap-1 px-3 py-2 border-b border-pl-border bg-pl-surface shrink-0">
+                <Database className="w-4 h-4 text-pl-muted mr-1" />
+                <span className="text-sm font-semibold text-pl-text mr-3">Workspace Tools</span>
                 <div className="flex gap-1 flex-wrap">
                     {TABS.map((t) => {
                         const Icon = t.icon;
@@ -45,7 +45,8 @@ const WorkspaceToolsHub = ({ initialTab = 'settings' }) => {
                             <button
                                 key={t.id}
                                 onClick={() => setActive(t.id)}
-                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors ${active === t.id ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'}`}
+                                aria-pressed={active === t.id}
+                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors ${active === t.id ? 'bg-pl-primary text-pl-primary-fg' : 'text-pl-muted hover:text-pl-text hover:bg-pl-sunken'}`}
                             >
                                 <Icon className="w-3.5 h-3.5" /> {t.label}
                             </button>
