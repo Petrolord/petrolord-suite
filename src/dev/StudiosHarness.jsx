@@ -129,12 +129,12 @@ const storeFor = (app) => (stores[app] ||= createStore(SEEDS[app] ? SEEDS[app]()
 export default function StudiosHarness() {
   const { app } = useParams();
   const App = APPS[app];
-  if (!App) return <div className="p-6 text-slate-300">Unknown app. Try one of: {Object.keys(APPS).join(', ')}</div>;
+  if (!App) return <div className="p-6 text-pl-text">Unknown app. Try one of: {Object.keys(APPS).join(', ')}</div>;
   return (
     <InMemorySupabase db={storeFor(app)} functions={FUNCTIONS[app]}>
       <DevAuth>
         <div className="min-h-screen">
-          <Suspense fallback={<div className="p-6 text-slate-400">Loading...</div>}>
+          <Suspense fallback={<div className="p-6 text-pl-muted">Loading...</div>}>
             <App />
           </Suspense>
         </div>

@@ -216,7 +216,7 @@ const B = '/dashboard/apps/assurance';
 
 export default function AssuranceHarness() {
   const { app } = useParams();
-  if (!START[app]) return <div className="p-6 text-slate-300">Unknown app. Try one of: {Object.keys(START).join(', ')}</div>;
+  if (!START[app]) return <div className="p-6 text-pl-text">Unknown app. Try one of: {Object.keys(START).join(', ')}</div>;
   if (!store) store = createStore(seed());
   return (
     <InMemorySupabase db={store} rpc={RPC}>
@@ -225,7 +225,7 @@ export default function AssuranceHarness() {
           <UNSAFE_RouteContext.Provider value={{ outlet: null, matches: [], isDataRoute: false }}>
             <MemoryRouter initialEntries={[`${B}/${START[app]}`]}>
               <div className="min-h-screen">
-                <Suspense fallback={<div className="p-6 text-slate-400">Loading...</div>}>
+                <Suspense fallback={<div className="p-6 text-pl-muted">Loading...</div>}>
                   <Routes>
                     <Route path={`${B}/risk-register`} element={<RiskRegister />} />
                     <Route path={`${B}/risk-register/new`} element={<NewRisk />} />

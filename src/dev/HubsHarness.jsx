@@ -119,7 +119,7 @@ export default function HubsHarness() {
         <UNSAFE_LocationContext.Provider value={null}>
           <UNSAFE_RouteContext.Provider value={{ outlet: null, matches: [], isDataRoute: false }}>
             <MemoryRouter initialEntries={[start]}>
-              <Suspense fallback={<div className="p-6 text-slate-400">Loading...</div>}>
+              <Suspense fallback={<div className="p-6 text-pl-muted">Loading...</div>}>
                 <Routes>
                   <Route path="/dashboard" element={<DashboardLayout />}>
                     <Route element={<HubScope />}>
