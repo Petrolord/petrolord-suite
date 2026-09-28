@@ -111,10 +111,10 @@ const ResourceForm = ({ open, onOpenChange, project, existingResource, onSaved }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border-slate-700 text-white sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <UserPlus className="w-5 h-5 text-blue-400" />
+            <UserPlus className="w-5 h-5 text-pl-muted" />
             {existingResource ? 'Edit Resource' : 'Add New Resource'}
           </DialogTitle>
         </DialogHeader>
@@ -128,16 +128,16 @@ const ResourceForm = ({ open, onOpenChange, project, existingResource, onSaved }
                         value={name} 
                         onChange={e => setName(e.target.value)} 
                         required 
-                        className="bg-slate-800 border-slate-700"
+                       
                     />
                 </div>
                 <div className="space-y-2">
                     <Label>Type</Label>
                     <Select value={type} onValueChange={setType}>
-                        <SelectTrigger className="bg-slate-800 border-slate-700">
+                        <SelectTrigger>
                             <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                        <SelectContent>
                             <SelectItem value="Person">Person</SelectItem>
                             <SelectItem value="Team">Team</SelectItem>
                             <SelectItem value="Vendor">Vendor</SelectItem>
@@ -151,10 +151,10 @@ const ResourceForm = ({ open, onOpenChange, project, existingResource, onSaved }
                 <div className="space-y-2">
                     <Label>Discipline</Label>
                     <Select value={discipline} onValueChange={setDiscipline}>
-                        <SelectTrigger className="bg-slate-800 border-slate-700">
+                        <SelectTrigger>
                             <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                        <SelectContent>
                             <SelectItem value="General">General</SelectItem>
                             <SelectItem value="Geologist">Geologist</SelectItem>
                             <SelectItem value="Petrophysicist">Petrophysicist</SelectItem>
@@ -171,16 +171,16 @@ const ResourceForm = ({ open, onOpenChange, project, existingResource, onSaved }
                         placeholder="e.g. Subsurface or Schlumberger" 
                         value={department} 
                         onChange={e => setDepartment(e.target.value)} 
-                        className="bg-slate-800 border-slate-700"
+                       
                     />
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 p-4 bg-slate-950 rounded border border-slate-800">
+            <div className="grid grid-cols-2 gap-4 p-4 bg-pl-sunken rounded border border-pl-border">
                 <div className="space-y-2">
                     <div className="flex justify-between">
                         <Label>Availability (%)</Label>
-                        <span className="font-mono text-blue-400">{availability}%</span>
+                        <span className="font-pl-mono tabular-nums text-pl-text">{availability}%</span>
                     </div>
                     <Slider 
                         value={[availability]} 
@@ -195,7 +195,7 @@ const ResourceForm = ({ open, onOpenChange, project, existingResource, onSaved }
                         placeholder="0.00"
                         value={cost} 
                         onChange={e => setCost(parseFloat(e.target.value))} 
-                        className="bg-slate-800 border-slate-700"
+                       
                     />
                 </div>
             </div>
@@ -204,7 +204,7 @@ const ResourceForm = ({ open, onOpenChange, project, existingResource, onSaved }
                 <Label>Skills</Label>
                 <div className="flex gap-2 mb-2 flex-wrap">
                     {skills.map(skill => (
-                        <Badge key={skill} variant="secondary" className="bg-slate-700 hover:bg-slate-600 cursor-pointer flex items-center gap-1">
+                        <Badge key={skill} variant="secondary" className="bg-pl-sunken hover:bg-pl-border cursor-pointer flex items-center gap-1">
                             {skill}
                             <X className="w-3 h-3" onClick={() => removeSkill(skill)} />
                         </Badge>
@@ -215,7 +215,7 @@ const ResourceForm = ({ open, onOpenChange, project, existingResource, onSaved }
                         placeholder="Add skill (e.g. Python, Petrel)" 
                         value={newSkill} 
                         onChange={e => setNewSkill(e.target.value)} 
-                        className="bg-slate-800 border-slate-700"
+                       
                         onKeyDown={e => e.key === 'Enter' && handleAddSkill(e)}
                     />
                     <Button type="button" onClick={handleAddSkill} size="sm" variant="secondary">Add</Button>
@@ -230,7 +230,7 @@ const ResourceForm = ({ open, onOpenChange, project, existingResource, onSaved }
                         placeholder="contact@example.com" 
                         value={email} 
                         onChange={e => setEmail(e.target.value)} 
-                        className="bg-slate-800 border-slate-700"
+                       
                     />
                 </div>
                 <div className="space-y-2">
@@ -239,7 +239,7 @@ const ResourceForm = ({ open, onOpenChange, project, existingResource, onSaved }
                         placeholder="+1 234 567 890" 
                         value={phone} 
                         onChange={e => setPhone(e.target.value)} 
-                        className="bg-slate-800 border-slate-700"
+                       
                     />
                 </div>
             </div>
@@ -247,10 +247,10 @@ const ResourceForm = ({ open, onOpenChange, project, existingResource, onSaved }
             <div className="space-y-2">
                 <Label>Status</Label>
                 <Select value={status} onValueChange={setStatus}>
-                    <SelectTrigger className="bg-slate-800 border-slate-700">
+                    <SelectTrigger>
                         <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                    <SelectContent>
                         <SelectItem value="Active">Active</SelectItem>
                         <SelectItem value="Inactive">Inactive</SelectItem>
                         <SelectItem value="On Leave">On Leave</SelectItem>
@@ -260,7 +260,7 @@ const ResourceForm = ({ open, onOpenChange, project, existingResource, onSaved }
 
             <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-                <Button type="submit" disabled={loading} className="bg-blue-600 hover:bg-blue-700">
+                <Button type="submit" disabled={loading}>
                     {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                     Save Resource
                 </Button>

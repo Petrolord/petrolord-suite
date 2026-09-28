@@ -51,16 +51,16 @@ const ResourceAssignment = ({ task, resources, assignments, onUpdate }) => {
 
   return (
     <div className="space-y-4 p-2">
-      <div className="space-y-3 border-b border-slate-800 pb-4">
-        <h4 className="text-sm font-medium text-slate-300 flex items-center gap-2">
-            <UserPlus className="w-4 h-4 text-blue-400" /> New Assignment
+      <div className="space-y-3 border-b border-pl-border pb-4">
+        <h4 className="text-sm font-medium text-pl-text flex items-center gap-2">
+            <UserPlus className="w-4 h-4 text-pl-muted" /> New Assignment
         </h4>
         
         <Select value={selectedResource} onValueChange={setSelectedResource}>
-            <SelectTrigger className="bg-slate-900 border-slate-700 text-white">
+            <SelectTrigger>
                 <SelectValue placeholder="Select Resource" />
             </SelectTrigger>
-            <SelectContent className="bg-slate-800 border-slate-700 text-white">
+            <SelectContent>
                 {resources.map(r => (
                     <SelectItem key={r.id} value={r.id}>{r.name} - {r.discipline}</SelectItem>
                 ))}
@@ -69,12 +69,12 @@ const ResourceAssignment = ({ task, resources, assignments, onUpdate }) => {
 
         <div className="grid grid-cols-2 gap-3">
             <div>
-                <Label className="text-[10px] text-slate-500">Role</Label>
+                <Label className="text-[10px] text-pl-muted">Role</Label>
                 <Select value={role} onValueChange={setRole}>
-                    <SelectTrigger className="h-8 bg-slate-900 border-slate-700 text-xs">
+                    <SelectTrigger className="h-8 text-xs">
                         <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                    <SelectContent>
                         <SelectItem value="Primary Owner">Primary Owner</SelectItem>
                         <SelectItem value="Member">Member</SelectItem>
                         <SelectItem value="Support">Support</SelectItem>
@@ -83,7 +83,7 @@ const ResourceAssignment = ({ task, resources, assignments, onUpdate }) => {
                 </Select>
             </div>
             <div>
-                <Label className="text-[10px] text-slate-500">Allocation: {allocation}%</Label>
+                <Label className="text-[10px] text-pl-muted">Allocation: {allocation}%</Label>
                 <Slider 
                     value={[allocation]} 
                     onValueChange={vals => setAllocation(vals[0])} 
@@ -93,25 +93,25 @@ const ResourceAssignment = ({ task, resources, assignments, onUpdate }) => {
             </div>
         </div>
 
-        <Button onClick={handleAssign} disabled={!selectedResource} size="sm" className="w-full bg-blue-600 hover:bg-blue-700">
+        <Button onClick={handleAssign} disabled={!selectedResource} size="sm" className="w-full">
             Assign Resource
         </Button>
       </div>
 
       <div className="space-y-2">
-        <h4 className="text-xs font-bold uppercase text-slate-500">Current Team</h4>
-        {currentAssignments.length === 0 && <p className="text-xs text-slate-500 italic">No resources assigned.</p>}
+        <h4 className="text-xs font-bold uppercase text-pl-muted">Current Team</h4>
+        {currentAssignments.length === 0 && <p className="text-xs text-pl-muted italic">No resources assigned.</p>}
         
         {currentAssignments.map(assign => {
             const res = resources.find(r => r.id === assign.resource_id);
             if (!res) return null;
             return (
-                <div key={assign.id} className="flex items-center justify-between p-2 bg-slate-800 rounded border border-slate-700">
+                <div key={assign.id} className="flex items-center justify-between p-2 bg-pl-sunken rounded border border-pl-border">
                     <div>
-                        <div className="font-bold text-sm text-white">{res.name}</div>
-                        <div className="text-[10px] text-slate-400">{assign.role} • {assign.allocation_percent}%</div>
+                        <div className="font-bold text-sm text-pl-text">{res.name}</div>
+                        <div className="text-[10px] text-pl-muted">{assign.role} • {assign.allocation_percent}%</div>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:text-red-400" onClick={() => handleRemove(assign.id)}>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-pl-muted hover:text-pl-danger-text" aria-label="Remove assignment" onClick={() => handleRemove(assign.id)}>
                         <Trash2 className="w-3 h-3" />
                     </Button>
                 </div>

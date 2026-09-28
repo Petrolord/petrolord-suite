@@ -86,40 +86,40 @@ const ProgressUpdateForm = ({ open, onOpenChange, project, kpis, onUpdateSaved }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border-slate-700 text-white sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-lime-400" />
+            <TrendingUp className="w-5 h-5 text-pl-muted" />
             Log Progress Update
           </DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-pl-muted">
             Submit a weekly snapshot for {project?.name}. KPIs are auto-filled from current task data.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6 py-4">
             {/* Status & Progress Row */}
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
                     <Label>RAG Status</Label>
                     <Select value={status} onValueChange={setStatus}>
-                        <SelectTrigger className={`bg-slate-800 border-slate-700 ${
-                            status === 'Green' ? 'text-green-400' : 
-                            status === 'Amber' ? 'text-amber-400' : 'text-red-400'
-                        }`}>
+                        <SelectTrigger className={
+                            status === 'Green' ? 'text-pl-success-text' :
+                            status === 'Amber' ? 'text-pl-warning-text' : 'text-pl-danger-text'
+                        }>
                             <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-700 text-white">
-                            <SelectItem value="Green" className="text-green-400">Green - On Track</SelectItem>
-                            <SelectItem value="Amber" className="text-amber-400">Amber - At Risk</SelectItem>
-                            <SelectItem value="Red" className="text-red-400">Red - Critical Issue</SelectItem>
+                        <SelectContent>
+                            <SelectItem value="Green" className="text-pl-success-text">Green - On Track</SelectItem>
+                            <SelectItem value="Amber" className="text-pl-warning-text">Amber - At Risk</SelectItem>
+                            <SelectItem value="Red" className="text-pl-danger-text">Red - Critical Issue</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
                 <div className="space-y-2">
                     <div className="flex justify-between">
                         <Label>Project % Complete</Label>
-                        <span className="text-sm font-bold text-blue-400">{Math.round(percentComplete)}%</span>
+                        <span className="text-sm font-bold font-pl-mono tabular-nums text-pl-text">{Math.round(percentComplete)}%</span>
                     </div>
                     <Slider 
                         value={[percentComplete]} 
@@ -128,29 +128,29 @@ const ProgressUpdateForm = ({ open, onOpenChange, project, kpis, onUpdateSaved }
                         step={1} 
                         className="py-2"
                     />
-                    <p className="text-[10px] text-slate-500">Auto-calculated from tasks. Adjust if needed.</p>
+                    <p className="text-[10px] text-pl-muted">Auto-calculated from tasks. Adjust if needed.</p>
                 </div>
             </div>
 
             {/* Auto-Calc KPIs Display (Read Only) */}
-            <div className="grid grid-cols-3 gap-4 bg-slate-950 p-4 rounded-lg border border-slate-800">
+            <div className="grid grid-cols-3 gap-4 bg-pl-sunken p-4 rounded-lg border border-pl-border">
                 <div>
-                    <Label className="text-xs text-slate-500">Planned Value (PV)</Label>
-                    <div className="text-lg font-mono">{money(kpis?.pv)}</div>
+                    <Label className="text-xs text-pl-muted">Planned Value (PV)</Label>
+                    <div className="text-lg font-pl-mono tabular-nums">{money(kpis?.pv)}</div>
                 </div>
                  <div>
-                    <Label className="text-xs text-slate-500">Earned Value (EV)</Label>
-                    <div className="text-lg font-mono text-blue-400">{money(kpis?.ev)}</div>
+                    <Label className="text-xs text-pl-muted">Earned Value (EV)</Label>
+                    <div className="text-lg font-pl-mono tabular-nums text-pl-text">{money(kpis?.ev)}</div>
                 </div>
                  <div>
-                    <Label className="text-xs text-slate-500">Schedule Index (SPI)</Label>
-                    <div className={`text-lg font-mono ${typeof kpis?.spi !== 'number' ? 'text-slate-400' : (kpis.spi < 1 ? 'text-red-400' : 'text-green-400')}`}>
+                    <Label className="text-xs text-pl-muted">Schedule Index (SPI)</Label>
+                    <div className={`text-lg font-pl-mono tabular-nums ${typeof kpis?.spi !== 'number' ? 'text-pl-muted' : (kpis.spi < 1 ? 'text-pl-danger-text' : 'text-pl-success-text')}`}>
                         {typeof kpis?.spi === 'number' ? (full ? formatFull(kpis.spi, 6) : kpis.spi.toFixed(2)) : 'n/a'}
                     </div>
                     {/* EC6-1: planned value is time-phased to today, so this
                         index says early or late. When it cannot be computed the
                         engine says why. */}
-                    <p className="text-[10px] text-slate-600 mt-1">{kpis?.spiBasis || ''}</p>
+                    <p className="text-[10px] text-pl-muted mt-1">{kpis?.spiBasis || ''}</p>
                 </div>
             </div>
 
@@ -159,7 +159,7 @@ const ProgressUpdateForm = ({ open, onOpenChange, project, kpis, onUpdateSaved }
                 <Label>Executive Summary / Narrative</Label>
                 <Textarea 
                     placeholder="What was achieved this week? Any major milestones hit?" 
-                    className="bg-slate-800 border-slate-700 min-h-[100px]"
+                    className="min-h-[100px]"
                     value={narrative}
                     onChange={(e) => setNarrative(e.target.value)}
                     required
@@ -170,7 +170,7 @@ const ProgressUpdateForm = ({ open, onOpenChange, project, kpis, onUpdateSaved }
                 <Label>Blockers & Risks</Label>
                 <Textarea 
                     placeholder="What is holding up progress? Any new risks identified?" 
-                    className="bg-slate-800 border-slate-700"
+                   
                     value={blockers}
                     onChange={(e) => setBlockers(e.target.value)}
                 />
@@ -180,7 +180,7 @@ const ProgressUpdateForm = ({ open, onOpenChange, project, kpis, onUpdateSaved }
                 <Label>Decisions Needed</Label>
                 <Input 
                     placeholder="e.g. Approval for AFE supplement required by Friday" 
-                    className="bg-slate-800 border-slate-700"
+                   
                     value={decisions}
                     onChange={(e) => setDecisions(e.target.value)}
                 />
@@ -188,7 +188,7 @@ const ProgressUpdateForm = ({ open, onOpenChange, project, kpis, onUpdateSaved }
 
             <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-                <Button type="submit" disabled={loading} className="bg-lime-600 hover:bg-lime-700">
+                <Button type="submit" disabled={loading}>
                     {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                     Submit Update
                 </Button>

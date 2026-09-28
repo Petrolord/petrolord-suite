@@ -54,22 +54,22 @@ const ResourcesDashboard = ({ project, onDataChange }) => {
 
   return (
     <div className="h-full flex flex-col space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold text-white">Resource Management</h2>
+      <div className="flex flex-wrap justify-between items-center gap-2">
+        <h2 className="text-xl font-bold text-pl-text">Resource Management</h2>
         <div className="flex gap-2">
-            <Button onClick={handleAddNew} className="bg-blue-600 hover:bg-blue-700">
+            <Button onClick={handleAddNew}>
                 <PlusCircle className="w-4 h-4 mr-2" /> Add Resource
             </Button>
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <TabsList className="bg-slate-800 self-start">
+        <TabsList className="self-start">
             <TabsTrigger value="pool"><Users className="w-4 h-4 mr-2" /> Resource Pool</TabsTrigger>
             <TabsTrigger value="capacity"><BarChart3 className="w-4 h-4 mr-2" /> Capacity & Planning</TabsTrigger>
         </TabsList>
 
-        <div className="flex-1 mt-4 bg-slate-900/50 border border-slate-800 rounded-lg overflow-hidden p-4">
+        <div className="flex-1 mt-4 bg-pl-surface border border-pl-border rounded-lg overflow-hidden p-4">
             <TabsContent value="pool" className="h-full m-0">
                 <ResourceList resources={resources} onEdit={handleEdit} />
             </TabsContent>
