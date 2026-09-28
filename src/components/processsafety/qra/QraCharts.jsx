@@ -54,7 +54,7 @@ const decadeDomain = (values) => {
 };
 
 const Frame = ({ testId, children }) => (
-  <div className="relative h-80 rounded-lg bg-white p-2" data-testid={testId}>
+  <div data-canvas="chart" className="relative h-80 rounded-lg bg-white p-2" data-testid={testId}>
     {children}
     <ChartLogo />
   </div>

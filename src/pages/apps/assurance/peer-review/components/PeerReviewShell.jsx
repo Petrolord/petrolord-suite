@@ -3,6 +3,8 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Users, LayoutDashboard, List, PlusCircle, BarChart2, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import AssuranceHelp from '@/components/assurance/AssuranceHelp';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 export const BASE = '/dashboard/apps/assurance/peer-review-manager';
 
@@ -24,6 +26,7 @@ export const PeerReviewShell = ({ children, title = "Peer Review Manager", subti
   // the rows are.
 
   return (
+    <ThemedApp className="h-full min-h-screen" data-testid="peer-review-theme-scope">
     <div className="flex flex-col h-full bg-[hsl(var(--background))] text-[hsl(var(--foreground))] overflow-hidden">
       <div className="flex-none border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]">
         <div className="px-6 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -49,7 +52,10 @@ export const PeerReviewShell = ({ children, title = "Peer Review Manager", subti
               </div>
             </div>
           </div>
-          <AssuranceHelp appKey="peerReview" />
+          <div className="flex items-center gap-2">
+            <AssuranceHelp appKey="peerReview" />
+            <ThemeToggle />
+          </div>
         </div>
 
         <div className="px-6 flex gap-6 mt-2 overflow-x-auto no-scrollbar">
@@ -79,6 +85,7 @@ export const PeerReviewShell = ({ children, title = "Peer Review Manager", subti
         </div>
       </div>
     </div>
+    </ThemedApp>
   );
 };
 

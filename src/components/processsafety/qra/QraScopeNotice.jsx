@@ -6,9 +6,9 @@ import { NOT_MODELLED } from '@/utils/processSafety/qraStudy';
 const QraScopeNotice = () => (
   <div
     data-testid="scope-notice"
-    className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-950/20 p-3 text-xs leading-relaxed text-amber-100"
+    className="flex items-start gap-2 rounded-lg border border-pl-warning/40 bg-pl-warning-bg p-3 text-xs leading-relaxed text-pl-warning-text"
   >
-    <ShieldAlert className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-300" />
+    <ShieldAlert className="mt-0.5 h-4 w-4 flex-shrink-0 text-pl-warning-text" />
     <div className="space-y-1">
       <p>
         <strong>Not done here:</strong> {NOT_MODELLED.join('; ')}.

@@ -31,21 +31,21 @@ const TerminalResults = () => {
     <div className="space-y-5">
       <div className={`rounded-lg border p-4 flex items-start gap-3 ${
         reconciliation.unaccountedM3 === null
-          ? 'border-amber-800/60 bg-amber-950/30'
+          ? 'border-pl-warning/40 bg-pl-warning-bg'
           : reconciliation.withinTolerance === false
-            ? 'border-red-800/60 bg-red-950/30'
-            : 'border-emerald-800/60 bg-emerald-950/30'}`}
+            ? 'border-pl-danger/40 bg-pl-danger-bg'
+            : 'border-pl-success/40 bg-pl-success-bg'}`}
       >
         {reconciliation.unaccountedM3 === null || reconciliation.withinTolerance === false
-          ? <AlertTriangle className={`w-5 h-5 mt-0.5 shrink-0 ${reconciliation.unaccountedM3 === null ? 'text-amber-400' : 'text-red-400'}`} />
-          : <CheckCircle2 className="w-5 h-5 text-emerald-400 mt-0.5 shrink-0" />}
+          ? <AlertTriangle className={`w-5 h-5 mt-0.5 shrink-0 ${reconciliation.unaccountedM3 === null ? 'text-pl-warning-text' : 'text-pl-danger-text'}`} />
+          : <CheckCircle2 className="w-5 h-5 text-pl-success-text mt-0.5 shrink-0" />}
         <div>
-          <p className="font-semibold text-white">
+          <p className="font-semibold text-pl-text">
             {reconciliation.unaccountedM3 === null
               ? 'The day cannot be closed'
               : `Unaccounted: ${fmt(reconciliation.unaccountedM3)} m3 (${reconciliation.direction})`}
           </p>
-          <p className="text-sm text-slate-300 mt-1">
+          <p className="text-sm text-pl-text mt-1">
             {reconciliation.unaccountedM3 === null
               ? (reconciliation.error || reconciliation.note)
               : `${fmt(reconciliation.unaccountedPercentOfThroughput, 2)}% of throughput, against a tolerance of ${fmt(reconciliation.toleranceM3)} m3. Tolerance is measured on what moved, because measurement error scales with throughput.`}
@@ -54,8 +54,8 @@ const TerminalResults = () => {
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-white mb-1">Gain and loss trend</h3>
-        <p className="text-[11px] text-slate-500 mb-2">
+        <h3 className="text-sm font-semibold text-pl-text mb-1">Gain and loss trend</h3>
+        <p className="text-[11px] text-pl-muted mb-2">
           One day&apos;s gain is noise. A run in one direction is a finding, and separating the two
           is the reason to trend rather than to look at today&apos;s number.
         </p>
@@ -73,14 +73,14 @@ const TerminalResults = () => {
           </LineChart>
         </ChartFrame>
         {trend.prompt && (
-          <div className="mt-2 flex items-start gap-2 rounded border border-amber-800/60 bg-amber-950/30 p-3">
-            <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
-            <p className="text-xs text-amber-200">{trend.prompt}</p>
+          <div className="mt-2 flex items-start gap-2 rounded border border-pl-warning/40 bg-pl-warning-bg p-3">
+            <AlertTriangle className="w-4 h-4 text-pl-warning-text mt-0.5 shrink-0" />
+            <p className="text-xs text-pl-warning-text">{trend.prompt}</p>
           </div>
         )}
         <div className="mt-3 space-y-1">
           {inputs.history.length > 0 && (
-            <div className="flex items-center gap-2 text-[10px] text-slate-500">
+            <div className="flex items-center gap-2 text-[10px] text-pl-muted">
               <span className="w-14" />
               <span className="w-28">Unaccounted (m3)</span>
               <span className="w-28">Throughput (m3)</span>
@@ -88,43 +88,43 @@ const TerminalResults = () => {
           )}
           {inputs.history.map((d, i) => (
             <div key={d.id} className="flex items-center gap-2">
-              <span className="text-[11px] text-slate-500 w-14">Day {i + 1}</span>
+              <span className="text-[11px] text-pl-muted w-14">Day {i + 1}</span>
               <Input type="number" step="any" value={d.unaccountedM3} aria-label={`Day ${i + 1} unaccounted (m3)`}
                 onChange={(e) => setHistoryDay(d.id, { unaccountedM3: e.target.value })}
-                className="h-7 bg-slate-950 border-slate-700 text-xs w-28" placeholder="unaccounted" />
+                className="h-7 text-xs w-28" placeholder="unaccounted" />
               <Input type="number" step="any" value={d.throughputM3} aria-label={`Day ${i + 1} throughput (m3)`}
                 onChange={(e) => setHistoryDay(d.id, { throughputM3: e.target.value })}
-                className="h-7 bg-slate-950 border-slate-700 text-xs w-28" placeholder="throughput" />
+                className="h-7 text-xs w-28" placeholder="throughput" />
               <Button variant="ghost" size="sm" onClick={() => removeHistoryDay(d.id)}
-                className="h-7 text-slate-500 hover:text-red-400 text-xs">Remove</Button>
+                className="h-7 text-pl-muted hover:text-pl-danger-text text-xs">Remove</Button>
             </div>
           ))}
           <Button variant="outline" size="sm" onClick={addHistoryDay}
-            className="h-7 border-slate-700 text-slate-300 text-xs mt-1">Add a day</Button>
+            className="h-7 text-xs mt-1">Add a day</Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-4">
-          <h3 className="text-sm font-semibold text-white mb-1">Loading rack</h3>
+        <div className="rounded-lg border border-pl-border bg-pl-surface p-4">
+          <h3 className="text-sm font-semibold text-pl-text mb-1">Loading rack</h3>
           {queue.stable === false ? (
             <div className="flex items-start gap-2 mt-2">
-              <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-              <p className="text-sm text-red-200">{queue.error}</p>
+              <AlertTriangle className="w-4 h-4 text-pl-danger-text mt-0.5 shrink-0" />
+              <p className="text-sm text-pl-danger-text">{queue.error}</p>
             </div>
           ) : queue.error ? (
-            <p className="text-sm text-slate-400 mt-2">{queue.error}</p>
+            <p className="text-sm text-pl-muted mt-2">{queue.error}</p>
           ) : (
             <>
               <table className="w-full text-sm mt-2">
                 <tbody>
-                  <tr className="border-b border-slate-800/60"><td className="py-1.5 text-slate-400">Utilisation</td><td className="py-1.5 text-right font-mono text-white">{(queue.utilisation * 100).toFixed(0)}%</td></tr>
-                  <tr className="border-b border-slate-800/60"><td className="py-1.5 text-slate-400">Chance of waiting</td><td className="py-1.5 text-right font-mono text-white">{(queue.probabilityOfWaiting * 100).toFixed(0)}%</td></tr>
-                  <tr className="border-b border-slate-800/60"><td className="py-1.5 text-slate-400">Average wait</td><td className="py-1.5 text-right font-mono text-white">{fmt(queue.averageWaitMinutes)} min</td></tr>
-                  <tr><td className="py-1.5 text-slate-400">Time on site</td><td className="py-1.5 text-right font-mono text-white">{fmt(queue.averageTimeOnSiteMinutes)} min</td></tr>
+                  <tr className="border-b border-pl-border"><td className="py-1.5 text-pl-muted">Utilisation</td><td className="py-1.5 text-right font-mono text-pl-text">{(queue.utilisation * 100).toFixed(0)}%</td></tr>
+                  <tr className="border-b border-pl-border"><td className="py-1.5 text-pl-muted">Chance of waiting</td><td className="py-1.5 text-right font-mono text-pl-text">{(queue.probabilityOfWaiting * 100).toFixed(0)}%</td></tr>
+                  <tr className="border-b border-pl-border"><td className="py-1.5 text-pl-muted">Average wait</td><td className="py-1.5 text-right font-mono text-pl-text">{fmt(queue.averageWaitMinutes)} min</td></tr>
+                  <tr><td className="py-1.5 text-pl-muted">Time on site</td><td className="py-1.5 text-right font-mono text-pl-text">{fmt(queue.averageTimeOnSiteMinutes)} min</td></tr>
                 </tbody>
               </table>
-              <p className="text-[11px] text-slate-500 mt-2 flex items-start gap-1">
+              <p className="text-[11px] text-pl-muted mt-2 flex items-start gap-1">
                 <Info className="w-3 h-3 mt-0.5 shrink-0" />
                 A rack at 85 percent utilisation does not have 15 percent spare, it has a queue.
                 That is what simple capacity arithmetic gets wrong and why this is a queue model.
@@ -133,39 +133,39 @@ const TerminalResults = () => {
           )}
         </div>
 
-        <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-4">
-          <h3 className="text-sm font-semibold text-white mb-1">Tank farm</h3>
+        <div className="rounded-lg border border-pl-border bg-pl-surface p-4">
+          <h3 className="text-sm font-semibold text-pl-text mb-1">Tank farm</h3>
           <table className="w-full text-sm mt-2">
             <tbody>
-              <tr className="border-b border-slate-800/60"><td className="py-1.5 text-slate-400">Working capacity</td><td className="py-1.5 text-right font-mono text-white">{fmt(farm.workingCapacityM3, 0)} m3</td></tr>
-              <tr className="border-b border-slate-800/60"><td className="py-1.5 text-slate-400">Stock</td><td className="py-1.5 text-right font-mono text-white">{fmt(farm.stockM3, 0)} m3</td></tr>
-              <tr className="border-b border-slate-800/60"><td className="py-1.5 text-slate-400">Ullage</td><td className="py-1.5 text-right font-mono text-white">{fmt(farm.ullageM3, 0)} m3</td></tr>
-              <tr className="border-b border-slate-800/60"><td className="py-1.5 text-slate-400">Days of cover</td><td className="py-1.5 text-right font-mono text-white">{fmt(farm.daysOfCover)}</td></tr>
-              <tr><td className="py-1.5 text-slate-400">Turns per year</td><td className="py-1.5 text-right font-mono text-white">{fmt(farm.turnsPerYear)}</td></tr>
+              <tr className="border-b border-pl-border"><td className="py-1.5 text-pl-muted">Working capacity</td><td className="py-1.5 text-right font-mono text-pl-text">{fmt(farm.workingCapacityM3, 0)} m3</td></tr>
+              <tr className="border-b border-pl-border"><td className="py-1.5 text-pl-muted">Stock</td><td className="py-1.5 text-right font-mono text-pl-text">{fmt(farm.stockM3, 0)} m3</td></tr>
+              <tr className="border-b border-pl-border"><td className="py-1.5 text-pl-muted">Ullage</td><td className="py-1.5 text-right font-mono text-pl-text">{fmt(farm.ullageM3, 0)} m3</td></tr>
+              <tr className="border-b border-pl-border"><td className="py-1.5 text-pl-muted">Days of cover</td><td className="py-1.5 text-right font-mono text-pl-text">{fmt(farm.daysOfCover)}</td></tr>
+              <tr><td className="py-1.5 text-pl-muted">Turns per year</td><td className="py-1.5 text-right font-mono text-pl-text">{fmt(farm.turnsPerYear)}</td></tr>
             </tbody>
           </table>
-          <p className="text-[11px] text-slate-500 mt-2">
+          <p className="text-[11px] text-pl-muted mt-2">
             Working capacity is net of the heel, and cover is on pumpable stock. A plan that counts
             the heel is planning on volume that cannot come out.
           </p>
         </div>
       </div>
 
-      <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-4">
-        <h3 className="text-sm font-semibold text-white mb-2">Throughput, in money and in carbon</h3>
+      <div className="rounded-lg border border-pl-border bg-pl-surface p-4">
+        <h3 className="text-sm font-semibold text-pl-text mb-2">Throughput, in money and in carbon</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div><p className="text-[11px] uppercase text-slate-400">Margin</p><p className={`text-lg font-bold mt-1 ${economics.margin < 0 ? 'text-red-300' : 'text-lime-300'}`}>{money(economics.margin, 0)}</p></div>
-          <div><p className="text-[11px] uppercase text-slate-400">Per m3</p><p className="text-lg font-bold text-white mt-1">{money(economics.marginPerM3, 2)}</p></div>
-          <div><p className="text-[11px] uppercase text-slate-400">Loss</p><p className="text-lg font-bold text-white mt-1">{fmt(economics.lossTonnes, 2)} t</p></div>
+          <div><p className="text-[11px] uppercase text-pl-muted">Margin</p><p className={`text-lg font-bold mt-1 ${economics.margin < 0 ? 'text-pl-danger-text' : 'text-pl-text'}`}>{money(economics.margin, 0)}</p></div>
+          <div><p className="text-[11px] uppercase text-pl-muted">Per m3</p><p className="text-lg font-bold text-pl-text mt-1">{money(economics.marginPerM3, 2)}</p></div>
+          <div><p className="text-[11px] uppercase text-pl-muted">Loss</p><p className="text-lg font-bold text-pl-text mt-1">{fmt(economics.lossTonnes, 2)} t</p></div>
           <div>
-            <p className="text-[11px] uppercase text-slate-400">kgCO2e per tonne</p>
-            <p className="text-lg font-bold text-white mt-1">
+            <p className="text-[11px] uppercase text-pl-muted">kgCO2e per tonne</p>
+            <p className="text-lg font-bold text-pl-text mt-1">
               {economics.kgCo2ePerTonneThroughput === null ? 'n/a' : fmt(economics.kgCo2ePerTonneThroughput, 3)}
             </p>
           </div>
         </div>
         {economics.carbonNote && (
-          <p className="text-[11px] text-amber-300 mt-3">{economics.carbonNote}</p>
+          <p className="text-[11px] text-pl-warning-text mt-3">{economics.carbonNote}</p>
         )}
       </div>
     </div>

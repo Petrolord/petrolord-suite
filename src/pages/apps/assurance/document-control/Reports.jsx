@@ -137,7 +137,7 @@ export default function Reports() {
             <CardTitle className="text-lg">Department by status</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <div className="relative h-[360px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+            <div data-canvas="chart" className="relative h-[360px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={byDepartment} margin={CHART_MARGINS.legend}>
                   <CartesianGrid {...GRID_STYLE} vertical={false} />
@@ -162,7 +162,7 @@ export default function Reports() {
             <CardTitle className="text-lg">Documents by category</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <div className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+            <div data-canvas="chart" className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={byCategory} layout="vertical" margin={CHART_MARGINS.compact}>
                   <CartesianGrid {...GRID_STYLE} horizontal={false} />

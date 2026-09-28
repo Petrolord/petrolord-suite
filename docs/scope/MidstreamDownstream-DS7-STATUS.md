@@ -5,6 +5,24 @@ Status: **SHIPPED 2026-08-29** (branch feat/downstream-ds7)
 
 Track B's third app, and the last before Track C.
 
+## Design system rollout, batch 5D (2026-09-28)
+
+The app opens on the Petrolord design system: light grey panel by default,
+dark as a per-user choice from the header toggle, which stays visible at
+phone width.
+
+- Scope: `ThemedApp` inside `src/pages/apps/LpgCngRolloutStudio.jsx`; App.jsx unchanged.
+  The header is `AppHeader` (back, title, saved study, save, help, toggle).
+  Cold-load prefix `/dashboard/apps/midstream-downstream/lpg-cng-rollout-studio` in
+  `src/design/rollout/w5d.js`.
+- The inputs rail sits on the panel surface beside the results and stacks above them at phone width. Warnings (the refused fill limit, a delivery that does not fit, a compression stage over its limit) read on the warning role, bottling capacity reads success or warning with its sentence, and the decorative lime icons are gone. The cylinder, trailer and cost charts keep the white chart standard.
+- Test: `src/pages/apps/__tests__/LpgCngRolloutStudio.theme.test.jsx` (light by default,
+  toggle to dark and back stored per user, no legacy colour outside canvases
+  with a negative control, the route registered, every tab in both themes,
+  the documentation drawer and the new-study dialog inside the scope).
+  Existing tests pass unchanged.
+- No engine or calculation change.
+
 ## Two fuels, one set of models
 
 LPG and CNG look like different businesses. They share more structure

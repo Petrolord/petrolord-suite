@@ -82,7 +82,7 @@ export const ErrorState = ({ error, onRetry }) => (
 
 export const Loading = ({ label = 'Loading...' }) => (
   <div className="flex flex-col items-center justify-center h-full w-full opacity-50 py-24">
-    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[hsl(var(--warning))] mb-4" />
+    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-pl-primary mb-4" />
     <p className="text-[hsl(var(--muted-foreground))]">{label}</p>
   </div>
 );
@@ -103,7 +103,7 @@ export const OwnerAvatar = ({ name }) => {
   const initials = name ? name.split(' ').map((n) => n[0]).join('').substring(0, 2) : '?';
   return (
     <div className="flex items-center gap-2">
-      <div className="w-6 h-6 rounded-full bg-[hsl(var(--warning))]/20 text-[hsl(var(--warning))] flex items-center justify-center text-[10px] font-bold border border-[hsl(var(--warning))]/30">
+      <div className="w-6 h-6 rounded-full bg-pl-sunken text-pl-text flex items-center justify-center text-[10px] font-bold border border-pl-border">
         {initials}
       </div>
       <span className="text-sm text-[hsl(var(--foreground))]">{name}</span>
@@ -139,7 +139,7 @@ export const ConfirmDelete = ({ target, title, description, confirmLabel = 'Dele
       <AlertDialogFooter>
         <AlertDialogCancel onClick={onCancel}>Cancel</AlertDialogCancel>
         <AlertDialogAction
-          className="bg-[hsl(var(--destructive))] text-white hover:bg-[hsl(var(--destructive))]/90"
+          className="bg-pl-danger text-pl-danger-fg hover:bg-pl-danger/90"
           onClick={() => onConfirm(target)}
         >
           {confirmLabel}

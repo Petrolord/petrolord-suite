@@ -140,3 +140,14 @@ cylinder-fleet logistics for LPG; mother and daughter station design,
 compression power, cascade storage and dispensing capacity for CNG; and
 the conversion economics against petrol and diesel with the payback and
 the emissions avoided.
+
+## Design system rollout (w5c, 2026-09-28)
+
+The page wraps itself in `ThemedApp`: grey panel light by default, dark by the
+user's choice in the header toggle. AppHeader (with the theme toggle) replaces the bespoke header. The landed cost, depot-to-nozzle and lane cost ledgers are NumericTables (rows with a rate still required keep a warning fill beside the word required); the pump-price box keeps success, warning or danger by state. Charts stay white in ChartFrame. No calculation change; the existing
+suites pass unchanged. Theme test: `src/pages/apps/__tests__/FuelPricingStudio.theme.test.jsx` (standard
+four checks plus every tab, results states and the documentation drawer).
+Route `/dashboard/apps/midstream-downstream/fuel-pricing-supply-chain` is registered in
+`src/design/rollout/w5c.js` for the cold-load loaders. Screens checked in
+light at 1440 and 390 (no sideways page scroll) and dark at 1440 on a private
+dev server; the phone layout now stacks the input rail above the results.

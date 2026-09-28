@@ -319,7 +319,7 @@ dark and back, stored per user. The route prefix
   chart paper (`data-canvas="chart"`). Core photographs, intervals and
   the package dialogs are the scope-aware wells kit and portability
   dialogs from W0C.
-- Known issue, unchanged here: in paste mode (Tops, Deviation,
+- Known issue (fixed 2026-09-28, see below): in paste mode (Tops, Deviation,
   Checkshots "Replace from paste") the shared `PasteReplacePanel`
   receives a new `fields` array each render and its effect sets editor
   state every render, so the panel re-renders without end (jsdom hangs;
@@ -327,3 +327,25 @@ dark and back, stored per user. The route prefix
 - Tests: new `__tests__/WellDataManager.theme.test.jsx` (shared checks,
   an owned well on every tab and grid editor, dark, five dialogs). No
   LAS, registry or calculation change.
+
+## 2026-09-28: replace-from-paste no longer re-renders without end
+
+The W4A known issue is fixed at the root, in two places:
+
+- `WellDetail` hands `PasteReplacePanel` module-constant field lists
+  (`TOPS_PASTE_FIELDS`, `DEVIATION_PASTE_FIELDS`,
+  `CHECKSHOT_PASTE_FIELDS`) in place of a fresh array literal per render.
+- `PasteReplacePanel` memoizes its parse on `fields.join('|')`, so a caller
+  that still passes a fresh literal re-parses and emits `onParsed` only
+  when the text, the field names or the column mapping change. The other
+  caller (`IntervalsEditor`, already hoisted) behaves identically;
+  `WellImport` uses only the named exports.
+- A new Checkshots editor on a well with no checkshots opens straight into
+  paste mode, so that editor was stuck on open, before any paste.
+- Tests: new `__tests__/pasteReplace.test.jsx` pastes into Tops, Deviation
+  and Checkshots, asserts bounded panel renders and `onParsed` calls, that
+  the mapper previews the parsed rows, and that Save writes them; a probe
+  caller with a fresh literal each render also settles. Negative controls:
+  both files at origin/main, and the panel alone at origin/main, hang
+  ("Maximum update depth exceeded"; killed at the timeout). The theme test
+  now also checks each editor's paste mode. No parsing or saved-data change.

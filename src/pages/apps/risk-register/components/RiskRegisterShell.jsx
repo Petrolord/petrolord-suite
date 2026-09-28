@@ -6,6 +6,8 @@ import { SnapshotManager } from './SnapshotManager';
 import { useRiskReporting } from '../contexts/RiskReportingContext';
 import { useRiskRegister } from '../hooks/useRiskRegister';
 import AssuranceHelp from '@/components/assurance/AssuranceHelp';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 export const RiskRegisterShell = ({ children, activeTab, onTabChange }) => {
   // AS2: the snapshot needs the register it is capturing. It used to
@@ -40,35 +42,38 @@ export const RiskRegisterShell = ({ children, activeTab, onTabChange }) => {
   ];
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-slate-200">
-      <div className="flex-none bg-slate-900 border-b border-slate-800">
-        <div className="px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+    // Design system (W4E): every Risk Register route renders this shell,
+    // so the one theme scope lives here.
+    <ThemedApp className="flex flex-col h-full bg-pl-bg text-pl-text" data-testid="risk-theme-scope">
+      <div className="flex-none bg-pl-surface border-b border-pl-border">
+        <div className="px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-4">
             <BackButton />
-            <div className="p-2 bg-cyan-500/20 rounded-lg">
-               <ShieldAlert className="w-6 h-6 text-cyan-400" />
+            <div className="p-2 bg-pl-sunken rounded-lg">
+               <ShieldAlert className="w-6 h-6 text-pl-primary-text" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white leading-tight">Risk Register</h1>
-              <p className="text-xs text-slate-400">Petrolord Assurance Suite</p>
+              <h1 className="text-xl font-bold text-pl-text leading-tight">Risk Register</h1>
+              <p className="text-xs text-pl-muted">Petrolord Assurance Suite</p>
             </div>
           </div>
           
           <div className="flex items-center gap-3">
             <SnapshotManager risks={risks} />
             <AssuranceHelp appKey="risk" />
+            <ThemeToggle />
           </div>
         </div>
         
         {activeTab && onTabChange && (
-          <div className="px-6">
+          <div className="px-4 sm:px-6 overflow-x-auto">
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-              <TabsList className="bg-transparent rounded-none w-full justify-start h-auto p-0 space-x-6 border-transparent">
+              <TabsList className="bg-transparent rounded-none w-full min-w-max justify-start h-auto p-0 space-x-6 border-transparent">
                 {navItems.map(item => (
                   <TabsTrigger 
                     key={item.id} 
                     value={item.id}
-                    className="relative rounded-none px-0 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 data-[state=active]:text-cyan-400 data-[state=active]:bg-transparent data-[state=active]:shadow-none after:absolute after:bottom-[-1px] after:left-0 after:right-0 after:h-[2px] after:bg-transparent data-[state=active]:after:bg-cyan-500"
+                    className="relative rounded-none px-0 py-3 text-sm font-medium text-pl-muted hover:text-pl-text data-[state=active]:text-pl-primary-text data-[state=active]:bg-transparent data-[state=active]:shadow-none after:absolute after:bottom-[-1px] after:left-0 after:right-0 after:h-[2px] after:bg-transparent data-[state=active]:after:bg-pl-primary"
                   >
                     <item.icon className="w-4 h-4 mr-2" />
                     {item.name}
@@ -83,6 +88,6 @@ export const RiskRegisterShell = ({ children, activeTab, onTabChange }) => {
       <div className="flex-1 overflow-y-auto relative">
          {children}
       </div>
-    </div>
+    </ThemedApp>
   );
 };

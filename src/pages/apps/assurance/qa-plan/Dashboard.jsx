@@ -180,7 +180,7 @@ export default function Dashboard() {
                   No inspection points have been added to any plan yet.
                 </p>
               ) : (
-                <div className="relative h-[300px] rounded-lg p-2"
+                <div data-canvas="chart" className="relative h-[300px] rounded-lg p-2"
                   style={{ backgroundColor: CHART_COLORS.background }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={checkpointData} margin={CHART_MARGINS.compact}>
@@ -213,7 +213,7 @@ export default function Dashboard() {
                   Nothing is open.
                 </p>
               ) : (
-                <div className="relative h-[300px] rounded-lg p-2"
+                <div data-canvas="chart" className="relative h-[300px] rounded-lg p-2"
                   style={{ backgroundColor: CHART_COLORS.background }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={ageingData} margin={CHART_MARGINS.legend}>

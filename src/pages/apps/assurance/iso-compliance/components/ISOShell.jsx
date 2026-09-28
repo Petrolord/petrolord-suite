@@ -6,6 +6,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { CompactNav } from '../../shared/CompactNav';
 import AssuranceHelp from '@/components/assurance/AssuranceHelp';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export const BASE = '/dashboard/apps/assurance/iso-compliance';
 
@@ -52,6 +53,7 @@ export const ISOShell = ({
         <div className="flex flex-wrap gap-2">
           {actions}
           <AssuranceHelp appKey="iso" />
+          <ThemeToggle />
         </div>
       </div>
 

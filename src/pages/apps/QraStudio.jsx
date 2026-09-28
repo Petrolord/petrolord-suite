@@ -13,6 +13,8 @@ import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, BookOpen, Scale } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -43,27 +45,27 @@ const Workspace = () => {
   return (
     <>
       <StudioNotifications notifications={notifications} onDismiss={removeNotification} />
-      <div className="flex h-full flex-col bg-slate-950 text-white">
-        <header className="flex-shrink-0 border-b border-slate-800 px-4 py-3">
+      <div className="flex h-full flex-col bg-pl-bg text-pl-text">
+        <header className="flex-shrink-0 border-b border-pl-border bg-pl-surface px-4 py-3">
           <Link to="/dashboard/process-safety">
-            <Button variant="ghost" size="sm" className="mb-2 pl-0 text-slate-400 hover:text-white">
+            <Button variant="ghost" size="sm" className="mb-2 pl-0 text-pl-muted hover:text-pl-text">
               <ArrowLeft className="mr-2 h-4 w-4" /> Process Safety
             </Button>
           </Link>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-gradient-to-r from-red-500 to-amber-500 p-2 shadow-lg">
-                <Scale className="h-6 w-6 text-white" />
+              <div className="rounded-xl bg-pl-primary p-2 text-pl-primary-fg shadow-pl-sm">
+                <Scale className="h-6 w-6" aria-hidden="true" />
               </div>
               <div>
                 <h1 className="text-xl font-bold tracking-tight">QRA Studio</h1>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-pl-muted">
                   How often each outcome happens, who it kills where, the risk to a person and to a crowd, and
                   whether a measure is worth its cost.
                 </p>
               </div>
             </div>
-            <div className="flex items-end gap-3">
+            <div className="flex flex-wrap items-end gap-3">
               <div className="w-52">
                 <StudioProjectManager
                   label="Saved study"
@@ -83,14 +85,15 @@ const Workspace = () => {
                 disabled={!persistence.currentProjectId}
               />
               <Link to={`${QRA_STUDIO_ROUTE}/help`} title="Documentation">
-                <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white">
+                <Button variant="ghost" size="sm" className="text-pl-muted hover:text-pl-text">
                   <BookOpen className="mr-1 h-4 w-4" /> Help guide
                 </Button>
               </Link>
+              <ThemeToggle />
             </div>
           </div>
           {orgId ? null : (
-            <p className="mt-2 text-xs text-amber-200">
+            <p className="mt-2 text-xs text-pl-warning-text">
               Studies are saved to your organization. Without one you can work here, and saving is unavailable.
             </p>
           )}
@@ -99,7 +102,7 @@ const Workspace = () => {
         <main className="flex-1 space-y-4 overflow-y-auto p-4">
           <QraScopeNotice />
           <Tabs value={tab} onValueChange={setTab}>
-            <TabsList className="border border-slate-800 bg-slate-900">
+            <TabsList className="h-auto flex-wrap">
               {TABS.map((t) => <TabsTrigger key={t.id} value={t.id}>{t.label}</TabsTrigger>)}
             </TabsList>
             {TABS.map(({ id, Panel }) => (
@@ -115,7 +118,7 @@ const Workspace = () => {
 };
 
 const QraStudio = () => (
-  <>
+  <ThemedApp className="h-full min-h-screen" data-testid="qra-theme-scope">
     <Helmet>
       <title>QRA Studio - Petrolord Suite</title>
       <meta
@@ -126,7 +129,7 @@ const QraStudio = () => (
     <QraStudioProvider>
       <Workspace />
     </QraStudioProvider>
-  </>
+  </ThemedApp>
 );
 
 export default QraStudio;

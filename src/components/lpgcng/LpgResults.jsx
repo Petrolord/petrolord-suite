@@ -11,10 +11,10 @@ const fmt = (v, dp = 2) => (Number.isFinite(v)
   : 'not supplied');
 
 const Stat = ({ label, value, hint }) => (
-  <div className="rounded border border-slate-800 bg-slate-900/60 p-3">
-    <p className="text-[10px] uppercase tracking-wide text-slate-500">{label}</p>
-    <p className="text-lg font-semibold text-white">{value}</p>
-    {hint && <p className="text-[11px] text-slate-500 mt-0.5">{hint}</p>}
+  <div className="rounded-lg border border-pl-border bg-pl-surface p-3">
+    <p className="text-[10px] uppercase tracking-wide text-pl-muted">{label}</p>
+    <p className="font-pl-mono text-lg font-semibold tabular-nums text-pl-text">{value}</p>
+    {hint && <p className="text-[11px] text-pl-muted mt-0.5">{hint}</p>}
   </div>
 );
 
@@ -27,28 +27,28 @@ const LpgResults = () => {
   return (
     <div className="space-y-5">
       <div>
-        <h3 className="text-sm font-semibold text-white mb-1">The blend</h3>
-        <p className="text-[11px] text-slate-500 mb-2">
+        <h3 className="text-sm font-semibold text-pl-text mb-1">The blend</h3>
+        <p className="text-[11px] text-pl-muted mb-2">
           Every property declares the basis it mixes on. Liquid density mixes on volume, latent
           heat per kilogram mixes on mass and molar mass mixes on moles. Using the wrong one is a
           quiet error of several percent that looks entirely plausible.
         </p>
-        {blend.error ? <p className="text-sm text-amber-300">{blend.error}</p> : (
+        {blend.error ? <p className="text-sm text-pl-warning-text">{blend.error}</p> : (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <Stat label="Liquid density" value={`${fmt(blend.densityKgM3, 1)} kg/m3`} hint={`${blend.densityBasis} basis`} />
             <Stat label="Latent heat" value={blend.latentHeatKJkg === null ? 'not available' : `${fmt(blend.latentHeatKJkg, 1)} kJ/kg`} hint={`${blend.latentHeatBasis} basis`} />
             <Stat label="Molar mass" value={blend.molarMassKgKmol === null ? 'not available' : `${fmt(blend.molarMassKgKmol, 2)} kg/kmol`} hint={`${blend.molarMassBasis} basis`} />
           </div>
         )}
-        {blend.note && <p className="text-[11px] text-amber-300 mt-2">{blend.note}</p>}
+        {blend.note && <p className="text-[11px] text-pl-warning-text mt-2">{blend.note}</p>}
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-white mb-1">Storage</h3>
+        <h3 className="text-sm font-semibold text-pl-text mb-1">Storage</h3>
         {storage.error ? (
-          <div className="rounded-lg border border-amber-800/60 bg-amber-950/30 p-4 flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
-            <p className="text-sm text-amber-100">{storage.error}</p>
+          <div className="rounded-lg border border-pl-warning/40 bg-pl-warning-bg p-4 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-pl-warning-text mt-0.5 shrink-0" />
+            <p className="text-sm text-pl-warning-text">{storage.error}</p>
           </div>
         ) : (
           <>
@@ -58,22 +58,22 @@ const LpgResults = () => {
               <Stat label="Cover" value={`${fmt(storage.coverDays, 1)} days`} />
               <Stat label="Reorder at" value={storage.reorderAtTonnes === null ? 'not stated' : `${fmt(storage.reorderAtTonnes, 1)} t`} hint={storage.reorderAtTonnes === null ? 'needs the lead time and safety stock' : `${fmt(storage.safetyStockTonnes, 1)} t of it is safety stock`} />
             </div>
-            <p className="text-[11px] text-slate-500 mt-2">
+            <p className="text-[11px] text-pl-muted mt-2">
               {storage.fillRatioBasis === 'water_capacity_mass'
                 ? 'The fill limit is read as a filling density on the water capacity, by weight.'
                 : 'The fill limit is read as a share of the vessel\'s liquid volume.'}
             </p>
             {storage.missingInputs && storage.missingInputs.length > 0 && (
-              <p className="text-[11px] text-amber-300 mt-1">{`No ${storage.missingInputs.join(' or ')}, so the reorder point and whether a delivery fits are not stated.`}</p>
+              <p className="text-[11px] text-pl-warning-text mt-1">{`No ${storage.missingInputs.join(' or ')}, so the reorder point and whether a delivery fits are not stated.`}</p>
             )}
             {storage.deliveryWarning && (
-              <div className="mt-3 rounded border border-amber-800/60 bg-amber-950/30 p-3 flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
-                <p className="text-xs text-amber-100">{storage.deliveryWarning}</p>
+              <div className="mt-3 rounded border border-pl-warning/40 bg-pl-warning-bg p-3 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-pl-warning-text mt-0.5 shrink-0" />
+                <p className="text-xs text-pl-warning-text">{storage.deliveryWarning}</p>
               </div>
             )}
             {storage.deliveryFitsUllage === true && (
-              <p className="text-[11px] text-slate-500 mt-2">
+              <p className="text-[11px] text-pl-muted mt-2">
                 {`The delivery fits the ${fmt(storage.ullageAtReorderTonnes, 1)} tonnes of room at the reorder point. About ${fmt(storage.deliveriesPerMonth, 1)} deliveries a month.`}
               </p>
             )}
@@ -82,12 +82,12 @@ const LpgResults = () => {
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-white mb-1">Vaporizer duty</h3>
-        <p className="text-[11px] text-slate-500 mb-2">
+        <h3 className="text-sm font-semibold text-pl-text mb-1">Vaporizer duty</h3>
+        <p className="text-[11px] text-pl-muted mb-2">
           Three terms, kept apart because they answer different questions. Skipping the superheat
           is how a vaporizer that is correctly sized on paper drops liquid into a burner.
         </p>
-        {vaporizer.error ? <p className="text-sm text-amber-300">{vaporizer.error}</p> : (
+        {vaporizer.error ? <p className="text-sm text-pl-warning-text">{vaporizer.error}</p> : (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {vaporizer.terms.map((t) => (
@@ -97,17 +97,17 @@ const LpgResults = () => {
               ))}
               <Stat label="Design duty" value={`${fmt(vaporizer.designDutyKW, 1)} kW`} hint={`${fmt(vaporizer.dutyKW, 1)} kW plus margin`} />
             </div>
-            {vaporizer.note && <p className="text-[11px] text-amber-300 mt-2">{vaporizer.note}</p>}
+            {vaporizer.note && <p className="text-[11px] text-pl-warning-text mt-2">{vaporizer.note}</p>}
             {vaporizer.assumedZero && vaporizer.assumedZero.length > 0 && (
-              <p className="text-[11px] text-amber-300 mt-1">No design margin given, so none is added.</p>
+              <p className="text-[11px] text-pl-warning-text mt-1">No design margin given, so none is added.</p>
             )}
           </>
         )}
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-white mb-1">Bottling plant</h3>
-        {bottling.error ? <p className="text-sm text-amber-300">{bottling.error}</p> : (
+        <h3 className="text-sm font-semibold text-pl-text mb-1">Bottling plant</h3>
+        {bottling.error ? <p className="text-sm text-pl-warning-text">{bottling.error}</p> : (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Stat label="Minimum positions" value={bottling.minimumPositionsForThroughput} hint="for the throughput alone" />
@@ -117,11 +117,11 @@ const LpgResults = () => {
                 value={bottling.queue.stable ? `${fmt(bottling.queue.averageWaitMinutes, 1)} min` : 'unbounded'}
                 hint={bottling.queue.stable ? null : 'arrivals exceed capacity'} />
             </div>
-            <p className="text-[11px] text-slate-500 mt-2">{bottling.note}</p>
+            <p className="text-[11px] text-pl-muted mt-2">{bottling.note}</p>
             {bottling.positionRoundingNote && (
-              <p className="text-[11px] text-slate-500 mt-1">{bottling.positionRoundingNote}</p>
+              <p className="text-[11px] text-pl-muted mt-1">{bottling.positionRoundingNote}</p>
             )}
-            <p className={`text-[11px] mt-1 flex items-center gap-1.5 ${bottling.meetsDemand ? 'text-emerald-300' : 'text-amber-300'}`}>
+            <p className={`text-[11px] mt-1 flex items-center gap-1.5 ${bottling.meetsDemand ? 'text-pl-success-text' : 'text-pl-warning-text'}`}>
               {bottling.meetsDemand
                 ? <CheckCircle2 className="w-3.5 h-3.5" />
                 : <AlertTriangle className="w-3.5 h-3.5" />}
@@ -134,14 +134,14 @@ const LpgResults = () => {
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-white mb-1">The cylinder float</h3>
-        <p className="text-[11px] text-slate-500 mb-2">
+        <h3 className="text-sm font-semibold text-pl-text mb-1">The cylinder float</h3>
+        <p className="text-[11px] text-pl-muted mb-2">
           {cylinderFleet.error ? '' : cylinderFleet.basis}
           {' '}
           Operators usually guess this number and usually guess it low, because the cylinders at a
           customer&apos;s house are invisible and are most of the fleet.
         </p>
-        {cylinderFleet.error ? <p className="text-sm text-amber-300">{cylinderFleet.error}</p> : (
+        {cylinderFleet.error ? <p className="text-sm text-pl-warning-text">{cylinderFleet.error}</p> : (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Stat label="Cycle" value={`${fmt(cylinderFleet.cycleDays, 1)} days`} hint={`${cylinderFleet.dominantStage} dominates`} />

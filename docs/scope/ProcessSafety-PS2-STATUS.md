@@ -151,6 +151,17 @@ price.
 - Registration: `processSafetyRegistration.test.js` (route, table, tile,
   no pricing, two-app showcase, MIGRATIONS rows).
 
+## Design system (rollout w4f, 2026-09-28)
+
+Consequence Modelling Studio and its help guide wrap themselves in `<ThemedApp>` (`consequence-theme-scope`), open
+in the grey panel light theme and switch to dark with the header toggle.
+The panels, fields, tables and native selects are on the `pl-*` roles and
+the gradient icon tile is the primary tile. The distance and regime states (REACHED, NOT_REACHED, CHOKED ...) keep their word beside a status tone, carried-over values sit in an info box, and the concentration, heat flux and overpressure charts stay white (`data-canvas="chart"`). There is no map or plume drawing in the app, so no dark canvas: every result is a chart or a number.
+`components/processsafety/lopa/shared.jsx` and `consequence/fields.jsx`
+are used only by the three studios, so they moved straight to roles. No
+engine or calculation change. Theme test:
+`src/pages/apps/__tests__/ProcessSafetyStudios.theme.test.jsx`.
+
 ## Owner steps, in order
 
 1. PS0 and PS1 steps first if not yet done (ProcessSafety-PS1-STATUS.md):

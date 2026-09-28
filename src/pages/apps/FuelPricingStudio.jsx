@@ -4,9 +4,9 @@
 // with every rate the user's own and every missing one said to be missing.
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Fuel } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Fuel } from 'lucide-react';
+import { AppHeader } from '@/components/ui/app-shell';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -24,26 +24,17 @@ const Workspace = () => {
   return (
     <>
       <StudioNotifications notifications={notifications} onDismiss={removeNotification} />
-      <div className="flex flex-col h-full bg-slate-950 text-white">
-        <header className="flex-shrink-0 border-b border-slate-800 px-4 py-3">
-          <Link to="/dashboard/midstream-downstream">
-            <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white pl-0 mb-2">
-              <ArrowLeft className="w-4 h-4 mr-2" /> Midstream &amp; Downstream
-            </Button>
-          </Link>
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-r from-cyan-500 to-blue-500 p-2 rounded-xl shadow-lg">
-                <Fuel className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold tracking-tight">Fuel Pricing &amp; Supply Chain Studio</h1>
-                <p className="text-slate-400 text-xs">
-                  Cargo to nozzle: the landed cost, the pump-price build-up, the lane, and the rate at which the cap breaks.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-end gap-3">
+      <div className="flex h-full flex-col bg-pl-bg text-pl-text">
+        <AppHeader
+          backTo="/dashboard/midstream-downstream"
+          backLabel="Midstream & Downstream"
+          icon={Fuel}
+          eyebrow="Midstream & Downstream"
+          title="Fuel Pricing & Supply Chain Studio"
+          subtitle="Cargo to nozzle: the landed cost, the pump-price build-up, the lane, and the rate at which the cap breaks."
+          className="static flex-shrink-0"
+          actions={(
+            <>
               <div className="w-52">
                 <StudioProjectManager
                   label="Saved study"
@@ -63,17 +54,17 @@ const Workspace = () => {
                 disabled={!persistence.currentProjectId}
               />
               <FuelPricingHelpGuide />
-            </div>
-          </div>
-        </header>
+            </>
+          )}
+        />
 
-        <div className="flex flex-1 overflow-hidden">
-          <aside className="w-full md:w-1/3 xl:w-1/4 border-r border-slate-800 bg-slate-900/40 p-4 overflow-y-auto">
+        <div className="flex flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden">
+          <aside className="w-full border-b border-pl-border bg-pl-surface p-4 md:w-1/3 md:overflow-y-auto md:border-b-0 md:border-r xl:w-1/4">
             <PricingInputs />
           </aside>
-          <main className="flex-1 p-4 overflow-y-auto">
+          <main className="min-w-0 flex-1 p-4 md:overflow-y-auto">
             <Tabs value={tab} onValueChange={setTab}>
-              <TabsList className="bg-slate-900 border border-slate-800">
+              <TabsList className="h-auto flex-wrap justify-start">
                 <TabsTrigger value="price">Landed cost &amp; pump price</TabsTrigger>
                 <TabsTrigger value="chain">Lane, fleet &amp; station</TabsTrigger>
               </TabsList>
@@ -91,8 +82,10 @@ const Workspace = () => {
   );
 };
 
+// Design system rollout batch 5C (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class below is a theme role.
 const FuelPricingStudio = () => (
-  <>
+  <ThemedApp data-testid="fuel-pricing-theme-scope" className="h-full">
     <Helmet>
       <title>Fuel Pricing &amp; Supply Chain Studio - Petrolord Suite</title>
       <meta name="description" content="Import-parity landed cost, pump-price build-up and margin waterfall, depot-to-station trucking economics and station throughput sizing." />
@@ -100,7 +93,7 @@ const FuelPricingStudio = () => (
     <FuelPricingProvider>
       <Workspace />
     </FuelPricingProvider>
-  </>
+  </ThemedApp>
 );
 
 export default FuelPricingStudio;

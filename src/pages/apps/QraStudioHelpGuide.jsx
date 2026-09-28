@@ -14,6 +14,7 @@ import {
 import {
   Callout, Formula, GuideSection, HelpGuideShell, Para, SectionHeading, Step, Table,
 } from '@/components/helpguide/HelpGuideLayout';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { QRA_STUDIO_ROUTE } from '@/utils/processSafety/qraStudy';
 
 export const QRA_GUIDE_SECTIONS = [
@@ -31,7 +32,7 @@ export const QRA_GUIDE_SECTIONS = [
   { id: 'sources', icon: Library, title: 'Sources' },
 ];
 
-const QraStudioHelpGuide = () => (
+const QraStudioHelpGuideContent = () => (
   <HelpGuideShell
     title="QRA Studio Help Guide"
     subtitle="Individual risk, PLL, F-N curves, ALARP and the cost-benefit test"
@@ -264,6 +265,12 @@ const QraStudioHelpGuide = () => (
       </Para>
     </GuideSection>
   </HelpGuideShell>
+);
+
+const QraStudioHelpGuide = () => (
+  <ThemedApp className="min-h-screen" data-testid="qra-help-theme-scope">
+    <QraStudioHelpGuideContent />
+  </ThemedApp>
 );
 
 export default QraStudioHelpGuide;

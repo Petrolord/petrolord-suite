@@ -68,7 +68,7 @@ export const VesselDaysChart = ({ sets, capacityDays, filename }) => {
   sets.forEach((s) => { needed[s.id] = s.vesselDays; });
   const data = [needed, { name: 'Fleet capacity', capacity: capacityDays }];
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-700">
+    <div className="overflow-hidden rounded-lg border border-pl-border">
       <ChartFrame height={220} exportFilename={filename}>
         <BarChart data={data} margin={{ top: 16, right: 20, left: 0, bottom: 8 }}>
           <CartesianGrid {...GRID_STYLE} />
@@ -101,7 +101,7 @@ const FleetResults = () => {
             <Stat label="Fuel cost for the period" value={fmtNum(r.fuelCost, 2)} testId="fleet-cost" />
           </div>
           <table className="w-full text-xs">
-            <thead className="text-left text-slate-400">
+            <thead className="text-left text-pl-muted">
               <tr>
                 <th className="p-1">Voyage set</th><th className="p-1 text-right">Voyages (exact)</th><th className="p-1 text-right">Voyages</th>
                 <th className="p-1">Driven by</th><th className="p-1 text-right">Voyage days</th><th className="p-1 text-right">Vessel-days</th>
@@ -109,7 +109,7 @@ const FleetResults = () => {
             </thead>
             <tbody>
               {r.voyageSets.map((s) => (
-                <tr key={s.id} className="border-t border-slate-800 text-slate-200" data-testid={`fleet-set-${s.id}`}>
+                <tr key={s.id} className="border-t border-pl-border text-pl-text" data-testid={`fleet-set-${s.id}`}>
                   <td className="p-1">{s.id === 'milk-run' ? `Milk run (${s.stops.join(', ')})` : s.id}</td>
                   <td className="p-1 text-right font-mono" data-testid={`fleet-set-${s.id}-exact`}>{fmtNum(s.voyagesExact, 4)}</td>
                   <td className="p-1 text-right font-mono" data-testid={`fleet-set-${s.id}-voyages`}>{fmtNum(s.voyages, Number.isInteger(s.voyages) ? 0 : 4)}</td>
@@ -122,13 +122,13 @@ const FleetResults = () => {
           </table>
           <VesselDaysChart sets={r.voyageSets} capacityDays={r.capacityDays} filename="fleet-vessel-days" />
           {r.voyageSets.map((s) => (
-            <details key={s.id} className="rounded-md border border-slate-800 p-2 text-xs text-slate-300">
-              <summary className="cursor-pointer text-slate-200">Average utilisation a voyage: {s.id}</summary>
+            <details key={s.id} className="rounded-md border border-pl-border p-2 text-xs text-pl-text">
+              <summary className="cursor-pointer text-pl-text">Average utilisation a voyage: {s.id}</summary>
               <table className="mt-1 w-full">
-                <thead className="text-left text-slate-400"><tr><th className="p-1">Constraint</th><th className="p-1 text-right">Demand</th><th className="p-1 text-right">Capacity a voyage</th><th className="p-1 text-right">Average utilisation</th></tr></thead>
+                <thead className="text-left text-pl-muted"><tr><th className="p-1">Constraint</th><th className="p-1 text-right">Demand</th><th className="p-1 text-right">Capacity a voyage</th><th className="p-1 text-right">Average utilisation</th></tr></thead>
                 <tbody>
                   {s.constraints.map((c, i) => (
-                    <tr key={c.constraint} className="border-t border-slate-800" data-testid={`fleet-set-${s.id}-util-${i}`}>
+                    <tr key={c.constraint} className="border-t border-pl-border" data-testid={`fleet-set-${s.id}-util-${i}`}>
                       <td className="p-1">{c.constraint}</td>
                       <td className="p-1 text-right font-mono">{fmtNum(c.demand, 2)}</td>
                       <td className="p-1 text-right font-mono">{fmtNum(c.capacity, 2)}</td>

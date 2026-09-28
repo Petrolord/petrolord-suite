@@ -7,11 +7,15 @@ import { Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ChartFrame from '@/components/charts/ChartFrame';
 import {
+  NumTh, NumRow, RowLabel, NumCell,
+} from '@/components/ui/numeric-table';
+import {
   CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS,
 } from '@/utils/chartTheme';
 import { useMaterialsSpares } from '@/contexts/MaterialsSparesContext';
 import { fmtNum } from '@/utils/supplychain/materialsAdapters';
 import {
+  Ledger, TextCell,
   Basis, EmptyRegister, NumField, Panel, ResultGate, Stat, TextField,
 } from './common';
 
@@ -25,16 +29,16 @@ const SlowInputs = () => {
   return (
     <Panel title="Slow-moving policy" testId="slow-inputs">
       <div>
-        <p className="mb-1 text-[11px] font-medium text-slate-300">Bands by months since the last issue (the first from 0, rising)</p>
+        <p className="mb-1 text-[11px] font-medium text-pl-text">Bands by months since the last issue (the first from 0, rising)</p>
         {s.bands.map((b, i) => (
           <div key={i} className="mb-1 grid grid-cols-[1.4fr_1fr_1fr_auto] items-end gap-2">
             <TextField testId={`band-label-${i}`} value={b.label} onChange={(v) => setBand(i, { label: v })} placeholder="label" />
             <NumField label={i === 0 ? 'From months' : ''} testId={`band-min-${i}`} value={b.minMonths} onChange={(v) => setBand(i, { minMonths: v })} />
             <NumField label={i === 0 ? 'Write-down %' : ''} testId={`band-wd-${i}`} value={b.writeDownPct} onChange={(v) => setBand(i, { writeDownPct: v })} />
-            <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400" onClick={() => set({ bands: s.bands.filter((_, j) => j !== i) })} aria-label={`Remove band ${i + 1}`}><X className="h-4 w-4" /></Button>
+            <Button size="icon" variant="ghost" className="h-8 w-8 text-pl-muted" onClick={() => set({ bands: s.bands.filter((_, j) => j !== i) })} aria-label={`Remove band ${i + 1}`}><X className="h-4 w-4" /></Button>
           </div>
         ))}
-        <Button size="sm" variant="ghost" className="text-sky-300" onClick={() => set({ bands: [...s.bands, { label: '', minMonths: '', writeDownPct: '' }] })} data-testid="add-band">
+        <Button size="sm" variant="ghost" className="text-pl-primary-text" onClick={() => set({ bands: [...s.bands, { label: '', minMonths: '', writeDownPct: '' }] })} data-testid="add-band">
           <Plus className="mr-1 h-3 w-3" /> Band
         </Button>
       </div>
@@ -57,7 +61,7 @@ const SlowResults = () => {
               <Stat label="Write-down" value={fmtNum(r.totalWriteDown, 2)} testId="slow-writedown" />
               <Stat label="Items with excess stock" value={String(r.excessCount)} testId="slow-excess-count" />
             </div>
-            <div className="overflow-hidden rounded-lg border border-slate-700">
+            <div className="overflow-hidden rounded-lg border border-pl-border">
               <ChartFrame height={220} exportFilename="slow-moving-bands">
                 <BarChart data={data} margin={{ top: 16, right: 20, left: 10, bottom: 8 }}>
                   <CartesianGrid {...GRID_STYLE} />
@@ -70,22 +74,22 @@ const SlowResults = () => {
                 </BarChart>
               </ChartFrame>
             </div>
-            <table className="w-full text-xs">
-              <thead className="text-left text-slate-400"><tr><th className="p-1">Item</th><th className="p-1">Band</th><th className="p-1 text-right">Stock value</th><th className="p-1 text-right">Write-down</th><th className="p-1 text-right">Cover (months)</th><th className="p-1 text-right">Excess units</th><th className="p-1">Reason</th></tr></thead>
+            <Ledger>
+              <thead><tr><NumTh sticky>Item</NumTh><NumTh>Band</NumTh><NumTh numeric>Stock value</NumTh><NumTh numeric>Write-down</NumTh><NumTh numeric>Cover (months)</NumTh><NumTh numeric>Excess units</NumTh><NumTh>Reason</NumTh></tr></thead>
               <tbody>
                 {r.items.map((it) => (
-                  <tr key={it.id} className="border-t border-slate-800 text-slate-200" data-testid={`slow-row-${it.id}`}>
-                    <td className="p-1 font-mono">{it.id}</td>
-                    <td className="p-1" data-testid={`slow-band-${it.id}`}>{it.band}</td>
-                    <td className="p-1 text-right font-mono">{fmtNum(it.stockValue, 2)}</td>
-                    <td className="p-1 text-right font-mono" data-testid={`slow-wd-${it.id}`}>{fmtNum(it.writeDown, 2)}</td>
-                    <td className="p-1 text-right font-mono">{it.coverMonths === null ? 'no usage' : fmtNum(it.coverMonths, 2)}</td>
-                    <td className="p-1 text-right font-mono">{it.excess ? fmtNum(it.excessQuantity, 2) : 'none'}</td>
-                    <td className="p-1 text-slate-400">{it.reason}</td>
-                  </tr>
+                  <NumRow key={it.id} data-testid={`slow-row-${it.id}`}>
+                    <RowLabel className="font-pl-mono">{it.id}</RowLabel>
+                    <TextCell data-testid={`slow-band-${it.id}`}>{it.band}</TextCell>
+                    <NumCell>{fmtNum(it.stockValue, 2)}</NumCell>
+                    <NumCell data-testid={`slow-wd-${it.id}`}>{fmtNum(it.writeDown, 2)}</NumCell>
+                    <NumCell>{it.coverMonths === null ? 'no usage' : fmtNum(it.coverMonths, 2)}</NumCell>
+                    <NumCell>{it.excess ? fmtNum(it.excessQuantity, 2) : 'none'}</NumCell>
+                    <TextCell muted>{it.reason}</TextCell>
+                  </NumRow>
                 ))}
               </tbody>
-            </table>
+            </Ledger>
             <Basis basis={r.basis} testId="slow-basis" />
           </Panel>
         );

@@ -119,7 +119,7 @@ export default function Reports() {
           obligation{obligations.length === 1 ? '' : 's'}, as at {format(today, 'd MMM yyyy')}.
         </p>
         <Button onClick={exportSummary}
-          className="bg-[hsl(var(--warning))] text-white hover:bg-[hsl(var(--warning))]/90 border-0">
+         >
           <Download className="w-4 h-4 mr-2" /> Export CSV
         </Button>
       </div>
@@ -130,7 +130,7 @@ export default function Reports() {
             <CardTitle className="text-lg">Obligations by regulator</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <div className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+            <div className="relative h-[300px] rounded-lg p-2" data-canvas="chart" style={{ backgroundColor: CHART_COLORS.background }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={byAuthority} layout="vertical" margin={CHART_MARGINS.compact}>
                   <CartesianGrid {...GRID_STYLE} horizontal={false} />
@@ -150,7 +150,7 @@ export default function Reports() {
             <CardTitle className="text-lg">Obligations by type</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <div className="relative h-[300px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+            <div className="relative h-[300px] rounded-lg p-2" data-canvas="chart" style={{ backgroundColor: CHART_COLORS.background }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={byType} margin={CHART_MARGINS.compact}>
                   <CartesianGrid {...GRID_STYLE} vertical={false} />
@@ -171,7 +171,7 @@ export default function Reports() {
           <CardTitle className="text-lg">Regulator by status</CardTitle>
         </CardHeader>
         <CardContent className="p-6">
-          <div className="relative h-[360px] rounded-lg p-2" style={{ backgroundColor: CHART_COLORS.background }}>
+          <div className="relative h-[360px] rounded-lg p-2" data-canvas="chart" style={{ backgroundColor: CHART_COLORS.background }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={matrix} margin={CHART_MARGINS.legend}>
                 <CartesianGrid {...GRID_STYLE} vertical={false} />

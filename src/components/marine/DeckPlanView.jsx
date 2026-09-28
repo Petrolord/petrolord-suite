@@ -46,11 +46,11 @@ const DeckInputs = () => {
   };
   return (
     <Panel title="Deck and cargo" testId="deck-inputs">
-      <div className="flex items-end gap-2 rounded-md border border-slate-800 bg-slate-950/50 p-2">
+      <div className="flex items-end gap-2 rounded-md border border-pl-border bg-pl-sunken p-2">
         <div className="flex-1">
           <SelectField label="Copy the deck from a vessel" testId="deck-from-vessel" value={from} onChange={setFrom} options={vessels.map((v) => ({ value: v.key, label: v.name || v.key }))} />
         </div>
-        <Button size="sm" variant="outline" className="h-8 border-slate-700 bg-slate-900 text-slate-200" disabled={!from} onClick={copyVessel} data-testid="deck-from-vessel-fill">Copy figures</Button>
+        <Button size="sm" variant="outline" className="h-8" disabled={!from} onClick={copyVessel} data-testid="deck-from-vessel-fill">Copy figures</Button>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <TextField label="Deck name" testId="deck-name" value={d.name} onChange={(v) => set({ name: v })} placeholder="optional" />
@@ -60,30 +60,30 @@ const DeckInputs = () => {
         <NumField label="Voyages available" testId="deck-voyages" value={d.voyages} onChange={(v) => set({ voyages: v })} hint="One deck a voyage." />
       </div>
       <div className="overflow-x-auto">
-        <p className="mb-1 text-[11px] font-medium text-slate-300">Deck cargo in the order booked</p>
+        <p className="mb-1 text-[11px] font-medium text-pl-text">Deck cargo in the order booked</p>
         <table className="w-full text-xs">
-          <thead className="text-left text-slate-400"><tr><th className="p-1">Id</th><th className="p-1">Name</th>{ITEM_COLS.map(([, l]) => <th key={l} className="p-1">{l}</th>)}<th /></tr></thead>
+          <thead className="text-left text-pl-muted"><tr><th className="p-1">Id</th><th className="p-1">Name</th>{ITEM_COLS.map(([, l]) => <th key={l} className="p-1">{l}</th>)}<th /></tr></thead>
           <tbody>
             {d.items.map((x, i) => (
-              <tr key={i} className="border-t border-slate-800" data-testid={`deck-item-row-${i}`}>
+              <tr key={i} className="border-t border-pl-border" data-testid={`deck-item-row-${i}`}>
                 <td className="p-1"><Cell numeric={false} label={`Item ${i + 1} id`} testId={`deck-item-id-${i}`} value={x.id} onChange={(v) => setItem(i, { id: v })} /></td>
                 <td className="p-1"><Cell numeric={false} label={`Item ${i + 1} name`} testId={`deck-item-name-${i}`} value={x.name} onChange={(v) => setItem(i, { name: v })} placeholder="optional" /></td>
                 {ITEM_COLS.map(([k, l]) => (
                   <td key={k} className="p-1"><Cell label={`Item ${i + 1} ${l}`} testId={`deck-item-${k}-${i}`} value={x[k]} onChange={(v) => setItem(i, { [k]: v })} /></td>
                 ))}
-                <td className="p-1"><Button size="icon" variant="ghost" className="h-7 w-7 text-slate-400" onClick={() => set({ items: d.items.filter((_, j) => j !== i) })} aria-label={`Remove item ${i + 1}`}><X className="h-4 w-4" /></Button></td>
+                <td className="p-1"><Button size="icon" variant="ghost" className="h-7 w-7 text-pl-muted" onClick={() => set({ items: d.items.filter((_, j) => j !== i) })} aria-label={`Remove item ${i + 1}`}><X className="h-4 w-4" /></Button></td>
               </tr>
             ))}
           </tbody>
         </table>
-        <Button size="sm" variant="ghost" className="text-sky-300" data-testid="add-deck-item" onClick={() => set({ items: [...d.items, blankDeckItem()] })}>
+        <Button size="sm" variant="ghost" className="text-pl-primary-text hover:text-pl-primary-text-hover" data-testid="add-deck-item" onClick={() => set({ items: [...d.items, blankDeckItem()] })}>
           <Plus className="mr-1 h-3 w-3" /> Cargo line
         </Button>
       </div>
       <div className="space-y-1">
-        <label htmlFor="mlp-deck-paste" className="block text-[11px] font-medium text-slate-300">Paste deck cargo (CSV: id, name, lengthM, widthM, weightT, quantity)</label>
-        <textarea id="mlp-deck-paste" data-testid="deck-paste" className="h-20 w-full rounded-md border border-slate-700 bg-slate-950 p-2 font-mono text-xs text-white" value={paste} onChange={(e) => setPaste(e.target.value)} placeholder={'id,name,lengthM,widthM,weightT,quantity\ncont-20,20 ft container,6.06,2.44,12,4'} />
-        <Button size="sm" onClick={doImport} data-testid="deck-import" className="bg-slate-700 hover:bg-slate-600"><Upload className="mr-1 h-4 w-4" /> Replace the cargo lines</Button>
+        <label htmlFor="mlp-deck-paste" className="block text-[11px] font-medium text-pl-text">Paste deck cargo (CSV: id, name, lengthM, widthM, weightT, quantity)</label>
+        <textarea id="mlp-deck-paste" data-testid="deck-paste" className="h-20 w-full rounded-md border border-pl-border-strong bg-pl-surface p-2 font-mono text-xs text-pl-text" value={paste} onChange={(e) => setPaste(e.target.value)} placeholder={'id,name,lengthM,widthM,weightT,quantity\ncont-20,20 ft container,6.06,2.44,12,4'} />
+        <Button size="sm" onClick={doImport} data-testid="deck-import" variant="outline"><Upload className="mr-1 h-4 w-4" /> Replace the cargo lines</Button>
         {parseError ? <Note tone="warn" testId="deck-parse-error">{parseError}</Note> : null}
       </div>
     </Panel>
@@ -97,8 +97,8 @@ const RulePlan = ({ label, rkey, r }) => {
   const neverFit = r.neverFit || [];
   const never = new Set(neverFit);
   return (
-    <div className="space-y-2 rounded-md border border-slate-800 p-2" data-testid={t('plan')}>
-      <p className="text-sm font-semibold text-slate-100">{label}</p>
+    <div className="space-y-2 rounded-md border border-pl-border p-2" data-testid={t('plan')}>
+      <p className="text-sm font-semibold text-pl-text">{label}</p>
       <div className="grid grid-cols-2 gap-2">
         <Stat label="Voyages used" value={String(r.voyagesUsed)} testId={t('used')} />
         <Stat label="Lower bound on voyages (units that fit an empty voyage)" value={String(r.lowerBound)} testId={t('bound')} />
@@ -106,10 +106,10 @@ const RulePlan = ({ label, rkey, r }) => {
         <Stat label="Area left behind (m2)" value={fmtNum(overflowArea, 4)} testId={t('overflow-area')} />
       </div>
       <table className="w-full text-xs">
-        <thead className="text-left text-slate-400"><tr><th className="p-1">Voyage</th><th className="p-1 text-right">Units</th><th className="p-1 text-right">Area (m2)</th><th className="p-1 text-right">Weight (t)</th><th className="p-1 text-right">Area used</th><th className="p-1 text-right">Load used</th></tr></thead>
+        <thead className="text-left text-pl-muted"><tr><th className="p-1">Voyage</th><th className="p-1 text-right">Units</th><th className="p-1 text-right">Area (m2)</th><th className="p-1 text-right">Weight (t)</th><th className="p-1 text-right">Area used</th><th className="p-1 text-right">Load used</th></tr></thead>
         <tbody>
           {r.voyages.map((v) => (
-            <tr key={v.voyage} className="border-t border-slate-800 text-slate-200" data-testid={t(`voyage-${v.voyage}`)}>
+            <tr key={v.voyage} className="border-t border-pl-border text-pl-text" data-testid={t(`voyage-${v.voyage}`)}>
               <td className="p-1">{v.voyage}</td>
               <td className="p-1 text-right font-mono">{v.units.length}</td>
               <td className="p-1 text-right font-mono" data-testid={t(`voyage-${v.voyage}-area`)}>{fmtNum(v.areaM2, 4)}</td>
@@ -121,7 +121,7 @@ const RulePlan = ({ label, rkey, r }) => {
         </tbody>
       </table>
       {neverFit.length ? (
-        <div className="rounded-md border border-rose-800/60 bg-rose-950/30 p-2 text-[11px] text-rose-200" data-testid={t('never-fit')}>
+        <div className="rounded-md border border-pl-danger/40 bg-pl-danger-bg p-2 text-[11px] text-pl-danger-text" data-testid={t('never-fit')}>
           <p className="font-semibold">
             {neverFit.length === 1 ? '1 unit no voyage can carry' : `${neverFit.length} units no voyage can carry`}
           </p>
@@ -133,17 +133,17 @@ const RulePlan = ({ label, rkey, r }) => {
         </div>
       ) : null}
       {r.overflow.length ? (
-        <ul className="space-y-0.5 text-[11px] text-amber-200" data-testid={t('overflow')}>
+        <ul className="space-y-0.5 text-[11px] text-pl-warning-text" data-testid={t('overflow')}>
           {r.overflow.map((o) => (
-            <li key={o.unit} className={never.has(o.unit) ? 'text-rose-200' : undefined} data-testid={t(`overflow-row-${o.unit}`)}>
-              {never.has(o.unit) ? <span className="mr-1 rounded bg-rose-900/60 px-1 font-semibold" data-testid={t(`overflow-never-${o.unit}`)}>no voyage can carry</span> : null}
+            <li key={o.unit} className={never.has(o.unit) ? 'text-pl-danger-text' : undefined} data-testid={t(`overflow-row-${o.unit}`)}>
+              {never.has(o.unit) ? <span className="mr-1 rounded border border-pl-danger/40 bg-pl-danger-bg px-1 font-semibold" data-testid={t(`overflow-never-${o.unit}`)}>no voyage can carry</span> : null}
               <span data-testid={t(`overflow-${o.unit}`)}>{o.reason}</span>
             </li>
           ))}
         </ul>
       ) : <Note testId={t('all-placed')}>Every unit is placed.</Note>}
-      <details className="text-[11px] text-slate-400">
-        <summary className="cursor-pointer text-slate-300">Packing order</summary>
+      <details className="text-[11px] text-pl-muted">
+        <summary className="cursor-pointer text-pl-text">Packing order</summary>
         <p className="font-mono">{r.packingOrder.join(', ')}</p>
       </details>
       <Basis basis={r.basis} testId={t('basis')} />
@@ -170,7 +170,7 @@ const DeckResults = () => {
         </div>
       ) : null}
       {both ? (
-        <div className="overflow-hidden rounded-lg border border-slate-700">
+        <div className="overflow-hidden rounded-lg border border-pl-border">
           <ChartFrame height={220} exportFilename="deck-plan-rules">
             <BarChart data={data} margin={{ top: 16, right: 20, left: 0, bottom: 8 }}>
               <CartesianGrid {...GRID_STYLE} />
