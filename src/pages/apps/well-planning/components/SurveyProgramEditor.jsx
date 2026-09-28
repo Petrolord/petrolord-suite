@@ -84,7 +84,7 @@ const SurveyProgramEditor = ({
     setSaving(true);
     try {
       await upsertSurveyProgram(design.id, check.intervals, userId);
-      toast({ title: 'Survey program saved', className: 'bg-green-600 text-white' });
+      toast({ title: 'Survey program saved' });
       onSaved?.(check.intervals);
       onOpenChange(false);
     } catch (e) {
@@ -96,10 +96,10 @@ const SurveyProgramEditor = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl bg-slate-900 border-slate-700 text-white">
+      <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Survey program — {design?.name}</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-pl-muted">
             Instrument per MD interval ({mdUnit}). Intervals must tile the design from surface
             {Number.isFinite(tdMdM) ? ` to TD (${toUser(tdMdM).toFixed(0)} ${mdUnit})` : ''} with no gaps.
             Positional uncertainty freezes at each tool change (ISCWSA tie-on).
@@ -107,39 +107,39 @@ const SurveyProgramEditor = ({
         </DialogHeader>
 
         {loading ? (
-          <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-slate-500" /></div>
+          <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-pl-muted" /></div>
         ) : (
           <div className="space-y-2">
-            <div className="grid grid-cols-[1fr_1fr_2fr_28px] gap-2 text-[10px] uppercase text-slate-500 font-bold">
+            <div className="grid grid-cols-[1fr_1fr_2fr_28px] gap-2 text-[10px] uppercase text-pl-muted font-bold">
               <span>From ({mdUnit})</span><span>To ({mdUnit})</span><span>Instrument</span><span />
             </div>
             {rows.map((r, i) => (
               <div key={i} className="grid grid-cols-[1fr_1fr_2fr_28px] gap-2 items-center">
                 <Input type="number" value={r.from} onChange={(e) => update(i, 'from', e.target.value)}
-                  className="h-8 bg-slate-800 border-slate-700 text-xs" />
+                  className="h-8 text-xs" />
                 <Input type="number" value={r.to} onChange={(e) => update(i, 'to', e.target.value)}
-                  className="h-8 bg-slate-800 border-slate-700 text-xs" />
+                  className="h-8 text-xs" />
                 <Select value={r.toolcode} onValueChange={(v) => update(i, 'toolcode', v)}>
-                  <SelectTrigger className="h-8 bg-slate-800 border-slate-700 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent className="bg-slate-800 text-white">
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
                     {TOOL_LIBRARY.map((t) => (
                       <SelectItem key={t.id} value={t.id} className="text-xs">{t.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 <Button variant="ghost" size="icon" onClick={() => removeRow(i)}
-                  className="h-7 w-7 text-slate-600 hover:text-red-400"><Trash2 className="h-3.5 w-3.5" /></Button>
+                  className="h-7 w-7 text-pl-muted hover:text-pl-danger-text"><Trash2 className="h-3.5 w-3.5" /></Button>
               </div>
             ))}
-            <Button size="sm" variant="ghost" onClick={addRow} className="h-7 text-xs text-lime-400 hover:bg-slate-800">
+            <Button size="sm" variant="ghost" onClick={addRow} className="h-7 text-xs text-pl-primary-text hover:bg-pl-sunken">
               <Plus className="mr-1 h-3.5 w-3.5" /> Add interval
             </Button>
             {errors.length > 0 && (
-              <ul className="rounded-md border border-red-900/40 bg-red-900/15 px-3 py-2 text-xs text-red-300 space-y-0.5">
+              <ul className="rounded-md border border-pl-danger/40 bg-pl-danger-bg px-3 py-2 text-xs text-pl-danger-text space-y-0.5">
                 {errors.map((e, i) => <li key={i}>{e}</li>)}
               </ul>
             )}
-            <p className="text-[10px] text-slate-500">
+            <p className="text-[10px] text-pl-muted">
               Tool library ships only oracle-validated instruments (ISCWSA MWD Rev4 today);
               gyro and corrected-MWD models arrive with their validation gates.
             </p>
@@ -147,8 +147,8 @@ const SurveyProgramEditor = ({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="border-slate-700 text-slate-300">Cancel</Button>
-          <Button onClick={handleSave} disabled={saving || loading} className="bg-[#4CAF50] hover:bg-[#43a047] text-white">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving || loading}>
             {saving && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />} Save program
           </Button>
         </DialogFooter>

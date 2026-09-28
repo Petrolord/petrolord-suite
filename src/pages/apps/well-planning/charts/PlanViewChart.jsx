@@ -118,7 +118,7 @@ const PlanViewChart = ({
   };
 
   return (
-    <div ref={holder} className="relative h-full w-full bg-white" data-testid="plan-view-chart">
+    <div ref={holder} className="relative h-full w-full bg-white" data-testid="plan-view-chart" data-canvas="chart">
       <div className="px-3 pt-2 text-[11px] font-semibold text-slate-700">
         {title} (N vs E, {unit}; grid {gridLines.step} {unit})
       </div>

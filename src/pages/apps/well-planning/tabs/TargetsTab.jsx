@@ -48,7 +48,7 @@ const TargetsTab = () => {
         await saveTarget({ ...payload, site_id: site.id }, user.id);
       }
       await refreshTargets(site.id);
-      toast({ title: 'Target saved', className: 'bg-green-600 text-white' });
+      toast({ title: 'Target saved' });
     } catch (e) {
       toast({ variant: 'destructive', title: 'Save failed', description: e.message });
       throw e;
@@ -89,7 +89,7 @@ const TargetsTab = () => {
 
   if (!site) {
     return (
-      <div className="flex h-[50vh] items-center justify-center text-sm text-slate-500">
+      <div className="flex h-[50vh] items-center justify-center text-sm text-pl-muted">
         Select a site to manage its targets.
       </div>
     );
@@ -101,73 +101,73 @@ const TargetsTab = () => {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="relative">
-          <Search className="absolute left-2 top-2 h-4 w-4 text-slate-500" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search targets..." className="h-8 w-64 bg-slate-900 border-slate-700 pl-8 text-sm" />
+          <Search className="absolute left-2 top-2 h-4 w-4 text-pl-muted" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search targets..." className="h-8 w-full sm:w-64 pl-8 text-sm" />
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex rounded bg-slate-800 p-1">
-            <Button variant="ghost" size="sm" onClick={() => setView('table')} className={`h-7 px-3 text-xs ${view === 'table' ? 'bg-slate-700 text-white' : 'text-slate-400'}`}><TableIcon className="mr-1 h-3 w-3" /> Table</Button>
-            <Button variant="ghost" size="sm" onClick={() => setView('map')} className={`h-7 px-3 text-xs ${view === 'map' ? 'bg-slate-700 text-white' : 'text-slate-400'}`}><MapIcon className="mr-1 h-3 w-3" /> Map</Button>
+          <div className="flex rounded bg-pl-sunken p-1">
+            <Button variant="ghost" size="sm" onClick={() => setView('table')} className={`h-7 px-3 text-xs ${view === 'table' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`}><TableIcon className="mr-1 h-3 w-3" /> Table</Button>
+            <Button variant="ghost" size="sm" onClick={() => setView('map')} className={`h-7 px-3 text-xs ${view === 'map' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`}><MapIcon className="mr-1 h-3 w-3" /> Map</Button>
           </div>
-          <Button size="sm" variant="outline" onClick={handleExport} disabled={!filtered.length} className="h-8 border-slate-600 text-slate-300 text-xs"><Download className="mr-1 h-3 w-3" /> CSV</Button>
+          <Button size="sm" variant="outline" onClick={handleExport} disabled={!filtered.length} className="h-8 text-xs"><Download className="mr-1 h-3 w-3" /> CSV</Button>
           {own && (
             <>
-              <Button size="sm" variant="outline" onClick={() => setPickerMode('tops')} className="h-8 border-emerald-700 text-emerald-300 text-xs">From top</Button>
-              <Button size="sm" variant="outline" onClick={() => setPickerMode('surface')} className="h-8 border-emerald-700 text-emerald-300 text-xs">From surface</Button>
-              <Button size="sm" onClick={() => setDialogTarget(null)} className="h-8 bg-[#4CAF50] hover:bg-[#43a047] text-white text-xs"><Plus className="mr-1 h-3 w-3" /> New target</Button>
+              <Button size="sm" variant="outline" onClick={() => setPickerMode('tops')} className="h-8 text-xs">From top</Button>
+              <Button size="sm" variant="outline" onClick={() => setPickerMode('surface')} className="h-8 text-xs">From surface</Button>
+              <Button size="sm" onClick={() => setDialogTarget(null)} className="h-8 text-xs"><Plus className="mr-1 h-3 w-3" /> New target</Button>
             </>
           )}
         </div>
       </div>
 
       {view === 'table' ? (
-        <div className="rounded-lg border border-slate-800 bg-slate-900">
+        <div className="rounded-lg border border-pl-border bg-pl-surface">
           <Table>
-            <TableHeader className="bg-slate-800/70">
-              <TableRow className="border-slate-700">
-                <TableHead className="text-slate-300">Name</TableHead>
-                <TableHead className="text-slate-300">Kind</TableHead>
-                <TableHead className="text-slate-300">Category</TableHead>
-                <TableHead className="text-slate-300 text-right">Easting (m)</TableHead>
-                <TableHead className="text-slate-300 text-right">Northing (m)</TableHead>
-                <TableHead className="text-slate-300 text-right">TVDSS (m)</TableHead>
-                <TableHead className="text-slate-300 text-right">Radius (m)</TableHead>
-                <TableHead className="text-slate-300">Source</TableHead>
+            <TableHeader className="bg-pl-sunken">
+              <TableRow className="border-pl-border">
+                <TableHead className="text-pl-text">Name</TableHead>
+                <TableHead className="text-pl-text">Kind</TableHead>
+                <TableHead className="text-pl-text">Category</TableHead>
+                <TableHead className="text-pl-text text-right">Easting (m)</TableHead>
+                <TableHead className="text-pl-text text-right">Northing (m)</TableHead>
+                <TableHead className="text-pl-text text-right">TVDSS (m)</TableHead>
+                <TableHead className="text-pl-text text-right">Radius (m)</TableHead>
+                <TableHead className="text-pl-text">Source</TableHead>
                 <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((t) => (
-                <TableRow key={t.id} className="border-slate-800 hover:bg-slate-800/40">
-                  <TableCell className="font-medium text-slate-200">
+                <TableRow key={t.id} className="border-pl-border hover:bg-pl-sunken">
+                  <TableCell className="font-medium text-pl-text">
                     <span className="mr-2 inline-block h-2 w-2 rounded-full" style={{ background: t.color || '#d97706' }} />
                     {t.name}
                   </TableCell>
-                  <TableCell className="capitalize text-slate-400">{t.kind}</TableCell>
-                  <TableCell className="capitalize text-slate-400">{t.category}</TableCell>
-                  <TableCell className="text-right font-mono text-slate-300">{t.center_x?.toFixed(1)}</TableCell>
-                  <TableCell className="text-right font-mono text-slate-300">{t.center_y?.toFixed(1)}</TableCell>
-                  <TableCell className="text-right font-mono text-slate-300">{t.tvdss_m?.toFixed(1)}</TableCell>
-                  <TableCell className="text-right font-mono text-slate-400">{t.geometry?.radius_m ?? ''}</TableCell>
-                  <TableCell className="text-xs text-slate-500">{t.provenance?.source || 'manual'}</TableCell>
+                  <TableCell className="capitalize text-pl-muted">{t.kind}</TableCell>
+                  <TableCell className="capitalize text-pl-muted">{t.category}</TableCell>
+                  <TableCell className="text-right font-mono text-pl-text">{t.center_x?.toFixed(1)}</TableCell>
+                  <TableCell className="text-right font-mono text-pl-text">{t.center_y?.toFixed(1)}</TableCell>
+                  <TableCell className="text-right font-mono text-pl-text">{t.tvdss_m?.toFixed(1)}</TableCell>
+                  <TableCell className="text-right font-mono text-pl-muted">{t.geometry?.radius_m ?? ''}</TableCell>
+                  <TableCell className="text-xs text-pl-muted">{t.provenance?.source || 'manual'}</TableCell>
                   <TableCell className="text-right">
                     {own && (
                       <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:text-white" onClick={() => setDialogTarget(t)}><Pencil className="h-3 w-3" /></Button>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:text-red-400" onClick={() => handleDelete(t)}><Trash2 className="h-3 w-3" /></Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-pl-muted hover:text-pl-text" onClick={() => setDialogTarget(t)}><Pencil className="h-3 w-3" /></Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-pl-muted hover:text-pl-danger-text" onClick={() => handleDelete(t)}><Trash2 className="h-3 w-3" /></Button>
                       </div>
                     )}
                   </TableCell>
                 </TableRow>
               ))}
               {filtered.length === 0 && (
-                <TableRow><TableCell colSpan={9} className="py-8 text-center text-sm text-slate-500">No targets on this site yet.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="py-8 text-center text-sm text-pl-muted">No targets on this site yet.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
         </div>
       ) : (
-        <div className="h-[60vh] overflow-hidden rounded-lg border border-slate-800">
+        <div className="h-[60vh] overflow-hidden rounded-lg border border-pl-border">
           <TargetsMap targets={mapTargets} wellLocation={wellLocation} onTargetSelect={(t) => own && setDialogTarget(targets.find((x) => x.id === t.id))} />
         </div>
       )}
@@ -190,7 +190,7 @@ const TargetsTab = () => {
             try {
               await saveTarget({ ...payload, site_id: site.id }, user.id);
               await refreshTargets(site.id);
-              toast({ title: 'Target created', description: `${payload.name} from the ${payload.provenance.source === 'geo_top' ? 'well registry' : 'surface registry'}.`, className: 'bg-green-600 text-white' });
+              toast({ title: 'Target created', description: `${payload.name} from the ${payload.provenance.source === 'geo_top' ? 'well registry' : 'surface registry'}.` });
             } catch (e) {
               toast({ variant: 'destructive', title: 'Save failed', description: e.message });
             }

@@ -124,10 +124,10 @@ const TargetFromRegistryDialog = ({ open, onOpenChange, mode, onPick }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border-slate-700 text-white">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{mode === 'tops' ? 'Target from a formation top' : 'Target from a surface'}</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-pl-muted">
             {mode === 'tops'
               ? 'Uses the shared well registry: the target lands where the chosen well crosses the chosen top.'
               : 'Samples a shared depth surface at a location to set the target depth.'}
@@ -135,7 +135,7 @@ const TargetFromRegistryDialog = ({ open, onOpenChange, mode, onPick }) => {
         </DialogHeader>
 
         {loading ? (
-          <div className="flex items-center gap-2 py-6 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading registry...</div>
+          <div className="flex items-center gap-2 py-6 text-sm text-pl-muted"><Loader2 className="h-4 w-4 animate-spin" /> Loading registry...</div>
         ) : (
           <div className="space-y-3">
             {mode === 'tops' ? (
@@ -143,8 +143,8 @@ const TargetFromRegistryDialog = ({ open, onOpenChange, mode, onPick }) => {
                 <div>
                   <Label className="text-xs">Well</Label>
                   <Select value={wellId} onValueChange={(v) => { setWellId(v); setTopId(''); }}>
-                    <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue placeholder="Select well..." /></SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-700">
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Select well..." /></SelectTrigger>
+                    <SelectContent>
                       {wells.map((w) => <SelectItem key={w.id} value={w.id}>{w.name} ({w.tops.length} tops)</SelectItem>)}
                     </SelectContent>
                   </Select>
@@ -152,8 +152,8 @@ const TargetFromRegistryDialog = ({ open, onOpenChange, mode, onPick }) => {
                 <div>
                   <Label className="text-xs">Top</Label>
                   <Select value={topId} onValueChange={setTopId} disabled={!well}>
-                    <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue placeholder="Select top..." /></SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-700">
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Select top..." /></SelectTrigger>
+                    <SelectContent>
                       {(well?.tops || []).map((t) => <SelectItem key={t.id} value={t.id}>{t.name} ({t.md_m.toFixed(0)} m MD)</SelectItem>)}
                     </SelectContent>
                   </Select>
@@ -164,28 +164,28 @@ const TargetFromRegistryDialog = ({ open, onOpenChange, mode, onPick }) => {
                 <div>
                   <Label className="text-xs">Surface</Label>
                   <Select value={surfaceId} onValueChange={setSurfaceId}>
-                    <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue placeholder="Select surface..." /></SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-700">
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Select surface..." /></SelectTrigger>
+                    <SelectContent>
                       {surfaces.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div><Label className="text-xs">Easting (m)</Label><Input type="number" value={sx} onChange={(e) => setSx(e.target.value)} className="h-9 bg-slate-800 border-slate-700" /></div>
-                  <div><Label className="text-xs">Northing (m)</Label><Input type="number" value={sy} onChange={(e) => setSy(e.target.value)} className="h-9 bg-slate-800 border-slate-700" /></div>
+                  <div><Label className="text-xs">Easting (m)</Label><Input type="number" value={sx} onChange={(e) => setSx(e.target.value)} className="h-9" /></div>
+                  <div><Label className="text-xs">Northing (m)</Label><Input type="number" value={sy} onChange={(e) => setSy(e.target.value)} className="h-9" /></div>
                 </div>
               </>
             )}
             <div>
               <Label className="text-xs">Target name (optional)</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} className="h-9 bg-slate-800 border-slate-700" />
+              <Input value={name} onChange={(e) => setName(e.target.value)} className="h-9" />
             </div>
           </div>
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="border-slate-600 text-slate-300">Cancel</Button>
-          <Button onClick={handlePick} disabled={loading} className="bg-[#4CAF50] hover:bg-[#43a047] text-white">Create target</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handlePick} disabled={loading}>Create target</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
