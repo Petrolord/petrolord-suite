@@ -13,7 +13,6 @@ import {
 import {
   Callout, Code, Formula, GuideSection, HelpGuideShell, Para, SectionHeading, Step, SubHeading, Table,
 } from '@/components/helpguide/HelpGuideLayout';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { EVAL_ROUTE } from '@/utils/dataAi/evalStudy';
 import { APP_CAPS } from '@/utils/dataAi/evalData';
 import { ENGINE_DEFAULTS as D, DEFAULT_SEED, ASSIST_MAX_PASSAGES } from '@/utils/dataAi/evalWorkflows';
@@ -356,9 +355,9 @@ const AiEvaluationStudioHelpGuideContent = () => (
 );
 
 const AiEvaluationStudioHelpGuide = () => (
-  <ThemedApp className="min-h-screen" data-testid="aieval-help-theme-scope">
+  <div className="min-h-screen" data-testid="aieval-help-theme-scope">
     <AiEvaluationStudioHelpGuideContent />
-  </ThemedApp>
+  </div>
 );
 
 export default AiEvaluationStudioHelpGuide;

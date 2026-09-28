@@ -4,7 +4,6 @@ import { BarChart2, CheckSquare, ChevronLeft, FilePlus2, FileText, LayoutDashboa
 import { Button } from '@/components/ui/button';
 import AssuranceHelp from '@/components/assurance/AssuranceHelp';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 export const BASE = '/dashboard/apps/assurance/document-control';
 
@@ -35,7 +34,7 @@ export const DocControlShell = ({
   ];
 
   return (
-    <ThemedApp className="h-full min-h-screen" data-testid="doc-control-theme-scope">
+    <div className="h-full min-h-screen" data-testid="doc-control-theme-scope">
     <div className="flex flex-col h-full bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
       <div className="flex-none border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]">
         <div className="px-6 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -91,7 +90,7 @@ export const DocControlShell = ({
         <div className="mx-auto max-w-7xl h-full">{children}</div>
       </div>
     </div>
-    </ThemedApp>
+    </div>
   );
 };
 

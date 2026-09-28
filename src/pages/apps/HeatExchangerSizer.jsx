@@ -22,7 +22,6 @@ import {
 } from '@/components/heatexchanger/RatingCoolerPanels';
 import HeatExchangerHelpContent from '@/components/heatexchanger/HeatExchangerHelpGuide';
 import { fmt, Row } from '@/components/heatexchanger/fields';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 const TABS = [
   { value: 'sizing', label: 'Sizing' },
@@ -200,13 +199,13 @@ const StudioContent = () => {
 // page wraps itself in <ThemedApp>, so every class in its own files is a
 // theme role.
 const HeatExchangerSizer = () => (
-  <ThemedApp data-testid="heatexchanger-theme-scope">
+  <div data-testid="heatexchanger-theme-scope">
     <HeatExchangerProvider>
       <FullPrecisionProvider>
         <StudioContent />
       </FullPrecisionProvider>
     </HeatExchangerProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default HeatExchangerSizer;

@@ -24,7 +24,6 @@ import SpineLinkPanel from '@/components/liftadvisor/SpineLinkPanel';
 import SummaryPanel from '@/components/liftadvisor/SummaryPanel';
 import ComparisonPanel from '@/components/liftadvisor/ComparisonPanel';
 import LiftAdvisorHelpContent from '@/components/liftadvisor/LiftAdvisorHelpGuide';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 // Design system rollout batch 2C (docs/scope/DesignSystem-Rollout.md): the
 // page wraps itself in <ThemedApp>, so every class below is a theme role.
@@ -148,10 +147,10 @@ const AdvisorContent = () => {
 
 export default function ArtificialLiftAdvisor() {
   return (
-    <ThemedApp data-testid="liftadvisor-theme-scope">
+    <div data-testid="liftadvisor-theme-scope">
       <LiftAdvisorProvider>
         <AdvisorContent />
       </LiftAdvisorProvider>
-    </ThemedApp>
+    </div>
   );
 }

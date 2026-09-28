@@ -22,7 +22,6 @@ import StudioHeader from '@/components/studio/StudioHeader';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import StudioHelp from '@/components/studio/StudioHelp';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { ProductionNetworkProvider, useProductionNetwork } from '@/contexts/ProductionNetworkContext';
 import TopologyPanel from '@/components/prodnetwork/TopologyPanel';
 import InspectorPanel from '@/components/prodnetwork/InspectorPanel';
@@ -163,10 +162,10 @@ const NetworkContent = () => {
 // switches it to dark per user. Charts keep the white chart standard.
 export default function ProductionNetworkStudio() {
   return (
-    <ThemedApp data-testid="network-theme-scope">
+    <div data-testid="network-theme-scope">
       <ProductionNetworkProvider>
         <NetworkContent />
       </ProductionNetworkProvider>
-    </ThemedApp>
+    </div>
   );
 }

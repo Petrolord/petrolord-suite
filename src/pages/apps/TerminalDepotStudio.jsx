@@ -5,7 +5,6 @@ import React from 'react';
 import { Helmet } from 'react-helmet';
 import { Warehouse } from 'lucide-react';
 import { AppHeader } from '@/components/ui/app-shell';
-import { ThemedApp } from '@/design/ThemeProvider';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import StudioNotifications from '@/components/studio/StudioNotifications';
@@ -75,11 +74,11 @@ const TerminalDepotStudio = () => (
       <title>Terminal &amp; Depot Studio - Petrolord Suite</title>
       <meta name="description" content="Terminal stock reconciliation from manual dips and strapping tables, gain and loss trending, loading rack queueing, tank farm cover and throughput economics." />
     </Helmet>
-    <ThemedApp className="min-h-screen" data-testid="terminaldepot-theme-scope">
+    <div className="min-h-screen" data-testid="terminaldepot-theme-scope">
       <TerminalDepotProvider>
         <Workspace />
       </TerminalDepotProvider>
-    </ThemedApp>
+    </div>
   </>
 );
 

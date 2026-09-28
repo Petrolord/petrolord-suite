@@ -9,7 +9,6 @@ import useContourDigitizer from '@/hooks/useContourDigitizer';
 import InputPanel from '@/components/contourmap/InputPanel';
 import ResultsPanel from '@/components/contourmap/ResultsPanel';
 import EmptyState from '@/components/contourmap/EmptyState';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 const ContourMapDigitizerContent = () => {
@@ -126,9 +125,9 @@ const ContourMapDigitizerContent = () => {
 // user's theme from the header toggle. The scanned map sits on a dark canvas
 // that does not follow the theme, and the image is never recoloured.
 const ContourMapDigitizer = () => (
-  <ThemedApp className="min-h-screen" data-testid="cmd-theme-scope">
+  <div className="min-h-screen" data-testid="cmd-theme-scope">
     <ContourMapDigitizerContent />
-  </ThemedApp>
+  </div>
 );
 
 export default ContourMapDigitizer;

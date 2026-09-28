@@ -22,7 +22,6 @@ import { FullPrecisionProvider, FullPrecisionToggle, useFullPrecision } from '@/
 import { formatFull, MONEY_MM_DECIMALS } from '@/lib/fullPrecision';
 import { AppHeader } from '@/components/ui/app-shell';
 import { signedTone } from '@/components/ui/numeric-table';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 // right-aligned mono figures for the project inventory (NumericTable recipe)
 const numCell = (tone) => `text-right font-pl-mono tabular-nums whitespace-nowrap ${tone || 'text-pl-text'}`;
@@ -460,11 +459,11 @@ const CapitalPortfolioStudioInner = () => {
 // switches it to dark per user. The frontier and comparison charts keep the
 // white chart standard.
 const CapitalPortfolioStudio = () => (
-  <ThemedApp className="min-h-screen" data-testid="portfolio-theme-scope">
+  <div className="min-h-screen" data-testid="portfolio-theme-scope">
     <FullPrecisionProvider>
       <CapitalPortfolioStudioInner />
     </FullPrecisionProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default CapitalPortfolioStudio;

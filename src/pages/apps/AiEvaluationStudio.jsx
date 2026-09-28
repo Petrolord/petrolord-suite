@@ -21,7 +21,6 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -171,7 +170,7 @@ const Workspace = () => {
 };
 
 const AiEvaluationStudio = ({ createWorker }) => (
-  <ThemedApp className="flex h-full min-h-screen flex-col" data-testid="aieval-theme-scope">
+  <div className="flex h-full min-h-screen flex-col" data-testid="aieval-theme-scope">
     <Helmet>
       <title>AI Evaluation Studio - Petrolord Suite</title>
       <meta
@@ -182,7 +181,7 @@ const AiEvaluationStudio = ({ createWorker }) => (
     <EvaluationProvider {...(createWorker ? { createWorker } : {})}>
       <Workspace />
     </EvaluationProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default AiEvaluationStudio;

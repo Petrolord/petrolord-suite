@@ -32,7 +32,6 @@ import DCAWellMetadata from '@/components/declineCurve/DCAWellMetadata';
 import DCAHelpContent from '@/components/declineCurve/DCAHelpContent';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 const TABS = [
   { value: 'analysis', label: 'Single Well Analysis' },
@@ -237,11 +236,11 @@ const DeclineCurveContent = () => {
 // scope wraps the page itself so the route and the /dev/dca harness share it.
 const DeclineCurveAnalysisPage = () => {
   return (
-    <ThemedApp data-testid="dca-theme-scope">
+    <div data-testid="dca-theme-scope">
       <DeclineCurveProvider>
         <DeclineCurveContent />
       </DeclineCurveProvider>
-    </ThemedApp>
+    </div>
   );
 };
 

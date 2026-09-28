@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { Scale, Save, FolderOpen, Download } from 'lucide-react';
 import { AppHeader } from '@/components/ui/app-shell';
-import { ThemedApp } from '@/design/ThemeProvider';
 import InputPanel from '@/components/fiscaldesigner/InputPanel';
 import ResultsPanel from '@/components/fiscaldesigner/ResultsPanel';
 import EmptyState from '@/components/fiscaldesigner/EmptyState';
@@ -207,9 +206,9 @@ const FiscalRegimeDesignerContent = () => {
 // switches it to dark per user. The comparison charts keep the white chart
 // standard.
 const FiscalRegimeDesigner = () => (
-  <ThemedApp className="min-h-screen" data-testid="fiscal-theme-scope">
+  <div className="min-h-screen" data-testid="fiscal-theme-scope">
     <FiscalRegimeDesignerContent />
-  </ThemedApp>
+  </div>
 );
 
 export default FiscalRegimeDesigner;

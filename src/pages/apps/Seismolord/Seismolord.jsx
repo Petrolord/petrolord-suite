@@ -1,6 +1,5 @@
 import React from 'react';
 import { Helmet } from 'react-helmet';
-import { ThemedApp } from '@/design/ThemeProvider';
 import ViewerPanel from './components/ViewerPanel';
 
 // Seismolord renders as a full-viewport workstation (ribbon / explorer
@@ -22,9 +21,9 @@ export default function Seismolord() {
         />
       </Helmet>
 
-      <ThemedApp className="h-screen w-full overflow-hidden" data-testid="seismolord-root">
+      <div className="h-screen w-full overflow-hidden" data-testid="seismolord-root">
         <ViewerPanel />
-      </ThemedApp>
+      </div>
     </>
   );
 }

@@ -14,7 +14,6 @@ import {
   HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para,
   Formula, Callout, Step, Table,
 } from '@/components/helpguide/HelpGuideLayout';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 const sections = [
   { id: 'overview', icon: BookOpen, title: 'What this does' },
@@ -164,9 +163,9 @@ const RiskedReservesHelpGuideContent = () => (
 // Design system rollout batch 3E: the guide follows the same per-user theme
 // as Risked Reserves Valuation itself, so the look does not flip between the two pages.
 const RiskedReservesHelpGuide = () => (
-  <ThemedApp className="min-h-screen" data-testid="rrv-help-theme-scope">
+  <div className="min-h-screen" data-testid="rrv-help-theme-scope">
     <RiskedReservesHelpGuideContent />
-  </ThemedApp>
+  </div>
 );
 
 export default RiskedReservesHelpGuide;

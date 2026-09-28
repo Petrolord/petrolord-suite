@@ -6,7 +6,6 @@ import React from 'react';
 import { Helmet } from 'react-helmet';
 import { FlaskConical } from 'lucide-react';
 import { AppHeader } from '@/components/ui/app-shell';
-import { ThemedApp } from '@/design/ThemeProvider';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import StudioNotifications from '@/components/studio/StudioNotifications';
@@ -70,7 +69,7 @@ const Workspace = () => {
 // Design system rollout w5e: the page wraps itself in <ThemedApp>, so the
 // classes below are theme roles; the recipe chart stays white (ChartFrame).
 const ProductBlendingOptimizer = () => (
-  <ThemedApp className="flex min-h-screen flex-col" data-testid="blend-theme-scope">
+  <div className="flex min-h-screen flex-col" data-testid="blend-theme-scope">
     <Helmet>
       <title>Product Blending Optimizer - Petrolord Suite</title>
       <meta name="description" content="Least-cost fuel blend recipes under octane, RVP, sulfur and viscosity specifications, with quality giveaway and shadow prices." />
@@ -80,7 +79,7 @@ const ProductBlendingOptimizer = () => (
         <Workspace />
       </FullPrecisionProvider>
     </BlendOptimizerProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default ProductBlendingOptimizer;

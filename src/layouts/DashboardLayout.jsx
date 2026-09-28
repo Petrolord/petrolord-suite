@@ -7,6 +7,10 @@ import OrgClosureBanner from '@/components/OrgClosureBanner';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { ApplicationProvider, useApplication } from '@/context/ApplicationContext';
 import SidebarVisibilityController from '@/components/layout/SidebarVisibilityController';
+import { DashboardScope } from '@/design/DashboardScope';
+import { ThemedLoadingScreen } from '@/design/coldLoad';
+import { readLastTheme } from '@/design/ThemeProvider';
+import { DEFAULT_THEME } from '@/design/tokens';
 
 // Inner layout component that consumes the Application Context
 const DashboardLayoutInner = () => {
@@ -19,14 +23,15 @@ const DashboardLayoutInner = () => {
         setIsCollapsed(!isCollapsed);
     };
 
+    // While the session restores, the themed loader in the device's last
+    // theme (the cold-load rule in src/design/coldLoad.jsx).
     if (loading) {
-        return (
-            <div className="flex items-center justify-center h-screen bg-slate-900 text-white">
-                <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-lime-400"></div>
-            </div>
-        );
+        return <ThemedLoadingScreen theme={readLastTheme() || DEFAULT_THEME} />;
     }
-    
+
+    // Design system (batch 7A): one ThemedApp around the content column
+    // (DashboardScope) themes every page under /dashboard. The sidebar and
+    // the phone bar stay outside it as the fixed dark ink frame.
     return (
         <div className="flex h-screen bg-slate-900 text-white" data-testid="dashboard-layout">
             <SidebarVisibilityController />
@@ -72,10 +77,10 @@ const DashboardLayoutInner = () => {
                         </SheetContent>
                     </Sheet>
                 )}
-                <OrgClosureBanner />
-                <div className="min-h-full">
+                <DashboardScope>
+                    <OrgClosureBanner />
                     <Outlet />
-                </div>
+                </DashboardScope>
             </main>
         </div>
     );

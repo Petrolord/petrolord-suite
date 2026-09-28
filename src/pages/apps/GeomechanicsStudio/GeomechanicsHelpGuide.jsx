@@ -6,7 +6,6 @@ import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import {
   ArrowLeft, BookOpen, Zap, Database, Layers, Mountain, LineChart,
@@ -298,9 +297,9 @@ const GeomechanicsHelpGuideContent = () => {
 // as Geomechanics & Wellbore Stability Studio itself, so the look does not
 // flip between the two pages.
 const GeomechanicsHelpGuide = () => (
-  <ThemedApp className="min-h-screen" data-testid="gm-help-theme-scope">
+  <div className="min-h-screen" data-testid="gm-help-theme-scope">
     <GeomechanicsHelpGuideContent />
-  </ThemedApp>
+  </div>
 );
 
 export default GeomechanicsHelpGuide;

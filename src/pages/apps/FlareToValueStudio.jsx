@@ -5,7 +5,6 @@ import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Flame } from 'lucide-react';
 import { AppHeader } from '@/components/ui/app-shell';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -77,7 +76,7 @@ const Workspace = () => {
 // Design system rollout w5e: the page wraps itself in <ThemedApp>, so the
 // classes below are theme roles; the charts stay white (ChartFrame).
 const FlareToValueStudio = () => (
-  <ThemedApp className="flex min-h-screen flex-col" data-testid="flare-theme-scope">
+  <div className="flex min-h-screen flex-col" data-testid="flare-theme-scope">
     <Helmet>
       <title>Flare Gas to Value Studio - Petrolord Suite</title>
       <meta name="description" content="Flared and associated gas screened against CNG, mini LNG, liquids extraction and gas to power, with route economics and a counterfactual-based abatement." />
@@ -85,7 +84,7 @@ const FlareToValueStudio = () => (
     <FlareToValueProvider>
       <Workspace />
     </FlareToValueProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default FlareToValueStudio;

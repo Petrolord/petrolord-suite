@@ -19,7 +19,6 @@ import {
 } from '@/components/compressorstudio/CompressorPanels';
 import CompressorHelpContent from '@/components/compressorstudio/CompressorHelpGuide';
 import { fmt, Row } from '@/components/compressorstudio/fields';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 // Design system rollout batch 5B (docs/scope/DesignSystem-Rollout.md): the
 // page wraps itself in <ThemedApp>, so every class below is a theme role.
@@ -150,13 +149,13 @@ const StudioContent = () => {
 };
 
 const CompressorStationDesigner = () => (
-  <ThemedApp data-testid="compressor-theme-scope">
+  <div data-testid="compressor-theme-scope">
     <CompressorStudioProvider>
       <FullPrecisionProvider>
         <StudioContent />
       </FullPrecisionProvider>
     </CompressorStudioProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default CompressorStationDesigner;

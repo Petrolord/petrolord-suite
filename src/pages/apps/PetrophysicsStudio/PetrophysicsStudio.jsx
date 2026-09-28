@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import { Helmet } from 'react-helmet';
-import { ThemedApp } from '@/design/ThemeProvider';
 import PetroWorkstation from './components/PetroWorkstation';
 import { makeRegistryBackend } from './services/registryBackend';
 
@@ -24,9 +23,9 @@ export default function PetrophysicsStudio() {
         />
       </Helmet>
 
-      <ThemedApp className="h-screen w-full overflow-hidden" data-testid="petro-theme-scope">
+      <div className="h-screen w-full overflow-hidden" data-testid="petro-theme-scope">
         <PetroWorkstation backend={backend} />
-      </ThemedApp>
+      </div>
     </>
   );
 }

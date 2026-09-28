@@ -14,7 +14,6 @@ import { TankStudioProvider, useTank } from '@/contexts/TankStudioContext';
 import { TankInputs, ShellResults, VentingResults, LossResults } from '@/components/tankstudio/TankPanels';
 import TankHelpContent from '@/components/tankstudio/TankHelpGuide';
 import { fmt, Row } from '@/components/tankstudio/fields';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 // Design system rollout batch 5B (docs/scope/DesignSystem-Rollout.md): the
 // page wraps itself in <ThemedApp>, so every class below is a theme role.
@@ -153,11 +152,11 @@ const StudioContent = () => {
 };
 
 const StorageTankDesigner = () => (
-  <ThemedApp data-testid="tank-theme-scope">
+  <div data-testid="tank-theme-scope">
     <TankStudioProvider>
       <StudioContent />
     </TankStudioProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default StorageTankDesigner;

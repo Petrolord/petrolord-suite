@@ -8,14 +8,13 @@
 
 import React, { useMemo } from 'react';
 import HydWorkstation from './HydWorkstation';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { makeInMemoryBackend } from './services/inMemoryBackend';
 
 export default function HydraulicsHarness() {
   const backend = useMemo(() => makeInMemoryBackend(), []);
   return (
-    <ThemedApp className="h-screen w-full overflow-hidden" data-testid="hyd-theme-scope">
+    <div className="h-screen w-full overflow-hidden" data-testid="hyd-theme-scope">
       <HydWorkstation backend={backend} />
-    </ThemedApp>
+    </div>
   );
 }

@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { buildTestBricks } from './viewer/selfTest';
 import { assembleSlice } from './engine/sliceAssembly';
 import { resampleTraverse, assembleTraverse } from './engine/traverse';
@@ -154,7 +153,7 @@ export default function SeismolordSliceViewHarness() {
   }, []);
 
   return (
-    <ThemedApp style={{ minHeight: '100vh', padding: 16 }}>
+    <div style={{ minHeight: '100vh', padding: 16 }}>
       <h1 style={{ fontSize: 18, marginBottom: 8 }}>Seismolord SliceView harness</h1>
       <div style={{ display: 'flex', gap: 12, marginBottom: 8, fontSize: 12 }}>
         <select
@@ -219,6 +218,6 @@ export default function SeismolordSliceViewHarness() {
           depthConv={depthConv}
         />
       </div>
-    </ThemedApp>
+    </div>
   );
 }

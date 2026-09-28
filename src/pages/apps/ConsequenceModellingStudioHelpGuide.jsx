@@ -14,7 +14,6 @@ import {
 import {
   Callout, Code, Formula, GuideSection, HelpGuideShell, Para, SectionHeading, Step, SubHeading, Table,
 } from '@/components/helpguide/HelpGuideLayout';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { CONSEQUENCE_STUDIO_ROUTE } from '@/utils/processSafety/consequenceStudy';
 
 export const CONSEQUENCE_GUIDE_SECTIONS = [
@@ -362,9 +361,9 @@ const ConsequenceModellingStudioHelpGuideContent = () => (
 );
 
 const ConsequenceModellingStudioHelpGuide = () => (
-  <ThemedApp className="min-h-screen" data-testid="consequence-help-theme-scope">
+  <div className="min-h-screen" data-testid="consequence-help-theme-scope">
     <ConsequenceModellingStudioHelpGuideContent />
-  </ThemedApp>
+  </div>
 );
 
 export default ConsequenceModellingStudioHelpGuide;

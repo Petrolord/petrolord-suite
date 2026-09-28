@@ -18,7 +18,6 @@ import {
 import PumpHelpContent from '@/components/pumpstudio/PumpHelpGuide';
 import { fmt, Row } from '@/components/pumpstudio/fields';
 import { FullPrecisionProvider, FullPrecisionToggle, useFullPrecision } from '@/components/fullprecision/FullPrecision';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 // Design system rollout batch 5B (docs/scope/DesignSystem-Rollout.md): the
 // page wraps itself in <ThemedApp>, so every class below is a theme role.
@@ -158,13 +157,13 @@ const StudioContent = () => {
 };
 
 const PumpStationDesigner = () => (
-  <ThemedApp data-testid="pump-theme-scope">
+  <div data-testid="pump-theme-scope">
     <PumpStudioProvider>
       <FullPrecisionProvider>
         <StudioContent />
       </FullPrecisionProvider>
     </PumpStudioProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default PumpStationDesigner;

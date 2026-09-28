@@ -1,6 +1,5 @@
 import React, { Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 const Dashboard = lazy(() => import('./Dashboard'));
 const Programmes = lazy(() => import('./Programmes'));
@@ -17,7 +16,7 @@ const Reports = lazy(() => import('./Reports'));
  */
 export default function AuditManagerPageShell() {
   return (
-    <ThemedApp className="audit-manager-shell h-full w-full" data-testid="audit-theme-scope">
+    <div className="audit-manager-shell h-full w-full" data-testid="audit-theme-scope">
       <Suspense fallback={<div className="flex items-center justify-center h-full">Loading Audit & Findings Manager...</div>}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
@@ -31,6 +30,6 @@ export default function AuditManagerPageShell() {
           <Route path="*" element={<Dashboard />} />
         </Routes>
       </Suspense>
-    </ThemedApp>
+    </div>
   );
 }

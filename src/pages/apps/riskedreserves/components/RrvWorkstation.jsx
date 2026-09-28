@@ -10,7 +10,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PieChart, HelpCircle, Plus, Download, Trash2, RefreshCw } from 'lucide-react';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { valueProspect, valuePortfolio, expectationCurve } from '@/utils/prospectValuation';
 import ExpectationChart from './ExpectationChart';
@@ -186,8 +185,8 @@ function RrvWorkstationContent({ backend }) {
 // /dev harness both mount this component, so they share the one scope.
 export default function RrvWorkstation(props) {
   return (
-    <ThemedApp className="h-full" data-testid="rrv-theme-scope">
+    <div className="h-full" data-testid="rrv-theme-scope">
       <RrvWorkstationContent {...props} />
-    </ThemedApp>
+    </div>
   );
 }

@@ -15,7 +15,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { useToast } from '@/components/ui/use-toast';
 import { AppHeader } from '@/components/ui/app-shell';
 import { ChartPanel } from '@/components/ui/chart-panel';
-import { ThemedApp } from '@/design/ThemeProvider';
 import ChartFrame from '@/components/charts/ChartFrame';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS,
@@ -373,8 +372,8 @@ function ForecastScenarioHubContent() {
 // switches it to dark per user. The rate chart keeps the white chart standard.
 export default function ForecastScenarioHub() {
   return (
-    <ThemedApp className="min-h-screen" data-testid="fsh-theme-scope">
+    <div className="min-h-screen" data-testid="fsh-theme-scope">
       <ForecastScenarioHubContent />
-    </ThemedApp>
+    </div>
   );
 }

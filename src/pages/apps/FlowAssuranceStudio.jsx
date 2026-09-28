@@ -33,7 +33,6 @@ import CooldownPanel from '@/components/flowassurance/CooldownPanel';
 import SummaryPanel from '@/components/flowassurance/SummaryPanel';
 import WarningsPanel from '@/components/flowassurance/WarningsPanel';
 import FlowAssuranceHelpContent from '@/components/flowassurance/FlowAssuranceHelpGuide';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 // Design system rollout batch 2D (docs/scope/DesignSystem-Rollout.md): the
 // page wraps itself in <ThemedApp>, so every class below is a theme role.
@@ -194,10 +193,10 @@ const FlowAssuranceContent = () => {
 
 export default function FlowAssuranceStudio() {
   return (
-    <ThemedApp data-testid="flowassurance-theme-scope">
+    <div data-testid="flowassurance-theme-scope">
       <FlowAssuranceProvider>
         <FlowAssuranceContent />
       </FlowAssuranceProvider>
-    </ThemedApp>
+    </div>
   );
 }

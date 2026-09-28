@@ -14,7 +14,6 @@ import {
 import {
   Callout, Formula, GuideSection, HelpGuideShell, Para, SectionHeading, Step, Table,
 } from '@/components/helpguide/HelpGuideLayout';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { QRA_STUDIO_ROUTE } from '@/utils/processSafety/qraStudy';
 
 export const QRA_GUIDE_SECTIONS = [
@@ -268,9 +267,9 @@ const QraStudioHelpGuideContent = () => (
 );
 
 const QraStudioHelpGuide = () => (
-  <ThemedApp className="min-h-screen" data-testid="qra-help-theme-scope">
+  <div className="min-h-screen" data-testid="qra-help-theme-scope">
     <QraStudioHelpGuideContent />
-  </ThemedApp>
+  </div>
 );
 
 export default QraStudioHelpGuide;

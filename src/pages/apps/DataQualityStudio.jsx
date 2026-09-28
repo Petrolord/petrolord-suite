@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -139,7 +138,7 @@ const Workspace = () => {
 };
 
 const DataQualityStudio = () => (
-  <ThemedApp className="flex h-full min-h-screen flex-col" data-testid="dataqc-theme-scope">
+  <div className="flex h-full min-h-screen flex-col" data-testid="dataqc-theme-scope">
     <Helmet>
       <title>Data Quality Studio - Petrolord Suite</title>
       <meta
@@ -150,7 +149,7 @@ const DataQualityStudio = () => (
     <DataQualityStudioProvider>
       <Workspace />
     </DataQualityStudioProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default DataQualityStudio;

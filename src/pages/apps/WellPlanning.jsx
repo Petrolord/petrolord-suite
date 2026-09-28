@@ -21,7 +21,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 import { WellPlanningStoreProvider, useWellPlanningStore } from './well-planning/state/WellPlanningStore';
@@ -319,11 +318,11 @@ const WellPlanningWithDraft = () => {
 // user's theme choice from the header toggle. The route element in App.jsx
 // is unchanged, so the dev harness and the route share this one scope.
 const WellPlanning = () => (
-  <ThemedApp data-testid="wds-theme-scope">
+  <div data-testid="wds-theme-scope">
     <WellPlanningStoreProvider>
       <WellPlanningWithDraft />
     </WellPlanningStoreProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default WellPlanning;

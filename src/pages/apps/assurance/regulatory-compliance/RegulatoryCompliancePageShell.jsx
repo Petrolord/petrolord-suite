@@ -11,7 +11,6 @@ import Directory from './Directory';
 import Reports from './Reports';
 import AssuranceHelp from '@/components/assurance/AssuranceHelp';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 export default function RegulatoryCompliancePageShell() {
   const location = useLocation();
@@ -31,7 +30,7 @@ export default function RegulatoryCompliancePageShell() {
   const isFormView = currentPath.endsWith('/new') || currentPath.endsWith('/edit');
 
   return (
-    <ThemedApp className="flex flex-col h-full w-full bg-[hsl(var(--background))] overflow-hidden" data-testid="regulatory-theme-scope">
+    <div className="flex flex-col h-full w-full bg-[hsl(var(--background))] overflow-hidden" data-testid="regulatory-theme-scope">
       {/* Top Application Header */}
       <div className="bg-[hsl(var(--card))] border-b border-[hsl(var(--border))] px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3 shrink-0 shadow-sm z-20 relative">
         <div className="flex flex-wrap items-center gap-3 sm:gap-6 min-w-0">
@@ -114,6 +113,6 @@ export default function RegulatoryCompliancePageShell() {
           </Routes>
         </Suspense>
       </div>
-    </ThemedApp>
+    </div>
   );
 }

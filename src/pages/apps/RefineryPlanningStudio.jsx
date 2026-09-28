@@ -5,7 +5,6 @@ import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Factory } from 'lucide-react';
 import { AppHeader } from '@/components/ui/app-shell';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -85,7 +84,7 @@ const Workspace = () => {
 // Design system rollout batch 5C (docs/scope/DesignSystem-Rollout.md): the
 // page wraps itself in <ThemedApp>, so every class below is a theme role.
 const RefineryPlanningStudio = () => (
-  <ThemedApp data-testid="refinery-planning-theme-scope" className="h-full">
+  <div data-testid="refinery-planning-theme-scope" className="h-full">
     <Helmet>
       <title>Refinery Planning &amp; Scheduling Studio - Petrolord Suite</title>
       <meta name="description" content="Configuration-level refinery planning LP that cascades to a schedule and reconciles against actuals with variance attributed to volume and price." />
@@ -95,7 +94,7 @@ const RefineryPlanningStudio = () => (
         <Workspace />
       </FullPrecisionProvider>
     </RefineryPlanningProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default RefineryPlanningStudio;

@@ -6,7 +6,6 @@ import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import {
   ArrowLeft, BookOpen, Zap, Wrench, Layers, PenTool, Ruler, Gauge,
@@ -338,9 +337,9 @@ const CompletionDesignHelpGuideContent = () => {
 // Design system rollout batch 3C: the guide follows the same per-user theme
 // as the Completion Design Studio itself, so the look does not flip between the two pages.
 const CompletionDesignHelpGuide = () => (
-  <ThemedApp className="min-h-screen" data-testid="cd-help-theme-scope">
+  <div className="min-h-screen" data-testid="cd-help-theme-scope">
     <CompletionDesignHelpGuideContent />
-  </ThemedApp>
+  </div>
 );
 
 export default CompletionDesignHelpGuide;

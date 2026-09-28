@@ -22,7 +22,6 @@ import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOpen }) => {
     const { state, saveCurrentProject } = useReservoirCalc();
@@ -283,13 +282,13 @@ export const ReservoirCalcProContent = () => {
 
 const ReservoirCalcPro = () => {
     return (
-        <ThemedApp data-testid="rcp-theme-scope" className="h-full">
+        <div data-testid="rcp-theme-scope" className="h-full">
             <ReservoirCalcProvider>
                 <TooltipProvider>
                     <ReservoirCalcProContent />
                 </TooltipProvider>
             </ReservoirCalcProvider>
-        </ThemedApp>
+        </div>
     );
 };
 

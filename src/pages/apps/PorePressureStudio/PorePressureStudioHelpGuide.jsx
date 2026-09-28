@@ -13,7 +13,6 @@ import {
   HelpGuideShell, GuideSection, SectionHeading, SubHeading, Para, Callout, Step, Table,
 } from '@/components/helpguide/HelpGuideLayout';
 import { PRESSURE_UNITS, DEPTH_UNITS, PPG_PER_SG } from './services/units';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 const APP_PATH = '/dashboard/apps/geoscience/pore-pressure-studio';
 
@@ -35,7 +34,7 @@ export const HELP_SECTIONS = [
 // the user's light or dark choice holds between the app and its guide.
 export default function PorePressureStudioHelpGuide() {
   return (
-    <ThemedApp className="min-h-screen" data-testid="pp-help-theme-scope">
+    <div className="min-h-screen" data-testid="pp-help-theme-scope">
     <HelpGuideShell
       title="Pore Pressure Studio Help Guide"
       subtitle="Eaton and Bowers pore pressure prognosis, normal compaction trends, overburden and fracture gradient on the shared Geoscience well registry"
@@ -184,6 +183,6 @@ export default function PorePressureStudioHelpGuide() {
         ]} />
       </GuideSection>
     </HelpGuideShell>
-    </ThemedApp>
+    </div>
   );
 }

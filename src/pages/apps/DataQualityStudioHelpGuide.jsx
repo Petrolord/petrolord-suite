@@ -13,7 +13,6 @@ import {
 import {
   Callout, Code, Formula, GuideSection, HelpGuideShell, Para, SectionHeading, Step, SubHeading, Table,
 } from '@/components/helpguide/HelpGuideLayout';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { QC_STUDIO_ROUTE } from '@/utils/dataAi/qcRun';
 
 export const QC_GUIDE_SECTIONS = [
@@ -358,9 +357,9 @@ const DataQualityStudioHelpGuideContent = () => (
 );
 
 const DataQualityStudioHelpGuide = () => (
-  <ThemedApp className="min-h-screen" data-testid="dataqc-help-theme-scope">
+  <div className="min-h-screen" data-testid="dataqc-help-theme-scope">
     <DataQualityStudioHelpGuideContent />
-  </ThemedApp>
+  </div>
 );
 
 export default DataQualityStudioHelpGuide;

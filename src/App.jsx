@@ -626,7 +626,6 @@ function App() {
                                 {/* W6: surveillance absorbed into the Waterflood Design Studio */}
                                 <Route path="apps/reservoir/waterflood-dashboard" element={<Navigate to="/apps/reservoir/waterflood-design-studio?tab=surveillance" replace />} />
                                 {/* design system pilot 5: light by default, dark by choice (docs/scope/DesignSystem.md) */}
-                                {/* Design system pilot 5: the page wraps itself in ThemedApp. */}
                                 <Route path="apps/reservoir/voidage-replacement-monitor" element={<VoidageReplacementMonitor />} />
                                 <Route path="apps/reservoir/waterflood-design-studio" element={<WaterfloodDesignStudio />} />
                                 <Route path="apps/reservoir/scal-studio" element={<ScalStudio />} />
@@ -798,21 +797,19 @@ function App() {
                                 <Route path="apps/economics/epe-suite" element={<Navigate to="/dashboard/apps/economics/epe/cases" replace />} />
                                 <Route path="apps/economic/epe-suite" element={<Navigate to="/dashboard/apps/economics/epe/cases" replace />} />
                                 
-                                {/* Design system pilot 3 (docs/scope/DesignSystem-example-EPE.md): one ThemedApp
-                                    around every EPE page, so the light or dark choice holds while the user moves
+                                {/* Petroleum Economics Studio: its pages share the dashboard theme scope
+                                    (DashboardLayout), so the light or dark choice holds while the user moves
                                     between the case list, console, results and comparison. */}
-                                <Route element={<ThemedApp className="min-h-screen"><Outlet /></ThemedApp>}>
-                                    <Route path="apps/economics/epe/cases" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeCaseList /></ProtectedAppRoute>} />
-                                    <Route path="apps/economics/epe/help" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeHelpGuide /></ProtectedAppRoute>} />
-                                    <Route path="apps/economics/epe/cases/:caseId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeCaseDetail /></ProtectedAppRoute>} />
-                                    <Route path="apps/economics/epe/cases/:caseId/run" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeRunConsole /></ProtectedAppRoute>} />
-                                    <Route path="apps/economics/epe/cases/:caseId/compare" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeRunComparison /></ProtectedAppRoute>} />
-                                    <Route path="apps/economics/epe/runs/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeResultsViewer /></ProtectedAppRoute>} />
-                                    {/* run/:runId used to open the Run Console, which needs a caseId and
-                                        broke; a run link means "show me the run" — send it to results. */}
-                                    <Route path="apps/economics/epe/run/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeResultsViewer /></ProtectedAppRoute>} />
-                                    <Route path="apps/economics/epe/results/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeResultsViewer /></ProtectedAppRoute>} />
-                                </Route>
+                                <Route path="apps/economics/epe/cases" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeCaseList /></ProtectedAppRoute>} />
+                                <Route path="apps/economics/epe/help" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeHelpGuide /></ProtectedAppRoute>} />
+                                <Route path="apps/economics/epe/cases/:caseId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeCaseDetail /></ProtectedAppRoute>} />
+                                <Route path="apps/economics/epe/cases/:caseId/run" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeRunConsole /></ProtectedAppRoute>} />
+                                <Route path="apps/economics/epe/cases/:caseId/compare" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeRunComparison /></ProtectedAppRoute>} />
+                                <Route path="apps/economics/epe/runs/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeResultsViewer /></ProtectedAppRoute>} />
+                                {/* run/:runId used to open the Run Console, which needs a caseId and
+                                    broke; a run link means "show me the run" — send it to results. */}
+                                <Route path="apps/economics/epe/run/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeResultsViewer /></ProtectedAppRoute>} />
+                                <Route path="apps/economics/epe/results/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeResultsViewer /></ProtectedAppRoute>} />
                                 {/* compare without a caseId cannot query; land on the case list */}
                                 <Route path="apps/economics/epe/compare" element={<Navigate to="/dashboard/apps/economics/epe/cases" replace />} />
 
@@ -967,65 +964,70 @@ function App() {
                               {/* Dev-only harnesses for the Playwright viewer suite; absent from prod builds */}
                               {import.meta.env.DEV && (
                                 <>
-                                  <Route path="/dev/scal-studio" element={<ScalStudio />} />
-                                  <Route path="/dev/seismolord-selftest" element={<SeismolordSelfTest />} />
-                                  <Route path="/dev/seismolord-sliceview" element={<SeismolordSliceViewHarness />} />
-                                  <Route path="/dev/seismolord-cubeview" element={<SeismolordCubeViewHarness />} />
-                                  <Route path="/dev/seismolord-largesurvey" element={<SeismolordLargeSurveyHarness />} />
-                                  <Route path="/dev/seismolord-wells" element={<SeismolordWellsHarness />} />
-                                  <Route path="/dev/seismolord-welltie" element={<SeismolordWellTieHarness />} />
-                                  <Route path="/dev/seismolord-synthetics" element={<SeismolordSyntheticsHarness />} />
-                                  <Route path="/dev/seismolord-workspace" element={<SeismolordWorkspaceHarness />} />
-                                  <Route path="/dev/well-data-manager" element={<WellDataManagerHarness />} />
-                                  <Route path="/dev/petrophysics-studio" element={<PetrophysicsStudioHarness />} />
-                                  <Route path="/dev/well-correlation" element={<WellCorrelationHarness />} />
-                                  <Route path="/dev/stratigraphy-studio" element={<StratigraphyStudioHarness />} />
-                                  <Route path="/dev/wellsite-studio" element={<WellsiteStudioHarness />} />
-                                  <Route path="/dev/mapping-surface-studio" element={<MappingSurfaceStudioHarness />} />
-                                  <Route path="/dev/prospect-risking" element={<ProspectRiskingHarness />} />
-                                  <Route path="/dev/risked-reserves" element={<RiskedReservesHarness />} />
-                                  <Route path="/dev/reservoircalc-pro" element={<ReservoirCalcProHarness />} />
-                                  <Route path="/dev/rock-physics-studio" element={<RockPhysicsStudioHarness />} />
-                                  <Route path="/dev/earth-modeling" element={<EarthModelingHarness />} />
-                                  <Route path="/dev/pore-pressure-studio" element={<PorePressureStudioHarness />} />
-                                  <Route path="/dev/basinflow-genesis" element={<BasinFlowGenesisHarness />} />
-                                  <Route path="/dev/well-design" element={<WellDesignHarness />} />
-                                  <Route path="/dev/torque-drag" element={<TorqueDragHarness />} />
-                                  <Route path="/dev/hydraulics" element={<HydraulicsHarness />} />
-                                  <Route path="/dev/well-control" element={<WellControlHarness />} />
-                                  <Route path="/dev/cementing" element={<CementingHarness />} />
-                                  <Route path="/dev/geomechanics" element={<GeomechanicsHarness />} />
-                                  <Route path="/dev/casing-tubing" element={<CasingTubingHarness />} />
-                                  <Route path="/dev/completion-design" element={<CompletionDesignHarness />} />
-                                  <Route path="/dev/perforation-sand-control" element={<PerforationSandControlHarness />} />
-                                  <Route path="/dev/stimulation" element={<StimulationDesignerHarness />} />
-                                  <Route path="/dev/well-integrity" element={<WellIntegrityPAHarness />} />
-                                  <Route path="/dev/well-cost" element={<WellCostTimeHarness />} />
-                                  <Route path="/dev/dca" element={<DcaHarness />} />
-                                  <Route path="/dev/forecast-scenario-hub" element={<ForecastScenarioHubHarness />} />
-                                  <Route path="/dev/fiscal-regime-designer" element={<FiscalRegimeDesigner />} />
-                                  <Route path="/dev/fluid-systems-studio" element={<FluidSystemsStudio />} />
-                                  <Route path="/dev/epe/*" element={<EpeHarness />} />
-                                  <Route path="/dev/decision-studio" element={<DecisionStudioHarness />} />
-                                  <Route path="/dev/well-test-analysis-studio" element={<WellTestHarness />} />
-                                  <Route path="/dev/reservoir-simulation-studio" element={<SimStudioHarness />} />
-                                  <Route path="/dev/fdp-accelerator" element={<FdpHarness />} />
-                                  <Route path="/dev/voi-analyzer" element={<VoiHarness />} />
-                                  <Route path="/dev/capital-portfolio-studio" element={<CapitalPortfolioHarness />} />
-                                  <Route path="/dev/flare-gas-to-value" element={<FlareHarness />} />
-                                  <Route path="/dev/production/:app" element={<ProductionHarness />} />
-                                  <Route path="/dev/facilities/:app" element={<FacilitiesHarness />} />
-                                  <Route path="/dev/studio/:app" element={<StudiosHarness />} />
-                                  <Route path="/dev/assurance/:app" element={<AssuranceHarness />} />
-                                  <Route path="/dev/hubs/:page" element={<HubsHarness />} />
-                                  <Route path="/dev/modular-refinery-feasibility" element={<ModularRefineryHarness />} />
-                                  <Route path="/dev/carbon-footprint-abatement" element={<CarbonHarness />} />
-                                  <Route path="/dev/electrofacies-studio" element={<ElectrofaciesHarness />} />
-                                  <Route path="/dev/data-quality-studio" element={<DataQualityHarness />} />
+                                  {/* The harnesses render app pages outside DashboardLayout, so they get
+                                      the same single theme scope here (design system batch 7A). */}
+                                  <Route element={<ThemedApp className="min-h-screen" data-testid="dev-theme-scope"><Outlet /></ThemedApp>}>
+                                    <Route path="/dev/scal-studio" element={<ScalStudio />} />
+                                    <Route path="/dev/seismolord-selftest" element={<SeismolordSelfTest />} />
+                                    <Route path="/dev/seismolord-sliceview" element={<SeismolordSliceViewHarness />} />
+                                    <Route path="/dev/seismolord-cubeview" element={<SeismolordCubeViewHarness />} />
+                                    <Route path="/dev/seismolord-largesurvey" element={<SeismolordLargeSurveyHarness />} />
+                                    <Route path="/dev/seismolord-wells" element={<SeismolordWellsHarness />} />
+                                    <Route path="/dev/seismolord-welltie" element={<SeismolordWellTieHarness />} />
+                                    <Route path="/dev/seismolord-synthetics" element={<SeismolordSyntheticsHarness />} />
+                                    <Route path="/dev/seismolord-workspace" element={<SeismolordWorkspaceHarness />} />
+                                    <Route path="/dev/well-data-manager" element={<WellDataManagerHarness />} />
+                                    <Route path="/dev/petrophysics-studio" element={<PetrophysicsStudioHarness />} />
+                                    <Route path="/dev/well-correlation" element={<WellCorrelationHarness />} />
+                                    <Route path="/dev/stratigraphy-studio" element={<StratigraphyStudioHarness />} />
+                                    <Route path="/dev/wellsite-studio" element={<WellsiteStudioHarness />} />
+                                    <Route path="/dev/mapping-surface-studio" element={<MappingSurfaceStudioHarness />} />
+                                    <Route path="/dev/prospect-risking" element={<ProspectRiskingHarness />} />
+                                    <Route path="/dev/risked-reserves" element={<RiskedReservesHarness />} />
+                                    <Route path="/dev/reservoircalc-pro" element={<ReservoirCalcProHarness />} />
+                                    <Route path="/dev/rock-physics-studio" element={<RockPhysicsStudioHarness />} />
+                                    <Route path="/dev/earth-modeling" element={<EarthModelingHarness />} />
+                                    <Route path="/dev/pore-pressure-studio" element={<PorePressureStudioHarness />} />
+                                    <Route path="/dev/basinflow-genesis" element={<BasinFlowGenesisHarness />} />
+                                    <Route path="/dev/well-design" element={<WellDesignHarness />} />
+                                    <Route path="/dev/torque-drag" element={<TorqueDragHarness />} />
+                                    <Route path="/dev/hydraulics" element={<HydraulicsHarness />} />
+                                    <Route path="/dev/well-control" element={<WellControlHarness />} />
+                                    <Route path="/dev/cementing" element={<CementingHarness />} />
+                                    <Route path="/dev/geomechanics" element={<GeomechanicsHarness />} />
+                                    <Route path="/dev/casing-tubing" element={<CasingTubingHarness />} />
+                                    <Route path="/dev/completion-design" element={<CompletionDesignHarness />} />
+                                    <Route path="/dev/perforation-sand-control" element={<PerforationSandControlHarness />} />
+                                    <Route path="/dev/stimulation" element={<StimulationDesignerHarness />} />
+                                    <Route path="/dev/well-integrity" element={<WellIntegrityPAHarness />} />
+                                    <Route path="/dev/well-cost" element={<WellCostTimeHarness />} />
+                                    <Route path="/dev/dca" element={<DcaHarness />} />
+                                    <Route path="/dev/forecast-scenario-hub" element={<ForecastScenarioHubHarness />} />
+                                    <Route path="/dev/fiscal-regime-designer" element={<FiscalRegimeDesigner />} />
+                                    <Route path="/dev/fluid-systems-studio" element={<FluidSystemsStudio />} />
+                                    <Route path="/dev/epe/*" element={<EpeHarness />} />
+                                    <Route path="/dev/decision-studio" element={<DecisionStudioHarness />} />
+                                    <Route path="/dev/well-test-analysis-studio" element={<WellTestHarness />} />
+                                    <Route path="/dev/reservoir-simulation-studio" element={<SimStudioHarness />} />
+                                    <Route path="/dev/fdp-accelerator" element={<FdpHarness />} />
+                                    <Route path="/dev/voi-analyzer" element={<VoiHarness />} />
+                                    <Route path="/dev/capital-portfolio-studio" element={<CapitalPortfolioHarness />} />
+                                    <Route path="/dev/flare-gas-to-value" element={<FlareHarness />} />
+                                    <Route path="/dev/production/:app" element={<ProductionHarness />} />
+                                    <Route path="/dev/facilities/:app" element={<FacilitiesHarness />} />
+                                    <Route path="/dev/studio/:app" element={<StudiosHarness />} />
+                                    <Route path="/dev/assurance/:app" element={<AssuranceHarness />} />
+                                    <Route path="/dev/hubs/:page" element={<HubsHarness />} />
+                                    <Route path="/dev/modular-refinery-feasibility" element={<ModularRefineryHarness />} />
+                                    <Route path="/dev/carbon-footprint-abatement" element={<CarbonHarness />} />
+                                    <Route path="/dev/electrofacies-studio" element={<ElectrofaciesHarness />} />
+                                    <Route path="/dev/data-quality-studio" element={<DataQualityHarness />} />
+                                    <Route path="/dev/nodal-analysis-studio" element={<NodalHarness />} />
+                                    <Route path="/dev/material-balance-studio" element={<MbalHarness />} />
+                                    <Route path="/dev/material-balance-studio/cases/:caseId" element={<MbalHarness />} />
+                                  </Route>
+                                  {/* The design-system specimen shows a scoped and an unscoped column itself. */}
                                   <Route path="/dev/design-system" element={<DesignSystemHarness />} />
-                                  <Route path="/dev/nodal-analysis-studio" element={<NodalHarness />} />
-                                  <Route path="/dev/material-balance-studio" element={<MbalHarness />} />
-                                  <Route path="/dev/material-balance-studio/cases/:caseId" element={<MbalHarness />} />
                                 </>
                               )}
                               <Route path="*" element={<Navigate to="/" replace />} />

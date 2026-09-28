@@ -3,7 +3,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Layers, Box, TrendingUp, ArrowRight, Database, Cuboid, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { AppHeader, PageContainer } from '@/components/ui/app-shell';
 
 const AppCard = ({ title, description, icon: Icon, path, status = "Available" }) => {
@@ -97,9 +96,9 @@ const GeoscienceHubContent = () => {
 // Design system rollout batch 4D: the legacy hub opens light and follows the
 // user's theme from the header toggle.
 const GeoscienceHub = () => (
-  <ThemedApp className="min-h-screen" data-testid="geo-hub-theme-scope">
+  <div className="min-h-screen" data-testid="geo-hub-theme-scope">
     <GeoscienceHubContent />
-  </ThemedApp>
+  </div>
 );
 
 export default GeoscienceHub;

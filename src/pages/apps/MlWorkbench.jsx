@@ -18,7 +18,6 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -148,7 +147,7 @@ const Workspace = () => {
 };
 
 const MlWorkbench = ({ createWorker }) => (
-  <ThemedApp className="flex h-full min-h-screen flex-col" data-testid="mlwb-theme-scope">
+  <div className="flex h-full min-h-screen flex-col" data-testid="mlwb-theme-scope">
     <Helmet>
       <title>ML Workbench - Petrolord Suite</title>
       <meta
@@ -159,7 +158,7 @@ const MlWorkbench = ({ createWorker }) => (
     <MlWorkbenchProvider {...(createWorker ? { createWorker } : {})}>
       <Workspace />
     </MlWorkbenchProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default MlWorkbench;

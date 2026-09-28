@@ -12,7 +12,6 @@
 // Guard: __tests__/helpGuide.test.jsx.
 
 import React from 'react';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { CURVE_ALIASES } from './services/curveMap';
 import { MINERAL_UNSUITED } from './services/mineralModel';
 import {
@@ -65,7 +64,7 @@ const ALIAS_USE = {
 // Design system rollout W1C: the guide shares the Studio's theme scope, so
 // the user's light or dark choice holds between the app and its guide.
 const PetrophysicsHelpGuide = () => (
-  <ThemedApp className="min-h-screen" data-testid="petro-help-theme-scope">
+  <div className="min-h-screen" data-testid="petro-help-theme-scope">
   <HelpGuideShell
     title="Petrophysics Studio Help Guide"
     subtitle="Deterministic log analysis on the shared well registry"
@@ -1181,7 +1180,7 @@ const PetrophysicsHelpGuide = () => (
       />
     </GuideSection>
   </HelpGuideShell>
-  </ThemedApp>
+  </div>
 );
 
 export default PetrophysicsHelpGuide;

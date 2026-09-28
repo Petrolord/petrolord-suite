@@ -6,7 +6,6 @@ import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import {
   ArrowLeft, BookOpen, Zap, Clock, Receipt, Dice5, Landmark,
@@ -352,9 +351,9 @@ const WellCostTimeHelpGuideContent = () => {
 // Design system rollout batch 3C: the guide follows the same per-user theme
 // as the Well Cost & Time Estimator itself, so the look does not flip between the two pages.
 const WellCostTimeHelpGuide = () => (
-  <ThemedApp className="min-h-screen" data-testid="wct-help-theme-scope">
+  <div className="min-h-screen" data-testid="wct-help-theme-scope">
     <WellCostTimeHelpGuideContent />
-  </ThemedApp>
+  </div>
 );
 
 export default WellCostTimeHelpGuide;

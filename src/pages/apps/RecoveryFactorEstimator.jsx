@@ -19,7 +19,6 @@ import RfKpiPanel from '@/components/rfestimator/RfKpiPanel';
 import ReservesChartPanel from '@/components/rfestimator/ReservesChartPanel';
 import DriveReferencePanel from '@/components/rfestimator/DriveReferencePanel';
 import RecoveryFactorHelpContent from '@/components/reservoir/RecoveryFactorHelpGuide';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 const SectionLabel = ({ children }) => (
   <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
@@ -117,10 +116,10 @@ const RfEstimatorContent = () => {
 // switches it to dark per user. Charts keep the white chart standard.
 export default function RecoveryFactorEstimator() {
   return (
-    <ThemedApp data-testid="rf-theme-scope">
+    <div data-testid="rf-theme-scope">
       <RfEstimatorProvider>
         <RfEstimatorContent />
       </RfEstimatorProvider>
-    </ThemedApp>
+    </div>
   );
 }

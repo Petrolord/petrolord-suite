@@ -18,7 +18,6 @@ import DecisionStudioHelpGuide from '@/components/decisionstudio/DecisionStudioH
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE,
 } from '@/utils/chartTheme';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { AppHeader } from '@/components/ui/app-shell';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -392,11 +391,11 @@ const DecisionStudioInner = ({ userOverride = null }) => {
 // analysis money (Optimal EMV, Next best alternative, Decision advantage) in
 // $MM at 4 decimals.
 const DecisionStudio = ({ userOverride = null }) => (
-  <ThemedApp className="min-h-screen" data-testid="ds-theme-scope">
+  <div className="min-h-screen" data-testid="ds-theme-scope">
     <FullPrecisionProvider>
       <DecisionStudioInner userOverride={userOverride} />
     </FullPrecisionProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default DecisionStudio;

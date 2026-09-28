@@ -48,7 +48,6 @@ import RbDiagnosticPlots from '@/components/reservoirbalance/RbDiagnosticPlots';
 import ValidationTierBadge from '@/components/reservoirbalance/ValidationTierBadge';
 import NewCaseDialog, { fluidSystemDisplay } from '@/components/reservoirbalance/NewCaseDialog';
 import MbsHelpContent from '@/components/reservoirbalance/MbsHelpContent';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { mapWellTestIntake } from './lib/wellTestIntake';
 
 const TABS = [
@@ -470,10 +469,10 @@ export default function ReservoirBalance() {
   // the page wraps itself in <ThemedApp>, so it opens light and the header
   // toggle switches it to dark per user. Charts keep the white standard.
   return (
-    <ThemedApp data-testid="mbal-theme-scope">
+    <div data-testid="mbal-theme-scope">
       <MaterialBalanceStudioProvider caseId={caseId ?? null} onOpenCase={handleOpenCase}>
         <MaterialBalanceStudioContent onOpenCase={handleOpenCase} />
       </MaterialBalanceStudioProvider>
-    </ThemedApp>
+    </div>
   );
 }

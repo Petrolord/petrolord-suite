@@ -7,7 +7,6 @@ import React from 'react';
 import { Helmet } from 'react-helmet';
 import { Building2 } from 'lucide-react';
 import { AppHeader } from '@/components/ui/app-shell';
-import { ThemedApp } from '@/design/ThemeProvider';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import StudioNotifications from '@/components/studio/StudioNotifications';
@@ -67,7 +66,7 @@ const Workspace = () => {
 // Design system rollout w5e: the page wraps itself in <ThemedApp>, so the
 // classes below are theme roles; the scale chart stays white (ChartFrame).
 const ModularRefineryFeasibility = () => (
-  <ThemedApp className="flex min-h-screen flex-col" data-testid="modular-theme-scope">
+  <div className="flex min-h-screen flex-col" data-testid="modular-theme-scope">
     <Helmet>
       <title>Modular Refinery Feasibility Studio - Petrolord Suite</title>
       <meta name="description" content="Feasibility for a modular refinery: configuration, yields, modular versus stick-built capital scaling, product slate value, economics and crude supply risk." />
@@ -75,7 +74,7 @@ const ModularRefineryFeasibility = () => (
     <ModularRefineryProvider>
       <Workspace />
     </ModularRefineryProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default ModularRefineryFeasibility;

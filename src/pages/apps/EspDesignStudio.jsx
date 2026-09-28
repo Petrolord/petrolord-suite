@@ -34,7 +34,6 @@ import ElectricalPanel from '@/components/esp/ElectricalPanel';
 import DiagnosticsPanel from '@/components/esp/DiagnosticsPanel';
 import EspWarningsPanel from '@/components/esp/WarningsPanel';
 import EspHelpContent from '@/components/esp/EspHelpGuide';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 // Design system rollout batch 2C (docs/scope/DesignSystem-Rollout.md): the
 // page wraps itself in <ThemedApp>, so every class below is a theme role.
@@ -197,10 +196,10 @@ const EspContent = () => {
 
 export default function EspDesignStudio() {
   return (
-    <ThemedApp data-testid="esp-theme-scope">
+    <div data-testid="esp-theme-scope">
       <EspDesignProvider>
         <EspContent />
       </EspDesignProvider>
-    </ThemedApp>
+    </div>
   );
 }

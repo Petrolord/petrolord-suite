@@ -9,7 +9,6 @@ import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import {
   ArrowLeft, BookOpen, Zap, FolderTree, Ruler, Wand2, Target, LayoutGrid,
@@ -660,9 +659,9 @@ const WellDesignHelpGuideContent = () => {
 // Design system rollout batch 3A: the guide follows the same per-user theme
 // as Well Design Studio itself, so the look does not flip between the two pages.
 const WellDesignHelpGuide = () => (
-  <ThemedApp className="min-h-screen" data-testid="wds-help-theme-scope">
+  <div className="min-h-screen" data-testid="wds-help-theme-scope">
     <WellDesignHelpGuideContent />
-  </ThemedApp>
+  </div>
 );
 
 export default WellDesignHelpGuide;

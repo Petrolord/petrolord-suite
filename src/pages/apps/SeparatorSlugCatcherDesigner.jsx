@@ -17,7 +17,6 @@ import { VesselInputs, VesselResults } from '@/components/separatorstudio/Separa
 import { SlugInputs, SlugResults } from '@/components/separatorstudio/SlugCatcherPanels';
 import SeparatorHelpContent from '@/components/separatorstudio/SeparatorHelpGuide';
 import { fmt, Row } from '@/components/separatorstudio/fields';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 // Design system rollout batch 5B (docs/scope/DesignSystem-Rollout.md): the
 // page wraps itself in <ThemedApp>, so every class below is a theme role.
@@ -164,13 +163,13 @@ const StudioContent = () => {
 };
 
 const SeparatorSlugCatcherDesigner = () => (
-  <ThemedApp data-testid="separator-theme-scope">
+  <div data-testid="separator-theme-scope">
     <SeparatorStudioProvider>
       <FullPrecisionProvider>
         <StudioContent />
       </FullPrecisionProvider>
     </SeparatorStudioProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default SeparatorSlugCatcherDesigner;

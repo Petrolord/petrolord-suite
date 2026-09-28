@@ -26,7 +26,6 @@ import PiggingPanel, { PiggingInputs } from '@/components/linesizing/PiggingPane
 import SummaryPanel from '@/components/linesizing/SummaryPanel';
 import LineSizingHelpContent from '@/components/linesizing/LineSizingHelpGuide';
 import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
-import { ThemedApp } from '@/design/ThemeProvider';
 
 const TABS = [
   { value: 'sizing', label: 'Line Sizing' },
@@ -177,13 +176,13 @@ const StudioContent = () => {
 // page wraps itself in <ThemedApp>, so every class in its own files is a
 // theme role.
 const PipelineLineSizingStudio = () => (
-  <ThemedApp data-testid="linesizing-theme-scope">
+  <div data-testid="linesizing-theme-scope">
     <LineSizingProvider>
       <FullPrecisionProvider>
         <StudioContent />
       </FullPrecisionProvider>
     </LineSizingProvider>
-  </ThemedApp>
+  </div>
 );
 
 export default PipelineLineSizingStudio;

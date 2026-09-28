@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import { ThemedApp } from '@/design/ThemeProvider';
 import { Helmet } from 'react-helmet';
 import WellsiteWorkstation from './components/WellsiteWorkstation';
 import { makeLocalBackend } from './services/localBackend';
@@ -17,9 +16,9 @@ export default function WellsiteStudio() {
         <title>Wellsite Studio - Petrolord Suite</title>
         <meta name="description" content="The geological record of a live well: lag and samples, cuttings descriptions, shows, observations, photographs, formation tops with their evidence, the operational timeline, shift handovers and daily geological reports, on a record that works without a connection." />
       </Helmet>
-      <ThemedApp className="h-screen w-full overflow-hidden" data-testid="ws-theme-scope">
+      <div className="h-screen w-full overflow-hidden" data-testid="ws-theme-scope">
         <WellsiteWorkstation backend={backend} />
-      </ThemedApp>
+      </div>
     </>
   );
 }
