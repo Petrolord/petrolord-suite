@@ -12,6 +12,7 @@ jest.mock('@/lib/customSupabaseClient', () => ({ supabase: {} }));
 import { AuthContext } from '@/contexts/SupabaseAuthContext';
 import {
   ThemedApp, ThemeProvider, themeStorageKey, readStoredTheme, writeStoredTheme,
+  LAST_THEME_KEY, readLastTheme, writeLastTheme,
 } from '@/design/ThemeProvider';
 import { useDsTheme } from '@/design/themeContext';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -118,6 +119,83 @@ describe('ThemedApp', () => {
     fireEvent.click(screen.getByTestId('theme-toggle'));
     expect(screen.getByTestId('inner')).toHaveAttribute('data-pl-theme', 'dark');
     expect(screen.getByTestId('probe')).toHaveTextContent('dark');
+  });
+});
+
+describe('first paint while the session restores (hub pilot)', () => {
+  // On a cold load AuthContext reports loading with no user for a moment.
+  // Without the device key a user who chose dark saw one light frame.
+  const Wrapper = ({ auth }) => (
+    <AuthContext.Provider value={auth}>
+      <ThemedApp><Probe /></ThemedApp>
+    </AuthContext.Provider>
+  );
+
+  it('paints the last theme this device resolved while the user id is unknown', () => {
+    window.localStorage.setItem(themeStorageKey('alice'), 'dark');
+    window.localStorage.setItem(LAST_THEME_KEY, 'dark');
+    const { rerender } = render(<Wrapper auth={{ user: null, loading: true }} />);
+    // the very first render is already dark: no light frame
+    expect(screen.getByTestId('probe')).toHaveTextContent('dark');
+    expect(scopeRoot()).toHaveAttribute('data-pl-theme', 'dark');
+    rerender(<Wrapper auth={{ user: { id: 'alice' }, loading: false }} />);
+    expect(screen.getByTestId('probe')).toHaveTextContent('dark');
+  });
+
+  it('hands over to the real user choice once the id arrives', () => {
+    window.localStorage.setItem(LAST_THEME_KEY, 'dark');
+    const { rerender } = render(<Wrapper auth={{ user: null, loading: true }} />);
+    expect(screen.getByTestId('probe')).toHaveTextContent('dark');
+    // bob never chose dark: he gets his own (default light) theme
+    rerender(<Wrapper auth={{ user: { id: 'bob' }, loading: false }} />);
+    expect(screen.getByTestId('probe')).toHaveTextContent('light');
+    expect(window.localStorage.getItem(LAST_THEME_KEY)).toBe('light');
+  });
+
+  it('records the resolved theme for a signed-in user, and each toggle', () => {
+    window.localStorage.setItem(themeStorageKey('alice'), 'dark');
+    render(
+      <AuthContext.Provider value={{ user: { id: 'alice' }, loading: false }}>
+        <ThemedApp><ThemeToggle /><Probe /></ThemedApp>
+      </AuthContext.Provider>,
+    );
+    expect(window.localStorage.getItem(LAST_THEME_KEY)).toBe('dark');
+    fireEvent.click(screen.getByTestId('theme-toggle'));
+    expect(window.localStorage.getItem(LAST_THEME_KEY)).toBe('light');
+    expect(window.localStorage.getItem(themeStorageKey('alice'))).toBe('light');
+  });
+
+  it('does not use the device key once auth has settled without a user (signed out)', () => {
+    window.localStorage.setItem(LAST_THEME_KEY, 'dark');
+    render(<Wrapper auth={{ user: null, loading: false }} />);
+    expect(screen.getByTestId('probe')).toHaveTextContent('light');
+  });
+
+  it('does not use the device key when the caller passes a user id', () => {
+    window.localStorage.setItem(LAST_THEME_KEY, 'dark');
+    render(
+      <AuthContext.Provider value={{ user: null, loading: true }}>
+        <ThemedApp userId="u9"><Probe /></ThemedApp>
+      </AuthContext.Provider>,
+    );
+    expect(screen.getByTestId('probe')).toHaveTextContent('light');
+  });
+
+  it('is light on a device that never resolved a theme', () => {
+    render(<Wrapper auth={{ user: null, loading: true }} />);
+    expect(screen.getByTestId('probe')).toHaveTextContent('light');
+    expect(window.localStorage.getItem(LAST_THEME_KEY)).toBeNull();
+  });
+
+  it('ignores a corrupt device value and tolerates storage that throws', () => {
+    window.localStorage.setItem(LAST_THEME_KEY, 'purple');
+    expect(readLastTheme()).toBeNull();
+    const throwing = {
+      getItem: () => { throw new Error('SecurityError'); },
+      setItem: () => { throw new Error('QuotaExceededError'); },
+    };
+    expect(readLastTheme(throwing)).toBeNull();
+    expect(writeLastTheme('dark', throwing)).toBe(false);
   });
 });
 

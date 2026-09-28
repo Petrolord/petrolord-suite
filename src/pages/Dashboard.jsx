@@ -17,24 +17,23 @@ import RequestAccessModal from '@/components/RequestAccessModal';
 import { usePurchasedModules } from '@/hooks/usePurchasedModules';
 import { isValidUUID } from '@/lib/utils';
 import ImpersonationBanner from '@/components/ImpersonationBanner';
+import { HubHeader, HubPage, HubSectionTitle } from '@/components/hubs/HubChrome';
 
 const modules = [
-  { id: 'geoscience', name: 'Geoscience', icon: Layers3, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-  { id: 'reservoir', name: 'Reservoir', icon: Database, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-  { id: 'drilling', name: 'Drilling', icon: HardHat, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-  { id: 'production', name: 'Production', icon: Fuel, color: 'text-purple-400', bg: 'bg-purple-500/10' },
-  { id: 'economics', name: 'Economics', icon: DollarSign, color: 'text-lime-400', bg: 'bg-lime-500/10' },
-  { id: 'facilities', name: 'Facilities', icon: Factory, color: 'text-rose-400', bg: 'bg-rose-500/10' },
-  { id: 'assurance', name: 'Assurance', icon: Shield, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
-  { id: 'midstream-downstream', name: 'Midstream & Downstream', icon: Container, color: 'text-orange-400', bg: 'bg-orange-500/10' },
-  { id: 'process-safety', name: 'Process Safety', icon: Flame, color: 'text-red-400', bg: 'bg-red-500/10' },
-  { id: 'data-ai', name: 'Data & AI', icon: ScatterChart, color: 'text-sky-400', bg: 'bg-sky-500/10' },
+  { id: 'geoscience', name: 'Geoscience', icon: Layers3 },
+  { id: 'reservoir', name: 'Reservoir', icon: Database },
+  { id: 'drilling', name: 'Drilling', icon: HardHat },
+  { id: 'production', name: 'Production', icon: Fuel },
+  { id: 'economics', name: 'Economics', icon: DollarSign },
+  { id: 'facilities', name: 'Facilities', icon: Factory },
+  { id: 'assurance', name: 'Assurance', icon: Shield },
+  { id: 'midstream-downstream', name: 'Midstream & Downstream', icon: Container },
+  { id: 'process-safety', name: 'Process Safety', icon: Flame },
+  { id: 'data-ai', name: 'Data & AI', icon: ScatterChart },
   { 
     id: 'hse', 
     name: 'HSE', 
     icon: Shield, 
-    color: 'text-cyan-400', 
-    bg: 'bg-cyan-500/10', 
     description: 'Access health, safety and environment applications and workflows.',
     external: true,
     url: 'https://hse.petrolord.com/'
@@ -126,59 +125,54 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-950">
+    <div className="flex flex-col min-h-screen">
       <ImpersonationBanner />
       
-      <div className="p-6 md:p-8 space-y-8 flex-1">
-        
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-1">
-              Welcome back, {user?.user_metadata?.full_name?.split(' ')[0] || 'Explorer'}
-            </h1>
-            <p className="text-slate-400">Here's what's happening across your operations today.</p>
-          </div>
-          <div className="flex flex-wrap gap-3 items-center">
-            {isAdmin && (
-                <>
-                  <Button variant="outline" className="border-blue-500/30 text-blue-400 hover:text-white" onClick={() => navigate('/dashboard/access-requests')} disabled={isImpersonating}>
-                      <ShieldCheck className="w-4 h-4 mr-2"/> Requests
-                      {pendingRequestsCount > 0 && <Badge className="ml-2 bg-blue-600 text-white h-5 w-5 p-0 flex items-center justify-center rounded-full">{pendingRequestsCount}</Badge>}
-                  </Button>
-                  <Button variant="outline" className="border-green-500/30 text-green-400 hover:text-white" onClick={() => navigate('/dashboard/subscriptions')} disabled={isImpersonating}>
-                      <CreditCard className="w-4 h-4 mr-2"/> Subscriptions
-                  </Button>
-                </>
-            )}
-            <Button 
-              variant="ghost" 
-              className="text-slate-400 hover:text-white" 
-              onClick={handleSyncPayments}
-              disabled={syncing || isImpersonating}
-            >
-               <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`}/> 
-               {syncing ? 'Syncing...' : 'Sync'}
-            </Button>
-            
-            {showTeamButton && (
-              <Button variant="outline" className="border-slate-700 text-slate-300 hover:text-white" onClick={() => navigate('/dashboard/employees')}>
-                 <Users className="w-4 h-4 mr-2"/> Team ({memberCount})
+      <HubPage className="flex-1">
+        <HubHeader
+          eyebrow="Petrolord Suite"
+          title={`Welcome back, ${user?.user_metadata?.full_name?.split(' ')[0] || 'Explorer'}`}
+          description="Here's what's happening across your operations today."
+          actions={(
+            <>
+              {isAdmin && (
+                  <>
+                    <Button variant="outline" onClick={() => navigate('/dashboard/access-requests')} disabled={isImpersonating}>
+                        <ShieldCheck className="w-4 h-4 mr-2" aria-hidden="true"/> Requests
+                        {pendingRequestsCount > 0 && <Badge variant="info" className="ml-2 h-5 min-w-5 px-1.5 flex items-center justify-center font-pl-mono tabular-nums" aria-label={`${pendingRequestsCount} pending`}>{pendingRequestsCount}</Badge>}
+                    </Button>
+                    <Button variant="outline" onClick={() => navigate('/dashboard/subscriptions')} disabled={isImpersonating}>
+                        <CreditCard className="w-4 h-4 mr-2" aria-hidden="true"/> Subscriptions
+                    </Button>
+                  </>
+              )}
+              <Button 
+                variant="ghost" 
+                onClick={handleSyncPayments}
+                disabled={syncing || isImpersonating}
+              >
+                 <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} aria-hidden="true"/> 
+                 {syncing ? 'Syncing...' : 'Sync'}
               </Button>
-            )}
+              
+              {showTeamButton && (
+                <Button variant="outline" onClick={() => navigate('/dashboard/employees')}>
+                   <Users className="w-4 h-4 mr-2" aria-hidden="true"/> Team ({memberCount})
+                </Button>
+              )}
 
-            <Button variant="outline" className="border-slate-700 text-slate-300 hover:text-white" onClick={() => navigate('/dashboard/modules')}>
-               <Box className="w-4 h-4 mr-2"/> My Apps
-            </Button>
-            {!isImpersonating && <UpgradeSuiteButton />}
-          </div>
-        </div>
+              <Button variant="outline" onClick={() => navigate('/dashboard/modules')}>
+                 <Box className="w-4 h-4 mr-2" aria-hidden="true"/> My Apps
+              </Button>
+              {!isImpersonating && <UpgradeSuiteButton />}
+            </>
+          )}
+        />
 
         {/* Module Grid */}
-        <div>
-          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-              My Applications
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <section className="space-y-4">
+          <HubSectionTitle>My Applications</HubSectionTitle>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" aria-busy={modulesLoading || undefined}>
             {modules.map((module) => {
               const isActive = isModuleActive(module.id);
               
@@ -187,39 +181,42 @@ export default function Dashboard() {
                 key={module.id}
                 whileHover={(isActive) ? { scale: 1.02 } : {}}
                 className="group relative"
+                data-testid="module-card"
               >
-                <Card className={`bg-slate-900 border transition-all h-full ${isActive ? 'border-slate-800 hover:border-slate-700' : 'border-slate-800/50'}`}>
-                  <CardContent className="p-6 flex flex-col items-start gap-4">
-                    <div className={`p-3 rounded-xl ${module.bg} ${module.color} flex justify-between w-full`}>
-                      <module.icon className="w-8 h-8" />
-                      {isActive ? <CheckCircle2 className="w-5 h-5 text-green-500/50"/> : <Lock className="w-5 h-5 text-slate-500"/>}
+                <Card className={`h-full transition-all ${isActive ? 'hover:border-pl-border-strong hover:shadow-pl-md' : 'bg-pl-sunken/60 shadow-none'}`}>
+                  <CardContent className="p-6 flex flex-col items-start gap-4 h-full">
+                    <div className="p-3 rounded-xl bg-pl-sunken flex justify-between items-start w-full">
+                      <module.icon className={`w-8 h-8 ${isActive ? 'text-pl-primary-text' : 'text-pl-muted'}`} aria-hidden="true" />
+                      {isActive ? <CheckCircle2 className="w-5 h-5 text-pl-success-text" aria-hidden="true"/> : <Lock className="w-5 h-5 text-pl-muted" aria-hidden="true"/>}
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-white group-hover:text-lime-400 transition-colors flex items-center gap-2">
+                      <h3 className="text-lg font-semibold text-pl-text group-hover:text-pl-primary-text transition-colors flex flex-wrap items-center gap-2">
                         {module.name}
                         {isActive ? (
-                            <Badge variant="outline" className="text-[10px] h-5 border-green-600 text-green-400">Available</Badge>
+                            <Badge variant="success" className="text-[10px] h-5">Available</Badge>
                         ) : (
-                            <Badge variant="outline" className="text-[10px] h-5 border-slate-700 text-slate-600">Locked</Badge>
+                            <Badge variant="secondary" className="text-[10px] h-5">Locked</Badge>
                         )}
                       </h3>
-                      <p className="text-sm text-slate-500 mt-1">
+                      <p className="text-sm text-pl-muted mt-1">
                         {module.description || `Access ${module.name.toLowerCase()} applications and workflows.`}
                       </p>
                     </div>
                     <div className="mt-auto pt-2 w-full">
                       {isActive ? (
-                          <div 
-                            className="flex items-center text-xs font-medium text-slate-500 group-hover:text-white transition-colors cursor-pointer" 
+                          <button
+                            type="button"
+                            className="inline-flex items-center rounded-sm text-sm font-medium text-pl-primary-text hover:underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus focus-visible:ring-offset-2 ring-offset-pl-surface"
+                            aria-label={`Open ${module.name} hub`}
                             onClick={() => module.id === 'hse' && module.external ? window.open(module.url, '_blank') : navigate(`/dashboard/${module.id}`)}
                           >
-                              Open Hub <ArrowRight className="w-3 h-3 ml-1" />
-                          </div>
+                              Open Hub <ArrowRight className="w-3.5 h-3.5 ml-1" aria-hidden="true" />
+                          </button>
                       ) : (
                           isAdmin && !isImpersonating ? (
-                              <Button size="sm" variant="outline" className="w-full border-amber-900 text-amber-500 hover:bg-amber-900/20" onClick={() => navigate('/dashboard/upgrade')}>Purchase</Button>
+                              <Button size="sm" className="w-full" onClick={() => navigate('/dashboard/upgrade')}>Purchase</Button>
                           ) : (
-                              <Button size="sm" variant="outline" className="w-full border-slate-700 text-slate-500" disabled>Contact Admin</Button>
+                              <Button size="sm" variant="outline" className="w-full" disabled>Contact Admin</Button>
                           )
                       )}
                     </div>
@@ -228,8 +225,8 @@ export default function Dashboard() {
               </motion.div>
             )})}
           </div>
-        </div>
-      </div>
+        </section>
+      </HubPage>
     </div>
   );
 }

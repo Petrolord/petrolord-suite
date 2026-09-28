@@ -9,6 +9,8 @@ import ChartFrame from '@/components/charts/ChartFrame';
 import GatedNotice from '@/components/vrrmonitor/GatedNotice';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { useVrrMonitor } from '@/contexts/VrrMonitorContext';
+import { plain } from './vrrBand';
+import { useStudioTheme, THEMED_TONE, THEMED_TONE_TEXT } from '@/components/studio/studioTheme';
 
 const LINE = { inst: '#2563eb', cum: '#059669', ref: '#dc2626' };
 
@@ -20,9 +22,11 @@ const FLAG_STYLE = {
   'in-band': 'text-emerald-400',
   over: 'text-sky-400',
 };
+const FLAG_TONE = { under: 'warn', 'in-band': 'good', over: 'info' };
 
 const PatternCard = ({ analysis, targetBand }) => {
   const { pattern } = analysis;
+  const { tc } = useStudioTheme();
   if (analysis.withheld) {
     return (
       <GatedNotice
@@ -42,16 +46,16 @@ const PatternCard = ({ analysis, targetBand }) => {
   const latestFlag = [...flags].reverse().find((f) => f != null);
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card className={tc('bg-slate-900 border-slate-800', undefined)}>
       <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-3 flex-wrap">
           {pattern.name}
-          <span className="text-xs font-normal text-slate-500">
+          <span className={tc('text-xs font-normal text-slate-500', 'text-xs font-normal text-pl-muted')}>
             {pattern.producers.join(', ')} · cum VRR {fmt(summary?.cumulativeVRR)}
           </span>
           {latestFlag && (
-            <span className={`text-xs font-normal ${FLAG_STYLE[latestFlag]}`}>
-              latest period {latestFlag === 'in-band' ? 'in band' : latestFlag} vs {targetBand.min.toFixed(2)}–{targetBand.max.toFixed(2)}
+            <span className={tc(`text-xs font-normal ${FLAG_STYLE[latestFlag]}`, `text-xs font-medium ${THEMED_TONE_TEXT[FLAG_TONE[latestFlag]]}`)}>
+              latest period {latestFlag === 'in-band' ? 'in band' : latestFlag} against {targetBand.min.toFixed(2)} to {targetBand.max.toFixed(2)}
             </span>
           )}
         </CardTitle>
@@ -71,18 +75,18 @@ const PatternCard = ({ analysis, targetBand }) => {
         </ChartFrame>
         <div className="p-4 pt-2">
           {recommendation.withheld ? (
-            <p className="text-xs text-slate-500">{recommendation.reason}</p>
+            <p className={tc('text-xs text-slate-500', 'text-xs text-pl-muted')}>{recommendation.reason}</p>
           ) : (
-            <div className="text-xs text-slate-400 space-y-1">
+            <div className={tc('text-xs text-slate-400 space-y-1', 'text-xs text-pl-muted space-y-1')}>
               <div>
-                Rolling VRR {fmt(recommendation.currentVRR)} vs target {fmt(recommendation.targetVRR)} →
-                scale water injection ×{fmt(recommendation.scale)}
-                {recommendation.clamped && <span className="text-amber-400"> (clamped — the unclamped step was implausible; re-check allocation and PVT first)</span>}
-                : {fmt(recommendation.currentWi, 0)} → <span className="text-slate-200 font-semibold">{fmt(recommendation.recommendedWi, 0)} bbl/period</span>
+                Rolling VRR {fmt(recommendation.currentVRR)} against a target of {fmt(recommendation.targetVRR)}, so
+                scale water injection by {fmt(recommendation.scale)}
+                {recommendation.clamped && <span className={tc('text-amber-400', THEMED_TONE_TEXT.warn)}> (clamped: the unclamped step was implausible, so re-check allocation and PVT first)</span>}
+                : from {fmt(recommendation.currentWi, 0)} to <span className={tc('text-slate-200 font-semibold', 'text-pl-text font-semibold')}>{fmt(recommendation.recommendedWi, 0)} bbl/period</span>
               </div>
               {recommendation.perInjector.map((r) => (
-                <div key={r.well} className="font-mono">
-                  {r.well}: {fmt(r.currentWi, 0)} → {fmt(r.recommendedWi, 0)} bbl/period ({r.deltaWi >= 0 ? '+' : ''}{fmt(r.deltaWi, 0)})
+                <div key={r.well} className={tc('font-mono', 'font-pl-mono tabular-nums')}>
+                  {r.well}: {fmt(r.currentWi, 0)} to {fmt(r.recommendedWi, 0)} bbl/period ({r.deltaWi >= 0 ? '+' : ''}{fmt(r.deltaWi, 0)})
                 </div>
               ))}
             </div>
@@ -95,6 +99,7 @@ const PatternCard = ({ analysis, targetBand }) => {
 
 const PatternResultsPanel = () => {
   const { isImported, inputs, patternAnalyses, summary, targetBand } = useVrrMonitor();
+  const { tc } = useStudioTheme();
 
   if (!isImported) {
     return (
@@ -118,34 +123,34 @@ const PatternResultsPanel = () => {
   return (
     <>
       {/* Field / pattern rollup */}
-      <Card className="bg-slate-900 border-slate-800">
+      <Card className={tc('bg-slate-900 border-slate-800', undefined)}>
         <CardHeader className="pb-2"><CardTitle className="text-base">Rollup</CardTitle></CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="border-slate-800 hover:bg-transparent">
-                <TableHead className="text-slate-400">Level</TableHead>
-                <TableHead className="text-slate-400 text-right">Cum. VRR</TableHead>
-                <TableHead className="text-slate-400 text-right">Latest Inst.</TableHead>
-                <TableHead className="text-slate-400 text-right">Producers</TableHead>
-                <TableHead className="text-slate-400">Status</TableHead>
+              <TableRow className={tc('border-slate-800 hover:bg-transparent', 'hover:bg-transparent')}>
+                <TableHead className={tc('text-slate-400', undefined)}>Level</TableHead>
+                <TableHead className={tc('text-slate-400 text-right', 'text-right')}>Cum. VRR</TableHead>
+                <TableHead className={tc('text-slate-400 text-right', 'text-right')}>Latest Inst.</TableHead>
+                <TableHead className={tc('text-slate-400 text-right', 'text-right')}>Producers</TableHead>
+                <TableHead className={tc('text-slate-400', undefined)}>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow className="border-slate-800">
-                <TableCell className="text-slate-200 font-semibold">Field</TableCell>
-                <TableCell className="text-right font-mono text-slate-200">{fmt(summary?.cumulativeVRR)}</TableCell>
-                <TableCell className="text-right font-mono text-slate-300">{fmt(summary?.latestInstantaneousVRR)}</TableCell>
-                <TableCell className="text-right font-mono text-slate-500">all</TableCell>
-                <TableCell className="text-xs text-slate-500">{summary?.status?.label}</TableCell>
+              <TableRow className={tc('border-slate-800', undefined)}>
+                <TableCell className={tc('text-slate-200 font-semibold', 'font-semibold')}>Field</TableCell>
+                <TableCell className={tc('text-right font-mono text-slate-200', 'text-right font-pl-mono tabular-nums font-semibold')}>{fmt(summary?.cumulativeVRR)}</TableCell>
+                <TableCell className={tc('text-right font-mono text-slate-300', 'text-right font-pl-mono tabular-nums')}>{fmt(summary?.latestInstantaneousVRR)}</TableCell>
+                <TableCell className={tc('text-right font-mono text-slate-500', 'text-right text-pl-muted')}>all</TableCell>
+                <TableCell className={tc('text-xs text-slate-500', 'text-xs text-pl-muted')}>{plain(summary?.status?.label)}</TableCell>
               </TableRow>
               {patternAnalyses.map((a) => (
-                <TableRow key={a.pattern.id} className="border-slate-800">
-                  <TableCell className="text-slate-300">{a.pattern.name}</TableCell>
-                  <TableCell className="text-right font-mono text-slate-300">{a.withheld ? '-' : fmt(a.summary?.cumulativeVRR)}</TableCell>
-                  <TableCell className="text-right font-mono text-slate-400">{a.withheld ? '-' : fmt(a.summary?.latestInstantaneousVRR)}</TableCell>
-                  <TableCell className="text-right font-mono text-slate-500">{a.pattern.producers.length}</TableCell>
-                  <TableCell className="text-xs text-slate-500">{a.withheld ? a.reason : a.summary?.status?.label}</TableCell>
+                <TableRow key={a.pattern.id} className={tc('border-slate-800', undefined)}>
+                  <TableCell className={tc('text-slate-300', undefined)}>{a.pattern.name}</TableCell>
+                  <TableCell className={tc('text-right font-mono text-slate-300', 'text-right font-pl-mono tabular-nums')}>{a.withheld ? '-' : fmt(a.summary?.cumulativeVRR)}</TableCell>
+                  <TableCell className={tc('text-right font-mono text-slate-400', 'text-right font-pl-mono tabular-nums')}>{a.withheld ? '-' : fmt(a.summary?.latestInstantaneousVRR)}</TableCell>
+                  <TableCell className={tc('text-right font-mono text-slate-500', 'text-right font-pl-mono tabular-nums')}>{a.pattern.producers.length}</TableCell>
+                  <TableCell className={tc('text-xs text-slate-500', 'text-xs text-pl-muted')}>{a.withheld ? a.reason : plain(a.summary?.status?.label)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

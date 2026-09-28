@@ -41,30 +41,30 @@ const StatusBadge = ({ status, rowCount }) => {
     EMPTY: {
       label: 'Empty',
       icon: AlertCircle,
-      bg: 'bg-yellow-500/10',
-      border: 'border-yellow-500/40',
-      text: 'text-yellow-300',
+      bg: 'bg-pl-warning-bg',
+      border: 'border-pl-warning/40',
+      text: 'text-pl-warning-text',
     },
     UPLOADED_PENDING: {
-      label: 'Uploaded — needs processing',
+      label: 'Uploaded, needs processing',
       icon: AlertCircle,
-      bg: 'bg-blue-500/10',
-      border: 'border-blue-500/40',
-      text: 'text-blue-300',
+      bg: 'bg-pl-info-bg',
+      border: 'border-pl-info/40',
+      text: 'text-pl-info-text',
     },
     PROCESSED: {
       label: rowCount !== undefined ? `Processed • ${rowCount} rows` : 'Processed',
       icon: CheckCircle2,
-      bg: 'bg-green-500/10',
-      border: 'border-green-500/40',
-      text: 'text-green-300',
+      bg: 'bg-pl-success-bg',
+      border: 'border-pl-success/40',
+      text: 'text-pl-success-text',
     },
     UNKNOWN: {
       label: 'Unknown state',
       icon: AlertCircle,
-      bg: 'bg-slate-500/10',
-      border: 'border-slate-500/40',
-      text: 'text-slate-300',
+      bg: 'bg-pl-sunken',
+      border: 'border-pl-border',
+      text: 'text-pl-text',
     },
   }[status];
 
@@ -90,21 +90,21 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing }) => {
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="bg-slate-800/40 border border-white/10 rounded-lg p-4"
+      className="bg-pl-surface border border-pl-border rounded-lg p-4"
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3 min-w-0">
-          <FileSpreadsheet className="w-8 h-8 text-cyan-400 flex-shrink-0" />
+          <FileSpreadsheet className="w-8 h-8 text-pl-primary-text flex-shrink-0" aria-hidden="true" />
           <div className="min-w-0">
-            <p className="font-medium text-white text-sm truncate">{file.file_name}</p>
-            <p className="text-xs text-slate-400 mt-0.5">{formatDate(file.created_at)}</p>
+            <p className="font-medium text-pl-text text-sm truncate">{file.file_name}</p>
+            <p className="text-xs text-pl-muted mt-0.5">{formatDate(file.created_at)}</p>
             <div className="mt-2">
               <StatusBadge status={status} rowCount={rowCount} />
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col gap-1 flex-shrink-0">
+        <div className="flex flex-row flex-wrap gap-1 flex-shrink-0 sm:flex-col">
           {/* Process button — only shown when there's something to process */}
           {status === 'UPLOADED_PENDING' && (
             <Button
@@ -112,7 +112,6 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing }) => {
               variant="outline"
               onClick={() => onProcess(file)}
               disabled={processing}
-              className="text-blue-300 border-blue-500/40 hover:bg-blue-500/10"
             >
               {processing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
               <span className="ml-1 text-xs">{processing ? 'Processing…' : 'Process'}</span>
@@ -125,7 +124,6 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing }) => {
               size="sm"
               variant="outline"
               onClick={() => setExpanded((v) => !v)}
-              className="text-slate-300 border-slate-500/40 hover:bg-slate-500/10"
             >
               {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
               <span className="ml-1 text-xs">{expanded ? 'Hide' : 'Preview'}</span>
@@ -140,7 +138,7 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing }) => {
               variant="outline"
               onClick={onDelete}
               disabled={processing}
-              className="text-red-300 border-red-500/40 hover:bg-red-500/10"
+              className="text-pl-danger-text border-pl-danger/40 hover:bg-pl-danger-bg hover:text-pl-danger-text"
             >
               <Trash2 className="w-3 h-3" />
               <span className="ml-1 text-xs">Delete</span>
@@ -155,18 +153,18 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing }) => {
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
-          className="mt-3 overflow-x-auto bg-slate-900/50 rounded border border-white/10"
+          className="mt-3 overflow-x-auto bg-pl-surface rounded border border-pl-border"
         >
           <table className="text-xs w-full">
-            <thead className="bg-slate-800">
+            <thead className="bg-pl-sunken">
               <tr>
                 {previewCols.map((c) => (
-                  <th key={c} className="px-2 py-1 text-left text-cyan-300 font-mono whitespace-nowrap">
+                  <th key={c} className="px-2 py-1 text-left text-pl-muted font-pl-mono font-semibold whitespace-nowrap">
                     {c}
                   </th>
                 ))}
                 {Object.keys(previewRows[0]).length > 6 && (
-                  <th className="px-2 py-1 text-left text-slate-500">
+                  <th className="px-2 py-1 text-left text-pl-muted">
                     + {Object.keys(previewRows[0]).length - 6} more
                   </th>
                 )}
@@ -174,21 +172,21 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing }) => {
             </thead>
             <tbody>
               {previewRows.map((row, i) => (
-                <tr key={i} className="border-t border-white/5">
+                <tr key={i} className="border-t border-pl-border">
                   {previewCols.map((c) => (
-                    <td key={c} className="px-2 py-1 text-slate-300 whitespace-nowrap max-w-32 overflow-hidden text-ellipsis">
+                    <td key={c} className="px-2 py-1 text-pl-text font-pl-mono tabular-nums whitespace-nowrap max-w-32 overflow-hidden text-ellipsis">
                       {row[c] !== undefined && row[c] !== null ? String(row[c]) : ''}
                     </td>
                   ))}
                   {Object.keys(previewRows[0]).length > 6 && (
-                    <td className="px-2 py-1 text-slate-500">…</td>
+                    <td className="px-2 py-1 text-pl-muted">…</td>
                   )}
                 </tr>
               ))}
             </tbody>
           </table>
           {rowCount > 3 && (
-            <p className="text-xs text-slate-500 px-2 py-1 border-t border-white/5">
+            <p className="text-xs text-pl-muted px-2 py-1 border-t border-pl-border">
               Showing 3 of {rowCount} rows.
             </p>
           )}

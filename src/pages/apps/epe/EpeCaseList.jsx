@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { Briefcase, Plus, ChevronRight, ArrowLeft, HelpCircle, Sparkles, Search, Archive, ArchiveRestore, Copy, Users } from 'lucide-react';
+import { Briefcase, Plus, ChevronRight, HelpCircle, Sparkles, Search, Archive, ArchiveRestore, Copy, Users } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
 
@@ -23,6 +23,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useNavigate, Link } from 'react-router-dom';
+import { AppHeader } from '@/components/ui/app-shell';
+import { epePage, epePanel, epeRow, epeBadge, epeEyebrow, epeNum, epeNativeCheck } from './epeUi';
 
 const EpeCaseList = () => {
   const { toast } = useToast();
@@ -225,73 +227,65 @@ const EpeCaseList = () => {
         <title>Petroleum Economics Studio - Petrolord Suite</title>
         <meta name="description" content="Manage your Enterprise Petroleum Economics cases." />
       </Helmet>
-      <div className="p-8">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mb-8">
-          <div className="mb-4 flex items-center gap-2">
+      <AppHeader
+        eyebrow="Petroleum Economics Studio"
+        title="Case Management"
+        subtitle="Economic cases, their data and runs"
+        icon={Briefcase}
+        backTo="/dashboard/economics"
+        backLabel="Back to Economics"
+        actions={(
+          <Button asChild variant="ghost" size="icon">
+            <Link to="/dashboard/apps/economics/epe/help" aria-label="Help & Guide" title="Help & Guide">
+              <HelpCircle className="h-5 w-5" aria-hidden="true" />
+            </Link>
+          </Button>
+        )}
+      />
+      <div className={epePage}>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <p className="max-w-2xl text-sm text-pl-muted">
+            Create a case, load its production, CAPEX and OPEX, then run the fiscal engine from the case page.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
-              onClick={() => navigate('/dashboard/economics')}
-              className="text-white border-white/20 hover:bg-white/10"
+              onClick={handleCreateExampleCase}
+              disabled={isCreatingExample}
             >
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Economics
+              <Sparkles className="w-4 h-4 mr-2" />
+              {isCreatingExample ? 'Creating example...' : 'Create example case'}
             </Button>
-            <Link to="/dashboard/apps/economics/epe/help">
-              <Button variant="outline" className="text-white border-white/20 hover:bg-white/10">
-                <HelpCircle className="mr-2 h-4 w-4" /> Help & Guide
-              </Button>
-            </Link>
-          </div>
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-4">
-              <div className="bg-gradient-to-r from-indigo-500 to-purple-500 p-3 rounded-xl">
-                <Briefcase className="w-8 h-8 text-white" />
-              </div>
-              <div>
-                <h1 className="text-4xl font-bold text-white">Petroleum Economics Studio</h1>
-                <p className="text-lime-200 text-lg">Case Management</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={handleCreateExampleCase}
-                disabled={isCreatingExample}
-                className="text-white border-white/20 hover:bg-white/10"
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                {isCreatingExample ? 'Creating example...' : 'Create example case'}
-              </Button>
-              <Button onClick={() => setIsNewCaseDialogOpen(true)} className="bg-gradient-to-r from-green-600 to-lime-600 hover:from-green-700 hover:to-lime-700">
-                <Plus className="w-4 h-4 mr-2" /> New Case
-              </Button>
-            </div>
+            <Button onClick={() => setIsNewCaseDialogOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" /> New Case
+            </Button>
           </div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6">
+        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className={epePanel}>
           {/* Wave E: search + archive controls */}
           <div className="flex flex-wrap items-center gap-4 mb-4">
             <div className="relative flex-1 min-w-[220px]">
-              <Search className="w-4 h-4 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-pl-muted absolute left-2.5 top-1/2 -translate-y-1/2" />
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search cases by name or description"
-                className="pl-8 bg-gray-800 border-slate-600 text-white"
+                className="pl-8"
               />
             </div>
-            <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+            <label className="flex items-center gap-2 text-sm text-pl-text cursor-pointer">
               <input
                 type="checkbox"
                 checked={showArchived}
                 onChange={(e) => setShowArchived(e.target.checked)}
-                className="accent-lime-400"
+                className={epeNativeCheck}
               />
               Show archived
             </label>
           </div>
           {loading ? (
-            <div className="text-center py-16 text-white">Loading cases...</div>
+            <div className="text-center py-16 text-pl-muted">Loading cases...</div>
           ) : (() => {
             const q = search.trim().toLowerCase();
             const visible = cases.filter((c) =>
@@ -308,29 +302,29 @@ const EpeCaseList = () => {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5 }}
-                className="bg-white/5 p-4 rounded-lg flex items-center justify-between gap-3 hover:bg-white/10 transition-colors cursor-pointer"
+                className={`${epeRow} flex items-center justify-between gap-3 cursor-pointer`}
                 onClick={() => navigate(`/dashboard/apps/economics/epe/cases/${c.id}`)}
               >
                 <div className="min-w-0">
-                  <h4 className="font-semibold text-white flex items-center gap-2 flex-wrap">
+                  <h4 className="font-semibold text-pl-text flex items-center gap-2 flex-wrap">
                     {c.case_name}
                     {c.archived_at && (
-                      <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-700 text-slate-400 border border-slate-600">Archived</span>
+                      <span className={epeBadge('neutral')}>Archived</span>
                     )}
                     {c.organization_id && isMine && (
-                      <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-sky-900/50 text-sky-300 border border-sky-800" title="Visible read-only to your organization">Shared</span>
+                      <span className={epeBadge('info')} title="Visible read-only to your organization">Shared</span>
                     )}
                   </h4>
-                  <p className="text-sm text-slate-400 truncate">{c.description || 'No description'}</p>
-                  <p className="text-xs text-slate-500 mt-1">Created: {new Date(c.created_at).toLocaleDateString()}</p>
+                  <p className="text-sm text-pl-muted truncate">{c.description || 'No description'}</p>
+                  <p className="text-xs text-pl-muted mt-1">Created: {new Date(c.created_at).toLocaleDateString()}</p>
                   {lastRunKpis[c.id] && (
-                    <p className="text-xs text-slate-300 mt-1">
-                      Last run: <span className="font-mono text-lime-300">NPV {fmtBadgeUsd(lastRunKpis[c.id].npv) ?? 'n/a'}</span>
+                    <p className="text-xs text-pl-muted mt-1">
+                      Last run: <span className={`${epeNum} font-medium text-pl-text`}>NPV {fmtBadgeUsd(lastRunKpis[c.id].npv) ?? 'n/a'}</span>
                       {typeof lastRunKpis[c.id].irr === 'number' && (
-                        <span className="font-mono text-lime-300"> · IRR {lastRunKpis[c.id].irr.toFixed(1)}%</span>
+                        <span className={`${epeNum} font-medium text-pl-text`}> · IRR {lastRunKpis[c.id].irr.toFixed(1)}%</span>
                       )}
                       {lastRunKpis[c.id].fiscal_regime && (
-                        <span className="text-slate-400"> · {lastRunKpis[c.id].fiscal_regime}</span>
+                        <span className="text-pl-muted"> · {lastRunKpis[c.id].fiscal_regime}</span>
                       )}
                     </p>
                   )}
@@ -341,7 +335,6 @@ const EpeCaseList = () => {
                     title="Clone into my workspace as a what-if copy"
                     disabled={cloningId === c.id}
                     onClick={() => handleCloneCase(c)}
-                    className="text-slate-400 hover:text-white"
                   >
                     <Copy className="w-4 h-4" />
                   </Button>
@@ -350,12 +343,11 @@ const EpeCaseList = () => {
                       variant="ghost" size="icon"
                       title={c.archived_at ? 'Restore this case' : 'Archive this case'}
                       onClick={() => handleToggleArchive(c)}
-                      className="text-slate-400 hover:text-white"
                     >
                       {c.archived_at ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
                     </Button>
                   )}
-                  <ChevronRight className="w-5 h-5 text-slate-400" />
+                  <ChevronRight className="w-5 h-5 text-pl-muted" />
                 </div>
               </motion.div>
             );
@@ -363,8 +355,8 @@ const EpeCaseList = () => {
             if (visible.length === 0) {
               return (
                 <div className="text-center py-16">
-                  <h3 className="text-xl font-semibold text-white">No Cases Found</h3>
-                  <p className="text-lime-300 mt-2">
+                  <h3 className="text-xl font-semibold text-pl-text">No Cases Found</h3>
+                  <p className="text-pl-muted mt-2">
                     {q ? 'No case matches your search.' : 'Get started by creating a new economic case.'}
                   </p>
                 </div>
@@ -373,16 +365,16 @@ const EpeCaseList = () => {
             return (
               <div className="space-y-6">
                 <div className="space-y-4">
-                  {shared.length > 0 && <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wide">My Cases</h3>}
+                  {shared.length > 0 && <h3 className={epeEyebrow}>My Cases</h3>}
                   {mine.length === 0 ? (
-                    <p className="text-sm text-slate-500">You have no cases of your own{q ? ' matching this search' : ''}.</p>
+                    <p className="text-sm text-pl-muted">You have no cases of your own{q ? ' matching this search' : ''}.</p>
                   ) : mine.map((c) => <CaseRow key={c.id} c={c} isMine />)}
                 </div>
                 {shared.length > 0 && (
                   <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wide flex items-center gap-2">
-                      <Users className="w-4 h-4 text-sky-400" /> Shared with your organization
-                      <span className="text-[10px] font-normal normal-case text-slate-500">read-only; clone to work on a copy</span>
+                    <h3 className={`${epeEyebrow} flex flex-wrap items-center gap-2`}>
+                      <Users className="w-4 h-4" aria-hidden="true" /> Shared with your organization
+                      <span className="text-[10px] font-normal normal-case text-pl-muted">read-only; clone to work on a copy</span>
                     </h3>
                     {shared.map((c) => <CaseRow key={c.id} c={c} isMine={false} />)}
                   </div>
@@ -394,7 +386,7 @@ const EpeCaseList = () => {
       </div>
 
       <Dialog open={isNewCaseDialogOpen} onOpenChange={setIsNewCaseDialogOpen}>
-        <DialogContent className="sm:max-w-[425px] bg-gray-900 text-white border-slate-700">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Create New Economic Case</DialogTitle>
             <DialogDescription>Give your new case a name and an optional description.</DialogDescription>
@@ -402,11 +394,11 @@ const EpeCaseList = () => {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="name" className="text-right">Name</Label>
-              <Input id="name" value={newCaseName} onChange={(e) => setNewCaseName(e.target.value)} className="col-span-3 bg-gray-800 border-slate-600" />
+              <Input id="name" value={newCaseName} onChange={(e) => setNewCaseName(e.target.value)} className="col-span-3" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="description" className="text-right">Description</Label>
-              <Textarea id="description" value={newCaseDescription} onChange={(e) => setNewCaseDescription(e.target.value)} className="col-span-3 bg-gray-800 border-slate-600" />
+              <Textarea id="description" value={newCaseDescription} onChange={(e) => setNewCaseDescription(e.target.value)} className="col-span-3" />
             </div>
           </div>
           <DialogFooter>

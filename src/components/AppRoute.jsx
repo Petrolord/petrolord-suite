@@ -6,7 +6,9 @@ import { useAppsFromDatabase } from '@/hooks/useAppsFromDatabase';
 import { getAppById as getStaticAppById } from '@/data/applications';
 import AccessDenied from '@/components/AccessDenied';
 import ComingSoon from '@/components/ComingSoon';
-import { Loader2 } from 'lucide-react';
+// AppRoute guards the module hubs only, which render inside the hub
+// design-system scope (HubScope), so its loading state is the themed one.
+import { HubLoading } from '@/components/hubs/HubScope';
 
 const AppRoute = ({ children, appName }) => {
   console.group(`🚦 [AppRoute] Rendering Route Wrapper for: ${appName}`);
@@ -20,11 +22,7 @@ const AppRoute = ({ children, appName }) => {
   if (authLoading) {
       console.log('⏳ [AppRoute] Loading dependencies...');
       console.groupEnd();
-      return (
-        <div className="flex items-center justify-center min-h-screen bg-slate-950">
-            <Loader2 className="w-8 h-8 animate-spin text-lime-500" />
-        </div>
-      );
+      return <HubLoading />;
   }
 
   if (!user) {
@@ -43,11 +41,7 @@ const AppRoute = ({ children, appName }) => {
   if (entitlementsLoading || appsLoading) {
       console.log('⏳ [AppRoute] Loading app data...');
       console.groupEnd();
-      return (
-        <div className="flex items-center justify-center min-h-screen bg-slate-950">
-            <Loader2 className="w-8 h-8 animate-spin text-lime-500" />
-        </div>
-      );
+      return <HubLoading />;
   }
 
   // Helper to find app definition from DB or Static fallback

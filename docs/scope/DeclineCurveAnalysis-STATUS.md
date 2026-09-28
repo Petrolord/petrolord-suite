@@ -6,6 +6,19 @@ panels in `src/components/declineCurve/`; engine vendored at
 `packages/engines/engines/dca/` behind the `src/utils/declineCurve/dcaEngine.js`
 shim (edits to engine math go to Petrolord/petrolord-engines, not here).
 
+## Design system
+
+- 2026-09-27, pilot 2 (branch `feat/ds-pilot-dca`): the app runs inside its
+  own `ThemedApp` scope, light by default with a per-user dark choice from
+  the header toggle. Every mounted panel, table, form, tab, dialog and the
+  help drawer use theme roles; charts stay on the white chart standard
+  (`data-canvas="chart"`) in both themes. The Studio kit pieces DCA uses
+  (layout, autosave, help, project manager, notifications, busy overlay)
+  switch only inside a scope (pilot 5 kit, `useStudioTheme()`); `studioKitOptIn.test.jsx` and `studioKitLegacyDom.test.jsx` prove the other
+  Studio apps render byte for byte as before. Unmounted legacy panels
+  (DCASegmentsPanel, DCAForecastSettings, DCAParametersPanel, DCAKPICards,
+  DCADataQuality, ResultsPanel) were left untouched.
+
 ## History (pointers)
 
 - Original DCA layout was the template the Studio kit (W1) was generalized

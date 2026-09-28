@@ -202,13 +202,51 @@ themes.
    shared users table (second-engineer review). Recommend staying on
    localStorage until pilots are live.
 5. **First paint for dark users.** The user id arrives after the auth session
-   restores, so a user who chose dark sees one light frame on a cold load.
-   Acceptable for pilots; an anon-key mirror of the last choice would remove
-   it if it bothers testers.
+   restores, so a user who chose dark saw one light frame on a cold load.
+   Fixed in pilot 1: the provider also keeps the last theme resolved for a
+   signed-in user under one device key (`petrolord.theme.v1.last`) and uses
+   it only while AuthContext is still loading with no user. Once the id is
+   known the per-user choice applies as before; signed-out pages never read
+   it. Tests in `src/design/__tests__/ThemeProvider.test.jsx`.
 
 ## 5. Status
+
+### Pilot 1: module hubs and dashboard landing (2026-09-27, `feat/ds-pilot-hubs`)
+- Opt-in: a pathless layout route in `App.jsx` wraps exactly `/dashboard`
+  (index) and the ten hub routes in `HubScope` (`src/components/hubs/`),
+  one `ThemedApp` for all of them, so the theme holds while moving between
+  hubs. Lazy hubs suspend inside the scope with a themed loader.
+- Every other route under `/dashboard` (applications, admin pages) sits
+  outside the scope. Proof in `src/components/hubs/__tests__/hubScope.test.jsx`:
+  the App.jsx block holds only the landing and the ten hubs; Voidage
+  Replacement Monitor mounted through the real `DashboardLayout` has no
+  `[data-pl-theme]` ancestor, no toggle and no pl-* class, and its markup is
+  identical to the app rendered on its own (negative control: moving the
+  app route inside the scope fails the test).
+- Sidebar (lead decision 1): a fixed `data-pl-theme="dark"` rail in the ink
+  green, gold eyebrows, gold bar on the active item, in both themes. At
+  phone width it moves into a drawer opened from an ink top bar.
+- Shared chrome: `HubHeader` (eyebrow, serif title, actions, toggle),
+  `HubSearch`, `HubToolbar`, `HubSectionTitle`. `ApplicationsGrid` is on
+  theme roles (it is only mounted in the hubs): status badges `info` Coming
+  Soon, `secondary` In Development, `warning` Locked; keyboard-openable cards.
+- Dev harness `/dev/hubs/<landing|hub slug|vrr>` on the in-memory Supabase.
 
 - 2026-09-27: phase 1 built on `feat/design-system` (tokens, scoped themes,
   provider, adapted primitives, shell pieces, specimen, docs, tests). Pilots
   not started. Next: owner decisions above, then pilot PRs in the order EPE,
   hubs, DCA, VRR/Studio kit, Seismolord.
+- 2026-09-27: pilot 5 (Voidage Replacement Monitor and a theme-aware Studio
+  kit) on `feat/ds-pilot-vrr`. The kit (`src/components/studio/*`) picks its
+  classes with `useStudioTheme()` (`studioTheme.js`): legacy strings byte for
+  byte outside a scope, theme roles inside one; on phones the themed rails
+  float over the page with their own close button and the header wraps.
+  Another Studio-kit app now opts in by wrapping its route in `ThemedApp` and
+  migrating its own panels. The non-pilot proof in `optInScope.test.jsx`
+  still mounts VRR outside a scope (VRR keeps its legacy branch for that);
+  it can move to another app, for example Waterflood Design Studio.
+- 2026-09-28: pilot 2, Decline Curve Analysis, on `feat/ds-pilot-dca`. Built
+  on the pilot 5 kit (`useStudioTheme()`); DCA's own panels migrated, charts
+  stay white via `data-canvas="chart"`. `studioKitLegacyDom.test.jsx` adds a
+  whole-kit DOM fixture from pre-pilot main (tag, class, aria-label) as a
+  second proof that other Studio apps are unchanged.

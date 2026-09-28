@@ -12,6 +12,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { HelpCircle, BookOpen } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { usePortalThemeProps } from '@/design/themeContext';
+import { useStudioTheme } from './studioTheme';
+
+// Design system: inside a <ThemedApp> scope the drawer (a portal) carries the
+// scope attribute and uses theme roles; outside one it renders as before.
 
 const StudioHelp = ({
   title,
@@ -20,21 +25,23 @@ const StudioHelp = ({
   triggerTitle = 'Documentation',
   children,
 }) => {
+  const { ds, tc } = useStudioTheme();
+  const portalTheme = usePortalThemeProps();
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-white" title={triggerTitle}>
+        <Button variant="ghost" size="icon" className={tc('h-8 w-8 text-slate-400 hover:text-white', 'h-8 w-8')} title={triggerTitle} aria-label={ds ? triggerTitle : undefined}>
           <HelpCircle size={18} />
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-[500px] sm:w-[600px] bg-slate-950 border-l border-slate-800 text-slate-100 shadow-2xl">
-        <SheetHeader className="pb-4 border-b border-slate-800">
-          <SheetTitle className="text-xl font-bold text-slate-100 flex items-center gap-2">
-            <Icon className="text-blue-500" size={24} />
+      <SheetContent {...portalTheme} className={tc('w-[500px] sm:w-[600px] bg-slate-950 border-l border-slate-800 text-slate-100 shadow-2xl', 'w-full max-w-full sm:w-[600px] sm:max-w-[600px] bg-pl-raised border-l border-pl-border text-pl-text shadow-pl-lg')}>
+        <SheetHeader className={tc('pb-4 border-b border-slate-800', 'pb-4 border-b border-pl-border')}>
+          <SheetTitle className={tc('text-xl font-bold text-slate-100 flex items-center gap-2', 'text-xl font-semibold text-pl-text flex items-center gap-2')}>
+            <Icon className={tc('text-blue-500', 'text-pl-primary-text')} size={24} />
             {title}
           </SheetTitle>
           {description && (
-            <SheetDescription className="text-slate-400">
+            <SheetDescription className={tc('text-slate-400', 'text-pl-muted')}>
               {description}
             </SheetDescription>
           )}

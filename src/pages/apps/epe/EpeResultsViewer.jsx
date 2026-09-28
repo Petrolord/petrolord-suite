@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { BarChart, ArrowLeft, DollarSign, TrendingUp, Clock, FileText, Receipt, Wallet, Landmark, Download, Pencil } from 'lucide-react';
+import { BarChart, DollarSign, TrendingUp, Clock, FileText, Receipt, Wallet, Landmark, Download, Pencil } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import {
@@ -25,18 +25,24 @@ import {
   GRID_STYLE, TOOLTIP_STYLE
 } from '@/utils/chartTheme';
 import { epeIrrReason } from '@/pages/apps/epe/epeIrrReason';
+import { AppHeader } from '@/components/ui/app-shell';
+import {
+  epePage, epePanel, epeTile, epeH2, epeNum, epeNumCell, epeSigned, epePill,
+  epeCallout, epeBadge, epeCellInput, epeTable, epeTh, epeThNum,
+} from './epeUi';
 import {
   LEGACY_NOTICE, frameworkLabel, frameworkBadge, piaRefusal, piaRowColumnsPresent, piaCellValue,
 } from '@/pages/apps/epe/epePiaCompliance';
 
-const KpiCard = ({ icon: Icon, title, value, color }) => (
-  <div className="bg-white/5 p-4 rounded-lg flex items-center space-x-4">
-    <div className={`p-3 rounded-lg bg-gradient-to-r ${color}`}>
-      <Icon className="w-6 h-6 text-white" />
+// Design system: KPI tiles carry no decorative colour (rule 3).
+const KpiCard = ({ icon: Icon, title, value }) => (
+  <div className="flex items-center gap-4 rounded-xl border border-pl-border bg-pl-surface p-4 shadow-pl-sm">
+    <div className="shrink-0 rounded-lg bg-pl-sunken p-3">
+      <Icon className="h-6 w-6 text-pl-primary-text" aria-hidden="true" />
     </div>
-    <div>
-      <p className="text-sm text-slate-300">{title}</p>
-      <p className="text-2xl font-bold text-white">{value}</p>
+    <div className="min-w-0">
+      <p className="text-sm text-pl-muted">{title}</p>
+      <p className={`text-2xl font-semibold text-pl-text break-words ${epeNum}`}>{value}</p>
     </div>
   </div>
 );
@@ -47,17 +53,15 @@ const KpiCard = ({ icon: Icon, title, value, color }) => (
 
 // Pill-style tab bar — matches the JV/PSC/PIA fiscal regime buttons elsewhere
 const TabBar = ({ tabs, active, onChange }) => (
-  <div className="flex gap-2 flex-wrap">
+  <div className="flex gap-2 flex-wrap" role="tablist">
     {tabs.map((tab) => (
       <button
         key={tab.key}
         type="button"
+        role="tab"
+        aria-selected={active === tab.key}
         onClick={() => onChange(tab.key)}
-        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-          active === tab.key
-            ? 'bg-gradient-to-r from-green-500 to-cyan-500 text-white shadow'
-            : 'bg-gray-700 text-slate-300 hover:bg-gray-600'
-        }`}
+        className={epePill(active === tab.key)}
       >
         {tab.label}
       </button>
@@ -222,7 +226,7 @@ const CashFlowProfile = ({ results }) => {
   const sunkYears = cf.filter((r) => r.sunk).map((r) => r.year);
 
   return (
-    <div id="epe-pdf-capture-profile" style={{ width: '100%', background: CHART_COLORS.background, borderRadius: 8, padding: 12 }}>
+    <div data-canvas="chart" id="epe-pdf-capture-profile" style={{ width: '100%', background: CHART_COLORS.background, borderRadius: 8, padding: 12 }}>
       <h3 style={{ fontSize: 14, fontWeight: 600, color: CHART_COLORS.axisLabel, margin: '0 0 8px 4px' }}>
         Cash Flow Profile {isPIA ? `(${frameworkLabel(results?.kpis) || 'PIA 2021'})` : ''}
       </h3>
@@ -292,7 +296,7 @@ const NpvProfileChart = ({ kpis }) => {
   const appliedPoint = applied != null
     ? profile.find((p) => Math.abs(p.rate_pct - applied) < 0.005) : null;
   return (
-    <div id="epe-pdf-capture-npvprofile" style={{ width: '100%', background: CHART_COLORS.background, borderRadius: 8, padding: 12, marginTop: 16 }}>
+    <div data-canvas="chart" id="epe-pdf-capture-npvprofile" style={{ width: '100%', background: CHART_COLORS.background, borderRadius: 8, padding: 12, marginTop: 16 }}>
       <h3 style={{ fontSize: 14, fontWeight: 600, color: CHART_COLORS.axisLabel, margin: '0 0 2px 4px' }}>
         NPV vs Discount Rate
       </h3>
@@ -352,7 +356,7 @@ const CashFlowWaterfall = ({ results }) => {
   const [selectedIdx, setSelectedIdx] = useState(defaultYearIdx);
 
   if (cf.length === 0) {
-    return <div style={{ color: CHART_COLORS.axisText, padding: 16 }}>No cash flow data available.</div>;
+    return <div className="p-4 text-sm text-pl-muted">No cash flow data available.</div>;
   }
 
   // Wave D (audit 4.7): "All years" sums every row into one full-life
@@ -438,7 +442,7 @@ const CashFlowWaterfall = ({ results }) => {
   // with fill from data via a 'fill' field. Recharts 2.x supports per-cell fill via <Cell>.
 
   return (
-    <div id="epe-pdf-capture-waterfall" style={{ position: 'relative', width: '100%', background: CHART_COLORS.background, borderRadius: 8, padding: 12 }}>
+    <div data-canvas="chart" id="epe-pdf-capture-waterfall" style={{ position: 'relative', width: '100%', background: CHART_COLORS.background, borderRadius: 8, padding: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
         <h3 style={{ fontSize: 14, fontWeight: 600, color: CHART_COLORS.axisLabel, margin: 0 }}>
           Cash Flow Waterfall: {isAllYears ? 'All Years (full life)' : `Year ${row.year}`} {isPIA ? `(${row.fiscal_framework === 'nta_2025' ? 'NTA 2025' : row.fiscal_framework === 'pia_only' ? 'PIA 2021' : (frameworkLabel(results?.kpis) || 'PIA 2021')})` : ''}
@@ -513,7 +517,7 @@ const CashFlowWaterfall = ({ results }) => {
 // Recharts layout="vertical" means the value axis is X and the category axis is Y.
 const TornadoChart = ({ rows, baseNpv }) => {
   if (!rows || rows.length === 0) {
-    return <div style={{ color: CHART_COLORS.axisText, padding: 16 }}>No sensitivity data.</div>;
+    return <div className="p-4 text-sm text-pl-muted">No sensitivity data.</div>;
   }
 
   // Build chart data: each row has 'name' (variable label) plus deltaLow/deltaHigh as separate bar values.
@@ -731,14 +735,14 @@ const SensitivityPanel = ({ runId, runConfigId, userId, readOnly = false }) => {
 
 
   const rangeControls = (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: CHART_COLORS.axisText }}>
+    <span className="inline-flex items-center gap-1.5 text-xs text-pl-muted">
       Low
       <input
         type="number"
         step="1"
         value={rangeLow}
         onChange={(e) => setRangeLow(e.target.value)}
-        style={{ width: 56, padding: '2px 6px', borderRadius: 4, border: `1px solid ${CHART_COLORS.grid}`, background: 'transparent', color: 'inherit', fontSize: 12 }}
+        className={`${epeCellInput} !w-16 ${epeNum}`}
       />
       % High
       <input
@@ -746,54 +750,50 @@ const SensitivityPanel = ({ runId, runConfigId, userId, readOnly = false }) => {
         step="1"
         value={rangeHigh}
         onChange={(e) => setRangeHigh(e.target.value)}
-        style={{ width: 56, padding: '2px 6px', borderRadius: 4, border: `1px solid ${CHART_COLORS.grid}`, background: 'transparent', color: 'inherit', fontSize: 12 }}
+        className={`${epeCellInput} !w-16 ${epeNum}`}
       />
       %
     </span>
   );
 
   // ----- Render by state -----
-  const containerStyle = {
-    background: CHART_COLORS.background,
-    borderRadius: 8,
-    padding: 20,
-    minHeight: 240,
-  };
+  // Design system: the panel follows the theme; the tornado inside keeps the
+  // white chart standard through ChartFrame.
+  const containerCls = 'min-h-[240px] rounded-lg border border-pl-border bg-pl-surface p-4 sm:p-5';
 
   if (state === 'loading') {
     return (
-      <div style={containerStyle}>
-        <p style={{ color: CHART_COLORS.axisText, fontSize: 13 }}>Loading sensitivity data…</p>
+      <div className={containerCls}>
+        <p className="text-sm text-pl-muted">Loading sensitivity data…</p>
       </div>
     );
   }
 
   if (state === 'idle') {
     return (
-      <div style={containerStyle}>
-        <h3 style={{ fontSize: 16, fontWeight: 600, color: CHART_COLORS.axisLabel, marginTop: 0 }}>
+      <div className={containerCls}>
+        <h3 className="text-base font-semibold text-pl-text">
           Sensitivity Analysis
         </h3>
-        <p style={{ color: CHART_COLORS.axisText, fontSize: 13, lineHeight: 1.5, marginBottom: 16 }}>
+        <p className="mt-2 mb-4 text-sm leading-relaxed text-pl-muted">
           Quantify how much each input variable affects NPV. The analysis runs your project
           through the engine with each variable at your chosen Low and High of its current
           value, then plots the NPV change as a tornado chart sorted by impact magnitude.
           The ranges apply to every multiplicative bar; Production and First Oil Delay
           bars are included.
         </p>
-        <p style={{ color: CHART_COLORS.axisText, fontSize: 12, marginBottom: 16 }}>
+        <p className="mb-4 text-xs text-pl-muted">
           Estimated time: 1 to 5 seconds.
         </p>
         {readOnly ? (
-          <p style={{ color: CHART_COLORS.axisText, fontSize: 12 }}>
+          <p className="text-xs text-pl-muted">
             Sensitivity runs are disabled on shared runs. Ask the case owner to run one, or clone the case.
           </p>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <div className="flex flex-wrap items-center gap-4">
             {rangeControls}
             <Button
               onClick={handleRunSensitivity}
-              className="bg-gradient-to-r from-green-500 to-cyan-500 text-white hover:opacity-90"
             >
               Run Sensitivity Analysis
             </Button>
@@ -805,18 +805,16 @@ const SensitivityPanel = ({ runId, runConfigId, userId, readOnly = false }) => {
 
   if (state === 'invoking' || state === 'running') {
     return (
-      <div style={containerStyle}>
-        <h3 style={{ fontSize: 16, fontWeight: 600, color: CHART_COLORS.axisLabel, marginTop: 0 }}>
+      <div className={containerCls}>
+        <h3 className="text-base font-semibold text-pl-text">
           Running Sensitivity Analysis…
         </h3>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16 }}>
-          <div style={{
-            width: 18, height: 18, borderRadius: '50%',
-            border: `3px solid ${CHART_COLORS.grid}`,
-            borderTopColor: '#059669',
-            animation: 'spin 0.8s linear infinite',
-          }} />
-          <span style={{ color: CHART_COLORS.axisText, fontSize: 13 }}>
+        <div className="mt-4 flex items-center gap-3" role="status">
+          <div
+            className="h-[18px] w-[18px] rounded-full border-[3px] border-pl-border border-t-pl-primary"
+            style={{ animation: 'spin 0.8s linear infinite' }}
+          />
+          <span className="text-sm text-pl-muted">
             {state === 'invoking' ? 'Submitting…' : 'Running variations through the engine…'}
           </span>
         </div>
@@ -827,23 +825,22 @@ const SensitivityPanel = ({ runId, runConfigId, userId, readOnly = false }) => {
 
   if (state === 'failed') {
     return (
-      <div style={containerStyle}>
-        <h3 style={{ fontSize: 16, fontWeight: 600, color: '#dc2626', marginTop: 0 }}>
+      <div className={containerCls}>
+        <h3 className="text-base font-semibold text-pl-danger-text">
           Sensitivity Analysis Failed
         </h3>
-        <p style={{ color: CHART_COLORS.axisText, fontSize: 13, marginBottom: 16 }}>
+        <p className="mt-2 mb-4 text-sm text-pl-muted">
           {errorMsg || 'An unknown error occurred.'}
         </p>
         {readOnly ? (
-          <p style={{ color: CHART_COLORS.axisText, fontSize: 12 }}>
+          <p className="text-xs text-pl-muted">
             Sensitivity runs are disabled on shared runs.
           </p>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <div className="flex flex-wrap items-center gap-4">
             {rangeControls}
             <Button
               onClick={handleRunSensitivity}
-              className="bg-gradient-to-r from-green-500 to-cyan-500 text-white hover:opacity-90"
             >
               Retry
             </Button>
@@ -856,13 +853,13 @@ const SensitivityPanel = ({ runId, runConfigId, userId, readOnly = false }) => {
   // state === 'complete'
   const baseNpv = Number(sensitivityRun?.base_npv) || 0;
   return (
-    <div style={containerStyle}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 600, color: CHART_COLORS.axisLabel, margin: 0 }}>
+    <div className={containerCls}>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold text-pl-text">
           Tornado: NPV Sensitivity ({rangeLow}% / +{rangeHigh}%)
         </h3>
         {!readOnly && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div className="flex flex-wrap items-center gap-3">
             {rangeControls}
             <Button
               onClick={handleRunSensitivity}
@@ -875,8 +872,8 @@ const SensitivityPanel = ({ runId, runConfigId, userId, readOnly = false }) => {
           </div>
         )}
       </div>
-      <p style={{ fontSize: 11, color: CHART_COLORS.axisText, marginBottom: 4 }}>
-        Base NPV: <span style={{ fontWeight: 600 }}>{fmtCompact(baseNpv)}</span>
+      <p className="mb-1 text-xs text-pl-muted">
+        Base NPV: <span className={`font-semibold text-pl-text ${epeNum}`}>{fmtCompact(baseNpv)}</span>
         {sensitivityRun?.duration_ms ? ` · Ran in ${sensitivityRun.duration_ms}ms` : ''}
       </p>
       <TornadoChart rows={results} baseNpv={baseNpv} />
@@ -889,7 +886,7 @@ const YearByYearTable = ({ results }) => {
   const isPIA = results?.kpis?.fiscal_regime === 'PIA';
 
   if (cf.length === 0) {
-    return <div style={{ color: CHART_COLORS.axisText, padding: 16 }}>No per-year data available.</div>;
+    return <div className="p-4 text-sm text-pl-muted">No per-year data available.</div>;
   }
 
   // Build row definitions (label, accessor, formatter)
@@ -962,74 +959,51 @@ const YearByYearTable = ({ results }) => {
     return cumRunning;
   });
 
-  const cellStyle = {
-    padding: '8px 12px',
-    fontSize: 12,
-    color: CHART_COLORS.axisText,
-    borderBottom: `1px solid ${CHART_COLORS.grid}`,
-    textAlign: 'right',
-    whiteSpace: 'nowrap',
-  };
-  const labelCellStyle = {
-    ...cellStyle,
-    textAlign: 'left',
-    fontWeight: 500,
-    color: CHART_COLORS.axisLabel,
-    position: 'sticky',
-    left: 0,
-    background: CHART_COLORS.background,
-    zIndex: 1,
-  };
-  const headerCellStyle = {
-    ...cellStyle,
-    fontWeight: 600,
-    color: CHART_COLORS.axisLabel,
-    background: '#f1f5f9',
-    borderBottom: `2px solid ${CHART_COLORS.axisLine}`,
-  };
+  // Design system cash-flow table: theme surfaces, numbers right aligned in
+  // mono tabular figures, negatives in the danger text colour next to their
+  // minus sign, a sticky label column, and a strong rule above the totals.
+  const labelCell = 'sticky left-0 z-[1] border-b border-pl-border bg-pl-surface px-3 py-2 text-left text-xs font-medium text-pl-text min-w-[8rem] max-w-[10rem] whitespace-normal sm:max-w-none sm:whitespace-nowrap';
+  const numCell = `border-b border-pl-border px-3 py-2 text-xs ${epeNumCell}`;
+  const totalRule = 'border-t-2 border-t-pl-border-strong';
 
   return (
-    <div style={{ background: CHART_COLORS.background, borderRadius: 8, padding: 12, overflowX: 'auto' }}>
-      <h3 style={{ fontSize: 14, fontWeight: 600, color: CHART_COLORS.axisLabel, margin: '0 0 12px 4px' }}>
+    <div className="rounded-lg border border-pl-border bg-pl-surface p-3">
+      <h3 className="mb-3 ml-1 text-sm font-semibold text-pl-text">
         Year-by-Year Detail {isPIA ? `(${frameworkLabel(results?.kpis) || 'PIA 2021'})` : ''}
       </h3>
-      <table style={{ borderCollapse: 'collapse', minWidth: '100%', fontFamily: CHART_TYPOGRAPHY.fontFamily }}>
+      <div className="overflow-x-auto">
+      <table className={`${epeTable} min-w-full`}>
         <thead>
           <tr>
-            <th style={{ ...headerCellStyle, textAlign: 'left', position: 'sticky', left: 0, background: '#f1f5f9', zIndex: 2 }}>Metric</th>
+            <th scope="col" className={`${epeTh} sticky left-0 z-[2] border-b-2 border-b-pl-border-strong`}>Metric</th>
             {cf.map((r) => (
-              <th key={r.year} style={headerCellStyle}>{r.year}</th>
+              <th key={r.year} scope="col" className={`${epeThNum} border-b-2 border-b-pl-border-strong ${epeNum}`}>{r.year}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.label}>
-              <td style={labelCellStyle}>{row.label}</td>
-              {cf.map((r, i) => (
-                <td
-                  key={`${row.label}-${r.year}`}
-                  style={{
-                    ...cellStyle,
-                    fontWeight: row.bold ? 600 : 400,
-                    color: row.bold ? CHART_COLORS.axisLabel : CHART_COLORS.axisText,
-                  }}
-                >
-                  {row.fmt(row.get(r))}
-                </td>
-              ))}
+            <tr key={row.label} className="hover:bg-pl-sunken/60">
+              <th scope="row" className={`${labelCell} ${row.bold ? `font-semibold ${totalRule}` : ''}`}>{row.label}</th>
+              {cf.map((r) => {
+                const raw = row.get(r);
+                return (
+                  <td
+                    key={`${row.label}-${r.year}`}
+                    className={`${numCell} ${row.bold ? `font-semibold ${totalRule}` : ''} ${epeSigned(raw) || 'text-pl-text'}`}
+                  >
+                    {row.fmt(raw)}
+                  </td>
+                );
+              })}
             </tr>
           ))}
           <tr>
-            <td style={{ ...labelCellStyle, fontWeight: 600 }}>Cumulative CF</td>
+            <th scope="row" className={`${labelCell} font-semibold`}>Cumulative CF</th>
             {cumValues.map((v, i) => (
               <td
                 key={`cum-${i}`}
-                style={{
-                  ...cellStyle,
-                  fontWeight: 600,
-                  color: v >= 0 ? '#059669' : '#dc2626',
-                }}
+                className={`${numCell} font-semibold ${v >= 0 ? 'text-pl-success-text' : 'text-pl-danger-text'}`}
               >
                 {fmtCompact(v)}
               </td>
@@ -1037,6 +1011,7 @@ const YearByYearTable = ({ results }) => {
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
   );
 };
@@ -1477,108 +1452,112 @@ const EpeResultsViewer = () => {
     return `${sign}N${abs.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
   };
 if (loading) {
-    return <div className="p-8 text-white">Loading results...</div>;
+    return (
+      <div className={epePage}>
+        <p className="text-pl-text" role="status">Loading results...</p>
+      </div>
+    );
   }
+
+  // The re-run and export actions sit in one wrapping row under the header,
+  // so they fit a phone width.
+  const resultActions = (
+    <>
+      {/* Wave E: mutation affordances are owner-only; reviewers keep exports */}
+      {isOwnRun && runDetails?.case_id && runDetails?.run_config_id && (
+        <Link to={`/dashboard/apps/economics/epe/cases/${runDetails.case_id}/run?fromConfig=${runDetails.run_config_id}`}>
+          <Button variant="outline" size="sm">
+            <Pencil className="mr-2 h-3.5 w-3.5" /> Re-run with edits
+          </Button>
+        </Link>
+      )}
+      <Button variant="outline" size="sm" onClick={handleExportCsv}>
+        <Download className="mr-2 h-3.5 w-3.5" /> CSV
+      </Button>
+      <Button variant="outline" size="sm" onClick={handleExportXlsx}>
+        <Download className="mr-2 h-3.5 w-3.5" /> Excel
+      </Button>
+      <Button variant="outline" size="sm" onClick={handleExportPdf}>
+        <FileText className="mr-2 h-3.5 w-3.5" /> PDF report
+      </Button>
+    </>
+  );
 
   return (
     <>
       <Helmet><title>Results: {runDetails?.run_name} - Petroleum Economics Studio</title></Helmet>
-      <div className="p-8">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mb-8">
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-            <Link to={`/dashboard/apps/economics/epe/cases/${runDetails?.case_id}`}>
-              <Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Case</Button>
-            </Link>
-            {results && (
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* Wave E: mutation affordances are owner-only; reviewers keep exports */}
-                {isOwnRun && runDetails?.case_id && runDetails?.run_config_id && (
-                  <Link to={`/dashboard/apps/economics/epe/cases/${runDetails.case_id}/run?fromConfig=${runDetails.run_config_id}`}>
-                    <Button variant="outline" size="sm">
-                      <Pencil className="mr-2 h-3.5 w-3.5" /> Re-run with edits
-                    </Button>
-                  </Link>
-                )}
-                <Button variant="outline" size="sm" onClick={handleExportCsv}>
-                  <Download className="mr-2 h-3.5 w-3.5" /> CSV
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleExportXlsx}>
-                  <Download className="mr-2 h-3.5 w-3.5" /> Excel
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleExportPdf}>
-                  <FileText className="mr-2 h-3.5 w-3.5" /> PDF report
-                </Button>
-              </div>
-            )}
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="bg-gradient-to-r from-green-500 to-cyan-500 p-3 rounded-xl"><BarChart className="w-8 h-8 text-white" /></div>
-            <div>
-              <h1 className="text-4xl font-bold text-white">{runDetails?.run_name}</h1>
-              <p className="text-lime-200 text-lg">Results for case: {runDetails?.epe_cases?.case_name}</p>
-              {results?.kpis?.fiscal_regime === 'PIA' && frameworkBadge(results.kpis) && (
-                <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded ${
-                  results.kpis.fiscal_framework === 'nta_2025'
-                    ? 'bg-amber-900/40 text-amber-200 border border-amber-500/30'
-                    : results.kpis.fiscal_framework === 'pia_only_then_nta_2025'
-                      ? 'bg-violet-900/40 text-violet-200 border border-violet-500/30'
-                      : 'bg-cyan-900/40 text-cyan-200 border border-cyan-500/30'
-                }`}>
-                  {frameworkBadge(results.kpis)}
-                </span>
-              )}
-              {/* EC7 (engines 3.12.0): legacy PIA runs say so on the results */}
-              {results?.kpis?.fiscal_regime === 'PIA'
-                && (results.kpis.pia_legacy_pre_audit === true || runConfig?.pia_legacy_pre_audit === true) && (
-                <p className="mt-2 text-xs px-2 py-1 rounded bg-amber-950/60 text-amber-200 border border-amber-500/40 max-w-3xl" data-testid="pia-legacy-notice">
-                  {LEGACY_NOTICE}
-                </p>
-              )}
-              {Array.isArray(results?.kpis?.pia_notes) && results.kpis.pia_notes.length > 0 && (
-                <details className="mt-2 max-w-3xl" data-testid="pia-notes">
-                  <summary className="text-xs text-cyan-200 cursor-pointer">
-                    Engine notes on the PIA 2021 and NTA 2025 computation ({results.kpis.pia_notes.length})
-                  </summary>
-                  <ul className="mt-1 list-disc pl-5 space-y-1">
-                    {results.kpis.pia_notes.map((n) => (
-                      <li key={n} className="text-xs text-slate-300">{n}</li>
-                    ))}
-                  </ul>
-                </details>
-              )}
+      <AppHeader
+        eyebrow="Petroleum Economics Studio"
+        title={runDetails?.run_name}
+        subtitle={`Results for case: ${runDetails?.epe_cases?.case_name ?? ''}`}
+        backTo={`/dashboard/apps/economics/epe/cases/${runDetails?.case_id}`}
+        backLabel="Back to Case"
+        icon={BarChart}
+      />
+      <div className={epePage}>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mb-6 space-y-2">
+          {results && (
+            <div className="flex flex-wrap items-center gap-2">
+              {resultActions}
             </div>
-          </div>
+          )}
+          {results?.kpis?.fiscal_regime === 'PIA' && frameworkBadge(results.kpis) && (
+            <span className={epeBadge(
+              results.kpis.fiscal_framework === 'nta_2025'
+                ? 'warning'
+                : results.kpis.fiscal_framework === 'pia_only_then_nta_2025'
+                  ? 'info'
+                  : 'neutral'
+            )}>
+              {frameworkBadge(results.kpis)}
+            </span>
+          )}
+          {/* EC7 (engines 3.12.0): legacy PIA runs say so on the results */}
+          {results?.kpis?.fiscal_regime === 'PIA'
+            && (results.kpis.pia_legacy_pre_audit === true || runConfig?.pia_legacy_pre_audit === true) && (
+            <p className={`${epeCallout('warning')} max-w-3xl text-xs`} data-testid="pia-legacy-notice">
+              {LEGACY_NOTICE}
+            </p>
+          )}
+          {Array.isArray(results?.kpis?.pia_notes) && results.kpis.pia_notes.length > 0 && (
+            <details className="max-w-3xl" data-testid="pia-notes">
+              <summary className="cursor-pointer text-xs font-medium text-pl-primary-text">
+                Engine notes on the PIA 2021 and NTA 2025 computation ({results.kpis.pia_notes.length})
+              </summary>
+              <ul className="mt-1 list-disc pl-5 space-y-1">
+                {results.kpis.pia_notes.map((n) => (
+                  <li key={n} className="text-xs text-pl-text">{n}</li>
+                ))}
+              </ul>
+            </details>
+          )}
         </motion.div>
 
         {results ? (
           <div className="space-y-8">
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }}>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <KpiCard
                   icon={DollarSign}
                   title={`NPV @ ${results.kpis.discount_rate_applied_pct !== undefined ? results.kpis.discount_rate_applied_pct.toFixed(1) : '10'}% (${results.kpis.pv_basis || 'real'})`}
                   value={formatCurrency(results.kpis.npv)}
-                  color="from-green-500 to-lime-500"
                 />
-                <KpiCard icon={TrendingUp} title="IRR" value={results.kpis.irr != null ? `${Number(results.kpis.irr).toFixed(2)}%` : 'N/A'} color="from-blue-500 to-cyan-500" />
-                <KpiCard icon={Clock} title="Payback" value={results.kpis.payback} color="from-orange-500 to-amber-500" />
+                <KpiCard icon={TrendingUp} title="IRR" value={results.kpis.irr != null ? `${Number(results.kpis.irr).toFixed(2)}%` : 'N/A'} />
+                <KpiCard icon={Clock} title="Payback" value={results.kpis.payback} />
                 <KpiCard
                   icon={Receipt}
                   title="Total Revenue"
                   value={results.kpis.total_revenue !== undefined ? formatCurrency(results.kpis.total_revenue) : '—'}
-                  color="from-cyan-500 to-blue-500"
                 />
                 <KpiCard
                   icon={Wallet}
                   title="Total CAPEX"
                   value={results.kpis.total_capex !== undefined ? formatCurrency(results.kpis.total_capex) : '—'}
-                  color="from-purple-500 to-pink-500"
                 />
                 <KpiCard
                   icon={Landmark}
                   title="Total Tax"
                   value={results.kpis.total_tax !== undefined ? formatCurrency(results.kpis.total_tax) : '—'}
-                  color="from-red-500 to-orange-500"
                 />
               </div>
 
@@ -1587,7 +1566,7 @@ if (loading) {
                   band. Where there is none, the reason is stated rather than
                   left as a bare N/A. */}
               {epeIrrReason(results.kpis) && (
-                <p className="mt-3 text-xs text-slate-400" data-testid="epe-irr-reason">
+                <p className="mt-3 text-xs text-pl-muted" data-testid="epe-irr-reason">
                   {epeIrrReason(results.kpis)}
                 </p>
               )}
@@ -1627,9 +1606,9 @@ if (loading) {
                       ? formatCurrency(results.kpis.total_decom_fund_contributions) : null,
                       'Deductible sinking-fund contributions; the fund pays the final abandonment spend.'],
                   ].filter(([, v]) => v !== null).map(([label, value, tooltip]) => (
-                    <div key={label} className="bg-white/5 rounded-lg px-3 py-2" title={tooltip || undefined}>
-                      <p className="text-xs text-slate-400">{label}</p>
-                      <p className="text-base font-semibold text-white">{value}</p>
+                    <div key={label} className={epeTile} title={tooltip || undefined}>
+                      <p className="text-xs text-pl-muted">{label}</p>
+                      <p className={`text-base font-semibold text-pl-text ${epeNum}`}>{value}</p>
                     </div>
                   ))}
                 </div>
@@ -1638,19 +1617,19 @@ if (loading) {
               {/* Wave F: NGN mirrors under a flat FX assumption */}
               {results.kpis.fx_ngn_per_usd != null && (
                 <div className="mt-3 flex flex-wrap items-center gap-3">
-                  <div className="bg-white/5 rounded-lg px-3 py-2">
-                    <p className="text-xs text-slate-400">NPV (NGN)</p>
-                    <p className="text-base font-semibold text-white">{fmtNgn(results.kpis.npv_ngn)}</p>
+                  <div className={epeTile}>
+                    <p className="text-xs text-pl-muted">NPV (NGN)</p>
+                    <p className={`text-base font-semibold text-pl-text ${epeNum}`}>{fmtNgn(results.kpis.npv_ngn)}</p>
                   </div>
-                  <div className="bg-white/5 rounded-lg px-3 py-2">
-                    <p className="text-xs text-slate-400">Total net cash flow (NGN)</p>
-                    <p className="text-base font-semibold text-white">{fmtNgn(results.kpis.total_net_cash_flow_ngn)}</p>
+                  <div className={epeTile}>
+                    <p className="text-xs text-pl-muted">Total net cash flow (NGN)</p>
+                    <p className={`text-base font-semibold text-pl-text ${epeNum}`}>{fmtNgn(results.kpis.total_net_cash_flow_ngn)}</p>
                   </div>
-                  <div className="bg-white/5 rounded-lg px-3 py-2">
-                    <p className="text-xs text-slate-400">Total tax (NGN)</p>
-                    <p className="text-base font-semibold text-white">{fmtNgn(results.kpis.total_tax_ngn)}</p>
+                  <div className={epeTile}>
+                    <p className="text-xs text-pl-muted">Total tax (NGN)</p>
+                    <p className={`text-base font-semibold text-pl-text ${epeNum}`}>{fmtNgn(results.kpis.total_tax_ngn)}</p>
                   </div>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-pl-muted">
                     Flat FX at {Number(results.kpis.fx_ngn_per_usd).toLocaleString('en-US')} NGN/USD
                   </p>
                 </div>
@@ -1659,14 +1638,14 @@ if (loading) {
               {(results.kpis.economic_limit_year != null || results.kpis.total_abandonment_cost != null) && (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {results.kpis.economic_limit_year != null && (
-                    <span className="text-xs px-2 py-0.5 rounded bg-amber-900/40 text-amber-200 border border-amber-500/30">
+                    <span className={epeBadge('warning')}>
                       Economic limit applied: field life ends {results.kpis.economic_limit_year}
                       {results.kpis.years_trimmed_by_economic_limit
                         ? ` (${results.kpis.years_trimmed_by_economic_limit} uneconomic year${results.kpis.years_trimmed_by_economic_limit > 1 ? 's' : ''} trimmed)` : ''}
                     </span>
                   )}
                   {results.kpis.total_abandonment_cost != null && (
-                    <span className="text-xs px-2 py-0.5 rounded bg-cyan-900/40 text-cyan-200 border border-cyan-500/30">
+                    <span className={epeBadge('info')}>
                       Abandonment {formatCurrency(results.kpis.total_abandonment_cost)} in {results.kpis.abandonment_year}
                       {results.kpis.abandonment_funding_mode === 'sinking_fund' ? ' (paid from the sinking fund)' : ' (post-tax)'}
                     </span>
@@ -1677,9 +1656,9 @@ if (loading) {
               <NpvProfileChart kpis={results.kpis} />
             </motion.div>
 
-            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }} className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6">
-              <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
-                <h2 className="text-2xl font-bold text-white">Cash Flow Analysis</h2>
+            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }} className={epePanel}>
+              <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+                <h2 className={epeH2}>Cash Flow Analysis</h2>
                 <TabBar
                   active={activeTab}
                   onChange={setActiveTab}
@@ -1695,7 +1674,7 @@ if (loading) {
               </div>
 
               {activeTab === 'annual' && (
-                <div id="epe-pdf-capture-annual" style={{ background: CHART_COLORS.background, borderRadius: 8, padding: 8 }}>
+                <div data-canvas="chart" id="epe-pdf-capture-annual" style={{ background: CHART_COLORS.background, borderRadius: 8, padding: 8 }}>
                   <h3 style={{ fontSize: 14, fontWeight: 600, color: CHART_COLORS.axisLabel, margin: '0 0 8px 4px' }}>Annual Cash Flow</h3>
                   <p style={{ fontSize: 11, color: CHART_COLORS.axisText, margin: '0 0 4px 4px' }}>
                     Click a legend entry to show or hide its series.
@@ -1760,7 +1739,7 @@ if (loading) {
             </motion.div>
           </div>
         ) : (
-          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6">
+          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className={epePanel}>
             {(() => {
               // EC7: a run the compliant PIA engine refused shows the engine's
               // own message and the way to fix it or to run it as legacy.
@@ -1768,8 +1747,8 @@ if (loading) {
               if (!refusal) {
                 return (
                   <div className="text-center py-16">
-                    <h3 className="text-xl font-semibold text-white">No Results Found</h3>
-                    <p className="text-lime-300 mt-2">
+                    <h3 className="text-xl font-semibold text-pl-text">No Results Found</h3>
+                    <p className="text-pl-muted mt-2">
                       {runDetails?.status === 'failed' && runDetails?.error_message
                         ? runDetails.error_message
                         : 'Could not load the results for this economic run.'}
@@ -1781,10 +1760,10 @@ if (loading) {
                 ? `/dashboard/apps/economics/epe/cases/${runDetails.case_id}/run?fromConfig=${runDetails.run_config_id}` : null;
               return (
                 <div className="py-6 max-w-3xl" data-testid="pia-refusal">
-                  <h3 className="text-xl font-semibold text-white">{refusal.title}</h3>
-                  <p className="text-red-200/90 text-sm mt-2 font-mono break-words">{refusal.message}</p>
-                  <p className="text-slate-300 text-sm mt-2">{refusal.explain}</p>
-                  <p className="text-slate-400 text-xs mt-2">
+                  <h3 className="text-xl font-semibold text-pl-text">{refusal.title}</h3>
+                  <p className="text-pl-danger-text text-sm mt-2 font-mono break-words">{refusal.message}</p>
+                  <p className="text-pl-muted text-sm mt-2">{refusal.explain}</p>
+                  <p className="text-pl-muted text-xs mt-2">
                     PIA figures were corrected on 26 September 2026 to follow the Act and the Royalty Regulations, and this configuration needs a stated input the earlier engine did not ask for.
                   </p>
                   {isOwnRun && base && (

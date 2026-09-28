@@ -14,9 +14,8 @@
 // case-insensitively), so it has to be the exact module text the DS0 seed
 // writes.
 import React, { useState } from 'react';
-import { Search } from 'lucide-react';
-import { Input } from '@/components/ui/input';
 import ApplicationsGrid from '@/components/ApplicationsGrid';
+import { HubHeader, HubPage, HubSearch, HubSectionTitle, HubToolbar } from '@/components/hubs/HubChrome';
 
 export const MODULE_FILTER = 'Midstream & Downstream';
 
@@ -24,34 +23,24 @@ const MidstreamDownstreamHub = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   return (
-    <div className="p-6 space-y-6 min-h-screen bg-slate-950 text-white">
-      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-2">
-        <div className="max-w-3xl">
-          <h1 className="text-3xl font-bold tracking-tight text-white">Midstream &amp; Downstream</h1>
-          <p className="text-slate-400 mt-2">
-            Refining, terminals and the fuel supply chain, with the carbon ledger running beside the
-            money rather than bolted on afterwards.
-          </p>
-        </div>
-      </div>
+    <HubPage>
+      <HubHeader
+        title="Midstream & Downstream"
+        description={(
+          <>Refining, terminals and the fuel supply chain, with the carbon ledger kept beside the
+          money from the start.</>
+        )}
+      />
 
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-slate-900/50 p-4 rounded-xl border border-slate-800">
-        <div className="w-full md:w-96 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 w-4 h-4" />
-          <Input
-            placeholder="Search applications..."
-            className="pl-10 bg-slate-950 border-slate-800 text-white focus:ring-orange-500/50 placeholder:text-slate-500"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-      </div>
+      <HubToolbar>
+        <HubSearch value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+      </HubToolbar>
 
-      <div className="mt-8">
-        <h2 className="text-xl font-semibold mb-4 text-white">All Applications</h2>
+      <section className="space-y-4">
+        <HubSectionTitle>All Applications</HubSectionTitle>
         <ApplicationsGrid moduleFilter={MODULE_FILTER} searchQuery={searchTerm} />
-      </div>
-    </div>
+      </section>
+    </HubPage>
   );
 };
 

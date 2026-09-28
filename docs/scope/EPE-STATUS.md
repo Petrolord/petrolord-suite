@@ -2,6 +2,12 @@
 
 Scope document: `docs/scope/EPE.md`. Programme table: `docs/scope/Economics-ROADMAP.md`.
 
+**Design system:** on the Petrolord design system since pilot 3 (2026-09-27,
+branch `feat/ds-pilot-epe`). Every EPE route sits in one `ThemedApp` layout
+route; light by default, dark per user through the header toggle. Recipe and
+lessons: `docs/scope/DesignSystem-example-EPE.md`. No engine, calculation or
+export change.
+
 ## EC7: PIA 2021 / NTA 2025 compliance (2026-09-26)
 
 **State: MERGED** (Suite #632, 2026-09-26). Engine: engines PR #262 merged as

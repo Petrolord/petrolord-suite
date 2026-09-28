@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { CHECKBOX_THEMED } from './dsClasses';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Save, Trash2, TrendingUp, BarChart2 } from 'lucide-react';
@@ -74,14 +75,14 @@ const DCATypeCurve = () => {
     // instead of clipping the stats and apply panels.
     <div className="min-h-full flex flex-col space-y-4">
       {/* Header / Toolbar */}
-      <div className="flex items-center justify-between p-2 bg-slate-800 rounded-md">
+      <div className="flex flex-wrap gap-2 items-center justify-between p-2 bg-pl-surface border border-pl-border rounded-md shadow-pl-sm">
         <div className="flex items-center gap-2">
-          <TrendingUp size={18} className="text-purple-400" />
-          <h3 className="text-sm font-semibold text-slate-100">Type Curve Analysis</h3>
+          <TrendingUp size={18} className="text-pl-primary-text" aria-hidden="true" />
+          <h3 className="text-sm font-semibold text-pl-text">Type Curve Analysis</h3>
         </div>
         <div className="flex gap-2">
           <Select value={selectedTypeCurve || ''} onValueChange={setSelectedTypeCurve}>
-            <SelectTrigger className="w-[200px] h-8 bg-slate-900 border-slate-700 text-xs">
+            <SelectTrigger className="w-[200px] h-8 text-xs">
               <SelectValue placeholder="Select Type Curve" />
             </SelectTrigger>
             <SelectContent>
@@ -107,9 +108,9 @@ const DCATypeCurve = () => {
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4">
         
         {/* Left: Creation & Selection */}
-        <Card className="bg-slate-900 border-slate-800 flex flex-col overflow-hidden">
-          <CardHeader className="py-3 px-4 border-b border-slate-800 bg-slate-800/50">
-            <CardTitle className="text-xs font-medium text-slate-300 uppercase tracking-wider">Create New Curve</CardTitle>
+        <Card className="flex flex-col overflow-hidden">
+          <CardHeader className="py-3 px-4 border-b border-pl-border bg-pl-sunken">
+            <CardTitle className="text-xs font-medium text-pl-text uppercase tracking-wider">Create New Curve</CardTitle>
           </CardHeader>
           <CardContent className="flex-1 overflow-hidden p-4 flex flex-col gap-4">
             <div className="space-y-2">
@@ -118,14 +119,14 @@ const DCATypeCurve = () => {
                 value={newCurveName} 
                 onChange={(e) => setNewCurveName(e.target.value)} 
                 placeholder="e.g. Eagle Ford High GOR"
-                className="h-8 bg-slate-950 border-slate-800"
+                className="h-8"
               />
             </div>
 
             <div className="space-y-2">
               <Label className="text-xs">Normalization</Label>
               <Select value={normMethod} onValueChange={setNormMethod}>
-                <SelectTrigger className="h-8 bg-slate-950 border-slate-800">
+                <SelectTrigger className="h-8">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -141,23 +142,24 @@ const DCATypeCurve = () => {
               {/* Explicit min height: the card's height is now content-driven
                   (the page scrolls), so the list needs its own floor to keep
                   the ScrollArea from collapsing. */}
-              <div className="flex-1 min-h-[200px] border border-slate-800 rounded-md bg-slate-950 overflow-hidden">
+              <div className="flex-1 min-h-[200px] border border-pl-border rounded-md bg-pl-surface overflow-hidden">
                 <ScrollArea className="h-full p-2">
                   {wellList.map(well => (
-                    <div key={well.id} className="flex items-center gap-2 py-1.5 px-2 hover:bg-slate-900 rounded cursor-pointer" onClick={() => handleToggleWell(well.id)}>
+                    <div key={well.id} className="flex items-center gap-2 py-1.5 px-2 hover:bg-pl-sunken rounded cursor-pointer" onClick={() => handleToggleWell(well.id)}>
                       <Checkbox 
                         checked={selectedWells.includes(well.id)} 
                         onCheckedChange={() => handleToggleWell(well.id)}
                         id={`well-${well.id}`}
+                        className={CHECKBOX_THEMED}
                       />
-                      <span className="text-xs text-slate-300 truncate">{well.name}</span>
+                      <span className="text-xs text-pl-text truncate">{well.name}</span>
                     </div>
                   ))}
                 </ScrollArea>
               </div>
             </div>
 
-            <Button onClick={handleCreate} disabled={isCreating || !newCurveName || selectedWells.length < 2} className="w-full bg-purple-600 hover:bg-purple-500">
+            <Button onClick={handleCreate} disabled={isCreating || !newCurveName || selectedWells.length < 2} className="w-full">
               {isCreating ? 'Fitting...' : 'Create & Fit Curve'}
             </Button>
           </CardContent>
@@ -172,10 +174,10 @@ const DCATypeCurve = () => {
                   card's height is min-h/stretch driven: Recharts'
                   ResponsiveContainer needs a definite-height ancestor or it
                   collapses to zero. */}
-              <Card className="flex-1 bg-slate-900 border-slate-800 flex flex-col min-h-[480px]">
-                <CardHeader className="py-2 px-4 border-b border-slate-800 flex flex-row justify-between items-center bg-slate-800/50">
-                  <CardTitle className="text-xs font-medium text-slate-300">Type Curve Plot: {activeCurve.name}</CardTitle>
-                  <Badge variant="outline" className="bg-slate-800 border-purple-500/50 text-purple-400">
+              <Card className="flex-1 flex flex-col min-h-[480px]">
+                <CardHeader className="py-2 px-4 border-b border-pl-border flex flex-row justify-between items-center bg-pl-sunken">
+                  <CardTitle className="text-xs font-medium text-pl-text">Type Curve Plot: {activeCurve.name}</CardTitle>
+                  <Badge variant="secondary">
                     {activeCurve.fit?.quality || 'N/A'} Fit
                   </Badge>
                 </CardHeader>
@@ -188,41 +190,41 @@ const DCATypeCurve = () => {
 
               {/* Stats Footer */}
               <div className="grid grid-cols-4 gap-2">
-                <div className="bg-slate-800 p-2 rounded border border-slate-700">
-                  <div className="text-[10px] text-slate-400">Avg Qi</div>
-                  <div className="text-sm font-mono text-emerald-400">{activeCurve.fit?.qi.toFixed(3)}</div>
+                <div className="bg-pl-surface p-2 rounded border border-pl-border shadow-pl-sm">
+                  <div className="text-[10px] text-pl-muted">Avg Qi</div>
+                  <div className="text-sm font-pl-mono tabular-nums text-pl-text">{activeCurve.fit?.qi.toFixed(3)}</div>
                 </div>
-                <div className="bg-slate-800 p-2 rounded border border-slate-700">
-                  <div className="text-[10px] text-slate-400">Avg Di</div>
-                  <div className="text-sm font-mono text-blue-400">{activeCurve.fit?.Di.toFixed(3)}</div>
+                <div className="bg-pl-surface p-2 rounded border border-pl-border shadow-pl-sm">
+                  <div className="text-[10px] text-pl-muted">Avg Di</div>
+                  <div className="text-sm font-pl-mono tabular-nums text-pl-text">{activeCurve.fit?.Di.toFixed(3)}</div>
                 </div>
-                <div className="bg-slate-800 p-2 rounded border border-slate-700">
-                  <div className="text-[10px] text-slate-400">b-Factor</div>
-                  <div className="text-sm font-mono text-purple-400">{activeCurve.fit?.b.toFixed(2)}</div>
+                <div className="bg-pl-surface p-2 rounded border border-pl-border shadow-pl-sm">
+                  <div className="text-[10px] text-pl-muted">b-Factor</div>
+                  <div className="text-sm font-pl-mono tabular-nums text-pl-text">{activeCurve.fit?.b.toFixed(2)}</div>
                 </div>
-                <div className="bg-slate-800 p-2 rounded border border-slate-700">
-                  <div className="text-[10px] text-slate-400">R²</div>
-                  <div className="text-sm font-mono text-orange-400">{activeCurve.fit?.R2.toFixed(3)}</div>
+                <div className="bg-pl-surface p-2 rounded border border-pl-border shadow-pl-sm">
+                  <div className="text-[10px] text-pl-muted">R²</div>
+                  <div className="text-sm font-pl-mono tabular-nums text-pl-text">{activeCurve.fit?.R2.toFixed(3)}</div>
                 </div>
               </div>
 
               {/* Apply Type Curve to Target Well */}
-              <Card className="bg-slate-900 border-slate-800">
-                <CardHeader className="py-3 px-4 border-b border-slate-800 bg-slate-800/50">
-                  <CardTitle className="text-xs font-medium text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                    <BarChart2 size={14} className="text-emerald-400" />
+              <Card>
+                <CardHeader className="py-3 px-4 border-b border-pl-border bg-pl-sunken">
+                  <CardTitle className="text-xs font-medium text-pl-text uppercase tracking-wider flex items-center gap-2">
+                    <BarChart2 size={14} className="text-pl-muted" aria-hidden="true" />
                     Apply To Well
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 space-y-3">
-                  <div className="text-[11px] text-slate-400">
+                  <div className="text-[11px] text-pl-muted">
                     Holds b={activeCurve.fit.b.toFixed(2)} from this type curve, fits qi and Di to the target well's history.
                   </div>
                   <div className="flex items-end gap-2">
                     <div className="flex-1 space-y-1">
                       <Label className="text-xs">Target Well</Label>
                       <Select value={applyTargetWellId} onValueChange={setApplyTargetWellId}>
-                        <SelectTrigger className="h-8 bg-slate-950 border-slate-800">
+                        <SelectTrigger className="h-8">
                           <SelectValue placeholder="Choose a well..." />
                         </SelectTrigger>
                         <SelectContent>
@@ -235,7 +237,7 @@ const DCATypeCurve = () => {
                     <Button
                       onClick={handleApply}
                       disabled={isApplying || !applyTargetWellId}
-                      className="h-8 bg-emerald-700 hover:bg-emerald-600 text-xs"
+                      className="h-8 text-xs"
                     >
                       {isApplying ? 'Applying...' : 'Apply Curve'}
                     </Button>
@@ -243,20 +245,19 @@ const DCATypeCurve = () => {
 
                   {/* Applications list */}
                   {activeCurve.applications && Object.keys(activeCurve.applications).length > 0 && (
-                    <div className="mt-2 border-t border-slate-800 pt-3">
-                      <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-2">Applied To ({Object.keys(activeCurve.applications).length})</div>
+                    <div className="mt-2 border-t border-pl-border pt-3">
+                      <div className="text-[10px] text-pl-muted uppercase tracking-wider mb-2">Applied To ({Object.keys(activeCurve.applications).length})</div>
                       <div className="space-y-1.5">
                         {Object.entries(activeCurve.applications).map(([wellId, app]) => (
-                          <div key={wellId} className="grid grid-cols-5 gap-2 items-center text-xs bg-slate-800/40 rounded px-2 py-1.5 border border-slate-800">
-                            <div className="text-slate-300 truncate">{app.targetWellName}</div>
-                            <div className="font-mono text-emerald-400">qi: {app.result.qi.toFixed(0)}</div>
-                            <div className="font-mono text-orange-400">Di: {(app.result.Di*365*100).toFixed(1)}%/yr</div>
-                            <div className="font-mono text-blue-400">R²: {app.result.R2.toFixed(3)}</div>
+                          <div key={wellId} className="grid grid-cols-5 gap-2 items-center text-xs bg-pl-surface rounded px-2 py-1.5 border border-pl-border">
+                            <div className="text-pl-text truncate">{app.targetWellName}</div>
+                            <div className="font-pl-mono tabular-nums text-pl-text">qi: {app.result.qi.toFixed(0)}</div>
+                            <div className="font-pl-mono tabular-nums text-pl-text">Di: {(app.result.Di*365*100).toFixed(1)}%/yr</div>
+                            <div className="font-pl-mono tabular-nums text-pl-text">R²: {app.result.R2.toFixed(3)}</div>
                             <div>
-                              <Badge variant="outline" className={
-                                app.result.quality === 'Good' ? 'border-emerald-500/50 text-emerald-400 text-[10px]' :
-                                app.result.quality === 'Fair' ? 'border-amber-500/50 text-amber-400 text-[10px]' :
-                                'border-red-500/50 text-red-400 text-[10px]'
+                              <Badge className="text-[10px]" variant={
+                                app.result.quality === 'Good' ? 'success' :
+                                app.result.quality === 'Fair' ? 'warning' : 'danger'
                               }>{app.result.quality}</Badge>
                             </div>
                           </div>
@@ -268,7 +269,7 @@ const DCATypeCurve = () => {
               </Card>
             </>
           ) : (
-            <div className="h-full flex items-center justify-center bg-slate-900/50 border border-dashed border-slate-800 rounded-lg text-slate-500 text-sm">
+            <div className="h-full flex items-center justify-center bg-pl-surface border border-dashed border-pl-border-strong rounded-lg text-pl-muted text-sm">
               Select or create a type curve to view analysis
             </div>
           )}

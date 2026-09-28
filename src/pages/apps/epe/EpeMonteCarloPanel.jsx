@@ -13,6 +13,7 @@ import TornadoChart from '@/pages/apps/ReservoirCalcPro/components/results/Torna
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE,
 } from '@/utils/chartTheme';
+import { epeCellInput, epeNativeCheck, epeNum, epeSubPanel, epeTile } from './epeUi';
 
 // Risk (Monte Carlo) tab for the EPE results viewer (D2,
 // docs/scope/Economics-ROADMAP.md). Sampling and fiscal math run
@@ -61,21 +62,23 @@ const fmtYr = (n) => (n == null || isNaN(n) ? 'N/A' : `${Number(n).toFixed(2)} y
 
 const AXIS_TICK = { fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText };
 
+// Design system: `accent` is a status role class (text-pl-*-text) and is
+// passed only where the colour means something (the chance of a positive NPV).
 const StatCard = ({ title, value, accent }) => (
-  <div className="bg-white/5 p-4 rounded-lg">
-    <p className="text-xs text-slate-300 uppercase tracking-wide">{title}</p>
-    <p className={`text-2xl font-bold mt-1 ${accent || 'text-white'}`}>{value}</p>
+  <div className={`${epeTile} py-3`}>
+    <p className="text-xs text-pl-muted uppercase tracking-wide">{title}</p>
+    <p className={`text-xl font-semibold mt-1 break-words ${epeNum} ${accent || 'text-pl-text'}`}>{value}</p>
   </div>
 );
 
 const DistRow = ({ varKey, spec, onChange }) => (
-  <div className="flex flex-wrap items-center gap-3 py-2 border-b border-white/10">
-    <label className="flex items-center gap-2 w-56 text-sm text-white">
+  <div className="flex flex-wrap items-center gap-3 py-2 border-b border-pl-border">
+    <label className="flex items-center gap-2 w-full sm:w-56 text-sm text-pl-text">
       <input
         type="checkbox"
         checked={spec.enabled}
         onChange={(e) => onChange(varKey, { ...spec, enabled: e.target.checked })}
-        className="accent-lime-400"
+        className={epeNativeCheck}
       />
       {VAR_LABELS[varKey]}
     </label>
@@ -83,12 +86,12 @@ const DistRow = ({ varKey, spec, onChange }) => (
       value={spec.type}
       disabled={!spec.enabled}
       onChange={(e) => onChange(varKey, { ...spec, type: e.target.value })}
-      className="px-2 py-1 rounded bg-slate-800 border border-slate-600 text-white text-xs disabled:opacity-40"
+      className={`${epeCellInput} !w-auto disabled:opacity-40`}
     >
       {DIST_TYPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
     </select>
     {CELLS_BY_TYPE[spec.type].map(([field, label]) => (
-      <label key={field} className="text-xs text-slate-300 flex items-center gap-1">
+      <label key={field} className="text-xs text-pl-text flex items-center gap-1">
         {label}
         <input
           type="number"
@@ -96,7 +99,7 @@ const DistRow = ({ varKey, spec, onChange }) => (
           value={spec[field] ?? ''}
           disabled={!spec.enabled}
           onChange={(e) => onChange(varKey, { ...spec, [field]: e.target.value })}
-          className="w-20 px-2 py-1 rounded bg-slate-800 border border-slate-600 text-white text-xs disabled:opacity-40"
+          className={`${epeCellInput} !w-20 disabled:opacity-40 ${epeNum}`}
         />
       </label>
     ))}
@@ -356,14 +359,14 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
   // so say so instead of showing a loading message forever.
   if (!runConfigId) {
     return (
-      <p className="text-slate-300 text-sm py-8">
+      <p className="text-pl-muted text-sm py-8">
         This run has no saved configuration, so Monte Carlo cannot sample its inputs.
         Re-run the case from the Run Console to enable the Risk tab.
       </p>
     );
   }
   if (!vars) {
-    return <p className="text-slate-300 text-sm py-8">Loading run configuration...</p>;
+    return <p className="text-pl-muted text-sm py-8" role="status">Loading run configuration...</p>;
   }
 
   const hasIrrStats = results?.irr && results.irr.p50 != null;
@@ -372,9 +375,9 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
   return (
     <div className="space-y-6">
       {/* Configuration */}
-      <div className="bg-white/5 rounded-lg p-4">
-        <h3 className="text-lg font-semibold text-white mb-1">Uncertain inputs</h3>
-        <p className="text-xs text-slate-300 mb-3">
+      <div className={epeSubPanel}>
+        <h3 className="text-lg font-semibold text-pl-text mb-1">Uncertain inputs</h3>
+        <p className="text-xs text-pl-muted mb-3">
           Each enabled input is sampled from its distribution and run through the full fiscal engine per iteration. Prices are absolute; multipliers scale the uploaded CAPEX, OPEX, and production data. Normal and lognormal use a mean and standard deviation, with optional Low/High truncation bounds.
         </p>
         {Object.entries(vars).map(([key, spec]) => (
@@ -384,7 +387,7 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
         {/* Correlations */}
         <div className="mt-4">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-200 font-medium">Correlations</p>
+            <p className="text-sm text-pl-text font-medium">Correlations</p>
             <Button type="button" variant="outline" size="sm" onClick={addCorrRow}>
               <Plus className="w-3.5 h-3.5 mr-1" /> Add pair
             </Button>
@@ -394,11 +397,11 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
               {correlations.map((row, i) => {
                 const active = vars[row.a]?.enabled && vars[row.b]?.enabled && row.a !== row.b;
                 return (
-                  <div key={i} className={`flex flex-wrap items-center gap-2 text-xs ${active ? 'text-slate-200' : 'text-slate-500'}`}>
+                  <div key={i} className={`flex flex-wrap items-center gap-2 text-xs ${active ? 'text-pl-text' : 'text-pl-muted'}`}>
                     <select
                       value={row.a}
                       onChange={(e) => setCorrCell(i, 'a', e.target.value)}
-                      className="px-2 py-1 rounded bg-slate-800 border border-slate-600 text-white text-xs"
+                      className={`${epeCellInput} !w-auto`}
                     >
                       {VAR_KEYS.map((k) => <option key={k} value={k}>{VAR_LABELS[k]}</option>)}
                     </select>
@@ -406,7 +409,7 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
                     <select
                       value={row.b}
                       onChange={(e) => setCorrCell(i, 'b', e.target.value)}
-                      className="px-2 py-1 rounded bg-slate-800 border border-slate-600 text-white text-xs"
+                      className={`${epeCellInput} !w-auto`}
                     >
                       {VAR_KEYS.map((k) => <option key={k} value={k}>{VAR_LABELS[k]}</option>)}
                     </select>
@@ -418,10 +421,10 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
                       max="0.99"
                       value={row.rho}
                       onChange={(e) => setCorrCell(i, 'rho', e.target.value)}
-                      className="w-16 px-2 py-1 rounded bg-slate-800 border border-slate-600 text-white text-xs"
+                      className={`${epeCellInput} !w-16 ${epeNum}`}
                     />
                     {!active && <span className="italic">inactive (enable both inputs)</span>}
-                    <button type="button" onClick={() => delCorrRow(i)} className="text-slate-400 hover:text-red-400" title="Remove pair">
+                    <button type="button" onClick={() => delCorrRow(i)} className="text-pl-muted hover:text-pl-danger-text" title="Remove pair">
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -429,38 +432,38 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
               })}
             </div>
           )}
-          <p className="text-[11px] text-slate-500 mt-1.5">
+          <p className="text-[11px] text-pl-muted mt-1.5">
             Pairs apply only while both inputs are enabled. Strongly contradictory correlation sets may be dampened; the sampler keeps the correlation matrix decomposable.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-6 mt-4">
-          <label className="text-sm text-slate-200 flex items-center gap-2">
+          <label className="text-sm text-pl-text flex items-center gap-2">
             Iterations
             <select
               value={iterations}
               onChange={(e) => setIterations(Number(e.target.value))}
-              className="px-2 py-1 rounded bg-slate-800 border border-slate-600 text-white text-sm"
+              className={`${epeCellInput} !w-auto !text-sm`}
             >
               {[500, 1000, 2000, 5000].map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
           </label>
-          <label className="text-sm text-slate-200 flex items-center gap-2" title="Blank picks a new random seed. Set a seed to reproduce a run exactly for review or audit.">
+          <label className="text-sm text-pl-text flex items-center gap-2" title="Blank picks a new random seed. Set a seed to reproduce a run exactly for review or audit.">
             Seed
             <input
               type="number"
               value={seedInput}
               onChange={(e) => setSeedInput(e.target.value)}
               placeholder="random"
-              className="w-28 px-2 py-1 rounded bg-slate-800 border border-slate-600 text-white text-sm"
+              className={`${epeCellInput} !w-28 !text-sm ${epeNum}`}
             />
           </label>
           {!isOwnConfig && (
-            <span className="text-xs text-amber-300">
+            <span className="text-xs text-pl-warning-text">
               Shared run: simulations are disabled. Clone the case to run your own.
             </span>
           )}
-          <Button onClick={runMonteCarlo} disabled={running || !isOwnConfig} className="bg-gradient-to-r from-green-500 to-cyan-500 text-white">
+          <Button onClick={runMonteCarlo} disabled={running || !isOwnConfig}>
             {running ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
             {running ? 'Running simulation...' : 'Run Monte Carlo'}
           </Button>
@@ -484,25 +487,25 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
       {results && (
         <div className="space-y-6">
           <div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              <StatCard title="NPV P90 (low)" value={fmtM(results.npv.p90)} accent="text-blue-300" />
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              <StatCard title="NPV P90 (low)" value={fmtM(results.npv.p90)} />
               <StatCard title="NPV P50" value={fmtM(results.npv.p50)} />
-              <StatCard title="NPV P10 (high)" value={fmtM(results.npv.p10)} accent="text-emerald-300" />
+              <StatCard title="NPV P10 (high)" value={fmtM(results.npv.p10)} />
               <StatCard title="NPV mean" value={fmtM(results.npv.mean)} />
               <StatCard
                 title="P(NPV > 0)"
                 value={`${(results.probNpvPositive * 100).toFixed(1)}%`}
-                accent={results.probNpvPositive >= 0.8 ? 'text-emerald-300' : results.probNpvPositive >= 0.5 ? 'text-amber-300' : 'text-red-300'}
+                accent={results.probNpvPositive >= 0.8 ? 'text-pl-success-text' : results.probNpvPositive >= 0.5 ? 'text-pl-warning-text' : 'text-pl-danger-text'}
               />
               <StatCard title="Deterministic base" value={fmtM(results.base?.npv)} />
             </div>
-            <p className="text-xs text-slate-400 mt-2">
+            <p className="text-xs text-pl-muted mt-2">
               {results.iterations} iterations, seed {results.seed}
               {results.seed != null && (
                 <button
                   type="button"
                   onClick={() => setSeedInput(String(results.seed))}
-                  className="ml-1 text-cyan-400 hover:text-cyan-300 underline underline-offset-2"
+                  className="ml-1 text-pl-primary-text hover:text-pl-text underline underline-offset-2"
                   title="Copy this seed into the Seed field so the next run reproduces this one exactly"
                 >
                   reuse
@@ -518,12 +521,12 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
           {/* IRR and payback distributions (Wave C; older saved runs may not have them) */}
           {(hasIrrStats || hasPaybackStats) && (
             <div className="space-y-2">
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
                 {hasIrrStats && (
                   <>
-                    <StatCard title="IRR P90 (low)" value={fmtPct(results.irr.p90)} accent="text-blue-300" />
+                    <StatCard title="IRR P90 (low)" value={fmtPct(results.irr.p90)} />
                     <StatCard title="IRR P50" value={fmtPct(results.irr.p50)} />
-                    <StatCard title="IRR P10 (high)" value={fmtPct(results.irr.p10)} accent="text-emerald-300" />
+                    <StatCard title="IRR P10 (high)" value={fmtPct(results.irr.p10)} />
                     <StatCard title="IRR mean" value={fmtPct(results.irr.mean)} />
                   </>
                 )}
@@ -536,7 +539,7 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
                   </>
                 )}
               </div>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-pl-muted">
                 {hasIrrStats && results.irr.nullShare > 0 && (
                   <>
                     {(results.irr.nullShare * 100).toFixed(1)}% of iterations have no IRR: their
@@ -557,7 +560,7 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
 
           {/* NPV cumulative probability */}
           <div>
-            <h3 className="text-sm font-semibold text-white mb-2">NPV cumulative probability</h3>
+            <h3 className="text-sm font-semibold text-pl-text mb-2">NPV cumulative probability</h3>
             <ChartFrame height={420} exportFilename="epe-mc-npv-cdf">
               <ComposedChart data={cdfData} margin={CHART_MARGINS.withLegend}>
                 <CartesianGrid {...GRID_STYLE} />
@@ -573,7 +576,7 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
           {/* Convergence of the running mean (Wave C) */}
           {convergenceData.length >= 2 && (
             <div>
-              <h3 className="text-sm font-semibold text-white mb-2">Convergence of mean NPV</h3>
+              <h3 className="text-sm font-semibold text-pl-text mb-2">Convergence of mean NPV</h3>
               <ChartFrame height={180} logoHeight={24} exportFilename="epe-mc-convergence">
                 <ComposedChart data={convergenceData} margin={CHART_MARGINS.withLegend}>
                   <CartesianGrid {...GRID_STYLE} />
@@ -583,14 +586,14 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
                   <Line type="monotone" dataKey="mean" name="Running mean" stroke="#7c3aed" strokeWidth={2} dot={false} />
                 </ComposedChart>
               </ChartFrame>
-              <p className="text-[11px] text-slate-500 mt-1">A flat tail means the mean has settled; a still-moving tail suggests more iterations.</p>
+              <p className="text-[11px] text-pl-muted mt-1">A flat tail means the mean has settled; a still-moving tail suggests more iterations.</p>
             </div>
           )}
 
           {/* Cumulative cash flow fan */}
           {fanData.length >= 2 ? (
             <div>
-              <h3 className="text-sm font-semibold text-white mb-2">Cumulative cash flow fan (nominal)</h3>
+              <h3 className="text-sm font-semibold text-pl-text mb-2">Cumulative cash flow fan (nominal)</h3>
               <ChartFrame height={420} exportFilename="epe-mc-cashflow-fan">
                 <ComposedChart data={fanData} margin={CHART_MARGINS.withLegend}>
                   <CartesianGrid {...GRID_STYLE} />
@@ -609,9 +612,9 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
               </ChartFrame>
             </div>
           ) : results.fan?.cumulative?.length === 1 && (
-            <div className="bg-white/5 rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-white mb-2">Cash flow range ({results.fan.cumulative[0].year})</h3>
-              <p className="text-sm text-slate-200">
+            <div className={epeSubPanel}>
+              <h3 className="text-sm font-semibold text-pl-text mb-2">Cash flow range ({results.fan.cumulative[0].year})</h3>
+              <p className="text-sm text-pl-text">
                 Net cash flow P90 {fmtM(results.fan.ncf[0].p90)}, P50 {fmtM(results.fan.ncf[0].p50)}, P10 {fmtM(results.fan.ncf[0].p10)}. A multi-year case renders a full fan chart here.
               </p>
             </div>
@@ -620,7 +623,7 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
           {/* Tornado */}
           {tornadoRows.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-white mb-2">NPV sensitivity tornado (conditional P50 by input decile)</h3>
+              <h3 className="text-sm font-semibold text-pl-text mb-2">NPV sensitivity tornado (conditional P50 by input decile)</h3>
               <ChartFrame height={Math.max(320, 60 + tornadoRows.length * 56)} exportFilename="epe-mc-tornado">
                 <TornadoChart
                   rows={tornadoRows}
@@ -633,13 +636,13 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
           )}
 
           {mcRun?.created_at && (
-            <p className="text-xs text-slate-500">Saved run from {new Date(mcRun.created_at).toLocaleString()}.</p>
+            <p className="text-xs text-pl-muted">Saved run from {new Date(mcRun.created_at).toLocaleString()}.</p>
           )}
         </div>
       )}
 
       {!results && (
-        <p className="text-slate-300 text-sm">
+        <p className="text-pl-muted text-sm">
           No Monte Carlo run yet for this configuration. Enable the uncertain inputs above and run the simulation to see the NPV distribution, the chance of a positive NPV, and which inputs drive the outcome.
         </p>
       )}

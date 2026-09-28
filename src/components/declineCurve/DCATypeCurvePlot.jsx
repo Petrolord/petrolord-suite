@@ -39,29 +39,30 @@ const DCATypeCurvePlot = ({ typeCurve }) => {
 
   if (!typeCurve || !typeCurve.fit) {
     return (
-      <div className="w-full h-full min-h-[300px] flex items-center justify-center text-slate-400">
+      <div className="w-full h-full min-h-[300px] flex items-center justify-center text-pl-muted">
         No type curve selected
       </div>
     );
   }
 
   return (
-    <div className="w-full h-full min-h-[400px] flex flex-col bg-white">
+    <div data-canvas="chart" className="w-full h-full min-h-[400px] flex flex-col bg-pl-chart-surface">
       {/* Toolbar */}
-      <div className="p-2 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+      <div className="p-2 border-b border-pl-border flex justify-between items-center bg-pl-sunken">
         <Button
           variant="ghost"
           size="sm"
           className={`text-xs h-7 ${
             logScale
-              ? 'bg-blue-50 text-blue-700 border border-blue-200'
-              : 'text-slate-600'
+              ? 'bg-pl-surface text-pl-primary-text border border-pl-border-strong'
+              : 'text-pl-muted'
           }`}
+          aria-pressed={logScale}
           onClick={() => setLogScale(!logScale)}
         >
           {logScale ? 'Log Scale' : 'Linear Scale'}
         </Button>
-        <div className="text-[10px] text-slate-500 font-mono">
+        <div className="text-[10px] text-pl-muted font-pl-mono tabular-nums">
           {typeCurve.fit.n} points / {typeCurve.fit.wellCount} wells
         </div>
       </div>

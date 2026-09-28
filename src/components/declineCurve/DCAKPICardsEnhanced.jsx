@@ -1,16 +1,18 @@
 import React from 'react';
 import { useDeclineCurve } from '@/contexts/DeclineCurveContext';
 
-const MetricCard = ({ label, value, unit, color = "text-slate-100", subtext }) => (
-  <div className="bg-slate-800 p-3 rounded-lg border border-slate-700 flex flex-col justify-between">
+// Tiles follow the design-system StatTile look (surface, muted uppercase
+// label, mono tabular value). Values are neutral: colour is kept for status.
+const MetricCard = ({ label, value, unit, subtext }) => (
+  <div className="bg-pl-surface p-3 rounded-lg border border-pl-border shadow-pl-sm flex flex-col justify-between min-w-0">
     <div>
-      <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">{label}</div>
-      <div className="flex items-baseline gap-1">
-        <span className={`text-lg font-bold ${color} font-mono`}>{value}</span>
-        {unit && <span className="text-xs text-slate-500">{unit}</span>}
+      <div className="text-[10px] text-pl-muted uppercase tracking-wider mb-1">{label}</div>
+      <div className="flex flex-wrap items-baseline gap-x-1">
+        <span className="text-lg font-semibold text-pl-text font-pl-mono tabular-nums">{value}</span>
+        {unit && <span className="text-xs text-pl-muted">{unit}</span>}
       </div>
     </div>
-    {subtext && <div className="text-[10px] text-slate-500 mt-1 truncate">{subtext}</div>}
+    {subtext && <div className="text-[10px] text-pl-muted mt-1 truncate">{subtext}</div>}
   </div>
 );
 
@@ -19,7 +21,7 @@ const DCAKPICardsEnhanced = () => {
   const fitResults = streamState[selectedStream].fitResults;
   const forecastResults = streamState[selectedStream].forecastResults;
 
-  if (!fitResults) return <div className="h-20 flex items-center justify-center bg-slate-900/50 border border-dashed border-slate-800 rounded-lg text-slate-500 text-xs">No Model Fitted</div>;
+  if (!fitResults) return <div className="h-20 flex items-center justify-center bg-pl-surface border border-dashed border-pl-border-strong rounded-lg text-pl-muted text-xs">No Model Fitted</div>;
 
   const { qi, Di, b, modelType, R2, RMSE } = fitResults;
   
@@ -45,31 +47,26 @@ const DCAKPICardsEnhanced = () => {
       <MetricCard 
         label="Model"
         value={modelType}
-        color="text-white"
         subtext="Active Selection"
       />
       <MetricCard
         label={`Initial Rate (qi)`}
         value={formatNum(qi)}
         unit={rateUnit}
-        color="text-emerald-400"
       />
       <MetricCard 
         label="Decline (Di)" 
         value={formatNum(Di * 365 * 100)} 
         unit="%/yr"
-        color="text-orange-400"
         subtext="Nominal Annual"
       />
       <MetricCard 
         label="b-Factor" 
         value={formatNum(b)} 
-        color="text-purple-400"
       />
       <MetricCard 
         label="Fit Quality (R²)" 
         value={typeof R2 === 'number' ? R2.toFixed(4) : '-'} 
-        color="text-blue-400"
       />
       {isProbabilistic ? (
         <>
@@ -77,21 +74,18 @@ const DCAKPICardsEnhanced = () => {
             label="P10 EUR"
             value={formatNum(probabilistic.p10)}
             unit={volumeUnit}
-            color="text-emerald-400"
             subtext="Optimistic (10% chance ≥)"
           />
           <MetricCard
             label="P50 EUR"
             value={formatNum(probabilistic.p50)}
             unit={volumeUnit}
-            color="text-sky-400"
             subtext={`Median (${probabilistic.iterations} sims)`}
           />
           <MetricCard
             label="P90 EUR"
             value={formatNum(probabilistic.p90)}
             unit={volumeUnit}
-            color="text-amber-400"
             subtext="Conservative (90% chance ≥)"
           />
         </>
@@ -100,7 +94,6 @@ const DCAKPICardsEnhanced = () => {
           label="Rem. Reserves"
           value={eur == null ? '-' : formatNum(Math.round(eur))}
           unit={volumeUnit}
-          color="text-emerald-400"
           subtext={forecastResults && Number.isFinite(forecastResults.eurTotal)
             ? `EUR ${Math.round(forecastResults.eurTotal).toLocaleString()} incl. ${Math.round(forecastResults.produced).toLocaleString()} produced`
             : 'Run a forecast'}
@@ -110,13 +103,11 @@ const DCAKPICardsEnhanced = () => {
         label="Life of Well" 
         value={timeLeft} 
         unit="years"
-        color="text-yellow-400"
         subtext={lifeNote}
       />
       <MetricCard 
         label="Fit Error (RMSE)" 
         value={formatNum(RMSE)} 
-        color="text-slate-400"
       />
     </div>
   );

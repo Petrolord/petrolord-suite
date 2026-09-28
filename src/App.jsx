@@ -1,6 +1,6 @@
 
 import React, { Suspense, lazy, useEffect } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/SupabaseAuthContext';
 import { ReservoirProvider } from '@/contexts/ReservoirContext';
 import { HSEProvider } from '@/contexts/HSEContext';
@@ -10,6 +10,7 @@ import SuperAdminRoute from '@/components/SuperAdminRoute';
 import AuthGuard from '@/components/AuthGuard';
 import AppRoute from '@/components/AppRoute';
 import DashboardLayout from '@/layouts/DashboardLayout';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { Toaster } from '@/components/ui/sonner';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { AdminOrgProvider } from '@/contexts/AdminOrganizationContext';
@@ -25,6 +26,7 @@ import Signup from '@/pages/Signup';
 import ForgotPassword from '@/pages/ForgotPassword';
 import SetPassword from '@/pages/SetPassword';
 import Dashboard from '@/pages/Dashboard';
+import HubScope from '@/components/hubs/HubScope';
 import PaymentVerification from '@/pages/PaymentVerification';
 import AcceptInvite from '@/pages/auth/AcceptInvite';
 import ConfirmationPage from '@/pages/auth/ConfirmationPage';
@@ -135,6 +137,7 @@ const ProductionHarness = lazy(() => import('@/dev/ProductionHarness'));
 const FacilitiesHarness = lazy(() => import('@/dev/FacilitiesHarness'));
 const StudiosHarness = lazy(() => import('@/dev/StudiosHarness'));
 const AssuranceHarness = lazy(() => import('@/dev/AssuranceHarness'));
+const HubsHarness = lazy(() => import('@/dev/HubsHarness'));
 const ModularRefineryHarness = lazy(() => import('@/dev/ModularRefineryHarness'));
 const CarbonHarness = lazy(() => import('@/dev/CarbonHarness'));
 const ElectrofaciesHarness = lazy(() => import('@/dev/ElectrofaciesHarness'));
@@ -462,7 +465,30 @@ function App() {
                                   </ProtectedRoute>
                                 </OnboardingRoute>
                               }>
-                                <Route index element={<Dashboard />} />
+                                {/* Design-system pilot 1: the dashboard landing and the ten
+                                    module hubs opt in together through one scope (HubScope).
+                                    Everything else under /dashboard, the apps included, sits
+                                    outside it and keeps its current look. */}
+                                <Route element={<HubScope />}>
+                                  <Route index element={<Dashboard />} />
+                                  <Route path="geoscience" element={<AppRoute appName="geoscience"><GeoscienceAnalytics /></AppRoute>} />
+                                  <Route path="reservoir" element={<AppRoute appName="reservoir"><ReservoirManagement /></AppRoute>} />
+                                  <Route path="drilling" element={<AppRoute appName="drilling"><DrillingCompletionsHub /></AppRoute>} />
+                                  <Route path="production" element={<AppRoute appName="production"><ProductionOperationsHub /></AppRoute>} />
+                                  <Route path="economics" element={<AppRoute appName="economics"><EconomicsProjectManagementHub /></AppRoute>} />
+                                  <Route path="facilities" element={<AppRoute appName="facilities"><FacilitiesEngineeringHub /></AppRoute>} />
+                                  {/* DS0: the Suite's eighth module. Its apps are Coming Soon,
+                                      so the hub is the only route it owns for now. */}
+                                  <Route path="midstream-downstream" element={<AppRoute appName="midstream-downstream"><MidstreamDownstreamHub /></AppRoute>} />
+                                  {/* PS0: the Suite's ninth module. Its apps are Coming Soon,
+                                      so the hub is the only route it owns for now. The slug is
+                                      process-safety because "hse" is the external portal below. */}
+                                  <Route path="process-safety" element={<AppRoute appName="process-safety"><ProcessSafetyHub /></AppRoute>} />
+                                  {/* DA0: the Suite's tenth module. Its apps are Coming Soon,
+                                      so the hub is the only route it owns for now. */}
+                                  <Route path="data-ai" element={<AppRoute appName="data-ai"><DataAiHub /></AppRoute>} />
+                                  <Route path="assurance" element={<AppRoute appName="assurance"><AssuranceHub /></AppRoute>} />
+                                </Route>
                                 <Route path="upgrade" element={<QuoteBuilder />} />
                                 <Route path="modules" element={<ModuleAccess />} />
                                 <Route path="seats" element={<SeatManagement />} />
@@ -514,24 +540,6 @@ function App() {
 
                                 <Route path="quote/:quoteId" element={<QuoteDashboard />} />
                                 <Route path="get-quote" element={<GetQuote />} />
-                                
-                                <Route path="geoscience" element={<AppRoute appName="geoscience"><GeoscienceAnalytics /></AppRoute>} />
-                                <Route path="reservoir" element={<AppRoute appName="reservoir"><ReservoirManagement /></AppRoute>} />
-                                <Route path="drilling" element={<AppRoute appName="drilling"><DrillingCompletionsHub /></AppRoute>} />
-                                <Route path="production" element={<AppRoute appName="production"><ProductionOperationsHub /></AppRoute>} />
-                                <Route path="economics" element={<AppRoute appName="economics"><EconomicsProjectManagementHub /></AppRoute>} />
-                                <Route path="facilities" element={<AppRoute appName="facilities"><FacilitiesEngineeringHub /></AppRoute>} />
-                                {/* DS0: the Suite's eighth module. Its apps are Coming Soon,
-                                    so the hub is the only route it owns for now. */}
-                                <Route path="midstream-downstream" element={<AppRoute appName="midstream-downstream"><MidstreamDownstreamHub /></AppRoute>} />
-                                {/* PS0: the Suite's ninth module. Its apps are Coming Soon,
-                                    so the hub is the only route it owns for now. The slug is
-                                    process-safety because "hse" is the external portal below. */}
-                                <Route path="process-safety" element={<AppRoute appName="process-safety"><ProcessSafetyHub /></AppRoute>} />
-                                {/* DA0: the Suite's tenth module. Its apps are Coming Soon,
-                                    so the hub is the only route it owns for now. */}
-                                <Route path="data-ai" element={<AppRoute appName="data-ai"><DataAiHub /></AppRoute>} />
-                                <Route path="assurance" element={<AppRoute appName="assurance"><AssuranceHub /></AppRoute>} />
                                 
                                 <Route path="hse" element={
                                   <ProtectedRoute requiredPermission={HSE_PERMISSIONS.VIEW_DASHBOARD} appContext="hse">
@@ -606,7 +614,8 @@ function App() {
                                 <Route path="apps/reservoir/fluid-systems-studio" element={<FluidSystemsStudio />} />
                                 {/* W6: surveillance absorbed into the Waterflood Design Studio */}
                                 <Route path="apps/reservoir/waterflood-dashboard" element={<Navigate to="/apps/reservoir/waterflood-design-studio?tab=surveillance" replace />} />
-                                <Route path="apps/reservoir/voidage-replacement-monitor" element={<VoidageReplacementMonitor />} />
+                                {/* design system pilot 5: light by default, dark by choice (docs/scope/DesignSystem.md) */}
+                                <Route path="apps/reservoir/voidage-replacement-monitor" element={<ThemedApp><VoidageReplacementMonitor /></ThemedApp>} />
                                 <Route path="apps/reservoir/waterflood-design-studio" element={<WaterfloodDesignStudio />} />
                                 <Route path="apps/reservoir/scal-studio" element={<ScalStudio />} />
                                 <Route path="apps/reservoir/reservoir-simulation-studio" element={<ProtectedAppRoute appId="reservoir-simulation-studio" appName="Reservoir Simulation Studio"><ReservoirSimulationStudio /></ProtectedAppRoute>} />
@@ -777,16 +786,21 @@ function App() {
                                 <Route path="apps/economics/epe-suite" element={<Navigate to="/dashboard/apps/economics/epe/cases" replace />} />
                                 <Route path="apps/economic/epe-suite" element={<Navigate to="/dashboard/apps/economics/epe/cases" replace />} />
                                 
-                                <Route path="apps/economics/epe/cases" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeCaseList /></ProtectedAppRoute>} />
-                                <Route path="apps/economics/epe/help" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeHelpGuide /></ProtectedAppRoute>} />
-                                <Route path="apps/economics/epe/cases/:caseId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeCaseDetail /></ProtectedAppRoute>} />
-				<Route path="apps/economics/epe/cases/:caseId/run" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeRunConsole /></ProtectedAppRoute>} />
-                                <Route path="apps/economics/epe/cases/:caseId/compare" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeRunComparison /></ProtectedAppRoute>} />
-                                <Route path="apps/economics/epe/runs/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeResultsViewer /></ProtectedAppRoute>} />
-                                {/* run/:runId used to open the Run Console, which needs a caseId and
-                                    broke; a run link means "show me the run" — send it to results. */}
-                                <Route path="apps/economics/epe/run/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeResultsViewer /></ProtectedAppRoute>} />
-                                <Route path="apps/economics/epe/results/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeResultsViewer /></ProtectedAppRoute>} />
+                                {/* Design system pilot 3 (docs/scope/DesignSystem-example-EPE.md): one ThemedApp
+                                    around every EPE page, so the light or dark choice holds while the user moves
+                                    between the case list, console, results and comparison. */}
+                                <Route element={<ThemedApp className="min-h-screen"><Outlet /></ThemedApp>}>
+                                    <Route path="apps/economics/epe/cases" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeCaseList /></ProtectedAppRoute>} />
+                                    <Route path="apps/economics/epe/help" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeHelpGuide /></ProtectedAppRoute>} />
+                                    <Route path="apps/economics/epe/cases/:caseId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeCaseDetail /></ProtectedAppRoute>} />
+                                    <Route path="apps/economics/epe/cases/:caseId/run" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeRunConsole /></ProtectedAppRoute>} />
+                                    <Route path="apps/economics/epe/cases/:caseId/compare" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeRunComparison /></ProtectedAppRoute>} />
+                                    <Route path="apps/economics/epe/runs/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeResultsViewer /></ProtectedAppRoute>} />
+                                    {/* run/:runId used to open the Run Console, which needs a caseId and
+                                        broke; a run link means "show me the run" — send it to results. */}
+                                    <Route path="apps/economics/epe/run/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeResultsViewer /></ProtectedAppRoute>} />
+                                    <Route path="apps/economics/epe/results/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeResultsViewer /></ProtectedAppRoute>} />
+                                </Route>
                                 {/* compare without a caseId cannot query; land on the case list */}
                                 <Route path="apps/economics/epe/compare" element={<Navigate to="/dashboard/apps/economics/epe/cases" replace />} />
 
@@ -991,6 +1005,7 @@ function App() {
                                   <Route path="/dev/facilities/:app" element={<FacilitiesHarness />} />
                                   <Route path="/dev/studio/:app" element={<StudiosHarness />} />
                                   <Route path="/dev/assurance/:app" element={<AssuranceHarness />} />
+                                  <Route path="/dev/hubs/:page" element={<HubsHarness />} />
                                   <Route path="/dev/modular-refinery-feasibility" element={<ModularRefineryHarness />} />
                                   <Route path="/dev/carbon-footprint-abatement" element={<CarbonHarness />} />
                                   <Route path="/dev/electrofacies-studio" element={<ElectrofaciesHarness />} />
