@@ -3,9 +3,9 @@
 // Doctrine 2's headline app: plan, schedule and actuals on one data model.
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Factory } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Factory } from 'lucide-react';
+import { AppHeader } from '@/components/ui/app-shell';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -25,26 +25,17 @@ const Workspace = () => {
   return (
     <>
       <StudioNotifications notifications={notifications} onDismiss={removeNotification} />
-      <div className="flex flex-col h-full bg-slate-950 text-white">
-        <header className="flex-shrink-0 border-b border-slate-800 px-4 py-3">
-          <Link to="/dashboard/midstream-downstream">
-            <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white pl-0 mb-2">
-              <ArrowLeft className="w-4 h-4 mr-2" /> Midstream &amp; Downstream
-            </Button>
-          </Link>
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-2 rounded-xl shadow-lg">
-                <Factory className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold tracking-tight">Refinery Planning &amp; Scheduling Studio</h1>
-                <p className="text-slate-400 text-xs">
-                  The plan, the schedule and what actually happened, on one data model.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-end gap-3">
+      <div className="flex h-full flex-col bg-pl-bg text-pl-text">
+        <AppHeader
+          backTo="/dashboard/midstream-downstream"
+          backLabel="Midstream & Downstream"
+          icon={Factory}
+          eyebrow="Midstream & Downstream"
+          title="Refinery Planning & Scheduling Studio"
+          subtitle="The plan, the schedule and what actually happened, on one data model."
+          className="static flex-shrink-0"
+          actions={(
+            <>
               <div className="w-52">
                 <StudioProjectManager
                   label="Saved plan"
@@ -63,19 +54,19 @@ const Workspace = () => {
                 onSave={persistence.manualSave}
                 disabled={!persistence.currentProjectId}
               />
-              <FullPrecisionToggle app="refinery-planning-studio" className="mb-2" />
+              <FullPrecisionToggle app="refinery-planning-studio" />
               <RefineryPlanningHelpGuide />
-            </div>
-          </div>
-        </header>
+            </>
+          )}
+        />
 
-        <div className="flex flex-1 overflow-hidden">
-          <aside className="w-full md:w-1/3 xl:w-1/4 border-r border-slate-800 bg-slate-900/40 p-4 overflow-y-auto">
+        <div className="flex flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden">
+          <aside className="w-full border-b border-pl-border bg-pl-surface p-4 md:w-1/3 md:overflow-y-auto md:border-b-0 md:border-r xl:w-1/4">
             <ConfigPanel />
           </aside>
-          <main className="flex-1 p-4 overflow-y-auto">
+          <main className="min-w-0 flex-1 p-4 md:overflow-y-auto">
             <Tabs value={tab} onValueChange={setTab}>
-              <TabsList className="bg-slate-900 border border-slate-800">
+              <TabsList className="h-auto flex-wrap justify-start">
                 <TabsTrigger value="plan">Plan</TabsTrigger>
                 <TabsTrigger value="schedule">Schedule</TabsTrigger>
                 <TabsTrigger value="actuals">Actuals &amp; variance</TabsTrigger>
@@ -91,8 +82,10 @@ const Workspace = () => {
   );
 };
 
+// Design system rollout batch 5C (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class below is a theme role.
 const RefineryPlanningStudio = () => (
-  <>
+  <ThemedApp data-testid="refinery-planning-theme-scope" className="h-full">
     <Helmet>
       <title>Refinery Planning &amp; Scheduling Studio - Petrolord Suite</title>
       <meta name="description" content="Configuration-level refinery planning LP that cascades to a schedule and reconciles against actuals with variance attributed to volume and price." />
@@ -102,7 +95,7 @@ const RefineryPlanningStudio = () => (
         <Workspace />
       </FullPrecisionProvider>
     </RefineryPlanningProvider>
-  </>
+  </ThemedApp>
 );
 
 export default RefineryPlanningStudio;

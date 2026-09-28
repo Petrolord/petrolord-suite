@@ -41,7 +41,7 @@ const VariabilityInputs = () => {
       title="Variability inputs"
       testId="variability-inputs"
       right={(
-        <Button size="sm" variant="outline" className="h-7 border-slate-700 bg-slate-900 text-xs text-slate-200" onClick={copyFleet} data-testid="variability-copy-fleet">
+        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={copyFleet} data-testid="variability-copy-fleet">
           <Copy className="mr-1 h-3 w-3" /> Copy the fleet sizing inputs
         </Button>
       )}
@@ -97,12 +97,12 @@ const VariabilityResults = () => {
               <Stat label="At the most likely factors" value={`${fmtNum(r.plan.vesselDays, 4)} vessel-days, ${fmtNum(r.plan.vessels, Number.isInteger(r.plan.vessels) ? 0 : 4)} vessels`} testId="variability-plan" />
             </div>
             <table className="w-full text-xs">
-              <thead className="text-left text-slate-400">
+              <thead className="text-left text-pl-muted">
                 <tr><th className="p-1">Statistic</th><th className="p-1 text-right">Vessel-days</th><th className="p-1 text-right">Vessels required</th></tr>
               </thead>
               <tbody>
                 {STAT_ROWS.map((k) => (
-                  <tr key={k} className="border-t border-slate-800 text-slate-200" data-testid={`variability-row-${k}`}>
+                  <tr key={k} className="border-t border-pl-border text-pl-text" data-testid={`variability-row-${k}`}>
                     <td className="p-1">{rowLabel(k)}</td>
                     <td className="p-1 text-right font-mono" data-testid={`variability-days-${k}`}>{fmtNum(r.vesselDays[k], 4)}</td>
                     <td className="p-1 text-right font-mono" data-testid={`variability-vessels-${k}`}>{fmtNum(r.vesselsRequired[k], 4)}</td>
@@ -114,14 +114,14 @@ const VariabilityResults = () => {
             {dist.length ? (
               <>
                 <table className="w-full text-xs">
-                  <thead className="text-left text-slate-400"><tr><th className="p-1">Whole vessels required</th><th className="p-1 text-right">Share of iterations</th></tr></thead>
+                  <thead className="text-left text-pl-muted"><tr><th className="p-1">Whole vessels required</th><th className="p-1 text-right">Share of iterations</th></tr></thead>
                   <tbody>
                     {dist.map((d) => (
-                      <tr key={d.vessels} className="border-t border-slate-800 text-slate-200"><td className="p-1">{d.vessels}</td><td className="p-1 text-right font-mono" data-testid={`variability-dist-${d.vessels}`}>{fmtShare(d.probability, 2)}</td></tr>
+                      <tr key={d.vessels} className="border-t border-pl-border text-pl-text"><td className="p-1">{d.vessels}</td><td className="p-1 text-right font-mono" data-testid={`variability-dist-${d.vessels}`}>{fmtShare(d.probability, 2)}</td></tr>
                     ))}
                   </tbody>
                 </table>
-                <div className="overflow-hidden rounded-lg border border-slate-700">
+                <div className="overflow-hidden rounded-lg border border-pl-border">
                   <ChartFrame height={200} exportFilename="fleet-vessels-distribution">
                     <BarChart data={dist.map((d) => ({ name: String(d.vessels), value: 100 * d.probability, over: d.vessels > r.plannedVessels }))} margin={{ top: 16, right: 20, left: 0, bottom: 8 }}>
                       <CartesianGrid {...GRID_STYLE} />

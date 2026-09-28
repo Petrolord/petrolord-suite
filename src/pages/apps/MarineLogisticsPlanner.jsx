@@ -7,9 +7,9 @@
 // visible controls and prints the engine's results, reasons and refusals.
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Ship } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Ship } from 'lucide-react';
+import { AppHeader } from '@/components/ui/app-shell';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
@@ -41,27 +41,16 @@ const Workspace = () => {
   return (
     <>
       <StudioNotifications notifications={notifications} onDismiss={removeNotification} />
-      <div className="flex h-full flex-col bg-slate-950 text-white">
-        <header className="flex-shrink-0 border-b border-slate-800 px-4 py-3">
-          <Link to="/dashboard/midstream-downstream">
-            <Button variant="ghost" size="sm" className="mb-2 pl-0 text-slate-400 hover:text-white">
-              <ArrowLeft className="mr-2 h-4 w-4" /> Midstream &amp; Downstream
-            </Button>
-          </Link>
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 p-2 shadow-lg">
-                <Ship className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold tracking-tight">Marine Logistics Planner</h1>
-                <p className="text-xs text-slate-400">
-                  Voyage plans, supply vessel fleet sizing and its variability, deck plans and supply base queues, computed by the
-                  Petrolord marine logistics engine from inputs you state.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-end gap-3">
+      <div className="flex h-full flex-col bg-pl-bg text-pl-text">
+        <AppHeader
+          backTo="/dashboard/midstream-downstream"
+          backLabel="Midstream & Downstream"
+          icon={Ship}
+          eyebrow="Midstream & Downstream"
+          title="Marine Logistics Planner"
+          className="static flex-shrink-0"
+          actions={(
+            <>
               <div className="w-52">
                 <StudioProjectManager
                   label="Saved study"
@@ -81,15 +70,21 @@ const Workspace = () => {
                 disabled={!persistence.currentProjectId}
               />
               <MarineLogisticsHelpGuide />
-            </div>
-          </div>
-          <p className="mt-2 text-[11px] text-slate-500" data-testid="engine-line">
+            </>
+          )}
+        />
+        <div className="flex-shrink-0 border-b border-pl-border bg-pl-surface px-4 py-2 sm:px-6">
+          <p className="text-xs text-pl-muted">
+            Voyage plans, supply vessel fleet sizing and its variability, deck plans and supply base queues, computed by the
+            Petrolord marine logistics engine from inputs you state.
+          </p>
+          <p className="mt-1 text-[11px] text-pl-muted" data-testid="engine-line">
             {inputs.cluster.source === 'ekene' ? 'Ekene demo (synthetic). ' : ''}
             Engine: petrolord-engines {ENGINE_COMMIT.slice(0, 7)}, engines/supplychain/marineLogistics.js.
           </p>
-        </header>
+        </div>
         <Tabs value={tab} onValueChange={setTab} className="flex flex-1 flex-col overflow-hidden">
-          <TabsList className="mx-4 mt-3 flex h-auto flex-wrap justify-start gap-1 bg-slate-900">
+          <TabsList className="mx-4 mt-3 flex h-auto flex-wrap justify-start gap-1">
             {TABS.map((t) => (
               <TabsTrigger key={t.value} value={t.value} data-testid={`tab-${t.value}`}>{t.label}</TabsTrigger>
             ))}
@@ -107,8 +102,10 @@ const Workspace = () => {
   );
 };
 
+// Design system rollout batch 5C (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class below is a theme role.
 const MarineLogisticsPlanner = ({ initialInputs }) => (
-  <>
+  <ThemedApp data-testid="marine-logistics-theme-scope" className="h-full">
     <Helmet>
       <title>Marine Logistics Planner - Petrolord Suite</title>
       <meta name="description" content="Offshore marine logistics: voyage plans with the binding capacity constraint named, supply vessel fleet sizing with stated rounding rules, fleet variability by seeded Monte Carlo, deck plans by first-fit decreasing, and supply base queues by M/M/c or M/D/c." />
@@ -116,7 +113,7 @@ const MarineLogisticsPlanner = ({ initialInputs }) => (
     <MarineLogisticsProvider initialInputs={initialInputs}>
       <Workspace />
     </MarineLogisticsProvider>
-  </>
+  </ThemedApp>
 );
 
 export default MarineLogisticsPlanner;

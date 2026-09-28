@@ -17,33 +17,33 @@ const SchedulePanel = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start gap-2 rounded border border-slate-800 bg-slate-900/60 p-3">
-        <Info className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-        <p className="text-xs text-slate-400">{schedule.note}</p>
+      <div className="flex items-start gap-2 rounded border border-pl-border bg-pl-surface p-3">
+        <Info className="w-4 h-4 text-pl-muted mt-0.5 shrink-0" />
+        <p className="text-xs text-pl-muted">{schedule.note}</p>
       </div>
 
       {byDate.length === 0 ? (
-        <p className="text-sm text-slate-400">No plan to cascade yet.</p>
+        <p className="text-sm text-pl-muted">No plan to cascade yet.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-800 text-left">
-                <th className="p-2 text-slate-400 font-medium">Date</th>
-                <th className="p-2 text-slate-400 font-medium">Event</th>
-                <th className="p-2 text-slate-400 font-medium">Material</th>
-                <th className="p-2 text-slate-400 font-medium text-right">Volume (bbl)</th>
-                <th className="p-2 text-slate-400 font-medium text-right">Value ($)</th>
+              <tr className="border-b border-pl-border text-left">
+                <th className="p-2 text-pl-muted font-medium">Date</th>
+                <th className="p-2 text-pl-muted font-medium">Event</th>
+                <th className="p-2 text-pl-muted font-medium">Material</th>
+                <th className="p-2 text-pl-muted font-medium text-right">Volume (bbl)</th>
+                <th className="p-2 text-pl-muted font-medium text-right">Value ($)</th>
               </tr>
             </thead>
             <tbody>
               {byDate.map((e) => (
-                <tr key={e.id} className="border-b border-slate-800/60">
-                  <td className="p-2 font-mono text-slate-400 text-xs">{e.date}</td>
-                  <td className="p-2 text-slate-300">{TYPE_LABEL[e.type] || e.type}</td>
-                  <td className="p-2 text-white">{materialName(inputs, e.materialId)}</td>
-                  <td className="p-2 text-right font-mono text-white">{fmt(e.quantity)}</td>
-                  <td className="p-2 text-right font-mono text-slate-400">{e.cost === null ? '-' : fmt(e.cost)}</td>
+                <tr key={e.id} className="border-b border-pl-border">
+                  <td className="p-2 font-mono text-pl-muted text-xs">{e.date}</td>
+                  <td className="p-2 text-pl-text">{TYPE_LABEL[e.type] || e.type}</td>
+                  <td className="p-2 text-pl-text">{materialName(inputs, e.materialId)}</td>
+                  <td className="p-2 text-right font-mono text-pl-text">{fmt(e.quantity)}</td>
+                  <td className="p-2 text-right font-mono text-pl-muted">{e.cost === null ? '-' : fmt(e.cost)}</td>
                 </tr>
               ))}
             </tbody>

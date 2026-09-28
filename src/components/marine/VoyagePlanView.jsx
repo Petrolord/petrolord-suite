@@ -40,10 +40,10 @@ const VoyageCard = ({ v }) => {
   const data = v.constraints.map((c) => ({ name: c.constraint, value: 100 * c.utilisation, binding: c.constraint === v.binding.constraint, over: v.overloaded.includes(c.constraint) }));
   const t = (k) => `voyage-${v.id}-${k}`;
   return (
-    <div className="space-y-2 rounded-md border border-slate-800 p-2" data-testid={t('card')}>
+    <div className="space-y-2 rounded-md border border-pl-border p-2" data-testid={t('card')}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-slate-100">{v.id === 'milk-run' ? `Milk run: ${v.stops.join(', ')}` : `Dedicated voyage to ${v.id}`}</p>
-        <span className={`rounded px-2 py-0.5 text-[11px] ${v.feasible ? 'bg-emerald-900/50 text-emerald-200' : 'bg-amber-900/50 text-amber-200'}`} data-testid={t('feasible')}>
+        <p className="text-sm font-semibold text-pl-text">{v.id === 'milk-run' ? `Milk run: ${v.stops.join(', ')}` : `Dedicated voyage to ${v.id}`}</p>
+        <span className={`rounded px-2 py-0.5 text-[11px] ${v.feasible ? 'bg-pl-success-bg text-pl-success-text' : 'bg-pl-warning-bg text-pl-warning-text'}`} data-testid={t('feasible')}>
           {v.feasible ? 'Fits the vessel' : `Overloaded: ${v.overloaded.join(', ')}`}
         </span>
       </div>
@@ -59,12 +59,12 @@ const VoyageCard = ({ v }) => {
       </div>
       <div className="grid gap-3 lg:grid-cols-2">
         <table className="w-full text-xs">
-          <thead className="text-left text-slate-400">
+          <thead className="text-left text-pl-muted">
             <tr><th className="p-1">Constraint</th><th className="p-1 text-right">Load</th><th className="p-1 text-right">Capacity</th><th className="p-1 text-right">Utilisation</th></tr>
           </thead>
           <tbody>
             {v.constraints.map((c, i) => (
-              <tr key={c.constraint} className={`border-t border-slate-800 ${c.constraint === v.binding.constraint ? 'text-sky-200' : 'text-slate-200'}`} data-testid={t(`row-${i}`)}>
+              <tr key={c.constraint} className={`border-t border-pl-border ${c.constraint === v.binding.constraint ? 'font-semibold text-pl-text' : 'text-pl-text'}`} data-testid={t(`row-${i}`)}>
                 <td className="p-1">{c.constraint}{c.constraint === v.binding.constraint ? ' (binding)' : ''}</td>
                 <td className="p-1 text-right font-mono" data-testid={t(`load-${i}`)}>{fmtNum(c.load, 2)} {unitOf(c)}</td>
                 <td className="p-1 text-right font-mono" data-testid={t(`capacity-${i}`)}>{fmtNum(c.capacity, 2)} {unitOf(c)}</td>
@@ -73,7 +73,7 @@ const VoyageCard = ({ v }) => {
             ))}
           </tbody>
         </table>
-        <div className="overflow-hidden rounded-lg border border-slate-700">
+        <div className="overflow-hidden rounded-lg border border-pl-border">
           <ChartFrame height={220} exportFilename={`voyage-utilisation-${v.id}`}>
             <BarChart data={data} margin={{ top: 16, right: 20, left: 0, bottom: 30 }}>
               <CartesianGrid {...GRID_STYLE} />
@@ -89,10 +89,10 @@ const VoyageCard = ({ v }) => {
         </div>
       </div>
       <table className="w-full text-xs">
-        <thead className="text-left text-slate-400"><tr><th className="p-1">Leg</th><th className="p-1 text-right">NM</th><th className="p-1 text-right">Calm sailing hours</th></tr></thead>
+        <thead className="text-left text-pl-muted"><tr><th className="p-1">Leg</th><th className="p-1 text-right">NM</th><th className="p-1 text-right">Calm sailing hours</th></tr></thead>
         <tbody>
           {v.legs.map((l, i) => (
-            <tr key={i} className="border-t border-slate-800 text-slate-300"><td className="p-1">{l.from} to {l.to}</td><td className="p-1 text-right font-mono">{fmtNum(l.nm, 2)}</td><td className="p-1 text-right font-mono">{fmtNum(l.calmHours, 4)}</td></tr>
+            <tr key={i} className="border-t border-pl-border text-pl-text"><td className="p-1">{l.from} to {l.to}</td><td className="p-1 text-right font-mono">{fmtNum(l.nm, 2)}</td><td className="p-1 text-right font-mono">{fmtNum(l.calmHours, 4)}</td></tr>
           ))}
         </tbody>
       </table>

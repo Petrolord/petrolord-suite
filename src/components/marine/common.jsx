@@ -8,8 +8,8 @@ import { AlertTriangle, Info } from 'lucide-react';
 import { useMarineLogistics } from '@/contexts/MarineLogisticsContext';
 import { ACTIVITIES, isRefusal } from '@/utils/supplychain/marineAdapters';
 
-export const inputClass = 'h-8 w-full rounded-md border border-slate-700 bg-slate-950 px-2 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-sky-500';
-const cellClass = 'h-7 w-full min-w-[4.5rem] rounded border border-slate-700 bg-slate-950 px-1.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-sky-500';
+export const inputClass = 'h-8 w-full rounded-md border border-pl-border-strong bg-pl-surface px-2 text-sm text-pl-text placeholder:text-pl-muted focus:outline-none focus:ring-2 focus:ring-pl-focus';
+const cellClass = 'h-7 w-full min-w-[4.5rem] rounded border border-pl-border-strong bg-pl-surface px-1.5 text-xs text-pl-text placeholder:text-pl-muted focus:outline-none focus:ring-2 focus:ring-pl-focus';
 
 /** A numeric input. The typed text is kept as it is and read by the adapter. */
 export const NumField = ({
@@ -18,7 +18,7 @@ export const NumField = ({
   const id = `mlp-${testId}`;
   return (
     <div className="space-y-1">
-      <label htmlFor={id} className="block text-[11px] font-medium text-slate-300">{label}</label>
+      <label htmlFor={id} className="block text-[11px] font-medium text-pl-text">{label}</label>
       <input
         id={id}
         data-testid={testId}
@@ -29,7 +29,7 @@ export const NumField = ({
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
       />
-      {hint ? <p className="text-[10px] leading-snug text-slate-500">{hint}</p> : null}
+      {hint ? <p className="text-[10px] leading-snug text-pl-muted">{hint}</p> : null}
     </div>
   );
 };
@@ -41,7 +41,7 @@ export const TextField = ({
   const id = `mlp-${testId}`;
   return (
     <div className="space-y-1">
-      <label htmlFor={id} className="block text-[11px] font-medium text-slate-300">{label}</label>
+      <label htmlFor={id} className="block text-[11px] font-medium text-pl-text">{label}</label>
       <input
         id={id}
         data-testid={testId}
@@ -51,7 +51,7 @@ export const TextField = ({
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
       />
-      {hint ? <p className="text-[10px] leading-snug text-slate-500">{hint}</p> : null}
+      {hint ? <p className="text-[10px] leading-snug text-pl-muted">{hint}</p> : null}
     </div>
   );
 };
@@ -79,7 +79,7 @@ export const SelectField = ({
   const id = `mlp-${testId}`;
   return (
     <div className="space-y-1">
-      <label htmlFor={id} className="block text-[11px] font-medium text-slate-300">{label}</label>
+      <label htmlFor={id} className="block text-[11px] font-medium text-pl-text">{label}</label>
       <select
         id={id}
         data-testid={testId}
@@ -90,7 +90,7 @@ export const SelectField = ({
         <option value="">Choose (required)</option>
         {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
-      {hint ? <p className="text-[10px] leading-snug text-slate-500">{hint}</p> : null}
+      {hint ? <p className="text-[10px] leading-snug text-pl-muted">{hint}</p> : null}
     </div>
   );
 };
@@ -100,10 +100,10 @@ export const ActivityChecks = ({
   value, onChange, testId, label = 'Weather factor applies to',
 }) => (
   <fieldset className="space-y-1">
-    <legend className="text-[11px] font-medium text-slate-300">{label}</legend>
+    <legend className="text-[11px] font-medium text-pl-text">{label}</legend>
     <div className="flex flex-wrap gap-3">
       {ACTIVITIES.map((a) => (
-        <label key={a} className="flex items-center gap-1 text-xs text-slate-200">
+        <label key={a} className="flex items-center gap-1 text-xs text-pl-text">
           <input
             type="checkbox"
             data-testid={`${testId}-${a}`}
@@ -121,7 +121,7 @@ export const ActivityChecks = ({
 export const DistField = ({
   title, mode, fixed, tri, onMode, onFixed, onTri, testId, hint,
 }) => (
-  <div className="space-y-2 rounded-md border border-slate-800 p-2">
+  <div className="space-y-2 rounded-md border border-pl-border p-2">
     <SelectField
       label={title}
       testId={`${testId}-mode`}
@@ -174,9 +174,9 @@ export const VesselRouteFields = ({ section, testId }) => {
 export const Panel = ({
   title, children, testId, right,
 }) => (
-  <section data-testid={testId} className="rounded-lg border border-slate-800 bg-slate-900/50 p-3">
+  <section data-testid={testId} className="rounded-lg border border-pl-border bg-pl-surface p-3">
     <div className="mb-2 flex items-center justify-between gap-2">
-      <h3 className="text-sm font-semibold text-slate-100">{title}</h3>
+      <h3 className="text-sm font-semibold text-pl-text">{title}</h3>
       {right}
     </div>
     <div className="space-y-3">{children}</div>
@@ -184,7 +184,7 @@ export const Panel = ({
 );
 
 export const Note = ({ children, tone = 'info', testId }) => (
-  <p data-testid={testId} className={`flex items-start gap-2 text-[11px] leading-relaxed ${tone === 'warn' ? 'text-amber-200' : 'text-slate-400'}`}>
+  <p data-testid={testId} className={`flex items-start gap-2 text-[11px] leading-relaxed ${tone === 'warn' ? 'text-pl-warning-text' : 'text-pl-muted'}`}>
     {tone === 'warn' ? <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" /> : <Info className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />}
     <span>{children}</span>
   </p>
@@ -192,23 +192,23 @@ export const Note = ({ children, tone = 'info', testId }) => (
 
 /** The engine's refusal, word for word, with the input it names. */
 export const Refusal = ({ result, testId }) => (
-  <div data-testid={testId} className="rounded-lg border border-amber-800/60 bg-amber-950/30 p-3">
-    <p className="flex items-center gap-2 text-sm font-semibold text-amber-200">
+  <div data-testid={testId} className="rounded-lg border border-pl-warning/40 bg-pl-warning-bg p-3">
+    <p className="flex items-center gap-2 text-sm font-semibold text-pl-warning-text">
       <AlertTriangle className="h-4 w-4" /> The engine refused these inputs
     </p>
-    <p className="mt-1 font-mono text-xs text-amber-100" data-testid={testId ? `${testId}-message` : undefined}>{result.error}</p>
-    {result.field ? <p className="mt-1 text-[11px] text-amber-300/80">Input named: {result.field}</p> : null}
+    <p className="mt-1 font-mono text-xs text-pl-warning-text" data-testid={testId ? `${testId}-message` : undefined}>{result.error}</p>
+    {result.field ? <p className="mt-1 text-[11px] text-pl-warning-text">Input named: {result.field}</p> : null}
   </div>
 );
 
 /** A result's reasons and basis, printed as the engine wrote them. */
 export const Basis = ({ reasons, basis, testId }) => (
-  <div className="space-y-1 rounded-md border border-slate-800 bg-slate-950/60 p-2 text-[11px] text-slate-400" data-testid={testId}>
+  <div className="space-y-1 rounded-md border border-pl-border bg-pl-sunken p-2 text-[11px] text-pl-muted" data-testid={testId}>
     {(reasons || []).map((r, i) => (
-      <p key={i} className="text-slate-200" data-testid={testId ? `${testId}-reason-${i}` : undefined}>{r}</p>
+      <p key={i} className="text-pl-text" data-testid={testId ? `${testId}-reason-${i}` : undefined}>{r}</p>
     ))}
     {basis ? Object.entries(basis).map(([k, v]) => (
-      <p key={k}><span className="font-semibold text-slate-300">{k}: </span>{v}</p>
+      <p key={k}><span className="font-semibold text-pl-text">{k}: </span>{v}</p>
     )) : null}
   </div>
 );
@@ -219,8 +219,8 @@ export const ResultGate = ({ result, testId, children }) => (
 );
 
 export const Stat = ({ label, value, testId }) => (
-  <div className="rounded-md border border-slate-800 bg-slate-950/60 p-2">
-    <p className="text-[10px] uppercase tracking-wide text-slate-500">{label}</p>
-    <p className="text-sm font-semibold text-white" data-testid={testId}>{value}</p>
+  <div className="rounded-md border border-pl-border bg-pl-sunken p-2">
+    <p className="text-[10px] uppercase tracking-wide text-pl-muted">{label}</p>
+    <p className="text-sm font-semibold text-pl-text" data-testid={testId}>{value}</p>
   </div>
 );
