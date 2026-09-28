@@ -26,8 +26,12 @@
 const NAN = Number.NaN;
 
 const base = (m) => String(m || '').toUpperCase().split(':')[0];
-const isDepthMnemonic = (m) => ['DEPT', 'DEPTH', 'MD'].includes(base(m));
 import { nextFreeName, nameKey } from '@/lib/curveNames';
+import { CURVE_ALIASES } from '@/components/wells/curveMap';
+
+// the DEPT alias family every downstream app reads (WDM-U1-003: TDEP and
+// friends are depth too, so a second LAS never writes a second depth curve)
+const isDepthMnemonic = (m) => CURVE_ALIASES.DEPT.includes(base(m));
 
 /** Linear resample of (depthSrc, data) onto depthDst; both ascending MD in
  *  metres. Returns Float32Array(depthDst.length). */

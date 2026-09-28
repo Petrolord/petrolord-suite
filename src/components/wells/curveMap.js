@@ -14,7 +14,9 @@
 // `log:<MNEMONIC>` (layout/layoutSchema.js).
 
 export const CURVE_ALIASES = {
-  DEPT: ['DEPT', 'DEPTH', 'MD', 'DEPTH_MD', 'MDEPTH'],
+  // TDEP (Schlumberger) and unit-suffixed names added 2026-09-28 (WDM-U1-003):
+  // wells imported before the index was saved as DEPT keep their file's name
+  DEPT: ['DEPT', 'DEPTH', 'MD', 'DEPTH_MD', 'MDEPTH', 'TDEP', 'TDEPTH', 'DEPTH_M', 'DEPT_M', 'MD_M', 'DEPTH_FT', 'DEPT_FT', 'MD_FT'],
   GR: ['GR', 'SGR', 'CGR', 'GRC', 'GRD', 'GRS', 'ECGR', 'HSGR', 'HCGR', 'GRR', 'GAM', 'GAMM', 'GRGC', 'GR_EDTC', 'GRTO'],
   RHOB: ['RHOB', 'DEN', 'ZDEN', 'RHOZ', 'DENS', 'ROBB', 'RHO8', 'RHOM', 'ALCDLC', 'BDCFM', 'DENB', 'DENC', 'RHOB_HR'],
   NPHI: ['NPHI', 'TNPH', 'CNC', 'NPOR', 'NPHL', 'NPHS', 'APLC', 'HNPO', 'NEUT', 'TNPL', 'CN', 'NPRL', 'CNCF', 'NPHI_LS', 'PHIN'],
@@ -81,5 +83,5 @@ export function mapLogs(logs) {
  *  can still put on a track as `log:<MNEMONIC>`). */
 export function unmappedLogs(logs, mapped) {
   const bound = new Set(Object.values(mapped || {}).filter(Boolean).map((l) => l.id));
-  return (logs || []).filter((l) => !bound.has(l.id) && base(l.mnemonic) !== 'DEPT' && base(l.mnemonic) !== 'DEPTH' && base(l.mnemonic) !== 'MD');
+  return (logs || []).filter((l) => !bound.has(l.id) && !CURVE_ALIASES.DEPT.includes(base(l.mnemonic)));
 }
