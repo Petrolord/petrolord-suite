@@ -10,14 +10,14 @@ const GatedFeatureNotice = ({ title, message }) => (
     initial={{ opacity: 0, y: 30 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.6 }}
-    className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6"
+    className="bg-pl-surface border border-pl-border rounded-xl p-6 shadow-pl-sm"
   >
-    <h2 className="text-2xl font-bold text-white mb-4">{title}</h2>
-    <div className="flex items-start gap-4 bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
-      <Construction className="w-6 h-6 text-amber-300 flex-shrink-0 mt-0.5" />
+    <h2 className="text-2xl font-bold text-pl-text mb-4">{title}</h2>
+    <div className="flex items-start gap-4 bg-pl-warning-bg border border-pl-warning/40 rounded-lg p-4">
+      <Construction className="w-6 h-6 text-pl-warning-text flex-shrink-0 mt-0.5" />
       <div>
-        <p className="font-semibold text-amber-200">Not yet available</p>
-        <p className="text-amber-100/80 text-sm leading-relaxed mt-1">{message}</p>
+        <p className="font-semibold text-pl-warning-text">Not yet available</p>
+        <p className="text-pl-warning-text text-sm leading-relaxed mt-1">{message}</p>
       </div>
     </div>
   </motion.div>

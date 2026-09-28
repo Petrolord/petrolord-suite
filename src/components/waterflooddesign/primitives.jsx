@@ -1,8 +1,12 @@
-// Small shared primitives for the Waterflood Design Studio panels.
+// Small shared primitives for the Waterflood Design Studio panels (also
+// pulled by SCAL Studio and Fluid Systems Studio). Every consumer is in
+// design-system rollout batch 1D and wraps itself in <ThemedApp>, so the
+// classes here are theme roles with no legacy branch.
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ChartPanel } from '@/components/ui/chart-panel';
 import ChartFrame from '@/components/charts/ChartFrame';
 
 export const fmt = {
@@ -22,38 +26,36 @@ export const LINE = { water: '#2563eb', oil: '#059669', fw: '#7c3aed', tangent: 
 export const SCENARIO_COLORS = ['#2563eb', '#059669', '#7c3aed', '#d97706', '#dc2626', '#0891b2', '#4f46e5', '#b45309'];
 
 export const SectionLabel = ({ children }) => (
-  <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest">{children}</h3>
+  <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
 );
 
 export const Field = ({ label, value, onChange, placeholder }) => (
   <div className="space-y-1">
-    <Label className="text-xs text-slate-400">{label}</Label>
-    <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-9 bg-slate-800 border-slate-700" />
+    <Label className="text-xs text-pl-muted">{label}</Label>
+    <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-9" />
   </div>
 );
 
 export const Kpi = ({ title, value, unit, accent }) => (
-  <Card className={`bg-slate-900 border-slate-800 ${accent ? 'ring-1 ring-cyan-500/30' : ''}`}>
+  <Card className={accent ? 'ring-1 ring-pl-primary/40' : undefined}>
     <CardContent className="p-3">
-      <div className="text-[11px] uppercase tracking-wide text-slate-500 leading-tight">{title}</div>
-      <div className="text-xl font-bold mt-1">{value}{unit ? <span className="text-xs text-slate-500 ml-1">{unit}</span> : null}</div>
+      <div className="text-[11px] uppercase tracking-wide text-pl-muted leading-tight">{title}</div>
+      <div className="text-xl font-semibold mt-1 font-pl-mono tabular-nums text-pl-text">{value}{unit ? <span className="text-xs font-pl-sans font-normal text-pl-muted ml-1">{unit}</span> : null}</div>
     </CardContent>
   </Card>
 );
 
+// A titled white chart card (data-canvas="chart"): white in both themes.
 export const ChartCard = ({ title, height = 264, children }) => (
-  <Card className="bg-slate-900 border-slate-800">
-    <CardHeader className="pb-2"><CardTitle className="text-base">{title}</CardTitle></CardHeader>
-    <CardContent className="p-0">
-      <ChartFrame height={height}>{children}</ChartFrame>
-    </CardContent>
-  </Card>
+  <ChartPanel title={title}>
+    <ChartFrame height={height}>{children}</ChartFrame>
+  </ChartPanel>
 );
 
 export const WarningBanner = ({ warnings }) => {
   if (!warnings || warnings.length === 0) return null;
   return (
-    <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-300 px-4 py-3 text-xs space-y-1">
+    <div className="rounded-lg border border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text px-4 py-3 text-xs space-y-1">
       {warnings.map((w, i) => <div key={i}>{w}</div>)}
     </div>
   );

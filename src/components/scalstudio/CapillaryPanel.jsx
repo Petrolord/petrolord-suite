@@ -38,7 +38,7 @@ const CapillaryPanel = () => {
           <Field label="a, J at Sw* = 1" value={capillary.manual.a} onChange={(v) => setManualJField('a', v)} />
           <Field label="b, curvature exponent" value={capillary.manual.b} onChange={(v) => setManualJField('b', v)} />
           <Field label="Swirr, irreducible water" value={capillary.manual.Swirr} onChange={(v) => setManualJField('Swirr', v)} />
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-pl-muted">
             Sw* is (Sw − Swirr)/(1 − Swirr). Type a published or field-calibrated J correlation here, or switch to
             From samples once lab capillary data is loaded on the Lab Data tab.
           </p>
@@ -47,17 +47,17 @@ const CapillaryPanel = () => {
         <section className="space-y-3">
           <SectionLabel>Averaged from lab samples</SectionLabel>
           {usableSamples.length === 0 ? (
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-pl-muted">
               No sample carries a computed J table yet. Load core capillary data on the Lab Data tab; each sample
               with at least 3 Pc points appears here for inclusion.
             </p>
           ) : (
             <div className="space-y-2">
               {usableSamples.map((s) => (
-                <label key={s.id} className="flex items-center gap-2 text-xs text-slate-300">
+                <label key={s.id} className="flex items-center gap-2 text-xs text-pl-text">
                   <input
                     type="checkbox"
-                    className="h-3.5 w-3.5 accent-cyan-600"
+                    className="h-3.5 w-3.5 accent-pl-primary"
                     checked={capillary.includedSampleIds.includes(s.id)}
                     onChange={(e) => setCapillaryField(
                       'includedSampleIds',
@@ -66,7 +66,7 @@ const CapillaryPanel = () => {
                         : capillary.includedSampleIds.filter((id) => id !== s.id),
                     )}
                   />
-                  {s.name} <span className="text-slate-500">({s.jRows.length} J points)</span>
+                  {s.name} <span className="text-pl-muted">({s.jRows.length} J points)</span>
                 </label>
               ))}
             </div>
@@ -77,7 +77,7 @@ const CapillaryPanel = () => {
             onChange={(v) => setCapillaryField('SwirrOverride', v)}
             placeholder="e.g. 0.12"
           />
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-pl-muted">
             Samples are normalized to Sw*, averaged geometrically and refitted. If the refit quality is poor, the
             data-driven Swirr guess is probably too high; set the override.
           </p>
@@ -89,13 +89,13 @@ const CapillaryPanel = () => {
         {RESERVOIR_FIELDS.map(({ k, label }) => (
           <Field key={k} label={label} value={capillary.reservoir[k]} onChange={(v) => setReservoirField(k, v)} />
         ))}
-        <p className="text-[11px] text-slate-500">
+        <p className="text-[11px] text-pl-muted">
           The J curve scales to this rock as Pc = J·σcosθ / (0.21645·√(k/φ)). Height conversion happens on the
           Height and Saturation tab.
         </p>
       </section>
 
-      {jResolved.error && <p className="text-xs text-rose-400">{jResolved.error}</p>}
+      {jResolved.error && <p className="text-xs text-pl-danger-text">{jResolved.error}</p>}
     </div>
   );
 };

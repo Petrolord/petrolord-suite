@@ -54,8 +54,8 @@ const HeightResults = () => {
 
   if (!heightProfile?.length) {
     return (
-      <Card className="bg-slate-900 border-slate-800">
-        <CardContent className="py-10 text-center text-sm text-slate-400">
+      <Card>
+        <CardContent className="py-10 text-center text-sm text-pl-muted">
           The saturation-height profile needs the Capillary tab's working J-function and reservoir rock, plus a
           positive specific gravity difference in the left rail.
         </CardContent>
@@ -76,7 +76,7 @@ const HeightResults = () => {
         <Kpi title="Height at Sw = 0.5" value={kpis.halfSwH != null ? fmt.f1(kpis.halfSwH) : '-'} unit={kpis.halfSwH != null ? 'ft' : ''} />
       </div>
 
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Saturation vs height above free water level</CardTitle>
         </CardHeader>
@@ -107,7 +107,7 @@ const HeightResults = () => {
             </LineChart>
           </ChartFrame>
           {hasFwl && (
-            <p className="text-[11px] text-slate-500 px-4 pb-3">
+            <p className="text-[11px] text-pl-muted px-4 pb-3">
               FWL at {fwl.toFixed(0)} ft TVDSS. The Export tab's height CSV carries both height above FWL and
               TVDSS per row.
             </p>

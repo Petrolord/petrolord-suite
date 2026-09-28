@@ -56,7 +56,7 @@ const CurvesPanel = () => {
           />
         ))}
         {(isOw ? ow.error : go.error) && (
-          <p className="text-xs text-rose-400">{isOw ? ow.error : go.error}</p>
+          <p className="text-xs text-pl-danger-text">{isOw ? ow.error : go.error}</p>
         )}
       </section>
 
@@ -64,7 +64,7 @@ const CurvesPanel = () => {
         <section className="space-y-3">
           <SectionLabel>Fractional flow preview</SectionLabel>
           <div className="flex items-center justify-between">
-            <Label className="text-xs text-slate-400">Show fw curve</Label>
+            <Label className="text-xs text-pl-muted">Show fw curve</Label>
             <Switch
               checked={curves.fwPreviewOn}
               onCheckedChange={(v) => setCurveField('fwPreviewOn', v)}
@@ -74,7 +74,7 @@ const CurvesPanel = () => {
             <>
               <Field label="μw, water viscosity (cp)" value={curves.muW} onChange={(v) => setCurveField('muW', v)} />
               <Field label="μo, oil viscosity (cp)" value={curves.muO} onChange={(v) => setCurveField('muO', v)} />
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-pl-muted">
                 Curves only. Welge tangents, breakthrough and displacement design live in the Waterflood Design
                 Studio; send these curves there from the Export tab.
               </p>

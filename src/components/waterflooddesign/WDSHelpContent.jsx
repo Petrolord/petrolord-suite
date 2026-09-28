@@ -5,12 +5,12 @@ import React from 'react';
 import { GitMerge, Layers, TrendingUp, Dices, Activity, Camera, BookOpen, AlertTriangle, Share2, Gauge } from 'lucide-react';
 
 const Section = ({ icon: Icon, title, children }) => (
-  <section className="bg-slate-900/50 p-4 rounded-lg border border-slate-800">
-    <div className="flex items-center gap-2 mb-3 text-sm font-semibold text-blue-400">
-      <Icon size={16} />
+  <section className="bg-pl-surface p-4 rounded-lg border border-pl-border">
+    <div className="flex items-center gap-2 mb-3 text-sm font-semibold text-pl-text">
+      <Icon size={16} className="text-pl-primary-text" aria-hidden="true" />
       <h3>{title}</h3>
     </div>
-    <div className="text-xs text-slate-300 leading-relaxed space-y-2">{children}</div>
+    <div className="text-xs text-pl-text leading-relaxed space-y-2">{children}</div>
   </section>
 );
 

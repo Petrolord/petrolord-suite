@@ -16,32 +16,32 @@ import {
 const TIERS = {
   lab_tuned: {
     label: 'Lab tuned',
-    classes: 'bg-cyan-900/30 border-cyan-700/50 text-cyan-300',
-    iconClasses: 'text-cyan-400',
+    classes: 'bg-pl-info-bg border-pl-info/40 text-pl-info-text',
+    iconClasses: 'text-pl-info-text',
     Icon: CheckCircle2,
     tooltip:
       'The C7+ plus fraction of this fluid has been regressed to the measured lab values you entered in the Lab tuning card. All compositional results use the tuned fluid; the before and after table on that card shows exactly how well each measurement is matched.',
   },
   oracle_gated: {
     label: 'Oracle gated',
-    classes: 'bg-lime-900/30 border-lime-700/50 text-lime-300',
-    iconClasses: 'text-lime-400',
+    classes: 'bg-pl-success-bg border-pl-success/40 text-pl-success-text',
+    iconClasses: 'text-pl-success-text',
     Icon: CheckCircle2,
     tooltip:
       'This quantity comes from the PR78 engine, which is validated against an independent Python oracle and NIST reference data in the repository validation harness (tools/validation/fluidstudio). Agreement is at solver precision.',
   },
   published_method: {
     label: 'Published method',
-    classes: 'bg-slate-800/60 border-slate-600/60 text-slate-300',
-    iconClasses: 'text-slate-400',
+    classes: 'bg-pl-sunken border-pl-border text-pl-text',
+    iconClasses: 'text-pl-muted',
     Icon: Info,
     tooltip:
       'This quantity follows a recognized published method. The implementation is transcription-checked against the source, but no independent measurement gate applies at this point.',
   },
   screening: {
     label: 'Screening estimate',
-    classes: 'bg-amber-900/30 border-amber-700/50 text-amber-300',
-    iconClasses: 'text-amber-400',
+    classes: 'bg-pl-warning-bg border-pl-warning/40 text-pl-warning-text',
+    iconClasses: 'text-pl-warning-text',
     Icon: AlertTriangle,
     tooltip:
       'This quantity comes from an untuned engineering correlation. Expect meaningful scatter against lab data and treat it as a screening number until it is tuned to measurements.',
@@ -61,9 +61,9 @@ const FluidStudioTierBadge = ({ tier, note, className = '' }) => {
             <span>{def.label}</span>
           </span>
         </TooltipTrigger>
-        <TooltipContent side="top" align="start" className="max-w-sm bg-slate-900 border-slate-700 text-slate-200 leading-relaxed">
-          <p className="text-xs font-semibold mb-1 text-slate-100">{def.label}</p>
-          <p className="text-xs text-slate-300">{note || def.tooltip}</p>
+        <TooltipContent side="top" align="start" className="max-w-sm leading-relaxed">
+          <p className="text-xs font-semibold mb-1 text-pl-text">{def.label}</p>
+          <p className="text-xs text-pl-text">{note || def.tooltip}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
