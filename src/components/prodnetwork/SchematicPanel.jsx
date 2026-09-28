@@ -53,9 +53,9 @@ const SchematicPanel = () => {
 
   if (!topology.ok) {
     return (
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardContent className="py-8 text-center">
-          <p className="text-sm text-rose-400">{topology.error}</p>
+          <p className="text-sm text-pl-danger-text">{topology.error}</p>
         </CardContent>
       </Card>
     );
@@ -67,14 +67,16 @@ const SchematicPanel = () => {
   const wellById = new Map((result?.wells || []).map((w) => [w.id, w]));
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-2">
-          <Waypoints className="w-4 h-4 text-sky-400" /> The network
+          <Waypoints className="w-4 h-4 text-pl-muted" /> The network
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
+        {/* A drawing surface: the node fills and labels are tuned for a dark
+            ground, so the schematic sits on a dark canvas in both themes. */}
+        <div className="overflow-x-auto rounded-pl-canvas bg-pl-bg" data-canvas="dark">
           <svg
             width={geometry.width}
             height={geometry.height}
@@ -159,7 +161,7 @@ const SchematicPanel = () => {
             })}
           </svg>
         </div>
-        <p className="text-[11px] text-slate-600 mt-2">
+        <p className="text-[11px] text-pl-muted mt-2">
           Laid out by depth from the delivery point, because a gathering system flows one way and
           its arrangement is a fact about the topology rather than something worth dragging into
           place. Click a node to edit it.

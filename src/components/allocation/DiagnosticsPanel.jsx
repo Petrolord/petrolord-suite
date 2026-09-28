@@ -8,9 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAllocation } from '@/contexts/ProductionAllocationContext';
 
 const SEVERITY_STYLE = {
-  high: 'border-red-500/40 bg-red-500/10 text-red-300',
-  medium: 'border-amber-500/40 bg-amber-500/10 text-amber-300',
-  info: 'border-slate-700/60 bg-slate-800/50 text-slate-300',
+  high: 'border-pl-danger/40 bg-pl-danger-bg text-pl-danger-text',
+  medium: 'border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text',
+  info: 'border-pl-border bg-pl-sunken text-pl-text',
 };
 
 const CODE_LABEL = {
@@ -45,15 +45,15 @@ const DiagnosticsPanel = () => {
   if (!currentField || !allocation.days.length) return null;
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-amber-400" /> Allocation diagnostics
+          <AlertTriangle className="w-4 h-4 text-pl-muted" /> Allocation diagnostics
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
         {grouped.length === 0 ? (
-          <div className="flex items-center gap-2 text-sm text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded px-3 py-3">
+          <div className="flex items-center gap-2 text-sm text-pl-success-text bg-pl-success-bg border border-pl-success/40 rounded px-3 py-3">
             <CheckCircle2 className="w-4 h-4" />
             Every metered date allocated cleanly, with every factor inside the warning band.
           </div>

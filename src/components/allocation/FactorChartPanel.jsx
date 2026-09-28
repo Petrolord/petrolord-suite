@@ -27,11 +27,11 @@ const FactorChartPanel = () => {
   if (!allocation.days.length) return null;
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base">
           Allocation factor by date
-          <span className="block text-xs font-normal text-slate-500 mt-0.5">
+          <span className="block text-xs font-normal text-pl-muted mt-0.5">
             Metered volume over the wells' theoretical volume. A factor drifting away from 1.0 means
             the tests, the meter or the uptime record disagree.
           </span>

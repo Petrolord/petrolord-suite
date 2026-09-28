@@ -1731,3 +1731,26 @@ harness and are Demo-ready. Three S1 defects were fixed:
 
 See `docs/testing/Wave4-summary.md` and the per-app T1 reports.
 
+
+## Design system, rollout batch 2B (2026-09-28)
+
+Production Surveillance, Production Allocation and Production Network now
+open on the Petrolord design system: light by default, dark per user through
+the header toggle (`docs/scope/DesignSystem-Rollout.md`, batch 2B).
+
+- Each page wraps itself in `ThemedApp` (`surveillance-theme-scope`,
+  `allocation-theme-scope`, `network-theme-scope`); the three routes are
+  registered in `src/design/rollout/w2b.js` for the cold-load loaders.
+- The `surveillance`, `allocation` and `prodnetwork` panels and the
+  batch-local `production/FieldPicker.jsx` (used only by these apps) moved to
+  theme roles. Oil, water and gas numbers are neutral mono text; colour is
+  left only on status (exceptions, test QC, open deferments, losses to
+  backpressure, topology and model checks).
+- Charts keep the white `ChartFrame` standard in both themes. The network
+  schematic is a drawing surface tuned for a dark ground, so it sits on
+  `data-canvas="dark"` in both themes.
+- The shared well-model kit (`WellModelPanel`, `WellModelSpinePanel`) was
+  already scope-aware (W0B) and is unchanged.
+- Theme tests: `src/pages/apps/__tests__/Production{Surveillance,Allocation,Network}Studio.theme.test.jsx`
+  (shared `describeAppTheme` checks plus a walk through every tab with data
+  loaded, the dialogs and the help drawer). No calculation changed.

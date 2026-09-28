@@ -28,10 +28,10 @@ const SweepPanel = () => {
   }));
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-2">
-          <Gauge className="w-4 h-4 text-cyan-400" /> What the separator pressure is worth
+          <Gauge className="w-4 h-4 text-pl-muted" /> What the separator pressure is worth
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -51,16 +51,16 @@ const SweepPanel = () => {
         </div>
 
         {!sweep ? (
-          <p className="text-sm text-slate-500 py-6 text-center">
+          <p className="text-sm text-pl-muted py-6 text-center">
             Each point is a whole network solve, so this runs when you ask for it.
           </p>
         ) : (
           <>
             {sweepStale && (
-              <div className="flex items-center gap-2 text-[11px] text-amber-400">
+              <div className="flex items-center gap-2 text-[11px] text-pl-warning-text">
                 <RefreshCw className="w-3 h-3" />
                 The network changed since this ran.
-                <button type="button" className="underline hover:text-amber-300" onClick={runSweep}>
+                <button type="button" className="underline hover:text-pl-warning-text" onClick={runSweep}>
                   Sweep again
                 </button>
               </div>
@@ -109,7 +109,7 @@ const SweepPanel = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
+                  <tr className="text-[10px] uppercase tracking-wider text-pl-muted border-b border-pl-border">
                     <th className="text-left py-1.5 pr-3">Delivery</th>
                     <th className="text-right py-1.5 px-3">Field rate</th>
                     <th className="text-right py-1.5 px-3">stb/d per psi</th>
@@ -120,9 +120,9 @@ const SweepPanel = () => {
                   {sweep.points.map((p) => {
                     if (!p.ok) {
                       return (
-                        <tr key={p.deliveryPsia} className="border-b border-slate-800/60 last:border-0" data-testid="net-sweep-failed">
-                          <td className="py-1.5 pr-3 text-slate-300 tabular-nums">{fmt(p.deliveryPsia)} psia</td>
-                          <td colSpan={3} className="py-1.5 pl-3 text-right text-xs text-amber-400">
+                        <tr key={p.deliveryPsia} className="border-b border-pl-border last:border-0" data-testid="net-sweep-failed">
+                          <td className="py-1.5 pr-3 text-pl-text font-pl-mono tabular-nums">{fmt(p.deliveryPsia)} psia</td>
+                          <td colSpan={3} className="py-1.5 pl-3 text-right text-xs text-pl-warning-text">
                             no solution: {p.reason}
                           </td>
                         </tr>
@@ -130,13 +130,13 @@ const SweepPanel = () => {
                     }
                     const s = sweep.slope.find((x) => x.deliveryPsia === p.deliveryPsia);
                     return (
-                      <tr key={p.deliveryPsia} className="border-b border-slate-800/60 last:border-0">
-                        <td className="py-1.5 pr-3 text-slate-300 tabular-nums">{fmt(p.deliveryPsia)} psia</td>
-                        <td className="py-1.5 px-3 text-right tabular-nums text-emerald-400">{fmt(p.qoStbd)}</td>
-                        <td className="py-1.5 px-3 text-right tabular-nums text-slate-400">
+                      <tr key={p.deliveryPsia} className="border-b border-pl-border last:border-0">
+                        <td className="py-1.5 pr-3 text-pl-text font-pl-mono tabular-nums">{fmt(p.deliveryPsia)} psia</td>
+                        <td className="py-1.5 px-3 text-right font-pl-mono tabular-nums text-pl-text">{fmt(p.qoStbd)}</td>
+                        <td className="py-1.5 px-3 text-right font-pl-mono tabular-nums text-pl-muted">
                           {s ? fmt(s.stbdPerPsi, 2) : '--'}
                         </td>
-                        <td className="py-1.5 pl-3 text-right text-slate-500 text-xs">
+                        <td className="py-1.5 pl-3 text-right text-pl-muted text-xs">
                           {p.shutIn.length ? p.shutIn.join(', ') : '--'}
                         </td>
                       </tr>
@@ -145,7 +145,7 @@ const SweepPanel = () => {
                 </tbody>
               </table>
             </div>
-            <p className="text-[11px] text-slate-600">
+            <p className="text-[11px] text-pl-muted">
               The rate per psi is read off the curve rather than quoted as a constant, because it is
               not one. It steepens wherever a well that had been held off the header comes back on,
               and those steps are the interesting part.

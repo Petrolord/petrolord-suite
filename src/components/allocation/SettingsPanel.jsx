@@ -23,15 +23,15 @@ const SettingsPanel = () => {
   return (
     <div className="space-y-3">
       <div className="space-y-1">
-        <Label className="text-xs text-slate-400">Allocation basis</Label>
+        <Label className="text-xs text-pl-muted">Allocation basis</Label>
         <Select value={settings.basis} onValueChange={(v) => setSettingsField('basis', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+          <SelectContent>
             <SelectItem value="test">Well test times uptime</SelectItem>
             <SelectItem value="ledger">Prorate the wells own meters</SelectItem>
           </SelectContent>
         </Select>
-        <p className="text-[11px] text-slate-600">
+        <p className="text-[11px] text-pl-muted">
           {isTestBasis
             ? 'Each well is carried by its latest valid test, scaled by the hours it was on.'
             : 'Each well is carried by its own ledger volumes, reconciled to the metered total.'}
@@ -40,8 +40,8 @@ const SettingsPanel = () => {
 
       <div className="flex items-center justify-between">
         <div>
-          <Label className="text-xs text-slate-400">Scale by hours on stream</Label>
-          <p className="text-[11px] text-slate-600">A well on 12 hours carries half a day.</p>
+          <Label className="text-xs text-pl-muted">Scale by hours on stream</Label>
+          <p className="text-[11px] text-pl-muted">A well on 12 hours carries half a day.</p>
         </div>
         <Switch
           checked={!!settings.useUptime}
@@ -52,8 +52,8 @@ const SettingsPanel = () => {
       {isTestBasis && (
         <div className="flex items-center justify-between">
           <div>
-            <Label className="text-xs text-slate-400">Use tests that failed QC</Label>
-            <p className="text-[11px] text-slate-600">Off by default: rejected tests carry nothing.</p>
+            <Label className="text-xs text-pl-muted">Use tests that failed QC</Label>
+            <p className="text-[11px] text-pl-muted">Off by default: rejected tests carry nothing.</p>
           </div>
           <Switch
             checked={!!settings.includeInvalidTests}
@@ -64,7 +64,7 @@ const SettingsPanel = () => {
 
       {NUMERIC.map(({ key, label, hint, step }) => (
         <div key={key} className="space-y-1">
-          <Label className="text-xs text-slate-400">{label}</Label>
+          <Label className="text-xs text-pl-muted">{label}</Label>
           <Input
             type="number"
             step={step}
@@ -73,27 +73,27 @@ const SettingsPanel = () => {
               const n = parseFloat(e.target.value);
               setSettingsField(key, Number.isFinite(n) ? n : e.target.value);
             }}
-            className="h-9 bg-slate-800 border-slate-700"
+            className="h-9"
           />
-          {hint && <p className="text-[11px] text-slate-600">{hint}</p>}
+          {hint && <p className="text-[11px] text-pl-muted">{hint}</p>}
         </div>
       ))}
 
-      <div className="border-t border-slate-800 pt-3 space-y-2">
-        <Label className="text-xs text-slate-400">Period</Label>
+      <div className="border-t border-pl-border pt-3 space-y-2">
+        <Label className="text-xs text-pl-muted">Period</Label>
         <div className="grid grid-cols-2 gap-2">
           <Input
             type="date" value={range.from}
             onChange={(e) => setRangeField('from', e.target.value)}
-            className="h-9 bg-slate-800 border-slate-700"
+            className="h-9"
           />
           <Input
             type="date" value={range.to}
             onChange={(e) => setRangeField('to', e.target.value)}
-            className="h-9 bg-slate-800 border-slate-700"
+            className="h-9"
           />
         </div>
-        <p className="text-[11px] text-slate-600">
+        <p className="text-[11px] text-pl-muted">
           Leave both blank to allocate every metered date in the field.
         </p>
       </div>
