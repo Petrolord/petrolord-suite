@@ -1,6 +1,9 @@
 import React from 'react';
 import NotTracked from '../NotTracked';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ChartPanel } from '@/components/ui/chart-panel';
+import ChartLogo from '@/components/charts/ChartLogo';
+import { TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { AlertTriangle, Users, BarChart3 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from 'recharts';
 
@@ -29,9 +32,8 @@ export const DecommissioningRiskManager = ({ risks }) => {
   ];
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
-        <CardHeader><CardTitle className="text-sm text-slate-300 flex items-center gap-2"><AlertTriangle className="w-4 h-4"/> Risk Profile</CardTitle></CardHeader>
-        <CardContent className="h-[300px] flex flex-col">
+    <ChartPanel title={<span className="flex items-center gap-2"><AlertTriangle className="w-4 h-4"/> Risk Profile</span>}>
+        <div className="relative h-[300px] flex flex-col">
             <div className="flex-1">
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -40,37 +42,38 @@ export const DecommissioningRiskManager = ({ risks }) => {
                                 <Cell key={`cell-${index}`} fill={entry.color} />
                             ))}
                         </Pie>
-                        <Tooltip contentStyle={{backgroundColor: '#1e293b', border: 'none', color: '#fff'}} />
+                        <Tooltip contentStyle={TOOLTIP_STYLE} />
                     </PieChart>
                 </ResponsiveContainer>
             </div>
-            <div className="flex justify-center gap-4 text-xs text-slate-400 pb-4">
-                <span className="flex items-center gap-1"><div className="w-2 h-2 bg-red-500 rounded-full"></div> High ({high})</span>
-                <span className="flex items-center gap-1"><div className="w-2 h-2 bg-orange-500 rounded-full"></div> Med ({med})</span>
-                <span className="flex items-center gap-1"><div className="w-2 h-2 bg-green-500 rounded-full"></div> Low ({low})</span>
+            <div className="flex justify-center gap-4 text-xs text-pl-muted pb-4">
+                <span className="flex items-center gap-1"><div className="w-2 h-2 bg-pl-danger rounded-full"></div> High ({high})</span>
+                <span className="flex items-center gap-1"><div className="w-2 h-2 bg-pl-warning rounded-full"></div> Med ({med})</span>
+                <span className="flex items-center gap-1"><div className="w-2 h-2 bg-pl-success rounded-full"></div> Low ({low})</span>
             </div>
-        </CardContent>
-    </Card>
+            <ChartLogo />
+        </div>
+    </ChartPanel>
   );
 };
 
 // --- RESOURCE MANAGER ---
 export const DecommissioningResourceManager = ({ resources }) => {
   return (
-    <Card className="bg-slate-900 border-slate-800">
-        <CardHeader><CardTitle className="text-sm text-slate-300 flex items-center gap-2"><Users className="w-4 h-4"/> Team Allocation</CardTitle></CardHeader>
+    <Card>
+        <CardHeader><CardTitle className="text-sm text-pl-text flex items-center gap-2"><Users className="w-4 h-4"/> Team Allocation</CardTitle></CardHeader>
         <CardContent>
             <div className="space-y-2 max-h-[270px] overflow-y-auto pr-2">
                 {resources.map((res, idx) => (
-                    <div key={idx} className="flex justify-between items-center p-2 bg-slate-800/50 rounded border border-slate-700">
+                    <div key={idx} className="flex justify-between items-center p-2 bg-pl-sunken/60 rounded border border-pl-border">
                         <div>
-                            <div className="text-xs font-bold text-slate-200">{res.discipline}</div>
-                            <div className="text-[10px] text-slate-500">{res.type}</div>
+                            <div className="text-xs font-bold text-pl-text">{res.discipline}</div>
+                            <div className="text-[10px] text-pl-muted">{res.type}</div>
                         </div>
-                        <div className="text-xs text-slate-400">{!res.name || String(res.name).includes('TBD') ? 'Unfilled' : res.name}</div>
+                        <div className="text-xs text-pl-muted">{!res.name || String(res.name).includes('TBD') ? 'Unfilled' : res.name}</div>
                     </div>
                 ))}
-                {resources.length === 0 && <div className="text-center text-slate-500 text-xs py-4">No resources defined.</div>}
+                {resources.length === 0 && <div className="text-center text-pl-muted text-xs py-4">No resources defined.</div>}
             </div>
         </CardContent>
     </Card>
