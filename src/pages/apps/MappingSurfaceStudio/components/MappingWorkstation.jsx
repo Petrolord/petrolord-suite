@@ -65,6 +65,7 @@ import { toDisplay, fromDisplay } from '@/components/wells/depthModes';
 import { consensusTag } from '@/lib/crs/tags';
 import { crsUnit } from '@/lib/crs';
 import { placeWellsForHost } from '@/lib/crs/guards';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const selCls = 'w-full rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs';
 
@@ -197,7 +198,7 @@ export default function MappingWorkstation({ backend, appPaths = {}, sample = fa
   const setSetting = (key, value) => setMapSettings((m) => ({ ...m, [key]: value }));
 
   const fmtZ = useCallback((v, s = displaySurface) => {
-    if (!Number.isFinite(v)) return '—';
+    if (!Number.isFinite(v)) return EMPTY_VALUE;
     return isLengthSurface(s) ? `${(displaySign(s, depthPositive) * toDisplay(v, depthUnit)).toFixed(1)} ${depthUnit}` : v.toFixed(3);
   }, [depthUnit, displaySurface, depthPositive]);
   const zConventionText = depthPositive ? 'depth positive down' : 'elevation, negative down';

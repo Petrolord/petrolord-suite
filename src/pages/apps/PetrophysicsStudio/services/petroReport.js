@@ -11,8 +11,9 @@ import { makeDepthFrame } from '../../WellDataManager/engine/checkshots';
 import 'jspdf-autotable';
 import { loadPetrolordLogo, drawBrandHeader } from '@/lib/pdfBrand';
 import { METHOD_CITATIONS, PIPELINE_VERSION } from '../engine/pipeline';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
-const num = (v, d = 3) => (Number.isFinite(v) ? String(Number(v.toFixed(d))) : '—');
+const num = (v, d = 3) => (Number.isFinite(v) ? String(Number(v.toFixed(d))) : EMPTY_VALUE);
 
 const PARAM_ROWS = [
   ['GR clean (API)', 'grClean'], ['GR clay (API)', 'grClay'], ['Vsh model', 'vshMethod'],
@@ -104,7 +105,7 @@ export async function buildReport({
     body: Array.from({ length: Math.ceil(PARAM_ROWS.length / 2) }, (_, r) => {
       const a = PARAM_ROWS[2 * r];
       const b = PARAM_ROWS[2 * r + 1];
-      const cell = (row) => (row ? [row[0], String(params[row[1]] ?? '—')] : ['', '']);
+      const cell = (row) => (row ? [row[0], String(params[row[1]] ?? EMPTY_VALUE)] : ['', '']);
       return [...cell(a), ...cell(b)];
     }),
     styles: { fontSize: 8, cellPadding: 1.5 },
@@ -198,7 +199,7 @@ export async function buildReport({
   doc.setTextColor(60, 70, 90);
   for (const line of [
     'Engine: petrophysics-studio (validated against an independent literature oracle at 1e-12).',
-    `Pipeline version: ${PIPELINE_VERSION} · Project: ${projectId || '—'}`,
+    `Pipeline version: ${PIPELINE_VERSION} · Project: ${projectId || EMPTY_VALUE}`,
     `Generated: ${new Date().toISOString()}`,
   ]) {
     doc.text(line, margin, y);

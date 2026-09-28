@@ -8,6 +8,7 @@ import { Loader2, Map as MapIcon, Layers, Trash2, Eye } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { MapGenerationEngine } from '../../services/MapGenerationEngine';
 import { useReservoirSettings } from '../../hooks/useReservoirSettings';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const MapGenerationPanel = () => {
     const { state, addMaps, deleteMap } = useReservoirCalc();
@@ -137,7 +138,7 @@ const MapGenerationPanel = () => {
                             <div key={m.id} className="flex items-center justify-between p-2 rounded border border-pl-border bg-pl-surface">
                                 <div className="min-w-0">
                                     <div className="text-xs font-medium text-pl-text truncate">{m.name}</div>
-                                    <div className="text-[10px] text-pl-muted">{m.unit || '—'}</div>
+                                    <div className="text-[10px] text-pl-muted">{m.unit || EMPTY_VALUE}</div>
                                 </div>
                                 <div className="flex items-center gap-1 shrink-0">
                                     <Eye className="w-3.5 h-3.5 text-pl-muted" />

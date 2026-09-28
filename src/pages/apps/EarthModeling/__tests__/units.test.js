@@ -1,4 +1,5 @@
 import { volumeValue, fmtVolume, volumeUnitLabel, fmtDepth, M3_PER_ACRE_FT, M3_PER_BBL } from '../services/units';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 test('volumes convert to field units by column kind', () => {
   expect(volumeValue(M3_PER_ACRE_FT * 1000, 'bulk_m3', 'field')).toBeCloseTo(1000, 9);
@@ -16,5 +17,5 @@ test('formatting and headers name the unit', () => {
   expect(volumeUnitLabel('hcpv_m3', 'field')).toBe('MMbbl');
   expect(volumeUnitLabel('hcpv_m3', 'metric')).toBe('10^6 m3');
   expect(fmtDepth(304.8, 'ft', 1)).toBe('1000.0');
-  expect(fmtDepth(null)).toBe('—');
+  expect(fmtDepth(null)).toBe(EMPTY_VALUE);
 });

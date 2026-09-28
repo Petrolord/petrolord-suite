@@ -9,6 +9,7 @@ import {
     SlideShell, HeroTile, Panel, StatCell, Chip,
     fmtInt, fmtDec, scaleMM, scaleB, OIL, GAS, SLATE,
 } from './slideParts';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 // The volumetric chain: each stage as a fraction of Gross Rock Volume. These are
 // all reservoir-volume fractions (GRV·NTG·φ·(1−Sw)) so they share one honest axis.
@@ -89,7 +90,7 @@ const DeterministicSlide = () => {
     const contactStr = [
         showOil && inp.owc != null ? `OWC ${inp.owc}` : null,
         showGas && inp.goc != null ? `GOC ${inp.goc}` : null,
-    ].filter(Boolean).join('  ·  ') || '—';
+    ].filter(Boolean).join('  ·  ') || EMPTY_VALUE;
 
     const exportPDF = async () => {
         setIsExporting(true);

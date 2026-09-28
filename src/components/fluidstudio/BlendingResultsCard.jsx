@@ -1,8 +1,9 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Combine, CheckCircle, AlertTriangle, XCircle, Droplets, Wind, Beaker, Waves } from 'lucide-react';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
-const fmt = (v, d = 1) => (v == null || !Number.isFinite(v) ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d }));
+const fmt = (v, d = 1) => (v == null || !Number.isFinite(v) ? EMPTY_VALUE : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d }));
 
 const TotIt = ({ label, value, icon: Icon }) => (
   <div className="rounded-lg border border-pl-border bg-pl-sunken px-3 py-2">

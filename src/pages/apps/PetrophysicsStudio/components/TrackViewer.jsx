@@ -24,6 +24,7 @@ import DepthNavigator from '@/components/wells/DepthNavigator';
 import { depthLabel, snapToSample, makeDepthAxes } from '@/components/wells/depthModes';
 import { zoomAbout, panBy } from '@/components/wells/depthNavMath';
 import { trackPlotPng } from '@/components/wells/plotPng';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const AXIS_COL_W = 56;    // width of ONE depth column (MD, TVD, TVDSS)
 const HEADER_H = 50;      // track header (title + scale rows + readout)
@@ -430,7 +431,7 @@ const TrackViewer = forwardRef(function TrackViewer({
       // one readout per depth column, each in its own gutter (PT8)
       depthAxes.forEach((ax, i) => {
         const v = ax.labelOf(cursor.depthM);
-        ctx.fillText(Number.isFinite(v) ? v.toFixed(1) : '—', AXIS_COL_W * (i + 1) - 4, cursor.y - 4);
+        ctx.fillText(Number.isFinite(v) ? v.toFixed(1) : EMPTY_VALUE, AXIS_COL_W * (i + 1) - 4, cursor.y - 4);
       });
     }
   }, [tick, size, depth, tracks, geom, cursor, zoneDrag, topDrag, pick, pickMode, yOf, plotTop, plotH, F, depthUnit, depthAxes, axisW, snapSamples, ties, pendingTie, tieTracks, tieDrag]);

@@ -1,3 +1,4 @@
+import { EMPTY_VALUE } from '../../lib/emptyValue.js';
 // summary.json (worker output) -> chart-ready series. Pure + jest-tested.
 // Shape: { opm_version, deck_sha256, start_date, days: [], field: {KEY: []},
 //          wells: {NAME: {WOPR: [], ...}} }
@@ -98,7 +99,7 @@ export function wellSeriesKeys(summary, base) {
 
 /** Elapsed pretty-printer for the runs table. */
 export function fmtElapsed(seconds) {
-  if (seconds == null || !Number.isFinite(Number(seconds))) return '—';
+  if (seconds == null || !Number.isFinite(Number(seconds))) return EMPTY_VALUE;
   const s = Number(seconds);
   if (s < 90) return `${s.toFixed(0)} s`;
   return `${Math.floor(s / 60)} min ${Math.round(s % 60)} s`;

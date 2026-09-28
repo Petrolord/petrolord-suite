@@ -75,6 +75,7 @@ import {
   getCaseDefaultConfig,
 } from '@/pages/apps/reservoir-balance/lib/api';
 import { ramagostCorrectedPz } from '@/pages/apps/reservoir-balance/lib/pzRamagost';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 // MBAL charts overlay the logo directly on the plot area, so the suite
 // default (180px) overflows them; keep the mark small in this app.
@@ -218,7 +219,7 @@ const TimestepDetailPanel = ({ row, isGas, onClose }) => {
   if (!row) return null;
 
   const fmt = (v, decimals = 3) => {
-    if (v == null || !isFinite(v)) return '—';
+    if (v == null || !isFinite(v)) return EMPTY_VALUE;
     if (Math.abs(v) >= 1e6) return v.toExponential(3);
     if (Math.abs(v) >= 100) return v.toFixed(decimals > 1 ? 1 : decimals);
     return v.toFixed(decimals);
@@ -484,10 +485,10 @@ const HavlenaOdehPlot = ({ rows, result, isGas, caseName }) => {
           {/* Annotation box top-right */}
           <div className="absolute top-3 right-3 bg-pl-chart-surface/95 border border-pl-border rounded px-3 py-2 text-[11px] font-mono leading-relaxed shadow-sm">
             <div className="text-pl-text">
-              R² = <span className="font-semibold">{r2?.toFixed(4) ?? '—'}</span>
+              R² = <span className="font-semibold">{r2?.toFixed(4) ?? EMPTY_VALUE}</span>
             </div>
             <div className="text-pl-text">
-              slope = <span className="font-semibold">{slopeForLabel != null ? slopeForLabel.toExponential(3) : '—'}</span>
+              slope = <span className="font-semibold">{slopeForLabel != null ? slopeForLabel.toExponential(3) : EMPTY_VALUE}</span>
             </div>
             {Number.isFinite(result?.regression_intercept) && (
               <div className="text-pl-text" data-testid="rb-ho-intercept">

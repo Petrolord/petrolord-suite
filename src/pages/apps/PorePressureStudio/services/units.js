@@ -7,6 +7,7 @@
 // density fields follow the pressure unit. Pure, no I/O.
 
 import { PA_PER_PSI, M_PER_FT } from '../engine/constants';
+import { EMPTY_VALUE } from '../../../../lib/emptyValue.js';
 
 export const UNITS_KEY = 'pp.units';
 export const PPG_PER_PSI_FT = 1 / 0.052; // drilling convention: EMW ppg = psi / (0.052 x TVD ft)
@@ -39,7 +40,7 @@ export function readUnits(storage) {
 export const depthToDisplay = (m, unit) => (Number.isFinite(m) ? (unit === 'ft' ? m / M_PER_FT : m) : NaN);
 export const depthFromDisplay = (v, unit) => (Number.isFinite(v) ? (unit === 'ft' ? v * M_PER_FT : v) : NaN);
 export const depthDigits = (unit) => (unit === 'ft' ? 0 : 1);
-export const fmtDepth = (m, unit, digits = depthDigits(unit)) => { const v = depthToDisplay(m, unit); return Number.isFinite(v) ? v.toFixed(digits) : '—'; };
+export const fmtDepth = (m, unit, digits = depthDigits(unit)) => { const v = depthToDisplay(m, unit); return Number.isFinite(v) ? v.toFixed(digits) : EMPTY_VALUE; };
 /** At most one decimal, no trailing zero (3500 m, 11482.9 ft). */
 export const tidyDepth = (m, unit) => { const v = depthToDisplay(m, unit); return Number.isFinite(v) ? String(Number(v.toFixed(1))) : ''; };
 
@@ -81,7 +82,7 @@ export function pressureFromDisplay(v, unit, refDepthM = NaN) {
   }
 }
 export const pressureDigits = (unit) => ({ MPa: 2, psi: 0, ppg: 2, sg: 3 }[unit] ?? 2);
-export const fmtPressure = (pa, unit, refDepthM = NaN) => { const v = pressureToDisplay(pa, unit, refDepthM); return Number.isFinite(v) ? v.toFixed(pressureDigits(unit)) : '—'; };
+export const fmtPressure = (pa, unit, refDepthM = NaN) => { const v = pressureToDisplay(pa, unit, refDepthM); return Number.isFinite(v) ? v.toFixed(pressureDigits(unit)) : EMPTY_VALUE; };
 export const pressureLabel = (unit) => (isEmw(unit) ? `EMW (${unit})` : `Pressure (${unit})`);
 /** A stress in the dock (Bowers sigma max) shows in MPa or psi only. */
 export const stressUnit = (unit) => (unit === 'psi' || unit === 'ppg' ? 'psi' : 'MPa');

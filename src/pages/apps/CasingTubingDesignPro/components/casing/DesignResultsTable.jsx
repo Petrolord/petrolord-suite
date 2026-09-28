@@ -5,6 +5,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { fmtSF, depthDisp, depthLabel } from '../../services/ctRun';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 // Per-section engine results for ONE load case: worst-point SFs with the
 // governing depths the profile scan found (not just the shoe).
@@ -62,7 +63,7 @@ const DesignResultsTable = ({ caseResult, depthUnit = 'm' }) => {
                   <span className="text-pl-muted block text-[9px]">@ {Math.round(depthDisp(res.collapseAtTvdM, depthUnit))} {unit} TVD</span>
                 )}
               </TableCell>
-              <TableCell className="py-1 text-[10px] text-center text-pl-muted">{res.collapseRegime || '—'}</TableCell>
+              <TableCell className="py-1 text-[10px] text-center text-pl-muted">{res.collapseRegime || EMPTY_VALUE}</TableCell>
               <TableCell className={`py-1 text-xs font-pl-mono tabular-nums text-center ${sfColor(res.tensionSF, 1.6)}`}>
                 {fmtSF(res.tensionSF)}
               </TableCell>

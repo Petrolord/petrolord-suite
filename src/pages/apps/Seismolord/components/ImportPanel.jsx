@@ -20,8 +20,9 @@ import CrsBadge from '@/components/crs/CrsBadge';
 import { sanityCheck, crsDisplayName } from '@/lib/crs';
 import { getProjectCrs, addCustomDef } from '@/lib/crs/settingsService';
 import { isTransformableTag, normalizeTag, UNKNOWN } from '@/lib/crs/tags';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
-const fmtInt = (v) => (v == null ? '—' : v.toLocaleString('en-US'));
+const fmtInt = (v) => (v == null ? EMPTY_VALUE : v.toLocaleString('en-US'));
 
 const MB = 1024 * 1024;
 // display copy with its levels of detail, compressed, as a share of the
@@ -544,7 +545,7 @@ export default function ImportPanel({
               <div>Crosslines: <span className="text-pl-text">{scan.xl.min}–{scan.xl.max}</span> (step {scan.xl.step})</div>
               <div className="col-span-2">
                 First CDP: <span className="text-pl-text">
-                  {scan.corners.first ? `${scan.corners.first.x}, ${scan.corners.first.y}` : '—'}
+                  {scan.corners.first ? `${scan.corners.first.x}, ${scan.corners.first.y}` : EMPTY_VALUE}
                 </span>
               </div>
               {scan.sourceCoords && (

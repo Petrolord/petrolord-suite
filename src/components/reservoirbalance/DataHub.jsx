@@ -66,6 +66,7 @@ import {
   listProductionData,
   replaceProductionData,
 } from '@/pages/apps/reservoir-balance/lib/api';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 // =============================================================================
 // CONFIG: COLUMN ALIASES AND UNIT DETECTION
@@ -428,7 +429,7 @@ function validateRows(rows, caseData) {
 }
 
 const fmt = (v, decimals = 2) => {
-  if (v == null || v === '' || (typeof v === 'number' && isNaN(v))) return '—';
+  if (v == null || v === '' || (typeof v === 'number' && isNaN(v))) return EMPTY_VALUE;
   if (typeof v !== 'number') return String(v);
   if (Math.abs(v) >= 1e6) return v.toExponential(2);
   return v.toFixed(decimals);
@@ -758,7 +759,7 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
                       <div key={schemaCol} className="flex justify-between gap-2">
                         <span className="text-pl-muted">{schemaCol}</span>
                         <span className={header ? 'text-pl-primary-text' : 'text-pl-muted'}>
-                          {header ?? '—'}
+                          {header ?? EMPTY_VALUE}
                         </span>
                       </div>
                     ))}

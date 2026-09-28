@@ -34,6 +34,7 @@ import { placeWellLocation, placeDeviation } from '@/lib/crs/wellPlacement';
 import { normalizeTag, isTransformableTag, UNKNOWN } from '@/lib/crs/tags';
 import ColumnMapper from './ColumnMapper';
 import { CheckshotConventionRow, MdUnitSelect, CHECKSHOT_FIELD_LABELS } from './PasteReplacePanel';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 
 const TABS = [
@@ -174,12 +175,12 @@ export default function WellImport({ onSave, crsContext }) {
       else if (frame.isVertical) note = 'No deviation survey pasted: treated as vertical, MD = TVD.';
       else note = `Using the pasted deviation survey (${frame.stations.length} stations${frame.assumedVerticalToFirstStation ? ', vertical above the first station' : ''}).`;
     } catch (e) {
-      return { cell: () => '—', note: e.message };
+      return { cell: () => EMPTY_VALUE, note: e.message };
     }
     const cell = (r) => {
       const depth = Number(r[map.depth]);
       const time = Number(r[map.time]);
-      if (!Number.isFinite(depth) || !Number.isFinite(time)) return '—';
+      if (!Number.isFinite(depth) || !Number.isFinite(time)) return EMPTY_VALUE;
       try {
         const { rows } = toStoredCheckshots([{ depth, time }, { depth: depth + 1, time: time + 1 }], conv.checkshots, frame);
         return `${rows[0].tvdss_m.toFixed(2)} / ${rows[0].twt_ms.toFixed(1)}`;

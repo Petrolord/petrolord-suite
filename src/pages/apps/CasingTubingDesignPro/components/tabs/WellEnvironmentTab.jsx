@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { tvdAt } from '../../engine/wellControl';
 import { attitudeAtMd } from '../../engine/surveyMath';
 import { depthDisp, depthLabel } from '../../services/ctRun';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const NumInput = ({ label, value, onChange, step = 1, suffix, testId }) => (
   <div className="space-y-1">
@@ -192,8 +193,8 @@ const WellEnvironmentTab = () => {
                         <TableRow key={i} className="border-pl-border hover:bg-pl-sunken h-7">
                           <TableCell className="text-[10px] font-pl-mono tabular-nums py-1 pl-4">{depthDisp(pt.md, depthUnit).toFixed(0)}</TableCell>
                           <TableCell className="text-[10px] font-pl-mono tabular-nums py-1">{depthDisp(pt.tvd, depthUnit).toFixed(0)}</TableCell>
-                          <TableCell className="text-[10px] font-pl-mono tabular-nums py-1 text-pl-text">{pt.ppEmw != null ? pt.ppEmw.toFixed(2) : '—'}</TableCell>
-                          <TableCell className="text-[10px] font-pl-mono tabular-nums py-1 text-pl-text">{pt.fpEmw != null ? pt.fpEmw.toFixed(2) : '—'}</TableCell>
+                          <TableCell className="text-[10px] font-pl-mono tabular-nums py-1 text-pl-text">{pt.ppEmw != null ? pt.ppEmw.toFixed(2) : EMPTY_VALUE}</TableCell>
+                          <TableCell className="text-[10px] font-pl-mono tabular-nums py-1 text-pl-text">{pt.fpEmw != null ? pt.fpEmw.toFixed(2) : EMPTY_VALUE}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

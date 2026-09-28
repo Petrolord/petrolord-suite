@@ -24,8 +24,9 @@ import {
   depthToDisplay, depthFromDisplay, velocityDigits, densityDigits, velocityLabel, densityLabel,
   fmtVelocity, fmtDensity, tidyDepth,
 } from '../services/units';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
-const f4 = (v) => (Number.isFinite(v) ? v.toFixed(4) : '—');
+const f4 = (v) => (Number.isFinite(v) ? v.toFixed(4) : EMPTY_VALUE);
 
 const AXIS_TICK = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
 const AXIS_LINE = { stroke: CHART_COLORS.axisLine, strokeWidth: 1 };

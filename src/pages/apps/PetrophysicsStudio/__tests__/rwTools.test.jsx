@@ -9,6 +9,7 @@ import path from 'path';
 import { render, screen, fireEvent } from '@testing-library/react';
 import RwToolsDialog from '../components/RwToolsDialog';
 import { RW_METHOD_LABELS, FIELDS } from '../services/paramFields';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'packages', 'engines', 'test-data', 'petrophysics');
 const AC = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'analytic_cases.json'), 'utf8'));
@@ -61,7 +62,7 @@ describe('PT11a Rw tools SP route', () => {
     type('petro-rw-rmf', 8);
     type('petro-rw-tempc', 65);
     expect(screen.getByTestId('petro-rw-sp-problem').textContent).toMatch(/beyond the chart/);
-    expect(screen.getByTestId('petro-rw-sp-rw').textContent).toMatch(/Rw = —/);
+    expect(screen.getByTestId('petro-rw-sp-rw').textContent).toContain(`Rw = ${EMPTY_VALUE}`);
     expect(screen.getByTestId('petro-rw-sp-apply').disabled).toBe(true);
     fireEvent.click(screen.getByTestId('petro-rw-sp-apply'));
     expect(onApplyParams).not.toHaveBeenCalled();

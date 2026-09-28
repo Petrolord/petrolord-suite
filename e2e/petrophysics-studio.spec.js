@@ -11,6 +11,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import os from 'os';
 import { writeSyntheticScan, expectedValueAt, SCAN } from './helpers/syntheticScan.js';
+import { EMPTY_VALUE } from '../src/lib/emptyValue.js';
 
 // expected zone numbers come from the committed goldens, not hardcoded
 // literals — fixture regeneration cannot silently drift past this spec
@@ -570,7 +571,7 @@ test('PS9: field view compares wells side by side with the golden zone summaries
   const sandA = page.getByTestId('petro-field-zone-SAND A');
   await expect(sandA).toBeVisible();
   await expect(sandA).toContainText(`net ${goldenNet('SAND_A')} m`);
-  await expect(sandA).toContainText('—');
+  await expect(sandA).toContainText(EMPTY_VALUE);
   await expect(page.getByTestId('petro-field-zone-MAIN')).toContainText('net');
 
   // flatten on a top only KETA carries; the view survives (AKOMA draws

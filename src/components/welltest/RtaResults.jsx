@@ -7,6 +7,7 @@ import { CHART_COLORS, CHART_TYPOGRAPHY, PINNED_TOOLTIP_PROPS, LEGEND_PROPS, XAX
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { unitLabel, fromOilfield } from '@/utils/welltest/units';
 import { ChartCard, Kpi, LINE, WarningBanner, fmt, logTicks, logTickFormatter } from './primitives';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const axisProps = { stroke: CHART_COLORS.axisLine, tick: { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize } };
 // Pinned to the top-right corner of the plot (owner directive 2026-09-08).
@@ -25,7 +26,7 @@ const RtaResults = () => {
   // in-place volume display: MMSTB / Bcf in oilfield, MM m3 / 10^9 m3 in SI
   const inPlace = useMemo(() => {
     const fmbResult = rtaResult?.fmb;
-    if (!fmbResult) return { value: '—', unit: isGas ? 'Bcf' : 'MMSTB' };
+    if (!fmbResult) return { value: EMPTY_VALUE, unit: isGas ? 'Bcf' : 'MMSTB' };
     if (isGas) {
       return unitSystem === 'si'
         ? { value: fmt.f3((fmbResult.G * 28.3168466) / 1e9), unit: '10⁹ m³' }

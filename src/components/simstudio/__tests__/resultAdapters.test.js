@@ -2,6 +2,7 @@ import {
   availableFieldVectors, availableWellVectors, wellNames,
   fieldSeries, wellSeries, fmtElapsed,
 } from '../resultAdapters';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const SUMMARY = {
   opm_version: 'flow 2026.04',
@@ -43,5 +44,5 @@ test('wellSeries builds one row per day with a column per well', () => {
 test('fmtElapsed formats seconds and minutes', () => {
   expect(fmtElapsed(42)).toBe('42 s');
   expect(fmtElapsed(150)).toBe('2 min 30 s');
-  expect(fmtElapsed(null)).toBe('—');
+  expect(fmtElapsed(null)).toBe(EMPTY_VALUE);
 });

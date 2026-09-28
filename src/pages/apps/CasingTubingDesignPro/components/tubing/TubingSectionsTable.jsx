@@ -10,6 +10,7 @@ import CatalogBrowser from '../CatalogBrowser';
 import {
   findCatalogRow, catalogRatings, paToPsi, depthDisp, depthStore, depthLabel,
 } from '../../services/ctRun';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 const TubingSectionsTable = ({ stringId }) => {
   const { caseDoc, setStrings, depthUnit } = useCasingTubingDesign();
@@ -102,7 +103,7 @@ const TubingSectionsTable = ({ stringId }) => {
                     </button>
                   </TableCell>
                   <TableCell className="py-1 text-xs font-pl-mono tabular-nums text-pl-text text-right">
-                    {ratings ? Math.round(paToPsi(ratings.burstPa)).toLocaleString() : '—'}
+                    {ratings ? Math.round(paToPsi(ratings.burstPa)).toLocaleString() : EMPTY_VALUE}
                   </TableCell>
                   <TableCell className="py-1 text-right">
                     <Button variant="ghost" size="icon" className="h-6 w-6 text-pl-muted hover:text-pl-danger-text" onClick={() => deleteSection(sec.id)}>

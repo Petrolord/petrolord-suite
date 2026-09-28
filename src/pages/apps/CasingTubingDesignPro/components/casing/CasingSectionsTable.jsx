@@ -11,6 +11,7 @@ import CatalogBrowser from '../CatalogBrowser';
 import {
   findCatalogRow, catalogRatings, paToPsi, depthDisp, depthStore, depthLabel,
 } from '../../services/ctRun';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 // Section editor: depths are inline-editable (display unit), tubular
 // identity comes ONLY from the catalog browser — engine ratings render
@@ -128,10 +129,10 @@ const CasingSectionsTable = ({ stringId }) => {
                     </button>
                   </TableCell>
                   <TableCell className="py-1 text-xs font-pl-mono tabular-nums text-pl-text text-right">
-                    {ratings ? Math.round(paToPsi(ratings.burstPa)).toLocaleString() : '—'}
+                    {ratings ? Math.round(paToPsi(ratings.burstPa)).toLocaleString() : EMPTY_VALUE}
                   </TableCell>
                   <TableCell className="py-1 text-xs font-pl-mono tabular-nums text-pl-text text-right">
-                    {ratings ? Math.round(paToPsi(ratings.collapsePa)).toLocaleString() : '—'}
+                    {ratings ? Math.round(paToPsi(ratings.collapsePa)).toLocaleString() : EMPTY_VALUE}
                   </TableCell>
                   <TableCell className="py-1 text-right">
                     <Button variant="ghost" size="icon" className="h-6 w-6 text-pl-muted hover:text-pl-danger-text" onClick={() => deleteSection(sec.id)}>

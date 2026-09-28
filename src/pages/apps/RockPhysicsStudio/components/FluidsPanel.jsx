@@ -23,8 +23,9 @@ import {
   DEFAULT_UNITS, velocityToDisplay, velocityDigits, velocityLabel, densityLabel, depthLabel, depthToDisplay,
   fmtVelocity, fmtDensity, tidyDepth,
 } from '../services/units';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
-const gpa = (pa) => (Number.isFinite(pa) ? (pa / 1e9).toFixed(3) : '—');
+const gpa = (pa) => (Number.isFinite(pa) ? (pa / 1e9).toFixed(3) : EMPTY_VALUE);
 
 const AXIS_TICK = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
 const AXIS_LINE = { stroke: CHART_COLORS.axisLine, strokeWidth: 1 };
@@ -236,7 +237,7 @@ export default function FluidsPanel({
                     style={{ fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
                   />
                 </YAxis>
-                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => (Number.isFinite(v) ? v.toFixed(chartDigits) : '—')} labelFormatter={(v) => `${Number.isFinite(v) ? v.toFixed(1) : v} ${zU}`} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => (Number.isFinite(v) ? v.toFixed(chartDigits) : EMPTY_VALUE)} labelFormatter={(v) => `${Number.isFinite(v) ? v.toFixed(1) : v} ${zU}`} />
                 <Legend
                   {...LEGEND_PROPS}
                   verticalAlign="top"
