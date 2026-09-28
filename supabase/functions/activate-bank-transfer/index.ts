@@ -113,6 +113,20 @@ serve(async (req) => {
       if (rpcErr) {
         console.error("Provisioning error:", rpcErr);
         provisioningWarning = rpcErr.message;
+      } else if (sub.quote_id) {
+        // Give this quote's rows (new purchases and renewed held apps, which
+        // manual_verify_quote re-points at this quote) the same end date as
+        // the subscription activated above. Without it they were left NULL
+        // ("never expires"). Best-effort, like the provisioning call.
+        const { error: expErr } = await supabase
+          .from("purchased_modules")
+          .update({ expiry_date: end.toISOString() })
+          .eq("organization_id", orgId)
+          .eq("quote_id", sub.quote_id);
+        if (expErr) {
+          console.error("Expiry sync error:", expErr);
+          provisioningWarning = `Access granted but the end date was not set: ${expErr.message}`;
+        }
       }
     } else {
       provisioningWarning =

@@ -4,6 +4,7 @@ import { redeemBridgeForQuote } from "../_shared/nextgen-bridge.ts";
 import { isHseQuote, provisionPaidQuote } from "../_shared/provision-quote.ts";
 import { loadNgnPerUsd, expectedNgnForQuote, checkPaystackAmount } from "../_shared/paystack-ngn.ts";
 import { crypto } from "https://deno.land/std@0.177.0/crypto/mod.ts";
+import { subscriptionWindow } from "../_shared/billing-term.ts";
 const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
 Deno.serve(async (req)=>{
   if (req.method === 'OPTIONS') return new Response('ok', {
@@ -108,7 +109,7 @@ Deno.serve(async (req)=>{
         paystack_reference: reference,
         updated_at: new Date().toISOString()
       }).eq('quote_id', quote_id);
-      const { data: quote } = await supabase.from('quotes').select('organization_id').eq('quote_id', quote_id).maybeSingle();
+      const { data: quote } = await supabase.from('quotes').select('id, organization_id, billing_term, billing_period').eq('quote_id', quote_id).maybeSingle();
       if (quote?.organization_id) {
         await supabase.from('organizations').update({
           suite_status: 'ACTIVE'
@@ -120,6 +121,22 @@ Deno.serve(async (req)=>{
           p_organization_id: quote.organization_id
         });
         if (rpcErr) console.error('Webhook provisioning error:', rpcErr.message);
+        else {
+          // Give this quote's rows (new purchases and renewed held apps, which
+          // manual_verify_quote re-points at this quote) the end date paid for.
+          // Same window as verify-paystack-payment, so either order agrees.
+          // Best-effort: never fail the webhook.
+          try {
+            const { end } = subscriptionWindow(paid_at || new Date().toISOString(), quote.billing_term || 'annual', quote.billing_period);
+            const { error: expErr } = await supabase.from('purchased_modules')
+              .update({ expiry_date: end.toISOString() })
+              .eq('organization_id', quote.organization_id)
+              .eq('quote_id', quote.id);
+            if (expErr) console.error('Webhook expiry sync error:', expErr.message);
+          } catch (e) {
+            console.error('Webhook expiry sync error:', e.message);
+          }
+        }
       }
       // Burn the NextGen bridge code, if the quote carried one. Self-guarding
       // no-op otherwise (and idempotent against the verify path racing us).

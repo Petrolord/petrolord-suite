@@ -40,6 +40,39 @@ app_id)` without updating `quote_id`, and sets `expiry_date` from the quote.
 The paid-quote expiry sync in verify-paystack-payment / provision-quote then
 matches rows by the new `quote_id`, so renewed rows may not get the new
 subscription end date. Needs a migration (owner and second-engineer review).
+Traced and fixed on `fix/renewal-expiry-sync` (HELD, see the next section).
+
+## 2026-09-28: paid renewals and the purchased_modules end date (HELD)
+
+Trace against the live `manual_verify_quote` (identical to
+20260613141000) and origin/main functions. `quotes.expiry_date` is never
+written by generate-quote (0 of 6 live quotes have one), so the RPC always
+inserts or updates rows with `expiry_date = NULL`; the finalizers then set the
+real end date on rows `WHERE quote_id = <paid quote>`.
+
+- First purchase: rows are inserted with the new quote_id, so the sync in
+  verify-paystack-payment and provision-quote (Stripe) sets the end date.
+  Bank transfer (activate-bank-transfer) never set it: NULL. Paystack webhook
+  alone (payer never returns to the verify page) never set it: NULL. A webhook
+  arriving after the verify page re-ran the RPC and wiped the end date to NULL
+  (its idempotency check looks for payments.status 'COMPLETED', verify writes
+  'success').
+- Renewal of held apps: the ON CONFLICT branches kept the old quote_id and
+  wrote NULL, so the sync missed them. Held app rows and the module row ended
+  with expiry NULL, which usePurchasedModules and get-user-entitlements read as
+  "never expires"; only apps new on the renewal quote got the new date. The
+  subscriptions row is keyed by quote, so the new one has the right end_date.
+- Fix: migration 20260929130000 (ON CONFLICT sets quote_id to the paid quote
+  and keeps a known expiry when the quote's is NULL); paystack-webhook and
+  activate-bank-transfer now run the same end-date sync. Separate migration
+  20260929130100 revokes EXECUTE on the RPC from PUBLIC/anon/authenticated:
+  it is SECURITY DEFINER with no payment check, so a signed-in customer could
+  call it on their own unpaid quote.
+- Not changed (owner policy): a renewal's window starts at payment, so paying
+  early forfeits the days left on the old term; a shorter top-up quote for an
+  app in an already-held module moves the module row to the top-up's end date.
+- Dry run: `bash tools/validation/renewal-expiry/run.sh` (scratch postgres:16).
+
 
 ## 2026-09-28: account and billing pages on the design system (rollout 1E)
 
