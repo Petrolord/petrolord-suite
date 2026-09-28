@@ -22,9 +22,10 @@ import CoreImagesPanel from '@/components/wells/CoreImagesPanel';
 import { useScheme } from '@/lib/stratigraphy/scheme';
 import {
   makeDepthFrame, toStoredCheckshots, fromStoredCheckshots, rebaseStoredCheckshots,
-  makeCheckshotProvenance, LEGACY_CHECKSHOT_PROVENANCE, PETREL_CHECKSHOT_CONVENTION, M_PER_FT,
+  makeCheckshotProvenance, LEGACY_CHECKSHOT_PROVENANCE, PETREL_CHECKSHOT_CONVENTION,
 } from '../engine/checkshots';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { fmtDepth, editCell, parseDisplayed, unitText, toDisp } from '../engine/displayUnits';
 
 const TABS = ['Header', 'Logs', 'Tops', 'Intervals', 'Core', 'Deviation', 'Checkshots'];
 
@@ -72,7 +73,8 @@ export const WELL_STATUS_LABELS = Object.freeze({
   dry: 'Dry', injector_water: 'Water injector', injector_gas: 'Gas injector', suspended: 'Suspended', abandoned: 'Abandoned',
 });
 
-export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, onWellChanged, initialTab = null, appPaths = {} }) {
+export default function WellDetail({ backend, well, unit = 'm', onStatus, refreshNonce = 0, onWellChanged, initialTab = null, appPaths = {} }) {
+  const u = unitText(unit); // WDM-U2-001: every depth on screen reads in the display unit
   const [tab, setTab] = useState(() => TABS.find((t) => t.toLowerCase() === String(initialTab || '').toLowerCase()) || 'Header');
   // PT1 edit modes: one tab edits at a time; `editor` holds the draft
   const [editor, setEditor] = useState(null); // {tab, rows|fields, conv, mode:'grid'|'paste', pasted, error, busy}
@@ -153,7 +155,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
   }, [tops, frame]);
   const frameNote = frame.isVertical
     ? 'No deviation survey: the well is treated as vertical (MD = TVD, TVDSS = MD - KB).'
-    : `Converting through the ${frame.stations.length}-station survey and KB ${fmt(well.kb_m)} m${frame.assumedVerticalToFirstStation ? ' (vertical above the first station)' : ''}.`;
+    : `Converting through the ${frame.stations.length}-station survey and KB ${fmtDepth(well.kb_m, unit)} ${u}${frame.assumedVerticalToFirstStation ? ' (vertical above the first station)' : ''}.`;
 
   /** Re-express the grid rows when the user switches convention mid-edit. */
   const regridRows = (rows, from, to) => {
@@ -175,19 +177,19 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
           // NOT touched by the m/ft selector below (that is a depth unit).
           x: well.surface_x == null ? '' : numCell(Number(well.surface_x), 3),
           y: well.surface_y == null ? '' : numCell(Number(well.surface_y), 3),
-          kb: numCell(well.kb_m ?? 0, 3),
-          td: well.td_md_m == null ? '' : numCell(well.td_md_m, 2),
-          unit: 'm',
+          kb: editCell(well.kb_m ?? 0, unit, 3),
+          td: editCell(well.td_md_m, unit, 2),
+          unit: u,
         },
         error: null,
         busy: false });
     } else if (which === 'Tops') {
-      setEditor({ tab: 'Tops', mode: 'grid', conv: { mdUnit: 'm' }, pasted: null, error: null, busy: false,
-        rows: (tops || []).map((t) => ({ id: t.id, name: t.name, md: numCell(t.md_m, 2), interpreter: t.interpreter || '',
+      setEditor({ tab: 'Tops', mode: 'grid', unit: u, conv: { mdUnit: u }, pasted: null, error: null, busy: false,
+        rows: (tops || []).map((t) => ({ id: t.id, name: t.name, md: editCell(t.md_m, u, 2), interpreter: t.interpreter || '',
           surface_type: normalizeSurfaceType(t.surface_type), unit_id: t.unit_id || '', confidence: t.confidence || '', age_ma: t.age_ma == null ? '' : String(t.age_ma) })) });
     } else if (which === 'Deviation') {
-      setEditor({ tab: 'Deviation', mode: 'grid', conv: { mdUnit: 'm' }, pasted: null, error: null, busy: false,
-        rows: (well.deviation || []).map((d) => ({ md: numCell(d.md, 2), inc: numCell(d.inc, 2), azi: numCell(d.azi, 2) })) });
+      setEditor({ tab: 'Deviation', mode: 'grid', unit: u, conv: { mdUnit: u }, pasted: null, error: null, busy: false,
+        rows: (well.deviation || []).map((d) => ({ md: editCell(d.md, u, 2), origMd: d.md, inc: numCell(d.inc, 2), azi: numCell(d.azi, 2) })) });
     } else if (which === 'Checkshots') {
       const conv = (well.checkshots || []).length ? entered : { ...PETREL_CHECKSHOT_CONVENTION };
       const shown = (well.checkshots || []).length ? fromStoredCheckshots(well.checkshots, conv, frame) : [];
@@ -218,12 +220,11 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
         };
         const surfaceX = coord(f.x, 'Surface X');
         const surfaceY = coord(f.y, 'Surface Y');
-        const kbRaw = Number(f.kb);
-        if (!Number.isFinite(kbRaw)) throw new Error(`KB must be a number (${f.unit} above datum).`);
-        const kbM = f.unit === 'ft' ? kbRaw * M_PER_FT : kbRaw;
-        let tdMdM = f.td.trim() === '' ? null : Number(f.td);
+        // WDM-U2-001: an untouched KB or TD keeps its stored metres exactly
+        const kbM = parseDisplayed(f.kb, f.unit, well.kb_m ?? 0, 3);
+        if (!Number.isFinite(kbM)) throw new Error(`KB must be a number (${f.unit} above datum).`);
+        const tdMdM = f.td.trim() === '' ? null : parseDisplayed(f.td, f.unit, well.td_md_m, 2);
         if (tdMdM !== null && !(tdMdM > 0)) throw new Error(`TD must be a positive number (${f.unit} MD).`);
-        if (tdMdM !== null && f.unit === 'ft') tdMdM *= M_PER_FT;
         const patch = { surfaceX, surfaceY, kbM, tdMdM };
         let note = '';
         if ((well.checkshots || []).length && Math.abs(kbM - (well.kb_m ?? 0)) > 1e-9) {
@@ -248,7 +249,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
           stations = buildDeviation(editor.pasted.parsed.rows, editor.pasted.map, { mdUnit: editor.conv.mdUnit });
         } else {
           stations = editor.rows.filter((r) => String(r.md).trim() !== '' || String(r.inc).trim() !== '' || String(r.azi).trim() !== '')
-            .map((r) => ({ md: Number(r.md), inc: Number(r.inc), azi: Number(r.azi) }));
+            .map((r) => ({ md: parseDisplayed(r.md, editor.unit, r.origMd ?? null, 2), inc: Number(r.inc), azi: Number(r.azi) }));
         }
         const patch = { deviation: stations };
         let note = '';
@@ -299,14 +300,15 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
         for (let i = 0; i < wanted.length; i++) {
           const r = wanted[i];
           if (!String(r.name).trim()) throw new Error(`Row ${i + 1}: the top has no name.`);
-          if (!Number.isFinite(Number(r.md))) throw new Error(`Row ${i + 1}: MD "${r.md}" is not a number.`);
+          if (!Number.isFinite(Number(r.md)) || String(r.md).trim() === '') throw new Error(`Row ${i + 1}: MD "${r.md}" is not a number.`);
         }
         const before = tops || [];
         const keptIds = new Set(wanted.filter((r) => r.id).map((r) => r.id));
         for (const t of before) if (!keptIds.has(t.id)) await backend.deleteTop(t);
         let changed = 0;
         for (const r of wanted) {
-          const md = Number(r.md);
+          // WDM-U2-001: typed in the display unit; an untouched cell keeps its metres
+          const md = parseDisplayed(r.md, editor.unit, r.id ? before.find((t) => t.id === r.id)?.md_m ?? null : null, 2);
           const interpreter = String(r.interpreter || '').trim() || null;
           if (r.age_ma !== '' && r.age_ma != null && !Number.isFinite(Number(r.age_ma))) throw new Error(`"${r.name}": the age "${r.age_ma}" is not a number.`);
           const typed = {
@@ -447,26 +449,36 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                   data-testid="wdm-header-y" placeholder="blank = not set" />
               ) : fmt(well.surface_y)}
             </Field>
-            <Field label="KB (m)">
+            <Field label={`KB (${u})`}>
               {editor?.tab === 'Header' ? (
                 <span className="flex items-center gap-1">
                   <input className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs w-24"
                     value={editor.fields.kb} onChange={(e) => setEditor((ed) => ({ ...ed, fields: { ...ed.fields, kb: e.target.value } }))}
                     data-testid="wdm-header-kb" />
                   <select className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5 text-xs" value={editor.fields.unit}
-                    onChange={(e) => setEditor((ed) => ({ ...ed, fields: { ...ed.fields, unit: e.target.value } }))} data-testid="wdm-header-unit">
+                    onChange={(e) => {
+                      // PL3: switching the unit converts the typed values, it never relabels them
+                      const next = e.target.value;
+                      setEditor((ed) => {
+                        const conv = (txt, orig, d) => {
+                          const m = parseDisplayed(txt, ed.fields.unit, orig, d);
+                          return Number.isFinite(m) ? (Math.abs(m - (orig ?? NaN)) < 1e-12 ? editCell(orig, next, d) : String(Number(toDisp(m, next).toFixed(6)))) : txt;
+                        };
+                        return { ...ed, fields: { ...ed.fields, unit: next, kb: conv(ed.fields.kb, well.kb_m ?? 0, 3), td: conv(ed.fields.td, well.td_md_m, 2) } };
+                      });
+                    }} data-testid="wdm-header-unit">
                     <option value="m">m</option>
                     <option value="ft">ft</option>
                   </select>
                 </span>
-              ) : fmt(well.kb_m)}
+              ) : fmtDepth(well.kb_m, unit)}
             </Field>
-            <Field label="TD (m MD)">
+            <Field label={`TD (${u} MD)`}>
               {editor?.tab === 'Header' ? (
                 <input className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs w-24"
                   value={editor.fields.td} onChange={(e) => setEditor((ed) => ({ ...ed, fields: { ...ed.fields, td: e.target.value } }))}
                   data-testid="wdm-header-td" placeholder="blank = last station" />
-              ) : fmt(well.td_md_m)}
+              ) : fmtDepth(well.td_md_m, unit)}
             </Field>
             <Field label="CRS">
               <span className="flex items-center gap-2 flex-wrap">
@@ -563,8 +575,8 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                       <th className={thCls}>Plot</th>
                       <th className={thCls}>Mnemonic</th>
                       <th className={thCls}>Unit</th>
-                      <th className={thCls}>Interval (m MD)</th>
-                      <th className={thCls}>Step</th>
+                      <th className={thCls}>Interval ({u} MD)</th>
+                      <th className={thCls}>Step ({u})</th>
                       <th className={thCls}>Samples</th>
                       <th className={thCls}>Nulls</th>
                       <th className={thCls}>Source</th>
@@ -586,8 +598,8 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                           {log.mnemonic}
                         </td>
                         <td className={tdCls}>{log.unit || EMPTY_VALUE}</td>
-                        <td className={tdCls}>{fmt(log.start_md_m)} – {fmt(log.stop_md_m)}</td>
-                        <td className={tdCls}>{log.step_m == null ? 'irregular' : fmt(log.step_m, 3)}</td>
+                        <td className={tdCls}>{fmtDepth(log.start_md_m, unit)} – {fmtDepth(log.stop_md_m, unit)}</td>
+                        <td className={tdCls}>{log.step_m == null ? 'irregular' : fmtDepth(log.step_m, unit, 3)}</td>
                         <td className={tdCls}>{log.n_samples}</td>
                         <td className={tdCls}>{log.null_count}</td>
                         <td className={`${tdCls} text-pl-muted`}>{log.source_file || EMPTY_VALUE}</td>
@@ -625,7 +637,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                       loading curves…
                     </div>
                   )}
-                  <LogTracks tracks={tracks} />
+                  <LogTracks tracks={tracks} unit={unit} />
                 </div>
               )}
             </div>
@@ -645,7 +657,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
               <RowGridEditor testIdPrefix="wdm-tops" rows={editor.rows}
                 onChange={(rows) => setEditor((ed) => ({ ...ed, rows }))}
                 columns={[
-                  { key: 'name', label: 'Top', type: 'text', width: 160 }, { key: 'md', label: 'MD (m)', type: 'number' },
+                  { key: 'name', label: 'Top', type: 'text', width: 160 }, { key: 'md', label: `MD (${editor.unit})`, type: 'number' },
                   { key: 'surface_type', label: 'Type', type: 'select', width: 150, options: SURFACE_TYPES.map((t) => ({ value: t.code, label: displayLabel(t.code, scheme, { kind: 'surface', short: true }).label + (displayLabel(t.code, scheme, { kind: 'surface' }).fallback ? ' (Catuneanu)' : '') })) },
                   { key: 'unit_id', label: 'Unit', type: 'select', width: 150, placeholder: 'none', options: units.map((u) => ({ value: u.id, label: `${u.name} (${u.rank})` })) },
                   { key: 'confidence', label: 'Confidence', type: 'select', width: 90, placeholder: 'not stated', options: [{ value: 'high', label: 'high' }, { value: 'medium', label: 'medium' }, { value: 'low', label: 'low' }] },
@@ -672,9 +684,9 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                 <thead>
                   <tr>
                     <th className={thCls}>Top</th>
-                    <th className={thCls}>MD (m)</th>
-                    <th className={thCls} title="True vertical depth below KB, through the deviation survey">TVD (m)</th>
-                    <th className={thCls} title="True vertical depth below datum (TVD minus KB)">TVDSS (m)</th>
+                    <th className={thCls}>MD ({u})</th>
+                    <th className={thCls} title="True vertical depth below KB, through the deviation survey">TVD ({u})</th>
+                    <th className={thCls} title="True vertical depth below datum (TVD minus KB)">TVDSS ({u})</th>
                     <th className={thCls}>Type</th>
                     <th className={thCls}>Unit</th>
                     <th className={thCls}>Confidence</th>
@@ -687,9 +699,9 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                   {tops.map((t) => (
                     <tr key={t.id} data-testid="wdm-top-row">
                       <td className={`${tdCls} text-pl-text`}>{t.name}</td>
-                      <td className={tdCls}>{fmt(t.md_m)}</td>
-                      <td className={tdCls} data-testid={`wdm-top-tvd-${t.name}`}>{fmt(topDepths.get(t.id)?.tvd)}{topDepths.get(t.id)?.extrapolated ? ' †' : ''}</td>
-                      <td className={tdCls} data-testid={`wdm-top-tvdss-${t.name}`}>{fmt(topDepths.get(t.id)?.tvdss)}{topDepths.get(t.id)?.extrapolated ? ' †' : ''}</td>
+                      <td className={tdCls} data-testid={`wdm-top-md-${t.name}`}>{fmtDepth(t.md_m, unit)}</td>
+                      <td className={tdCls} data-testid={`wdm-top-tvd-${t.name}`}>{fmtDepth(topDepths.get(t.id)?.tvd, unit)}{topDepths.get(t.id)?.extrapolated ? ' †' : ''}</td>
+                      <td className={tdCls} data-testid={`wdm-top-tvdss-${t.name}`}>{fmtDepth(topDepths.get(t.id)?.tvdss, unit)}{topDepths.get(t.id)?.extrapolated ? ' †' : ''}</td>
                       <td className={tdCls} data-testid={`wdm-top-type-${t.name}`} title={displayLabel(normalizeSurfaceType(t.surface_type), scheme, { kind: 'surface' }).label}>
                         {displayLabel(normalizeSurfaceType(t.surface_type), scheme, { kind: 'surface', short: true }).label}
                         {displayLabel(normalizeSurfaceType(t.surface_type), scheme, { kind: 'surface' }).fallback ? <span className="ml-1 text-[10px] text-pl-warning-text" title="No Exxon term; Catuneanu name shown">C</span> : null}
@@ -750,7 +762,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
             {editor.mode === 'grid' ? (
               <RowGridEditor testIdPrefix="wdm-deviation" rows={editor.rows}
                 onChange={(rows) => setEditor((ed) => ({ ...ed, rows }))}
-                columns={[{ key: 'md', label: 'MD (m)', type: 'number' }, { key: 'inc', label: 'Inc (°)', type: 'number' }, { key: 'azi', label: 'Azi (°)', type: 'number' }]} />
+                columns={[{ key: 'md', label: `MD (${editor.unit})`, type: 'number' }, { key: 'inc', label: 'Inc (°)', type: 'number' }, { key: 'azi', label: 'Azi (°)', type: 'number' }]} />
             ) : (
               <PasteReplacePanel kind="deviation" fields={DEVIATION_PASTE_FIELDS} labels={{ md: `MD (${editor.conv.mdUnit})`, inc: 'Inclination (°)', azi: 'Azimuth (°)' }}
                 convention={editor.conv} onConvention={(c) => setEditor((ed) => ({ ...ed, conv: c }))}
@@ -775,7 +787,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
             <table className="text-xs">
               <thead>
                 <tr>
-                  <th className={thCls}>MD (m)</th>
+                  <th className={thCls}>MD ({u})</th>
                   <th className={thCls}>Inc (°)</th>
                   <th className={thCls}>Azi (°)</th>
                 </tr>
@@ -783,7 +795,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
               <tbody>
                 {well.deviation.map((s) => (
                   <tr key={s.md}>
-                    <td className={tdCls}>{fmt(s.md)}</td>
+                    <td className={tdCls}>{fmtDepth(s.md, unit)}</td>
                     <td className={tdCls}>{fmt(s.inc)}</td>
                     <td className={tdCls}>{fmt(s.azi)}</td>
                   </tr>
@@ -793,7 +805,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
           ) : (
             <p className="text-xs text-pl-muted">
               No deviation survey, so this well is treated as vertical
-              {well.td_md_m ? ` to TD ${fmt(well.td_md_m)} m` : ''}.
+              {well.td_md_m ? ` to TD ${fmtDepth(well.td_md_m, unit)} ${u}` : ''}.
             </p>
           )
         )}

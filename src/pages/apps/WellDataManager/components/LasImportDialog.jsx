@@ -29,6 +29,7 @@ import { topsFromLasBlocks } from '../engine/lasTops';
 import { isDepthAlias } from '../engine/lasIndex';
 import { crsUnit } from '@/lib/crs';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { editCell, fromDisp, fmtDepth, unitText } from '../engine/displayUnits';
 
 const inputCls = 'rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs w-full';
 const thCls = 'text-left font-medium text-pl-muted pr-3 pb-1';
@@ -61,7 +62,8 @@ const emptyHeader = { name: '', uwi: '', x: '', y: '', kb: '', td: '', crs: '' }
  * @param {?string} [p.initialTargetId] well selected in the tree; when it
  *   is one of the caller's own wells the wizard targets it by default
  */
-export default function LasImportDialog({ open, onOpenChange, backend, wells, onDone, initialTargetId = null }) {
+export default function LasImportDialog({ open, onOpenChange, backend, wells, onDone, initialTargetId = null, unit = 'm' }) {
+  const u = unitText(unit); // WDM-U2-001: KB and TD typed in the display unit
   const { crsContext, commitAutoSetProject } = useCrsContext();
   const [crsTag, setCrsTag] = useState(null);
   const [lasIntervals, setLasIntervals] = useState(null);      // ST1 {intervals, skipped} from the LAS 3.0 blocks
@@ -162,8 +164,8 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
         uwi: s.uwi || '',
         x: s.surfaceX != null ? String(s.surfaceX) : '',
         y: s.surfaceY != null ? String(s.surfaceY) : '',
-        kb: s.kbM != null ? String(Number(s.kbM.toFixed(3))) : '',
-        td: s.tdMdM != null ? String(Number(s.tdMdM.toFixed(2))) : '',
+        kb: s.kbM != null ? editCell(s.kbM, u, 3) : '',
+        td: s.tdMdM != null ? editCell(s.tdMdM, u, 2) : '',
         crs: '',
       });
     } catch (err) {
@@ -196,10 +198,10 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
           throw new Error('Enter the surface X and Y in the coordinate system chosen below '
             + '(this file does not carry them).');
         }
-        const kbM = head.kb.trim() === '' ? 0 : Number(head.kb);
-        if (!Number.isFinite(kbM)) throw new Error('KB must be a number (metres above datum).');
-        const tdMdM = head.td.trim() === '' ? null : Number(head.td);
-        if (tdMdM !== null && !(tdMdM > 0)) throw new Error('TD must be a positive number (m MD).');
+        const kbM = head.kb.trim() === '' ? 0 : fromDisp(head.kb, u);
+        if (!Number.isFinite(kbM)) throw new Error(`KB must be a number (${u} above datum).`);
+        const tdMdM = head.td.trim() === '' ? null : fromDisp(head.td, u);
+        if (tdMdM !== null && !(tdMdM > 0)) throw new Error(`TD must be a positive number (${u} MD).`);
         // Structured placement: declared CRS -> Project CRS (Phase 4).
         const placed = placeWellLocation(
           {
@@ -371,8 +373,8 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
               <p className="text-xs text-pl-muted" data-testid="wdm-las-summary">
                 LAS {parsed.meta.version}{String(parsed.meta.wrap).toUpperCase() === 'YES' ? ', wrapped' : ''} · depth in{' '}
                 {prep.depthUnit}{prep.depthFactor !== 1 ? ` → m (×${prep.depthFactor})` : ' (m)'} ·{' '}
-                {prep.startMdM?.toFixed(1)}–{prep.stopMdM?.toFixed(1)} m ·{' '}
-                {prep.stepM == null ? 'irregular step' : `step ${prep.stepM.toFixed(3)} m`} ·{' '}
+                {fmtDepth(prep.startMdM, u)}–{fmtDepth(prep.stopMdM, u)} {u} ·{' '}
+                {prep.stepM == null ? 'irregular step' : `step ${fmtDepth(prep.stepM, u, 3)} ${u}`} ·{' '}
                 {prep.logs.length - 1} curve{prep.logs.length - 1 === 1 ? '' : 's'}
                 {parsed.meta.version >= 3 && parsed.meta.delimiter && parsed.meta.delimiter !== 'space' ? ` · ${parsed.meta.delimiter}-delimited` : ''}
               </p>
@@ -516,10 +518,10 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
                     <input className={inputCls} value={head.y} onChange={setHeadField('y')} data-testid="wdm-las-y"
                       title="Northing in the coordinate system chosen below" />
                   </HeadField>
-                  <HeadField label="KB (m above datum)">
+                  <HeadField label={`KB (${u} above datum)`}>
                     <input className={inputCls} value={head.kb} onChange={setHeadField('kb')} data-testid="wdm-las-kb" />
                   </HeadField>
-                  <HeadField label="TD (m MD)">
+                  <HeadField label={`TD (${u} MD)`}>
                     <input className={inputCls} value={head.td} onChange={setHeadField('td')} data-testid="wdm-las-td" />
                   </HeadField>
                   <HeadField label="X and Y are in">

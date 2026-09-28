@@ -13,8 +13,9 @@ import {
   ContextMenuSeparator,
 } from '@/components/ui/context-menu';
 import { OpenInAppSubmenu } from '@/components/wells/OpenInAppMenu';
+import { toDisp, unitText } from '../engine/displayUnits';
 
-function Row({ well, selected, busy, appPaths, onSelect, onShareToggle, onDelete }) {
+function Row({ well, selected, busy, appPaths, unit, onSelect, onShareToggle, onDelete }) {
   const shared = !!well.organization_id;
   const row = (
     <div
@@ -44,7 +45,7 @@ function Row({ well, selected, busy, appPaths, onSelect, onShareToggle, onDelete
       </span>
       <span className="ml-auto shrink-0 pl-2 text-[11px] text-pl-muted whitespace-nowrap">
         {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin inline" />
-          : (well.td_md_m ? `TD ${Math.round(well.td_md_m)} m` : '')}
+          : (well.td_md_m ? `TD ${Math.round(toDisp(well.td_md_m, unit))} ${unitText(unit)}` : '')}
       </span>
     </div>
   );
@@ -80,7 +81,7 @@ function Row({ well, selected, busy, appPaths, onSelect, onShareToggle, onDelete
  * @param {string} p.search
  */
 export default function WellsTree({
-  wells, total, search, onSearch, selectedId, busyId, appPaths,
+  wells, total, search, onSearch, selectedId, busyId, appPaths, unit = 'm',
   onSelect, onShareToggle, onDelete, onImportLas, onAddWell, onExportPackage, onImportPackage,
 }) {
   return (
@@ -152,6 +153,7 @@ export default function WellsTree({
             selected={w.id === selectedId}
             busy={w.id === busyId}
             appPaths={appPaths}
+            unit={unit}
             onSelect={onSelect}
             onShareToggle={onShareToggle}
             onDelete={onDelete}

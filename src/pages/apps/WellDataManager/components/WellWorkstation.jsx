@@ -5,7 +5,7 @@
 // backend so the /dev harness runs the identical app on
 // makeInMemoryBackend with no auth or DB (the harness philosophy).
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Database, Loader2, Map as MapIcon, CircleDot } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
@@ -20,6 +20,8 @@ import AddWellDialog from './AddWellDialog';
 import DeleteWellDialog from './DeleteWellDialog';
 import PackageExportDialog from '@/components/portability/PackageExportDialog';
 import PackageImportDialog from '@/components/portability/PackageImportDialog';
+import { AuthContext } from '@/contexts/SupabaseAuthContext';
+import { readDisplayUnit, writeDisplayUnit, unitText } from '../engine/displayUnits';
 
 /** @param {Object} [p.appPaths] route overrides for the "Open in" launchers
  *  (the harness points them at the other /dev harnesses) */
@@ -41,6 +43,11 @@ export default function WellWorkstation({ backend, appPaths = {} }) {
   const [detailNonce, setDetailNonce] = useState(0); // reload the detail view after an import into the selected well
   const [deleting, setDeleting] = useState(null); // well pending delete confirm
   const [orgId, setOrgId] = useState(undefined);  // undefined = resolving
+  // WDM-U2-001: display depth unit, remembered per user on this device
+  const userId = useContext(AuthContext)?.user?.id || null;
+  const [unit, setUnitState] = useState(() => readDisplayUnit(userId));
+  useEffect(() => { setUnitState(readDisplayUnit(userId)); }, [userId]);
+  const setUnit = (u) => { setUnitState(u); writeDisplayUnit(userId, u); };
 
   const refresh = useCallback(async () => {
     try {
@@ -171,6 +178,14 @@ export default function WellWorkstation({ backend, appPaths = {} }) {
           <CircleDot className="w-3.5 h-3.5" /> {selected ? selected.name : 'Well'}
         </button>
         <OpenInAppMenu wellIds={selectedId ? [selectedId] : []} paths={appPaths} testIdPrefix="wdm" disabled={!selected} />
+        <label className="flex items-center gap-1 text-[11px] text-pl-muted" title="Depth unit for every table, editor, plot and export. The registry stores metres.">
+          Depths in
+          <select className="rounded border border-pl-border bg-pl-surface text-pl-text px-1 py-0.5 text-xs" value={unit}
+            onChange={(e) => setUnit(e.target.value)} data-testid="wdm-units">
+            <option value="m">metres</option>
+            <option value="ft">feet</option>
+          </select>
+        </label>
         <ThemeToggle />
       </div>
     </div>
@@ -187,7 +202,7 @@ export default function WellWorkstation({ backend, appPaths = {} }) {
         {list.length} well{list.length === 1 ? '' : 's'}
         {orgId === null ? ' · no organization' : ''}
       </span>
-      <span className="whitespace-nowrap text-pl-muted">SI internal (m)</span>
+      <span className="whitespace-nowrap text-pl-muted" data-testid="wdm-status-units">Depths in {unitText(unit)} (stored in m)</span>
     </div>
   );
 
@@ -202,7 +217,7 @@ export default function WellWorkstation({ backend, appPaths = {} }) {
           <WellsMap wells={list} selectedId={selectedId} onSelect={select} />
         </div>
       ) : (
-        <WellDetail backend={backend} well={selected} onStatus={setStatus} refreshNonce={detailNonce}
+        <WellDetail backend={backend} well={selected} unit={unit} onStatus={setStatus} refreshNonce={detailNonce}
           onWellChanged={onWellChanged} appPaths={appPaths} initialTab={deepLinkRef.current.well === selected.id ? deepLinkRef.current.tab : null} />
       )}
     </div>
@@ -218,6 +233,7 @@ export default function WellWorkstation({ backend, appPaths = {} }) {
           <WellsTree
             wells={filtered}
             total={list.length}
+            unit={unit}
             search={search}
             onSearch={setSearch}
             selectedId={selectedId}
@@ -241,6 +257,7 @@ export default function WellWorkstation({ backend, appPaths = {} }) {
         backend={backend}
         wells={list}
         initialTargetId={selectedId}
+        unit={unit}
         onDone={onImported}
       />
       <AddWellDialog
