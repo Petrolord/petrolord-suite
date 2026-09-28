@@ -14,6 +14,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Helmet } from 'react-helmet';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { Loader2, AlertTriangle, Building2, Users, ShieldCheck, Eye, LogIn, Trash2, Power, Edit, Search, FileDown, Plus, Lock, ArrowLeft } from 'lucide-react';
+import { AccountScope, AccountPage, AccountHeader } from '@/components/account/accountChrome';
 import AddAppModal from '@/components/AddAppModal';
 import EmergencyAccessModal from '@/components/EmergencyAccessModal';
 import { useNavigate } from 'react-router-dom'; // Import useNavigate
@@ -177,11 +178,6 @@ const SuperAdminConsoleContent = () => {
       setIsEntitlementModalOpen(true);
   };
 
-  const handleBackToDashboard = () => {
-    console.log("SuperAdminConsole: Navigating back to dashboard");
-    navigate('/dashboard');
-  };
-
   // Render Helpers
   const renderOrganizations = () => (
     <div className="space-y-4">
@@ -189,7 +185,7 @@ const SuperAdminConsoleContent = () => {
             <TableHeader>
                 <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead className="text-white">Type</TableHead> {/* Task 2: Update column header */}
+                    <TableHead>Type</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Apps</TableHead>
                     <TableHead>Actions</TableHead>
@@ -200,15 +196,14 @@ const SuperAdminConsoleContent = () => {
                     <TableRow key={org.id}>
                         <TableCell className="font-medium">{org.name}</TableCell>
                         <TableCell>
-                            {/* Task 3: Apply white text color to cell content */}
-                            <Badge variant="outline" className="text-white">
+                            <Badge variant="outline">
                                 {org.org_type || 'customer'}
                             </Badge>
                         </TableCell>
                         <TableCell>
-                            <span className={`px-2 py-1 rounded text-xs ${org.subscription_status === 'active' ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'}`}>
+                            <Badge variant={org.subscription_status === 'active' ? 'success' : 'danger'}>
                                 {org.subscription_status}
-                            </span>
+                            </Badge>
                         </TableCell>
                         <TableCell>{org.organization_apps?.length || 0} Apps</TableCell>
                         <TableCell className="flex gap-2">
@@ -222,14 +217,14 @@ const SuperAdminConsoleContent = () => {
                                 setSelectedOrg(org);
                                 setIsEmergencyModalOpen(true);
                             }} title="Grant Emergency Access">
-                                <ShieldCheck className="w-4 h-4 text-amber-500" />
+                                <ShieldCheck className="w-4 h-4 text-pl-warning-text" />
                             </Button>
                             {org.subscription_status === 'active' ? (
-                                <Button size="sm" variant="outline" className="text-amber-500 border-amber-900" onClick={() => handleSuspendOrg(org.id, 'suspend')} title="Suspend">
+                                <Button size="sm" variant="outline" className="text-pl-warning-text border-pl-warning/40" onClick={() => handleSuspendOrg(org.id, 'suspend')} title="Suspend">
                                     <Power className="w-4 h-4" />
                                 </Button>
                             ) : (
-                                <Button size="sm" variant="outline" className="text-green-500 border-green-900" onClick={() => handleSuspendOrg(org.id, 'reactivate')} title="Reactivate">
+                                <Button size="sm" variant="outline" className="text-pl-success-text border-pl-success/40" onClick={() => handleSuspendOrg(org.id, 'reactivate')} title="Reactivate">
                                     <Power className="w-4 h-4" />
                                 </Button>
                             )}
@@ -245,28 +240,27 @@ const SuperAdminConsoleContent = () => {
                 ))}
             </TableBody>
         </Table>
-        {console.log('Organizations table: Type column text color applied - white')} {/* Task 5: Add console log */}
 
         {/* Entitlements Modal */}
         <Dialog open={isEntitlementModalOpen} onOpenChange={setIsEntitlementModalOpen}>
-            <DialogContent className="max-w-3xl bg-slate-900 text-white border-slate-800">
+            <DialogContent className="max-w-3xl">
                 <DialogHeader>
                     <DialogTitle>Edit Entitlements: {selectedOrg?.name}</DialogTitle>
-                    <DialogDescription className="text-slate-400">
+                    <DialogDescription>
                         {selectedOrg && getEntitlementMessage(selectedOrg.org_type || 'customer')}
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
-                    {entitlements.length === 0 && <p className="text-sm text-slate-500 italic">No active entitlements.</p>}
+                    {entitlements.length === 0 && <p className="text-sm text-pl-muted italic">No active entitlements.</p>}
                     
                     {entitlements.map((ent, idx) => {
                         const appName = masterApps.find(a => a.app_id === ent.app_id)?.name || ent.app_id;
                         
                         return (
-                        <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-slate-800/50 p-2 rounded">
-                            <div className="col-span-4 text-sm font-medium">{appName}</div>
-                            <div className="col-span-3">
-                                <label className="text-xs text-slate-500">Seats</label>
+                        <div key={idx} className="grid grid-cols-12 gap-2 items-center rounded-md border border-pl-border bg-pl-sunken p-2">
+                            <div className="col-span-12 sm:col-span-4 text-sm font-medium text-pl-text">{appName}</div>
+                            <div className="col-span-6 sm:col-span-3">
+                                <label className="text-xs text-pl-muted">Seats</label>
                                 <Input 
                                     type="number" 
                                     value={ent.seats_allocated} 
@@ -275,12 +269,12 @@ const SuperAdminConsoleContent = () => {
                                         newEnts[idx].seats_allocated = parseInt(e.target.value);
                                         setEntitlements(newEnts);
                                     }}
-                                    className="bg-slate-950 h-8" 
+                                    className="h-8" 
                                     disabled={selectedOrg?.org_type === 'partner' || selectedOrg?.org_type === 'consultant'}
                                 />
                             </div>
-                            <div className="col-span-3">
-                                <label className="text-xs text-slate-500">Status</label>
+                            <div className="col-span-6 sm:col-span-3">
+                                <label className="text-xs text-pl-muted">Status</label>
                                 <Select 
                                     value={ent.status} 
                                     onValueChange={(val) => {
@@ -290,7 +284,7 @@ const SuperAdminConsoleContent = () => {
                                     }}
                                     disabled={selectedOrg?.org_type === 'partner' || selectedOrg?.org_type === 'consultant'}
                                 >
-                                    <SelectTrigger className="bg-slate-950 h-8"><SelectValue /></SelectTrigger>
+                                    <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="active">Active</SelectItem>
                                         <SelectItem value="inactive">Inactive</SelectItem>
@@ -298,7 +292,7 @@ const SuperAdminConsoleContent = () => {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div className="col-span-2 flex justify-end">
+                            <div className="hidden sm:flex sm:col-span-2 justify-end">
                             </div>
                         </div>
                     )})}
@@ -307,7 +301,7 @@ const SuperAdminConsoleContent = () => {
                         <Button 
                             variant="outline" 
                             onClick={() => setIsAddAppModalOpen(true)}
-                            className="w-full border-dashed border-slate-700 text-slate-400 hover:text-white"
+                            className="w-full border-dashed"
                         >
                             <Plus className="w-4 h-4 mr-2" /> Add Application (Internal/Sandbox)
                         </Button>
@@ -315,7 +309,7 @@ const SuperAdminConsoleContent = () => {
                 </div>
                 <DialogFooter>
                     <Button variant="ghost" onClick={() => setIsEntitlementModalOpen(false)}>Cancel</Button>
-                    <Button onClick={handleUpdateEntitlements} className="bg-emerald-600 hover:bg-emerald-700 text-white">Save Changes</Button>
+                    <Button onClick={handleUpdateEntitlements}>Save Changes</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -346,10 +340,10 @@ const SuperAdminConsoleContent = () => {
 
         {/* Delete Modal */}
         <Dialog open={isDeleteOrgModalOpen} onOpenChange={setIsDeleteOrgModalOpen}>
-            <DialogContent className="bg-slate-900 text-white border-red-900">
+            <DialogContent className="border-pl-danger/40">
                 <DialogHeader>
-                    <DialogTitle className="text-red-500 flex items-center gap-2"><AlertTriangle /> Danger Zone</DialogTitle>
-                    <DialogDescription className="text-slate-400">
+                    <DialogTitle className="text-pl-danger-text flex items-center gap-2"><AlertTriangle aria-hidden="true" /> Danger Zone</DialogTitle>
+                    <DialogDescription>
                         This action is irreversible. It will delete the organization, all users, data, and access logs.
                         Please type <strong>{selectedOrg?.name}</strong> to confirm.
                     </DialogDescription>
@@ -357,7 +351,7 @@ const SuperAdminConsoleContent = () => {
                 <Input 
                     value={deleteConfirmation}
                     onChange={(e) => setDeleteConfirmation(e.target.value)}
-                    className="bg-slate-950 border-red-900 text-white"
+                    className="border-pl-danger/60"
                     placeholder="Type organization name"
                 />
                 <DialogFooter>
@@ -399,18 +393,18 @@ const SuperAdminConsoleContent = () => {
 
   const renderAudit = () => (
       <div className="space-y-4">
-          <div className="flex gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
               <div className="relative flex-1">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-500" />
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-pl-muted" aria-hidden="true" />
                   <Input 
                     placeholder="Search logs..." 
-                    className="pl-8 bg-slate-900 border-slate-800"
+                    className="pl-8"
                     value={auditSearch}
                     onChange={(e) => setAuditSearch(e.target.value)}
                   />
               </div>
               <Select value={auditActionFilter} onValueChange={setAuditActionFilter}>
-                <SelectTrigger className="w-48 bg-slate-900 border-slate-800"><SelectValue placeholder="Action Type" /></SelectTrigger>
+                <SelectTrigger className="w-full sm:w-48"><SelectValue placeholder="Action Type" /></SelectTrigger>
                 <SelectContent>
                     <SelectItem value="all">All Actions</SelectItem>
                     <SelectItem value="impersonation">Impersonation</SelectItem>
@@ -454,21 +448,21 @@ const SuperAdminConsoleContent = () => {
                     })
                     .map(log => (
                       <TableRow key={log.id}>
-                          <TableCell className="text-xs text-slate-400 whitespace-nowrap">
+                          <TableCell className="text-xs text-pl-muted whitespace-nowrap">
                               {new Date(log.timestamp || log.created_at).toLocaleString()}
                           </TableCell>
                           <TableCell>{log.super_admin?.email || 'System'}</TableCell>
                           <TableCell>
-                              <Badge variant="outline" className={
-                                  (log.action === 'super_admin_grant_access' && log.details?.grant_type === 'emergency') ? 'border-red-500 text-red-500' : 
-                                  log.action.includes('impersonation') || log.action.includes('START') ? 'border-amber-500 text-amber-500' : 'border-slate-500'
+                              <Badge variant={
+                                  (log.action === 'super_admin_grant_access' && log.details?.grant_type === 'emergency') ? 'danger' :
+                                  log.action.includes('impersonation') || log.action.includes('START') ? 'warning' : 'outline'
                               }>{log.action}</Badge>
                           </TableCell>
-                          <TableCell className="max-w-md text-xs font-mono text-slate-500">
+                          <TableCell className="max-w-md text-xs font-pl-mono text-pl-muted">
                              {/* Enhanced Details Rendering */}
                              <div className="truncate" title={JSON.stringify(log.details, null, 2)}>
                                  {log.details?.reason ? (
-                                     <span className="text-white">Reason: {log.details.reason} | </span>
+                                     <span className="text-pl-text">Reason: {log.details.reason} | </span>
                                  ) : null}
                                  {log.details?.app_id ? (
                                      <span>App: {log.details.app_id} | </span>
@@ -496,44 +490,33 @@ const SuperAdminConsoleContent = () => {
   );
 
   return (
-    <div className="p-6 space-y-8 bg-slate-950 min-h-screen text-white">
+    <AccountPage width="max-w-7xl">
       <Helmet><title>Super Admin Console</title></Helmet>
-      
-      <div className="flex justify-between items-center mb-6">
-        {/* Task 1: Add Back to Dashboard button */}
-        <Button 
-          variant="ghost" 
-          onClick={handleBackToDashboard} 
-          className="text-slate-400 hover:text-white hover:bg-slate-800/50 flex items-center gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back to Dashboard
-        </Button>
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            onClick={() => navigate('/admin/promo-codes')}
-            className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800"
-          >
+
+      <AccountHeader
+        eyebrow="Admin"
+        title="Super Admin Console"
+        description="Platform management and audit."
+        backTo="/dashboard"
+        backLabel="Back to Dashboard"
+        actions={(
+          <Button variant="outline" onClick={() => navigate('/admin/promo-codes')}>
             Promo Codes
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Super Admin Console</h1>
-            <p className="text-slate-400 mt-1">Platform management and audit.</p>
-          </div>
-        </div>
-      </div>
+        )}
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
-        <TabsList className="bg-slate-900 border border-slate-800">
+        <TabsList className="flex h-auto w-full flex-wrap justify-start sm:w-auto">
           <TabsTrigger value="organizations" className="flex items-center gap-2"><Building2 className="h-4 w-4" /> Organizations</TabsTrigger>
           <TabsTrigger value="members" className="flex items-center gap-2"><Users className="h-4 w-4" /> Members</TabsTrigger>
           <TabsTrigger value="audit" className="flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> Audit Log</TabsTrigger>
         </TabsList>
 
-        <Card className="bg-slate-900 border-slate-800 text-white shadow-lg min-h-[500px]">
-            <CardContent className="p-6">
+        <Card className="min-h-[500px]">
+            <CardContent className="p-4 sm:p-6">
                 {loading ? (
-                    <div className="flex justify-center py-20"><Loader2 className="animate-spin h-8 w-8 text-emerald-500" /></div>
+                    <div className="flex justify-center py-20"><Loader2 className="animate-spin h-8 w-8 text-pl-primary" aria-label="Loading" /></div>
                 ) : (
                     <>
                         {activeTab === 'organizations' && renderOrganizations()}
@@ -544,14 +527,16 @@ const SuperAdminConsoleContent = () => {
             </CardContent>
         </Card>
       </Tabs>
-    </div>
+    </AccountPage>
   );
 };
 
 const SuperAdminConsole = () => (
-  <ErrorBoundary>
-    <SuperAdminConsoleContent />
-  </ErrorBoundary>
+  <AccountScope testId="super-admin-theme-scope">
+    <ErrorBoundary>
+      <SuperAdminConsoleContent />
+    </ErrorBoundary>
+  </AccountScope>
 );
 
 export default SuperAdminConsole;

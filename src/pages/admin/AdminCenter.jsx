@@ -15,12 +15,16 @@ import {
     Gamepad2, Award, TrendingUp, Sparkles, Terminal, Beaker, PlayCircle, 
     CheckCircle2, GitMerge, Database, Package
 } from 'lucide-react';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { AccountScope } from '@/components/account/accountChrome';
 
 // Admin Tools
 const AdminModuleAccessDiagnostics = lazy(() => import('@/pages/admin/AdminModuleAccessDiagnostics'));
 const MasterAppsManager = lazy(() => import('@/components/admin/MasterAppsManager'));
 const BuildHistoryAdmin = lazy(() => import('@/pages/admin/BuildHistoryAdmin')); // New Component
-const AdminSeedApps = lazy(() => import('@/pages/admin/AdminSeedApps'));
+// The seeder panel only: the Admin centre is already the theme scope, so it
+// skips the standalone page's own scope and header.
+const AdminSeedApps = lazy(() => import('@/pages/admin/AdminSeedApps').then((m) => ({ default: m.AdminSeedAppsPanel })));
 
 // Lazy load other components... (Keeping existing imports)
 // ... [Existing Lazy Imports from previous codebase] ...
@@ -55,7 +59,7 @@ const AdminCenter = () => {
 
     const NavSection = ({ title, children }) => (
         <div className="mb-4">
-            <div className="px-2 text-[10px] uppercase text-slate-500 font-bold mb-1 tracking-wider">{title}</div>
+            <div className="px-2 text-[10px] uppercase text-pl-muted font-bold mb-1 tracking-wider">{title}</div>
             <div className="space-y-0.5">
                 {children}
             </div>
@@ -63,28 +67,34 @@ const AdminCenter = () => {
     );
 
     return (
-        <div className="flex h-screen w-full bg-slate-950 text-white font-sans">
-            {/* Mobile Sidebar Trigger */}
-            <div className="md:hidden fixed top-4 left-4 z-50">
+        <AccountScope testId="admin-center-theme-scope">
+        <div className="flex flex-col md:flex-row h-screen w-full bg-pl-bg text-pl-text font-pl-sans">
+            {/* Mobile bar: menu, title and the theme toggle */}
+            <div className="md:hidden flex items-center gap-2 border-b border-pl-border bg-pl-surface px-2 py-2">
                 <Sheet>
                     <SheetTrigger asChild>
-                        <Button variant="ghost" size="icon"><Menu /></Button>
+                        <Button variant="ghost" size="icon" aria-label="Open admin menu"><Menu /></Button>
                     </SheetTrigger>
-                    <SheetContent side="left" className="bg-slate-900 border-slate-800 text-white w-64 p-0">
-                         <div className="p-4 border-b border-slate-800 font-bold text-lg flex items-center gap-2">
-                            <ShieldCheck className="text-cyan-400"/> Admin Center
+                    <SheetContent side="left" className="w-64 p-0">
+                         <div className="p-4 border-b border-pl-border font-bold text-lg flex items-center gap-2 text-pl-text">
+                            <ShieldCheck className="text-pl-primary-text" aria-hidden="true"/> Admin Center
                          </div>
                          <div className="p-2 overflow-y-auto h-full">
                             {/* Replicated nav */}
                          </div>
                     </SheetContent>
                 </Sheet>
+                <span className="flex-1 flex items-center gap-2 font-bold text-pl-text">
+                    <ShieldCheck className="h-5 w-5 text-pl-primary-text" aria-hidden="true"/> Admin Center
+                </span>
+                <ThemeToggle />
             </div>
 
             {/* Desktop Sidebar */}
-            <div className="hidden md:flex w-64 flex-col border-r border-slate-800 bg-slate-900 flex-shrink-0">
-                <div className="p-4 border-b border-slate-800 font-bold text-lg flex items-center gap-2 text-slate-100">
-                    <ShieldCheck className="text-cyan-400"/> Admin Center
+            <div className="hidden md:flex w-64 flex-col border-r border-pl-border bg-pl-surface flex-shrink-0">
+                <div className="p-4 border-b border-pl-border font-bold text-lg flex items-center gap-2 text-pl-text">
+                    <ShieldCheck className="text-pl-primary-text" aria-hidden="true"/> <span className="flex-1">Admin Center</span>
+                    <ThemeToggle />
                 </div>
                 <div className="flex-grow p-2 overflow-y-auto">
                     
@@ -104,18 +114,19 @@ const AdminCenter = () => {
                     {/* ... Rest of navigation sections ... */}
 
                 </div>
-                <div className="p-4 border-t border-slate-800 text-xs text-slate-500 text-center">
+                <div className="p-4 border-t border-pl-border text-xs text-pl-muted text-center">
                     v1.7.0-build-tracker
                 </div>
             </div>
 
             {/* Main Content */}
-            <div className="flex-grow overflow-hidden relative bg-slate-950 p-6">
-                <Suspense fallback={<div className="p-10 text-slate-500 flex items-center"><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-cyan-500 mr-2"></div>Loading Module...</div>}>
+            <div className="flex-grow min-w-0 overflow-y-auto relative bg-pl-bg p-4 sm:p-6">
+                <Suspense fallback={<div className="p-10 text-pl-muted flex items-center"><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-pl-primary mr-2"></div>Loading Module...</div>}>
                     {renderContent()}
                 </Suspense>
             </div>
         </div>
+        </AccountScope>
     );
 };
 
