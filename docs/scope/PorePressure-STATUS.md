@@ -98,3 +98,23 @@ downward (it was upside down), calibration points are drawn, the ribbon
 fits a laptop. New: the drilling window between PP and FG shaded and the
 narrowest window in ppg EMW reported below the conductor section
 (`services/drillingWindow.js`). Engines untouched.
+
+## 2026-09-28: design system rollout W4B (light default, dark per user)
+
+The app, its dev harness and its help guide each wrap themselves in
+`ThemedApp` (App.jsx is untouched), so the app opens on the grey panel
+light theme and the ribbon's toggle switches to dark and back, stored per
+user. The route prefix `/dashboard/apps/geoscience/pore-pressure-studio` (the help guide is a sub-path) is
+registered in `src/design/rollout/w4b.js` for the themed cold-load
+loaders.
+
+- Chrome on roles: the ribbon (new theme toggle at the right), the well
+  and velocity-trend explorer, the parameter dock, the NCT controls and
+  the status bar moved to `pl-*` roles. The decorative emerald publish
+  button and the amber selected velocity model went; the trend-grade
+  badge and the narrow-window note keep the warning role.
+- Plots: the prognosis and NCT plots stay white chart paper in both
+  themes (`data-canvas="chart"`, ChartLogo and chartTheme unchanged).
+- Tests: new `src/pages/apps/PorePressureStudio/__tests__/PorePressureStudio.theme.test.jsx`
+  (the shared `describeAppTheme` checks on the real workstation, plus the
+  views, the dark theme and the help guide). No calculation, engine, export or plotting change; the existing suites pass unchanged.
