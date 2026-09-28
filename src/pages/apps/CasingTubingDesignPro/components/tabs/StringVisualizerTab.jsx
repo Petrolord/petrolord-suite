@@ -12,14 +12,14 @@ const StringVisualizerTab = () => {
   const tubingStrings = caseDoc?.strings?.tubingStrings || [];
 
   return (
-    <div className="flex-1 min-h-0 h-full flex flex-col bg-slate-950 px-0 py-0 space-y-0 overflow-hidden w-full">
-      <div className="flex justify-between items-center bg-slate-900/50 p-2 border-b border-slate-800 mt-0 shrink-0">
-        <span className="text-xs text-slate-500 px-2">
+    <div className="flex-1 min-h-0 h-full flex flex-col bg-pl-bg px-0 py-0 space-y-0 overflow-hidden w-full">
+      <div className="flex justify-between items-center bg-pl-surface p-2 border-b border-pl-border mt-0 shrink-0">
+        <span className="text-xs text-pl-muted px-2">
           Visualizing {casingStrings.length} casing string{casingStrings.length === 1 ? '' : 's'}, {tubingStrings.length} tubing string{tubingStrings.length === 1 ? '' : 's'}
         </span>
       </div>
 
-      <div className="flex-1 min-h-0 bg-white relative overflow-hidden p-0">
+      <div data-canvas="chart" className="flex-1 min-h-0 bg-white relative overflow-hidden p-0">
         <WellboreVisualization
           casingStrings={casingStrings}
           tubingStrings={tubingStrings}

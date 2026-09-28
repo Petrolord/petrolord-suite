@@ -8,14 +8,17 @@
 // makeWpBackend.
 
 import React, { useMemo } from 'react';
+import { ThemedApp } from '@/design/ThemeProvider';
 import WiWorkstation from './WiWorkstation';
 import { makeInMemoryBackend } from './services/inMemoryBackend';
 
 export default function WellIntegrityPAHarness() {
   const backend = useMemo(() => makeInMemoryBackend(), []);
   return (
-    <div className="h-screen w-full overflow-hidden">
-      <WiWorkstation backend={backend} />
-    </div>
+    <ThemedApp data-testid="wi-harness-theme-scope">
+      <div className="h-screen w-full overflow-hidden">
+        <WiWorkstation backend={backend} />
+      </div>
+    </ThemedApp>
   );
 }

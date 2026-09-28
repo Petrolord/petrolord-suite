@@ -16,11 +16,11 @@ const num = (v) => {
   const x = parseFloat(v);
   return Number.isFinite(x) ? x : 0;
 };
-const cell = 'h-8 bg-slate-950 border-slate-700 text-xs text-slate-200';
+const cell = 'h-8 text-xs';
 
 function Param({ label, value, onChange, testId, width = 'w-28' }) {
   return (
-    <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-slate-500">
+    <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-pl-muted">
       {label}
       <Input type="number" step="any" className={`${cell} ${width} text-right`} value={value}
         onChange={(e) => onChange(num(e.target.value))} data-testid={testId} />
@@ -53,10 +53,10 @@ export default function JobDesignTab({
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3">
-      <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-300">Casing & job</h3>
+      <div className="rounded-lg border border-pl-border bg-pl-surface p-3">
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-pl-text">Casing & job</h3>
         <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-slate-500">
+          <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-pl-muted">
             Casing
             <Select value={casing.label || ''} onValueChange={applyCasing}>
               <SelectTrigger className={`${cell} w-48`} data-testid="cmt-casing"><SelectValue placeholder="pick casing" /></SelectTrigger>
@@ -92,24 +92,24 @@ export default function JobDesignTab({
           <Param label={ft ? 'Mud (ppg)' : 'Mud (kg/m3)'}
             value={ft ? +(((fluids.mudInHole?.densityKgM3 || 0)) / 119.826).toFixed(2) : (fluids.mudInHole?.densityKgM3 || 0)}
             onChange={(v) => setFluids({ mudInHole: { ...fluids.mudInHole, densityKgM3: ft ? v * 119.826 : v } })} />
-          <Button size="sm" className="h-8 bg-lime-500 text-slate-900 hover:bg-lime-600" onClick={onCompute} disabled={running} data-testid="cmt-compute">
+          <Button size="sm" className="h-8" onClick={onCompute} disabled={running} data-testid="cmt-compute">
             <Calculator className="mr-1 h-3.5 w-3.5" /> Compute volumes
           </Button>
-          {error && <span className="text-xs text-red-400">{error}</span>}
+          {error && <span className="text-xs text-pl-danger-text">{error}</span>}
         </div>
       </div>
 
-      <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+      <div className="rounded-lg border border-pl-border bg-pl-surface p-3">
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-300">Pump program (in order)</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-pl-text">Pump program (in order)</h3>
           <Button size="sm" variant="outline" className="h-7 text-xs"
             onClick={() => setFluids({ program: [...fluids.program, { kind: 'spacer', densityKgM3: 1500, volumeM3: 3 }] })}>
             <Plus className="mr-1 h-3 w-3" /> Fluid
           </Button>
         </div>
-        <table className="w-full text-xs text-slate-300">
+        <table className="w-full text-xs text-pl-text">
           <thead>
-            <tr className="text-[10px] uppercase text-slate-500">
+            <tr className="text-[10px] uppercase text-pl-muted">
               <th className="p-1 text-left">Kind</th>
               <th className="p-1 text-right">Density ({emwLabel(depthUnit)})</th>
               <th className="p-1 text-right">Volume ({volumeLabel(depthUnit)}; 0 = auto)</th>
@@ -119,7 +119,7 @@ export default function JobDesignTab({
           </thead>
           <tbody>
             {fluids.program.map((f, i) => (
-              <tr key={i} className="border-t border-slate-800">
+              <tr key={i} className="border-t border-pl-border">
                 <td className="p-1">
                   <Select value={f.kind} onValueChange={(k) => setProgram(i, { kind: k })}>
                     <SelectTrigger className={`${cell} w-36`}><SelectValue /></SelectTrigger>
@@ -149,7 +149,7 @@ export default function JobDesignTab({
                   </div>
                 </td>
                 <td className="p-1">
-                  <Button size="icon" variant="ghost" className="h-6 w-6 text-slate-500 hover:text-red-400"
+                  <Button size="icon" variant="ghost" className="h-6 w-6 text-pl-muted hover:text-pl-danger-text"
                     onClick={() => setFluids({ program: fluids.program.filter((_, j) => j !== i) })}>
                     <Trash2 className="h-3 w-3" />
                   </Button>
@@ -170,9 +170,9 @@ export default function JobDesignTab({
             ['Displacement', `${volumeOut(vols.displacementM3, depthUnit).toFixed(1)} ${volumeLabel(depthUnit)}`, 'cmt-disp'],
             ['Job time', vols.jobTimeS != null ? `${(vols.jobTimeS / 60).toFixed(0)} min` : '--', 'cmt-time'],
           ].map(([label, value, tid]) => (
-            <div key={label} className="rounded-md border border-slate-800 bg-slate-900/60 px-3 py-2">
-              <div className="text-[9px] uppercase text-slate-500">{label}</div>
-              <div className="text-sm font-semibold text-slate-100" data-testid={tid}>{value}</div>
+            <div key={label} className="rounded-md border border-pl-border bg-pl-surface px-3 py-2">
+              <div className="text-[9px] uppercase text-pl-muted">{label}</div>
+              <div className="font-pl-mono text-sm font-semibold tabular-nums text-pl-text" data-testid={tid}>{value}</div>
             </div>
           ))}
         </div>

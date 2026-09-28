@@ -122,3 +122,31 @@ Built 2026-08-28 (waves CD0-CD3, one Suite PR + engines PR #47).
 6. Schematic PNG + BOM CSV export; save, duplicate, reload round-trip.
 7. Legacy: /dashboard/apps/production/well-schematic-designer must
    redirect here.
+
+## Design system rollout, batch 3C (2026-09-28)
+
+The studio, its help guide and the dev harness (`/dev/completion-design`)
+now open on the Petrolord design system: light grey panel by default,
+dark as a per-user choice from the ribbon toggle (beside Help).
+
+- Scope: `ThemedApp` inside `CompletionDesignStudio.jsx`,
+  `CompletionDesignHelpGuide.jsx` and `CompletionDesignHarness.jsx`;
+  App.jsx unchanged. Cold-load prefix
+  `/dashboard/apps/drilling/completion-design-studio` in
+  `src/design/rollout/w3c.js` (covers `/help`).
+- Own classes moved to `pl-*` roles across the ribbon, the four tabs and
+  the add-component dialog. PASS / WARN / FAIL chips on the status roles;
+  lime accents and the cyan engine tag are neutral now. Empty values print
+  `--` (was an em dash).
+- Canvas: the completion schematic is drawn for a white ground (slate
+  walls, coloured jewellery), so it sits on `data-canvas="chart"` and stays
+  white in both themes.
+- Phone width: the workstation keeps its 1100 px minimum and scrolls
+  inside its own frame; the ribbon stays on one line and scrolls sideways.
+  No page-level sideways scroll at 390 px. Explorer and wellbore details
+  come from the shared drilling kit, already scope-aware since W0B (#756);
+  no shared file changed in this batch.
+- No calculation or export change. Existing suites pass unchanged; new
+  `__tests__/CompletionDesignStudio.theme.test.jsx` (the shared four checks
+  for the studio and the help guide, every tab in light and dark, the
+  add-component dialog, the harness scope).

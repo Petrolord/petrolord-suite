@@ -10,8 +10,8 @@ import { Trash2, Plus, Save, ExternalLink } from 'lucide-react';
 import { depthDisp, depthStore, depthLabel, D010_DEFAULT_RULES } from '../services/wiRun';
 
 const Card = ({ title, children, testId }) => (
-  <div className="rounded border border-slate-800 bg-slate-900/40" data-testid={testId}>
-    <div className="border-b border-slate-800 px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{title}</div>
+  <div className="rounded border border-pl-border bg-pl-surface" data-testid={testId}>
+    <div className="border-b border-pl-border px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-pl-muted">{title}</div>
     <div className="p-2">{children}</div>
   </div>
 );
@@ -45,12 +45,12 @@ export default function ProgramTab({
                 <Input className="h-7 w-20 text-right text-xs" type="number" step={10} title={`bottom MD (${unit})`}
                   value={Math.round(depthDisp(z.bottomMdM, depthUnit))}
                   onChange={(e) => onCaseChange((d) => { d.pa.zones[i].bottomMdM = depthStore(num(e.target.value), depthUnit); })} />
-                <label className="flex items-center gap-1 text-[10px] text-slate-400">
+                <label className="flex items-center gap-1 text-[10px] text-pl-muted">
                   <input type="checkbox" checked={!!z.flowPotential}
                     onChange={(e) => onCaseChange((d) => { d.pa.zones[i].flowPotential = e.target.checked; })} />
                   flow
                 </label>
-                <button type="button" className="text-slate-500 hover:text-red-400"
+                <button type="button" className="text-pl-muted hover:text-pl-danger-text"
                   onClick={() => onCaseChange((d) => { d.pa.zones.splice(i, 1); })}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
@@ -58,7 +58,7 @@ export default function ProgramTab({
             ))}
           </div>
           <button type="button" data-testid="wi-add-zone"
-            className="mt-2 flex items-center gap-1 rounded bg-slate-800 px-2 py-1 text-xs text-slate-300 hover:text-slate-100"
+            className="mt-2 flex items-center gap-1 rounded bg-pl-sunken px-2 py-1 text-xs text-pl-text hover:text-pl-text"
             onClick={() => onCaseChange((d) => {
               d.pa.zones.push({ name: `Zone ${d.pa.zones.length + 1}`, topMdM: 1500, bottomMdM: 1550, flowPotential: true });
             })}>
@@ -69,7 +69,7 @@ export default function ProgramTab({
         {program && (
           <Card title="Two-barrier compliance" testId="wi-compliance-card">
             <div className="mb-2 flex items-center gap-2">
-              <span className={`rounded px-2 py-0.5 text-xs font-semibold ${program.pass ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'}`}
+              <span className={`rounded px-2 py-0.5 text-xs font-semibold ${program.pass ? 'bg-pl-success-bg text-pl-success-text' : 'bg-pl-danger-bg text-pl-danger-text'}`}
                 data-testid="wi-program-pass">
                 {program.pass ? 'PROGRAM COMPLIANT' : 'GAPS IN THE PROGRAM'}
               </span>
@@ -77,17 +77,17 @@ export default function ProgramTab({
             {program.zoneCompliance.map((z, i) => (
               <div key={z.zone} className="mb-2 text-xs" data-testid={`wi-zone-comp-${i}`}>
                 <div className="flex items-center gap-2">
-                  <span className={z.pass ? 'text-emerald-400' : 'text-red-400'}>{z.pass ? 'PASS' : 'FAIL'}</span>
-                  <span className="font-semibold text-slate-300">{z.zone}</span>
+                  <span className={z.pass ? 'text-pl-success-text' : 'text-pl-danger-text'}>{z.pass ? 'PASS' : 'FAIL'}</span>
+                  <span className="font-semibold text-pl-text">{z.zone}</span>
                 </div>
-                <div className="ml-6 text-slate-400">
+                <div className="ml-6 text-pl-muted">
                   Primary (covers the source): {z.primaryQualifying.length ? z.primaryQualifying.join(', ') : 'none'}
                 </div>
-                <div className="ml-6 text-slate-400">
+                <div className="ml-6 text-pl-muted">
                   Secondary (backs up from above): {z.secondaryQualifying.length ? z.secondaryQualifying.join(', ') : 'none'}
                 </div>
                 {!z.pass && (!z.primaryQualifying.length || !z.secondaryQualifying.length) && (
-                  <div className="ml-6 text-amber-300" data-testid={`wi-zone-fix-${i}`}>
+                  <div className="ml-6 text-pl-warning-text" data-testid={`wi-zone-fix-${i}`}>
                     {!z.primaryQualifying.length
                       ? `Add a plug whose base reaches the source top and which extends at least ${D010_DEFAULT_RULES.plugAboveSourceMinM} m above it.`
                       : `Add a second plug above ${z.primaryQualifying.join(', ')}, at least ${D010_DEFAULT_RULES.plugMinLengthOnFoundationM} m on a verified foundation (${D010_DEFAULT_RULES.plugMinLengthM} m otherwise), to back it up.`}
@@ -96,21 +96,21 @@ export default function ProgramTab({
               </div>
             ))}
             <div className="flex items-center gap-2 text-xs">
-              <span className={program.surfacePlug.pass ? 'text-emerald-400' : 'text-red-400'}>
+              <span className={program.surfacePlug.pass ? 'text-pl-success-text' : 'text-pl-danger-text'}>
                 {program.surfacePlug.pass ? 'PASS' : 'FAIL'}
               </span>
-              <span className="text-slate-400">Surface/environmental plug</span>
+              <span className="text-pl-muted">Surface/environmental plug</span>
             </div>
           </Card>
         )}
 
         <Card title="Decommissioning cost" testId="wi-econ-card">
-          <div className="text-xs text-slate-400">
+          <div className="text-xs text-pl-muted">
             Cost the abandonment program (rig days, plugs, logistics) in Petroleum Economics
             Studio with its decommissioning template.
           </div>
           <Link to="/dashboard/apps/economics/epe/cases"
-            className="mt-2 inline-flex items-center gap-1 rounded bg-slate-800 px-2 py-1 text-xs text-cyan-300 hover:bg-slate-700">
+            className="mt-2 inline-flex items-center gap-1 rounded bg-pl-sunken px-2 py-1 text-xs text-pl-primary-text hover:bg-pl-border">
             <ExternalLink className="h-3 w-3" /> Open Economics Studio
           </Link>
         </Card>
@@ -121,26 +121,26 @@ export default function ProgramTab({
           <Card title="Abandonment program (planning checklist)" testId="wi-steps-card">
             {[1, 2, 3].map((phase) => (
               <div key={phase} className="mb-2">
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{PHASE_LABELS[phase]}</div>
-                <ol className="ml-4 list-decimal text-xs text-slate-300">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-pl-muted">{PHASE_LABELS[phase]}</div>
+                <ol className="ml-4 list-decimal text-xs text-pl-text">
                   {program.steps.filter((s) => s.phase === phase).map((s) => (
                     <li key={s.step} className="py-0.5">{s.description}</li>
                   ))}
                 </ol>
               </div>
             ))}
-            <div className="border-t border-slate-800 pt-2 text-xs text-slate-300">
+            <div className="border-t border-pl-border pt-2 text-xs text-pl-text">
               Designed slurry total
-              <span className="float-right font-mono" data-testid="wi-takeoff-slurry">
+              <span className="float-right font-pl-mono" data-testid="wi-takeoff-slurry">
                 {program.takeoff.slurryM3.toFixed(2)} m3
               </span>
             </div>
             {program.takeoff.undesignedPlugs.length > 0 && (
-              <div className="mt-1 text-[10px] text-amber-400" data-testid="wi-undesigned">
+              <div className="mt-1 text-[10px] text-pl-warning-text" data-testid="wi-undesigned">
                 No placement geometry yet: {program.takeoff.undesignedPlugs.join(', ')}.
               </div>
             )}
-            <div className="mt-2 text-[10px] text-slate-500">
+            <div className="mt-2 text-[10px] text-pl-muted">
               A planning checklist in the well programme tradition, not an operational procedure;
               verification (tag, pressure test, logs) is stated per step and recorded by operations.
             </div>
@@ -153,18 +153,18 @@ export default function ProgramTab({
             <Save className="mr-1 h-3 w-3" /> {savingRun ? 'Saving...' : 'Save run'}
           </Button>
           {(runs || []).map((r) => (
-            <div key={r.id} className="flex items-center gap-2 border-t border-slate-800 py-1 text-xs text-slate-400"
+            <div key={r.id} className="flex items-center gap-2 border-t border-pl-border py-1 text-xs text-pl-muted"
               data-testid="wi-run-row">
               <span>{new Date(r.created_at).toLocaleString()}</span>
-              <span className="font-mono">{r.summary?.category}</span>
-              <span className="font-mono">{r.summary?.status}</span>
-              <button type="button" className="ml-auto text-slate-500 hover:text-red-400"
+              <span className="font-pl-mono">{r.summary?.category}</span>
+              <span className="font-pl-mono">{r.summary?.status}</span>
+              <button type="button" className="ml-auto text-pl-muted hover:text-pl-danger-text"
                 onClick={() => onDeleteRun(r.id)}>
                 <Trash2 className="h-3 w-3" />
               </button>
             </div>
           ))}
-          {(runs || []).length === 0 && <div className="text-xs text-slate-500">No saved runs yet.</div>}
+          {(runs || []).length === 0 && <div className="text-xs text-pl-muted">No saved runs yet.</div>}
         </Card>
       </div>
     </div>

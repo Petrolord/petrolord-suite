@@ -15,18 +15,18 @@ import {
 const IN = 0.0254;
 
 const STATUS_CLASSES = {
-  PASS: 'bg-emerald-500/15 text-emerald-300',
-  WARN: 'bg-amber-500/15 text-amber-300',
-  FAIL: 'bg-red-500/15 text-red-300',
+  PASS: 'bg-pl-success-bg text-pl-success-text',
+  WARN: 'bg-pl-warning-bg text-pl-warning-text',
+  FAIL: 'bg-pl-danger-bg text-pl-danger-text',
 };
 
 const Status = ({ s, testId }) => (
-  <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${STATUS_CLASSES[s] || 'bg-slate-700 text-slate-300'}`} data-testid={testId}>{s}</span>
+  <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${STATUS_CLASSES[s] || 'bg-pl-sunken text-pl-muted'}`} data-testid={testId}>{s}</span>
 );
 
 const Card = ({ title, children, testId }) => (
-  <div className="rounded border border-slate-800 bg-slate-900/40" data-testid={testId}>
-    <div className="border-b border-slate-800 px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{title}</div>
+  <div className="rounded border border-pl-border bg-pl-surface" data-testid={testId}>
+    <div className="border-b border-pl-border px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-pl-muted">{title}</div>
     <div className="p-2">{children}</div>
   </div>
 );
@@ -37,7 +37,7 @@ const num = (v) => {
 };
 
 const Field = ({ label, value, onChange, step = 1, testId }) => (
-  <label className="flex items-center justify-between gap-2 text-xs text-slate-300">
+  <label className="flex items-center justify-between gap-2 text-xs text-pl-text">
     <span>{label}</span>
     <Input className="h-7 w-24 text-right text-xs" type="number" step={step} value={value}
       data-testid={testId} onChange={(e) => onChange(num(e.target.value))} />
@@ -63,7 +63,7 @@ export default function PerforatingTab({
     <div className="grid gap-3 p-3 xl:grid-cols-2">
       <div className="flex flex-col gap-3">
         <Card title="Gun (published-typical API target data; vendor sheets govern)" testId="ps-gun-card">
-          <select className="w-full rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+          <select className="w-full rounded border border-pl-border-strong bg-pl-surface px-2 py-1 text-xs text-pl-text"
             value={gun.name} data-testid="ps-gun-select" onChange={(e) => onPickGun(e.target.value)}>
             {['through-tubing', 'casing'].map((conv) => (
               <optgroup key={conv} label={conv === 'through-tubing' ? 'Through-tubing (runs inside the completion)' : 'Casing guns (run before the completion)'}>
@@ -73,38 +73,38 @@ export default function PerforatingTab({
               </optgroup>
             ))}
           </select>
-          <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-300">
+          <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-pl-text">
             <div>OD <span className="float-right font-mono" data-testid="ps-gun-od">{gun.odIn.toFixed(3)}"</span></div>
             <div>Shot density <span className="float-right font-mono">{gun.spfPerFt} spf</span></div>
             <div>Phasing <span className="float-right font-mono">{gun.phasingDeg} deg</span></div>
             <div>Entrance hole <span className="float-right font-mono">{gun.entranceHoleIn.toFixed(2)}"</span></div>
             <div>Penetration <span className="float-right font-mono">{gun.penetrationIn.toFixed(0)}"</span></div>
-            <div className="text-[10px] text-slate-500">nominal, API concrete target</div>
+            <div className="text-[10px] text-pl-muted">nominal, API concrete target</div>
           </div>
         </Card>
 
         <Card title="Run-in clearance" testId="ps-clearance-card">
-          {!clr ? <div className="text-xs text-slate-500">Fix the case inputs.</div> : (
-            <div className="text-xs text-slate-300">
+          {!clr ? <div className="text-xs text-pl-muted">Fix the case inputs.</div> : (
+            <div className="text-xs text-pl-text">
               <div className="flex items-center gap-2">
                 <Status s={clr.status} testId="ps-clearance-status" />
-                <span className="text-[11px] text-slate-400">
+                <span className="text-[11px] text-pl-muted">
                   {clr.basis === 'completion' ? 'through the completion bore' : 'through the casing drift to interval bottom'}
                 </span>
               </div>
               {clr.missing ? (
-                <div className="mt-1 text-[11px] text-amber-300">{clr.note}</div>
+                <div className="mt-1 text-[11px] text-pl-warning-text">{clr.note}</div>
               ) : (
                 <div className="mt-2 grid grid-cols-3 gap-2">
                   <div>Bore <span className="float-right font-mono" data-testid="ps-clearance-bore">{(clr.boreM / IN).toFixed(3)}"</span></div>
                   <div>Diametral clearance <span className="float-right font-mono" data-testid="ps-clearance-mm">{(clr.clearanceM * 1000).toFixed(1)} mm</span></div>
-                  <div className="text-[10px] text-slate-500">controls: {clr.controlling}</div>
+                  <div className="text-[10px] text-pl-muted">controls: {clr.controlling}</div>
                 </div>
               )}
-              <div className="mt-2 grid grid-cols-2 gap-2 border-t border-slate-800 pt-2">
+              <div className="mt-2 grid grid-cols-2 gap-2 border-t border-pl-border pt-2">
                 <label className="flex items-center justify-between gap-2">
                   <span>Completion case</span>
-                  <select className="rounded border border-slate-700 bg-slate-900 px-1 py-0.5 text-xs"
+                  <select className="rounded border border-pl-border-strong bg-pl-surface px-1 py-0.5 text-xs text-pl-text"
                     value={caseDraft.cd_case_id || ''} data-testid="ps-cd-case"
                     onChange={(e) => onCaseChange((d) => { d.cd_case_id = e.target.value || null; })}>
                     <option value="">none linked</option>
@@ -136,15 +136,15 @@ export default function PerforatingTab({
               onChange={(v) => onCaseChange((d) => { d.params.reservoir.reM = v; })} />
             <Field label="rw (m)" value={r.rwM} step={0.001}
               onChange={(v) => onCaseChange((d) => { d.params.reservoir.rwM = v; })} />
-            <label className="flex items-center justify-between gap-2 text-xs text-slate-300">
+            <label className="flex items-center justify-between gap-2 text-xs text-pl-text">
               <span>Fluid</span>
-              <select className="rounded border border-slate-700 bg-slate-900 px-1 py-0.5 text-xs"
+              <select className="rounded border border-pl-border-strong bg-pl-surface px-1 py-0.5 text-xs text-pl-text"
                 value={r.fluid} onChange={(e) => onCaseChange((d) => { d.params.reservoir.fluid = e.target.value; })}>
                 <option value="oil">oil</option>
                 <option value="gas">gas</option>
               </select>
             </label>
-            <label className="flex items-center justify-between gap-2 text-xs text-slate-300">
+            <label className="flex items-center justify-between gap-2 text-xs text-pl-text">
               <span>Crushed zone</span>
               <input type="checkbox" checked={!!cz.enabled}
                 onChange={(e) => onCaseChange((d) => { d.params.crushedZone.enabled = e.target.checked; })} />
@@ -163,19 +163,19 @@ export default function PerforatingTab({
 
       <div className="flex flex-col gap-3">
         <Card title="Karakas-Tariq perforation skin (SPE 18247)" testId="ps-skin-card">
-          {!perf ? <div className="text-xs text-slate-500">Fix the case inputs.</div> : (
-            <div className="text-xs text-slate-300">
+          {!perf ? <div className="text-xs text-pl-muted">Fix the case inputs.</div> : (
+            <div className="text-xs text-pl-text">
               <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                 <div>Plane flow s_h <span className="float-right font-mono" data-testid="ps-sh">{perf.skin.sH.toFixed(3)}</span></div>
                 <div>Vertical s_v <span className="float-right font-mono" data-testid="ps-sv">{perf.skin.sV.toFixed(3)}</span></div>
                 <div>Wellbore s_wb <span className="float-right font-mono" data-testid="ps-swb">{perf.skin.sWb.toFixed(3)}</span></div>
                 <div>Crushed zone s_cz <span className="float-right font-mono" data-testid="ps-scz">{perf.skin.sCz.toFixed(3)}</span></div>
               </div>
-              <div className="mt-2 border-t border-slate-800 pt-2 text-sm">
+              <div className="mt-2 border-t border-pl-border pt-2 text-sm">
                 Total perforation skin <span className="float-right font-mono font-semibold" data-testid="ps-skin-total">{perf.skin.total.toFixed(3)}</span>
               </div>
               {perf.skin.warnings.map((w, i) => (
-                <div key={i} className="mt-1 text-[10px] text-amber-300">{w}</div>
+                <div key={i} className="mt-1 text-[10px] text-pl-warning-text">{w}</div>
               ))}
             </div>
           )}
@@ -183,12 +183,12 @@ export default function PerforatingTab({
 
         <Card title="Productivity vs ideal openhole" testId="ps-pr-card">
           {perf && (
-            <div className="text-xs text-slate-300">
+            <div className="text-xs text-pl-text">
               <div>Productivity ratio <span className="float-right font-mono" data-testid="ps-pr">{perf.pr.ratio.toFixed(3)}</span></div>
-              <div className="mt-1 text-[10px] text-slate-500">
+              <div className="mt-1 text-[10px] text-pl-muted">
                 Steady-state radial flow, ln(re/rw) = {perf.pr.lnReRw.toFixed(2)}. A ratio above 1 means the
                 perforated completion beats the openhole ideal. Rates and operating points live in the
-                {' '}<Link className="text-cyan-400 hover:underline" to="/dashboard/apps/production/nodal-analysis-studio">Nodal Analysis Studio</Link>.
+                {' '}<Link className="text-pl-primary-text hover:text-pl-primary-text-hover hover:underline" to="/dashboard/apps/production/nodal-analysis-studio">Nodal Analysis Studio</Link>.
               </div>
             </div>
           )}
@@ -196,11 +196,11 @@ export default function PerforatingTab({
 
         <Card title="Underbalance guideline (planning band)" testId="ps-underbalance-card">
           {perf && (
-            <div className="text-xs text-slate-300">
+            <div className="text-xs text-pl-text">
               <div data-testid="ps-ub-band">
                 {perf.underbalance.minPsi} to {perf.underbalance.maxPsi} psi ({perf.underbalance.fluid})
               </div>
-              <div className="mt-1 text-[10px] text-slate-500">{perf.underbalance.classLabel}. {perf.underbalance.provenance}</div>
+              <div className="mt-1 text-[10px] text-pl-muted">{perf.underbalance.classLabel}. {perf.underbalance.provenance}</div>
               {res?.sanding && res.sanding.governing && (() => {
                 // PS-T1-001: put the number on it. The sanding drawdown margin
                 // caps the underbalance; say whether it cuts into this band.
@@ -212,7 +212,7 @@ export default function PerforatingTab({
                   : marginPsi < perf.underbalance.maxPsi
                     ? `The sanding drawdown margin at ${at} is ${(g.cdpPa / 1e6).toFixed(2)} MPa (${Math.round(marginPsi)} psi), inside this band: keep the underbalance below about ${Math.round(marginPsi)} psi.`
                     : `The sanding drawdown margin at ${at} is ${(g.cdpPa / 1e6).toFixed(2)} MPa (${Math.round(marginPsi)} psi), above the top of this band.`;
-                return <div className="mt-1 text-[10px] text-amber-300" data-testid="ps-ub-sanding">{text}</div>;
+                return <div className="mt-1 text-[10px] text-pl-warning-text" data-testid="ps-ub-sanding">{text}</div>;
               })()}
             </div>
           )}

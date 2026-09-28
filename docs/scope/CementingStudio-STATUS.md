@@ -80,3 +80,29 @@ literally Math.random(); absorbs the casing-centralization stub.
   term.
 - D5 (Geomechanics & Wellbore Stability Studio, the owner-locked MEM
   rebuild) is next in the roadmap order.
+
+## Design system rollout, batch 3D (2026-09-28)
+
+The studio, its help guide and the dev harness (`/dev/cementing`) now open on the
+Petrolord design system: light grey panel by default, dark as a per-user
+choice from the ribbon toggle (beside Help).
+
+- Scope: `ThemedApp` inside `CementingStudio.jsx`, `CementingHelpGuide.jsx` and `CementingHarness.jsx`; App.jsx
+  unchanged. Cold-load prefix `/dashboard/apps/drilling/cementing-studio` in `src/design/rollout/w3d.js`
+  (covers `/help`).
+- Own classes moved to `pl-*` roles across the ribbon, the three tabs (Job Design, Placement, Centralization) and the status bar. The dark overrides on
+  the adapted Input and SelectTrigger are gone; the run buttons are the
+  default primary Button; the active tab uses the primary tint; KPI values
+  use the mono face.
+- Status colour only for status: flagged placement KPIs and a minimum standoff under the API target (warning, with a warning icon), and the quality checklist (success tick or warning cross). Decorative lime, cyan and
+  gradient accents are gone.
+- Charts (placement pressure, ECD at the previous shoe and standoff) stay on the white chart card in both themes and carry
+  `data-canvas="chart"`. The app draws no schematic, so no dark canvas.
+- Shared drilling kit (Explorer, GeometryNotice, WellboreDetails from
+  Torque & Drag) untouched: it is scope-aware since W0B.
+- Phone width: no sideways page scroll; the workstation keeps its 1100px
+  minimum and scrolls inside the shell, as before. The help guide stacks.
+- Tests: `__tests__/CementingStudio.theme.test.jsx` (describeAppTheme for the studio and the help
+  guide, a dark walk through every tab and run with the legacy-chrome
+  check, chart cards white, harness scope). Existing suites unchanged.
+- No engine, calculation or export change.

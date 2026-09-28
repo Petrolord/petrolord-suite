@@ -10,13 +10,14 @@
 
 import React, { useMemo } from 'react';
 import PsWorkstation from './PsWorkstation';
+import { ThemedApp } from '@/design/ThemeProvider';
 import { makeInMemoryBackend } from './services/inMemoryBackend';
 
 export default function PerforationSandControlHarness() {
   const backend = useMemo(() => makeInMemoryBackend(), []);
   return (
-    <div className="h-screen w-full overflow-hidden">
+    <ThemedApp className="h-screen w-full overflow-hidden" data-testid="ps-theme-scope">
       <PsWorkstation backend={backend} />
-    </div>
+    </ThemedApp>
   );
 }

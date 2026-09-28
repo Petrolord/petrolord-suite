@@ -10,14 +10,18 @@ import CenterContent from './components/CenterContent';
 import BottomStrip from './components/BottomStrip';
 import HelpPanel from './components/help/HelpPanel';
 import KeyboardShortcuts from './components/common/KeyboardShortcuts';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 // Casing & Tubing Design Studio (Drilling D6): API 5C3 tubular design on
 // the wp spine — validated Barlow/5C3 ratings, canonical load cases, and
 // the Lubinski tubing-packer force system. Engines are oracle-gated in
 // @petrolord/engines; the injected backend keeps the /dev harness pure.
-export const CasingTubingDesignProContent = () => {
-  return (
-    <div className="flex flex-col h-screen w-full bg-slate-950 text-slate-100 overflow-hidden font-sans">
+// Design system (rollout W3B): the studio wraps itself in <ThemedApp> here,
+// so the routed page and the /dev harness share one scope (grey panel light
+// by default, dark by the header toggle); every class below is a theme role.
+export const CasingTubingDesignProContent = () => (
+  <ThemedApp data-testid="ct-theme-scope">
+    <div className="flex flex-col h-screen w-full bg-pl-bg text-pl-text overflow-hidden">
       <KeyboardShortcuts />
       <TopBanner />
       <div className="flex flex-1 overflow-hidden">
@@ -32,8 +36,8 @@ export const CasingTubingDesignProContent = () => {
       </div>
       <HelpPanel />
     </div>
-  );
-};
+  </ThemedApp>
+);
 
 const CasingTubingDesignPro = () => {
   const { user } = useAuth();

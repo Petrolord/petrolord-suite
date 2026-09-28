@@ -1,5 +1,6 @@
 // Casing & Tubing chart pack: engine load-case pressure profiles and the
-// Lubinski force breakdown. White chartTheme + ChartLogo standard.
+// Lubinski force breakdown. White chartTheme + ChartLogo standard; the
+// frame is a data-canvas="chart" region, so it stays white in both themes.
 
 import React from 'react';
 import {
@@ -17,7 +18,7 @@ const axisProps = {
 
 function Frame({ title, testId, children }) {
   return (
-    <div className="bg-white relative flex h-full w-full min-h-0 min-w-0 flex-col rounded-md overflow-hidden" data-testid={testId}>
+    <div data-canvas="chart" className="bg-white relative flex h-full w-full min-h-0 min-w-0 flex-col rounded-md overflow-hidden" data-testid={testId}>
       <div className="px-3 pt-2 text-[11px] font-semibold text-slate-700">{title}</div>
       <div className="min-h-0 flex-1">{children}</div>
       <ChartLogo style={{ height: 36 }} />

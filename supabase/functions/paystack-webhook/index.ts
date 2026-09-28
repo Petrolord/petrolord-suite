@@ -1,9 +1,9 @@
 import { corsHeaders } from "./cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { redeemBridgeForQuote } from "../_shared/nextgen-bridge.ts";
 import { isHseQuote, provisionPaidQuote } from "../_shared/provision-quote.ts";
 import { loadNgnPerUsd, expectedNgnForQuote, checkPaystackAmount } from "../_shared/paystack-ngn.ts";
 import { crypto } from "https://deno.land/std@0.177.0/crypto/mod.ts";
+import { paymentAlreadyProcessed } from "../_shared/payment-status.ts";
 const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
 Deno.serve(async (req)=>{
   if (req.method === 'OPTIONS') return new Response('ok', {
@@ -37,9 +37,11 @@ Deno.serve(async (req)=>{
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const supabase = createClient(supabaseUrl, supabaseKey);
-    // Idempotency: Check if already processed
-    const { data: existing } = await supabase.from('payments').select('status').eq('paystack_reference', reference).single();
-    if (existing && existing.status === 'COMPLETED') {
+    // Idempotency: already processed by this webhook ('COMPLETED') or by the
+    // verify page ('success'). Before 2026-09-28 only 'COMPLETED' counted, so a
+    // webhook landing after the verify page re-ran provisioning.
+    const { data: existing } = await supabase.from('payments').select('status, local_status').eq('paystack_reference', reference).maybeSingle();
+    if (paymentAlreadyProcessed(existing)) {
       return new Response("Already processed", {
         status: 200
       });
@@ -108,22 +110,30 @@ Deno.serve(async (req)=>{
         paystack_reference: reference,
         updated_at: new Date().toISOString()
       }).eq('quote_id', quote_id);
-      const { data: quote } = await supabase.from('quotes').select('organization_id').eq('quote_id', quote_id).maybeSingle();
-      if (quote?.organization_id) {
-        await supabase.from('organizations').update({
-          suite_status: 'ACTIVE'
-        }).eq('id', quote.organization_id);
-        // Provision the purchased modules/apps/seats — same RPC the redirect/manual
-        // verify path uses. Best-effort: a provisioning error must not fail the webhook.
-        const { error: rpcErr } = await supabase.rpc('manual_verify_quote', {
-          p_quote_id: quote_id,
-          p_organization_id: quote.organization_id
-        });
-        if (rpcErr) console.error('Webhook provisioning error:', rpcErr.message);
+      // Everything else is the same provisioning the verify page and Stripe
+      // run (2026-09-28): manual_verify_quote with the paid date (it sets the
+      // end dates: renewals stack, top-ups never shorten, re-runs change
+      // nothing), quote paid, org active, bridge and promo codes burned, the
+      // subscriptions row keyed by org + quote (no duplicate if the verify
+      // page also runs), HSE with Suite, and the confirmation email. Before,
+      // a payer who never returned to the verify page got no subscription row
+      // and no end dates.
+      const customerEmail = event.data?.customer?.email || null;
+      const result = await provisionPaidQuote(supabase, {
+        quoteTextId: quote_id,
+        provider: 'paystack',
+        reference,
+        amountPaid: (amount ?? 0) / 100,
+        currency: event.data?.currency,
+        paidAt: paid_at || new Date().toISOString(),
+        customerEmail,
+        appOrigin: Deno.env.get('APP_URL') || ''
+      });
+      if (!result.ok) console.error('[paystack-webhook] Suite provisioning error:', result.error);
+      else if (customerEmail) {
+        // provisionPaidQuote sent the email; the verify page checks this flag.
+        await supabase.from('payments').update({ notification_sent: true }).eq('paystack_reference', reference);
       }
-      // Burn the NextGen bridge code, if the quote carried one. Self-guarding
-      // no-op otherwise (and idempotent against the verify path racing us).
-      await redeemBridgeForQuote(supabase, quote_id, 'paystack-webhook');
     }
   }
   return new Response("Webhook received", {
