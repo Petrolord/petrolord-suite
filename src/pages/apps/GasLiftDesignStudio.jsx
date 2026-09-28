@@ -27,6 +27,10 @@ import UnloadingPanel from '@/components/gaslift/UnloadingPanel';
 import InjectionPointPanel from '@/components/gaslift/InjectionPointPanel';
 import PerformancePanel from '@/components/gaslift/PerformancePanel';
 import GasLiftHelpContent from '@/components/gaslift/GasLiftHelpGuide';
+import { ThemedApp } from '@/design/ThemeProvider';
+
+// Design system rollout batch 2C (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class below is a theme role.
 
 const TABS = [
   { value: 'design', label: 'Valve Design' },
@@ -37,7 +41,7 @@ const TABS = [
 ];
 
 const SectionLabel = ({ children }) => (
-  <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest">{children}</h3>
+  <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
 );
 
 const GasLiftContent = () => {
@@ -136,7 +140,6 @@ const GasLiftContent = () => {
             backTo="/dashboard/production"
             backTitle="Back to Production Operations"
             icon={Wind}
-            iconGradientClass="from-amber-600 to-orange-600"
             title="Gas Lift Design Studio"
             tabs={TABS}
             activeTab={activeTab}
@@ -149,7 +152,7 @@ const GasLiftContent = () => {
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
             />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Gas Lift Design Studio Guide"
               description="How the injection point, the valve spacing and the unloading sequence are worked out."
@@ -172,8 +175,10 @@ const GasLiftContent = () => {
 
 export default function GasLiftDesignStudio() {
   return (
-    <GasLiftDesignProvider>
-      <GasLiftContent />
-    </GasLiftDesignProvider>
+    <ThemedApp data-testid="gaslift-theme-scope">
+      <GasLiftDesignProvider>
+        <GasLiftContent />
+      </GasLiftDesignProvider>
+    </ThemedApp>
   );
 }

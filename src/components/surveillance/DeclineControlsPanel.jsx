@@ -21,12 +21,12 @@ const DeclineControlsPanel = () => {
   return (
     <div className="space-y-3">
       <div className="space-y-1">
-        <Label className="text-xs text-slate-400">Well</Label>
+        <Label className="text-xs text-pl-muted">Well</Label>
         <Select value={dca.wellId || ''} onValueChange={(v) => setDcaField('wellId', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700">
+          <SelectTrigger className="h-9">
             <SelectValue placeholder="Select well" />
           </SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700 text-slate-100 max-h-72">
+          <SelectContent className="max-h-72">
             {wellSeries.length === 0 ? (
               <SelectItem value="none" disabled>No wells with ledger data</SelectItem>
             ) : wellSeries.map(({ well }) => (
@@ -37,10 +37,10 @@ const DeclineControlsPanel = () => {
       </div>
 
       <div className="space-y-1">
-        <Label className="text-xs text-slate-400">Stream</Label>
+        <Label className="text-xs text-pl-muted">Stream</Label>
         <Select value={dca.stream} onValueChange={(v) => setDcaField('stream', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+          <SelectContent>
             {Object.entries(FIT_STREAMS).map(([key, s]) => (
               <SelectItem key={key} value={key}>{s.label} ({s.unit})</SelectItem>
             ))}
@@ -49,10 +49,10 @@ const DeclineControlsPanel = () => {
       </div>
 
       <div className="space-y-1">
-        <Label className="text-xs text-slate-400">Model</Label>
+        <Label className="text-xs text-pl-muted">Model</Label>
         <Select value={dca.modelType} onValueChange={(v) => setDcaField('modelType', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+          <SelectContent>
             {MODELS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -60,8 +60,8 @@ const DeclineControlsPanel = () => {
 
       <div className="flex items-center justify-between">
         <div>
-          <Label className="text-xs text-slate-400">Fit producing-day rates</Label>
-          <p className="text-[11px] text-slate-600">Shut-in days drop out of the fit.</p>
+          <Label className="text-xs text-pl-muted">Fit producing-day rates</Label>
+          <p className="text-[11px] text-pl-muted">Shut-in days drop out of the fit.</p>
         </div>
         <Switch
           checked={dca.basis === 'producing'}
@@ -70,25 +70,25 @@ const DeclineControlsPanel = () => {
       </div>
 
       <div className="space-y-1">
-        <Label className="text-xs text-slate-400">Forecast horizon (days)</Label>
+        <Label className="text-xs text-pl-muted">Forecast horizon (days)</Label>
         <Input
           type="number"
           value={dca.forecastDays}
           onChange={(e) => setDcaField('forecastDays', e.target.value)}
-          className="h-9 bg-slate-800 border-slate-700"
+          className="h-9"
         />
       </div>
 
       <div className="space-y-1">
-        <Label className="text-xs text-slate-400">Economic limit ({unit})</Label>
+        <Label className="text-xs text-pl-muted">Economic limit ({unit})</Label>
         <Input
           type="number"
           placeholder="none"
           value={dca.economicLimit}
           onChange={(e) => setDcaField('economicLimit', e.target.value)}
-          className="h-9 bg-slate-800 border-slate-700"
+          className="h-9"
         />
-        <p className="text-[11px] text-slate-600">
+        <p className="text-[11px] text-pl-muted">
           Leave blank to run the full horizon. With a limit set, the forecast stops when the rate
           falls below it.
         </p>

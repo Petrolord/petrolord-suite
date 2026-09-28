@@ -28,10 +28,10 @@ const fmt = (v, digits = 0) => (Number.isFinite(v)
   : '--');
 
 const StaleNote = ({ onRerun }) => (
-  <div className="flex items-center gap-2 text-[11px] text-amber-400 mb-2">
+  <div className="flex items-center gap-2 text-[11px] text-pl-warning-text mb-2">
     <RefreshCw className="w-3 h-3" />
     Inputs changed since this ran.
-    <button type="button" className="underline hover:text-amber-300" onClick={onRerun}>
+    <button type="button" className="underline hover:opacity-80" onClick={onRerun}>
       Run again
     </button>
   </div>
@@ -52,11 +52,11 @@ const SystemCurvePanel = () => {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <Activity className="w-4 h-4 text-emerald-400" /> Pump against system
-            <span className="text-xs font-normal text-slate-500">
+            <Activity className="w-4 h-4 text-pl-muted" /> Pump against system
+            <span className="text-xs font-normal text-pl-muted">
               where a {fmt(design?.sized?.stages)} stage stack settles
             </span>
           </CardTitle>
@@ -64,11 +64,11 @@ const SystemCurvePanel = () => {
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 items-end">
             <div className="space-y-1">
-              <Label className="text-xs text-slate-400">Points on the curve</Label>
+              <Label className="text-xs text-pl-muted">Points on the curve</Label>
               <Input
                 type="number" value={inputs.system.nPoints}
                 onChange={(e) => setSection('system', 'nPoints', e.target.value)}
-                className="h-9 bg-slate-800 border-slate-700"
+                className="h-9"
               />
             </div>
             <Button onClick={runSystemCurve} disabled={isRunning} className="h-9">
@@ -77,7 +77,7 @@ const SystemCurvePanel = () => {
           </div>
 
           {!systemRun ? (
-            <p className="text-sm text-slate-500 py-6 text-center">
+            <p className="text-sm text-pl-muted py-6 text-center">
               Each point on the system curve is an inflow lookup and a full tubing traverse, and the
               operating point is a solve on top of them, so this runs when you ask for it.
             </p>
@@ -86,39 +86,39 @@ const SystemCurvePanel = () => {
               {systemStale && <StaleNote onRerun={runSystemCurve} />}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pb-2">
                 <div>
-                  <p className="text-[11px] uppercase tracking-wider text-slate-500">Designed at</p>
-                  <p className="text-lg font-semibold text-slate-100 tabular-nums">
-                    {fmt(design?.qoStbd)} <span className="text-xs font-normal text-slate-500">stb/d</span>
+                  <p className="text-[11px] uppercase tracking-wider text-pl-muted">Designed at</p>
+                  <p className="text-lg font-semibold text-pl-text font-pl-mono tabular-nums">
+                    {fmt(design?.qoStbd)} <span className="text-xs font-normal text-pl-muted">stb/d</span>
                   </p>
                 </div>
                 <div>
-                  <p className="text-[11px] uppercase tracking-wider text-slate-500">Settles at</p>
-                  <p className="text-lg font-semibold text-emerald-400 tabular-nums">
+                  <p className="text-[11px] uppercase tracking-wider text-pl-muted">Settles at</p>
+                  <p className="text-lg font-semibold text-pl-text font-pl-mono tabular-nums">
                     {operating
-                      ? <>{fmt(operating.qoStbd)} <span className="text-xs font-normal text-slate-500">stb/d</span></>
-                      : <span className="text-sm font-normal text-slate-500">no crossing</span>}
+                      ? <>{fmt(operating.qoStbd)} <span className="text-xs font-normal text-pl-muted">stb/d</span></>
+                      : <span className="text-sm font-normal text-pl-muted">no crossing</span>}
                   </p>
                 </div>
                 <div>
-                  <p className="text-[11px] uppercase tracking-wider text-slate-500">Intake there</p>
-                  <p className="text-lg font-semibold text-slate-100 tabular-nums">
+                  <p className="text-[11px] uppercase tracking-wider text-pl-muted">Intake there</p>
+                  <p className="text-lg font-semibold text-pl-text font-pl-mono tabular-nums">
                     {operating
-                      ? <>{fmt(operating.pipPsia)} <span className="text-xs font-normal text-slate-500">psia</span></>
+                      ? <>{fmt(operating.pipPsia)} <span className="text-xs font-normal text-pl-muted">psia</span></>
                       : '--'}
                   </p>
                 </div>
                 <div>
-                  <p className="text-[11px] uppercase tracking-wider text-slate-500">Efficiency there</p>
-                  <p className="text-lg font-semibold text-slate-100 tabular-nums">
+                  <p className="text-[11px] uppercase tracking-wider text-pl-muted">Efficiency there</p>
+                  <p className="text-lg font-semibold text-pl-text font-pl-mono tabular-nums">
                     {operating && Number.isFinite(operating.efficiency)
-                      ? <>{fmt(operating.efficiency * 100, 1)} <span className="text-xs font-normal text-slate-500">%</span></>
+                      ? <>{fmt(operating.efficiency * 100, 1)} <span className="text-xs font-normal text-pl-muted">%</span></>
                       : '--'}
                   </p>
                 </div>
               </div>
 
               {!operating && (
-                <p className="text-[11px] text-amber-300 pb-2">
+                <p className="text-[11px] text-pl-warning-text pb-2">
                   The two curves do not cross inside the rate range. That is a real answer, not a
                   failure to converge: this stack is either too small to lift the well at any rate
                   it can pass, or big enough that the inflow runs out first. Change the stage count
@@ -184,7 +184,7 @@ const SystemCurvePanel = () => {
                 </ComposedChart>
               </ChartFrame>
 
-              <p className="text-[11px] text-slate-600">
+              <p className="text-[11px] text-pl-muted">
                 The system curve rises with rate because the well gives up intake pressure as it
                 produces harder and the tubing costs more friction. The pump curve falls. They cross
                 once, and that crossing is where the installation actually runs.

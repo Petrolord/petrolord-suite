@@ -7,19 +7,19 @@ import { useSimStudio } from '@/contexts/SimStudioContext';
 import { fmtElapsed } from '@/components/simstudio/resultAdapters';
 
 const TONE = {
-  complete: 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10',
-  failed: 'text-red-400 border-red-500/40 bg-red-500/10',
-  running: 'text-amber-300 border-amber-500/40 bg-amber-500/10',
-  queued: 'text-sky-400 border-sky-500/40 bg-sky-500/10',
-  cancelled: 'text-slate-400 border-slate-600/40 bg-slate-700/20',
-  none: 'text-slate-400 border-slate-600/40 bg-slate-700/20',
+  complete: 'text-pl-success-text border-pl-success/40 bg-pl-success-bg',
+  failed: 'text-pl-danger-text border-pl-danger/40 bg-pl-danger-bg',
+  running: 'text-pl-warning-text border-pl-warning/40 bg-pl-warning-bg',
+  queued: 'text-pl-info-text border-pl-info/40 bg-pl-info-bg',
+  cancelled: 'text-pl-muted border-pl-border-strong bg-pl-sunken',
+  none: 'text-pl-muted border-pl-border-strong bg-pl-sunken',
 };
 
 const Kpi = ({ title, value }) => (
-  <Card className="bg-slate-900 border-slate-800">
+  <Card>
     <CardContent className="p-3">
-      <div className="text-[10px] uppercase tracking-wide text-slate-500">{title}</div>
-      <div className="text-sm font-semibold mt-0.5 text-slate-200 break-words [overflow-wrap:anywhere]">{value}</div>
+      <div className="text-[10px] uppercase tracking-wide text-pl-muted">{title}</div>
+      <div className="text-sm font-semibold mt-0.5 text-pl-text break-words [overflow-wrap:anywhere]">{value}</div>
     </CardContent>
   </Card>
 );

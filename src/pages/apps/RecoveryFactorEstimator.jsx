@@ -19,9 +19,10 @@ import RfKpiPanel from '@/components/rfestimator/RfKpiPanel';
 import ReservesChartPanel from '@/components/rfestimator/ReservesChartPanel';
 import DriveReferencePanel from '@/components/rfestimator/DriveReferencePanel';
 import RecoveryFactorHelpContent from '@/components/reservoir/RecoveryFactorHelpGuide';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 const SectionLabel = ({ children }) => (
-  <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest">{children}</h3>
+  <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
 );
 
 const RfEstimatorContent = () => {
@@ -82,17 +83,16 @@ const RfEstimatorContent = () => {
             backTo="/dashboard/reservoir"
             backTitle="Back to Reservoir Management"
             icon={Percent}
-            iconGradientClass="from-lime-600 to-emerald-600"
             title="Recovery Factor Estimator"
           />
         }
         headerActions={
           <>
-            <Button variant="ghost" size="sm" onClick={loadSample} className="h-8 text-xs text-slate-300 hover:text-white">
+            <Button variant="ghost" size="sm" onClick={loadSample} className="h-8 text-xs text-pl-muted hover:text-pl-text">
               <Beaker className="w-3.5 h-3.5 mr-1" /> Sample
             </Button>
             <StudioAutoSave isSaving={isSaving} saveError={saveError} lastSaveTime={lastSaveTime} onSave={manualSave} />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Recovery Factor Estimator Guide"
               description="How to estimate recovery factor and convert in-place volumes to reserves."
@@ -112,10 +112,15 @@ const RfEstimatorContent = () => {
   );
 };
 
+// Design system rollout batch 2A (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so it opens light and the header toggle
+// switches it to dark per user. Charts keep the white chart standard.
 export default function RecoveryFactorEstimator() {
   return (
-    <RfEstimatorProvider>
-      <RfEstimatorContent />
-    </RfEstimatorProvider>
+    <ThemedApp data-testid="rf-theme-scope">
+      <RfEstimatorProvider>
+        <RfEstimatorContent />
+      </RfEstimatorProvider>
+    </ThemedApp>
   );
 }

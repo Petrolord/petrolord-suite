@@ -8,9 +8,9 @@ import { VOL_FIELDS_OIL, VOL_FIELDS_GAS } from '@/components/rfestimator/rfField
 
 const Field = ({ label, value, onChange, placeholder }) => (
   <div className="space-y-1">
-    <Label className="text-xs text-slate-400">{label}</Label>
+    <Label className="text-xs text-pl-muted">{label}</Label>
     <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-      className="h-9 bg-slate-800 border-slate-700" />
+      className="h-9" />
   </div>
 );
 
@@ -20,22 +20,22 @@ const InPlacePanel = () => {
 
   return (
     <div className="space-y-4">
-      <div className="inline-flex rounded-lg border border-slate-700 overflow-hidden">
+      <div className="inline-flex rounded-lg border border-pl-border overflow-hidden">
         {['oil', 'gas'].map((p) => (
           <button
             key={p}
             onClick={() => switchPhase(p)}
-            className={`px-4 py-1.5 text-xs font-medium capitalize transition-colors ${inputs.phase === p ? 'bg-lime-600 text-white' : 'bg-slate-900 text-slate-400 hover:text-white'}`}
+            className={`px-4 py-1.5 text-xs font-medium capitalize transition-colors ${inputs.phase === p ? 'bg-pl-primary text-pl-primary-fg' : 'bg-pl-surface text-pl-muted hover:text-pl-text'}`}
           >
             {p}
           </button>
         ))}
       </div>
 
-      <div className="inline-flex rounded-md border border-slate-700 overflow-hidden text-xs">
+      <div className="inline-flex rounded-md border border-pl-border overflow-hidden text-xs">
         {[['volumetric', 'From volumetrics'], ['direct', 'Enter directly']].map(([m, lbl]) => (
           <button key={m} onClick={() => setInPlaceMode(m)}
-            className={`px-3 py-1.5 ${inputs.inPlaceMode === m ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}>
+            className={`px-3 py-1.5 ${inputs.inPlaceMode === m ? 'bg-pl-primary text-pl-primary-fg' : 'text-pl-muted hover:text-pl-text'}`}>
             {lbl}
           </button>
         ))}
@@ -55,7 +55,7 @@ const InPlacePanel = () => {
           ))}
         </div>
       )}
-      <p className="text-[11px] text-slate-500 leading-relaxed">
+      <p className="text-[11px] text-pl-muted leading-relaxed">
         OOIP = 7758·A·h·φ·(1−Sw)·NTG / Boi. It is the same relation the volumetrics apps use, so numbers carry across cleanly.
       </p>
     </div>

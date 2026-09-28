@@ -13,6 +13,7 @@ import StudioHeader from '@/components/studio/StudioHeader';
 import StudioAutoSave from '@/components/studio/StudioAutoSave';
 import StudioHelp from '@/components/studio/StudioHelp';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
+import { ThemedApp } from '@/design/ThemeProvider';
 import {
   ProductionSurveillanceProvider, useSurveillance,
 } from '@/contexts/ProductionSurveillanceContext';
@@ -38,7 +39,7 @@ const TABS = [
 ];
 
 const SectionLabel = ({ children }) => (
-  <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest">{children}</h3>
+  <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
 );
 
 const SurveillanceContent = () => {
@@ -138,7 +139,6 @@ const SurveillanceContent = () => {
             backTo="/dashboard/production"
             backTitle="Back to Production Operations"
             icon={Activity}
-            iconGradientClass="from-emerald-600 to-teal-600"
             title="Production Surveillance Studio"
             tabs={TABS}
             activeTab={activeTab}
@@ -151,7 +151,7 @@ const SurveillanceContent = () => {
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
             />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="hidden sm:block h-4 w-[1px] bg-pl-border mx-1" aria-hidden="true"></div>
             <StudioHelp
               title="Production Surveillance Studio Guide"
               description="How to load a field's production data and surveil it well by well."
@@ -175,10 +175,15 @@ const SurveillanceContent = () => {
   );
 };
 
+// Design system rollout batch 2B (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so it opens light and the header toggle
+// switches it to dark per user. Charts keep the white chart standard.
 export default function ProductionSurveillanceStudio() {
   return (
-    <ProductionSurveillanceProvider>
-      <SurveillanceContent />
-    </ProductionSurveillanceProvider>
+    <ThemedApp data-testid="surveillance-theme-scope">
+      <ProductionSurveillanceProvider>
+        <SurveillanceContent />
+      </ProductionSurveillanceProvider>
+    </ThemedApp>
   );
 }

@@ -6,10 +6,10 @@ import { useRfEstimator } from '@/contexts/RfEstimatorContext';
 import { fmtPct, fmtRes } from '@/components/rfestimator/rfFields';
 
 const Kpi = ({ title, value, accent }) => (
-  <Card className={`bg-slate-900 border-slate-800 ${accent ? 'ring-1 ring-lime-500/30' : ''}`}>
+  <Card className={accent ? 'ring-1 ring-pl-primary/30' : undefined}>
     <CardContent className="p-4">
-      <div className="text-xs uppercase tracking-wide text-slate-500">{title}</div>
-      <div className="text-xl font-bold mt-1 text-slate-100">{value}</div>
+      <div className="text-xs uppercase tracking-wide text-pl-muted">{title}</div>
+      <div className="text-xl font-bold mt-1 font-pl-mono tabular-nums text-pl-text">{value}</div>
     </CardContent>
   </Card>
 );
@@ -26,7 +26,7 @@ const RfKpiPanel = () => {
       <Kpi title="Recoverable Reserves" value={fmtRes(result.reserves, phase)} accent />
 
       {result.warnings?.length > 0 && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-amber-300">
+        <div className="flex items-start gap-2 rounded-lg border border-pl-warning/40 bg-pl-warning-bg px-3 py-2.5 text-pl-warning-text">
           <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
           <div className="text-xs space-y-1">
             {result.warnings.map((w, i) => <div key={i}>{w}</div>)}

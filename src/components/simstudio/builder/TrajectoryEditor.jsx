@@ -12,9 +12,9 @@ import { parseSurveyText, buildTrajectoryConnections } from '@/utils/simTrajecto
 
 const Small = ({ label, value, onChange, className = 'w-24' }) => (
   <div className={`space-y-1 ${className}`}>
-    <Label className="text-[11px] text-slate-400">{label}</Label>
+    <Label className="text-[11px] text-pl-muted">{label}</Label>
     <Input value={value} onChange={(e) => onChange(e.target.value)}
-      className="h-8 bg-slate-800 border-slate-700 text-xs" />
+      className="h-8 text-xs" />
   </div>
 );
 
@@ -47,20 +47,20 @@ const TrajectoryEditor = ({ form, wellIdx, set }) => {
   };
 
   return (
-    <div className="col-span-4 md:col-span-9 rounded-md border border-slate-800 bg-slate-950/40 p-3 space-y-2">
+    <div className="col-span-4 md:col-span-9 rounded-md border border-pl-border bg-pl-sunken p-3 space-y-2">
       <div className="flex flex-wrap items-end gap-3">
         <div className="space-y-1 flex-1 min-w-[240px]">
-          <Label className="text-[11px] text-slate-400">Survey stations: MD INC AZI per line ({traj.mdUnit === 'm' ? 'metres' : 'feet'}, grid azimuths)</Label>
+          <Label className="text-[11px] text-pl-muted">Survey stations: MD INC AZI per line ({traj.mdUnit === 'm' ? 'metres' : 'feet'}, grid azimuths)</Label>
           <textarea value={traj.text || ''} rows={4} spellCheck={false}
             onChange={(e) => patch({ text: e.target.value })}
             placeholder={'0 0 0\n8100 0 90\n8500 88 90\n10000 88 90'}
-            className="w-full rounded-md bg-slate-800 border border-slate-700 px-2 py-1 text-xs font-mono text-slate-200"
+            className="w-full rounded-md border border-pl-border-strong bg-pl-surface px-2 py-1 text-xs font-mono text-pl-text"
             data-testid={`trajectory-text-${wellIdx}`} />
         </div>
         <div className="space-y-1 w-20">
-          <Label className="text-[11px] text-slate-400">MD unit</Label>
+          <Label className="text-[11px] text-pl-muted">MD unit</Label>
           <select value={traj.mdUnit || 'ft'} onChange={(e) => patch({ mdUnit: e.target.value })}
-            className="w-full h-8 rounded-md bg-slate-800 border border-slate-700 px-1 text-xs">
+            className="w-full h-8 rounded-md border border-pl-border-strong bg-pl-surface px-1 text-xs text-pl-text">
             <option value="ft">ft</option>
             <option value="m">m</option>
           </select>
@@ -74,7 +74,7 @@ const TrajectoryEditor = ({ form, wellIdx, set }) => {
         </Button>
       </div>
       {check && (check.ok ? (
-        <p className="text-[11px] text-emerald-400 flex items-start gap-1.5">
+        <p className="text-[11px] text-pl-success-text flex items-start gap-1.5">
           <CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-px" />
           <span>
             {check.connections.length} connections, head I{check.headIJ.i} J{check.headIJ.j},
@@ -83,11 +83,11 @@ const TrajectoryEditor = ({ form, wellIdx, set }) => {
           </span>
         </p>
       ) : (
-        <p className="text-[11px] text-amber-400 flex items-start gap-1.5">
+        <p className="text-[11px] text-pl-warning-text flex items-start gap-1.5">
           <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" /> {check.message}
         </p>
       ))}
-      <p className="text-[11px] text-slate-500">
+      <p className="text-[11px] text-pl-muted">
         X grows east with I from the grid corner, Y north with J; azimuths are grid-referenced.
         Deck depth = survey TVD + KB→datum. Connections are recomputed at generate time.
       </p>

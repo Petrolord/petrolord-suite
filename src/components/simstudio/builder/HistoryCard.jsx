@@ -107,12 +107,12 @@ const HistoryCard = ({ form, set, addNotification }) => {
   const preview = history.periods ? historyPreviewRows(history) : [];
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
         <CardTitle className="text-sm flex items-center gap-2">
-          <History className="w-4 h-4 text-slate-400" /> Production history
+          <History className="w-4 h-4 text-pl-muted" /> Production history
         </CardTitle>
-        <label className="flex items-center gap-2 text-[11px] text-slate-400">
+        <label className="flex items-center gap-2 text-[11px] text-pl-muted">
           <input type="checkbox" checked={!!history.enabled} data-testid="history-enabled"
             onChange={(e) => set('history', { ...history, enabled: e.target.checked })} />
           Simulate observed history first
@@ -122,29 +122,29 @@ const HistoryCard = ({ form, set, addNotification }) => {
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1 min-w-[220px]">
-              <Label className="text-[11px] text-slate-400">Source</Label>
+              <Label className="text-[11px] text-pl-muted">Source</Label>
               <select value={source}
                 onChange={(e) => set('history', { ...history, source: e.target.value, periods: null, wellSummary: null })}
-                className="w-full h-8 rounded-md bg-slate-800 border border-slate-700 px-2 text-xs"
+                className="w-full h-8 rounded-md border border-pl-border-strong bg-pl-surface px-2 text-xs text-pl-text"
                 data-testid="history-source">
                 <option value="mbal">Material Balance case (field cumulatives, allocated)</option>
                 <option value="perwell">Per-well rate CSV (no allocation)</option>
               </select>
             </div>
             <div className="space-y-1 w-28">
-              <Label className="text-[11px] text-slate-400">Prediction (years)</Label>
+              <Label className="text-[11px] text-pl-muted">Prediction (years)</Label>
               <Input value={history.predictionYears ?? '3'}
                 onChange={(e) => set('history', { ...history, predictionYears: e.target.value })}
-                className="h-8 bg-slate-800 border-slate-700 text-xs" />
+                className="h-8 text-xs" />
             </div>
           </div>
 
           {source === 'mbal' && (
             <div className="flex flex-wrap items-end gap-3">
               <div className="space-y-1 min-w-[220px]">
-                <Label className="text-[11px] text-slate-400">MBAL case</Label>
+                <Label className="text-[11px] text-pl-muted">MBAL case</Label>
                 <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)}
-                  className="w-full h-8 rounded-md bg-slate-800 border border-slate-700 px-2 text-xs"
+                  className="w-full h-8 rounded-md border border-pl-border-strong bg-pl-surface px-2 text-xs text-pl-text"
                   data-testid="history-case-select">
                   <option value="">{cases === null ? 'Loading…' : cases.length ? 'Pick a case…' : 'No Material Balance cases found'}</option>
                   {(cases || []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -152,10 +152,10 @@ const HistoryCard = ({ form, set, addNotification }) => {
               </div>
               {producers.length > 1 && producers.map((name) => (
                 <div key={name} className="space-y-1 w-24">
-                  <Label className="text-[11px] text-slate-400">{name} frac</Label>
+                  <Label className="text-[11px] text-pl-muted">{name} frac</Label>
                   <Input value={fracs[name] ?? (1 / producers.length).toFixed(2)}
                     onChange={(e) => setFracs((p) => ({ ...p, [name]: e.target.value }))}
-                    className="h-8 bg-slate-800 border-slate-700 text-xs" />
+                    className="h-8 text-xs" />
                 </div>
               ))}
               <Button size="sm" variant="outline" className="h-8 text-xs" disabled={!selectedId || busy}
@@ -171,20 +171,20 @@ const HistoryCard = ({ form, set, addNotification }) => {
               <textarea value={csvText} onChange={(e) => setCsvText(e.target.value)}
                 rows={6} spellCheck={false} data-testid="history-csv"
                 placeholder={'date, well, oil, water, gas\n2024-01-01, PROD1, 1500, 100, 900\n2024-01-01, INJ1, , 2400,'}
-                className="w-full rounded-md bg-slate-950 border border-slate-700 p-2 font-mono text-[11px] text-slate-200" />
+                className="w-full rounded-md border border-pl-border-strong bg-pl-surface p-2 font-mono text-[11px] text-pl-text" />
               <div className="flex flex-wrap items-end gap-3">
                 <div className="space-y-1 w-52">
-                  <Label className="text-[11px] text-slate-400">Values are</Label>
+                  <Label className="text-[11px] text-pl-muted">Values are</Label>
                   <select value={csvMode} onChange={(e) => setCsvMode(e.target.value)}
-                    className="w-full h-8 rounded-md bg-slate-800 border border-slate-700 px-2 text-xs">
+                    className="w-full h-8 rounded-md border border-pl-border-strong bg-pl-surface px-2 text-xs text-pl-text">
                     <option value="rates">Daily rates</option>
                     <option value="volumes">Interval volumes (spread over the period)</option>
                   </select>
                 </div>
                 <div className="space-y-1 w-32">
-                  <Label className="text-[11px] text-slate-400">Gas unit</Label>
+                  <Label className="text-[11px] text-pl-muted">Gas unit</Label>
                   <select value={gasUnit} onChange={(e) => setGasUnit(e.target.value)}
-                    className="w-full h-8 rounded-md bg-slate-800 border border-slate-700 px-2 text-xs">
+                    className="w-full h-8 rounded-md border border-pl-border-strong bg-pl-surface px-2 text-xs text-pl-text">
                     <option value="mscf">Mscf</option>
                     <option value="scf">scf (÷1000)</option>
                   </select>
@@ -194,7 +194,7 @@ const HistoryCard = ({ form, set, addNotification }) => {
                   <FileSpreadsheet className="w-3 h-3 mr-1" /> Import per-well rates
                 </Button>
               </div>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-pl-muted">
                 One row per well per date; well names must match the model's wells. Producer rows become
                 WCONHIST with that well's own oil/water/gas; injector rows drive WCONINJH from their phase
                 column. A well missing on a date keeps its previous rate.
@@ -203,7 +203,7 @@ const HistoryCard = ({ form, set, addNotification }) => {
           )}
 
           {source === 'mbal' && (
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-pl-muted">
               Field cumulatives become interval rates (WCONHIST) split across the model's producers;
               injection cumulatives drive the injectors (WCONINJH). The deck start date becomes the
               first observation date, and the prediction tail runs each well on its declared controls.
@@ -211,13 +211,13 @@ const HistoryCard = ({ form, set, addNotification }) => {
           )}
 
           {history.periods && (
-            <div className="text-[11px] text-slate-400">
-              <div className="text-slate-300 mb-1">
+            <div className="text-[11px] text-pl-muted">
+              <div className="text-pl-text mb-1">
                 {history.caseName}: {history.periods.length} periods, {history.startDate} → {history.endDate}
               </div>
               {Array.isArray(history.wellSummary) && history.wellSummary.length > 0 ? (
                 <table className="w-full max-w-md text-left" data-testid="history-well-summary">
-                  <thead className="text-slate-500">
+                  <thead className="text-pl-muted">
                     <tr><th className="pr-3 font-normal">well</th><th className="pr-3 font-normal">periods</th><th className="pr-3 font-normal">avg oil STB/d</th><th className="pr-3 font-normal">avg water STB/d</th><th className="font-normal">avg gas Mscf/d</th></tr>
                   </thead>
                   <tbody>
@@ -234,7 +234,7 @@ const HistoryCard = ({ form, set, addNotification }) => {
                 </table>
               ) : (
                 <table className="w-full max-w-md text-left">
-                  <thead className="text-slate-500">
+                  <thead className="text-pl-muted">
                     <tr><th className="pr-3 font-normal">from</th><th className="pr-3 font-normal">oil STB/d</th><th className="pr-3 font-normal">water STB/d</th><th className="pr-3 font-normal">gas Mscf/d</th><th className="font-normal">inj STB/d</th></tr>
                   </thead>
                   <tbody>

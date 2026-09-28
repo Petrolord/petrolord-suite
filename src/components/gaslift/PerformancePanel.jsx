@@ -21,10 +21,10 @@ const fmt = (v, digits = 0) => (Number.isFinite(v)
   : '--');
 
 const StaleNote = ({ onRerun }) => (
-  <div className="flex items-center gap-2 text-[11px] text-amber-400 mb-2">
+  <div className="flex items-center gap-2 text-[11px] text-pl-warning-text mb-2">
     <RefreshCw className="w-3 h-3" />
     Inputs changed since this ran.
-    <button type="button" className="underline hover:text-amber-300" onClick={onRerun}>
+    <button type="button" className="underline hover:opacity-80" onClick={onRerun}>
       Run again
     </button>
   </div>
@@ -48,11 +48,11 @@ const PerformancePanel = () => {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-emerald-400" /> Response to injection gas
-            <span className="text-xs font-normal text-slate-500">
+            <TrendingUp className="w-4 h-4 text-pl-muted" /> Response to injection gas
+            <span className="text-xs font-normal text-pl-muted">
               solved at {fmt(operatingValveMd)} ft measured depth
             </span>
           </CardTitle>
@@ -60,27 +60,27 @@ const PerformancePanel = () => {
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 items-end">
             <div className="space-y-1">
-              <Label className="text-xs text-slate-400">Max injection (Mscf/d)</Label>
+              <Label className="text-xs text-pl-muted">Max injection (Mscf/d)</Label>
               <Input
                 type="number" value={inputs.injection.maxQgiMscfd}
                 onChange={(e) => setSection('injection', 'maxQgiMscfd', e.target.value)}
-                className="h-9 bg-slate-800 border-slate-700"
+                className="h-9"
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs text-slate-400">Points</Label>
+              <Label className="text-xs text-pl-muted">Points</Label>
               <Input
                 type="number" value={inputs.injection.nPoints}
                 onChange={(e) => setSection('injection', 'nPoints', e.target.value)}
-                className="h-9 bg-slate-800 border-slate-700"
+                className="h-9"
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs text-slate-400">Economic slope (stb per Mscf)</Label>
+              <Label className="text-xs text-pl-muted">Economic slope (stb per Mscf)</Label>
               <Input
                 type="number" step="0.01" value={inputs.injection.econSlope}
                 onChange={(e) => setSection('injection', 'econSlope', e.target.value)}
-                className="h-9 bg-slate-800 border-slate-700"
+                className="h-9"
               />
             </div>
             <Button onClick={runPerformance} disabled={isRunning} className="h-9">
@@ -89,7 +89,7 @@ const PerformancePanel = () => {
           </div>
 
           {!performance ? (
-            <p className="text-sm text-slate-500 py-6 text-center">
+            <p className="text-sm text-pl-muted py-6 text-center">
               Each point on this curve is a full nodal solve, so it runs when you ask for it.
             </p>
           ) : (
@@ -97,23 +97,23 @@ const PerformancePanel = () => {
               {performanceStale && <StaleNote onRerun={runPerformance} />}
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pb-2">
                 <div>
-                  <p className="text-[11px] uppercase tracking-wider text-slate-500">Without gas</p>
-                  <p className="text-lg font-semibold text-slate-100 tabular-nums">
-                    {fmt(performance.baseline.q)} <span className="text-xs font-normal text-slate-500">stb/d</span>
+                  <p className="text-[11px] uppercase tracking-wider text-pl-muted">Without gas</p>
+                  <p className="text-lg font-semibold text-pl-text font-pl-mono tabular-nums">
+                    {fmt(performance.baseline.q)} <span className="text-xs font-normal text-pl-muted">stb/d</span>
                   </p>
                 </div>
                 <div>
-                  <p className="text-[11px] uppercase tracking-wider text-slate-500">Maximum rate</p>
-                  <p className="text-lg font-semibold text-emerald-400 tabular-nums">
-                    {fmt(performance.best.q)} <span className="text-xs font-normal text-slate-500">stb/d at {fmt(performance.best.qgi)} Mscf/d</span>
+                  <p className="text-[11px] uppercase tracking-wider text-pl-muted">Maximum rate</p>
+                  <p className="text-lg font-semibold text-pl-text font-pl-mono tabular-nums">
+                    {fmt(performance.best.q)} <span className="text-xs font-normal text-pl-muted">stb/d at {fmt(performance.best.qgi)} Mscf/d</span>
                   </p>
                 </div>
                 <div>
-                  <p className="text-[11px] uppercase tracking-wider text-slate-500">Economic point</p>
-                  <p className="text-lg font-semibold text-sky-400 tabular-nums">
+                  <p className="text-[11px] uppercase tracking-wider text-pl-muted">Economic point</p>
+                  <p className="text-lg font-semibold text-pl-text font-pl-mono tabular-nums">
                     {performance.econ
-                      ? <>{fmt(performance.econ.q)} <span className="text-xs font-normal text-slate-500">stb/d at {fmt(performance.econ.qgi)} Mscf/d</span></>
-                      : <span className="text-sm font-normal text-slate-500">below the slope from the first step</span>}
+                      ? <>{fmt(performance.econ.q)} <span className="text-xs font-normal text-pl-muted">stb/d at {fmt(performance.econ.qgi)} Mscf/d</span></>
+                      : <span className="text-sm font-normal text-pl-muted">below the slope from the first step</span>}
                   </p>
                 </div>
               </div>
@@ -165,11 +165,11 @@ const PerformancePanel = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
           <CardTitle className="text-base">
             Rate against injection depth
-            <span className="block text-xs font-normal text-slate-500 mt-0.5">
+            <span className="block text-xs font-normal text-pl-muted mt-0.5">
               What deeper injection is worth at {fmt(Number(inputs.injection.targetQgiMscfd))} Mscf/d, before
               asking whether the casing pressure can reach it.
             </span>
@@ -180,7 +180,7 @@ const PerformancePanel = () => {
         </CardHeader>
         <CardContent className="p-0">
           {!depthSweep ? (
-            <p className="text-sm text-slate-500 py-8 text-center">Not run yet.</p>
+            <p className="text-sm text-pl-muted py-8 text-center">Not run yet.</p>
           ) : (
             <div className="px-4 pb-2">
               {depthSweepStale && <StaleNote onRerun={runDepthSweep} />}

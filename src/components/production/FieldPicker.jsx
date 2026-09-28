@@ -37,10 +37,10 @@ const FieldPicker = ({
     <div className="space-y-2">
       <div className="flex gap-2">
         <Select value={fieldId || ''} onValueChange={onSelect}>
-          <SelectTrigger className="flex-1 bg-slate-800 border-slate-700">
+          <SelectTrigger className="flex-1">
             <SelectValue placeholder="Select field" />
           </SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+          <SelectContent>
             {fields.length === 0 ? (
               <SelectItem value="none" disabled>No fields yet</SelectItem>
             ) : (
@@ -56,11 +56,11 @@ const FieldPicker = ({
         {onCreate && (
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="icon" className="bg-slate-800 border-slate-700" title="Create field">
+              <Button variant="outline" size="icon" title="Create field">
                 <Plus size={16} />
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-slate-900 border-slate-700 text-slate-100">
+            <DialogContent>
               <DialogHeader><DialogTitle>Create field</DialogTitle></DialogHeader>
               <div className="py-4">
                 <Input
@@ -68,7 +68,6 @@ const FieldPicker = ({
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); }}
-                  className="bg-slate-800 border-slate-700"
                 />
               </div>
               <DialogFooter><Button onClick={handleCreate}>Create field</Button></DialogFooter>
@@ -79,7 +78,7 @@ const FieldPicker = ({
         {currentField && canEditField && onDelete && (
           <Button
             variant="outline" size="icon"
-            className="bg-slate-800 border-slate-700 text-slate-500 hover:text-red-400"
+            className="text-pl-muted hover:text-pl-danger-text"
             title="Delete field and ALL its production data"
             onClick={() => {
               if (window.confirm(`Delete field "${currentField.name}" and all its wells, ledger, tests and deferments? This cannot be undone.`)) {
@@ -93,22 +92,22 @@ const FieldPicker = ({
       </div>
 
       {currentField && (
-        <div className="flex items-center justify-between text-xs text-slate-400 bg-slate-800/60 border border-slate-700/60 rounded px-2 py-1.5">
+        <div className="flex items-center justify-between text-xs text-pl-muted bg-pl-sunken border border-pl-border rounded px-2 py-1.5">
           {currentField.organization_id ? (
-            <span className="flex items-center gap-1.5 text-sky-400"><Users size={12} /> Shared with your organization</span>
+            <span className="flex items-center gap-1.5 text-pl-info-text"><Users size={12} /> Shared with your organization</span>
           ) : (
             <span className="flex items-center gap-1.5"><Lock size={12} /> Private</span>
           )}
           {canEditField && (
             currentField.organization_id ? (
               onUnshare && (
-                <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-slate-400" onClick={onUnshare}>
+                <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-pl-muted" onClick={onUnshare}>
                   Unshare
                 </Button>
               )
             ) : (
               onShare && (
-                <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-slate-400" onClick={onShare}>
+                <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-pl-muted" onClick={onShare}>
                   <Share2 size={12} className="mr-1" /> Share
                 </Button>
               )
@@ -117,7 +116,7 @@ const FieldPicker = ({
         </div>
       )}
       {currentField && !canEditField && (
-        <p className="text-[11px] text-slate-500">
+        <p className="text-[11px] text-pl-muted">
           Shared field: read-only. Imports, edits and allocation write-backs are the owner's.
         </p>
       )}

@@ -15,11 +15,17 @@ import {
 
 const WELL_COLORS = { producer: '#a3e635', water_injector: '#38bdf8', gas_injector: '#fb7185' };
 
+// Legend key: the well colour as a dot beside its word, so the key reads on
+// the themed page and matches the strokes on the dark canvas.
+const Swatch = ({ type }) => (
+  <span aria-hidden="true" className="mr-1 inline-block h-2 w-2 rounded-full align-middle" style={{ background: WELL_COLORS[type] }} />
+);
+
 const Slider = ({ label, value, min, max, onChange, testId }) => (
   <div className="space-y-1 w-36">
-    <Label className="text-[11px] text-slate-400">{label}: {value}</Label>
+    <Label className="text-[11px] text-pl-muted">{label}: {value}</Label>
     <input type="range" min={min} max={max} value={value} data-testid={testId}
-      onChange={(e) => onChange(Number(e.target.value))} className="w-full accent-lime-500" />
+      onChange={(e) => onChange(Number(e.target.value))} className="w-full accent-pl-primary" />
   </div>
 );
 
@@ -88,12 +94,12 @@ const Grid3DView = ({ form }) => {
   const points = (pts) => pts.map((p) => p.join(',')).join(' ');
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
         <CardTitle className="text-sm flex items-center gap-2">
-          <Box className="w-4 h-4 text-slate-400" /> 3D preview
+          <Box className="w-4 h-4 text-pl-muted" /> 3D preview
         </CardTitle>
-        <label className="flex items-center gap-2 text-[11px] text-slate-400">
+        <label className="flex items-center gap-2 text-[11px] text-pl-muted">
           <input type="checkbox" checked={showWells} onChange={(e) => setShowWells(e.target.checked)} />
           Wells
         </label>
@@ -106,13 +112,16 @@ const Grid3DView = ({ form }) => {
             value={vertExag || built.ve || 1} min={1} max={50} onChange={setVertExag} testId="viz-ve" />
         </div>
         {built.error && (
-          <p className="text-[11px] text-amber-400">{built.error}</p>
+          <p className="text-[11px] text-pl-warning-text">{built.error}</p>
         )}
         {view && (
           <>
+            {/* Dark display canvas in both themes: the depth colours and well
+                strokes were tuned on a near-black ground. */}
+            <div data-canvas="dark" className="w-full max-w-[560px] overflow-hidden rounded-pl-canvas border border-pl-border bg-pl-bg">
             <svg
               viewBox={`${view.extent.minX - pad} ${view.extent.minY - pad} ${view.extent.width + 2 * pad} ${view.extent.height + 2 * pad}`}
-              className="w-full max-w-[560px] rounded border border-slate-700 bg-slate-950"
+              className="block w-full"
               role="img" aria-label="3D model preview" data-testid="viz-svg">
               {view.polys.map((q, idx) => (
                 <polygon key={idx} points={points(q.pts)} fill={q.fill} fillOpacity="0.92"
@@ -137,10 +146,11 @@ const Grid3DView = ({ form }) => {
                 </g>
               ))}
             </svg>
-            <p className="text-[11px] text-slate-500">
+            </div>
+            <p className="text-[11px] text-pl-muted">
               Structure surface colored shallow (warm) to deep (cool); node depths are smoothed from the
-              block-centred cell tops for display. Wells: <span className="text-lime-400">producers</span>,{' '}
-              <span className="text-sky-400">water injectors</span>, <span className="text-rose-400">gas injectors</span>;
+              block-centred cell tops for display. Wells: <Swatch type="producer" />producers,{' '}
+              <Swatch type="water_injector" />water injectors, <Swatch type="gas_injector" />gas injectors;
               dashed = uncompleted stalk.
               {built.skipped?.length ? ` Not drawn (incomplete input): ${built.skipped.join(', ')}.` : ''}
             </p>

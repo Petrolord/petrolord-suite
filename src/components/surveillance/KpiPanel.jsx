@@ -11,11 +11,11 @@ const fmt = (v, digits = 0) =>
     minimumFractionDigits: digits, maximumFractionDigits: digits,
   });
 
-const Tile = ({ label, value, unit, tone = 'text-slate-100' }) => (
-  <div className="bg-slate-800/60 border border-slate-700/60 rounded px-3 py-2">
-    <div className="text-[10px] uppercase tracking-wider text-slate-500">{label}</div>
-    <div className={`text-lg font-semibold leading-tight ${tone}`}>
-      {value} {unit && <span className="text-xs font-normal text-slate-500">{unit}</span>}
+const Tile = ({ label, value, unit }) => (
+  <div className="bg-pl-sunken border border-pl-border rounded px-3 py-2">
+    <div className="text-[10px] uppercase tracking-wider text-pl-muted">{label}</div>
+    <div className="text-lg font-semibold leading-tight font-pl-mono tabular-nums text-pl-text">
+      {value} {unit && <span className="font-pl-sans text-xs font-normal text-pl-muted">{unit}</span>}
     </div>
   </div>
 );
@@ -24,10 +24,10 @@ const KpiPanel = () => {
   const { kpis, surveillance, defermentSummary, currentField } = useSurveillance();
 
   if (!currentField) {
-    return <p className="text-sm text-slate-500">Select a field to see its performance summary.</p>;
+    return <p className="text-sm text-pl-muted">Select a field to see its performance summary.</p>;
   }
   if (!kpis) {
-    return <p className="text-sm text-slate-500">No ledger rows yet. Import production data on the Data tab.</p>;
+    return <p className="text-sm text-pl-muted">No ledger rows yet. Import production data on the Data tab.</p>;
   }
 
   const high = surveillance.exceptions.filter((e) => e.severity === 'high').length;
@@ -35,15 +35,15 @@ const KpiPanel = () => {
 
   return (
     <div className="space-y-3">
-      <div className="text-xs text-slate-500 flex items-center gap-1.5">
+      <div className="text-xs text-pl-muted flex items-center gap-1.5">
         <Clock size={12} /> Trailing {kpis.windowDays} days to {kpis.asOf}
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <Tile label="Oil" value={fmt(kpis.oil)} unit="stb/d" tone="text-emerald-400" />
-        <Tile label="Water" value={fmt(kpis.water)} unit="stb/d" tone="text-sky-400" />
-        <Tile label="Gas" value={fmt(kpis.gas)} unit="Mscf/d" tone="text-amber-400" />
-        <Tile label="Water inj." value={fmt(kpis.winj)} unit="stb/d" tone="text-indigo-400" />
+        <Tile label="Oil" value={fmt(kpis.oil)} unit="stb/d" />
+        <Tile label="Water" value={fmt(kpis.water)} unit="stb/d" />
+        <Tile label="Gas" value={fmt(kpis.gas)} unit="Mscf/d" />
+        <Tile label="Water inj." value={fmt(kpis.winj)} unit="stb/d" />
         <Tile label="Watercut" value={kpis.watercut == null ? '--' : fmt(kpis.watercut * 100, 1)} unit="%" />
         <Tile label="GOR" value={fmt(kpis.gor)} unit="scf/stb" />
         <Tile label="Uptime" value={kpis.uptimePct == null ? '--' : fmt(kpis.uptimePct, 1)} unit="%" />
@@ -51,34 +51,34 @@ const KpiPanel = () => {
       </div>
 
       {kpis.uptimePct == null && (
-        <p className="text-[11px] text-slate-500">
+        <p className="text-[11px] text-pl-muted">
           Uptime needs an hours_on column in the ledger. Without it, producing-day rates equal
           calendar-day volumes.
         </p>
       )}
 
-      <div className="border-t border-slate-800 pt-3 space-y-2">
+      <div className="border-t border-pl-border pt-3 space-y-2">
         <div className="flex items-center justify-between text-sm">
-          <span className="flex items-center gap-1.5 text-slate-400">
-            <AlertTriangle size={14} className="text-amber-400" /> Exceptions
+          <span className="flex items-center gap-1.5 text-pl-muted">
+            <AlertTriangle size={14} className="text-pl-muted" /> Exceptions
           </span>
-          <span className="text-slate-200">
-            {high > 0 && <span className="text-red-400 font-semibold">{high} high</span>}
-            {high > 0 && medium > 0 && <span className="text-slate-600"> / </span>}
-            {medium > 0 && <span className="text-amber-400 font-semibold">{medium} medium</span>}
-            {high === 0 && medium === 0 && <span className="text-emerald-400">none</span>}
+          <span className="text-pl-text">
+            {high > 0 && <span className="text-pl-danger-text font-semibold">{high} high</span>}
+            {high > 0 && medium > 0 && <span className="text-pl-muted"> / </span>}
+            {medium > 0 && <span className="text-pl-warning-text font-semibold">{medium} medium</span>}
+            {high === 0 && medium === 0 && <span className="text-pl-success-text">none</span>}
           </span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="flex items-center gap-1.5 text-slate-400">
-            <Activity size={14} className="text-sky-400" /> Open deferments
+          <span className="flex items-center gap-1.5 text-pl-muted">
+            <Activity size={14} className="text-pl-muted" /> Open deferments
           </span>
-          <span className="text-slate-200">{defermentSummary.openCount}</span>
+          <span className="text-pl-text">{defermentSummary.openCount}</span>
         </div>
         {defermentSummary.totals.oil > 0 && (
           <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-400">Oil deferred</span>
-            <span className="text-slate-200">{fmt(defermentSummary.totals.oil)} <span className="text-xs text-slate-500">stb</span></span>
+            <span className="text-pl-muted">Oil deferred</span>
+            <span className="text-pl-text">{fmt(defermentSummary.totals.oil)} <span className="text-xs text-pl-muted">stb</span></span>
           </div>
         )}
       </div>

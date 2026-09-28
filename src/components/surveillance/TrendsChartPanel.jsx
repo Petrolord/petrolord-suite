@@ -101,8 +101,8 @@ const TrendsChartPanel = () => {
 
   if (!currentField) {
     return (
-      <Card className="bg-slate-900 border-slate-800">
-        <CardContent className="py-10 text-center text-slate-500 text-sm">
+      <Card>
+        <CardContent className="py-10 text-center text-pl-muted text-sm">
           Select a field in the left rail to plot its trends.
         </CardContent>
       </Card>
@@ -110,11 +110,11 @@ const TrendsChartPanel = () => {
   }
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base">
           {title || 'Production trends'}
-          {subtitle && <span className="block text-xs font-normal text-slate-500 mt-0.5">{subtitle}</span>}
+          {subtitle && <span className="block text-xs font-normal text-pl-muted mt-0.5">{subtitle}</span>}
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
@@ -185,7 +185,7 @@ const TrendsChartPanel = () => {
             </ComposedChart>
           </ChartFrame>
         ) : (
-          <div className="h-72 flex items-center justify-center text-slate-500 text-sm px-6 text-center">
+          <div className="h-72 flex items-center justify-center text-pl-muted text-sm px-6 text-center">
             {trends.view === 'well' && !trends.wellId
               ? 'Pick a well in the left rail.'
               : 'No ledger rows for this selection. Import production data on the Data tab.'}

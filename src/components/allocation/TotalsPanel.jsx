@@ -48,32 +48,32 @@ const AddTotalDialog = () => {
       <DialogTrigger asChild>
         <Button size="sm" variant="outline"><Plus className="w-4 h-4 mr-1" /> Add date</Button>
       </DialogTrigger>
-      <DialogContent className="bg-slate-900 border-slate-700 text-slate-100">
+      <DialogContent>
         <DialogHeader><DialogTitle>Metered total for one date</DialogTitle></DialogHeader>
         <div className="space-y-3 py-2">
           <div className="space-y-1">
-            <Label className="text-xs text-slate-400">Date</Label>
+            <Label className="text-xs text-pl-muted">Date</Label>
             <Input type="date" value={form.date} onChange={(e) => set('date', e.target.value)}
-              className="h-9 bg-slate-800 border-slate-700" />
+              className="h-9" />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
-              <Label className="text-xs text-slate-400">Oil (stb)</Label>
+              <Label className="text-xs text-pl-muted">Oil (stb)</Label>
               <Input type="number" value={form.oil} onChange={(e) => set('oil', e.target.value)}
-                className="h-9 bg-slate-800 border-slate-700" />
+                className="h-9" />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs text-slate-400">Water (stb)</Label>
+              <Label className="text-xs text-pl-muted">Water (stb)</Label>
               <Input type="number" value={form.water} onChange={(e) => set('water', e.target.value)}
-                className="h-9 bg-slate-800 border-slate-700" />
+                className="h-9" />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs text-slate-400">Gas (Mscf)</Label>
+              <Label className="text-xs text-pl-muted">Gas (Mscf)</Label>
               <Input type="number" value={form.gas} onChange={(e) => set('gas', e.target.value)}
-                className="h-9 bg-slate-800 border-slate-700" />
+                className="h-9" />
             </div>
           </div>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-pl-muted">
             Saving a date that already exists overwrites it.
           </p>
         </div>
@@ -115,11 +115,11 @@ const TotalsPanel = () => {
   const recent = [...fieldTotals].reverse().slice(0, 60);
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2 flex-row items-center justify-between flex-wrap gap-2">
         <CardTitle className="text-base flex items-center gap-2">
-          <Gauge className="w-4 h-4 text-sky-400" /> Metered field totals
-          <span className="text-xs font-normal text-slate-500">
+          <Gauge className="w-4 h-4 text-pl-muted" /> Metered field totals
+          <span className="text-xs font-normal text-pl-muted">
             {fieldTotals.length.toLocaleString()} date{fieldTotals.length === 1 ? '' : 's'}
           </span>
         </CardTitle>
@@ -137,13 +137,13 @@ const TotalsPanel = () => {
       </CardHeader>
       <CardContent className="space-y-3">
         {!currentField && (
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-pl-muted">
             Select a field in the left rail. Allocation needs its wells and ledger, which the
             Surveillance Studio imports, plus the metered totals below.
           </p>
         )}
         {currentField && !canEditField && (
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-pl-muted">
             This field is shared with you read-only. You can run and read allocations; only its
             owner can import totals or write factors back.
           </p>
@@ -152,24 +152,24 @@ const TotalsPanel = () => {
         <div
           {...getRootProps()}
           className={`border-2 border-dashed rounded-lg p-5 text-center transition-colors ${
-            disabled ? 'border-slate-800 opacity-50 cursor-not-allowed'
-              : isDragActive ? 'border-sky-500 bg-sky-500/10 cursor-pointer'
-                : 'border-slate-700 hover:border-slate-500 cursor-pointer'
+            disabled ? 'border-pl-border opacity-50 cursor-not-allowed'
+              : isDragActive ? 'border-pl-info bg-pl-info-bg cursor-pointer'
+                : 'border-pl-border hover:border-pl-border-strong cursor-pointer'
           }`}
         >
           <input {...getInputProps()} />
-          <Upload className="w-5 h-5 mx-auto text-slate-500 mb-2" />
-          <p className="text-sm text-slate-400">
+          <Upload className="w-5 h-5 mx-auto text-pl-muted mb-2" />
+          <p className="text-sm text-pl-muted">
             Drop a meter CSV here, or click to browse. One row per date, no well column.
           </p>
-          <p className="text-xs text-slate-600 mt-1">
+          <p className="text-xs text-pl-muted mt-1">
             Recognized columns (aliases welcome): date, oil, water, gas. Units auto-scale from the
             header (Mscf/MMscf, bbl/Mbbl). Re-importing a corrected file overwrites the same dates.
           </p>
         </div>
 
         {report && (report.skipped.length > 0 || report.warnings.length > 0) && (
-          <div className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded px-3 py-2 space-y-1">
+          <div className="text-xs text-pl-warning-text bg-pl-warning-bg border border-pl-warning/40 rounded px-3 py-2 space-y-1">
             <div className="flex items-center gap-2 font-semibold"><FileWarning className="w-4 h-4" /> Import report</div>
             {report.warnings.map((w, i) => <div key={`w${i}`}>{w}</div>)}
             {report.skipped.slice(0, 8).map((s, i) => <div key={`s${i}`}>Row {s.row}: {s.reason}</div>)}
@@ -180,8 +180,8 @@ const TotalsPanel = () => {
         {fieldTotals.length > 0 && (
           <div className="overflow-x-auto max-h-96 overflow-y-auto">
             <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-slate-900">
-                <tr className="text-left text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
+              <thead className="sticky top-0 bg-pl-surface">
+                <tr className="text-left text-[11px] uppercase tracking-wider text-pl-muted border-b border-pl-border">
                   <th className="py-2 pr-3 font-semibold">Date</th>
                   <th className="py-2 pr-3 font-semibold text-right">Oil (stb)</th>
                   <th className="py-2 pr-3 font-semibold text-right">Water (stb)</th>
@@ -192,16 +192,16 @@ const TotalsPanel = () => {
               </thead>
               <tbody>
                 {recent.map((t) => (
-                  <tr key={t.id} className="border-b border-slate-800/60 last:border-0">
-                    <td className="py-1.5 pr-3 text-slate-200">{t.total_date}</td>
-                    <td className="py-1.5 pr-3 text-right text-emerald-400">{fmt(t.oil_stb)}</td>
-                    <td className="py-1.5 pr-3 text-right text-sky-400">{fmt(t.water_stb)}</td>
-                    <td className="py-1.5 pr-3 text-right text-amber-400">{fmt(t.gas_mscf)}</td>
-                    <td className="py-1.5 pr-3 text-slate-500 text-xs">{t.source}</td>
+                  <tr key={t.id} className="border-b border-pl-border last:border-0">
+                    <td className="py-1.5 pr-3 text-pl-text">{t.total_date}</td>
+                    <td className="py-1.5 pr-3 text-right font-pl-mono tabular-nums text-pl-text">{fmt(t.oil_stb)}</td>
+                    <td className="py-1.5 pr-3 text-right font-pl-mono tabular-nums text-pl-text">{fmt(t.water_stb)}</td>
+                    <td className="py-1.5 pr-3 text-right font-pl-mono tabular-nums text-pl-text">{fmt(t.gas_mscf)}</td>
+                    <td className="py-1.5 pr-3 text-pl-muted text-xs">{t.source}</td>
                     <td className="py-1.5 text-right">
                       {canEditField && (
                         <Button
-                          variant="ghost" size="sm" className="h-7 px-2 text-slate-500 hover:text-red-400"
+                          variant="ghost" size="sm" className="h-7 px-2 text-pl-muted hover:text-pl-danger-text"
                           onClick={() => deleteTotal(t.id)} title="Delete this metered date"
                         >
                           <Trash2 size={14} />
@@ -213,7 +213,7 @@ const TotalsPanel = () => {
               </tbody>
             </table>
             {fieldTotals.length > recent.length && (
-              <p className="text-[11px] text-slate-500 pt-2">
+              <p className="text-[11px] text-pl-muted pt-2">
                 Showing the most recent {recent.length} of {fieldTotals.length.toLocaleString()} dates.
               </p>
             )}

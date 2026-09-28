@@ -17,7 +17,7 @@ const StructurePreview = ({ tops, nx, ny }) => {
   const span = Math.max(1e-9, max - min);
   const size = 7;
   return (
-    <svg viewBox={`0 0 ${px * size} ${py * size}`} className="w-full max-w-[280px] rounded border border-slate-700"
+    <svg viewBox={`0 0 ${px * size} ${py * size}`} className="w-full max-w-[280px] rounded border border-pl-border"
       style={{ imageRendering: 'pixelated' }} role="img" aria-label="Structure depth preview">
       {cells.map((c) => (
         <rect key={`${c.i}-${c.j}`} x={c.i * size} y={(py - 1 - c.j) * size} width={size} height={size}
@@ -73,17 +73,17 @@ const StructureCard = ({ form, set, addNotification }) => {
   };
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
         <CardTitle className="text-sm flex items-center gap-2">
-          <Mountain className="w-4 h-4 text-slate-400" /> Structure
+          <Mountain className="w-4 h-4 text-pl-muted" /> Structure
         </CardTitle>
         <select
           value={structure.mode}
           onChange={(e) => set('structure', e.target.value === 'surface'
             ? { ...structure, mode: 'surface' }
             : { mode: 'uniform', surfaceId: null, surfaceName: '', tops: null, dxFt: null, dyFt: null, stats: null })}
-          className="h-7 rounded-md bg-slate-800 border border-slate-700 px-2 text-xs"
+          className="h-7 rounded-md border border-pl-border-strong bg-pl-surface px-2 text-xs text-pl-text"
           data-testid="structure-mode">
           <option value="uniform">Uniform top depth</option>
           <option value="surface">From Mapping Studio surface</option>
@@ -93,9 +93,9 @@ const StructureCard = ({ form, set, addNotification }) => {
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1 min-w-[220px]">
-              <Label className="text-[11px] text-slate-400">Depth surface (geo_surfaces)</Label>
+              <Label className="text-[11px] text-pl-muted">Depth surface (geo_surfaces)</Label>
               <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)}
-                className="w-full h-8 rounded-md bg-slate-800 border border-slate-700 px-2 text-xs"
+                className="w-full h-8 rounded-md border border-pl-border-strong bg-pl-surface px-2 text-xs text-pl-text"
                 data-testid="structure-surface-select">
                 <option value="">{surfaces === null ? 'Loading…' : surfaces.length ? 'Pick a surface…' : 'No depth surfaces yet. Map one in Mapping & Surface Studio'}</option>
                 {(surfaces || []).map((s) => (
@@ -110,19 +110,19 @@ const StructureCard = ({ form, set, addNotification }) => {
             </Button>
           </div>
           {stale && (
-            <p className="text-[11px] text-amber-400">
+            <p className="text-[11px] text-pl-warning-text">
               The sampled structure is for a different NX×NY. Sample again after grid changes.
             </p>
           )}
           {Array.isArray(structure.tops) && !stale && (
             <div className="flex gap-4 items-start">
               <StructurePreview tops={structure.tops} nx={nx} ny={ny} />
-              <div className="text-[11px] text-slate-400 space-y-1">
-                <div className="text-slate-300">{structure.surfaceName}</div>
+              <div className="text-[11px] text-pl-muted space-y-1">
+                <div className="text-pl-text">{structure.surfaceName}</div>
                 <div>Top depth {structure.stats.minFt}–{structure.stats.maxFt} ft</div>
                 <div>Relief {structure.stats.reliefFt} ft · mean {structure.stats.meanFt} ft</div>
                 <div>Cells resized to DX {structure.dxFt} ft × DY {structure.dyFt} ft to cover the surface.</div>
-                <div className="text-slate-500">Layer thicknesses stack conformably below the surface. Depths must share the deck datum with wells and contacts.</div>
+                <div className="text-pl-muted">Layer thicknesses stack conformably below the surface. Depths must share the deck datum with wells and contacts.</div>
               </div>
             </div>
           )}
