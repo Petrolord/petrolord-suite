@@ -142,7 +142,7 @@ export function exportColumns(wellData, outputs) {
 /** Curves CSV: one header row "KEY (UNIT)", NaN as empty cells. */
 export function curvesCsv(wellData, outputs, opts = null) {
   let cols = exportColumns(wellData, outputs);
-  if (!cols.length) throw new Error('Nothing to export — no curves loaded.');
+  if (!cols.length) throw new Error('Nothing to export: no curves are loaded.');
   const o = normOpts(opts);
   if (o) {
     const depthIdx = cols.findIndex((c) => c.key === 'DEPT');
@@ -171,7 +171,7 @@ const extraZoneCells = (s, unit) => [
 
 export function zonesCsv(zones, summaries, opts = null) {
   const rows = zones.filter((z) => summaries[z.id]);
-  if (!rows.length) throw new Error('No zone summaries to export — add a zone first.');
+  if (!rows.length) throw new Error('No zone summaries to export. Add a zone first.');
   // PT10d: a probabilistic run appends its block (P90/P50/P10 outcomes,
   // parameter percentiles, the exceedance sentence) under the deterministic rows
   const probBlock = opts?.probabilistic?.zones?.length

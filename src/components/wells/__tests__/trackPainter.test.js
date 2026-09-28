@@ -141,7 +141,7 @@ describe('paintTrackColumn and paintReadouts', () => {
     const t = texts(ctx);
     expect(t[0].slice(1, 4)).toEqual(['GR 42.50', 106, 46]);
     expect(t[0][4].fillStyle).toBe('#059669');
-    expect(t[1][1]).toBe('RT —');
+    expect(t[1][1]).toBe('RT n/a'); // EMPTY_VALUE, never a dash (PETRO-U1-016)
   });
 });
 
@@ -180,7 +180,7 @@ describe('paintDepthAxis: PT8 multiple depth columns', () => {
     paintDepthAxis(ctx, { ...args, axisW: 56, labelOf: () => NaN, title: 'TVD (m)' });
     const nums = texts(ctx).filter((c) => c[1] !== 'TVD (m)');
     expect(nums.length).toBeGreaterThan(0);
-    for (const n of nums) expect(n[1]).toBe('—');
+    for (const n of nums) expect(n[1]).toBe('n/a');
   });
 
   test('the default is unchanged: rules start at the single gutter and are drawn', () => {

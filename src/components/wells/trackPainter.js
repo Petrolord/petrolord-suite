@@ -13,6 +13,7 @@
 
 import { crossoverPolys, thresholdPolys, fillPolys, makeRamp, rampStrips } from './fills';
 import { drawCurve, xScaleFor } from './trackRender';
+import { EMPTY_VALUE } from '@/lib/emptyValue';
 
 // Light palette (Suite chart standard, src/utils/chartTheme.js): white plot
 // with slate grid and axes, so tracks read like a printed log.
@@ -98,7 +99,7 @@ export function paintDepthAxis(ctx, {
     }
     ctx.textAlign = 'right';
     const v = label(dv / F);
-    ctx.fillText(Number.isFinite(v) ? String(Math.round(v)) : '—', axisW - 4, y + 3);
+    ctx.fillText(Number.isFinite(v) ? String(Math.round(v)) : EMPTY_VALUE, axisW - 4, y + 3);
   }
   if (title) {
     ctx.save();
@@ -297,14 +298,14 @@ export function paintReadouts(ctx, { tracks, geom, idx, y = 46, palette = PALETT
     if (track.type === 'strip') {
       const v = track.curves[0].data[idx];
       ctx.fillStyle = palette.text;
-      ctx.fillText(Number.isFinite(v) ? track.labels?.[Math.round(v)] ?? String(v) : '—', x0 + w / 2, y);
+      ctx.fillText(Number.isFinite(v) ? track.labels?.[Math.round(v)] ?? String(v) : EMPTY_VALUE, x0 + w / 2, y);
       return;
     }
     const n = track.curves.length;
     track.curves.forEach((curve, ci) => {
       const v = curve.data[idx];
       ctx.fillStyle = curve.color;
-      ctx.fillText(Number.isFinite(v) ? `${curve.name} ${v.toPrecision(4)}` : `${curve.name} —`, x0 + ((ci + 0.5) / n) * w, y);
+      ctx.fillText(Number.isFinite(v) ? `${curve.name} ${v.toPrecision(4)}` : `${curve.name} ${EMPTY_VALUE}`, x0 + ((ci + 0.5) / n) * w, y);
     });
   });
 }
