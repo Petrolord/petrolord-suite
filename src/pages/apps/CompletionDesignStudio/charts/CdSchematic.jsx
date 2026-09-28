@@ -1,7 +1,8 @@
 // Completion schematic: an honest SVG drawing of the exposed casing program
 // and the completion stack, to depth scale in MD. White canvas + ChartLogo
 // per the suite chart standard. No decorative fluid fills, no pretend TOC —
-// only what the case actually models.
+// only what the case actually models. data-canvas="chart" keeps the drawing
+// white in the dark theme too (its colours are chosen for a white ground).
 
 import React, { useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
@@ -63,7 +64,7 @@ export default function CdSchematic({ caseDraft, res, depthUnit, wellboreName, h
   }, [caseDraft, res]);
 
   if (!res || !model) {
-    return <div className="flex h-64 items-center justify-center text-sm text-slate-500">Fix the case inputs to draw the schematic.</div>;
+    return <div className="flex h-64 items-center justify-center text-sm text-pl-muted">Fix the case inputs to draw the schematic.</div>;
   }
 
   const H = height;
@@ -113,7 +114,7 @@ export default function CdSchematic({ caseDraft, res, depthUnit, wellboreName, h
   const ticks = niceTicks(model.maxMd);
 
   return (
-    <div className="relative flex w-full flex-col overflow-hidden rounded-md bg-white" data-testid="cd-schematic">
+    <div className="relative flex w-full flex-col overflow-hidden rounded-md bg-white" data-canvas="chart" data-testid="cd-schematic">
       <div className="flex items-center justify-between px-3 pt-2">
         <span className="text-[11px] font-semibold text-slate-700">
           Completion schematic: {caseDraft.name}{wellboreName ? ` (${wellboreName})` : ''} (MD {unit}, diameters to scale)

@@ -13,8 +13,8 @@ import { useFullPrecision } from '@/components/fullprecision/FullPrecision';
 import { formatFull } from '@/lib/fullPrecision';
 
 const Card = ({ title, children, testId }) => (
-  <div className="rounded border border-slate-800 bg-slate-900/40" data-testid={testId}>
-    <div className="border-b border-slate-800 px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{title}</div>
+  <div className="rounded border border-pl-border bg-pl-surface" data-testid={testId}>
+    <div className="border-b border-pl-border px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-pl-muted">{title}</div>
     <div className="p-2">{children}</div>
   </div>
 );
@@ -72,9 +72,9 @@ export default function RiskTab({ caseDraft, onCaseChange, res, mc, onRunMc, run
               const row = list.find((r) => r.id === u.id);
               const fields = fieldsFor(u.target, row);
               return (
-                <div key={`${u.target}-${u.id}-${u.field}-${i}`} className="rounded border border-slate-800/70 p-1.5" data-testid={`wct-unc-${i}`}>
+                <div key={`${u.target}-${u.id}-${u.field}-${i}`} className="rounded border border-pl-border p-1.5" data-testid={`wct-unc-${i}`}>
                   <div className="flex items-center gap-1.5">
-                    <select className="h-7 rounded border border-slate-700 bg-slate-900 px-1 text-[10px]" value={u.target}
+                    <select className="h-7 rounded border border-pl-border-strong bg-pl-surface px-1 text-pl-text text-[10px]" value={u.target}
                       onChange={(e) => onCaseChange((d) => {
                         const nu = d.risk.uncertainties[i];
                         nu.target = e.target.value;
@@ -85,7 +85,7 @@ export default function RiskTab({ caseDraft, onCaseChange, res, mc, onRunMc, run
                       <option value="activity">activity</option>
                       <option value="item">cost item</option>
                     </select>
-                    <select className="h-7 min-w-0 flex-1 rounded border border-slate-700 bg-slate-900 px-1 text-[10px]" value={u.id}
+                    <select className="h-7 min-w-0 flex-1 rounded border border-pl-border-strong bg-pl-surface px-1 text-pl-text text-[10px]" value={u.id}
                       onChange={(e) => onCaseChange((d) => {
                         const nu = d.risk.uncertainties[i];
                         nu.id = e.target.value;
@@ -94,11 +94,11 @@ export default function RiskTab({ caseDraft, onCaseChange, res, mc, onRunMc, run
                       })}>
                       {list.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
                     </select>
-                    <select className="h-7 rounded border border-slate-700 bg-slate-900 px-1 text-[10px]" value={u.field}
+                    <select className="h-7 rounded border border-pl-border-strong bg-pl-surface px-1 text-pl-text text-[10px]" value={u.field}
                       onChange={(e) => onCaseChange((d) => { d.risk.uncertainties[i].field = e.target.value; })}>
                       {fields.map((f) => <option key={f}>{f}</option>)}
                     </select>
-                    <select className="h-7 rounded border border-slate-700 bg-slate-900 px-1 text-[10px]" value={u.dist?.type}
+                    <select className="h-7 rounded border border-pl-border-strong bg-pl-surface px-1 text-pl-text text-[10px]" value={u.dist?.type}
                       onChange={(e) => onCaseChange((d) => {
                         const nu = d.risk.uncertainties[i];
                         const t = e.target.value;
@@ -111,28 +111,28 @@ export default function RiskTab({ caseDraft, onCaseChange, res, mc, onRunMc, run
                       })}>
                       {DIST_TYPES.map((t) => <option key={t}>{t}</option>)}
                     </select>
-                    <button type="button" className="text-slate-500 hover:text-red-400"
+                    <button type="button" className="text-pl-muted hover:text-pl-danger-text"
                       onClick={() => onCaseChange((d) => { d.risk.uncertainties.splice(i, 1); })}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                   <div className="mt-1 flex items-center gap-1.5">
                     {(DIST_PARAMS[u.dist?.type] || []).map((p) => (
-                      <label key={p} className="text-[10px] text-slate-500">
+                      <label key={p} className="text-[10px] text-pl-muted">
                         {p}
                         <Input className="h-6 w-24 text-right text-xs" type="number" value={u.dist?.[p] ?? 0}
                           data-testid={`wct-unc-${i}-${p}`}
                           onChange={(e) => onCaseChange((d) => { d.risk.uncertainties[i].dist[p] = num(e.target.value); })} />
                       </label>
                     ))}
-                    <span className="ml-auto text-[10px] text-slate-500">{row ? row.label : 'missing row'}</span>
+                    <span className="ml-auto text-[10px] text-pl-muted">{row ? row.label : 'missing row'}</span>
                   </div>
                 </div>
               );
             })}
           </div>
           <button type="button" data-testid="wct-add-uncertainty"
-            className="mt-2 flex items-center gap-1 rounded bg-slate-800 px-2 py-1 text-xs text-slate-300 hover:text-slate-100"
+            className="mt-2 flex items-center gap-1 rounded bg-pl-sunken px-2 py-1 text-xs text-pl-text hover:text-pl-text"
             onClick={() => onCaseChange((d) => {
               const a = d.program.activities.find((x) => x.kind === 'drill') || d.program.activities[0];
               const field = fieldsFor('activity', a)[0];
@@ -141,7 +141,7 @@ export default function RiskTab({ caseDraft, onCaseChange, res, mc, onRunMc, run
             })}>
             <Plus className="h-3 w-3" /> Add uncertainty
           </button>
-          <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+          <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-pl-muted">
             <label className="flex items-center gap-1">
               iterations
               <Input className="h-7 w-20 text-right text-xs" type="number" min={100}
@@ -162,7 +162,7 @@ export default function RiskTab({ caseDraft, onCaseChange, res, mc, onRunMc, run
               <Play className="mr-1 h-3 w-3" /> {runningMc ? 'Running...' : 'Run Monte Carlo'}
             </Button>
           </div>
-          <div className="mt-1 text-[10px] text-slate-500">
+          <div className="mt-1 text-[10px] text-pl-muted">
             The probabilistic total is the base cost; the risk model replaces the deterministic
             contingency line rather than stacking on top of it.
           </div>
@@ -173,22 +173,22 @@ export default function RiskTab({ caseDraft, onCaseChange, res, mc, onRunMc, run
             <div className="grid grid-cols-3 gap-2 text-center text-xs">
               {['p10', 'p50', 'p90'].map((p) => (
                 <div key={p}>
-                  <div className="text-[10px] uppercase text-slate-500">{p} cost</div>
-                  <div className="font-mono text-lime-300" data-testid={`wct-mc-cost-${p}`}>{costText(mc.cost[p])}</div>
-                  <div className="font-mono text-slate-300" data-testid={`wct-mc-days-${p}`}>{daysText(mc.days[p])}</div>
+                  <div className="text-[10px] uppercase text-pl-muted">{p} cost</div>
+                  <div className="font-pl-mono text-pl-primary-text" data-testid={`wct-mc-cost-${p}`}>{costText(mc.cost[p])}</div>
+                  <div className="font-pl-mono text-pl-text" data-testid={`wct-mc-days-${p}`}>{daysText(mc.days[p])}</div>
                 </div>
               ))}
             </div>
             {full && (
-              <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-slate-300" data-testid="wct-mc-full">
-                <div>mean cost <span className="font-mono">{formatFull(mc.cost.mean, 2)} USD</span></div>
-                <div>mean days <span className="font-mono">{formatFull(mc.days.mean, 6)} d</span></div>
-                <div className="col-span-2 text-slate-500">
+              <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-pl-text" data-testid="wct-mc-full">
+                <div>mean cost <span className="font-pl-mono">{formatFull(mc.cost.mean, 2)} USD</span></div>
+                <div>mean days <span className="font-pl-mono">{formatFull(mc.days.mean, 6)} d</span></div>
+                <div className="col-span-2 text-pl-muted">
                   Run seed {caseDraft.risk?.seed ?? 'none'}; the same case, iteration count and seed reproduce these values exactly.
                 </div>
               </div>
             )}
-            <div className="mt-2 text-[10px] text-slate-500" data-testid="wct-mc-meta">
+            <div className="mt-2 text-[10px] text-pl-muted" data-testid="wct-mc-meta">
               {mc.valid} valid of {mc.iterations} realizations{mc.failed ? ` (${mc.failed} skipped as invalid)` : ''};
               P10 is the low outcome, P90 the high (AFE convention).
             </div>
@@ -206,7 +206,7 @@ export default function RiskTab({ caseDraft, onCaseChange, res, mc, onRunMc, run
             </div>
           </>
         ) : (
-          <div className="flex h-full items-center justify-center text-sm text-slate-500" data-testid="wct-mc-empty">
+          <div className="flex h-full items-center justify-center text-sm text-pl-muted" data-testid="wct-mc-empty">
             Add uncertainties and run the Monte Carlo to see the distribution.
           </div>
         )}
