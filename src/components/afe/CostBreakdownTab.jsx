@@ -192,7 +192,7 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
               <NumTh numeric>Forecast (EAC)</NumTh>
               <NumTh numeric>Variance</NumTh>
               <NumTh className="w-[100px] text-center">Progress</NumTh>
-              <NumTh className="w-[50px]"><span className="sr-only">Actions</span></NumTh>
+              <NumTh className="relative w-[50px]"><span className="sr-only">Actions</span></NumTh>
             </tr>
           </thead>
           <tbody>

@@ -211,3 +211,20 @@ telling them what to change rather than an outage banner.
 - PDF and spreadsheet attachments cannot be read in the browser. The
   app says so and tells the user to paste the figures into the notes.
   Server-side extraction would need a storage bucket and a parser.
+
+## 2026-09-28: AFE Cost Control Manager on the design system (rollout w2f)
+
+- The page wraps itself in `<ThemedApp>` (test id `afe-theme-scope`): light
+  grey panel by default, dark per user through the header toggle. All four
+  routes (`afe-cost-control` and the three `afe-cost-control-manager`
+  aliases) are registered in `src/design/rollout/w2f.js`.
+- Header is `AppHeader` (back, title, Full precision, help, New AFE,
+  theme toggle). The AFE list shows on phones too, above the detail; it
+  was hidden below `md`, so a phone could not open an AFE.
+- The cost, invoice, change and partner ledgers use `NumericTable`: mono
+  right-aligned money, danger text beside a minus sign. Column order is
+  unchanged. Status only through status roles (invoice match and status,
+  change status, CPI and SPI verdicts); decorative tile and icon colours
+  removed. The three dashboard charts stay on white (`data-canvas="chart"`).
+- No calculation or behaviour change; `afe.js`/`costControlCalculations`
+  untouched. Theme test: `src/pages/apps/__tests__/AfeCostControlManager.theme.test.jsx`.
