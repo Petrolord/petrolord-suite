@@ -1017,7 +1017,6 @@ function App() {
                                     <Route path="/dev/facilities/:app" element={<FacilitiesHarness />} />
                                     <Route path="/dev/studio/:app" element={<StudiosHarness />} />
                                     <Route path="/dev/assurance/:app" element={<AssuranceHarness />} />
-                                    <Route path="/dev/hubs/:page" element={<HubsHarness />} />
                                     <Route path="/dev/modular-refinery-feasibility" element={<ModularRefineryHarness />} />
                                     <Route path="/dev/carbon-footprint-abatement" element={<CarbonHarness />} />
                                     <Route path="/dev/electrofacies-studio" element={<ElectrofaciesHarness />} />
@@ -1026,7 +1025,9 @@ function App() {
                                     <Route path="/dev/material-balance-studio" element={<MbalHarness />} />
                                     <Route path="/dev/material-balance-studio/cases/:caseId" element={<MbalHarness />} />
                                   </Route>
-                                  {/* The design-system specimen shows a scoped and an unscoped column itself. */}
+                                  {/* These two bring their own scope: the specimen shows a scoped and an
+                                      unscoped column, and the hubs harness mounts the real DashboardLayout. */}
+                                  <Route path="/dev/hubs/:page" element={<HubsHarness />} />
                                   <Route path="/dev/design-system" element={<DesignSystemHarness />} />
                                 </>
                               )}
