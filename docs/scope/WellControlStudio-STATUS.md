@@ -73,3 +73,29 @@ its kind in the suite: no well-control coverage existed anywhere before D3.
   volumetric method worksheets, bullheading, training content. Subsea
   support and the volumetric method are named later-phase candidates.
 - D4 (Cementing Studio) is next in the roadmap order.
+
+## Design system rollout, batch 3D (2026-09-28)
+
+The studio, its help guide and the dev harness (`/dev/well-control`) now open on the
+Petrolord design system: light grey panel by default, dark as a per-user
+choice from the ribbon toggle (beside Help).
+
+- Scope: `ThemedApp` inside `WellControlStudio.jsx`, `WellControlHelpGuide.jsx` and `WellControlHarness.jsx`; App.jsx
+  unchanged. Cold-load prefix `/dashboard/apps/drilling/well-control-studio` in `src/design/rollout/w3d.js`
+  (covers `/help`).
+- Own classes moved to `pl-*` roles across the ribbon, the three tabs (Well & Volumes, Kill Sheet, Kick Tolerance) and the status bar. The dark overrides on
+  the adapted Input and SelectTrigger are gone; the run buttons are the
+  default primary Button; the active tab uses the primary tint; KPI values
+  use the mono face.
+- Status colour only for status: the kill-sheet alarms (flagged KPIs, the influx deviation note and the warnings box) and a low kick tolerance, each on the warning role with a warning icon beside the colour; the published fracture EMW hint is info. Decorative lime, cyan and
+  gradient accents are gone.
+- Charts (standpipe pressure schedule and kick tolerance) stay on the white chart card in both themes and carry
+  `data-canvas="chart"`. The app draws no schematic, so no dark canvas.
+- Shared drilling kit (Explorer, GeometryNotice, WellboreDetails from
+  Torque & Drag) untouched: it is scope-aware since W0B.
+- Phone width: no sideways page scroll; the workstation keeps its 1100px
+  minimum and scrolls inside the shell, as before. The help guide stacks.
+- Tests: `__tests__/WellControlStudio.theme.test.jsx` (describeAppTheme for the studio and the help
+  guide, a dark walk through every tab and run with the legacy-chrome
+  check, chart cards white, harness scope). Existing suites unchanged.
+- No engine, calculation or export change.
