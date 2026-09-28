@@ -7,14 +7,15 @@
 // CorrelationWorkstation on makeRegistryBackend.
 
 import React, { useMemo } from 'react';
+import { ThemedApp } from '@/design/ThemeProvider';
 import CorrelationWorkstation from './components/CorrelationWorkstation';
 import { makeInMemoryBackend } from './services/inMemoryBackend';
 
 export default function WellCorrelationHarness() {
   const backend = useMemo(() => makeInMemoryBackend(), []);
   return (
-    <div className="h-screen w-full overflow-hidden">
+    <ThemedApp className="h-screen w-full overflow-hidden" data-testid="corr-theme-scope">
       <CorrelationWorkstation backend={backend} wellDataManagerPath="/dev/well-data-manager" mappingPath="/dev/mapping-surface-studio" />
-    </div>
+    </ThemedApp>
   );
 }

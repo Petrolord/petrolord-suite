@@ -228,3 +228,17 @@ telling them what to change rather than an outage banner.
   removed. The three dashboard charts stay on white (`data-canvas="chart"`).
 - No calculation or behaviour change; `afe.js`/`costControlCalculations`
   untouched. Theme test: `src/pages/apps/__tests__/AfeCostControlManager.theme.test.jsx`.
+
+## 2026-09-28: Technical Report Autopilot, design system rollout w4d
+
+- The page wraps itself in `<ThemedApp>` (test id `trp-theme-scope`) around
+  its error boundary, so the crash panel is themed too. All four routes
+  (`economics/report-autopilot` and the three `technical-report-autopilot`
+  aliases) are registered in `src/design/rollout/w4d.js`.
+- Header gains the theme toggle; brief panel, preview accordion, help
+  drawer, AI-draft notice (info role), outage panel (warning role) and crash
+  panel (danger role) on pl-* roles; gradients and lime removed. On phones
+  the brief and the preview stack (the preview was squeezed to nothing).
+- Only screen chrome changed. The generation call, `reportAutopilotDocx.js`
+  and the templates are untouched, so the exported DOCX is the same.
+  Theme test: `src/pages/apps/__tests__/TechnicalReportAutopilot.theme.test.jsx`.

@@ -38,10 +38,10 @@ export default function DeleteWellDialog({ well, backend, onOpenChange, onDone }
 
   return (
     <AlertDialog open={!!well} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="bg-slate-900 border-slate-700 text-slate-200" data-testid="wdm-delete-dialog">
+      <AlertDialogContent data-testid="wdm-delete-dialog">
         <AlertDialogHeader>
           <AlertDialogTitle>Delete {well?.name}?</AlertDialogTitle>
-          <AlertDialogDescription className="text-slate-400" data-testid="wdm-delete-warning">
+          <AlertDialogDescription data-testid="wdm-delete-warning">
             {counts
               ? `This permanently deletes the well, its ${counts.logs} log${counts.logs === 1 ? '' : 's'} `
                 + `(curve data included) and ${counts.tops} top${counts.tops === 1 ? '' : 's'}.`
@@ -50,11 +50,11 @@ export default function DeleteWellDialog({ well, backend, onOpenChange, onDone }
               ? ' The well is shared — organization members lose access too.' : ''}
           </AlertDialogDescription>
         </AlertDialogHeader>
-        {error && <div className="text-xs text-red-400">{error}</div>}
+        {error && <div className="text-xs text-pl-danger-text">{error}</div>}
         <AlertDialogFooter>
-          <AlertDialogCancel className="border-slate-700 text-slate-300">Cancel</AlertDialogCancel>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            className="bg-red-600 hover:bg-red-500 text-white"
+            className="bg-pl-danger hover:bg-pl-danger/90 text-pl-danger-fg"
             disabled={busy || !counts}
             onClick={(e) => { e.preventDefault(); doDelete(); }}
             data-testid="wdm-delete-confirm"

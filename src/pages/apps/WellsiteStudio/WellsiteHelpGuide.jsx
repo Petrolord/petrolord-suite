@@ -5,6 +5,7 @@
 // detects, highlights, presents and records, and never claims to decide.
 
 import React from 'react';
+import { ThemedApp } from '@/design/ThemeProvider';
 import {
   BookOpen, Zap, WifiOff, HardHat, Settings, Activity, FlaskConical, PenLine, Droplets, Eye, Camera, Tags, ListOrdered,
   ClipboardList, FileText, RefreshCw, Upload, AlertTriangle, ListChecks,
@@ -44,7 +45,10 @@ export const HELP_SECTIONS = [
 ];
 
 export default function WellsiteHelpGuide() {
+  // Design system rollout W4A: the guide shares the app's theme scope, so
+  // the user's light or dark choice holds between the app and its guide.
   return (
+    <ThemedApp className="min-h-screen" data-testid="ws-help-theme-scope">
     <HelpGuideShell
       title="Wellsite Studio Help Guide"
       subtitle="The geological record of a live well, on the rig and in the office"
@@ -351,5 +355,6 @@ export default function WellsiteHelpGuide() {
         <Para>Depth entry keys: <Code>Tab</Code> next field, <Code>Ctrl+D</Code> copy previous description, <Code>Ctrl+S</Code> save, <Code>F2</Code> quick or full mode.</Para>
       </GuideSection>
     </HelpGuideShell>
+    </ThemedApp>
   );
 }

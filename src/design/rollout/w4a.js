@@ -5,4 +5,9 @@
 // '/dashboard/apps/reservoir/material-balance-studio'); every sub-path
 // under a prefix is themed too. Only this batch edits this file; the
 // rollout index aggregates it (docs/scope/DesignSystem.md section 4).
-export default [];
+export default [
+  // each app and, for Wellsite Studio and Well Correlation, its help guide (/help is a sub-path)
+  '/dashboard/apps/geoscience/wellsite-studio',
+  '/dashboard/apps/geoscience/well-data-manager',
+  '/dashboard/apps/geoscience/well-correlation',
+];

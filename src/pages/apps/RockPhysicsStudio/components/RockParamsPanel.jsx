@@ -14,7 +14,7 @@ const num = (v, fallback) => {
 
 function Field({ id, label, value, onChange, step = 'any' }) {
   return (
-    <label className="flex items-center justify-between gap-2 py-0.5 text-[12px] text-slate-300">
+    <label className="flex items-center justify-between gap-2 py-0.5 text-[12px] text-pl-text">
       <span>{label}</span>
       <input
         data-testid={`rp-param-${id}`}
@@ -22,8 +22,8 @@ function Field({ id, label, value, onChange, step = 'any' }) {
         step={step}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-24 bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-right
-          text-slate-100 focus:outline-none focus:border-cyan-600"
+        className="w-24 bg-pl-surface border border-pl-border-strong rounded px-1.5 py-0.5 text-right
+          text-pl-text focus:outline-none focus:border-pl-focus"
       />
     </label>
   );
@@ -35,15 +35,15 @@ function FluidSide({ side, label, draft, setDraft }) {
   const patchHc = (p) => patch({ hc: { ...d.hc, ...p } });
   return (
     <div className="mt-2">
-      <div className="text-[11px] uppercase tracking-wider text-slate-500">{label}</div>
+      <div className="text-[11px] uppercase tracking-wider text-pl-muted">{label}</div>
       <Field id={`${side}-sw`} label="Water saturation Sw" value={d.sw} onChange={(v) => patch({ sw: v })} />
-      <label className="flex items-center justify-between gap-2 py-0.5 text-[12px] text-slate-300">
+      <label className="flex items-center justify-between gap-2 py-0.5 text-[12px] text-pl-text">
         <span>Hydrocarbon</span>
         <select
           data-testid={`rp-param-${side}-kind`}
           value={d.hc.kind}
           onChange={(e) => patchHc({ kind: e.target.value })}
-          className="w-24 bg-slate-800 border border-slate-700 rounded px-1 py-0.5 text-slate-100"
+          className="w-24 bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-pl-text"
         >
           <option value="gas">gas</option>
           <option value="oil-dead">dead oil</option>
@@ -107,8 +107,8 @@ export default function RockParamsPanel({ scenario, rock, onApply }) {
   };
 
   return (
-    <div className="p-3 border-b border-slate-800/60" data-testid="rp-params">
-      <div className="text-[11px] uppercase tracking-wider text-slate-500">Reservoir conditions</div>
+    <div className="p-3 border-b border-pl-border" data-testid="rp-params">
+      <div className="text-[11px] uppercase tracking-wider text-pl-muted">Reservoir conditions</div>
       <Field id="tC" label="Temperature (°C)" value={draft.conditions.tC} onChange={(v) => patchCond({ tC: v })} />
       <Field id="pMPa" label="Pressure (MPa)" value={draft.conditions.pMPa} onChange={(v) => patchCond({ pMPa: v })} />
       <Field id="salinity" label="Salinity (wt frac NaCl)" value={draft.conditions.salinity} onChange={(v) => patchCond({ salinity: v })} />
@@ -116,7 +116,7 @@ export default function RockParamsPanel({ scenario, rock, onApply }) {
       <FluidSide side="fluidA" label="Fluid A (in situ)" draft={draft} setDraft={setDraft} />
       <FluidSide side="fluidB" label="Fluid B (substitute)" draft={draft} setDraft={setDraft} />
 
-      <div className="mt-2 text-[11px] uppercase tracking-wider text-slate-500">Rock model</div>
+      <div className="mt-2 text-[11px] uppercase tracking-wider text-pl-muted">Rock model</div>
       {Object.keys(draft.rock.minerals).map((m) => (
         <Field
           key={m}
@@ -126,7 +126,7 @@ export default function RockParamsPanel({ scenario, rock, onApply }) {
           onChange={(v) => patchMin({ [m]: v })}
         />
       ))}
-      <label className="flex items-center justify-between gap-2 py-0.5 text-[12px] text-slate-300">
+      <label className="flex items-center justify-between gap-2 py-0.5 text-[12px] text-pl-text">
         <span title="Blank = Voigt-Reuss-Hill mix of the mineral table">K_min override (GPa)</span>
         <input
           data-testid="rp-param-kmin"
@@ -134,8 +134,8 @@ export default function RockParamsPanel({ scenario, rock, onApply }) {
           value={draft.rock.kminOverrideGPa}
           placeholder="VRH mix"
           onChange={(e) => patchRock({ kminOverrideGPa: e.target.value })}
-          className="w-24 bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-right
-            text-slate-100 focus:outline-none focus:border-cyan-600"
+          className="w-24 bg-pl-surface border border-pl-border-strong rounded px-1.5 py-0.5 text-right
+            text-pl-text focus:outline-none focus:border-pl-focus"
         />
       </label>
       <Field id="phiConst" label="φ if no PHIE curve" value={draft.rock.phiConst} onChange={(v) => patchRock({ phiConst: v })} />
@@ -144,7 +144,7 @@ export default function RockParamsPanel({ scenario, rock, onApply }) {
         type="button"
         data-testid="rp-apply-params"
         className="mt-2 w-full flex items-center justify-center gap-1 px-2 py-1 text-xs rounded border
-          border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10"
+          border-pl-primary text-pl-primary-text hover:bg-pl-primary/10"
         onClick={apply}
       >
         <Check className="w-3.5 h-3.5" /> Apply

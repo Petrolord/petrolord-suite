@@ -26,9 +26,9 @@ import { placeWellLocation } from '@/lib/crs/wellPlacement';
 import { UNKNOWN } from '@/lib/crs/tags';
 import { intervalsFromLasBlocks } from '../engine/lasBlocks';
 
-const inputCls = 'rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs w-full';
-const thCls = 'text-left font-medium text-slate-500 pr-3 pb-1';
-const tdCls = 'pr-3 py-0.5 text-slate-300 whitespace-nowrap';
+const inputCls = 'rounded-md bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs w-full';
+const thCls = 'text-left font-medium text-pl-muted pr-3 pb-1';
+const tdCls = 'pr-3 py-0.5 text-pl-text whitespace-nowrap';
 
 const KNOWN_SI = new Set(['M', 'US/M', 'MS', 'S', 'GAPI', 'API', 'G/C3', 'G/CM3', 'KG/M3', 'V/V', 'OHMM', 'OHM.M', 'MV', 'IN', 'MM', 'B/E', '%', '']);
 
@@ -235,19 +235,19 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
   return (
     <Dialog open={open} onOpenChange={close}>
       <DialogContent
-        className="max-w-3xl bg-slate-900 border-slate-700 text-slate-200"
+        className="max-w-3xl"
         data-testid="wdm-las-dialog"
       >
         <DialogHeader>
           <DialogTitle>Import LAS logs</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription>
             LAS 1.2, 2.0 and 3.0 — curves convert to SI on import (factors recorded in provenance).
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
           <label className="inline-flex items-center gap-2 px-2.5 py-1.5 text-xs rounded border
-            border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10 cursor-pointer w-fit"
+            border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10 cursor-pointer w-fit"
           >
             {busy && !parsed ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             {fileName ? 'Choose a different file…' : 'Choose a LAS file…'}
@@ -260,17 +260,17 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
             />
           </label>
           {fileName && (
-            <span className="ml-2 text-xs text-slate-400 inline-flex items-center gap-1">
+            <span className="ml-2 text-xs text-pl-muted inline-flex items-center gap-1">
               <FileText className="w-3.5 h-3.5" /> {fileName}
             </span>
           )}
 
           {parsed && (
             <>
-              <div className="flex items-center gap-4 text-xs rounded border border-slate-800 bg-slate-950/40 px-2 py-1.5"
+              <div className="flex items-center gap-4 text-xs rounded border border-pl-border bg-pl-sunken px-2 py-1.5"
                 data-testid="wdm-las-target"
               >
-                <span className="text-slate-500">Load into</span>
+                <span className="text-pl-muted">Load into</span>
                 <label className="flex items-center gap-1.5">
                   <input
                     type="radio"
@@ -284,7 +284,7 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
                 </label>
                 {target !== 'new' && (
                   <select
-                    className="rounded-md bg-slate-950 border border-slate-700 px-1.5 py-1 text-xs"
+                    className="rounded-md bg-pl-surface border border-pl-border-strong px-1.5 py-1 text-xs"
                     value={target}
                     onChange={(e) => setTarget(e.target.value)}
                     data-testid="wdm-las-target-well"
@@ -303,7 +303,7 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
                   a new well
                 </label>
                 {target !== 'new' && (
-                  <span className="ml-auto text-slate-500" data-testid="wdm-las-target-note">
+                  <span className="ml-auto text-pl-muted" data-testid="wdm-las-target-note">
                     {existing.busy ? 'reading well…'
                       : existing.depth
                         ? `well depth grid ${existing.depth.log.start_md_m ?? '?'}–${existing.depth.log.stop_md_m ?? '?'} m${existing.depth.log.step_m != null ? ` step ${existing.depth.log.step_m}` : ''}; curves resample onto it`
@@ -312,7 +312,7 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
                 )}
               </div>
 
-              <p className="text-xs text-slate-400" data-testid="wdm-las-summary">
+              <p className="text-xs text-pl-muted" data-testid="wdm-las-summary">
                 LAS {parsed.meta.version}{String(parsed.meta.wrap).toUpperCase() === 'YES' ? ', wrapped' : ''} · depth in{' '}
                 {prep.depthUnit}{prep.depthFactor !== 1 ? ` → m (×${prep.depthFactor})` : ' (m)'} ·{' '}
                 {prep.startMdM?.toFixed(1)}–{prep.stopMdM?.toFixed(1)} m ·{' '}
@@ -321,7 +321,7 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
                 {parsed.meta.version >= 3 && parsed.meta.delimiter && parsed.meta.delimiter !== 'space' ? ` · ${parsed.meta.delimiter}-delimited` : ''}
               </p>
               {(parsed.meta.skippedCurves?.length > 0 || parsed.meta.ignoredSections?.length > 0) && (
-                <p className="text-xs text-amber-300/90" data-testid="wdm-las-las3-note">
+                <p className="text-xs text-pl-warning-text" data-testid="wdm-las-las3-note">
                   {parsed.meta.skippedCurves?.length > 0 && (
                     <>Not imported (text columns): {parsed.meta.skippedCurves.map((c) => `${c.mnemonic}${c.format ? ` {${c.format}}` : ''}`).join(', ')}. </>
                   )}
@@ -329,18 +329,18 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
                     <>Other LAS 3.0 data blocks: {parsed.meta.ignoredSections.join(', ')} (only ~Log_Data imports as curves).</>
                   )}
                   {lasIntervals?.intervals?.length > 0 && (
-                    <label className="flex items-center gap-1 mt-1 text-slate-300" data-testid="wdm-las-intervals">
+                    <label className="flex items-center gap-1 mt-1 text-pl-text" data-testid="wdm-las-intervals">
                       <input type="checkbox" checked={importIntervals} onChange={(e) => setImportIntervals(e.target.checked)} data-testid="wdm-las-intervals-check" />
                       Import {lasIntervals.intervals.length} interval{lasIntervals.intervals.length === 1 ? '' : 's'} from the {Array.from(new Set(lasIntervals.intervals.map((r) => r.kind))).map((k) => k.replace(/_/g, ' ')).join(' and ')} block{new Set(lasIntervals.intervals.map((r) => r.kind)).size === 1 ? '' : 's'} (replaces those kinds on the well)
                     </label>
                   )}
                   {lasIntervals?.skipped?.filter((x) => /dropped/.test(x.reason)).map((x) => (
-                    <div key={x.block} className="text-amber-300">{x.block}: {x.reason}.</div>
+                    <div key={x.block} className="text-pl-warning-text">{x.block}: {x.reason}.</div>
                   ))}
                 </p>
               )}
 
-              <div className="max-h-48 overflow-auto border border-slate-800 rounded p-2">
+              <div className="max-h-48 overflow-auto border border-pl-border rounded p-2">
                 <table className="text-xs w-full" data-testid="wdm-las-curves">
                   <thead>
                     <tr>
@@ -362,7 +362,7 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
                         <tr key={l.mnemonic} data-testid={`wdm-las-curve-${l.mnemonic}`}>
                           <td className={tdCls}>
                             {i === 0 ? (
-                              <span title="The depth curve always imports" className="text-slate-500">—</span>
+                              <span title="The depth curve always imports" className="text-pl-muted">—</span>
                             ) : (
                               <input
                                 type="checkbox"
@@ -372,13 +372,13 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
                               />
                             )}
                           </td>
-                          <td className={`${tdCls} text-slate-100`}>{l.mnemonic}</td>
+                          <td className={`${tdCls} text-pl-text`}>{l.mnemonic}</td>
                           <td className={tdCls}>
                             {i === 0 ? (
-                              <span className="text-slate-500">{target !== 'new' && existing.depth ? `${existing.depth.log.mnemonic} (well)` : l.mnemonic}</span>
+                              <span className="text-pl-muted">{target !== 'new' && existing.depth ? `${existing.depth.log.mnemonic} (well)` : l.mnemonic}</span>
                             ) : (
                               <input
-                                className="rounded bg-slate-950 border border-slate-700 text-slate-200 px-1 py-0.5 text-xs w-24"
+                                className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1 py-0.5 text-xs w-24"
                                 value={names[l.mnemonic] ?? l.mnemonic}
                                 title="Mnemonic to save this curve under (keep the file's name or type your own)"
                                 data-testid={`wdm-las-name-${l.mnemonic}`}
@@ -390,10 +390,10 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
                             <td className={tdCls}>
                               {i === 0 ? '—' : (() => {
                                 const clash = clashFor(names[l.mnemonic] ?? l.mnemonic, existing.logs);
-                                if (!clash) return <span className="text-slate-600">new</span>;
+                                if (!clash) return <span className="text-pl-muted">new</span>;
                                 return (
                                   <select
-                                    className="rounded bg-slate-950 border border-amber-700/60 text-amber-200 px-1 py-0.5 text-[11px]"
+                                    className="rounded bg-pl-surface border border-pl-warning/60 text-pl-warning-text px-1 py-0.5 text-[11px]"
                                     value={onClash[l.mnemonic] || 'suffix'}
                                     title={`The well already has ${clash.mnemonic}`}
                                     data-testid={`wdm-las-clash-${l.mnemonic}`}
@@ -406,21 +406,21 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
                               })()}
                             </td>
                           )}
-                          <td className={`${tdCls} text-slate-400 max-w-[180px] truncate`}>{l.description}</td>
+                          <td className={`${tdCls} text-pl-muted max-w-[180px] truncate`}>{l.description}</td>
                           <td className={tdCls}>
                             {l.converted
-                              ? <span className="text-emerald-300">{l.sourceUnit} → {l.unit}</span>
+                              ? <span className="text-pl-success-text">{l.sourceUnit} → {l.unit}</span>
                               : l.unit || '—'}
                             {unknownUnit && (
                               <span
-                                className="ml-1 rounded bg-amber-500/15 text-amber-300 px-1 text-[10px]"
+                                className="ml-1 rounded bg-pl-warning-bg text-pl-warning-text px-1 text-[10px]"
                                 title="Unit not recognised — imported unchanged, no conversion applied"
                               >
                                 as-is
                               </span>
                             )}
                           </td>
-                          <td className={`${tdCls} text-slate-400`}>{l.kind || '—'}</td>
+                          <td className={`${tdCls} text-pl-muted`}>{l.kind || '—'}</td>
                           <td className={tdCls}>{l.nullCount}</td>
                         </tr>
                       );
@@ -459,17 +459,17 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
           )}
 
           {error && (
-            <div className="text-xs text-red-400" data-testid="wdm-las-error">{error}</div>
+            <div className="text-xs text-pl-danger-text" data-testid="wdm-las-error">{error}</div>
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" size="sm" className="border-slate-700 text-slate-300"
+          <Button variant="outline" size="sm"
             onClick={() => close(false)}
           >
             Cancel
           </Button>
-          <Button size="sm" className="bg-cyan-600 hover:bg-cyan-500 text-white"
+          <Button size="sm"
             disabled={!parsed || busy} onClick={doImport} data-testid="wdm-las-import"
           >
             {busy && parsed ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}

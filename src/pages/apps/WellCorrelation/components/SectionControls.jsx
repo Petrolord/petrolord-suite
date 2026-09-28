@@ -12,12 +12,12 @@ import { topColor } from '@/components/wells/topColors';
 import { toDisplay, fromDisplay } from '@/components/wells/depthModes';
 import { DEPTH_REF_LABEL } from '../engine/sectionFrame';
 
-const selCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs';
+const selCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
 const inputCls = selCls;
-const btnCls = 'flex items-center gap-1 px-2 py-0.5 rounded border border-slate-700 text-slate-300 hover:bg-slate-800 text-xs';
+const btnCls = 'flex items-center gap-1 px-2 py-0.5 rounded border border-pl-border text-pl-text hover:bg-pl-sunken text-xs';
 const Section = ({ title, children, testId }) => (
   <div data-testid={testId}>
-    <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">{title}</div>
+    <div className="text-[10px] uppercase tracking-wider text-pl-muted mb-1">{title}</div>
     {children}
   </div>
 );
@@ -52,24 +52,24 @@ function TopRow({ name, shown, onToggle, canEdit, onRename, onDelete, mapHref })
               if (e.key === 'Escape') { e.preventDefault(); setEditing(false); setDraft(name); }
             }}
           />
-        ) : <span className="text-slate-300 truncate">{name}</span>}
+        ) : <span className="text-pl-text truncate">{name}</span>}
       </label>
       {mapHref && !editing && (
-        <Link to={mapHref} className="text-slate-500 hover:text-amber-300" title="Map this top in Mapping & Surface Studio (TVDSS structure map from the section wells)" data-testid={`corr-map-top-${name}`}>
+        <Link to={mapHref} className="text-pl-muted hover:text-pl-primary-text-hover" title="Map this top in Mapping & Surface Studio (TVDSS structure map from the section wells)" data-testid={`corr-map-top-${name}`}>
           <MapIcon className="w-3.5 h-3.5" />
         </Link>
       )}
       {canEdit && (editing ? (
         <>
-          <button type="button" className="text-emerald-300 hover:text-emerald-200" title="Apply the new name" data-testid={`corr-top-rename-ok-${name}`} onClick={commit}><Check className="w-3.5 h-3.5" /></button>
-          <button type="button" className="text-slate-500 hover:text-slate-300" title="Cancel" onClick={() => { setEditing(false); setDraft(name); }}><X className="w-3.5 h-3.5" /></button>
+          <button type="button" className="text-pl-primary-text hover:text-pl-primary-text-hover" title="Apply the new name" data-testid={`corr-top-rename-ok-${name}`} onClick={commit}><Check className="w-3.5 h-3.5" /></button>
+          <button type="button" className="text-pl-muted hover:text-pl-text" title="Cancel" onClick={() => { setEditing(false); setDraft(name); }}><X className="w-3.5 h-3.5" /></button>
         </>
       ) : (
         <>
-          <button type="button" className="text-slate-500 hover:text-cyan-300" title="Rename this top on every well you own" data-testid={`corr-top-rename-${name}`} onClick={() => { setDraft(name); setEditing(true); }}><Pencil className="w-3.5 h-3.5" /></button>
+          <button type="button" className="text-pl-muted hover:text-pl-primary-text-hover" title="Rename this top on every well you own" data-testid={`corr-top-rename-${name}`} onClick={() => { setDraft(name); setEditing(true); }}><Pencil className="w-3.5 h-3.5" /></button>
           <button
             type="button"
-            className={confirming ? 'text-red-300 text-[10px] whitespace-nowrap' : 'text-slate-500 hover:text-red-400'}
+            className={confirming ? 'text-pl-danger-text text-[10px] whitespace-nowrap' : 'text-pl-muted hover:text-pl-danger-text'}
             title={confirming ? 'Click again to delete this top from every well you own' : 'Delete this top from every well you own'}
             data-testid={`corr-top-delete-${name}`}
             onClick={() => { if (confirming) { setConfirming(false); onDelete(name); } else { setConfirming(true); setTimeout(() => setConfirming(false), 4000); } }}
@@ -116,7 +116,7 @@ export default function SectionControls({
               <select className={selCls} value={datum.upperName} data-testid="corr-datum-upper" onChange={(e) => onDatum({ ...datum, upperName: e.target.value })}>
                 {topNames.map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
-              <span className="text-slate-500">to</span>
+              <span className="text-pl-muted">to</span>
               <select className={selCls} value={datum.lowerName} data-testid="corr-datum-lower" onChange={(e) => onDatum({ ...datum, lowerName: e.target.value })}>
                 {topNames.map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
@@ -130,7 +130,7 @@ export default function SectionControls({
               </select>
               <input className={`${inputCls} w-16`} value={fmtDisplay(datum.datumM, depthUnit)} data-testid="corr-datum-depth"
                 title={`Datum depth (${u})`} onChange={(e) => onDatum({ ...datum, datumM: fromDisplay(Number(e.target.value), depthUnit) })} />
-              <span className="text-slate-500">{u}</span>
+              <span className="text-pl-muted">{u}</span>
             </>
           )}
         </div>
@@ -146,12 +146,12 @@ export default function SectionControls({
             </select>
             {ghost && (
               <>
-                <span className="text-slate-500">on</span>
+                <span className="text-pl-muted">on</span>
                 <select className={selCls} value={ghost.targetWellId || ''} data-testid="corr-ghost-target" onChange={(e) => onGhost({ ...ghost, targetWellId: e.target.value })}>
                   {sectionWells.filter((w) => w.id !== ghost.sourceWellId).map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
                 </select>
                 <input type="range" min={-200} max={200} step={1} value={ghost.shiftM || 0} data-testid="corr-ghost-shift" onChange={(e) => onGhost({ ...ghost, shiftM: Number(e.target.value) })} />
-                <span className="text-slate-400" data-testid="corr-ghost-shift-value">{ghost.shiftM >= 0 ? '+' : ''}{ghost.shiftM || 0} m</span>
+                <span className="text-pl-muted" data-testid="corr-ghost-shift-value">{ghost.shiftM >= 0 ? '+' : ''}{ghost.shiftM || 0} m</span>
               </>
             )}
           </div>
@@ -160,24 +160,24 @@ export default function SectionControls({
 
       <Section title="View">
         <div className="grid grid-cols-2 gap-1.5">
-          <label className="flex items-center gap-1 text-slate-400">unit
+          <label className="flex items-center gap-1 text-pl-muted">unit
             <select className={selCls} value={depthUnit} data-testid="corr-depth-unit" onChange={(e) => onDepthUnit(e.target.value)}>
               <option value="m">m</option>
               <option value="ft">ft</option>
             </select>
           </label>
-          <label className="flex items-center gap-1 text-slate-400">depth
+          <label className="flex items-center gap-1 text-pl-muted">depth
             <select className={selCls} value={depthRef} data-testid="corr-depth-ref" onChange={(e) => onDepthRef(e.target.value)}>
               {Object.entries(DEPTH_REF_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </label>
-          <label className="flex items-center gap-1 text-slate-400">spacing
+          <label className="flex items-center gap-1 text-pl-muted">spacing
             <select className={selCls} value={spacing} data-testid="corr-spacing" onChange={(e) => onSpacing(e.target.value)}>
               <option value="equal">equal</option>
               <option value="proportional">by distance</option>
             </select>
           </label>
-          <label className="flex items-center gap-1 text-slate-400 col-span-2">template
+          <label className="flex items-center gap-1 text-pl-muted col-span-2">template
             <select className={`${selCls} flex-1 min-w-0`} value={layouts.activeTemplateId} data-testid="corr-template"
               onChange={(e) => onLayoutsChange({ ...layouts, activeTemplateId: e.target.value })}>
               {layouts.templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -190,7 +190,7 @@ export default function SectionControls({
         <div className="flex items-center gap-1 mb-1 flex-wrap">
           {canEdit && (
             <button type="button" data-testid="corr-top-pick"
-              className={`${btnCls} ${pickMode === 'top' ? 'border-cyan-500/60 text-cyan-300' : ''}`}
+              className={`${btnCls} ${pickMode === 'top' ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : ''}`}
               title="Click on a well column to place a new top (Esc to finish)"
               onClick={() => onPickMode(pickMode === 'top' ? null : 'top')}>
               <Crosshair className="w-3.5 h-3.5" /> {pickMode === 'top' ? 'Picking… (Esc)' : 'Pick top'}
@@ -199,7 +199,7 @@ export default function SectionControls({
           <button type="button" data-testid="corr-reload-tops" className={btnCls} title="Reload tops edited in Petrophysics Studio or Well Data Manager" onClick={onReloadTops}>
             <RefreshCw className="w-3.5 h-3.5" /> Reload
           </button>
-          <label className="ml-auto flex items-center gap-1 text-slate-400">
+          <label className="ml-auto flex items-center gap-1 text-pl-muted">
             <input type="checkbox" data-testid="corr-tops-show-all" checked={topNames.length > 0 && shownTops.length === topNames.length}
               onChange={(e) => onShowAllTops(e.target.checked)} /> all
           </label>
@@ -210,7 +210,7 @@ export default function SectionControls({
               canEdit={canEdit} onRename={onRenameTop} onDelete={onDeleteTop}
               mapHref={mapHrefFor ? mapHrefFor(n) : null} />
           ))}
-          {!topNames.length && <p className="text-slate-600">No tops in the section yet. Pick one on a column, or propagate a top below.</p>}
+          {!topNames.length && <p className="text-pl-muted">No tops in the section yet. Pick one on a column, or propagate a top below.</p>}
         </div>
       </Section>
 
@@ -228,7 +228,7 @@ export default function SectionControls({
                 <option value="">—</option>
                 {topNames.map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
-              <span className="text-slate-500">to</span>
+              <span className="text-pl-muted">to</span>
               <select className={selCls} value={zonePair?.[1] || ''} data-testid="corr-zone-base"
                 onChange={(e) => onZonePair(zonePair?.[0] && e.target.value ? [zonePair[0], e.target.value] : zonePair)}>
                 <option value="">—</option>
@@ -248,18 +248,18 @@ export default function SectionControls({
             <input className={`${inputCls} w-16`} placeholder={`MD ${u}`} value={propMd}
               data-testid="corr-prop-md" onChange={(e) => setPropMd(e.target.value)} />
             <button type="button" data-testid="corr-prop-run"
-              className="px-2 py-0.5 rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10"
+              className="px-2 py-0.5 rounded border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10"
               onClick={() => onPropagate(propName.trim(), fromDisplay(Number(propMd), depthUnit))}>
               Add
             </button>
           </div>
-          <p className="mt-1 text-[10px] text-slate-600">Seeds the top on every owned well in the section at that MD; drag each tag to correct it.</p>
+          <p className="mt-1 text-[10px] text-pl-muted">Seeds the top on every owned well in the section at that MD; drag each tag to correct it.</p>
         </Section>
       )}
 
-      <details className="rounded border border-slate-800/80" data-testid="corr-tracks-details">
-        <summary className="cursor-pointer px-2 py-1 text-[10px] uppercase tracking-wider text-slate-500 select-none">Track layout</summary>
-        <div className="border-t border-slate-800/80">
+      <details className="rounded border border-pl-border" data-testid="corr-tracks-details">
+        <summary className="cursor-pointer px-2 py-1 text-[10px] uppercase tracking-wider text-pl-muted select-none">Track layout</summary>
+        <div className="border-t border-pl-border">
           <LayoutPanel layouts={layouts} onLayoutsChange={onLayoutsChange} logSources={logSources} onStatus={onStatus} />
         </div>
       </details>

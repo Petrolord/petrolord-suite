@@ -39,7 +39,7 @@ const BurialHistoryPlot = ({ results, units = { depth: 'm' } }) => {
     }, [data, meta, zU, overlay]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
-        <div className="w-full h-full min-h-[400px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative">
+        <div className="w-full h-full min-h-[400px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative" data-canvas="chart">
             <div className="flex items-center justify-center gap-3">
                 <h3 className="text-sm font-semibold" style={{ color: CHART_COLORS.axisLabel }}>Burial History</h3>
                 <label className="text-[11px] text-slate-500 flex items-center gap-1">

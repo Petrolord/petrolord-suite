@@ -16,17 +16,17 @@ function PointTable({ kind, label, unit, points, onChange, defaults, depthUnit, 
   return (
     <div className="space-y-1" data-testid={`bf-cal-${kind}`}>
       <div className="flex items-center justify-between">
-        <span className="text-xs text-slate-400">{label}</span>
-        <Button variant="ghost" size="sm" className="h-6 text-xs text-indigo-300" data-testid={`bf-cal-${kind}-add`} onClick={add}>
+        <span className="text-xs text-pl-muted">{label}</span>
+        <Button variant="ghost" size="sm" className="h-6 text-xs text-pl-primary-text" data-testid={`bf-cal-${kind}-add`} onClick={add}>
           <Plus className="w-3 h-3 mr-1" /> Add
         </Button>
       </div>
       {points.length === 0 ? (
-        <p className="text-[11px] text-slate-500">None yet. Add a point or import a file.</p>
+        <p className="text-[11px] text-pl-muted">None yet. Add a point or import a file.</p>
       ) : (
-        <table className="w-full text-xs text-slate-200">
+        <table className="w-full text-xs text-pl-text">
           <thead>
-            <tr className="text-slate-500 text-left">
+            <tr className="text-pl-muted text-left">
               <th className="font-normal">Depth ({depthUnit})</th>
               <th className="font-normal">{unit}</th>
               <th />
@@ -34,10 +34,10 @@ function PointTable({ kind, label, unit, points, onChange, defaults, depthUnit, 
           </thead>
           <tbody>
             {points.map((p, i) => (
-              <tr key={p.id ?? i} className="border-t border-slate-800">
-                <td className="py-0.5 pr-1"><Input type="number" step="any" data-testid={`bf-cal-${kind}-depth-${i}`} value={tidy(depthToDisplay(p.depth, depthUnit))} onChange={(e) => set(i, { depth: depthFromDisplay(parseFloat(e.target.value), depthUnit) })} className="h-7 bg-slate-950 text-xs" /></td>
-                <td className="py-0.5 pr-1"><Input type="number" step="any" data-testid={`bf-cal-${kind}-value-${i}`} value={tidy(toDisp(p.value), 3)} onChange={(e) => set(i, { value: fromDisp(parseFloat(e.target.value)) })} className="h-7 bg-slate-950 text-xs" /></td>
-                <td className="py-0.5 text-right"><Button variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:text-red-400" data-testid={`bf-cal-${kind}-remove-${i}`} onClick={() => remove(i)}><Trash2 className="w-3 h-3" /></Button></td>
+              <tr key={p.id ?? i} className="border-t border-pl-border">
+                <td className="py-0.5 pr-1"><Input type="number" step="any" data-testid={`bf-cal-${kind}-depth-${i}`} value={tidy(depthToDisplay(p.depth, depthUnit))} onChange={(e) => set(i, { depth: depthFromDisplay(parseFloat(e.target.value), depthUnit) })} className="h-7 text-xs" /></td>
+                <td className="py-0.5 pr-1"><Input type="number" step="any" data-testid={`bf-cal-${kind}-value-${i}`} value={tidy(toDisp(p.value), 3)} onChange={(e) => set(i, { value: fromDisp(parseFloat(e.target.value)) })} className="h-7 text-xs" /></td>
+                <td className="py-0.5 text-right"><Button variant="ghost" size="icon" className="h-6 w-6 text-pl-muted hover:text-pl-danger-text" data-testid={`bf-cal-${kind}-remove-${i}`} onClick={() => remove(i)}><Trash2 className="w-3 h-3" /></Button></td>
               </tr>
             ))}
           </tbody>
