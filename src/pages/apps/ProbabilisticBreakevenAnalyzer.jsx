@@ -15,6 +15,9 @@ import ResultsPanel from '@/components/breakevenanalyzer/ResultsPanel';
 import { FullPrecisionProvider, FullPrecisionToggle } from '@/components/fullprecision/FullPrecision';
 import EmptyState from '@/components/breakevenanalyzer/EmptyState';
 import BreakevenHelpGuide from '@/components/breakevenanalyzer/BreakevenHelpGuide';
+import { Activity } from 'lucide-react';
+import { ThemedApp } from '@/design/ThemeProvider';
+import { AppHeader } from '@/components/ui/app-shell';
 
 const TABLE = 'saved_breakeven_projects';
 export const service = createSavedProjectsService(TABLE, {
@@ -129,15 +132,23 @@ const ProbabilisticBreakevenAnalyzer = () => {
   }, [toast]);
 
   return (
+    <ThemedApp className="flex min-h-screen flex-col" data-testid="pba-theme-scope">
     <FullPrecisionProvider>
       <Helmet>
         <title>Probabilistic Breakeven Analyzer - Petrolord Suite</title>
         <meta name="description" content="Risk-informed project viability analysis with Monte Carlo simulation for breakeven price/volume." />
       </Helmet>
       <StudioNotifications notifications={notifications} onDismiss={removeNotification} />
-      <div className="flex h-full">
-        <div className="w-full md:w-1/3 xl:w-1/4 p-6 bg-slate-900/50 backdrop-blur-lg border-r border-white/10 overflow-y-auto">
-          <div className="mb-6 pb-4 border-b border-white/10 space-y-3">
+      <AppHeader
+        title="Probabilistic Breakeven Analyzer"
+        eyebrow="Economics"
+        subtitle="Monte Carlo breakeven price and volume"
+        icon={Activity}
+        backTo="/dashboard/economics"
+      />
+      <div className="flex flex-1 flex-col md:flex-row">
+        <div className="w-full shrink-0 overflow-y-auto border-b border-pl-border bg-pl-surface p-4 sm:p-6 md:w-1/3 md:border-b-0 md:border-r xl:w-1/4">
+          <div className="mb-6 pb-4 border-b border-pl-border space-y-3">
             <StudioProjectManager
               label="Saved study"
               projects={projectList}
@@ -166,16 +177,16 @@ const ProbabilisticBreakevenAnalyzer = () => {
             setInputs={setInputs}
           />
         </div>
-        <div className="flex-1 p-6 overflow-y-auto">
+        <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
           {!results && !loading && (
             <EmptyState fileReady={Boolean(inputs.productionData)} onAnalyze={() => toast({ title: 'Please configure inputs and upload data first.' })} />
           )}
           {loading && (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-lime-400 mx-auto"></div>
-                <p className="text-white mt-4 text-lg">Running Monte Carlo Simulation...</p>
-                <p className="text-lime-300">This may take a moment for complex models.</p>
+                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-pl-primary mx-auto"></div>
+                <p className="text-pl-text mt-4 text-lg">Running Monte Carlo Simulation...</p>
+                <p className="text-pl-muted">This may take a moment for complex models.</p>
               </div>
             </div>
           )}
@@ -192,6 +203,7 @@ const ProbabilisticBreakevenAnalyzer = () => {
         </div>
       </div>
     </FullPrecisionProvider>
+    </ThemedApp>
   );
 };
 

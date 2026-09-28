@@ -700,3 +700,35 @@ always show the accuracy. Engines PR #234 + this Suite PR.
   'Minna' find all five, empty browse lists them first with UTM folded),
   `well-planning/__tests__/siteDatumTransform.test.jsx` (6); engines
   `crs.minna.test.js` (12) vendored.
+
+## Design system rollout, batch 3A (2026-09-28)
+
+The studio, its help guide and the dev harness (`/dev/well-design`) now
+open on the Petrolord design system: light grey panel by default, dark as
+a per-user choice from the header toggle (beside Help).
+
+- Scope: `ThemedApp` inside `WellPlanning.jsx` (route and `/:wellId` alias),
+  `WellDesignHelpGuide.jsx` and `WellDesignHarness.jsx`; App.jsx unchanged.
+  Cold-load prefix `/dashboard/apps/drilling/well-planning` in
+  `src/design/rollout/w3a.js` (covers `/help` and `/:wellId`).
+- Own classes moved to `pl-*` roles across the shell, tree, six tabs and
+  eleven dialogs. Primary actions use the default Button; status stays on
+  the status roles (AC levels, alerts, wellbore status dots, datum
+  warnings); decorative colour (lime accents, gradient icon tiles,
+  per-toggle hues) is gone. Success toasts no longer force a green
+  class: the root toaster follows the page.
+- Canvases: the section, plan, inclination, DLS, mud-window, ladder and
+  traveling-cylinder charts are white `data-canvas="chart"` in both
+  themes; the 3D view takes `chart` when drawn light (the studio's
+  setting) and `dark` when drawn dark; the targets map (Leaflet,
+  CRS.Simple, drawn for a dark ground) sits on `data-canvas="dark"`.
+- Phone width: the site tree stacks above the workspace below `md`
+  (35vh, scrolls), the breadcrumb clips, the design view toolbar scrolls
+  inside its bar. No page-level sideways scroll at 390 px.
+- No calculation, export or data change. Existing well-planning suites
+  pass unchanged; new `__tests__/WellDesignStudio.theme.test.jsx` (the
+  shared four checks for the studio and the help guide, plus every tab,
+  every Design view in light and dark, and the solver, survey-program
+  and site dialogs).
+- Known, unchanged: the Bottom hole KPI prints "Set well CRS" in the
+  large mono value style when the site has no CRS.

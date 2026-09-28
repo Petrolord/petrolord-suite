@@ -30,7 +30,7 @@ const axisProps = {
 // a flex item with a resolved height, not a stretching grid cell, and
 // without it the ResponsiveContainer collapses to 0 and no plot renders.
 const Panel = ({ title, children }) => (
-  <div className="bg-white relative flex flex-col h-full min-h-0 min-w-0">
+  <div className="bg-white relative flex flex-col h-full min-h-0 min-w-0" data-canvas="chart">
     <div className={PANEL_TITLE}>{title}</div>
     <div className="flex-1 min-h-0">{children}</div>
     <ChartLogo style={{ height: 40 }} />

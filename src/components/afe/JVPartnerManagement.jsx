@@ -13,7 +13,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { NumericTable, NumTh, NumRow, RowLabel, NumCell } from '@/components/ui/numeric-table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Users, PlusCircle, DollarSign, FileText, Trash2, Send, Edit } from 'lucide-react';
@@ -127,100 +127,100 @@ const JVPartnerManagement = ({ afe, costItems, onPartnersChanged }) => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
             <CardContent className="p-6">
-                <p className="text-sm text-slate-400">Gross Cost (100%)</p>
-                <h3 className="text-2xl font-bold text-white mt-1">${totalActuals.toLocaleString()}</h3>
+                <p className="text-sm text-pl-muted">Gross Cost (100%)</p>
+                <h3 className="text-2xl font-semibold font-pl-mono tabular-nums text-pl-text mt-1">${totalActuals.toLocaleString()}</h3>
             </CardContent>
         </Card>
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
             <CardContent className="p-6">
-                <p className="text-sm text-slate-400">Operator Share ({operatorShare.toFixed(2)}%)</p>
-                <h3 className="text-2xl font-bold text-blue-400 mt-1">${operatorAmount.toLocaleString()}</h3>
+                <p className="text-sm text-pl-muted">Operator Share ({operatorShare.toFixed(2)}%)</p>
+                <h3 className="text-2xl font-semibold font-pl-mono tabular-nums text-pl-text mt-1">${operatorAmount.toLocaleString()}</h3>
             </CardContent>
         </Card>
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
             <CardContent className="p-6">
-                <p className="text-sm text-slate-400">Partner Recoverable</p>
-                <h3 className="text-2xl font-bold text-green-400 mt-1">${(totalActuals - operatorAmount).toLocaleString()}</h3>
+                <p className="text-sm text-pl-muted">Partner Recoverable</p>
+                <h3 className="text-2xl font-semibold font-pl-mono tabular-nums text-pl-text mt-1">${(totalActuals - operatorAmount).toLocaleString()}</h3>
             </CardContent>
         </Card>
       </div>
 
       {!valid && (
-        <div className="flex items-start gap-2 rounded border border-red-800 bg-red-950/40 p-3">
-            <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-            <p className="text-sm text-red-200">{note}</p>
+        <div className="flex items-start gap-2 rounded border border-pl-danger/40 bg-pl-danger-bg p-3">
+            <AlertTriangle className="w-4 h-4 text-pl-danger-text mt-0.5 shrink-0" />
+            <p className="text-sm text-pl-danger-text">{note}</p>
         </div>
       )}
 
-      <Card className="bg-slate-900 border-slate-800">
-        <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg font-medium text-slate-200">Joint Venture Partners</CardTitle>
-            <Button onClick={openAdd} size="sm" className="bg-blue-600 hover:bg-blue-700">
+      <Card>
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-lg font-medium text-pl-text">Joint Venture Partners</CardTitle>
+            <Button onClick={openAdd} size="sm">
                 <PlusCircle className="w-4 h-4 mr-2" /> Add Partner
             </Button>
         </CardHeader>
         <CardContent>
-            <Table>
-                <TableHeader>
-                    <TableRow className="border-slate-800">
-                        <TableHead className="text-slate-400">Partner Name</TableHead>
-                        <TableHead className="text-slate-400">Type</TableHead>
-                        <TableHead className="text-right text-slate-400">Working Interest</TableHead>
-                        <TableHead className="text-right text-slate-400">Current Share of Cost</TableHead>
-                        <TableHead className="text-right text-slate-400">Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    <TableRow className="border-slate-800 bg-slate-800/30">
-                        <TableCell className="font-bold text-white">Operator (your share)</TableCell>
-                        <TableCell className="text-slate-400">Operator</TableCell>
-                        <TableCell className="text-right font-mono text-blue-300">{operatorShare.toFixed(2)}%</TableCell>
-                        <TableCell className="text-right font-mono text-white">${operatorAmount.toLocaleString()}</TableCell>
-                        <TableCell></TableCell>
-                    </TableRow>
+            <NumericTable className="border-0 p-0" data-testid="afe-partner-table">
+                <thead>
+                    <tr>
+                        <NumTh sticky>Partner Name</NumTh>
+                        <NumTh>Type</NumTh>
+                        <NumTh numeric>Working Interest</NumTh>
+                        <NumTh numeric>Current Share of Cost</NumTh>
+                        <NumTh className="text-right">Actions</NumTh>
+                    </tr>
+                </thead>
+                <tbody>
+                    <NumRow className="bg-pl-sunken/60">
+                        <RowLabel className="font-semibold">Operator (your share)</RowLabel>
+                        <td className="border-b border-pl-border px-3 py-2 text-pl-muted">Operator</td>
+                        <NumCell signed={false}>{operatorShare.toFixed(2)}%</NumCell>
+                        <NumCell value={operatorAmount}>${operatorAmount.toLocaleString()}</NumCell>
+                        <td className="border-b border-pl-border px-3 py-2"></td>
+                    </NumRow>
                     {partnerAllocations.map(partner => (
-                        <TableRow key={partner.id} className="border-slate-800">
-                            <TableCell className="text-slate-200">{partner.name}</TableCell>
-                            <TableCell className="text-slate-400">{partner.partner_type || partner.type || 'Non-Operator'}</TableCell>
-                            <TableCell className="text-right font-mono text-slate-300">{partner.working_interest}%</TableCell>
-                            <TableCell className="text-right font-mono text-white">${partner.shareAmount.toLocaleString()}</TableCell>
-                            <TableCell className="text-right">
+                        <NumRow key={partner.id}>
+                            <RowLabel>{partner.name}</RowLabel>
+                            <td className="border-b border-pl-border px-3 py-2 text-pl-muted">{partner.partner_type || partner.type || 'Non-Operator'}</td>
+                            <NumCell signed={false}>{partner.working_interest}%</NumCell>
+                            <NumCell value={partner.shareAmount}>${partner.shareAmount.toLocaleString()}</NumCell>
+                            <td className="border-b border-pl-border px-3 py-2 text-right">
                                 <div className="flex justify-end gap-2">
                                     <Button variant="ghost" size="sm" onClick={() => handleGenerateBill(partner, partner.shareAmount)} disabled={!valid} title={valid ? 'Generate Bill' : 'Correct the working interests before billing'}>
-                                        <FileText className="w-4 h-4 text-green-400" />
+                                        <FileText className="w-4 h-4 text-pl-muted" />
                                     </Button>
                                     <Button variant="ghost" size="sm" onClick={() => openEdit(partner)} title="Edit">
-                                        <Edit className="w-4 h-4 text-blue-400" />
+                                        <Edit className="w-4 h-4 text-pl-muted" />
                                     </Button>
                                     <Button variant="ghost" size="sm" onClick={() => handleDelete(partner.id)} title="Remove">
-                                        <Trash2 className="w-4 h-4 text-red-400" />
+                                        <Trash2 className="w-4 h-4 text-pl-danger-text" />
                                     </Button>
                                 </div>
-                            </TableCell>
-                        </TableRow>
+                            </td>
+                        </NumRow>
                     ))}
-                </TableBody>
-            </Table>
+                </tbody>
+            </NumericTable>
         </CardContent>
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="bg-slate-900 border-slate-700 text-white">
+        <DialogContent>
             <DialogHeader><DialogTitle>{editingId ? 'Edit JV Partner' : 'Add JV Partner'}</DialogTitle></DialogHeader>
             <div className="space-y-4">
                 <div>
                     <Label>Partner Name</Label>
-                    <Input value={newPartner.name} onChange={e => setNewPartner({...newPartner, name: e.target.value})} className="bg-slate-800 border-slate-700" />
+                    <Input value={newPartner.name} onChange={e => setNewPartner({...newPartner, name: e.target.value})} />
                 </div>
                 <div>
                     <Label>Working Interest (%)</Label>
-                    <Input type="number" min="0" value={newPartner.working_interest} onChange={e => setNewPartner({...newPartner, working_interest: parseFloat(e.target.value)})} className="bg-slate-800 border-slate-700" />
+                    <Input type="number" min="0" value={newPartner.working_interest} onChange={e => setNewPartner({...newPartner, working_interest: parseFloat(e.target.value)})} />
                 </div>
             </div>
             <DialogFooter>
-                <Button onClick={handleSavePartner} className="bg-blue-600">{editingId ? 'Save Partner' : 'Add Partner'}</Button>
+                <Button onClick={handleSavePartner}>{editingId ? 'Save Partner' : 'Add Partner'}</Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>

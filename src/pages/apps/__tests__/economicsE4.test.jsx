@@ -37,6 +37,8 @@ jest.mock('@/lib/customSupabaseClient', () => ({
 jest.mock('@/contexts/SupabaseAuthContext', () => ({
   useAuth: () => ({ user: { id: 'u1', email: 'tester@example.com' }, session: null, loading: false }),
   SupabaseAuthProvider: ({ children }) => children,
+  // ThemedApp (design system rollout) reads the auth context directly
+  AuthContext: require('react').createContext(null),
 }));
 
 import ProjectManagementPro from '@/pages/apps/ProjectManagementPro';

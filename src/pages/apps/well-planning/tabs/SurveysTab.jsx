@@ -29,9 +29,9 @@ import PlanViewChart from '../charts/PlanViewChart';
 import { SectionViewPanel, InclinationPanel } from '../charts/TrajectoryCharts';
 
 const SOURCE_BADGE = {
-  manual: 'bg-slate-700 text-slate-300',
-  csv: 'bg-sky-900/60 text-sky-300',
-  geo_wells: 'bg-emerald-900/60 text-emerald-300',
+  manual: 'bg-pl-sunken text-pl-text',
+  csv: 'bg-pl-info-bg text-pl-info-text',
+  geo_wells: 'bg-pl-success-bg text-pl-success-text',
 };
 
 const SurveysTab = () => {
@@ -142,7 +142,7 @@ const SurveysTab = () => {
       await wpApi.saveSurvey({ ...payload, wellbore_id: wellbore.id }, user.id);
     }
     await refreshSurveys(wellbore.id);
-    toast({ title: 'Survey saved', className: 'bg-green-600 text-white' });
+    toast({ title: 'Survey saved' });
   };
 
   const toggleDefinitive = async (s) => {
@@ -167,7 +167,7 @@ const SurveysTab = () => {
 
   if (!wellbore) {
     return (
-      <div className="flex h-[50vh] items-center justify-center text-sm text-slate-500">
+      <div className="flex h-[50vh] items-center justify-center text-sm text-pl-muted">
         Select a wellbore in the tree to manage its actual surveys.
       </div>
     );
@@ -178,47 +178,47 @@ const SurveysTab = () => {
   return (
     <div className="flex flex-col lg:flex-row h-[calc(100vh-140px)] gap-4">
       {/* LEFT: survey runs */}
-      <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="w-full lg:w-[360px] flex flex-col bg-slate-900 border border-slate-800 rounded-lg overflow-hidden shrink-0">
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-          <h2 className="text-sm font-bold text-white flex items-center">
-            <Ruler className="w-4 h-4 mr-2 text-lime-400" /> Survey runs
+      <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="w-full lg:w-[360px] flex flex-col bg-pl-surface border border-pl-border rounded-lg overflow-hidden shrink-0">
+        <div className="p-4 border-b border-pl-border flex items-center justify-between">
+          <h2 className="text-sm font-bold text-pl-text flex items-center">
+            <Ruler className="w-4 h-4 mr-2 text-pl-primary-text" /> Survey runs
           </h2>
-          <Button size="sm" onClick={() => setDialog({ survey: null })} className="h-7 bg-[#4CAF50] hover:bg-[#43a047] text-white text-xs" data-testid="new-survey">
+          <Button size="sm" onClick={() => setDialog({ survey: null })} className="h-7 text-xs" data-testid="new-survey">
             <Plus className="w-3 h-3 mr-1" /> New
           </Button>
         </div>
         <ScrollArea className="flex-1">
           <div className="p-2 space-y-2">
             {surveys.length === 0 && (
-              <p className="p-3 text-xs text-slate-500">
+              <p className="p-3 text-xs text-pl-muted">
                 No actual surveys yet. Import MWD stations manually, from a CSV file, or from a wells-registry deviation.
               </p>
             )}
             {surveys.map((s) => (
               <div key={s.id}
-                className={`rounded border p-2 text-xs cursor-pointer ${selectedId === s.id ? 'border-lime-600 bg-slate-800' : 'border-slate-700 bg-slate-800/40 hover:bg-slate-800'}`}
+                className={`rounded border p-2 text-xs cursor-pointer ${selectedId === s.id ? 'border-pl-primary bg-pl-primary/10' : 'border-pl-border bg-pl-surface hover:bg-pl-sunken'}`}
                 onClick={() => setSelectedId(selectedId === s.id ? null : s.id)}>
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-slate-200">{s.name}</span>
+                  <span className="font-semibold text-pl-text">{s.name}</span>
                   <span className={`rounded px-1.5 py-0.5 text-[9px] uppercase ${SOURCE_BADGE[s.source] || SOURCE_BADGE.manual}`}>{s.source}</span>
                   <span className="ml-auto flex items-center gap-1">
-                    <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-500 hover:text-slate-200" onClick={(e) => { e.stopPropagation(); setDialog({ survey: s }); }}><Pencil className="h-3 w-3" /></Button>
-                    <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-500 hover:text-red-400" onClick={(e) => { e.stopPropagation(); handleDelete(s); }}><Trash2 className="h-3 w-3" /></Button>
+                    <Button variant="ghost" size="icon" className="h-5 w-5 text-pl-muted hover:text-pl-text" onClick={(e) => { e.stopPropagation(); setDialog({ survey: s }); }}><Pencil className="h-3 w-3" /></Button>
+                    <Button variant="ghost" size="icon" className="h-5 w-5 text-pl-muted hover:text-pl-danger-text" onClick={(e) => { e.stopPropagation(); handleDelete(s); }}><Trash2 className="h-3 w-3" /></Button>
                   </span>
                 </div>
-                <div className="mt-1 text-slate-500">
+                <div className="mt-1 text-pl-muted">
                   MD {mu(s.md_from_m ?? 0).toFixed(0)} to {mu(s.md_to_m ?? 0).toFixed(0)} {mdUnit}
                   {' '}({(s.stations || []).length} stations)
                   {s.instrument_toolcode ? ` | ${s.instrument_toolcode}` : ''}
                 </div>
-                <label className="mt-1 flex items-center gap-2 text-slate-400" onClick={(e) => e.stopPropagation()}>
-                  <Checkbox checked={s.is_in_definitive} onCheckedChange={() => toggleDefinitive(s)} className="h-3.5 w-3.5 border-slate-600" />
+                <label className="mt-1 flex items-center gap-2 text-pl-muted" onClick={(e) => e.stopPropagation()}>
+                  <Checkbox checked={s.is_in_definitive} onCheckedChange={() => toggleDefinitive(s)} className="h-3.5 w-3.5" />
                   In definitive composite
                 </label>
               </div>
             ))}
             {composite.length >= 2 && (
-              <div className="rounded border border-slate-700 bg-slate-800/60 p-2 text-[11px] text-slate-400">
+              <div className="rounded border border-pl-border bg-pl-sunken p-2 text-[11px] text-pl-muted">
                 Definitive composite: {composite.length} stations, MD {mu(composite[0].md).toFixed(0)} to {mu(composite[composite.length - 1].md).toFixed(0)} {mdUnit}. The deeper run wins from its tie-on down.
               </div>
             )}
@@ -227,14 +227,14 @@ const SurveysTab = () => {
       </motion.div>
 
       {/* RIGHT: listing / compare / project ahead */}
-      <div className="flex-1 flex flex-col min-w-0 bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
-        <div className="flex items-center justify-between p-2 border-b border-slate-800">
-          <div className="flex bg-slate-800 rounded p-1">
-            <Button variant="ghost" size="sm" onClick={() => setView('listing')} className={`h-7 px-3 text-xs ${view === 'listing' ? 'bg-slate-700 text-white' : 'text-slate-400'}`}><ListOrdered className="w-3 h-3 mr-1" /> Listing</Button>
-            <Button variant="ghost" size="sm" onClick={() => setView('compare')} className={`h-7 px-3 text-xs ${view === 'compare' ? 'bg-slate-700 text-white' : 'text-slate-400'}`}><GitCompareArrows className="w-3 h-3 mr-1" /> Plan vs actual</Button>
-            <Button variant="ghost" size="sm" onClick={() => setView('project')} className={`h-7 px-3 text-xs ${view === 'project' ? 'bg-slate-700 text-white' : 'text-slate-400'}`}><Crosshair className="w-3 h-3 mr-1" /> Project ahead</Button>
+      <div className="flex-1 flex flex-col min-w-0 bg-pl-surface rounded-lg border border-pl-border overflow-hidden">
+        <div className="flex items-center justify-between p-2 border-b border-pl-border">
+          <div className="flex bg-pl-sunken rounded p-1">
+            <Button variant="ghost" size="sm" onClick={() => setView('listing')} className={`h-7 px-3 text-xs ${view === 'listing' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`}><ListOrdered className="w-3 h-3 mr-1" /> Listing</Button>
+            <Button variant="ghost" size="sm" onClick={() => setView('compare')} className={`h-7 px-3 text-xs ${view === 'compare' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`}><GitCompareArrows className="w-3 h-3 mr-1" /> Plan vs actual</Button>
+            <Button variant="ghost" size="sm" onClick={() => setView('project')} className={`h-7 px-3 text-xs ${view === 'project' ? 'bg-pl-surface text-pl-text shadow-pl-sm' : 'text-pl-muted'}`}><Crosshair className="w-3 h-3 mr-1" /> Project ahead</Button>
           </div>
-          <span className="text-[10px] text-slate-500 pr-2">
+          <span className="text-[10px] text-pl-muted pr-2">
             Showing {actualStations ? actualName : 'no survey'}
             {planDesign ? ` | plan: ${planDesign.name} r${planDesign.revision}${planDesign.status === 'definitive' ? ' (definitive)' : ''}` : ' | no saved plan'}
           </span>
@@ -242,36 +242,36 @@ const SurveysTab = () => {
 
         <div className="flex-1 min-h-0 overflow-auto">
           {!actualRows && (
-            <div className="flex h-full items-center justify-center p-6 text-center text-sm text-slate-500">
+            <div className="flex h-full items-center justify-center p-6 text-center text-sm text-pl-muted">
               Add a survey run, or flag runs into the definitive composite, to see the listing here.
             </div>
           )}
 
           {view === 'listing' && actualRows && (
             <Table>
-              <TableHeader className="bg-slate-800 sticky top-0">
-                <TableRow className="border-slate-700">
-                  <TableHead className="text-slate-300">MD ({mdUnit})</TableHead>
-                  <TableHead className="text-slate-300">Inc (deg)</TableHead>
-                  <TableHead className="text-slate-300">Azi grid (deg)</TableHead>
-                  <TableHead className="text-slate-300">TVD ({mdUnit})</TableHead>
-                  <TableHead className="text-slate-300">North ({mdUnit})</TableHead>
-                  <TableHead className="text-slate-300">East ({mdUnit})</TableHead>
-                  <TableHead className="text-slate-300">VS ({mdUnit})</TableHead>
-                  <TableHead className="text-slate-300">DLS (/{mdUnit === 'ft' ? '100ft' : '30m'})</TableHead>
+              <TableHeader className="bg-pl-sunken sticky top-0">
+                <TableRow className="border-pl-border">
+                  <TableHead className="text-pl-text">MD ({mdUnit})</TableHead>
+                  <TableHead className="text-pl-text">Inc (deg)</TableHead>
+                  <TableHead className="text-pl-text">Azi grid (deg)</TableHead>
+                  <TableHead className="text-pl-text">TVD ({mdUnit})</TableHead>
+                  <TableHead className="text-pl-text">North ({mdUnit})</TableHead>
+                  <TableHead className="text-pl-text">East ({mdUnit})</TableHead>
+                  <TableHead className="text-pl-text">VS ({mdUnit})</TableHead>
+                  <TableHead className="text-pl-text">DLS (/{mdUnit === 'ft' ? '100ft' : '30m'})</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {actualRows.map((r, i) => (
-                  <TableRow key={i} className="border-slate-800 hover:bg-slate-800/50">
-                    <TableCell className="font-mono text-lime-400">{r.md.toFixed(2)}</TableCell>
-                    <TableCell className="font-mono text-slate-300">{r.inc.toFixed(2)}</TableCell>
-                    <TableCell className="font-mono text-slate-300">{r.azi.toFixed(2)}</TableCell>
-                    <TableCell className="font-mono text-slate-300">{r.tvd.toFixed(2)}</TableCell>
-                    <TableCell className="font-mono text-slate-400">{r.n.toFixed(2)}</TableCell>
-                    <TableCell className="font-mono text-slate-400">{r.e.toFixed(2)}</TableCell>
-                    <TableCell className="font-mono text-slate-400">{r.vs.toFixed(2)}</TableCell>
-                    <TableCell className="font-mono text-slate-400">{r[dlsKey].toFixed(2)}</TableCell>
+                  <TableRow key={i} className="border-pl-border hover:bg-pl-sunken">
+                    <TableCell className="font-mono text-pl-primary-text">{r.md.toFixed(2)}</TableCell>
+                    <TableCell className="font-mono text-pl-text">{r.inc.toFixed(2)}</TableCell>
+                    <TableCell className="font-mono text-pl-text">{r.azi.toFixed(2)}</TableCell>
+                    <TableCell className="font-mono text-pl-text">{r.tvd.toFixed(2)}</TableCell>
+                    <TableCell className="font-mono text-pl-muted">{r.n.toFixed(2)}</TableCell>
+                    <TableCell className="font-mono text-pl-muted">{r.e.toFixed(2)}</TableCell>
+                    <TableCell className="font-mono text-pl-muted">{r.vs.toFixed(2)}</TableCell>
+                    <TableCell className="font-mono text-pl-muted">{r[dlsKey].toFixed(2)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -280,12 +280,12 @@ const SurveysTab = () => {
 
           {view === 'compare' && actualRows && (
             !planRows ? (
-              <div className="flex h-full items-center justify-center p-6 text-center text-sm text-slate-500">
+              <div className="flex h-full items-center justify-center p-6 text-center text-sm text-pl-muted">
                 No saved plan stations to compare against. Save a design on the Design tab (or set one definitive) first.
               </div>
             ) : (
               <div className="flex flex-col h-full">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-slate-800 h-[46%] min-h-[260px]">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-pl-border h-[46%] min-h-[260px]">
                   <PlanViewChart rows={planRows}
                     extraPaths={[{ points: actualRows.map((r) => [r.e, r.n]), color: '#b91c1c', dash: '5 3' }]}
                     unit={mdUnit} title={`Plan view (plan vs ${actualName})`} />
@@ -294,33 +294,33 @@ const SurveysTab = () => {
                   <InclinationPanel rows={planRows} unit={mdUnit}
                     overlays={[{ name: actualName, rows: actualRows, color: '#b91c1c' }]} />
                 </div>
-                <div className="flex-1 min-h-0 overflow-auto border-t border-slate-800">
+                <div className="flex-1 min-h-0 overflow-auto border-t border-pl-border">
                   <Table>
-                    <TableHeader className="bg-slate-800 sticky top-0">
-                      <TableRow className="border-slate-700">
-                        <TableHead className="text-slate-300">MD ({mdUnit})</TableHead>
-                        <TableHead className="text-slate-300">Plan Inc/Azi</TableHead>
-                        <TableHead className="text-slate-300">Actual Inc/Azi</TableHead>
-                        <TableHead className="text-slate-300">dInc (deg)</TableHead>
-                        <TableHead className="text-slate-300">dAzi (deg)</TableHead>
-                        <TableHead className="text-slate-300">dTVD ({mdUnit})</TableHead>
-                        <TableHead className="text-slate-300">dN ({mdUnit})</TableHead>
-                        <TableHead className="text-slate-300">dE ({mdUnit})</TableHead>
-                        <TableHead className="text-slate-300">Separation ({mdUnit})</TableHead>
+                    <TableHeader className="bg-pl-sunken sticky top-0">
+                      <TableRow className="border-pl-border">
+                        <TableHead className="text-pl-text">MD ({mdUnit})</TableHead>
+                        <TableHead className="text-pl-text">Plan Inc/Azi</TableHead>
+                        <TableHead className="text-pl-text">Actual Inc/Azi</TableHead>
+                        <TableHead className="text-pl-text">dInc (deg)</TableHead>
+                        <TableHead className="text-pl-text">dAzi (deg)</TableHead>
+                        <TableHead className="text-pl-text">dTVD ({mdUnit})</TableHead>
+                        <TableHead className="text-pl-text">dN ({mdUnit})</TableHead>
+                        <TableHead className="text-pl-text">dE ({mdUnit})</TableHead>
+                        <TableHead className="text-pl-text">Separation ({mdUnit})</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {deltas.map((d, i) => (
-                        <TableRow key={i} className="border-slate-800 hover:bg-slate-800/50">
-                          <TableCell className="font-mono text-lime-400">{mu(d.md).toFixed(2)}</TableCell>
-                          <TableCell className="font-mono text-slate-400">{d.plan.inc.toFixed(2)} / {d.plan.azi.toFixed(2)}</TableCell>
-                          <TableCell className="font-mono text-slate-300">{d.actual.inc.toFixed(2)} / {d.actual.azi.toFixed(2)}</TableCell>
-                          <TableCell className="font-mono text-slate-300">{d.dInc.toFixed(2)}</TableCell>
-                          <TableCell className="font-mono text-slate-300">{d.dAzi.toFixed(2)}</TableCell>
-                          <TableCell className="font-mono text-slate-300">{mu(d.dTvd).toFixed(2)}</TableCell>
-                          <TableCell className="font-mono text-slate-400">{mu(d.dN).toFixed(2)}</TableCell>
-                          <TableCell className="font-mono text-slate-400">{mu(d.dE).toFixed(2)}</TableCell>
-                          <TableCell className="font-mono text-amber-400">{mu(d.sep3d).toFixed(2)}</TableCell>
+                        <TableRow key={i} className="border-pl-border hover:bg-pl-sunken">
+                          <TableCell className="font-mono text-pl-primary-text">{mu(d.md).toFixed(2)}</TableCell>
+                          <TableCell className="font-mono text-pl-muted">{d.plan.inc.toFixed(2)} / {d.plan.azi.toFixed(2)}</TableCell>
+                          <TableCell className="font-mono text-pl-text">{d.actual.inc.toFixed(2)} / {d.actual.azi.toFixed(2)}</TableCell>
+                          <TableCell className="font-mono text-pl-text">{d.dInc.toFixed(2)}</TableCell>
+                          <TableCell className="font-mono text-pl-text">{d.dAzi.toFixed(2)}</TableCell>
+                          <TableCell className="font-mono text-pl-text">{mu(d.dTvd).toFixed(2)}</TableCell>
+                          <TableCell className="font-mono text-pl-muted">{mu(d.dN).toFixed(2)}</TableCell>
+                          <TableCell className="font-mono text-pl-muted">{mu(d.dE).toFixed(2)}</TableCell>
+                          <TableCell className="font-mono font-semibold text-pl-text">{mu(d.sep3d).toFixed(2)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -332,15 +332,15 @@ const SurveysTab = () => {
 
           {view === 'project' && actualRows && (
             <div className="p-4 max-w-2xl space-y-4">
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-pl-muted">
                 One exact continuous-build arc from the last actual station ({actualName}, MD {actualRows[actualRows.length - 1].md.toFixed(1)} {mdUnit}) to a target. Apply it on the Design tab with the Curve to target method when steering.
               </p>
               <div className="grid grid-cols-2 gap-3 max-w-md">
                 <div>
                   <Label className="text-xs">Target</Label>
                   <Select value={targetId} onValueChange={setTargetId}>
-                    <SelectTrigger className="h-9 bg-slate-800 border-slate-700" data-testid="project-target"><SelectValue placeholder="Select target..." /></SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-700">
+                    <SelectTrigger className="h-9" data-testid="project-target"><SelectValue placeholder="Select target..." /></SelectTrigger>
+                    <SelectContent>
                       {(siteTargets || []).map((t) => (
                         <SelectItem key={t.id} value={t.id}>{t.name} ({t.tvdss_m?.toFixed(0)} m TVDSS)</SelectItem>
                       ))}
@@ -349,22 +349,22 @@ const SurveysTab = () => {
                 </div>
                 <div>
                   <Label className="text-xs">Max DLS (deg/{mdUnit === 'ft' ? '100ft' : '30m'})</Label>
-                  <Input type="number" value={maxDls} onChange={(e) => setMaxDls(e.target.value)} className="h-9 bg-slate-800 border-slate-700" />
+                  <Input type="number" value={maxDls} onChange={(e) => setMaxDls(e.target.value)} className="h-9" />
                 </div>
               </div>
 
               {projection && !projection.feasible && (
-                <div className="rounded-md border border-red-900/40 bg-red-900/15 px-3 py-2 text-xs text-red-300" data-testid="project-error">
+                <div className="rounded-md border border-pl-danger/40 bg-pl-danger-bg px-3 py-2 text-xs text-pl-danger-text" data-testid="project-error">
                   {projection.error}
                 </div>
               )}
               {projection?.feasible && (
-                <div className="rounded-md border border-slate-700 bg-slate-800/50 p-3 text-xs text-slate-300 space-y-1" data-testid="project-result">
+                <div className="rounded-md border border-pl-border bg-pl-sunken p-3 text-xs text-pl-text space-y-1" data-testid="project-result">
                   {projection.report.straight ? (
                     <p>The target lies straight ahead: hold for {projection.report.endMdDelta.toFixed(1)} {mdUnit}.</p>
                   ) : (
                     <>
-                      <p>Required dogleg <span className="font-mono text-lime-400">{projection.report.dls.toFixed(2)}</span> deg/{mdUnit === 'ft' ? '100ft' : '30m'} at toolface <span className="font-mono text-lime-400">{projection.report.toolfaceDeg.toFixed(1)}</span> deg.</p>
+                      <p>Required dogleg <span className="font-mono text-pl-primary-text">{projection.report.dls.toFixed(2)}</span> deg/{mdUnit === 'ft' ? '100ft' : '30m'} at toolface <span className="font-mono text-pl-primary-text">{projection.report.toolfaceDeg.toFixed(1)}</span> deg.</p>
                       <p>Arc length <span className="font-mono">{projection.report.arcLen.toFixed(1)}</span> {mdUnit}, landing at MD <span className="font-mono">{projection.landing.md.toFixed(1)}</span> {mdUnit} with attitude <span className="font-mono">{projection.report.endInc.toFixed(1)}</span> deg inc / <span className="font-mono">{projection.report.endAzi.toFixed(1)}</span> deg grid azi.</p>
                     </>
                   )}

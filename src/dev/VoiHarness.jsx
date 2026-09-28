@@ -8,5 +8,5 @@ import InMemorySupabase, { createStore } from './InMemorySupabase';
 const db = createStore({ saved_voi_projects: [] });
 
 export default function VoiHarness() {
-  return <InMemorySupabase db={db}><div className="h-screen bg-slate-950 text-slate-100"><ValueOfInformationAnalyzer /></div></InMemorySupabase>;
+  return <InMemorySupabase db={db}><ValueOfInformationAnalyzer /></InMemorySupabase>;
 }

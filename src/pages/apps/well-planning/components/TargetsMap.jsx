@@ -72,7 +72,7 @@ const TargetsMap = ({ targets, wellLocation, onTargetSelect }) => {
   }, [targets, wellLocation]);
 
   return (
-    <div className="relative h-full w-full bg-slate-950 border border-slate-800 rounded-xl overflow-hidden">
+    <div className="relative h-full w-full bg-slate-950 border border-slate-800 rounded-xl overflow-hidden" data-canvas="dark">
       {/* Map Controls Overlay */}
       <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2 bg-slate-900/80 p-2 rounded backdrop-blur border border-slate-700">
         <Button 

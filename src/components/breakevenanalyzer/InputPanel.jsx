@@ -112,34 +112,34 @@ const InputPanel = ({ onAnalyze, loading, inputs, setInputs }) => {
   return (
     <form onSubmit={handleSubmit} className="space-y-6 h-full flex flex-col">
       <div className="flex-grow space-y-4">
-        <h2 className="text-2xl font-bold text-white mb-4">Breakeven Analysis Setup</h2>
+        <h2 className="text-xl font-semibold text-pl-text mb-4">Breakeven Analysis Setup</h2>
 
         <CollapsibleSection title="Project & Production" icon={<Settings />} defaultOpen>
             <div className="space-y-4">
-                <div><Label className="text-lime-300">Project Name</Label><Input value={inputs.projectName} onChange={(e) => handleInputChange('projectName', e.target.value)} className="bg-white/5 border-white/20" /></div>
+                <div><Label>Project Name</Label><Input value={inputs.projectName} onChange={(e) => handleInputChange('projectName', e.target.value)} /></div>
                 
-                <div {...getRootProps()} className={`p-6 border-2 border-dashed rounded-lg text-center cursor-pointer transition-colors ${isDragActive ? 'border-lime-400 bg-lime-500/10' : 'border-white/20 hover:border-lime-400/50'}`}>
+                <div {...getRootProps()} className={`p-6 border-2 border-dashed rounded-lg text-center cursor-pointer transition-colors ${isDragActive ? 'border-pl-primary bg-pl-sunken' : 'border-pl-border-strong hover:border-pl-primary'}`}>
                   <input {...getInputProps()} />
                   {inputs.productionData ? (
-                    <div className="text-lime-300">
+                    <div className="text-pl-success-text">
                       <FileCheck2 className="w-10 h-10 mx-auto mb-2" />
-                      <p className="font-semibold text-white">File Ready</p>
+                      <p className="font-semibold text-pl-text">File Ready</p>
                       <p className="text-sm">{inputs.productionData.fileName}</p>
                     </div>
                   ) : (
-                    <div className="text-slate-400">
+                    <div className="text-pl-muted">
                       <UploadCloud className="w-10 h-10 mx-auto mb-2" />
-                      <p className="font-semibold text-white">Upload Production Profile</p>
+                      <p className="font-semibold text-pl-text">Upload Production Profile</p>
                       <p className="text-sm">Drag & drop a CSV here, or click to select.</p>
                     </div>
                   )}
                 </div>
                 <div className="text-center">
-                  <Button type="button" variant="link" onClick={handleDownloadSample} className="text-lime-400 hover:text-lime-300">
+                  <Button type="button" variant="link" onClick={handleDownloadSample} className="text-pl-primary-text hover:text-pl-primary-text-hover">
                     <Download className="w-4 h-4 mr-2" />
                     Download Sample CSV
                   </Button>
-                  <p className="text-xs text-slate-500">Required columns: date, oil_rate_bpd</p>
+                  <p className="text-xs text-pl-muted">Required columns: date, oil_rate_bpd</p>
                 </div>
             </div>
         </CollapsibleSection>
@@ -150,7 +150,7 @@ const InputPanel = ({ onAnalyze, loading, inputs, setInputs }) => {
                     <VariableCard key={variable.id} variable={variable} onChange={handleVariableChange} onRemove={removeVariable} />
                 ))}
             </div>
-            <Button type="button" variant="outline" onClick={addVariable} className="w-full mt-4 border-lime-400 text-lime-400 hover:bg-lime-400/10 hover:text-lime-300">
+            <Button type="button" variant="outline" onClick={addVariable} className="w-full mt-4">
                 <PlusCircle className="w-4 h-4 mr-2" />
                 Add Variable
             </Button>
@@ -158,15 +158,15 @@ const InputPanel = ({ onAnalyze, loading, inputs, setInputs }) => {
 
         <CollapsibleSection title="Simulation Settings" icon={<SlidersHorizontal />}>
             <div className="space-y-4">
-                <div><Label className="text-lime-300">Discount Rate (%)</Label><Input type="number" value={inputs.discountRate} onChange={(e) => handleInputChange('discountRate', Number(e.target.value))} className="bg-white/5 border-white/20" /></div>
-                <div><Label className="text-lime-300">Royalty Rate (%)</Label><Input type="number" value={inputs.royaltyRate} onChange={(e) => handleInputChange('royaltyRate', Number(e.target.value))} className="bg-white/5 border-white/20" /></div>
-                <div><Label className="text-lime-300">Tax Rate (%)</Label><Input type="number" value={inputs.taxRate} onChange={(e) => handleInputChange('taxRate', Number(e.target.value))} className="bg-white/5 border-white/20" /></div>
-                <div><Label className="text-lime-300">Target NPV ($MM)</Label><Input type="number" value={inputs.targetNpv} onChange={(e) => handleInputChange('targetNpv', Number(e.target.value))} className="bg-white/5 border-white/20" /></div>
-                <div><Label className="text-lime-300">Monte Carlo Iterations</Label><Input type="number" value={inputs.iterations} onChange={(e) => handleInputChange('iterations', Number(e.target.value))} className="bg-white/5 border-white/20" /></div>
+                <div><Label>Discount Rate (%)</Label><Input type="number" value={inputs.discountRate} onChange={(e) => handleInputChange('discountRate', Number(e.target.value))} /></div>
+                <div><Label>Royalty Rate (%)</Label><Input type="number" value={inputs.royaltyRate} onChange={(e) => handleInputChange('royaltyRate', Number(e.target.value))} /></div>
+                <div><Label>Tax Rate (%)</Label><Input type="number" value={inputs.taxRate} onChange={(e) => handleInputChange('taxRate', Number(e.target.value))} /></div>
+                <div><Label>Target NPV ($MM)</Label><Input type="number" value={inputs.targetNpv} onChange={(e) => handleInputChange('targetNpv', Number(e.target.value))} /></div>
+                <div><Label>Monte Carlo Iterations</Label><Input type="number" value={inputs.iterations} onChange={(e) => handleInputChange('iterations', Number(e.target.value))} /></div>
                 <div>
-                  <Label className="text-lime-300">Run Seed</Label>
-                  <Input type="number" value={inputs.seed} onChange={(e) => handleInputChange('seed', Number(e.target.value))} className="bg-white/5 border-white/20" />
-                  <p className="text-[11px] text-slate-400 mt-1">The same inputs and seed reproduce the same answer. Change it to draw a different sample.</p>
+                  <Label>Run Seed</Label>
+                  <Input type="number" value={inputs.seed} onChange={(e) => handleInputChange('seed', Number(e.target.value))} />
+                  <p className="text-[11px] text-pl-muted mt-1">The same inputs and seed reproduce the same answer. Change it to draw a different sample.</p>
                 </div>
             </div>
         </CollapsibleSection>
@@ -174,8 +174,8 @@ const InputPanel = ({ onAnalyze, loading, inputs, setInputs }) => {
 
       <div className="pt-4">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <Button type="submit" disabled={loading || !inputs.productionData} className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white font-semibold py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed">
-            {loading ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div> : <Play className="w-5 h-5 mr-2" />}
+          <Button type="submit" disabled={loading || !inputs.productionData} className="w-full font-semibold py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed">
+            {loading ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-pl-primary-fg mr-2"></div> : <Play className="w-5 h-5 mr-2" />}
             Run Simulation
           </Button>
         </motion.div>

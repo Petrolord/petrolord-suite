@@ -32,7 +32,7 @@ const LadderChart = ({
     ? 'Separation-factor ladder (SF vs reference MD)'
     : `Separation ladder (centre-to-centre and MASD vs reference MD, ${unit})`;
   return (
-    <div className="bg-white relative flex flex-col min-h-0 min-w-0 h-full w-full">
+    <div className="bg-white relative flex flex-col min-h-0 min-w-0 h-full w-full" data-canvas="chart">
       <div className="text-[11px] font-semibold text-slate-700 px-3 pt-2">{title}</div>
       <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">

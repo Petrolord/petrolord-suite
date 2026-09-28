@@ -79,7 +79,7 @@ const PriceShareChart = ({ model, colors }) => {
           ))}
         </ComposedChart>
       </ChartFrame>
-      <p className="text-[12px] text-slate-300 mt-2">
+      <p className="text-[12px] text-pl-muted mt-2">
         Lines run through the prices at which a regime&apos;s government take is within 0 to 100 percent. An open marker
         at the top of the axis is a government take above 100 percent, where the government collects more than the
         project makes; hover for its value. A shaded band marks a price at which the project is uneconomic, so there is

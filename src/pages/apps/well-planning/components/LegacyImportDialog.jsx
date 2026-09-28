@@ -24,7 +24,7 @@ const LegacyImportDialog = ({ open, onOpenChange, userId, onImported }) => {
     setBusy(true);
     try {
       const { site, count } = await importLegacyData(userId, scan, (d, t) => setProgress([d, t]));
-      toast({ title: 'Import complete', description: `${count} records imported into the "${site.name}" site.`, className: 'bg-green-600 text-white' });
+      toast({ title: 'Import complete', description: `${count} records imported into the "${site.name}" site.` });
       onImported?.(site);
       onOpenChange(false);
     } catch (e) {
@@ -37,34 +37,34 @@ const LegacyImportDialog = ({ open, onOpenChange, userId, onImported }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border-slate-700 text-white">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Import legacy Well Planning data</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-pl-muted">
             Brings your wells and targets from the previous version of this app into a new site. Your legacy data is read, never changed.
           </DialogDescription>
         </DialogHeader>
 
         {!scan ? (
-          <div className="flex items-center gap-2 py-6 text-sm text-slate-400">
+          <div className="flex items-center gap-2 py-6 text-sm text-pl-muted">
             <Loader2 className="h-4 w-4 animate-spin" /> Scanning legacy data...
           </div>
         ) : (
           <div className="space-y-2 py-2 text-sm">
-            <p><span className="font-mono text-lime-400">{scan.wells.length}</span> legacy wells found</p>
-            <p><span className="font-mono text-lime-400">{scan.targets.length}</span> legacy targets found</p>
+            <p><span className="font-mono text-pl-primary-text">{scan.wells.length}</span> legacy wells found</p>
+            <p><span className="font-mono text-pl-primary-text">{scan.targets.length}</span> legacy targets found</p>
             {scan.wells.length === 0 && (
-              <p className="text-slate-500">Nothing to import.</p>
+              <p className="text-pl-muted">Nothing to import.</p>
             )}
             {progress && (
-              <p className="text-xs text-slate-400">Importing {progress[0]} of {progress[1]}...</p>
+              <p className="text-xs text-pl-muted">Importing {progress[0]} of {progress[1]}...</p>
             )}
           </div>
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="border-slate-600 text-slate-300">Close</Button>
-          <Button onClick={handleImport} disabled={busy || !scan || scan.wells.length === 0} className="bg-[#4CAF50] hover:bg-[#43a047] text-white">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button onClick={handleImport} disabled={busy || !scan || scan.wells.length === 0}>
             {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Import
           </Button>
         </DialogFooter>

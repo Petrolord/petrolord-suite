@@ -194,7 +194,7 @@ const WellpathCubeView = ({
 
   if (glError) {
     return (
-      <div className="flex h-full items-center justify-center text-xs text-amber-400" data-testid="wp-cube-error">
+      <div className="flex h-full items-center justify-center text-xs text-pl-warning-text" data-testid="wp-cube-error">
         3D view unavailable: {glError}
       </div>
     );
@@ -206,6 +206,7 @@ const WellpathCubeView = ({
       className={`relative h-full w-full overflow-hidden ${background === 'dark' ? 'bg-slate-950' : 'bg-white'}`}
       style={height ? { height } : undefined}
       data-testid="wp-cube-view"
+      data-canvas={background === 'dark' ? 'dark' : 'chart'}
     >
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full touch-none" />
 
