@@ -12,18 +12,18 @@ const fmt = (v, digits = 0) => (Number.isFinite(v)
   : '--');
 
 const REGION = {
-  recommended: { label: 'Inside the recommended range', className: 'text-emerald-400' },
-  downthrust: { label: 'Downthrust: left of the range', className: 'text-amber-300' },
-  upthrust: { label: 'Upthrust: right of the range', className: 'text-red-300' },
+  recommended: { label: 'Inside the recommended range', className: 'text-pl-success-text' },
+  downthrust: { label: 'Downthrust: left of the range', className: 'text-pl-warning-text' },
+  upthrust: { label: 'Upthrust: right of the range', className: 'text-pl-danger-text' },
 };
 
 const Row = ({ label, value, hint }) => (
-  <div className="flex items-baseline justify-between gap-3 py-1.5 border-b border-slate-800/60 last:border-0">
+  <div className="flex items-baseline justify-between gap-3 py-1.5 border-b border-pl-border last:border-0">
     <div>
-      <p className="text-sm text-slate-300">{label}</p>
-      {hint && <p className="text-[11px] text-slate-600">{hint}</p>}
+      <p className="text-sm text-pl-text">{label}</p>
+      {hint && <p className="text-[11px] text-pl-muted">{hint}</p>}
     </div>
-    <p className="text-sm font-semibold text-slate-100 tabular-nums whitespace-nowrap">{value}</p>
+    <p className="text-sm font-semibold text-pl-text font-pl-mono tabular-nums whitespace-nowrap">{value}</p>
   </div>
 );
 
@@ -32,11 +32,11 @@ const StageDetailPanel = () => {
   if (!design || !curve?.ok) return null;
 
   const { stage } = design.sized;
-  const region = REGION[stage.region] || { label: stage.region, className: 'text-slate-400' };
+  const region = REGION[stage.region] || { label: stage.region, className: 'text-pl-muted' };
   const bep = curve.bep || {};
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base">
           The duty on the stage curve
@@ -80,14 +80,14 @@ const StageDetailPanel = () => {
           value={Number.isFinite(stage.bhpPerStage) ? `${fmt(stage.bhpPerStage, 3)} hp` : '--'}
         />
         {curve.source === 'reference-model' && (
-          <p className="text-[11px] text-slate-600 pt-3">
+          <p className="text-[11px] text-pl-muted pt-3">
             This is a reference model stage: a shape from four named parameters, used so a sizing
             exercise has something physical to work with. For a real design, enter the curve points
             from the vendor's published pump curve.
           </p>
         )}
         {(curve.warnings || []).length > 0 && (
-          <ul className="text-[11px] text-amber-200/80 space-y-1 list-disc pl-4 pt-3">
+          <ul className="text-[11px] text-pl-warning-text space-y-1 list-disc pl-4 pt-3">
             {curve.warnings.map((w) => <li key={w}>{w}</li>)}
           </ul>
         )}

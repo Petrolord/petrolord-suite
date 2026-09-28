@@ -22,13 +22,13 @@ const fmt = (v, digits = 0) => (Number.isFinite(v)
   : '--');
 
 const STATUS = {
-  dead: { label: 'Will not flow', className: 'text-red-400' },
-  off: { label: 'Disagrees', className: 'text-amber-300' },
-  ok: { label: 'Agrees', className: 'text-emerald-400' },
+  dead: { label: 'Will not flow', className: 'text-pl-danger-text' },
+  off: { label: 'Disagrees', className: 'text-pl-warning-text' },
+  ok: { label: 'Agrees', className: 'text-pl-success-text' },
   // agrees with the model on its unstable, choke-held crossing (engines #245)
-  'unstable-branch': { label: 'Agrees, choke-held', className: 'text-sky-300' },
-  'no-thp': { label: 'No wellhead pressure', className: 'text-slate-500' },
-  'no-model': { label: 'No well model', className: 'text-slate-500' },
+  'unstable-branch': { label: 'Agrees, choke-held', className: 'text-pl-info-text' },
+  'no-thp': { label: 'No wellhead pressure', className: 'text-pl-muted' },
+  'no-model': { label: 'No well model', className: 'text-pl-muted' },
 };
 
 const NodalCheckPanel = () => {
@@ -38,11 +38,11 @@ const NodalCheckPanel = () => {
   const disagreeing = results.filter((r) => r.status === 'off' || r.status === 'dead');
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-2">
-          <Activity className="w-4 h-4 text-sky-400" /> Against each well's own model
-          <span className="text-xs font-normal text-slate-500">
+          <Activity className="w-4 h-4 text-pl-muted" /> Against each well's own model
+          <span className="text-xs font-normal text-pl-muted">
             the nodal cross-check
           </span>
         </CardTitle>
@@ -56,7 +56,7 @@ const NodalCheckPanel = () => {
             Run cross-check
           </Button>
           {nodalCheck && (
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-pl-muted">
               {checked.length} of {results.length} test{results.length === 1 ? '' : 's'} checked
               against {nodalCheck.modelCount} well model{nodalCheck.modelCount === 1 ? '' : 's'},{' '}
               {disagreeing.length} disagreeing.
@@ -65,20 +65,20 @@ const NodalCheckPanel = () => {
         </div>
 
         {!nodalCheck ? (
-          <p className="text-sm text-slate-500 py-6 text-center">
+          <p className="text-sm text-pl-muted py-6 text-center">
             Each test is checked by solving the well's model at the wellhead pressure the test
             recorded, which marches a tubing traverse per rate, so it runs when you ask for it.
             Wells get a model when one is saved from the gas lift, ESP or rod pump studio.
           </p>
         ) : results.length === 0 ? (
-          <p className="text-sm text-slate-500 py-6 text-center">
+          <p className="text-sm text-pl-muted py-6 text-center">
             No well tests in this field to check.
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
+                <tr className="text-[10px] uppercase tracking-wider text-pl-muted border-b border-pl-border">
                   <th className="text-left font-semibold px-3 py-2">Well</th>
                   <th className="text-left font-semibold px-3 py-2">Test date</th>
                   <th className="text-right font-semibold px-3 py-2">Measured (stb/d)</th>
@@ -91,11 +91,11 @@ const NodalCheckPanel = () => {
                 {results.map((r) => {
                   const st = STATUS[r.status] || STATUS.ok;
                   return (
-                    <tr key={r.testId} className="border-b border-slate-800/60 last:border-0">
-                      <td className="px-3 py-2 text-slate-200">{r.wellName}</td>
-                      <td className="px-3 py-2 text-slate-400">{r.testDate}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-slate-300">{fmt(r.measuredStbd)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-slate-300">
+                    <tr key={r.testId} className="border-b border-pl-border last:border-0">
+                      <td className="px-3 py-2 text-pl-text">{r.wellName}</td>
+                      <td className="px-3 py-2 text-pl-muted">{r.testDate}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-pl-text">{fmt(r.measuredStbd)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-pl-text">
                         {r.nodalStbd == null ? '--' : fmt(r.nodalStbd)}
                       </td>
                       <td className={`px-3 py-2 text-right tabular-nums ${st.className}`}>
@@ -111,10 +111,10 @@ const NodalCheckPanel = () => {
         )}
 
         {nodalCheck && disagreeing.length > 0 && (
-          <ul className="space-y-2 border-t border-slate-800 pt-3">
+          <ul className="space-y-2 border-t border-pl-border pt-3">
             {disagreeing.slice(0, 6).map((r) => (
-              <li key={r.testId} className="text-[11px] text-amber-100/80">
-                <span className="text-slate-400">{r.wellName} {r.testDate}:</span> {r.message}
+              <li key={r.testId} className="text-[11px] text-pl-warning-text">
+                <span className="text-pl-muted">{r.wellName} {r.testDate}:</span> {r.message}
               </li>
             ))}
           </ul>

@@ -5,4 +5,12 @@
 // '/dashboard/apps/reservoir/material-balance-studio'); every sub-path
 // under a prefix is themed too. Only this batch edits this file; the
 // rollout index aggregates it (docs/scope/DesignSystem.md section 4).
-export default [];
+export default [
+  '/dashboard/apps/production/esp-design-studio',
+  '/dashboard/apps/production/gas-lift-design-studio',
+  '/dashboard/apps/production/rod-pump-design-studio',
+  '/dashboard/apps/production/artificial-lift-advisor',
+  // Alias route: the original Artificial Lift Designer slug renders the
+  // Artificial Lift Advisor page (entitlements and pricing keep the slug).
+  '/dashboard/apps/production/artificial-lift-designer',
+];

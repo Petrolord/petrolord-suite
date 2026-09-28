@@ -84,14 +84,14 @@ const RodPumpHelpContent = () => (
     {helpContent.map((section) => {
       const Icon = section.icon;
       return (
-        <AccordionItem key={section.id} value={section.id} className="border-slate-800">
+        <AccordionItem key={section.id} value={section.id} className="border-pl-border">
           <AccordionTrigger className="text-sm hover:no-underline">
             <span className="flex items-center gap-2 text-left">
-              <Icon className="w-4 h-4 text-sky-400 shrink-0" />
+              <Icon className="w-4 h-4 text-pl-muted shrink-0" />
               {section.title}
             </span>
           </AccordionTrigger>
-          <AccordionContent className="text-sm text-slate-400 leading-relaxed">
+          <AccordionContent className="text-sm text-pl-muted leading-relaxed">
             {section.content}
           </AccordionContent>
         </AccordionItem>

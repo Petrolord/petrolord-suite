@@ -47,8 +47,8 @@ const ImbalancePanel = () => {
 
   if (!currentField) {
     return (
-      <Card className="bg-slate-900 border-slate-800">
-        <CardContent className="py-10 text-center text-slate-500 text-sm">
+      <Card>
+        <CardContent className="py-10 text-center text-pl-muted text-sm">
           Select a field in the left rail to reconcile its meter against its ledger.
         </CardContent>
       </Card>
@@ -57,8 +57,8 @@ const ImbalancePanel = () => {
 
   if (!imbalance.length) {
     return (
-      <Card className="bg-slate-900 border-slate-800">
-        <CardContent className="py-10 text-center text-slate-500 text-sm px-8">
+      <Card>
+        <CardContent className="py-10 text-center text-pl-muted text-sm px-8">
           Reconciliation needs both a metered total and a per-well ledger for the same dates.
           Import the meter on the Data tab; the ledger comes from the Surveillance Studio.
         </CardContent>
@@ -67,11 +67,11 @@ const ImbalancePanel = () => {
   }
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2 flex-row items-start justify-between flex-wrap gap-2">
         <CardTitle className="text-base flex items-center gap-2">
-          <Scale className="w-4 h-4 text-sky-400" /> Meter against ledger
-          <span className="block text-xs font-normal text-slate-500 mt-0.5">
+          <Scale className="w-4 h-4 text-pl-muted" /> Meter against ledger
+          <span className="block text-xs font-normal text-pl-muted mt-0.5">
             {fmt(summary.measured)} {phaseDef.unit} metered against {fmt(summary.booked)} booked by the wells:
             {' '}{summary.imbalance >= 0 ? 'the meter reads ' : 'the wells book '}
             {fmt(Math.abs(summary.imbalance))} {phaseDef.unit}
@@ -80,10 +80,10 @@ const ImbalancePanel = () => {
           </span>
         </CardTitle>
         <div className="space-y-1">
-          <Label className="text-xs text-slate-400">Phase</Label>
+          <Label className="text-xs text-pl-muted">Phase</Label>
           <Select value={phase} onValueChange={(v) => setViewField('phase', v)}>
-            <SelectTrigger className="h-8 w-32 bg-slate-800 border-slate-700 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+            <SelectTrigger className="h-8 w-32 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
               {PHASES.map((p) => <SelectItem key={p.key} value={p.key}>{p.label}</SelectItem>)}
             </SelectContent>
           </Select>

@@ -26,6 +26,10 @@ import ForecastPanel from '@/components/gaswell/ForecastPanel';
 import PlungerPanel from '@/components/gaswell/PlungerPanel';
 import GasWellWarningsPanel from '@/components/gaswell/WarningsPanel';
 import GasWellHelpContent from '@/components/gaswell/GasWellHelpGuide';
+import { ThemedApp } from '@/design/ThemeProvider';
+
+// Design system rollout batch 2D (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class below is a theme role.
 
 const TABS = [
   { value: 'deliverability', label: 'Deliverability' },
@@ -36,7 +40,7 @@ const TABS = [
 ];
 
 const SectionLabel = ({ children }) => (
-  <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest">{children}</h3>
+  <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
 );
 
 const GasWellContent = () => {
@@ -133,7 +137,6 @@ const GasWellContent = () => {
             backTo="/dashboard/production"
             backTitle="Back to Production Operations"
             icon={Flame}
-            iconGradientClass="from-orange-600 to-red-600"
             title="Gas Well Performance Studio"
             tabs={TABS}
             activeTab={activeTab}
@@ -146,7 +149,7 @@ const GasWellContent = () => {
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
             />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Gas Well Performance Studio Guide"
               description="How deliverability, liquid loading and plunger feasibility are worked out."
@@ -169,8 +172,10 @@ const GasWellContent = () => {
 
 export default function GasWellPerformanceStudio() {
   return (
-    <GasWellPerformanceProvider>
-      <GasWellContent />
-    </GasWellPerformanceProvider>
+    <ThemedApp data-testid="gaswell-theme-scope">
+      <GasWellPerformanceProvider>
+        <GasWellContent />
+      </GasWellPerformanceProvider>
+    </ThemedApp>
   );
 }

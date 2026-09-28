@@ -25,6 +25,10 @@ import EnvelopePanel from '@/components/choke/EnvelopePanel';
 import CoefficientsPanel from '@/components/choke/CoefficientsPanel';
 import ChokeWarningsPanel from '@/components/choke/WarningsPanel';
 import ChokeHelpContent from '@/components/choke/ChokeHelpGuide';
+import { ThemedApp } from '@/design/ThemeProvider';
+
+// Design system rollout batch 2D (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class below is a theme role.
 
 const TABS = [
   { value: 'operating', label: 'Operating Point' },
@@ -34,7 +38,7 @@ const TABS = [
 ];
 
 const SectionLabel = ({ children }) => (
-  <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest">{children}</h3>
+  <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
 );
 
 const ChokeContent = () => {
@@ -135,7 +139,6 @@ const ChokeContent = () => {
             backTo="/dashboard/production"
             backTitle="Back to Production Operations"
             icon={Gauge}
-            iconGradientClass="from-cyan-600 to-sky-700"
             title="Choke & Wellhead Performance Studio"
             tabs={TABS}
             activeTab={activeTab}
@@ -148,7 +151,7 @@ const ChokeContent = () => {
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
             />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Choke & Wellhead Performance Guide"
               description="How the bean becomes a rate, where the correlation stops, and what really caps a bean size."
@@ -171,8 +174,10 @@ const ChokeContent = () => {
 
 export default function ChokePerformanceStudio() {
   return (
-    <ChokePerformanceProvider>
-      <ChokeContent />
-    </ChokePerformanceProvider>
+    <ThemedApp data-testid="choke-theme-scope">
+      <ChokePerformanceProvider>
+        <ChokeContent />
+      </ChokePerformanceProvider>
+    </ThemedApp>
   );
 }

@@ -40,7 +40,7 @@ export const SensitivityResults = () => {
 
   if (!sensitivity) {
     return (
-      <div className="text-sm text-slate-400 rounded-lg border border-slate-800 bg-slate-900/60 px-4 py-6">
+      <div className="text-sm text-pl-muted rounded-lg border border-pl-border bg-pl-surface px-4 py-6">
         Configure a parameter and values on the left, then run the sweep. Each value solves the full
         nodal system, so the sweep shows how the operating rate responds.
       </div>
@@ -72,10 +72,10 @@ export const SensitivityResults = () => {
       </ChartCard>
 
       <SectionLabel>Sweep table</SectionLabel>
-      <div className="text-xs text-slate-300 space-y-1">
+      <div className="text-xs text-pl-text space-y-1">
         {sensitivity.results.map((r) => (
-          <div key={r.label} className="flex justify-between border-b border-slate-800 py-1">
-            <span className="text-slate-400">{r.label}</span>
+          <div key={r.label} className="flex justify-between border-b border-pl-border py-1">
+            <span className="text-pl-muted">{r.label}</span>
             <span>
               {r.status === 'flowing'
                 ? `${fmtU('oilRate', r.q, unitSystem, fmt.int)} ${unitLabel('oilRate', unitSystem)} at ${fmtU('pressure', r.pwf, unitSystem, fmt.int)} ${unitLabel('pressure', unitSystem)}`
@@ -101,7 +101,7 @@ export const GasLiftResults = () => {
 
   if (!gasLift) {
     return (
-      <div className="text-sm text-slate-400 rounded-lg border border-slate-800 bg-slate-900/60 px-4 py-6">
+      <div className="text-sm text-pl-muted rounded-lg border border-pl-border bg-pl-surface px-4 py-6">
         Run the screening to build the gas lift performance curve: each injection rate solves the
         nodal system with the lifted gas-liquid ratio. The curve shows the classic shape of rising
         rate followed by diminishing returns as friction from the injected gas takes over.
@@ -122,7 +122,7 @@ export const GasLiftResults = () => {
       </div>
 
       {gasLift.baseline.status === 'dead' && (
-        <div className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 text-cyan-300 px-4 py-3 text-sm">
+        <div className="rounded-lg border border-pl-info/40 bg-pl-info-bg text-pl-info-text px-4 py-3 text-sm">
           This well is dead without injection: a classic gas lift candidate.
         </div>
       )}

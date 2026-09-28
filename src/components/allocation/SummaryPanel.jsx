@@ -9,11 +9,11 @@ const fmt = (v, digits = 0) => (Number.isFinite(v)
   ? v.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })
   : '--');
 
-const Tile = ({ label, value, unit, tone = 'text-slate-100' }) => (
-  <div className="bg-slate-800/60 border border-slate-700/60 rounded px-3 py-2">
-    <div className="text-[10px] uppercase tracking-wider text-slate-500">{label}</div>
-    <div className={`text-lg font-semibold leading-tight ${tone}`}>
-      {value} {unit && <span className="text-xs font-normal text-slate-500">{unit}</span>}
+const Tile = ({ label, value, unit, tone = 'text-pl-text' }) => (
+  <div className="bg-pl-sunken border border-pl-border rounded px-3 py-2">
+    <div className="text-[10px] uppercase tracking-wider text-pl-muted">{label}</div>
+    <div className={`text-lg font-semibold leading-tight font-pl-mono tabular-nums ${tone}`}>
+      {value} {unit && <span className="font-pl-sans text-xs font-normal text-pl-muted">{unit}</span>}
     </div>
   </div>
 );
@@ -22,10 +22,10 @@ const SummaryPanel = () => {
   const { allocation, testQc, tests, currentField, activeSettings } = useAllocation();
 
   if (!currentField) {
-    return <p className="text-sm text-slate-500">Select a field to see its allocation summary.</p>;
+    return <p className="text-sm text-pl-muted">Select a field to see its allocation summary.</p>;
   }
   if (!allocation.days.length) {
-    return <p className="text-sm text-slate-500">No metered dates in range yet. Import totals on the Data tab.</p>;
+    return <p className="text-sm text-pl-muted">No metered dates in range yet. Import totals on the Data tab.</p>;
   }
 
   const { totals } = allocation;
@@ -44,61 +44,61 @@ const SummaryPanel = () => {
 
   return (
     <div className="space-y-3">
-      <div className="text-xs text-slate-500 flex items-center gap-1.5">
+      <div className="text-xs text-pl-muted flex items-center gap-1.5">
         <Clock size={12} /> {allocation.days[0].date} to {allocation.days[allocation.days.length - 1].date}
         {' '}({totals.days.toLocaleString()} dates)
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <Tile label="Metered oil" value={fmt(totals.measured.oil)} unit="stb" tone="text-emerald-400" />
+        <Tile label="Metered oil" value={fmt(totals.measured.oil)} unit="stb" />
         <Tile label="Allocated oil" value={fmt(totals.allocated.oil)} unit="stb" />
-        <Tile label="Metered water" value={fmt(totals.measured.water)} unit="stb" tone="text-sky-400" />
-        <Tile label="Metered gas" value={fmt(totals.measured.gas)} unit="Mscf" tone="text-amber-400" />
+        <Tile label="Metered water" value={fmt(totals.measured.water)} unit="stb" />
+        <Tile label="Metered gas" value={fmt(totals.measured.gas)} unit="Mscf" />
         <Tile
           label="Period oil factor"
           value={periodFactor == null ? '--' : fmt(periodFactor, 3)}
-          tone={inBand === false ? 'text-amber-400' : 'text-slate-100'}
+          tone={inBand === false ? 'text-pl-warning-text' : 'text-pl-text'}
         />
         <Tile label="Wells allocated" value={allocation.wells.length} />
       </div>
 
       {uncarriedOil >= 0.5 && (
-        <p className="text-[11px] text-slate-400" data-testid="alloc-uncarried">
+        <p className="text-[11px] text-pl-muted" data-testid="alloc-uncarried">
           {fmt(uncarriedOil)} stb of metered oil fell on dates no well could carry (no valid test
           yet, or no hours on), so it is in the metered total and outside the factor.
         </p>
       )}
 
       {inBand === false && (
-        <p className="text-[11px] text-amber-400/90">
+        <p className="text-[11px] text-pl-warning-text">
           The period factor sits outside your warning band. Nothing has been clamped: check the
           tests, the meter and the uptime record before trusting the split.
         </p>
       )}
 
-      <div className="border-t border-slate-800 pt-3 space-y-2">
+      <div className="border-t border-pl-border pt-3 space-y-2">
         <div className="flex items-center justify-between text-sm">
-          <span className="flex items-center gap-1.5 text-slate-400">
-            <AlertTriangle size={14} className="text-amber-400" /> Diagnostics
+          <span className="flex items-center gap-1.5 text-pl-muted">
+            <AlertTriangle size={14} className="text-pl-muted" /> Diagnostics
           </span>
-          <span className="text-slate-200">
-            {high > 0 && <span className="text-red-400 font-semibold">{high} high</span>}
-            {high > 0 && medium > 0 && <span className="text-slate-600"> / </span>}
-            {medium > 0 && <span className="text-amber-400 font-semibold">{medium} medium</span>}
-            {high === 0 && medium === 0 && <span className="text-emerald-400">clean</span>}
+          <span className="text-pl-text">
+            {high > 0 && <span className="text-pl-danger-text font-semibold">{high} high</span>}
+            {high > 0 && medium > 0 && <span className="text-pl-muted"> / </span>}
+            {medium > 0 && <span className="text-pl-warning-text font-semibold">{medium} medium</span>}
+            {high === 0 && medium === 0 && <span className="text-pl-success-text">clean</span>}
           </span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="flex items-center gap-1.5 text-slate-400">
-            <ShieldCheck size={14} className="text-sky-400" /> Tests flagged
+          <span className="flex items-center gap-1.5 text-pl-muted">
+            <ShieldCheck size={14} className="text-pl-muted" /> Tests flagged
           </span>
-          <span className="text-slate-200">{testQc.length} of {tests.length}</span>
+          <span className="text-pl-text">{testQc.length} of {tests.length}</span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="flex items-center gap-1.5 text-slate-400">
-            <Gauge size={14} className="text-slate-500" /> Tests rejected
+          <span className="flex items-center gap-1.5 text-pl-muted">
+            <Gauge size={14} className="text-pl-muted" /> Tests rejected
           </span>
-          <span className="text-slate-200">{rejected}</span>
+          <span className="text-pl-text">{rejected}</span>
         </div>
       </div>
     </div>

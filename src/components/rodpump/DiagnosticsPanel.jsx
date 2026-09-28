@@ -38,10 +38,10 @@ const DiagnosticsPanel = () => {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <Stethoscope className="w-4 h-4 text-sky-400" /> Read a measured card
+            <Stethoscope className="w-4 h-4 text-pl-muted" /> Read a measured card
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -56,7 +56,7 @@ const DiagnosticsPanel = () => {
                   value={inputs.diagnostics.cardText}
                   onChange={(e) => setSection('diagnostics', 'cardText', e.target.value)}
                   placeholder={'0.0, 9500\n3.2, 12100\n...'}
-                  className="bg-slate-800 border-slate-700 font-mono text-xs"
+                  className="font-pl-mono text-xs"
                 />
               </Field>
             </div>
@@ -73,29 +73,29 @@ const DiagnosticsPanel = () => {
               >
                 <Download className="w-3 h-3 mr-1" /> Load the predicted card
               </Button>
-              <p className="text-[11px] text-slate-600">
+              <p className="text-[11px] text-pl-muted">
                 Loading the design's own predicted card and diagnosing it should give back the pump
                 behaviour the design assumed. The two solvers share no code, so agreeing is a real
                 check rather than a restatement.
               </p>
-              <p className="text-[11px] text-slate-600">
+              <p className="text-[11px] text-pl-muted">
                 {measuredCard.length} sample{measuredCard.length === 1 ? '' : 's'} read.
               </p>
             </div>
           </div>
 
           {!string?.ok ? (
-            <p className="text-sm text-slate-500 py-6 text-center">
+            <p className="text-sm text-pl-muted py-6 text-center">
               The rod string has to be defined before a card can be carried down it.
             </p>
           ) : !diagnosis ? (
-            <p className="text-sm text-slate-500 py-6 text-center">
+            <p className="text-sm text-pl-muted py-6 text-center">
               Paste at least sixteen evenly spaced samples of a surface card to read what the pump
               is doing.
             </p>
           ) : (
             <>
-              <div className="border-t border-slate-800 pt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="border-t border-pl-border pt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Stat
                   label="Plunger stroke"
                   value={fmt(diagnosis.plungerStrokeIn, 1)}
@@ -112,7 +112,7 @@ const DiagnosticsPanel = () => {
                   label="Pump fillage"
                   value={fmt(diagnosis.fillageEstimate * 100)}
                   unit="%"
-                  accent={diagnosis.fillageEstimate < 0.4 ? 'text-amber-300' : 'text-emerald-400'}
+                  accent={diagnosis.fillageEstimate < 0.4 ? 'text-pl-warning-text' : 'text-pl-success-text'}
                   hint="Share of the plunger cycle carrying load"
                 />
                 <Stat
@@ -121,7 +121,7 @@ const DiagnosticsPanel = () => {
                   hint="Each one carried down the string in closed form"
                 />
               </div>
-              <p className="text-[11px] text-slate-600">
+              <p className="text-[11px] text-pl-muted">
                 The fluid load is taken from the plateaus rather than the extremes of the computed
                 card. A Fourier series truncated at a sharp load transfer overshoots at the corners,
                 which is the Gibbs phenomenon, named for the same Gibbs whose solution this is.
@@ -132,11 +132,11 @@ const DiagnosticsPanel = () => {
       </Card>
 
       {diagnosis && pump.length > 0 && (
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">
               Measured at surface, computed at the pump
-              <span className="block text-xs font-normal text-slate-500 mt-0.5">
+              <span className="block text-xs font-normal text-pl-muted mt-0.5">
                 A full pump gives a parallelogram. A card whose load falls away partway down the
                 stroke is a barrel that did not fill; one that never reaches the fluid load is a
                 worn pump or a hole in the tubing. The shape is the diagnosis.

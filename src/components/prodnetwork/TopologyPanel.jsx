@@ -26,15 +26,15 @@ const TopologyPanel = () => {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label className="text-xs text-slate-400">Field on the production spine</Label>
+        <Label className="text-xs text-pl-muted">Field on the production spine</Label>
         <Select
           value={inputs.link.fieldId || ''}
           onValueChange={(v) => patchLink({ fieldId: v || null })}
         >
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700">
+          <SelectTrigger className="h-9">
             <SelectValue placeholder="Not linked" />
           </SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+          <SelectContent>
             {fields.map((f) => (<SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>))}
           </SelectContent>
         </Select>
@@ -44,16 +44,16 @@ const TopologyPanel = () => {
         >
           <Download className="w-3.5 h-3.5 mr-1" /> Build from the shared well records
         </Button>
-        <p className="text-[11px] text-slate-600">
+        <p className="text-[11px] text-pl-muted">
           Every well studio in this module saves its well description to the same shared record.
           This reads all of them at once and puts them on a header, so a field described well by
           well elsewhere becomes a network here without being retyped.
         </p>
       </div>
 
-      <div className="border-t border-slate-800 pt-3 space-y-2">
+      <div className="border-t border-pl-border pt-3 space-y-2">
         <div className="flex items-center justify-between">
-          <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Nodes</p>
+          <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Nodes</p>
           <div className="flex gap-1">
             <Button size="sm" variant="outline" className="h-7 text-xs" onClick={addWell}>
               <Plus className="w-3 h-3 mr-1" /> Well
@@ -72,28 +72,25 @@ const TopologyPanel = () => {
               onClick={() => setSelectedId(n.id)}
               className={`w-full text-left px-2 py-1.5 rounded border text-xs flex items-center justify-between gap-2 ${
                 selectedId === n.id
-                  ? 'bg-slate-800 border-slate-600'
-                  : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+                  ? 'bg-pl-sunken border-pl-primary'
+                  : 'bg-pl-surface border-pl-border hover:border-pl-border-strong'
               }`}
             >
               <span className="truncate">
-                <span className={
-                  n.kind === 'well' ? 'text-emerald-400'
-                    : n.kind === 'sink' ? 'text-violet-400' : 'text-sky-400'
-                }>
+                <span className="text-pl-muted">
                   {n.kind}
                 </span>
-                <span className="text-slate-200 ml-2">{n.label}</span>
-                {n.spineWellId && <Link2 className="w-3 h-3 inline ml-1 text-slate-500" />}
+                <span className="text-pl-text ml-2">{n.label}</span>
+                {n.spineWellId && <Link2 className="w-3 h-3 inline ml-1 text-pl-muted" />}
               </span>
-              {bad && <span className="text-rose-400 shrink-0">incomplete</span>}
+              {bad && <span className="text-pl-danger-text shrink-0">incomplete</span>}
             </button>
           );
         })}
       </div>
 
-      <div className="border-t border-slate-800 pt-3 space-y-2">
-        <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Lines</p>
+      <div className="border-t border-pl-border pt-3 space-y-2">
+        <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Lines</p>
         {inputs.branches.map((b) => (
           <div key={b.id} className="flex items-center gap-2">
             <button
@@ -101,18 +98,18 @@ const TopologyPanel = () => {
               onClick={() => setSelectedId(b.id)}
               className={`flex-1 text-left px-2 py-1.5 rounded border text-xs truncate ${
                 selectedId === b.id
-                  ? 'bg-slate-800 border-slate-600'
-                  : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+                  ? 'bg-pl-sunken border-pl-primary'
+                  : 'bg-pl-surface border-pl-border hover:border-pl-border-strong'
               }`}
             >
-              <span className="text-slate-200">{b.label}</span>
-              <span className="text-slate-600 ml-2">
+              <span className="text-pl-text">{b.label}</span>
+              <span className="text-pl-muted ml-2">
                 {nodeLabel(b.from)} to {nodeLabel(b.to)}
               </span>
             </button>
             <Button
               size="icon" variant="ghost"
-              className="h-7 w-7 text-slate-500 hover:text-rose-400"
+              className="h-7 w-7 text-pl-muted hover:text-pl-danger-text"
               onClick={() => removeBranch(b.id)}
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -123,13 +120,13 @@ const TopologyPanel = () => {
       </div>
 
       {!topology.ok && (
-        <p className="text-[11px] text-rose-400 border-t border-slate-800 pt-3">{topology.error}</p>
+        <p className="text-[11px] text-pl-danger-text border-t border-pl-border pt-3">{topology.error}</p>
       )}
       {selectedId && inputs.nodes.some((n) => n.id === selectedId)
         && inputs.nodes.find((n) => n.id === selectedId)?.kind !== 'sink' && (
         <Button
           variant="outline"
-          className="w-full h-8 text-xs text-rose-400 border-rose-900 hover:bg-rose-950"
+          className="w-full h-8 text-xs text-pl-danger-text border-pl-danger/40 hover:bg-pl-danger-bg"
           onClick={() => removeNode(selectedId)}
         >
           <Trash2 className="w-3.5 h-3.5 mr-1" /> Remove {nodeLabel(selectedId)}
@@ -145,20 +142,20 @@ const AddBranch = ({ nodes, onAdd }) => {
   return (
     <div className="flex items-end gap-1 pt-1">
       <Select value={from} onValueChange={setFrom}>
-        <SelectTrigger className="h-8 bg-slate-800 border-slate-700 text-xs">
+        <SelectTrigger className="h-8 text-xs">
           <SelectValue placeholder="From" />
         </SelectTrigger>
-        <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+        <SelectContent>
           {nodes.filter((n) => n.kind !== 'sink').map((n) => (
             <SelectItem key={n.id} value={n.id}>{n.label}</SelectItem>
           ))}
         </SelectContent>
       </Select>
       <Select value={to} onValueChange={setTo}>
-        <SelectTrigger className="h-8 bg-slate-800 border-slate-700 text-xs">
+        <SelectTrigger className="h-8 text-xs">
           <SelectValue placeholder="To" />
         </SelectTrigger>
-        <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+        <SelectContent>
           {nodes.filter((n) => n.kind !== 'well').map((n) => (
             <SelectItem key={n.id} value={n.id}>{n.label}</SelectItem>
           ))}

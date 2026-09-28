@@ -10,7 +10,7 @@ import { CHOKE_COEFFS } from '@/utils/nodal/chokes';
 import { Field, UnitField, SectionLabel } from './primitives';
 
 const PanelCard = ({ title, children }) => (
-  <Card className="bg-slate-900 border-slate-800">
+  <Card>
     <CardHeader className="pb-2"><CardTitle className="text-sm">{title}</CardTitle></CardHeader>
     <CardContent className="space-y-3">{children}</CardContent>
   </Card>
@@ -18,9 +18,9 @@ const PanelCard = ({ title, children }) => (
 
 const SelectField = ({ label, value, onChange, options }) => (
   <div className="space-y-1">
-    <Label className="text-xs text-slate-400">{label}</Label>
+    <Label className="text-xs text-pl-muted">{label}</Label>
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
       <SelectContent>
         {options.map((o) => (
           <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
@@ -69,9 +69,9 @@ export const SensitivityPanel = () => {
         <Button onClick={runSensitivity} disabled={isGasWell} className="w-full">
           Run sweep
         </Button>
-        {isGasWell && <div className="text-xs text-slate-500">Sensitivity sweeps run on oil wells in this version.</div>}
+        {isGasWell && <div className="text-xs text-pl-muted">Sensitivity sweeps run on oil wells in this version.</div>}
         {sensitivity && sensitivityStale && (
-          <div className="text-xs text-amber-400">Inputs changed since this sweep ran. Run it again to refresh.</div>
+          <div className="text-xs text-pl-warning-text">Inputs changed since this sweep ran. Run it again to refresh.</div>
         )}
       </PanelCard>
     </div>
@@ -90,9 +90,9 @@ export const GasLiftPanel = () => {
         <Button onClick={runGasLift} disabled={isGasWell || isScreening} className="w-full">
           {isScreening ? 'Screening…' : 'Run screening'}
         </Button>
-        {isGasWell && <div className="text-xs text-slate-500">Gas lift screening applies to oil wells.</div>}
+        {isGasWell && <div className="text-xs text-pl-muted">Gas lift screening applies to oil wells.</div>}
         {gasLift && gasLiftStale && (
-          <div className="text-xs text-amber-400">Inputs changed since this screening ran. Run it again to refresh.</div>
+          <div className="text-xs text-pl-warning-text">Inputs changed since this screening ran. Run it again to refresh.</div>
         )}
       </PanelCard>
     </div>

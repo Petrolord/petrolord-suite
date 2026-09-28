@@ -24,6 +24,10 @@ import SpineLinkPanel from '@/components/liftadvisor/SpineLinkPanel';
 import SummaryPanel from '@/components/liftadvisor/SummaryPanel';
 import ComparisonPanel from '@/components/liftadvisor/ComparisonPanel';
 import LiftAdvisorHelpContent from '@/components/liftadvisor/LiftAdvisorHelpGuide';
+import { ThemedApp } from '@/design/ThemeProvider';
+
+// Design system rollout batch 2C (docs/scope/DesignSystem-Rollout.md): the
+// page wraps itself in <ThemedApp>, so every class below is a theme role.
 
 const TABS = [
   { value: 'compare', label: 'Compare' },
@@ -31,7 +35,7 @@ const TABS = [
 ];
 
 const SectionLabel = ({ children }) => (
-  <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-3 tracking-widest">{children}</h3>
+  <h3 className="text-[10px] font-bold text-pl-muted uppercase mb-3 tracking-widest">{children}</h3>
 );
 
 const AdvisorContent = () => {
@@ -109,7 +113,6 @@ const AdvisorContent = () => {
             backTo="/dashboard/production"
             backTitle="Back to Production Operations"
             icon={Scale}
-            iconGradientClass="from-violet-600 to-purple-700"
             title="Artificial Lift Advisor"
             tabs={TABS}
             activeTab={activeTab}
@@ -122,7 +125,7 @@ const AdvisorContent = () => {
               isSaving={isSaving} saveError={saveError}
               lastSaveTime={lastSaveTime} onSave={manualSave}
             />
-            <div className="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <div className="h-4 w-[1px] bg-pl-border mx-1"></div>
             <StudioHelp
               title="Artificial Lift Advisor Guide"
               description="How the screening and the design pass differ, and which one to believe."
@@ -145,8 +148,10 @@ const AdvisorContent = () => {
 
 export default function ArtificialLiftAdvisor() {
   return (
-    <LiftAdvisorProvider>
-      <AdvisorContent />
-    </LiftAdvisorProvider>
+    <ThemedApp data-testid="liftadvisor-theme-scope">
+      <LiftAdvisorProvider>
+        <AdvisorContent />
+      </LiftAdvisorProvider>
+    </ThemedApp>
   );
 }

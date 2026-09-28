@@ -62,11 +62,11 @@ const PressureDepthChart = () => {
   if (!design || !data.length) return null;
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base">
           Pressure against depth
-          <span className="block text-xs font-normal text-slate-500 mt-0.5">
+          <span className="block text-xs font-normal text-pl-muted mt-0.5">
             The injection line is the real-gas casing column at the operating pressure. Valves sit
             where that line still beats the fluid the well is unloading through.
           </span>

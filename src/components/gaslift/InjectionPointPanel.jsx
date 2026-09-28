@@ -48,8 +48,8 @@ const InjectionPointPanel = () => {
 
   if (!design) {
     return (
-      <Card className="bg-slate-900 border-slate-800">
-        <CardContent className="py-10 text-center text-slate-500 text-sm px-8">
+      <Card>
+        <CardContent className="py-10 text-center text-pl-muted text-sm px-8">
           Complete the design inputs in the left rail to draw the injection-point construction.
         </CardContent>
       </Card>
@@ -58,36 +58,36 @@ const InjectionPointPanel = () => {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <Target className="w-4 h-4 text-emerald-400" /> Deepest point of injection
+            <Target className="w-4 h-4 text-pl-muted" /> Deepest point of injection
           </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
-            <p className="text-[11px] uppercase tracking-wider text-slate-500">Depth</p>
-            <p className="text-xl font-semibold text-slate-100 tabular-nums">
-              {fmt(injectionPoint?.depthFt)} <span className="text-sm font-normal text-slate-500">ft TVD</span>
+            <p className="text-[11px] uppercase tracking-wider text-pl-muted">Depth</p>
+            <p className="text-xl font-semibold text-pl-text font-pl-mono tabular-nums">
+              {fmt(injectionPoint?.depthFt)} <span className="text-sm font-normal text-pl-muted">ft TVD</span>
             </p>
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-wider text-slate-500">Casing there</p>
-            <p className="text-xl font-semibold text-slate-100 tabular-nums">
+            <p className="text-[11px] uppercase tracking-wider text-pl-muted">Casing there</p>
+            <p className="text-xl font-semibold text-pl-text font-pl-mono tabular-nums">
               {fmt(injectionPoint ? psiaToPsig(injectionPoint.pInjPsia) : NaN)}
-              <span className="text-sm font-normal text-slate-500"> psig</span>
+              <span className="text-sm font-normal text-pl-muted"> psig</span>
             </p>
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-wider text-slate-500">Tubing there</p>
-            <p className="text-xl font-semibold text-slate-100 tabular-nums">
+            <p className="text-[11px] uppercase tracking-wider text-pl-muted">Tubing there</p>
+            <p className="text-xl font-semibold text-pl-text font-pl-mono tabular-nums">
               {fmt(injectionPoint ? psiaToPsig(injectionPoint.pProdPsia) : NaN)}
-              <span className="text-sm font-normal text-slate-500"> psig</span>
+              <span className="text-sm font-normal text-pl-muted"> psig</span>
             </p>
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-wider text-slate-500">Limited by</p>
-            <p className="text-sm text-slate-300 mt-1">
+            <p className="text-[11px] uppercase tracking-wider text-pl-muted">Limited by</p>
+            <p className="text-sm text-pl-text mt-1">
               {injectionPoint?.limitedBy === 'depth'
                 ? 'Well depth: the gas still wins at the bottom of the traverse.'
                 : 'Injection pressure: the lines cross above the packer.'}
@@ -96,11 +96,11 @@ const InjectionPointPanel = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">
             The construction
-            <span className="block text-xs font-normal text-slate-500 mt-0.5">
+            <span className="block text-xs font-normal text-pl-muted mt-0.5">
               Flowing gradient at {fmt(Number(inputs.injection.designRateStbd))} stb/d fully lifted, against
               the injection line at {fmt(Number(inputs.injection.operatingPsig))} psig.
             </span>

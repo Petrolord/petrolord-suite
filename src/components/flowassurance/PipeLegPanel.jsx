@@ -25,7 +25,7 @@ const LegNumber = ({ leg, name, step = 'any' }) => {
       step={step}
       value={inputs[leg][name] ?? ''}
       onChange={(e) => setSection(leg, name, e.target.value)}
-      className="h-9 bg-slate-800 border-slate-700"
+      className="h-9"
     />
   );
 };
@@ -42,7 +42,7 @@ const PipeLegPanel = ({ leg, title, optional }) => {
     <div className="space-y-4">
       {optional && (
         <div className="flex items-center justify-between">
-          <Label className="text-xs text-slate-400">Include this leg</Label>
+          <Label className="text-xs text-pl-muted">Include this leg</Label>
           <Switch
             checked={!!spec.enabled}
             onCheckedChange={(v) => setSection(leg, 'enabled', v)}
@@ -50,7 +50,7 @@ const PipeLegPanel = ({ leg, title, optional }) => {
         </div>
       )}
       {!spec.enabled ? (
-        <p className="text-[11px] text-slate-600">
+        <p className="text-[11px] text-pl-muted">
           {title} is off, so the trace ends where the leg before it does.
         </p>
       ) : (
@@ -69,8 +69,8 @@ const PipeLegPanel = ({ leg, title, optional }) => {
           <div className="grid grid-cols-1 gap-2">
             <Field label="Inside film" hint="A flowing liquid is nearly a short circuit. It stops being one when the line shuts in.">
               <Select value={spec.insideFilmId} onValueChange={(v) => setSection(leg, 'insideFilmId', v)}>
-                <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
                   {insideFilms.map((f) => (
                     <SelectItem key={f.id} value={f.id}>{f.label} ({f.h})</SelectItem>
                   ))}
@@ -79,8 +79,8 @@ const PipeLegPanel = ({ leg, title, optional }) => {
             </Field>
             <Field label="Outside film" hint="The one genuinely uncertain input in a U calculation: still water and a swept seabed differ by an order of magnitude.">
               <Select value={spec.outsideFilmId} onValueChange={(v) => setSection(leg, 'outsideFilmId', v)}>
-                <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
                   {outsideFilms.map((f) => (
                     <SelectItem key={f.id} value={f.id}>{f.label} ({f.h})</SelectItem>
                   ))}
@@ -90,8 +90,8 @@ const PipeLegPanel = ({ leg, title, optional }) => {
             {Number(spec.burialFt) > 0 && (
               <Field label="Soil">
                 <Select value={spec.soilId} onValueChange={(v) => setSection(leg, 'soilId', v)}>
-                  <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
                     {conductivities.filter((c) => c.id.startsWith('soil')).map((c) => (
                       <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
                     ))}
@@ -101,9 +101,9 @@ const PipeLegPanel = ({ leg, title, optional }) => {
             )}
           </div>
 
-          <div className="border-t border-slate-800 pt-3 space-y-2">
+          <div className="border-t border-pl-border pt-3 space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold flex items-center gap-1">
+              <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold flex items-center gap-1">
                 <Layers className="w-3 h-3" /> Coating stack
               </p>
               <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => addCoating(leg)}>
@@ -111,7 +111,7 @@ const PipeLegPanel = ({ leg, title, optional }) => {
               </Button>
             </div>
             {!spec.coatings.length && (
-              <p className="text-[11px] text-slate-600">
+              <p className="text-[11px] text-pl-muted">
                 Bare pipe. Everything outside the steel is what keeps the fluid warm.
               </p>
             )}
@@ -122,8 +122,8 @@ const PipeLegPanel = ({ leg, title, optional }) => {
                     value={c.materialId}
                     onValueChange={(v) => updateCoating(leg, c.id, { materialId: v })}
                   >
-                    <SelectTrigger className="h-8 bg-slate-800 border-slate-700 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
                       {conductivities.filter((x) => !x.id.startsWith('soil')).map((x) => (
                         <SelectItem key={x.id} value={x.id}>{x.label} (k = {x.k})</SelectItem>
                       ))}
@@ -136,17 +136,17 @@ const PipeLegPanel = ({ leg, title, optional }) => {
                     type="number" step="0.001" placeholder="k"
                     value={c.k ?? ''}
                     onChange={(e) => updateCoating(leg, c.id, { k: e.target.value })}
-                    className="h-8 w-20 bg-slate-800 border-slate-700 text-xs"
+                    className="h-8 w-20 text-xs"
                   />
                 )}
                 <Input
                   type="number" step="0.05" placeholder="in"
                   value={c.thicknessIn ?? ''}
                   onChange={(e) => updateCoating(leg, c.id, { thicknessIn: e.target.value })}
-                  className="h-8 w-20 bg-slate-800 border-slate-700 text-xs"
+                  className="h-8 w-20 text-xs"
                 />
                 <Button
-                  size="icon" variant="ghost" className="h-8 w-8 text-slate-500 hover:text-rose-400"
+                  size="icon" variant="ghost" className="h-8 w-8 text-pl-muted hover:text-pl-danger-text"
                   onClick={() => removeCoating(leg, c.id)}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -156,31 +156,31 @@ const PipeLegPanel = ({ leg, title, optional }) => {
           </div>
 
           {u && (
-            <div className="border-t border-slate-800 pt-3">
+            <div className="border-t border-pl-border pt-3">
               {u.ok ? (
                 <>
                   <div className="flex items-baseline justify-between">
-                    <p className="text-[11px] uppercase tracking-wider text-slate-500">Overall U</p>
-                    <p className="text-lg font-semibold tabular-nums text-cyan-300">
+                    <p className="text-[11px] uppercase tracking-wider text-pl-muted">Overall U</p>
+                    <p className="text-lg font-semibold tabular-nums text-pl-text">
                       {fmt(u.uBtuHrFt2F, 3)}{' '}
-                      <span className="text-xs font-normal text-slate-500">Btu/hr-ft2-F</span>
+                      <span className="text-xs font-normal text-pl-muted">Btu/hr-ft2-F</span>
                     </p>
                   </div>
-                  <p className="text-[11px] text-slate-600 mb-2">
+                  <p className="text-[11px] text-pl-muted mb-2">
                     Referred to the {fmt(u.referenceIdIn, 2)} in bore. A U quoted without its
                     reference area is not a number.
                   </p>
                   <div className="space-y-1">
                     {u.resistances.map((r) => (
                       <div key={r.id} className="flex items-center gap-2">
-                        <div className="flex-1 h-1.5 bg-slate-800 rounded overflow-hidden">
+                        <div className="flex-1 h-1.5 bg-pl-sunken rounded overflow-hidden">
                           <div
-                            className="h-full bg-cyan-600"
+                            className="h-full bg-pl-primary"
                             style={{ width: `${Math.min(100, r.sharePct)}%` }}
                           />
                         </div>
-                        <p className="text-[10px] text-slate-500 w-40 truncate">{r.label || r.id}</p>
-                        <p className="text-[10px] tabular-nums text-slate-400 w-12 text-right">
+                        <p className="text-[10px] text-pl-muted w-40 truncate">{r.label || r.id}</p>
+                        <p className="text-[10px] tabular-nums text-pl-muted w-12 text-right">
                           {r.sharePct.toFixed(1)}%
                         </p>
                       </div>
@@ -188,7 +188,7 @@ const PipeLegPanel = ({ leg, title, optional }) => {
                   </div>
                 </>
               ) : (
-                <p className="text-[11px] text-rose-400">{u.error}</p>
+                <p className="text-[11px] text-pl-danger-text">{u.error}</p>
               )}
             </div>
           )}

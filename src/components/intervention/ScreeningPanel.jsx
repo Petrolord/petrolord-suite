@@ -35,22 +35,22 @@ const ScreeningPanel = () => {
     const Icon = ICON[row.verdict] || HelpCircle;
     return (
       <div className={`rounded border p-3 space-y-2 ${
-        row.blocked ? 'border-rose-900/60 bg-rose-950/20' : 'border-slate-800 bg-slate-950/40'
+        row.blocked ? 'border-pl-danger/40 bg-pl-danger-bg' : 'border-pl-border bg-pl-sunken'
       }`}
       >
         <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-medium text-slate-100">{row.label}</p>
+          <p className="text-sm font-medium text-pl-text">{row.label}</p>
           <span className={`text-xs font-semibold flex items-center gap-1 ${style.className}`}>
             <Icon className="w-3.5 h-3.5" /> {style.label}
           </span>
         </div>
         {row.blockReason && (
-          <p className="text-[12px] text-rose-300">{row.blockReason}</p>
+          <p className="text-[12px] text-pl-danger-text">{row.blockReason}</p>
         )}
         <ul className="space-y-1">
           {row.reasons.map((r) => (
-            <li key={r} className="text-[11px] text-slate-500 flex gap-1.5">
-              <span className="text-slate-700 shrink-0">•</span>
+            <li key={r} className="text-[11px] text-pl-muted flex gap-1.5">
+              <span className="text-pl-muted shrink-0">•</span>
               <span>{r}</span>
             </li>
           ))}
@@ -61,26 +61,26 @@ const ScreeningPanel = () => {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">What is worth doing</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {candidates.length
             ? candidates.map((r) => <Card1 key={r.id} row={r} />)
-            : <p className="text-sm text-slate-500">Nothing on this well screens as a candidate.</p>}
+            : <p className="text-sm text-pl-muted">Nothing on this well screens as a candidate.</p>}
         </CardContent>
       </Card>
 
       {ruledOut.length > 0 && (
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
-              <Ban className="w-4 h-4 text-rose-400" /> What the diagnosis rules out
+              <Ban className="w-4 h-4 text-pl-muted" /> What the diagnosis rules out
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-pl-muted">
               These are shown as prominently as the candidates on purpose. Anybody can produce a
               list of things that might help; the list of things that will not, and why, is the part
               that saves money.
@@ -91,7 +91,7 @@ const ScreeningPanel = () => {
       )}
 
       {rest.length > 0 && (
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Everything else considered</CardTitle>
           </CardHeader>

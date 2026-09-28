@@ -52,10 +52,10 @@ const ValveSheetPanel = () => {
   };
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
         <CardTitle className="text-base flex items-center gap-2">
-          <Wrench className="w-4 h-4 text-amber-400" /> Valve sheet
+          <Wrench className="w-4 h-4 text-pl-muted" /> Valve sheet
         </CardTitle>
         <Button size="sm" variant="outline" className="h-8" onClick={download}>
           <Download className="w-3 h-3 mr-1" /> CSV
@@ -65,7 +65,7 @@ const ValveSheetPanel = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
+              <tr className="text-left text-[11px] uppercase tracking-wider text-pl-muted border-b border-pl-border">
                 <th className="py-2 pr-3 font-semibold">Valve</th>
                 <th className="py-2 pr-3 font-semibold text-right">Depth (ft)</th>
                 <th className="py-2 pr-3 font-semibold text-right">Temp (F)</th>
@@ -82,25 +82,25 @@ const ValveSheetPanel = () => {
             </thead>
             <tbody>
               {valveSheet.map((r) => (
-                <tr key={r.valve} className="border-b border-slate-800/60 last:border-0">
-                  <td className="py-2 pr-3 text-slate-200">
+                <tr key={r.valve} className="border-b border-pl-border last:border-0">
+                  <td className="py-2 pr-3 text-pl-text">
                     {r.type === 'orifice' ? 'Orifice' : `V${r.valve}`}
                   </td>
-                  <td className="py-2 pr-3 text-right tabular-nums text-slate-300">{fmt(r.depthFt)}</td>
-                  <td className="py-2 pr-3 text-right tabular-nums text-slate-400">{fmt(r.tempF)}</td>
-                  <td className="py-2 pr-3 text-slate-400">{portLabel(r.portIn)}</td>
-                  <td className="py-2 pr-3 text-right tabular-nums text-slate-400">
+                  <td className="py-2 pr-3 text-right font-pl-mono tabular-nums text-pl-text">{fmt(r.depthFt)}</td>
+                  <td className="py-2 pr-3 text-right font-pl-mono tabular-nums text-pl-muted">{fmt(r.tempF)}</td>
+                  <td className="py-2 pr-3 text-pl-muted">{portLabel(r.portIn)}</td>
+                  <td className="py-2 pr-3 text-right font-pl-mono tabular-nums text-pl-muted">
                     {r.r === null || r.r === undefined ? '--' : r.r.toFixed(4)}
                   </td>
-                  <td className="py-2 pr-3 text-right tabular-nums text-slate-300">{fmt(r.injectionPsig)}</td>
-                  <td className="py-2 pr-3 text-right tabular-nums text-slate-300">{fmt(r.productionPsig)}</td>
-                  <td className="py-2 pr-3 text-right tabular-nums text-slate-300">{fmt(r.domeAtTempPsig)}</td>
-                  <td className="py-2 pr-3 text-right tabular-nums font-semibold text-emerald-400">
+                  <td className="py-2 pr-3 text-right font-pl-mono tabular-nums text-pl-text">{fmt(r.injectionPsig)}</td>
+                  <td className="py-2 pr-3 text-right font-pl-mono tabular-nums text-pl-text">{fmt(r.productionPsig)}</td>
+                  <td className="py-2 pr-3 text-right font-pl-mono tabular-nums text-pl-text">{fmt(r.domeAtTempPsig)}</td>
+                  <td className="py-2 pr-3 text-right font-pl-mono tabular-nums font-semibold text-pl-text">
                     {fmt(r.testRackPsig)}
                   </td>
-                  <td className="py-2 pr-3 text-right tabular-nums text-slate-400">{fmt(r.spreadPsi)}</td>
-                  <td className="py-2 pr-3 text-right tabular-nums text-slate-400">{fmt(r.closingSurfacePsig)}</td>
-                  <td className={`py-2 pr-3 text-right tabular-nums ${r.passesTarget === false ? 'text-amber-400' : 'text-slate-300'}`}>
+                  <td className="py-2 pr-3 text-right font-pl-mono tabular-nums text-pl-muted">{fmt(r.spreadPsi)}</td>
+                  <td className="py-2 pr-3 text-right font-pl-mono tabular-nums text-pl-muted">{fmt(r.closingSurfacePsig)}</td>
+                  <td className={`py-2 pr-3 text-right font-pl-mono tabular-nums ${r.passesTarget === false ? 'text-pl-warning-text' : 'text-pl-text'}`}>
                     {fmt(r.gasRateMscfd)}
                   </td>
                 </tr>
@@ -108,7 +108,7 @@ const ValveSheetPanel = () => {
             </tbody>
           </table>
         </div>
-        <p className="text-[11px] text-slate-600 mt-3">
+        <p className="text-[11px] text-pl-muted mt-3">
           Test rack opening is the 60 F bench setting, from the dome charge corrected off valve
           temperature by the real-gas nitrogen ratio. Set every valve from the vendor sheet for the
           valve actually run: bellows area and R vary by manufacturer.

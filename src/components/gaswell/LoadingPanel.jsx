@@ -35,13 +35,13 @@ const LoadingPanel = () => {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">
             <span className="flex items-center gap-2">
-              <Droplets className="w-4 h-4 text-sky-400" /> Liquid loading
+              <Droplets className="w-4 h-4 text-pl-muted" /> Liquid loading
             </span>
-            <span className="block text-xs font-normal text-slate-500 mt-0.5">
+            <span className="block text-xs font-normal text-pl-muted mt-0.5">
               {result.correlation === 'turner' ? 'Turner' : 'Coleman'}, from the droplet balance:
               drag against weight, with the largest stable droplet set by the critical Weber number.
             </span>
@@ -49,16 +49,16 @@ const LoadingPanel = () => {
         </CardHeader>
         <CardContent className="space-y-5">
           <div className={`rounded-md border p-3 ${loaded
-            ? 'border-red-900/60 bg-red-950/20'
-            : (result.loading.marginPct < 20 ? 'border-amber-900/60 bg-amber-950/20' : 'border-emerald-900/60 bg-emerald-950/20')}`}
+            ? 'border-pl-danger/40 bg-pl-danger-bg'
+            : (result.loading.marginPct < 20 ? 'border-pl-warning/40 bg-pl-warning-bg' : 'border-pl-success/40 bg-pl-success-bg')}`}
           >
-            <p className={`text-sm font-semibold flex items-center gap-2 ${loaded ? 'text-red-300' : (result.loading.marginPct < 20 ? 'text-amber-300' : 'text-emerald-400')}`}>
+            <p className={`text-sm font-semibold flex items-center gap-2 ${loaded ? 'text-pl-danger-text' : (result.loading.marginPct < 20 ? 'text-pl-warning-text' : 'text-pl-success-text')}`}>
               {loaded ? <AlertTriangle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
               {loaded
                 ? `Loading at ${fmt(c.depthFt)} ft, ${fmt(Math.abs(result.loading.marginPct))} percent below the rate needed to carry its liquid there.`
                 : `Unloaded, with ${fmt(result.loading.marginPct)} percent of margin at the controlling depth.`}
             </p>
-            <p className="text-[11px] text-slate-400 mt-1">
+            <p className="text-[11px] text-pl-muted mt-1">
               The controlling station is {fmt(c.depthFt)} ft, not the wellhead. Critical rate rises
               with pressure, so the deepest point decides, and it is where liquid collects.
             </p>
@@ -70,7 +70,7 @@ const LoadingPanel = () => {
               label="Critical rate there"
               value={fmt(c.criticalRateMscfd)}
               unit="Mscf/d"
-              accent={loaded ? 'text-red-400' : 'text-emerald-400'}
+              accent={loaded ? 'text-pl-danger-text' : 'text-pl-success-text'}
               hint={`at ${fmt(c.pPsia)} psia, ${fmt(c.tempR - 460)} F`}
             />
             <Stat
@@ -83,7 +83,7 @@ const LoadingPanel = () => {
               label="Margin"
               value={fmt(result.loading.marginPct)}
               unit="%"
-              accent={loaded ? 'text-red-400' : 'text-emerald-400'}
+              accent={loaded ? 'text-pl-danger-text' : 'text-pl-success-text'}
             />
           </div>
 
@@ -128,11 +128,11 @@ const LoadingPanel = () => {
       </Card>
 
       {tubing && (
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">
               What tubing would carry this rate
-              <span className="block text-xs font-normal text-slate-500 mt-0.5">
+              <span className="block text-xs font-normal text-pl-muted mt-0.5">
                 Velocity goes as one over area, so a smaller string lifts liquid at a lower rate.
                 This is the commonest and cheapest fix for a loading well. Screened at the
                 controlling station; a real re-completion changes the pressure profile too, so
@@ -144,7 +144,7 @@ const LoadingPanel = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
+                  <tr className="text-[10px] uppercase tracking-wider text-pl-muted border-b border-pl-border bg-pl-sunken">
                     <th className="text-left font-semibold px-4 py-2">Tubing ID (in)</th>
                     <th className="text-right font-semibold px-4 py-2">Critical rate (Mscf/d)</th>
                     <th className="text-right font-semibold px-4 py-2">Gas velocity (ft/s)</th>
@@ -157,17 +157,17 @@ const LoadingPanel = () => {
                     const ok = r.ok && r.ratio >= 1;
                     const chosen = tubing.largestUnloaded && r.idIn === tubing.largestUnloaded.idIn;
                     return (
-                      <tr key={r.idIn} className={`border-b border-slate-800/60 last:border-0 ${chosen ? 'bg-emerald-950/20' : ''}`}>
-                        <td className="px-4 py-2 text-slate-200">
+                      <tr key={r.idIn} className={`border-b border-pl-border last:border-0 ${chosen ? 'bg-pl-success-bg' : ''}`}>
+                        <td className="px-4 py-2 text-pl-text">
                           {r.idIn}
-                          {chosen && <span className="ml-2 text-[10px] uppercase tracking-wider text-emerald-400">largest that works</span>}
+                          {chosen && <span className="ml-2 text-[10px] uppercase tracking-wider text-pl-success-text">largest that works</span>}
                         </td>
-                        <td className="px-4 py-2 text-right tabular-nums text-slate-300">{fmt(r.criticalRateMscfd)}</td>
-                        <td className="px-4 py-2 text-right tabular-nums text-slate-300">{fmt(r.actualVelocityFtS, 1)}</td>
-                        <td className={`px-4 py-2 text-right tabular-nums ${ok ? 'text-emerald-400' : 'text-red-400'}`}>
+                        <td className="px-4 py-2 text-right font-pl-mono tabular-nums text-pl-text">{fmt(r.criticalRateMscfd)}</td>
+                        <td className="px-4 py-2 text-right font-pl-mono tabular-nums text-pl-text">{fmt(r.actualVelocityFtS, 1)}</td>
+                        <td className={`px-4 py-2 text-right font-pl-mono tabular-nums ${ok ? 'text-pl-success-text' : 'text-pl-danger-text'}`}>
                           {fmt((r.ratio - 1) * 100)} %
                         </td>
-                        <td className={`px-4 py-2 text-[11px] ${ok ? 'text-emerald-400' : 'text-red-400'}`}>
+                        <td className={`px-4 py-2 text-[11px] ${ok ? 'text-pl-success-text' : 'text-pl-danger-text'}`}>
                           {ok ? 'Carries it' : 'Would load'}
                         </td>
                       </tr>
@@ -177,7 +177,7 @@ const LoadingPanel = () => {
               </table>
             </div>
             {!tubing.largestUnloaded && (
-              <p className="text-[11px] text-amber-300 px-4 py-3">
+              <p className="text-[11px] text-pl-warning-text px-4 py-3">
                 No tubing on this list carries the current rate. At this point the choices are
                 compression to drop the wellhead pressure, or a form of artificial lift.
               </p>

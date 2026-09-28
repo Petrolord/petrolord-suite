@@ -76,14 +76,14 @@ const InterventionHelpContent = () => (
     {helpContent.map((item) => {
       const Icon = item.icon;
       return (
-        <AccordionItem key={item.id} value={item.id} className="border-slate-800">
+        <AccordionItem key={item.id} value={item.id} className="border-pl-border">
           <AccordionTrigger className="text-sm hover:no-underline text-left">
             <span className="flex items-center gap-2">
-              <Icon className="w-4 h-4 text-cyan-400 shrink-0" />
+              <Icon className="w-4 h-4 text-pl-muted shrink-0" />
               {item.title}
             </span>
           </AccordionTrigger>
-          <AccordionContent className="text-sm text-slate-400 leading-relaxed">
+          <AccordionContent className="text-sm text-pl-muted leading-relaxed">
             {item.content}
           </AccordionContent>
         </AccordionItem>

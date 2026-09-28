@@ -13,7 +13,7 @@ const WellPanel = () => {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Damage</p>
+        <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Damage</p>
         <Field
           label="Skin"
           hint="From a pressure transient test. Everything about what a stimulation is worth comes out of this one number, and there is no way to infer it from production data."
@@ -25,7 +25,7 @@ const WellPanel = () => {
           <Field label="Wellbore radius (ft)"><NumberInput section="well" name="rwFt" step="0.001" /></Field>
         </div>
         {Number.isFinite(skinFloor) && (
-          <p className={`text-[11px] ${skin <= skinFloor ? 'text-rose-400' : 'text-slate-600'}`}>
+          <p className={`text-[11px] ${skin <= skinFloor ? 'text-pl-danger-text' : 'text-pl-muted'}`}>
             This geometry cannot carry a skin below {fmt(skinFloor, 1)}: at that value the
             productivity index goes infinite, which is the equation running out rather than a very
             good well. Real treatments reach about -3 to -5 on acid and -5 to -6 on a fracture.
@@ -33,8 +33,8 @@ const WellPanel = () => {
         )}
       </div>
 
-      <div className="border-t border-slate-800 pt-3 space-y-3">
-        <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">
+      <div className="border-t border-pl-border pt-3 space-y-3">
+        <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">
           What the well is doing today
         </p>
         <div className="grid grid-cols-2 gap-2">
@@ -55,8 +55,8 @@ const WellPanel = () => {
         </Field>
       </div>
 
-      <div className="border-t border-slate-800 pt-3 space-y-3">
-        <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">
+      <div className="border-t border-pl-border pt-3 space-y-3">
+        <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">
           The treatment
         </p>
         <Field label="Size which one">
@@ -64,8 +64,8 @@ const WellPanel = () => {
             value={inputs.treatment.kind}
             onValueChange={(v) => setSection('treatment', 'kind', v)}
           >
-            <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-            <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+            <SelectContent>
               <SelectItem value="stimulation">Stimulation, by skin removed</SelectItem>
               <SelectItem value="shutoff">Water shutoff, by water left</SelectItem>
             </SelectContent>
@@ -88,8 +88,8 @@ const WellPanel = () => {
         )}
       </div>
 
-      <div className="border-t border-slate-800 pt-3 space-y-3">
-        <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Economics</p>
+      <div className="border-t border-pl-border pt-3 space-y-3">
+        <p className="text-[10px] uppercase tracking-widest text-pl-muted font-bold">Economics</p>
         <div className="grid grid-cols-2 gap-2">
           <Field label="Job cost ($MM)"><NumberInput section="economics" name="costUsdMM" step="0.01" /></Field>
           <Field label="Oil price ($/bbl)"><NumberInput section="economics" name="oilPriceUsd" /></Field>
@@ -105,13 +105,13 @@ const WellPanel = () => {
           <Field label="Royalty (%)"><NumberInput section="economics" name="royaltyRate" /></Field>
           <Field label="Tax (%)"><NumberInput section="economics" name="taxRate" /></Field>
         </div>
-        <p className="text-[11px] text-slate-600">
+        <p className="text-[11px] text-pl-muted">
           Screening economics on the Suite's canonical engine, which discounts mid-year. Full
           Nigerian fiscal terms live in the Petroleum Economics Studio; take a decision to that one.
         </p>
       </div>
 
-      <div className="border-t border-slate-800 pt-3">
+      <div className="border-t border-pl-border pt-3">
         <SharedWellModelPanel
           inputs={inputs}
           setSection={setSection}

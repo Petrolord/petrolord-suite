@@ -8,9 +8,9 @@ const SummaryPanel = () => {
   const { analysis, model } = useFlowAssurance();
   if (!model) {
     return (
-      <Card className="bg-slate-900 border-slate-800">
+      <Card>
         <CardContent className="py-4">
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-pl-muted">
             The well model is incomplete. Fill in the Well tab and the trace will run.
           </p>
         </CardContent>
@@ -22,7 +22,7 @@ const SummaryPanel = () => {
   const leg = analysis?.legs?.[0];
 
   return (
-    <Card className="bg-slate-900 border-slate-800">
+    <Card>
       <CardContent className="py-3">
         <Row
           label="Flowing bottomhole"
@@ -47,7 +47,7 @@ const SummaryPanel = () => {
         <Row
           label="Worst subcooling"
           value={h ? `${fmt(h.maxSubcoolingF, 1)} F` : '--'}
-          accent={h?.inHydrate ? 'text-rose-400' : 'text-emerald-400'}
+          accent={h?.inHydrate ? 'text-pl-danger-text' : 'text-pl-success-text'}
           hint={h?.inHydrate ? `${fmt(h.exposedLengthFt)} ft exposed` : 'Clear of the region'}
         />
         <Row
