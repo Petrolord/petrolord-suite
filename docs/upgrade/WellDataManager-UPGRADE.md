@@ -2,8 +2,9 @@
 
 App #1 of the Geoscience upgrade programme (`docs/scope/AppUpgrade-Geoscience-PLAN.md`).
 Step 1 (practitioner lens, `docs/scope/AppUpgrade-BestPractices.md`) run and
-fixed 2026-09-28 on branch `feat/wdm-u1`. Step 2 (advancement review) is
-analysis only; the owner picks batches before anything is built.
+fixed 2026-09-28 on branch `feat/wdm-u1`. Step 2 (advancement review)
+analysed the same day; the batch decision below was made on 2026-09-28 and
+the chosen items were built on branch `feat/wdm-u2` (section "Step 2 build").
 
 Route `/dashboard/apps/geoscience/well-data-manager` (ProtectedAppRoute),
 harness `/dev/well-data-manager` (in-memory backend, real LAS worker).
@@ -68,29 +69,30 @@ Severity: S1 wrong answer with no warning at scale; S2 wrong or lost data, or a 
 | WDM-U1-010 | S3 | PL8 | Tops tab showed MD only. A Petrel user reads MD, TVD and TVDSS side by side. | Persona walk. | Fixed: TVD and TVDSS columns through the survey and KB. `upgradeU1.test.jsx`, e2e PL2. |
 | WDM-U1-011 | S3 | PL3 | Header labels read "Surface X (m, CRS)" for a US-feet well; the map caption said "world metres". | PT fixture. | Fixed: labels use `xy_unit`; the caption names the frames in use. |
 | WDM-U1-012 | S4 | PL2 | Common unit spellings (m3/m3, CFCF, pu, ohm-m, degC) were flagged "as-is" as if unknown. | Petrel and SLB files. | Fixed. |
-| WDM-U1-013 | S3 | PL2, PL3 | Petrel checkshots with Z as elevation (negative down) failed with "must strictly increase ... fix the file", which misdescribes the cause. | `checkshots_petrel_negative_z.txt`. | Fixed at the shared layer: the message names elevation and the fix. An elevation toggle is Step 2 (U2 backlog). |
+| WDM-U1-013 | S3 | PL2, PL3 | Petrel checkshots with Z as elevation (negative down) failed with "must strictly increase ... fix the file", which misdescribes the cause. | `checkshots_petrel_negative_z.txt`. | Fixed at the shared layer: the message names elevation and the fix. The elevation toggle landed in Step 2 (U2-016). |
 | WDM-U1-014 | S4 | PL6 | Quick-view depth ticks repeated (2007, 2007) on short intervals. | Screenshot. | Fixed (`depthTickLabel`). |
 | WDM-U1-015 | S4 | PL4 | Status said "Imported 5 logs" where the preview said 4 curves; "1 curves". | Screenshot. | Fixed. |
 | WDM-U1-016 | S3 | PL4, PL3 | The map dropped wells with no location without saying so, and drew wells from different CRSs on one canvas without a warning. | Code read. | Fixed: caption counts undrawn wells and warns on mixed frames (`mapFrameSummary`). |
 | WDM-U1-017 | S3 | PL4, PL5 | A cleared surface coordinate was drawn at the origin, dragging the map extent: `Number(null)` is 0, so the PT8 guard never worked. | `mapFrameSummary` test negative control. | Fixed. |
 | WDM-U1-018 | S3 | PL12 | The harness backend dropped `crs`, `xy_unit` and `crs_provenance`, so no CRS path had ever run in the harness. | e2e PL3 first run. | Fixed. |
 | WDM-U1-019 | S3 | PL1, PL3 | A LAS-imported well with no KB is stored at KB 0; the new TVDSS then equals TVD with no explanation. | Dark screenshot. | Fixed: note on the Tops tab. |
-| WDM-U1-020 | S3 | PL3, PL8 | Display is metres only (logs, tops, survey, TD); only checkshots have a view-as unit. A feet-based Petrel or US user reads everything converted. | Persona walk. | Open, Step 2 batch A (U2-001). |
-| WDM-U1-021 | S3 | PL7, PL8 | No file export from the data manager: no LAS, tops CSV or survey export (the LAS writer exists; Petrophysics uses it). Only the .pld package. | Persona walk. | Open, Step 2 batch A (U2-002). |
-| WDM-U1-022 | S3 | PL12, PL8 | No in-app help guide; every other Geoscience app has one. | `ls src/pages/apps/WellDataManager`. | Open, Step 2 batch A (U2-003). |
-| WDM-U1-023 | S3 | PL6 | At 390 wide the workstation keeps its 960 px minimum and scrolls inside the shell; tree and map are not both reachable. Shared `WorkspaceShell` (Seismolord identical). | Screenshot 390. | Open: product decision on phone support for workstation apps. |
+| WDM-U1-020 | S3 | PL3, PL8 | Display is metres only (logs, tops, survey, TD); only checkshots have a view-as unit. A feet-based Petrel or US user reads everything converted. | Persona walk. | Fixed in Step 2 (U2-001). |
+| WDM-U1-021 | S3 | PL7, PL8 | No file export from the data manager: no LAS, tops CSV or survey export (the LAS writer exists; Petrophysics uses it). Only the .pld package. | Persona walk. | Fixed in Step 2 (U2-002, U2-011). |
+| WDM-U1-022 | S3 | PL12, PL8 | No in-app help guide; every other Geoscience app has one. | `ls src/pages/apps/WellDataManager`. | Fixed in Step 2 (U2-003). |
+| WDM-U1-023 | S3 | PL6 | At 390 wide the workstation keeps its 960 px minimum and scrolls inside the shell; tree and map are not both reachable. Shared `WorkspaceShell` (Seismolord identical). | Screenshot 390. | Closed by owner decision 2026-09-28: desktop-first for this upgrade; the narrow layout must not break (asserted by the U2 e2e at 390 wide, light and dark). |
 | WDM-U1-024 | S4 | PL2 | Comma-decimal LAS data is refused (clear, line-numbered); a truncated row is refused without a line number. | Hostile files. | Open: parser is vendored (engines repo first). |
-| WDM-U1-025 | S4 | PL6 | The quick view carries no ChartLogo. Petrophysics and Correlation log tracks do not either (logs treated as log paper, not charts). | Code read. | Open: owner decision on whether the chart standard covers log tracks. |
-| WDM-U1-026 | S3 | PL1, PL3 | No datum model: KB is "above datum" without naming it; checkshot time assumes SRD = MSL; no GL, water depth or datum type fields. | Schema read. | Open, Step 2 (U2-007, needs a migration). |
-| WDM-U1-027 | S4 | PL5 | Two browser tabs: an edit in one is not seen in the other until reload. | Walk. | Open, Step 2 batch C. |
-| WDM-U1-028 | S3 | PL8 | Tops grid edits delete removed rows on save with no undo. | Walk. | Open, Step 2 batch B. |
-| WDM-U1-029 | S4 | PL10 | Import to the live registry uploads curves one by one with no progress or cancel (harness 0.2 s; live not measured). | Code read. | Open, Step 2 batch B. |
+| WDM-U1-025 | S4 | PL6 | The quick view carries no ChartLogo. Petrophysics and Correlation log tracks do not either (logs treated as log paper, not charts). | Code read. | Closed by owner decision 2026-09-28: on-screen log tracks stay without ChartLogo (as in Petrophysics and Well Correlation); exported PDFs carry the logo (U2-011). |
+| WDM-U1-026 | S3 | PL1, PL3 | No datum model: KB is "above datum" without naming it; checkshot time assumes SRD = MSL; no GL, water depth or datum type fields. | Schema read. | Open: U2-007 deferred (needs a geo_wells migration and review; owner decision). The help guide and the data sheet now state the mean sea level assumption. |
+| WDM-U1-027 | S4 | PL5 | Two browser tabs: an edit in one is not seen in the other until reload. | Walk. | Open: not in the chosen batches. |
+| WDM-U1-028 | S3 | PL8 | Tops grid edits delete removed rows on save with no undo. | Walk. | Fixed in Step 2 (U2-016). |
+| WDM-U1-029 | S4 | PL10 | Import to the live registry uploads curves one by one with no progress or cancel (harness 0.2 s; live not measured). | Code read. | Fixed in Step 2 (U2-013). |
 | WDM-U1-030 | S4 | PL6 | The wells tree clips its TD column at the default panel width. | Screenshots. | Open (cosmetic). |
-| WDM-U1-031 | S3 | PL2 | LAS 3.0 text and date-time channels are still skipped (named in the preview). | `las30_tops_strings.las`. | Open, Step 2 batch C. |
-| WDM-U1-032 | S3 | PL5 | Curves stored bottom-up by earlier releases stay descending (quick view plots them by sample index). New imports are fixed; stored ones need a one-time reorient. | G1 fixture. | Open, Step 2 batch B (U2-010). |
-| WDM-U1-033 | S4 | PL7 | No printable well data sheet (header, survey, tops, logs inventory). | Walk. | Open, Step 2 batch C. |
+| WDM-U1-031 | S3 | PL2 | LAS 3.0 text and date-time channels are still skipped (named in the preview). | `las30_tops_strings.las`. | Fixed in Step 2 (U2-017). |
+| WDM-U1-032 | S3 | PL5 | Curves stored bottom-up by earlier releases stay descending (quick view plots them by sample index). New imports are fixed; stored ones need a one-time reorient. | G1 fixture. | Fixed in Step 2 (U2-010). |
+| WDM-U1-033 | S4 | PL7 | No printable well data sheet (header, survey, tops, logs inventory). | Walk. | Fixed in Step 2 (U2-011). |
 
 19 findings fixed (6 S2, 10 S3, 3 S4), 14 left open (8 S3, 6 S4). No S1.
+After Step 2 (2026-09-28): 8 more fixed by the built items, 2 closed by owner decision, 4 open (U1-024 vendored parser, U1-026 datum model deferred, U1-027 two tabs, U1-030 cosmetic).
 
 ### Persona walks (PL8)
 
@@ -190,3 +192,51 @@ Sizes: S under a day, M two to four days, L a week or more.
 Batch A (demo-visible, NAPE-safe, no schema change): U2-001, U2-002, U2-006, U2-003, U2-005.
 Batch B: U2-004, U2-014, U2-015, U2-010, U2-008, U2-007 (U2-007 needs a migration and review).
 Batch C: U2-009, U2-011, U2-012, U2-016, U2-017, U2-018, U2-013.
+
+## Batch decision (2026-09-28)
+
+Made by the programme lead, recorded verbatim:
+
+> BUILD, in this order, one commit per item:
+> - Batch A: U2-001 m/ft display units; U2-002 LAS/tops/survey export; U2-006 registry inventory + QC flags; U2-003 help guide; U2-005 cross-well tops spreadsheet.
+> - Batch B (no-migration items): U2-004 batch LAS import matched by UWI/name; U2-014 readers honour the site datum-transform override; U2-015 retire legacy GeoscienceHub (route + file; redirect its route to /dashboard/geoscience); U2-010 reorient curves stored bottom-up by earlier releases (on read or via an explicit repair action, no DDL); U2-008 Petrophysics zones + computed-curve badges in WDM.
+> - Batch C (small): U2-011 well data sheet PDF (jsPDF + autotable like other Suite reports; Latin-1 text only; carries ChartLogo/branding, well identity, datum, units, tops, curve inventory); U2-016 tops undo + elevation toggle; U2-017 LAS 3.0 text/string channels; U2-013 app_build stamping + upload progress.
+>
+> DEFERRED with reasons: U2-007 datum model (needs a geo_wells migration and review; owner decision); U2-012 team editing (RLS change, second-engineer review); U2-009 Well Design/Wellsite source + survey update (cross-app, after NAPE); U2-018 DLIS import (L, after NAPE).
+>
+> Owner questions decided: (1) the workstation at 390 px stays desktop-first for this upgrade; the narrow layout must not break (no horizontal page scroll, readable) but a mobile-optimised layout is out of scope; (2) on-screen log tracks stay without ChartLogo, consistent with Petrophysics and Well Correlation; exported images/PDFs carry the logo.
+
+## Step 2 build (2026-09-28, branch `feat/wdm-u2`)
+
+Every item: a test that fails without the change, validation where numbers
+are involved, and the browser checks in `e2e/well-data-manager-u2.spec.js`
+(harness on the dev server; 1366x768, 1440x900 and 390 wide, light and dark).
+No DDL, no migration.
+
+| Item | Status | What was built | Evidence |
+|---|---|---|---|
+| U2-001 display units | Done | Ribbon "Depths in" metres or feet, remembered per user on this device; Logs table, quick view axis, Tops, Header, Deviation, tree, inventory, sheet, exports. Editors take the display unit; an untouched cell keeps its stored metres bit for bit; switching the unit mid-edit converts. | `u2DisplayUnits.test.jsx` (exact 0.3048, round trip within 1 ulp, negative control: saving the rounded feet text moved a top by more than 0.1 mm); e2e U2-001 (reload keeps feet). |
+| U2-002 exports | Done | Export dialog on the well: LAS 2.0 with ticked curves (curves on another grid named with the reason), tops CSV (MD, TVD, TVDSS), survey CSV (TVD, TVDSS, East and North offsets). Every depth column names its unit. | `u2Export.test.jsx`: re-import through the Suite's own doors; curves bit for bit, depth bit for bit in metres and within one float32 step in feet (the vendored reader casts feet to float32 before 0.3048); CSVs re-import exactly in metres, within 1e-9 m in feet; TVD and offsets equal the engine. e2e reads the LAS download. |
+| U2-006 inventory + QC | Done | Inventory view: every well against CRS, KB, TD, survey, checkshots, curves, tops, logged interval; 12 flags (7 warnings, 5 information), each with why and where to fix; chips filter; CSV. Two paged registry-wide reads added to `src/lib/wellsRegistry.js` (`listAllLogMeta`, `listAllTops`). | `u2Inventory.test.jsx`: each flag raised by the well that has it, none on a complete well (negative control), the G1 release flagged bottom-up; e2e filter by flag. |
+| U2-003 help guide | Done | `WellDataManagerHelpGuide.jsx`, route `/dashboard/apps/geoscience/well-data-manager/help` (ProtectedAppRoute) and `/dev/well-data-manager/help`, Help in the ribbon. Quotes the QC flags and depth aliases from the code; states the mean sea level datum assumption. Extended by every later item. | `helpGuide.test.jsx`; e2e opens it from the ribbon and goes back. |
+| U2-005 tops sheet | Done | Tops sheet view: all tops of all visible wells with MD, TVD, TVDSS; wells per top name (and which lack it); in-place name and MD edits on own wells; rename across wells; paste (well or UWI, top, MD) from Excel. Writes via updateTop / saveTop so ids survive. | `u2TopsSheet.test.jsx` (hostile paste: unknown well, read-only well, bad MD, duplicate line, UWI match, feet header; rename skips read-only and clashing wells); e2e paste then inventory. |
+| U2-004 batch LAS | Done | Batch LAS dialog: files read off-thread one by one, matched by UWI then name, review table with per-file target, typed X/Y for new wells, progress, stop after the current file, per-file result. Runner uses the single-file merge rules. | `u2BatchLas.test.jsx` (PL2 hostile batch of 9: UWI spelled differently, read-only org well, TVDSS index, text file, repeat, two runs of one new well, no WELL, no location; failure mid-batch carries on; cancel); e2e hostile batch of 5. |
+| U2-014 datum-transform override | Done | `rowDatumTransform` / `transformOptsForRow` in `src/lib/crs`; Project CRS reprojection, the overlay guard (Seismolord, Mapping) and the well door convert through the row's `crs_provenance.datum_transform`; the chain entry records it; Seismolord's visible wells carry `crs_provenance`; the WDM Header names the choice. | `src/lib/crs/__tests__/datumOverrideReaders.test.js` (EPSG goldens: the West Belt point 8 to 12 m apart under EPSG:1754 and EPSG:1168; each reader matches the override, the default is the negative control); `u2DatumTransform.test.jsx`. |
+| U2-015 retire GeoscienceHub | Done | `/dashboard/apps/geoscience/hub` redirects to `/dashboard/geoscience`; page and theme test deleted. There is no `geoscience-hub` catalog row (no master_apps migration), so nothing to remove there. | `src/pages/apps/__tests__/geoscienceHubRetired.test.jsx` (redirect, file gone, nothing links to it). |
+| U2-010 bottom-up curves | Done | On read the quick view plots G1-era bottom-up curves against depth; the Logs tab names them and the owner's Reorient reverses them in place via the new `wellsRegistry.rewriteLogSamples` (same ids, start/stop swapped, step from the reversed depth, provenance records it; a refused row update restores the object). | `u2Reorient.test.jsx` (negative control: the axis fell back to sample index; ids unchanged; inventory flag clears; read-only well has no button; rollback). |
+| U2-008 zones + badges | Done | Read-only Zones tab with the Petrophysics published summary (gross, net, N/G, PHIE, Sw, Vsh, k, date, interpretation, the tops each zone was cut from), link to edit in Petrophysics; computed and digitized badges in the Logs table. | `u2Zones.test.jsx` (built with the real `zonePropertiesSnapshot`, so a shape change fails here). |
+| U2-011 data sheet PDF | Done | Export > Well data sheet: jsPDF + autotable with the brand header (Petrolord logo), identity, CRS, X/Y, datum transformation, depth unit, datum assumption, KB, TD, survey and checkshot summary, QC flags, Prepared by, date, build; tops (MD, TVD, TVDSS), curve inventory with origin, zones. Latin-1 only. | PL7: `u2WellSheet.test.js` reads the PDF with pdftotext and asserts the header fields and three headline numbers; e2e downloads it, reads it with pdftotext and checks the logo image. |
+| U2-016 tops undo + elevation | Done | Undo last tops save (changed tops back by id, added removed, removed re-created with the new-id caveat stated). Shared paste layer: "Z is an elevation (negative down)" reads Petrel Z as TVDSS and records `z_elevation`; Add well and Seismolord's import gain it. | `u2TopsUndoElevation.test.jsx` (hostile `checkshots_petrel_negative_z.txt`). |
+| U2-017 LAS 3.0 text channels | Done | Text columns become coded curves (code table in provenance; over 250 distinct values named and not stored), date-time columns seconds after the first stamp (zone-less read as UTC and said); aligned for bottom-up files; offered only on the file's own grid. Vendored parser untouched (its exported splitter is reused). | `u2TextChannels.test.jsx` (fixture's closed-form rows; bottom-up variant; free text; grid refusal); e2e badges. |
+| U2-013 app_build + progress | Done | Every registry write in `src/lib/wellsRegistry.js` carries `app_build` (retry once without it where the column is missing); `saveLogs` reports progress and stops after the current curve (`LogsStoppedError` keeps and names what was saved); LAS dialog progress bar and Stop; harness `?saveDelayMs`. | `u2BuildStamp.test.jsx` (11 write paths stamped; retry; progress; stop); e2e stop. |
+
+Deferred, unchanged: U2-007, U2-012, U2-009, U2-018 (reasons in the decision above).
+
+### Found while building (for the owner)
+
+| ID | Sev | Finding | Status |
+|---|---|---|---|
+| WDM-U2-F01 | S3 | The Header editor lets a surface coordinate be cleared (PT8, "blank = not set"), and the harness stores null, but live `geo_wells.surface_x` / `surface_y` are `NOT NULL` (20260713100000). On live the save fails with the raw not-null error. Batch LAS therefore asks for X and Y for every new well. | Open: owner decision, either a migration dropping NOT NULL (wells without a location are real) or refusing a blank in the editor. |
+| WDM-U2-F02 | S4 | The vendored LAS reader casts values to float32 before unit conversion, so a feet LAS of a metre-born depth returns up to one float32 step away (0.24 mm at 2,000 m). Curves are exact. | Documented in `wellExport.js` and the tests; engines repo if exactness in feet is wanted. |
+| WDM-U2-F03 | S4 | The stored `step_m` of an imported log is the first depth difference (vendored `uniformStepM`), so a 0.5 ft log shows 0.4998 ft at four decimals. Tables and the sheet print three decimals; the reorient uses the mean spacing. | Engines repo item. |
+
