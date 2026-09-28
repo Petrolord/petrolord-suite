@@ -152,6 +152,10 @@ const renderApp = () => render(
 const ready = () => screen.findByRole('heading', { name: 'Ekene Gas Plant Upgrade' });
 const SCOPE = 'pmp-theme-scope';
 
+// The project views mount a Gantt, several recharts and dialogs; allow time
+// when the suite runs beside others.
+jest.setTimeout(30000);
+
 describeAppTheme({
   name: 'Project Management Pro',
   route: '/dashboard/apps/economics/project-management-pro',
