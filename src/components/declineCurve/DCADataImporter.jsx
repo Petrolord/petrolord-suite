@@ -89,12 +89,12 @@ const DCADataImporter = () => {
   return (
     <div className="space-y-2">
       {hasData ? (
-        <div className="rounded-lg border border-emerald-700/40 bg-emerald-950/20 p-3 space-y-2">
+        <div className="rounded-lg border border-pl-success/40 bg-pl-success-bg p-3 space-y-2">
           <div className="flex items-start gap-2">
-            <CheckCircle2 size={16} className="text-emerald-400 mt-0.5 shrink-0" />
+            <CheckCircle2 size={16} className="text-pl-success-text mt-0.5 shrink-0" />
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-medium text-emerald-300 truncate">{meta.fileName}</div>
-              <div className="text-[10px] text-slate-400 mt-0.5">
+              <div className="text-xs font-medium text-pl-success-text truncate">{meta.fileName}</div>
+              <div className="text-[10px] text-pl-muted mt-0.5">
                 {meta.rowCount.toLocaleString()} records
                 {meta.dateRange && ` · ${meta.dateRange.start} → ${meta.dateRange.end}`}
               </div>
@@ -103,7 +103,7 @@ const DCADataImporter = () => {
           <div className="flex gap-2">
             <div {...getRootProps()} className="flex-1">
               <input {...getInputProps()} />
-              <Button variant="outline" size="sm" className="w-full h-7 text-[11px] gap-1 bg-slate-800/50 border-slate-700">
+              <Button variant="outline" size="sm" className="w-full h-7 text-[11px] gap-1">
                 <RefreshCw size={11} /> Replace File
               </Button>
             </div>
@@ -111,7 +111,7 @@ const DCADataImporter = () => {
               variant="outline"
               size="sm"
               onClick={handleClear}
-              className="h-7 text-[11px] gap-1 bg-slate-800/50 border-slate-700 text-slate-400 hover:text-red-400"
+              className="h-7 text-[11px] gap-1 text-pl-muted hover:text-pl-danger-text"
             >
               <X size={11} /> Clear
             </Button>
@@ -122,14 +122,14 @@ const DCADataImporter = () => {
           {...getRootProps()}
           className={`
             border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors
-            ${isDragActive ? 'border-blue-500 bg-blue-500/10' : 'border-slate-700 hover:border-slate-500'}
+            ${isDragActive ? 'border-pl-primary bg-pl-primary/10' : 'border-pl-border hover:border-pl-border-strong'}
           `}
         >
           <input {...getInputProps()} />
-          <div className="flex flex-col items-center gap-2 text-slate-400">
+          <div className="flex flex-col items-center gap-2 text-pl-muted">
             <Upload size={24} />
             <p className="text-sm">{isProcessing ? 'Processing...' : 'Drop CSV file here or click to upload'}</p>
-            <span className="text-xs text-slate-500">Required: Date, Rate</span>
+            <span className="text-xs text-pl-muted">Required: Date, Rate</span>
           </div>
         </div>
       )}

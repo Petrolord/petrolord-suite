@@ -238,3 +238,8 @@ themes.
   migrating its own panels. The non-pilot proof in `optInScope.test.jsx`
   still mounts VRR outside a scope (VRR keeps its legacy branch for that);
   it can move to another app, for example Waterflood Design Studio.
+- 2026-09-28: pilot 2, Decline Curve Analysis, on `feat/ds-pilot-dca`. Built
+  on the pilot 5 kit (`useStudioTheme()`); DCA's own panels migrated, charts
+  stay white via `data-canvas="chart"`. `studioKitLegacyDom.test.jsx` adds a
+  whole-kit DOM fixture from pre-pilot main (tag, class, aria-label) as a
+  second proof that other Studio apps are unchanged.

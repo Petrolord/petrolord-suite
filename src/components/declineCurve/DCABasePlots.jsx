@@ -119,30 +119,33 @@ const DCABasePlots = () => {
   const hasProbBand = chartData.some((d) => d.p10 != null && d.p90 != null);
   
   return (
-    <div id="dca-main-plot" className="h-full flex flex-col bg-white rounded-lg border border-slate-200 overflow-hidden shadow-inner">
-        <div className="p-2 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+    // data-canvas="chart": the chart standard keeps this card white in both
+    // themes, so the tokens inside it resolve to the light roles.
+    <div id="dca-main-plot" data-canvas="chart" className="h-full flex flex-col bg-pl-chart-surface rounded-lg border border-pl-border overflow-hidden shadow-pl-sm">
+        <div className="p-2 border-b border-pl-border flex justify-between items-center bg-pl-sunken">
             <div className="flex gap-2">
               <Button 
                   variant="ghost" 
                   size="sm" 
                   className={`text-xs h-7 ${
                     logScale 
-                      ? 'bg-blue-50 text-blue-700 border border-blue-200' 
-                      : 'text-slate-600'
+                      ? 'bg-pl-surface text-pl-primary-text border border-pl-border-strong' 
+                      : 'text-pl-muted'
                   }`}
+                  aria-pressed={logScale}
                   onClick={() => setLogScale(!logScale)}
               >
                   {logScale ? 'Log Scale' : 'Linear Scale'}
               </Button>
             </div>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => exportChartAsImage('dca-main-plot', 'dca_plot')}>
-                <Camera size={14} className="text-slate-600" />
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => exportChartAsImage('dca-main-plot', 'dca_plot')} aria-label="Save the plot as an image" title="Save the plot as an image">
+                <Camera size={14} className="text-pl-muted" />
             </Button>
         </div>
         
         <div className="flex-1 relative min-h-[400px] w-full">
           {!currentData || currentData.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-slate-400 text-center">
+            <div className="flex items-center justify-center h-full text-pl-muted text-center">
               Upload production data to begin
             </div>
           ) : (

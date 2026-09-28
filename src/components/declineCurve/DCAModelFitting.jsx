@@ -52,10 +52,10 @@ const DCAModelFitting = () => {
           value={config.modelType} 
           onValueChange={(val) => updateStreamConfig('modelType', val)}
         >
-          <SelectTrigger className="bg-slate-800 border-slate-700">
+          <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+          <SelectContent>
             <SelectItem value="Auto">Auto-Select (Best Fit)</SelectItem>
             <SelectItem value="Exponential">Arps Exponential</SelectItem>
             <SelectItem value="Hyperbolic">Arps Hyperbolic</SelectItem>
@@ -66,8 +66,8 @@ const DCAModelFitting = () => {
 
       {/* Constraints */}
       {(config.modelType === 'Hyperbolic' || config.modelType === 'Auto') && (
-        <div className="space-y-4 p-3 bg-slate-800/50 rounded border border-slate-800">
-          <Label className="text-xs text-slate-400 uppercase">b-Factor Constraints</Label>
+        <div className="space-y-4 p-3 bg-pl-sunken rounded border border-pl-border">
+          <Label className="text-xs text-pl-muted uppercase">b-Factor Constraints</Label>
           
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -77,7 +77,7 @@ const DCAModelFitting = () => {
                 step="0.1"
                 value={config.constraints.minB}
                 onChange={(e) => handleConstraintChange('minB', e.target.value)}
-                className="h-8 bg-slate-900 border-slate-700"
+                className="h-8"
               />
             </div>
             <div>
@@ -87,7 +87,7 @@ const DCAModelFitting = () => {
                 step="0.1"
                 value={config.constraints.maxB}
                 onChange={(e) => handleConstraintChange('maxB', e.target.value)}
-                className="h-8 bg-slate-900 border-slate-700"
+                className="h-8"
               />
             </div>
           </div>
@@ -99,21 +99,21 @@ const DCAModelFitting = () => {
         <Label>Fit Window</Label>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <Label className="text-[10px] text-slate-400">Start Date</Label>
+            <Label className="text-[10px] text-pl-muted">Start Date</Label>
             <Input 
               type="date" 
               value={formatDateForInput(fitWindow.startDate)}
               onChange={(e) => setFitWindow(prev => ({...prev, startDate: e.target.value}))}
-              className="bg-slate-800 border-slate-700 text-xs"
+              className="text-xs"
             />
           </div>
           <div>
-            <Label className="text-[10px] text-slate-400">End Date</Label>
+            <Label className="text-[10px] text-pl-muted">End Date</Label>
             <Input 
               type="date" 
               value={formatDateForInput(fitWindow.endDate)}
               onChange={(e) => setFitWindow(prev => ({...prev, endDate: e.target.value}))}
-              className="bg-slate-800 border-slate-700 text-xs"
+              className="text-xs"
             />
           </div>
         </div>
@@ -123,7 +123,7 @@ const DCAModelFitting = () => {
       <Button 
         onClick={runFit} 
         disabled={isFitting}
-        className="w-full bg-blue-600 hover:bg-blue-500 transition-colors"
+        className="w-full"
       >
         {isFitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
         {isFitting ? "Fitting..." : "Fit Model"}

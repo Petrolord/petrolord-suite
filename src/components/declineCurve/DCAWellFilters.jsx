@@ -3,6 +3,7 @@ import { useDeclineCurve } from '@/contexts/DeclineCurveContext';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { CHECKBOX_THEMED } from './dsClasses';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Filter } from 'lucide-react';
 
@@ -18,28 +19,28 @@ const DCAWellFilters = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between text-slate-400 mb-2">
+      <div className="flex items-center justify-between text-pl-muted mb-2">
         <div className="flex items-center gap-2">
           <Filter size={14} />
           <span className="text-xs font-medium uppercase tracking-wider">Well Filters</span>
         </div>
-        <span className="text-[10px] text-slate-500">{filteredWellIds.length}/{totalWells}</span>
+        <span className="text-[10px] text-pl-muted">{filteredWellIds.length}/{totalWells}</span>
       </div>
 
       <div className="space-y-2">
-        <Label className="text-xs text-slate-500">Search name or tag</Label>
+        <Label className="text-xs text-pl-muted">Search name or tag</Label>
         <Input
           value={wellFilters.search}
           onChange={(e) => set({ search: e.target.value })}
           placeholder="e.g. Alpha, pad-3"
-          className="h-8 bg-slate-800 border-slate-700 text-xs"
+          className="h-8 text-xs"
         />
       </div>
 
       <div className="space-y-2">
-        <Label className="text-xs text-slate-500">Fluid type</Label>
+        <Label className="text-xs text-pl-muted">Fluid type</Label>
         <Select value={wellFilters.fluidType} onValueChange={(v) => set({ fluidType: v })}>
-          <SelectTrigger className="h-8 bg-slate-800 border-slate-700 text-xs">
+          <SelectTrigger className="h-8 text-xs">
             <SelectValue placeholder="All fluids" />
           </SelectTrigger>
           <SelectContent>
@@ -56,8 +57,9 @@ const DCAWellFilters = () => {
           id="dca-filter-hasdata"
           checked={wellFilters.onlyWithData}
           onCheckedChange={(v) => set({ onlyWithData: !!v })}
+          className={CHECKBOX_THEMED}
         />
-        <Label htmlFor="dca-filter-hasdata" className="text-xs text-slate-400">
+        <Label htmlFor="dca-filter-hasdata" className="text-xs text-pl-muted">
           Only wells with production data
         </Label>
       </div>

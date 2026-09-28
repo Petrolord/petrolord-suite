@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Loader2, TrendingUp, Dices, RefreshCw } from 'lucide-react';
+import { SWITCH_THEMED } from './dsClasses';
 
 const DCAForecastEngine = () => {
   const { 
@@ -27,33 +28,35 @@ const DCAForecastEngine = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-slate-200">Forecast Settings</h3>
-        {!hasFit && <span className="text-[10px] text-amber-500">Fit Model First</span>}
+        <h3 className="text-sm font-medium text-pl-text">Forecast Settings</h3>
+        {!hasFit && <span className="text-[10px] text-pl-warning-text">Fit Model First</span>}
       </div>
 
       <div className="space-y-4">
         
         {/* Probabilistic Mode Toggle */}
-        <div className="space-y-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+        <div className="space-y-3 p-3 bg-pl-sunken rounded-lg border border-pl-border">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Dices size={16} className="text-purple-400" />
-              <Label className="text-sm font-medium text-slate-200">Probabilistic Mode</Label>
+              <Dices size={16} className="text-pl-muted" aria-hidden="true" />
+              <Label className="text-sm font-medium text-pl-text">Probabilistic Mode</Label>
             </div>
             <Switch 
               checked={config.probabilisticMode || false}
               onCheckedChange={(checked) => updateForecastConfig('probabilisticMode', checked)}
               disabled={!hasConfidenceIntervals}
+              className={SWITCH_THEMED}
+              aria-label="Probabilistic mode"
             />
           </div>
-          <div className="text-xs text-slate-400">
+          <div className="text-xs text-pl-muted">
             {config.probabilisticMode ? (
               "Monte Carlo simulation will generate P10/P50/P90 forecasts"
             ) : (
               "Standard deterministic forecast"
             )}
             {!hasConfidenceIntervals && hasFit && (
-              <div className="text-amber-400 mt-1">
+              <div className="text-pl-warning-text mt-1">
                 Probabilistic mode needs reliable parameter confidence intervals, which this fit could not produce. Refit with more data points or a cleaner decline period to enable it.
               </div>
             )}
@@ -64,7 +67,7 @@ const DCAForecastEngine = () => {
               reproduce the same P10/P50/P90 and a reported EUR can be checked
               by anyone holding the inputs. */}
           {config.probabilisticMode && (
-            <div className="space-y-1 pt-1 border-t border-slate-700">
+            <div className="space-y-1 pt-1 border-t border-pl-border">
               <Label className="text-xs">Random Seed</Label>
               <div className="flex items-center gap-2">
                 <Input
@@ -74,7 +77,7 @@ const DCAForecastEngine = () => {
                     const next = parseInt(e.target.value, 10);
                     updateForecastConfig('mcSeed', Number.isFinite(next) ? next : DEFAULT_MC_SEED);
                   }}
-                  className="bg-slate-800 border-slate-700 h-8 text-xs"
+                  className="h-8 text-xs"
                 />
                 <Button
                   variant="outline"
@@ -86,7 +89,7 @@ const DCAForecastEngine = () => {
                   <RefreshCw size={12} /> New seed
                 </Button>
               </div>
-              <div className="text-[10px] text-slate-500">
+              <div className="text-[10px] text-pl-muted">
                 The same seed reproduces the same P10/P50/P90. Change it to see a different realization.
               </div>
             </div>
@@ -101,13 +104,14 @@ const DCAForecastEngine = () => {
               type="number" 
               value={config.economicLimit}
               onChange={(e) => updateForecastConfig('economicLimit', parseFloat(e.target.value))}
-              className="bg-slate-800 border-slate-700 h-8 text-xs"
+              className="h-8 text-xs"
             />
-            <div className="flex items-center gap-2 text-xs text-slate-400 whitespace-nowrap">
+            <div className="flex items-center gap-2 text-xs text-pl-muted whitespace-nowrap">
               <Switch 
                 checked={config.stopAtLimit} 
                 onCheckedChange={(c) => updateForecastConfig('stopAtLimit', c)} 
-                className="scale-75"
+                className={`scale-75 ${SWITCH_THEMED}`}
+                aria-label="Stop at limit"
               />
               <span>Stop at limit</span>
             </div>
@@ -128,9 +132,9 @@ const DCAForecastEngine = () => {
                   const fraction = Number.isFinite(pct) ? Math.min(Math.max(pct, 0), 100) / 100 : DEFAULT_ECON_LIMIT_UNCERTAINTY;
                   updateForecastConfig('economicLimitUncertainty', fraction);
                 }}
-                className="bg-slate-800 border-slate-700 h-8 text-xs"
+                className="h-8 text-xs"
               />
-              <div className="text-[10px] text-slate-500">
+              <div className="text-[10px] text-pl-muted">
                 {econUncertaintyPct > 0
                   ? `Each realization draws the limit uniformly within ±${econUncertaintyPct}% of the value above.`
                   : 'The limit is held fixed, so only the fitted parameters carry uncertainty.'}
@@ -146,7 +150,7 @@ const DCAForecastEngine = () => {
             type="number" 
             value={config.durationDays}
             onChange={(e) => updateForecastConfig('durationDays', parseInt(e.target.value))}
-            className="bg-slate-800 border-slate-700 h-8 text-xs"
+            className="h-8 text-xs"
           />
         </div>
 
@@ -157,7 +161,7 @@ const DCAForecastEngine = () => {
             type="number" 
             value={config.facilityLimit}
             onChange={(e) => updateForecastConfig('facilityLimit', parseFloat(e.target.value))}
-            className="bg-slate-800 border-slate-700 h-8 text-xs"
+            className="h-8 text-xs"
             placeholder="No Limit"
           />
         </div>
@@ -167,7 +171,7 @@ const DCAForecastEngine = () => {
       <Button 
         onClick={runForecast} 
         disabled={isForecasting || !hasFit}
-        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white"
+        className="w-full"
         size="sm"
       >
         {isForecasting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <TrendingUp className="mr-2 h-4 w-4" />}
@@ -175,7 +179,7 @@ const DCAForecastEngine = () => {
       </Button>
       
       {config.probabilisticMode && isForecasting && (
-        <div className="text-xs text-center text-blue-400">
+        <div className="text-xs text-center text-pl-info-text">
           Running 1000 simulations...
         </div>
       )}

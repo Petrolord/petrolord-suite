@@ -37,11 +37,11 @@ const DCAFitDiagnostics = () => {
   
   if (!fitResults || !productionData.length) {
     return (
-      <div className="flex items-center justify-center h-full text-slate-500 text-sm p-4 bg-slate-900/50 rounded border border-dashed border-slate-800">
+      <div className="flex items-center justify-center h-full text-pl-muted text-sm p-4 bg-pl-surface rounded border border-dashed border-pl-border-strong">
         <div className="text-center space-y-2">
-          <AlertCircle size={24} className="mx-auto text-slate-600" />
+          <AlertCircle size={24} className="mx-auto text-pl-muted" />
           <p>No Fit Results Available</p>
-          <p className="text-xs text-slate-600">Run fit analysis to display diagnostics</p>
+          <p className="text-xs text-pl-muted">Run fit analysis to display diagnostics</p>
         </div>
       </div>
     );
@@ -83,15 +83,15 @@ const DCAFitDiagnostics = () => {
   
   // R² color coding
   const getR2Color = (r2Value) => {
-    if (r2Value >= 0.95) return 'text-green-500';
-    if (r2Value >= 0.85) return 'text-yellow-500';
-    return 'text-red-500';
+    if (r2Value >= 0.95) return 'text-pl-success-text';
+    if (r2Value >= 0.85) return 'text-pl-warning-text';
+    return 'text-pl-danger-text';
   };
   
-  const getR2BadgeColor = (r2Value) => {
-    if (r2Value >= 0.95) return 'bg-green-900/50 text-green-400 border-green-900';
-    if (r2Value >= 0.85) return 'bg-yellow-900/50 text-yellow-400 border-yellow-900';
-    return 'bg-red-900/50 text-red-400 border-red-900';
+  const getR2BadgeVariant = (r2Value) => {
+    if (r2Value >= 0.95) return 'success';
+    if (r2Value >= 0.85) return 'warning';
+    return 'danger';
   };
   
   // Format units based on stream
@@ -117,25 +117,25 @@ const DCAFitDiagnostics = () => {
   
   // Determine segment pattern color
   const getSegmentStatusColor = () => {
-    if (detectedBreakpoints.length === 0) return 'text-green-400';
+    if (detectedBreakpoints.length === 0) return 'text-pl-success-text';
     const maxSlopeChange = Math.max(...detectedBreakpoints.map(bp => bp.slopeChange));
-    return maxSlopeChange >= 30 ? 'text-yellow-400' : 'text-green-400';
+    return maxSlopeChange >= 30 ? 'text-pl-warning-text' : 'text-pl-success-text';
   };
 
   return (
     <div className="space-y-4 h-full flex flex-col">
       {/* Verdict Card */}
-      <Card className="bg-slate-900 border-slate-800 shrink-0">
+      <Card className="shrink-0">
         <CardContent className="p-4">
           <div className="flex items-center gap-3">
             {verdictInfo.icon === 'check' ? (
-              <CheckCircle className={verdictInfo.color} size={20} />
+              <CheckCircle className={getR2Color(r2)} size={20} />
             ) : (
-              <AlertCircle className={verdictInfo.color} size={20} />
+              <AlertCircle className={getR2Color(r2)} size={20} />
             )}
             <div>
-              <div className={`font-semibold ${verdictInfo.color}`}>{verdictInfo.title}</div>
-              <div className="text-xs text-slate-400">{verdictInfo.description}</div>
+              <div className={`font-semibold ${getR2Color(r2)}`}>{verdictInfo.title}</div>
+              <div className="text-xs text-pl-muted">{verdictInfo.description}</div>
             </div>
           </div>
         </CardContent>
@@ -143,78 +143,78 @@ const DCAFitDiagnostics = () => {
       
       {/* Key Metrics */}
       <div className="grid grid-cols-2 gap-3 shrink-0">
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-xs text-slate-500 uppercase tracking-wide">R² (Coeff. Det.)</div>
-                <div className={`text-lg font-bold ${getR2Color(r2)}`}>
+                <div className="text-xs text-pl-muted uppercase tracking-wide">R² (Coeff. Det.)</div>
+                <div className={`text-lg font-semibold font-pl-mono tabular-nums ${getR2Color(r2)}`}>
                   {(r2 * 100).toFixed(1)}%
                 </div>
               </div>
-              <Badge className={getR2BadgeColor(r2)}>
+              <Badge variant={getR2BadgeVariant(r2)}>
                 {r2 >= 0.95 ? 'Excellent' : r2 >= 0.85 ? 'Good' : 'Poor'}
               </Badge>
             </div>
           </CardContent>
         </Card>
         
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
           <CardContent className="p-4">
             <div>
-              <div className="text-xs text-slate-500 uppercase tracking-wide">RMSE</div>
-              <div className="text-lg font-bold text-slate-200">
+              <div className="text-xs text-pl-muted uppercase tracking-wide">RMSE</div>
+              <div className="text-lg font-semibold text-pl-text font-pl-mono tabular-nums">
                 {rmse.toFixed(1)}
               </div>
-              <div className="text-xs text-slate-400">{getUnits()}</div>
+              <div className="text-xs text-pl-muted">{getUnits()}</div>
             </div>
           </CardContent>
         </Card>
       </div>
       
       {/* Arps Parameters */}
-      <Card className="bg-slate-900 border-slate-800 shrink-0">
+      <Card className="shrink-0">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
-            <Target size={16} className="text-blue-400" />
+            <Target size={16} className="text-pl-muted" aria-hidden="true" />
             Arps Parameters
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="grid grid-cols-3 gap-4 text-xs">
             <div>
-              <div className="text-slate-500 mb-1">qi (Initial Rate)</div>
-              <div className="font-mono text-slate-200">{qi?.toFixed(1) || 'N/A'} {getUnits()}</div>
+              <div className="text-pl-muted mb-1">qi (Initial Rate)</div>
+              <div className="font-pl-mono tabular-nums text-pl-text">{qi?.toFixed(1) || 'N/A'} {getUnits()}</div>
               {confidenceIntervals.qi && (
-                <div className="text-slate-400 text-[10px]">±{confidenceIntervals.qi.toFixed(1)}</div>
+                <div className="text-pl-muted text-[10px]">±{confidenceIntervals.qi.toFixed(1)}</div>
               )}
             </div>
             <div>
-              <div className="text-slate-500 mb-1">Di (Initial Decline)</div>
-              <div className="font-mono text-slate-200">{Di ? (Di * 100).toFixed(2) : 'N/A'}%/yr</div>
+              <div className="text-pl-muted mb-1">Di (Initial Decline)</div>
+              <div className="font-pl-mono tabular-nums text-pl-text">{Di ? (Di * 100).toFixed(2) : 'N/A'}%/yr</div>
               {confidenceIntervals.Di && (
-                <div className="text-slate-400 text-[10px]">±{(confidenceIntervals.Di * 100).toFixed(2)}%</div>
+                <div className="text-pl-muted text-[10px]">±{(confidenceIntervals.Di * 100).toFixed(2)}%</div>
               )}
             </div>
             <div>
-              <div className="text-slate-500 mb-1">b (Exponent)</div>
-              <div className="font-mono text-slate-200">{b?.toFixed(3) || 'N/A'}</div>
+              <div className="text-pl-muted mb-1">b (Exponent)</div>
+              <div className="font-pl-mono tabular-nums text-pl-text">{b?.toFixed(3) || 'N/A'}</div>
               {confidenceIntervals.b && (
-                <div className="text-slate-400 text-[10px]">±{confidenceIntervals.b.toFixed(3)}</div>
+                <div className="text-pl-muted text-[10px]">±{confidenceIntervals.b.toFixed(3)}</div>
               )}
             </div>
           </div>
           {confidenceIntervals.hasIntervals && (
-            <div className="text-[10px] text-slate-500 mt-2 text-center">95% Confidence Intervals</div>
+            <div className="text-[10px] text-pl-muted mt-2 text-center">95% Confidence Intervals</div>
           )}
         </CardContent>
       </Card>
       
       {/* Detected Segments */}
-      <Card className="bg-slate-900 border-slate-800 shrink-0">
+      <Card className="shrink-0">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
-            <BarChart3 size={16} className="text-purple-400" />
+            <BarChart3 size={16} className="text-pl-muted" aria-hidden="true" />
             Detected Segments
           </CardTitle>
         </CardHeader>
@@ -229,8 +229,8 @@ const DCAFitDiagnostics = () => {
                 {detectedBreakpoints.length + 1}-segment decline pattern detected
               </div>
               {detectedBreakpoints.map((breakpoint, index) => (
-                <div key={index} className="text-xs text-slate-300">
-                  <span className="font-mono">
+                <div key={index} className="text-xs text-pl-text">
+                  <span className="font-pl-mono tabular-nums">
                     Breakpoint {index + 1}: {breakpoint.date.toLocaleDateString()} @ {breakpoint.rate.toFixed(1)} {getUnits().split('/')[0]} 
                     (slope change: {breakpoint.slopeChange.toFixed(1)}%)
                   </span>
@@ -242,15 +242,18 @@ const DCAFitDiagnostics = () => {
       </Card>
       
       {/* Residuals Plot */}
-      <Card className="bg-white border-slate-200 flex-1 min-h-0">
+      {/* chart standard: white in both themes (data-canvas="chart") */}
+      <Card data-canvas="chart" className="bg-pl-chart-surface border-pl-border flex-1 min-h-0">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2 text-slate-900">
-            <TrendingUp size={16} className="text-indigo-600" />
+          <CardTitle className="text-sm flex items-center gap-2 text-pl-text">
+            <TrendingUp size={16} className="text-pl-muted" aria-hidden="true" />
             Normalized Residuals
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0 h-full flex flex-col">
-          <div className="flex-1 min-h-[200px]">
+          {/* definite height: ResponsiveContainer height="100%" collapses to
+              zero under a min-h-only parent, which left this plot blank */}
+          <div className="relative h-[220px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={residualsWithOutliers}>
                 <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
@@ -309,7 +312,7 @@ const DCAFitDiagnostics = () => {
             </ResponsiveContainer>
             <ChartLogo />
           </div>
-          <div className="text-[10px] text-slate-500 text-center mt-2">
+          <div className="text-[10px] text-pl-muted text-center mt-2">
             Red points: outliers beyond ±2σ ({residualsWithOutliers.filter(r => r.isOutlier).length} detected)
           </div>
         </CardContent>

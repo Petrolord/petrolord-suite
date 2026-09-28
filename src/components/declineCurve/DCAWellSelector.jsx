@@ -29,7 +29,7 @@ const DCAWellSelector = () => {
   };
 
   if (!currentProject) return (
-    <div className="p-4 border border-dashed border-slate-700 rounded text-center text-slate-500 text-sm">
+    <div className="p-4 border border-dashed border-pl-border rounded text-center text-pl-muted text-sm">
       Select or create a project first
     </div>
   );
@@ -37,16 +37,16 @@ const DCAWellSelector = () => {
   return (
     <div className="space-y-2">
       <div className="flex justify-between items-center">
-        <label className="text-xs font-medium text-slate-400 uppercase">Well</label>
-        <span className="text-xs text-slate-500">{projectWells.length} wells</span>
+        <label className="text-xs font-medium text-pl-muted uppercase">Well</label>
+        <span className="text-xs text-pl-muted">{projectWells.length} wells</span>
       </div>
       
       <div className="flex gap-2">
         <Select value={currentWellId || ''} onValueChange={setCurrentWellId}>
-          <SelectTrigger className="flex-1 bg-slate-800 border-slate-700">
+          <SelectTrigger className="flex-1">
             <SelectValue placeholder="Select Well" />
           </SelectTrigger>
-          <SelectContent className="bg-slate-800 border-slate-700 text-slate-100">
+          <SelectContent>
             {projectWells.length === 0 ? (
               <SelectItem value="none" disabled>No Wells</SelectItem>
             ) : (
@@ -59,11 +59,11 @@ const DCAWellSelector = () => {
 
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline" size="icon" className="bg-slate-800 border-slate-700">
+            <Button variant="outline" size="icon" aria-label="Add well" title="Add well">
               <Plus size={16} />
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-slate-900 border-slate-700 text-slate-100">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>Add New Well</DialogTitle>
             </DialogHeader>
@@ -73,7 +73,6 @@ const DCAWellSelector = () => {
                 value={newWellName}
                 onChange={(e) => setNewWellName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
-                className="bg-slate-800 border-slate-700"
               />
             </div>
             <DialogFooter>
@@ -87,7 +86,7 @@ const DCAWellSelector = () => {
         <Button 
           variant="ghost" 
           size="sm" 
-          className="w-full text-red-400 hover:text-red-300 hover:bg-red-900/20 h-6 text-xs"
+          className="w-full text-pl-danger-text hover:bg-pl-danger-bg h-6 text-xs"
           onClick={() => {
             if (window.confirm('Remove this well and its production data? You can Undo from the notification for a few seconds.')) {
               removeWell(currentWellId);

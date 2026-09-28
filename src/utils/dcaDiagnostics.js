@@ -81,14 +81,14 @@ export const getVerdictInfo = (r2) => {
     };
   } else if (r2 >= 0.85) {
     return {
-      title: "Reasonable Fit — Caution on Late-Time Extrapolation",
+      title: "Reasonable Fit: Caution on Late-Time Extrapolation",
       description: "Model fits most data well but may have limitations for long-term forecasts.",
       color: "text-yellow-500",
       icon: "warning"
     };
   } else {
     return {
-      title: "Poor Fit — Check for Multi-Segment Behavior or Data Anomalies",
+      title: "Poor Fit: Check for Multi-Segment Behavior or Data Anomalies",
       description: "Model does not adequately represent the data. Consider alternative models or data cleaning.",
       color: "text-red-500",
       icon: "warning"

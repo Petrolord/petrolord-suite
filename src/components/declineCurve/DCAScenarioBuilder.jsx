@@ -35,40 +35,41 @@ const DCAScenarioBuilder = () => {
             placeholder="Scenario Name (e.g., High Case)" 
             value={newScenarioName}
             onChange={(e) => setNewScenarioName(e.target.value)}
-            className="bg-slate-800 border-slate-700 h-8 text-xs"
+            className="h-8 text-xs"
           />
           <Button 
             onClick={handleCreate} 
             disabled={!canSave || !newScenarioName}
             size="sm"
-            className="h-8 w-8 p-0 bg-slate-700 hover:bg-slate-600"
+            className="h-8 w-8 p-0"
+            aria-label="Save scenario"
           >
             <Plus size={14} />
           </Button>
         </div>
-        {!canSave && <p className="text-[10px] text-slate-500">Run a forecast to save a scenario.</p>}
+        {!canSave && <p className="text-[10px] text-pl-muted">Run a forecast to save a scenario.</p>}
       </div>
 
-      <ScrollArea className="h-[200px] rounded border border-slate-800 bg-slate-900/50 p-2">
+      <ScrollArea className="h-[200px] rounded border border-pl-border bg-pl-sunken p-2">
         <div className="space-y-2">
           {scenarios.filter(s => s.stream === selectedStream).length === 0 ? (
-            <div className="text-center text-slate-500 text-xs py-4">No saved scenarios</div>
+            <div className="text-center text-pl-muted text-xs py-4">No saved scenarios</div>
           ) : (
             scenarios.filter(s => s.stream === selectedStream).map(s => (
-              <div key={s.id} className="flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-700 hover:border-slate-600 transition-colors">
+              <div key={s.id} className="flex items-center justify-between bg-pl-surface p-2 rounded border border-pl-border hover:border-pl-border-strong transition-colors">
                 <div className="flex items-center gap-2 overflow-hidden">
-                  <button onClick={() => toggleScenarioSelection(s.id)} className="text-slate-400 hover:text-white">
-                    {selectedScenarios.includes(s.id) ? <CheckCircle2 size={14} className="text-blue-400" /> : <Circle size={14} />}
+                  <button onClick={() => toggleScenarioSelection(s.id)} className="text-pl-muted hover:text-pl-text" aria-label={selectedScenarios.includes(s.id) ? `Deselect ${s.name}` : `Select ${s.name} to compare`} aria-pressed={selectedScenarios.includes(s.id)}>
+                    {selectedScenarios.includes(s.id) ? <CheckCircle2 size={14} className="text-pl-primary-text" /> : <Circle size={14} />}
                   </button>
                   <div className="min-w-0">
-                    <div className="text-xs font-medium truncate text-slate-200">{s.name}</div>
-                    <div className="text-[10px] text-slate-500 flex gap-2">
+                    <div className="text-xs font-medium truncate text-pl-text">{s.name}</div>
+                    <div className="text-[10px] text-pl-muted flex gap-2">
                       <span>EUR: {s.forecastResults.eur.toLocaleString(undefined, {maximumFractionDigits:0})}</span>
-                      <Badge variant="outline" className="h-3 px-1 text-[8px] border-slate-600 text-slate-400">{s.fitResults.modelType}</Badge>
+                      <Badge variant="outline" className="h-3 px-1 text-[8px] border-pl-border-strong text-pl-muted">{s.fitResults.modelType}</Badge>
                     </div>
                   </div>
                 </div>
-                <button onClick={() => deleteScenario(s.id)} className="text-slate-500 hover:text-red-400">
+                <button onClick={() => deleteScenario(s.id)} className="text-pl-muted hover:text-pl-danger-text" aria-label={`Delete scenario ${s.name}`}>
                   <Trash2 size={12} />
                 </button>
               </div>
