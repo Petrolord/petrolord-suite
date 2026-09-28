@@ -667,6 +667,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
         {tab === 'Tops' && editor?.tab !== 'Tops' && (
           tops === null ? <Loader2 className="w-4 h-4 animate-spin text-pl-muted" /> : (
             tops.length ? (
+              <div className="space-y-1">
               <table className="text-xs" data-testid="wdm-tops-table">
                 <thead>
                   <tr>
@@ -707,6 +708,15 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                   ))}
                 </tbody>
               </table>
+              {!(Number(well.kb_m) > 0) && (
+                <p className="text-[11px] text-pl-warning-text" data-testid="wdm-tops-kb-note">
+                  KB is not set on this well (0 m), so TVDSS equals TVD. Set the KB on the Header tab.
+                </p>
+              )}
+              {[...topDepths.values()].some((p) => p?.extrapolated) && (
+                <p className="text-[11px] text-pl-muted">† below the last survey station (extrapolated along the final tangent)</p>
+              )}
+              </div>
             ) : <p className="text-xs text-pl-muted">No tops on this well.</p>
           )
         )}

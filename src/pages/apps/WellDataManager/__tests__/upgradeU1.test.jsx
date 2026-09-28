@@ -66,6 +66,7 @@ describe('saved state from earlier releases (PL5)', () => {
     expect(tvd).toBeGreaterThan(1900);
     expect(tvd).toBeLessThan(2134.5);
     expect(Number(screen.getByTestId('wdm-top-tvdss-Top Reservoir').textContent)).toBeCloseTo(tvd - 24.99, 0);
+    expect(screen.queryByTestId('wdm-tops-kb-note')).toBeNull();
     fireEvent.click(within(detail).getByRole('button', { name: /^Header/ }));
     // no xy_unit in G1 rows: metres, as that release stored them
     expect(screen.getByText(/Surface X \(m, CRS not assigned\)/)).toBeInTheDocument();
@@ -81,6 +82,7 @@ describe('saved state from earlier releases (PL5)', () => {
     fireEvent.click(within(detail).getByRole('button', { name: /^Tops/ }));
     expect(Number((await screen.findByTestId('wdm-top-tvd-Top Frio')).textContent)).toBeCloseTo(1500, 1);
     expect(Number(screen.getByTestId('wdm-top-tvdss-Top Frio').textContent)).toBeCloseTo(1469.5, 1);
+    expect(screen.queryByTestId('wdm-tops-kb-note')).toBeNull();
   });
 });
 
@@ -136,5 +138,15 @@ describe('map caption and depth ticks', () => {
     // negative control: the old Math.round labels repeated
     expect(new Set(ticks.map((d) => String(Math.round(d)))).size).toBeLessThan(9);
     expect(depthTickLabel(2500, 50)).toBe('2500');
+  });
+});
+
+describe('a well with no KB says why TVDSS equals TVD (WDM-U1-019)', () => {
+  test('the note shows when KB is 0 and names the fix', async () => {
+    const rows = savedRows('registry-pt-2026-09.json');
+    rows.wells[0].kb_m = 0;
+    mockBackend = makeInMemoryBackend({ seedSharedWell: false, seedRows: rows });
+    await openWell('GULF SP-2', 'Tops');
+    expect(await screen.findByTestId('wdm-tops-kb-note')).toHaveTextContent('KB is not set on this well (0 m), so TVDSS equals TVD.');
   });
 });

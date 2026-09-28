@@ -64,6 +64,7 @@ test('PL2: LAS 3.0 Tops block lands as tops with MD, TVD and TVDSS', async ({ pa
   await expect(page.getByTestId('wdm-top-row')).toHaveCount(2);
   await expect(page.getByTestId('wdm-top-tvd-Upper Sand')).toHaveText('1501.0');
   await expect(page.getByTestId('wdm-top-tvdss-Upper Sand')).toHaveText('1481.0');
+  await expect(page.getByTestId('wdm-tops-kb-note')).toHaveCount(0);
 });
 
 test('PL4: deleting a log asks first', async ({ page }) => {
