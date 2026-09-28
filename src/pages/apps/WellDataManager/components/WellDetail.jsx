@@ -442,13 +442,13 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
           {shared ? (well.is_own ? 'shared with org' : 'org well (read-only)') : 'private'}
         </span>
         <button type="button" data-testid="wdm-export" onClick={() => setExportOpen(true)}
-          title="Export this well as LAS, tops CSV or survey CSV, depths in the display unit"
+          title="Export this well as LAS, tops CSV, survey CSV or a well data sheet PDF, depths in the display unit"
           className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded border border-pl-border text-xs text-pl-text hover:bg-pl-sunken">
           <Download className="w-3 h-3" /> Export
         </button>
         <OpenInAppMenu wellIds={[well.id]} paths={appPaths} testIdPrefix="wdm-detail" />
       </div>
-      <ExportDialog open={exportOpen} onOpenChange={setExportOpen} backend={backend} well={well} logs={logs} tops={tops}
+      <ExportDialog open={exportOpen} onOpenChange={setExportOpen} backend={backend} well={well} logs={logs} tops={tops} zones={zones || []}
         units={units} unit={unit} onStatus={onStatus} />
 
       <div className="flex items-center gap-1 px-3 pt-2 border-b border-pl-border">

@@ -17,12 +17,14 @@ import {
   buildWellLas, topsCsv, surveyCsv, lasExportPlan, exportSummary,
 } from '../engine/wellExport';
 import { unitText } from '../engine/displayUnits';
+import { buildWellSheet } from '../services/wellSheet';
 
 /** Formats offered, in menu order. `extra` formats (the PDF sheet) come from the caller. */
 const BASE_FORMATS = [
   ['las', 'LAS 2.0 (logs)'],
   ['tops', 'Tops CSV'],
   ['survey', 'Survey CSV (with TVD and offsets)'],
+  ['pdf', 'Well data sheet (PDF)'],
 ];
 
 /**
@@ -32,12 +34,13 @@ const BASE_FORMATS = [
  * @param {'m'|'ft'} p.unit display depth unit
  * @param {Array<[string, string, Function]>} [p.extraFormats] [key, label, run(ctx)] rows
  */
-export default function ExportDialog({ open, onOpenChange, backend, well, logs, tops, units = [], unit = 'm', onStatus, extraFormats = [] }) {
+export default function ExportDialog({ open, onOpenChange, backend, well, logs, tops, zones = [], units = [], unit = 'm', onStatus, extraFormats = [] }) {
   const u = unitText(unit);
   const [format, setFormat] = useState('las');
   const [picked, setPicked] = useState(null); // log ids ticked for the LAS (null = all)
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const [analyst, setAnalyst] = useState('');  // WDM-U2-011 "prepared by" on the data sheet
   const plan = useMemo(() => lasExportPlan(logs || []), [logs]);
   const formats = [...BASE_FORMATS, ...extraFormats.map(([k, l]) => [k, l])];
 
@@ -75,6 +78,10 @@ export default function ExportDialog({ open, onOpenChange, backend, well, logs, 
         const out = surveyCsv(well, u);
         downloadText(out.fileName, out.text, 'text/csv');
         message = exportSummary('survey', { rows: well.deviation.length, unit: u });
+      } else if (format === 'pdf') {
+        const { doc, fileName } = await buildWellSheet({ well, logs: logs || [], tops: tops || [], zones: zones || [], unit: u, analyst });
+        doc.save(fileName);
+        message = `Well data sheet written (${fileName}, depths in ${u}).`;
       } else {
         const extra = extraFormats.find(([k]) => k === format);
         message = await extra[2]({ well, logs, tops, unit: u });
@@ -121,6 +128,13 @@ export default function ExportDialog({ open, onOpenChange, backend, well, logs, 
                 </div>
               )}
             </div>
+          )}
+          {format === 'pdf' && (
+            <label className="flex items-center gap-2 text-pl-muted">
+              Prepared by
+              <input className="rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs w-56" value={analyst}
+                onChange={(e) => setAnalyst(e.target.value)} placeholder="name, for the sheet header" data-testid="wdm-export-analyst" />
+            </label>
           )}
           {disabledReason && <div className="text-pl-muted" data-testid="wdm-export-reason">{disabledReason}</div>}
           {error && <div className="text-pl-danger-text" data-testid="wdm-export-error">{error}</div>}

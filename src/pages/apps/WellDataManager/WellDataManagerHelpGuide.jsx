@@ -267,6 +267,7 @@ export default function WellDataManagerHelpGuide({ backTo = APP_PATH }) {
             ['LAS 2.0', 'the depth curve and the curves you tick, depth in the display unit, curve values in their stored units; the header carries the well name, UWI, KB (EKB), TD, X, Y and CRS'],
             ['Tops CSV', 'well, UWI, top, MD, TVD and TVDSS in the display unit, type, unit, confidence, age, interpreter'],
             ['Survey CSV', 'MD, inclination, grid azimuth, TVD, TVDSS and the East and North offsets from the wellhead'],
+            ['Well data sheet (PDF)', 'one printable summary for a meeting pack or a reviewer: identity (well, UWI, status, CRS, X and Y, datum transformation), the depth unit, the datum assumption, KB, TD, survey and checkshot summary, QC flags, who prepared it (Prepared by), the date and the software build, then the tops with MD, TVD and TVDSS, the curve inventory with each curve\'s origin, and the Petrophysics zones'],
           ]} />
           <Para>
             Every depth column names its unit in its header, so the file reads back into this app, Petrel or Techlog
