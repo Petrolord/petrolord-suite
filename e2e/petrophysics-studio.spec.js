@@ -150,7 +150,7 @@ test('publish curves + zone, batch run, and project persistence across reload', 
   await page.getByTestId('petro-batch').click();
   await page.getByTestId('petro-batch-pick-KETA TYPE-1').check();
   await page.getByTestId('petro-batch-run').click();
-  await expect(page.getByTestId('petro-batch-result-KETA TYPE-1')).toContainText('curves published');
+  await expect(page.getByTestId('petro-batch-result-KETA TYPE-1')).toContainText(/curves and 1 zone summary published/);
 });
 
 test('digitizer by hand: inline calibration, clicked trace, review, saved as a new _DIG curve', async ({ page }) => {

@@ -12,7 +12,12 @@ import PetroWorkstation from './components/PetroWorkstation';
 import { makeInMemoryBackend } from './services/inMemoryBackend';
 
 export default function PetrophysicsStudioHarness() {
-  const backend = useMemo(() => makeInMemoryBackend(), []);
+  // AppUpgrade PL10: ?scaleWell=1 adds a 20,000 ft, 0.5 ft, 30-curve well;
+  // ?extraWells=<n> adds n copies of the type well for batch and field timing
+  const backend = useMemo(() => {
+    const q = new URLSearchParams(window.location.search);
+    return makeInMemoryBackend({ scaleWell: q.get('scaleWell') === '1', extraWells: Math.min(200, Number(q.get('extraWells')) || 0) });
+  }, []);
   return (
     <div className="h-screen w-full overflow-hidden" data-testid="petro-theme-scope">
       <PetroWorkstation backend={backend} wellDataManagerPath="/dev/well-data-manager" wellCorrelationPath="/dev/well-correlation" mappingPath="/dev/mapping-surface-studio" />

@@ -885,8 +885,20 @@ export default function PetroWorkstation({
     });
     if (!prepared.length) throw new Error('nothing to publish (missing inputs)');
     const saved = await backend.publishCurves(well.id, prepared, projectId);
+    // PETRO-U1-012: the zone summaries too, so ReservoirCalc Pro and Earth
+    // Modeling can average a zone across the wells in one batch
+    let zonesPublished = 0;
+    for (const zone of wellZones) {
+      const props = zonePublishProperties({
+        curves, outputs, params, zoneParams, zone, well,
+        meta: { projectId, interpretationName: projectName, publishedAt: new Date().toISOString() },
+      });
+      if (!props) continue;
+      await backend.publishZone(zone, props);
+      zonesPublished += 1;
+    }
     if (well.id === selectedId) await select(well.id);
-    return saved.length;
+    return { curves: saved.length, zones: zonesPublished };
   };
 
   const ribbon = (

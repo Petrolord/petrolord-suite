@@ -30,7 +30,14 @@ export default function BatchRunDialog({ open, onOpenChange, wells, runBatch }) 
     for (const w of ownWells.filter((x) => picked.has(x.id))) {
        
       const r = await runBatch(w).then(
-        (n) => ({ well: w, ok: true, message: `${n} curves published` }),
+        (n) => ({
+          well: w,
+          ok: true,
+          // PETRO-U1-012: runBatch answers {curves, zones}; a bare count is the old shape
+          message: typeof n === 'number'
+            ? `${n} curves published`
+            : `${n.curves} curves and ${n.zones} zone summar${n.zones === 1 ? 'y' : 'ies'} published`,
+        }),
         (e) => ({ well: w, ok: false, message: e.message }),
       );
       out.push(r);
@@ -47,10 +54,22 @@ export default function BatchRunDialog({ open, onOpenChange, wells, runBatch }) 
         <DialogHeader>
           <DialogTitle>Batch run with current parameters</DialogTitle>
           <DialogDescription className="text-pl-muted">
-            Computes and publishes with the parameter set now applied. Only wells you own can be written.
+            Computes and publishes the curves and every zone summary with the parameter set now applied (zone overrides included). Only wells you own can be written.
           </DialogDescription>
         </DialogHeader>
 
+        {ownWells.length > 1 && (
+          <label className="flex items-center gap-2 text-xs text-pl-muted" data-testid="petro-batch-all-row">
+            <input
+              type="checkbox"
+              data-testid="petro-batch-all"
+              checked={picked.size === ownWells.length}
+              disabled={running}
+              onChange={(e) => setPicked(e.target.checked ? new Set(ownWells.map((w) => w.id)) : new Set())}
+            />
+            All {ownWells.length} wells you own
+          </label>
+        )}
         <div className="max-h-64 overflow-auto space-y-1">
           {ownWells.map((w) => {
             const r = results?.find((x) => x.well.id === w.id);
