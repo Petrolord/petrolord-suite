@@ -27,6 +27,13 @@ import {
 
 const TABS = ['Header', 'Logs', 'Tops', 'Intervals', 'Core', 'Deviation', 'Checkshots'];
 
+// Paste-replace field lists, hoisted so every render hands PasteReplacePanel
+// the same array (a fresh literal per render used to re-parse and re-emit
+// onParsed without end).
+const TOPS_PASTE_FIELDS = ['name', 'md'];
+const DEVIATION_PASTE_FIELDS = ['md', 'inc', 'azi'];
+const CHECKSHOT_PASTE_FIELDS = ['depth', 'time'];
+
 const thCls = 'text-left font-medium text-pl-muted pr-4 pb-1';
 const tdCls = 'pr-4 py-0.5 text-pl-text whitespace-nowrap';
 
@@ -623,7 +630,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                   { key: 'interpreter', label: 'Interpreter', type: 'text' },
                 ]} />
             ) : (
-              <PasteReplacePanel kind="tops" fields={['name', 'md']} labels={{ name: 'Top name', md: `MD (${editor.conv.mdUnit})` }}
+              <PasteReplacePanel kind="tops" fields={TOPS_PASTE_FIELDS} labels={{ name: 'Top name', md: `MD (${editor.conv.mdUnit})` }}
                 convention={editor.conv} onConvention={(c) => setEditor((ed) => ({ ...ed, conv: c }))}
                 onParsed={(pasted) => setEditor((ed) => ({ ...ed, pasted }))} testIdPrefix="wdm-tops" />
             )}
@@ -708,7 +715,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                 onChange={(rows) => setEditor((ed) => ({ ...ed, rows }))}
                 columns={[{ key: 'md', label: 'MD (m)', type: 'number' }, { key: 'inc', label: 'Inc (°)', type: 'number' }, { key: 'azi', label: 'Azi (°)', type: 'number' }]} />
             ) : (
-              <PasteReplacePanel kind="deviation" fields={['md', 'inc', 'azi']} labels={{ md: `MD (${editor.conv.mdUnit})`, inc: 'Inclination (°)', azi: 'Azimuth (°)' }}
+              <PasteReplacePanel kind="deviation" fields={DEVIATION_PASTE_FIELDS} labels={{ md: `MD (${editor.conv.mdUnit})`, inc: 'Inclination (°)', azi: 'Azimuth (°)' }}
                 convention={editor.conv} onConvention={(c) => setEditor((ed) => ({ ...ed, conv: c }))}
                 onParsed={(pasted) => setEditor((ed) => ({ ...ed, pasted }))} testIdPrefix="wdm-deviation" />
             )}
@@ -773,7 +780,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                   ]} />
               </>
             ) : (
-              <PasteReplacePanel kind="checkshots" fields={['depth', 'time']}
+              <PasteReplacePanel kind="checkshots" fields={CHECKSHOT_PASTE_FIELDS}
                 labels={{ depth: `Depth (${REF_LABEL[editor.conv.depthRef]}, ${editor.conv.depthUnit})`, time: `Time (${editor.conv.time === 'owt' ? 'OWT' : 'TWT'}, ms)` }}
                 convention={editor.conv} onConvention={(c) => setEditor((ed) => ({ ...ed, conv: c }))}
                 onParsed={(pasted) => setEditor((ed) => ({ ...ed, pasted }))} testIdPrefix="wdm-checkshots" />
