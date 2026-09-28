@@ -21,64 +21,66 @@ const RiskResponsePlanning = ({ risks }) => {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-white">Response Planning for Critical Risks</h3>
-                <div className="text-sm text-slate-400">
+            <div className="flex flex-wrap justify-between items-center gap-2">
+                <h3 className="text-lg font-semibold text-pl-text">Response Planning for Critical Risks</h3>
+                <div className="text-sm text-pl-muted">
                     Showing {criticalRisks.length} High or Critical item{criticalRisks.length === 1 ? '' : 's'}
                     {unscored > 0 ? `, and ${unscored} risk${unscored === 1 ? '' : 's'} not yet scored` : ''}
                 </div>
             </div>
 
-            <Card className="bg-slate-900 border-slate-800">
+            <Card>
                 <CardContent className="p-0">
+                    <div className="overflow-x-auto">
                     <Table>
-                        <TableHeader className="bg-slate-800/50">
-                            <TableRow className="border-slate-800">
-                                <TableHead className="text-slate-300 w-[20%]">Risk Scenario</TableHead>
-                                <TableHead className="text-slate-300 w-[10%]">Strategy</TableHead>
-                                <TableHead className="text-slate-300 w-[30%]">Mitigation Plan (Preventative)</TableHead>
-                                <TableHead className="text-slate-300 w-[30%]">Contingency Plan (Reactive)</TableHead>
-                                <TableHead className="text-slate-300 w-[10%]">Owner</TableHead>
+                        <TableHeader className="bg-pl-sunken">
+                            <TableRow className="border-pl-border">
+                                <TableHead className="w-[20%]">Risk Scenario</TableHead>
+                                <TableHead className="w-[10%]">Strategy</TableHead>
+                                <TableHead className="w-[30%]">Mitigation Plan (Preventative)</TableHead>
+                                <TableHead className="w-[30%]">Contingency Plan (Reactive)</TableHead>
+                                <TableHead className="w-[10%]">Owner</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {criticalRisks.map((risk) => (
-                                <TableRow key={risk.id} className="border-slate-800 hover:bg-slate-800/30">
-                                    <TableCell className="font-medium text-white align-top">
+                                <TableRow key={risk.id} className="border-pl-border hover:bg-pl-sunken/60">
+                                    <TableCell className="font-medium text-pl-text align-top">
                                         <div>{risk.name}</div>
-                                        <Badge variant="outline" className="mt-1 text-[10px] border-red-900 text-red-400 bg-red-900/10">
+                                        <Badge variant="danger" className="mt-1 text-[10px] font-pl-mono tabular-nums">
                                             Score: {risk.probability * risk.impact}
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="align-top">
-                                        <Badge variant="secondary" className="bg-slate-800 text-slate-300">Mitigate</Badge>
+                                        <Badge variant="neutral">Mitigate</Badge>
                                     </TableCell>
-                                    <TableCell className="text-slate-400 text-sm align-top">
+                                    <TableCell className="text-pl-muted text-sm align-top">
                                         {/* EC6-1: the HSE form saves `mitigation`; the register
                                             reads `mitigationStrategy`, so everything typed on that
                                             form showed as "No preventative actions defined". The
                                             integration service normalises it now, and this reads
                                             both for a plan saved before that. */}
                                         {risk.mitigationStrategy || risk.mitigation
-                                            || <span className="text-slate-600 italic">No preventative actions defined</span>}
+                                            || <span className="text-pl-muted italic">No preventative actions defined</span>}
                                     </TableCell>
-                                    <TableCell className="text-slate-400 text-sm align-top">
-                                        {risk.contingencyPlan || <span className="text-slate-600 italic">No contingency plan defined</span>}
+                                    <TableCell className="text-pl-muted text-sm align-top">
+                                        {risk.contingencyPlan || <span className="text-pl-muted italic">No contingency plan defined</span>}
                                     </TableCell>
-                                    <TableCell className="text-slate-300 text-sm align-top">
+                                    <TableCell className="text-pl-text text-sm align-top">
                                         {risk.owner}
                                     </TableCell>
                                 </TableRow>
                             ))}
                             {criticalRisks.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center text-slate-500 py-8">
+                                    <TableCell colSpan={5} className="text-center text-pl-muted py-8">
                                         No critical risks identified requiring detailed response planning.
                                     </TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
                     </Table>
+                    </div>
                 </CardContent>
             </Card>
         </div>

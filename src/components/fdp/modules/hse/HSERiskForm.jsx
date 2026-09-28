@@ -30,20 +30,20 @@ const HSERiskForm = ({ initialData, onSave, onCancel }) => {
     // than scoring as Low.
     const score = calculateRiskScore(formData);
     const level = getRiskLevel(score);
-    const levelColor = level === 'Critical' ? 'text-red-600'
-        : level === 'High' ? 'text-red-500'
-            : level === 'Medium' ? 'text-yellow-500'
-                : level === 'Unscored' ? 'text-slate-400' : 'text-green-500';
+    const levelColor = level === 'Critical' ? 'text-pl-danger-text font-bold'
+        : level === 'High' ? 'text-pl-danger-text'
+            : level === 'Medium' ? 'text-pl-warning-text'
+                : level === 'Unscored' ? 'text-pl-muted' : 'text-pl-success-text';
 
     return (
-        <Card className="bg-slate-900 border-slate-800 max-w-3xl mx-auto">
+        <Card className="max-w-3xl mx-auto">
             <CardHeader>
-                <CardTitle className="text-white flex items-center justify-between">
+                <CardTitle className="text-pl-text flex items-center justify-between">
                     <div className="flex items-center">
-                        <AlertTriangle className="w-5 h-5 mr-2 text-yellow-500" />
+                        <AlertTriangle className="w-5 h-5 mr-2 text-pl-muted" />
                         {initialData ? 'Edit Risk' : 'New Risk Assessment'}
                     </div>
-                    <div className={`text-sm font-mono border px-2 py-1 rounded bg-slate-800 ${levelColor} border-slate-700`}>
+                    <div className={`text-sm font-pl-mono tabular-nums border px-2 py-1 rounded bg-pl-sunken ${levelColor} border-pl-border`}>
                         {score === null ? 'Not scored' : `Score: ${score} (${level})`}
                     </div>
                 </CardTitle>
@@ -58,7 +58,6 @@ const HSERiskForm = ({ initialData, onSave, onCancel }) => {
                                 onChange={(e) => handleChange('name', e.target.value)} 
                                 placeholder="e.g., Gas Leak"
                                 required
-                                className="bg-slate-800 border-slate-700"
                             />
                         </div>
                         <div className="space-y-2">
@@ -67,7 +66,7 @@ const HSERiskForm = ({ initialData, onSave, onCancel }) => {
                                 value={formData.type} 
                                 onValueChange={(v) => handleChange('type', v)}
                             >
-                                <SelectTrigger className="bg-slate-800 border-slate-700">
+                                <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -86,7 +85,7 @@ const HSERiskForm = ({ initialData, onSave, onCancel }) => {
                                 value={formData.category} 
                                 onValueChange={(v) => handleChange('category', v)}
                             >
-                                <SelectTrigger className="bg-slate-800 border-slate-700">
+                                <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -102,7 +101,6 @@ const HSERiskForm = ({ initialData, onSave, onCancel }) => {
                                 type="number" min="1" max="5"
                                 value={formData.probability} 
                                 onChange={(e) => handleChange('probability', parseInt(e.target.value))} 
-                                className="bg-slate-800 border-slate-700"
                             />
                         </div>
                         <div className="space-y-2">
@@ -111,7 +109,6 @@ const HSERiskForm = ({ initialData, onSave, onCancel }) => {
                                 type="number" min="1" max="5"
                                 value={formData.impact} 
                                 onChange={(e) => handleChange('impact', parseInt(e.target.value))} 
-                                className="bg-slate-800 border-slate-700"
                             />
                         </div>
                     </div>
@@ -121,7 +118,7 @@ const HSERiskForm = ({ initialData, onSave, onCancel }) => {
                         <Textarea 
                             value={formData.description} 
                             onChange={(e) => handleChange('description', e.target.value)}
-                            className="bg-slate-800 border-slate-700 min-h-[80px]"
+                            className="min-h-[80px]"
                             placeholder="Describe the scenario..."
                         />
                     </div>
@@ -131,7 +128,7 @@ const HSERiskForm = ({ initialData, onSave, onCancel }) => {
                         <Textarea 
                             value={formData.mitigation} 
                             onChange={(e) => handleChange('mitigation', e.target.value)}
-                            className="bg-slate-800 border-slate-700 min-h-[80px]"
+                            className="min-h-[80px]"
                             placeholder="Controls and barriers to be put in place..."
                         />
                     </div>
@@ -142,7 +139,6 @@ const HSERiskForm = ({ initialData, onSave, onCancel }) => {
                             <Input 
                                 value={formData.owner} 
                                 onChange={(e) => handleChange('owner', e.target.value)}
-                                className="bg-slate-800 border-slate-700"
                             />
                         </div>
                         <div className="space-y-2">
@@ -151,7 +147,7 @@ const HSERiskForm = ({ initialData, onSave, onCancel }) => {
                                 value={formData.status} 
                                 onValueChange={(v) => handleChange('status', v)}
                             >
-                                <SelectTrigger className="bg-slate-800 border-slate-700">
+                                <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -163,11 +159,11 @@ const HSERiskForm = ({ initialData, onSave, onCancel }) => {
                         </div>
                     </div>
 
-                    <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
-                        <Button type="button" variant="ghost" onClick={onCancel} className="text-slate-400 hover:text-white">
+                    <div className="flex justify-end gap-2 pt-4 border-t border-pl-border">
+                        <Button type="button" variant="ghost" onClick={onCancel} className="text-pl-muted hover:text-pl-text">
                             <X className="w-4 h-4 mr-2" /> Cancel
                         </Button>
-                        <Button type="submit" className="bg-yellow-600 hover:bg-yellow-700 text-white">
+                        <Button type="submit">
                             <Save className="w-4 h-4 mr-2" /> Save Risk
                         </Button>
                     </div>

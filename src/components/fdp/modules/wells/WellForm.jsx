@@ -58,10 +58,10 @@ const WellForm = ({ initialData, onSave, onCancel, rigRate = 250000 }) => {
     };
 
     return (
-        <Card className="bg-slate-900 border-slate-800">
+        <Card>
             <CardHeader>
-                <CardTitle className="text-white flex items-center">
-                    <Drill className="w-5 h-5 mr-2 text-blue-400" />
+                <CardTitle className="text-pl-text flex items-center">
+                    <Drill className="w-5 h-5 mr-2 text-pl-muted" />
                     {initialData ? 'Edit Well' : 'New Well'}
                 </CardTitle>
             </CardHeader>
@@ -75,7 +75,6 @@ const WellForm = ({ initialData, onSave, onCancel, rigRate = 250000 }) => {
                                 onChange={(e) => handleChange('name', e.target.value)} 
                                 placeholder="e.g., A-01"
                                 required
-                                className="bg-slate-800 border-slate-700"
                             />
                         </div>
                         <div className="space-y-2">
@@ -84,7 +83,7 @@ const WellForm = ({ initialData, onSave, onCancel, rigRate = 250000 }) => {
                                 value={formData.status} 
                                 onValueChange={(v) => handleChange('status', v)}
                             >
-                                <SelectTrigger className="bg-slate-800 border-slate-700">
+                                <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -104,7 +103,7 @@ const WellForm = ({ initialData, onSave, onCancel, rigRate = 250000 }) => {
                                 value={formData.type} 
                                 onValueChange={(v) => handleChange('type', v)}
                             >
-                                <SelectTrigger className="bg-slate-800 border-slate-700">
+                                <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -123,7 +122,7 @@ const WellForm = ({ initialData, onSave, onCancel, rigRate = 250000 }) => {
                                 value={formData.trajectory} 
                                 onValueChange={(v) => handleChange('trajectory', v)}
                             >
-                                <SelectTrigger className="bg-slate-800 border-slate-700">
+                                <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -136,14 +135,14 @@ const WellForm = ({ initialData, onSave, onCancel, rigRate = 250000 }) => {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-800/50 p-4 rounded border border-slate-700">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-pl-sunken p-4 rounded border border-pl-border">
                         <div className="space-y-2">
                             <Label className="text-xs">TVD (ft)</Label>
                             <Input 
                                 type="number"
                                 value={formData.tvd} 
                                 onChange={(e) => handleChange('tvd', parseFloat(e.target.value))} 
-                                className="bg-slate-900 border-slate-700 h-8"
+                                className="h-8"
                             />
                         </div>
                         <div className="space-y-2">
@@ -152,7 +151,7 @@ const WellForm = ({ initialData, onSave, onCancel, rigRate = 250000 }) => {
                                 type="number"
                                 value={formData.md} 
                                 onChange={(e) => handleChange('md', parseFloat(e.target.value))} 
-                                className="bg-slate-900 border-slate-700 h-8"
+                                className="h-8"
                             />
                         </div>
                         <div className="space-y-2">
@@ -161,7 +160,7 @@ const WellForm = ({ initialData, onSave, onCancel, rigRate = 250000 }) => {
                                 type="number"
                                 value={formData.location?.lat} 
                                 onChange={(e) => handleLocationChange('lat', e.target.value)} 
-                                className="bg-slate-900 border-slate-700 h-8"
+                                className="h-8"
                             />
                         </div>
                         <div className="space-y-2">
@@ -170,27 +169,27 @@ const WellForm = ({ initialData, onSave, onCancel, rigRate = 250000 }) => {
                                 type="number"
                                 value={formData.location?.lng} 
                                 onChange={(e) => handleLocationChange('lng', e.target.value)} 
-                                className="bg-slate-900 border-slate-700 h-8"
+                                className="h-8"
                             />
                         </div>
                     </div>
 
-                    <div className="p-4 bg-slate-800/30 rounded border border-slate-800 flex justify-between items-center">
+                    <div className="p-4 bg-pl-sunken rounded border border-pl-border flex flex-wrap gap-2 justify-between items-center">
                         <div className="text-sm">
-                            <span className="text-slate-400">Est. Duration: </span>
-                            <span className="text-white font-mono ml-2">{formData.days} days</span>
+                            <span className="text-pl-muted">Est. Duration: </span>
+                            <span className="text-pl-text font-pl-mono tabular-nums ml-2">{formData.days} days</span>
                         </div>
                         <div className="text-sm">
-                            <span className="text-slate-400">Est. Cost: </span>
-                            <span className="text-green-400 font-mono ml-2">{full ? `$${formatFull(formData.cost, 0)}` : `$${(formData.cost / 1000000).toFixed(1)}M`}</span>
+                            <span className="text-pl-muted">Est. Cost: </span>
+                            <span className="text-pl-text font-pl-mono tabular-nums font-semibold ml-2">{full ? `$${formatFull(formData.cost, 0)}` : `$${(formData.cost / 1000000).toFixed(1)}M`}</span>
                         </div>
                     </div>
 
                     <div className="flex justify-end gap-2 pt-4">
-                        <Button type="button" variant="ghost" onClick={onCancel} className="text-slate-400 hover:text-white">
+                        <Button type="button" variant="ghost" onClick={onCancel} className="text-pl-muted hover:text-pl-text">
                             <X className="w-4 h-4 mr-2" /> Cancel
                         </Button>
-                        <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white">
+                        <Button type="submit">
                             <Save className="w-4 h-4 mr-2" /> Save Well
                         </Button>
                     </div>
