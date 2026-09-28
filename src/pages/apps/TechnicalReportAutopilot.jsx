@@ -306,8 +306,8 @@ function TechnicalReportAutopilotPageInner() {
             <ThemeToggle />
           </div>
         </header>
-        <div className="flex flex-grow overflow-hidden">
-          <div className="w-full md:w-2/5 xl:w-1/3 p-4 bg-pl-surface border-r border-pl-border overflow-y-auto">
+        <div className="flex flex-col md:flex-row flex-grow overflow-y-auto md:overflow-hidden">
+          <div className="w-full md:w-2/5 xl:w-1/3 p-4 bg-pl-surface border-b md:border-b-0 md:border-r border-pl-border md:overflow-y-auto">
             <InputPanel 
               onGenerate={handleGenerate} 
               loading={loading || serviceDown}
@@ -316,7 +316,7 @@ function TechnicalReportAutopilotPageInner() {
               setFormState={setFormState}
             />
           </div>
-          <div className="flex-1 p-4 overflow-y-auto">
+          <div className="flex-1 min-h-[70vh] md:min-h-0 p-4 md:overflow-y-auto">
             <AnimatePresence>
               {!reportData && !loading && serviceDown && (
                 <ServiceUnavailablePanel detail={error} />

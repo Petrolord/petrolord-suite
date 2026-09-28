@@ -210,7 +210,7 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
       type="button"
       data-testid={`rp-view-${key}`}
       disabled={disabled}
-      className={`px-2 py-1 text-xs rounded border disabled:opacity-40
+      className={`whitespace-nowrap px-2 py-1 text-xs rounded border disabled:opacity-40
         ${view === key ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border-strong text-pl-muted hover:text-pl-text'}`}
       onClick={() => setView(key)}
     >
@@ -222,8 +222,8 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
     <div className="flex items-center gap-2 px-3 py-1.5 bg-pl-surface border-b border-pl-border">
       <ModuleHomeLink module="geoscience" />
       <Waves className="w-4 h-4 text-pl-primary-text" />
-      <span className="text-sm font-semibold text-pl-text">Rock Physics Studio</span>
-      <span className="text-[11px] text-pl-muted">fluid substitution, AVO and tuning on the shared well registry</span>
+      <span className="whitespace-nowrap text-sm font-semibold text-pl-text">Rock Physics Studio</span>
+      <span className="hidden min-w-0 truncate text-[11px] text-pl-muted 2xl:inline">fluid substitution, AVO and tuning on the shared well registry</span>
       <div className="ml-4 flex items-center gap-1">
         {viewButton('fluids', 'Fluids & Gassmann')}
         {viewButton('avo', 'AVO')}
@@ -244,12 +244,12 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
             to={wellDataManagerHref(selected.id, 'logs', appPath(WELL_DATA_MANAGER_ID, appPaths))}
             data-testid="rp-open-wdm"
             title="Open this well in Well Data Manager on its logs (published curves are listed there)"
-            className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border-strong text-pl-text hover:text-pl-text hover:bg-pl-sunken"
+            className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border border-pl-border-strong text-pl-text hover:text-pl-text hover:bg-pl-sunken"
           >
             <Database className="w-3.5 h-3.5" /> Well data
           </Link>
         )}
-        <OpenInAppMenu wellIds={selected ? [selected.id] : []} paths={appPaths} exclude={[RP_ID]} testIdPrefix="rp" />
+        <OpenInAppMenu wellIds={selected ? [selected.id] : []} paths={appPaths} exclude={[RP_ID]} testIdPrefix="rp" className="whitespace-nowrap" />
         <Link
           to={`${appPath(RP_ID, appPaths)}/help`}
           data-testid="rp-help"
@@ -277,7 +277,7 @@ function RockWorkstationContent({ backend, appPaths = {} }) {
         <button
           type="button"
           data-testid="rp-toggle-dock"
-          className={`px-2 py-1 text-xs rounded border
+          className={`whitespace-nowrap px-2 py-1 text-xs rounded border
             ${dockOpen ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border-strong text-pl-muted'}`}
           onClick={() => setDockOpen((v) => !v)}
         >

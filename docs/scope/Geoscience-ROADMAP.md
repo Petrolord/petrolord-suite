@@ -425,3 +425,15 @@ and is the biggest build risk in the domain.
   model is documented in docs/scope/Seismolord-PLAYBOOK.md.
 - **Audit surprises** (BasinFlowGenesis/MEM): sized as unknowns on
   purpose; no roadmap phase depends on them.
+
+## 2026-09-28: Design system rollout w4d (Contour Map Digitizer, legacy Geoscience Hub)
+
+- Contour Map Digitizer wraps itself in `<ThemedApp>` (`cmd-theme-scope`)
+  with a header toggle; side panel, empty state and grid summary on pl-*
+  roles. The scanned map sits on a dark canvas (`data-canvas="dark"`) that
+  does not follow the theme; the image and the overlay drawing are
+  unchanged. Theme test: `src/pages/apps/__tests__/ContourMapDigitizer.theme.test.jsx`.
+- The legacy Geoscience Hub app (`/dashboard/apps/geoscience/hub`) wraps
+  itself in `<ThemedApp>` (`geo-hub-theme-scope`) with `AppHeader`; cards on
+  the adapted primitives. Theme test: `src/pages/apps/__tests__/GeoscienceHub.theme.test.jsx`.
+- Both routes registered in `src/design/rollout/w4d.js`.
