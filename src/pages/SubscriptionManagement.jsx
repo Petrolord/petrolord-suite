@@ -107,14 +107,14 @@ function SubscriptionManagementPage() {
       ) : apps.length === 0 ? (
           <div className={accountEmpty}>No active subscriptions found.</div>
       ) : (
-          <div className="grid gap-6">
+          <div className="grid grid-cols-1 gap-6">
               {apps.map(app => {
                   const appId = app.app_id || app.module_id;
                   const details = seatDetails[appId];
                   const isExpanded = expandedApp === appId;
 
                   return (
-                      <Card key={app.id}>
+                      <Card key={app.id} className="min-w-0">
                           <CardHeader className="pb-3">
                               <div className="flex flex-wrap justify-between items-center gap-4">
                                   <div className="min-w-0">
@@ -160,7 +160,7 @@ function SubscriptionManagementPage() {
                                                   <TableCell className="font-pl-mono tabular-nums text-pl-muted">#{seat.seat_number}</TableCell>
                                                   <TableCell className="font-medium">{seat.user_name || 'Unknown'}</TableCell>
                                                   <TableCell>
-                                                      {seat.is_admin_seat ? <Badge variant="accent">Admin Seat</Badge> : <Badge variant="neutral">Member</Badge>}
+                                                      {seat.is_admin_seat ? <Badge variant="accent" className="whitespace-nowrap">Admin Seat</Badge> : <Badge variant="neutral">Member</Badge>}
                                                   </TableCell>
                                                   <TableCell>
                                                       {seat.is_locked ? <Badge variant="danger"><Lock className="w-3 h-3 mr-1"/> Locked</Badge> : <Badge variant="success"><Shield className="w-3 h-3 mr-1"/> Active</Badge>}
