@@ -75,7 +75,7 @@ const EventTreePanel = () => {
         <Result result={tree}>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
-              <thead className="text-left text-slate-400">
+              <thead className="text-left text-pl-muted">
                 <tr>
                   <th className="py-1 pr-3">Path</th>
                   <th className="py-1 pr-3">Outcome</th>
@@ -83,10 +83,10 @@ const EventTreePanel = () => {
                   <th className="py-1 text-right">Frequency (per year)</th>
                 </tr>
               </thead>
-              <tbody className="font-mono text-slate-200">
+              <tbody className="font-mono text-pl-text">
                 {tree && !tree.error ? tree.outcomes.map((o) => (
-                  <tr key={o.path.join('/')} className="border-t border-slate-800">
-                    <td className="py-1 pr-3 font-sans text-slate-300">{o.path.join(' > ')}</td>
+                  <tr key={o.path.join('/')} className="border-t border-pl-border">
+                    <td className="py-1 pr-3 font-sans text-pl-text">{o.path.join(' > ')}</td>
                     <td className="py-1 pr-3 font-sans">{o.outcome}</td>
                     <td className="py-1 pr-3 text-right">{formatPercent(o.probability)}</td>
                     <td className="py-1 text-right" data-testid={`outcome-${o.outcome.replace(/\s+/g, '-')}`}>{formatSci(o.frequencyPerYr, 4)}</td>
