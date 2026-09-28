@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatBudgetMillions, budgetFromMillionsInput } from '../formatBudget';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -74,7 +75,7 @@ const BrownfieldProjectWizard = ({ open, onOpenChange, onProjectCreated, userId 
           description: formData.description,
           start_date: formData.startDate,
           end_date: calculateEndDate().toISOString(),
-          baseline_budget: parseFloat(formData.budget) * 1000000, 
+          baseline_budget: budgetFromMillionsInput(formData.budget), 
           company_name: 'Brownfield Solutions', 
           project_type: 'Brownfield Development',
           stage: 'Opportunity Identification',
@@ -328,7 +329,7 @@ const BrownfieldProjectWizard = ({ open, onOpenChange, onProjectCreated, userId 
                             <div className="flex flex-col"><span className="text-pl-muted text-xs">Project Name</span><span className="text-pl-text">{formData.name}</span></div>
                             <div className="flex flex-col"><span className="text-pl-muted text-xs">Asset</span><span className="text-pl-text">{formData.asset}</span></div>
                             <div className="flex flex-col"><span className="text-pl-muted text-xs">Upgrade</span><span className="text-pl-text">{formData.facilityUpgrades}</span></div>
-                            <div className="flex flex-col"><span className="text-pl-muted text-xs">Budget</span><span className="text-pl-text font-pl-mono tabular-nums">${formData.budget}M</span></div>
+                            <div className="flex flex-col"><span className="text-pl-muted text-xs">Budget</span><span className="text-pl-text font-pl-mono tabular-nums">{formatBudgetMillions(budgetFromMillionsInput(formData.budget))}</span></div>
                             <div className="flex flex-col"><span className="text-pl-muted text-xs">Target Uplift</span><span className="text-pl-text">{formData.productionIncreaseTarget}</span></div>
                             <div className="flex flex-col"><span className="text-pl-muted text-xs">Duration</span><span className="text-pl-text">~{(BROWNFIELD_TEMPLATE.stages.reduce((a,b)=>a+b.duration_weeks,0)/4).toFixed(1)} months</span></div>
                         </div>

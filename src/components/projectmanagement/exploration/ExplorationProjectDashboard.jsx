@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatBudgetMillions } from '../formatBudget';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -46,7 +47,7 @@ const ExplorationProjectDashboard = ({ projectData, onDataChange }) => {
             <Card className="p-4 flex items-center justify-between">
                 <div>
                     <p className="text-[10px] text-pl-muted uppercase font-bold">Budget</p>
-                    <p className="text-lg font-pl-mono text-pl-text">${(projectData.baseline_budget / 1000000).toFixed(1)}M</p>
+                    <p className="text-lg font-pl-mono text-pl-text">{formatBudgetMillions(projectData.baseline_budget)}</p>
                 </div>
                 {/* EC6-0: this read "On Track" in green on every project of this
                     type, whatever its costs said. It is the cost index the
