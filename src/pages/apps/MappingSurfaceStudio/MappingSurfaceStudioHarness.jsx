@@ -10,6 +10,7 @@ import { useSearchParams } from 'react-router-dom';
 import MappingWorkstation from './components/MappingWorkstation';
 import { DEV_APP_PATHS } from '@/components/wells/appLinks';
 import { makeInMemoryBackend } from './services/inMemoryBackend';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 export default function MappingSurfaceStudioHarness() {
   // ?harness=sidetrack seeds a sidetrack on KETA-1's slot (T1 e2e)
@@ -17,8 +18,8 @@ export default function MappingSurfaceStudioHarness() {
   const sidetrack = params.get('harness') === 'sidetrack';
   const backend = useMemo(() => makeInMemoryBackend({ sidetrack }), [sidetrack]);
   return (
-    <div className="h-screen w-full overflow-hidden">
+    <ThemedApp className="h-screen w-full overflow-hidden" data-testid="map-theme-scope">
       <MappingWorkstation backend={backend} appPaths={DEV_APP_PATHS} />
-    </div>
+    </ThemedApp>
   );
 }
