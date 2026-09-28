@@ -36,6 +36,24 @@ const HIT_PX = 8;
  * @param {(next: {x: [number, number], y: [number, number]} | null) => void} [p.onDomainsChange]
  *   enables wheel zoom + drag pan; null means reset to defaults
  */
+/** Where an overlay's name goes: walking back from the line's end, the
+ *  first point inside the plot where the text fits (right-aligned when the
+ *  line runs to the right edge). Null when no stretch is visible. */
+export function overlayLabelAnchor(pts, X, Y, box, textW) {
+  if (!pts || pts.length < 2) return null;
+  const a = pts[pts.length - 2];
+  const b = pts[pts.length - 1];
+  for (let k = 0; k <= 40; k++) {
+    const t = 1 - k / 40;
+    const x = X(a.x + (b.x - a.x) * t);
+    const y = Y(a.y + (b.y - a.y) * t) - 3;
+    if (y < box.t + 10 || y > box.b - 2 || x < box.l + 2 || x > box.r - 2) continue;
+    if (x + 3 + textW <= box.r - 2) return { x: x + 3, y, align: 'left' };
+    if (x - 3 - textW >= box.l + 2) return { x: x - 3, y, align: 'right' };
+  }
+  return null;
+}
+
 export default function Crossplot({
   points, xLabel, yLabel, xDomain, yDomain,
   xLog = false, yLog = false, yReverse = false,
@@ -153,11 +171,16 @@ export default function Crossplot({
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.lineWidth = 1;
-      const last = ov.pts[ov.pts.length - 1];
       ctx.fillStyle = ov.color || CHART_COLORS.axisText;
       ctx.font = '10px sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText(ov.name, X(last.x) + 3, Y(last.y) - 3);
+      // PETRO-U1-015: the label sits on the last stretch of the line that
+      // is inside the plot with room for the text (the Sandstone and
+      // Limestone labels used to fall off the top and right edges)
+      const at = overlayLabelAnchor(ov.pts, X, Y, { l: M.l, t: M.t, r: M.l + plotW, b: M.t + plotH }, ctx.measureText(ov.name).width);
+      if (at) {
+        ctx.textAlign = at.align;
+        ctx.fillText(ov.name, at.x, at.y);
+      }
     }
 
     // facies polygons
@@ -361,7 +384,8 @@ export default function Crossplot({
           wheel: zoom · drag: pan{onPlotClick ? '' : ' · double-click: reset'}
         </span>
       )}
-      <ChartLogo />
+      {/* PETRO-U1-015: inside the plot's bottom-right corner, clear of the tick labels and the colour bar */}
+      <ChartLogo style={{ bottom: `${M.b + 6}px`, right: `${mr + 6}px`, height: '32px' }} />
     </div>
   );
 }
