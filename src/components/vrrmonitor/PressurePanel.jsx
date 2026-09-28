@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useVrrMonitor } from '@/contexts/VrrMonitorContext';
-import { useStudioTheme, THEMED_TONE } from '@/components/studio/studioTheme';
+import { THEMED_TONE } from '@/components/studio/studioTheme';
 import { parsePressureCSV } from '@/utils/vrr/csvImport';
 
 const FLUID_FIELDS = [
@@ -25,8 +25,7 @@ const PressurePanel = () => {
     setPvtMode, setFluidField, addNotification,
   } = useVrrMonitor();
   const fileRef = useRef(null);
-  const { tc } = useStudioTheme();
-  const modeBtn = (on) => (on ? tc('bg-sky-500/10 border-sky-500/40 text-sky-300', 'bg-pl-primary/10 border-pl-primary text-pl-primary-text hover:bg-pl-primary/15') : tc('bg-slate-800 border-slate-700', ''));
+  const modeBtn = (on) => (on ? 'bg-pl-primary/10 border-pl-primary text-pl-primary-text hover:bg-pl-primary/15' : '');
 
   const onFile = (e) => {
     const file = e.target.files?.[0];
@@ -50,7 +49,7 @@ const PressurePanel = () => {
     <div className="space-y-5">
       <section className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label className={tc('text-xs text-slate-400', 'text-xs text-pl-muted mb-0')}>Surveys (date, psia)</Label>
+          <Label className="text-xs text-pl-muted mb-0">Surveys (date, psia)</Label>
           <div className="flex gap-1">
             <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => fileRef.current?.click()} title="Import surveys CSV">
               <Upload className="w-3.5 h-3.5" />
@@ -62,7 +61,7 @@ const PressurePanel = () => {
           </div>
         </div>
         {inputs.pressureSurveys.length === 0 && (
-          <p className={tc('text-[11px] text-slate-500', 'text-xs text-pl-muted')}>
+          <p className="text-xs text-pl-muted">
             No surveys yet. Add rows here or import a CSV with date and pressure columns.
           </p>
         )}
@@ -72,17 +71,17 @@ const PressurePanel = () => {
               value={s.date}
               onChange={(e) => updateSurvey(i, 'date', e.target.value)}
               placeholder="YYYY-MM-DD"
-              className={tc('h-8 bg-slate-800 border-slate-700 flex-1', 'h-8 flex-1 min-w-0 font-pl-mono tabular-nums')}
+              className="h-8 flex-1 min-w-0 font-pl-mono tabular-nums"
               aria-label={`Survey ${i + 1} date`}
             />
             <Input
               value={s.p_psia}
               onChange={(e) => updateSurvey(i, 'p_psia', e.target.value)}
               placeholder="psia"
-              className={tc('h-8 bg-slate-800 border-slate-700 w-20 text-right', 'h-8 w-24 text-right font-pl-mono tabular-nums')}
+              className="h-8 w-24 text-right font-pl-mono tabular-nums"
               aria-label={`Survey ${i + 1} pressure (psia)`}
             />
-            <button onClick={() => removeSurvey(i)} className={tc('text-slate-500 hover:text-red-400', 'shrink-0 rounded text-pl-muted hover:text-pl-danger-text')} title="Remove survey">
+            <button onClick={() => removeSurvey(i)} className="shrink-0 rounded text-pl-muted hover:text-pl-danger-text" title="Remove survey">
               <Trash2 className="w-4 h-4" />
             </button>
           </div>
@@ -90,7 +89,7 @@ const PressurePanel = () => {
       </section>
 
       <section className="space-y-2">
-        <Label className={tc('text-xs text-slate-400', 'text-xs text-pl-muted')}>Fluid properties per period</Label>
+        <Label className="text-xs text-pl-muted">Fluid properties per period</Label>
         <div className="grid grid-cols-2 gap-2">
           <Button
             variant="outline" size="sm"
@@ -109,7 +108,7 @@ const PressurePanel = () => {
             Pressure track
           </Button>
         </div>
-        <p className={tc('text-[11px] text-slate-500 leading-relaxed', 'text-xs text-pl-muted leading-relaxed')}>
+        <p className="text-xs text-pl-muted leading-relaxed">
           Pressure track derives Bo, Bw, Bg and Rs per period from black-oil correlations at the
           interpolated period pressure. Periods without a pressure keep the constant FVF set.
         </p>
@@ -119,17 +118,17 @@ const PressurePanel = () => {
         <section className="space-y-2">
           {FLUID_FIELDS.map(({ key, label }) => (
             <div key={key} className="space-y-1">
-              <Label htmlFor={`vrr-fluid-${key}`} className={tc('text-xs text-slate-400', 'text-xs text-pl-muted')}>{label}</Label>
+              <Label htmlFor={`vrr-fluid-${key}`} className="text-xs text-pl-muted">{label}</Label>
               <Input
                 value={inputs.fluid[key]}
                 id={`vrr-fluid-${key}`}
                 onChange={(e) => setFluidField(key, e.target.value)}
-                className={tc('h-8 bg-slate-800 border-slate-700', 'h-8 font-pl-mono tabular-nums')}
+                className="h-8 font-pl-mono tabular-nums"
               />
             </div>
           ))}
           {pvtTrack?.warnings?.length > 0 && (
-            <div className={tc('text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded px-2 py-1.5 space-y-0.5', `text-xs border rounded px-2 py-1.5 space-y-0.5 ${THEMED_TONE.warn}`)}>
+            <div className={`text-xs border rounded px-2 py-1.5 space-y-0.5 ${THEMED_TONE.warn}`}>
               {pvtTrack.warnings.map((w, i) => <div key={i}>{w}</div>)}
             </div>
           )}

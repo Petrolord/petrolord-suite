@@ -622,7 +622,8 @@ function App() {
                                 {/* W6: surveillance absorbed into the Waterflood Design Studio */}
                                 <Route path="apps/reservoir/waterflood-dashboard" element={<Navigate to="/apps/reservoir/waterflood-design-studio?tab=surveillance" replace />} />
                                 {/* design system pilot 5: light by default, dark by choice (docs/scope/DesignSystem.md) */}
-                                <Route path="apps/reservoir/voidage-replacement-monitor" element={<ThemedApp><VoidageReplacementMonitor /></ThemedApp>} />
+                                {/* Design system pilot 5: the page wraps itself in ThemedApp. */}
+                                <Route path="apps/reservoir/voidage-replacement-monitor" element={<VoidageReplacementMonitor />} />
                                 <Route path="apps/reservoir/waterflood-design-studio" element={<WaterfloodDesignStudio />} />
                                 <Route path="apps/reservoir/scal-studio" element={<ScalStudio />} />
                                 <Route path="apps/reservoir/reservoir-simulation-studio" element={<ProtectedAppRoute appId="reservoir-simulation-studio" appName="Reservoir Simulation Studio"><ReservoirSimulationStudio /></ProtectedAppRoute>} />

@@ -2,7 +2,6 @@
 // VRR upgrade re-housed this from a standalone Dialog).
 import React from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { useStudioTheme } from '@/components/studio/studioTheme';
 import { BookOpen, Droplets, Table2, LineChart, Scale, Upload, AlertTriangle, FolderOpen, Gauge, Network } from 'lucide-react';
 
 const helpContent = [
@@ -88,20 +87,19 @@ const helpContent = [
 // Design system: inside the VRR theme scope the accordion (not yet adapted
 // in @/components/ui) takes theme roles through class overrides.
 const VrrHelpContent = () => {
-  const { tc } = useStudioTheme();
   return (
   <Accordion type="single" collapsible className="w-full" defaultValue="what">
     {helpContent.map((item) => {
       const Icon = item.icon;
       return (
-        <AccordionItem value={item.id} key={item.id} className={tc(undefined, 'border-pl-border')}>
-          <AccordionTrigger className={tc('text-base hover:no-underline', 'text-base text-left text-pl-text hover:no-underline hover:text-pl-primary-text')}>
+        <AccordionItem value={item.id} key={item.id} className="border-pl-border">
+          <AccordionTrigger className="text-base text-left text-pl-text hover:no-underline hover:text-pl-primary-text">
             <div className="flex items-center">
-              <Icon className={tc('w-5 h-5 mr-3 text-lime-400', 'w-5 h-5 mr-3 shrink-0 text-pl-primary-text')} />
+              <Icon className="w-5 h-5 mr-3 shrink-0 text-pl-primary-text" />
               {item.title}
             </div>
           </AccordionTrigger>
-          <AccordionContent className={tc('text-slate-300 pl-8 leading-relaxed', 'text-pl-text pl-8 leading-relaxed')}>
+          <AccordionContent className="text-pl-text pl-8 leading-relaxed">
             {item.content}
           </AccordionContent>
         </AccordionItem>

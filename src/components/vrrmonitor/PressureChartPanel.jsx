@@ -11,13 +11,11 @@ import ChartFrame from '@/components/charts/ChartFrame';
 import GatedNotice from '@/components/vrrmonitor/GatedNotice';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { useVrrMonitor } from '@/contexts/VrrMonitorContext';
-import { useStudioTheme } from '@/components/studio/studioTheme';
 
 const LINE = { inst: '#2563eb', cum: '#059669', pressure: '#7c3aed', ref: '#dc2626', fill: '#0891b2' };
 
 const PressureChartPanel = () => {
   const { series, hasPressure, fillUp, trackActive } = useVrrMonitor();
-  const { tc } = useStudioTheme();
 
   const chartData = useMemo(
     () =>
@@ -44,13 +42,13 @@ const PressureChartPanel = () => {
   }
 
   return (
-    <Card className={tc('bg-slate-900 border-slate-800', undefined)}>
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base">
           VRR vs reservoir pressure
-          {trackActive && <span className={tc('text-xs font-normal text-sky-400 ml-2', 'text-xs font-medium text-pl-info-text ml-2')}>pressure-dependent FVFs active</span>}
+          {trackActive && <span className="text-xs font-medium text-pl-info-text ml-2">pressure-dependent FVFs active</span>}
           {fillUp && (
-            <span className={tc('text-xs font-normal text-slate-500 ml-2', 'text-xs font-normal text-pl-muted ml-2')}>
+            <span className="text-xs font-normal text-pl-muted ml-2">
               {fillUp.startedAbove ? 'record starts at or above fill-up' : `fill-up reached ${fillUp.label}`}
             </span>
           )}
