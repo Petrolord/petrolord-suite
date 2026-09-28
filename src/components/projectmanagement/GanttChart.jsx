@@ -40,7 +40,7 @@ const GanttChart = ({ tasks, projectName, companyName, onDataChange }) => {
   // Ensure at least one task exists to prevent crashes
   if (ganttTasks.length === 0) {
     return (
-        <div className="flex items-center justify-center h-64 border border-dashed border-slate-700 rounded-lg bg-slate-900/50 text-slate-500">
+        <div className="flex items-center justify-center h-64 border border-dashed border-pl-border rounded-lg bg-pl-surface text-pl-muted">
             No tasks to display in timeline. Add tasks or import a template.
         </div>
     );
@@ -92,19 +92,19 @@ const GanttChart = ({ tasks, projectName, companyName, onDataChange }) => {
   };
 
   return (
-    <div className="gantt-container text-white h-full flex flex-col">
-      <div id="gantt-export-container" className="bg-slate-900 p-4 rounded-lg border border-slate-800 h-full flex flex-col" ref={ganttRef}>
-        <div className="flex justify-between items-center mb-4">
+    <div className="gantt-container text-pl-text h-full flex flex-col">
+      <div id="gantt-export-container" className="bg-pl-surface p-4 rounded-lg border border-pl-border h-full flex flex-col" ref={ganttRef}>
+        <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
           <div>
-              <h3 className="text-xl font-bold text-white">{projectName}</h3>
-              <p className="text-md text-slate-300">{companyName || 'Project Schedule'}</p>
+              <h3 className="text-xl font-bold text-pl-text">{projectName}</h3>
+              <p className="text-md text-pl-muted">{companyName || 'Project Schedule'}</p>
           </div>
           <div className="flex gap-2">
-              <Button onClick={toggleViewMode} variant="outline" size="sm" className="text-white border-slate-600 hover:bg-slate-800">
+              <Button onClick={toggleViewMode} variant="outline" size="sm">
                 {viewMode === ViewMode.Month ? <ZoomIn className="w-4 h-4 mr-2" /> : <ZoomOut className="w-4 h-4 mr-2" />}
                 {viewMode} View
               </Button>
-              <Button onClick={handleExport} variant="outline" size="sm" className="text-white border-lime-400 hover:bg-lime-500/20">
+              <Button onClick={handleExport} variant="outline" size="sm">
                 <Download className="w-4 h-4 mr-2" />Export
               </Button>
           </div>
@@ -116,7 +116,7 @@ const GanttChart = ({ tasks, projectName, companyName, onDataChange }) => {
             text over the library's light zebra rows and every second task
             was unreadable. The chart now sits on the Suite's white chart
             standard with dark text. */}
-        <div className="relative flex-1 overflow-hidden rounded border border-slate-300 bg-white text-slate-800">
+        <div data-canvas="chart" className="relative flex-1 overflow-hidden rounded border border-slate-300 bg-white text-slate-800">
             <Gantt
             tasks={ganttTasks}
             viewMode={viewMode}
@@ -136,6 +136,12 @@ const GanttChart = ({ tasks, projectName, companyName, onDataChange }) => {
             />
             <ChartLogo />
         </div>
+        {/* Bar colours carry task status, so each one is named here too. */}
+        <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-pl-muted" aria-label="Bar colours">
+          {[['#22c55e', 'Complete'], ['#3b82f6', 'On schedule'], ['#ef4444', 'Past planned end'], ['#a855f7', 'Milestone']].map(([c, label]) => (
+            <li key={label} className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: c }} aria-hidden="true" />{label}</li>
+          ))}
+        </ul>
       </div>
     </div>
   );
