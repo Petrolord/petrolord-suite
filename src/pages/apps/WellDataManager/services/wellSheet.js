@@ -118,7 +118,7 @@ export async function buildWellSheet({ well, logs = [], tops = [], zones = [], u
   if (logs.length) {
     table(['Curve', 'Unit', `From (${u} MD)`, `To (${u} MD)`, `Step (${u})`, 'Samples', 'Nulls', 'Origin', 'Source'], logs.map((l) => [
       l.mnemonic, l.unit || EMPTY_VALUE, fmtDepth(Math.min(l.start_md_m, l.stop_md_m), u), fmtDepth(Math.max(l.start_md_m, l.stop_md_m), u),
-      l.step_m == null ? 'irregular' : fmtDepth(l.step_m, u, 4), String(l.n_samples ?? EMPTY_VALUE), String(l.null_count ?? EMPTY_VALUE),
+      l.step_m == null ? 'irregular' : fmtDepth(l.step_m, u, 3), String(l.n_samples ?? EMPTY_VALUE), String(l.null_count ?? EMPTY_VALUE),
       curveOrigin(l)?.label || 'measured', l.source_file || EMPTY_VALUE,
     ]));
   } else { doc.setFontSize(8.5); doc.setFont('helvetica', 'normal'); doc.text('No logs on this well.', margin, y + 3); y += 9; }

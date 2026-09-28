@@ -11,6 +11,8 @@ import { sheetRows, topNameSummary, planBulkRename, planTopsPaste } from '../eng
 import { fmtDepth, editCell, parseDisplayed, unitText } from '../engine/displayUnits';
 import { parseDelimited, guessMapping, guessMdUnit } from '@/lib/wellImport';
 import { EMPTY_VALUE } from '@/lib/emptyValue';
+import { displayLabel, normalizeSurfaceType } from '@/lib/stratigraphy/vocabulary';
+import { useScheme } from '@/lib/stratigraphy/scheme';
 
 const thCls = 'sticky top-0 bg-pl-surface text-left font-medium text-pl-muted px-2 py-1 border-b border-pl-border whitespace-nowrap';
 const tdCls = 'px-2 py-0.5 text-pl-text whitespace-nowrap';
@@ -30,6 +32,7 @@ export function pasteMapping(header) {
 
 export default function TopsSheetView({ backend, wells, unit = 'm', onStatus, onChanged, reloadKey = 0 }) {
   const u = unitText(unit);
+  const [scheme] = useScheme();
   const [tops, setTops] = useState(null);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('');
@@ -231,7 +234,7 @@ export default function TopsSheetView({ backend, wells, unit = 'm', onStatus, on
                   </td>
                   <td className={tdCls}>{fmtDepth(r.tvd, u)}{r.extrapolated ? ' †' : ''}</td>
                   <td className={tdCls} title={r.kbSet ? '' : 'KB not set on this well: TVDSS equals TVD'}>{fmtDepth(r.tvdss, u)}{r.kbSet ? '' : ' *'}</td>
-                  <td className={tdCls}>{r.surface_type || EMPTY_VALUE}</td>
+                  <td className={tdCls}>{displayLabel(normalizeSurfaceType(r.surface_type), scheme, { kind: 'surface', short: true }).label}</td>
                   <td className={tdCls}>{r.interpreter || EMPTY_VALUE}</td>
                 </tr>
               );

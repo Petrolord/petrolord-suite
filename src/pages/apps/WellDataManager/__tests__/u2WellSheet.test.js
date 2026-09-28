@@ -71,8 +71,8 @@ test('the sheet in feet carries the reviewer header, tops, inventory and zones (
   // three headline numbers: a top in MD, its TVD below the survey, a zone net
   expect(text).toMatch(/Top Agbada 6000\.0 \d{4}\.\d \d{4}\.\d formation top ama/);
   expect(text).toMatch(/Agbada 6000\.0 6500\.0 100\.00 0\.20 0\.221 0\.350 2026-09-20 Base/);
-  expect(text).toMatch(/PHIE V\/V 5000\.0 8000\.0 0\.5000 6001 40 computed/);
-  expect(text).toMatch(/GR GAPI 5000\.0 8000\.0 0\.5000 6001 12 measured run1\.las/);
+  expect(text).toMatch(/PHIE V\/V 5000\.0 8000\.0 0\.500 6001 40 computed/);
+  expect(text).toMatch(/GR GAPI 5000\.0 8000\.0 0\.500 6001 12 measured run1\.las/);
   expect(text).toContain('Page 1 of');
   // no em or en dashes survive into the PDF text
   expect(text).not.toMatch(/[–—]/);
