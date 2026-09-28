@@ -2,6 +2,7 @@
 // VRR upgrade re-housed this from a standalone Dialog).
 import React from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { useStudioTheme } from '@/components/studio/studioTheme';
 import { BookOpen, Droplets, Table2, LineChart, Scale, Upload, AlertTriangle, FolderOpen, Gauge, Network } from 'lucide-react';
 
 const helpContent = [
@@ -45,14 +46,14 @@ const helpContent = [
     icon: Gauge,
     title: 'Pressure tab: the maintenance proof',
     content:
-      'VRR is a means to an end; the end is reservoir pressure. On the Pressure tab, enter or import pressure surveys (date and psia) and the app interpolates them onto each period, overlays pressure on the VRR trend, shows dp/dt in the tooltip, and marks fill-up where cumulative VRR first reaches 1. A VRR near 1 with steady pressure is the proof of pressure maintenance; a VRR near 1 with falling pressure suggests out-of-zone injection or unaccounted voidage. With Pressure track mode on, Bo, Bw, Bg and Rs are derived per period from black-oil correlations at the interpolated pressure instead of one constant set, which matters most below the bubble point where gas properties move quickly. The chart is withheld with a stated reason until pressure actually attaches to your periods.',
+      'VRR is a means to an end; the end is reservoir pressure. On the Pressure tab, enter or import pressure surveys (date and psia) and the app interpolates them onto each period, overlays pressure on the VRR trend, shows dp/dt in the tooltip, and marks fill-up where cumulative VRR first reaches 1. A VRR near 1 with steady pressure is the proof of pressure maintenance; a VRR near 1 with falling pressure suggests out-of-zone injection or unaccounted voidage. With Pressure track mode on, Bo, Bw, Bg and Rs are derived per period from black-oil correlations at the interpolated pressure. That matters most below the bubble point where gas properties move quickly. The chart is withheld with a stated reason until pressure actually attaches to your periods.',
   },
   {
     id: 'patterns',
     icon: Network,
     title: 'Patterns tab: allocation factors and per-pattern VRR',
     content:
-      'A field-level VRR of 1 can hide one flooded-out pattern and one starved one. On the Patterns tab (available with an imported per-well ledger), define patterns as sets of producers, then fill the allocation matrix: for each injector, the fraction of its volume reaching each producer. Rows should sum to 1; a shortfall counts as out-of-zone injection and the audit line accounts for every barrel. The fractions are your judgement (from streamline runs, interference tests or geometry); the app never assumes even splits on its own, though an Even split button is there when that is your call. Each pattern then gets its own VRR trend, band flags, and a water-injection recommendation that scales recent allocated injection by target over current rolling VRR, split per injector by allocated share. Recommendations with an implausibly large step are clamped and flagged; treat that as a prompt to re-check allocation and PVT rather than as an instruction. The KPI row above the trend names the weakest pattern in the field, which is the one furthest below your target band, so the pattern that most needs attention is on screen without hunting through the list.',
+      'A field-level VRR of 1 can hide one flooded-out pattern and one starved one. On the Patterns tab (available with an imported per-well ledger), define patterns as sets of producers, then fill the allocation matrix: for each injector, the fraction of its volume reaching each producer. Rows should sum to 1; a shortfall counts as out-of-zone injection and the audit line accounts for every barrel. The fractions are your judgement (from streamline runs, interference tests or geometry); the app never assumes even splits on its own, though an Even split button is there when that is your call. Each pattern then gets its own VRR trend, band flags, and a water-injection recommendation that scales recent allocated injection by target over current rolling VRR, split per injector by allocated share. Recommendations with an implausibly large step are clamped and flagged; treat that as a prompt to re-check allocation and PVT before acting on it. The KPI row above the trend names the weakest pattern in the field, which is the one furthest below your target band, so the pattern that most needs attention is on screen without hunting through the list.',
   },
   {
     id: 'interpret',
@@ -66,7 +67,7 @@ const helpContent = [
     icon: Upload,
     title: 'Importing real field data (per-well CSV)',
     content:
-      'The Data & PVT tab imports real allocation files: one row per well per date (daily or monthly), with columns for date, well, oil, water and gas produced, and water and gas injected. Common header aliases are recognized (oil_bbl, np, bopd, water_inj, inj_bbl, gas_inj and more) and units auto-scale from the header (MMscf and Bscf to Mscf, Mbbl to bbl). Rows the importer cannot use are listed in the import report, never dropped silently. Daily rows aggregate to calendar months. Download the Template for the exact schema, or click Sample wells to load a worked 3-month, 4-well example. Wells that ever inject classify as injectors, including gas injectors.',
+      'The Data & PVT tab imports real allocation files: one row per well per date (daily or monthly), with columns for date, well, oil, water and gas produced, and water and gas injected. Common header aliases are recognized (oil_bbl, np, bopd, water_inj, inj_bbl, gas_inj and more) and units auto-scale from the header (MMscf and Bscf to Mscf, Mbbl to bbl). Rows the importer cannot use are listed in the import report, so nothing is dropped silently. Daily rows aggregate to calendar months. Download the Template for the exact schema, or click Sample wells to load a worked 3-month, 4-well example. Wells that ever inject classify as injectors, including gas injectors.',
   },
   {
     id: 'data',
@@ -80,29 +81,34 @@ const helpContent = [
     icon: AlertTriangle,
     title: 'Assumptions and limitations',
     content:
-      'VRR is a material-balance surveillance ratio, not a full reservoir simulation. It assumes your FVFs are representative for the period and that reported volumes are allocated correctly to this pattern or reservoir. It says nothing about sweep efficiency or where injected fluid actually goes; a VRR of 1 with poor conformance can still leave oil behind. Use it alongside pressure data and pattern analysis.',
+      'VRR is a material-balance surveillance ratio. It does not replace a full reservoir simulation. It assumes your FVFs are representative for the period and that reported volumes are allocated correctly to this pattern or reservoir. It says nothing about sweep efficiency or where injected fluid actually goes; a VRR of 1 with poor conformance can still leave oil behind. Use it alongside pressure data and pattern analysis.',
   },
 ];
 
-const VrrHelpContent = () => (
+// Design system: inside the VRR theme scope the accordion (not yet adapted
+// in @/components/ui) takes theme roles through class overrides.
+const VrrHelpContent = () => {
+  const { tc } = useStudioTheme();
+  return (
   <Accordion type="single" collapsible className="w-full" defaultValue="what">
     {helpContent.map((item) => {
       const Icon = item.icon;
       return (
-        <AccordionItem value={item.id} key={item.id}>
-          <AccordionTrigger className="text-base hover:no-underline">
+        <AccordionItem value={item.id} key={item.id} className={tc(undefined, 'border-pl-border')}>
+          <AccordionTrigger className={tc('text-base hover:no-underline', 'text-base text-left text-pl-text hover:no-underline hover:text-pl-primary-text')}>
             <div className="flex items-center">
-              <Icon className="w-5 h-5 mr-3 text-lime-400" />
+              <Icon className={tc('w-5 h-5 mr-3 text-lime-400', 'w-5 h-5 mr-3 shrink-0 text-pl-primary-text')} />
               {item.title}
             </div>
           </AccordionTrigger>
-          <AccordionContent className="text-slate-300 pl-8 leading-relaxed">
+          <AccordionContent className={tc('text-slate-300 pl-8 leading-relaxed', 'text-pl-text pl-8 leading-relaxed')}>
             {item.content}
           </AccordionContent>
         </AccordionItem>
       );
     })}
   </Accordion>
-);
+  );
+};
 
 export default VrrHelpContent;

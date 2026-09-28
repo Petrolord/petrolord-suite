@@ -6,6 +6,7 @@ import React, { lazy, Suspense } from 'react';
 import { useParams } from 'react-router-dom';
 import InMemorySupabase, { createStore, DEV_USER } from './InMemorySupabase';
 import DevAuth from './DevAuth';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 const APPS = {
   afe: lazy(() => import('@/pages/apps/AfeCostControlManager')),
@@ -31,6 +32,10 @@ const APPS = {
   'ml-workbench': lazy(() => import('@/pages/apps/MlWorkbench')),
   'forecasting-ml': lazy(() => import('@/pages/apps/ForecastingMlWorkbench')),
 };
+
+// Apps opted in to the design system render inside their theme scope here,
+// as they do on their real routes.
+const THEMED = new Set(['vrr']);
 
 // Worked cases with closed-form answers, per app (checked in the T1 reports).
 const U = DEV_USER.id;
@@ -130,7 +135,9 @@ export default function StudiosHarness() {
     <InMemorySupabase db={storeFor(app)} functions={FUNCTIONS[app]}>
       <DevAuth>
         <div className="min-h-screen bg-slate-950 text-slate-100">
-          <Suspense fallback={<div className="p-6 text-slate-400">Loading...</div>}><App /></Suspense>
+          <Suspense fallback={<div className="p-6 text-slate-400">Loading...</div>}>
+            {THEMED.has(app) ? <ThemedApp><App /></ThemedApp> : <App />}
+          </Suspense>
         </div>
       </DevAuth>
     </InMemorySupabase>
