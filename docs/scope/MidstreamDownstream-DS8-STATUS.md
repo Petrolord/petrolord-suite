@@ -206,3 +206,14 @@ Engines #228 (df31f53) vendored; the page follows it.
   refusals the page shows through its existing error lines.
 
 Gate: 3 new page tests (the smoke suite is 23).
+
+## Design system rollout (w5c, 2026-09-28)
+
+The page wraps itself in `ThemedApp`: grey panel light by default, dark by the
+user's choice in the header toggle. AppHeader (with the theme toggle and the Full precision switch) replaces the bespoke header. Inputs, stat tiles and refusal boxes move to theme and status roles; the condensate value and savings register tables are NumericTables. Charts stay white in ChartFrame. No calculation change; the existing
+suites pass unchanged. Theme test: `src/pages/apps/__tests__/EnergyEfficiencyStudio.theme.test.jsx` (standard
+four checks plus every tab, results states and the documentation drawer).
+Route `/dashboard/apps/midstream-downstream/energy-utilities-efficiency` is registered in
+`src/design/rollout/w5c.js` for the cold-load loaders. Screens checked in
+light at 1440 and 390 (no sideways page scroll) and dark at 1440 on a private
+dev server; the phone layout now stacks the input rail above the results.

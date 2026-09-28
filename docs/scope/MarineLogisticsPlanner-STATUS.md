@@ -127,3 +127,14 @@ both planners travel in a `.pld` package and appear in the export picker.
 ## Live (2026-09-27)
 
 Suite zip ef6b02403 uploaded and verified (version.json sha ef6b02403; the planner chunk loads). The table, the Coming Soon seed and the activation migrations are applied to production; the tile is Active, built, at USD 299 (owner-confirmed). Browser walk on staging is still open.
+
+## Design system rollout (w5c, 2026-09-28)
+
+The page wraps itself in `ThemedApp`: grey panel light by default, dark by the
+user's choice in the header toggle. AppHeader (with the theme toggle) replaces the bespoke header; the description and engine line sit in a bar under it. Panels, fields, stat tiles, refusals and the deck plan's never-fit block and overflow reasons move to theme and status roles (danger for units no voyage can carry, warning for units left behind); the reasons are printed unchanged. Charts stay white in ChartFrame; there is no map or vessel drawing, so no data-canvas="dark" region. No calculation change; the existing
+suites pass unchanged. Theme test: `src/pages/apps/__tests__/MarineLogisticsPlanner.theme.test.jsx` (standard
+four checks plus every tab, results states and the documentation drawer).
+Route `/dashboard/apps/midstream-downstream/marine-logistics-planner` is registered in
+`src/design/rollout/w5c.js` for the cold-load loaders. Screens checked in
+light at 1440 and 390 (no sideways page scroll) and dark at 1440 on a private
+dev server; the phone layout now stacks the input rail above the results.
