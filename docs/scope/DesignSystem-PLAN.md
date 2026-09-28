@@ -245,6 +245,64 @@ The pilots' combined needs, built once in `src/design` and
   non-pilot proofs (`optInScope`, `hubScope`) mount Waterflood Design
   Studio
 
+### Grey tone experiment (owner, 2026-09-28)
+Owner feedback on the live pilots: "The new looks are really awesome ...
+However, I was expecting light grey for the apps consoles and not off white.
+Let us try light grey please. Experiment it on Seismolord and let me provide
+feedback." Branch `feat/ds-grey-tones`.
+
+Three light-grey **tones** of the light theme, in `tokens.js` `LIGHT_TONES`.
+A tone overrides only the neutral roles; petrol-green primary, gold accent,
+ink text and the status colours are unchanged, and the dark theme is
+untouched. Every tone passes the full `CONTRAST_PAIRS` AA contract
+(`tokens.test.js`). All greys are neutral or very slightly cool (the
+off-white has a green tint).
+
+| role | off-white (current) | grey-soft | grey-panel | grey-classic |
+|---|---|---|---|---|
+| bg (page) | `#F2F4EF` | `#E6E9EC` | `#E1E4E8` | `#D8DCE1` |
+| surface (panels, cards) | `#FFFFFF` | `#FFFFFF` | `#EDEFF2` | `#E2E5E9` |
+| raised (menus, dialogs) | `#FFFFFF` | `#FFFFFF` | `#F8F9FA` | `#F3F4F6` |
+| sunken (rails, headers) | `#E7EBE3` | `#DCE0E4` | `#D8DCE1` | `#CAD0D6` |
+| border | `#D5DCD2` | `#CCD2D8` | `#C3C9D0` | `#AEB5BE` |
+| border-strong | `#7D8B82` | `#7A838C` | `#6E7883` | `#5F6973` |
+| muted text | `#56655C` | `#525C66` | `#4D5761` | `#454E57` |
+
+- **grey-soft**: grey page and rails, white panels. The lightest step away
+  from off-white.
+- **grey-panel**: grey page and grey panels, lighter menus and cards.
+- **grey-classic**: the neutral mid-light grey of engineering desktop panels
+  (Petrel, Techlog), with darker borders.
+
+How it works. `ThemedApp` takes an optional `tone`; it sets
+`data-pl-tone` on the scope root, nested scopes and portal content
+(`usePortalThemeProps`). `theme.css` has one block per tone under
+`[data-pl-theme="light"][data-pl-tone="<name>"]` (plus that scope's
+`data-canvas="light"` and `data-canvas="chart"` regions). Without a tone
+(every other pilot) nothing changes: no attribute, `tone: null` in the
+context, the same portal props. In dark the tone has no effect. Dark
+canvases inside a toned scope re-declare every role, so they stay
+pixel-identical (canvas interiors hashed identical across off-white, the
+three greys and dark).
+
+How to switch on staging. Open Seismolord on suite.studio.petrolord.com; the
+ribbon shows a **shade picker** beside the light/dark toggle: "Off-white
+(current)", "Grey soft", "Grey panel", "Grey classic". The choice is kept per
+user in the browser (`petrolord.theme.v1.tone:<user id>`) and the help guide
+follows it. The picker is disabled in dark (shades are for the light theme).
+
+Gating. The picker renders only on a Vite dev server
+(`import.meta.env.DEV`, via `src/lib/devBuildFlag.js`) or on a
+`*.studio.petrolord.com` host (`isToneExperimentEnabled` in
+`src/pages/apps/Seismolord/toneExperiment.jsx`). A production build on
+petrolord.com renders no picker, reads no stored tone and keeps today's
+off-white (tests: `toneExperiment.production.test.jsx` and
+`toneExperiment.staging.test.jsx`).
+
+Next: the owner picks a tone (or none). The chosen values then replace the
+light theme's neutral roles for every scope, and the picker and the
+experiment gate are removed.
+
 ### Rollout waves (from the pilot 5 estimate)
 The pilot 5 survey sized the remaining Studio-kit apps as **15 small,
 6 medium and 11 large**; the main blockers were the unadapted
