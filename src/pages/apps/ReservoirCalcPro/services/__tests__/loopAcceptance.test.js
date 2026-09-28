@@ -21,8 +21,8 @@ test('registry surface + zones -> RCP inputs -> volume -> risked volume', () => 
   const grid = new Float32Array(nx * ny).fill(1500);
   const surface = { name: 'Top Dome structure', nx, ny, dx: 100, dy: 100 };
   const zones = [
-    { properties: { phi_avg: 0.22, sw_avg: 0.30, ntg: 0.85, net_m: 20 } },
-    { properties: { phi_avg: 0.24, sw_avg: 0.34, ntg: 0.80, net_m: 24 } },
+    { properties: { phi_avg: 0.22, sw_avg: 0.30, ntg: 0.85, net_m: 20, gross_m: 20 / 0.85 } },
+    { properties: { phi_avg: 0.24, sw_avg: 0.34, ntg: 0.80, net_m: 24, gross_m: 30 } },
   ];
 
   // build inputs straight from the registry (no file)
@@ -30,7 +30,7 @@ test('registry surface + zones -> RCP inputs -> volume -> risked volume', () => 
   expect(provenance.source).toBe('shared-registry');
   expect(patch.area).toBeGreaterThan(0);
   expect(patch.porosity).toBeCloseTo(0.23, 10);
-  expect(patch.thickness).toBeCloseTo(22, 10);
+  expect(patch.thickness).toBeCloseTo((20 / 0.85 + 30) / 2, 10); // gross: RCP applies NTG
 
   // feed RCP's real deterministic volumetrics (simple/analytic method).
   // signature: calculateDeterministic(inputs, unitSystem, inputMethod);

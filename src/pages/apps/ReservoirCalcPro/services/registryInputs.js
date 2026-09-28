@@ -16,13 +16,40 @@ const NULL = (v) => !Number.isFinite(v) || Math.abs(v) >= 1e29;
 const avg = (xs) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : null);
 
 /**
+ * One zone's thickness pair for RCP's GRV x NTG: the GROSS thickness and
+ * the NTG that goes with it. RCP multiplies its thickness by NTG, so the
+ * thickness must be gross; feeding net pay there applied NTG twice
+ * (PETRO-U1-001: a zone with net 20 m, NTG 0.5 went in as 10 m of pay).
+ * True vertical thickness (Petrophysics Studio publishes gross_tvt_m and
+ * net_tvt_m from 2026-09-28) wins over the along-hole figure. A row with
+ * net pay only reconstructs gross as net / NTG, or goes in with NTG 1.
+ * @returns {?{gross: number, ntg: ?number}}
+ */
+export function zoneGrossAndNtg(p) {
+  const fin = (v) => Number.isFinite(v);
+  if (fin(p.gross_tvt_m) && p.gross_tvt_m > 0) {
+    return { gross: p.gross_tvt_m, ntg: fin(p.net_tvt_m) ? p.net_tvt_m / p.gross_tvt_m : (fin(p.ntg) ? p.ntg : null) };
+  }
+  if (fin(p.gross_m) && p.gross_m > 0) {
+    return { gross: p.gross_m, ntg: fin(p.ntg) ? p.ntg : (fin(p.net_m) ? p.net_m / p.gross_m : null) };
+  }
+  if (fin(p.net_m)) {
+    if (fin(p.ntg) && p.ntg > 0) return { gross: p.net_m / p.ntg, ntg: p.ntg };
+    return { gross: p.net_m, ntg: 1 };
+  }
+  return null;
+}
+
+/**
  * Average the PUBLISHED per-zone properties across wells that carry the
  * same zone (a prospect's reservoir), into RCP petrophysics inputs.
- * Thickness = mean net pay (net_m); only zones with a published
- * `properties` (an actual G2.5 publish) contribute.
+ * Thickness = mean GROSS thickness (vertical when published), NTG the
+ * mean of the matching net-to-gross, so thickness x NTG is the mean net
+ * pay; only zones with a published `properties` (an actual G2.5
+ * publish) contribute.
  * @param {Array<{properties?: Object}>} zones
  * @returns {{porosity?: number, sw?: number, ntg?: number, thickness?: number,
- *            fromWells: number}}
+ *            thicknessBasis?: string, fromWells: number}}
  */
 export function zoneAveragesToInputs(zones) {
   const pub = (zones || []).map((z) => z.properties || {}).filter((p) => Number.isFinite(p.phi_avg) || Number.isFinite(p.net_m));
@@ -30,12 +57,16 @@ export function zoneAveragesToInputs(zones) {
   const out = { fromWells: pub.length };
   const phi = pick('phi_avg');
   const sw = pick('sw_avg');
-  const ntg = pick('ntg');
-  const net = pick('net_m');
   if (phi !== null) out.porosity = phi;
   if (sw !== null) out.sw = sw;
+  const pairs = pub.map(zoneGrossAndNtg).filter(Boolean);
+  const gross = avg(pairs.map((q) => q.gross));
+  const ntg = avg(pairs.map((q) => q.ntg).filter(Number.isFinite));
+  if (gross !== null) {
+    out.thickness = gross;
+    out.thicknessBasis = pub.some((p) => Number.isFinite(p.gross_tvt_m)) ? 'gross, true vertical' : 'gross, along hole';
+  }
   if (ntg !== null) out.ntg = ntg;
-  if (net !== null) out.thickness = net;
   return out;
 }
 
@@ -74,7 +105,9 @@ export function buildRegistryInputs({ zones, surface, grid, areaUnit = 'acres' }
   if (zones && zones.length) {
     const z = zoneAveragesToInputs(zones);
     provenance.wells_averaged = z.fromWells;
+    if (z.thicknessBasis) provenance.thickness_basis = z.thicknessBasis;
     delete z.fromWells;
+    delete z.thicknessBasis;
     Object.assign(patch, z);
   }
   if (surface && grid) {
