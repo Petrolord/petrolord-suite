@@ -404,3 +404,20 @@ MIGRATIONS.md now has no unapplied rows.
   the worker image and its build_summary).
 - Results auto-open the newest completed run; zero-based axis floors for
   noise-level vectors; round day ticks; picker noun "Case"; copy cleaned.
+
+## 2026-09-28: design system rollout, batch 2A (branch `feat/ds-w2a`)
+
+The studio opts in to the Petrolord design system (plan of record
+`docs/scope/DesignSystem-Rollout.md`). No engine, deck, run or result change.
+
+- `ReservoirSimulationStudio.jsx` wraps itself in `<ThemedApp data-testid="sim-theme-scope">`;
+  the route is registered in `src/design/rollout/w2a.js`. It opens light and
+  the Studio header toggle switches it to dark per user.
+- `src/components/simstudio/*` moved to theme roles: cards and inputs on the
+  adapted ui defaults, native selects and the deck editor on the themed field
+  look, run status badges and the KPI rail on the status roles, the runs
+  table on the themed `Table`.
+- The builder's 3D model preview sits in a `data-canvas="dark"` frame in both
+  themes (its colours were tuned on a dark ground); the well legend is a dot
+  key beside each word. Result charts keep the white chart standard.
+- Test: `src/pages/apps/__tests__/ReservoirSimulationStudio.theme.test.jsx`.

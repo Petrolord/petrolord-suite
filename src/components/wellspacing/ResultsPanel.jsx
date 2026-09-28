@@ -110,7 +110,7 @@ const ResultsPanel = ({
             <tbody>
               {results.spacingResults.map((result, index) => (
                 <tr key={index} className="border-b border-pl-border hover:bg-pl-sunken">
-                  <td className="py-3 px-2 font-medium">{result.spacing} acres/well</td>
+                  <td className="py-3 px-2 font-medium whitespace-nowrap">{result.spacing} acres/well</td>
                   <td className="text-right py-3 px-2 font-pl-mono tabular-nums">{result.numberOfWells}</td>
                   <td className="text-right py-3 px-2 font-pl-mono tabular-nums">{(result.arealCoverage * 100).toFixed(1)}%</td>
                   <td className="text-right py-3 px-2 font-pl-mono tabular-nums">{result.eurPerWell.toFixed(1)}</td>
