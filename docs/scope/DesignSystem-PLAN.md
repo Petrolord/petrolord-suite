@@ -158,6 +158,13 @@ rows, so there is no page-view data yet.
    the WebGL slice and cube viewers stay on `data-canvas="dark"` while the
    panels, trees and dialogs around them go light. Real data stored (6
    volumes, 5 horizons). About 650 slate classes.
+   **Migrated 2026-09-28** (branch `feat/ds-pilot-seismolord`): section,
+   map, 3D and synthetics canvases carry `data-canvas="dark"` with their
+   classes and pixels unchanged (2D canvas buffers hash-identical, WebGL
+   screenshots identical apart from the anti-aliased corner pixels);
+   WorkspaceShell, ModuleHomeLink, HelpGuideLayout and the shared CRS, well
+   and culture import forms follow the theme inertly (snapshots from main
+   prove unmigrated apps unchanged). See `Seismolord-STATUS.md`.
 5. **Voidage Replacement Monitor on the Studio kit**
    (`apps/reservoir/voidage-replacement-monitor`). 4 saved projects, and it
    is built on `StudioLayout`/`StudioHeader`, which 33 apps share. Migrating

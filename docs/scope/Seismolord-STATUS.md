@@ -1,6 +1,48 @@
 # Seismolord — STATUS
 
+Design system: pilot 4 migrated 2026-09-28 (light by default, dark per user; seismic, map, 3D and synthetics canvases stay dark in both themes).
+
 Last updated: 2026-09-23 (Dip azimuth from grid north, fast spectral decomposition; new attributes: edge, chaos, dip, azimuth, curvature, spectral decomposition, RAI; fault picking upgrade: noisy data, Fault likelihood volume, volume inputs; Tops to Horizons: well tops to a named horizon framework, automatic fault picking; large surveys: the viewer reads the v4 display copy, coarse first; Stream C: v4 conversion to a local spool, two-stage resumable background upload; Stream L: slice worker, local-file view, budgeted cache; tester feedback: navigation, slice player, slice toggles, wells, stability; group 6: import readers, fault import, Make surface; group 5: properties, undo and redo, toolbox)
+
+## 2026-09-28: design system pilot 4 (dark canvases in a light workspace)
+
+Opt-in to the Petrolord design system (docs/scope/DesignSystem.md). No
+behaviour change, no DDL, no engine change.
+
+- Scope: `Seismolord.jsx` and the help guide render inside `ThemedApp`
+  (`data-pl-theme`, light by default, the choice kept per user in the
+  browser); the ribbon carries the `ThemeToggle`. The dev harnesses
+  (`/dev/seismolord-*`) mount inside a scope too.
+- Chrome: ribbon, explorer tree, dock, status bar, window tabs, viewport
+  toolbars and readouts, dialogs, tables and the first-run tour use the
+  theme roles (`pl-*`). Primary actions are petrol green; status colours
+  only through the status roles; armed-tool tints map to the status
+  roles (pick and fault tools warning, erase danger).
+- Canvases: the section (SliceView), map (MapView), 3D (CubeView, which
+  keeps its own white-background option) and synthetics canvases carry
+  `data-canvas="dark"`. Everything inside those regions keeps its legacy
+  classes; the corner radius is pinned at the legacy 8px so the clip does
+  not grow. shaderChunks.js, the renderers, colour maps and palettes are
+  untouched. Proof: 2D canvas buffers (annotations, map, synthetics)
+  hash-identical to main in both themes; WebGL section and cube
+  screenshots identical to main except the anti-aliased rounded-corner
+  pixels, which blend with the page behind; the map's empty-state hint
+  (HTML text) now renders in the app font.
+- Shared pieces (inert outside a scope, snapshots recorded on main):
+  WorkspaceShell, ModuleHomeLink, HelpGuideLayout, CrsBadge, CrsPicker,
+  ProjectCrsDialog, CultureImportDialog, WellImport, ColumnMapper,
+  PasteReplacePanel, OpenInAppMenu, and a new
+  `src/components/workstation/themedContextMenu.jsx` (ui/context-menu is
+  not adapted yet). `src/lib/themeClass.js` (`useThemeClass`) returns the
+  legacy class string unchanged outside a scope.
+- Tests: `__tests__/designSystemPilot.test.jsx` (scope, toggle, stored
+  choice, ribbon, explorer and its context menu portal, help guide);
+  `src/components/workstation/__tests__/sharedShellsOptIn.test.jsx` and
+  `src/components/crs/__tests__/sharedFormsOptIn.test.jsx` (unmigrated
+  apps unchanged, themed inside a scope).
+- Known limits: below 1100 px the workspace pans inside its own scroll
+  area (the page itself does not scroll sideways at 390 px); toasts stay
+  dark (lead decision 3).
 
 ## 2026-09-23: Dip azimuth from grid north, fast spectral decomposition
 
