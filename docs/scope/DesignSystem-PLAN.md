@@ -326,6 +326,20 @@ The pilot 5 survey sized the remaining Studio-kit apps as **15 small,
 Each wave keeps the non-pilot proof on an app that has not migrated yet
 (move it off Waterflood Design Studio when that app's wave comes).
 
+The waves above were superseded by the site-wide plan in
+`DesignSystem-Rollout.md` (#755).
+
+### Rollout complete (2026-09-28)
+Waves 0 to 7 of `DesignSystem-Rollout.md` are merged (#756 to #804; the
+tracker in its section 6 lists every batch and PR). Every Suite page sits in
+a theme scope, light by default and dark per user. The opt-in helpers this
+plan introduced (`useThemeClass`, `useStudioTheme`, the legacy DOM pins and
+the non-pilot proof on a legacy app) were retired in batch 7B, so the notes
+below that mention them are history. The W8 sweep deleted the unreachable
+files that still carried legacy classes, gave the admin Overview tab an
+honest empty state and moved the ReservoirCalc Pro docs off `prose`.
+Staging walks stay with the owner.
+
 ### Pilot 1: module hubs and dashboard landing (2026-09-27, `feat/ds-pilot-hubs`)
 - Opt-in: a pathless layout route in `App.jsx` wraps exactly `/dashboard`
   (index) and the ten hub routes in `HubScope` (`src/components/hubs/`),
