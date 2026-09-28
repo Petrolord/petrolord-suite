@@ -21,20 +21,20 @@ const GlobalHistoryPanel = () => {
     const { heatFlow, erosionEvents, settings } = state;
 
     return (
-        <Card className="h-full bg-slate-950 border-l border-slate-800 rounded-none w-full max-w-sm">
-            <CardHeader className="border-b border-slate-800 py-3">
+        <Card className="h-full border-l rounded-none w-full max-w-sm">
+            <CardHeader className="border-b border-pl-border py-3">
                 <CardTitle className="text-sm flex items-center gap-2">
-                    <History className="w-4 h-4 text-purple-400" />
+                    <History className="w-4 h-4 text-pl-muted" />
                     Global History
                 </CardTitle>
             </CardHeader>
             <Tabs defaultValue="thermal" className="h-[calc(100%-50px)] flex flex-col">
-                <div className="px-4 pt-2 bg-slate-900">
-                    <TabsList className="w-full justify-start h-8 bg-transparent border-b border-slate-800 rounded-none p-0">
-                        <TabsTrigger value="thermal" data-testid="bf-history-tab-thermal" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-purple-500 rounded-none h-full px-3">
+                <div className="px-4 pt-2 bg-pl-surface">
+                    <TabsList className="w-full justify-start h-8 bg-transparent border-b border-pl-border rounded-none p-0">
+                        <TabsTrigger value="thermal" data-testid="bf-history-tab-thermal" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none h-full px-3">
                             <Thermometer className="w-3 h-3 mr-1" /> Thermal
                         </TabsTrigger>
-                        <TabsTrigger value="erosion" data-testid="bf-history-tab-erosion" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-orange-500 rounded-none h-full px-3">
+                        <TabsTrigger value="erosion" data-testid="bf-history-tab-erosion" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-pl-primary rounded-none h-full px-3">
                             <TrendingUp className="w-3 h-3 mr-1" /> Erosion{erosionEvents?.length ? ` (${erosionEvents.length})` : ''}
                         </TabsTrigger>
                     </TabsList>
@@ -44,7 +44,7 @@ const GlobalHistoryPanel = () => {
                     <ScrollArea className="h-full">
                         <div className="p-4 space-y-5">
                             <div className="space-y-2">
-                                <h3 className="text-xs font-semibold text-slate-300">Basal heat flow</h3>
+                                <h3 className="text-xs font-semibold text-pl-text">Basal heat flow</h3>
                                 <HeatFlowHistoryEditor
                                     heatFlow={heatFlow}
                                     maxAge={stats.maxAge}
@@ -52,18 +52,18 @@ const GlobalHistoryPanel = () => {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <h3 className="text-xs font-semibold text-slate-300">Surface temperature</h3>
-                                <div className="bg-slate-900 p-3 rounded border border-slate-800">
-                                    <Label className="text-xs text-slate-400">Present day and through time ({tempSymbol(units.temp)})</Label>
+                                <h3 className="text-xs font-semibold text-pl-text">Surface temperature</h3>
+                                <div className="bg-pl-surface p-3 rounded border border-pl-border">
+                                    <Label className="text-xs text-pl-muted">Present day and through time ({tempSymbol(units.temp)})</Label>
                                     <Input
                                         type="number"
                                         step="any"
                                         data-testid="bf-surface-temp"
                                         value={tidy(tempToDisplay(settings?.surfaceTemp ?? 20, units.temp))}
                                         onChange={(e) => dispatch({ type: 'UPDATE_SETTINGS', payload: { surfaceTemp: tempFromDisplay(parseFloat(e.target.value), units.temp) } })}
-                                        className="mt-1 bg-slate-950 h-8"
+                                        className="mt-1 h-8"
                                     />
-                                    <p className="text-[11px] text-slate-500 mt-1">The upper boundary of the heat solution, held constant through the burial history.</p>
+                                    <p className="text-[11px] text-pl-muted mt-1">The upper boundary of the heat solution, held constant through the burial history.</p>
                                 </div>
                             </div>
                         </div>

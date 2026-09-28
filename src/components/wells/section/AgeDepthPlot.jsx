@@ -25,7 +25,7 @@ export default function AgeDepthPlot({ surfaces, width = 520, height = 360, dept
   const model = useMemo(() => ageDepthModel(dated), [dated]);
   if (dated.length < 2 || !model) {
     return (
-      <div className="text-xs text-slate-500 p-3" data-testid={`${testIdPrefix}-empty`}>
+      <div className="text-xs text-pl-muted p-3" data-testid={`${testIdPrefix}-empty`}>
         {dated.length < 2 ? 'Two dated surfaces are needed for an age-depth plot. Give the tops ages in the Tops view.' : problems[0]?.message}
       </div>
     );
@@ -38,7 +38,9 @@ export default function AgeDepthPlot({ surfaces, width = 520, height = 360, dept
   const y = (md) => T + ((md - dMin) / Math.max(1e-9, dMax - dMin)) * plotH;
   const ticksA = 5; const ticksD = 5;
   return (
-    <div data-testid={`${testIdPrefix}-plot`} data-segments={model.segments.length} data-hiatuses={model.hiatuses.length}>
+    // design system (W4B): the plot is drawn for a dark ground, so it sits
+    // on a dark canvas in both themes; the drawing is unchanged
+    <div data-testid={`${testIdPrefix}-plot`} data-canvas="dark" className="inline-block max-w-full overflow-x-auto rounded bg-slate-950" data-segments={model.segments.length} data-hiatuses={model.hiatuses.length}>
       <svg width={width} height={height} className="block">
         {/* frame + grid */}
         <rect x={L} y={T} width={plotW} height={plotH} fill="#0f172a" stroke="#334155" />

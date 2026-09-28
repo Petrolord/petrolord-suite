@@ -13,6 +13,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/use-toast';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { AccountScope } from '@/components/account/accountChrome';
 import { formatCurrency } from '@/utils/adminHelpers';
 import { appCategories } from '@/data/applications';
 import { MODULE_PRICING, BASE_PLATFORM_FEE } from '@/data/pricingModels';
@@ -30,7 +32,7 @@ const STEPS = [
 // authoritative; this is preview only.
 const BASE_SEAT_PRICE = 49;
 
-export default function GetQuote() {
+function GetQuotePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const location = useLocation();
@@ -304,28 +306,33 @@ export default function GetQuote() {
   const totals = calculateTotal();
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-lime-500/30">
-      <div className="container mx-auto px-4 py-8 max-w-5xl">
+    <div className="container mx-auto px-4 py-6 md:py-8 max-w-5xl text-pl-text">
         
         {/* Header */}
-        <div className="flex items-center justify-between mb-12">
-          <div className="flex items-center gap-3">
-            <img src="https://horizons-cdn.hostinger.com/43fa5c4b-d185-4d6d-9ff4-a1d78861fb87/2e67bfd0151fc6ba8faf620cf9d545c4.png" alt="Petrolord" className="h-10 w-10" />
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-lime-400 to-emerald-500 bg-clip-text text-transparent">
-              Petrolord Suite Configurator
-            </h1>
-          </div>
-          {user && (
-            <div className="text-sm text-slate-400">
-              Configuring for: <span className="text-white font-medium">{user.email}</span>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-10 md:mb-12">
+          <div className="flex items-center gap-3 min-w-0">
+            <img src="https://horizons-cdn.hostinger.com/43fa5c4b-d185-4d6d-9ff4-a1d78861fb87/2e67bfd0151fc6ba8faf620cf9d545c4.png" alt="Petrolord" className="h-10 w-10 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-pl-accent-text">Get a quote</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-pl-text">
+                Petrolord Suite Configurator
+              </h1>
             </div>
-          )}
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            {user && (
+              <div className="text-sm text-pl-muted min-w-0 break-all">
+                Configuring for: <span className="text-pl-text font-medium">{user.email}</span>
+              </div>
+            )}
+            <ThemeToggle />
+          </div>
         </div>
 
         {/* Progress Steps */}
-        <div className="mb-12 relative">
-          <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-800 -z-10 rounded-full" />
-          <div className="absolute top-1/2 left-0 h-1 bg-lime-500 -z-10 rounded-full transition-all duration-500" 
+        <div className="mb-10 md:mb-12 relative isolate">
+          <div className="absolute top-5 left-0 w-full h-1 bg-pl-border -z-10 rounded-full" aria-hidden="true" />
+          <div className="absolute top-5 left-0 h-1 bg-pl-primary -z-10 rounded-full transition-all duration-500" aria-hidden="true"
                style={{ width: `${((currentStep - 1) / (STEPS.length - 1)) * 100}%` }} />
           
           <div className="flex justify-between">
@@ -335,13 +342,13 @@ export default function GetQuote() {
               const isCompleted = step.id < currentStep;
               
               return (
-                <div key={step.id} className="flex flex-col items-center gap-2 bg-slate-950 px-2">
+                <div key={step.id} className="flex flex-col items-center gap-2 bg-pl-bg px-1 sm:px-2" aria-current={isActive ? 'step' : undefined}>
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300
-                    ${isActive ? 'border-lime-500 bg-lime-500/20 text-lime-400 shadow-[0_0_15px_rgba(132,204,22,0.5)]' : 
-                      isCompleted ? 'border-lime-500 bg-lime-500 text-slate-950' : 'border-slate-700 bg-slate-900 text-slate-500'}`}>
+                    ${isActive ? 'border-pl-primary bg-pl-raised text-pl-primary-text ring-4 ring-pl-primary/20' : 
+                      isCompleted ? 'border-pl-primary bg-pl-primary text-pl-primary-fg' : 'border-pl-border-strong bg-pl-surface text-pl-muted'}`}>
                     {isCompleted ? <CheckCircle className="w-6 h-6" /> : <Icon className="w-5 h-5" />}
                   </div>
-                  <span className={`text-sm font-medium ${isActive ? 'text-lime-400' : isCompleted ? 'text-lime-500' : 'text-slate-500'}`}>
+                  <span className={`text-xs sm:text-sm font-medium ${isActive ? 'text-pl-text' : isCompleted ? 'text-pl-primary-text' : 'text-pl-muted'}`}>
                     {step.title}
                   </span>
                 </div>
@@ -351,29 +358,29 @@ export default function GetQuote() {
         </div>
 
         {/* Content */}
-        <Card className="bg-slate-900/50 border-slate-800 backdrop-blur-xl shadow-2xl min-h-[500px]">
-          <CardContent className="p-8">
+        <Card className="shadow-pl-md min-h-[500px]">
+          <CardContent className="p-4 sm:p-8">
             <AnimatePresence mode="wait">
               
               {/* STEP 1: MODULES */}
               {currentStep === 1 && (
                 <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
                   <h2 className="text-2xl font-bold mb-2">Select Modules</h2>
-                  <p className="text-slate-400 mb-8">Choose the core domains you need access to.</p>
+                  <p className="text-pl-muted mb-8">Choose the core domains you need access to.</p>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {appCategories.filter(c => c.id !== 'hse').map((category) => (
                       <div key={category.id} 
                            className={`p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 hover:scale-[1.02]
-                             ${selectedModules.includes(category.id) ? 'border-lime-500 bg-lime-500/10' : 'border-slate-800 bg-slate-800/50 hover:border-slate-600'}`}
+                             ${selectedModules.includes(category.id) ? 'border-pl-primary bg-pl-primary/10' : 'border-pl-border bg-pl-raised hover:border-pl-border-strong'}`}
                            onClick={() => handleModuleToggle(category.id)}>
                         <div className="flex justify-between items-start mb-3">
-                          <category.icon className={`w-8 h-8 ${selectedModules.includes(category.id) ? 'text-lime-400' : 'text-slate-500'}`} />
-                          <Checkbox checked={selectedModules.includes(category.id)} className="data-[state=checked]:bg-lime-500 data-[state=checked]:border-lime-500" />
+                          <category.icon className={`w-8 h-8 ${selectedModules.includes(category.id) ? 'text-pl-primary-text' : 'text-pl-muted'}`} />
+                          <Checkbox checked={selectedModules.includes(category.id)} />
                         </div>
                         <h3 className="font-semibold text-lg mb-1">{category.name}</h3>
-                        <p className="text-sm text-slate-400 mb-4 h-10 line-clamp-2">{category.description}</p>
-                        <div className="text-lime-400 font-mono text-sm">Starts at ${MODULE_PRICING[category.id]}/mo</div>
+                        <p className="text-sm text-pl-muted mb-4 h-10 line-clamp-2">{category.description}</p>
+                        <div className="text-pl-primary-text font-pl-mono tabular-nums text-sm">Starts at ${MODULE_PRICING[category.id]}/mo</div>
                       </div>
                     ))}
                   </div>
@@ -384,12 +391,12 @@ export default function GetQuote() {
               {currentStep === 2 && (
                 <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
                   <h2 className="text-2xl font-bold mb-2">Select Applications</h2>
-                  <p className="text-slate-400 mb-8">Refine your subscription by selecting specific premium applications.</p>
+                  <p className="text-pl-muted mb-8">Refine your subscription by selecting specific premium applications.</p>
                   
                   {loading ? (
-                    <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-lime-500" /></div>
+                    <div className="flex justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-pl-primary-text" /></div>
                   ) : availableApps.length === 0 ? (
-                    <div className="text-center py-20 text-slate-500">No specific apps available for selected modules.</div>
+                    <div className="text-center py-20 text-pl-muted">No specific apps available for selected modules.</div>
                   ) : (
                     <div className="space-y-8">
                       {selectedModules.map(modId => {
@@ -399,18 +406,18 @@ export default function GetQuote() {
                         
                         return (
                           <div key={modId}>
-                            <h3 className="text-lg font-semibold text-lime-400 mb-4 border-b border-slate-800 pb-2">{modName}</h3>
+                            <h3 className="text-lg font-semibold text-pl-text mb-4 border-b border-pl-border pb-2">{modName}</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               {modApps.map(app => (
                                 <div key={app.id} 
                                      className={`flex items-start gap-4 p-4 rounded-lg border transition-all cursor-pointer
-                                       ${selectedApps.includes(app.id) ? 'border-lime-500 bg-lime-900/20' : 'border-slate-800 hover:border-slate-700'}`}
+                                       ${selectedApps.includes(app.id) ? 'border-pl-primary bg-pl-primary/10' : 'border-pl-border bg-pl-raised hover:border-pl-border-strong'}`}
                                      onClick={() => toggleApp(app.id)}>
                                   <Checkbox checked={selectedApps.includes(app.id)} />
                                   <div>
                                     <div className="font-medium">{app.name}</div>
-                                    <div className="text-sm text-slate-400">{app.description}</div>
-                                    <div className="text-xs text-lime-300 mt-1">+${app.price}/mo</div>
+                                    <div className="text-sm text-pl-muted">{app.description}</div>
+                                    <div className="text-xs text-pl-primary-text font-pl-mono tabular-nums mt-1">+${app.price}/mo</div>
                                   </div>
                                 </div>
                               ))}
@@ -427,18 +434,18 @@ export default function GetQuote() {
               {currentStep === 3 && (
                 <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
                   <h2 className="text-2xl font-bold mb-2">Configure Plan</h2>
-                  <p className="text-slate-400 mb-8">Adjust seats and billing terms to fit your needs.</p>
+                  <p className="text-pl-muted mb-8">Adjust seats and billing terms to fit your needs.</p>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                     <div className="space-y-8">
                       {/* Seats — per app */}
-                      <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700">
-                        <div className="flex justify-between mb-4">
-                          <label className="font-semibold flex items-center gap-2"><Users className="w-4 h-4 text-lime-400"/> Seats per App</label>
-                          <span className="text-sm text-slate-400">{getTotalSeats()} total · {formatCurrency(getSeatsCost())}/mo</span>
+                      <div className="bg-pl-raised p-4 sm:p-6 rounded-xl border border-pl-border">
+                        <div className="flex flex-wrap justify-between gap-2 mb-4">
+                          <label className="font-semibold flex items-center gap-2"><Users className="w-4 h-4 text-pl-muted" aria-hidden="true"/> Seats per App</label>
+                          <span className="text-sm text-pl-muted font-pl-mono tabular-nums">{getTotalSeats()} total · {formatCurrency(getSeatsCost())}/mo</span>
                         </div>
                         {selectedApps.length === 0 ? (
-                          <p className="text-sm text-slate-500">Select apps in the previous step to allocate seats.</p>
+                          <p className="text-sm text-pl-muted">Select apps in the previous step to allocate seats.</p>
                         ) : (
                           <div className="space-y-3">
                             {selectedApps.map(id => {
@@ -448,12 +455,12 @@ export default function GetQuote() {
                                 <div key={id} className="flex items-center justify-between gap-3">
                                   <span className="text-sm truncate">{app?.name || 'App'}</span>
                                   <div className="flex items-center gap-2 shrink-0">
-                                    <Button type="button" variant="outline" size="icon" className="h-8 w-8 border-slate-600"
+                                    <Button type="button" variant="outline" size="icon" className="h-8 w-8" aria-label="Fewer seats"
                                       onClick={() => setSeatsFor(id, n - 1)} disabled={n <= 1}>
                                       <Minus className="w-3 h-3" />
                                     </Button>
-                                    <span className="w-8 text-center font-bold text-lime-400">{n}</span>
-                                    <Button type="button" variant="outline" size="icon" className="h-8 w-8 border-slate-600"
+                                    <span className="w-8 text-center font-bold font-pl-mono tabular-nums text-pl-text">{n}</span>
+                                    <Button type="button" variant="outline" size="icon" className="h-8 w-8" aria-label="More seats"
                                       onClick={() => setSeatsFor(id, n + 1)}>
                                       <Plus className="w-3 h-3" />
                                     </Button>
@@ -466,14 +473,14 @@ export default function GetQuote() {
                       </div>
 
                       {/* Billing Term */}
-                      <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700">
-                        <label className="font-semibold flex items-center gap-2 mb-4"><CreditCard className="w-4 h-4 text-lime-400"/> Billing Cycle</label>
-                        <div className="flex gap-4">
+                      <div className="bg-pl-raised p-4 sm:p-6 rounded-xl border border-pl-border">
+                        <label className="font-semibold flex items-center gap-2 mb-4"><CreditCard className="w-4 h-4 text-pl-muted" aria-hidden="true"/> Billing Cycle</label>
+                        <div className="flex gap-2 sm:gap-4">
                           {['monthly', 'quarterly', 'annual'].map(term => (
                             <div key={term} 
                                  onClick={() => setBillingTerm(term)}
-                                 className={`flex-1 p-4 rounded-lg border text-center cursor-pointer transition-all
-                                   ${billingTerm === term ? 'border-lime-500 bg-lime-500/20 text-white' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}>
+                                 className={`flex-1 min-w-0 p-3 sm:p-4 rounded-lg border text-center cursor-pointer transition-all
+                                   ${billingTerm === term ? 'border-pl-primary bg-pl-primary/10 text-pl-text' : 'border-pl-border text-pl-muted hover:border-pl-border-strong'}`}>
                               <div className="capitalize font-bold">{term}</div>
                               <div className="text-xs mt-1">
                                 {term === 'annual' ? 'Save 15%' : term === 'quarterly' ? 'Save 10%' : 'Standard'}
@@ -485,49 +492,49 @@ export default function GetQuote() {
                     </div>
 
                     {/* Summary Preview */}
-                    <div className="bg-slate-950 p-6 rounded-xl border border-slate-800 h-fit">
-                      <h3 className="text-xl font-bold mb-6 border-b border-slate-800 pb-4">Estimated Cost</h3>
+                    <div className="bg-pl-sunken p-4 sm:p-6 rounded-xl border border-pl-border h-fit">
+                      <h3 className="text-xl font-bold mb-6 border-b border-pl-border pb-4">Estimated Cost</h3>
                       <div className="space-y-3 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-slate-400">{getModules().allAccess ? 'All-access Suite licence' : 'Modules Cost'}</span>
+                          <span className="text-pl-muted">{getModules().allAccess ? 'All-access Suite licence' : 'Modules Cost'}</span>
                           <span>{formatCurrency(getModules().total)}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-slate-400">Apps Add-on</span>
+                          <span className="text-pl-muted">Apps Add-on</span>
                           <span>{formatCurrency(getAppsLicence())}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-slate-400">Platform fee</span>
+                          <span className="text-pl-muted">Platform fee</span>
                           <span>{getPlatformFee() === 0 ? 'Included' : formatCurrency(getPlatformFee())}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-slate-400">Seats ({getTotalSeats()}, tiered)</span>
+                          <span className="text-pl-muted">Seats ({getTotalSeats()}, tiered)</span>
                           <span>{formatCurrency(getSeatsCost())}</span>
                         </div>
-                        <div className="flex justify-between font-semibold text-white pt-2 border-t border-slate-800">
+                        <div className="flex justify-between font-semibold text-pl-text pt-2 border-t border-pl-border">
                           <span>Monthly Subtotal</span>
                           <span>{formatCurrency(totals.monthly)}</span>
                         </div>
                         {totals.promoAmount > 0 && promoInfo && (
-                          <div className="flex justify-between text-lime-400">
+                          <div className="flex justify-between gap-3 text-pl-primary-text">
                             <span>Promo {promoInfo.code} ({promoInfo.percent}%)</span>
                             <span>-{formatCurrency(totals.promoAmount)}</span>
                           </div>
                         )}
                         {totals.discountAmount > 0 && (
-                          <div className="flex justify-between text-lime-400">
+                          <div className="flex justify-between gap-3 text-pl-primary-text">
                             <span>Term Discount</span>
                             <span>-{formatCurrency(totals.discountAmount)}</span>
                           </div>
                         )}
-                        <div className="pt-3 border-t border-slate-800">
-                          <div className="text-xs text-slate-500 mb-1">Promo code</div>
+                        <div className="pt-3 border-t border-pl-border">
+                          <div className="text-xs text-pl-muted mb-1">Promo code</div>
                           {promoInfo ? (
                             <div className="flex items-center justify-between text-sm">
-                              <span className="text-lime-400 font-mono">{promoInfo.code}</span>
+                              <span className="text-pl-primary-text font-pl-mono">{promoInfo.code}</span>
                               <button
                                 type="button"
-                                className="text-xs text-slate-500 hover:text-white"
+                                className="text-xs text-pl-muted hover:text-pl-text"
                                 onClick={() => { setPromoInfo(null); setPromoCode(''); setPromoError(null); }}
                               >
                                 Remove
@@ -539,35 +546,36 @@ export default function GetQuote() {
                                 value={promoCode}
                                 onChange={(e) => { setPromoCode(e.target.value); setPromoError(null); }}
                                 placeholder="e.g. FOUNDING50"
-                                className="flex-1 min-w-0 rounded-md bg-slate-950 border border-slate-700 px-2 py-1.5 text-sm font-mono text-slate-100"
+                                aria-label="Promo code"
+                                className="flex-1 min-w-0 rounded-md bg-pl-raised border border-pl-border-strong px-2 py-1.5 text-sm font-pl-mono text-pl-text placeholder:text-pl-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus"
                               />
                               <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={handleCheckPromoCode}
                                 disabled={promoChecking || !promoCode.trim()}
-                                className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 shrink-0"
+                                className="shrink-0"
                               >
                                 {promoChecking ? <Loader2 className="w-4 h-4 animate-spin"/> : 'Apply'}
                               </Button>
                             </div>
                           )}
-                          {promoError && <p className="text-xs text-red-400 mt-1">{promoError}</p>}
+                          {promoError && <p className="text-xs text-pl-danger-text mt-1" role="alert">{promoError}</p>}
                           {promoInfo && promoInfo.scope !== 'all' && (
-                            <p className="text-xs text-slate-500 mt-1">
+                            <p className="text-xs text-pl-muted mt-1">
                               {promoInfo.percent}% off the {promoInfo.scope} module, applied when the quote is generated.
                             </p>
                           )}
                         </div>
-                        <div className="flex justify-between text-slate-400">
+                        <div className="flex justify-between text-pl-muted">
                           <span>VAT (7.5%)</span>
                           <span>{formatCurrency(totals.vat)}</span>
                         </div>
-                        <div className="flex justify-between text-2xl font-bold text-lime-400 pt-4 border-t border-slate-800 mt-2">
+                        <div className="flex justify-between text-2xl font-bold text-pl-text pt-4 border-t border-pl-border mt-2">
                           <span>Total</span>
                           <span>{formatCurrency(totals.total)}</span>
                         </div>
-                        <div className="text-xs text-center text-slate-500 mt-4">
+                        <div className="text-xs text-center text-pl-muted mt-4">
                           Billed {billingTerm}
                         </div>
                       </div>
@@ -580,44 +588,44 @@ export default function GetQuote() {
               {currentStep === 4 && (
                 <motion.div key="step4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
                   <div className="text-center mb-10">
-                    <CheckCircle className="w-16 h-16 text-lime-500 mx-auto mb-4" />
-                    <h2 className="text-3xl font-bold mb-2">Ready to Generate Quote</h2>
-                    <p className="text-slate-400">Review your configuration before finalizing.</p>
+                    <CheckCircle className="w-16 h-16 text-pl-primary-text mx-auto mb-4" aria-hidden="true" />
+                    <h2 className="text-2xl sm:text-3xl font-bold mb-2">Ready to Generate Quote</h2>
+                    <p className="text-pl-muted">Review your configuration before finalizing.</p>
                   </div>
 
-                  <div className="max-w-2xl mx-auto bg-slate-800/30 border border-slate-700 rounded-xl p-8">
+                  <div className="max-w-2xl mx-auto bg-pl-raised border border-pl-border rounded-xl p-4 sm:p-8">
                     <div className="grid grid-cols-2 gap-y-6 text-sm">
                       <div>
-                        <div className="text-slate-500 mb-1">Modules</div>
+                        <div className="text-pl-muted mb-1">Modules</div>
                         <div className="font-medium">{selectedModules.length} Selected</div>
                       </div>
                       <div>
-                        <div className="text-slate-500 mb-1">Applications</div>
+                        <div className="text-pl-muted mb-1">Applications</div>
                         <div className="font-medium">{selectedApps.length} Premium Apps</div>
                       </div>
                       <div>
-                        <div className="text-slate-500 mb-1">Organization</div>
+                        <div className="text-pl-muted mb-1">Organization</div>
                         <div className="font-medium">{user?.user_metadata?.organization_name || 'New Organization'}</div>
                       </div>
                       <div>
-                        <div className="text-slate-500 mb-1">User Limit</div>
+                        <div className="text-pl-muted mb-1">User Limit</div>
                         <div className="font-medium">{getTotalSeats()} Seats</div>
                       </div>
-                      <div className="col-span-2 pt-4 border-t border-slate-700">
-                        <div className="flex justify-between items-center">
+                      <div className="col-span-2 pt-4 border-t border-pl-border">
+                        <div className="flex flex-wrap justify-between items-center gap-2">
                           <div className="text-lg font-semibold">Total Contract Value</div>
-                          <div className="text-2xl font-bold text-lime-400">{formatCurrency(totals.total)}</div>
+                          <div className="text-2xl font-bold font-pl-mono tabular-nums text-pl-text">{formatCurrency(totals.total)}</div>
                         </div>
-                        <div className="text-right text-xs text-slate-500 mt-1">Valid for 14 days</div>
+                        <div className="text-right text-xs text-pl-muted mt-1">Valid for 14 days</div>
                       </div>
                     </div>
                   </div>
 
                   {!user && (
-                    <div className="max-w-2xl mx-auto mt-8 bg-amber-500/10 border border-amber-500/20 p-4 rounded-lg flex gap-3 items-center text-amber-200">
-                      <Shield className="w-5 h-5 flex-shrink-0" />
+                    <div className="max-w-2xl mx-auto mt-8 bg-pl-warning-bg border border-pl-warning/40 p-4 rounded-lg flex flex-wrap sm:flex-nowrap gap-3 items-center text-pl-warning-text">
+                      <Shield className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
                       <p className="text-sm">You need to log in or create an account to save this quote and proceed with payment.</p>
-                      <Button variant="outline" size="sm" className="ml-auto border-amber-500/50 hover:bg-amber-500/20 text-amber-100" onClick={() => navigate('/login')}>Log In</Button>
+                      <Button variant="outline" size="sm" className="ml-auto" onClick={() => navigate('/login')}>Log In</Button>
                     </div>
                   )}
                 </motion.div>
@@ -633,7 +641,7 @@ export default function GetQuote() {
             variant="outline" 
             onClick={() => setCurrentStep(prev => Math.max(1, prev - 1))}
             disabled={currentStep === 1 || quoteGenerating}
-            className="border-slate-700 hover:bg-slate-800 text-white w-32"
+            className="w-28 sm:w-32"
           >
             <ChevronLeft className="w-4 h-4 mr-2" /> Back
           </Button>
@@ -642,7 +650,7 @@ export default function GetQuote() {
             <Button 
               onClick={() => setCurrentStep(prev => Math.min(4, prev + 1))}
               disabled={selectedModules.length === 0}
-              className="bg-lime-600 hover:bg-lime-700 text-white w-32"
+              className="w-28 sm:w-32"
             >
               Next <ChevronRight className="w-4 h-4 ml-2" />
             </Button>
@@ -650,7 +658,7 @@ export default function GetQuote() {
             <Button 
               onClick={handleGenerateQuote}
               disabled={quoteGenerating}
-              className="bg-gradient-to-r from-lime-500 to-green-600 hover:from-lime-600 hover:to-green-700 text-white px-8 shadow-lg shadow-lime-900/20"
+              className="px-4 sm:px-8"
             >
               {quoteGenerating ? <Loader2 className="w-4 h-4 animate-spin mr-2"/> : null}
               Generate Official Quote
@@ -658,7 +666,14 @@ export default function GetQuote() {
           )}
         </div>
 
-      </div>
     </div>
+  );
+}
+
+export default function GetQuote() {
+  return (
+    <AccountScope testId="get-quote-theme-scope">
+      <GetQuotePage />
+    </AccountScope>
   );
 }

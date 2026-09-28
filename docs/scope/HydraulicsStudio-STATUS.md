@@ -140,3 +140,29 @@ Checked every app that needs an annulus or casing programme:
   (picker + manual sections), not from the spine, so a programme built in
   Casing & Tubing was already visible there and they never raised this
   message. No change.
+
+## Design system rollout, batch 3D (2026-09-28)
+
+The studio, its help guide and the dev harness (`/dev/hydraulics`) now open on the
+Petrolord design system: light grey panel by default, dark as a per-user
+choice from the ribbon toggle (beside Help).
+
+- Scope: `ThemedApp` inside `HydraulicsStudio.jsx`, `HydraulicsHelpGuide.jsx` and `HydraulicsHarness.jsx`; App.jsx
+  unchanged. Cold-load prefix `/dashboard/apps/drilling/drilling-fluids-hydraulics` in `src/design/rollout/w3d.js`
+  (covers `/help`).
+- Own classes moved to `pl-*` roles across the ribbon, the four tabs (Mud & Rheology, Hydraulics, Surge & Swab, Hole Cleaning) and the status bar. The dark overrides on
+  the adapted Input and SelectTrigger are gone; the run buttons are the
+  default primary Button; the active tab uses the primary tint; KPI values
+  use the mono face.
+- Status colour only for status: the hydraulics KPI band (danger tint and a warning icon when a KPI is flagged), transport ratio below 0.5 (danger), a max safe trip speed below 0.3 m/s (warning) and the engine warnings box. Decorative lime, cyan and
+  gradient accents are gone.
+- Charts (rheogram, ECD vs TVD and surge/swab) stay on the white chart card in both themes and carry
+  `data-canvas="chart"`. The app draws no schematic, so no dark canvas.
+- Shared drilling kit (Explorer, GeometryNotice, WellboreDetails from
+  Torque & Drag) untouched: it is scope-aware since W0B.
+- Phone width: no sideways page scroll; the workstation keeps its 1100px
+  minimum and scrolls inside the shell, as before. The help guide stacks.
+- Tests: `__tests__/HydraulicsStudio.theme.test.jsx` (describeAppTheme for the studio and the help
+  guide, a dark walk through every tab and run with the legacy-chrome
+  check, chart cards white, harness scope). Existing suites unchanged.
+- No engine, calculation or export change.

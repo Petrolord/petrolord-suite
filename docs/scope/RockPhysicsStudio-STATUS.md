@@ -72,3 +72,19 @@ replacement AVO (the lower rock with fluid B beside the in situ interface:
 curve, A/B, class, crossplot point; `services/scenario.substitutedHalfspace`)
 and the tuning thickness in depth from a wedge Vp (`DEFAULT_WEDGE.vpWedge`).
 Engines untouched.
+
+## 2026-09-28: Design system rollout w4d
+
+- `RockWorkstation` wraps itself in `<ThemedApp>` (test id `rp-theme-scope`),
+  so the route page and the `/dev/rock-physics-studio` harness share one
+  scope: light grey panel by default, dark per user through the ribbon
+  toggle. The help guide has its own scope (`rp-help-theme-scope`). The
+  route prefix is registered in `src/design/rollout/w4d.js`.
+- Ribbon, explorer, dock, fields and tables on pl-* roles; the Vs estimated
+  badge and warnings on the warning roles, published curves on the success
+  roles; cyan and emerald accents removed. Ribbon labels no longer wrap.
+- The Fluids, AVO and Wedge charts stay white (`data-canvas="chart"`); the
+  wedge synthetic sits on a dark canvas (`data-canvas="dark"`) with its
+  pixels unchanged.
+- No engine or calculation change. Theme test:
+  `src/pages/apps/RockPhysicsStudio/__tests__/RockPhysicsStudio.theme.test.jsx`.

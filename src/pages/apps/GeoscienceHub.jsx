@@ -3,25 +3,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Layers, Box, TrendingUp, ArrowRight, Database, Cuboid, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { ThemedApp } from '@/design/ThemeProvider';
+import { AppHeader, PageContainer } from '@/components/ui/app-shell';
 
 const AppCard = ({ title, description, icon: Icon, path, status = "Available" }) => {
   const navigate = useNavigate();
   return (
-    <Card className="bg-slate-900 border-slate-800 hover:border-slate-600 transition-all cursor-pointer group" onClick={() => navigate(path)}>
+    <Card className="hover:border-pl-primary transition-all cursor-pointer group" onClick={() => navigate(path)}>
       <CardHeader>
         <div className="flex items-center justify-between mb-2">
-          <div className="p-2 bg-blue-500/10 rounded-lg">
-            <Icon className="h-6 w-6 text-blue-400" />
+          <div className="p-2 bg-pl-sunken rounded-lg">
+            <Icon className="h-6 w-6 text-pl-primary-text" />
           </div>
-          <span className={`text-xs px-2 py-1 rounded-full ${status === 'Available' ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400'}`}>
+          <span className={`text-xs px-2 py-1 rounded-full ${status === 'Available' ? 'bg-pl-success-bg text-pl-success-text' : 'bg-pl-warning-bg text-pl-warning-text'}`}>
             {status}
           </span>
         </div>
-        <CardTitle className="text-slate-100 group-hover:text-blue-400 transition-colors">{title}</CardTitle>
-        <CardDescription className="text-slate-400">{description}</CardDescription>
+        <CardTitle className="group-hover:text-pl-primary-text transition-colors">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
-        <Button variant="ghost" className="w-full justify-between group-hover:bg-slate-800 text-slate-300 hover:text-white">
+        <Button variant="ghost" className="w-full justify-between group-hover:bg-pl-sunken">
           Launch App <ArrowRight className="h-4 w-4" />
         </Button>
       </CardContent>
@@ -29,14 +31,16 @@ const AppCard = ({ title, description, icon: Icon, path, status = "Available" })
   );
 };
 
-const GeoscienceHub = () => {
+const GeoscienceHubContent = () => {
   return (
-    <div className="min-h-screen bg-slate-950 p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-white tracking-tight">Geoscience Analytics Hub</h1>
-          <p className="text-slate-400 text-lg">Advanced tools for subsurface modeling, petrophysics, and reservoir characterization.</p>
-        </div>
+    <>
+      <AppHeader
+        title="Geoscience Analytics Hub"
+        subtitle="Advanced tools for subsurface modeling, petrophysics, and reservoir characterization."
+        backTo="/dashboard/geoscience"
+        backLabel="Geoscience"
+      />
+      <PageContainer className="py-8 space-y-8">
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <AppCard
@@ -77,17 +81,25 @@ const GeoscienceHub = () => {
           />
         </div>
 
-        <div className="mt-12 p-6 bg-slate-900/50 rounded-xl border border-slate-800">
-          <h2 className="text-xl font-semibold text-white mb-4">Documentation & Resources</h2>
+        <div className="mt-12 p-6 bg-pl-surface rounded-xl border border-pl-border">
+          <h2 className="text-xl font-semibold text-pl-text mb-4">Documentation & Resources</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white">View API Documentation</Button>
-            <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white">Watch Video Tutorials</Button>
-            <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white">Contact Support</Button>
+            <Button variant="outline">View API Documentation</Button>
+            <Button variant="outline">Watch Video Tutorials</Button>
+            <Button variant="outline">Contact Support</Button>
           </div>
         </div>
-      </div>
-    </div>
+      </PageContainer>
+    </>
   );
 };
+
+// Design system rollout batch 4D: the legacy hub opens light and follows the
+// user's theme from the header toggle.
+const GeoscienceHub = () => (
+  <ThemedApp className="min-h-screen" data-testid="geo-hub-theme-scope">
+    <GeoscienceHubContent />
+  </ThemedApp>
+);
 
 export default GeoscienceHub;

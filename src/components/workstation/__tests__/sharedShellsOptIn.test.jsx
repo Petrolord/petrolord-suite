@@ -19,6 +19,20 @@ import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import StratigraphyHelpGuide from '@/pages/apps/StratigraphyStudio/StratigraphyHelpGuide';
 
+// Stratigraphy Studio wraps its own help guide in ThemedApp since design
+// system rollout W4B. This proof needs the guide's unscoped render, so here
+// that one wrapper renders its children bare; the layout and the guide
+// content (what the snapshot pins) are unchanged, and every other
+// ThemedApp (the scoped test below) is the real one.
+jest.mock('@/design/ThemeProvider', () => {
+  const actual = jest.requireActual('@/design/ThemeProvider');
+  const R = jest.requireActual('react');
+  const ThemedApp = (props) => (props['data-testid'] === 'strat-help-theme-scope'
+    ? R.createElement(R.Fragment, null, props.children)
+    : R.createElement(actual.ThemedApp, props));
+  return { ...actual, ThemedApp };
+});
+
 beforeAll(() => {
   global.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
   window.HTMLElement.prototype.scrollIntoView = window.HTMLElement.prototype.scrollIntoView || (() => {});

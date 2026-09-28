@@ -112,3 +112,41 @@ windows 0.55 / 1.3 / 2.0 %Ro labelled; a Magoon-style events chart
 moment); %Ro isolines and isotherms on the burial history; transformation
 ratio in the Expulsion tab. View layer only (`services/resultsView.js`);
 engines untouched.
+
+## 2026-09-28: Design system rollout W4C
+
+The app is on the Petrolord design system (plan of record
+`docs/scope/DesignSystem-Rollout.md`, batch 4C). It opens light (grey
+panel) and dark stays a per-user choice through the header toggle.
+
+- `BasinFlowShell` wraps the app in `ThemedApp`
+  (`data-testid="bf-theme-scope"`), so the page and the `/dev` harness
+  share the scope; the help guide wraps itself
+  (`bf-help-theme-scope`). The route prefix is registered in
+  `src/design/rollout/w4c.js`, so `/help` is covered too.
+- Toggle: top right of the mode selector, in the Expert header beside
+  Help, and in the Guided wizard toolbar beside Units and Help.
+- All own classes moved to `pl-*` roles; status colour only for status
+  (validation alerts use the `Alert` status variants, calibration misfit
+  pass or warn, batch and well status, sim success or error, workflow
+  step done or in error). Decorative icon, heading and tab-underline
+  hues and every gradient are gone; primary actions use the default
+  `Button`.
+- Canvas choice: every plot (burial history with isolines, temperature,
+  maturity windows, transformation ratio, generation and expulsion, the
+  events chart, calibration profiles and residuals, heat-flow history,
+  sensitivity) is a white `chartTheme` chart and sits in
+  `data-canvas="chart"`, white in both themes. BasinFlow has no 2D or 3D
+  basin view drawn for a dark ground, so there is no
+  `data-canvas="dark"` region. Lithology and series colours are
+  unchanged.
+- Phone width (390): guided template, heat-flow and erosion side panels
+  stack under the choices; the Expert header drops the Open in menu
+  and the Home label on phones and shows the wells toggle there (it was
+  desktop only, so the sidebar could not be closed on a phone); the
+  wizard content clears the floating toolbar on desktop.
+- Test: `__tests__/BasinFlowGenesis.theme.test.jsx` (the shared four
+  checks, every Expert tab and import sub-tab, a dark Expert render, the
+  export, scenario and new-well dialogs, a full run with every results
+  tab, the Guided wizard steps and the help guide). Engines and
+  calculations untouched; the existing suites pass unchanged.

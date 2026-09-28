@@ -10,7 +10,7 @@ export const ValidationFeedback = ({ result }) => {
         <div className="space-y-2 my-4 animate-in fade-in slide-in-from-top-2">
             {/* Errors */}
             {result.errors.length > 0 && (
-                <Alert variant="destructive" className="bg-red-900/20 border-red-900/50 text-red-200">
+                <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
                     <AlertTitle>Validation Error</AlertTitle>
                     <AlertDescription>
@@ -25,9 +25,9 @@ export const ValidationFeedback = ({ result }) => {
 
             {/* Warnings */}
             {result.warnings.length > 0 && (
-                <Alert className="bg-amber-900/20 border-amber-900/50 text-amber-200">
-                    <AlertTriangle className="h-4 w-4 text-amber-500" />
-                    <AlertTitle className="text-amber-500">Warning</AlertTitle>
+                <Alert variant="warning">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Warning</AlertTitle>
                     <AlertDescription>
                         <ul className="list-disc pl-4 mt-1 space-y-1 text-xs">
                             {result.warnings.map((warn, i) => (
@@ -40,9 +40,9 @@ export const ValidationFeedback = ({ result }) => {
             
             {/* Success (if valid but has warnings, or strictly valid) */}
             {result.isValid && result.errors.length === 0 && result.warnings.length === 0 && (
-                 <Alert className="bg-emerald-900/20 border-emerald-900/50 text-emerald-200">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                    <AlertTitle className="text-emerald-500">Ready to Proceed</AlertTitle>
+                 <Alert variant="success">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <AlertTitle>Ready to Proceed</AlertTitle>
                     <AlertDescription className="text-xs">All validation checks passed.</AlertDescription>
                 </Alert>
             )}
@@ -56,7 +56,7 @@ export const ValidationTooltip = ({ message, children }) => (
             <TooltipTrigger asChild>
                 {children}
             </TooltipTrigger>
-            <TooltipContent className="bg-slate-900 text-slate-200 border-slate-800">
+            <TooltipContent>
                 <p>{message}</p>
             </TooltipContent>
         </Tooltip>

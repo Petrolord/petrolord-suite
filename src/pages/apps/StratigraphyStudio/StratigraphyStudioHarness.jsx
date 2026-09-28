@@ -8,12 +8,13 @@ import React, { useMemo } from 'react';
 import StratWorkstation from './components/StratWorkstation';
 import { makeInMemoryBackend } from './services/inMemoryBackend';
 import { DEV_APP_PATHS } from '@/components/wells/appLinks';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 export default function StratigraphyStudioHarness() {
   const backend = useMemo(() => makeInMemoryBackend(), []);
   return (
-    <div className="h-screen w-full overflow-hidden">
+    <ThemedApp className="h-screen w-full overflow-hidden" data-testid="strat-theme-scope">
       <StratWorkstation backend={backend} appPaths={DEV_APP_PATHS} />
-    </div>
+    </ThemedApp>
   );
 }

@@ -78,7 +78,10 @@ describe('the Paystack callers', () => {
     for (const name of ['verify-paystack-payment', 'paystack-webhook']) {
       const src = fn(name);
       expect(src).toContain('checkPaystackAmount');
-      expect(src.indexOf('checkPaystackAmount(')).toBeLessThan(src.indexOf("rpc('manual_verify_quote'"));
+      // The grant is the RPC (verify page) or provisionPaidQuote (webhook, 2026-09-28).
+      const grants = [src.indexOf("rpc('manual_verify_quote'"), src.indexOf('provisionPaidQuote(')].filter((i) => i >= 0);
+      expect(grants.length).toBeGreaterThan(0);
+      expect(src.indexOf('checkPaystackAmount(')).toBeLessThan(Math.min(...grants));
     }
   });
   test('renewals charge naira, not the raw USD figure', () => {

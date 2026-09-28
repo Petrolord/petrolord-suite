@@ -12,8 +12,8 @@ import { RANKS, orderedUnits, validateColumn } from '@/lib/stratigraphy/column';
 import { unitsOfRank, ageBounds, TIMESCALE_VERSION } from '@/lib/stratigraphy/timescale';
 import ColumnChart from './ColumnChart';
 
-const cellCls = 'bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-xs text-slate-100 w-full';
-const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40';
+const cellCls = 'bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-xs text-pl-text w-full';
+const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40';
 
 const toRow = (u) => ({
   id: u.id, name: u.name || '', rank: u.rank || 'formation', parent_id: u.parent_id || '',
@@ -99,29 +99,29 @@ export default function ColumnEditor({ units, canEdit = true, onSave, onStatus }
   return (
     <div className="p-3 space-y-2 text-xs min-w-0" data-testid="strat-column-editor">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-slate-300 font-medium">Stratigraphic column</span>
-        <span className="text-slate-500">{units.length} unit{units.length === 1 ? '' : 's'} · ages in Ma, timescale {TIMESCALE_VERSION}</span>
+        <span className="text-pl-text font-medium">Stratigraphic column</span>
+        <span className="text-pl-muted">{units.length} unit{units.length === 1 ? '' : 's'} · ages in Ma, timescale {TIMESCALE_VERSION}</span>
         <div className="ml-auto flex items-center gap-1">
           <button type="button" className={btnCls} onClick={addRow} disabled={!canEdit} data-testid="strat-unit-add"><Plus className="w-3.5 h-3.5" /> Add unit</button>
-          <button type="button" className={`${btnCls} ${dirty ? 'border-cyan-500/60 text-cyan-300' : ''}`} onClick={save} disabled={!canEdit || busy || !dirty} data-testid="strat-column-save">
+          <button type="button" className={`${btnCls} ${dirty ? 'border-pl-primary text-pl-primary-text' : ''}`} onClick={save} disabled={!canEdit || busy || !dirty} data-testid="strat-column-save">
             {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Save column
           </button>
         </div>
       </div>
       {problems.length > 0 && (
-        <ul className="text-red-300 space-y-0.5" data-testid="strat-column-problems">
+        <ul className="text-pl-danger-text space-y-0.5" data-testid="strat-column-problems">
           {problems.map((p, i) => <li key={`${p.id}-${p.code}-${i}`}>{p.message}</li>)}
         </ul>
       )}
       {!rows.length ? (
-        <div className="text-slate-500" data-testid="strat-column-empty">No units yet. Add a group, then the formations inside it.</div>
+        <div className="text-pl-muted" data-testid="strat-column-empty">No units yet. Add a group, then the formations inside it.</div>
       ) : (
         <div className="overflow-x-auto">
           <table className="text-xs min-w-[880px]">
             <thead>
               <tr>
                 {['Unit', 'Rank', 'Inside', 'Order', 'Top (Ma)', 'Base (Ma)', 'From stage', 'Colour', ''].map((h) => (
-                  <th key={h} className="text-left font-medium text-slate-500 pr-3 pb-1">{h}</th>
+                  <th key={h} className="text-left font-medium text-pl-muted pr-3 pb-1">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -156,7 +156,7 @@ export default function ColumnEditor({ units, canEdit = true, onSave, onStatus }
                     </td>
                     <td className="pr-3 py-0.5"><input type="color" value={r.colour} disabled={!canEdit} onChange={(e) => setCell(u.id, 'colour', e.target.value)} data-testid={`strat-unit-colour-${i}`} className="w-8 h-5 bg-transparent border-0 p-0" /></td>
                     <td className="py-0.5">
-                      <button type="button" className="text-slate-500 hover:text-red-400" title="Remove unit" disabled={!canEdit} onClick={() => delRow(u.id)} data-testid={`strat-unit-del-${i}`}><Trash2 className="w-3 h-3" /></button>
+                      <button type="button" className="text-pl-muted hover:text-pl-danger-text" title="Remove unit" disabled={!canEdit} onClick={() => delRow(u.id)} data-testid={`strat-unit-del-${i}`}><Trash2 className="w-3 h-3" /></button>
                     </td>
                   </tr>
                 );
@@ -165,7 +165,7 @@ export default function ColumnEditor({ units, canEdit = true, onSave, onStatus }
           </table>
         </div>
       )}
-      <p className="text-slate-500">Removing a unit keeps its children and any tops that named it; they lose the reference. Sharing the column with your organization shares all of it, read-only.</p>
+      <p className="text-pl-muted">Removing a unit keeps its children and any tops that named it; they lose the reference. Sharing the column with your organization shares all of it, read-only.</p>
       <ColumnChart units={rows} />
     </div>
   );

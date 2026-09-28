@@ -34,7 +34,7 @@ export default function HeatFlowHistoryEditor({ heatFlow, maxAge, onChange }) {
             type="button"
             data-testid={`bf-heatflow-type-${t}`}
             className={`px-2 py-1 text-xs rounded border capitalize
-              ${(heatFlow.type || 'constant') === t ? 'border-purple-500/60 text-purple-300' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
+              ${(heatFlow.type || 'constant') === t ? 'border-pl-primary/50 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:text-pl-text'}`}
             onClick={() => setType(t)}
           >
             {t === 'constant' ? 'Constant' : 'History'}
@@ -44,21 +44,21 @@ export default function HeatFlowHistoryEditor({ heatFlow, maxAge, onChange }) {
 
       {(heatFlow.type || 'constant') === 'constant' ? (
         <div>
-          <Label className="text-xs text-slate-400">Basal heat flow (mW/m²)</Label>
+          <Label className="text-xs text-pl-muted">Basal heat flow (mW/m²)</Label>
           <Input
             type="number"
             step="any"
             data-testid="bf-heatflow-value"
             value={heatFlow.value ?? ''}
             onChange={(e) => onChange({ value: parseFloat(e.target.value) })}
-            className="mt-1 bg-slate-950 h-8"
+            className="mt-1 h-8"
           />
         </div>
       ) : (
         <div className="space-y-2">
-          <table className="w-full text-xs text-slate-200" data-testid="bf-heatflow-table">
+          <table className="w-full text-xs text-pl-text" data-testid="bf-heatflow-table">
             <thead>
-              <tr className="text-slate-500 text-left">
+              <tr className="text-pl-muted text-left">
                 <th className="font-normal">Age (Ma)</th>
                 <th className="font-normal">Heat flow (mW/m²)</th>
                 <th />
@@ -66,15 +66,15 @@ export default function HeatFlowHistoryEditor({ heatFlow, maxAge, onChange }) {
             </thead>
             <tbody>
               {history.map((p, i) => (
-                <tr key={i} className="border-t border-slate-800">
+                <tr key={i} className="border-t border-pl-border">
                   <td className="py-1 pr-2">
-                    <Input type="number" step="any" data-testid={`bf-heatflow-age-${i}`} value={p.age} onChange={(e) => setPoint(i, { age: parseFloat(e.target.value) })} onBlur={sortPoints} className="h-7 bg-slate-950 text-xs" />
+                    <Input type="number" step="any" data-testid={`bf-heatflow-age-${i}`} value={p.age} onChange={(e) => setPoint(i, { age: parseFloat(e.target.value) })} onBlur={sortPoints} className="h-7 text-xs" />
                   </td>
                   <td className="py-1 pr-2">
-                    <Input type="number" step="any" data-testid={`bf-heatflow-q-${i}`} value={p.value} onChange={(e) => setPoint(i, { value: parseFloat(e.target.value) })} className="h-7 bg-slate-950 text-xs" />
+                    <Input type="number" step="any" data-testid={`bf-heatflow-q-${i}`} value={p.value} onChange={(e) => setPoint(i, { value: parseFloat(e.target.value) })} className="h-7 text-xs" />
                   </td>
                   <td className="py-1 text-right">
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:text-red-400" data-testid={`bf-heatflow-remove-${i}`} onClick={() => removePoint(i)} disabled={history.length <= 2}>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-pl-muted hover:text-pl-danger-text" data-testid={`bf-heatflow-remove-${i}`} onClick={() => removePoint(i)} disabled={history.length <= 2}>
                       <Trash2 className="w-3 h-3" />
                     </Button>
                   </td>
@@ -85,12 +85,12 @@ export default function HeatFlowHistoryEditor({ heatFlow, maxAge, onChange }) {
           <Button variant="outline" size="sm" className="h-7 text-xs" data-testid="bf-heatflow-add" onClick={addPoint}>
             <Plus className="w-3 h-3 mr-1" /> Add point
           </Button>
-          <p className="text-[11px] text-slate-500">Linear between points; the oldest and youngest values are held outside them.</p>
+          <p className="text-[11px] text-pl-muted">Linear between points; the oldest and youngest values are held outside them.</p>
         </div>
       )}
 
       {problems.map((p) => (
-        <p key={p} className="text-[11px] text-amber-400" data-testid="bf-heatflow-problem">{p}</p>
+        <p key={p} className="text-[11px] text-pl-warning-text" data-testid="bf-heatflow-problem">{p}</p>
       ))}
       <HeatFlowChart heatFlow={heatFlow} maxAge={maxAge} />
     </div>

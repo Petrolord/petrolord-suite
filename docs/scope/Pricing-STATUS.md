@@ -5,6 +5,79 @@ Current prices and rules as of the 2026-09 pricing review (owner-approved
 history of how module pricing came to have one source of truth follows in
 the 2026-08-30 sections below.
 
+## 2026-09-28: Get a quote goes to the working quote-and-pay flow
+
+Found in the 3F rollout. `src/pages/GetQuote.jsx` (the old configurator at
+`/dashboard/get-quote`) builds its module list from `appCategories` in
+`src/data/applications.js`, which is `[]`, so step 1 showed no modules and
+Next stayed disabled: a customer who clicked the homepage "Get an instant
+quote" could not get a quote. Confirmed on main 3c0f20ee9 by rendering the
+page with the real `applications.js`.
+
+- Fix: every entry point now lands on the upgrade page (QuoteBuilder at
+  `/dashboard/upgrade`), which reads the live catalogue and is priced by
+  `generate-quote`. Home CTA navigates there for signed-in visitors
+  (signed-out still goes to `/signup`). `/dashboard/get-quote` and the old
+  public `/get-quote` (the promo share-link target, which used to fall
+  through to `/`) are `src/pages/GetQuoteRedirect.jsx`, a `Navigate` that
+  keeps the query string and router state. The admin promo share link
+  builder (`pages/admin/PromoCodes.jsx`) now emits
+  `/dashboard/upgrade?promo=CODE`.
+- Not filled: `appCategories` stays empty on purpose, so there is no second
+  pricing path. QuoteBuilder, pricing, `generate-quote`, Paystack and
+  Stripe are unchanged; `quotePricingParity` and `modulePricing` pass.
+- Open: QuoteBuilder does not read `?promo=`, so a share link no longer
+  pre-applies its code; the customer types it in the promo box (the admin
+  help text says so). Reading `?promo=` in QuoteBuilder is a small follow-up.
+- `GetQuote.jsx` is now unreachable from the router. It is left in place
+  (its theme tests and the pricing guards still read it) for a later cleanup.
+- Same PR: App analytics (`/dashboard/analytics`) showed fixed placeholder
+  figures (124 users, 450 sessions). No real source exists
+  (`app_analytics_daily` has an org-admin read policy but no writer and 0
+  rows; `app_activity_log` has no writer in the repo and no org column), so
+  the page now shows "No usage data recorded yet" and no numbers. The
+  "Payment Confirmed" toast in QuoteDashboard dropped its green className
+  and follows the themed toaster.
+- Tests: `src/pages/__tests__/getQuoteRoute.test.jsx`, the analytics case
+  in `W3fAdminPages.theme.test.jsx`, `suiteCatalog.test.js` updated.
+
+## 2026-09-28: quote and organisation admin pages on the design system (rollout 3F)
+
+Get quote (`/dashboard/get-quote`), Quote dashboard (`/dashboard/quote/:quoteId`),
+Audit logs, Teams, Bulk import and App analytics wrap themselves in
+`ThemedApp` (shared `AccountScope`, `AccountPage`, `AccountHeader` from
+`src/components/account/accountChrome.jsx`, imported unchanged) and open on
+the grey panel with a light/dark toggle in the header. Routes are registered
+in `src/design/rollout/w3f.js`.
+
+- Money paths are classes only. No function that prices, verifies a promo,
+  calls `generate-quote`, `get-active-apps`, `verify-paystack-payment`,
+  `verify-bank-transfer` or `create-stripe-checkout`, or writes to the
+  database changed; `quotePricingParity`, `modulePricing` and
+  `midstreamDownstreamRegistration` pass unchanged. `appCategories` is left
+  as it is.
+- Status colour only for status: quote status badge (warning, info,
+  success, danger), payment verified, unlocked access, import success and
+  failure counts, member status, promo errors. Pay buttons, prices, the
+  total and discount lines are primary or plain text; the gold top rule on
+  the Total Due card is the brand accent.
+- Tests: `src/pages/__tests__/W3fAdminPages.theme.test.jsx` (describeAppTheme
+  per page, plus the audit log dialog, the transfer proof dialog and a walk
+  through the configurator steps).
+- Checked at 1440 and 390 wide in light, and in dark at 1440, from a private
+  preview server with stand-in data: no sideways page scroll (wide tables
+  scroll inside their card).
+
+Found on the way, left as they are:
+
+- `appCategories` in `src/data/applications.js` is an empty list, so step 1
+  of Get quote lists no modules and Next stays disabled (the same root cause
+  as the empty Module access overview noted under 1E).
+- The "Payment Confirmed" toast in `QuoteDashboard.runVerification` (the
+  Paystack verify path) still passes a green `className`, so it stays green
+  in the themed toaster.
+- App analytics shows fixed placeholder figures (124 users, 450 sessions).
+
 ## 2026-09-28: account page fixes (renewals, access requests, availability)
 
 Fixes three of the defects found in rollout 1E (below). Owner decision
@@ -40,6 +113,83 @@ app_id)` without updating `quote_id`, and sets `expiry_date` from the quote.
 The paid-quote expiry sync in verify-paystack-payment / provision-quote then
 matches rows by the new `quote_id`, so renewed rows may not get the new
 subscription end date. Needs a migration (owner and second-engineer review).
+Traced and fixed on `fix/renewal-expiry-sync` (HELD, see the next section).
+
+## 2026-09-28: paid-quote end dates, final rules (owner-approved, PR #769)
+
+Owner decision 2026-09-28: go ahead with the lead's recommendations. Built on
+`fix/renewal-expiry-sync`; migration `20260929130000` NOT YET APPLIED.
+
+- One place sets `purchased_modules.expiry_date` for a paid quote:
+  `manual_verify_quote(p_quote_id, p_organization_id, p_paid_at)`. Every rail
+  passes the paid date (Paystack verify page, Paystack webhook, Stripe via
+  `provisionPaidQuote`, bank transfer at approval). No finalizer runs its own
+  expiry update any more. The term comes from the quote
+  (`billing_period`, else `billing_term`; the `_shared/billing-term.ts` table).
+- Early renewal stacks: an app row with an end date in the future ends at
+  old end + term. Expired, or NULL: paid date + term. First purchase: paid
+  date + term.
+- Top-ups never shorten: re-buying a held app on a shorter term still stacks
+  on its end; the module row ends at the later of its end and the end just set
+  on its app, so a short top-up for a new app never pulls it earlier.
+- Re-runs change nothing: a row already on this quote keeps its end date, so
+  the webhook and the verify page in either order give one stacked end.
+- The Paystack webhook skips payments already marked `success` (verify page)
+  or `COMPLETED` (webhook). When it does provision (payer never returned) it
+  runs `provisionPaidQuote`, the same as Stripe: RPC, quote paid, org active,
+  bridge and promo codes, the subscriptions row, HSE with Suite, email.
+- subscriptions: `upsertSuiteSubscription` (`_shared/provision-quote.ts`),
+  used by verify, webhook and Stripe, keyed by org + quote (never a second
+  row for one quote). `end_date` = the RPC's `expiry_date` (latest end on the
+  quote's app rows), never before the paid window. Bank transfer moves the
+  subscription it activates to the same end, and now uses the shared term
+  table (a quarterly bank transfer got a year before).
+- The two-argument RPC stays as a wrapper (paid date from
+  `quotes.payment_verified_at`, else now()) for any caller not yet redeployed.
+  Both forms are service_role only.
+- Live check 2026-09-28 (read-only): the only NULL-expiry rows are six
+  `hse_free` module rows, which the RPC never touches.
+- Gates: `bash tools/validation/renewal-expiry/run.sh` (scratch postgres:16;
+  live definition + origin/main finalizer model vs this branch) and
+  `supabase/functions/_shared/__tests__/renewal-provisioning.test.ts`.
+- Owner steps: apply `20260929130000`, then deploy verify-paystack-payment,
+  paystack-webhook (`--no-verify-jwt`), activate-bank-transfer,
+  verify-stripe-payment, stripe-webhook (`--no-verify-jwt`). See PR #769.
+
+## 2026-09-28: paid renewals and the purchased_modules end date (HELD)
+
+Superseded in part by the final rules above (early renewal stacks, top-ups
+never shorten, webhook-only creates the subscription).
+
+Trace against the live `manual_verify_quote` (identical to
+20260613141000) and origin/main functions. `quotes.expiry_date` is never
+written by generate-quote (0 of 6 live quotes have one), so the RPC always
+inserts or updates rows with `expiry_date = NULL`; the finalizers then set the
+real end date on rows `WHERE quote_id = <paid quote>`.
+
+- First purchase: rows are inserted with the new quote_id, so the sync in
+  verify-paystack-payment and provision-quote (Stripe) sets the end date.
+  Bank transfer (activate-bank-transfer) never set it: NULL. Paystack webhook
+  alone (payer never returns to the verify page) never set it: NULL. A webhook
+  arriving after the verify page re-ran the RPC and wiped the end date to NULL
+  (its idempotency check looks for payments.status 'COMPLETED', verify writes
+  'success').
+- Renewal of held apps: the ON CONFLICT branches kept the old quote_id and
+  wrote NULL, so the sync missed them. Held app rows and the module row ended
+  with expiry NULL, which usePurchasedModules and get-user-entitlements read as
+  "never expires"; only apps new on the renewal quote got the new date. The
+  subscriptions row is keyed by quote, so the new one has the right end_date.
+- Fix: migration 20260929130000 (ON CONFLICT sets quote_id to the paid quote
+  and keeps a known expiry when the quote's is NULL); paystack-webhook and
+  activate-bank-transfer now run the same end-date sync. Separate migration
+  20260929130100 revokes EXECUTE on the RPC from PUBLIC/anon/authenticated:
+  it is SECURITY DEFINER with no payment check, so a signed-in customer could
+  call it on their own unpaid quote.
+- Open policy questions at the time (since decided, see the final rules
+  above): early renewal forfeiting days; a shorter top-up moving the module
+  end date; no subscription row on webhook-only payments.
+- Dry run: `bash tools/validation/renewal-expiry/run.sh` (scratch postgres:16).
+
 
 ## 2026-09-28: account and billing pages on the design system (rollout 1E)
 

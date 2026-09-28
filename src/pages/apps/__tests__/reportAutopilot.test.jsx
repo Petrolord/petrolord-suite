@@ -32,6 +32,8 @@ jest.mock('@/lib/customSupabaseClient', () => ({
 }));
 
 jest.mock('@/contexts/SupabaseAuthContext', () => ({
+  // ThemedApp (design system rollout w4d) reads AuthContext directly
+  AuthContext: require('react').createContext(null),
   useAuth: () => ({ user: { id: 'u1', email: 'tester@example.com' }, session: null, loading: false }),
   SupabaseAuthProvider: ({ children }) => children,
 }));

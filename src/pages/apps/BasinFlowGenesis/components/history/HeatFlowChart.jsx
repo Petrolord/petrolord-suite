@@ -12,7 +12,7 @@ import { heatFlowSeries } from '../../services/history';
 export default function HeatFlowChart({ heatFlow, maxAge = 200, height = 220 }) {
   const data = useMemo(() => heatFlowSeries(heatFlow, maxAge), [heatFlow, maxAge]);
   return (
-    <div className="w-full bg-white rounded-lg border border-slate-300 p-3 relative" style={{ height }} data-testid="bf-heatflow-chart">
+    <div className="w-full bg-white rounded-lg border border-slate-300 p-3 relative" data-canvas="chart" style={{ height }} data-testid="bf-heatflow-chart">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={CHART_MARGINS.standard}>
           <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />

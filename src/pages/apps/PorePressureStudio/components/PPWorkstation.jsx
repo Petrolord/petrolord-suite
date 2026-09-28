@@ -25,6 +25,7 @@ import { appPath, wellDataManagerHref, WELL_DATA_MANAGER_ID } from '@/components
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import WellExplorer from './WellExplorer';
 import ParamsPanel from './ParamsPanel';
 import PrognosisChart from './PrognosisChart';
@@ -240,7 +241,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       title={title}
       value={units[key]}
       onChange={(e) => setUnit(key, e.target.value)}
-      className="bg-slate-800 border border-slate-700 rounded px-1 py-0.5 text-[11px] text-slate-200"
+      className="bg-pl-surface border border-pl-border-strong rounded px-1 py-0.5 text-[11px] text-pl-text"
     >
       {options.map((o) => (typeof o === 'string'
         ? <option key={o} value={o}>{o}</option>
@@ -304,7 +305,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       type="button"
       data-testid={`pp-view-${key}`}
       className={`px-2 py-1 text-xs rounded border
-        ${view === key ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
+        ${view === key ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:text-pl-text'}`}
       onClick={() => setView(key)}
     >
       {label}
@@ -312,22 +313,22 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   );
 
   const ribbon = (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-1.5 bg-pl-surface border-b border-pl-border">
       <ModuleHomeLink module="geoscience" />
-      <Gauge className="w-4 h-4 text-cyan-400" />
-      <span className="text-sm font-semibold text-slate-100 whitespace-nowrap">Pore Pressure Studio</span>
-      <span className="hidden 2xl:inline text-[11px] text-slate-500">Eaton / Bowers prognosis on the shared well registry</span>
+      <Gauge className="w-4 h-4 text-pl-primary-text" />
+      <span className="text-sm font-semibold text-pl-text whitespace-nowrap">Pore Pressure Studio</span>
+      <span className="hidden 2xl:inline text-[11px] text-pl-muted">Eaton / Bowers prognosis on the shared well registry</span>
       <div className="ml-4 flex items-center gap-1">
         {viewButton('prognosis', 'Prognosis')}
         {viewButton('nct', 'NCT')}
       </div>
       {result && (
-        <div className="ml-4 flex items-center gap-2 text-[11px] text-slate-400">
+        <div className="ml-4 flex items-center gap-2 text-[11px] text-pl-muted">
           <label htmlFor="pp-readout-depth">at</label>
           <input
             id="pp-readout-depth"
             data-testid="pp-readout-depth"
-            className="w-20 px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-200 text-right"
+            className="w-20 px-1.5 py-0.5 rounded bg-pl-surface border border-pl-border-strong text-pl-text text-right"
             value={readoutText}
             onChange={(e) => {
               setReadoutText(e.target.value);
@@ -340,11 +341,11 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
             <>
               <span data-testid="pp-readout-obg">OBG {readout.obg}</span>
               <span data-testid="pp-readout-ph">Ph {readout.ph}</span>
-              <span data-testid="pp-readout-pp" className="text-rose-300">PP {readout.pp}</span>
+              <span data-testid="pp-readout-pp" className="text-pl-danger-text">PP {readout.pp}</span>
               <span data-testid="pp-readout-fg">FG {readout.fg}</span>
               <span
                 data-testid="pp-readout-unit"
-                className="text-slate-600"
+                className="text-pl-muted"
                 title={isEmw(units.pressure)
                   ? `Equivalent mud weight at ${tidyDepth(readout.ref, units.depth)} ${units.depth} below ${emwDatumLabel(params)} (depth below mudline plus ${params.mudlineMdM > 0 ? 'the mudline MD' : 'the water depth'}); set the mudline MD in the dock to reference the rotary table`
                   : 'Pressure; choose ppg or sg for an equivalent mud weight'}
@@ -359,7 +360,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
         <span
           data-testid="pp-trend-badge"
           title="Analytic v0+k velocity model — constrains the regional trend only; it carries no local overpressure anomaly"
-          className="rounded px-1.5 py-0.5 bg-amber-500/15 border border-amber-600/50 text-amber-300 text-[11px]"
+          className="rounded px-1.5 py-0.5 bg-pl-warning-bg border border-pl-warning/40 text-pl-warning-text text-[11px]"
         >
           Trend-grade (seismic velocity)
         </span>
@@ -370,7 +371,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
             to={wellDataManagerHref(selected.id, 'logs', appPath(WELL_DATA_MANAGER_ID, appPaths))}
             data-testid="pp-open-wdm"
             title="Open this well in Well Data Manager on its logs (published curves are listed there)"
-            className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:text-slate-100 hover:bg-slate-800"
+            className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken"
           >
             <Database className="w-3.5 h-3.5" /> Well data
           </Link>
@@ -380,22 +381,22 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
           to={`${appPath(PP_ID, appPaths)}/help`}
           data-testid="pp-help"
           title="Open the Pore Pressure Studio help guide"
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:text-slate-100 hover:bg-slate-800"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken"
         >
           <HelpCircle className="w-3.5 h-3.5" /> Help
         </Link>
-        <span className="w-px h-4 bg-slate-800 mx-1" />
-        <span className="text-[11px] text-slate-500 mr-1">Units</span>
+        <span className="w-px h-4 bg-pl-border mx-1" />
+        <span className="text-[11px] text-pl-muted mr-1">Units</span>
         {unitSelect('pressure', PRESSURE_UNITS, 'Pressure display unit, or an equivalent mud weight (the engine stays in Pa)')}
         {unitSelect('depth', DEPTH_UNITS, 'Depth display unit; defaults to your Geoscience depth setting. Sonic and the compaction constant follow it')}
-        <span className="w-px h-4 bg-slate-800 mx-1" />
+        <span className="w-px h-4 bg-pl-border mx-1" />
         {result && (
           <button
             type="button"
             data-testid="pp-export-csv"
             title="Download the prognosis against depth in the chosen units, with EMW columns, for the well plan"
             className="flex items-center gap-1 px-2 py-1 text-xs rounded border
-              border-slate-700 text-slate-300 hover:bg-slate-800"
+              border-pl-border text-pl-text hover:bg-pl-sunken"
             onClick={exportCsv}
           >
             <Download className="w-3.5 h-3.5" /> Prognosis CSV
@@ -407,7 +408,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
             data-testid="pp-publish"
             title="Publish PP / FP / OBG curves to the well registry (overwrites this project's previous publish only)"
             className="flex items-center gap-1 px-2 py-1 text-xs rounded border
-              border-emerald-700 text-emerald-300 hover:bg-emerald-500/10"
+              border-pl-border text-pl-primary-text hover:bg-pl-sunken"
             onClick={publish}
           >
             {publishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
@@ -418,7 +419,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
           type="button"
           data-testid="pp-save-project"
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border
-            border-slate-700 text-slate-300 hover:bg-slate-800"
+            border-pl-border text-pl-text hover:bg-pl-sunken"
           onClick={saveProject}
         >
           {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
@@ -428,17 +429,18 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
           type="button"
           data-testid="pp-toggle-dock"
           className={`px-2 py-1 text-xs rounded border
-            ${dockOpen ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400'}`}
+            ${dockOpen ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted'}`}
           onClick={() => setDockOpen((v) => !v)}
         >
           Parameters
         </button>
+        <ThemeToggle className="h-7 w-7" />
       </div>
     </div>
   );
 
   const statusBar = (
-    <div className="flex items-center gap-3 px-3 py-1 bg-slate-900 border-t border-slate-800 text-[11px] text-slate-400">
+    <div className="flex items-center gap-3 px-3 py-1 bg-pl-surface border-t border-pl-border text-[11px] text-pl-muted">
       <span data-testid="pp-status" className="truncate">{computeError || status}</span>
       <span className="ml-auto whitespace-nowrap">
         {seismicModel
@@ -447,12 +449,12 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
             ? `${selected.name} · ${input && !input.error ? `${input.zBmlM.length} samples` : '…'}`
             : `${wells?.length ?? '…'} wells`}
       </span>
-      <span className="whitespace-nowrap text-slate-600" title="Every stored, computed and published value is SI; the unit selectors only change the display">SI internal (Pa · m · m/s) · display {units.pressure} · {units.depth}</span>
+      <span className="whitespace-nowrap text-pl-muted" title="Every stored, computed and published value is SI; the unit selectors only change the display">SI internal (Pa · m · m/s) · display {units.pressure} · {units.depth}</span>
     </div>
   );
 
   const empty = (
-    <div className="h-full flex items-center justify-center text-slate-500 text-sm" data-testid="pp-empty">
+    <div className="h-full flex items-center justify-center text-pl-muted text-sm" data-testid="pp-empty">
       {!wells ? (
         <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading registry wells…</>
       ) : selectedId && !curves ? (
@@ -476,12 +478,12 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
   ) : (
     <div className="h-full p-2 flex flex-col gap-1">
       {windowInfo?.narrowest && (
-        <div className="text-[11px] text-slate-300 px-1" data-testid="pp-drilling-window">
+        <div className="text-[11px] text-pl-text px-1" data-testid="pp-drilling-window">
           Narrowest drilling window <b>{windowInfo.narrowest.windowPpg.toFixed(2)} ppg</b>
           {' '}(PP {windowInfo.narrowest.ppPpg.toFixed(2)}, FG {windowInfo.narrowest.fgPpg.toFixed(2)} ppg EMW)
           {' '}at {fmtDepth(windowInfo.narrowest.zBmlM, units.depth)} {units.depth} below mudline (below the top {fmtDepth(WINDOW_FROM_BML_M, units.depth)} {units.depth}, the conductor section)
           {windowInfo.maxPp && <> · highest PP {windowInfo.maxPp.ppPpg.toFixed(2)} ppg at {fmtDepth(windowInfo.maxPp.zBmlM, units.depth)} {units.depth}</>}
-          {windowInfo.narrowest.windowPpg < 0.5 && <span className="text-amber-300"> · under 0.5 ppg: plan a casing point or managed pressure</span>}
+          {windowInfo.narrowest.windowPpg < 0.5 && <span className="text-pl-warning-text"> · under 0.5 ppg: plan a casing point or managed pressure</span>}
         </div>
       )}
       <div className="flex-1 min-h-0">
@@ -510,7 +512,7 @@ export default function PPWorkstation({ backend, appPaths = {} }) {
       )}
       center={center}
       dock={(
-        <ScrollArea className="h-full min-h-0 bg-slate-900/60 border-l border-slate-800/60">
+        <ScrollArea className="h-full min-h-0 bg-pl-surface border-l border-pl-border">
           <ParamsPanel params={params} calibration={calibration} onApply={applyDock} units={units} />
         </ScrollArea>
       )}

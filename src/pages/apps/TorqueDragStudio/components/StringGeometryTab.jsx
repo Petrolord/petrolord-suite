@@ -32,9 +32,9 @@ const num = (v) => {
 
 function Section({ title, children, actions }) {
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+    <div className="rounded-lg border border-pl-border bg-pl-surface p-3">
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-300">{title}</h3>
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-pl-text">{title}</h3>
         <div className="flex gap-2">{actions}</div>
       </div>
       {children}
@@ -42,7 +42,7 @@ function Section({ title, children, actions }) {
   );
 }
 
-const cell = 'h-8 bg-slate-950 border-slate-700 text-xs text-slate-200';
+const cell = 'h-8 text-xs';
 
 // ---- drillstring ----------------------------------------------------------
 
@@ -98,9 +98,9 @@ function StringBuilder({ caseDraft, onChange, depthUnit, tdM }) {
       )}
     >
       <div className="overflow-x-auto">
-        <table className="w-full text-xs text-slate-300">
+        <table className="w-full text-xs text-pl-text">
           <thead>
-            <tr className="text-[10px] uppercase text-slate-500">
+            <tr className="text-[10px] uppercase text-pl-muted">
               <th className="p-1 text-left">Pos</th>
               <th className="p-1 text-left">Type</th>
               <th className="p-1 text-left">Catalog</th>
@@ -115,8 +115,8 @@ function StringBuilder({ caseDraft, onChange, depthUnit, tdM }) {
           </thead>
           <tbody>
             {string.map((c, i) => (
-              <tr key={i} className="border-t border-slate-800">
-                <td className="p-1 text-slate-500">{i === 0 ? 'Bit end' : i + 1}</td>
+              <tr key={i} className="border-t border-pl-border">
+                <td className="p-1 text-pl-muted">{i === 0 ? 'Bit end' : i + 1}</td>
                 <td className="p-1">
                   <Select value={c.type} onValueChange={(t) => applyCatalog(i, t, (CATALOGS[t] || [])[0]?.designation)}>
                     <SelectTrigger className={`${cell} w-24`}><SelectValue /></SelectTrigger>
@@ -159,7 +159,7 @@ function StringBuilder({ caseDraft, onChange, depthUnit, tdM }) {
                   ) : '--'}
                 </td>
                 <td className="p-1">
-                  <Button size="icon" variant="ghost" className="h-6 w-6 text-slate-500 hover:text-red-400"
+                  <Button size="icon" variant="ghost" className="h-6 w-6 text-pl-muted hover:text-pl-danger-text"
                     onClick={() => remove(i)} disabled={string.length <= 1}>
                     <Trash2 className="h-3 w-3" />
                   </Button>
@@ -203,14 +203,14 @@ function GeometryEditor({ holeSections, onChangeSections, depthUnit, geometrySou
       </Button>
     )}>
       {geometryNote && geometrySource !== 'geometry' && (
-        <p className={`mb-2 text-[11px] ${geometrySource === 'none' ? 'text-red-300' : 'text-amber-300'}`}
+        <p className={`mb-2 text-[11px] ${geometrySource === 'none' ? 'text-pl-danger-text' : 'text-pl-warning-text'}`}
           data-testid="td-geometry-note" data-source={geometrySource}>
           {geometryNote}
         </p>
       )}
-      <table className="w-full text-xs text-slate-300">
+      <table className="w-full text-xs text-pl-text">
         <thead>
-          <tr className="text-[10px] uppercase text-slate-500">
+          <tr className="text-[10px] uppercase text-pl-muted">
             <th className="p-1 text-right">From ({depthUnit})</th>
             <th className="p-1 text-right">To ({depthUnit})</th>
             <th className="p-1 text-center">Cased</th>
@@ -221,7 +221,7 @@ function GeometryEditor({ holeSections, onChangeSections, depthUnit, geometrySou
         </thead>
         <tbody>
           {holeSections.map((s, i) => (
-            <tr key={i} className="border-t border-slate-800">
+            <tr key={i} className="border-t border-pl-border">
               <td className="p-1">
                 <Input className={`${cell} w-20 text-right`} value={Math.round(depthOut(s.from_md_m, depthUnit))}
                   onChange={(e) => set(i, { from_md_m: depthIn(num(e.target.value), depthUnit) })} />
@@ -243,7 +243,7 @@ function GeometryEditor({ holeSections, onChangeSections, depthUnit, geometrySou
                       ))}
                     </SelectContent>
                   </Select>
-                ) : <span className="text-slate-600">open hole</span>}
+                ) : <span className="text-pl-muted">open hole</span>}
               </td>
               <td className="p-1">
                 <Input className={`${cell} w-20 text-right`}
@@ -253,7 +253,7 @@ function GeometryEditor({ holeSections, onChangeSections, depthUnit, geometrySou
                     : { hole_id_m: num(e.target.value) * IN })} />
               </td>
               <td className="p-1">
-                <Button size="icon" variant="ghost" className="h-6 w-6 text-slate-500 hover:text-red-400" onClick={() => remove(i)}>
+                <Button size="icon" variant="ghost" className="h-6 w-6 text-pl-muted hover:text-pl-danger-text" onClick={() => remove(i)}>
                   <Trash2 className="h-3 w-3" />
                 </Button>
               </td>
@@ -269,7 +269,7 @@ function GeometryEditor({ holeSections, onChangeSections, depthUnit, geometrySou
 
 function Param({ label, value, onChange, testId, step = 'any' }) {
   return (
-    <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-slate-500">
+    <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wide text-pl-muted">
       {label}
       <Input type="number" step={step} className={`${cell} w-28 text-right`} value={value}
         onChange={(e) => onChange(num(e.target.value))} data-testid={testId} />
@@ -308,7 +308,7 @@ function OpsEditor({ caseDraft, onChange, depthUnit }) {
       </div>
       <div className="mt-3 flex flex-wrap gap-3">
         {OPERATIONS.map((op) => (
-          <label key={op} className="flex items-center gap-1.5 text-xs text-slate-300">
+          <label key={op} className="flex items-center gap-1.5 text-xs text-pl-text">
             <Checkbox
               checked={(ops.ops || []).includes(op)}
               onCheckedChange={(v) => {
@@ -322,8 +322,8 @@ function OpsEditor({ caseDraft, onChange, depthUnit }) {
           </label>
         ))}
       </div>
-      <div className="mt-3 flex flex-wrap items-end gap-3 border-t border-slate-800 pt-3">
-        <span className="text-[10px] uppercase tracking-wide text-slate-500">Casing wear</span>
+      <div className="mt-3 flex flex-wrap items-end gap-3 border-t border-pl-border pt-3">
+        <span className="text-[10px] uppercase tracking-wide text-pl-muted">Casing wear</span>
         <Param label="Rotating hours" value={wear.schedule?.[0]?.hours ?? 0}
           onChange={(v) => setOps({ wear: { ...wear, schedule: [{ rpm: wear.schedule?.[0]?.rpm ?? 120, hours: v }] } })}
           testId="td-wear-hours" />

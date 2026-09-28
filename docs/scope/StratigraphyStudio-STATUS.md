@@ -474,3 +474,31 @@ table, after NAPE); graphic column (`components/ColumnChart.jsx`); column
 editor in a plain scrolling pane; per-well views open on the first well;
 Wheeler labels, legend and undated band (`src/components/wells/section/
 WheelerChart.jsx`). Timescale spot-checked against ICS 2023/09.
+
+## 2026-09-28: design system rollout W4B (light default, dark per user)
+
+The app, its dev harness and its help guide each wrap themselves in
+`ThemedApp` (App.jsx is untouched), so the app opens on the grey panel
+light theme and the ribbon's toggle switches to dark and back, stored per
+user. The route prefix `/dashboard/apps/geoscience/stratigraphy-studio` (the help guide is a sub-path) is
+registered in `src/design/rollout/w4b.js` for the themed cold-load
+loaders.
+
+- Chrome on roles: the ribbon (new theme toggle at the right), the
+  explorer, the legend dock, the status bar and the Column, Tops,
+  Intervals, Core, Section, Wheeler, Ages and Glossary views moved from
+  slate and cyan to `pl-*` roles. The selected view and well use the
+  primary tint; problems use the danger role, hiatus rows and the
+  Catuneanu fallback badge the warning role. The marker swatches now take
+  the text colour (they were light slate and vanished on the light panel).
+- Canvases: the column chart, the age-depth plot and the Wheeler chart are
+  drawn for a dark ground and sit in `data-canvas="dark"` with their
+  pixels unchanged. The two shared section charts
+  (`components/wells/section/AgeDepthPlot.jsx`, `WheelerChart.jsx`) have
+  Stratigraphy as their only consumer, so they moved straight to roles.
+  The cross section is the W0C shared painter on white chart paper.
+- Layout: the ribbon wraps on narrower screens and hides its subtitle
+  below 2xl, so the view buttons keep their labels on one line.
+- Tests: new `src/pages/apps/StratigraphyStudio/__tests__/StratigraphyStudio.theme.test.jsx`
+  (the shared `describeAppTheme` checks on the real workstation, plus the
+  views, the dark theme and the help guide). No calculation, engine, export or plotting change; the existing suites pass unchanged.

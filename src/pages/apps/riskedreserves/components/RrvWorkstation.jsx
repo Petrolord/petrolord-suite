@@ -10,14 +10,16 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PieChart, HelpCircle, Plus, Download, Trash2, RefreshCw } from 'lucide-react';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
+import { ThemedApp } from '@/design/ThemeProvider';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { valueProspect, valuePortfolio, expectationCurve } from '@/utils/prospectValuation';
 import ExpectationChart from './ExpectationChart';
 import {
   fromRcpProspect, blankProspect, inputProblem, loadProspects, saveProspects, valuationCsv,
 } from '../services/rrvStore';
 
-const cell = 'w-full rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
-const btn = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40';
+const cell = 'w-full rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pl-focus';
+const btn = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40';
 const fmt = (v, d = 1) => (v == null || !Number.isFinite(v) ? '—' : v.toLocaleString(undefined, { maximumFractionDigits: d, minimumFractionDigits: d }));
 const pct = (v) => (v == null || !Number.isFinite(v) ? '—' : `${(v * 100).toFixed(1)}%`);
 
@@ -32,7 +34,7 @@ const FIELDS = [
   ['wellCost', 'Well $MM', 'Exploration well cost, $MM (spent in every outcome)'],
 ];
 
-export default function RrvWorkstation({ backend }) {
+function RrvWorkstationContent({ backend }) {
   const [prospects, setProspects] = useState(loadProspects);
   const [inventory, setInventory] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
@@ -76,29 +78,30 @@ export default function RrvWorkstation({ backend }) {
 
   const v = selected?.v;
   return (
-    <div className="h-full flex flex-col bg-slate-950 text-slate-200" data-testid="rrv">
-      <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
+    <div className="h-full flex flex-col bg-pl-bg text-pl-text" data-testid="rrv">
+      <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 bg-pl-surface border-b border-pl-border">
         <ModuleHomeLink module="reservoir" />
-        <PieChart className="w-4 h-4 text-lime-400" />
+        <PieChart className="w-4 h-4 text-pl-primary-text" />
         <span className="text-sm font-semibold">Risked Reserves Valuation</span>
-        <span className="text-[11px] text-slate-500">commercial chance, EMV and the expectation curve for risked prospects</span>
+        <span className="text-[11px] text-pl-muted">commercial chance, EMV and the expectation curve for risked prospects</span>
         <button type="button" className={`${btn} ml-auto`} onClick={importInventory} disabled={inventory === null} data-testid="rrv-import">
           <RefreshCw className="w-3.5 h-3.5" /> Import from ReservoirCalc Pro{inventory ? ` (${inventory.length})` : ''}
         </button>
         <button type="button" className={btn} onClick={add} data-testid="rrv-add"><Plus className="w-3.5 h-3.5" /> Add prospect</button>
         <button type="button" className={btn} onClick={exportCsv} disabled={!prospects.length} data-testid="rrv-csv"><Download className="w-3.5 h-3.5" /> CSV</button>
         <Link to="/dashboard/apps/reservoir/risked-reserves-valuation/help" className={btn} data-testid="rrv-help"><HelpCircle className="w-3.5 h-3.5" /> Help</Link>
+        <ThemeToggle className="h-7 w-7" />
       </div>
 
       <div className="flex-1 min-h-0 overflow-auto p-3 space-y-3">
         {!prospects.length ? (
-          <div className="text-sm text-slate-400 p-6 text-center" data-testid="rrv-empty">
+          <div className="text-sm text-pl-muted p-6 text-center" data-testid="rrv-empty">
             Import the prospects you risked in ReservoirCalc Pro, or add one here, then set its minimum economic field size, value per barrel and costs.
           </div>
         ) : (
-          <div className="overflow-x-auto rounded border border-slate-800">
-            <table className="w-full text-xs">
-              <thead className="text-slate-500">
+          <div className="overflow-x-auto rounded border border-pl-border bg-pl-surface">
+            <table className="w-full min-w-[960px] text-xs">
+              <thead className="text-pl-muted">
                 <tr>
                   <th className="text-left px-2 py-1">Prospect</th>
                   {FIELDS.map(([k, label, title]) => <th key={k} className="text-right px-1 py-1" title={title}>{label}</th>)}
@@ -109,33 +112,33 @@ export default function RrvWorkstation({ backend }) {
               </thead>
               <tbody>
                 {valued.map(({ p, v: pv, problem }) => (
-                  <tr key={p.id} className={`border-t border-slate-800/60 ${selected?.p.id === p.id ? 'bg-slate-900' : ''}`} onClick={() => setSelectedId(p.id)} data-testid={`rrv-row-${p.name}`}>
+                  <tr key={p.id} className={`border-t border-pl-border ${selected?.p.id === p.id ? 'bg-pl-primary/10' : ''}`} onClick={() => setSelectedId(p.id)} data-testid={`rrv-row-${p.name}`}>
                     <td className="px-2 py-1 min-w-[140px]">
                       <input className={cell} value={p.name} onChange={(e) => patch(p.id, 'name', e.target.value)} data-testid={`rrv-name-${p.name}`} />
-                      <span className="text-[10px] text-slate-500">{p.source === 'rcp' ? `from ReservoirCalc Pro${p.volumeNote ? `, ${p.volumeNote}` : ''}` : 'typed here'}</span>
+                      <span className="text-[10px] text-pl-muted">{p.source === 'rcp' ? `from ReservoirCalc Pro${p.volumeNote ? `, ${p.volumeNote}` : ''}` : 'typed here'}</span>
                     </td>
                     {FIELDS.map(([k]) => (
                       <td key={k} className="px-1 py-1 w-[72px]">
-                        <input className={`${cell} text-right`} value={p[k]} inputMode="decimal" onChange={(e) => patch(p.id, k, e.target.value)} data-testid={`rrv-${k}-${p.name}`} />
+                        <input className={`${cell} text-right font-pl-mono tabular-nums`} value={p[k]} inputMode="decimal" onChange={(e) => patch(p.id, k, e.target.value)} data-testid={`rrv-${k}-${p.name}`} />
                       </td>
                     ))}
-                    <td className="px-2 py-1 text-right" data-testid={`rrv-pc-${p.name}`}>{pv ? pct(pv.pc) : '—'}</td>
-                    <td className={`px-2 py-1 text-right font-semibold ${pv && pv.emv < 0 ? 'text-red-300' : 'text-emerald-300'}`} data-testid={`rrv-emv-${p.name}`}>
-                      {pv ? fmt(pv.emv) : <span className="text-amber-300 font-normal" title={problem}>check inputs</span>}
+                    <td className="px-2 py-1 text-right font-pl-mono tabular-nums" data-testid={`rrv-pc-${p.name}`}>{pv ? pct(pv.pc) : '—'}</td>
+                    <td className={`px-2 py-1 text-right font-pl-mono font-semibold tabular-nums ${pv && pv.emv < 0 ? 'text-pl-danger-text' : 'text-pl-success-text'}`} data-testid={`rrv-emv-${p.name}`}>
+                      {pv ? fmt(pv.emv) : <span className="text-pl-warning-text font-normal" title={problem}>check inputs</span>}
                     </td>
-                    <td className="px-1"><button type="button" title={`Remove ${p.name}`} className="text-slate-500 hover:text-red-400" onClick={(e) => { e.stopPropagation(); remove(p.id); }}><Trash2 className="w-3.5 h-3.5" /></button></td>
+                    <td className="px-1"><button type="button" title={`Remove ${p.name}`} className="text-pl-muted hover:text-pl-danger-text" onClick={(e) => { e.stopPropagation(); remove(p.id); }}><Trash2 className="w-3.5 h-3.5" /></button></td>
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="border-t border-slate-700 text-slate-300" data-testid="rrv-portfolio">
+              <tfoot className="border-t border-pl-border text-pl-text" data-testid="rrv-portfolio">
                 <tr>
                   <td className="px-2 py-1 font-semibold" colSpan={FIELDS.length + 1}>
                     Portfolio of {portfolio.count} independent prospect{portfolio.count === 1 ? '' : 's'}: risked mean {fmt(portfolio.riskedMean)} MMbbl,
                     {' '}expected commercial discoveries {fmt(portfolio.expectedCommercial, 2)}, chance of at least one {pct(portfolio.pAtLeastOneCommercial)}
-                    {portfolio.count < valued.length && <span className="text-amber-300 font-normal"> ({valued.length - portfolio.count} left out until its inputs are fixed)</span>}
+                    {portfolio.count < valued.length && <span className="text-pl-warning-text font-normal"> ({valued.length - portfolio.count} left out until its inputs are fixed)</span>}
                   </td>
                   <td />
-                  <td className={`px-2 py-1 text-right font-semibold ${portfolio.emv < 0 ? 'text-red-300' : 'text-emerald-300'}`} data-testid="rrv-portfolio-emv">{fmt(portfolio.emv)}</td>
+                  <td className={`px-2 py-1 text-right font-pl-mono font-semibold tabular-nums ${portfolio.emv < 0 ? 'text-pl-danger-text' : 'text-pl-success-text'}`} data-testid="rrv-portfolio-emv">{fmt(portfolio.emv)}</td>
                   <td />
                 </tr>
               </tfoot>
@@ -144,13 +147,13 @@ export default function RrvWorkstation({ backend }) {
         )}
 
         {selected && selected.problem && (
-          <p className="text-xs text-amber-300" data-testid="rrv-problem">{selected.p.name}: {selected.problem}</p>
+          <p className="text-xs text-pl-warning-text" data-testid="rrv-problem">{selected.p.name}: {selected.problem}</p>
         )}
         {v && (
           <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-3">
             <ExpectationChart curve={curve} mefs={Number(selected.p.mefs)} pg={v.pg} successCase={v.successCase} />
-            <div className="rounded border border-slate-800 p-2 text-xs space-y-1" data-testid="rrv-readout">
-              <div className="text-slate-300 font-medium">{selected.p.name}</div>
+            <div className="rounded border border-pl-border bg-pl-surface p-2 text-xs space-y-1" data-testid="rrv-readout">
+              <div className="text-pl-text font-medium">{selected.p.name}</div>
               {[
                 ['Geological chance Pg', pct(v.pg)],
                 ['Chance of at least the MEFS if it works', pct(v.pCommercialGivenSuccess)],
@@ -163,9 +166,9 @@ export default function RrvWorkstation({ backend }) {
                 ['EMV after the well', `${fmt(v.emv)} $MM`],
                 ['Break-even Pg', v.breakEvenPg != null ? pct(v.breakEvenPg) : 'not reachable'],
               ].map(([k, val]) => (
-                <div key={k} className="flex justify-between gap-2"><span className="text-slate-400">{k}</span><span data-testid={`rrv-out-${k}`}>{val}</span></div>
+                <div key={k} className="flex justify-between gap-2"><span className="text-pl-muted">{k}</span><span className="font-pl-mono tabular-nums" data-testid={`rrv-out-${k}`}>{val}</span></div>
               ))}
-              <p className="text-[10px] text-slate-500 pt-1">
+              <p className="text-[10px] text-pl-muted pt-1">
                 Volumes are the success case, the lognormal fitted to P90 and P10. The risked mean averages the dry hole in;
                 it is never a volume anyone will find. Value per barrel comes from the Petroleum Economics Studio.
               </p>
@@ -173,7 +176,18 @@ export default function RrvWorkstation({ backend }) {
           </div>
         )}
       </div>
-      <div className="px-3 py-1 bg-slate-900 border-t border-slate-800 text-[11px] text-slate-400" data-testid="rrv-status">{status}</div>
+      <div className="px-3 py-1 bg-pl-surface border-t border-pl-border text-[11px] text-pl-muted" data-testid="rrv-status">{status}</div>
     </div>
+  );
+}
+
+// Design system rollout batch 3E: the workstation opens light and follows
+// the user's theme choice from the toolbar toggle. The route page and the
+// /dev harness both mount this component, so they share the one scope.
+export default function RrvWorkstation(props) {
+  return (
+    <ThemedApp className="h-full" data-testid="rrv-theme-scope">
+      <RrvWorkstationContent {...props} />
+    </ThemedApp>
   );
 }

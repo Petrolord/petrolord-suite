@@ -32,56 +32,56 @@ const ReviewAndRunStep = () => {
     return (
         <div className="h-full flex flex-col space-y-6">
             <div>
-                <h2 className="text-2xl font-bold text-white">Review & Simulate</h2>
-                <p className="text-sm text-slate-400">Verify your inputs before running the basin model.</p>
+                <h2 className="text-2xl font-bold text-pl-text">Review & Simulate</h2>
+                <p className="text-sm text-pl-muted">Verify your inputs before running the basin model.</p>
             </div>
 
             <ScrollArea className="flex-1">
                 <div className="space-y-4 pr-4">
                     {/* Stratigraphy Summary */}
-                    <Card className="bg-slate-900 border-slate-800">
+                    <Card>
                         <CardHeader className="pb-2">
                             <CardTitle className="text-base flex items-center gap-2">
-                                {stratValidation.isValid ? <Check className="w-4 h-4 text-emerald-500" /> : <AlertTriangle className="w-4 h-4 text-amber-500" />}
+                                {stratValidation.isValid ? <Check className="w-4 h-4 text-pl-success-text" /> : <AlertTriangle className="w-4 h-4 text-pl-warning-text" />}
                                 Stratigraphy
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-sm text-slate-400">
+                            <div className="text-sm text-pl-muted">
                                 <p>{wizardData.layers.length} layers defined.</p>
                                 <p>Total Thickness: {wizardData.layers.reduce((acc, l) => acc + l.thickness, 0)} m</p>
                                 <p>Base Age: {Math.max(...wizardData.layers.map(l => l.ageStart))} Ma</p>
                             </div>
-                            {stratValidation.errors.map((err, i) => <p key={i} className="text-xs text-red-400 mt-1">{err}</p>)}
+                            {stratValidation.errors.map((err, i) => <p key={i} className="text-xs text-pl-danger-text mt-1">{err}</p>)}
                         </CardContent>
                     </Card>
 
                     {/* Petroleum System Summary */}
-                    <Card className="bg-slate-900 border-slate-800">
+                    <Card>
                         <CardHeader className="pb-2">
                             <CardTitle className="text-base flex items-center gap-2">
-                                {psValidation.isValid && psValidation.warnings.length === 0 ? <Check className="w-4 h-4 text-emerald-500" /> : <AlertTriangle className="w-4 h-4 text-amber-500" />}
+                                {psValidation.isValid && psValidation.warnings.length === 0 ? <Check className="w-4 h-4 text-pl-success-text" /> : <AlertTriangle className="w-4 h-4 text-pl-warning-text" />}
                                 Petroleum System Elements
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-sm text-slate-400">
+                            <div className="text-sm text-pl-muted">
                                 <p>Source Rocks: {wizardData.layers.filter(l => l.sourceRock?.isSource).length}</p>
                             </div>
-                            {psValidation.warnings.map((w, i) => <p key={i} className="text-xs text-amber-400 mt-1">{w}</p>)}
+                            {psValidation.warnings.map((w, i) => <p key={i} className="text-xs text-pl-warning-text mt-1">{w}</p>)}
                         </CardContent>
                     </Card>
 
                     {/* Heat Flow Summary */}
-                    <Card className="bg-slate-900 border-slate-800">
+                    <Card>
                         <CardHeader className="pb-2">
                             <CardTitle className="text-base flex items-center gap-2">
-                                {hfValidation.isValid ? <Check className="w-4 h-4 text-emerald-500" /> : <AlertTriangle className="w-4 h-4 text-amber-500" />}
+                                {hfValidation.isValid ? <Check className="w-4 h-4 text-pl-success-text" /> : <AlertTriangle className="w-4 h-4 text-pl-warning-text" />}
                                 Thermal Boundary Conditions
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-sm text-slate-400">
+                            <div className="text-sm text-pl-muted">
                                 <p>Model: {wizardData.heatFlowId}</p>
                             </div>
                         </CardContent>
@@ -89,15 +89,14 @@ const ReviewAndRunStep = () => {
                 </div>
             </ScrollArea>
 
-            <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
-                <div className="text-sm text-slate-500">
+            <div className="pt-4 border-t border-pl-border flex items-center justify-between">
+                <div className="text-sm text-pl-muted">
                     Estimated run time: ~2 seconds
                 </div>
                 <Button 
                     size="lg" 
                     onClick={handleRunClick} 
                     disabled={!isReady}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-900/50"
                 >
                     <Play className="w-5 h-5 mr-2" /> Run Simulation
                 </Button>

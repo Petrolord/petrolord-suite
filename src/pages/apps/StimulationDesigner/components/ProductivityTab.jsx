@@ -9,8 +9,8 @@ import { Input } from '@/components/ui/input';
 import { CFD_OPTIMUM } from '../services/stRun';
 
 const Card = ({ title, children, testId }) => (
-  <div className="rounded border border-slate-800 bg-slate-900/40" data-testid={testId}>
-    <div className="border-b border-slate-800 px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{title}</div>
+  <div className="rounded border border-pl-border bg-pl-surface" data-testid={testId}>
+    <div className="border-b border-pl-border px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-pl-muted">{title}</div>
     <div className="p-2">{children}</div>
   </div>
 );
@@ -21,7 +21,7 @@ const num = (v) => {
 };
 
 const Field = ({ label, value, onChange, step = 1 }) => (
-  <label className="flex items-center justify-between gap-2 text-xs text-slate-300">
+  <label className="flex items-center justify-between gap-2 text-xs text-pl-text">
     <span>{label}</span>
     <Input className="h-7 w-24 text-right text-xs" type="number" step={step} value={value}
       onChange={(e) => onChange(num(e.target.value))} />
@@ -48,22 +48,22 @@ export default function ProductivityTab({ caseDraft, onCaseChange, res }) {
 
         <Card title="Finite-conductivity fracture (Cinco-Ley & Samaniego)" testId="st-prod-card">
           {!prod ? (
-            <div className="text-xs text-amber-300">Needs the closure stress for the proppant pack first.</div>
+            <div className="text-xs text-pl-warning-text">Needs the closure stress for the proppant pack first.</div>
           ) : (
-            <div className="text-xs text-slate-300">
+            <div className="text-xs text-pl-text">
               <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                <div>C_fD <span className="float-right font-mono" data-testid="st-cfd">{prod.cfd.toFixed(3)}</span></div>
-                <div>UFD optimum <span className="float-right font-mono">{CFD_OPTIMUM}</span></div>
-                <div>Pseudo-skin s_f <span className="float-right font-mono" data-testid="st-sf">{prod.sF.toFixed(3)}</span></div>
-                <div>Effective r'w <span className="float-right font-mono" data-testid="st-rwp">{prod.rwPrimeM.toFixed(1)} m</span></div>
+                <div>C_fD <span className="float-right font-pl-mono tabular-nums" data-testid="st-cfd">{prod.cfd.toFixed(3)}</span></div>
+                <div>UFD optimum <span className="float-right font-pl-mono tabular-nums">{CFD_OPTIMUM}</span></div>
+                <div>Pseudo-skin s_f <span className="float-right font-pl-mono tabular-nums" data-testid="st-sf">{prod.sF.toFixed(3)}</span></div>
+                <div>Effective r'w <span className="float-right font-pl-mono tabular-nums" data-testid="st-rwp">{prod.rwPrimeM.toFixed(1)} m</span></div>
               </div>
-              <div className="mt-1 text-[10px] text-slate-500">
+              <div className="mt-1 text-[10px] text-pl-muted">
                 {prod.cfd < CFD_OPTIMUM
                   ? 'Below the 1.6 optimum: for this proppant mass, a shorter wider frac carries more of the rate.'
                   : 'At or above the 1.6 optimum: for this proppant mass, added length pays more than added conductivity.'}
               </div>
               {prod.warnings.map((w, i) => (
-                <div key={i} className="mt-1 text-[10px] text-amber-300">{w}</div>
+                <div key={i} className="mt-1 text-[10px] text-pl-warning-text">{w}</div>
               ))}
             </div>
           )}
@@ -71,14 +71,14 @@ export default function ProductivityTab({ caseDraft, onCaseChange, res }) {
 
         <Card title="Folds of increase" testId="st-foi-card">
           {prod && (
-            <div className="text-xs text-slate-300">
-              <div>FOI vs unstimulated radial <span className="float-right font-mono font-semibold" data-testid="st-foi">{prod.pr.ratio.toFixed(2)}x</span></div>
-              <div className="mt-1 text-[10px] text-slate-500">
+            <div className="text-xs text-pl-text">
+              <div>FOI vs unstimulated radial <span className="float-right font-pl-mono tabular-nums font-semibold" data-testid="st-foi">{prod.pr.ratio.toFixed(2)}x</span></div>
+              <div className="mt-1 text-[10px] text-pl-muted">
                 Steady-state radial identity ln(re/rw) = {prod.pr.lnReRw.toFixed(2)}, the same shared
                 engine the Perforation designer uses. Rates and operating points live in the
-                {' '}<Link className="text-cyan-400 hover:underline" to="/dashboard/apps/production/nodal-analysis-studio">Nodal Analysis Studio</Link>;
+                {' '}<Link className="text-pl-primary-text hover:underline" to="/dashboard/apps/production/nodal-analysis-studio">Nodal Analysis Studio</Link>;
                 perforation skin in the
-                {' '}<Link className="text-cyan-400 hover:underline" to="/dashboard/apps/drilling/perforation-sand-control">Perforation &amp; Sand Control Designer</Link>.
+                {' '}<Link className="text-pl-primary-text hover:underline" to="/dashboard/apps/drilling/perforation-sand-control">Perforation &amp; Sand Control Designer</Link>.
               </div>
             </div>
           )}

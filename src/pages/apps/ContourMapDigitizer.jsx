@@ -9,8 +9,10 @@ import useContourDigitizer from '@/hooks/useContourDigitizer';
 import InputPanel from '@/components/contourmap/InputPanel';
 import ResultsPanel from '@/components/contourmap/ResultsPanel';
 import EmptyState from '@/components/contourmap/EmptyState';
+import { ThemedApp } from '@/design/ThemeProvider';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
-const ContourMapDigitizer = () => {
+const ContourMapDigitizerContent = () => {
   const { toast } = useToast();
   const {
     state,
@@ -41,21 +43,22 @@ const ContourMapDigitizer = () => {
         <title>Contour Map Digitizer - Petrolord</title>
         <meta name="description" content="Digitize contour maps into gridded horizons and save them to the surface registry." />
       </Helmet>
-      <div className="flex flex-col md:flex-row h-screen bg-gray-900 text-white font-sans">
+      <div className="flex flex-col md:flex-row h-screen bg-pl-bg text-pl-text">
         {/* Mobile & Desktop Responsive Sidebar */}
         <motion.div 
           initial={{ x: -50, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.5, ease: "easeInOut" }}
-          className="w-full md:w-2/5 xl:w-1/3 p-4 sm:p-6 flex flex-col bg-slate-900/50 backdrop-blur-lg border-b md:border-b-0 md:border-r border-white/10 overflow-y-auto md:h-full shrink-0"
+          className="w-full md:w-2/5 xl:w-1/3 p-4 sm:p-6 flex flex-col bg-pl-surface border-b md:border-b-0 md:border-r border-pl-border overflow-y-auto md:h-full shrink-0"
         >
           <div className="flex items-center mb-6">
             <Link to="/dashboard/geoscience">
-              <Button variant="outline" size="icon" className="h-9 w-9 mr-4 border-lime-400/50 text-lime-300 hover:bg-lime-500/20 hover:text-white">
+              <Button variant="outline" size="icon" className="h-9 w-9 mr-4" aria-label="Back to Geoscience">
                 <ArrowLeft className="w-4 h-4" />
               </Button>
             </Link>
-            <h1 className="text-xl font-bold text-white tracking-tight">Contour Map Digitizer</h1>
+            <h1 className="text-xl font-bold text-pl-text tracking-tight">Contour Map Digitizer</h1>
+            <ThemeToggle className="ml-auto" />
           </div>
           <div className="flex-grow">
             <InputPanel
@@ -90,9 +93,9 @@ const ContourMapDigitizer = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 className="text-center"
               >
-                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-lime-400 mx-auto"></div>
-                <p className="text-white mt-4 text-lg font-semibold">{status || 'Processing...'}</p>
-                <p className="text-lime-300">Please wait while the magic happens.</p>
+                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-pl-primary mx-auto"></div>
+                <p className="text-pl-text mt-4 text-lg font-semibold">{status || 'Processing...'}</p>
+                <p className="text-pl-muted">Please wait while the map is processed.</p>
               </motion.div>
             </div>
           )}
@@ -118,5 +121,14 @@ const ContourMapDigitizer = () => {
     </>
   );
 };
+
+// Design system rollout batch 4D: the digitizer opens light and follows the
+// user's theme from the header toggle. The scanned map sits on a dark canvas
+// that does not follow the theme, and the image is never recoloured.
+const ContourMapDigitizer = () => (
+  <ThemedApp className="min-h-screen" data-testid="cmd-theme-scope">
+    <ContourMapDigitizerContent />
+  </ThemedApp>
+);
 
 export default ContourMapDigitizer;

@@ -16,6 +16,7 @@ import { POPULATION_METHODS } from './services/modelBuild';
 import { DERIVED_KINDS } from './services/derivedSurfaces';
 import { VOLUME_UNIT_SETS } from './services/units';
 import { VE_OPTIONS } from './services/sectionPath';
+import { ThemedApp } from '@/design/ThemeProvider';
 
 const APP_PATH = '/dashboard/apps/geoscience/earth-modeling';
 
@@ -36,8 +37,11 @@ export const HELP_SECTIONS = [
   { id: 'glossary', icon: BookMarked, title: 'Glossary' },
 ];
 
+// Design system rollout W4B: the guide shares the Studio's theme scope, so
+// the user's light or dark choice holds between the app and its guide.
 export default function EarthModelingHelpGuide() {
   return (
+    <ThemedApp className="min-h-screen" data-testid="em-help-theme-scope">
     <HelpGuideShell
       title="Earth Modeling Help Guide"
       subtitle="Layer-cake structural frameworks, well adjustment, property population and rock volumes on the shared Geoscience registry"
@@ -235,5 +239,6 @@ export default function EarthModelingHelpGuide() {
         ]} />
       </GuideSection>
     </HelpGuideShell>
+    </ThemedApp>
   );
 }

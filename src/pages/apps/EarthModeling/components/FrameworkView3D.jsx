@@ -139,10 +139,13 @@ export default function FrameworkView3D({
   const toggleSurface = (i) => setHidden((h) => { const n = new Set(h); if (n.has(i)) n.delete(i); else n.add(i); return n; });
 
   if (glError) {
-    return <div className="flex h-full items-center justify-center text-xs text-amber-400" data-testid="em-3d-error">3D view unavailable: {glError}</div>;
+    return <div className="flex h-full items-center justify-center text-xs text-pl-warning-text" data-testid="em-3d-error">3D view unavailable: {glError}</div>;
   }
   return (
     <div className="relative w-full overflow-hidden rounded border border-slate-800 bg-slate-950" style={{ height }} data-testid="em-3d-view"
+      // design system (W4B): the 3D viewer stays dark in both themes; its
+      // overlays and everything drawn inside are unchanged
+      data-canvas="dark"
       data-yaw={cam.yaw.toFixed(3)} data-pitch={cam.pitch.toFixed(3)} data-dist={cam.dist.toFixed(3)} data-ve={ve} data-surfaces={scene?.surfaces.length ?? 0}>
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full touch-none" data-testid="em-3d-canvas" />
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
