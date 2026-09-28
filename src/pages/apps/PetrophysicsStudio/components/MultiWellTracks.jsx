@@ -221,7 +221,7 @@ export default function MultiWellTracks({ wells, view: viewProp, onViewChange, t
 
   return (
     <div className="h-full min-h-0 w-full flex" data-testid="petro-field-tracks">
-    <div ref={wrapRef} className="flex-1 min-w-0 h-full relative overflow-hidden">
+    <div ref={wrapRef} className="flex-1 min-w-0 h-full relative overflow-hidden bg-white" data-canvas="chart">
       <canvas ref={staticRef} className="absolute inset-0" />
       <canvas
         ref={overlayRef}

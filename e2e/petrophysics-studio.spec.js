@@ -1077,7 +1077,7 @@ test('cross-app: a ?well= deep link selects the well; Open in Well Correlation a
   await page.goto(`/dev/petrophysics-studio?well=${encodeURIComponent(wellId)}`);
   await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
   await expect(page.getByTestId('petro-tracks-canvas')).toBeVisible();
-  await expect(page.locator('[data-well-name="KETA TYPE-1"]')).toHaveClass(/text-cyan-200/);
+  await expect(page.locator('[data-well-name="KETA TYPE-1"]')).toHaveClass(/text-pl-primary-text/);
 
   await page.goto('/dev/petrophysics-studio?well=no-such-well');
   await expect(page.getByTestId('petro-status')).toContainText('not in your registry');

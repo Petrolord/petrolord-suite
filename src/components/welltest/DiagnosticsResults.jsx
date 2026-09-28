@@ -7,14 +7,9 @@ import { unitLabel, fromOilfield } from '@/utils/welltest/units';
 import { ChartCard, Kpi, WarningBanner, fmt } from './primitives';
 import LogLogChart from './LogLogChart';
 
-const REGIME_TONE = {
-  'wellbore-storage': 'border-sky-500/40 bg-sky-500/10 text-sky-300',
-  radial: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300',
-  linear: 'border-violet-500/40 bg-violet-500/10 text-violet-300',
-  bilinear: 'border-amber-500/40 bg-amber-500/10 text-amber-300',
-  'boundary-or-pss': 'border-rose-500/40 bg-rose-500/10 text-rose-300',
-  'unit-slope': 'border-slate-500/40 bg-slate-500/10 text-slate-300',
-};
+// Regime rows are labels, so they share one neutral look (colour is kept
+// for status in the design system).
+const REGIME_ROW = 'border-pl-border bg-pl-sunken text-pl-text';
 
 const DiagnosticsResults = () => {
   const { loglog, regimes, reservoirSpec, configSpec, unitSystem, pseudoTime } = useWellTestStudio();
@@ -30,9 +25,9 @@ const DiagnosticsResults = () => {
 
   if (!loglog.length) {
     return (
-      <div className="rounded-lg border border-slate-700 bg-slate-900 px-6 py-10 text-center">
-        <p className="text-slate-300 font-medium">Nothing to diagnose yet.</p>
-        <p className="text-sm text-slate-500 mt-1">Load gauge data on the Data tab first.</p>
+      <div className="rounded-lg border border-pl-border bg-pl-surface px-6 py-10 text-center">
+        <p className="text-pl-text font-medium">Nothing to diagnose yet.</p>
+        <p className="text-sm text-pl-muted mt-1">Load gauge data on the Data tab first.</p>
       </div>
     );
   }
@@ -71,21 +66,21 @@ const DiagnosticsResults = () => {
         <LogLogChart loglog={displayLoglog} xLabel={xLabel} yLabel={`${isGas ? 'Δm(p)' : 'Δp'} and derivative (${unitLabel(dpKind, unitSystem)})`} />
       </ChartCard>
 
-      <div className="rounded-lg border border-slate-800 bg-slate-900 p-4 space-y-2">
-        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Detected flow regimes</p>
+      <div className="rounded-lg border border-pl-border bg-pl-surface p-4 space-y-2">
+        <p className="text-xs font-semibold text-pl-muted uppercase tracking-wider">Detected flow regimes</p>
         {regimes.length === 0 && (
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-pl-muted">
             No sustained regime found. Try more smoothing, or the test may be dominated by transitions.
           </p>
         )}
         {regimes.map((r, i) => (
-          <div key={i} className={`rounded-md border px-3 py-2 text-xs flex justify-between ${REGIME_TONE[r.regime] || REGIME_TONE['unit-slope']}`}>
+          <div key={i} className={`rounded-md border px-3 py-2 text-xs flex justify-between ${REGIME_ROW}`}>
             <span className="font-medium">{r.label}</span>
             <span>{fmt.sig3(r.xStart)} to {fmt.sig3(r.xEnd)} hr ({fmt.f1(r.spanDecades)} decades)</span>
           </div>
         ))}
         {radial && (
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-pl-muted">
             The radial stabilization window is the right place for the semilog straight line on the Specialized tab.
           </p>
         )}

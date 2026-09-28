@@ -41,10 +41,10 @@ const fmtValue = (key, v) => {
 const fmtPsi = (v) => (v == null || !Number.isFinite(v) ? '—' : `${v.toLocaleString('en-US', { maximumFractionDigits: 1 })} psi`);
 
 const Kpi = ({ label, value, hint }) => (
-  <div className="border border-slate-800 rounded-md p-3 bg-slate-950/40">
-    <p className="text-[11px] text-slate-500">{label}</p>
-    <p className="text-base font-semibold text-slate-200 mt-0.5">{value}</p>
-    {hint && <p className="text-[11px] text-slate-500 mt-0.5">{hint}</p>}
+  <div className="border border-pl-border rounded-md p-3 bg-pl-sunken">
+    <p className="text-[11px] text-pl-muted">{label}</p>
+    <p className="text-base font-semibold text-pl-text mt-0.5">{value}</p>
+    {hint && <p className="text-[11px] text-pl-muted mt-0.5">{hint}</p>}
   </div>
 );
 
@@ -124,7 +124,7 @@ const HistoryMatch = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Crosshair className="h-4 w-4 text-emerald-500" />
+            <Crosshair className="h-4 w-4 text-pl-primary-text" />
             Pressure history match
           </CardTitle>
           <CardDescription>
@@ -133,7 +133,7 @@ const HistoryMatch = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           {!cfgLoaded ? (
-            <div className="flex items-center gap-2 text-sm text-slate-500">
+            <div className="flex items-center gap-2 text-sm text-pl-muted">
               <Loader2 className="h-4 w-4 animate-spin" /> Loading case configuration
             </div>
           ) : (
@@ -144,20 +144,20 @@ const HistoryMatch = () => {
                 return (
                   <div
                     key={p.key}
-                    className="grid grid-cols-[auto_1fr_180px] items-center gap-3 border border-slate-800 rounded-md px-3 py-2"
+                    className="grid grid-cols-[auto_1fr_180px] items-center gap-3 border border-pl-border rounded-md px-3 py-2"
                   >
                     <input
                       type="checkbox"
-                      className="h-4 w-4 accent-emerald-600"
+                      className="h-4 w-4 accent-pl-primary"
                       checked={sel.checked}
                       onChange={(e) => updateSelection(p.key, { checked: e.target.checked })}
                       aria-label={`Fit ${p.label}`}
                     />
                     <div>
-                      <p className="text-sm text-slate-200">
-                        {p.label} <span className="text-slate-500">({p.unit})</span>
+                      <p className="text-sm text-pl-text">
+                        {p.label} <span className="text-pl-muted">({p.unit})</span>
                       </p>
-                      <p className="text-[11px] text-slate-500">
+                      <p className="text-[11px] text-pl-muted">
                         {sel.checked ? 'Fitted by the match.' : 'Held at the starting value.'}
                         {p.guessSource && ` Start seeded from ${p.guessSource}.`}
                       </p>
@@ -175,7 +175,7 @@ const HistoryMatch = () => {
           )}
 
           {formError && (
-            <p className="text-sm text-red-400 flex items-center gap-2">
+            <p className="text-sm text-pl-danger-text flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" /> {formError}
             </p>
           )}
@@ -195,7 +195,7 @@ const HistoryMatch = () => {
               </p>
             )}
           </div>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-pl-muted">
             Fetkovich note: the aquifer index J trades against W on short histories, so J is held by default. Fit it only when the history is long enough to separate the two.
           </p>
         </CardContent>
@@ -235,7 +235,7 @@ const HistoryMatch = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="text-slate-500 border-b border-slate-800">
+                  <tr className="text-pl-muted border-b border-pl-border">
                     <th className="text-left py-1.5 pr-3 font-medium">Parameter</th>
                     <th className="text-right py-1.5 px-3 font-medium">Start</th>
                     <th className="text-right py-1.5 px-3 font-medium">Matched</th>
@@ -244,20 +244,20 @@ const HistoryMatch = () => {
                 </thead>
                 <tbody>
                   {(hm.matched_parameters ?? []).map((p) => (
-                    <tr key={p.key} className="border-b border-slate-800/60">
-                      <td className="py-1.5 pr-3 text-slate-300">
+                    <tr key={p.key} className="border-b border-pl-border">
+                      <td className="py-1.5 pr-3 text-pl-text">
                         {p.label}
                         {p.at_bound && (
-                          <span className="ml-2 text-amber-400">at bound</span>
+                          <span className="ml-2 text-pl-warning-text">at bound</span>
                         )}
                       </td>
-                      <td className="py-1.5 px-3 text-right font-mono text-slate-400">
+                      <td className="py-1.5 px-3 text-right font-mono text-pl-muted">
                         {fmtValue(p.key, p.initial_value)}
                       </td>
-                      <td className="py-1.5 px-3 text-right font-mono text-slate-100">
+                      <td className="py-1.5 px-3 text-right font-mono text-pl-text">
                         {fmtValue(p.key, p.matched_value)}
                       </td>
-                      <td className="py-1.5 pl-3 text-right font-mono text-slate-400">
+                      <td className="py-1.5 pl-3 text-right font-mono text-pl-muted">
                         {p.ci95_low != null && p.ci95_high != null
                           ? `${fmtValue(p.key, p.ci95_low)} to ${fmtValue(p.key, p.ci95_high)}`
                           : '—'}
@@ -269,7 +269,7 @@ const HistoryMatch = () => {
             </div>
 
             <div>
-              <p className="text-sm text-slate-300 mb-2">Pressure history match</p>
+              <p className="text-sm text-pl-text mb-2">Pressure history match</p>
               <ChartFrame height={320} logoHeight={24} exportFilename="mbal-pressure-history-match">
                 <ComposedChart data={chartData} margin={{ top: 16, right: 16, bottom: 8, left: 8 }}>
                   <CartesianGrid {...GRID_STYLE} vertical={false} />
@@ -314,7 +314,7 @@ const HistoryMatch = () => {
                   <Scatter yAxisId="p" dataKey="observed" name="Observed" fill="#dc2626" />
                 </ComposedChart>
               </ChartFrame>
-              <p className="text-[11px] text-slate-500 mt-2">
+              <p className="text-[11px] text-pl-muted mt-2">
                 Dots are the observed pressures from the Data tab. The line is the pressure history the tank model produces at the matched parameters. Bars show observed minus simulated on the right axis.
               </p>
             </div>
@@ -325,7 +325,7 @@ const HistoryMatch = () => {
       {!hm && lastResult && (
         <Card>
           <CardContent className="py-4">
-            <p className="text-sm text-slate-400 flex items-center gap-2">
+            <p className="text-sm text-pl-muted flex items-center gap-2">
               <Info className="h-4 w-4" />
               The latest result on this case is a regression run. Run a history match to see the pressure-match plot and matched parameters here.
             </p>

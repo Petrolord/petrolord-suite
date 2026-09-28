@@ -9,7 +9,7 @@
 import React from 'react';
 import { FIELDS, visibleField } from '../services/paramFields';
 
-const cellCls = 'w-full min-w-[5.5rem] rounded bg-slate-950 border px-1 py-0.5 text-xs text-slate-200';
+const cellCls = 'w-full min-w-[5.5rem] rounded bg-pl-surface border px-1 py-0.5 text-xs text-pl-text';
 export const fmtVal = (v) => (typeof v === 'number' ? String(Number(v.toPrecision(6))) : String(v ?? ''));
 
 /**
@@ -32,15 +32,15 @@ export default function ParamGrid({ rows, columns, params, draft, invalid = {}, 
   };
   let section = null;
   return (
-    <div className="max-h-[60vh] overflow-auto rounded border border-slate-800">
+    <div className="max-h-[60vh] overflow-auto rounded border border-pl-border">
       <table className="text-xs border-collapse min-w-full">
-        <thead className="sticky top-0 bg-slate-900 z-10">
+        <thead className="sticky top-0 bg-pl-surface z-10">
           <tr>
-            <th className="text-left px-2 py-1 text-slate-400 font-normal">Parameter</th>
-            <th className="text-left px-2 py-1 text-slate-400 font-normal">{globalLabel}</th>
+            <th className="text-left px-2 py-1 text-pl-muted font-normal">Parameter</th>
+            <th className="text-left px-2 py-1 text-pl-muted font-normal">{globalLabel}</th>
             {columns.map((c) => (
               <th key={c.id} className="text-left px-2 py-1 font-normal">
-                <div className="text-slate-200">{c.name}</div>
+                <div className="text-pl-text">{c.name}</div>
                 {columnHeader?.(c)}
               </th>
             ))}
@@ -55,22 +55,22 @@ export default function ParamGrid({ rows, columns, params, draft, invalid = {}, 
               <React.Fragment key={r.key}>
                 {header && (
                   <tr>
-                    <td colSpan={2 + columns.length} className="px-2 pt-2 pb-0.5 text-[10px] uppercase tracking-wider text-slate-500">{header}</td>
+                    <td colSpan={2 + columns.length} className="px-2 pt-2 pb-0.5 text-[10px] uppercase tracking-wider text-pl-muted">{header}</td>
                   </tr>
                 )}
-                <tr className="border-t border-slate-800/60">
-                  <td className="px-2 py-0.5 text-slate-400 whitespace-nowrap">{r.label}</td>
-                  <td className="px-2 py-0.5 text-slate-500 whitespace-nowrap" data-testid={`${testPrefix}-global-${r.key}`}>{fmtVal(r.global)}</td>
+                <tr className="border-t border-pl-border">
+                  <td className="px-2 py-0.5 text-pl-muted whitespace-nowrap">{r.label}</td>
+                  <td className="px-2 py-0.5 text-pl-muted whitespace-nowrap" data-testid={`${testPrefix}-global-${r.key}`}>{fmtVal(r.global)}</td>
                   {columns.map((c) => {
                     const d = draft[c.id] || {};
                     const applies = visibleField(f, d);
                     const over = applies && isOverride(c.id, r.key);
                     const bad = invalid[c.id]?.includes(r.key);
-                    const border = bad ? 'border-red-500/70' : over ? 'border-cyan-500/70 bg-cyan-500/10' : 'border-slate-800';
+                    const border = bad ? 'border-pl-danger' : over ? 'border-pl-primary bg-pl-primary/10' : 'border-pl-border';
                     return (
                       <td key={c.id} className="px-1 py-0.5">
                         {!applies ? (
-                          <span className="block px-1 text-slate-600" title="Not used by this column's models">·</span>
+                          <span className="block px-1 text-pl-muted" title="Not used by this column's models">·</span>
                         ) : r.options ? (
                           <select className={`${cellCls} ${border}`} value={String(d[r.key] ?? '')} data-testid={`${testPrefix}-${c.name}-${r.key}`} onChange={(e) => onCell(c.id, r.key, e.target.value)}>
                             {r.options.map((o) => <option key={o} value={o}>{o}</option>)}

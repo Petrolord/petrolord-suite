@@ -17,6 +17,7 @@ import {
   FlaskConical, Loader2, UploadCloud, Save, Layers, PenLine, FileDown, Database, HelpCircle, ImageDown,
 } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import WellExplorer from './WellExplorer';
 import ParameterPanel from './ParameterPanel';
@@ -891,23 +892,23 @@ export default function PetroWorkstation({
   };
 
   const ribbon = (
-    <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
+    <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 bg-pl-surface border-b border-pl-border">
       <ModuleHomeLink module="geoscience" testId="petro-home" />
-      <FlaskConical className="w-4 h-4 text-cyan-400" />
-      <span className="text-sm font-semibold text-slate-100 whitespace-nowrap">Petrophysics Studio</span>
+      <FlaskConical className="w-4 h-4 text-pl-primary-text" />
+      <span className="text-sm font-semibold text-pl-text whitespace-nowrap">Petrophysics Studio</span>
       {/* decorative, and the first thing to go: this ribbon carries eleven
           controls, so below a genuinely wide viewport the subtitle drops
           out rather than wrapping and pushing the toolbar onto a second
           row (PT8 added the PNG button) */}
-      <span className="hidden min-[1750px]:inline text-[11px] text-slate-500 whitespace-nowrap">
+      <span className="hidden min-[1750px]:inline text-[11px] text-pl-muted whitespace-nowrap">
         log analysis on the shared well registry
       </span>
-      <div className="ml-4 flex items-center gap-1">
+      <div className="ml-4 flex flex-wrap items-center gap-1">
         <button
           type="button"
           data-testid="petro-view-tracks"
           className={`px-2 py-1 text-xs rounded border
-            ${view === 'tracks' ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
+            ${view === 'tracks' ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:text-pl-text'}`}
           onClick={() => setView('tracks')}
         >
           Tracks
@@ -917,7 +918,7 @@ export default function PetroWorkstation({
           data-testid="petro-view-crossplot"
           disabled={!wellData}
           className={`px-2 py-1 text-xs rounded border disabled:opacity-40
-            ${view === 'crossplot' ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
+            ${view === 'crossplot' ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:text-pl-text'}`}
           onClick={() => setView('crossplot')}
         >
           Crossplots
@@ -927,7 +928,7 @@ export default function PetroWorkstation({
           data-testid="petro-view-histogram"
           disabled={!wellData}
           className={`px-2 py-1 text-xs rounded border disabled:opacity-40
-            ${view === 'histogram' ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
+            ${view === 'histogram' ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:text-pl-text'}`}
           onClick={() => setView('histogram')}
         >
           Histograms
@@ -938,7 +939,7 @@ export default function PetroWorkstation({
           disabled={!wellData}
           title="Tracks and crossplot side by side with linked selection"
           className={`px-2 py-1 text-xs rounded border disabled:opacity-40
-            ${view === 'split' ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
+            ${view === 'split' ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:text-pl-text'}`}
           onClick={() => setView('split')}
         >
           Split
@@ -947,7 +948,7 @@ export default function PetroWorkstation({
           type="button"
           data-testid="petro-view-shift"
           className={`px-2 py-1 text-xs rounded border
-            ${view === 'shift' ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
+            ${view === 'shift' ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:text-pl-text'}`}
           onClick={() => setView('shift')}
           title="Stretch and squeeze a curve against a reference through tie points (PT11c)"
         >
@@ -957,13 +958,13 @@ export default function PetroWorkstation({
           type="button"
           data-testid="petro-view-field"
           className={`px-2 py-1 text-xs rounded border
-            ${view === 'field' ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
+            ${view === 'field' ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted hover:text-pl-text'}`}
           onClick={() => setView('field')}
         >
           Field
         </button>
       </div>
-      <div className="ml-4 flex items-center gap-1">
+      <div className="ml-4 flex flex-wrap items-center gap-1">
         <InterpretationBar
           provenance={provenance}
           backend={backend}
@@ -980,8 +981,8 @@ export default function PetroWorkstation({
           data-testid="petro-publish"
           disabled={!wellData || !selected?.is_own || publishing}
           title={selected && !selected.is_own ? 'Org-shared wells are read-only' : 'Publish computed curves to the registry'}
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
-            border-emerald-700/60 text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-40"
+          className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border
+            border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10 disabled:opacity-40"
           onClick={publish}
         >
           {publishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UploadCloud className="w-3.5 h-3.5" />}
@@ -992,8 +993,8 @@ export default function PetroWorkstation({
           data-testid="petro-publish-facies"
           disabled={!wellData || !selected?.is_own || publishing || !facies.length}
           title={selected && !selected.is_own ? 'Org-shared wells are read-only' : 'Publish the crossplot facies as registry facies intervals'}
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
-            border-emerald-700/60 text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-40"
+          className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border
+            border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10 disabled:opacity-40"
           onClick={publishFacies}
         >
           <UploadCloud className="w-3.5 h-3.5" />
@@ -1004,8 +1005,8 @@ export default function PetroWorkstation({
           data-testid="petro-rule-facies"
           disabled={!wellData || !computed}
           title="Facies by cutoff rules on any curve: a strip track, and publish as electrofacies intervals"
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
-            border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border
+            border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
           onClick={() => setRuleFaciesOpen(true)}
         >
           <Layers className="w-3.5 h-3.5" />
@@ -1016,8 +1017,8 @@ export default function PetroWorkstation({
           data-testid="petro-scenarios"
           disabled={!wellData || !computed}
           title="Low, mid and high parameter cases: bands on the tracks, a zone summary per case, publishable curves"
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
-            border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border
+            border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
           onClick={() => setScenariosOpen(true)}
         >
           <Layers className="w-3.5 h-3.5" /> Low/High…
@@ -1027,8 +1028,8 @@ export default function PetroWorkstation({
           data-testid="petro-probabilistic"
           disabled={!wellData || !computed}
           title="Probabilistic petrophysics: vary parameters with distributions, run seeded realisations, percentile curves and P90/P50/P10 net pay per zone"
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
-            border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border
+            border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
           onClick={() => setProbOpen(true)}
         >
           <Layers className="w-3.5 h-3.5" /> Probabilistic…
@@ -1038,8 +1039,8 @@ export default function PetroWorkstation({
           data-testid="petro-mineral"
           disabled={!wellData}
           title="Mineral model: density, neutron and PEF solved for three mineral fractions and porosity with a fixed fluid; refused where the set is singular or a fraction leaves 0 to 1"
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
-            border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border
+            border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
           onClick={() => setMineralOpen(true)}
         >
           <Layers className="w-3.5 h-3.5" /> Mineral model…
@@ -1049,8 +1050,8 @@ export default function PetroWorkstation({
           data-testid="petro-calc"
           disabled={!wellData}
           title="Create a new curve from an expression over this well's curves"
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
-            border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border
+            border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
           onClick={() => setCalcOpen(true)}
         >
           <FlaskConical className="w-3.5 h-3.5" /> Calc…
@@ -1060,8 +1061,8 @@ export default function PetroWorkstation({
           data-testid="petro-digitize"
           disabled={!wellData || !selected?.is_own}
           title={selected && !selected.is_own ? 'Org-shared wells are read-only' : 'Digitize a curve from a scanned log image'}
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
-            border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border
+            border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
           onClick={() => setDigitizerOpen(true)}
         >
           <PenLine className="w-3.5 h-3.5" /> Digitize…
@@ -1071,8 +1072,8 @@ export default function PetroWorkstation({
           data-testid="petro-condition"
           disabled={!wellData || !selected?.is_own}
           title={selected && !selected.is_own ? 'Org-shared wells are read-only' : 'Despike, smooth, depth-shift, bad-hole repair, normalization'}
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
-            border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border
+            border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
           onClick={() => setCondOpen(true)}
         >
           Condition…
@@ -1081,8 +1082,8 @@ export default function PetroWorkstation({
           type="button"
           data-testid="petro-rwtools"
           title="Rw quicklooks: SP and Arps temperature conversion"
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
-            border-slate-700 text-slate-300 hover:bg-slate-800"
+          className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border
+            border-pl-border text-pl-text hover:bg-pl-sunken"
           onClick={() => setRwToolsOpen(true)}
         >
           Rw tools…
@@ -1094,8 +1095,8 @@ export default function PetroWorkstation({
           title={wellData && (view === 'crossplot' || view === 'histogram' || view === 'field' || view === 'shift')
             ? 'Switch to Tracks or Split to export the log display'
             : 'Download the log display as a PNG image'}
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
-            border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border
+            border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
           onClick={exportTrackPng}
         >
           <ImageDown className="w-3.5 h-3.5" /> PNG
@@ -1105,8 +1106,8 @@ export default function PetroWorkstation({
           data-testid="petro-export"
           disabled={!wellData || !computed}
           title="Export CSV, LAS or a PDF summary report"
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
-            border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border
+            border-pl-border text-pl-text hover:bg-pl-sunken disabled:opacity-40"
           onClick={() => setExportOpen(true)}
         >
           <FileDown className="w-3.5 h-3.5" /> Export…
@@ -1114,8 +1115,8 @@ export default function PetroWorkstation({
         <button
           type="button"
           data-testid="petro-batch"
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
-            border-slate-700 text-slate-300 hover:bg-slate-800"
+          className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border
+            border-pl-border text-pl-text hover:bg-pl-sunken"
           onClick={() => setBatchOpen(true)}
         >
           <Layers className="w-3.5 h-3.5" /> Batch…
@@ -1123,44 +1124,48 @@ export default function PetroWorkstation({
         <button
           type="button"
           data-testid="petro-save-project"
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
-            border-slate-700 text-slate-300 hover:bg-slate-800"
+          className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border
+            border-pl-border text-pl-text hover:bg-pl-sunken"
           onClick={saveProject}
         >
           <Save className="w-3.5 h-3.5" /> Save
         </button>
       </div>
-      <Link
-        to="/dashboard/apps/geoscience/petrophysics-studio/help"
-        data-testid="petro-help"
-        title="Open the Petrophysics Studio help guide"
-        className="ml-auto flex items-center gap-1 px-2 py-1 text-xs rounded border
-          border-slate-700 text-cyan-300 hover:bg-slate-800"
-      >
-        <HelpCircle className="w-3.5 h-3.5" /> Help
-      </Link>
-      <button
-        type="button"
-        data-testid="petro-toggle-dock"
-        className={`px-2 py-1 text-xs rounded border
-          ${dockOpen ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400'}`}
-        onClick={() => setDockOpen((v) => !v)}
-      >
-        Parameters & zones
-      </button>
+      {/* Help, the dock toggle and the theme toggle wrap together at the right */}
+      <div className="ml-auto flex items-center gap-1">
+        <Link
+          to="/dashboard/apps/geoscience/petrophysics-studio/help"
+          data-testid="petro-help"
+          title="Open the Petrophysics Studio help guide"
+          className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-xs rounded border
+            border-pl-border text-pl-primary-text hover:bg-pl-sunken"
+        >
+          <HelpCircle className="w-3.5 h-3.5" /> Help
+        </Link>
+        <button
+          type="button"
+          data-testid="petro-toggle-dock"
+          className={`px-2 py-1 text-xs rounded border
+            ${dockOpen ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted'}`}
+          onClick={() => setDockOpen((v) => !v)}
+        >
+          Parameters & zones
+        </button>
+        <ThemeToggle className="h-7 w-7" />
+      </div>
     </div>
   );
 
   const statusBar = (
-    <div className="flex items-center gap-3 px-3 py-1 bg-slate-900 border-t border-slate-800 text-[11px] text-slate-400">
+    <div className="flex items-center gap-3 px-3 py-1 bg-pl-surface border-t border-pl-border text-[11px] text-pl-muted">
       <span data-testid="petro-status" className="truncate">{status}</span>
       {computed?.missing.length ? (
-        <span className="text-amber-400/90" data-testid="petro-missing">
+        <span className="text-pl-warning-text" data-testid="petro-missing">
           missing: {computed.missing.join(', ')}
         </span>
       ) : null}
       {overlapWarning ? (
-        <span className="text-amber-400/90" data-testid="petro-overlap">
+        <span className="text-pl-warning-text" data-testid="petro-overlap">
           {overlapWarning}
         </span>
       ) : null}
@@ -1168,11 +1173,11 @@ export default function PetroWorkstation({
         {selected ? `${selected.name} · ${wellData?.curves.DEPT?.length ?? '…'} samples` : `${wells?.length ?? '…'} wells`}
       </span>
       <span className="flex items-center gap-1.5 whitespace-nowrap" data-testid="petro-depth-tracks">
-        <span className="text-slate-500">depth tracks</span>
+        <span className="text-pl-muted">depth tracks</span>
         {DEPTH_TRACK_KEYS.map((k) => (
           <label
             key={k}
-            className={`flex items-center gap-0.5 ${k !== 'md' && !hasDeviation ? 'text-slate-600' : 'text-slate-400'}`}
+            className={`flex items-center gap-0.5 ${k !== 'md' && !hasDeviation ? 'text-pl-muted' : 'text-pl-muted'}`}
             title={k === 'md' ? 'Measured depth below KB'
               : hasDeviation
                 ? `${DEPTH_TRACK_TITLE[k]} through this well's survey and KB`
@@ -1192,7 +1197,7 @@ export default function PetroWorkstation({
         type="button"
         data-testid="petro-depth-unit"
         title="Display unit for the depth axis. Internal storage stays SI metres."
-        className="whitespace-nowrap rounded border border-slate-800 px-1.5 text-slate-400 hover:text-slate-200"
+        className="whitespace-nowrap rounded border border-pl-border px-1.5 text-pl-muted hover:text-pl-text"
         onClick={() => setDepthUnit((u) => (u === 'm' ? 'ft' : 'm'))}
       >
         depth: {depthUnit} · SI internal
@@ -1201,7 +1206,7 @@ export default function PetroWorkstation({
   );
 
   const center = !wells ? (
-    <div className="h-full flex items-center justify-center text-slate-500 text-sm">
+    <div className="h-full flex items-center justify-center text-pl-muted text-sm">
       <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading registry wells…
     </div>
   ) : view === 'field' ? (
@@ -1218,15 +1223,15 @@ export default function PetroWorkstation({
       onStatus={setStatus}
     />
   ) : !selected ? (
-    <div className="h-full flex items-center justify-center text-slate-500 text-sm" data-testid="petro-empty">
+    <div className="h-full flex items-center justify-center text-pl-muted text-sm" data-testid="petro-empty">
       Select a well to start interpreting.
     </div>
   ) : noDepthWell ? (
     <div className="h-full flex items-center justify-center" data-testid="petro-no-depth">
       <div className="max-w-md text-center space-y-2 px-6">
-        <Database className="w-8 h-8 mx-auto text-slate-600" />
-        <p className="text-sm text-slate-300">{selected.name} has no depth curve yet.</p>
-        <p className="text-xs text-slate-500 leading-relaxed">
+        <Database className="w-8 h-8 mx-auto text-pl-muted" />
+        <p className="text-sm text-pl-text">{selected.name} has no depth curve yet.</p>
+        <p className="text-xs text-pl-muted leading-relaxed">
           Log curves enter the registry through Well Data Manager, the Suite&apos;s single
           import door. Import an LAS file with a DEPT, DEPTH or MD curve there and this
           well opens here ready to interpret.
@@ -1234,7 +1239,7 @@ export default function PetroWorkstation({
       </div>
     </div>
   ) : !wellData ? (
-    <div className="h-full flex items-center justify-center text-slate-500 text-sm">
+    <div className="h-full flex items-center justify-center text-pl-muted text-sm">
       <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading curves…
     </div>
   ) : view === 'histogram' ? (
@@ -1334,12 +1339,12 @@ export default function PetroWorkstation({
             if (Number.isFinite(pct) && Math.abs(pct - split) >= 0.1) setPref({ splitPercent: pct });
           }}
         >
-          <ResizablePanel ref={splitTracksRef} id="split-tracks" order={1} defaultSize={split} minSize={SPLIT_MIN_PERCENT} className="min-w-0 border-r border-slate-800/60">
+          <ResizablePanel ref={splitTracksRef} id="split-tracks" order={1} defaultSize={split} minSize={SPLIT_MIN_PERCENT} className="min-w-0 border-r border-pl-border">
             {tracksEl}
           </ResizablePanel>
           <ResizableHandle
             withHandle
-            className="w-1 bg-slate-800/80 hover:bg-cyan-700/60 transition-colors"
+            className="w-1 bg-pl-sunken hover:bg-pl-primary/60 transition-colors"
             data-testid="petro-split-divider"
             title="Drag to resize; double-click to reset to 60/40"
             onDoubleClick={() => { splitTracksRef.current?.resize(SPLIT_DEFAULT); setPref({ splitPercent: SPLIT_DEFAULT }); }}
@@ -1375,74 +1380,80 @@ export default function PetroWorkstation({
       )}
       center={center}
       dock={(
-        <ScrollArea className="h-full min-h-0 bg-slate-900/60 border-l border-slate-800/60">
-          <ParameterPanel
-            params={params}
-            onApply={(p) => {
-              setParams((prev) => {
-                const next = applyDeliberateNone(p, prev);
-                // PT11a: a retyped Rw no longer carries the tool's method
-                if (prev.rwMethod && prev.rwMethod !== 'entered' && next.rw !== prev.rw && next.rwMethod === prev.rwMethod) return { ...next, rwMethod: 'entered' };
-                // PT11d: moving porosity to or from the mineral model is recorded
-                if (next.phiSource !== prev.phiSource && (next.phiSource === 'mineral' || prev.phiSource === 'mineral')) {
-                  recordProvenance({ kind: 'phi-source', from: prev.phiSource, to: next.phiSource, note: `φt source changed from ${prev.phiSource} to ${next.phiSource}.` });
-                }
-                return next;
-              });
-              setStatus('Parameters applied.');
-            }}
-            zones={zones}
-            zoneParams={zoneParams}
-            onApplyZone={applyZoneParams}
-            onOpenZoneTable={() => setZoneTableOpen(true)}
-          />
-          <LayoutPanel
-            logSources={(wellData?.allLogs || []).map((l) => l.mnemonic)}
-            layouts={layouts}
-            onLayoutsChange={setLayouts}
-            focusTrack={layoutFocus}
-            onStatus={setStatus}
-            sourceStatus={layoutSourceStatus}
-            mineralSources={mineralSources(mineralHere)}
-          />
-          {wellData && (
-            <TopsPanel
-              tops={wellData.tops}
-              topStyles={topStyles}
-              onShowAll={(v) => setLayouts((l) => setShowAllTops(l, v))}
-              onStyle={(name, patch) => setLayouts((l) => setTopStyle(l, name, patch))}
-              isOwn={!!selected?.is_own}
-              busy={topsBusy}
-              pickMode={pickMode}
-              onPick={setPick}
-              onRename={renameTop}
-              onMove={moveTop}
-              onDelete={removeTop}
-              depthUnit={depthUnit}
-              snapSamples={snapSamples}
-              onSnapSamples={setSnapSamples}
-              mapHrefFor={(t) => mapTopHref(t.name, [], mappingPath)}
-            />
-          )}
-          {wellData && (
-            <ZoneManager
-              depthUnit={depthUnit}
+        <ScrollArea className="h-full min-h-0 bg-pl-surface border-l border-pl-border">
+          {/* w-0 + min-w-full: the dock content takes the dock width, so a wide row cannot push the parameter fields out of view */}
+          <div className="w-0 min-w-full">
+            <ParameterPanel
+              params={params}
+              onApply={(p) => {
+                setParams((prev) => {
+                  const next = applyDeliberateNone(p, prev);
+                  // PT11a: a retyped Rw no longer carries the tool's method
+                  if (prev.rwMethod && prev.rwMethod !== 'entered' && next.rw !== prev.rw && next.rwMethod === prev.rwMethod) return { ...next, rwMethod: 'entered' };
+                  // PT11d: moving porosity to or from the mineral model is recorded
+                  if (next.phiSource !== prev.phiSource && (next.phiSource === 'mineral' || prev.phiSource === 'mineral')) {
+                    recordProvenance({ kind: 'phi-source', from: prev.phiSource, to: next.phiSource, note: `φt source changed from ${prev.phiSource} to ${next.phiSource}.` });
+                  }
+                  return next;
+                });
+                setStatus('Parameters applied.');
+              }}
               zones={zones}
               zoneParams={zoneParams}
-              summaries={summaries}
-              isOwn={!!selected?.is_own}
-              busy={zonesBusy}
-              onAdd={addZone}
-              onAddMany={addZonesMany}
-              onStartPick={() => setPick(pickMode === 'zone' ? null : 'zone')}
-              pickActive={pickMode === 'zone'}
-              tops={wellData.tops}
-              tdM={selected?.td_md_m ?? null}
-              probZones={probZones}
-              onDelete={deleteZone}
-              onPublish={publishZone}
+              onApplyZone={applyZoneParams}
+              onOpenZoneTable={() => setZoneTableOpen(true)}
             />
-          )}
+            {/* the track layout editor's curve rows are wider than a narrow dock: they scroll sideways here */}
+            <div className="overflow-x-auto" data-testid="petro-layout-scroll">
+              <LayoutPanel
+                logSources={(wellData?.allLogs || []).map((l) => l.mnemonic)}
+                layouts={layouts}
+                onLayoutsChange={setLayouts}
+                focusTrack={layoutFocus}
+                onStatus={setStatus}
+                sourceStatus={layoutSourceStatus}
+                mineralSources={mineralSources(mineralHere)}
+              />
+            </div>
+            {wellData && (
+              <TopsPanel
+                tops={wellData.tops}
+                topStyles={topStyles}
+                onShowAll={(v) => setLayouts((l) => setShowAllTops(l, v))}
+                onStyle={(name, patch) => setLayouts((l) => setTopStyle(l, name, patch))}
+                isOwn={!!selected?.is_own}
+                busy={topsBusy}
+                pickMode={pickMode}
+                onPick={setPick}
+                onRename={renameTop}
+                onMove={moveTop}
+                onDelete={removeTop}
+                depthUnit={depthUnit}
+                snapSamples={snapSamples}
+                onSnapSamples={setSnapSamples}
+                mapHrefFor={(t) => mapTopHref(t.name, [], mappingPath)}
+              />
+            )}
+            {wellData && (
+              <ZoneManager
+                depthUnit={depthUnit}
+                zones={zones}
+                zoneParams={zoneParams}
+                summaries={summaries}
+                isOwn={!!selected?.is_own}
+                busy={zonesBusy}
+                onAdd={addZone}
+                onAddMany={addZonesMany}
+                onStartPick={() => setPick(pickMode === 'zone' ? null : 'zone')}
+                pickActive={pickMode === 'zone'}
+                tops={wellData.tops}
+                tdM={selected?.td_md_m ?? null}
+                probZones={probZones}
+                onDelete={deleteZone}
+                onPublish={publishZone}
+              />
+            )}
+          </div>
         </ScrollArea>
       )}
       dockOpen={dockOpen}

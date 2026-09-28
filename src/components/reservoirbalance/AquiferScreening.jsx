@@ -17,6 +17,7 @@ import {
   ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts';
 import { Button } from '@/components/ui/button';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -60,9 +61,11 @@ const fmtWe = (v) => (v == null || !Number.isFinite(v) ? '—' : `${(v / 1e6).to
 const fmtRate = (v) => (v == null || !Number.isFinite(v) ? '—' : `${v.toLocaleString('en-US', { maximumFractionDigits: 0 })} rb/d`);
 const fmtNum = (v, d = 0) => (v == null || !Number.isFinite(v) ? '—' : v.toLocaleString('en-US', { maximumFractionDigits: d }));
 
+// Aquifer strength is a classification, so it reads in the text colour
+// (the design system keeps colour for status); "none" is muted.
 const LEVEL_COLOR = {
-  none: 'text-slate-400', weak: 'text-amber-400', moderate: 'text-sky-400',
-  strong: 'text-lime-400', active: 'text-sky-400',
+  none: 'text-pl-muted', weak: 'text-pl-text', moderate: 'text-pl-text',
+  strong: 'text-pl-text', active: 'text-pl-text',
 };
 
 // Case production data -> screening pressure history rows (t in days from the
@@ -202,14 +205,12 @@ const AquiferScreening = () => {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          {METHODS.map((m) => (
-            <button key={m.code} onClick={() => setMethod(m.code)}
-              className={`px-4 py-2 rounded-lg text-sm border transition-colors ${method === m.code ? 'bg-sky-600 border-sky-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'}`}>
-              {m.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          label="Influx method"
+          value={method}
+          onValueChange={setMethod}
+          options={METHODS.map((m) => ({ value: m.code, label: m.label }))}
+        />
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={loadFromCase}>Load case history</Button>
           <Button variant="outline" size="sm" onClick={loadSample}><Beaker className="w-4 h-4 mr-1" /> Sample</Button>
@@ -218,18 +219,18 @@ const AquiferScreening = () => {
           </Button>
         </div>
       </div>
-      {currentMethod && <p className="text-xs text-slate-500">{currentMethod.blurb}</p>}
+      {currentMethod && <p className="text-xs text-pl-muted">{currentMethod.blurb}</p>}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Kpi title="Cumulative Influx We" value={fmtWe(result.cumulativeWe)} accent />
         <Kpi title="Latest Influx Rate" value={fmtRate(result.rate)} />
-        <Kpi title="Aquifer Strength" value={cls.label || '—'} valueClass={LEVEL_COLOR[cls.level] || 'text-slate-200'} />
+        <Kpi title="Aquifer Strength" value={cls.label || '—'} valueClass={LEVEL_COLOR[cls.level] || 'text-pl-text'} word />
         <Kpi title={method === 'fetkovich' ? 'Encroachable Water Wei' : 'Final tD'}
           value={method === 'fetkovich' ? fmtWe(result.Wei) : fmtNum(finalTD, 1)} />
       </div>
 
       {result.error && (
-        <div className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-amber-300">
+        <div className="flex items-start gap-3 rounded-lg border border-pl-warning/40 bg-pl-warning-bg px-4 py-3 text-pl-warning-text">
           <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
           <div className="text-sm">{result.error}</div>
         </div>
@@ -238,9 +239,9 @@ const AquiferScreening = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: parameters + history */}
         <div className="space-y-6">
-          <Card className="bg-slate-900 border-slate-800">
+          <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2"><Settings2 className="w-4 h-4 text-sky-400" /> Aquifer parameters</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2"><Settings2 className="w-4 h-4 text-pl-muted" /> Aquifer parameters</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -252,20 +253,20 @@ const AquiferScreening = () => {
                 )}
               </div>
               {method === 'carter-tracy' && (
-                <p className="text-xs text-slate-500 flex items-start gap-1.5">
+                <p className="text-xs text-pl-muted flex items-start gap-1.5">
                   <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                   With reD set, the march uses the exact bounded-circle pD (the Dake Exercise 9.2 benchmark path). Blank keeps the infinite-acting line source.
                 </p>
               )}
               {method === 'fetkovich' && (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pt-3 border-t border-slate-800">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pt-3 border-t border-pl-border">
                   {FETKOVICH_FIELDS.map(([k, lbl, unit]) => (
                     <Field key={k} label={`${lbl} (${unit})`} value={params[k] ?? ''} onChange={(v) => setParam(k, v)} />
                   ))}
                 </div>
               )}
               {method === 'fetkovich' && (
-                <p className="text-xs text-slate-500 flex items-start gap-1.5">
+                <p className="text-xs text-pl-muted flex items-start gap-1.5">
                   <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                   Leave W and J blank to derive them from the geometry (re, rR, θ, φ, h, k, μw) using a radial no-flow-boundary aquifer.
                 </p>
@@ -273,16 +274,16 @@ const AquiferScreening = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-900 border-slate-800">
+          <Card>
             <CardHeader className="pb-3 flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-base flex items-center gap-2"><Calculator className="w-4 h-4 text-sky-400" /> Boundary-pressure history</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2"><Calculator className="w-4 h-4 text-pl-muted" /> Boundary-pressure history</CardTitle>
               <Button variant="outline" size="sm" className="h-7 px-2" onClick={exportCsv}><Download className="w-3.5 h-3.5" /></Button>
             </CardHeader>
             <CardContent>
               <div className="max-h-72 overflow-y-auto">
                 <table className="w-full text-sm">
-                  <thead className="sticky top-0 bg-slate-900">
-                    <tr className="text-slate-400 border-b border-slate-800">
+                  <thead className="sticky top-0 bg-pl-surface">
+                    <tr className="text-pl-muted border-b border-pl-border">
                       <th className="text-left py-1.5 font-medium">Time (days)</th>
                       <th className="text-left font-medium">Pressure (psia)</th>
                       <th className="w-8" />
@@ -290,15 +291,15 @@ const AquiferScreening = () => {
                   </thead>
                   <tbody>
                     {rows.map((r, i) => (
-                      <tr key={i} className="border-b border-slate-800/60">
+                      <tr key={i} className="border-b border-pl-border">
                         <td className="py-1 pr-2">
-                          <Input value={r.t} onChange={(e) => setRow(i, 't', e.target.value)} className="h-8 bg-slate-800 border-slate-700" />
+                          <Input value={r.t} onChange={(e) => setRow(i, 't', e.target.value)} className="h-8" />
                         </td>
                         <td className="py-1 pr-2">
-                          <Input value={r.p} onChange={(e) => setRow(i, 'p', e.target.value)} className="h-8 bg-slate-800 border-slate-700" />
+                          <Input value={r.p} onChange={(e) => setRow(i, 'p', e.target.value)} className="h-8" />
                         </td>
                         <td className="text-center">
-                          <button onClick={() => delRow(i)} className="text-slate-500 hover:text-rose-400"><Trash2 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => delRow(i)} className="text-pl-muted hover:text-pl-danger-text"><Trash2 className="w-3.5 h-3.5" /></button>
                         </td>
                       </tr>
                     ))}
@@ -306,14 +307,14 @@ const AquiferScreening = () => {
                 </table>
               </div>
               <Button variant="outline" size="sm" className="mt-3 h-8" onClick={addRow}><Plus className="w-3.5 h-3.5 mr-1" /> Add row</Button>
-              <p className="text-xs text-slate-500 mt-2">First row sets the initial pressure pi at t = 0 (We = 0). Load case history pulls the dated pressures from the Data tab.</p>
+              <p className="text-xs text-pl-muted mt-2">First row sets the initial pressure pi at t = 0 (We = 0). Load case history pulls the dated pressures from the Data tab.</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Right: chart + results */}
         <div className="space-y-6">
-          <Card className="bg-slate-900 border-slate-800">
+          <Card>
             <CardHeader className="pb-2"><CardTitle className="text-base">Water influx &amp; pressure history</CardTitle></CardHeader>
             <CardContent className="p-0">
               {chartData.length >= 2 ? (
@@ -344,25 +345,25 @@ const AquiferScreening = () => {
                   </ComposedChart>
                 </ChartFrame>
               ) : (
-                <div className="h-72 flex items-center justify-center text-slate-500 text-sm px-6 text-center">
+                <div className="h-72 flex items-center justify-center text-pl-muted text-sm px-6 text-center">
                   Enter at least two pressure points to compute a water-influx history.
                 </div>
               )}
               {serverSeries && (
-                <p className="text-xs text-slate-500 px-6 pb-2">
+                <p className="text-xs text-pl-muted px-6 pb-2">
                   The dashed line is the server engine&apos;s We from the last completed run. Screening and run We should broadly agree when the same model and parameters are applied; small differences reflect the two implementations (exact bounded-circle pD here, blended pD in the server march).
                 </p>
               )}
-              {cls.note && <p className="text-xs text-slate-500 px-6 pb-4">{cls.note}</p>}
+              {cls.note && <p className="text-xs text-pl-muted px-6 pb-4">{cls.note}</p>}
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-900 border-slate-800">
+          <Card>
             <CardHeader className="pb-2"><CardTitle className="text-base">Influx results</CardTitle></CardHeader>
             <CardContent className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-slate-400 border-b border-slate-800">
+                  <tr className="text-pl-muted border-b border-pl-border">
                     <th className="text-left py-1.5 font-medium">t (days)</th>
                     <th className="text-right font-medium">p (psia)</th>
                     {method !== 'fetkovich' && <th className="text-right font-medium">tD</th>}
@@ -371,16 +372,16 @@ const AquiferScreening = () => {
                 </thead>
                 <tbody>
                   {(result.series || []).map((pt, i) => (
-                    <tr key={i} className="border-b border-slate-800/60">
-                      <td className="py-1.5 text-slate-200">{fmtNum(pt.t, 0)}</td>
-                      <td className="text-right font-mono text-slate-400">{fmtNum(pt.p, 0)}</td>
-                      {method !== 'fetkovich' && <td className="text-right font-mono text-slate-500">{fmtNum(pt.tD, 1)}</td>}
-                      <td className="text-right font-mono text-sky-400">{(pt.We / 1e6).toFixed(3)}</td>
+                    <tr key={i} className="border-b border-pl-border">
+                      <td className="py-1.5 text-pl-text">{fmtNum(pt.t, 0)}</td>
+                      <td className="text-right font-mono text-pl-muted">{fmtNum(pt.p, 0)}</td>
+                      {method !== 'fetkovich' && <td className="text-right font-mono text-pl-muted">{fmtNum(pt.tD, 1)}</td>}
+                      <td className="text-right font-mono text-pl-text">{(pt.We / 1e6).toFixed(3)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <p className="text-xs text-slate-500 mt-3 flex items-start gap-1.5">
+              <p className="text-xs text-pl-muted mt-3 flex items-start gap-1.5">
                 <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                 Screening estimate. Use in model writes these parameters to the case; the history-matched run remains the authority for reserves work.
               </p>
@@ -392,19 +393,20 @@ const AquiferScreening = () => {
   );
 };
 
-const Kpi = ({ title, value, accent, valueClass }) => (
-  <Card className={`bg-slate-900 border-slate-800 ${accent ? 'ring-1 ring-sky-500/30' : ''}`}>
+// Numbers in the mono face; a word value (the strength class) stays in sans.
+const Kpi = ({ title, value, accent, valueClass, word = false }) => (
+  <Card className={accent ? 'border-pl-primary/60 ring-1 ring-pl-primary/30' : undefined}>
     <CardContent className="p-4">
-      <div className="text-xs uppercase tracking-wide text-slate-500">{title}</div>
-      <div className={`text-2xl font-bold mt-1 ${valueClass || ''}`}>{value}</div>
+      <div className="text-xs uppercase tracking-wide text-pl-muted">{title}</div>
+      <div className={`text-2xl font-semibold mt-1 ${word ? '' : 'font-pl-mono tabular-nums'} ${valueClass || 'text-pl-text'}`}>{value}</div>
     </CardContent>
   </Card>
 );
 
 const Field = ({ label, value, onChange }) => (
   <div className="space-y-1">
-    <Label className="text-xs text-slate-400">{label}</Label>
-    <Input value={value} onChange={(e) => onChange(e.target.value)} className="h-9 bg-slate-800 border-slate-700" />
+    <Label className="text-xs text-pl-muted">{label}</Label>
+    <Input value={value} onChange={(e) => onChange(e.target.value)} className="h-9" />
   </div>
 );
 

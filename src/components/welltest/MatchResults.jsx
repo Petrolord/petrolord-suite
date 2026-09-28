@@ -60,9 +60,9 @@ const MatchResults = () => {
 
   if (!loglog.length) {
     return (
-      <div className="rounded-lg border border-slate-700 bg-slate-900 px-6 py-10 text-center">
-        <p className="text-slate-300 font-medium">Nothing to match yet.</p>
-        <p className="text-sm text-slate-500 mt-1">Load gauge data on the Data tab first.</p>
+      <div className="rounded-lg border border-pl-border bg-pl-surface px-6 py-10 text-center">
+        <p className="text-pl-text font-medium">Nothing to match yet.</p>
+        <p className="text-sm text-pl-muted mt-1">Load gauge data on the Data tab first.</p>
       </div>
     );
   }
@@ -111,26 +111,26 @@ const MatchResults = () => {
       </ChartCard>
 
       {fitResult && (
-        <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+        <div className="rounded-lg border border-pl-border bg-pl-surface p-4">
+          <p className="text-xs font-semibold text-pl-muted uppercase tracking-wider mb-2">
             Regression result {fitResult.converged ? '(converged)' : '(stopped early)'}
           </p>
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-slate-500 text-left">
+              <tr className="text-pl-muted text-left">
                 <th className="py-1 font-medium">Parameter</th>
                 <th className="py-1 font-medium">Value</th>
                 <th className="py-1 font-medium">95% confidence</th>
               </tr>
             </thead>
-            <tbody className="text-slate-300">
+            <tbody className="text-pl-text">
               {model.parameters.map((meta) => {
                 const kind = kindForCatalogUnit(meta.unit);
                 const uv = (v) => fromOilfield(kind, v, unitSystem);
                 const label = unitLabel(kind, unitSystem) || meta.unit;
                 const pair = fitResult.confidence95[meta.key];
                 return (
-                  <tr key={meta.key} className="border-t border-slate-800">
+                  <tr key={meta.key} className="border-t border-pl-border">
                     <td className="py-1">{meta.label} ({label})</td>
                     <td className="py-1">{meta.logScale ? fmt.sig3(uv(fitResult.params[meta.key])) : fmt.f2(uv(fitResult.params[meta.key]))}</td>
                     <td className="py-1">{ci(Array.isArray(pair) ? pair.map(uv) : pair)}</td>
@@ -139,7 +139,7 @@ const MatchResults = () => {
               })}
             </tbody>
           </table>
-          <p className="text-[11px] text-slate-500 mt-2">
+          <p className="text-[11px] text-pl-muted mt-2">
             {fitResult.iterations} iterations, residual sum of squares {fmt.sci(fitResult.ssr)} (log-space pressure + derivative).
           </p>
         </div>

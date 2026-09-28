@@ -118,7 +118,7 @@ const ContactsTab = () => {
     return (
       <Card>
         <CardContent className="py-6">
-          <p className="text-sm text-slate-400 flex items-center gap-2">
+          <p className="text-sm text-pl-muted flex items-center gap-2">
             <Info className="h-4 w-4" />
             Contact tracking reads the water influx and expansion series of the last engine run. Run the engine on
             the Run tab first.
@@ -133,7 +133,7 @@ const ContactsTab = () => {
       <Card className="lg:col-span-1">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Layers className="h-4 w-4 text-emerald-500" />
+            <Layers className="h-4 w-4 text-pl-primary-text" />
             Contact geometry
           </CardTitle>
           <CardDescription>
@@ -145,7 +145,7 @@ const ContactsTab = () => {
           {FIELDS.filter(([key]) => !(isGas && (key === 'initialGocFt' || key === 'areaGocAcres' || key === 'sorGas')))
             .map(([key, label, unit]) => (
               <div key={key} className="space-y-1">
-                <Label className="text-xs text-slate-400">{label} ({unit})</Label>
+                <Label className="text-xs text-pl-muted">{label} ({unit})</Label>
                 <Input
                   value={form[key]}
                   onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
@@ -154,7 +154,7 @@ const ContactsTab = () => {
               </div>
             ))}
           {!isGas && (
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-pl-muted">
               Gas cap ratio m in use: {gasCapM > 0 ? gasCapM.toFixed(3) : 'none (GOC stays put)'}.
               {gasCapM > 0 && ' Taken from the history match or the saved run config.'}
             </p>
@@ -168,27 +168,27 @@ const ContactsTab = () => {
         </CardHeader>
         <CardContent className="space-y-3">
           {!result?.ok ? (
-            <p className="text-sm text-slate-400 flex items-center gap-2">
+            <p className="text-sm text-pl-muted flex items-center gap-2">
               <Info className="h-4 w-4" />
               {result?.error ?? 'Fill in the geometry to compute contact movement.'}
             </p>
           ) : (
             <>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <div className="border border-slate-800 rounded-md p-3 bg-slate-950/40">
-                  <p className="text-[11px] text-slate-500">Current {waterLabel}</p>
-                  <p className="text-base font-semibold text-slate-200">{result.currentOwcFt.toFixed(1)} ft</p>
+                <div className="border border-pl-border rounded-md p-3 bg-pl-sunken">
+                  <p className="text-[11px] text-pl-muted">Current {waterLabel}</p>
+                  <p className="text-base font-semibold text-pl-text">{result.currentOwcFt.toFixed(1)} ft</p>
                 </div>
                 {result.currentGocFt != null && (
-                  <div className="border border-slate-800 rounded-md p-3 bg-slate-950/40">
-                    <p className="text-[11px] text-slate-500">Current GOC</p>
-                    <p className="text-base font-semibold text-slate-200">{result.currentGocFt.toFixed(1)} ft</p>
+                  <div className="border border-pl-border rounded-md p-3 bg-pl-sunken">
+                    <p className="text-[11px] text-pl-muted">Current GOC</p>
+                    <p className="text-base font-semibold text-pl-text">{result.currentGocFt.toFixed(1)} ft</p>
                   </div>
                 )}
                 {result.oilColumnFt != null && (
-                  <div className="border border-slate-800 rounded-md p-3 bg-slate-950/40">
-                    <p className="text-[11px] text-slate-500">Remaining oil column</p>
-                    <p className="text-base font-semibold text-slate-200">{result.oilColumnFt.toFixed(1)} ft</p>
+                  <div className="border border-pl-border rounded-md p-3 bg-pl-sunken">
+                    <p className="text-[11px] text-pl-muted">Remaining oil column</p>
+                    <p className="text-base font-semibold text-pl-text">{result.oilColumnFt.toFixed(1)} ft</p>
                   </div>
                 )}
               </div>
@@ -223,7 +223,7 @@ const ContactsTab = () => {
               </ChartFrame>
 
               {result.warnings.map((w) => (
-                <p key={w} className="text-xs text-amber-400 flex items-start gap-2">
+                <p key={w} className="text-xs text-pl-warning-text flex items-start gap-2">
                   <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" /> {w}
                 </p>
               ))}

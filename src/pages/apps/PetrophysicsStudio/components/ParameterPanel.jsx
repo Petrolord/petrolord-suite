@@ -14,7 +14,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { FIELDS } from '../services/paramFields';
 
 const num = (v) => (v === '' || v === '-' ? NaN : Number(v));
-const inputCls = 'w-full rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs';
+const inputCls = 'w-full rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
 const selCls = inputCls;
 
 
@@ -64,7 +64,7 @@ export default function ParameterPanel({
   return (
     <div className="p-2 space-y-1 text-xs" data-testid="petro-params">
       <label className="flex items-center gap-2">
-        <span className="w-28 shrink-0 text-slate-400">Scope</span>
+        <span className="w-28 shrink-0 text-pl-muted">Scope</span>
         <select
           className={selCls}
           data-testid="petro-param-scope"
@@ -83,7 +83,7 @@ export default function ParameterPanel({
         <button
           type="button"
           data-testid="petro-zone-table-open"
-          className="w-full px-2 py-0.5 rounded border text-[11px] border-slate-700 text-slate-300 hover:bg-slate-800"
+          className="w-full px-2 py-0.5 rounded border text-[11px] border-pl-border text-pl-text hover:bg-pl-sunken"
           title="Every parameter by every zone on one screen"
           onClick={onOpenZoneTable}
         >
@@ -91,27 +91,27 @@ export default function ParameterPanel({
         </button>
       )}
       {zone && (
-        <p className="text-[10px] text-slate-500 leading-snug">
+        <p className="text-[10px] text-pl-muted leading-snug">
           Editing overrides for {zone.name}. Fields marked
-          <span className="text-cyan-400"> •</span> differ from global; setting a field
+          <span className="text-pl-primary-text"> •</span> differ from global; setting a field
           back to the global value removes its override.
         </p>
       )}
       {FIELDS.map((f, i) => (f.section ? (
-        <div key={f.section} className={`text-[10px] uppercase tracking-wider text-slate-500 ${i ? 'pt-2' : ''}`}>
+        <div key={f.section} className={`text-[10px] uppercase tracking-wider text-pl-muted ${i ? 'pt-2' : ''}`}>
           {f.section}
         </div>
       ) : f.hint ? (
         visible(f) && f.hint(draft) ? (
-          <p key={`hint-${i}`} className={`text-[10px] leading-snug ${f.testId ? 'text-amber-300/90' : 'text-slate-500'}`} data-testid={f.testId || 'petro-param-hint'}>
+          <p key={`hint-${i}`} className={`text-[10px] leading-snug ${f.testId ? 'text-pl-warning-text' : 'text-pl-muted'}`} data-testid={f.testId || 'petro-param-hint'}>
             {f.hint(draft)}
           </p>
         ) : null
       ) : !visible(f) ? null : (
         <label key={f.key} className="flex items-center gap-2">
-          <span className={`w-28 shrink-0 ${overridden(f.key) ? 'text-cyan-300' : 'text-slate-400'}`}>
+          <span className={`w-28 shrink-0 ${overridden(f.key) ? 'text-pl-primary-text' : 'text-pl-muted'}`}>
             {typeof f.label === 'function' ? f.label(draft) : f.label}
-            {overridden(f.key) && <span className="text-cyan-400"> •</span>}
+            {overridden(f.key) && <span className="text-pl-primary-text"> •</span>}
           </span>
           {f.options ? (
             <select
@@ -138,7 +138,7 @@ export default function ParameterPanel({
         data-testid="petro-params-apply"
         disabled={!dirty || invalid}
         className="mt-2 w-full px-2 py-1 rounded border text-xs
-          border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10
+          border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10
           disabled:opacity-40 disabled:cursor-not-allowed"
         onClick={apply}
       >
@@ -149,7 +149,7 @@ export default function ParameterPanel({
           type="button"
           data-testid="petro-params-clear-zone"
           className="w-full px-2 py-1 rounded border text-xs
-            border-slate-700 text-slate-400 hover:bg-slate-800"
+            border-pl-border text-pl-muted hover:bg-pl-sunken"
           onClick={() => onApplyZone(zone.id, {})}
         >
           Clear {zone.name} overrides

@@ -65,20 +65,20 @@ const RtaPanel = () => {
         <div className="space-y-2">
           <input ref={fileRef} type="file" accept=".csv,text/csv,.txt" className="hidden" onChange={onFile} />
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" className="flex-1 border-slate-700" onClick={() => fileRef.current?.click()}>
+            <Button size="sm" variant="outline" className="flex-1" onClick={() => fileRef.current?.click()}>
               <Upload className="w-4 h-4 mr-2" /> Import CSV
             </Button>
             {rtaRows.length > 0 && (
-              <Button size="sm" variant="ghost" className="text-slate-500" onClick={() => setRtaRows([])} title="Clear production data">
+              <Button size="sm" variant="ghost" className="text-pl-muted" onClick={() => setRtaRows([])} title="Clear production data">
                 <Trash2 className="w-4 h-4" />
               </Button>
             )}
           </div>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-pl-muted">
             Three numeric columns: time in days, rate in {unitLabel(rateKind, unitSystem)}, flowing pressure in {unitLabel('pressureAbs', unitSystem)}.
             {rtaRows.length ? ` Loaded: ${rtaRows.length} points.` : ' No production data loaded yet.'}
           </p>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-pl-muted">
             Fluid, initial pressure and rock and fluid properties come from the Data tab. {isGas
               ? 'Gas analyses run on pseudo-pressure with material-balance pseudo-time (dynamic material balance).'
               : 'Oil analyses use pressure and material-balance time.'}
@@ -92,7 +92,7 @@ const RtaPanel = () => {
           <Field label="From" suffix="days" value={rtaWindows.linMin} onChange={(v) => setRtaWindowField('linMin', v)} placeholder="auto" />
           <Field label="To" suffix="days" value={rtaWindows.linMax} onChange={(v) => setRtaWindowField('linMax', v)} placeholder="auto" />
         </div>
-        <p className="text-[11px] text-slate-500 mt-2">
+        <p className="text-[11px] text-pl-muted mt-2">
           Set the window over the early half-slope trend on the log-log plot. The sqrt-time regression there yields
           xf sqrt(k) (Wattenbarger linear flow). Leave blank to use the full record.
         </p>
@@ -100,7 +100,7 @@ const RtaPanel = () => {
 
       <section>
         <SectionLabel>Reading the plots</SectionLabel>
-        <ul className="text-[11px] text-slate-500 space-y-2 list-disc pl-4">
+        <ul className="text-[11px] text-pl-muted space-y-2 list-disc pl-4">
           <li>Log-log rate-normalized drawdown vs material-balance time: half slope early = linear flow; both curves merging on a late unit slope = boundary-dominated flow.</li>
           <li>The flowing material balance line only means something once boundary-dominated flow is established; transient data curves above it.</li>
           <li>Material-balance time is exact for boundary-dominated flow at any rate history, so shut-ins and rate changes collapse onto one trend.</li>

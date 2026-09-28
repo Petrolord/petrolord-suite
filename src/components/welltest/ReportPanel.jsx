@@ -92,18 +92,18 @@ const ReportPanel = () => {
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Model choice rationale, data quality remarks, boundary observations…"
-          className="min-h-[160px] bg-slate-800 border-slate-700 text-sm"
+          className="min-h-[160px] text-sm"
         />
-        <p className="text-[11px] text-slate-500 mt-2">Notes are saved with the project and appear in the report summary.</p>
+        <p className="text-[11px] text-pl-muted mt-2">Notes are saved with the project and appear in the report summary.</p>
       </section>
 
       <section>
         <SectionLabel>Export</SectionLabel>
         <div className="space-y-2">
-          <Button size="sm" variant="outline" className="w-full border-slate-700" onClick={exportPdf} disabled={!prepared.points.length}>
+          <Button size="sm" variant="outline" className="w-full" onClick={exportPdf} disabled={!prepared.points.length}>
             <FileText className="w-4 h-4 mr-2" /> Export PDF report
           </Button>
-          <Button size="sm" variant="outline" className="w-full border-slate-700" onClick={exportJson}>
+          <Button size="sm" variant="outline" className="w-full" onClick={exportJson}>
             <Download className="w-4 h-4 mr-2" /> Export project JSON
           </Button>
         </div>
@@ -113,21 +113,21 @@ const ReportPanel = () => {
         <SectionLabel>Send results</SectionLabel>
         <div className="space-y-2">
           <Button
-            size="sm" variant="outline" className="w-full border-slate-700"
+            size="sm" variant="outline" className="w-full"
             disabled={!Number.isFinite(pBar)}
             onClick={sendToReservoirBalance}
           >
             <Send className="w-4 h-4 mr-2" /> p̄, k, s to Reservoir Balance
           </Button>
           <Button
-            size="sm" variant="outline" className="w-full border-slate-700"
+            size="sm" variant="outline" className="w-full"
             disabled={!Number.isFinite(kBest)}
             onClick={sendToWaterflood}
           >
             <Send className="w-4 h-4 mr-2" /> k to Waterflood Design Studio
           </Button>
         </div>
-        <p className="text-[11px] text-slate-500 mt-2">
+        <p className="text-[11px] text-pl-muted mt-2">
           Reservoir Balance receives the average pressure for a new material balance case; Waterflood Design receives the tested permeability for the displacement inputs.
         </p>
       </section>

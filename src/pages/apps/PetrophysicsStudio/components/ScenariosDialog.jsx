@@ -61,10 +61,10 @@ export default function ScenariosDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] w-auto bg-slate-900 border-slate-700 text-slate-200" data-testid="petro-scenarios-dialog">
+      <DialogContent className="max-w-[95vw] w-auto" data-testid="petro-scenarios-dialog">
         <DialogHeader>
           <DialogTitle>Low, mid, high cases</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-pl-muted">
             Mid is the current parameter set. Low and High are edits over it; a changed cell overrides
             that parameter in every zone. Each case is one ordinary pipeline run, so every curve and zone
             number below is explainable by the column it came from.
@@ -82,25 +82,25 @@ export default function ScenariosDialog({
             testPrefix="petro-sc"
             globalLabel="Mid (current)"
           />
-          <div className="rounded border border-slate-800 max-h-[60vh] overflow-auto">
+          <div className="rounded border border-pl-border max-h-[60vh] overflow-auto">
             <table className="text-xs border-collapse min-w-full">
-              <thead className="sticky top-0 bg-slate-900">
+              <thead className="sticky top-0 bg-pl-surface">
                 <tr>
                   {['Zone', 'Case', `Net (${depthUnit})`, 'NTG', 'φe avg', 'Sw avg', 'k gm (mD)'].map((h) => (
-                    <th key={h} className="text-left px-2 py-1 text-slate-400 font-normal whitespace-nowrap">{h}</th>
+                    <th key={h} className="text-left px-2 py-1 text-pl-muted font-normal whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {zones.length === 0 && (
-                  <tr><td colSpan={7} className="px-2 py-2 text-slate-500">No zones on this well yet; the cases still draw on the tracks.</td></tr>
+                  <tr><td colSpan={7} className="px-2 py-2 text-pl-muted">No zones on this well yet; the cases still draw on the tracks.</td></tr>
                 )}
                 {zones.map((z) => CASES.map((c, i) => {
                   const s = summaries?.[z.id]?.[c];
                   return (
-                    <tr key={`${z.id}-${c}`} className={i === 0 ? 'border-t border-slate-800/60' : ''} data-testid={`petro-sc-row-${z.name}-${c}`}>
-                      <td className="px-2 py-0.5 text-slate-300">{i === 0 ? z.name : ''}</td>
-                      <td className={`px-2 py-0.5 ${c === 'low' ? 'text-red-300' : c === 'high' ? 'text-emerald-300' : 'text-slate-200'}`}>{CASE_LABEL[c]}</td>
+                    <tr key={`${z.id}-${c}`} className={i === 0 ? 'border-t border-pl-border' : ''} data-testid={`petro-sc-row-${z.name}-${c}`}>
+                      <td className="px-2 py-0.5 text-pl-text">{i === 0 ? z.name : ''}</td>
+                      <td className={`px-2 py-0.5 ${c === 'low' ? 'text-pl-danger-text' : c === 'high' ? 'text-pl-success-text' : 'text-pl-text'}`}>{CASE_LABEL[c]}</td>
                       <td className="px-2 py-0.5" data-testid={`petro-sc-net-${z.name}-${c}`}>{s ? fmt(s.net_m * F, 1) : '—'}</td>
                       <td className="px-2 py-0.5">{s ? fmt(s.ntg) : '—'}</td>
                       <td className="px-2 py-0.5">{s ? fmt(s.phi_avg) : '—'}</td>
@@ -112,7 +112,7 @@ export default function ScenariosDialog({
               </tbody>
             </table>
             {results && (
-              <p className="px-2 py-1 text-[10px] text-slate-500">
+              <p className="px-2 py-1 text-[10px] text-pl-muted">
                 Low: {Object.entries(patches.low || {}).map(([k, v]) => `${k} ${v}`).join(', ') || 'no change'} ·
                 High: {Object.entries(patches.high || {}).map(([k, v]) => `${k} ${v}`).join(', ') || 'no change'}
                 {results.low.missing.length ? ` · low case missing: ${results.low.missing.join('; ')}` : ''}
@@ -123,23 +123,23 @@ export default function ScenariosDialog({
         </div>
 
         <DialogFooter className="flex items-center gap-2">
-          <span className="mr-auto text-[11px] text-slate-500" data-testid="petro-scenarios-summary">
+          <span className="mr-auto text-[11px] text-pl-muted" data-testid="petro-scenarios-summary">
             {invalidCount ? `${invalidCount} cell(s) are not numbers` : `low changes ${nOver('low')}, high changes ${nOver('high')}`}
           </span>
-          <Button variant="outline" size="sm" className="border-slate-700 text-slate-300" onClick={() => onOpenChange(false)}>Close</Button>
-          <Button variant="outline" size="sm" data-testid="petro-scenarios-csv" disabled={!summaries || !zones.length} className="border-slate-700 text-slate-300" onClick={exportCsv}>
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button variant="outline" size="sm" data-testid="petro-scenarios-csv" disabled={!summaries || !zones.length} onClick={exportCsv}>
             Export summary CSV
           </Button>
           <Button
             variant="outline" size="sm" data-testid="petro-scenarios-publish"
             disabled={!canPublish || !results || invalidCount > 0}
             title={canPublish ? 'Write the _LOW and _HIGH curves to the registry' : 'Org-shared wells are read-only'}
-            className="border-emerald-700/60 text-emerald-300 hover:bg-emerald-500/10"
+            className="border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10"
             onClick={async () => { await onPublish(patches); onOpenChange(false); }}
           >
             Publish low/high curves
           </Button>
-          <Button size="sm" data-testid="petro-scenarios-apply" disabled={!results || invalidCount > 0} className="bg-cyan-700 hover:bg-cyan-600 text-white" onClick={apply}>
+          <Button size="sm" data-testid="petro-scenarios-apply" disabled={!results || invalidCount > 0} onClick={apply}>
             Apply to tracks
           </Button>
         </DialogFooter>

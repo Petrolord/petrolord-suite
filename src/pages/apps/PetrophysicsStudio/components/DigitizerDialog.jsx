@@ -27,7 +27,7 @@ import { toDisplay, fromDisplay } from '../viewer/depthModes';
 import ScanCanvas from './digitizer/ScanCanvas';
 import ProposalCard from './digitizer/ProposalCard';
 
-const inputCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs';
+const inputCls = 'rounded bg-pl-surface border border-pl-border-strong text-pl-text px-1.5 py-0.5 text-xs';
 const SLOTS = ['d0', 'd1', 'v0', 'v1'];
 const emptyCal = () => ({ d0: { pixel: null, text: '' }, d1: { pixel: null, text: '' }, v0: { pixel: null, text: '' }, v1: { pixel: null, text: '' } });
 const fmt = (v, digits = 2) => (Number.isFinite(v) ? Number(v.toFixed(digits)).toString() : '');
@@ -301,13 +301,13 @@ export default function DigitizerDialog({
     const isDepth = slot[0] === 'd';
     const idx = slot[1];
     return (
-      <div key={slot} className={`flex items-center gap-1.5 ${armed === slot && step === 'calibrate' ? 'text-cyan-200' : 'text-slate-300'}`}>
-        <button type="button" className={`px-1.5 py-0.5 rounded border text-[11px] ${armed === slot && step === 'calibrate' ? 'border-cyan-500 bg-cyan-500/15' : 'border-slate-700 hover:border-slate-500'}`}
+      <div key={slot} className={`flex items-center gap-1.5 ${armed === slot && step === 'calibrate' ? 'text-pl-primary-text' : 'text-pl-text'}`}>
+        <button type="button" className={`px-1.5 py-0.5 rounded border text-[11px] ${armed === slot && step === 'calibrate' ? 'border-pl-primary bg-pl-primary/10' : 'border-pl-border hover:border-pl-border-strong'}`}
           data-testid={`petro-digitizer-pick-${isDepth ? 'depth' : 'value'}-${idx}`}
           onClick={() => { setStep('calibrate'); setArmed(slot); }}>
           {label}
         </button>
-        <span className="w-16 text-slate-500 tabular-nums">{c.pixel == null ? 'no pixel' : `px ${Math.round(c.pixel)}`}</span>
+        <span className="w-16 text-pl-muted tabular-nums">{c.pixel == null ? 'no pixel' : `px ${Math.round(c.pixel)}`}</span>
         <input className={`${inputCls} w-24`} value={c.text} inputMode="decimal"
           placeholder={isDepth ? `${unitLabel} MD` : 'value'}
           data-testid={`petro-digitizer-cal-${isDepth ? 'depth' : 'value'}-${idx}`}
@@ -321,12 +321,12 @@ export default function DigitizerDialog({
 
   return (
     <Dialog open={open} onOpenChange={close}>
-      <DialogContent className="max-w-5xl bg-slate-900 border-slate-700 text-slate-200" data-testid="petro-digitizer">
+      <DialogContent className="max-w-5xl" data-testid="petro-digitizer">
         <DialogHeader>
           <DialogTitle>Digitize a curve from a scan, {wellName}</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription className="text-pl-muted">
             Calibrate, trace automatically or by hand, review, save. Every saved curve is a new row named
-            {' '}<span className="text-slate-200 font-mono" data-testid="petro-digitizer-savename">{saveName}</span> and flagged digitized.
+            {' '}<span className="text-pl-text font-mono" data-testid="petro-digitizer-savename">{saveName}</span> and flagged digitized.
           </DialogDescription>
         </DialogHeader>
 
@@ -334,12 +334,12 @@ export default function DigitizerDialog({
           {/* picture */}
           <div className="space-y-2 min-w-0">
             <div className="flex items-center gap-2 text-xs flex-wrap">
-              <label className="inline-flex items-center gap-1.5 px-2 py-1 rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10 cursor-pointer">
+              <label className="inline-flex items-center gap-1.5 px-2 py-1 rounded border border-pl-primary/60 text-pl-primary-text hover:bg-pl-primary/10 cursor-pointer">
                 <ImageIcon className="w-3.5 h-3.5" /> {img ? 'Replace image' : 'Load image…'}
                 <input type="file" accept="image/*" className="hidden" data-testid="petro-digitizer-file" onChange={loadImage} />
               </label>
               {img && canReadScan && (
-                <Button size="sm" variant="outline" className="h-7 border-violet-700/60 text-violet-200 hover:bg-violet-500/10"
+                <Button size="sm" variant="outline" className="h-7"
                   disabled={reading || !imgReady} data-testid="petro-digitizer-ai-read" onClick={readScan}
                   title="Ask the scan reader what is printed on the header. It proposes values; you confirm them.">
                   {reading ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
@@ -347,21 +347,21 @@ export default function DigitizerDialog({
                 </Button>
               )}
               {img && (
-                <span className="text-slate-500 truncate">{img.name}{img.width ? ` (${img.width} x ${img.height} px)` : ''}</span>
+                <span className="text-pl-muted truncate">{img.name}{img.width ? ` (${img.width} x ${img.height} px)` : ''}</span>
               )}
             </div>
-            <p className="text-xs text-cyan-300" data-testid="petro-digitizer-instruction">{instruction}</p>
+            <p className="text-xs text-pl-primary-text" data-testid="petro-digitizer-instruction">{instruction}</p>
             {proposal && (
               <ProposalCard proposal={proposal.current} meta={proposal}
                 onChange={(cur) => setProposal((p) => ({ ...p, current: cur }))}
                 onAccept={acceptProposal} onDismiss={dismissProposal} />
             )}
             {assumedEdges && step === 'calibrate' && (
-              <p className="text-[11px] text-amber-300" data-testid="petro-digitizer-assumed">
+              <p className="text-[11px] text-pl-warning-text" data-testid="petro-digitizer-assumed">
                 Reference pixels were assumed at the image edges. If the plot area is inset, pick the real lines with the row buttons.
               </p>
             )}
-            <div className="bg-slate-950 rounded border border-slate-800 overflow-auto max-h-[56vh]">
+            <div className="bg-pl-sunken rounded border border-pl-border overflow-auto max-h-[56vh]">
               {img ? (
                 <>
                   <img ref={imgRef} src={img.url} alt="" className="hidden" onLoad={onImgLoad} />
@@ -373,16 +373,16 @@ export default function DigitizerDialog({
                       onSeed={(pt) => { setSeed(pt); setSeedHex(null); }}
                       onRoi={setRoi} onMovePoint={onMovePoint} onRemovePoint={removePoint} onHover={setHoverIndex} />
                   ) : (
-                    <div className="h-40 flex items-center justify-center text-slate-600 text-xs">Decoding image…</div>
+                    <div className="h-40 flex items-center justify-center text-pl-muted text-xs">Decoding image…</div>
                   )}
                 </>
               ) : (
-                <div className="h-40 flex items-center justify-center text-slate-600 text-xs">No image loaded</div>
+                <div className="h-40 flex items-center justify-center text-pl-muted text-xs">No image loaded</div>
               )}
             </div>
-            {error && <div className="text-xs text-red-400" data-testid="petro-digitizer-error">{error}</div>}
+            {error && <div className="text-xs text-pl-danger-text" data-testid="petro-digitizer-error">{error}</div>}
             {savedName && (
-              <div className="text-xs text-emerald-300" data-testid="petro-digitizer-saved">
+              <div className="text-xs text-pl-success-text" data-testid="petro-digitizer-saved">
                 Saved {savedName}. Trace another curve on this scan or close.
               </div>
             )}
@@ -391,7 +391,7 @@ export default function DigitizerDialog({
           {/* controls */}
           <div className="space-y-3 text-xs">
             <section className="space-y-1.5">
-              <div className="text-[10px] uppercase tracking-wide text-slate-500">Curve</div>
+              <div className="text-[10px] uppercase tracking-wide text-pl-muted">Curve</div>
               <div className="flex items-center gap-1.5">
                 <input className={`${inputCls} w-24`} placeholder="Mnemonic" value={meta.mnemonic}
                   data-testid="petro-digitizer-mnemonic" onChange={(e) => setMeta((m) => ({ ...m, mnemonic: e.target.value.toUpperCase() }))} />
@@ -400,20 +400,20 @@ export default function DigitizerDialog({
                 <input className={`${inputCls} w-16`} placeholder="Step m" value={meta.step} title="Depth step of the saved curve, metres"
                   data-testid="petro-digitizer-step" onChange={(e) => setMeta((m) => ({ ...m, step: e.target.value }))} />
               </div>
-              <label className="inline-flex items-center gap-1 text-slate-400">
+              <label className="inline-flex items-center gap-1 text-pl-muted">
                 <input type="checkbox" checked={meta.valueLog} data-testid="petro-digitizer-log"
                   onChange={(e) => setMeta((m) => ({ ...m, valueLog: e.target.checked }))} /> logarithmic value axis
               </label>
             </section>
 
             <section className="space-y-1.5">
-              <div className="text-[10px] uppercase tracking-wide text-slate-500">Calibration</div>
+              <div className="text-[10px] uppercase tracking-wide text-pl-muted">Calibration</div>
               {calRow('d0', 'Depth 1')}
               {calRow('d1', 'Depth 2')}
               {calRow('v0', 'Value 1')}
               {calRow('v1', 'Value 2')}
               {step === 'calibrate' && (
-                <Button size="sm" className="h-7 w-full bg-cyan-600 hover:bg-cyan-500 text-white" disabled={!canGoTrace}
+                <Button size="sm" className="h-7 w-full" disabled={!canGoTrace}
                   data-testid="petro-digitizer-to-trace" onClick={() => { setStep('trace'); setError(null); }}>
                   Go to trace
                 </Button>
@@ -422,15 +422,15 @@ export default function DigitizerDialog({
 
             {(step === 'trace' || step === 'review') && (
               <section className="space-y-1.5">
-                <div className="text-[10px] uppercase tracking-wide text-slate-500">Trace</div>
+                <div className="text-[10px] uppercase tracking-wide text-pl-muted">Trace</div>
                 <div className="flex gap-1">
                   <button type="button" data-testid="petro-digitizer-mode-auto"
-                    className={`flex-1 px-2 py-1 rounded border ${mode === 'auto' ? 'border-cyan-500 bg-cyan-500/15 text-cyan-200' : 'border-slate-700 text-slate-400'}`}
+                    className={`flex-1 px-2 py-1 rounded border ${mode === 'auto' ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted'}`}
                     onClick={() => { setMode('auto'); setStep('trace'); }}>
                     <Wand2 className="w-3 h-3 inline mr-1" />Automatic
                   </button>
                   <button type="button" data-testid="petro-digitizer-mode-manual"
-                    className={`flex-1 px-2 py-1 rounded border ${mode === 'manual' ? 'border-cyan-500 bg-cyan-500/15 text-cyan-200' : 'border-slate-700 text-slate-400'}`}
+                    className={`flex-1 px-2 py-1 rounded border ${mode === 'manual' ? 'border-pl-primary bg-pl-primary/10 text-pl-primary-text' : 'border-pl-border text-pl-muted'}`}
                     onClick={() => { setMode('manual'); setStep('trace'); }}>
                     <MousePointerClick className="w-3 h-3 inline mr-1" />By hand
                   </button>
@@ -438,24 +438,24 @@ export default function DigitizerDialog({
                 {mode === 'auto' && step === 'trace' && (
                   <>
                     <div className="flex items-center gap-2">
-                      <Button size="sm" variant="outline" className="h-7 border-slate-700 text-slate-300" data-testid="petro-digitizer-roi-all"
+                      <Button size="sm" variant="outline" className="h-7 border-pl-border text-pl-text" data-testid="petro-digitizer-roi-all"
                         onClick={() => setRoi({ x1: 0, y1: 0, x2: img.width, y2: img.height })}>
                         Whole image
                       </Button>
-                      <span className="text-slate-500">{roi ? `box ${Math.round(Math.abs(roi.x2 - roi.x1))} x ${Math.round(Math.abs(roi.y2 - roi.y1))} px` : 'no box yet'}</span>
+                      <span className="text-pl-muted">{roi ? `box ${Math.round(Math.abs(roi.x2 - roi.x1))} x ${Math.round(Math.abs(roi.y2 - roi.y1))} px` : 'no box yet'}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-slate-400">Colour</span>
-                      <span className="inline-block w-4 h-4 rounded border border-slate-600" style={{ background: seed ? 'transparent' : (seedHex || 'transparent') }} />
-                      <span className="text-slate-500">{seed ? `picked at ${Math.round(seed.x)}, ${Math.round(seed.y)}` : (seedHex || 'box centre')}</span>
+                      <span className="text-pl-muted">Colour</span>
+                      <span className="inline-block w-4 h-4 rounded border border-pl-border-strong" style={{ background: seed ? 'transparent' : (seedHex || 'transparent') }} />
+                      <span className="text-pl-muted">{seed ? `picked at ${Math.round(seed.x)}, ${Math.round(seed.y)}` : (seedHex || 'box centre')}</span>
                     </div>
-                    <label className="flex items-center gap-2 text-slate-400">
+                    <label className="flex items-center gap-2 text-pl-muted">
                       Tolerance
                       <input type="range" min="0.5" max="3" step="0.1" value={tolerance} data-testid="petro-digitizer-tolerance"
                         onChange={(e) => setTolerance(Number(e.target.value))} className="flex-1" />
                       <span className="w-7 tabular-nums">{tolerance.toFixed(1)}</span>
                     </label>
-                    <Button size="sm" className="h-7 w-full bg-cyan-600 hover:bg-cyan-500 text-white" disabled={!roi || tracing}
+                    <Button size="sm" className="h-7 w-full" disabled={!roi || tracing}
                       data-testid="petro-digitizer-trace" onClick={runTrace}>
                       {tracing ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Wand2 className="w-3.5 h-3.5 mr-1" />}
                       Trace
@@ -464,11 +464,11 @@ export default function DigitizerDialog({
                 )}
                 {mode === 'manual' && step === 'trace' && (
                   <div className="flex items-center gap-2">
-                    <Button size="sm" variant="outline" className="h-7 border-slate-700 text-slate-300" disabled={!history.length}
+                    <Button size="sm" variant="outline" className="h-7 border-pl-border text-pl-text" disabled={!history.length}
                       data-testid="petro-digitizer-undo" onClick={undo}>
                       <Undo2 className="w-3.5 h-3.5 mr-1" />Undo
                     </Button>
-                    <Button size="sm" className="h-7 flex-1 bg-cyan-600 hover:bg-cyan-500 text-white" disabled={points.length < 2}
+                    <Button size="sm" className="h-7 flex-1" disabled={points.length < 2}
                       data-testid="petro-digitizer-to-review" onClick={() => setStep('review')}>
                       Review {points.length} points
                     </Button>
@@ -477,17 +477,17 @@ export default function DigitizerDialog({
                 {step === 'review' && (
                   <>
                     <div className="flex items-center gap-2">
-                      <Button size="sm" variant="outline" className="h-7 border-slate-700 text-slate-300" disabled={!history.length}
+                      <Button size="sm" variant="outline" className="h-7 border-pl-border text-pl-text" disabled={!history.length}
                         data-testid="petro-digitizer-undo" onClick={undo}>
                         <Undo2 className="w-3.5 h-3.5 mr-1" />Undo
                       </Button>
-                      <Button size="sm" variant="outline" className="h-7 border-slate-700 text-slate-300"
+                      <Button size="sm" variant="outline" className="h-7 border-pl-border text-pl-text"
                         data-testid="petro-digitizer-retrace" onClick={() => { setStep('trace'); setError(null); }}>
                         Back to trace
                       </Button>
                     </div>
                     {traceStats && (
-                      <div className="text-slate-500" data-testid="petro-digitizer-trace-stats">
+                      <div className="text-pl-muted" data-testid="petro-digitizer-trace-stats">
                         {traceStats.rows_hit} of {traceStats.rows_total} rows hit, {traceStats.rejected} rejected, colour {traceStats.seed_color.hex}
                       </div>
                     )}
@@ -498,9 +498,9 @@ export default function DigitizerDialog({
 
             {step === 'review' && (
               <section className="space-y-1">
-                <div className="text-[10px] uppercase tracking-wide text-slate-500">Preview</div>
-                <div className="rounded border border-slate-800 bg-slate-950 p-2 text-slate-300" data-testid="petro-digitizer-preview">
-                  {preview?.error ? <span className="text-red-400">{preview.error}</span>
+                <div className="text-[10px] uppercase tracking-wide text-pl-muted">Preview</div>
+                <div className="rounded border border-pl-border bg-pl-sunken/60 p-2 text-pl-text" data-testid="petro-digitizer-preview">
+                  {preview?.error ? <span className="text-pl-danger-text">{preview.error}</span>
                     : preview ? (
                       <>
                         {points.length} points, {edits} edited. {preview.n} samples from {fmt(toDisplay(preview.top, depthUnit), 1)} to {fmt(toDisplay(preview.base, depthUnit), 1)} {unitLabel} MD.
@@ -514,10 +514,10 @@ export default function DigitizerDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" size="sm" className="border-slate-700 text-slate-300" onClick={() => close(false)}>
+          <Button variant="outline" size="sm" onClick={() => close(false)}>
             Close
           </Button>
-          <Button size="sm" className="bg-cyan-600 hover:bg-cyan-500 text-white" disabled={!canSave}
+          <Button size="sm" disabled={!canSave}
             data-testid="petro-digitizer-save" onClick={save}>
             {busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
             Save as {saveName}

@@ -74,9 +74,9 @@ const DataPanel = () => {
         <div className="space-y-3">
           <Field label="Well name" value={wellName} onChange={setWellName} placeholder="Optional" />
           <div className="space-y-1">
-            <Label className="text-xs text-slate-400">Unit system</Label>
+            <Label className="text-xs text-pl-muted">Unit system</Label>
             <Select value={unitSystem} onValueChange={setUnitSystem}>
-              <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="oilfield">Oilfield (psi, ft, STB/D)</SelectItem>
                 <SelectItem value="si">SI / metric (kPa, m, m3/d)</SelectItem>
@@ -84,9 +84,9 @@ const DataPanel = () => {
             </Select>
           </div>
           <div className="space-y-1">
-            <Label className="text-xs text-slate-400">Test type</Label>
+            <Label className="text-xs text-pl-muted">Test type</Label>
             <Select value={testConfig.testType} onValueChange={(v) => setTestField('testType', v)}>
-              <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="buildup">Pressure buildup</SelectItem>
                 <SelectItem value="drawdown">Pressure drawdown</SelectItem>
@@ -114,14 +114,14 @@ const DataPanel = () => {
         <div className="space-y-2">
           <input ref={fileRef} type="file" accept=".csv,text/csv,.txt" className="hidden" onChange={onFile} />
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" className="flex-1 border-slate-700" onClick={() => fileRef.current?.click()}>
+            <Button size="sm" variant="outline" className="flex-1" onClick={() => fileRef.current?.click()}>
               <Upload className="w-4 h-4 mr-2" /> Import CSV
             </Button>
-            <Button size="sm" variant="outline" className="border-slate-700" onClick={loadSampleTest} title="Load a synthetic sample buildup">
+            <Button size="sm" variant="outline" onClick={loadSampleTest} title="Load a synthetic sample buildup">
               <FlaskConical className="w-4 h-4 mr-1" /> Sample
             </Button>
           </div>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-pl-muted">
             Two numeric columns: elapsed time in hours ({testConfig.testType === 'buildup' || testConfig.testType === 'falloff' ? 'shut-in time' : 'flowing time'}) and gauge pressure in {unitLabel('pressure', unitSystem)}.
             {gaugeRows.length ? ` Loaded: ${gaugeRows.length} points.` : ' No data loaded yet.'}
           </p>
@@ -132,9 +132,9 @@ const DataPanel = () => {
         <SectionLabel>Reservoir and fluid</SectionLabel>
         <div className="space-y-3">
           <div className="space-y-1">
-            <Label className="text-xs text-slate-400">Fluid</Label>
+            <Label className="text-xs text-pl-muted">Fluid</Label>
             <Select value={reservoirInputs.fluid || 'oil'} onValueChange={(v) => setReservoirField('fluid', v)}>
-              <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="oil">Oil (slightly compressible)</SelectItem>
                 <SelectItem value="gas">Gas (pseudo-pressure)</SelectItem>
@@ -163,7 +163,7 @@ const DataPanel = () => {
             <UnitField kind="pressureAbs" system={unitSystem} label="Initial pressure pi" value={reservoirInputs.pi} onChange={(v) => setReservoirField('pi', v)} />
           </div>
           {isGas && (
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-pl-muted">
               Analyses run in real-gas pseudo-pressure m(p). Gas viscosity and z come from the Lee-Gonzalez-Eakin and Papay correlations at reservoir temperature; leave ct blank to use the computed gas compressibility at pi.
             </p>
           )}
@@ -174,18 +174,18 @@ const DataPanel = () => {
         <SectionLabel>Rate history</SectionLabel>
         <div className="space-y-2">
           {rateRows.length === 0 && (
-            <p className="text-[11px] text-slate-500">Optional: step rate history for flow-period QC and equivalent producing time.</p>
+            <p className="text-[11px] text-pl-muted">Optional: step rate history for flow-period QC and equivalent producing time.</p>
           )}
           {rateRows.map((r, i) => (
             <div key={i} className="flex items-center gap-2">
-              <Input value={r.t} onChange={(e) => setRate(i, 't', e.target.value)} placeholder="Start hr" className="h-8 bg-slate-800 border-slate-700" />
-              <Input value={displayInputString(rateKind, r.q, unitSystem)} onChange={(e) => setRate(i, 'q', e.target.value)} placeholder={unitLabel(rateKind, unitSystem)} className="h-8 bg-slate-800 border-slate-700" />
-              <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-slate-500" onClick={() => setRateRows(rateRows.filter((_, idx) => idx !== i))}>
+              <Input value={r.t} onChange={(e) => setRate(i, 't', e.target.value)} placeholder="Start hr" className="h-8" />
+              <Input value={displayInputString(rateKind, r.q, unitSystem)} onChange={(e) => setRate(i, 'q', e.target.value)} placeholder={unitLabel(rateKind, unitSystem)} className="h-8" />
+              <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-pl-muted" onClick={() => setRateRows(rateRows.filter((_, idx) => idx !== i))}>
                 <Trash2 className="w-4 h-4" />
               </Button>
             </div>
           ))}
-          <Button size="sm" variant="ghost" className="text-slate-400" onClick={() => setRateRows([...rateRows, { t: '', q: '' }])}>
+          <Button size="sm" variant="ghost" className="text-pl-muted" onClick={() => setRateRows([...rateRows, { t: '', q: '' }])}>
             <Plus className="w-4 h-4 mr-1" /> Add rate step
           </Button>
         </div>
@@ -195,7 +195,7 @@ const DataPanel = () => {
         <SectionLabel>Quality control</SectionLabel>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <Label className="text-xs text-slate-400">Spike filter</Label>
+            <Label className="text-xs text-pl-muted">Spike filter</Label>
             <Switch checked={!!testConfig.spikeTrimOn} onCheckedChange={(v) => setTestField('spikeTrimOn', v)} />
           </div>
           <Field label="Points per decade kept" value={testConfig.pointsPerDecade} onChange={(v) => setTestField('pointsPerDecade', v)} />
