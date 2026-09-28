@@ -4,17 +4,20 @@ import { AlertTriangle, CheckCircle2, FileWarning } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell as BarCell } from 'recharts';
 import ChartFrame from '@/components/charts/ChartFrame';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
+import { cn } from '@/lib/utils';
+import { NumericTable, NumTh, NumRow, NumCell, NUMERIC_TABLE } from '@/components/ui/numeric-table';
 import { useCarbonAbatement } from '@/contexts/CarbonAbatementContext';
 
 const fmt = (v, dp = 1) => (Number.isFinite(v)
   ? v.toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })
   : 'not available');
 
-const Stat = ({ label, value, hint }) => (
-  <div className="rounded border border-slate-800 bg-slate-900/60 p-3">
-    <p className="text-[10px] uppercase tracking-wide text-slate-500">{label}</p>
-    <p className="text-lg font-semibold text-white">{value}</p>
-    {hint && <p className="text-[11px] text-slate-500 mt-0.5">{hint}</p>}
+// KPI tile in theme roles; numbers in the mono face, words in the sans.
+const Stat = ({ label, value, hint, mono = true }) => (
+  <div className="rounded-lg border border-pl-border bg-pl-surface p-3 shadow-pl-sm">
+    <p className="text-[10px] uppercase tracking-wide text-pl-muted">{label}</p>
+    <p className={`text-lg font-semibold text-pl-text break-words ${mono ? 'font-pl-mono tabular-nums' : ''}`}>{value}</p>
+    {hint && <p className="text-[11px] text-pl-muted mt-0.5">{hint}</p>}
   </div>
 );
 
@@ -31,19 +34,19 @@ const InventoryResults = () => {
     <div className="space-y-5">
       <div className={`rounded-lg border p-4 flex items-start gap-3 ${
         inventory.reportable
-          ? 'border-emerald-800/60 bg-emerald-950/30'
-          : 'border-amber-800/60 bg-amber-950/30'}`}
+          ? 'border-pl-success/40 bg-pl-success-bg text-pl-success-text'
+          : 'border-pl-warning/40 bg-pl-warning-bg text-pl-warning-text'}`}
       >
         {inventory.reportable
-          ? <CheckCircle2 className="w-5 h-5 text-emerald-400 mt-0.5 shrink-0" />
-          : <FileWarning className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />}
+          ? <CheckCircle2 className="w-5 h-5 mt-0.5 shrink-0" aria-hidden="true" />
+          : <FileWarning className="w-5 h-5 mt-0.5 shrink-0" aria-hidden="true" />}
         <div>
-          <p className="font-semibold text-white">
+          <p className="font-semibold">
             {inventory.reportable
               ? `Computed and reportable: ${fmt(inventory.totalTonnes, 0)} tCO2e`
               : `Computed but NOT reportable: ${fmt(inventory.totalTonnes, 0)} tCO2e`}
           </p>
-          <p className="text-sm text-slate-300 mt-1">
+          <p className="text-sm mt-1">
             {inventory.reportable
               ? `On ${inventory.gwpSetLabel}. Every factor carries a source and a version.`
               : `Because ${inventory.notReportableBecause.join('; ')}. The arithmetic is complete; it is not something to file.`}
@@ -55,12 +58,12 @@ const InventoryResults = () => {
         <Stat label="Scope 1" value={`${fmt(inventory.scope1Tonnes, 0)} t`} hint="direct" />
         <Stat label="Scope 2" value={`${fmt(inventory.scope2Tonnes, 0)} t`} hint="purchased energy" />
         <Stat label="Total" value={`${fmt(inventory.totalTonnes, 0)} t`} />
-        <Stat label="Potentials" value={inventory.gwpSetLabel || 'not declared'} />
+        <Stat label="Potentials" value={inventory.gwpSetLabel || 'not declared'} mono={false} />
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-white mb-1">Where the emissions are</h3>
-        <p className="text-[11px] text-slate-500 mb-2">
+        <h3 className="text-sm font-semibold text-pl-text mb-1">Where the emissions are</h3>
+        <p className="text-[11px] text-pl-muted mb-2">
           {combustion.error ? '' : combustion.method}
           {' '}
           Factors are reserved for the things that really are empirical.
@@ -85,41 +88,44 @@ const InventoryResults = () => {
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-white mb-1">The inventory</h3>
-        <div className="overflow-x-auto rounded border border-slate-800">
-          <table className="w-full text-xs">
-            <thead className="bg-slate-900/80 text-slate-400">
-              <tr>
-                <th className="text-left px-2 py-1.5">Source</th>
-                <th className="text-right px-2 py-1.5">Scope</th>
-                <th className="text-left px-2 py-1.5">Gas</th>
-                <th className="text-right px-2 py-1.5">GWP</th>
-                <th className="text-right px-2 py-1.5">tCO2e</th>
-                <th className="text-left px-2 py-1.5">Provenance</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800">
-              {inventory.lines.map((l) => (
-                <tr key={l.label} className={l.blockedBy || !l.provenanceComplete ? 'bg-amber-950/20' : ''}>
-                  <td className="px-2 py-1 text-slate-200">{l.label}</td>
-                  <td className="px-2 py-1 text-right text-slate-400">{l.scope}</td>
-                  <td className="px-2 py-1 text-slate-400">{l.gas}</td>
-                  <td className="px-2 py-1 text-right text-slate-400">{l.gwp === null ? '-' : l.gwp}</td>
-                  <td className="px-2 py-1 text-right text-white">
+        <h3 className="text-sm font-semibold text-pl-text mb-1">The inventory</h3>
+        {/* A line that is blocked or missing provenance carries the warning
+            fill and says why in its own Provenance cell. */}
+        <NumericTable>
+          <thead>
+            <tr>
+              <NumTh sticky>Source</NumTh>
+              <NumTh numeric>Scope</NumTh>
+              <NumTh>Gas</NumTh>
+              <NumTh numeric>GWP</NumTh>
+              <NumTh numeric>tCO2e</NumTh>
+              <NumTh>Provenance</NumTh>
+            </tr>
+          </thead>
+          <tbody>
+            {inventory.lines.map((l) => {
+              const flagged = Boolean(l.blockedBy || !l.provenanceComplete);
+              return (
+                <NumRow key={l.label} className={flagged ? 'bg-pl-warning-bg' : ''}>
+                  <td className={cn(NUMERIC_TABLE.rowLabel, flagged && 'bg-pl-warning-bg')}>{l.label}</td>
+                  <NumCell signed={false} tone="text-pl-muted">{l.scope}</NumCell>
+                  <td className="border-b border-pl-border px-3 py-2 text-xs text-pl-muted">{l.gas}</td>
+                  <NumCell signed={false} tone="text-pl-muted">{l.gwp === null ? '-' : l.gwp}</NumCell>
+                  <NumCell signed={false} className={l.blockedBy ? 'font-pl-sans whitespace-normal' : ''}>
                     {l.blockedBy ? l.blockedBy : fmt(l.tCo2e, 0)}
-                  </td>
-                  <td className="px-2 py-1 text-slate-400">
+                  </NumCell>
+                  <td className={`border-b border-pl-border px-3 py-2 text-xs ${flagged ? 'text-pl-warning-text' : 'text-pl-muted'}`}>
                     {l.provenanceComplete ? l.source
                       : (l.missingProvenance ? `missing ${l.missingProvenance.join(' and ')}` : 'not computed')}
                   </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                </NumRow>
+              );
+            })}
+          </tbody>
+        </NumericTable>
         {inventory.blockedLines.length > 0 && (
-          <p className="text-[11px] text-amber-300 mt-2 flex items-start gap-1.5">
-            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          <p className="text-[11px] text-pl-warning-text mt-2 flex items-start gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" aria-hidden="true" />
             A blocked line is left out of the total rather than counted as zero, because those are
             different statements.
           </p>
@@ -127,11 +133,11 @@ const InventoryResults = () => {
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-white mb-1">Carbon intensity</h3>
+        <h3 className="text-sm font-semibold text-pl-text mb-1">Carbon intensity</h3>
         {intensity.error ? (
-          <div className="rounded-lg border border-amber-800/60 bg-amber-950/30 p-4 flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
-            <p className="text-sm text-amber-100">{intensity.error}</p>
+          <div className="rounded-lg border border-pl-warning/40 bg-pl-warning-bg p-4 flex items-start gap-3 text-pl-warning-text">
+            <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" aria-hidden="true" />
+            <p className="text-sm">{intensity.error}</p>
           </div>
         ) : (
           <>
@@ -140,16 +146,16 @@ const InventoryResults = () => {
               <Stat label="Scope 2" value={fmt(intensity.scope2Intensity, 4)} hint={intensity.unit} />
               <Stat label="Total" value={fmt(intensity.totalIntensity, 4)} hint={intensity.unit} />
             </div>
-            <p className="text-[11px] text-slate-500 mt-2">{intensity.comparabilityNote}</p>
+            <p className="text-[11px] text-pl-muted mt-2">{intensity.comparabilityNote}</p>
           </>
         )}
       </div>
 
-      <p className="text-[11px] text-amber-200/90 border border-amber-900/50 bg-amber-950/20 rounded p-2">
+      <p className="text-[11px] text-pl-warning-text border border-pl-warning/40 bg-pl-warning-bg rounded-md p-2">
         {inventory.disclaimer}
       </p>
       {flare.error && (
-        <p className="text-[11px] text-slate-500">{`Flaring: ${flare.error}`}</p>
+        <p className="text-[11px] text-pl-muted">{`Flaring: ${flare.error}`}</p>
       )}
     </div>
   );

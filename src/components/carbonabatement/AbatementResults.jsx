@@ -7,19 +7,27 @@ import {
 } from 'recharts';
 import ChartFrame from '@/components/charts/ChartFrame';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
+import { NumericTable, NumTh, NumRow, NumCell, NUMERIC_TABLE } from '@/components/ui/numeric-table';
 import { useCarbonAbatement } from '@/contexts/CarbonAbatementContext';
 
 const fmt = (v, dp = 1) => (Number.isFinite(v)
   ? v.toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp })
   : 'n/a');
 
-const Stat = ({ label, value, hint }) => (
-  <div className="rounded border border-slate-800 bg-slate-900/60 p-3">
-    <p className="text-[10px] uppercase tracking-wide text-slate-500">{label}</p>
-    <p className="text-lg font-semibold text-white">{value}</p>
-    {hint && <p className="text-[11px] text-slate-500 mt-0.5">{hint}</p>}
+// KPI tile in theme roles; numbers in the mono face, words in the sans.
+const Stat = ({ label, value, hint, mono = true }) => (
+  <div className="rounded-lg border border-pl-border bg-pl-surface p-3 shadow-pl-sm">
+    <p className="text-[10px] uppercase tracking-wide text-pl-muted">{label}</p>
+    <p className={`text-lg font-semibold text-pl-text break-words ${mono ? 'font-pl-mono tabular-nums' : ''}`}>{value}</p>
+    {hint && <p className="text-[11px] text-pl-muted mt-0.5">{hint}</p>}
   </div>
 );
+
+// Status callouts: the text takes the tone of its box.
+const CALLOUT = {
+  warning: 'rounded-lg border border-pl-warning/40 bg-pl-warning-bg p-4 flex items-start gap-3 text-pl-warning-text',
+  danger: 'rounded-lg border border-pl-danger/40 bg-pl-danger-bg p-4 flex items-start gap-3 text-pl-danger-text',
+};
 
 const AbatementResults = () => {
   const {
@@ -64,28 +72,28 @@ const AbatementResults = () => {
   return (
     <div className="space-y-5">
       {refused.length > 0 && (
-        <div className="rounded-lg border border-amber-800/60 bg-amber-950/30 p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
+        <div className={CALLOUT.warning}>
+          <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" aria-hidden="true" />
           <div>
-            <p className="font-semibold text-white">Refused, and off the curve and the path</p>
-            <ul className="text-sm text-amber-100 mt-1 list-disc pl-4">
+            <p className="font-semibold">Refused, and off the curve and the path</p>
+            <ul className="text-sm mt-1 list-disc pl-4">
               {refused.map((m, i) => <li key={`${m.label}-${i}`}>{`${m.label}: ${m.reason}`}</li>)}
             </ul>
-            {curve.refusedNote && <p className="text-[11px] text-amber-200/90 mt-1">{curve.refusedNote}</p>}
+            {curve.refusedNote && <p className="text-[11px] mt-1">{curve.refusedNote}</p>}
           </div>
         </div>
       )}
 
       {assumed.length > 0 && (
-        <p className="text-[11px] text-slate-400">
+        <p className="text-[11px] text-pl-muted">
           {assumed.map((m) => `${m.label}: blank ${m.assumedZero.join(' and ')} taken as 0.`).join(' ')}
         </p>
       )}
 
       {partialInventory && targetTonnes !== null && (
-        <div className="rounded-lg border border-amber-800/60 bg-amber-950/30 p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
-          <p className="text-sm text-amber-100">
+        <div className={CALLOUT.warning}>
+          <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" aria-hidden="true" />
+          <p className="text-sm">
             {`The target and the path are built on a partial inventory of ${fmt(inventory.totalTonnes, 0)} tCO2e, because ${(inventory.notReportableBecause || []).join('; ')}. Complete the inventory before relying on either.`}
           </p>
         </div>
@@ -99,13 +107,14 @@ const AbatementResults = () => {
           hint={`${fmt(curve.weightedAverageCostPerTonne, 1)} per tonne on average`} />
         <Stat label="Against the target"
           value={targetValue()}
+          mono={false}
           hint={targetTonnes === null ? null
             : `target ${fmt(targetTonnes, 0)} t/yr${curve.meetsTarget === null && curve.targetBasis ? `; ${curve.targetBasis}` : ''}`} />
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-white mb-1">The marginal abatement cost curve</h3>
-        <p className="text-[11px] text-slate-500 mb-2">
+        <h3 className="text-sm font-semibold text-pl-text mb-1">The marginal abatement cost curve</h3>
+        <p className="text-[11px] text-pl-muted mb-2">
           Cheapest first. Bars below the line pay for themselves and abate carbon as a side effect,
           and they are usually the ones nobody has done. Capital is annualised over each measure&apos;s
           life, because setting a one-off capital cost against one year&apos;s saving overstates the
@@ -132,62 +141,62 @@ const AbatementResults = () => {
             <Line dataKey="y" stroke="none" dot={false} isAnimationActive={false} legendType="none" />
           </ComposedChart>
         </ChartFrame>
-        <div className="overflow-x-auto rounded border border-slate-800 mt-3">
-          <table className="w-full text-xs">
-            <thead className="bg-slate-900/80 text-slate-400">
-              <tr>
-                <th className="text-left px-2 py-1.5">Measure</th>
-                <th className="text-right px-2 py-1.5">tCO2e/yr</th>
-                <th className="text-right px-2 py-1.5">Cumulative</th>
-                <th className="text-right px-2 py-1.5">Cost/tonne</th>
-                <th className="text-left px-2 py-1.5">Acts on</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800">
-              {curve.steps.map((s) => (
-                <tr key={s.label}>
-                  <td className="px-2 py-1 text-slate-200">{curve.steps.indexOf(s) + 1}. {s.label}</td>
-                  <td className="px-2 py-1 text-right text-slate-300">{fmt(s.tonnesAbatedPerYear, 0)}</td>
-                  <td className="px-2 py-1 text-right text-slate-400">{fmt(s.cumulativeEndTonnes, 0)}</td>
-                  <td className={`px-2 py-1 text-right ${s.paysForItself ? 'text-emerald-300' : 'text-white'}`}>
-                    {fmt(s.costPerTonne, 1)}
-                  </td>
-                  <td className="px-2 py-1 text-slate-500">{(s.actsOn || []).join(', ') || 'unnamed'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {/* Money per tonne: a negative cost is a measure that pays for
+            itself, so it reads in success text beside its minus sign. */}
+        <NumericTable className="mt-3">
+          <thead>
+            <tr>
+              <NumTh sticky>Measure</NumTh>
+              <NumTh numeric>tCO2e/yr</NumTh>
+              <NumTh numeric>Cumulative</NumTh>
+              <NumTh numeric>Cost/tonne</NumTh>
+              <NumTh>Acts on</NumTh>
+            </tr>
+          </thead>
+          <tbody>
+            {curve.steps.map((s) => (
+              <NumRow key={s.label}>
+                <td className={NUMERIC_TABLE.rowLabel}>{curve.steps.indexOf(s) + 1}. {s.label}</td>
+                <NumCell signed={false}>{fmt(s.tonnesAbatedPerYear, 0)}</NumCell>
+                <NumCell signed={false} tone="text-pl-muted">{fmt(s.cumulativeEndTonnes, 0)}</NumCell>
+                <NumCell signed={false} tone={s.paysForItself ? 'text-pl-success-text' : undefined}>
+                  {fmt(s.costPerTonne, 1)}
+                </NumCell>
+                <td className="border-b border-pl-border px-3 py-2 text-xs text-pl-muted">{(s.actsOn || []).join(', ') || 'unnamed'}</td>
+              </NumRow>
+            ))}
+          </tbody>
+        </NumericTable>
       </div>
 
       {curve.interactions.length > 0 && (
-        <div className="rounded-lg border border-amber-800/60 bg-amber-950/30 p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
+        <div className={CALLOUT.warning}>
+          <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" aria-hidden="true" />
           <div>
-            <p className="font-semibold text-white">These measures are not additive</p>
-            <ul className="text-sm text-amber-100 mt-1 list-disc pl-4">
+            <p className="font-semibold">These measures are not additive</p>
+            <ul className="text-sm mt-1 list-disc pl-4">
               {curve.interactions.map((i) => (
                 <li key={i.sourceId}>{`${i.measures.join(' and ')} both act on ${i.sourceId}.`}</li>
               ))}
             </ul>
-            <p className="text-[11px] text-amber-200/90 mt-1">{curve.interactionNote}</p>
+            <p className="text-[11px] mt-1">{curve.interactionNote}</p>
           </div>
         </div>
       )}
 
       {targetTonnes !== null && unchecked.length > 0 && (
-        <div className="rounded-lg border border-amber-800/60 bg-amber-950/30 p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
+        <div className={CALLOUT.warning}>
+          <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" aria-hidden="true" />
           <div>
-            <p className="font-semibold text-white">Claims no source emission can check</p>
-            <ul className="text-sm text-amber-100 mt-1 list-disc pl-4">
+            <p className="font-semibold">Claims no source emission can check</p>
+            <ul className="text-sm mt-1 list-disc pl-4">
               {unchecked.map((u, i) => (
                 <li key={`${u.measure}-${u.sourceId}-${i}`}>
                   {u.sourceId === null ? `${u.measure}: ${u.reason}.` : `${u.measure} acts on ${u.sourceId}: ${u.reason}.`}
                 </li>
               ))}
             </ul>
-            <p className="text-[11px] text-amber-200/90 mt-1">
+            <p className="text-[11px] mt-1">
               Those tonnes may not exist, so the target is not assessed until every claim can be
               checked. Only the heaters and the flare have an emission here, and only when they compute.
             </p>
@@ -196,12 +205,12 @@ const AbatementResults = () => {
       )}
 
       {curve.overClaims.length > 0 && (
-        <div className="rounded-lg border border-red-800/60 bg-red-950/30 p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 shrink-0" />
+        <div className={CALLOUT.danger}>
+          <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" aria-hidden="true" />
           <div>
-            <p className="font-semibold text-white">More abatement is claimed than the source emits</p>
+            <p className="font-semibold">More abatement is claimed than the source emits</p>
             {curve.overClaims.map((o) => (
-              <p key={o.sourceId} className="text-sm text-red-100 mt-1">
+              <p key={o.sourceId} className="text-sm mt-1">
                 {`${o.measures.join(' and ')} claim ${fmt(o.claimedTonnes, 0)} t against ${o.sourceId}, which emits ${fmt(o.emittedTonnes, 0)} t.`}
               </p>
             ))}
@@ -210,12 +219,12 @@ const AbatementResults = () => {
       )}
 
       <div>
-        <h3 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
-          <TrendingDown className="w-4 h-4 text-emerald-400" /> The path
+        <h3 className="text-sm font-semibold text-pl-text mb-1 flex items-center gap-2">
+          <TrendingDown className="w-4 h-4 text-pl-muted" aria-hidden="true" /> The path
         </h3>
-        {path.error ? <p className="text-sm text-amber-300">{path.error}</p> : (
+        {path.error ? <p className="text-sm text-pl-warning-text">{path.error}</p> : (
           <>
-            <p className="text-[11px] text-slate-500 mb-2">
+            <p className="text-[11px] text-pl-muted mb-2">
               Each measure counts only from the year it starts.
               {path.gapNote ? ` ${path.gapNote}` : ' The identified measures reach the target every year.'}
             </p>
@@ -232,17 +241,17 @@ const AbatementResults = () => {
               </LineChart>
             </ChartFrame>
             {refused.length > 0 && (
-              <p className="text-[11px] text-amber-300 mt-1">
+              <p className="text-[11px] text-pl-warning-text mt-1">
                 {`Refused, so not on the path: ${refused.map((m) => m.label).join(', ')}.`}
               </p>
             )}
             {path.unscheduledMeasures && path.unscheduledMeasures.length > 0 && (
-              <p className="text-[11px] text-amber-300 mt-1">
+              <p className="text-[11px] text-pl-warning-text mt-1">
                 {`Not on the path: ${path.unscheduledMeasures.map((m) => `${m.label} (${m.reason})`).join(', ')}.`}
               </p>
             )}
             {path.firstShortfallYear !== null && (
-              <p className="text-[11px] text-amber-300 mt-1">
+              <p className="text-[11px] text-pl-warning-text mt-1">
                 {`The plan first falls short of the target in ${path.firstShortfallYear}, and the final gap is ${fmt(path.finalGapTonnes, 0)} tCO2e a year with no measure identified for it.`}
               </p>
             )}

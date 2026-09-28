@@ -187,3 +187,23 @@ Before the NextGen course MD4 (engines #227, vendored at f0aef14; findings in
   capital scaling). Credit chart on a numeric axis with $M ticks; short
   route labels (full accessible names); capital basis note; harness
   `/dev/flare-gas-to-value`.
+
+## Design system rollout (w5e, 2026-09-28)
+
+The page wraps itself in `ThemedApp`: grey panel light by default, dark by
+the user's choice in the header toggle. AppHeader (with the theme toggle,
+the saved-study selector, save and the documentation drawer) replaces the
+bespoke header. The gas, parcel, counterfactual, route and credit inputs
+move to theme roles (the credit route picker is the themed NativeSelect).
+Screening verdicts keep their word and icon with success, danger or warning
+text. The bid comparison and the credit sensitivity are NumericTables (the
+hurdle answer keeps yes or no beside its tone). The abatement verdict is
+success when stated and warning when refused. Both charts stay white in
+ChartFrame.
+No calculation change; the existing suites pass unchanged. Route `/dashboard/apps/midstream-downstream/flare-gas-to-value`
+is registered in `src/design/rollout/w5e.js` for the cold-load loaders.
+Theme test: `src/pages/apps/__tests__/FlareToValueStudio.theme.test.jsx` (the standard
+four checks plus a failed route and both tabs in light and dark, the refusal and no-abatement warnings and the help guide). Screens checked in light at 1440 and 390 (no
+sideways page scroll) and dark at 1440 on a private dev server; the phone
+layout now stacks the input rail above the results (before, the rail took
+the full width and squeezed the results out of view).
