@@ -14,7 +14,7 @@ const PiggingInputs = () => {
     <div className="space-y-4">
       <Field label="Holdup source">
         <Select value={inputs.pigging.holdupSource} onValueChange={(v) => setSection('pigging', 'holdupSource', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="multiphase">Beggs &amp; Brill (Multiphase tab)</SelectItem>
             <SelectItem value="manual">Type a holdup fraction</SelectItem>
@@ -38,8 +38,8 @@ const PiggingInputs = () => {
 const PiggingPanel = () => {
   const { pigging } = useLineSizing();
   return (
-    <Card className="bg-slate-900/60 border-slate-800">
-      <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-300">Pigging estimates</CardTitle></CardHeader>
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-sm text-pl-text">Pigging estimates</CardTitle></CardHeader>
       <CardContent className="space-y-4">
         {pigging.error ? <ErrorNote>{pigging.error}</ErrorNote> : (
           <>

@@ -9,7 +9,7 @@ const ModeSelect = () => {
   return (
     <Field label="Line service">
       <Select value={inputs.mode} onValueChange={setMode}>
-        <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
         <SelectContent>
           <SelectItem value="liquid">Liquid (single phase)</SelectItem>
           <SelectItem value="gas">Gas (single phase)</SelectItem>
@@ -27,7 +27,7 @@ const LiquidFields = () => {
       <Field label="Liquid rate (bpd)"><NumberInput section="liquid" name="qBpd" /></Field>
       <Field label="Density from">
         <Select value={inputs.liquid.rhoMode} onValueChange={(v) => setSection('liquid', 'rhoMode', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="api">API gravity</SelectItem>
             <SelectItem value="direct">Density directly</SelectItem>
@@ -67,7 +67,7 @@ const GasFields = () => {
         hint="Weymouth undersizes long lines and Panhandle flatters short ones; they are different fits, not one truth."
       >
         <Select value={inputs.gas.equation} onValueChange={(v) => setSection('gas', 'equation', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             {gasEquations.map((e) => (
               <SelectItem key={e.id} value={e.id}>{e.label}</SelectItem>
@@ -81,7 +81,7 @@ const GasFields = () => {
       </div>
       <Field label="z-factor">
         <Select value={inputs.gas.zMode} onValueChange={(v) => setSection('gas', 'zMode', v)}>
-          <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="auto">From DAK at inlet conditions</SelectItem>
             <SelectItem value="manual">Type an average z</SelectItem>
@@ -119,7 +119,7 @@ const MultiphaseFields = () => (
       <Field label="Gas visc"><NumberInput section="multiphase" name="muGasCp" step="0.001" /></Field>
     </div>
     <Field label="Surface tension (dyn/cm)"><NumberInput section="multiphase" name="sigmaLDynCm" /></Field>
-    <p className="text-[11px] text-slate-600">
+    <p className="text-[11px] text-pl-muted">
       Rates are taken at line conditions: the dead-liquid case downstream of separation.
       A live-oil line upstream of separation belongs in the Production module's Flow
       Assurance Studio, which carries full PVT.
