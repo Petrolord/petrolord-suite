@@ -7,8 +7,9 @@
 
 import { Link } from 'react-router-dom';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, Trash2, Building2, Lock, Pencil } from 'lucide-react';
+import { Loader2, Trash2, Building2, Lock, Pencil, Download } from 'lucide-react';
 import LogTracks from './LogTracks';
+import ExportDialog from './ExportDialog';
 import { OpenInAppMenu } from '@/components/wells/OpenInAppMenu';
 import { mapTopHref, appPath, MAPPING_ID } from '@/components/wells/appLinks';
 import CrsBadge from '@/components/crs/CrsBadge';
@@ -96,6 +97,7 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
   const [tracks, setTracks] = useState([]);     // [{log, data}] resolved curves
   const [curveBusy, setCurveBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null); // WDM-U1-006: log id awaiting a second click
+  const [exportOpen, setExportOpen] = useState(false);      // WDM-U2-002
   const curveCache = useRef(new Map());         // log id -> Float32Array
 
   const refreshChildren = useCallback(async () => {
@@ -396,8 +398,15 @@ export default function WellDetail({ backend, well, unit = 'm', onStatus, refres
           {shared ? <Building2 className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
           {shared ? (well.is_own ? 'shared with org' : 'org well (read-only)') : 'private'}
         </span>
-        <OpenInAppMenu wellIds={[well.id]} paths={appPaths} testIdPrefix="wdm-detail" className="ml-auto" />
+        <button type="button" data-testid="wdm-export" onClick={() => setExportOpen(true)}
+          title="Export this well as LAS, tops CSV or survey CSV, depths in the display unit"
+          className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded border border-pl-border text-xs text-pl-text hover:bg-pl-sunken">
+          <Download className="w-3 h-3" /> Export
+        </button>
+        <OpenInAppMenu wellIds={[well.id]} paths={appPaths} testIdPrefix="wdm-detail" />
       </div>
+      <ExportDialog open={exportOpen} onOpenChange={setExportOpen} backend={backend} well={well} logs={logs} tops={tops}
+        units={units} unit={unit} onStatus={onStatus} />
 
       <div className="flex items-center gap-1 px-3 pt-2 border-b border-pl-border">
         {TABS.map((t) => (
