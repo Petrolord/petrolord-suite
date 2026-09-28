@@ -11,7 +11,7 @@ const BasinTemplateStep = () => {
     const selectedTemplate = BasinTemplates.find(t => t.id === wizardData.selectedTemplateId);
 
     return (
-        <div className="h-full flex gap-6">
+        <div className="h-full flex flex-col lg:flex-row gap-6">
             {/* Left: Template Grid */}
             <div className="flex-1 flex flex-col">
                 <div className="mb-6">
@@ -65,7 +65,7 @@ const BasinTemplateStep = () => {
             </div>
 
             {/* Right: Details Panel */}
-            <div className="w-80 shrink-0 border-l border-pl-border pl-6 flex flex-col">
+            <div className="w-full lg:w-80 shrink-0 border-t lg:border-t-0 lg:border-l border-pl-border pt-4 lg:pt-0 lg:pl-6 flex flex-col">
                 {selectedTemplate ? (
                     <div className="animate-in slide-in-from-right-4 fade-in duration-300">
                         <h3 className="text-sm font-bold text-pl-muted uppercase mb-4 flex items-center gap-2">

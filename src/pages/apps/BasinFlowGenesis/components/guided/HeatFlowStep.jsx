@@ -13,7 +13,7 @@ const HeatFlowStep = () => {
     const maxAge = Math.max(1, ...(wizardData.layers || []).map((l) => Number(l.ageStart) || 0));
 
     return (
-        <div className="h-full flex gap-6">
+        <div className="h-full flex flex-col lg:flex-row gap-6">
             <div className="flex-1 flex flex-col">
                 <div className="mb-6">
                     <h2 className="text-2xl font-bold text-pl-text mb-2">Heat Flow History</h2>
@@ -48,7 +48,7 @@ const HeatFlowStep = () => {
                 </RadioGroup>
             </div>
 
-            <div className="w-96 shrink-0 border-l border-pl-border pl-6 flex flex-col">
+            <div className="w-full lg:w-96 shrink-0 border-t lg:border-t-0 lg:border-l border-pl-border pt-4 lg:pt-0 lg:pl-6 flex flex-col">
                 <h3 className="text-xs font-bold text-pl-muted uppercase mb-4 flex items-center gap-2">
                     <Activity className="w-4 h-4" /> Thermal History Preview
                 </h3>

@@ -113,8 +113,8 @@ const ExpertModePanel = () => {
                 {/* Header */}
                 <div className="h-14 border-b border-pl-border flex items-center justify-between px-4 bg-pl-surface shadow-sm shrink-0 z-20">
                     <div className="flex items-center gap-4 overflow-hidden">
-                        <Button variant="ghost" size="sm" onClick={() => dispatch({ type: 'SET_MODE', payload: null })} className="shrink-0">
-                            <ArrowLeft className="w-4 h-4 mr-2" /> Home
+                        <Button variant="ghost" size="sm" onClick={() => dispatch({ type: 'SET_MODE', payload: null })} className="shrink-0" aria-label="Home">
+                            <ArrowLeft className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Home</span>
                         </Button>
                         <div className="h-6 w-px bg-pl-border shrink-0" />
                         <h1 className="font-semibold text-pl-text truncate hidden md:block">Expert Mode Workspace</h1>
@@ -132,7 +132,9 @@ const ExpertModePanel = () => {
                                 <Database className="w-3.5 h-3.5" /> Well data
                             </Link>
                         )}
-                        <OpenInAppMenu wellIds={tiedWellId ? [tiedWellId] : []} paths={appPaths} testIdPrefix="bf" />
+                        <div className="hidden sm:block">
+                            <OpenInAppMenu wellIds={tiedWellId ? [tiedWellId] : []} paths={appPaths} testIdPrefix="bf" />
+                        </div>
                         <Link
                             to={helpHref}
                             data-testid="bf-help"
@@ -143,9 +145,9 @@ const ExpertModePanel = () => {
                         </Link>
                         <ThemeToggle className="h-8 w-8" />
 
-                        <Button variant="ghost" size="sm" onClick={() => setShowMultiWell(!showMultiWell)} className={`hidden md:flex ${showMultiWell ? 'bg-pl-sunken' : ''}`}>
-                            {showMultiWell ? <ChevronLeft className="w-4 h-4 mr-2"/> : <ChevronRight className="w-4 h-4 mr-2"/>}
-                            {showMultiWell ? 'Hide Wells' : 'Show Wells'}
+                        <Button variant="ghost" size="sm" onClick={() => setShowMultiWell(!showMultiWell)} className={`flex ${showMultiWell ? 'bg-pl-sunken' : ''}`} aria-label={showMultiWell ? 'Hide Wells' : 'Show Wells'} data-testid="bf-toggle-wells">
+                            {showMultiWell ? <ChevronLeft className="w-4 h-4 md:mr-2"/> : <ChevronRight className="w-4 h-4 md:mr-2"/>}
+                            <span className="hidden md:inline">{showMultiWell ? 'Hide Wells' : 'Show Wells'}</span>
                         </Button>
                         <div className="h-6 w-px bg-pl-border mx-2 hidden md:block" />
                         

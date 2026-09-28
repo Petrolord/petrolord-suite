@@ -6,7 +6,7 @@ import { BookOpen, MonitorPlay, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 const ModeSelector = ({ onSelectMode }) => {
     return (
-        <div className="relative flex flex-col h-full w-full items-center justify-center bg-pl-bg p-4 md:p-8 overflow-y-auto">
+        <div className="relative flex flex-col h-full w-full items-center bg-pl-bg p-4 pt-16 md:p-8 overflow-y-auto">
             <div className="absolute top-4 right-4">
                 <ThemeToggle />
             </div>
@@ -26,7 +26,7 @@ const ModeSelector = ({ onSelectMode }) => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 w-full">
                     {/* Guided Mode Card */}
                     <Card 
-                        className="hover:border-pl-primary/50 hover:bg-pl-sunken transition-all cursor-pointer group relative overflow-hidden h-auto min-h-[320px] flex flex-col animate-in slide-in-from-left-10 fade-in duration-700 delay-100 shadow-pl-sm"
+                        className="hover:border-pl-primary/50 hover:bg-pl-sunken transition-[border-color] cursor-pointer group relative overflow-hidden h-auto min-h-[320px] flex flex-col animate-in slide-in-from-left-10 fade-in duration-700 delay-100 shadow-pl-sm"
                         onClick={() => onSelectMode('guided')}
                         data-testid="bf-mode-guided"
                     >
@@ -58,7 +58,7 @@ const ModeSelector = ({ onSelectMode }) => {
 
                     {/* Expert Mode Card */}
                     <Card 
-                        className="hover:border-pl-primary/50 hover:bg-pl-sunken transition-all cursor-pointer group relative overflow-hidden h-auto min-h-[320px] flex flex-col animate-in slide-in-from-right-10 fade-in duration-700 delay-100 shadow-pl-sm"
+                        className="hover:border-pl-primary/50 hover:bg-pl-sunken transition-[border-color] cursor-pointer group relative overflow-hidden h-auto min-h-[320px] flex flex-col animate-in slide-in-from-right-10 fade-in duration-700 delay-100 shadow-pl-sm"
                         onClick={() => onSelectMode('expert')}
                         data-testid="bf-mode-expert"
                     >

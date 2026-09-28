@@ -15,7 +15,7 @@ const ErosionStep = () => {
     const setCustom = (patch) => setWizardData((prev) => ({ ...prev, erosionEvent: { ...(prev.erosionEvent || { age: 10, amount: 500 }), ...patch } }));
 
     return (
-        <div className="h-full flex gap-6">
+        <div className="h-full flex flex-col lg:flex-row gap-6">
              <div className="flex-1 flex flex-col">
                 <div className="mb-6">
                     <h2 className="text-2xl font-bold text-pl-text mb-2">Erosion Events</h2>
@@ -65,7 +65,7 @@ const ErosionStep = () => {
                 </RadioGroup>
             </div>
             
-            <div className="w-80 shrink-0 border-l border-pl-border pl-6">
+            <div className="w-full lg:w-80 shrink-0 border-t lg:border-t-0 lg:border-l border-pl-border pt-4 lg:pt-0 lg:pl-6">
                  <h3 className="text-xs font-bold text-pl-muted uppercase mb-4 flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4" /> Impact Warning
                 </h3>

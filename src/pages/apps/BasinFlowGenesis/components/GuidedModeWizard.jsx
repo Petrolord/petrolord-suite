@@ -117,7 +117,7 @@ const GuidedModeWizard = () => {
             <div className="flex-1 flex flex-col w-full min-w-0 h-full overflow-hidden">
                 {isDndReady ? (
                     <DragDropContext onDragEnd={onDragEnd}>
-                        <div className="flex-1 p-4 lg:p-8 overflow-y-auto custom-scrollbar bg-pl-bg">
+                        <div className="flex-1 p-4 lg:p-8 lg:pt-16 overflow-y-auto custom-scrollbar bg-pl-bg">
                             <div className="max-w-5xl mx-auto h-full flex flex-col">
                                  <div className="flex-1">
                                     <StepContent step={currentStep} />
