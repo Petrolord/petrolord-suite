@@ -53,15 +53,15 @@ const PortfolioAnalyticsDashboard = ({ projects }) => {
         <div className="space-y-4 h-full flex flex-col">
             <div className="flex justify-between items-center">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <div className="flex justify-between items-center mb-4">
-                        <TabsList className="bg-slate-800">
+                    <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
+                        <TabsList className="flex-wrap h-auto">
                             <TabsTrigger value="overview">Overview</TabsTrigger>
                             <TabsTrigger value="types">By Type</TabsTrigger>
                             <TabsTrigger value="budget">Budget & Cost</TabsTrigger>
                             <TabsTrigger value="risks">Risks</TabsTrigger>
                         </TabsList>
                         
-                        <Button variant="outline" onClick={() => setReportOpen(true)} className="border-dashed border-slate-600 text-slate-400 hover:text-white">
+                        <Button variant="outline" onClick={() => setReportOpen(true)}>
                             <Download className="w-4 h-4 mr-2" /> Export Report
                         </Button>
                     </div>

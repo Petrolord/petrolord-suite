@@ -2,6 +2,8 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
+import { ChartPanel } from '@/components/ui/chart-panel';
+import { scoreBand } from '../RisksDashboard';
 import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { CHART_COLORS, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS } from '@/utils/chartTheme';
@@ -30,10 +32,8 @@ const RiskAnalytics = ({ risks }) => {
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="bg-slate-900 border-slate-800">
-                    <CardHeader><CardTitle className="text-sm text-slate-300">Risk Heatmap (Probability vs Impact)</CardTitle></CardHeader>
-                    <CardContent className="h-[350px]">
-                        <div className="relative h-full w-full rounded-md bg-white p-2">
+                <ChartPanel title="Risk Heatmap (Probability vs Impact)">
+                        <div className="relative h-[350px] w-full">
 <ResponsiveContainer width="100%" height="100%">
                             <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                                 <XAxis type="number" dataKey="prob" name="Probability" domain={[0.5, 5.5]} ticks={[1, 2, 3, 4, 5]} {...AXIS} label={{ value: 'Probability (1 to 5)', position: 'bottom', fill: CHART_COLORS.axisText, fontSize: 12 }} />
@@ -42,7 +42,7 @@ const RiskAnalytics = ({ risks }) => {
                                 <Tooltip cursor={{ strokeDasharray: '3 3' }} content={({ payload }) => {
                                     if (payload && payload.length) {
                                         const { prob, impact, count } = payload[0].payload;
-                                        return <div className="bg-white p-2 rounded border border-slate-300 text-xs text-slate-800">{count} risk{count === 1 ? '' : 's'}<br/>Probability {prob}, impact {impact}</div>;
+                                        return <div className="bg-pl-chart-surface p-2 rounded border border-pl-border text-xs text-pl-text">{count} risk{count === 1 ? '' : 's'}<br/>Probability {prob}, impact {impact}</div>;
                                     }
                                     return null;
                                 }}/>
@@ -54,28 +54,27 @@ const RiskAnalytics = ({ risks }) => {
                             </ScatterChart>
                         </ResponsiveContainer>
 <ChartLogo />
-</div>
-                    </CardContent>
-                </Card>
+                        </div>
+                </ChartPanel>
 
-                <Card className="bg-slate-900 border-slate-800">
-                    <CardHeader><CardTitle className="text-sm text-slate-300">Critical Risks (Top 5)</CardTitle></CardHeader>
+                <Card>
+                    <CardHeader><CardTitle className="text-sm text-pl-text">Critical Risks (Top 5)</CardTitle></CardHeader>
                     <CardContent>
                         <Table>
-                            <TableHeader><TableRow className="border-b-slate-800"><TableHead className="text-white">Risk Title</TableHead><TableHead className="text-white">Category</TableHead><TableHead className="text-white text-right">Score</TableHead></TableRow></TableHeader>
+                            <TableHeader><TableRow><TableHead>Risk Title</TableHead><TableHead>Category</TableHead><TableHead className="text-right">Score</TableHead></TableRow></TableHeader>
                             <TableBody>
                                 {topRisks.map((risk, i) => (
-                                    <TableRow key={i} className="border-b-slate-800 hover:bg-slate-800/50">
-                                        <TableCell className="text-slate-300 font-medium truncate max-w-[200px]" title={risk.title}>{risk.title}</TableCell>
-                                        <TableCell><Badge variant="outline" className="border-slate-600 text-slate-400">{risk.category}</Badge></TableCell>
+                                    <TableRow key={i} className="border-b-pl-border hover:bg-pl-sunken/60">
+                                        <TableCell className="text-pl-text font-medium truncate max-w-[200px]" title={risk.title}>{risk.title}</TableCell>
+                                        <TableCell><Badge variant="neutral">{risk.category}</Badge></TableCell>
                                         <TableCell className="text-right">
-                                            <span className={`font-bold ${risk.risk_score >= 15 ? 'text-red-400' : risk.risk_score >= 8 ? 'text-amber-400' : 'text-green-400'}`}>
-                                                {risk.risk_score}
-                                            </span>
+                                            <Badge variant={scoreBand(risk.risk_score).variant} className="font-pl-mono tabular-nums">
+                                                {risk.risk_score} {scoreBand(risk.risk_score).label}
+                                            </Badge>
                                         </TableCell>
                                     </TableRow>
                                 ))}
-                                {topRisks.length === 0 && <TableRow><TableCell colSpan="3" className="text-center text-slate-500 py-4">No risks identified.</TableCell></TableRow>}
+                                {topRisks.length === 0 && <TableRow><TableCell colSpan="3" className="text-center text-pl-muted py-4">No risks identified.</TableCell></TableRow>}
                             </TableBody>
                         </Table>
                     </CardContent>
